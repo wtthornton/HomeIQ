@@ -66,6 +66,10 @@ class Settings(BaseSettings):
         default="http://device-intelligence-service:8019",
         description="Device Intelligence Service URL"
     )
+    device_intelligence_api_key: SecretStr | None = Field(
+        default=None,
+        description="API key for Device Intelligence Service (X-API-Key auth)"
+    )
     device_intelligence_enabled: bool = True
 
     # OpenAI Configuration
@@ -74,8 +78,8 @@ class Settings(BaseSettings):
         description="OpenAI API key"
     )
     openai_model: str = Field(
-        default="gpt-5-mini",
-        description="OpenAI model to use (gpt-5-mini for production, gpt-5.2-codex for YAML generation pending approval)"
+        default="gpt-4.1",
+        description="OpenAI model to use (gpt-4.1 for chat + tool calling + YAML generation; see implementation/OPENAI_MODEL_RESEARCH_2026.md)"
     )
     openai_max_tokens: int = Field(
         default=8192,

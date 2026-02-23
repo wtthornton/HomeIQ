@@ -96,7 +96,7 @@ class OpenAIClient:
         1. Explicit model parameter
         2. OPENAI_FINE_TUNED_MODEL env var (if set, uses fine-tuned model)
         3. settings.openai_model
-        4. Default: gpt-4o-mini
+        4. Default: gpt-5-mini
         """
         import os
 
@@ -110,7 +110,7 @@ class OpenAIClient:
             self.model = fine_tuned_model
             logger.info(f"Using fine-tuned model: {fine_tuned_model}")
         else:
-            self.model = settings.openai_model or "gpt-4o-mini"
+            self.model = settings.openai_model or "gpt-5-mini"
 
         # Track if using fine-tuned model
         self.is_fine_tuned = self.model.startswith("ft:")

@@ -21,7 +21,7 @@ TappsMCP is an MCP server that exposes tools for:
 
 You only see these tools when the host has started the TappsMCP server and attached it to your session.
 
-**File paths:** For tools that take `file_path`, use **paths relative to the project root** (e.g. `src/main.py`, `tests/test_foo.py`) so they work with both stdio and Docker. If the server is configured with `TAPPS_MCP_HOST_PROJECT_ROOT` (e.g. when using Docker), you can also pass **absolute host paths** (e.g. `C:\projects\myapp\src\main.py`); the server will map them to the project root.
+**File paths:** For tools that take `file_path`, use **paths relative to the project root** (e.g. `services/weather-api/src/main.py`, `tests/test_foo.py`). Prefer relative over absolute paths—on Windows, absolute paths (e.g. `C:\cursor\HomeIQ\...`) can cause dashboard coverage metrics (files scored, gated, scanned) to show 0. If the server is configured with `TAPPS_MCP_HOST_PROJECT_ROOT` (e.g. when using Docker), you can also pass absolute host paths.
 
 ---
 

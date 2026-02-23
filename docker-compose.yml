@@ -1111,8 +1111,9 @@ services:
       - HA_TOKEN=${HA_TOKEN:-}
       - DATA_API_URL=http://data-api:8006
       - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
+      - DEVICE_INTELLIGENCE_API_KEY=${API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4.1}
       - AI_AUTOMATION_API_KEY=${API_KEY:-}
       - DATA_API_KEY=${API_KEY:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -1635,7 +1636,7 @@ services:
       - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
       - OPENAI_YAML_MODEL=${OPENAI_YAML_MODEL:-gpt-5.2-codex}
       - OPENAI_REASONING_EFFORT=high
       - OPENAI_TIMEOUT=90

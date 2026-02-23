@@ -34,20 +34,27 @@ class DeviceIntelligenceClient:
         if settings:
             self.base_url = settings.device_intelligence_url.rstrip("/")
             self.enabled = settings.device_intelligence_enabled
+            self.api_key = settings.device_intelligence_api_key.get_secret_value() if settings.device_intelligence_api_key else None
         else:
             if base_url is None:
                 raise ValueError("Either settings or base_url must be provided")
             self.base_url = base_url.rstrip("/")
             self.enabled = enabled
+            self.api_key = None
 
         self.timeout = 10.0
+        # Build default headers with API key auth (matches device-intelligence-service middleware)
+        headers = {}
+        if self.api_key:
+            headers["X-API-Key"] = self.api_key
         # Create persistent HTTP client (like DataAPIClient pattern)
         self.client = httpx.AsyncClient(
             timeout=self.timeout,
             follow_redirects=True,
+            headers=headers,
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
         )
-        logger.debug(f"Device Intelligence Client initialized: {self.base_url} (enabled: {self.enabled})")
+        logger.debug(f"Device Intelligence Client initialized: {self.base_url} (enabled: {self.enabled}, auth={'yes' if self.api_key else 'no'})")
 
     async def get_devices(self, limit: int = 1000) -> list[dict[str, Any]]:
         """

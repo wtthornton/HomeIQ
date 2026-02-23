@@ -256,6 +256,24 @@ class ContextBuilder:
         # This keeps context size manageable while providing relevant patterns when needed
         logger.debug("⏭️ Skipping automation patterns in static context (added dynamically per-message)")
 
+        # Enhanced Context: Entity inventory by area (CRITICAL for automation creation)
+        # Provides entity_ids (light.office_go, switch.kitchen, etc.) that the LLM needs for YAML generation.
+        # Without this, the LLM has device names but no entity_ids to reference in automation YAML.
+        try:
+            if hasattr(self, '_enhanced_context_builder') and self._enhanced_context_builder:
+                entity_inventory = await self._enhanced_context_builder.build_area_entity_context()
+                if entity_inventory and "Unavailable" not in entity_inventory:
+                    # Truncate to keep within token budget (already limited to 10 entities/domain/area)
+                    max_entity_chars = 6000 if not skip_truncation else 999999
+                    if len(entity_inventory) > max_entity_chars:
+                        entity_inventory = entity_inventory[:max_entity_chars] + "\n... (truncated for token efficiency)"
+                    context_parts.append(f"\n{entity_inventory}")
+                    logger.info(f"✅ Added entity inventory context ({len(entity_inventory)} chars)")
+                else:
+                    logger.warning("⚠️ Entity inventory unavailable")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to add entity inventory context: {e}")
+
         # Enhanced Context: Binary sensors and trigger platforms reference
         # Critical for automation creation - provides entity IDs for motion/presence triggers
         try:

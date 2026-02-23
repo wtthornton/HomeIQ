@@ -123,7 +123,7 @@ def get_ha_client() -> HomeAssistantClient:
 
 
 def get_openai_client() -> OpenAIClient:
-    """Get OpenAI client singleton (default/plan model, e.g. gpt-4o-mini)."""
+    """Get OpenAI client singleton (default/plan model, e.g. gpt-5-mini)."""
     if _openai_client is None:
         return OpenAIClient(api_key=settings.openai_api_key, model=settings.openai_model)
     return _openai_client

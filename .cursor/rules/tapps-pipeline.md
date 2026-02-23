@@ -31,6 +31,10 @@ This runs scoring + quality gate + security scan in a single call.
 Alternatively, call `tapps_score_file`, `tapps_quality_gate`, and `tapps_security_scan` individually.
 Skipping this means quality issues and vulnerabilities go undetected.
 
+**File path format:** Use paths **relative to project root** (e.g. `services/weather-api/src/main.py`).
+Convert absolute paths (e.g. `C:\cursor\HomeIQ\services\...`) to relative before calling.
+Relative paths ensure dashboard coverage metrics (files scored, files gated, files scanned) are recorded correctly on Windows.
+
 ### Before Declaring Work Complete (BLOCKING)
 
 For multi-file changes: You MUST call `tapps_validate_changed()` to batch-validate all changed files.
