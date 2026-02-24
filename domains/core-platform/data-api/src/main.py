@@ -54,7 +54,7 @@ import pathlib
 # Load environment variables
 from dotenv import load_dotenv
 
-from homeiq_data.endpoints import create_integration_router
+from homeiq_observability.endpoints import create_integration_router
 
 # WebSocket endpoints removed - using HTTP polling only
 from homeiq_observability.monitoring import alerting_service, metrics_service

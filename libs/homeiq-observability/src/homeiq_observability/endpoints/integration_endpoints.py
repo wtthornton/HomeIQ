@@ -8,7 +8,7 @@ from typing import Dict, List, Any
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
-from shared.endpoints.service_controller import service_controller
+from .service_controller import service_controller
 
 logger = logging.getLogger(__name__)
 

@@ -16,36 +16,64 @@ logger = logging.getLogger(__name__)
 
 
 class CorrelationMiddleware:
-    """Middleware for handling correlation IDs in web frameworks"""
-    
+    """Middleware for handling correlation IDs in web frameworks.
+
+    Auto-detects framework: works as ASGI middleware for FastAPI/Starlette,
+    or as Flask middleware when `before_request` is available.
+    """
+
     def __init__(self, app=None, header_name: str = 'X-Correlation-ID'):
         self.app = app
         self.header_name = header_name
         if app is not None:
             self.init_app(app)
-    
+
     def init_app(self, app):
-        """Initialize the middleware with the app"""
-        app.before_request(self.before_request)
-        app.after_request(self.after_request)
-    
+        """Initialize the middleware with the app (Flask or ASGI)."""
+        if hasattr(app, 'before_request'):
+            # Flask-style app
+            app.before_request(self.before_request)
+            app.after_request(self.after_request)
+        # else: ASGI app — handled via __call__
+
+    async def __call__(self, scope, receive, send):
+        """ASGI middleware implementation for FastAPI/Starlette."""
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # Get correlation ID from headers
+        headers = dict(scope.get("headers", []))
+        corr_id = headers.get(self.header_name.encode(), b"").decode()
+
+        if not corr_id:
+            corr_id = generate_correlation_id()
+
+        set_correlation_id(corr_id)
+        scope["correlation_id"] = corr_id
+
+        async def send_with_correlation(message):
+            if message["type"] == "http.response.start":
+                resp_headers = list(message.get("headers", []))
+                resp_headers.append((self.header_name.encode(), corr_id.encode()))
+                message["headers"] = resp_headers
+            await send(message)
+
+        await self.app(scope, receive, send_with_correlation)
+
     def before_request(self):
-        """Set up correlation ID before request processing"""
+        """Set up correlation ID before request processing (Flask only)."""
         from flask import request
-        
-        # Get correlation ID from header or generate new one
+
         corr_id = request.headers.get(self.header_name)
         if not corr_id:
             corr_id = generate_correlation_id()
-        
-        # Set in context
+
         set_correlation_id(corr_id)
-        
-        # Add to request context for later use
         request.correlation_id = corr_id
-    
+
     def after_request(self, response):
-        """Add correlation ID to response headers"""
+        """Add correlation ID to response headers (Flask only)."""
         corr_id = get_correlation_id()
         if corr_id:
             response.headers[self.header_name] = corr_id

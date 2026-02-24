@@ -12,7 +12,7 @@ import os
 from fastapi import APIRouter, HTTPException, status, Query
 from pydantic import BaseModel
 
-from shared.influxdb_query_client import InfluxDBQueryClient as AdminAPIInfluxDBClient
+from homeiq_data.influxdb_query_client import InfluxDBQueryClient as AdminAPIInfluxDBClient
 
 # Optional metrics_tracker import (only used in admin-api)
 try:

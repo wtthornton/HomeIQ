@@ -10,7 +10,7 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from homeiq_data.endpoints import create_integration_router, simple_health_router
+from homeiq_observability.endpoints import create_integration_router, simple_health_router
 from src.config_manager import config_manager
 
 health_router = simple_health_router
