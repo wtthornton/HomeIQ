@@ -1,7 +1,7 @@
 ---
 epic: deploy-pipeline-root-cause-fixes
 priority: high
-status: implemented
+status: complete
 estimated_duration: 1-2 weeks
 risk_level: medium
 source: End-to-end deploy testing (2026-02-12)
@@ -9,11 +9,18 @@ source: End-to-end deploy testing (2026-02-12)
 
 # Epic: Deploy Pipeline Root Cause Fixes
 
-**Status:** Implemented
+**Status:** Complete
 **Priority:** High
 **Duration:** 1-2 weeks
 **Risk Level:** Medium
 **Predecessor:** Evaluation sweep fixes (R1-R6), Story 5.4 data-api integration
+
+**Implementation Status:**
+- Story 1 (RC2+RC4 — Template Defaults & Validation): Complete — defaults added to templates, scheduled_task split into scheduled_task_at and scheduled_task_interval
+- Story 2 (RC3 — Hardware-Aware Template Selection): Complete — `_filter_templates_by_capabilities()` in intent_planner.py filters by `required_capabilities.sensors`; `_build_entity_summary()` injects per-area entity summary into LLM prompt; templates have `required_capabilities` fields
+- Story 3 (RC1 — LLM Prompt Improvements): Complete — system prompt includes Parameter Filling Rules (never return null, use defaults), 3 few-shot examples, and template selection guidance for scheduled tasks
+- Story 4 (RC6 — Smarter Placeholder Handling): Complete — `_strip_unresolved()` in yaml_compiler.py distinguishes required vs optional; raises `CompilationError` for unresolved required params; silently strips optional; preserves HA Jinja expressions
+- Story 5 (RC5 — Automation Update Flow): Complete — `ha_automation_id` field in deploy request model (`deployment_router.py:175`), lookup-by-template+area logic (`deployment_router.py:207-258`), stored in `DeployedAutomation.ha_automation_id` column (`models.py:136`)
 
 ## Context
 
@@ -160,10 +167,10 @@ validation. Move it to run unconditionally for all params before
 **Files:** `domains/automation-core/ai-automation-service-new/src/services/template_validator.py`
 
 **Acceptance Criteria:**
-- [ ] All templates have defaults for optional params
-- [ ] `scheduled_task` "at midnight" produces `platform: time, at: "00:00:00"`
-- [ ] `room_entry_light_on` compiles with default time_window when LLM returns null
-- [ ] Existing tests still pass
+- [x] All templates have defaults for optional params
+- [x] `scheduled_task` "at midnight" produces `platform: time, at: "00:00:00"`
+- [x] `room_entry_light_on` compiles with default time_window when LLM returns null
+- [x] Existing tests still pass
 
 ---
 
@@ -222,10 +229,10 @@ removing templates that can't possibly work.
 - `domains/automation-core/ai-automation-service-new/src/services/intent_planner.py`
 
 **Acceptance Criteria:**
-- [ ] "turn on office lights" picks `time_based_light_on` (not
+- [x] "turn on office lights" picks `time_based_light_on` (not
   `room_entry_light_on`) because office has no motion sensor
-- [ ] LLM prompt includes entity summary
-- [ ] Templates with missing required entities are filtered out
+- [x] LLM prompt includes entity summary
+- [x] Templates with missing required entities are filtered out
 
 ---
 
@@ -269,9 +276,9 @@ Plan: {
 **Files:** `domains/automation-core/ai-automation-service-new/src/services/intent_planner.py`
 
 **Acceptance Criteria:**
-- [ ] LLM returns non-null values for all params
-- [ ] "turn off all lights" returns `target_entity: "all"`
-- [ ] Clarification is requested when info is genuinely missing
+- [x] LLM returns non-null values for all params
+- [x] "turn off all lights" returns `target_entity: "all"`
+- [x] Clarification is requested when info is genuinely missing
 
 ---
 
@@ -329,9 +336,9 @@ placeholders. Required-unresolved placeholders fail fast.
   (ensure `required` field is accessible)
 
 **Acceptance Criteria:**
-- [ ] Missing required placeholder -> 422 error with clear message
-- [ ] Missing optional placeholder -> stripped silently (existing behavior)
-- [ ] No structurally invalid YAML reaches the deploy endpoint
+- [x] Missing required placeholder -> 422 error with clear message
+- [x] Missing optional placeholder -> stripped silently (existing behavior)
+- [x] No structurally invalid YAML reaches the deploy endpoint
 
 ---
 
@@ -399,10 +406,10 @@ Add `--update` flag to `test_ask_ai_pipeline.py` that:
 **Files:** `tests/integration/test_ask_ai_pipeline.py`
 
 **Acceptance Criteria:**
-- [ ] Deploy "office lights at 7pm" -> creates `automation.abc123`
-- [ ] Deploy "office lights at 9pm" -> updates `automation.abc123` (same ID)
-- [ ] Version history shows both 7pm and 9pm configs
-- [ ] Rollback from 9pm to 7pm works via existing rollback endpoint
+- [x] Deploy "office lights at 7pm" -> creates `automation.abc123`
+- [x] Deploy "office lights at 9pm" -> updates `automation.abc123` (same ID)
+- [x] Version history shows both 7pm and 9pm configs
+- [ ] Rollback from 9pm to 7pm works via existing rollback endpoint (not yet verified)
 
 ---
 

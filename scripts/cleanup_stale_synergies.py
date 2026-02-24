@@ -108,7 +108,7 @@ async def cleanup_stale_synergies(
             import httpx
             # Import path uses underscore, not hyphen
             import sys
-            sys.path.insert(0, str(project_root / "services" / "ai-pattern-service" / "src"))
+            sys.path.insert(0, str(project_root / "domains" / "pattern-analysis" / "ai-pattern-service" / "src"))
             from clients.data_api_client import DataAPIClient
             from services.device_activity import DeviceActivityService
             

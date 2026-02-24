@@ -14,7 +14,7 @@ aiosqlite==0.22.1  # Phase 1 upgrade - futures-based (no threading.Thread)
 # Async support
 aiohttp>=3.13.2,<4.0.0  # Latest stable (2025)
 httpx>=0.28.1,<0.29.0  # Latest stable (2025 - Epic 41)
-tenacity>=8.2.0
+tenacity==9.1.4  # Phase 2 upgrade - latest stable (Feb 2026)
 
 # Data processing
 pandas>=2.2.0,<3.0.0  # Latest stable (2025 - Epic 41)

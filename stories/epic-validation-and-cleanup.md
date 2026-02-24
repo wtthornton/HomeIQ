@@ -1,7 +1,7 @@
 ---
 epic: validation-and-cleanup
 priority: high
-status: pending
+status: complete
 estimated_duration: 3-5 days
 risk_level: low
 source: PRD – Domain Architecture Restructuring (Epic 5 of 5)
@@ -9,7 +9,17 @@ source: PRD – Domain Architecture Restructuring (Epic 5 of 5)
 
 # Epic: Validation and Cleanup
 
-**Status:** Pending
+**Status:** Complete (All 12 stories done)
+
+**Completion Summary:**
+- Stories 1-12: All complete
+- Docker builds: 6/6 verified across 4 domains, 28 Dockerfiles fixed (install ordering)
+- Docker stack: 47/49 services healthy; 2 HA-dependent services in expected degraded state
+- Tests: 704 passed, 0 failures (fixed ~80 imports, 8 missing Path imports, 5 config paths)
+- E2E: InfluxDB has real data, all Tier 1 services operational, cross-service comms verified
+- Quality: ruff F821 + bandit clean on 70 modified Python files
+- Bugs fixed: automation-linter missing `from pathlib import Path`, rag-service stale image
+- TAPPS MCP config: `${workspaceFolder}` → absolute path in `.cursor/mcp.json` and `~/.claude.json`
 **Priority:** High
 **Duration:** 3--5 days
 **Risk Level:** Low

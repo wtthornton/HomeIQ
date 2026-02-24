@@ -18,8 +18,8 @@ _project_root = str(Path(__file__).resolve().parents[3])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from shared.patterns import RAGContextService, RAGContextRegistry
-from shared.patterns.rag_context_registry import DEFAULT_TOKEN_BUDGET
+from homeiq_patterns import RAGContextService, RAGContextRegistry
+from homeiq_patterns.rag_context_registry import DEFAULT_TOKEN_BUDGET
 
 
 # --- Test fixtures ---

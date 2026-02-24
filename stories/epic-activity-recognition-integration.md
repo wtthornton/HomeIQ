@@ -1,7 +1,7 @@
 ---
 epic: activity-recognition-integration
 priority: high
-status: planned
+status: complete
 estimated_duration: 4-6 weeks
 risk_level: low-medium
 source: implementation/ACTIVITY_RECOGNITION_USAGE_RANKING.md
@@ -10,12 +10,20 @@ reviewed_by: TappsMCP (software-architecture, api-design, database, user-experie
 
 # Epic: Activity Recognition Integration
 
-**Status:** Planned  
-**Priority:** High  
-**Duration:** 4–6 weeks  
-**Risk Level:** Low–Medium  
-**Source:** `implementation/ACTIVITY_RECOGNITION_USAGE_RANKING.md`  
+**Status:** Complete (Phases 1-4 implemented)
+**Priority:** High
+**Duration:** 4–6 weeks
+**Risk Level:** Low–Medium
+**Source:** `implementation/ACTIVITY_RECOGNITION_USAGE_RANKING.md`
 **Reviewed:** TappsMCP experts (software-architecture, api-design-integration, database-data-management, user-experience); Context7 (influxdb-client)
+
+**Implementation Status:**
+- Phase 1 (Stories 1.1, 1.2): Complete — activity-writer service (21KB), data-api activity_endpoints.py
+- Phase 2 Story 2.1: Complete — activity_context_service.py in ha-ai-agent-service
+- Phase 2 Story 2.2: Complete — proactive-agent-service context_analysis_service.py has `analyze_activity()`, data_api_client.py has activity endpoints, ai_prompt_generation_service.py injects activity into LLM prompt
+- Phase 2 Story 2.3: Complete — Health Dashboard displays current activity (OverviewTab activity card)
+- Phase 3 Story 3.1: Complete — ai-pattern-service enriches synergies with activity_context via data-api
+- Phase 4 Stories 4.1, 4.2: Complete — energy-forecasting optimization includes activity_guidance; energy-correlator tags correlations with activity_at_event
 
 ## Overview
 
@@ -53,13 +61,13 @@ Integrate the Activity Recognition service (port 8036) into the HomeIQ architect
 
 ## Success Criteria
 
-- [ ] Activity is written to InfluxDB periodically and queryable via data-api
-- [ ] HA AI Agent injects current activity into Tier 1 context
-- [ ] Proactive Agent includes activity when generating suggestions
-- [ ] Health Dashboard displays current activity with confidence
-- [ ] ai-pattern-service enriches synergies/blueprints with activity labels
-- [ ] energy-forecasting uses activity for optimization recommendations
-- [ ] energy-correlator tags correlations with activity at time of event
+- [x] Activity is written to InfluxDB periodically and queryable via data-api
+- [x] HA AI Agent injects current activity into Tier 1 context
+- [x] Proactive Agent includes activity when generating suggestions
+- [x] Health Dashboard displays current activity with confidence
+- [x] ai-pattern-service enriches synergies/blueprints with activity labels
+- [x] energy-forecasting uses activity for optimization recommendations
+- [x] energy-correlator tags correlations with activity at time of event
 
 ---
 
@@ -72,40 +80,40 @@ Integrate the Activity Recognition service (port 8036) into the HomeIQ architect
 **So that** activity becomes a time-series available to all consumers
 
 **Acceptance Criteria:**
-- [ ] New service or scheduled job queries data-api for recent state_changed events (motion, door, climate, power)
-- [ ] Builds rolling windows of 5 features (motion, door, temp, humidity, power) per time step, normalized
-- [ ] Calls activity-recognition `POST /api/v1/predict` with sequence (min 10 readings)
-- [ ] Writes (activity, activity_id, confidence, timestamp) to InfluxDB using `Point` object; measurement e.g. `activity_state` or `home_activity`; tags/fields per schema
-- [ ] Uses influxdb-client `WriteApi` with context manager; SYNCHRONOUS or async write per HomeIQ patterns
-- [ ] Retry with backoff (tenacity) for activity-recognition and InfluxDB; configurable max attempts (e.g. 3)
-- [ ] On activity-recognition timeout/unavailable: log, skip cycle, do not block; next run proceeds
-- [ ] On InfluxDB write failure: retry; on persistent failure, log and expose via health/metrics
-- [ ] Configurable interval (e.g. every 5–15 minutes)
-- [ ] Health check or metrics: `last_successful_run`, `last_error`, `cycles_succeeded`, `cycles_failed`
-- [ ] Timezone handling: timestamps in UTC (WritePrecision.NS)
+- [x] New service or scheduled job queries data-api for recent state_changed events (motion, door, climate, power)
+- [x] Builds rolling windows of 5 features (motion, door, temp, humidity, power) per time step, normalized
+- [x] Calls activity-recognition `POST /api/v1/predict` with sequence (min 10 readings)
+- [x] Writes (activity, activity_id, confidence, timestamp) to InfluxDB using `Point` object; measurement e.g. `activity_state` or `home_activity`; tags/fields per schema
+- [x] Uses influxdb-client `WriteApi` with context manager; SYNCHRONOUS or async write per HomeIQ patterns
+- [x] Retry with backoff (tenacity) for activity-recognition and InfluxDB; configurable max attempts (e.g. 3)
+- [x] On activity-recognition timeout/unavailable: log, skip cycle, do not block; next run proceeds
+- [x] On InfluxDB write failure: retry; on persistent failure, log and expose via health/metrics
+- [x] Configurable interval (e.g. every 5–15 minutes)
+- [x] Health check or metrics: `last_successful_run`, `last_error`, `cycles_succeeded`, `cycles_failed`
+- [x] Timezone handling: timestamps in UTC (WritePrecision.NS)
 
-**Story Points:** 5  
-**Dependencies:** activity-recognition service running; data-api exposes event queries; InfluxDB  
-**Affected Services:** New activity-writer (or extension of existing service)  
+**Story Points:** 5
+**Dependencies:** activity-recognition service running; data-api exposes event queries; InfluxDB
+**Affected Services:** activity-writer (`domains/device-management/activity-writer/`)
 **References:** influxdb-client Point/WriteApi; InfluxDB connection patterns (connection pooling, error callbacks)
 
 ---
 
 ### Story 1.2: data-api Activity Query Endpoint
 
-**As a** consumer service (HA Agent, Proactive, Dashboard, etc.)  
-**I want** data-api to expose activity data (current and recent history)  
+**As a** consumer service (HA Agent, Proactive, Dashboard, etc.)
+**I want** data-api to expose activity data (current and recent history)
 **So that** I can fetch activity without querying InfluxDB directly
 
 **Acceptance Criteria:**
-- [ ] RESTful endpoints: `GET /api/v1/activity` (current/latest) and `GET /api/v1/activity/history` (historical)
-- [ ] Current: returns single object `{ activity, activity_id, confidence, timestamp }`; 404 when no data
-- [ ] History: `?hours=24` (default) or `?limit=100`; pagination or bounded response for list
-- [ ] Response schema consistent: activity (str), activity_id (int), confidence (float), timestamp (ISO8601)
-- [ ] Uses InfluxDB bucket/measurement written by activity-writer; Flux query or query_api
-- [ ] Caching: `Cache-Control` header or in-memory TTL (e.g. 1–2 min) for current activity to reduce load
-- [ ] Error response: standard format (e.g. `{ detail, status_code }`); 503 when InfluxDB unavailable
-- [ ] Documents response schema and query params in `docs/api/API_REFERENCE.md`
+- [x] RESTful endpoints: `GET /api/v1/activity` (current/latest) and `GET /api/v1/activity/history` (historical)
+- [x] Current: returns single object `{ activity, activity_id, confidence, timestamp }`; 404 when no data
+- [x] History: `?hours=24` (default) or `?limit=100`; pagination or bounded response for list
+- [x] Response schema consistent: activity (str), activity_id (int), confidence (float), timestamp (ISO8601)
+- [x] Uses InfluxDB bucket/measurement written by activity-writer; Flux query or query_api
+- [x] Caching: `Cache-Control` header or in-memory TTL (e.g. 1–2 min) for current activity to reduce load
+- [x] Error response: standard format (e.g. `{ detail, status_code }`); 503 when InfluxDB unavailable
+- [x] Documents response schema and query params in `docs/api/API_REFERENCE.md`
 
 **Story Points:** 3  
 **Dependencies:** Story 1.1 (activity in InfluxDB)  
@@ -123,14 +131,14 @@ Integrate the Activity Recognition service (port 8036) into the HomeIQ architect
 **So that** it can suggest activity-aware automations without me explicitly saying "when I'm cooking"
 
 **Acceptance Criteria:**
-- [ ] New `ActivityContextService` (or equivalent) in ha-ai-agent-service; extends/registers with ContextBuilder
-- [ ] Fetches latest activity from `GET /api/v1/activity` with timeout (e.g. 5s)
-- [ ] Caches briefly (e.g. 1–2 min) to avoid per-message latency; cache key per home if multi-home
-- [ ] Injects one line into system prompt: e.g. "Current household activity: cooking (confidence 0.85)"
-- [ ] Registered in ContextBuilder; included when building context
-- [ ] **Graceful degradation:** On timeout, 404, or 503: omit activity line or use "Activity unavailable"; agent continues without activity
-- [ ] No blocking of conversation flow when data-api or activity is down (fault isolation)
-- [ ] Unit test for context injection; mock for data-api unavailable
+- [x] New `ActivityContextService` (or equivalent) in ha-ai-agent-service; extends/registers with ContextBuilder
+- [x] Fetches latest activity from `GET /api/v1/activity` with timeout (e.g. 5s)
+- [x] Caches briefly (e.g. 1–2 min) to avoid per-message latency; cache key per home if multi-home
+- [x] Injects one line into system prompt: e.g. "Current household activity: cooking (confidence 0.85)"
+- [x] Registered in ContextBuilder; included when building context
+- [x] **Graceful degradation:** On timeout, 404, or 503: omit activity line or use "Activity unavailable"; agent continues without activity
+- [x] No blocking of conversation flow when data-api or activity is down (fault isolation)
+- [x] Unit test for context injection; mock for data-api unavailable
 
 **Story Points:** 3  
 **Dependencies:** Story 1.2 (data-api activity endpoint)  
@@ -145,12 +153,12 @@ Integrate the Activity Recognition service (port 8036) into the HomeIQ architect
 **So that** suggestions are relevant to what I'm actually doing
 
 **Acceptance Criteria:**
-- [ ] Proactive Agent fetches current activity and/or history (`GET /api/v1/activity`, `GET /api/v1/activity/history?hours=1`) from data-api
-- [ ] Adds activity context to the prompt passed to OpenAI for suggestion generation
-- [ ] Example prompt addition: "The household has been in 'cooking' and 'eating' recently; consider suggesting automations that improve kitchen or mealtime comfort"
-- [ ] **Graceful degradation:** On fetch failure or empty: omit activity from context; suggestion generation proceeds without it
-- [ ] Timeout on data-api call (e.g. 5s) to avoid blocking scheduler
-- [ ] Unit or integration test for context assembly with and without activity
+- [x] Proactive Agent fetches current activity and/or history (`GET /api/v1/activity`, `GET /api/v1/activity/history?hours=1`) from data-api — `data_api_client.py` `get_activity()` and `get_activity_history(hours=1)`
+- [x] Adds activity context to the prompt passed to OpenAI for suggestion generation — `ai_prompt_generation_service.py` lines 301-313 injects "### Household Activity" section
+- [x] Example prompt addition: "The household has been in 'cooking' and 'eating' recently; consider suggesting automations that improve kitchen or mealtime comfort"
+- [x] **Graceful degradation:** On fetch failure or empty: omit activity from context; suggestion generation proceeds without it — `analyze_activity()` returns `{"available": False}` on failure
+- [x] Timeout on data-api call (e.g. 5s) to avoid blocking scheduler — dedicated `_activity_client` with 5-second timeout
+- [x] Unit or integration test for context assembly with and without activity — `test_resilience_integration.py` lines 48-86
 
 **Story Points:** 2  
 **Dependencies:** Story 1.2 (data-api activity endpoint)  

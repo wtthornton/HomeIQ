@@ -14,7 +14,7 @@ import pandas as pd
 
 # Add services path for pattern detectors
 project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root / "services" / "ai-pattern-service" / "src"))
+sys.path.insert(0, str(project_root / "domains" / "pattern-analysis" / "ai-pattern-service" / "src"))
 
 try:
     from pattern_analyzer.co_occurrence import CoOccurrencePatternDetector

@@ -4,7 +4,7 @@ Tests for E1.S3: BaseEvaluator + Level Classes (shared/patterns/evaluation/base_
 
 import pytest
 
-from shared.patterns.evaluation.base_evaluator import (
+from homeiq_patterns.evaluation.base_evaluator import (
     BaseEvaluator,
     DetailsEvaluator,
     OutcomeEvaluator,
@@ -12,7 +12,7 @@ from shared.patterns.evaluation.base_evaluator import (
     QualityEvaluator,
     SafetyEvaluator,
 )
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.models import (
     EvalLevel,
     EvalScope,
     EvaluationResult,

@@ -8,14 +8,7 @@ WORKDIR /app
 # Upgrade pip to latest version
 RUN pip install --upgrade pip==25.2
 
-# Copy requirements from service directory
-COPY domains/ml-engine/rag-service/requirements.txt .
-
-# Install Python dependencies with cache mount for faster rebuilds
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --user -r requirements.txt
-
-# Install shared libs from libs/
+# Install shared libs first (required by requirements.txt)
 COPY libs/ /tmp/libs/
 RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-patterns/ \
@@ -23,6 +16,11 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-observability/ \
     /tmp/libs/homeiq-data/ \
     /tmp/libs/homeiq-ha/
+
+# Copy requirements and install remaining dependencies
+COPY domains/ml-engine/rag-service/requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -r requirements.txt
 
 # ============================================================================
 # Final stage

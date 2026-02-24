@@ -1,7 +1,7 @@
 ---
 epic: builtin-evaluator-library
 priority: high
-status: in-progress
+status: complete
 estimated_duration: 3-4 weeks
 risk_level: low
 source: Tango Workspace Reservation Agent Evaluation Framework (Pattern D — Phase 2)
@@ -9,11 +9,13 @@ source: Tango Workspace Reservation Agent Evaluation Framework (Pattern D — Ph
 
 # Epic: Built-in Evaluator Library
 
-**Status:** Planned
+**Status:** Complete
 **Priority:** High
 **Duration:** 3–4 weeks
 **Risk Level:** Low
 **Reference:** Tango Workspace Reservation Agent Evaluation Framework PDF (Levels 1–5)
+
+**Implementation (2026-02-10):** All 10 stories complete. 13 evaluators + 13 rubric YAMLs + 81 tests. See `stories/AGENT_EVAL_IMPLEMENTATION_TRACKER.md`.
 
 ## Overview
 
@@ -70,12 +72,12 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 
 ## Success Criteria
 
-- [ ] 13 built-in evaluators implemented matching Tango's evaluator set
-- [ ] All LLM-judged evaluators use rubric templates loadable from YAML
-- [ ] Rule-based evaluators (path, details) are fully deterministic and do not require LLM calls
-- [ ] Every evaluator has unit tests with representative pass/fail scenarios
-- [ ] Evaluators are registered automatically when referenced in `AgentEvalConfig`
-- [ ] Test coverage: 50+ tests across all evaluators
+- [x] 13 built-in evaluators implemented matching Tango's evaluator set
+- [x] All LLM-judged evaluators use rubric templates loadable from YAML
+- [x] Rule-based evaluators (path, details) are fully deterministic and do not require LLM calls
+- [x] Every evaluator has unit tests with representative pass/fail scenarios
+- [x] Evaluators are registered automatically when referenced in `AgentEvalConfig`
+- [x] Test coverage: 50+ tests across all evaluators
 
 ---
 
@@ -88,15 +90,15 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can track the most fundamental metric — did the agent actually help the user?
 
 **Acceptance Criteria:**
-- [ ] `GoalSuccessRateEvaluator` extends `OutcomeEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l1_outcome.py`
-- [ ] Scope: SESSION — evaluates the entire conversation
-- [ ] Uses `LLMJudge` with a rubric that considers: user intent, agent actions, final state
-- [ ] Rubric template: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/goal_success_rate.yaml`
-- [ ] Output labels: `Yes` (100%), `Partial` (50%), `No` (0%)
-- [ ] Handles multi-turn sessions (considers all turns, not just the last one)
-- [ ] Handles sessions that end in error (API failures, timeouts) — should score `No`
-- [ ] Supports optional `goal_patterns` from config for deterministic pre-screening before LLM judge
-- [ ] Unit tests: successful goal, partial goal, failed goal, API error session
+- [x] `GoalSuccessRateEvaluator` extends `OutcomeEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l1_outcome.py`
+- [x] Scope: SESSION — evaluates the entire conversation
+- [x] Uses `LLMJudge` with a rubric that considers: user intent, agent actions, final state
+- [x] Rubric template: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/goal_success_rate.yaml`
+- [x] Output labels: `Yes` (100%), `Partial` (50%), `No` (0%)
+- [x] Handles multi-turn sessions (considers all turns, not just the last one)
+- [x] Handles sessions that end in error (API failures, timeouts) — should score `No`
+- [x] Supports optional `goal_patterns` from config for deterministic pre-screening before LLM judge
+- [x] Unit tests: successful goal, partial goal, failed goal, API error session
 
 **Story Points:** 3
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 4)
@@ -111,14 +113,14 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can detect when agents use the wrong tool (e.g., booking without searching first)
 
 **Acceptance Criteria:**
-- [ ] `ToolSelectionAccuracyEvaluator` extends `PathEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l2_path.py`
-- [ ] Scope: TOOL_CALL — evaluates each individual tool call against user intent
-- [ ] Rule-based mode: uses `tools` and `paths` from `AgentEvalConfig` to match intent → expected tool
-- [ ] LLM-fallback mode: when intent-to-tool mapping is ambiguous, uses `LLMJudge` to assess
-- [ ] Rubric template: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/tool_selection_accuracy.yaml`
-- [ ] Output labels: `Yes` (correct tool), `No` (wrong tool)
-- [ ] Configuration-driven: tool definitions and intent mappings come from YAML config, not hardcoded
-- [ ] Unit tests: correct tool selected, wrong tool selected, ambiguous intent
+- [x] `ToolSelectionAccuracyEvaluator` extends `PathEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l2_path.py`
+- [x] Scope: TOOL_CALL — evaluates each individual tool call against user intent
+- [x] Rule-based mode: uses `tools` and `paths` from `AgentEvalConfig` to match intent → expected tool
+- [x] LLM-fallback mode: when intent-to-tool mapping is ambiguous, uses `LLMJudge` to assess
+- [x] Rubric template: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/tool_selection_accuracy.yaml`
+- [x] Output labels: `Yes` (correct tool), `No` (wrong tool)
+- [x] Configuration-driven: tool definitions and intent mappings come from YAML config, not hardcoded
+- [x] Unit tests: correct tool selected, wrong tool selected, ambiguous intent
 
 **Story Points:** 3
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 6)
@@ -133,15 +135,15 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can detect when agents skip required steps (e.g., booking without showing options first)
 
 **Acceptance Criteria:**
-- [ ] `ToolSequenceValidatorEvaluator` extends `PathEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l2_path.py`
-- [ ] Scope: SESSION — evaluates the full tool call sequence across the session
-- [ ] Purely rule-based: no LLM required — compares `tool_calls[].sequence_index` against `paths[].sequence` from config
-- [ ] Supports `exceptions` in path rules (e.g., "direct booking OK if user provides exact space ID")
-- [ ] Exception evaluation uses `LLMJudge` only when exception conditions are natural-language based
-- [ ] For each configured path rule, outputs: `Correct Sequence` or `Wrong Sequence` with explanation
-- [ ] Handles missing tools in sequence (tool expected but never called)
-- [ ] Handles extra tools (unexpected tools called between required steps)
-- [ ] Unit tests: correct sequence, missing step, wrong order, valid exception
+- [x] `ToolSequenceValidatorEvaluator` extends `PathEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l2_path.py`
+- [x] Scope: SESSION — evaluates the full tool call sequence across the session
+- [x] Purely rule-based: no LLM required — compares `tool_calls[].sequence_index` against `paths[].sequence` from config
+- [x] Supports `exceptions` in path rules (e.g., "direct booking OK if user provides exact space ID")
+- [x] Exception evaluation uses `LLMJudge` only when exception conditions are natural-language based
+- [x] For each configured path rule, outputs: `Correct Sequence` or `Wrong Sequence` with explanation
+- [x] Handles missing tools in sequence (tool expected but never called)
+- [x] Handles extra tools (unexpected tools called between required steps)
+- [x] Unit tests: correct sequence, missing step, wrong order, valid exception
 
 **Story Points:** 5
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 6)
@@ -156,20 +158,20 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can detect silent failures like AM/PM confusion, wrong entity IDs, or incorrect category mappings
 
 **Acceptance Criteria:**
-- [ ] `ToolParameterAccuracyEvaluator` extends `DetailsEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l3_details.py`
-- [ ] Scope: TOOL_CALL — evaluates parameters of each individual tool call
-- [ ] Rule-based checks for:
+- [x] `ToolParameterAccuracyEvaluator` extends `DetailsEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l3_details.py`
+- [x] Scope: TOOL_CALL — evaluates parameters of each individual tool call
+- [x] Rule-based checks for:
   - Type validation (expected int got string, etc.)
   - Format validation (date format YYYY-MM-DD, time format HH:MM 24-hour)
   - Enum validation (value in allowed set — e.g., `space_category_id` in [1, 2])
   - Range validation (value within min/max bounds)
-- [ ] LLM-judged checks for:
+- [x] LLM-judged checks for:
   - Natural language extraction accuracy (did "2pm" become `14:00`?)
   - Entity resolution (did "living room light" resolve to correct `entity_id`?)
-- [ ] Parameter rules defined in `AgentEvalConfig.parameter_rules` — not hardcoded
-- [ ] Rubric template: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/tool_parameter_accuracy.yaml`
-- [ ] Output labels: `Yes` (correct), `No` (incorrect) per parameter
-- [ ] Unit tests: correct params, wrong type, wrong format, AM/PM confusion, wrong entity
+- [x] Parameter rules defined in `AgentEvalConfig.parameter_rules` — not hardcoded
+- [x] Rubric template: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/tool_parameter_accuracy.yaml`
+- [x] Output labels: `Yes` (correct), `No` (incorrect) per parameter
+- [x] Unit tests: correct params, wrong type, wrong format, AM/PM confusion, wrong entity
 
 **Story Points:** 5
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 4, 6)
@@ -184,20 +186,20 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can detect hallucinations, fabricated details, and self-contradictions
 
 **Acceptance Criteria:**
-- [ ] `CorrectnessEvaluator` extends `QualityEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py`
+- [x] `CorrectnessEvaluator` extends `QualityEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py`
   - Checks: information matches API/tool responses, no fabricated data
   - Labels: `Perfectly Correct` (100%), `Partially Correct` (50%), `Incorrect` (0%)
   - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/correctness.yaml`
-- [ ] `FaithfulnessEvaluator` extends `QualityEvaluator`
+- [x] `FaithfulnessEvaluator` extends `QualityEvaluator`
   - Checks: response stays true to conversation context, no hallucinated preferences
   - Labels: `Completely Yes` (100%), `Generally Yes` (75%), `Generally No` (25%), `Completely No` (0%)
   - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/faithfulness.yaml`
-- [ ] `CoherenceEvaluator` extends `QualityEvaluator`
+- [x] `CoherenceEvaluator` extends `QualityEvaluator`
   - Checks: no self-contradictions, consistent numbers/times/names
   - Labels: `Completely Yes` (100%), `Generally Yes` (75%), `Generally No` (25%), `Completely No` (0%)
   - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/coherence.yaml`
-- [ ] All three use `LLMJudge` with session context (user messages + agent responses + tool results)
-- [ ] Unit tests for each evaluator: passing case, failing case, edge case
+- [x] All three use `LLMJudge` with session context (user messages + agent responses + tool results)
+- [x] Unit tests for each evaluator: passing case, failing case, edge case
 
 **Story Points:** 5
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 4)
@@ -212,20 +214,20 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can detect verbose responses, unhelpful answers, and off-topic replies
 
 **Acceptance Criteria:**
-- [ ] `HelpfulnessEvaluator` extends `QualityEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py`
+- [x] `HelpfulnessEvaluator` extends `QualityEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py`
   - Checks: clear options presented, guides user to next step, actionable
   - Labels: `Very Helpful` (100%), `Somewhat Helpful` (66%), `Neutral/Mixed` (33%), `Not Helpful` (0%)
   - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/helpfulness.yaml`
-- [ ] `ConcisenessEvaluator` extends `QualityEvaluator`
+- [x] `ConcisenessEvaluator` extends `QualityEvaluator`
   - Checks: appropriate length for query complexity, no rambling
   - Labels: `Concise` (100%), `Partially Concise` (50%), `Not Concise` (0%)
   - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/conciseness.yaml`
-- [ ] `ResponseRelevanceEvaluator` extends `QualityEvaluator`
+- [x] `ResponseRelevanceEvaluator` extends `QualityEvaluator`
   - Checks: addresses user's question directly, stays on topic
   - Labels: `Completely Yes` (100%), `Neutral/Mixed` (50%), `Completely No` (0%)
   - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/response_relevance.yaml`
-- [ ] All three use `LLMJudge` with the user message + agent response pair
-- [ ] Unit tests for each evaluator: strong pass, weak pass, failure
+- [x] All three use `LLMJudge` with the user message + agent response pair
+- [x] Unit tests for each evaluator: strong pass, weak pass, failure
 
 **Story Points:** 5
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 4)
@@ -240,13 +242,13 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can detect when agents ignore their own rules (formatting, workflow, constraints)
 
 **Acceptance Criteria:**
-- [ ] `InstructionFollowingEvaluator` extends `QualityEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py`
-- [ ] Uses `LLMJudge` with the agent's system prompt + session trace
-- [ ] Rubric template: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/instruction_following.yaml`
-- [ ] Labels: `Yes` (100%), `Partial` (50%), `No` (0%)
-- [ ] The system prompt text is loaded from `AgentEvalConfig` or provided at evaluation time
-- [ ] This is the generic instruction-following check — agent-specific rule evaluators (like `NoMarkdownHeadings`) are built in Epic 3 using `SystemPromptRuleEvaluator`
-- [ ] Unit tests: full compliance, partial compliance, clear violation
+- [x] `InstructionFollowingEvaluator` extends `QualityEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py`
+- [x] Uses `LLMJudge` with the agent's system prompt + session trace
+- [x] Rubric template: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/instruction_following.yaml`
+- [x] Labels: `Yes` (100%), `Partial` (50%), `No` (0%)
+- [x] The system prompt text is loaded from `AgentEvalConfig` or provided at evaluation time
+- [x] This is the generic instruction-following check — agent-specific rule evaluators (like `NoMarkdownHeadings`) are built in Epic 3 using `SystemPromptRuleEvaluator`
+- [x] Unit tests: full compliance, partial compliance, clear violation
 
 **Story Points:** 3
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 4, 6)
@@ -261,17 +263,17 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can define custom rule evaluators (like Tango's `ConfirmBeforeBooking`, `NoMarkdownHeadings`) via config without writing new evaluator code
 
 **Acceptance Criteria:**
-- [ ] `SystemPromptRuleEvaluator` extends `QualityEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py`
-- [ ] Supports three `check_type` modes:
+- [x] `SystemPromptRuleEvaluator` extends `QualityEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l4_quality.py`
+- [x] Supports three `check_type` modes:
   - `path_validation` — checks tool call sequence (rule-based, no LLM)
   - `response_check` — regex or keyword check on agent response text (rule-based)
   - `llm_judge` — sends rule description + session to LLM for assessment
-- [ ] Instantiated from `AgentEvalConfig.system_prompt_rules[]` — one instance per rule
-- [ ] Each rule has `name`, `description`, `check_type`, `severity` (critical | warning | info)
-- [ ] `path_validation` rules reference tool names and expected ordering from config
-- [ ] `response_check` rules support regex patterns (e.g., `^#{1,3}\s` for markdown heading detection)
-- [ ] Labels: rule-specific (e.g., `Confirmed` / `Not Confirmed`, `No Headings` / `Has Headings`)
-- [ ] Unit tests: path rule pass/fail, response regex pass/fail, LLM judge pass/fail
+- [x] Instantiated from `AgentEvalConfig.system_prompt_rules[]` — one instance per rule
+- [x] Each rule has `name`, `description`, `check_type`, `severity` (critical | warning | info)
+- [x] `path_validation` rules reference tool names and expected ordering from config
+- [x] `response_check` rules support regex patterns (e.g., `^#{1,3}\s` for markdown heading detection)
+- [x] Labels: rule-specific (e.g., `Confirmed` / `Not Confirmed`, `No Headings` / `Has Headings`)
+- [x] Unit tests: path rule pass/fail, response regex pass/fail, LLM judge pass/fail
 
 **Story Points:** 5
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 4, 6)
@@ -286,21 +288,21 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can ensure all agents meet baseline safety standards
 
 **Acceptance Criteria:**
-- [ ] `HarmfulnessEvaluator` extends `SafetyEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l5_safety.py`
+- [x] `HarmfulnessEvaluator` extends `SafetyEvaluator` in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/evaluators/l5_safety.py`
   - Checks: no harmful, dangerous, or malicious content
   - Labels: `Not Harmful` (100%), `Harmful` (0%)
   - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/harmfulness.yaml`
-- [ ] `StereotypingEvaluator` extends `SafetyEvaluator`
+- [x] `StereotypingEvaluator` extends `SafetyEvaluator`
   - Checks: no bias, stereotyping, or discriminatory language
   - Labels: `Not Stereotyping` (100%), `Stereotyping` (0%)
   - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/stereotyping.yaml`
-- [ ] `RefusalEvaluator` extends `SafetyEvaluator`
+- [x] `RefusalEvaluator` extends `SafetyEvaluator`
   - Checks: agent doesn't refuse valid requests (false refusal detection)
   - Labels: `No` (didn't refuse — expected, 100%), `Yes` (refused valid request, 0%)
   - Note: 0% score on refusal is EXPECTED behavior (agent should not refuse valid requests)
   - Rubric: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/refusal.yaml`
-- [ ] All three use `LLMJudge`
-- [ ] Unit tests for each: safe response, harmful response, biased response, valid refusal, false refusal
+- [x] All three use `LLMJudge`
+- [x] Unit tests for each: safe response, harmful response, biased response, valid refusal, false refusal
 
 **Story Points:** 3
 **Dependencies:** Epic: Agent Evaluation Foundation (Stories 3, 4)
@@ -315,16 +317,16 @@ These evaluators are agent-agnostic — they receive tool/path/parameter definit
 **So that** I can understand what each evaluator measures and customize rubrics for my agent's domain
 
 **Acceptance Criteria:**
-- [ ] All 13 rubric YAML files in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/`:
+- [x] All 13 rubric YAML files in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/`:
   - `goal_success_rate.yaml`, `tool_selection_accuracy.yaml`, `tool_parameter_accuracy.yaml`
   - `correctness.yaml`, `faithfulness.yaml`, `coherence.yaml`
   - `helpfulness.yaml`, `conciseness.yaml`, `response_relevance.yaml`
   - `instruction_following.yaml`, `harmfulness.yaml`, `stereotyping.yaml`, `refusal.yaml`
-- [ ] Each rubric contains: `name`, `description`, `prompt_template`, `output_labels`, `score_mapping`, `examples` (pass + fail)
-- [ ] Rubric catalog documentation: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/README.md`
-- [ ] Each rubric documented with: what it measures, when to use it, scoring scale, example judgments
-- [ ] Rubrics are self-contained — all context needed for judgment is in the template
-- [ ] Updated `libs/homeiq-patterns/src/homeiq_patterns/evaluation/README.md` with rubric catalog link
+- [x] Each rubric contains: `name`, `description`, `prompt_template`, `output_labels`, `score_mapping`, `examples` (pass + fail)
+- [x] Rubric catalog documentation: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/rubrics/README.md`
+- [x] Each rubric documented with: what it measures, when to use it, scoring scale, example judgments
+- [x] Rubrics are self-contained — all context needed for judgment is in the template
+- [x] Updated `libs/homeiq-patterns/src/homeiq_patterns/evaluation/README.md` with rubric catalog link
 
 **Story Points:** 3
 **Dependencies:** Stories 1-9

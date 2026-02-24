@@ -32,7 +32,7 @@ Extend the reusable patterns to remaining HomeIQ domains: **Security**, **Comfor
 
 - [x] Security prompts ("motion alert", "lock when away") inject security corpus
 - [x] Comfort prompts ("thermostat schedule", "HVAC away mode") inject comfort corpus
-- [x] Proactive agent uses domain RAG for contextual suggestions
+- [ ] Proactive agent uses domain RAG for contextual suggestions *(GAP: proactive-agent-service uses standalone context_analysis_service.py — not integrated with RAGContextRegistry)*
 - [x] `POST /api/v1/scenes/validate` and `POST /api/v1/scripts/validate` endpoints operational
 - [x] API Automation Edge verifies task execution results and surfaces failures
 - [x] Parameterized sports-lights blueprint generates 5 automations from parameters
@@ -89,7 +89,7 @@ Extend the reusable patterns to remaining HomeIQ domains: **Security**, **Comfor
 **So that** proactive suggestions are relevant, actionable, and specific to the user's setup
 
 **Acceptance Criteria:**
-- [x] Proactive agent integrates with `RAGContextRegistry` (or equivalent context assembly)
+- [ ] Proactive agent integrates with `RAGContextRegistry` *(GAP: proactive-agent-service uses standalone context_analysis_service.py — not integrated with RAGContextRegistry)*
 - [x] Energy savings corpus: peak avoidance tips, solar optimization, battery scheduling advice
 - [x] Security best practices corpus: common automation gaps, notification improvements, presence patterns
 - [x] Comfort optimization corpus: schedule optimization, seasonal adjustment, occupancy-based tips

@@ -10,14 +10,14 @@ from typing import Any
 import pytest
 import pytest_asyncio
 
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.models import (
     BatchReport,
     EvalLevel,
     EvaluationReport,
     EvaluationResult,
     SummaryMatrix,
 )
-from shared.patterns.evaluation.store import (
+from homeiq_patterns.evaluation.store import (
     EvaluationStore,
     NullInfluxDBWriter,
     _parse_period,

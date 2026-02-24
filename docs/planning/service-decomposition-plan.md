@@ -1,10 +1,12 @@
 # Implementation Plan: Service Decomposition (Option C — Criticality + Domain Hybrid)
 
 **Document Type:** Implementation Plan
-**Status:** Draft
+**Status:** Complete (Epics 1-4 done; extended to 9 domains; Epic 5 Validation pending)
 **Created:** February 2026
-**Epic Reference:** Service Group Decomposition
-**Approach:** Option C — Criticality + Domain Hybrid (6 groups)
+**Epic Reference:** Domain Architecture Restructuring (see `stories/epic-domain-architecture-restructuring.md`)
+**Approach:** Option C — Criticality + Domain Hybrid (extended from 6 groups to 9 domains)
+
+> **Note (2026-02-23):** The original 6-group plan was implemented and then extended to 9 domains by splitting `automation-intelligence` (16 services) into 4 sub-domains: automation-core (7), blueprints (4), energy-analytics (3), pattern-analysis (2). Epics 1-4 are complete. See `stories/epic-domain-architecture-restructuring.md` for current status.
 **Reviewed Against:** Docker Compose v2.20+ best practices, GitHub Actions monorepo patterns, Python packaging standards, microservices resilience patterns
 **Verified Environment:** Docker Desktop v4.61.0, Docker Engine v29.2.1, Docker Compose v5.0.2, WSL 2 backend (Windows 11 Pro)
 
@@ -23,6 +25,45 @@ HomeIQ currently runs 52 microservices in a single monorepo with a single `docke
 | Deploy cadence alignment | High | Core deploys rarely; frontends and ML deploy frequently |
 | Group balance | Good | No group exceeds 16 services (vs 33 in data-flow option) |
 | Dependency direction | Clean | Acyclic — all groups depend downward toward core-platform |
+
+---
+
+## Completion Summary
+
+> **Added 2026-02-24 (Story 7, Epic 5):** This section documents final outcomes after Epics 1-4 were completed.
+
+### Migration Outcome
+
+The original plan defined **6 groups**. During implementation, the `automation-intelligence` group (16 services) proved too large for a single ownership boundary. It was split into **4 sub-domains**, bringing the total to **9 domains**:
+
+| Original Group | Final Domain(s) | Service Count |
+|----------------|-----------------|---------------|
+| core-platform | core-platform | 6 (+ha-simulator) |
+| data-collectors | data-collectors | 8 |
+| ml-engine | ml-engine | 10 |
+| automation-intelligence (16) | automation-core | 7 |
+| | blueprints | 4 |
+| | energy-analytics | 3 |
+| | pattern-analysis | 2 |
+| device-management | device-management | 8 |
+| frontends | frontends | 4 (+jaeger) |
+
+### Epic Links
+
+All implementation work is tracked across 5 epics:
+
+| Epic | File | Status |
+|------|------|--------|
+| Epic 1: Domain Folder Restructuring | `stories/epic-domain-folder-restructuring.md` | Complete (Feb 2026) |
+| Epic 2: Shared Library Decomposition | `stories/epic-shared-library-decomposition.md` | Complete (Feb 2026) |
+| Epic 3: Docker Modernization | `stories/epic-docker-modernization.md` | Complete (Feb 2026) |
+| Epic 4: Reference Updates | `stories/epic-reference-updates.md` | Complete (Feb 2026) |
+| Epic 5: Validation and Cleanup | `stories/epic-validation-and-cleanup.md` | In Progress |
+
+### Completion Timeline
+
+- **Epics 1-4:** Completed February 2026
+- **Epic 5 (Validation):** In progress — covers test stabilization, documentation updates (this document), and CI/CD pipeline setup
 
 ---
 
@@ -250,7 +291,7 @@ blueprint-suggestion-service → blueprint-index
 
 ## Implementation Phases
 
-### Phase 0: Preparation (Low Risk)
+### Phase 0: Preparation (Low Risk) -- COMPLETE
 
 **Goal:** Validate the grouping without changing any runtime behavior.
 
@@ -266,9 +307,11 @@ blueprint-suggestion-service → blueprint-index
 
 ---
 
-### Phase 1: Compose File Split (Low-Medium Risk)
+### Phase 1: Compose File Split (Low-Medium Risk) -- COMPLETE
 
 **Goal:** Split the monolithic `docker-compose.yml` into 6 group-specific compose files using the Docker Compose `include` directive (v2.20+).
+
+> **Completion Note (Feb 2026):** Implemented with **9 domain compose files** (not 6) under `domains/{group}/compose.yml`. The root `docker-compose.yml` includes all 9 via the `include` directive. No separate `compose/` directory was created; compose files live directly inside each domain folder.
 
 > **Best Practice Note:** The `include` directive is preferred over the `-f` flag approach. Each included file is parsed as its own Compose application model with its own project directory for relative path resolution. This avoids the long `-f` chains and makes per-group `.env` files possible. See [Docker Compose Include Docs](https://docs.docker.com/compose/how-tos/multiple-compose-files/include/).
 
@@ -358,9 +401,11 @@ networks:
 
 ---
 
-### Phase 2: Shared Library Packaging (Medium Risk)
+### Phase 2: Shared Library Packaging (Medium Risk) -- COMPLETE
 
 **Goal:** Extract `libs/homeiq-patterns/` (formerly `shared/patterns/`) into an installable Python package so groups don't need the full monorepo to build.
+
+> **Completion Note (Feb 2026):** Implemented with **5 installable packages** under `libs/`: homeiq-patterns, homeiq-resilience, homeiq-observability, homeiq-data, homeiq-ha. All use `pyproject.toml` with src-layout and are installed in Dockerfiles via `COPY libs/ /tmp/libs/ && pip install /tmp/libs/homeiq-*/`.
 
 > **Best Practice Note:** Use `pyproject.toml` with setuptools (simplest) or hatch (modern). For a monorepo, editable installs (`pip install -e`) during development and published packages for Docker builds is the recommended dual-mode approach. See [Python Packaging Guide](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/) and [Python Monorepo with UV](https://tomasrepcik.dev/blog/2025/2025-10-26-python-workspaces/).
 
@@ -430,9 +475,11 @@ from homeiq_patterns import RAGContextService, UnifiedValidationRouter, PostActi
 
 ---
 
-### Phase 3: CI/CD Pipeline Split (Medium Risk)
+### Phase 3: CI/CD Pipeline Split (Medium Risk) -- PENDING
 
 **Goal:** Each group gets its own CI pipeline. Changes to Group 2 don't trigger Group 3 builds. Shared library changes cascade to all dependent groups.
+
+> **Status Note (Feb 2026):** CI/CD pipelines have not yet been implemented. The reusable workflow template and path-scoped workflows are planned but blocked on Epic 5 completion.
 
 > **Best Practice Note:** Use reusable workflows to avoid duplication, concurrency groups to cancel superseded runs, and `workflow_dispatch` for cascade rebuilds. See [GitHub Actions Monorepo Guide](https://oneuptime.com/blog/post/2026-02-02-github-actions-monorepos/view) and [Monorepo Path Filters](https://oneuptime.com/blog/post/2025-12-20-monorepo-path-filters-github-actions/view).
 
@@ -556,7 +603,7 @@ jobs:
 
 ---
 
-### Phase 4: Inter-Group Resilience (Medium Risk)
+### Phase 4: Inter-Group Resilience (Medium Risk) -- PARTIAL (4.1-4.4 Complete, 4.5-4.7 Pending)
 
 **Goal:** Services gracefully handle missing groups. If ml-engine is down, automation-intelligence degrades instead of crashing.
 
@@ -658,7 +705,7 @@ async def wait_for_dependency(url: str, name: str, max_retries: int = 30):
 
 ---
 
-### Phase 5: Documentation & Runbook Updates (Low Risk)
+### Phase 5: Documentation & Runbook Updates (Low Risk) -- COMPLETE
 
 **Goal:** All documentation reflects the new group structure.
 
@@ -761,6 +808,50 @@ Phase 0  ──────►  Phase 1  ──────►  Phase 5
 **Quick win:** Phases 0 + 1 + 5 can be completed first as a standalone milestone, delivering immediate value (selective group deployment) without touching any Python code.
 
 **Total estimated scope:** Phases 0-5 represent ~20-30 days of engineering effort across the full rollout.
+
+---
+
+## Deviations from Original Plan
+
+> **Added 2026-02-24 (Story 7, Epic 5):** Documents where the implementation diverged from this plan.
+
+| # | Deviation | Explanation |
+|---|-----------|-------------|
+| 1 | **9 domains instead of 6 groups** | `automation-intelligence` (16 services) was split into automation-core (7), blueprints (4), energy-analytics (3), pattern-analysis (2) for better ownership boundaries. |
+| 2 | **`ha-simulator` added to core-platform** | Not in the original plan. Added during restructuring as a development/testing tool that belongs with core infrastructure. |
+| 3 | **`automation-trace-service` added to automation-core** | New service (port 8044) created during the Deploy Pipeline Root Cause Fixes epic for HA automation trace + logbook ingestion. |
+| 4 | **`activity-writer` and `activity-recognition` added to device-management** | New services from the Activity Recognition Integration epic (ports 8045 and 8043 respectively). |
+| 5 | **No `compose/` directory** | The plan originally implied a `docker/` directory (Phase 0, Step 0.1). Compose files instead live directly at `domains/{group}/compose.yml`. |
+| 6 | **`frontends` group has 4 services, not 3** | Jaeger (port 16686) was included in the frontends domain. The original plan listed 3 services + infra but the actual compose includes Jaeger as a full service. |
+| 7 | **5 shared libraries instead of 1** | Phase 2 planned packaging `homeiq-patterns` only. The implementation created 5 packages: homeiq-patterns, homeiq-resilience, homeiq-observability, homeiq-data, homeiq-ha. |
+
+---
+
+## Lessons Learned
+
+> **Added 2026-02-24 (Story 7, Epic 5):** Post-implementation retrospective.
+
+### What Worked Well
+
+1. **Direct migration without symlinks.** For a pre-production project with no live traffic, moving files directly (rather than using symlinks or gradual redirects) was the fastest path. Symlinks would have added complexity with Docker build contexts for no benefit.
+
+2. **9 domains provided better ownership boundaries than 6.** The original `automation-intelligence` group with 16 services was too broad. Splitting it into 4 sub-domains (automation-core, blueprints, energy-analytics, pattern-analysis) made each domain's purpose immediately clear and reduced the blast radius of changes.
+
+3. **Shared library packaging as pip packages.** Installing `libs/homeiq-*` as proper pip packages (with `pyproject.toml` and src-layout) eliminated `sys.path` manipulation across 50+ services. The import pattern `from homeiq_patterns import X` is clean and works identically in development (`pip install -e`) and Docker builds.
+
+### What Caused Problems
+
+4. **`sys.path` hacks in tests were the biggest source of post-migration regressions.** Many test files had their own `sys.path.insert()` calls pointing to old paths. These broke silently (tests passed locally due to editable installs but failed in Docker). Every test file needed auditing.
+
+5. **Missing `from pathlib import Path` imports were hidden by runtime import chains.** Some modules relied on `Path` being imported transitively through other modules' `sys.path` setup code. When that setup code was removed, `NameError: name 'Path' is not defined` errors appeared in modules that never explicitly imported it. This was only caught during testing.
+
+6. **Docker build context assumptions.** Several Dockerfiles assumed they were built from the service directory. The migration to `docker-bake.hcl` with `context = "."` (project root) required updating all `COPY` paths. Services with relative `COPY ../../../shared/` paths were the most fragile.
+
+### Recommendations for Similar Migrations
+
+7. **Run the full test suite after every service migration, not just at the end.** Batch migration (moving all services, then testing) made it harder to isolate which move broke which test.
+
+8. **Install shared libraries as pip packages (`pip install -e libs/X`) before removing any `sys.path` hacks.** This ensures the new import paths are available before the old ones are removed, allowing incremental migration.
 
 ---
 

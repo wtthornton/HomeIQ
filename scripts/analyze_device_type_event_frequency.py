@@ -13,7 +13,7 @@ from collections import defaultdict
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root / "services" / "ai-automation-service" / "src"))
+sys.path.insert(0, str(project_root / "domains" / "automation-core" / "ai-automation-service-new" / "src"))
 
 from clients.data_api_client import DataAPIClient
 import pandas as pd

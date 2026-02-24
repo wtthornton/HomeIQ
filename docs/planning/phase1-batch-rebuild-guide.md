@@ -37,7 +37,7 @@ The Phase 1 automated batch rebuild system provides:
 
 ### Services Covered
 
-**42+ Services** organized into 7 categories (Docker host ports: see [Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)):
+**42+ Services** organized into 7 categories (Docker host ports: see [Services Ranked by Importance](../architecture/SERVICES_RANKED_BY_IMPORTANCE.md)):
 
 | Category | Count | Examples |
 |----------|-------|----------|

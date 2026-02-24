@@ -4,9 +4,9 @@ Tests for E2.S1: L1 GoalSuccessRate Evaluator
 
 import pytest
 
-from shared.patterns.evaluation.evaluators.l1_outcome import GoalSuccessRateEvaluator
-from shared.patterns.evaluation.llm_judge import JudgeRubric, LLMJudge, LLMProvider
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.evaluators.l1_outcome import GoalSuccessRateEvaluator
+from homeiq_patterns.evaluation.llm_judge import JudgeRubric, LLMJudge, LLMProvider
+from homeiq_patterns.evaluation.models import (
     AgentResponse,
     EvalLevel,
     SessionTrace,

@@ -247,6 +247,38 @@ class DataAPIClient:
             logger.error("Unexpected error fetching entities: %s", e)
             raise
 
+    async def fetch_activity_history(
+        self,
+        hours: int = 24,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """
+        Fetch activity history from Data API (Epic Activity Recognition Story 3.1).
+
+        Returns list of {activity, activity_id, confidence, timestamp}.
+        Graceful degradation: on failure returns [].
+        """
+        try:
+            params: dict[str, Any] = {"hours": hours, "limit": limit}
+            response = await self._cross_client.call(
+                "GET", "/api/v1/activity/history", params=params,
+            )
+            response.raise_for_status()
+            data = response.json()
+            if isinstance(data, list):
+                return data
+            logger.warning("Unexpected activity history response format: %s", type(data))
+            return []
+        except CircuitOpenError:
+            logger.warning("Data API circuit open — activity history returning empty")
+            return []
+        except httpx.HTTPError as e:
+            logger.warning("Failed to fetch activity history: %s", e)
+            return []
+        except Exception as e:
+            logger.warning("Unexpected error fetching activity history: %s", e)
+            return []
+
     async def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Generic GET request to the Data API."""
         try:

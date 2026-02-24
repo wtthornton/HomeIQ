@@ -19,6 +19,14 @@ from ..config import settings
 from ..services.intent_planner import IntentPlanner
 from ..templates.template_library import TemplateLibrary
 
+# Agent Evaluation Framework: SessionTracer wiring (E3.S6)
+try:
+    from homeiq_patterns.evaluation.session_tracer import InMemorySink, trace_session
+    _eval_sink = InMemorySink()  # TODO: replace with persistent sink when E4 is implemented
+    _TRACING_AVAILABLE = True
+except ImportError:
+    _TRACING_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/automation", tags=["automation"])
@@ -84,6 +92,7 @@ def get_intent_planner(
 
 
 @router.post("/plan", response_model=PlanResponse)
+@(trace_session(agent_name="ai-automation-service", sink=_eval_sink, model="gpt-4o") if _TRACING_AVAILABLE else lambda f: f)
 @handle_route_errors("create automation plan")
 async def create_plan(
     request: PlanRequest, db: DatabaseSession, planner: IntentPlanner = Depends(get_intent_planner)

@@ -2,7 +2,7 @@
 epic: homeiq-rebuild-deployment
 phase: 0
 priority: critical
-status: in-progress
+status: planned
 estimated_duration: 1 day
 ---
 
@@ -12,7 +12,7 @@ estimated_duration: 1 day
 **Phase:** 0 (Pre-Deployment Preparation)
 **Priority:** CRITICAL
 **Estimated Duration:** 1 day (8 hours)
-**Status:** In Progress
+**Status:** Planned (Not Started)
 
 ## Overview
 

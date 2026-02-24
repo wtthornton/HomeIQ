@@ -1,53 +1,42 @@
 # Services Architecture Quick Reference
 
-**Last Updated:** February 23, 2026 (Phase 5: Service Groups + Resilience)
+**Last Updated:** February 24, 2026 (Phase 5: Service Groups + Resilience)
 **Purpose:** Quick reference for developers working on services
 
 ---
 
 ## Services Overview
 
-**Total Services:** 50+ microservices organized into **6 deployment groups** and 7 criticality tiers
+**Total Services:** 50 microservices organized into **9 domain groups** and 7 criticality tiers
 
 For detailed documentation, see:
-- **[Service Groups Architecture](./service-groups.md)** - Canonical reference for the 6-group structure
+- **[Service Groups Architecture](./service-groups.md)** - Canonical reference for the 9-domain structure
 - **[Services Ranked by Importance](./SERVICES_RANKED_BY_IMPORTANCE.md)** - Comprehensive tier classification and operational guidelines
 
 ---
 
 ## Service Group Architecture
 
-HomeIQ services are organized into 6 independently deployable groups:
+HomeIQ services are organized into 9 independently deployable domain groups:
 
 ```
-                    +------------------------------+
-                    |   Group 1: core-platform     |
-                    |   influxdb, data-api,        |
-                    |   websocket-ingestion,       |
-                    |   admin-api, health-dashboard,|
-                    |   data-retention             |
-                    +---------------+--------------+
-                                    |
-          +-------------------------+-------------------------+
-          |                         |                         |
-          v                         v                         v
-  +----------------+     +-------------------+     +-------------------+
-  | Group 2:       |     | Group 3:          |     | Group 5:          |
-  | data-collectors|     | ml-engine         |     | device-management |
-  | 8 services     |     | 9+1 services      |     | 8 services        |
-  +----------------+     +---------+---------+     +-------------------+
-                                   |
-                                   v
-                    +------------------------------+
-                    |   Group 4: automation-       |
-                    |   intelligence (16 services) |
-                    +---------------+--------------+
-                                    |
-                                    v
-                    +------------------------------+
-                    |   Group 6: frontends         |
-                    |   3 services + infra          |
-                    +------------------------------+
+                         ┌──────────────────────┐
+                         │  1. core-platform (6) │
+                         └──────────┬───────────┘
+                                    │
+         ┌──────────────┬───────────┼───────────┐
+         │              │           │            │
+         ▼              ▼           ▼            ▼
+  2. data-        3. ml-engine  7. device-   8. pattern-
+  collectors (8)     (10)       mgmt (8)     analysis (2)
+                     │
+          ┌──────────┼──────────┐
+          ▼          ▼          ▼
+   4. automation- 5. blue-  6. energy-
+     core (7)     prints(4) analytics(3)
+          │
+          ▼
+     9. frontends (4)
 ```
 
 ### Group Deployment Commands
@@ -204,7 +193,7 @@ await httpx.get("http://data-api:8006/api/entities")  # Use CrossGroupClient ins
 All cross-group HTTP calls **must** use the `libs/homeiq-resilience` module. This provides circuit breakers, retry with backoff, Bearer auth, and OTel trace propagation.
 
 ```python
-from shared.resilience import CircuitBreaker, CircuitOpenError, CrossGroupClient
+from homeiq_resilience import CircuitBreaker, CircuitOpenError, CrossGroupClient
 
 # Module-level shared breaker (one per target group)
 _core_platform_breaker = CircuitBreaker(name="core-platform")
@@ -351,7 +340,7 @@ await influxdb_manager.write_points(points)
 | device-intelligence-service | 8028 | Device capabilities | SQLite |
 | openvino-service | 8026 | Embeddings/reranking | PyTorch |
 | ml-service | 8025 | Clustering/anomaly | scikit-learn |
-| energy-forecasting | 8037 | Energy predictions | InfluxDB |
+| energy-forecasting | 8042 | Energy predictions | InfluxDB |
 
 ### Tier 4+: Enhanced/Optional
 
@@ -465,7 +454,7 @@ HA → websocket-ingestion → enrichment-pipeline → InfluxDB
 
 ## Related Documentation
 
-- **[Service Groups Architecture](./service-groups.md)** - Canonical reference for the 6-group deployment structure
+- **[Service Groups Architecture](./service-groups.md)** - Canonical reference for the 9-domain deployment structure
 - **[Services Ranked by Importance](./SERVICES_RANKED_BY_IMPORTANCE.md)** - Complete service tier classification
 - **[Deployment Runbook](../deployment/DEPLOYMENT_RUNBOOK.md)** - Per-group deployment procedures
 - **[Master Call Tree Index](../../implementation/analysis/MASTER_CALL_TREE_INDEX.md)** - All call trees
@@ -480,7 +469,7 @@ HA → websocket-ingestion → enrichment-pipeline → InfluxDB
 
 ---
 
-**Last Updated:** February 23, 2026
+**Last Updated:** February 24, 2026
 **Epic Context:** Post-Epic 31 (enrichment-pipeline deprecated), Phase 5 (Service Groups + Resilience)
-**Service Count:** 50+ microservices across 6 deployment groups and 7 criticality tiers
+**Service Count:** 50 microservices across 9 domain groups and 7 criticality tiers
 

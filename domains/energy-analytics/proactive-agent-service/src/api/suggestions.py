@@ -22,6 +22,14 @@ from ..services.suggestion_storage_service import SuggestionStorageService
 from ..clients.ha_agent_client import HAAgentClient
 from ..models import Suggestion, InvalidSuggestionReport
 
+# Agent Evaluation Framework: SessionTracer wiring (E3.S5)
+try:
+    from homeiq_patterns.evaluation.session_tracer import InMemorySink, trace_session
+    _eval_sink = InMemorySink()  # TODO: replace with persistent sink when E4 is implemented
+    _TRACING_AVAILABLE = True
+except ImportError:
+    _TRACING_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
@@ -298,6 +306,7 @@ def set_scheduler_service(service: Any):
 
 
 @router.post("/trigger")
+@(trace_session(agent_name="proactive-agent", sink=_eval_sink, model="gpt-4o") if _TRACING_AVAILABLE else lambda f: f)
 async def trigger_suggestion_generation():
     """
     Manually trigger suggestion generation (for testing/debugging).

@@ -14,14 +14,14 @@ import pandas as pd
 
 # Add services path for DataAPIClient
 project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root / "services" / "ai-pattern-service" / "src"))
+sys.path.insert(0, str(project_root / "domains" / "pattern-analysis" / "ai-pattern-service" / "src"))
 
 try:
     from clients.data_api_client import DataAPIClient
 except ImportError:
     # Fallback: Try alternative import path
     try:
-        from services.ai_pattern_service.src.clients.data_api_client import DataAPIClient
+        from domains.pattern_analysis.ai_pattern_service.src.clients.data_api_client import DataAPIClient
     except ImportError:
         logger = logging.getLogger(__name__)
         logger.error("Could not import DataAPIClient - event validation will be skipped")

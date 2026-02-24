@@ -7,11 +7,11 @@ and LLM fallback for unrecognised intents.
 
 import pytest
 
-from shared.patterns.evaluation.evaluators.l2_template_match import (
+from homeiq_patterns.evaluation.evaluators.l2_template_match import (
     TemplateAppropriatenessEvaluator,
 )
-from shared.patterns.evaluation.llm_judge import LLMJudge, LLMProvider
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.llm_judge import LLMJudge, LLMProvider
+from homeiq_patterns.evaluation.models import (
     EvalLevel,
     EvalScope,
     SessionTrace,

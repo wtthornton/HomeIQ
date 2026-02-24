@@ -19,7 +19,7 @@ _agent_service_root = str(
 if _agent_service_root not in sys.path:
     sys.path.insert(0, _agent_service_root)
 
-from shared.patterns import RAGContextService, RAGContextRegistry
+from homeiq_patterns import RAGContextService, RAGContextRegistry
 
 
 # ------------------------------------------------------------------ #

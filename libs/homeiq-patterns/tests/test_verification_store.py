@@ -18,12 +18,12 @@ _project_root = str(Path(__file__).resolve().parents[3])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from shared.patterns import VerificationResult, VerificationWarning, VerificationResultStore
+from homeiq_patterns import VerificationResult, VerificationWarning, VerificationResultStore
 
 # Import InfluxDB store directly
 _store_path = (
     Path(__file__).resolve().parents[3]
-    / "services" / "ai-automation-service-new" / "src" / "services"
+    / "domains" / "automation-core" / "ai-automation-service-new" / "src" / "services"
 )
 sys.path.insert(0, str(_store_path.parent.parent))
 

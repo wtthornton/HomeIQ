@@ -32,6 +32,14 @@ from starlette.responses import Response as StarletteResponse
 
 from .orchestrator.service_manager import ServiceManager
 
+# Agent Evaluation Framework: SessionTracer wiring (E3.S7)
+try:
+    from homeiq_patterns.evaluation.session_tracer import InMemorySink, trace_session
+    _eval_sink = InMemorySink()  # TODO: replace with persistent sink when E4 is implemented
+    _TRACING_AVAILABLE = True
+except ImportError:
+    _TRACING_AVAILABLE = False
+
 # Configure structured logging
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 
@@ -394,6 +402,7 @@ async def get_service_status(
 
 
 @app.post("/analyze", response_model=AnalysisResponse, tags=["analysis"])
+@(trace_session(agent_name="ai-core-service", sink=_eval_sink, model="orchestrator") if _TRACING_AVAILABLE else lambda f: f)
 async def analyze_data(
     request: Request,
     body: AnalysisRequest,
@@ -427,6 +436,7 @@ async def analyze_data(
 
 
 @app.post("/patterns", response_model=PatternDetectionResponse, tags=["patterns"])
+@(trace_session(agent_name="ai-core-service", sink=_eval_sink, model="orchestrator") if _TRACING_AVAILABLE else lambda f: f)
 async def detect_patterns(
     request: Request,
     body: PatternDetectionRequest,

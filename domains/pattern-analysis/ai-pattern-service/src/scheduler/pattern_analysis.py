@@ -213,6 +213,11 @@ class PatternAnalysisScheduler:
                     synergies = self._merge_synergies(pattern_based_synergies, regular_synergies)
                     job_result["synergies_detected"] = len(synergies)
 
+                    # Story 3.1: Enrich synergies with activity context (same time window as analysis)
+                    synergies = await self._enrich_synergies_with_activity(
+                        data_client, synergies, events_df, job_result
+                    )
+
                     # Validate pattern-synergy alignment
                     await self._validate_pattern_synergy_alignment(
                         all_patterns, synergies, job_result
@@ -549,6 +554,45 @@ class PatternAnalysisScheduler:
         )
 
         return merged_synergies
+
+    async def _enrich_synergies_with_activity(
+        self,
+        data_client: DataAPIClient,
+        synergies: list[dict[str, Any]],
+        _events_df: pd.DataFrame,
+        job_result: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """
+        Enrich synergy metadata with activity_context from data-api (Story 3.1).
+
+        Fetches activity history for the same time window as events; adds
+        activity_context to each synergy's context_metadata. Graceful degradation:
+        on data-api failure or empty activity, returns synergies unchanged.
+        """
+        if not synergies:
+            return synergies
+        try:
+            # Same window as pattern analysis: last 24h (events_df is 7 days but we use 24h for activity)
+            activity_items = await data_client.fetch_activity_history(hours=24, limit=100)
+            if not activity_items:
+                logger.debug("No activity history for enrichment; continuing without activity_context")
+                return synergies
+            unique_activities = sorted(
+                {str(item.get("activity", "")).strip() for item in activity_items if item.get("activity")},
+                key=str.lower,
+            )
+            if not unique_activities:
+                return synergies
+            logger.info("Enriched synergies with activity_context: %s", unique_activities[:10])
+            for syn in synergies:
+                ctx = syn.get("context_metadata") or {}
+                ctx["activity_context"] = unique_activities
+                syn["context_metadata"] = ctx
+            return synergies
+        except Exception as e:
+            logger.warning("Activity enrichment failed (graceful degradation): %s", e)
+            job_result.setdefault("warnings", []).append(f"Activity enrichment skipped: {e}")
+            return synergies
 
     async def _validate_pattern_synergy_alignment(
         self,

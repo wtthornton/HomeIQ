@@ -1,4 +1,4 @@
-<!-- tapps-agents-version: 0.2.1 -->
+<!-- tapps-agents-version: 0.4.0 -->
 # TappsMCP - instructions for AI assistants
 
 When the **TappsMCP** MCP server is configured in your host (Claude Code, Cursor, VS Code Copilot, Claude Desktop, etc.), you have access to tools that provide **deterministic code quality checks, doc lookup, and domain expert advice**. TappsMCP is a quality toolset designed to help your project and LLM produce the best possible code - use it to avoid hallucinated APIs, missed quality steps, and inconsistent output.
@@ -7,7 +7,7 @@ When the **TappsMCP** MCP server is configured in your host (Claude Code, Cursor
 
 ## What TappsMCP is
 
-TappsMCP is an MCP server that provides a comprehensive quality toolset for your project. It exposes 24 tools for:
+TappsMCP is an MCP server that provides a comprehensive quality toolset for your project. It exposes 26 tools for:
 
 - **Scoring** Python files (0-100 across 7 categories: complexity, security, maintainability, test coverage, performance, structure, devex)
 - **Security scanning** (Bandit + secret detection with redacted context)
@@ -61,6 +61,8 @@ You only see these tools when the host has started the TappsMCP server and attac
 | **tapps_dependency_graph** | When you want to **understand module dependencies** - builds import graph, detects circular imports, and calculates coupling metrics. Use before refactoring or when investigating import errors. |
 | **tapps_workflow** | When you want the **recommended tool call order** for a specific task type (general, feature, bugfix, refactor, security, review). |
 | **tapps_init** | At **pipeline bootstrap** - creates AGENTS.md, TECH_STACK.md, platform rules, optionally warms caches. Call once per project (or when upgrading). |
+| **tapps_upgrade** | After a **TappsMCP version update** - validates and refreshes AGENTS.md, platform rules, hooks, agents, skills, and settings. Preserves custom command paths (e.g. PyInstaller exe). Use `dry_run: true` to preview. |
+| **tapps_doctor** | When **diagnosing configuration issues** - checks binary availability, MCP configs, platform rules, generated files, hooks, and installed quality tools. Returns per-check pass/fail with remediation hints. |
 
 ---
 
@@ -141,8 +143,8 @@ When `tapps_init` generates platform-specific files, it also creates **hooks**, 
 **Claude Code** (`.claude/hooks/`): 7 hook scripts that enforce quality automatically:
 - **SessionStart** - Injects TappsMCP awareness on session start and after compaction
 - **PostToolUse (Edit/Write)** - Reminds you to run `tapps_quick_check` after Python edits
-- **Stop** - Blocks session end (exit 2) until `tapps_validate_changed` is called
-- **TaskCompleted** - Blocks task completion (exit 2) until validation passes
+- **Stop** - Reminds you to run `tapps_validate_changed` before session end (non-blocking)
+- **TaskCompleted** - Reminds you to validate before marking task complete (non-blocking)
 - **PreCompact** - Backs up scoring context before context window compaction
 - **SubagentStart** - Injects TappsMCP awareness into spawned subagents
 
@@ -169,7 +171,7 @@ Three SKILL.md files per platform in `.claude/skills/` or `.cursor/skills/`:
 
 When `tapps_init` is called with `agent_teams=True`, additional hooks enable a quality watchdog teammate pattern:
 - **TeammateIdle** - Keeps the quality watchdog active while issues remain
-- **TaskCompleted** - Blocks task completion if quality gates fail
+- **TaskCompleted** - Reminds about quality gate validation on task completion
 
 Set `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to enable Agent Teams.
 

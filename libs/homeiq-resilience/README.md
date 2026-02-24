@@ -14,7 +14,7 @@ Shared resilience utilities for services that make HTTP calls across service-gro
 ## Usage Pattern
 
 ```python
-from shared.resilience import CircuitBreaker, CircuitOpenError, CrossGroupClient
+from homeiq_resilience import CircuitBreaker, CircuitOpenError, CrossGroupClient
 
 # Module-level shared breaker (one per target group)
 _core_platform_breaker = CircuitBreaker(name="core-platform")
@@ -41,40 +41,46 @@ class DataAPIClient:
 
 ## Service Groups & Breaker Mapping
 
-| Group | Name | Key Services | Breaker Name |
-|-------|------|-------------|-------------|
-| G1 | core-platform | data-api, websocket-ingestion, admin-api | `core-platform` |
-| G2 | data-collectors | weather-api, smart-meter, carbon-intensity | `data-collectors` |
-| G3 | ml-engine | device-intelligence, ai-core, openvino | `ml-engine` |
-| G4 | automation-intelligence | ha-ai-agent, ai-automation, ai-pattern, blueprint-suggestion, proactive-agent | N/A (same-group) |
-| G5 | device-management | device-health-monitor, device-setup-assistant | N/A (same-group) |
-| G6 | frontends | health-dashboard | N/A (same-group) |
+| Domain | Name | Key Services | Breaker Name |
+|--------|------|-------------|-------------|
+| D1 | core-platform | data-api, websocket-ingestion, admin-api | `core-platform` |
+| D2 | data-collectors | weather-api, smart-meter, carbon-intensity | `data-collectors` |
+| D3 | ml-engine | device-intelligence, ai-core, openvino | `ml-engine` |
+| D4 | automation-core | ha-ai-agent, ai-automation-service-new, ai-query | N/A (same-domain) |
+| D5 | blueprints | blueprint-index, blueprint-suggestion, automation-miner | N/A (same-domain) |
+| D6 | energy-analytics | energy-correlator, energy-forecasting, proactive-agent | N/A (same-domain) |
+| D7 | device-management | device-health-monitor, device-setup-assistant | N/A (same-domain) |
+| D8 | pattern-analysis | ai-pattern-service, api-automation-edge | N/A (same-domain) |
+| D9 | frontends | health-dashboard, ai-automation-ui | N/A (same-domain) |
 
-**Rule**: Only cross-group HTTP calls get circuit breakers. Same-group calls use direct httpx.
+**Rule**: Only cross-domain HTTP calls get circuit breakers. Same-domain calls use direct httpx.
 
 ## Rollout Status
 
-| Service | Group | Cross-Group Targets | Status |
-|---------|-------|-------------------|--------|
-| ha-ai-agent-service | G4 | data-api (G1), device-intelligence (G3) | Done (PoC) |
-| blueprint-suggestion-service | G4 | data-api (G1) | Done |
-| ai-pattern-service | G4 | data-api (G1) | Done |
-| ai-automation-service-new | G4 | data-api (G1) | Done |
-| proactive-agent-service | G4 | data-api (G1), weather-api (G2) | Done |
-| device-health-monitor | G5 | data-api (G1), device-intelligence (G3) | Done |
+| Service | Domain | Cross-Domain Targets | Status |
+|---------|--------|---------------------|--------|
+| ha-ai-agent-service | D4 | data-api (D1), device-intelligence (D3) | Done (PoC) |
+| blueprint-suggestion-service | D5 | data-api (D1) | Done |
+| ai-pattern-service | D8 | data-api (D1) | Done |
+| ai-automation-service-new | D4 | data-api (D1) | Done |
+| proactive-agent-service | D6 | data-api (D1), weather-api (D2) | Done |
+| device-health-monitor | D7 | data-api (D1), device-intelligence (D3) | Done |
 
 ## Group-Level Alerting Rules
 
 The `GroupHealthCheck.to_dict()` response includes a `group` field. Use this for differentiated alerting:
 
-| Group | Severity | Response Time | Rationale |
-|-------|----------|--------------|-----------|
-| core-platform (G1) | P1 (page) | Immediate | All services depend on data-api |
-| ml-engine (G3) | P2 (alert) | 5 min | AI features degrade but basic function continues |
-| automation-intelligence (G4) | P2 (alert) | 5 min | Automation suggestions stop but HA control works |
-| data-collectors (G2) | P3 (notify) | 15 min | Weather/energy data stale but not blocking |
-| device-management (G5) | P3 (notify) | 10 min | Health monitoring delayed but devices work |
-| frontends (G6) | P3 (notify) | 10 min | Dashboard unavailable but backend functional |
+| Domain | Severity | Response Time | Rationale |
+|--------|----------|--------------|-----------|
+| core-platform (D1) | P1 (page) | Immediate | All services depend on data-api |
+| ml-engine (D3) | P2 (alert) | 5 min | AI features degrade but basic function continues |
+| automation-core (D4) | P2 (alert) | 5 min | Automation suggestions stop but HA control works |
+| data-collectors (D2) | P3 (notify) | 15 min | Weather/energy data stale but not blocking |
+| blueprints (D5) | P3 (notify) | 15 min | Blueprint suggestions stop but automations work |
+| energy-analytics (D6) | P3 (notify) | 10 min | Energy forecasting delayed but system works |
+| device-management (D7) | P3 (notify) | 10 min | Health monitoring delayed but devices work |
+| pattern-analysis (D8) | P3 (notify) | 10 min | Pattern detection delayed but core works |
+| frontends (D9) | P3 (notify) | 10 min | Dashboard unavailable but backend functional |
 
 ### Example Prometheus Alert
 
@@ -114,7 +120,7 @@ All services use `setup_logging(service_name, group_name="...")` which embeds th
   "timestamp": "2026-02-23T10:00:00Z",
   "level": "INFO",
   "service": "ai-pattern-service",
-  "group": "automation-intelligence",
+  "group": "automation-core",
   "message": "Fetched 150 events from Data API"
 }
 ```

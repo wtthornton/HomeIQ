@@ -30,14 +30,14 @@ echo -e "${GREEN}[1/6] Analyzing Python Code Complexity...${NC}\n"
 # Check if radon is installed
 if command -v radon &> /dev/null; then
     echo "Cyclomatic Complexity (average per module):"
-    radon cc services/*/src/*.py services/*/src/**/*.py -a -s 2>/dev/null || echo "No Python files found or radon error"
-    
+    radon cc domains/*/*/src/*.py domains/*/*/src/**/*.py -a -s 2>/dev/null || echo "No Python files found or radon error"
+
     echo -e "\nMaintainability Index (A=85-100, B=65-84, C=50-64, D/F=0-49):"
-    radon mi services/*/src/*.py services/*/src/**/*.py -s 2>/dev/null || echo "No Python files found or radon error"
-    
+    radon mi domains/*/*/src/*.py domains/*/*/src/**/*.py -s 2>/dev/null || echo "No Python files found or radon error"
+
     # Generate JSON report
-    radon cc services/ -a --json > reports/quality/python-complexity.json 2>/dev/null || true
-    radon mi services/ --json > reports/quality/python-maintainability.json 2>/dev/null || true
+    radon cc domains/ -a --json > reports/quality/python-complexity.json 2>/dev/null || true
+    radon mi domains/ --json > reports/quality/python-maintainability.json 2>/dev/null || true
     
     echo -e "${GREEN}✓ Reports saved to reports/quality/${NC}\n"
 else
@@ -53,8 +53,8 @@ echo -e "${GREEN}[2/7] Running Python Linting (Ruff - Fast)...${NC}\n"
 # Ruff (fast, modern linter)
 if command -v ruff &> /dev/null; then
     echo "Running Ruff linting..."
-    ruff check services/ --output-format=json > reports/quality/ruff-report.json 2>/dev/null || true
-    ruff check services/ > reports/quality/ruff-report.txt 2>&1 || true
+    ruff check domains/ --output-format=json > reports/quality/ruff-report.json 2>/dev/null || true
+    ruff check domains/ > reports/quality/ruff-report.txt 2>&1 || true
     
     # Count issues
     RUFF_ERRORS=$(grep -c '"code":' reports/quality/ruff-report.json 2>/dev/null || echo "0")
@@ -75,8 +75,8 @@ echo -e "${GREEN}[2b/7] Running Python Linting (Pylint - Legacy)...${NC}\n"
 
 if command -v pylint &> /dev/null; then
     # Run pylint on key services (limit output)
-    pylint services/data-api/src/ --output-format=text --reports=y > reports/quality/pylint-data-api.txt 2>&1 || true
-    pylint services/admin-api/src/ --output-format=text --reports=y > reports/quality/pylint-admin-api.txt 2>&1 || true
+    pylint domains/core-platform/data-api/src/ --output-format=text --reports=y > reports/quality/pylint-data-api.txt 2>&1 || true
+    pylint domains/core-platform/admin-api/src/ --output-format=text --reports=y > reports/quality/pylint-admin-api.txt 2>&1 || true
     
     # Show summary
     echo "Pylint scores saved to reports/quality/pylint-*.txt"
@@ -93,7 +93,7 @@ echo -e "${GREEN}[2c/7] Running Python Type Checking (mypy)...${NC}\n"
 
 if command -v mypy &> /dev/null; then
     echo "Running mypy type checking..."
-    mypy services/ --show-error-codes > reports/quality/mypy-report.txt 2>&1 || true
+    mypy domains/ --show-error-codes > reports/quality/mypy-report.txt 2>&1 || true
     
     # Count type errors
     MYPY_ERRORS=$(grep -c "error:" reports/quality/mypy-report.txt 2>/dev/null || echo "0")
@@ -117,38 +117,38 @@ echo -e "${GREEN}[3/7] Analyzing TypeScript Code...${NC}\n"
 
 # Health Dashboard
 echo "Analyzing health-dashboard (React + TypeScript)..."
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 
 # Type checking
 echo "Running TypeScript type checking..."
-npm run type-check 2>&1 | tee ../../reports/quality/typescript-health-dashboard-typecheck.txt || true
+npm run type-check 2>&1 | tee ../../../reports/quality/typescript-health-dashboard-typecheck.txt || true
 
 # ESLint with complexity rules
 echo -e "\nRunning ESLint with complexity analysis..."
-npm run lint -- --format json --output-file ../../reports/quality/eslint-health-dashboard-report.json 2>/dev/null || true
-npm run lint 2>&1 | tee ../../reports/quality/eslint-health-dashboard-report.txt || true
+npm run lint -- --format json --output-file ../../../reports/quality/eslint-health-dashboard-report.json 2>/dev/null || true
+npm run lint 2>&1 | tee ../../../reports/quality/eslint-health-dashboard-report.txt || true
 
-cd ../..
+cd ../../..
 echo -e "${GREEN}✓ health-dashboard analysis complete${NC}\n"
 
 # AI Automation UI
 echo "Analyzing ai-automation-ui (React + TypeScript + Zustand)..."
-cd services/ai-automation-ui
+cd domains/frontends/ai-automation-ui
 
 # Type checking (using tsc directly if no type-check script)
 if [ -f "package.json" ] && grep -q '"type-check"' package.json; then
-    npm run type-check 2>&1 | tee ../../reports/quality/typescript-ai-automation-ui-typecheck.txt || true
+    npm run type-check 2>&1 | tee ../../../reports/quality/typescript-ai-automation-ui-typecheck.txt || true
 else
     echo "Running TypeScript type checking (tsc)..."
-    npx tsc --noEmit --skipLibCheck 2>&1 | tee ../../reports/quality/typescript-ai-automation-ui-typecheck.txt || true
+    npx tsc --noEmit --skipLibCheck 2>&1 | tee ../../../reports/quality/typescript-ai-automation-ui-typecheck.txt || true
 fi
 
 # ESLint with complexity rules
 echo -e "\nRunning ESLint with complexity analysis..."
-npm run lint -- --format json --output-file ../../reports/quality/eslint-ai-automation-ui-report.json 2>/dev/null || true
-npm run lint 2>&1 | tee ../../reports/quality/eslint-ai-automation-ui-report.txt || true
+npm run lint -- --format json --output-file ../../../reports/quality/eslint-ai-automation-ui-report.json 2>/dev/null || true
+npm run lint 2>&1 | tee ../../../reports/quality/eslint-ai-automation-ui-report.txt || true
 
-cd ../..
+cd ../../..
 echo -e "${GREEN}✓ ai-automation-ui analysis complete${NC}\n"
 
 echo -e "${GREEN}✓ TypeScript analysis complete${NC}\n"
@@ -161,18 +161,18 @@ echo -e "${GREEN}[4/7] Detecting Code Duplication...${NC}\n"
 
 if command -v jscpd &> /dev/null; then
     echo "Analyzing Python services..."
-    jscpd services/data-api/src/ services/admin-api/src/ services/websocket-ingestion/src/ \
+    jscpd domains/core-platform/data-api/src/ domains/core-platform/admin-api/src/ domains/core-platform/websocket-ingestion/src/ \
         --format python --threshold 3 --min-lines 5 \
         --output reports/duplication/python 2>/dev/null || echo "No duplicates found or jscpd error"
-    
+
     echo -e "\nAnalyzing TypeScript/React code..."
-    jscpd services/health-dashboard/src/ \
-        --config services/health-dashboard/.jscpd.json 2>/dev/null || echo "No duplicates found or jscpd error"
-    
+    jscpd domains/core-platform/health-dashboard/src/ \
+        --config domains/core-platform/health-dashboard/.jscpd.json 2>/dev/null || echo "No duplicates found or jscpd error"
+
     # AI Automation UI duplication check
-    if [ -d "services/ai-automation-ui/src" ]; then
+    if [ -d "domains/frontends/ai-automation-ui/src" ]; then
         echo -e "\nAnalyzing ai-automation-ui..."
-        jscpd services/ai-automation-ui/src/ \
+        jscpd domains/frontends/ai-automation-ui/src/ \
             --format typescript --threshold 3 --min-lines 5 \
             --output reports/duplication/typescript-ai-automation-ui 2>/dev/null || echo "No duplicates found or jscpd error"
     fi

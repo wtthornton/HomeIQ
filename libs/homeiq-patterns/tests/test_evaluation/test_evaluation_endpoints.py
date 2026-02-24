@@ -33,7 +33,7 @@ except IndexError:
 # since data-api src might not be in path. Instead we test the
 # models and response schemas, and the store/scheduler/alert integration.
 
-from shared.patterns.evaluation import (
+from homeiq_patterns.evaluation import (
     AlertEngine,
     BatchReport,
     EvalAlert,
@@ -170,7 +170,7 @@ class TestAlertEndpointIntegration:
     def test_no_alerts_when_passing(self):
         engine = AlertEngine()
         report = _make_report(score=0.85)
-        from shared.patterns.evaluation import AgentEvalConfig
+        from homeiq_patterns.evaluation import AgentEvalConfig
         config = AgentEvalConfig(
             agent_name="test-agent",
             thresholds={"goal_success_rate": 0.70},
@@ -181,7 +181,7 @@ class TestAlertEndpointIntegration:
     def test_alert_created_on_violation(self):
         engine = AlertEngine()
         report = _make_report(score=0.50)
-        from shared.patterns.evaluation import AgentEvalConfig
+        from homeiq_patterns.evaluation import AgentEvalConfig
         config = AgentEvalConfig(
             agent_name="test-agent",
             thresholds={"goal_success_rate": 0.70},
@@ -194,7 +194,7 @@ class TestAlertEndpointIntegration:
     def test_acknowledge_alert(self):
         engine = AlertEngine()
         report = _make_report(score=0.50)
-        from shared.patterns.evaluation import AgentEvalConfig
+        from homeiq_patterns.evaluation import AgentEvalConfig
         config = AgentEvalConfig(
             agent_name="test-agent",
             thresholds={"goal_success_rate": 0.70},
@@ -208,7 +208,7 @@ class TestAlertEndpointIntegration:
     def test_get_active_alerts_by_agent(self):
         engine = AlertEngine()
         report = _make_report(score=0.50)
-        from shared.patterns.evaluation import AgentEvalConfig
+        from homeiq_patterns.evaluation import AgentEvalConfig
         config = AgentEvalConfig(
             agent_name="test-agent",
             thresholds={"goal_success_rate": 0.70, "correctness": 0.70},
@@ -219,7 +219,7 @@ class TestAlertEndpointIntegration:
 
     def test_auto_resolve_on_recovery(self):
         engine = AlertEngine()
-        from shared.patterns.evaluation import AgentEvalConfig
+        from homeiq_patterns.evaluation import AgentEvalConfig
         config = AgentEvalConfig(
             agent_name="test-agent",
             thresholds={"goal_success_rate": 0.70},
@@ -233,7 +233,7 @@ class TestAlertEndpointIntegration:
 
     def test_alert_deduplication(self):
         engine = AlertEngine()
-        from shared.patterns.evaluation import AgentEvalConfig
+        from homeiq_patterns.evaluation import AgentEvalConfig
         config = AgentEvalConfig(
             agent_name="test-agent",
             thresholds={"goal_success_rate": 0.70},

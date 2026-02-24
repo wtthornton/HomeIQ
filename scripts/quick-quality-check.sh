@@ -22,11 +22,11 @@ echo -e "${YELLOW}[1/4] Python Complexity...${NC}"
 
 if command -v radon &> /dev/null; then
     # Check for high complexity (> 15)
-    COMPLEX_FILES=$(radon cc services/*/src/ -n C -s 2>/dev/null | grep -v "^$" | wc -l)
-    
+    COMPLEX_FILES=$(radon cc domains/*/*/src/ -n C -s 2>/dev/null | grep -v "^$" | wc -l)
+
     if [ "$COMPLEX_FILES" -gt 0 ]; then
         echo -e "${RED}  ✗ Found $COMPLEX_FILES files with complexity > 10${NC}"
-        radon cc services/*/src/ -n C -s 2>/dev/null | head -20
+        radon cc domains/*/*/src/ -n C -s 2>/dev/null | head -20
         WARNINGS=$((WARNINGS + 1))
     else
         echo -e "${GREEN}  ✓ All files have acceptable complexity${NC}"
@@ -41,7 +41,7 @@ fi
 
 echo -e "\n${YELLOW}[2/4] TypeScript Linting...${NC}"
 
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 LINT_OUTPUT=$(npm run lint 2>&1 || true)
 
 if echo "$LINT_OUTPUT" | grep -q "error"; then
@@ -55,7 +55,7 @@ else
     echo -e "${GREEN}  ✓ No linting issues${NC}"
 fi
 
-cd ../..
+cd ../../..
 
 # ============================================
 # Type Checking
@@ -63,7 +63,7 @@ cd ../..
 
 echo -e "\n${YELLOW}[3/4] TypeScript Type Checking...${NC}"
 
-cd services/health-dashboard
+cd domains/core-platform/health-dashboard
 TYPE_OUTPUT=$(npm run type-check 2>&1 || true)
 
 if echo "$TYPE_OUTPUT" | grep -q "error TS"; then
@@ -74,7 +74,7 @@ else
     echo -e "${GREEN}  ✓ No type errors${NC}"
 fi
 
-cd ../..
+cd ../../..
 
 # ============================================
 # Quick Duplication Check
@@ -84,7 +84,7 @@ echo -e "\n${YELLOW}[4/4] Quick Duplication Check...${NC}"
 
 if command -v jscpd &> /dev/null; then
     # Check just the main services for duplication
-    DUP_OUTPUT=$(jscpd services/data-api/src/ services/admin-api/src/ \
+    DUP_OUTPUT=$(jscpd domains/core-platform/data-api/src/ domains/core-platform/admin-api/src/ \
         --threshold 5 --min-lines 10 --reporters console 2>/dev/null || true)
     
     if echo "$DUP_OUTPUT" | grep -q "duplicates"; then

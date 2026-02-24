@@ -9,7 +9,7 @@ import sys
 from dotenv import load_dotenv
 
 # Add paths for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../services/ai-automation-service/src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../domains/automation-core/ai-automation-service-new/src'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../shared'))
 
 load_dotenv()

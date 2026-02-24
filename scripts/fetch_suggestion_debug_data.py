@@ -14,7 +14,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 # Add the services directory to the path so we can import from the service
-sys.path.insert(0, str(Path(__file__).parent.parent / "services" / "ai-automation-service" / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "domains" / "automation-core" / "ai-automation-service-new" / "src"))
 
 # Configuration
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8018/api")

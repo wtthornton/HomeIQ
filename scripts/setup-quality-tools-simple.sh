@@ -37,8 +37,8 @@ fi
 
 echo -e "${GREEN}[2/3] Setting up TypeScript quality tools...${NC}\n"
 
-if [ -d "services/health-dashboard" ]; then
-    cd services/health-dashboard
+if [ -d "domains/core-platform/health-dashboard" ]; then
+    cd domains/core-platform/health-dashboard
     
     if command -v npm &> /dev/null; then
         echo "Installing ESLint complexity plugin..."
@@ -65,10 +65,10 @@ command -v ruff && echo "  ✓ ruff" || echo "  ✗ ruff (not installed)"
 command -v mypy && echo "  ✓ mypy" || echo "  ✗ mypy (not installed)"
 
 echo -e "\nChecking TypeScript tools..."
-if [ -d "services/health-dashboard" ]; then
-    cd services/health-dashboard
+if [ -d "domains/core-platform/health-dashboard" ]; then
+    cd domains/core-platform/health-dashboard
     npm list eslint-plugin-complexity > /dev/null 2>&1 && echo "  ✓ eslint-plugin-complexity" || echo "  ✗ eslint-plugin-complexity (not installed)"
-    cd ../..
+    cd ../../..
 fi
 
 echo -e "\n${GREEN}========================================${NC}"

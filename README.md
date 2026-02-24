@@ -159,7 +159,7 @@ Once HomeIQ is running, explore these interfaces:
 
 ## 🏗️ Architecture Overview
 
-HomeIQ runs as a collection of **50+ microservices** organized into **6 deployment groups** and 7 criticality tiers, designed for single-home deployment on resource-constrained hardware like an Intel NUC.
+HomeIQ runs as a collection of **50 microservices** organized into **9 domain groups** and 7 criticality tiers, designed for single-home deployment on resource-constrained hardware like an Intel NUC.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -194,7 +194,7 @@ Home Assistant → websocket-ingestion → InfluxDB (direct writes)
 - Query via data-api endpoint
 
 For detailed architecture documentation, see:
-- [Service Groups Architecture](docs/architecture/service-groups.md) - The 6-group deployment structure
+- [Service Groups Architecture](docs/architecture/service-groups.md) - The 9-domain deployment structure
 - [Services Ranked by Importance](docs/architecture/SERVICES_RANKED_BY_IMPORTANCE.md) - Complete service tier classification
 - [Event Flow Architecture](docs/architecture/event-flow-architecture.md) - Event processing and data flow
 - [Development Guide](docs/DEVELOPMENT.md) - Complete system architecture
@@ -202,18 +202,21 @@ For detailed architecture documentation, see:
 
 ---
 
-## Service Groups
+## Domain Groups
 
-Services are organized into **6 independently deployable groups** for selective deployment and blast-radius isolation:
+Services are organized into **9 independently deployable domain groups** for selective deployment and blast-radius isolation:
 
-| Group | Name | Count | Purpose |
-|-------|------|-------|---------|
+| # | Domain | Count | Purpose |
+|---|--------|-------|---------|
 | 1 | **core-platform** | 6 | Data backbone (InfluxDB, data-api, websocket-ingestion, admin-api, dashboard, retention) |
 | 2 | **data-collectors** | 8 | Stateless data fetchers (weather, energy, sports, air quality, calendar, logs) |
-| 3 | **ml-engine** | 9+1 | ML inference and training (OpenVINO, NER, OpenAI, RAG, device-intelligence) |
-| 4 | **automation-intelligence** | 16 | Automation generation, patterns, blueprints, energy analysis |
-| 5 | **device-management** | 8 | Device health, setup, classification, activity recognition |
-| 6 | **frontends** | 3+infra | AI automation UI, observability dashboard, Jaeger tracing |
+| 3 | **ml-engine** | 10 | ML inference and training (OpenVINO, NER, OpenAI, RAG, device-intelligence) |
+| 4 | **automation-core** | 7 | Core automation engine (NL to YAML, entity resolution, validation, deployment) |
+| 5 | **blueprints** | 4 | Blueprint discovery, indexing, ML recommendations |
+| 6 | **energy-analytics** | 3 | Energy correlator, forecasting, proactive agent |
+| 7 | **device-management** | 8 | Device health, setup, classification, activity recognition |
+| 8 | **pattern-analysis** | 2 | Behavioral patterns, synergy detection |
+| 9 | **frontends** | 4 | AI automation UI, observability dashboard, health dashboard, Jaeger |
 
 ```bash
 # Deploy selectively by group
@@ -256,14 +259,14 @@ See [Service Groups Architecture](docs/architecture/service-groups.md) for full 
 
 | Metric | Value |
 |--------|-------|
-| **Active Services** | 50+ microservices across 6 groups and 7 tiers |
+| **Active Services** | 50 microservices across 9 domain groups and 7 tiers |
 | **Target Hardware** | Intel NUC (i3/i5, 8-16GB RAM) |
 | **Memory Footprint** | ~8-10 GB (optimized) |
 | **Optimized For** | Single home, 50-100 devices |
-| **Backend** | Python 3.12+, FastAPI 0.128.x, Pydantic 2.12 |
-| **Frontend** | React 18, TypeScript 5, Vite 6, TailwindCSS 4 |
-| **AI/ML** | OpenVINO 2024.x, OpenAI GPT-4o-mini, LangChain 0.3.x |
-| **Database** | InfluxDB 2.7+ (time-series), SQLite (metadata) |
+| **Backend** | Python 3.12, FastAPI 0.115–0.124, Pydantic 2.x |
+| **Frontend** | React 18.3, TypeScript 5.9, Vite 6.4, TailwindCSS 3.4 |
+| **AI/ML** | Sentence-Transformers 3.3, OpenAI GPT-4o-mini, scikit-learn |
+| **Database** | InfluxDB 2.7.12 (time-series), SQLite (metadata) |
 
 For detailed technology information, see [TECH_STACK.md](TECH_STACK.md).
 

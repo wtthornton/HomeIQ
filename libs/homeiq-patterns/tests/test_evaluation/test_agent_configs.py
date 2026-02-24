@@ -7,16 +7,16 @@ Tests for E3.S5-S7: Agent-Specific Evaluation Configurations
 
 import pytest
 
-from shared.patterns.evaluation.config import ConfigLoader
-from shared.patterns.evaluation.llm_judge import LLMJudge, LLMProvider
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.config import ConfigLoader
+from homeiq_patterns.evaluation.llm_judge import LLMJudge, LLMProvider
+from homeiq_patterns.evaluation.models import (
     AgentResponse,
     EvalLevel,
     SessionTrace,
     ToolCall,
     UserMessage,
 )
-from shared.patterns.evaluation.registry import EvaluationRegistry
+from homeiq_patterns.evaluation.registry import EvaluationRegistry
 
 
 class MockProvider(LLMProvider):
@@ -32,6 +32,8 @@ def _config_path(filename: str):
 
     return (
         Path(__file__).resolve().parent.parent.parent
+        / "src"
+        / "homeiq_patterns"
         / "evaluation"
         / "configs"
         / filename

@@ -9,12 +9,7 @@ RUN pip install --upgrade pip==25.2
 # Install build dependencies
 RUN apk add --no-cache gcc musl-dev linux-headers
 
-# Copy requirements and install dependencies with cache mount
-COPY domains/energy-analytics/energy-correlator/requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --user --no-cache-dir -r requirements.txt
-
-# Install shared libs
+# Install shared libs first (required by requirements.txt)
 COPY libs/ /tmp/libs/
 RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-patterns/ \
@@ -22,6 +17,11 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-observability/ \
     /tmp/libs/homeiq-data/ \
     /tmp/libs/homeiq-ha/
+
+# Copy requirements and install remaining dependencies
+COPY domains/energy-analytics/energy-correlator/requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --user --no-cache-dir -r requirements.txt
 
 # Production stage
 FROM python:3.12-alpine

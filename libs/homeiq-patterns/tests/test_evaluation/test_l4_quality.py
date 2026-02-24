@@ -6,8 +6,8 @@ Sprint 4: Helpfulness, Conciseness, ResponseRelevance, InstructionFollowing, Sys
 
 import pytest
 
-from shared.patterns.evaluation.config import PromptRule
-from shared.patterns.evaluation.evaluators.l4_quality import (
+from homeiq_patterns.evaluation.config import PromptRule
+from homeiq_patterns.evaluation.evaluators.l4_quality import (
     CoherenceEvaluator,
     ConcisenessEvaluator,
     CorrectnessEvaluator,
@@ -17,8 +17,8 @@ from shared.patterns.evaluation.evaluators.l4_quality import (
     ResponseRelevanceEvaluator,
     SystemPromptRuleEvaluator,
 )
-from shared.patterns.evaluation.llm_judge import LLMJudge, LLMProvider
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.llm_judge import LLMJudge, LLMProvider
+from homeiq_patterns.evaluation.models import (
     AgentResponse,
     EvalLevel,
     EvalScope,

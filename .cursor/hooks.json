@@ -2,15 +2,15 @@
   "hooks": [
     {
       "event": "beforeMCPExecution",
-      "command": ".cursor/hooks/tapps-before-mcp.sh"
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/tapps-before-mcp.ps1"
     },
     {
       "event": "afterFileEdit",
-      "command": ".cursor/hooks/tapps-after-edit.sh"
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/tapps-after-edit.ps1"
     },
     {
       "event": "stop",
-      "command": ".cursor/hooks/tapps-stop.sh"
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/tapps-stop.ps1"
     }
   ]
 }

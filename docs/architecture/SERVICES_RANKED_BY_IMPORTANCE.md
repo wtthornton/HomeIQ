@@ -1,30 +1,33 @@
 # HomeIQ Services Ranked by Importance
 
-**Last Updated:** February 23, 2026
+**Last Updated:** February 24, 2026
 **Purpose:** Comprehensive ranking of all services by criticality to system operation
 
 ---
 
 ## Overview
 
-HomeIQ consists of **50+ microservices** organized into a layered architecture. This document ranks services by their importance to system operation, helping teams prioritize monitoring, deployment, and incident response.
+HomeIQ consists of **50 microservices** organized into a layered architecture. This document ranks services by their importance to system operation, helping teams prioritize monitoring, deployment, and incident response.
 
 ---
 
 ## Service Groups (Deployment Architecture)
 
-Services are organized into **6 independently deployable groups** based on deployment criticality and domain boundaries. For the canonical reference, see [Service Groups Architecture](./service-groups.md).
+Services are organized into **9 independently deployable domain groups** based on deployment criticality and domain boundaries. For the canonical reference, see [Service Groups Architecture](./service-groups.md).
 
-| Group | Name | Count | Services | Compose File |
-|-------|------|-------|----------|--------------|
+| # | Domain | Count | Services | Compose File |
+|---|--------|-------|----------|--------------|
 | 1 | **core-platform** | 6 | influxdb, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention | `domains/core-platform/compose.yml` |
 | 2 | **data-collectors** | 8 | weather-api, smart-meter, sports-api, air-quality, carbon-intensity, electricity-pricing, calendar, log-aggregator | `domains/data-collectors/compose.yml` |
-| 3 | **ml-engine** | 9+1 | openvino-service, ml-service, ner-service, openai-service, rag-service, ai-core-service, ai-training-service, device-intelligence-service, model-prep | `domains/ml-engine/compose.yml` |
-| 4 | **automation-intelligence** | 16 | ha-ai-agent, ai-automation-service-new, ai-query, ai-pattern, ai-code-executor, automation-miner, automation-linter, yaml-validation, blueprint-index, blueprint-suggestion, rule-recommendation-ml, api-automation-edge, proactive-agent, energy-correlator, energy-forecasting, automation-trace | `domains/automation-core/compose.yml` |
-| 5 | **device-management** | 8 | device-health-monitor, device-context-classifier, device-setup-assistant, device-database-client, device-recommender, activity-recognition, activity-writer, ha-setup-service | `domains/device-management/compose.yml` |
-| 6 | **frontends** | 3+infra | ai-automation-ui, observability-dashboard, jaeger | `domains/frontends/compose.yml` |
+| 3 | **ml-engine** | 10 | openvino-service, ml-service, ner-service, openai-service, rag-service, ai-core-service, ai-training-service, device-intelligence-service, nlp-fine-tuning, model-prep | `domains/ml-engine/compose.yml` |
+| 4 | **automation-core** | 7 | ha-ai-agent, ai-automation-service-new, ai-query, automation-linter, yaml-validation, ai-code-executor, automation-trace | `domains/automation-core/compose.yml` |
+| 5 | **blueprints** | 4 | blueprint-index, blueprint-suggestion, rule-recommendation-ml, automation-miner | `domains/blueprints/compose.yml` |
+| 6 | **energy-analytics** | 3 | energy-correlator, energy-forecasting, proactive-agent | `domains/energy-analytics/compose.yml` |
+| 7 | **device-management** | 8 | device-health-monitor, device-context-classifier, device-setup-assistant, device-database-client, device-recommender, activity-recognition, activity-writer, ha-setup-service | `domains/device-management/compose.yml` |
+| 8 | **pattern-analysis** | 2 | ai-pattern-service, api-automation-edge | `domains/pattern-analysis/compose.yml` |
+| 9 | **frontends** | 4 | ai-automation-ui, observability-dashboard, health-dashboard, jaeger | `domains/frontends/compose.yml` |
 
-**Dependency flow:** core-platform --> (data-collectors | ml-engine | device-management) --> automation-intelligence --> frontends
+**Dependency flow:** core-platform --> (data-collectors | ml-engine | device-management | pattern-analysis) --> (automation-core | blueprints | energy-analytics) --> frontends
 
 ---
 
@@ -122,7 +125,7 @@ Home Assistant (192.168.1.86:8123)
 | **12** | **device-intelligence-service** | 8028 | 6,000+ device capability mapping | SQLite, scikit-learn |
 | **13** | **openvino-service** | 8026 | Transformer embeddings, semantic search | PyTorch |
 | **14** | **ml-service** | 8025 | Clustering, anomaly detection | scikit-learn |
-| **15** | **energy-forecasting** | 8037 | 7-day energy consumption predictions | InfluxDB |
+| **15** | **energy-forecasting** | 8042 | 7-day energy consumption predictions | InfluxDB |
 
 ### Impact if Down
 
@@ -178,13 +181,13 @@ Home Assistant (192.168.1.86:8123)
 | Rank | Service | Port | Role |
 |------|---------|------|------|
 | **22** | **automation-miner** | 8029 | Crawls community automations |
-| **23** | **blueprint-suggestion-service** | 8024 | Suggests automations based on devices |
-| **24** | **ha-ai-agent-service** | 8024 | HA AI agent integration |
-| **25** | **ai-automation-service-new** | 8025 | Intelligent automation engine |
-| **26** | **proactive-agent-service** | 8024 | Proactive recommendations |
-| **27** | **rag-service** | 8024 | RAG for semantic search |
-| **28** | **ai-query-service** | 8024 | Natural language queries |
-| **29** | **ai-pattern-service** | 8024 | Pattern detection |
+| **23** | **blueprint-suggestion-service** | 8039 | Suggests automations based on devices |
+| **24** | **ha-ai-agent-service** | 8030 | HA AI agent integration |
+| **25** | **ai-automation-service-new** | 8036 | Intelligent automation engine |
+| **26** | **proactive-agent-service** | 8031 | Proactive recommendations |
+| **27** | **rag-service** | 8027 | RAG for semantic search |
+| **28** | **ai-query-service** | 8035 | Natural language queries |
+| **29** | **ai-pattern-service** | 8034 | Pattern detection |
 
 ### Impact if Down
 
@@ -281,26 +284,29 @@ Home Assistant (192.168.1.86:8123)
 
 Services that make cross-group HTTP calls use `libs/homeiq-resilience` circuit breakers and expose structured `/health` endpoints with a `group` field. Use this for differentiated alerting:
 
-| Group | Severity | Response Time | Rationale |
-|-------|----------|---------------|-----------|
-| core-platform (G1) | P1 (page) | Immediate | All services depend on data-api |
-| ml-engine (G3) | P2 (alert) | 5 min | AI features degrade but basic function continues |
-| automation-intelligence (G4) | P2 (alert) | 5 min | Automation suggestions stop but HA control works |
-| data-collectors (G2) | P3 (notify) | 15 min | Weather/energy data stale but not blocking |
-| device-management (G5) | P3 (notify) | 10 min | Health monitoring delayed but devices work |
-| frontends (G6) | P3 (notify) | 10 min | Dashboard unavailable but backend functional |
+| Domain | Severity | Response Time | Rationale |
+|--------|----------|---------------|-----------|
+| core-platform (D1) | P1 (page) | Immediate | All services depend on data-api |
+| ml-engine (D3) | P2 (alert) | 5 min | AI features degrade but basic function continues |
+| automation-core (D4) | P2 (alert) | 5 min | Automation suggestions stop but HA control works |
+| data-collectors (D2) | P3 (notify) | 15 min | Weather/energy data stale but not blocking |
+| blueprints (D5) | P3 (notify) | 15 min | Blueprint suggestions stop but automations work |
+| energy-analytics (D6) | P3 (notify) | 10 min | Energy forecasting delayed but system works |
+| device-management (D7) | P3 (notify) | 10 min | Health monitoring delayed but devices work |
+| pattern-analysis (D8) | P3 (notify) | 10 min | Pattern detection delayed but core functions work |
+| frontends (D9) | P3 (notify) | 10 min | Dashboard unavailable but backend functional |
 
 ### Cross-Group Resilience
 
 Services calling across group boundaries use `CrossGroupClient` with circuit breakers for graceful degradation. When a target group is down, services return empty/cached results instead of crashing.
 
 **Services with resilience rollout complete:**
-- ha-ai-agent-service (G4 → G1, G3)
-- blueprint-suggestion-service (G4 → G1)
-- ai-pattern-service (G4 → G1)
-- ai-automation-service-new (G4 → G1)
-- proactive-agent-service (G4 → G1, G2)
-- device-health-monitor (G5 → G1, G3)
+- ha-ai-agent-service (D4 → D1, D3)
+- blueprint-suggestion-service (D5 → D1)
+- ai-pattern-service (D8 → D1)
+- ai-automation-service-new (D4 → D1)
+- proactive-agent-service (D6 → D1, D2)
+- device-health-monitor (D7 → D1, D3)
 
 For details, see [`libs/homeiq-resilience/README.md`](../../libs/homeiq-resilience/README.md).
 
@@ -364,7 +370,7 @@ In `docker-compose.yml`, some services use a different **host** port to avoid co
 
 ## Related Documentation
 
-- [Service Groups Architecture](./service-groups.md) - Canonical reference for the 6-group deployment structure
+- [Service Groups Architecture](./service-groups.md) - Canonical reference for the 9-domain deployment structure
 - [Architecture Quick Reference](./README_ARCHITECTURE_QUICK_REF.md)
 - [Tech Stack](./tech-stack.md)
 - [Source Tree](./source-tree.md)
@@ -373,4 +379,4 @@ In `docker-compose.yml`, some services use a different **host** port to avoid co
 ---
 
 **Maintained by:** HomeIQ DevOps Team
-**Last Updated:** February 23, 2026
+**Last Updated:** February 24, 2026

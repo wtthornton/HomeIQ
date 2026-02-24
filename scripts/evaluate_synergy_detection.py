@@ -27,7 +27,7 @@ async def evaluate_synergy_detection():
     
     try:
         # Import required modules - add services path
-        services_path = project_root / "services" / "ai-pattern-service" / "src"
+        services_path = project_root / "domains" / "pattern-analysis" / "ai-pattern-service" / "src"
         sys.path.insert(0, str(services_path))
         
         try:

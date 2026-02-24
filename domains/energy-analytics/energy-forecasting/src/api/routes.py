@@ -67,13 +67,15 @@ class PeakPrediction(BaseModel):
 
 
 class OptimizationRecommendation(BaseModel):
-    """Energy optimization recommendation."""
+    """Energy optimization recommendation (Story 4.1: optional activity-based guidance)."""
 
     recommendation: str
     estimated_savings_kwh: float
     estimated_savings_percent: float
     best_hours: list[int]
     avoid_hours: list[int]
+    activity_guidance: str | None = None
+    activity_enabled: bool = False
 
 
 class HealthResponse(BaseModel):
@@ -308,12 +310,36 @@ async def get_peak_prediction():
         ) from e
 
 
+def _activity_by_hour_from_history(activity_items: list[dict]) -> dict[int, list[str]]:
+    """Build activity-by-hour map from activity history (Story 4.1)."""
+    by_hour: dict[int, list[str]] = {}
+    for item in activity_items:
+        ts = item.get("timestamp")
+        activity = item.get("activity")
+        if not ts or not activity:
+            continue
+        try:
+            if isinstance(ts, str):
+                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            else:
+                dt = ts
+            h = getattr(dt, "hour", 0)
+            if h not in by_hour:
+                by_hour[h] = []
+            if activity not in by_hour[h]:
+                by_hour[h].append(activity)
+        except (ValueError, TypeError):
+            continue
+    return by_hour
+
+
 @router.get("/optimization", response_model=OptimizationRecommendation)
 async def get_optimization_recommendation():
     """
     Get energy optimization recommendations.
 
     Suggests best and worst hours for running high-power appliances.
+    Story 4.1: Optionally includes activity-based guidance when data-api activity history is available.
     """
     forecaster = model_registry.get_forecaster()
 
@@ -343,15 +369,45 @@ async def get_optimization_recommendation():
         best_hours_str = ", ".join(f"{h}:00" for h in sorted(best_hours))
         avoid_hours_str = ", ".join(f"{h}:00" for h in sorted(avoid_hours))
 
+        recommendation = (
+            f"Best times for high-power activities: {best_hours_str}. "
+            f"Avoid: {avoid_hours_str}."
+        )
+        activity_guidance = None
+        activity_enabled = False
+
+        # Story 4.1: Optional activity-aware guidance (graceful degradation)
+        import os
+        data_api_url = (os.getenv("DATA_API_URL") or "http://data-api:8006").rstrip("/")
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                r = await client.get(f"{data_api_url}/api/v1/activity/history", params={"hours": 24, "limit": 100})
+                if r.is_success and r.json():
+                    activity_items = r.json()
+                    activity_enabled = True
+                    by_hour = _activity_by_hour_from_history(activity_items)
+                    if by_hour:
+                        best_activity = []
+                        for h in sorted(best_hours):
+                            best_activity.extend(by_hour.get(h, []))
+                        best_activity = sorted(set(best_activity))[:3]
+                        if best_activity:
+                            activity_guidance = (
+                                f"Your data shows activity often during: {', '.join(best_activity)}. "
+                                "Consider running high-power appliances in best hours above."
+                            )
+        except Exception as e:
+            logger.debug("Activity fetch skipped for optimization: %s", e)
+
         return OptimizationRecommendation(
-            recommendation=(
-                f"Best times for high-power activities: {best_hours_str}. "
-                f"Avoid: {avoid_hours_str}."
-            ),
+            recommendation=recommendation,
             estimated_savings_kwh=round((peak_avg - offpeak_avg) / 1000, 2),
             estimated_savings_percent=round(savings_percent, 1),
             best_hours=best_hours,
             avoid_hours=avoid_hours,
+            activity_guidance=activity_guidance,
+            activity_enabled=activity_enabled,
         )
 
     except Exception as e:

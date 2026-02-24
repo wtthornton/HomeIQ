@@ -30,9 +30,9 @@ if sys.platform == "win32":
 
 # Add /app/src to path for imports (works both locally and in Docker)
 script_dir = Path(__file__).parent
-if (script_dir.parent / "services" / "ai-automation-service-new" / "src").exists():
+if (script_dir.parent / "domains" / "automation-core" / "ai-automation-service-new" / "src").exists():
     # Running locally
-    sys.path.insert(0, str(script_dir.parent / "services" / "ai-automation-service-new" / "src"))
+    sys.path.insert(0, str(script_dir.parent / "domains" / "automation-core" / "ai-automation-service-new" / "src"))
 else:
     # Running in Docker container
     sys.path.insert(0, "/app/src")
@@ -51,8 +51,8 @@ async def delete_all_suggestions():
     # Database path - works in both local and Docker
     if Path("/app/data/ai_automation.db").exists():
         db_path = "/app/data/ai_automation.db"
-    elif (script_dir.parent / "services" / "ai-automation-service-new" / "data" / "ai_automation.db").exists():
-        db_path = str(script_dir.parent / "services" / "ai-automation-service-new" / "data" / "ai_automation.db")
+    elif (script_dir.parent / "domains" / "automation-core" / "ai-automation-service-new" / "data" / "ai_automation.db").exists():
+        db_path = str(script_dir.parent / "domains" / "automation-core" / "ai-automation-service-new" / "data" / "ai_automation.db")
     else:
         print("[ERROR] Database not found")
         print("   Checked paths:")

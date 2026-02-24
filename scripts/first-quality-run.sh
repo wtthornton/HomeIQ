@@ -78,8 +78,8 @@ fi
 
 echo -e "${GREEN}[Step 4/6] ESLint Check...${NC}\n"
 
-if [ -d "services/health-dashboard" ]; then
-    cd services/health-dashboard
+if [ -d "domains/core-platform/health-dashboard" ]; then
+    cd domains/core-platform/health-dashboard
     
     if command -v npm &> /dev/null && npm run lint &> /dev/null 2>&1; then
         echo "Running ESLint..."
@@ -93,7 +93,7 @@ if [ -d "services/health-dashboard" ]; then
         echo -e "${YELLOW}⚠ ESLint not configured or npm not found${NC}\n"
     fi
     
-    cd ../..
+    cd ../../..
 else
     echo -e "${YELLOW}⚠ health-dashboard not found${NC}\n"
 fi

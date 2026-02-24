@@ -26,7 +26,7 @@ import httpx
 
 # Add src to path for imports
 script_dir = os.path.dirname(os.path.abspath(__file__))
-src_path = os.path.join(script_dir, '..', 'services', 'ai-automation-service', 'src')
+src_path = os.path.join(script_dir, '..', 'domains', 'automation-core', 'ai-automation-service-new', 'src')
 sys.path.insert(0, src_path)
 
 try:

@@ -1,7 +1,7 @@
 ---
 epic: agent-evaluation-foundation
 priority: high
-status: in-progress
+status: complete
 estimated_duration: 3-4 weeks
 risk_level: low
 source: Tango Workspace Reservation Agent Evaluation Framework (Pattern D)
@@ -9,11 +9,13 @@ source: Tango Workspace Reservation Agent Evaluation Framework (Pattern D)
 
 # Epic: Agent Evaluation Foundation Framework
 
-**Status:** Planned
+**Status:** Complete
 **Priority:** High
 **Duration:** 3–4 weeks
 **Risk Level:** Low
 **Reference:** Tango Workspace Reservation Agent Evaluation Framework PDF
+
+**Implementation (2026-02-10):** All 8 stories complete. 111+ tests passing. See `stories/AGENT_EVAL_IMPLEMENTATION_TRACKER.md` for sprint-by-sprint execution log.
 
 ## Overview
 
@@ -48,23 +50,16 @@ libs/homeiq-patterns/                          ← existing Pattern A-C home
         └── example_agent.yaml            ← example config
 ```
 
-**Import pattern** (same as existing patterns — must handle Docker vs local paths):
+**Import pattern** (pip-installable package — no sys.path hacks):
 ```python
 # In any service that uses evaluation:
-try:
-    _project_root = str(Path(__file__).resolve().parents[N])
-    if _project_root not in sys.path:
-        sys.path.insert(0, _project_root)
-except IndexError:
-    pass  # Docker: PYTHONPATH already includes /app
-
-from shared.patterns.evaluation import SessionTracer, EvaluationRegistry
+from homeiq_patterns.evaluation import SessionTracer, EvaluationRegistry
 ```
 
 **Per-service wiring** (Epic 3 — minimal, ~2-10 lines per service):
 ```python
 # In any agent's main.py:
-from shared.patterns.evaluation import trace_session
+from homeiq_patterns.evaluation import trace_session
 
 @app.post("/api/v1/chat")
 @trace_session(agent_name="ha-ai-agent")
@@ -84,15 +79,15 @@ async def chat(request: ChatRequest):
 
 ## Success Criteria
 
-- [ ] `SessionTrace` model captures user messages, agent responses, tool calls (name, params, result, sequence), and metadata
-- [ ] `SessionTracer` middleware can wrap any FastAPI endpoint and emit `SessionTrace` objects
-- [ ] 5 abstract evaluator base classes defined with `evaluate(session) → EvaluationResult` interface
-- [ ] `LLMJudge` supports rubric-templated evaluation via OpenAI and/or Anthropic APIs
-- [ ] `ScoringEngine` produces a Summary Matrix matching the Tango format (pass/fail per level, scores per metric)
-- [ ] `AgentEvalConfig` YAML schema validated and documented with an example config
-- [ ] `EvaluationRegistry` loads config and instantiates correct evaluators per agent
-- [ ] Unit tests for all base classes (target: 40+ tests)
-- [ ] Developer documentation with quick-start guide
+- [x] `SessionTrace` model captures user messages, agent responses, tool calls (name, params, result, sequence), and metadata
+- [x] `SessionTracer` middleware can wrap any FastAPI endpoint and emit `SessionTrace` objects
+- [x] 5 abstract evaluator base classes defined with `evaluate(session) → EvaluationResult` interface
+- [x] `LLMJudge` supports rubric-templated evaluation via OpenAI and/or Anthropic APIs
+- [x] `ScoringEngine` produces a Summary Matrix matching the Tango format (pass/fail per level, scores per metric)
+- [x] `AgentEvalConfig` YAML schema validated and documented with an example config
+- [x] `EvaluationRegistry` loads config and instantiates correct evaluators per agent
+- [x] Unit tests for all base classes (target: 40+ tests)
+- [x] Developer documentation with quick-start guide
 
 ---
 
@@ -105,14 +100,14 @@ async def chat(request: ChatRequest):
 **So that** all evaluators receive a consistent input regardless of which agent produced the session
 
 **Acceptance Criteria:**
-- [ ] `SessionTrace` Pydantic model defined in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/models.py`
-- [ ] Fields: `session_id`, `agent_name`, `timestamp`, `model`, `temperature`
-- [ ] `user_messages: list[UserMessage]` with `content`, `timestamp`, `turn_index`
-- [ ] `agent_responses: list[AgentResponse]` with `content`, `timestamp`, `turn_index`, `tool_calls_in_turn`
-- [ ] `tool_calls: list[ToolCall]` with `tool_name`, `parameters: dict`, `result: Any`, `sequence_index`, `turn_index`, `latency_ms`
-- [ ] `metadata: dict` for extensible agent-specific data
-- [ ] `SessionTrace.from_dict()` and `.to_dict()` for serialization
-- [ ] Unit tests covering model creation, serialization, validation
+- [x] `SessionTrace` Pydantic model defined in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/models.py`
+- [x] Fields: `session_id`, `agent_name`, `timestamp`, `model`, `temperature`
+- [x] `user_messages: list[UserMessage]` with `content`, `timestamp`, `turn_index`
+- [x] `agent_responses: list[AgentResponse]` with `content`, `timestamp`, `turn_index`, `tool_calls_in_turn`
+- [x] `tool_calls: list[ToolCall]` with `tool_name`, `parameters: dict`, `result: Any`, `sequence_index`, `turn_index`, `latency_ms`
+- [x] `metadata: dict` for extensible agent-specific data
+- [x] `SessionTrace.from_dict()` and `.to_dict()` for serialization
+- [x] Unit tests covering model creation, serialization, validation
 
 **Story Points:** 3
 **Dependencies:** None
@@ -127,14 +122,14 @@ async def chat(request: ChatRequest):
 **So that** I can enable evaluation on any agent by adding a single decorator without modifying agent logic
 
 **Acceptance Criteria:**
-- [ ] `SessionTracer` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/session_tracer.py`
-- [ ] Captures request/response pairs with timestamps
-- [ ] Captures tool calls by hooking into the agent's tool execution layer (callback-based, not intrusive)
-- [ ] Supports both synchronous and async tool calls
-- [ ] Emits `SessionTrace` objects to a configurable sink (in-memory list, file, or callback)
-- [ ] Decorator pattern: `@trace_session(agent_name="ha-ai-agent")` wraps an endpoint
-- [ ] Does not impact agent latency by more than 5ms per request
-- [ ] Unit tests with mock agent endpoints and tool calls
+- [x] `SessionTracer` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/session_tracer.py`
+- [x] Captures request/response pairs with timestamps
+- [x] Captures tool calls by hooking into the agent's tool execution layer (callback-based, not intrusive)
+- [x] Supports both synchronous and async tool calls
+- [x] Emits `SessionTrace` objects to a configurable sink (in-memory list, file, or callback)
+- [x] Decorator pattern: `@trace_session(agent_name="ha-ai-agent")` wraps an endpoint
+- [x] Does not impact agent latency by more than 5ms per request
+- [x] Unit tests with mock agent endpoints and tool calls
 
 **Story Points:** 5
 **Dependencies:** Story 1 (SessionTrace model)
@@ -149,18 +144,18 @@ async def chat(request: ChatRequest):
 **So that** evaluators at each level share a consistent interface and can be composed into a full evaluation pipeline
 
 **Acceptance Criteria:**
-- [ ] `BaseEvaluator` abstract class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/base_evaluator.py`
-- [ ] Method: `evaluate(session: SessionTrace) → EvaluationResult`
-- [ ] Properties: `level: EvalLevel` (L1–L5), `scope: EvalScope` (SESSION, TOOL_CALL, RESPONSE), `name: str`
-- [ ] `EvaluationResult` model: `evaluator_name`, `level`, `score: float (0-1)`, `label: str`, `explanation: str`, `passed: bool`
-- [ ] `EvalLevel` enum: `OUTCOME`, `PATH`, `DETAILS`, `QUALITY`, `SAFETY`
-- [ ] `EvalScope` enum: `SESSION`, `TOOL_CALL`, `RESPONSE`
-- [ ] `OutcomeEvaluator(BaseEvaluator)` — scope=SESSION, evaluates goal achievement
-- [ ] `PathEvaluator(BaseEvaluator)` — scope=SESSION, evaluates tool selection and sequence
-- [ ] `DetailsEvaluator(BaseEvaluator)` — scope=TOOL_CALL, evaluates parameter extraction
-- [ ] `QualityEvaluator(BaseEvaluator)` — scope=RESPONSE, evaluates response quality
-- [ ] `SafetyEvaluator(BaseEvaluator)` — scope=RESPONSE, evaluates safety compliance
-- [ ] Unit tests for all base classes with concrete test implementations
+- [x] `BaseEvaluator` abstract class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/base_evaluator.py`
+- [x] Method: `evaluate(session: SessionTrace) → EvaluationResult`
+- [x] Properties: `level: EvalLevel` (L1–L5), `scope: EvalScope` (SESSION, TOOL_CALL, RESPONSE), `name: str`
+- [x] `EvaluationResult` model: `evaluator_name`, `level`, `score: float (0-1)`, `label: str`, `explanation: str`, `passed: bool`
+- [x] `EvalLevel` enum: `OUTCOME`, `PATH`, `DETAILS`, `QUALITY`, `SAFETY`
+- [x] `EvalScope` enum: `SESSION`, `TOOL_CALL`, `RESPONSE`
+- [x] `OutcomeEvaluator(BaseEvaluator)` — scope=SESSION, evaluates goal achievement
+- [x] `PathEvaluator(BaseEvaluator)` — scope=SESSION, evaluates tool selection and sequence
+- [x] `DetailsEvaluator(BaseEvaluator)` — scope=TOOL_CALL, evaluates parameter extraction
+- [x] `QualityEvaluator(BaseEvaluator)` — scope=RESPONSE, evaluates response quality
+- [x] `SafetyEvaluator(BaseEvaluator)` — scope=RESPONSE, evaluates safety compliance
+- [x] Unit tests for all base classes with concrete test implementations
 
 **Story Points:** 5
 **Dependencies:** Story 1 (SessionTrace model)
@@ -175,16 +170,16 @@ async def chat(request: ChatRequest):
 **So that** subjective quality evaluations (correctness, faithfulness, helpfulness) can be performed consistently across all agents
 
 **Acceptance Criteria:**
-- [ ] `LLMJudge` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/llm_judge.py`
-- [ ] Supports OpenAI (`gpt-4o`, `gpt-4o-mini`) and Anthropic (`claude-sonnet-4-5`) backends via a provider abstraction
-- [ ] Takes a `JudgeRubric` (prompt template + expected output schema + scoring scale)
-- [ ] Method: `judge(session: SessionTrace, rubric: JudgeRubric) → JudgeResult`
-- [ ] `JudgeResult` model: `score: float`, `label: str`, `explanation: str`, `raw_response: str`
-- [ ] `JudgeRubric` model: `name`, `prompt_template: str`, `output_labels: list[str]`, `score_mapping: dict[str, float]`
-- [ ] Prompt template supports Jinja2-style variables: `{{ user_input }}`, `{{ agent_response }}`, `{{ tool_calls }}`
-- [ ] Handles LLM errors gracefully (timeout, rate limit) with retry logic
-- [ ] Caches rubric compilation for repeated evaluations
-- [ ] Unit tests with mocked LLM responses
+- [x] `LLMJudge` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/llm_judge.py`
+- [x] Supports OpenAI (`gpt-4o`, `gpt-4o-mini`) and Anthropic (`claude-sonnet-4-5`) backends via a provider abstraction
+- [x] Takes a `JudgeRubric` (prompt template + expected output schema + scoring scale)
+- [x] Method: `judge(session: SessionTrace, rubric: JudgeRubric) → JudgeResult`
+- [x] `JudgeResult` model: `score: float`, `label: str`, `explanation: str`, `raw_response: str`
+- [x] `JudgeRubric` model: `name`, `prompt_template: str`, `output_labels: list[str]`, `score_mapping: dict[str, float]`
+- [x] Prompt template supports Jinja2-style variables: `{{ user_input }}`, `{{ agent_response }}`, `{{ tool_calls }}`
+- [x] Handles LLM errors gracefully (timeout, rate limit) with retry logic
+- [x] Caches rubric compilation for repeated evaluations
+- [x] Unit tests with mocked LLM responses
 
 **Story Points:** 5
 **Dependencies:** Story 1 (SessionTrace model)
@@ -199,17 +194,17 @@ async def chat(request: ChatRequest):
 **So that** I can see a single-glance health report for any agent session or batch of sessions
 
 **Acceptance Criteria:**
-- [ ] `ScoringEngine` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/scoring_engine.py`
-- [ ] Method: `score(session: SessionTrace, evaluators: list[BaseEvaluator]) → EvaluationReport`
-- [ ] Method: `score_batch(sessions: list[SessionTrace], evaluators: list) → BatchReport`
-- [ ] `EvaluationReport` model: `session_id`, `agent_name`, `timestamp`, `results: list[EvaluationResult]`, `summary_matrix: SummaryMatrix`
-- [ ] `SummaryMatrix` model: `levels: dict[EvalLevel, LevelSummary]` where `LevelSummary` has `metrics: dict[str, MetricResult]`
-- [ ] `MetricResult` model: `score: float`, `label: str`, `evaluations_count: int`, `passed: bool`
-- [ ] `BatchReport` adds: `sessions_evaluated: int`, `total_evaluations: int`, `aggregate_scores: dict[str, float]`, `alerts: list[Alert]`
-- [ ] `Alert` model: `level: EvalLevel`, `metric: str`, `threshold: float`, `actual: float`, `priority: str`
-- [ ] Threshold checking: configurable per metric, emits alerts when score drops below threshold
-- [ ] Output formats: `.to_dict()`, `.to_markdown()` (matching Tango's Summary Matrix format)
-- [ ] Unit tests for single-session and batch scoring
+- [x] `ScoringEngine` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/scoring_engine.py`
+- [x] Method: `score(session: SessionTrace, evaluators: list[BaseEvaluator]) → EvaluationReport`
+- [x] Method: `score_batch(sessions: list[SessionTrace], evaluators: list) → BatchReport`
+- [x] `EvaluationReport` model: `session_id`, `agent_name`, `timestamp`, `results: list[EvaluationResult]`, `summary_matrix: SummaryMatrix`
+- [x] `SummaryMatrix` model: `levels: dict[EvalLevel, LevelSummary]` where `LevelSummary` has `metrics: dict[str, MetricResult]`
+- [x] `MetricResult` model: `score: float`, `label: str`, `evaluations_count: int`, `passed: bool`
+- [x] `BatchReport` adds: `sessions_evaluated: int`, `total_evaluations: int`, `aggregate_scores: dict[str, float]`, `alerts: list[Alert]`
+- [x] `Alert` model: `level: EvalLevel`, `metric: str`, `threshold: float`, `actual: float`, `priority: str`
+- [x] Threshold checking: configurable per metric, emits alerts when score drops below threshold
+- [x] Output formats: `.to_dict()`, `.to_markdown()` (matching Tango's Summary Matrix format)
+- [x] Unit tests for single-session and batch scoring
 
 **Story Points:** 5
 **Dependencies:** Story 3 (BaseEvaluator classes)
@@ -224,8 +219,8 @@ async def chat(request: ChatRequest):
 **So that** I can configure tools, paths, parameter rules, system prompt rules, and thresholds without writing evaluator code
 
 **Acceptance Criteria:**
-- [ ] `AgentEvalConfig` Pydantic model in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/config.py`
-- [ ] YAML schema supports:
+- [x] `AgentEvalConfig` Pydantic model in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/config.py`
+- [x] YAML schema supports:
   - `agent_name: str`
   - `model: str` (agent's LLM model)
   - `tools: list[ToolDef]` with `name`, `parameters: list[ParamDef]`, `required_params`, `description`
@@ -235,10 +230,10 @@ async def chat(request: ChatRequest):
   - `quality_rubrics: list[str]` referencing built-in rubric names
   - `thresholds: dict[str, float]` per metric
   - `priority_matrix: list[PriorityEntry]` with `priority`, `level`, `metric`, `frequency`
-- [ ] `ConfigLoader.load(path: str) → AgentEvalConfig` with YAML validation
-- [ ] Example config file: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/example_agent.yaml`
-- [ ] JSON Schema generation for IDE autocompletion
-- [ ] Unit tests for config loading, validation, and error handling
+- [x] `ConfigLoader.load(path: str) → AgentEvalConfig` with YAML validation
+- [x] Example config file: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/example_agent.yaml`
+- [x] JSON Schema generation for IDE autocompletion
+- [x] Unit tests for config loading, validation, and error handling
 
 **Story Points:** 5
 **Dependencies:** Story 3 (BaseEvaluator — references EvalLevel, metric names)
@@ -253,15 +248,15 @@ async def chat(request: ChatRequest):
 **So that** running a full 5-level evaluation is a single function call: `registry.evaluate(session)`
 
 **Acceptance Criteria:**
-- [ ] `EvaluationRegistry` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/registry.py`
-- [ ] Method: `register_agent(config: AgentEvalConfig)` — instantiates evaluators from config
-- [ ] Method: `evaluate(session: SessionTrace) → EvaluationReport` — runs all registered evaluators
-- [ ] Method: `evaluate_batch(sessions: list[SessionTrace]) → BatchReport`
-- [ ] Evaluators are instantiated based on config: path rules → `PathEvaluator`, param rules → `DetailsEvaluator`, etc.
-- [ ] Quality evaluators that specify `check_type: llm_judge` are wired to the `LLMJudge` engine
-- [ ] Rule-based evaluators (path, details, safety) run deterministically without LLM calls
-- [ ] Supports multiple agents registered simultaneously
-- [ ] Unit tests with a complete mock agent config and session
+- [x] `EvaluationRegistry` class in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/registry.py`
+- [x] Method: `register_agent(config: AgentEvalConfig)` — instantiates evaluators from config
+- [x] Method: `evaluate(session: SessionTrace) → EvaluationReport` — runs all registered evaluators
+- [x] Method: `evaluate_batch(sessions: list[SessionTrace]) → BatchReport`
+- [x] Evaluators are instantiated based on config: path rules → `PathEvaluator`, param rules → `DetailsEvaluator`, etc.
+- [x] Quality evaluators that specify `check_type: llm_judge` are wired to the `LLMJudge` engine
+- [x] Rule-based evaluators (path, details, safety) run deterministically without LLM calls
+- [x] Supports multiple agents registered simultaneously
+- [x] Unit tests with a complete mock agent config and session
 
 **Story Points:** 5
 **Dependencies:** Stories 3, 4, 5, 6
@@ -276,14 +271,14 @@ async def chat(request: ChatRequest):
 **So that** I can enable evaluation on my agent in under 30 minutes
 
 **Acceptance Criteria:**
-- [ ] Documentation in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/README.md`
-- [ ] Architecture overview: 5-level pyramid, session tracing, evaluator pipeline, LLM judge, scoring
-- [ ] YAML config reference: every field documented with examples
-- [ ] Quick-start guide: "Add evaluation to your agent in 3 steps" (add middleware, create config, run evaluation)
-- [ ] Built-in rubric catalog: list of all available quality rubrics with descriptions
-- [ ] Example output: sample Summary Matrix and BatchReport
-- [ ] Linked from `libs/homeiq-patterns/README.md` (existing pattern docs)
-- [ ] References to Tango evaluation framework as inspiration
+- [x] Documentation in `libs/homeiq-patterns/src/homeiq_patterns/evaluation/README.md`
+- [x] Architecture overview: 5-level pyramid, session tracing, evaluator pipeline, LLM judge, scoring
+- [x] YAML config reference: every field documented with examples
+- [x] Quick-start guide: "Add evaluation to your agent in 3 steps" (add middleware, create config, run evaluation)
+- [x] Built-in rubric catalog: list of all available quality rubrics with descriptions
+- [x] Example output: sample Summary Matrix and BatchReport
+- [x] Linked from `libs/homeiq-patterns/README.md` (existing pattern docs)
+- [x] References to Tango evaluation framework as inspiration
 
 **Story Points:** 2
 **Dependencies:** Stories 1-7

@@ -79,6 +79,7 @@ class EnergyCorrelatorService:
         self.error_retry_interval = int(os.getenv('ERROR_RETRY_INTERVAL', '60'))  # Default 60 seconds
 
         # Components
+        data_api_url = os.getenv("DATA_API_URL", "").strip() or None
         self.correlator = EnergyEventCorrelator(
             self.influxdb_url,
             self.influxdb_token,
@@ -89,7 +90,8 @@ class EnergyCorrelatorService:
             max_events_per_interval=self.max_events_per_interval,
             power_lookup_padding_seconds=self.power_lookup_padding_seconds,
             max_retry_queue_size=self.max_retry_queue_size,
-            retry_window_minutes=self.retry_window_minutes
+            retry_window_minutes=self.retry_window_minutes,
+            data_api_url=data_api_url,
         )
 
         self.health_handler = HealthCheckHandler()

@@ -4,18 +4,18 @@ Tests for E1.S5: ScoringEngine + Summary Matrix
 
 import pytest
 
-from shared.patterns.evaluation.base_evaluator import (
+from homeiq_patterns.evaluation.base_evaluator import (
     OutcomeEvaluator,
     QualityEvaluator,
     SafetyEvaluator,
 )
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.models import (
     EvalLevel,
     EvaluationResult,
     SessionTrace,
     UserMessage,
 )
-from shared.patterns.evaluation.scoring_engine import ScoringEngine
+from homeiq_patterns.evaluation.scoring_engine import ScoringEngine
 
 
 # ---------------------------------------------------------------------------

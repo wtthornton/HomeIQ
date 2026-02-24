@@ -6,13 +6,13 @@ import json
 
 import pytest
 
-from shared.patterns.evaluation.llm_judge import (
+from homeiq_patterns.evaluation.llm_judge import (
     JudgeResult,
     JudgeRubric,
     LLMJudge,
     LLMProvider,
 )
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.models import (
     AgentResponse,
     SessionTrace,
     ToolCall,

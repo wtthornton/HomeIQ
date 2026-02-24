@@ -26,7 +26,7 @@ and compliance in the HomeIQ platform.
 ### Step 1: Add SessionTracer middleware
 
 ```python
-from shared.patterns.evaluation.session_tracer import SessionTracer
+from homeiq_patterns.evaluation.session_tracer import SessionTracer
 
 tracer = SessionTracer(agent_name="my-agent")
 
@@ -70,8 +70,8 @@ thresholds:
 ### Step 3: Run evaluation
 
 ```python
-from shared.patterns.evaluation import EvaluationRegistry
-from shared.patterns.evaluation.config import ConfigLoader
+from homeiq_patterns.evaluation.registry import EvaluationRegistry
+from homeiq_patterns.evaluation.config import ConfigLoader
 
 config = ConfigLoader.load("libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/my_agent.yaml")
 registry = EvaluationRegistry()

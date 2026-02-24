@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from shared.patterns.evaluation.config import ConfigLoader
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.config import ConfigLoader
+from homeiq_patterns.evaluation.models import (
     AgentResponse,
     BatchReport,
     EvalLevel,
@@ -19,18 +19,20 @@ from shared.patterns.evaluation.models import (
     ToolCall,
     UserMessage,
 )
-from shared.patterns.evaluation.run_evaluation import (
+from homeiq_patterns.evaluation.run_evaluation import (
     BaselineMockProvider,
     _compute_threshold_adjustments,
     _render_baseline_markdown,
     run_evaluation,
 )
-from shared.patterns.evaluation.session_generator import SyntheticSessionGenerator
+from homeiq_patterns.evaluation.session_generator import SyntheticSessionGenerator
 
 
 def _config_path(filename: str):
     return (
         Path(__file__).resolve().parent.parent.parent
+        / "src"
+        / "homeiq_patterns"
         / "evaluation"
         / "configs"
         / filename

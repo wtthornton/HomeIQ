@@ -11,14 +11,7 @@ RUN pip install --upgrade pip
 # Install build dependencies
 RUN apk add --no-cache gcc musl-dev python3-dev libffi-dev openssl-dev cargo
 
-# Copy requirements
-COPY domains/core-platform/data-api/requirements-prod.txt .
-
-# Install Python dependencies with cache mount for faster rebuilds
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --user -r requirements-prod.txt
-
-# Install shared libs
+# Install shared libs first (required by requirements-prod.txt)
 COPY libs/ /tmp/libs/
 RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-patterns/ \
@@ -26,6 +19,11 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-observability/ \
     /tmp/libs/homeiq-data/ \
     /tmp/libs/homeiq-ha/
+
+# Copy requirements and install remaining dependencies
+COPY domains/core-platform/data-api/requirements-prod.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -r requirements-prod.txt
 
 # Production stage
 FROM python:3.12-alpine

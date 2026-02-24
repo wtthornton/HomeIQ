@@ -4,8 +4,8 @@ Tests for E1.S2: SessionTracer Middleware (shared/patterns/evaluation/session_tr
 
 import pytest
 
-from shared.patterns.evaluation.models import SessionTrace, ToolCall
-from shared.patterns.evaluation.session_tracer import (
+from homeiq_patterns.evaluation.models import SessionTrace, ToolCall
+from homeiq_patterns.evaluation.session_tracer import (
     CallbackSink,
     InMemorySink,
     SessionTracerContext,

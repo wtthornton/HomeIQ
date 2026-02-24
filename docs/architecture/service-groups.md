@@ -1,69 +1,55 @@
 # Service Groups Architecture
 
-**Last Updated:** February 23, 2026
+**Last Updated:** February 24, 2026
 **Status:** Active
-**Epic Reference:** Service Group Decomposition (Phase 5)
-**Approach:** Option C -- Criticality + Domain Hybrid (6 groups)
+**Epic Reference:** Domain Architecture Restructuring (Epics 1-5 Complete)
+**Approach:** 9-domain structure (extended from Option C -- Criticality + Domain Hybrid)
 
 ---
 
 ## Overview
 
-HomeIQ's 50+ microservices are organized into **6 independently deployable groups** based on deployment criticality and domain boundaries. This structure enables independent scaling, faster CI/CD, clearer ownership, and blast-radius isolation.
+HomeIQ's 50 microservices are organized into **9 independently deployable domain groups** under `domains/`. The original 6-group plan was extended to 9 by splitting `automation-intelligence` (16 services -- too large for single-team ownership) into 4 sub-domains: **automation-core**, **blueprints**, **energy-analytics**, and **pattern-analysis**. No group exceeds 10 services.
 
-| Group | Name | Services | Purpose | Deploy Cadence |
-|-------|------|----------|---------|----------------|
+| # | Domain | Services | Purpose | Deploy Cadence |
+|---|--------|----------|---------|----------------|
 | 1 | **core-platform** | 6 | Data backbone -- if down, everything is down | Low |
 | 2 | **data-collectors** | 8 | Stateless data fetchers from external APIs | Medium |
-| 3 | **ml-engine** | 9 + model-prep | ML model inference, embeddings, training | Frequent |
-| 4 | **automation-intelligence** | 16 | Automation generation, suggestion, validation | High |
-| 5 | **device-management** | 8 | Device lifecycle, health, onboarding | Medium |
-| 6 | **frontends** | 3 + infra | User-facing UIs and observability tooling | High |
+| 3 | **ml-engine** | 10 | ML model inference, embeddings, training | Frequent |
+| 4 | **automation-core** | 7 | Core automation engine -- NL to YAML pipeline | High |
+| 5 | **blueprints** | 4 | Blueprint discovery and ML recommendations | Medium |
+| 6 | **energy-analytics** | 3 | Energy intelligence, forecasting, proactive agent | Medium |
+| 7 | **device-management** | 8 | Device lifecycle, health, activity recognition | Medium |
+| 8 | **pattern-analysis** | 2 | Behavioral pattern detection and synergy analysis | Low |
+| 9 | **frontends** | 4 | User-facing UIs and observability tooling | High |
+
+**Total:** 50 deployed services across 9 domains.
 
 ---
 
 ## Dependency Graph
 
 ```
-                    +------------------------------+
-                    |   Group 1: core-platform     |
-                    | (InfluxDB, data-api,         |
-                    |  websocket, admin, dashboard, |
-                    |  data-retention)              |
-                    +---------------+--------------+
-                                    |
-          +-------------------------+-------------------------+
-          |                         |                         |
-          v                         v                         v
-  +----------------+     +-------------------+     +-------------------+
-  | Group 2:       |     | Group 3:          |     | Group 5:          |
-  | data-          |     | ml-engine         |     | device-           |
-  | collectors     |     | (ai-core,         |     | management        |
-  | (weather,      |     |  openvino, ML,    |     | (health, setup,   |
-  |  smart-meter,  |     |  NER, OpenAI,     |     |  classifier,      |
-  |  sports, etc)  |     |  RAG, training)   |     |  activity)        |
-  +----------------+     +---------+---------+     +-------------------+
-                                   |
-                                   v
-                    +------------------------------+
-                    | Group 4: automation-         |
-                    | intelligence                 |
-                    | (ha-ai-agent,                |
-                    |  ai-automation,              |
-                    |  patterns, blueprints,       |
-                    |  energy, traces)             |
-                    +---------------+--------------+
-                                    |
-                                    v
-                    +------------------------------+
-                    | Group 6: frontends           |
-                    | (ai-automation-ui,           |
-                    |  observability,              |
-                    |  jaeger)                     |
-                    +------------------------------+
+                         ┌──────────────────────┐
+                         │  1. core-platform (6) │
+                         └──────────┬───────────┘
+                                    │
+         ┌──────────────┬───────────┼───────────┐
+         │              │           │            │
+         ▼              ▼           ▼            ▼
+  2. data-        3. ml-engine  7. device-   8. pattern-
+  collectors (8)     (10)       mgmt (8)     analysis (2)
+                     │
+          ┌──────────┼──────────┐
+          ▼          ▼          ▼
+   4. automation- 5. blue-  6. energy-
+     core (7)     prints(4) analytics(3)
+          │
+          ▼
+     9. frontends (4)
 ```
 
-**Key property:** No circular dependencies. Every arrow points downward from core-platform. Groups 2, 3, and 5 are siblings with no inter-dependency. Group 4 depends on Group 3 for ML inference. Group 6 depends on Groups 1 and 4.
+**Key property:** No circular dependencies. Every arrow points downward from core-platform. Domains 2, 3, 7, and 8 are siblings with no inter-dependency. Domains 4, 5, and 6 depend on domain 3 for ML inference. Domain 9 depends on domains 1 and 4.
 
 ---
 
@@ -232,71 +218,90 @@ curl http://localhost:8028/health   # device-intelligence-service
 
 ---
 
-## Group 4: automation-intelligence (16 services)
+## Domain 4: automation-core (7 services)
 
-**Purpose:** Everything related to automation generation, suggestion, validation, and deployment. The feature-richest group -- most active development happens here.
+**Purpose:** Core automation engine -- NL to YAML pipeline, entity resolution, validation, and deployment. The most actively developed domain.
 
 | Service | Port | Role |
 |---------|------|------|
 | ha-ai-agent-service | 8030 | HA AI agent -- context building, entity resolution, GUI automation path |
 | ai-automation-service-new | 8036 | Core automation engine -- NL to YAML (CLI path) |
 | ai-query-service | 8035 | Natural language query interface |
-| ai-pattern-service | 8034 | Pattern detection, synergy analysis |
-| ai-code-executor | (internal) | Safe code execution sandbox |
-| automation-miner | 8029 | Community automation crawler (Discourse/GitHub) |
 | automation-linter | 8016 | YAML validation and linting |
 | yaml-validation-service | 8037 | Unified schema/entity/service validation |
-| blueprint-index | 8038 | Blueprint metadata indexing and search |
-| blueprint-suggestion-service | 8039 | Automation suggestions based on user devices |
-| rule-recommendation-ml | 8040 | ML-powered automation recommendations |
-| api-automation-edge | 8041 | Edge computing for API-driven automations |
-| proactive-agent-service | 8031 | Proactive recommendations and suggestions |
-| energy-correlator | 8017 | Device-power causality analysis |
-| energy-forecasting | 8042 | 7-day energy consumption predictions |
+| ai-code-executor | (internal) | Safe code execution sandbox |
 | automation-trace-service | 8044 | HA automation trace + logbook ingestion |
 
 **Compose file:** `domains/automation-core/compose.yml`
-**Env file:** `domains/automation-core/compose.env.example`
-**Depends on:** Group 1 (data-api), Group 3 (ML inference via ai-core-service)
-**Depended on by:** Group 6 (frontends display automation results)
+**Depends on:** Domain 1 (data-api), Domain 3 (ML inference via ai-core-service)
+**Depended on by:** Domain 9 (frontends display automation results)
 
-**Internal dependency chain:**
-```
-ha-ai-agent-service
-    +-> ai-automation-service-new --> yaml-validation-service
-    +-> ai-query-service
-    +-> ai-pattern-service
-    +-> proactive-agent-service
-
-blueprint-suggestion-service --> blueprint-index
-                             --> ai-pattern-service
-```
-
-**Key environment variables:**
-- `HA_URL`, `HA_TOKEN` (ha-ai-agent, proactive-agent)
-- `DATA_API_URL`, `DATA_API_KEY` (all services)
-- `OPENAI_API_KEY` (ha-ai-agent, ai-automation-service-new)
-
-**Resource profile:** Medium, CPU-bound (256MB-512MB each)
+**Key features:**
+- Agent Evaluation Framework: `@trace_session` wired on ha-ai-agent-service (chat), ai-automation-service-new (plan), ai-core-service (analyze/patterns)
+- Deploy Pipeline: Hardware-aware template selection, LLM prompt improvements, smart placeholder handling, automation update flow
+- Reusable Patterns: 8 RAG domains, 5 validation endpoints, 5 verifiers
 
 **Deploy commands:**
 ```bash
-# Start automation intelligence
 docker compose -f domains/automation-core/compose.yml up -d
-
-# Rebuild a specific service after code change
-docker compose -f domains/automation-core/compose.yml up -d --build ai-pattern-service
-
-# Health checks
 curl http://localhost:8030/health   # ha-ai-agent-service
 curl http://localhost:8036/health   # ai-automation-service-new
-curl http://localhost:8034/health   # ai-pattern-service
-curl http://localhost:8016/health   # automation-linter
 ```
 
 ---
 
-## Group 5: device-management (8 services)
+## Domain 5: blueprints (4 services)
+
+**Purpose:** Blueprint discovery, indexing, and ML-powered automation recommendations. Previously part of automation-intelligence, split for clearer ownership.
+
+| Service | Port | Role |
+|---------|------|------|
+| blueprint-index | 8038 | Blueprint metadata indexing and search |
+| blueprint-suggestion-service | 8039 | Automation suggestions based on user devices |
+| rule-recommendation-ml | 8040 | ML-powered automation recommendations |
+| automation-miner | 8029 | Community automation crawler (Discourse/GitHub) |
+
+**Compose file:** `domains/blueprints/compose.yml`
+**Depends on:** Domain 1 (data-api), Domain 3 (ML inference)
+**Depended on by:** Domain 4 (automation-core queries blueprint suggestions)
+
+**Deploy commands:**
+```bash
+docker compose -f domains/blueprints/compose.yml up -d
+curl http://localhost:8038/health   # blueprint-index
+curl http://localhost:8039/health   # blueprint-suggestion-service
+```
+
+---
+
+## Domain 6: energy-analytics (3 services)
+
+**Purpose:** Energy intelligence -- power causality analysis, consumption forecasting, and proactive context-aware recommendations. Previously part of automation-intelligence.
+
+| Service | Port | Role |
+|---------|------|------|
+| energy-correlator | 8017 | Device-power causality analysis |
+| energy-forecasting | 8042 | 7-day energy consumption predictions |
+| proactive-agent-service | 8031 | Proactive recommendations and suggestions |
+
+**Compose file:** `domains/energy-analytics/compose.yml`
+**Depends on:** Domain 1 (data-api), Domain 3 (ML inference)
+
+**Key features:**
+- Proactive Agent has activity context integration (fetches from data-api, injects into LLM prompt)
+- Agent Evaluation Framework: `@trace_session` wired on proactive-agent-service (suggestions)
+- Weather + sports + energy + activity context assembled via `context_analysis_service.py`
+
+**Deploy commands:**
+```bash
+docker compose -f domains/energy-analytics/compose.yml up -d
+curl http://localhost:8017/health   # energy-correlator
+curl http://localhost:8031/health   # proactive-agent-service
+```
+
+---
+
+## Domain 7: device-management (8 services)
 
 **Purpose:** Device lifecycle -- health monitoring, onboarding, classification, activity recognition. Medium churn, independent of automation features.
 
@@ -313,8 +318,8 @@ curl http://localhost:8016/health   # automation-linter
 
 **Compose file:** `domains/device-management/compose.yml`
 **Env file:** `domains/device-management/compose.env.example`
-**Depends on:** Group 1 (data-api), Group 3 (device-intelligence-service for classification)
-**Depended on by:** Group 4 (automation uses device context)
+**Depends on:** Domain 1 (data-api), Domain 3 (device-intelligence-service for classification)
+**Depended on by:** Domain 4 (automation uses device context)
 
 **Key environment variables:**
 - `HA_URL`, `HA_TOKEN` (ha-setup-service)
@@ -335,7 +340,33 @@ curl http://localhost:8043/health   # activity-recognition
 
 ---
 
-## Group 6: frontends (3 services + infra)
+## Domain 8: pattern-analysis (2 services)
+
+**Purpose:** Behavioral pattern detection and synergy analysis. Previously part of automation-intelligence, split due to distinct domain focus.
+
+| Service | Port | Role |
+|---------|------|------|
+| ai-pattern-service | 8034 | Pattern detection, synergy analysis, blueprint enrichment |
+| api-automation-edge | 8041 | Edge computing for API-driven automations |
+
+**Compose file:** `domains/pattern-analysis/compose.yml`
+**Depends on:** Domain 1 (data-api)
+
+**Key features:**
+- Sibling entity filtering (`_build_sibling_index()` + `_are_sibling_entities()`)
+- Pattern scoring and tuning feedback loop
+- Post-execution verification via `TaskExecutionVerifier`
+
+**Deploy commands:**
+```bash
+docker compose -f domains/pattern-analysis/compose.yml up -d
+curl http://localhost:8034/health   # ai-pattern-service
+curl http://localhost:8041/health   # api-automation-edge
+```
+
+---
+
+## Domain 9: frontends (4 services)
 
 **Purpose:** User-facing UIs and observability tooling. Fast iteration, independent build pipelines (Node/React vs Python).
 
@@ -343,59 +374,50 @@ curl http://localhost:8043/health   # activity-recognition
 |---------|------|------|
 | ai-automation-ui | 3001 | AI automation web UI (React) |
 | observability-dashboard | 8501 | Monitoring dashboard (Streamlit) |
+| health-dashboard | 3000 | Primary system monitoring UI (React/Vite) |
 | jaeger | 16686 | Distributed tracing UI |
 
 **Compose file:** `domains/frontends/compose.yml`
-**Env file:** `domains/frontends/compose.env.example`
-**Depends on:** Group 1 (admin-api, data-api), Group 4 (automation endpoints)
+**Depends on:** Domain 1 (admin-api, data-api), Domain 4 (automation endpoints)
 
-**Note:** `health-dashboard` is developed with frontends but deployed with core-platform (Group 1) for availability. It appears only in `domains/core-platform/compose.yml`.
-
-**Key environment variables:**
-- `API_BASE_URL` (frontend API target)
-- `VITE_*` (Vite build-time variables)
-
-**Resource profile:** Lightweight, CDN-friendly static assets
+**Note:** `health-dashboard` is developed with frontends but deployed with core-platform (Domain 1) for availability. It also appears in `domains/core-platform/compose.yml`.
 
 **Deploy commands:**
 ```bash
-# Start frontends
 docker compose -f domains/frontends/compose.yml up -d
-
-# Health checks
 curl http://localhost:3001          # ai-automation-ui
 curl http://localhost:16686         # jaeger UI
-curl http://localhost:8501/health   # observability-dashboard
 ```
 
 ---
 
-## Cross-Group Communication Patterns
+## Cross-Domain Communication Patterns
 
 ### Allowed Communication
 
 ```
 +-------------------+      +-------------------+      +-----------------+
-|  Any Group        | ---> |  core-platform    | ---> |  InfluxDB       |
+|  Any Domain       | ---> |  core-platform    | ---> |  InfluxDB       |
 |  (HTTP client)    |      |  (data-api:8006)  |      |  (direct write) |
 +-------------------+      +-------------------+      +-----------------+
 
 +-------------------+      +-------------------+
-|  automation-      | ---> |  ml-engine        |
-|  intelligence     |      |  (ai-core:8018)   |
+|  automation-core  | ---> |  ml-engine        |
+|  blueprints       |      |  (ai-core:8018)   |
+|  energy-analytics | ---> |                   |
 +-------------------+      +-------------------+
 
 +-------------------+      +-------------------+
-|  frontends        | ---> |  automation-      |
-|  (ai-auto-ui)     |      |  intelligence     |
+|  frontends        | ---> |  automation-core  |
+|  (ai-auto-ui)     |      |  (ha-ai-agent)    |
 +-------------------+      +-------------------+
 ```
 
 ### Communication Rules
 
-1. **All groups may call core-platform** (data-api for queries, InfluxDB for writes)
-2. **automation-intelligence calls ml-engine** for AI inference via ai-core-service
-3. **frontends call automation-intelligence** for automation features
+1. **All domains may call core-platform** (data-api for queries, InfluxDB for writes)
+2. **automation-core, blueprints, energy-analytics call ml-engine** for AI inference via ai-core-service
+3. **frontends call automation-core** for automation features
 4. **data-collectors are independent** -- no service-to-service calls between collectors
 5. **No circular dependencies** -- communication flows downward from core-platform
 
@@ -405,31 +427,31 @@ All cross-group HTTP calls use `libs/homeiq-resilience/CrossGroupClient` with ci
 
 **Resilience rollout status (February 2026):**
 
-| Service | Group | Cross-Group Targets | Circuit Breakers |
-|---------|-------|-------------------|-----------------|
-| ha-ai-agent-service | G4 | data-api (G1), device-intelligence (G3) | `core-platform`, `ml-engine` |
-| blueprint-suggestion-service | G4 | data-api (G1) | `core-platform` |
-| ai-pattern-service | G4 | data-api (G1) | `core-platform` |
-| ai-automation-service-new | G4 | data-api (G1) | `core-platform` |
-| proactive-agent-service | G4 | data-api (G1), weather-api (G2) | `core-platform`, `data-collectors` |
-| device-health-monitor | G5 | data-api (G1), device-intelligence (G3) | `core-platform`, `ml-engine` |
+| Service | Domain | Cross-Domain Targets | Circuit Breakers |
+|---------|--------|---------------------|-----------------|
+| ha-ai-agent-service | D4 automation-core | data-api (D1), device-intelligence (D3) | `core-platform`, `ml-engine` |
+| blueprint-suggestion-service | D5 blueprints | data-api (D1) | `core-platform` |
+| ai-pattern-service | D8 pattern-analysis | data-api (D1) | `core-platform` |
+| ai-automation-service-new | D4 automation-core | data-api (D1) | `core-platform` |
+| proactive-agent-service | D6 energy-analytics | data-api (D1), weather-api (D2) | `core-platform`, `data-collectors` |
+| device-health-monitor | D7 device-management | data-api (D1), device-intelligence (D3) | `core-platform`, `ml-engine` |
 
 **Degradation behavior:**
 
-| Caller Group | Upstream Group | Behavior When Upstream Down |
-|-------------|----------------|----------------------------|
-| automation-intelligence | ml-engine | Rule-based fallback, cached embeddings |
-| automation-intelligence | core-platform | Circuit opens after 5 failures; returns empty results (events=`[]`, entities=`[]`) |
+| Caller Domain | Upstream Domain | Behavior When Upstream Down |
+|--------------|----------------|----------------------------|
+| automation-core / blueprints / energy-analytics | ml-engine | Rule-based fallback, cached embeddings |
+| automation-core / energy-analytics | core-platform | Circuit opens after 5 failures; returns empty results (events=`[]`, entities=`[]`) |
 | device-management | ml-engine | Skip ML classification, return `None` |
 | device-management | core-platform | Circuit opens; returns empty entities/devices |
-| frontends | automation-intelligence | Show "AI features temporarily unavailable" |
+| frontends | automation-core | Show "AI features temporarily unavailable" |
 | data-collectors | core-platform | **Fatal** -- buffer to disk, retry on recovery |
 
 **Health endpoint format** (all cross-group callers):
 ```json
 {
   "status": "healthy",
-  "group": "automation-intelligence",
+  "group": "automation-core",
   "version": "1.0.0",
   "uptime_seconds": 3600,
   "dependencies": {
@@ -440,11 +462,14 @@ All cross-group HTTP calls use `libs/homeiq-resilience/CrossGroupClient` with ci
 
 **Alerting severity matrix** (documented in `libs/homeiq-resilience/README.md`):
 
-| Group | Severity | Response Time |
-|-------|----------|--------------|
+| Domain | Severity | Response Time |
+|--------|----------|--------------|
 | core-platform | P1 (page) | Immediate |
 | ml-engine | P2 (alert) | 5 min |
-| automation-intelligence | P2 (alert) | 5 min |
+| automation-core | P2 (alert) | 5 min |
+| energy-analytics | P2 (alert) | 5 min |
+| blueprints | P3 (notify) | 10 min |
+| pattern-analysis | P3 (notify) | 10 min |
 | data-collectors | P3 (notify) | 15 min |
 | device-management | P3 (notify) | 10 min |
 | frontends | P3 (notify) | 10 min |
@@ -479,12 +504,15 @@ docker compose -f domains/core-platform/compose.yml -f domains/data-collectors/c
 ### Startup order (recommended):
 
 ```
-1. core-platform     (must be first -- provides InfluxDB, data-api)
-2. data-collectors   (can start in parallel with groups 3, 5)
-3. ml-engine         (can start in parallel with groups 2, 5)
-4. device-management (can start in parallel with groups 2, 3)
-5. automation-intelligence (after ml-engine is healthy)
-6. frontends         (after automation-intelligence is healthy)
+1. core-platform      (must be first -- provides InfluxDB, data-api)
+2. data-collectors    (can start in parallel with 3, 7, 8)
+3. ml-engine          (can start in parallel with 2, 7, 8)
+4. device-management  (can start in parallel with 2, 3)
+5. pattern-analysis   (can start in parallel with 2, 3)
+6. automation-core    (after ml-engine is healthy)
+7. blueprints         (after ml-engine is healthy)
+8. energy-analytics   (after ml-engine is healthy)
+9. frontends          (after automation-core is healthy)
 ```
 
 ---
@@ -517,25 +545,26 @@ This allows:
 ```
 domains/
   core-platform/
-    compose.yml              # Group 1: core-platform services
-    compose.env.example      # Environment template for core
+    compose.yml              # Domain 1: core-platform services
   data-collectors/
-    compose.yml              # Group 2: data-collectors services
-    compose.env.example      # Environment template for collectors
+    compose.yml              # Domain 2: data-collectors services
   ml-engine/
-    compose.yml              # Group 3: ml-engine services
-    compose.env.example      # Environment template for ML
+    compose.yml              # Domain 3: ml-engine services
   automation-core/
-    compose.yml              # Group 4: automation-intelligence services
-    compose.env.example      # Environment template for automation
+    compose.yml              # Domain 4: automation-core services
+  blueprints/
+    compose.yml              # Domain 5: blueprint services
+  energy-analytics/
+    compose.yml              # Domain 6: energy-analytics services
   device-management/
-    compose.yml              # Group 5: device-management services
-    compose.env.example      # Environment template for devices
+    compose.yml              # Domain 7: device-management services
+  pattern-analysis/
+    compose.yml              # Domain 8: pattern-analysis services
   frontends/
-    compose.yml              # Group 6: frontend services
-    compose.env.example      # Environment template for frontends
+    compose.yml              # Domain 9: frontend services
 
-docker-compose.yml           # Root file -- includes all 6 group files
+docker-compose.yml           # Root file -- includes all 9 domain compose files
+docker-bake.hcl              # Parallel build groups
 ```
 
 ---

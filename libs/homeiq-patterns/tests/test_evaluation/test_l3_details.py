@@ -4,17 +4,17 @@ Tests for E2.S4: L3 ToolParameterAccuracy Evaluator
 
 import pytest
 
-from shared.patterns.evaluation.config import (
+from homeiq_patterns.evaluation.config import (
     AgentEvalConfig,
     ParamDef,
     ParamRule,
     ToolDef,
 )
-from shared.patterns.evaluation.evaluators.l3_details import (
+from homeiq_patterns.evaluation.evaluators.l3_details import (
     ToolParameterAccuracyEvaluator,
 )
-from shared.patterns.evaluation.llm_judge import LLMJudge, LLMProvider
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.llm_judge import LLMJudge, LLMProvider
+from homeiq_patterns.evaluation.models import (
     EvalLevel,
     EvalScope,
     SessionTrace,

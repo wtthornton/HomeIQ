@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the complete event flow from Home Assistant through the HA-Ingestor system. **Updated February 23, 2026**: Cross-group resilience section added (CircuitBreaker, CrossGroupClient, GroupHealthCheck). Service group boundary annotations added to flow diagrams (Phase 5). State machine pattern implemented for robust connection and processing state management. Activity-recognition and energy-forecasting added to Docker deployment. Automation execution architecture includes asynchronous task queue with Huey SQLite backend.
+This document describes the complete event flow from Home Assistant through the HA-Ingestor system. **Updated February 24, 2026**: Cross-group resilience section added (CircuitBreaker, CrossGroupClient, GroupHealthCheck). Service group boundary annotations added to flow diagrams (Phase 5). State machine pattern implemented for robust connection and processing state management. Activity-recognition and energy-forecasting added to Docker deployment. Automation execution architecture includes asynchronous task queue with Huey SQLite backend.
 
 ## Service Tiers and Groups
 
@@ -10,13 +10,13 @@ The services involved in event flow are classified by criticality and organized 
 
 | Tier | Services | Role | Deployment Group |
 |------|----------|------|------------------|
-| **Tier 1** (Critical) | websocket-ingestion, data-api, InfluxDB | Core data pipeline | Group 1: core-platform |
-| **Tier 2** (Essential) | weather-api, energy-correlator | Data enrichment | Group 2: data-collectors / Group 4: automation-intelligence |
-| **Tier 3** (AI/ML) | ai-core-service, pattern-service, energy-forecasting | Intelligence layer | Group 3: ml-engine / Group 4: automation-intelligence |
-| **Tier 6** (Device) | activity-recognition | Activity inference | Group 5: device-management |
+| **Tier 1** (Critical) | websocket-ingestion, data-api, InfluxDB | Core data pipeline | Domain 1: core-platform |
+| **Tier 2** (Essential) | weather-api, energy-correlator | Data enrichment | Domain 2: data-collectors / Domain 6: energy-analytics |
+| **Tier 3** (AI/ML) | ai-core-service, pattern-service, energy-forecasting | Intelligence layer | Domain 3: ml-engine / Domain 8: pattern-analysis / Domain 6: energy-analytics |
+| **Tier 6** (Device) | activity-recognition | Activity inference | Domain 7: device-management |
 
 For complete service ranking, see **[Services Ranked by Importance](./SERVICES_RANKED_BY_IMPORTANCE.md)**.
-For the 6-group deployment architecture, see **[Service Groups Architecture](./service-groups.md)**.
+For the 9-domain deployment architecture, see **[Service Groups Architecture](./service-groups.md)**.
 
 ## Event Flow Diagram
 
@@ -51,7 +51,7 @@ For the 6-group deployment architecture, see **[Service Groups Architecture](./s
                     +----------------+------------------+
                     │                                   │
                     ▼                                   ▼
-  +-- GROUP 2: data-collectors --+    +-- GROUP 4: automation-intelligence --+
+  +-- DOMAIN 2: data-collectors -+    +-- DOMAIN 8: pattern-analysis --------+
   | ┌─────────────────────────┐  |    | ┌─────────────────────────┐          |
   | │  Weather, Energy,       │  |    | │  AI Pattern Service     │          |
   | │  Sports, AQI, etc.      │  |    | │  (Pattern Analysis)     │          |
@@ -60,11 +60,12 @@ For the 6-group deployment architecture, see **[Service Groups Architecture](./s
   +------------------------------+    +--------------------------------------+
 ```
 
-**Group boundary annotations:**
-- **Group 1 (core-platform):** Owns the entire primary data path from WebSocket to InfluxDB
-- **Group 2 (data-collectors):** Independent enrichment services writing to InfluxDB
-- **Group 4 (automation-intelligence):** Reads InfluxDB data for pattern analysis and automation generation
-- Groups 3, 5, and 6 consume data indirectly via data-api (Group 1)
+**Domain boundary annotations:**
+- **Domain 1 (core-platform):** Owns the entire primary data path from WebSocket to InfluxDB
+- **Domain 2 (data-collectors):** Independent enrichment services writing to InfluxDB
+- **Domain 8 (pattern-analysis):** Reads InfluxDB data for pattern analysis and synergy detection
+- **Domain 4 (automation-core):** Automation generation and deployment
+- Other domains consume data indirectly via data-api (Domain 1)
 
 ## Architecture Change (October 2025)
 
@@ -448,7 +449,7 @@ test_event = {
 
 ## Cross-Group Resilience
 
-Services that query data across group boundaries (e.g., G4 automation-intelligence reading from G1 core-platform via data-api) use the `libs/homeiq-resilience` module for fault tolerance.
+Services that query data across domain boundaries (e.g., D8 pattern-analysis reading from D1 core-platform via data-api) use the `libs/homeiq-resilience` module for fault tolerance.
 
 ### Resilience Components
 
@@ -462,12 +463,13 @@ Services that query data across group boundaries (e.g., G4 automation-intelligen
 ### Cross-Group Call Pattern in Event Flow
 
 ```
-+-- GROUP 4: automation-intelligence ---+       +-- GROUP 1: core-platform --+
++-- DOMAIN 8: pattern-analysis ---------+       +-- DOMAIN 1: core-platform -+
 | ai-pattern-service                    |       |                            |
 |   CrossGroupClient ─── circuit ──────────────>│  data-api :8006            |
 |   (core-platform breaker)             |       |                            |
-|                                       |       +----------------------------+
-| proactive-agent-service               |       +-- GROUP 2: data-collectors -+
++---------------------------------------+       +----------------------------+
++-- DOMAIN 6: energy-analytics ---------+       +-- DOMAIN 2: data-collectors +
+| proactive-agent-service               |       |                            |
 |   CrossGroupClient ─── circuit ──────────────>│  weather-api :8009          |
 |   (data-collectors breaker)           |       +----------------------------+
 +---------------------------------------+
@@ -477,10 +479,12 @@ When a target group is unreachable, the circuit breaker opens and services retur
 
 ### Rollout Status
 
-All 6 cross-group callers now use `libs/homeiq-resilience`:
-- ha-ai-agent-service, blueprint-suggestion-service, ai-pattern-service, ai-automation-service-new (G4 → G1)
-- proactive-agent-service (G4 → G1, G2)
-- device-health-monitor (G5 → G1, G3)
+All 6 cross-domain callers now use `libs/homeiq-resilience`:
+- ha-ai-agent-service, ai-automation-service-new (D4 → D1)
+- blueprint-suggestion-service (D5 → D1)
+- ai-pattern-service (D8 → D1)
+- proactive-agent-service (D6 → D1, D2)
+- device-health-monitor (D7 → D1, D3)
 
 For details, see [`libs/homeiq-resilience/README.md`](../../libs/homeiq-resilience/README.md).
 
@@ -533,22 +537,22 @@ The event data flowing through this architecture is also analyzed by the AI Patt
 +-----------------+---------------+
                   |
                   ▼
-+-- GROUP 4: automation-intelligence ----------+
-| AI Pattern Service (Pattern Analysis)        |
-|         ↓                                    |
-| Synergy Detection (Cross-device correlations)|
-|         ↓                                    |
-| Blueprint Opportunity Engine                 |
-|         ↓                                    |
-| Blueprint Deployer --> Home Assistant        |
-+----------------------------------------------+
++-- DOMAIN 8: pattern-analysis / DOMAIN 4: automation-core --+
+| AI Pattern Service (Pattern Analysis)  [D8]               |
+|         ↓                                                 |
+| Synergy Detection (Cross-device correlations) [D8]        |
+|         ↓                                                 |
+| Blueprint Opportunity Engine  [D5: blueprints]            |
+|         ↓                                                 |
+| Blueprint Deployer --> Home Assistant  [D4]               |
++-----------------------------------------------------------+
 ```
 
 ### Integration Points
 
-1. **Data API (Group 1) --> AI Pattern Service (Group 4)**: Query historical event data for pattern analysis
-2. **Blueprint Index Service (Group 4) --> AI Pattern Service (Group 4)**: Search indexed community blueprints (intra-group)
-3. **AI Pattern Service (Group 4) --> Home Assistant**: Deploy automations via REST API
+1. **Data API (D1) --> AI Pattern Service (D8)**: Query historical event data for pattern analysis
+2. **Blueprint Index Service (D5) --> AI Pattern Service (D8)**: Search indexed community blueprints (cross-domain)
+3. **AI Pattern Service (D8) --> Home Assistant**: Deploy automations via REST API
 
 ### Key Benefits
 
@@ -640,7 +644,7 @@ Environment variables:
 
 ## References
 
-- [Service Groups Architecture](./service-groups.md) - Canonical reference for the 6-group deployment structure
+- [Service Groups Architecture](./service-groups.md) - Canonical reference for the 9-domain deployment structure
 - [Services Ranked by Importance](./SERVICES_RANKED_BY_IMPORTANCE.md) - Complete service tier classification and Docker ports
 - [Services Architecture Quick Reference](./README_ARCHITECTURE_QUICK_REF.md) - Service patterns
 - [API Reference](../api/API_REFERENCE.md) - Complete API documentation

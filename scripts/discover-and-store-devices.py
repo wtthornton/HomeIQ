@@ -11,7 +11,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # Add paths for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../services/websocket-ingestion/src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../domains/core-platform/websocket-ingestion/src'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../shared'))
 
 from influxdb_client import InfluxDBClient, Point, WritePrecision

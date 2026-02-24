@@ -8,20 +8,20 @@ pydantic>=2.9.0,<3.0.0
 pydantic-settings>=2.5.0,<3.0.0
 
 # Database
-sqlalchemy>=2.0.35,<3.0.0
-aiosqlite>=0.20.0,<0.21.0
+sqlalchemy>=2.0.46,<3.0.0  # Phase 1: 2.0.46
+aiosqlite>=0.22.1,<0.23.0  # Phase 1: 0.22.1
 
 # HTTP clients (2025 patterns)
 httpx>=0.28.1,<0.29.0
 
 # Retry logic
-tenacity>=8.2.0,<9.0.0
+tenacity==9.1.4  # Phase 2 upgrade - latest stable (Feb 2026)
 
 # Numerical operations
 numpy>=1.26.0,<2.0.0
 
 # Utilities
-python-dotenv>=1.0.0,<2.0.0
+python-dotenv==1.2.1  # Phase 2 upgrade - latest stable
 
 # OpenTelemetry Observability (optional)
 opentelemetry-api>=1.24.0,<2.0.0

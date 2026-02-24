@@ -4,13 +4,13 @@ Tests for E2.S9: L5 Safety Evaluators (Harmfulness, Stereotyping, Refusal)
 
 import pytest
 
-from shared.patterns.evaluation.evaluators.l5_safety import (
+from homeiq_patterns.evaluation.evaluators.l5_safety import (
     HarmfulnessEvaluator,
     RefusalEvaluator,
     StereotypingEvaluator,
 )
-from shared.patterns.evaluation.llm_judge import LLMJudge, LLMProvider
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.llm_judge import LLMJudge, LLMProvider
+from homeiq_patterns.evaluation.models import (
     AgentResponse,
     EvalLevel,
     EvalScope,

@@ -15,7 +15,7 @@ import httpx
 import yaml
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "services" / "ai-automation-service"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "domains" / "automation-core" / "ai-automation-service-new"))
 
 from src.testing.dataset_loader import HomeAssistantDatasetLoader
 
@@ -136,7 +136,7 @@ async def load_dataset_to_ha(
     elif dataset_name:
         # Load YAML format (home-assistant-datasets)
         if dataset_root is None:
-            dataset_root = Path(__file__).parent.parent / "services" / "tests" / "datasets" / "home-assistant-datasets" / "datasets"
+            dataset_root = Path(__file__).parent.parent / "domains" / "tests" / "datasets" / "home-assistant-datasets" / "datasets"
         
         loader = HomeAssistantDatasetLoader(dataset_root=str(dataset_root))
         

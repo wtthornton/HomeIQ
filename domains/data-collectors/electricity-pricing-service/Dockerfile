@@ -8,11 +8,7 @@ RUN pip install --upgrade pip==25.2
 
 RUN apk add --no-cache gcc musl-dev linux-headers
 
-COPY domains/data-collectors/electricity-pricing-service/requirements-prod.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --user -r requirements-prod.txt
-
-# Install shared libs
+# Install shared libs first (required by requirements-prod.txt)
 COPY libs/ /tmp/libs/
 RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-patterns/ \
@@ -20,6 +16,11 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-observability/ \
     /tmp/libs/homeiq-data/ \
     /tmp/libs/homeiq-ha/
+
+# Copy requirements and install remaining dependencies
+COPY domains/data-collectors/electricity-pricing-service/requirements-prod.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -r requirements-prod.txt
 
 FROM python:3.12-alpine AS production
 

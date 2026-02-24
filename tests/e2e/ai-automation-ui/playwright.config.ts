@@ -63,7 +63,7 @@ export default defineConfig({
   ...(process.env.TEST_BASE_URL ? {} : {
     webServer: {
       command: 'npm run dev',
-      cwd: '../../../services/ai-automation-ui',
+      cwd: '../../../domains/frontends/ai-automation-ui',
       url: 'http://localhost:3001',
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,

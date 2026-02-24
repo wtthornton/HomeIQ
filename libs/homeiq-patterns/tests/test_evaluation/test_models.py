@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.models import (
     AgentResponse,
     Alert,
     BatchReport,

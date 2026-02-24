@@ -7,9 +7,9 @@ auto-resolve, and priority calculation.
 
 import pytest
 
-from shared.patterns.evaluation.alerts import AlertEngine
-from shared.patterns.evaluation.config import AgentEvalConfig
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.alerts import AlertEngine
+from homeiq_patterns.evaluation.config import AgentEvalConfig
+from homeiq_patterns.evaluation.models import (
     BatchReport,
     EvalAlert,
     EvalLevel,

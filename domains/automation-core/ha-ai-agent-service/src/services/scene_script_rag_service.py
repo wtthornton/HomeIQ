@@ -6,6 +6,7 @@ Extends RAGContextService to inject scene and script creation patterns when
 user prompts mention scene/script keywords.
 """
 
+from pathlib import Path
 import logging
 
 from homeiq_patterns import RAGContextService

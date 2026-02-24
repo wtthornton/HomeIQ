@@ -13,7 +13,7 @@
 |------|---------|--------|----------|--------|
 | E1: Foundation Framework | 8 | 33 | 8/8 | **Complete** |
 | E2: Built-in Evaluator Library | 10 | 40 | 10/10 | **Complete** |
-| E3: Agent-Specific Configs | 8 | 36 | 8/8 | **Complete** |
+| E3: Agent-Specific Configs | 8 | 36 | 8/8 | **Complete** (shared code 8/8; per-service @trace_session wiring 4/4) |
 | E4: Observability & Monitoring | 8 | 37 | 8/8 | **Complete** |
 | **Totals** | **34** | **146** | **34/34** | **Complete** |
 
@@ -228,9 +228,9 @@ Wk 1    Wk 2    Wk 4     Wk 7    Wk 9    Wk 10   Wk 11    Wk 12   Wk 12   Wk 13 
 | Evaluation Runner | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/run_evaluation.py` | 100% Shared | Complete |
 | Baseline Report | `libs/homeiq-patterns/src/homeiq_patterns/evaluation/reports/baseline_*_2026-02-11.md` | 100% Shared | Complete (4 agents) |
 | HA AI Agent — SessionTracer wiring | `domains/automation-core/ha-ai-agent-service/src/api/chat_endpoints.py` | ~10 lines | Complete |
-| Proactive Agent — SessionTracer wiring | `domains/energy-analytics/proactive-agent-service/src/main.py` | ~2 lines | Not Started |
-| AI Automation — SessionTracer wiring | `domains/automation-core/ai-automation-service-new/src/main.py` | ~2 lines | Not Started |
-| AI Core — SessionTracer wiring | `domains/ml-engine/ai-core-service/src/main.py` | ~2 lines | Not Started |
+| Proactive Agent — SessionTracer wiring | `domains/energy-analytics/proactive-agent-service/src/api/suggestions.py` | ~10 lines | Complete (2026-02-23) |
+| AI Automation — SessionTracer wiring | `domains/automation-core/ai-automation-service-new/src/api/automation_plan_router.py` | ~10 lines | Complete (2026-02-23) |
+| AI Core — SessionTracer wiring | `domains/ml-engine/ai-core-service/src/main.py` | ~10 lines | Complete (2026-02-23) |
 
 ### Epic 4: Observability (3 locations — shared backend, data-api, health-dashboard)
 

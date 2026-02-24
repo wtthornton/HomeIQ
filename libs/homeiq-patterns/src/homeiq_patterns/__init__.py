@@ -11,10 +11,10 @@ Patterns:
     - PostActionVerifier: Action -> verify -> map-warnings
 
 Install (editable, for development):
-    pip install -e shared/patterns/
+    pip install -e libs/homeiq-patterns/
 
 Install (from git):
-    pip install git+https://github.com/<org>/HomeIQ#subdirectory=shared/patterns
+    pip install git+https://github.com/<org>/HomeIQ#subdirectory=libs/homeiq-patterns
 """
 
 try:

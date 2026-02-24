@@ -1,7 +1,7 @@
 # Agent Evaluation — Operational Runbook
 
-**Version:** 1.0
-**Last Updated:** 2026-02-10
+**Version:** 1.1
+**Last Updated:** 2026-02-23
 **Maintainer:** HomeIQ Platform Team
 
 ---
@@ -9,6 +9,19 @@
 ## Overview
 
 The Agent Evaluation Framework continuously measures AI agent quality across a **5-level Evaluation Pyramid**: Outcome, Path, Details, Quality, and Safety. It runs scheduled evaluations, stores results in InfluxDB + SQLite, surfaces scores in the health-dashboard, and alerts operators when thresholds are violated.
+
+### SessionTracer Wiring Status (February 2026)
+
+All 4 AI agents have `@trace_session` decorators wired:
+
+| Agent | Endpoint | File | Status |
+|-------|----------|------|--------|
+| ha-ai-agent-service | POST /api/v1/chat | `domains/automation-core/ha-ai-agent-service/src/api/chat_endpoints.py` | Wired |
+| proactive-agent-service | POST /trigger | `domains/energy-analytics/proactive-agent-service/src/api/suggestions.py` | Wired (2026-02-23) |
+| ai-automation-service-new | POST /automation/plan | `domains/automation-core/ai-automation-service-new/src/api/automation_plan_router.py` | Wired (2026-02-23) |
+| ai-core-service | POST /analyze, POST /patterns | `domains/ml-engine/ai-core-service/src/main.py` | Wired (2026-02-23) |
+
+The decorator uses conditional imports — services still start normally if `homeiq_patterns` is not installed.
 
 ### Architecture
 
@@ -173,9 +186,14 @@ priority_matrix:
 In the agent's main endpoint, add the `@trace_session` decorator:
 
 ```python
-from shared.patterns.evaluation import trace_session
+try:
+    from homeiq_patterns.evaluation.session_tracer import InMemorySink, trace_session
+    _eval_sink = InMemorySink()
+    _TRACING_AVAILABLE = True
+except ImportError:
+    _TRACING_AVAILABLE = False
 
-@trace_session(agent_name="my-new-agent")
+@(trace_session(agent_name="my-new-agent", sink=_eval_sink) if _TRACING_AVAILABLE else lambda f: f)
 async def handle_request(request):
     # ... agent logic ...
     pass
@@ -186,7 +204,8 @@ async def handle_request(request):
 The scheduler auto-discovers configs from the `configs/` directory. For manual registration:
 
 ```python
-from shared.patterns.evaluation import ConfigLoader, EvaluationScheduler
+from homeiq_patterns.evaluation.config_loader import ConfigLoader
+from homeiq_patterns.evaluation.scheduler import EvaluationScheduler
 
 config = ConfigLoader.from_yaml("libs/homeiq-patterns/src/homeiq_patterns/evaluation/configs/my_new_agent.yaml")
 scheduler.register_agent(config, session_source=source)

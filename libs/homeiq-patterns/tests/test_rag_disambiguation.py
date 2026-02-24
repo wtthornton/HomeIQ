@@ -16,7 +16,7 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 # Load RAG service modules directly (avoid __init__.py import chain)
-_agent_services = Path(__file__).resolve().parents[3] / "services" / "ha-ai-agent-service" / "src" / "services"
+_agent_services = Path(__file__).resolve().parents[3] / "domains" / "automation-core" / "ha-ai-agent-service" / "src" / "services"
 
 
 def _load_module(name: str):

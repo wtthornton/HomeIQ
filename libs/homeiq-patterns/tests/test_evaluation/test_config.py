@@ -4,7 +4,7 @@ Tests for E1.S6: AgentEvalConfig YAML Schema & Loader
 
 import pytest
 
-from shared.patterns.evaluation.config import (
+from homeiq_patterns.evaluation.config import (
     AgentEvalConfig,
     ConfigLoader,
     ParamDef,
@@ -209,9 +209,11 @@ class TestConfigLoaderFile:
     def test_load_example_config(self):
         from pathlib import Path
 
-        # test_evaluation/ -> tests/ -> patterns/ -> evaluation/configs/
+        # test_evaluation/ -> tests/ -> homeiq-patterns/ -> src/homeiq_patterns/evaluation/configs/
         config_path = (
             Path(__file__).resolve().parent.parent.parent
+            / "src"
+            / "homeiq_patterns"
             / "evaluation"
             / "configs"
             / "example_agent.yaml"

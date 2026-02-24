@@ -1,6 +1,6 @@
 # HomeIQ Deployment Runbook
 
-**Last Updated:** February 23, 2026
+**Last Updated:** February 24, 2026
 **Status:** Active
 **Version:** 2.5
 
@@ -20,7 +20,7 @@ This runbook provides step-by-step instructions for deploying HomeIQ to producti
 
 HomeIQ is an AI-powered Home Assistant intelligence platform that captures, enriches, and stores Home Assistant events with multi-source data enrichment, providing real-time monitoring, advanced analytics, conversational AI automation, and production-ready deployment capabilities.
 
-**Deployment Model:** Single NUC deployment - all 50+ microservices (organized into 6 deployment groups) run on one machine, connecting to Home Assistant on the local network (typically `192.168.1.86:8123`).
+**Deployment Model:** Single NUC deployment - all 50 microservices (organized into 9 domain groups) run on one machine, connecting to Home Assistant on the local network (typically `192.168.1.86:8123`).
 
 For the full group architecture, see [Service Groups Architecture](../architecture/service-groups.md).
 
@@ -72,7 +72,7 @@ For complete service ranking and deployment priority, see **[Services Ranked by 
 
 ### Services Deployed
 
-HomeIQ deploys **47+ microservices** organized into **7 tiers by criticality** (see [Services Ranked by Importance](../../services/SERVICES_RANKED_BY_IMPORTANCE.md)). Below are the key service categories:
+HomeIQ deploys **50 microservices** organized into **7 tiers by criticality** (see [Services Ranked by Importance](../architecture/SERVICES_RANKED_BY_IMPORTANCE.md)). Below are the key service categories:
 
 #### 🗄️ Infrastructure Services
 
@@ -175,13 +175,13 @@ HomeIQ deploys **47+ microservices** organized into **7 tiers by criticality** (
   - Fallback handling
 - **Dependencies:** openvino-service, ml-service, ner-service, openai-service
 
-**10. openvino-service (Port 8026 → 8019)**
-- **Purpose:** Optimized model inference (OpenVINO INT8)
-- **Why Deployed:** High-performance embeddings and NER using optimized models
+**10. openvino-service (Port 8026)**
+- **Purpose:** Transformer-based embeddings and semantic search
+- **Why Deployed:** High-performance text embeddings using sentence-transformers
 - **Features:**
-  - Text embeddings (3 models)
-  - Named Entity Recognition
-  - OpenVINO INT8 optimization (1.5-2x speedup)
+  - Text embeddings (sentence-transformers 3.3.1)
+  - Semantic search and reranking
+  - PyTorch backend (OpenVINO removed due to dependency conflicts)
 - **Resource Requirements:** 1.5GB memory, 2 CPUs
 
 **11. ml-service (Port 8025 → 8020)**
@@ -704,20 +704,23 @@ python scripts/deployment/track-deployment.py \
 
 ## Per-Group Deployment
 
-HomeIQ services are organized into 6 independently deployable groups. This enables targeted deployments, faster iteration, and blast-radius isolation.
+HomeIQ services are organized into 9 independently deployable domain groups. This enables targeted deployments, faster iteration, and blast-radius isolation.
 
 For the canonical group reference, see [Service Groups Architecture](../architecture/service-groups.md).
 
 ### Group Overview
 
-| Group | Compose File | Services | Startup Order |
-|-------|-------------|----------|---------------|
+| Domain | Compose File | Services | Startup Order |
+|--------|-------------|----------|---------------|
 | 1. core-platform | `domains/core-platform/compose.yml` | influxdb, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention | **First** (required by all) |
 | 2. data-collectors | `domains/data-collectors/compose.yml` | weather-api, smart-meter, sports-api, air-quality, carbon-intensity, electricity-pricing, calendar, log-aggregator | After core |
-| 3. ml-engine | `domains/ml-engine/compose.yml` | ai-core-service, openvino, ml-service, ner-service, openai-service, rag-service, ai-training, device-intelligence, model-prep | After core |
-| 4. automation-intelligence | `domains/automation-core/compose.yml` | ha-ai-agent, ai-automation, ai-query, ai-pattern, + 12 more | After core + ml |
-| 5. device-management | `domains/device-management/compose.yml` | device-health-monitor, device-context-classifier, + 6 more | After core |
-| 6. frontends | `domains/frontends/compose.yml` | ai-automation-ui, observability-dashboard, jaeger | After core + automation |
+| 3. ml-engine | `domains/ml-engine/compose.yml` | ai-core-service, openvino, ml-service, ner-service, openai-service, rag-service, ai-training, device-intelligence, model-prep, nlp-fine-tuning | After core |
+| 4. automation-core | `domains/automation-core/compose.yml` | ha-ai-agent, ai-automation-service-new, ai-query, automation-linter, yaml-validation, ai-code-executor, automation-trace | After core + ml |
+| 5. blueprints | `domains/blueprints/compose.yml` | blueprint-index, blueprint-suggestion, rule-recommendation-ml, automation-miner | After core + ml |
+| 6. energy-analytics | `domains/energy-analytics/compose.yml` | energy-correlator, energy-forecasting, proactive-agent | After core + data-collectors |
+| 7. device-management | `domains/device-management/compose.yml` | device-health-monitor, device-context-classifier, device-setup-assistant, device-database-client, device-recommender, activity-recognition, activity-writer, ha-setup-service | After core |
+| 8. pattern-analysis | `domains/pattern-analysis/compose.yml` | ai-pattern-service, api-automation-edge | After core |
+| 9. frontends | `domains/frontends/compose.yml` | ai-automation-ui, observability-dashboard, health-dashboard, jaeger | After core + automation |
 
 ### Starting Individual Groups
 
@@ -725,11 +728,14 @@ For the canonical group reference, see [Service Groups Architecture](../architec
 # IMPORTANT: core-platform must always be started first
 docker compose -f domains/core-platform/compose.yml up -d
 
-# Then start any other group independently
+# Then start any other domain group independently
 docker compose -f domains/data-collectors/compose.yml up -d
 docker compose -f domains/ml-engine/compose.yml up -d
 docker compose -f domains/automation-core/compose.yml up -d
+docker compose -f domains/blueprints/compose.yml up -d
+docker compose -f domains/energy-analytics/compose.yml up -d
 docker compose -f domains/device-management/compose.yml up -d
+docker compose -f domains/pattern-analysis/compose.yml up -d
 docker compose -f domains/frontends/compose.yml up -d
 ```
 
@@ -780,8 +786,8 @@ curl -sf http://localhost:8026/health && echo " openvino-service: OK" || echo " 
 curl -sf http://localhost:8025/health && echo " ml-service: OK" || echo " ml-service: FAIL"
 curl -sf http://localhost:8028/health && echo " device-intelligence: OK" || echo " device-intelligence: FAIL"
 
-# Group 4: automation-intelligence
-echo "=== automation-intelligence ==="
+# Domain 4: automation-core
+echo "=== automation-core ==="
 curl -sf http://localhost:8030/health && echo " ha-ai-agent: OK" || echo " ha-ai-agent: FAIL"
 curl -sf http://localhost:8036/health && echo " ai-automation: OK" || echo " ai-automation: FAIL"
 curl -sf http://localhost:8034/health && echo " ai-pattern: OK" || echo " ai-pattern: FAIL"
@@ -804,7 +810,7 @@ curl -sf http://localhost:16686 -o /dev/null && echo " jaeger: OK" || echo " jae
 When a deployment in one group fails, roll back only that group without affecting others:
 
 ```bash
-# Rollback a single group (example: automation-intelligence)
+# Rollback a single domain group (example: automation-core)
 docker compose -f domains/automation-core/compose.yml down
 git checkout <previous-commit> -- domains/automation-core/
 docker compose -f domains/automation-core/compose.yml up -d --build
@@ -819,7 +825,7 @@ docker compose -f domains/core-platform/compose.yml up -d --build
 docker compose -f domains/ml-engine/compose.yml down
 git checkout <previous-commit> -- domains/ml-engine/
 docker compose -f domains/ml-engine/compose.yml up -d --build
-# automation-intelligence will use fallback/cached responses
+# automation-core will use fallback/cached responses
 ```
 
 ### Per-Group Rebuild
@@ -868,10 +874,10 @@ Services that make cross-group HTTP calls use `libs/homeiq-resilience` (CircuitB
 ```bash
 # Verify structured health endpoints return group + dependency info
 # Services should return JSON with "group", "status", and "dependencies" fields
-curl -sf http://localhost:8030/health | python -m json.tool  # ha-ai-agent (group: automation-intelligence)
-curl -sf http://localhost:8034/health | python -m json.tool  # ai-pattern (group: automation-intelligence)
-curl -sf http://localhost:8036/health | python -m json.tool  # ai-automation (group: automation-intelligence)
-curl -sf http://localhost:8031/health | python -m json.tool  # proactive-agent (group: automation-intelligence)
+curl -sf http://localhost:8030/health | python -m json.tool  # ha-ai-agent (domain: automation-core)
+curl -sf http://localhost:8034/health | python -m json.tool  # ai-pattern (domain: pattern-analysis)
+curl -sf http://localhost:8036/health | python -m json.tool  # ai-automation (domain: automation-core)
+curl -sf http://localhost:8031/health | python -m json.tool  # proactive-agent (domain: energy-analytics)
 curl -sf http://localhost:8019/health | python -m json.tool  # device-health-monitor (group: device-management)
 
 # Verify circuit breaker graceful degradation
@@ -884,7 +890,7 @@ docker compose start data-api         # Restore
 **Expected structured health response:**
 ```json
 {
-  "group": "automation-intelligence",
+  "group": "automation-core",
   "status": "healthy",
   "version": "1.0.0",
   "uptime_seconds": 3600,
@@ -1280,7 +1286,7 @@ gh workflow run deployment-notify.yml \
 
 ## References
 
-- [Service Groups Architecture](../architecture/service-groups.md) - Canonical reference for the 6-group deployment structure
+- [Service Groups Architecture](../architecture/service-groups.md) - Canonical reference for the 9-domain deployment structure
 - [Deployment Pipeline Documentation](./DEPLOYMENT_PIPELINE.md) - Complete pipeline architecture
 - [Nginx Proxy Configuration Guide](./NGINX_PROXY_CONFIGURATION.md) - Detailed nginx proxy patterns and troubleshooting
 - [Synergies API Deployment Notes](./SYNERGIES_API_DEPLOYMENT_NOTES.md) - Critical deployment notes for synergies API route fixes
@@ -1293,5 +1299,5 @@ gh workflow run deployment-notify.yml \
 
 **Maintainer:** DevOps Team  
 **Review Frequency:** Quarterly  
-**Last Review:** December 27, 2025
+**Last Review:** February 23, 2026
 

@@ -4,7 +4,7 @@ Tests for LoadingSpinner.tsx
 
 import pytest
 
-from services.ai-automation-ui.src.components.LoadingSpinner import *
+from domains.frontends.ai_automation_ui.src.components.LoadingSpinner import *
 
 
 def test_basic():

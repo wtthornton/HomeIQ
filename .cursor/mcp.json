@@ -41,7 +41,7 @@
         "serve"
       ],
       "env": {
-        "TAPPS_MCP_PROJECT_ROOT": "${workspaceFolder}"
+        "TAPPS_MCP_PROJECT_ROOT": "C:\\cursor\\HomeIQ"
       }
     }
   }

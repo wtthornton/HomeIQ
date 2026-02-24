@@ -89,13 +89,15 @@ class EnergyEventCorrelator:
         max_events_per_interval: int = 500,
         power_lookup_padding_seconds: int = 30,
         max_retry_queue_size: int = 250,
-        retry_window_minutes: int = 5
+        retry_window_minutes: int = 5,
+        data_api_url: str | None = None,
     ):
         self.influxdb_url = influxdb_url
         self.influxdb_token = influxdb_token
         self.influxdb_org = influxdb_org
         self.influxdb_bucket = influxdb_bucket
         self.client: InfluxDBWrapper | None = None
+        self.data_api_url = (data_api_url or "").rstrip("/") or None
 
         # Configuration
         self.correlation_window_seconds = max(1, int(correlation_window_seconds))  # Look +/- window
@@ -346,6 +348,16 @@ class EnergyEventCorrelator:
 
         self.correlations_found += 1
 
+        # Story 4.2: Optional activity at event time (graceful degradation)
+        activity_at_event: str | None = None
+        activity_available = False
+        if self.data_api_url:
+            try:
+                activity_at_event = await self._get_activity_at_time(event_time)
+                activity_available = activity_at_event is not None
+            except Exception as e:
+                logger.debug("Activity lookup skipped for correlation: %s", e)
+
         point = self._build_correlation_point(
             event_time=event_time,
             entity_id=entity_id,
@@ -354,7 +366,9 @@ class EnergyEventCorrelator:
             previous_state=previous_state,
             power_before=power_before,
             power_after=power_after,
-            power_delta=power_delta
+            power_delta=power_delta,
+            activity_at_event=activity_at_event,
+            activity_available=activity_available,
         )
 
         if point and write_result:
@@ -415,6 +429,51 @@ class EnergyEventCorrelator:
             logger.error(f"Error querying power: {e}")
             raise
 
+    async def _get_activity_at_time(self, event_time: datetime) -> str | None:
+        """
+        Look up activity at event time from data-api (Story 4.2).
+        Returns activity name or None on failure/unavailable. Timeout 5s.
+        """
+        if not self.data_api_url:
+            return None
+        try:
+            import aiohttp
+            # Request 1h history; find reading closest to event_time
+            url = f"{self.data_api_url}/api/v1/activity/history"
+            params = {"hours": 1, "limit": 50}
+            timeout = aiohttp.ClientTimeout(total=5)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url, params=params) as resp:
+                    if resp.status != 200:
+                        return None
+                    items = await resp.json()
+            if not isinstance(items, list) or not items:
+                return None
+            event_ts = event_time.timestamp()
+            best: tuple[float, str] | None = None
+            for item in items:
+                ts = item.get("timestamp")
+                activity = item.get("activity")
+                if not ts or not activity:
+                    continue
+                try:
+                    if isinstance(ts, str):
+                        # ISO format with optional Z
+                        s = ts.replace("Z", "+00:00")
+                        dt = datetime.fromisoformat(s)
+                    else:
+                        dt = ts
+                    t = dt.timestamp() if hasattr(dt, "timestamp") else 0.0
+                    delta = abs(t - event_ts)
+                    if best is None or delta < best[0]:
+                        best = (delta, str(activity))
+                except Exception:
+                    continue
+            return best[1] if best else None
+        except Exception as e:
+            logger.debug("Activity lookup failed: %s", e)
+            return None
+
     def _build_correlation_point(
         self,
         event_time: datetime,
@@ -424,9 +483,12 @@ class EnergyEventCorrelator:
         previous_state: str,
         power_before: float,
         power_after: float,
-        power_delta: float
+        power_delta: float,
+        *,
+        activity_at_event: str | None = None,
+        activity_available: bool = False,
     ) -> Point | None:
-        """Build correlation data point"""
+        """Build correlation data point (Story 4.2: optional activity_at_event)."""
         if power_before is None or power_after is None:
             return None
 
@@ -444,7 +506,10 @@ class EnergyEventCorrelator:
             .field("power_after_w", float(power_after)) \
             .field("power_delta_w", float(power_delta)) \
             .field("power_delta_pct", float(power_delta_pct)) \
+            .field("activity_available", activity_available) \
             .time(event_time)
+        if activity_at_event:
+            point = point.tag("activity_at_event", activity_at_event)
 
         logger.info(
             f"Correlation: {entity_id} [{previous_state}→{state}] "

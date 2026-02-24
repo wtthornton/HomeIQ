@@ -15,9 +15,9 @@ source: ai-tools planner (HomeIQ improvement suggestions)
 **Risk Level:** Low  
 
 **Implementation Status (Feb 2026):**
-- Stories 1–4, 5, 6, 7, 9: ✅ Complete
+- Stories 1–4, 5, 6, 7, 9: Complete
 - Phase 1–4 complete: verification, E2E, unified validation, deploy feedback UI, tests, docs
-- Stories 8, 10: Deferred (parameterized blueprint, sport-specific corpus – optional)
+- Stories 8, 10: Completed in `epic-platform-wide-pattern-rollout.md` (Stories 10, 11) — sports_blueprint_generator.py and sport_specific_patterns.md implemented
 
 ## Overview
 

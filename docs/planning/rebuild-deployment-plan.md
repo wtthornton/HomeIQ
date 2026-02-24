@@ -127,16 +127,16 @@ This comprehensive plan outlines the strategy to rebuild and redeploy the entire
 
 ### Dependencies
 
-**Base Python Requirements** ([requirements-base.txt](c:\cursor\HomeIQ\requirements-base.txt)):
-- Python 3.12+ (minimum)
-- FastAPI 0.128.x
-- Pydantic 2.12.5
-- SQLAlchemy 2.0.45
-- aiosqlite 0.21.0
-- InfluxDB client 1.49.0
-- OpenTelemetry suite 1.24.0
-- httpx 0.28.1, aiohttp 3.13.3
-- pytest 8.3.3, pytest-asyncio 1.3.0
+**Base Python Requirements** (actual versions from per-service `requirements.txt`):
+- Python 3.12 (primary), 3.11 (Streamlit services)
+- FastAPI 0.115.0–0.124.0
+- Pydantic 2.5.0–2.12.4
+- SQLAlchemy 2.0.25–2.0.46
+- aiosqlite 0.20.0–0.21.0
+- influxdb-client 1.38.0–1.48.0
+- OpenTelemetry suite 1.25.0–1.30.0
+- httpx 0.27.0–0.28.1, aiohttp 3.10.0–3.11.11
+- pytest 8.1.0–8.3.4, pytest-asyncio 0.24.0–0.25.3
 
 **Node.js Dependencies** ([package.json](c:\cursor\HomeIQ\package.json)):
 - React 18.3.1

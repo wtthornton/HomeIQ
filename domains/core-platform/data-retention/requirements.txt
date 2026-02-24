@@ -4,10 +4,10 @@ uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
 
 # Core dependencies
 influxdb-client>=1.49.0,<2.0.0  # Latest stable (2025)
-influxdb3-python==0.3.0
+influxdb3-python==0.17.0  # Phase 2 upgrade - latest stable (Jan 2026)
 psutil>=6.0.0
 pydantic>=2.8.2
-python-dotenv>=1.0.1
+python-dotenv==1.2.1  # Phase 2 upgrade - latest stable
 boto3==1.36.5
 pyarrow==15.0.2
 pandas>=2.2.0,<3.0.0  # Stable pandas 2.x (2025)

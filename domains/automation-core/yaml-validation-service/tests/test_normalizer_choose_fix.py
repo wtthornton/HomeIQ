@@ -4,7 +4,7 @@ Tests for normalizer.py
 
 import pytest
 
-from services.yaml-validation-service.src.yaml_validation_service.normalizer import *
+from domains.automation_core.yaml_validation_service.src.yaml_validation_service.normalizer import *
 
 # Test functions
 

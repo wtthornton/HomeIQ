@@ -4,13 +4,13 @@ Tests for E2.S2-S3: L2 Path Evaluators (ToolSelectionAccuracy, ToolSequenceValid
 
 import pytest
 
-from shared.patterns.evaluation.config import AgentEvalConfig, PathRule, ToolDef
-from shared.patterns.evaluation.evaluators.l2_path import (
+from homeiq_patterns.evaluation.config import AgentEvalConfig, PathRule, ToolDef
+from homeiq_patterns.evaluation.evaluators.l2_path import (
     ToolSelectionAccuracyEvaluator,
     ToolSequenceValidatorEvaluator,
 )
-from shared.patterns.evaluation.llm_judge import LLMJudge, LLMProvider
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.llm_judge import LLMJudge, LLMProvider
+from homeiq_patterns.evaluation.models import (
     AgentResponse,
     EvalLevel,
     EvalScope,

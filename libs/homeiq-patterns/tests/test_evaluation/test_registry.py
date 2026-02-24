@@ -4,37 +4,37 @@ Tests for E1.S7: EvaluationRegistry + Pipeline
 
 import pytest
 
-from shared.patterns.evaluation.config import (
+from homeiq_patterns.evaluation.config import (
     AgentEvalConfig,
     ParamDef,
     ParamRule,
     PathRule,
     ToolDef,
 )
-from shared.patterns.evaluation.evaluators.l1_outcome import GoalSuccessRateEvaluator
-from shared.patterns.evaluation.evaluators.l2_path import (
+from homeiq_patterns.evaluation.evaluators.l1_outcome import GoalSuccessRateEvaluator
+from homeiq_patterns.evaluation.evaluators.l2_path import (
     ToolSelectionAccuracyEvaluator,
     ToolSequenceValidatorEvaluator,
 )
-from shared.patterns.evaluation.evaluators.l2_template_match import (
+from homeiq_patterns.evaluation.evaluators.l2_template_match import (
     TemplateAppropriatenessEvaluator,
 )
-from shared.patterns.evaluation.evaluators.l3_details import ToolParameterAccuracyEvaluator
-from shared.patterns.evaluation.evaluators.l3_entity_resolution import (
+from homeiq_patterns.evaluation.evaluators.l3_details import ToolParameterAccuracyEvaluator
+from homeiq_patterns.evaluation.evaluators.l3_entity_resolution import (
     EntityResolutionEvaluator,
 )
-from shared.patterns.evaluation.evaluators.l3_yaml_completeness import (
+from homeiq_patterns.evaluation.evaluators.l3_yaml_completeness import (
     YAMLCompletenessEvaluator,
 )
-from shared.patterns.evaluation.llm_judge import LLMJudge, LLMProvider
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.llm_judge import LLMJudge, LLMProvider
+from homeiq_patterns.evaluation.models import (
     AgentResponse,
     EvalLevel,
     SessionTrace,
     ToolCall,
     UserMessage,
 )
-from shared.patterns.evaluation.registry import EvaluationRegistry
+from homeiq_patterns.evaluation.registry import EvaluationRegistry
 
 
 class MockProvider(LLMProvider):
@@ -287,7 +287,7 @@ class TestPreviewModeSkipping:
     @staticmethod
     def _make_config_with_deploy_rules() -> AgentEvalConfig:
         """Config that includes system_prompt_rules with deploy-dependent names."""
-        from shared.patterns.evaluation.config import PromptRule
+        from homeiq_patterns.evaluation.config import PromptRule
 
         return AgentEvalConfig(
             agent_name="test-agent",

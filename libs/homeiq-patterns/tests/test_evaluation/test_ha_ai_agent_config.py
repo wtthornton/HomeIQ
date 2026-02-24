@@ -4,16 +4,16 @@ Tests for E3.S1: HA AI Agent — Tool & Path Configuration
 
 import pytest
 
-from shared.patterns.evaluation.config import ConfigLoader
-from shared.patterns.evaluation.llm_judge import LLMJudge, LLMProvider
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.config import ConfigLoader
+from homeiq_patterns.evaluation.llm_judge import LLMJudge, LLMProvider
+from homeiq_patterns.evaluation.models import (
     AgentResponse,
     EvalLevel,
     SessionTrace,
     ToolCall,
     UserMessage,
 )
-from shared.patterns.evaluation.registry import EvaluationRegistry
+from homeiq_patterns.evaluation.registry import EvaluationRegistry
 
 
 class MockProvider(LLMProvider):
@@ -33,6 +33,8 @@ class TestHAAIAgentConfig:
 
         config_path = (
             Path(__file__).resolve().parent.parent.parent
+            / "src"
+            / "homeiq_patterns"
             / "evaluation"
             / "configs"
             / "ha_ai_agent.yaml"
@@ -176,6 +178,8 @@ class TestHAAIAgentRegistration:
 
         config_path = (
             Path(__file__).resolve().parent.parent.parent
+            / "src"
+            / "homeiq_patterns"
             / "evaluation"
             / "configs"
             / "ha_ai_agent.yaml"

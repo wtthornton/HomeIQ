@@ -24,11 +24,11 @@ if sys.platform == "win32":
         # Python < 3.7 - use environment variable only
         pass
 
-# Add services/blueprint-index to path
+# Add domains/blueprints/blueprint-index to path
 project_root = Path(__file__).parent.parent
-blueprint_index_path = project_root / "services" / "blueprint-index" / "src"
+blueprint_index_path = project_root / "domains" / "blueprints" / "blueprint-index" / "src"
 sys.path.insert(0, str(blueprint_index_path))
-sys.path.insert(0, str(project_root / "services" / "blueprint-index"))
+sys.path.insert(0, str(project_root / "domains" / "blueprints" / "blueprint-index"))
 
 # Set database path to match Docker volume location
 data_dir = project_root / "data"

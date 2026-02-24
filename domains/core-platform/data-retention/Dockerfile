@@ -15,12 +15,7 @@ RUN pip install --upgrade pip==25.2 && \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies (optimized layer ordering)
-COPY domains/core-platform/data-retention/requirements-prod.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --user -r requirements-prod.txt
-
-# Install shared libs
+# Install shared libs first (required by requirements-prod.txt)
 COPY libs/ /tmp/libs/
 RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-patterns/ \
@@ -28,6 +23,11 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-observability/ \
     /tmp/libs/homeiq-data/ \
     /tmp/libs/homeiq-ha/
+
+# Copy requirements and install remaining dependencies
+COPY domains/core-platform/data-retention/requirements-prod.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -r requirements-prod.txt
 
 # Production stage
 FROM python:3.12-slim AS production

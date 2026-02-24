@@ -51,7 +51,7 @@ Three proven patterns extracted from the Automation Improvements epic into share
 ### Quick Start
 
 ```python
-from shared.patterns import RAGContextService
+from homeiq_patterns import RAGContextService
 from pathlib import Path
 
 class EnergyRAGService(RAGContextService):
@@ -91,7 +91,7 @@ class EnergyRAGService(RAGContextService):
 ### Quick Start
 
 ```python
-from shared.patterns import RAGContextRegistry
+from homeiq_patterns import RAGContextRegistry
 
 registry = RAGContextRegistry()
 registry.register(AutomationRAGService())
@@ -131,7 +131,7 @@ merged = await registry.get_merged_context("shift laundry to off-peak hours")
 ### Quick Start
 
 ```python
-from shared.patterns import UnifiedValidationRouter, ValidationRequest, ValidationResponse
+from homeiq_patterns import UnifiedValidationRouter, ValidationRequest, ValidationResponse
 
 class BlueprintValidationRouter(UnifiedValidationRouter):
     domain = "blueprint"
@@ -189,7 +189,7 @@ class BlueprintValidationRouter(UnifiedValidationRouter):
 ### Quick Start
 
 ```python
-from shared.patterns import PostActionVerifier, VerificationResult, VerificationWarning
+from homeiq_patterns import PostActionVerifier, VerificationResult, VerificationWarning
 
 class BlueprintDeployVerifier(PostActionVerifier):
     def __init__(self, ha_client):

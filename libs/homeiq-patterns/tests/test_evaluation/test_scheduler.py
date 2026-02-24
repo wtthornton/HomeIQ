@@ -10,16 +10,16 @@ from pathlib import Path
 
 import pytest
 
-from shared.patterns.evaluation.config import ConfigLoader
-from shared.patterns.evaluation.llm_judge import LLMJudge, LLMProvider
-from shared.patterns.evaluation.models import (
+from homeiq_patterns.evaluation.config import ConfigLoader
+from homeiq_patterns.evaluation.llm_judge import LLMJudge, LLMProvider
+from homeiq_patterns.evaluation.models import (
     AgentResponse,
     SessionTrace,
     ToolCall,
     UserMessage,
 )
-from shared.patterns.evaluation.registry import EvaluationRegistry
-from shared.patterns.evaluation.scheduler import (
+from homeiq_patterns.evaluation.registry import EvaluationRegistry
+from homeiq_patterns.evaluation.scheduler import (
     EvaluationScheduler,
     InMemorySessionSource,
     _is_due,
@@ -34,6 +34,8 @@ class MockProvider(LLMProvider):
 def _config_path(filename: str):
     return (
         Path(__file__).resolve().parent.parent.parent
+        / "src"
+        / "homeiq_patterns"
         / "evaluation"
         / "configs"
         / filename

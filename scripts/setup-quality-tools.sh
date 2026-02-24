@@ -46,8 +46,8 @@ fi
 
 echo -e "${GREEN}[3/4] Setting up frontend quality tools...${NC}\n"
 
-if [ -d "services/health-dashboard" ]; then
-    cd services/health-dashboard
+if [ -d "domains/core-platform/health-dashboard" ]; then
+    cd domains/core-platform/health-dashboard
     
     # Install jscpd as dev dependency (if not already installed)
     if ! npm list jscpd &> /dev/null; then
@@ -57,7 +57,7 @@ if [ -d "services/health-dashboard" ]; then
     # Create reports directory
     mkdir -p reports
     
-    cd ../..
+    cd ../../..
     echo -e "${GREEN}✓ Frontend tools ready${NC}\n"
 else
     echo -e "${YELLOW}⚠ health-dashboard not found${NC}\n"

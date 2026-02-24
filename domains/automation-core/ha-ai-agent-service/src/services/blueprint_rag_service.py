@@ -6,6 +6,7 @@ Extends RAGContextService to inject blueprint selection and usage patterns
 when user prompts mention blueprint-related keywords.
 """
 
+from pathlib import Path
 import logging
 
 from homeiq_patterns import RAGContextService

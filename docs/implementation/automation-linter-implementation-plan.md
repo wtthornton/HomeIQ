@@ -45,7 +45,7 @@ This document provides a detailed, step-by-step implementation plan for adding a
 ## Prerequisites & Validation
 
 ### Required Reading
-- [HomeIQ Services Architecture Quick Reference](../services/README_ARCHITECTURE_QUICK_REF.md)
+- [HomeIQ Services Architecture Quick Reference](../architecture/README_ARCHITECTURE_QUICK_REF.md)
 - [Requirements Document: automation-linter-requirements.md](./automation-linter-requirements.md)
 
 ### Environment Validation
@@ -1107,7 +1107,7 @@ if __name__ == "__main__":
 ```
 
 **Update service port documentation:**
-Update `services/README_ARCHITECTURE_QUICK_REF.md`:
+Update `docs/architecture/README_ARCHITECTURE_QUICK_REF.md`:
 ```markdown
 | automation-linter | 8020 | HA automation linter | None (standalone) |
 ```
@@ -2481,7 +2481,7 @@ action:
 
 **Integration:**
 - ✅ Updated `docker-compose.yml` - Added automation-linter service
-- 🔄 Updated `services/README_ARCHITECTURE_QUICK_REF.md` - **Next Step**
+- 🔄 Updated `docs/architecture/README_ARCHITECTURE_QUICK_REF.md` - **Next Step**
 
 ### 🔄 Pending Files (Testing Phase)
 
