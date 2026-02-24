@@ -5,7 +5,6 @@ Epic 39, Story 39.12: Query & Automation Service Testing
 """
 
 import pytest
-import asyncio
 from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
 
@@ -18,13 +17,7 @@ from src.database import get_db
 from src.config import settings
 from src.main import app
 
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
 
 
 @pytest.fixture(scope="function")

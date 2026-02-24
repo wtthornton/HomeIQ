@@ -1,6 +1,5 @@
 """Test fixtures for Blueprint Index Service."""
 
-import asyncio
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -8,13 +7,7 @@ from sqlalchemy.pool import StaticPool
 
 from src.models import Base
 
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create event loop for async tests."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
 
 
 @pytest_asyncio.fixture

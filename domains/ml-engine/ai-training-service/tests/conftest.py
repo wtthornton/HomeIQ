@@ -5,7 +5,6 @@ Epic 39, Story 39.4: Training Service Testing & Validation
 """
 
 import pytest
-import asyncio
 from pathlib import Path
 from datetime import datetime
 from typing import AsyncGenerator
@@ -16,13 +15,7 @@ from sqlalchemy.pool import StaticPool
 from src.database.models import Base, TrainingRun
 from src.config import settings
 
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
 
 
 @pytest.fixture(scope="function")

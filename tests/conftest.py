@@ -4,28 +4,11 @@ Shared pytest fixtures for all E2E and integration tests
 Following Context7 KB best practices from /pytest-dev/pytest
 """
 
-import asyncio
-from typing import Generator
-
 import pytest
 
 collect_ignore = ["integration", "unit"]
 
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """
-    ✅ Context7 Best Practice: Provide event loop for async tests
-    
-    Creates a new event loop for the entire test session to support async fixtures.
-    This is required for pytest-asyncio to work correctly.
-    
-    Reference: https://docs.pytest.org/en/stable/how-to/fixtures.html
-    """
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-    yield loop
-    loop.close()
+# Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
 
 
 @pytest.fixture(autouse=True)

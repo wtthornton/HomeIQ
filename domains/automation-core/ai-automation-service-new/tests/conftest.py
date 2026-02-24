@@ -4,7 +4,6 @@ Pytest configuration and fixtures for AI Automation Service
 Epic 39, Story 39.12: Query & Automation Service Testing
 """
 
-import asyncio
 import sys
 from pathlib import Path
 
@@ -19,18 +18,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-# Note: These imports will be available once main.py and routers are created
-# from src.database import get_db
-# from src.config import settings
-# from src.main import app
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
 
 
 @pytest.fixture(scope="function")

@@ -5,7 +5,6 @@ Pytest configuration and fixtures for Proactive Agent Service tests
 from __future__ import annotations
 
 import pytest
-import asyncio
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -14,13 +13,7 @@ from sqlalchemy.pool import StaticPool
 from src.database import Base
 from src.models import Suggestion
 
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
 
 
 @pytest.fixture(scope="function")
