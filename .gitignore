@@ -231,3 +231,8 @@ phase2_results_*.json
 .claude/settings.local.json
 .claude/agent-memory/
 .claude/agent-memory-local/
+
+# TAPPS MCP runtime data (session metrics, not source code)
+.tapps-mcp/metrics/
+.tapps-mcp/sessions/
+.tapps-mcp/pre-compact-context.json
