@@ -4,6 +4,39 @@
 
 ### Added
 
+- **implement 5 service stubs across 4 domains** (c0c7919) - Bill Thornton
+- **implement 6 stub services and wire persistent eval sinks** (88a4a31) - Bill Thornton
+- **operational readiness - Alembic, monitoring, CI, backups, E2E, runbooks** (41c61dd) - Bill Thornton
+- **SQLite to PostgreSQL migration + library version standardization** (8508f97) - Bill Thornton
+- **Phase 1 dependency updates, Dockerfile modernization, and documentation refresh** (7066ce7) - Bill Thornton
+- **complete domain architecture restructuring (Epics 1-4)** (d47f7c0) - Bill Thornton
+- **service groups decomposition + cross-group resilience rollout** (6e9cf95) - Bill Thornton
+- **upgrade LLM/ML model stack — OpenAI SDK 2.x, gpt-5.2-codex, library alignment** (b62f1a6) - Bill Thornton
+- **feat(activity-recognition): Phase 1+2 integration and quality improvements** (78f19c4) - Bill Thornton
+- **feat(ai-automation-service-new): separate plan (gpt-4o-mini) and YAML (Codex) models** (1bb834b) - Bill Thornton
+
+### Fixed
+
+- **switch Claude Code hooks from .sh to .ps1 for Windows compatibility** (06dfa52) - Bill Thornton
+- **remove 20 files committed with literal ${workspaceFolder} path prefix** (850d47a) - Bill Thornton
+- **update pytest-asyncio config for explicit loop scope across all services** (141da0d) - Bill Thornton
+- **resolve data-api startup and legacy shared.* imports (Phase 1 complete)** (296ce95) - Bill Thornton
+- **resolve pre-existing e2e test failures** (d1d0921) - Bill Thornton
+- **OTel mock fallbacks, blueprint-suggestion Docker context, resilience E2E tests** (7d6c3e9) - Bill Thornton
+- **resolve 3 deployment bugs in resilience startup and health probes** (e206790) - Bill Thornton
+- **fix(ha-ai-agent): inject entity inventory, fix device-intel auth, switch to gpt-4.1** (9d9c397) - Bill Thornton
+- **resolve 5 deployment bugs across data-api, ha-ai-agent, ai-pattern, smart-meter** (e4e2c8e) - Bill Thornton
+- **platform-wide code quality review — 6,500+ lint fixes across 46 services** (9aae7e5) - Bill Thornton
+- **fix(ai-automation-service-new): tests, schema, and OpenAI default model** (4f92f92) - Bill Thornton
+- **YAML tests, deployment router, entity extraction, and validator** (34f6f50) - Bill Thornton
+- **Fix activity-recognition bugs; ai-automation-service updates** (a8bbcf9) - Bill Thornton
+- **fix(activity-recognition): quality gate fixes, tests, and refactors** (be3f154) - Bill Thornton
+- **fix(activity-recognition): thread safety, ONNX probs shape, checkpoint load, sequences, healthcheck** (7e4a019) - Bill Thornton
+- **fix(ai-automation-service-new): fix null-safe .get() usage and test imports** (624419d) - Bill Thornton
+
+
+### Added
+
 - **Phase 1 dependency updates, Dockerfile modernization, and documentation refresh** (7066ce7) - Bill Thornton
 - **complete domain architecture restructuring (Epics 1-4)** (d47f7c0) - Bill Thornton
 - **service groups decomposition + cross-group resilience rollout** (6e9cf95) - Bill Thornton
