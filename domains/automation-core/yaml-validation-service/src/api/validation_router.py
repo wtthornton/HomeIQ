@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from ..clients.data_api_client import DataAPIClient
+from ..clients.ha_client import HAServiceClient
 from ..config import settings
 from ..yaml_validation_service import ValidationPipeline, ValidationResult
 
@@ -54,7 +55,18 @@ async def validate_yaml(request: ValidationRequest) -> ValidationResponse:
             api_key = settings.data_api_key or settings.api_key
             data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=api_key)
 
-        ha_client = None  # TODO: Initialize HA client if validate_services
+        ha_client = None
+        if request.validate_services and settings.enable_service_validation:
+            if settings.ha_url and settings.ha_token:
+                ha_client = HAServiceClient(
+                    ha_url=settings.ha_url,
+                    ha_token=settings.ha_token,
+                )
+            else:
+                logger.warning(
+                    "Service validation requested but HA_URL / HA_TOKEN "
+                    "not configured -- skipping service checks"
+                )
 
         # Create validation pipeline
         pipeline = ValidationPipeline(

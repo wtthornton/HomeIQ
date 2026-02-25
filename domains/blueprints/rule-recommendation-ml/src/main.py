@@ -15,7 +15,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api.routes import load_model, router
+from .api.routes import init_feedback_store, load_model, router
 
 
 def _configure_logging() -> None:
@@ -48,6 +48,13 @@ _configure_logging()
 logger = structlog.get_logger(__name__)
 
 
+def _init_feedback_store() -> None:
+    """Initialize the feedback persistence store."""
+    db_path = Path(os.getenv("FEEDBACK_DB_PATH", "/data/feedback.db"))
+    init_feedback_store(db_path)
+    logger.info("Feedback store ready", path=str(db_path))
+
+
 def _load_recommendation_model() -> None:
     """Load rule recommendation model if available."""
     model_path = Path(os.getenv("MODEL_PATH", "./models/rule_recommender.pkl"))
@@ -69,6 +76,9 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
     logger.info("Starting Rule Recommendation ML Service...")
+
+    # Initialize feedback store (must be before model load)
+    _init_feedback_store()
 
     # Load model if it exists
     _load_recommendation_model()

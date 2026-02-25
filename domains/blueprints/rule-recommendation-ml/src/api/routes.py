@@ -15,6 +15,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from ..data.feedback_store import FeedbackStore
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["recommendations"])
@@ -97,6 +99,10 @@ class HealthResponse(BaseModel):
 
 _recommender = None
 _model_path = Path("./models/rule_recommender.pkl")
+_feedback_store: FeedbackStore | None = None
+
+# Number of new feedback items that trigger an incremental retrain
+RETRAIN_THRESHOLD = 50
 
 
 def get_recommender():
@@ -108,6 +114,25 @@ def get_recommender():
             detail="Model not loaded. Please ensure the model is trained and loaded."
         )
     return _recommender
+
+
+def get_feedback_store() -> FeedbackStore:
+    """Get the feedback store singleton."""
+    global _feedback_store
+    if _feedback_store is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Feedback store not initialized."
+        )
+    return _feedback_store
+
+
+def init_feedback_store(db_path: Path | str | None = None) -> FeedbackStore:
+    """Create and set the module-level feedback store singleton."""
+    global _feedback_store
+    _feedback_store = FeedbackStore(db_path)
+    logger.info("Feedback store configured (db_path=%s)", db_path)
+    return _feedback_store
 
 
 def load_model(path: Path | str | None = None) -> bool:
@@ -324,11 +349,14 @@ async def submit_feedback(feedback: RecommendationFeedback):
     - Retraining with updated interaction data
     - Adjusting recommendation weights
     - Identifying low-quality patterns
+
+    When enough feedback accumulates (default: 50 items since last
+    retrain), an incremental model update is triggered as a background
+    task.
     """
     import uuid
 
-    # In production, this would store feedback in a database
-    # and potentially trigger model retraining
+    from ..services.model_updater import maybe_trigger_retrain
 
     feedback_id = str(uuid.uuid4())
 
@@ -337,8 +365,37 @@ async def submit_feedback(feedback: RecommendationFeedback):
         f"from user {feedback.user_id or 'anonymous'} (feedback_id={feedback_id})"
     )
 
-    # TODO: Store feedback in database
-    # TODO: Trigger incremental model update if enough feedback accumulated
+    # Persist feedback
+    store = get_feedback_store()
+    try:
+        await store.insert(
+            feedback_id=feedback_id,
+            rule_pattern=feedback.rule_pattern,
+            user_id=feedback.user_id,
+            feedback_type=feedback.feedback_type,
+            rating=feedback.rating,
+            comment=feedback.comment,
+            automation_id=feedback.automation_id,
+        )
+    except Exception:
+        logger.exception("Failed to persist feedback %s", feedback_id)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to store feedback. Please try again.",
+        ) from None
+
+    # Check whether we should trigger an incremental retrain
+    try:
+        if _recommender is not None:
+            await maybe_trigger_retrain(
+                store,
+                _recommender,
+                _model_path,
+                threshold=RETRAIN_THRESHOLD,
+            )
+    except Exception:
+        # Retrain trigger failure must not break the feedback response
+        logger.exception("Error while checking retrain trigger")
 
     return FeedbackResponse(
         success=True,

@@ -3,12 +3,14 @@ Database models for Pattern Service
 
 Epic 39, Story 39.5: Pattern Service Foundation
 Phase 3.3: Enhanced with 2025 improvement fields
+Phase 3.3+: Community pattern and rating models
 
 Note: These models reference tables in the shared database.
 The models are defined here for type checking and ORM usage,
 but the actual tables are managed by ai-automation-service.
 """
 
+import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
@@ -91,5 +93,59 @@ class SynergyFeedback(Base):
 
     def __repr__(self) -> str:
         return f"<SynergyFeedback(id={self.id}, synergy_id={self.synergy_id}, type={self.feedback_type})>"
+
+
+class CommunityPattern(Base):
+    """
+    Community-shared automation patterns.
+
+    Stores patterns submitted by users for community discovery and reuse.
+    Patterns go through a review process before being made public.
+
+    Phase 3.3: Community pattern sharing for knowledge transfer.
+    """
+    __tablename__ = 'community_patterns'
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    pattern_type = Column(String(50), nullable=False, index=True)  # e.g., 'time_of_day', 'co_occurrence'
+    device_id = Column(String(255), nullable=True)  # Device ID if pattern is device-specific
+    pattern_metadata = Column(JSON, nullable=False)  # Pattern metadata and configuration
+    description = Column(Text, nullable=False)
+    tags = Column(JSON, default=list)  # Tags for categorization
+    author = Column(String(255), nullable=True)
+    status = Column(String(20), nullable=False, default='pending', index=True)  # 'pending', 'approved', 'rejected'
+    rating_avg = Column(Float, default=0.0, nullable=False)
+    rating_count = Column(Integer, default=0, nullable=False)
+    download_count = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=True)
+
+    def __repr__(self) -> str:
+        return (
+            f"<CommunityPattern(id={self.id}, type={self.pattern_type}, "
+            f"author={self.author}, rating={self.rating_avg:.1f})>"
+        )
+
+
+class PatternRating(Base):
+    """
+    Ratings and reviews for community patterns.
+
+    Stores individual user ratings (1-5 stars) with optional comments.
+    Aggregated into CommunityPattern.rating_avg and rating_count.
+
+    Phase 3.3: Community pattern rating system.
+    """
+    __tablename__ = 'pattern_ratings'
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    pattern_id = Column(String(36), ForeignKey('community_patterns.id'), nullable=False, index=True)
+    user_id = Column(String(255), nullable=True)  # Anonymous if not provided
+    rating = Column(Integer, nullable=False)  # 1-5
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<PatternRating(id={self.id}, pattern_id={self.pattern_id}, rating={self.rating})>"
 
 

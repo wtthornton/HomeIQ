@@ -18,11 +18,43 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..config import settings
 from ..database import get_db
 from ..database.models import AskAIQuery
+from ..services.clarification.service import ClarificationService
 from ..services.query.processor import QueryProcessor
+from ..services.suggestion.generator import SuggestionGenerator
 
 logger = logging.getLogger(__name__)
+
+
+def _build_processor() -> QueryProcessor:
+    """Build a fully-wired :class:`QueryProcessor`.
+
+    Injects :class:`ClarificationService` (always available -- pure logic)
+    and :class:`SuggestionGenerator` (uses OpenAI when configured, keyword
+    fallback otherwise).
+    """
+    # OpenAI client -- only created when an API key is configured
+    openai_client = None
+    if settings.openai_api_key:
+        try:
+            from openai import AsyncOpenAI
+
+            openai_client = AsyncOpenAI(
+                api_key=settings.openai_api_key,
+                timeout=settings.openai_timeout,
+            )
+        except Exception:
+            logger.warning("Failed to initialise OpenAI client", exc_info=True)
+
+    clarification_service = ClarificationService()
+    suggestion_generator = SuggestionGenerator(openai_client=openai_client)
+
+    return QueryProcessor(
+        clarification_service=clarification_service,
+        suggestion_generator=suggestion_generator,
+    )
 
 # Pattern to strip control characters from user input before logging
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
@@ -97,9 +129,9 @@ async def process_query(
     await db.flush()  # Populate id without committing
 
     try:
-        # Process query via QueryProcessor
+        # Process query via QueryProcessor (with wired services)
         query_record.status = "processing"
-        processor = QueryProcessor()
+        processor = _build_processor()
         result = await processor.process_query(
             query=request.query,
             user_id=request.user_id,
@@ -184,9 +216,9 @@ async def refine_query(
         if refinement.feedback:
             refined_query = f"{refined_query} ({refinement.feedback})"
 
-        # Re-process with additional context
+        # Re-process with additional context (with wired services)
         query_record.status = "processing"
-        processor = QueryProcessor()
+        processor = _build_processor()
         refined_result = await processor.process_query(
             query=refined_query,
             db=db,

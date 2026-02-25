@@ -233,6 +233,25 @@ async def deploy_compiled_automation(
                 f"area={compiled_artifact.area_id}: {ha_automation_id}"
             )
 
+    # Safety validation on compiled YAML before deployment
+    from ..services.safety_validator import SafetyValidator
+
+    safety_validator = SafetyValidator()
+    safety_result = await safety_validator.validate(compiled_artifact.yaml)
+
+    if not safety_result.passed:
+        issue_msgs = [
+            f"[{i.severity.value}] {i.message}" for i in safety_result.issues
+        ]
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "Safety validation failed",
+                "safety_score": safety_result.score,
+                "issues": issue_msgs,
+            },
+        )
+
     # Deploy to HA using existing deployment service
     from ..api.dependencies import get_ha_client
 
@@ -291,6 +310,7 @@ async def deploy_compiled_automation(
                 "previous_deployment_id": existing_deployment.deployment_id
                 if existing_deployment
                 else None,
+                "safety_score": safety_result.score,
             },
         )
 
@@ -314,6 +334,7 @@ async def deploy_compiled_automation(
             "status": "deployed",
             "version": version,
             "is_update": existing_deployment is not None,
+            "safety_score": safety_result.score,
         }
         # Story 7: Include state and last_triggered in deploy response
         if deployment_result.get("state"):

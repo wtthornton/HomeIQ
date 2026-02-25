@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.ha_client import HomeAssistantClient
 from ..database.models import AutomationVersion, Suggestion
+from .safety_validator import SafetyValidator
 from .yaml_generation_service import YAMLGenerationService
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,11 @@ class DeploymentService:
     """
 
     def __init__(
-        self, db: AsyncSession, ha_client: HomeAssistantClient, yaml_service: YAMLGenerationService
+        self,
+        db: AsyncSession,
+        ha_client: HomeAssistantClient,
+        yaml_service: YAMLGenerationService,
+        safety_validator: SafetyValidator | None = None,
     ):
         """
         Initialize deployment service.
@@ -52,10 +57,12 @@ class DeploymentService:
             db: Database session
             ha_client: Home Assistant client
             yaml_service: YAML generation service
+            safety_validator: Optional safety validator (defaults to new instance)
         """
         self.db = db
         self.ha_client = ha_client
         self.yaml_service = yaml_service
+        self.safety_validator = safety_validator or SafetyValidator()
 
     async def deploy_suggestion(
         self, suggestion_id: int, skip_validation: bool = False, force_deploy: bool = False
@@ -102,16 +109,31 @@ class DeploymentService:
                 raise DeploymentError(f"Invalid YAML: {error}")
 
             # Safety validation (unless force_deploy)
+            safety_score = 100  # Default for force_deploy
             if not force_deploy:
-                # TODO: Epic 39, Story 39.11 - Integrate with dedicated safety validator service
-                # Current: Basic entity validation via YAML service
-                # Future: Full safety scoring, risk assessment, compliance checks
+                # Entity validation
                 all_valid, invalid_entities = await self.yaml_service.validate_entities(
                     suggestion.automation_yaml
                 )
                 if not all_valid:
                     raise SafetyValidationError(
                         f"Invalid entities found: {', '.join(invalid_entities)}"
+                    )
+
+                # YAML safety scoring
+                safety_result = await self.safety_validator.validate(
+                    suggestion.automation_yaml
+                )
+                safety_score = safety_result.score
+
+                if not safety_result.passed:
+                    issue_msgs = [
+                        f"[{i.severity.value}] {i.message}"
+                        for i in safety_result.issues
+                    ]
+                    raise SafetyValidationError(
+                        f"Safety validation failed (score={safety_score}): "
+                        + "; ".join(issue_msgs)
                     )
 
             # Deploy to Home Assistant
@@ -141,7 +163,7 @@ class DeploymentService:
                 automation_id=automation_id,
                 version_number=version_number,
                 automation_yaml=suggestion.automation_yaml,
-                safety_score=100,  # TODO: Epic 39, Story 39.11 - Get from safety validator service
+                safety_score=safety_score,
                 deployed_at=datetime.now(timezone.utc),
             )
             self.db.add(version)
@@ -161,6 +183,7 @@ class DeploymentService:
                 "suggestion_id": suggestion_id,
                 "automation_id": automation_id,
                 "status": "deployed",
+                "safety_score": safety_score,
             }
             if deployment_result.get("state"):
                 data["state"] = deployment_result["state"]

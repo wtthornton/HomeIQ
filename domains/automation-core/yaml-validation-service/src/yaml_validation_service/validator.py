@@ -421,9 +421,15 @@ class ValidationPipeline:
         return {"errors": errors, "warnings": warnings}
 
     async def _validate_service_schema(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Stage 4: Service schema validation."""
-        errors = []
-        warnings = []
+        """Stage 4: Service schema validation.
+
+        When an ``ha_client`` is available the extracted service calls are
+        checked against the live Home Assistant instance.  Unrecognised
+        services are reported as **warnings** (not errors) because the HA
+        service registry may lag behind custom integrations.
+        """
+        errors: list[str] = []
+        warnings: list[str] = []
 
         if not self.ha_client:
             return {"valid": True, "errors": errors, "warnings": warnings}
@@ -431,16 +437,43 @@ class ValidationPipeline:
         # Extract services from actions
         services = self._extract_services(data)
 
-        # TODO: Validate services against Home Assistant API
-        # For now, just check format
+        # Basic format check (always applied)
         for service in services:
             if "." not in service:
-                warnings.append(f"Service '{service}' may be invalid (expected format: domain.service)")
+                warnings.append(
+                    f"Service '{service}' may be invalid "
+                    "(expected format: domain.service)"
+                )
+
+        # Validate against live HA service registry
+        ha_services = await self.ha_client.get_services()
+        if ha_services:
+            for service in services:
+                if "." not in service:
+                    continue  # already warned above
+                domain, service_name = service.split(".", 1)
+                domain_svcs = ha_services.get(domain)
+                if domain_svcs is None:
+                    warnings.append(
+                        f"Service domain '{domain}' not found in "
+                        f"Home Assistant (service: {service})"
+                    )
+                elif service_name not in domain_svcs:
+                    warnings.append(
+                        f"Service '{service}' not found in Home Assistant "
+                        f"(known services for '{domain}': "
+                        f"{', '.join(sorted(domain_svcs))})"
+                    )
+        else:
+            logger.warning(
+                "Could not retrieve services from Home Assistant -- "
+                "skipping live service validation"
+            )
 
         return {
             "valid": len(errors) == 0,
             "errors": errors,
-            "warnings": warnings
+            "warnings": warnings,
         }
 
     def _validate_safety(self, data: dict[str, Any]) -> dict[str, Any]:
