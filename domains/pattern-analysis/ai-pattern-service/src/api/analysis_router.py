@@ -6,8 +6,10 @@ Provides REST API for checking analysis status and schedule information.
 """
 
 import logging
+from datetime import datetime
 from typing import Any
 
+from croniter import croniter
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -105,11 +107,20 @@ async def get_analysis_schedule() -> dict[str, Any]:
         Schedule information including cron expression and next run time
     """
     try:
+        next_run = None
+        if settings.analysis_schedule:
+            try:
+                next_run = croniter(
+                    settings.analysis_schedule, datetime.now()
+                ).get_next(datetime).isoformat()
+            except (ValueError, KeyError):
+                next_run = None
+
         schedule_info = {
             "schedule": settings.analysis_schedule,
             "enabled": main_module.pattern_scheduler is not None and main_module.pattern_scheduler.is_running if main_module.pattern_scheduler else False,
             "incremental_enabled": settings.enable_incremental,
-            "next_run": None,  # TODO: Calculate next run time from cron schedule
+            "next_run": next_run,
             "last_run": None
         }
 

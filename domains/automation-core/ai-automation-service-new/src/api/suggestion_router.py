@@ -27,6 +27,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/suggestions", tags=["suggestions"])
 
+# Module-level refresh state tracking (Epic 39, Story 39.10)
+_refresh_state: dict[str, Any] = {
+    "status": "idle",
+    "last_refresh": None,
+    "items_refreshed": 0,
+    "error": None,
+}
+
 
 class GenerateRequest(BaseModel):
     """Request to generate suggestions."""
@@ -99,10 +107,19 @@ async def refresh_suggestions(
             "error_code": "<error_code>" (if failed)
         }
     """
+    from datetime import datetime, timezone
+
+    _refresh_state["status"] = "running"
+    _refresh_state["error"] = None
+
     try:
         # Generate suggestions synchronously (Option 1 from analysis)
         # Default: 10 suggestions, 30 days of data
         suggestions = await suggestion_svc.generate_suggestions(limit=10, days=30)
+
+        _refresh_state["status"] = "idle"
+        _refresh_state["last_refresh"] = datetime.now(timezone.utc).isoformat()
+        _refresh_state["items_refreshed"] = len(suggestions)
 
         if len(suggestions) == 0:
             return {
@@ -122,6 +139,8 @@ async def refresh_suggestions(
     except ValueError as e:
         # Handle validation errors (e.g., OpenAI not configured, Data API errors)
         logger.error(f"Suggestion generation failed: {e}")
+        _refresh_state["status"] = "idle"
+        _refresh_state["error"] = str(e)
         return {
             "success": False,
             "message": "Suggestion generation failed due to a configuration or validation error. Check server logs.",
@@ -132,6 +151,8 @@ async def refresh_suggestions(
     except Exception as e:
         # Handle unexpected errors (C3: don't leak internal details)
         logger.error(f"Unexpected error during suggestion generation: {e}", exc_info=True)
+        _refresh_state["status"] = "idle"
+        _refresh_state["error"] = str(e)
         return {
             "success": False,
             "message": "Unexpected error during suggestion generation. Check server logs.",
@@ -146,13 +167,10 @@ async def get_refresh_status(_db: DatabaseSession) -> dict[str, Any]:
     """
     Get status of suggestion refresh operation.
 
-    Note: Full implementation will be migrated from ai-automation-service
-    in Story 39.10 completion phase.
+    Returns the current refresh state including status, last refresh time,
+    items refreshed count, and any error from the last run.
     """
-    # TODO: Epic 39, Story 39.10 - Migrate refresh status tracking from archived service
-    # Current: Placeholder endpoint
-    # Future: Real-time status updates, job queue management
-    return {"status": "idle", "message": "Refresh status endpoint - implementation in progress"}
+    return dict(_refresh_state)
 
 
 @router.get("/health")

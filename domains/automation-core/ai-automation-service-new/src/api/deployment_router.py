@@ -131,13 +131,55 @@ async def test_ha_connection(_db: DatabaseSession) -> dict[str, Any]:
     """
     Test connection to Home Assistant.
 
-    Note: Full implementation will be migrated from ai-automation-service
-    in Story 39.10 completion phase.
+    Calls the HA health endpoint (GET /api/) with a 5-second timeout
+    and returns connection status with HA version information.
     """
-    # TODO: Epic 39, Story 39.10 - Migrate HA connection testing from archived service
-    # Current: Placeholder endpoint
-    # Future: Full HA connectivity check with health status reporting
-    return {"status": "unknown", "message": "Test connection endpoint - implementation in progress"}
+    import httpx
+
+    from ..config import settings
+
+    ha_url = (settings.ha_url or "").rstrip("/")
+    ha_token = settings.ha_token or ""
+
+    if not ha_url or not ha_token:
+        return {
+            "status": "not_configured",
+            "message": "Home Assistant URL or token not configured",
+        }
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(
+                f"{ha_url}/api/",
+                headers={"Authorization": f"Bearer {ha_token}"},
+            )
+            response.raise_for_status()
+            data = response.json()
+            return {
+                "status": "connected",
+                "ha_version": data.get("message", "unknown"),
+                "ha_url": ha_url,
+            }
+    except httpx.TimeoutException:
+        return {
+            "status": "timeout",
+            "message": f"Connection to Home Assistant at {ha_url} timed out after 5s",
+        }
+    except httpx.ConnectError:
+        return {
+            "status": "disconnected",
+            "message": f"Cannot connect to Home Assistant at {ha_url}",
+        }
+    except httpx.HTTPStatusError as exc:
+        return {
+            "status": "error",
+            "message": f"Home Assistant returned HTTP {exc.response.status_code}",
+        }
+    except httpx.HTTPError as exc:
+        return {
+            "status": "disconnected",
+            "message": f"Connection error: {exc}",
+        }
 
 
 @router.post("/{automation_id}/rollback")

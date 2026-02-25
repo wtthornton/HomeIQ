@@ -9,12 +9,14 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.data_api_client import DataAPIClient
+from ..config import settings
 from ..core.database import get_db_session
 from ..models.database import DeviceEntity, TeamTrackerIntegration, TeamTrackerTeam
 
@@ -507,15 +509,131 @@ async def sync_teams_from_ha(
     # First detect entities
     detection_result = await detect_team_tracker_entities(session=session)
 
-    # TODO: Implement HA state fetching to get full team attributes
-    # This would require calling the HA API to get state + attributes for each sensor
-    # For now, we just return the detection results
+    detected_teams = detection_result.get("detected_teams", [])
+    if not detected_teams:
+        return {
+            "synced": True,
+            "detected_count": 0,
+            "synced_count": 0,
+            "message": "No Team Tracker entities detected to sync",
+        }
 
-    return {
+    # If HA_TOKEN is not configured, skip HA state fetching
+    if not settings.HA_TOKEN:
+        logger.warning(
+            "HA_TOKEN is not configured — skipping HA state fetch. "
+            "Returning detection results only."
+        )
+        return {
+            "synced": True,
+            "detected_count": detection_result["detected_count"],
+            "synced_count": 0,
+            "message": "Teams detected but HA_TOKEN not configured for state sync",
+            "warning": "Set HA_TOKEN to enable full attribute sync from Home Assistant",
+        }
+
+    # Fetch full state + attributes for each detected entity from HA REST API
+    synced_count = 0
+    errors: list[str] = []
+    ha_base_url = settings.HA_URL
+    headers = {
+        "Authorization": f"Bearer {settings.HA_TOKEN}",
+        "Content-Type": "application/json",
+    }
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        for team_info in detected_teams:
+            entity_id = team_info.get("entity_id")
+            if not entity_id:
+                continue
+
+            try:
+                resp = await client.get(
+                    f"{ha_base_url}/api/states/{entity_id}",
+                    headers=headers,
+                )
+                resp.raise_for_status()
+                state_data = resp.json()
+            except httpx.HTTPStatusError as exc:
+                msg = f"HA API returned {exc.response.status_code} for {entity_id}"
+                logger.warning(msg)
+                errors.append(msg)
+                continue
+            except httpx.RequestError as exc:
+                msg = f"Failed to reach HA for {entity_id}: {exc}"
+                logger.warning(msg)
+                errors.append(msg)
+                continue
+
+            attrs = state_data.get("attributes", {})
+
+            # Extract Team Tracker attributes from HA state
+            team_name = attrs.get("team_name", "")
+            league = attrs.get("league", "UNKNOWN")
+            team_abbr = attrs.get("team_abbreviation", "")
+            sport = attrs.get("sport", None)
+            team_logo = attrs.get("team_logo", None)
+            league_logo = attrs.get("league_logo", None)
+
+            # Upsert into TeamTrackerTeam table
+            existing_result = await session.execute(
+                select(TeamTrackerTeam).where(
+                    TeamTrackerTeam.entity_id == entity_id
+                )
+            )
+            existing_team = existing_result.scalar_one_or_none()
+
+            if existing_team:
+                # Update with fresh HA attributes
+                if team_name:
+                    existing_team.team_name = team_name
+                if league and league != "UNKNOWN":
+                    existing_team.league_id = league
+                if team_abbr:
+                    existing_team.team_abbreviation = team_abbr
+                    existing_team.team_id = team_abbr
+                if sport:
+                    existing_team.sport = sport
+                if team_logo:
+                    existing_team.team_logo = team_logo
+                if league_logo:
+                    existing_team.league_logo = league_logo
+                existing_team.configured_in_ha = True
+                existing_team.last_detected = datetime.now(timezone.utc)
+                logger.info(f"Updated team from HA state: {entity_id}")
+            else:
+                # Create new entry from HA state
+                new_team = TeamTrackerTeam(
+                    team_id=team_abbr or entity_id.split(".")[-1],
+                    league_id=league or "UNKNOWN",
+                    team_name=team_name or entity_id,
+                    entity_id=entity_id,
+                    sensor_name=team_info.get("name"),
+                    team_abbreviation=team_abbr or None,
+                    sport=sport,
+                    team_logo=team_logo,
+                    league_logo=league_logo,
+                    configured_in_ha=True,
+                    last_detected=datetime.now(timezone.utc),
+                    is_active=True,
+                )
+                session.add(new_team)
+                logger.info(f"Created team from HA state: {entity_id}")
+
+            synced_count += 1
+
+    await session.commit()
+
+    result: dict[str, Any] = {
         "synced": True,
         "detected_count": detection_result["detected_count"],
-        "message": "Teams synchronized from Home Assistant"
+        "synced_count": synced_count,
+        "message": f"Synced {synced_count} teams from Home Assistant",
     }
+    if errors:
+        result["errors"] = errors
+
+    return result
 
 
 @router.get("/debug/diagnostics", response_model=dict[str, Any])

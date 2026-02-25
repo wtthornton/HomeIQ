@@ -12,11 +12,13 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..config import settings
 from ..core.database import get_db_session
 from ..models.database import Device, DeviceEntity
 from ..models.name_enhancement import NameSuggestion
@@ -71,6 +73,47 @@ class BatchEnhanceResponse(BaseModel):
     job_id: str
     status: str
     estimated_duration: str
+
+
+async def sync_name_to_ha(device_id: str, new_name: str) -> bool:
+    """Sync a device name update to Home Assistant.
+
+    Calls the HA REST API to update the entity's friendly name.
+
+    Args:
+        device_id: The entity ID to update in Home Assistant.
+        new_name: The new friendly name to set.
+
+    Returns:
+        True if the sync succeeded, False otherwise.
+    """
+    if settings.HA_TOKEN is None:
+        logger.warning("Cannot sync name to HA: HA_TOKEN is not configured")
+        return False
+
+    url = f"{settings.HA_URL}/api/services/homeassistant/update_entity"
+    headers = {
+        "Authorization": f"Bearer {settings.HA_TOKEN}",
+        "Content-Type": "application/json",
+    }
+    payload = {"entity_id": device_id, "name": new_name}
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, json=payload, headers=headers)
+        if response.status_code == 200:
+            logger.info("Synced name '%s' to HA for entity %s", new_name, device_id)
+            return True
+        logger.warning(
+            "HA sync returned status %d for entity %s: %s",
+            response.status_code,
+            device_id,
+            response.text,
+        )
+        return False
+    except httpx.HTTPError:
+        logger.exception("Failed to sync name to HA for entity %s", device_id)
+        return False
 
 
 @router.get("/devices/{device_id}/suggestions", response_model=NameSuggestionsResponse)
@@ -209,9 +252,9 @@ async def accept_suggested_name(
 
         await session.commit()
 
-        # TODO: Sync to Home Assistant if requested
-        # if request.sync_to_ha:
-        #     await sync_name_to_ha(device_id, request.suggested_name)
+        # Sync to Home Assistant if requested
+        if request.sync_to_ha:
+            await sync_name_to_ha(device_id, request.suggested_name)
 
         return AcceptNameResponse(
             success=True,

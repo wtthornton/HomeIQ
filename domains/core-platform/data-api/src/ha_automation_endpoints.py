@@ -60,6 +60,7 @@ class WebhookRegistration(BaseModel):
     team: str
     events: list[str]  # ["game_start", "game_end", "score_change"]
     filters: dict[str, Any] | None = {}
+    created_at: str = ""
 
 
 class WebhookResponse(BaseModel):
@@ -232,6 +233,7 @@ async def register_webhook(registration: WebhookRegistration):
         import uuid
 
         webhook_id = str(uuid.uuid4())
+        registration.created_at = datetime.now().isoformat()
         webhooks[webhook_id] = registration
 
         logger.info(f"Registered webhook {webhook_id} for team {registration.team}, events: {registration.events}")
@@ -241,7 +243,7 @@ async def register_webhook(registration: WebhookRegistration):
             webhook_url=str(registration.webhook_url),
             team=registration.team,
             events=registration.events,
-            created_at=datetime.now().isoformat(),
+            created_at=registration.created_at,
             status="active"
         )
 
@@ -269,7 +271,7 @@ async def list_webhooks():
                 webhook_url=str(registration.webhook_url),
                 team=registration.team,
                 events=registration.events,
-                created_at=datetime.now().isoformat(),  # TODO: Store actual creation time
+                created_at=registration.created_at,
                 status="active"
             ))
 

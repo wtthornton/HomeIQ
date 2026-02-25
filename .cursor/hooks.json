@@ -1,16 +1,20 @@
 {
-  "hooks": [
-    {
-      "event": "beforeMCPExecution",
-      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/tapps-before-mcp.ps1"
-    },
-    {
-      "event": "afterFileEdit",
-      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/tapps-after-edit.ps1"
-    },
-    {
-      "event": "stop",
-      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/tapps-stop.ps1"
-    }
-  ]
+  "hooks": {
+    "beforeMCPExecution": [
+      {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/tapps-before-mcp.ps1"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/tapps-after-edit.ps1"
+      }
+    ],
+    "stop": [
+      {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/tapps-stop.ps1"
+      }
+    ]
+  },
+  "version": 1
 }

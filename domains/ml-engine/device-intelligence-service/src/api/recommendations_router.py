@@ -383,23 +383,118 @@ async def apply_recommendation(
     session: AsyncSession = Depends(get_db_session),
     repository: DeviceRepository = Depends(get_device_repository)
 ):
-    """Apply a recommendation (placeholder for future implementation)."""
+    """Apply a recommendation by validating, checking prerequisites, and marking as applied."""
     try:
-        # This is a placeholder for future implementation
-        # In a real implementation, this would:
-        # 1. Validate the recommendation exists
-        # 2. Check prerequisites
-        # 3. Execute implementation steps
-        # 4. Update recommendation status
-        # 5. Log the application
+        # Step 1: Parse recommendation_id to extract device_id and category.
+        # Format: {device_id}_{category}_{timestamp}
+        parts = recommendation_id.rsplit("_", 2)
+        if len(parts) < 3:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid recommendation_id format: {recommendation_id}"
+            )
+        device_id, category_value, _timestamp = parts
+
+        # Validate category value
+        try:
+            RecommendationCategory(category_value)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid category '{category_value}' in recommendation_id"
+            ) from exc
+
+        # Step 2: Check if already applied
+        if recommendation_engine.is_applied(recommendation_id):
+            raise HTTPException(
+                status_code=409,
+                detail="Recommendation has already been applied"
+            )
+
+        # Step 3: Validate device exists
+        device = await repository.get_device(session, device_id)
+        if not device:
+            raise HTTPException(status_code=404, detail=f"Device '{device_id}' not found")
+
+        # Generate current recommendations to find the matching one
+        metrics_list = await repository.get_device_health_metrics(session, device_id)
+        if metrics_list:
+            latest_metric = metrics_list[0]
+            current_metrics = {
+                "response_time": latest_metric.response_time or 0,
+                "error_rate": latest_metric.error_rate or 0,
+                "battery_level": latest_metric.battery_level or 100,
+                "signal_strength": latest_metric.signal_strength or -50,
+                "usage_frequency": latest_metric.usage_frequency or 0.5,
+                "cpu_usage": latest_metric.cpu_usage or 0,
+                "memory_usage": latest_metric.memory_usage or 0,
+                "temperature": latest_metric.temperature or 25,
+            }
+            historical_metrics = [
+                {
+                    "response_time": m.response_time or 0,
+                    "error_rate": m.error_rate or 0,
+                    "battery_level": m.battery_level or 100,
+                    "signal_strength": m.signal_strength or -50,
+                    "usage_frequency": m.usage_frequency or 0.5,
+                    "cpu_usage": m.cpu_usage or 0,
+                    "memory_usage": m.memory_usage or 0,
+                    "temperature": m.temperature or 25,
+                    "timestamp": m.timestamp,
+                }
+                for m in metrics_list[:50]
+            ]
+        else:
+            current_metrics = {
+                "response_time": 0, "error_rate": 0, "battery_level": 100,
+                "signal_strength": -50, "usage_frequency": 0.5, "cpu_usage": 0,
+                "memory_usage": 0, "temperature": 25,
+            }
+            historical_metrics = []
+
+        health_score = await health_scorer.calculate_health_score(
+            device_id, current_metrics, historical_metrics
+        )
+        recommendations = await recommendation_engine.generate_recommendations(
+            device_id, health_score, current_metrics, historical_metrics
+        )
+
+        # Find the matching recommendation by device_id and category
+        matched = next(
+            (r for r in recommendations if r.device_id == device_id and r.category.value == category_value),
+            None,
+        )
+        if not matched:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No active recommendation found for device '{device_id}' in category '{category_value}'"
+            )
+
+        # Step 4: Mark recommendation as applied
+        matched.status = "applied"
+        recommendation_engine.mark_applied(recommendation_id)
+
+        # Step 5: Log the application event
+        logger.info(
+            "Applied recommendation %s for device %s (category=%s, priority=%s)",
+            recommendation_id, device_id, matched.category.value, matched.priority.value,
+        )
 
         return {
-            "message": "Recommendation application is not yet implemented",
+            "message": "Recommendation applied successfully",
             "recommendation_id": recommendation_id,
-            "status": "pending_implementation",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "device_id": device_id,
+            "category": matched.category.value,
+            "title": matched.title,
+            "priority": matched.priority.value,
+            "implementation_steps": matched.implementation_steps,
+            "prerequisites": matched.prerequisites,
+            "status": matched.status,
+            "applied_at": datetime.now(timezone.utc).isoformat(),
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error applying recommendation {recommendation_id}: {e}")
+        logger.error("Error applying recommendation %s: %s", recommendation_id, e)
         raise HTTPException(status_code=500, detail="Internal server error") from e

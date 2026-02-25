@@ -65,6 +65,9 @@ class RecommendationEngine:
     """Intelligent optimization recommendation engine."""
 
     def __init__(self):
+        # Track applied recommendation IDs
+        self._applied_ids: set[str] = set()
+
         # Recommendation thresholds
         self.thresholds = {
             "low_health_score": 60,
@@ -407,6 +410,14 @@ class RecommendationEngine:
             ))
 
         return recommendations
+
+    def is_applied(self, recommendation_id: str) -> bool:
+        """Check if a recommendation has already been applied."""
+        return recommendation_id in self._applied_ids
+
+    def mark_applied(self, recommendation_id: str) -> None:
+        """Mark a recommendation as applied."""
+        self._applied_ids.add(recommendation_id)
 
     async def get_recommendation_impact_analysis(self, recommendations: list[OptimizationRecommendation]) -> dict[str, Any]:
         """Analyze the potential impact of recommendations."""

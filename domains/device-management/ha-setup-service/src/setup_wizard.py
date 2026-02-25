@@ -7,6 +7,7 @@ Context7 Best Practices Applied:
 - Rollback capabilities
 - Progress tracking
 """
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -312,21 +313,105 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
             }
 
     async def _configure_coordinator(self, config_data: dict) -> dict:
-        """Configure Zigbee coordinator settings"""
-        # Placeholder for coordinator configuration logic
-        return {
-            "success": True,
-            "message": "Coordinator configuration ready",
-            "config": config_data
-        }
+        """Configure Zigbee coordinator settings via MQTT publish"""
+        try:
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json",
+            }
+
+            # Build coordinator options from config_data
+            coordinator_opts: dict[str, Any] = {}
+            if config_data:
+                if "coordinator_port" in config_data:
+                    coordinator_opts["port"] = config_data["coordinator_port"]
+                if "adapter_type" in config_data:
+                    coordinator_opts["adapter"] = config_data["adapter_type"]
+                if "baudrate" in config_data:
+                    coordinator_opts["baudrate"] = config_data["baudrate"]
+
+            payload = {
+                "topic": "zigbee2mqtt/bridge/request/options",
+                "payload": json.dumps({"serial": coordinator_opts}),
+            }
+
+            async with session.post(
+                f"{self.ha_url}/api/services/mqtt/publish",
+                headers=headers,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as response:
+                if response.status == 200:
+                    return {
+                        "success": True,
+                        "message": "Coordinator configured",
+                        "config": config_data,
+                    }
+                return {
+                    "success": False,
+                    "message": f"Failed to configure coordinator: HTTP {response.status}",
+                }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Error configuring coordinator: {e}",
+            }
 
     async def _test_connection(self) -> dict:
-        """Test Zigbee coordinator connection"""
-        # Placeholder for connection testing
-        return {
-            "success": True,
-            "message": "Connection test passed"
-        }
+        """Test Zigbee coordinator connection via HA state check"""
+        try:
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json",
+            }
+
+            # Check dedicated Zigbee2MQTT connection state sensor
+            async with session.get(
+                f"{self.ha_url}/api/states/binary_sensor.zigbee2mqtt_connection_state",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as response:
+                if response.status == 200:
+                    state_data = await response.json()
+                    if state_data.get("state") == "on":
+                        return {
+                            "success": True,
+                            "message": "Zigbee2MQTT connection is active",
+                        }
+                    return {
+                        "success": False,
+                        "message": f"Zigbee2MQTT connection state: {state_data.get('state', 'unknown')}",
+                    }
+
+            # Fallback: search all states for any zigbee2mqtt entity
+            async with session.get(
+                f"{self.ha_url}/api/states",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as response:
+                if response.status == 200:
+                    all_states = await response.json()
+                    z2m_entities = [
+                        s for s in all_states
+                        if s.get("entity_id", "").startswith("sensor.zigbee2mqtt")
+                    ]
+                    if z2m_entities:
+                        return {
+                            "success": True,
+                            "message": f"Zigbee2MQTT detected ({len(z2m_entities)} entities found)",
+                        }
+
+            return {
+                "success": False,
+                "message": "Zigbee2MQTT connection not detected",
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Error testing connection: {e}",
+            }
 
     async def _enable_discovery(self) -> dict:
         """Enable MQTT discovery"""
@@ -361,11 +446,71 @@ class Zigbee2MQTTSetupWizard(SetupWizardFramework):
 
     async def _validate_setup(self) -> dict:
         """Final validation of Zigbee2MQTT setup"""
-        # Placeholder for validation logic
-        return {
-            "success": True,
-            "message": "Setup validation complete"
-        }
+        try:
+            session = await get_http_session()
+            headers = {
+                "Authorization": f"Bearer {self.ha_token}",
+                "Content-Type": "application/json",
+            }
+
+            async with session.get(
+                f"{self.ha_url}/api/states",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as response:
+                if response.status != 200:
+                    return {
+                        "success": False,
+                        "message": f"Failed to fetch states: HTTP {response.status}",
+                    }
+
+                all_states = await response.json()
+
+                # Check bridge status
+                bridge_state = next(
+                    (
+                        s for s in all_states
+                        if s.get("entity_id") == "sensor.zigbee2mqtt_bridge_state"
+                    ),
+                    None,
+                )
+                bridge_online = (
+                    bridge_state is not None
+                    and bridge_state.get("state") == "online"
+                )
+
+                # Count zigbee2mqtt device sensors
+                z2m_sensors = [
+                    s for s in all_states
+                    if s.get("entity_id", "").startswith("sensor.zigbee2mqtt_")
+                    and s.get("entity_id") != "sensor.zigbee2mqtt_bridge_state"
+                ]
+
+                if not bridge_online:
+                    return {
+                        "success": False,
+                        "message": "Zigbee2MQTT bridge is not online",
+                    }
+
+                if not z2m_sensors:
+                    return {
+                        "success": False,
+                        "message": "No Zigbee devices discovered yet",
+                    }
+
+                return {
+                    "success": True,
+                    "message": (
+                        f"Setup valid: bridge online, {len(z2m_sensors)} device(s) found"
+                    ),
+                    "device_count": len(z2m_sensors),
+                    "bridge_online": True,
+                }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Error validating setup: {e}",
+            }
 
 
 class MQTTSetupWizard(SetupWizardFramework):

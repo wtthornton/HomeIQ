@@ -29,6 +29,7 @@ paho-mqtt==2.1.0  # Phase 2 upgrade - latest stable
 
 # Scheduler (for daily analysis - Story 39.6)
 apscheduler==3.11.2  # Phase 2 upgrade - latest 3.x stable
+croniter>=3.0.0  # Cron expression parsing for next_run calculation
 
 # Logging and observability (shared)
 # Note: These should be in shared/ directory
