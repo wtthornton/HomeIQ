@@ -1,3 +1,6 @@
+# TappsMCP cache
+.tapps-mcp-cache/
+
 # Python
 __pycache__/
 *.py[cod]
