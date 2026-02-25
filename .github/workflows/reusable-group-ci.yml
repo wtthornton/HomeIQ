@@ -26,6 +26,22 @@ jobs:
     concurrency:
       group: ci-${{ inputs.group_name }}-${{ matrix.service }}-${{ github.ref }}
       cancel-in-progress: true
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: homeiq
+          POSTGRES_PASSWORD: homeiq_test
+          POSTGRES_DB: homeiq_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     strategy:
       matrix:
         service: ${{ fromJson(inputs.services) }}
@@ -67,6 +83,12 @@ jobs:
           pip install -r domains/${{ inputs.domain_dir }}/${{ matrix.service }}/requirements.txt
           pip install pytest pytest-asyncio pytest-timeout 2>/dev/null || true
 
+      - name: Initialize PostgreSQL schemas
+        run: |
+          PGPASSWORD=homeiq_test psql -h localhost -U homeiq -d homeiq_test -f infrastructure/postgres/init-schemas.sql
+        env:
+          PGPASSWORD: homeiq_test
+
       - name: Check if service has tests
         id: check-tests
         run: |
@@ -82,6 +104,18 @@ jobs:
         run: |
           cd domains/${{ inputs.domain_dir }}/${{ matrix.service }}
           pytest tests/ -v --timeout=300
+        env:
+          POSTGRES_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
+
+      - name: Test Alembic migrations
+        if: hashFiles(format('{0}/alembic.ini', format('domains/{0}/{1}', inputs.domain_dir, matrix.service))) != ''
+        run: |
+          cd domains/${{ inputs.domain_dir }}/${{ matrix.service }}
+          python -m alembic upgrade head
+          python -m alembic downgrade base
+          python -m alembic upgrade head
+        env:
+          POSTGRES_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
 
       - name: Report no tests
         if: steps.check-tests.outputs.has_tests == 'false'

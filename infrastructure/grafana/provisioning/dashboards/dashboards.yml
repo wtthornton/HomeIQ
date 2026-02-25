@@ -1,0 +1,16 @@
+# Grafana dashboard provisioning for HomeIQ
+# Loads dashboard JSON files from the dashboards directory on startup.
+
+apiVersion: 1
+
+providers:
+  - name: 'HomeIQ'
+    orgId: 1
+    folder: 'HomeIQ'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

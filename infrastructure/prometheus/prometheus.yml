@@ -1,0 +1,360 @@
+# Prometheus configuration for HomeIQ
+# Scrapes metrics from all 45+ microservices organized by domain group.
+# Retention: 30 days (InfluxDB handles long-term time-series storage).
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+rule_files:
+  - alerts.yml
+
+scrape_configs:
+  # --- Self-monitoring ---
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          group: 'monitoring'
+
+  # --- Infrastructure exporters ---
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['homeiq-postgres-exporter:9187']
+        labels:
+          group: 'core-platform'
+          service: 'postgres'
+
+  # --- Group 1: Core Platform ---
+  # The data backbone. If this is down, everything is down.
+  - job_name: 'core-platform'
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 'homeiq-data-api:8006'
+        labels:
+          service: 'data-api'
+          group: 'core-platform'
+          tier: '1'
+      - targets:
+          - 'homeiq-websocket:8001'
+        labels:
+          service: 'websocket-ingestion'
+          group: 'core-platform'
+          tier: '1'
+      - targets:
+          - 'homeiq-admin:8004'
+        labels:
+          service: 'admin-api'
+          group: 'core-platform'
+          tier: '1'
+      - targets:
+          - 'homeiq-data-retention:8080'
+        labels:
+          service: 'data-retention'
+          group: 'core-platform'
+          tier: '2'
+
+  # --- Group 2: Data Collectors ---
+  # Stateless data fetchers. Each polls an external API and writes to InfluxDB.
+  - job_name: 'data-collectors'
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'homeiq-weather-api:8009'
+        labels:
+          service: 'weather-api'
+          group: 'data-collectors'
+          tier: '2'
+      - targets:
+          - 'homeiq-smart-meter:8014'
+        labels:
+          service: 'smart-meter'
+          group: 'data-collectors'
+          tier: '2'
+      - targets:
+          - 'homeiq-sports-api:8005'
+        labels:
+          service: 'sports-api'
+          group: 'data-collectors'
+          tier: '3'
+      - targets:
+          - 'homeiq-air-quality:8012'
+        labels:
+          service: 'air-quality'
+          group: 'data-collectors'
+          tier: '3'
+      - targets:
+          - 'homeiq-carbon-intensity:8010'
+        labels:
+          service: 'carbon-intensity'
+          group: 'data-collectors'
+          tier: '3'
+      - targets:
+          - 'homeiq-electricity-pricing:8011'
+        labels:
+          service: 'electricity-pricing'
+          group: 'data-collectors'
+          tier: '3'
+      - targets:
+          - 'homeiq-calendar:8013'
+        labels:
+          service: 'calendar'
+          group: 'data-collectors'
+          tier: '3'
+      - targets:
+          - 'homeiq-log-aggregator:8015'
+        labels:
+          service: 'log-aggregator'
+          group: 'data-collectors'
+          tier: '3'
+
+  # --- Group 3: ML Engine ---
+  # Model inference, embedding generation, and training.
+  - job_name: 'ml-engine'
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'homeiq-openvino-service:8019'
+        labels:
+          service: 'openvino-service'
+          group: 'ml-engine'
+          tier: '3'
+      - targets:
+          - 'homeiq-ml-service:8020'
+        labels:
+          service: 'ml-service'
+          group: 'ml-engine'
+          tier: '3'
+      - targets:
+          - 'homeiq-ner-service:8031'
+        labels:
+          service: 'ner-service'
+          group: 'ml-engine'
+          tier: '3'
+      - targets:
+          - 'homeiq-openai-service:8020'
+        labels:
+          service: 'openai-service'
+          group: 'ml-engine'
+          tier: '3'
+      - targets:
+          - 'homeiq-rag-service:8027'
+        labels:
+          service: 'rag-service'
+          group: 'ml-engine'
+          tier: '3'
+      - targets:
+          - 'homeiq-ai-core-service:8018'
+        labels:
+          service: 'ai-core-service'
+          group: 'ml-engine'
+          tier: '3'
+      - targets:
+          - 'homeiq-ai-training-service:8022'
+        labels:
+          service: 'ai-training-service'
+          group: 'ml-engine'
+          tier: '4'
+      - targets:
+          - 'homeiq-device-intelligence:8019'
+        labels:
+          service: 'device-intelligence'
+          group: 'ml-engine'
+          tier: '3'
+
+  # --- Group 4: Automation Core ---
+  # Core automation generation, validation, and deployment.
+  - job_name: 'automation-core'
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 'homeiq-ha-ai-agent-service:8030'
+        labels:
+          service: 'ha-ai-agent-service'
+          group: 'automation-core'
+          tier: '2'
+      - targets:
+          - 'homeiq-ai-automation-service-new:8025'
+        labels:
+          service: 'ai-automation-service-new'
+          group: 'automation-core'
+          tier: '2'
+      - targets:
+          - 'homeiq-ai-query-service:8018'
+        labels:
+          service: 'ai-query-service'
+          group: 'automation-core'
+          tier: '3'
+      - targets:
+          - 'homeiq-yaml-validation-service:8037'
+        labels:
+          service: 'yaml-validation-service'
+          group: 'automation-core'
+          tier: '3'
+      - targets:
+          - 'homeiq-automation-linter:8020'
+        labels:
+          service: 'automation-linter'
+          group: 'automation-core'
+          tier: '4'
+      - targets:
+          - 'homeiq-ai-code-executor:8030'
+        labels:
+          service: 'ai-code-executor'
+          group: 'automation-core'
+          tier: '4'
+      - targets:
+          - 'homeiq-automation-trace-service:8020'
+        labels:
+          service: 'automation-trace-service'
+          group: 'automation-core'
+          tier: '4'
+
+  # --- Group 5: Blueprints ---
+  # Blueprint generation, indexing, and recommendation.
+  - job_name: 'blueprints'
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'homeiq-blueprint-index:8031'
+        labels:
+          service: 'blueprint-index'
+          group: 'blueprints'
+          tier: '4'
+      - targets:
+          - 'homeiq-blueprint-suggestion:8032'
+        labels:
+          service: 'blueprint-suggestion'
+          group: 'blueprints'
+          tier: '4'
+      - targets:
+          - 'homeiq-rule-recommendation-ml:8035'
+        labels:
+          service: 'rule-recommendation-ml'
+          group: 'blueprints'
+          tier: '4'
+      - targets:
+          - 'homeiq-automation-miner:8019'
+        labels:
+          service: 'automation-miner'
+          group: 'blueprints'
+          tier: '4'
+
+  # --- Group 6: Energy Analytics ---
+  # Energy monitoring, correlation, and forecasting.
+  - job_name: 'energy-analytics'
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'homeiq-energy-correlator:8017'
+        labels:
+          service: 'energy-correlator'
+          group: 'energy-analytics'
+          tier: '2'
+      - targets:
+          - 'homeiq-energy-forecasting:8037'
+        labels:
+          service: 'energy-forecasting'
+          group: 'energy-analytics'
+          tier: '3'
+      - targets:
+          - 'homeiq-proactive-agent-service:8031'
+        labels:
+          service: 'proactive-agent-service'
+          group: 'energy-analytics'
+          tier: '3'
+
+  # --- Group 7: Device Management ---
+  # Device lifecycle, health, onboarding, and activity.
+  - job_name: 'device-management'
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'homeiq-device-health-monitor:8019'
+        labels:
+          service: 'device-health-monitor'
+          group: 'device-management'
+          tier: '3'
+      - targets:
+          - 'homeiq-device-context-classifier:8020'
+        labels:
+          service: 'device-context-classifier'
+          group: 'device-management'
+          tier: '4'
+      - targets:
+          - 'homeiq-device-setup-assistant:8021'
+        labels:
+          service: 'device-setup-assistant'
+          group: 'device-management'
+          tier: '4'
+      - targets:
+          - 'homeiq-device-database-client:8022'
+        labels:
+          service: 'device-database-client'
+          group: 'device-management'
+          tier: '4'
+      - targets:
+          - 'homeiq-device-recommender:8023'
+        labels:
+          service: 'device-recommender'
+          group: 'device-management'
+          tier: '4'
+      - targets:
+          - 'homeiq-activity-recognition:8036'
+        labels:
+          service: 'activity-recognition'
+          group: 'device-management'
+          tier: '4'
+      - targets:
+          - 'homeiq-activity-writer:8035'
+        labels:
+          service: 'activity-writer'
+          group: 'device-management'
+          tier: '4'
+      - targets:
+          - 'homeiq-setup-service:8020'
+        labels:
+          service: 'ha-setup-service'
+          group: 'device-management'
+          tier: '2'
+
+  # --- Group 8: Pattern Analysis ---
+  # Pattern detection and automation edge analysis.
+  - job_name: 'pattern-analysis'
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'ai-pattern-service:8020'
+        labels:
+          service: 'ai-pattern-service'
+          group: 'pattern-analysis'
+          tier: '3'
+      - targets:
+          - 'homeiq-api-automation-edge:8025'
+        labels:
+          service: 'api-automation-edge'
+          group: 'pattern-analysis'
+          tier: '3'
+
+  # --- Group 9: Frontends ---
+  # User-facing UIs and observability tooling.
+  - job_name: 'frontends'
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'homeiq-observability-dashboard:8501'
+        labels:
+          service: 'observability-dashboard'
+          group: 'frontends'
+          tier: '3'

@@ -52,13 +52,16 @@ services:
     restart: unless-stopped
     ports:
       - "5432:5432"
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     environment:
       - POSTGRES_DB=homeiq
       - POSTGRES_USER=${POSTGRES_USER:-homeiq}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-homeiq-secure-2026}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ../../infrastructure/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
       - ../../infrastructure/postgres/init-schemas.sql:/docker-entrypoint-initdb.d/01-schemas.sql:ro
+      - ../../infrastructure/postgres/init-monitoring.sql:/docker-entrypoint-initdb.d/02-monitoring.sql:ro
     networks:
       - homeiq-network
     deploy:
@@ -415,6 +418,124 @@ services:
         max-file: "3"
         labels: "service=ha-simulator,group=core-platform,environment=development"
 
+  # --- Monitoring infrastructure ---
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    container_name: homeiq-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+      - ../../infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../../infrastructure/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    depends_on:
+      influxdb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=prometheus,group=core-platform,environment=production"
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: homeiq-grafana
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=homeiq
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../../infrastructure/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../../infrastructure/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
+          memory: 128M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=grafana,group=core-platform,environment=production"
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    container_name: homeiq-postgres-exporter
+    restart: unless-stopped
+    ports:
+      - "9187:9187"
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.5'
+        reservations:
+          memory: 64M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=postgres-exporter,group=core-platform,environment=production"
+
   # --- Test profile services ---
 
   home-assistant-test:
@@ -524,6 +645,8 @@ volumes:
   homeiq_logs:
   sqlite-data:
   data_retention_backups:
+  prometheus_data:
+  grafana_data:
   ha_test_config:
   ha_test_data:
 

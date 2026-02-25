@@ -1,0 +1,55 @@
+# HomeIQ Backup Scheduler - Docker Compose Service
+#
+# Include this in your root docker-compose.yml or core-platform/compose.yml:
+#   include:
+#     - path: infrastructure/backup/backup-scheduler.yml
+#
+# Or run standalone:
+#   docker compose -f infrastructure/backup/backup-scheduler.yml up -d
+
+services:
+  backup-scheduler:
+    build:
+      context: ../../
+      dockerfile: infrastructure/backup/backup-cron.dockerfile
+    container_name: homeiq-backup-scheduler
+    restart: unless-stopped
+    volumes:
+      - ../../scripts:/scripts:ro
+      - backup_data:/backups
+    environment:
+      - POSTGRES_HOST=${POSTGRES_HOST:-homeiq-postgres}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_USER=${POSTGRES_USER:-homeiq}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-homeiq}
+      - POSTGRES_DB=${POSTGRES_DB:-homeiq}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
+      # Cron schedules (override to change timing)
+      - DAILY_SCHEDULE=${BACKUP_DAILY_SCHEDULE:-0 2 * * *}
+      - WEEKLY_SCHEDULE=${BACKUP_WEEKLY_SCHEDULE:-0 1 * * 0}
+      - TZ=${TZ:-UTC}
+    networks:
+      - homeiq-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      com.homeiq.service: backup-scheduler
+      com.homeiq.tier: infrastructure
+      com.homeiq.description: "Automated PostgreSQL backup scheduler"
+
+volumes:
+  backup_data:
+    driver: local
+    labels:
+      com.homeiq.volume: backup-data
+      com.homeiq.description: "PostgreSQL backup storage"
+
+networks:
+  homeiq-network:
+    external: true

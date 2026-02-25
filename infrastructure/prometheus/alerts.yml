@@ -1,0 +1,240 @@
+# Prometheus alert rules for HomeIQ
+# Monitors service health, error rates, latency, resource usage, and infrastructure.
+
+groups:
+  # --- Service Health ---
+  - name: service_health
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }}/{{ $labels.instance }} is down"
+          description: "{{ $labels.service }} in {{ $labels.group }} has been unreachable for more than 2 minutes."
+
+      - alert: ServiceHighRestartRate
+        expr: changes(process_start_time_seconds[1h]) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Service {{ $labels.service }} is restarting frequently"
+          description: "{{ $labels.service }} has restarted more than 3 times in the last hour."
+
+  # --- HTTP Error Rates ---
+  - name: http_errors
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum by (service, group) (rate(http_requests_total{status=~"5.."}[5m]))
+            /
+            sum by (service, group) (rate(http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High 5xx error rate on {{ $labels.service }}"
+          description: "{{ $labels.service }} in {{ $labels.group }} has a 5xx error rate above 5% for the last 5 minutes (current: {{ $value | humanizePercentage }})."
+
+      - alert: ElevatedClientErrors
+        expr: |
+          (
+            sum by (service, group) (rate(http_requests_total{status=~"4.."}[5m]))
+            /
+            sum by (service, group) (rate(http_requests_total[5m]))
+          ) > 0.20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated 4xx error rate on {{ $labels.service }}"
+          description: "{{ $labels.service }} has a 4xx error rate above 20% for the last 10 minutes (current: {{ $value | humanizePercentage }})."
+
+  # --- Latency ---
+  - name: latency
+    rules:
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (service, group, le) (rate(http_request_duration_seconds_bucket[5m]))
+          ) > 2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High p95 latency on {{ $labels.service }}"
+          description: "{{ $labels.service }} p95 response time is above 2 seconds for the last 5 minutes (current: {{ $value | humanizeDuration }})."
+
+      - alert: HighLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            sum by (service, group, le) (rate(http_request_duration_seconds_bucket[5m]))
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p99 latency on {{ $labels.service }}"
+          description: "{{ $labels.service }} p99 response time is above 5 seconds for the last 5 minutes (current: {{ $value | humanizeDuration }})."
+
+  # --- PostgreSQL ---
+  - name: postgresql
+    rules:
+      - alert: PostgresConnectionPoolExhaustion
+        expr: |
+          (
+            pg_stat_activity_count{datname="homeiq"}
+            /
+            pg_settings_max_connections
+          ) > 0.80
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL connection pool near exhaustion"
+          description: "PostgreSQL connection usage is above 80% ({{ $value | humanizePercentage }}). Consider increasing max_connections or optimizing connection pooling."
+
+      - alert: PostgresTooManyDeadTuples
+        expr: pg_stat_user_tables_n_dead_tup > 100000
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL table {{ $labels.relname }} has too many dead tuples"
+          description: "Table {{ $labels.relname }} in schema {{ $labels.schemaname }} has {{ $value }} dead tuples. Consider running VACUUM."
+
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL instance at {{ $labels.instance }} is unreachable."
+
+      - alert: PostgresSlowQueries
+        expr: pg_stat_activity_max_tx_duration{datname="homeiq"} > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL has long-running queries"
+          description: "Longest transaction on homeiq database has been running for {{ $value | humanizeDuration }}."
+
+      - alert: PostgresLowCacheHitRatio
+        expr: |
+          (
+            pg_stat_database_blks_hit{datname="homeiq"}
+            /
+            (pg_stat_database_blks_hit{datname="homeiq"} + pg_stat_database_blks_read{datname="homeiq"})
+          ) < 0.95
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL cache hit ratio is low"
+          description: "Cache hit ratio for homeiq database is {{ $value | humanizePercentage }}. Expected above 95%."
+
+  # --- Resource Usage ---
+  - name: resource_usage
+    rules:
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            process_resident_memory_bytes
+            /
+            (container_memory_limit_bytes > 0 or process_resident_memory_bytes * 2)
+          ) > 0.80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.service }}"
+          description: "{{ $labels.service }} is using more than 80% of its memory limit for the last 10 minutes."
+
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) > 0.90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.service }}"
+          description: "{{ $labels.service }} CPU usage is above 90% for the last 10 minutes."
+
+  # --- InfluxDB ---
+  - name: influxdb
+    rules:
+      - alert: InfluxDBDown
+        expr: up{job="core-platform", service="influxdb"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "InfluxDB is down"
+          description: "InfluxDB has been unreachable for more than 1 minute. All time-series data ingestion is stopped."
+
+      - alert: InfluxDBWriteFailures
+        expr: rate(http_requests_total{job="core-platform", service="data-api", handler="/api/v1/events", status=~"5.."}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "InfluxDB write failures detected"
+          description: "Data API is experiencing elevated 5xx errors on the events endpoint, indicating potential InfluxDB write failures."
+
+  # --- Disk Space ---
+  - name: disk_space
+    rules:
+      - alert: DiskSpaceWarning
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/"}
+            /
+            node_filesystem_size_bytes{mountpoint="/"}
+          ) < 0.20
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space running low"
+          description: "Less than 20% disk space remaining on {{ $labels.instance }} ({{ $value | humanizePercentage }} available)."
+
+      - alert: DiskSpaceCritical
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/"}
+            /
+            node_filesystem_size_bytes{mountpoint="/"}
+          ) < 0.10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk space critically low"
+          description: "Less than 10% disk space remaining on {{ $labels.instance }} ({{ $value | humanizePercentage }} available). Immediate action required."
+
+  # --- Tier 1 Critical Services ---
+  - name: tier1_critical
+    rules:
+      - alert: Tier1ServiceDegraded
+        expr: up{tier="1"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          page: "true"
+        annotations:
+          summary: "CRITICAL: Tier 1 service {{ $labels.service }} is down"
+          description: "{{ $labels.service }} is a Tier 1 critical service. All downstream services depend on it. Immediate investigation required."
+
+      - alert: WebsocketIngestionBackpressure
+        expr: rate(http_requests_total{service="websocket-ingestion", status=~"429|503"}[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Websocket ingestion experiencing backpressure"
+          description: "The websocket-ingestion service is returning 429/503 responses, indicating it cannot keep up with incoming events."

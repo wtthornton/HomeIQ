@@ -21,6 +21,21 @@ jobs:
     name: Test ${{ matrix.service }}
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: homeiq
+          POSTGRES_PASSWORD: homeiq_test
+          POSTGRES_DB: homeiq_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     strategy:
       fail-fast: false
       matrix:
@@ -117,6 +132,13 @@ jobs:
             pip install pytest-httpx
           fi
 
+      - name: Initialize PostgreSQL schemas
+        if: steps.check-tests.outputs.has_tests == 'true'
+        run: |
+          PGPASSWORD=homeiq_test psql -h localhost -U homeiq -d homeiq_test -f infrastructure/postgres/init-schemas.sql
+        env:
+          PGPASSWORD: homeiq_test
+
       - name: Run pytest with coverage
         if: steps.check-tests.outputs.has_tests == 'true'
         working-directory: ${{ steps.find-service.outputs.service_dir }}
@@ -141,6 +163,18 @@ jobs:
 
           # Exit with pytest exit code
           exit ${exit_code:-0}
+        env:
+          POSTGRES_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
+
+      - name: Test Alembic migrations
+        if: steps.find-service.outputs.found == 'true' && hashFiles(format('{0}/alembic.ini', steps.find-service.outputs.service_dir)) != ''
+        working-directory: ${{ steps.find-service.outputs.service_dir }}
+        run: |
+          python -m alembic upgrade head
+          python -m alembic downgrade base
+          python -m alembic upgrade head
+        env:
+          POSTGRES_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
 
       - name: Upload coverage to Codecov
         if: steps.check-tests.outputs.has_tests == 'true'

@@ -11,6 +11,7 @@ pydantic-settings>=2.6.0,<3.0.0  # Phase 1: aligned
 sqlalchemy>=2.0.36,<2.1.0  # Phase 1: aligned
 aiosqlite>=0.20.0,<0.23.0  # Phase 1: aligned
 asyncpg>=0.30.0  # Phase 1C: PostgreSQL migration
+alembic>=1.13.0,<2.0.0  # Phase 1: aligned
 
 # HTTP clients (2025 patterns)
 httpx>=0.27.0,<0.29.0  # Phase 1: aligned

@@ -1,0 +1,28 @@
+# Grafana datasource provisioning for HomeIQ
+# Auto-provisions Prometheus (primary) and InfluxDB (secondary) on first boot.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://homeiq-prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: '15s'
+      httpMethod: POST
+
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: http://homeiq-influxdb:8086
+    editable: false
+    jsonData:
+      version: Flux
+      organization: homeiq
+      defaultBucket: home_assistant_events
+      tlsSkipVerify: true
+    secureJsonData:
+      token: ${INFLUXDB_TOKEN:-homeiq-token}
