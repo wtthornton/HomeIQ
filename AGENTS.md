@@ -1,4 +1,4 @@
-<!-- tapps-agents-version: 0.4.0 -->
+<!-- tapps-agents-version: 0.4.1 -->
 # TappsMCP - instructions for AI assistants
 
 When the **TappsMCP** MCP server is configured in your host (Claude Code, Cursor, VS Code Copilot, Claude Desktop, etc.), you have access to tools that provide **deterministic code quality checks, doc lookup, and domain expert advice**. TappsMCP is a quality toolset designed to help your project and LLM produce the best possible code - use it to avoid hallucinated APIs, missed quality steps, and inconsistent output.

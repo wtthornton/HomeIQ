@@ -2,8 +2,9 @@
 epic: homeiq-rebuild-deployment
 phase: 0
 priority: critical
-status: planned
+status: superseded
 estimated_duration: 1 day
+superseded_by: epic-operational-readiness, epic-sqlite-to-postgresql-migration
 ---
 
 # Phase 0: Pre-Deployment Preparation
@@ -12,7 +13,17 @@ estimated_duration: 1 day
 **Phase:** 0 (Pre-Deployment Preparation)
 **Priority:** CRITICAL
 **Estimated Duration:** 1 day (8 hours)
-**Status:** Planned (Not Started)
+**Status:** Superseded
+
+> **Note (2026-02-24):** This phase has been largely superseded by the Operational Readiness
+> and PostgreSQL Migration initiatives. Backup automation (`infrastructure/backup/`,
+> `scripts/backup-postgres.sh`, `scripts/restore-postgres.sh`), monitoring
+> (`infrastructure/prometheus/`, `infrastructure/grafana/`), health checks
+> (`docs/operations/service-health-checks.md`), and infrastructure validation
+> (`scripts/check-pg-stability.sh`, `scripts/pg-health-report.sh`) are now in place.
+> The websocket-ingestion service issue was resolved during the domain architecture
+> restructuring. Python/Node.js versions were standardized during library upgrades.
+> See `stories/epic-operational-readiness.md` and `stories/epic-library-version-standardization.md`.
 
 ## Overview
 
