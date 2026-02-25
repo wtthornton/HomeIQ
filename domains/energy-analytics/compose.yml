@@ -106,6 +106,8 @@ services:
       - DATA_API_URL=http://data-api:8006
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - DATABASE_SCHEMA=energy
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - SCHEDULER_ENABLED=${SCHEDULER_ENABLED:-true}
       - SCHEDULER_TIME=${SCHEDULER_TIME:-03:00}

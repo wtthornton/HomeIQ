@@ -1,12 +1,12 @@
 # Web Framework
 # Updated: January 2026 - Aligned with requirements-base.txt
-fastapi>=0.128.0,<0.129.0  # Latest stable 0.128.x series (January 2026)
-uvicorn[standard]>=0.40.0,<0.41.0  # Latest stable 0.40.x series with standard extras
+fastapi>=0.115.0,<1.0.0  # Phase 1: aligned
+uvicorn[standard]>=0.30.0,<1.0.0  # Phase 1: aligned
 
 # HTTP Client (keep aiohttp for client usage, not web framework)
-aiohttp>=3.13.3,<4.0.0  # Latest stable 3.13.3 (January 2026) - Align with base
-python-dotenv==1.2.1  # Phase 2 upgrade - latest stable
-pydantic>=2.12.5,<3.0.0  # Latest stable 2.12.5 (January 2026) - Align with base
+aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
+python-dotenv>=1.0.0,<2.0.0  # Phase 2: standardized
+pydantic>=2.9.0,<3.0.0  # Phase 1: aligned
 psutil>=7.2.1,<8.0.0  # Latest stable 7.2.1 (January 2026) - Align with base
 influxdb-client>=1.49.0,<2.0.0  # Latest stable (2025)
 websockets>=12.0,<13.0.0  # Unpinned for patch updates

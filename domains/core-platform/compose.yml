@@ -2,7 +2,7 @@
 # The data backbone. If this is down, everything is down.
 # Deploy cadence: Low — changes require staging + canary
 #
-# Services: influxdb, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention, ha-simulator
+# Services: influxdb, postgres, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention, ha-simulator
 # Depends on: Nothing (root of dependency tree)
 # Depended on by: All other groups
 
@@ -46,6 +46,42 @@ services:
         max-file: "3"
         labels: "service=influxdb,group=core-platform,environment=production"
 
+  postgres:
+    image: postgres:17-alpine
+    container_name: homeiq-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=homeiq
+      - POSTGRES_USER=${POSTGRES_USER:-homeiq}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-homeiq-secure-2026}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../infrastructure/postgres/init-schemas.sql:/docker-entrypoint-initdb.d/01-schemas.sql:ro
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-homeiq} -d homeiq"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=postgres,group=core-platform,environment=production"
+
   data-api:
     build:
       context: ../..
@@ -72,10 +108,13 @@ services:
       - CORS_ORIGINS=http://localhost:3000,http://localhost
       - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-production}
       - OTLP_ENDPOINT=http://jaeger:4317
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
     volumes:
       - sqlite-data:/app/data
     depends_on:
       influxdb:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     networks:
       - homeiq-network
@@ -481,6 +520,7 @@ services:
 volumes:
   influxdb_data:
   influxdb_config:
+  postgres_data:
   homeiq_logs:
   sqlite-data:
   data_retention_backups:

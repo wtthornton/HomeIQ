@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -17,19 +18,32 @@ from .models import Base
 
 logger = logging.getLogger(__name__)
 
+# Dual-mode PostgreSQL/SQLite support (Epic 39)
+_db_url = os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL", settings.database_url)
+_is_postgres = _db_url.startswith("postgresql") or _db_url.startswith("postgres")
+_schema = os.getenv("DATABASE_SCHEMA", "blueprints")
+
 # Create async engine
-if "sqlite" in settings.database_url:
+if _is_postgres:
+    from homeiq_data.database_pool import create_pg_engine
+    engine = create_pg_engine(
+        database_url=_db_url,
+        schema=_schema,
+        pool_size=settings.database_pool_size,
+        max_overflow=settings.database_max_overflow,
+    )
+elif "sqlite" in _db_url:
     # SQLite-specific configuration
     engine = create_async_engine(
-        settings.database_url,
+        _db_url,
         echo=False,
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
 else:
-    # PostgreSQL or other databases
+    # Other databases
     engine = create_async_engine(
-        settings.database_url,
+        _db_url,
         echo=False,
         pool_size=settings.database_pool_size,
         max_overflow=settings.database_max_overflow,

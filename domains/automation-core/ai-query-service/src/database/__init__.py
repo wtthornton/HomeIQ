@@ -2,24 +2,38 @@
 Database initialization and session management for AI Query Service
 
 Epic 39, Story 39.9: Query Service Foundation
+Epics 3-4: Dual-mode PostgreSQL/SQLite support.
 """
 
 import logging
-from sqlalchemy import event
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 from ..config import settings
 
 logger = logging.getLogger(__name__)
 
-# Create async engine with connection pooling
-# SQLite doesn't support pool_size/max_overflow - use StaticPool only
-if "sqlite" in settings.database_url:
-    # SQLite configuration (no pool_size/max_overflow)
-    # CRITICAL: Configure PRAGMA settings for optimal performance
+# Determine effective database URL and backend type
+_db_url = settings.effective_database_url
+_is_postgres = _db_url.startswith("postgresql") or _db_url.startswith("postgres")
+
+if _is_postgres:
+    # PostgreSQL via shared library (schema isolation, real connection pool)
+    from homeiq_data.database_pool import create_pg_engine
+
+    engine = create_pg_engine(
+        database_url=_db_url,
+        schema=settings.database_schema,
+        pool_size=settings.database_pool_size,
+        max_overflow=settings.database_max_overflow,
+    )
+else:
+    # SQLite configuration (backward compatible - original code preserved)
+    from sqlalchemy import event
+    from sqlalchemy.pool import StaticPool
+
     engine = create_async_engine(
-        settings.database_url,
+        _db_url,
         poolclass=StaticPool,
         connect_args={
             "check_same_thread": False,
@@ -30,7 +44,7 @@ if "sqlite" in settings.database_url:
 
     # Set PRAGMA settings on connection pool initialization
     @event.listens_for(engine.sync_engine, "connect")
-    def set_sqlite_pragma(dbapi_conn, connection_record):
+    def set_sqlite_pragma(dbapi_conn, _connection_record):
         """Set SQLite PRAGMA settings for optimal performance."""
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging for concurrent reads
@@ -40,14 +54,6 @@ if "sqlite" in settings.database_url:
         cursor.execute("PRAGMA foreign_keys=ON")  # Referential integrity
         cursor.execute("PRAGMA busy_timeout=30000")  # 30s lock wait (vs fail immediately)
         cursor.close()
-else:
-    # PostgreSQL/MySQL configuration (supports pooling)
-    engine = create_async_engine(
-        settings.database_url,
-        pool_size=settings.database_pool_size,
-        max_overflow=settings.database_max_overflow,
-        echo=False,
-    )
 
 # Create session factory
 async_session_maker = async_sessionmaker(

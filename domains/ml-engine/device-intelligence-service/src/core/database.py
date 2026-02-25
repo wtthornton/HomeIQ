@@ -1,7 +1,7 @@
 """
 Device Intelligence Service - Database Connection
 
-Simple database connection and session management for SQLite.
+Simple database connection and session management for SQLite and PostgreSQL.
 """
 
 import logging
@@ -15,6 +15,11 @@ from ..config import Settings
 from ..models.database import Base
 
 logger = logging.getLogger(__name__)
+
+# Dual-mode PostgreSQL/SQLite support (Epic 39)
+_pg_url = os.getenv("POSTGRES_URL") or ""
+_is_postgres = _pg_url.startswith("postgresql") or _pg_url.startswith("postgres")
+_schema = os.getenv("DATABASE_SCHEMA", "devices")
 
 # Global database engine and session factory
 _engine = None
@@ -38,12 +43,19 @@ async def initialize_database(settings: Settings):
     """Initialize database connection and create tables."""
     global _engine, _session_factory
 
-    database_url = get_database_url(settings)
-    _engine = create_async_engine(
-        database_url,
-        echo=False,  # Set to True for SQL logging
-        future=True
-    )
+    if _is_postgres:
+        from homeiq_data.database_pool import create_pg_engine
+        _engine = create_pg_engine(
+            database_url=_pg_url,
+            schema=_schema,
+        )
+    else:
+        database_url = get_database_url(settings)
+        _engine = create_async_engine(
+            database_url,
+            echo=False,  # Set to True for SQL logging
+            future=True
+        )
     _session_factory = async_sessionmaker(
         _engine,
         class_=AsyncSession,

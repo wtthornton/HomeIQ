@@ -2,14 +2,14 @@
 # Phase 1: Containerized AI Models
 
 # Web Framework
-fastapi>=0.123.0,<0.124.0  # Stable 0.123.x series (December 2025)
-uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
+fastapi>=0.115.0,<1.0.0  # Phase 1: aligned
+uvicorn[standard]>=0.30.0,<1.0.0  # Phase 1: aligned
 
 # Data Validation
-pydantic==2.12.4
+pydantic>=2.9.0,<3.0.0  # Phase 1: aligned
 
 # HTTP Client
-httpx>=0.28.1,<0.29.0  # Latest stable (November 2025)
+httpx>=0.27.0,<0.29.0  # Phase 1: aligned
 
 # Retry / Circuit Breaker
-tenacity==9.1.4  # Phase 2 upgrade - latest stable (Feb 2026)
+tenacity>=8.2.0,<10.0.0  # Phase 2: standardized

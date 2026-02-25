@@ -2,23 +2,24 @@
 # Epic 39, Story 39.5: Pattern Service Foundation
 
 # FastAPI and web server
-fastapi>=0.123.0,<0.124.0  # Latest stable (December 2025)
-uvicorn[standard]>=0.32.0,<0.33.0  # Latest stable (2025 - Epic 41)
-pydantic>=2.9.0,<3.0.0  # Latest stable (2025 - Epic 41)
-pydantic-settings>=2.5.0,<3.0.0  # Latest stable (2025 - Epic 41)
+fastapi>=0.115.0,<1.0.0  # Phase 1: aligned
+uvicorn[standard]>=0.30.0,<1.0.0  # Phase 1: aligned
+pydantic>=2.9.0,<3.0.0
+pydantic-settings>=2.6.0,<3.0.0  # Phase 1: aligned
 
 # Database
-sqlalchemy==2.0.46  # Phase 1 upgrade - aiosqlite 0.22.1 compatibility
-aiosqlite==0.22.1  # Phase 1 upgrade - futures-based (no threading.Thread)
+sqlalchemy>=2.0.36,<2.1.0  # Phase 1: aligned
+aiosqlite>=0.20.0,<0.23.0  # Phase 1: aligned
+asyncpg>=0.30.0  # Phase 1C: PostgreSQL migration
 
 # Async support
-aiohttp>=3.13.2,<4.0.0  # Latest stable (2025)
-httpx>=0.28.1,<0.29.0  # Latest stable (2025 - Epic 41)
-tenacity==9.1.4  # Phase 2 upgrade - latest stable (Feb 2026)
+aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
+httpx>=0.27.0,<0.29.0  # Phase 1: aligned
+tenacity>=8.2.0,<10.0.0  # Phase 2: standardized
 
 # Data processing
-pandas>=2.2.0,<3.0.0  # Latest stable (2025 - Epic 41)
-numpy>=1.26.0,<1.27.0  # Latest stable 1.26.x (2025 - Epic 41)
+pandas>=2.2.0,<4.0.0  # Phase 3: allow 2.x and 3.x (Feb 2026 upgrade)
+numpy>=1.26.0,<3.0.0  # Phase 3: allow 1.x and 2.x (Feb 2026 upgrade)
 scikit-learn>=1.5.0,<2.0.0  # Latest stable (2025 - Epic 41)
 scipy>=1.16.3,<2.0.0  # Latest stable (2025 - Epic 41)
 

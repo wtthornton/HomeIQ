@@ -2,14 +2,14 @@
 # Phase 1: Containerized AI Models
 
 # Web Framework
-fastapi>=0.123.0,<0.124.0  # Stable 0.123.x series (December 2025)
-uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
+fastapi>=0.115.0,<1.0.0  # Phase 1: aligned
+uvicorn[standard]>=0.30.0,<1.0.0  # Phase 1: aligned
 
 # Data Validation
-pydantic==2.12.4
+pydantic>=2.9.0,<3.0.0  # Phase 1: aligned
 
 # Data Processing
-numpy>=1.26.0,<1.27.0  # Stable NumPy 1.26.x (CPU-only, compatible with OpenVINO and transformers)
+numpy>=1.26.0,<3.0.0  # Phase 3: allow 1.x and 2.x (Feb 2026 upgrade)
 
 # Simplified Model Stack (Standard models for compatibility)
 # CPU-only PyTorch index (no CUDA - saves 8.5GB!)

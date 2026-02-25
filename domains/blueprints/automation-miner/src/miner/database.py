@@ -4,7 +4,7 @@ Database Models and Session Management
 SQLAlchemy async models for automation corpus storage.
 """
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import (
@@ -69,7 +69,7 @@ class CommunityAutomation(Base):
     # Timestamps
     created_at = Column(DateTime, nullable=False)  # Original creation
     updated_at = Column(DateTime, nullable=False)  # Last update
-    last_crawled = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))  # Last crawl
+    last_crawled = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))  # Last crawl
 
     # Additional metadata (JSON) - renamed to avoid SQLAlchemy reserved name
     extra_metadata = Column(JSON, nullable=True)
@@ -95,10 +95,16 @@ class MinerState(Base):
 
     key = Column(String(100), primary_key=True)
     value = Column(Text, nullable=False)
-    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
     def __repr__(self):
         return f"<MinerState(key='{self.key}', value='{self.value}')>"
+
+
+# Dual-mode PostgreSQL/SQLite support (Epic 39)
+_pg_url = os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL", "")
+_is_postgres = _pg_url.startswith("postgresql") or _pg_url.startswith("postgres")
+_schema = os.getenv("DATABASE_SCHEMA", "blueprints")
 
 
 # Database engine and session factory
@@ -110,31 +116,40 @@ class Database:
         Initialize database connection
 
         Args:
-            db_path: Path to SQLite database file (default from settings)
+            db_path: Path to SQLite database file (default from settings, ignored for PostgreSQL)
         """
         self.db_path = db_path or settings.miner_db_path
 
-        # Validate and create database directory if needed
-        db_file = Path(self.db_path)
-        db_dir = db_file.parent
+        if _is_postgres and not db_path:
+            # PostgreSQL mode via shared library
+            from homeiq_data.database_pool import create_pg_engine
+            self.engine = create_pg_engine(
+                database_url=_pg_url,
+                schema=_schema,
+            )
+        else:
+            # SQLite mode (original behavior)
+            # Validate and create database directory if needed
+            db_file = Path(self.db_path)
+            db_dir = db_file.parent
 
-        # Create directory if it doesn't exist
-        if not db_dir.exists():
-            try:
-                db_dir.mkdir(parents=True, exist_ok=True)
-            except OSError as e:
-                raise RuntimeError(f"Failed to create database directory {db_dir}: {e}") from e
+            # Create directory if it doesn't exist
+            if not db_dir.exists():
+                try:
+                    db_dir.mkdir(parents=True, exist_ok=True)
+                except OSError as e:
+                    raise RuntimeError(f"Failed to create database directory {db_dir}: {e}") from e
 
-        # Check if directory is writable
-        if not os.access(db_dir, os.W_OK):
-            raise RuntimeError(f"Database directory is not writable: {db_dir}")
+            # Check if directory is writable
+            if not os.access(db_dir, os.W_OK):
+                raise RuntimeError(f"Database directory is not writable: {db_dir}")
 
-        # Create async engine
-        self.engine = create_async_engine(
-            f"sqlite+aiosqlite:///{self.db_path}",
-            echo=False,  # Set to True for SQL logging
-            future=True
-        )
+            # Create async engine
+            self.engine = create_async_engine(
+                f"sqlite+aiosqlite:///{self.db_path}",
+                echo=False,  # Set to True for SQL logging
+                future=True
+            )
 
         # Create async session factory
         self.async_session = async_sessionmaker(

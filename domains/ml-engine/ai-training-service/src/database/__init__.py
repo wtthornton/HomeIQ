@@ -3,6 +3,7 @@ Database initialization and connection management
 
 Epic 39, Story 39.1: Training Service Foundation
 Database connection pooling for shared SQLite database.
+Epics 3-4: Dual-mode PostgreSQL/SQLite support.
 """
 
 import logging
@@ -17,14 +18,29 @@ from ..config import settings
 
 logger = logging.getLogger("ai-training-service")
 
-# Create async engine with connection pooling
-engine = create_async_engine(
-    settings.database_url,
-    pool_size=settings.database_pool_size,
-    max_overflow=settings.database_max_overflow,
-    pool_pre_ping=True,  # Verify connections before using
-    echo=False,  # Set to True for SQL query logging
-)
+# Determine effective database URL and backend type
+_db_url = settings.effective_database_url
+_is_postgres = _db_url.startswith("postgresql") or _db_url.startswith("postgres")
+
+if _is_postgres:
+    # PostgreSQL via shared library (schema isolation, real connection pool)
+    from homeiq_data.database_pool import create_pg_engine
+
+    engine = create_pg_engine(
+        database_url=_db_url,
+        schema=settings.database_schema,
+        pool_size=settings.database_pool_size,
+        max_overflow=settings.database_max_overflow,
+    )
+else:
+    # SQLite configuration (backward compatible - original code preserved)
+    engine = create_async_engine(
+        _db_url,
+        pool_size=settings.database_pool_size,
+        max_overflow=settings.database_max_overflow,
+        pool_pre_ping=True,  # Verify connections before using
+        echo=False,  # Set to True for SQL query logging
+    )
 
 # Create async session factory
 AsyncSessionLocal = async_sessionmaker(

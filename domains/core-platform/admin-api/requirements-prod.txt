@@ -6,10 +6,10 @@ pydantic>=2.9.0,<3.0.0
 # Authentication and security
 python-jose[cryptography]>=3.3.0,<4.0.0
 passlib[bcrypt]>=1.7.4,<2.0.0
-python-multipart>=0.0.12,<0.1.0
+python-multipart>=0.0.9,<1.0.0  # Phase 2: standardized
 
 # HTTP client
-aiohttp>=3.13.2,<4.0.0  # Latest stable (2025 - Epic 41)
+aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
 requests>=2.32.0,<3.0.0
 httpx>=0.28.1,<0.29.0  # Latest stable (2025 - Epic 41)
 

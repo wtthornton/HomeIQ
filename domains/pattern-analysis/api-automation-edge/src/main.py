@@ -5,6 +5,7 @@ Main FastAPI Application Entry Point
 import logging
 import threading
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,11 +27,89 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Create FastAPI app
+# Global components
+rest_client: HARestClient = None
+websocket_client: HAWebSocketClient = None
+capability_graph: CapabilityGraph = None
+
+
+def _start_huey_consumer() -> None:
+    """Start Huey consumer in background thread."""
+    try:
+        from .task_queue.huey_config import huey
+        logger.info("Starting Huey consumer...")
+        huey.start()
+        logger.info("Huey consumer started")
+    except Exception as e:
+        logger.error(f"Failed to start Huey consumer: {e}", exc_info=True)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: startup and shutdown logic."""
+    global rest_client, websocket_client, capability_graph
+
+    # --- Startup ---
+    logger.info("Starting API Automation Edge Service")
+
+    # Initialize REST client
+    rest_client = HARestClient()
+
+    # Initialize WebSocket client and capability graph with graceful degradation
+    try:
+        websocket_client = HAWebSocketClient()
+        await websocket_client.connect()
+
+        capability_graph = CapabilityGraph(rest_client, websocket_client)
+        await capability_graph.initialize()
+        await capability_graph.start(websocket_client)
+    except Exception as e:
+        logger.warning(f"HA unavailable at startup — running in degraded mode: {e}")
+        logger.info("Service will start without live HA data; endpoints requiring HA will return 503")
+
+    # Start Huey consumer if enabled
+    if settings.use_task_queue:
+        try:
+            consumer_thread = threading.Thread(target=_start_huey_consumer, daemon=True)
+            consumer_thread.start()
+            time.sleep(0.1)
+            logger.info("Huey task queue consumer thread started")
+        except ImportError:
+            logger.warning("Huey not available - task queue disabled")
+        except Exception as e:
+            logger.error(f"Failed to start Huey consumer: {e}", exc_info=True)
+            logger.warning("Service will continue without task queue")
+
+    logger.info("API Automation Edge Service started")
+
+    yield
+
+    # --- Shutdown ---
+    logger.info("Shutting down API Automation Edge Service")
+
+    if settings.use_task_queue:
+        try:
+            from .task_queue.huey_config import huey
+            huey.stop()
+            logger.info("Huey consumer stopped")
+        except Exception as e:
+            logger.warning(f"Error stopping Huey consumer: {e}")
+
+    if capability_graph:
+        await capability_graph.stop()
+
+    if websocket_client:
+        await websocket_client.disconnect()
+
+    logger.info("API Automation Edge Service stopped")
+
+
+# Create FastAPI app with lifespan
 app = FastAPI(
     title="HomeIQ API Automation Edge Service",
     description="API-driven automation engine for HomeIQ",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS middleware
@@ -59,87 +138,6 @@ try:
 except ImportError:
     HUEY_AVAILABLE = False
     huey = None
-
-# Global components
-rest_client: HARestClient = None
-websocket_client: HAWebSocketClient = None
-capability_graph: CapabilityGraph = None
-
-
-def _start_huey_consumer() -> None:
-    """Start Huey consumer in background thread."""
-    try:
-        from .task_queue.huey_config import huey
-        logger.info("Starting Huey consumer...")
-        huey.start()
-        logger.info("Huey consumer started")
-    except Exception as e:
-        logger.error(f"Failed to start Huey consumer: {e}", exc_info=True)
-
-
-@app.on_event("startup")
-async def startup() -> None:
-    """Initialize services on startup"""
-    global rest_client, websocket_client, capability_graph
-
-    logger.info("Starting API Automation Edge Service")
-
-    # Initialize REST client
-    rest_client = HARestClient()
-
-    # Initialize WebSocket client
-    websocket_client = HAWebSocketClient()
-    await websocket_client.connect()
-
-    # Initialize capability graph
-    capability_graph = CapabilityGraph(rest_client, websocket_client)
-    await capability_graph.initialize()
-    await capability_graph.start(websocket_client)
-
-    # Start Huey consumer if enabled
-    if settings.use_task_queue:
-        try:
-            # Start consumer in background thread
-            consumer_thread = threading.Thread(target=_start_huey_consumer, daemon=True)
-            consumer_thread.start()
-
-            # Give thread a moment to start
-            time.sleep(0.1)
-
-            logger.info("Huey task queue consumer thread started")
-
-        except ImportError:
-            logger.warning("Huey not available - task queue disabled")
-        except Exception as e:
-            logger.error(f"Failed to start Huey consumer: {e}", exc_info=True)
-            logger.warning("Service will continue without task queue")
-
-    logger.info("API Automation Edge Service started")
-
-
-@app.on_event("shutdown")
-async def shutdown() -> None:
-    """Cleanup on shutdown"""
-    global websocket_client, capability_graph
-
-    logger.info("Shutting down API Automation Edge Service")
-
-    # Stop Huey consumer if running
-    if settings.use_task_queue:
-        try:
-            from .task_queue.huey_config import huey
-            huey.stop()
-            logger.info("Huey consumer stopped")
-        except Exception as e:
-            logger.warning(f"Error stopping Huey consumer: {e}")
-
-    if capability_graph:
-        await capability_graph.stop()
-
-    if websocket_client:
-        await websocket_client.disconnect()
-
-    logger.info("API Automation Edge Service stopped")
 
 
 if __name__ == "__main__":

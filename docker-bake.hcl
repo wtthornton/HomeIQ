@@ -18,6 +18,7 @@ variable "NODE_VERSION" {
 # ──────────────────────────────────────────────
 # Group 1: core-platform
 # influxdb is image-only (no build target)
+# postgres is image-only (no build target) — uses postgres:17-alpine
 # ──────────────────────────────────────────────
 
 target "data-api" {

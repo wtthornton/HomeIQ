@@ -150,6 +150,8 @@ services:
       - RAG_OPENVINO_SERVICE_URL=http://openvino-service:8019
       - RAG_LOG_LEVEL=${LOG_LEVEL:-INFO}
       - RAG_CORS_ORIGINS=http://localhost:3000,http://localhost:3001
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - DATABASE_SCHEMA=rag
       - OTLP_ENDPOINT=http://jaeger:4317
     volumes:
       - ./rag-service/data:/app/data
@@ -239,6 +241,8 @@ services:
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///./data/ai_automation.db
       - DATABASE_PATH=/app/data/ai_automation.db
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - DATABASE_SCHEMA=automation
       - TRAINING_SCRIPT_PATH=/app/scripts/train_soft_prompt.py
       - SOFT_PROMPT_MODEL_DIR=/app/models/soft_prompts
       - MODEL_STORAGE_DIR=/app/models
@@ -289,6 +293,8 @@ services:
       - DEVICE_INTELLIGENCE_HOST=${DEVICE_INTELLIGENCE_HOST:-0.0.0.0}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - SQLITE_DATABASE_URL=${SQLITE_DATABASE_URL:-sqlite:///./data/device_intelligence.db}
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - DATABASE_SCHEMA=devices
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
       - HA_WS_URL=${HA_WS_URL:-}
       - NABU_CASA_URL=https://lwzisze94hrpqde9typkwgu5pptxdkoh.ui.nabu.casa

@@ -1,4 +1,4 @@
-aiohttp>=3.13.2,<4.0.0  # Latest stable (2025 - Epic 41)
+aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
 influxdb-client>=1.49.0,<2.0.0  # Latest stable (2025 - Epic 41)
 python-dotenv>=1.0.1,<2.0.0
 

@@ -6,6 +6,7 @@ Following 2025 patterns: SQLAlchemy async with aiosqlite.
 """
 
 import logging
+import os
 from pathlib import Path
 
 from sqlalchemy import event
@@ -20,32 +21,44 @@ logger = logging.getLogger(__name__)
 # Base class for database models
 Base = declarative_base()
 
-# Database URL
-database_url = f"sqlite+aiosqlite:///{settings.database_path}"
+# Dual-mode PostgreSQL/SQLite support (Epic 39)
+_pg_url = os.getenv("POSTGRES_URL") or ""
+_is_postgres = _pg_url.startswith("postgresql") or _pg_url.startswith("postgres")
+_schema = os.getenv("DATABASE_SCHEMA", "rag")
 
-# Create async engine with StaticPool for SQLite
-engine = create_async_engine(
-    database_url,
-    poolclass=StaticPool,
-    connect_args={
-        "check_same_thread": False,
-        "timeout": 30.0,  # 30 second timeout for database operations
-    },
-    echo=settings.database_echo,
-)
+if _is_postgres:
+    from homeiq_data.database_pool import create_pg_engine
+    engine = create_pg_engine(
+        database_url=_pg_url,
+        schema=_schema,
+    )
+else:
+    # Database URL
+    database_url = f"sqlite+aiosqlite:///{settings.database_path}"
 
-# Set PRAGMA settings on connection pool initialization
-@event.listens_for(engine.sync_engine, "connect")
-def set_sqlite_pragma(dbapi_conn, connection_record):  # noqa: ARG001
-    """Set SQLite PRAGMA settings for optimal performance."""
-    cursor = dbapi_conn.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging for concurrent reads
-    cursor.execute("PRAGMA synchronous=NORMAL")  # Fast writes, survives OS crash
-    cursor.execute("PRAGMA cache_size=-64000")  # 64MB cache (negative = KB)
-    cursor.execute("PRAGMA temp_store=MEMORY")  # Fast temp tables
-    cursor.execute("PRAGMA foreign_keys=ON")  # Referential integrity
-    cursor.execute("PRAGMA busy_timeout=30000")  # 30s lock wait (vs fail immediately)
-    cursor.close()
+    # Create async engine with StaticPool for SQLite
+    engine = create_async_engine(
+        database_url,
+        poolclass=StaticPool,
+        connect_args={
+            "check_same_thread": False,
+            "timeout": 30.0,  # 30 second timeout for database operations
+        },
+        echo=settings.database_echo,
+    )
+
+    # Set PRAGMA settings on connection pool initialization
+    @event.listens_for(engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_conn, connection_record):  # noqa: ARG001
+        """Set SQLite PRAGMA settings for optimal performance."""
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging for concurrent reads
+        cursor.execute("PRAGMA synchronous=NORMAL")  # Fast writes, survives OS crash
+        cursor.execute("PRAGMA cache_size=-64000")  # 64MB cache (negative = KB)
+        cursor.execute("PRAGMA temp_store=MEMORY")  # Fast temp tables
+        cursor.execute("PRAGMA foreign_keys=ON")  # Referential integrity
+        cursor.execute("PRAGMA busy_timeout=30000")  # 30s lock wait (vs fail immediately)
+        cursor.close()
 
 # Session factory
 async_session_maker = async_sessionmaker(

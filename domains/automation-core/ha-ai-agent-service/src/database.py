@@ -13,6 +13,11 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 logger = logging.getLogger(__name__)
 
+# Dual-mode PostgreSQL/SQLite support (Epic 39)
+_pg_url = os.getenv("POSTGRES_URL") or ""
+_is_postgres = _pg_url.startswith("postgresql") or _pg_url.startswith("postgres")
+_schema = os.getenv("DATABASE_SCHEMA", "agent")
+
 
 class Base(DeclarativeBase):
     """Base class for database models"""
@@ -136,8 +141,16 @@ async def init_database(database_url: str) -> None:
     global _engine, _session_factory
 
     try:
-        # Create data directory if it doesn't exist
-        if database_url.startswith("sqlite"):
+        # Check for PostgreSQL mode
+        if _is_postgres:
+            from homeiq_data.database_pool import create_pg_engine
+            _engine = create_pg_engine(
+                database_url=_pg_url,
+                schema=_schema,
+            )
+            logger.info(f"Using PostgreSQL with schema '{_schema}'")
+        elif database_url.startswith("sqlite"):
+            # Create data directory if it doesn't exist
             # Extract path from SQLite URL
             path_str = database_url.split("///")[-1]
             db_path = Path(path_str)
@@ -187,13 +200,20 @@ async def init_database(database_url: str) -> None:
 
             logger.info(f"✅ Database directory created: {db_path.parent}")
 
-        # Create async engine
-        _engine = create_async_engine(
-            database_url,
-            echo=False,  # Set to True for SQL debugging
-            pool_pre_ping=True,  # Verify connections before using
-            connect_args={"check_same_thread": False} if "sqlite" in database_url else {}
-        )
+            # Create SQLite async engine
+            _engine = create_async_engine(
+                database_url,
+                echo=False,  # Set to True for SQL debugging
+                pool_pre_ping=True,  # Verify connections before using
+                connect_args={"check_same_thread": False}
+            )
+        else:
+            # Other database URL
+            _engine = create_async_engine(
+                database_url,
+                echo=False,
+                pool_pre_ping=True,
+            )
 
         # Create session factory
         _session_factory = async_sessionmaker(
@@ -209,7 +229,7 @@ async def init_database(database_url: str) -> None:
         # Migrate: Add pending_preview and debug_id columns if they don't exist
         # This handles existing databases that were created before these columns were added
         # Run migration in separate transaction to ensure it commits
-        if database_url.startswith("sqlite"):
+        if not _is_postgres and database_url.startswith("sqlite"):
             try:
                 logger.info("🔄 Checking for database migrations...")
                 async with _engine.begin() as conn:

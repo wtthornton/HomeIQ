@@ -2,22 +2,22 @@
 # Epic 51: YAML Automation Quality Enhancement & Validation Pipeline
 
 # FastAPI and web framework
-fastapi>=0.115.0,<0.116.0
-uvicorn[standard]>=0.32.0,<0.33.0
+fastapi>=0.115.0,<1.0.0  # Phase 1: aligned
+uvicorn[standard]>=0.30.0,<1.0.0  # Phase 1: aligned
 pydantic>=2.9.0,<3.0.0
-pydantic-settings>=2.5.0,<3.0.0
+pydantic-settings>=2.6.0,<3.0.0  # Phase 1: aligned
 
 # HTTP clients
-httpx>=0.28.1,<0.29.0
+httpx>=0.27.0,<0.29.0  # Phase 1: aligned
 
 # YAML parsing
 pyyaml>=6.0.1,<7.0.0
 
 # Template validation
-jinja2>=3.1.0,<4.0.0
+jinja2>=3.1.4,<4.0.0  # Phase 2: standardized
 
 # Utilities
-python-dotenv==1.2.1  # Phase 2 upgrade - latest stable
+python-dotenv>=1.0.0,<2.0.0  # Phase 2: standardized
 
 # HomeIQ shared libraries (installed from libs/ in Docker)
 homeiq-observability>=1.0.0

@@ -19,6 +19,8 @@ services:
       - ../../.env
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///data/blueprint_index.db
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - DATABASE_SCHEMA=blueprints
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
       - SERVICE_PORT=8031
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -59,6 +61,8 @@ services:
       - ../../.env
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///data/blueprint_suggestions.db
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - DATABASE_SCHEMA=blueprints
       - BLUEPRINT_INDEX_URL=http://blueprint-index:8031
       - DATA_API_URL=http://data-api:8006
       - AI_PATTERN_SERVICE_URL=http://ai-pattern-service:8029
@@ -144,6 +148,8 @@ services:
     environment:
       - ENABLE_AUTOMATION_MINER=true
       - MINER_DB_PATH=data/automation_miner.db
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - DATABASE_SCHEMA=blueprints
       - DISCOURSE_BASE_URL=https://community.home-assistant.io
       - DISCOURSE_MIN_LIKES=${DISCOURSE_MIN_LIKES:-300}
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}

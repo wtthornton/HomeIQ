@@ -17,7 +17,7 @@ import random
 import time
 from collections import defaultdict
 from contextlib import asynccontextmanager, suppress
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse
 
@@ -25,10 +25,9 @@ import aiohttp
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from homeiq_observability.logging_config import setup_logging
 from influxdb_client_3 import InfluxDBClient3, Point
 from pydantic import BaseModel
-
-from homeiq_observability.logging_config import setup_logging
 
 from .health_check import HealthCheckHandler
 
@@ -290,7 +289,7 @@ class SportsService:
                     return []
 
         except Exception as e:
-            safe_msg = str(e)
+            safe_msg = str(e) or f"{type(e).__name__} (no message)"
             if self.ha_token:
                 safe_msg = safe_msg.replace(self.ha_token, "[REDACTED]")
             logger.error(f"Error fetching Team Tracker sensors: {safe_msg}")
@@ -383,7 +382,7 @@ class SportsService:
             List of InfluxDB Point objects
         """
         points: list[Point] = []
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         for sensor_data in sensors:
             point = self._create_point_from_sensor(sensor_data, timestamp)
@@ -551,7 +550,7 @@ class SportsService:
         Args:
             point_count: Number of points written
         """
-        self.last_influx_write = datetime.now(timezone.utc)
+        self.last_influx_write = datetime.now(UTC)
         self.last_influx_write_error = None
         self.influx_write_success_count += 1
         self.sensors_processed += point_count
@@ -572,7 +571,7 @@ class SportsService:
 
         # Update cache
         self.cached_sensors = parsed_sensors
-        self.cache_time = datetime.now(timezone.utc)
+        self.cache_time = datetime.now(UTC)
         self.last_successful_fetch = self.cache_time
         self.fetch_count += 1
 

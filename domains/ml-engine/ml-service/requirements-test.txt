@@ -2,6 +2,6 @@
 -r requirements.txt
 
 httpx>=0.28.1,<0.29.0  # HTTP client for integration tests
-pytest>=9.0.0,<10.0.0  # Testing framework
-pytest-asyncio>=0.25.0,<0.26.0  # Compatible with asyncio_mode=auto in pytest.ini
-pytest-cov>=6.0.0,<7.0.0  # Coverage reporting
+pytest>=8.3.0,<10.0.0  # Phase 2: standardized
+pytest-asyncio>=0.23.0,<2.0.0  # Phase 2: standardized
+pytest-cov>=5.0.0,<6.0.0  # Phase 2: standardized

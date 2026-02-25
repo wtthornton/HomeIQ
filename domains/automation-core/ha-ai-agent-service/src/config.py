@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     # AI Automation Service Configuration
     ai_automation_service_url: str = Field(
-        default="http://ai-automation-service-new:8036",
+        default="http://ai-automation-service-new:8025",
         description="AI Automation Service URL (Hybrid Flow endpoints)"
     )
     ai_automation_api_key: SecretStr | None = Field(

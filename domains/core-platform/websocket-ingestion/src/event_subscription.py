@@ -18,6 +18,7 @@ class EventSubscriptionManager:
 
     def __init__(self):
         self.subscriptions: dict[int, dict[str, Any]] = {}
+        self._stale_subscription_ids: set[int] = set()
         self.message_id_manager = get_message_id_manager()  # Use centralized manager
         self.is_subscribed = False
         self.subscription_handlers: dict[str, Callable] = {}
@@ -166,6 +167,9 @@ class EventSubscriptionManager:
                         logger.error(f"❌ Subscription {subscription_id} FAILED: {error}")
                         logger.error("=" * 80)
                         return False
+                elif subscription_id in self._stale_subscription_ids:
+                    logger.debug(f"Ignoring stale result for previous subscription {subscription_id}")
+                    self._stale_subscription_ids.discard(subscription_id)
                 else:
                     logger.warning(f"⚠️  Received result for unknown subscription {subscription_id}")
                     logger.warning("=" * 80)
@@ -288,7 +292,8 @@ class EventSubscriptionManager:
         # Get list of event types that were previously subscribed
         event_types = [sub["event_type"] for sub in self.subscriptions.values()]
 
-        # Clear previous subscriptions
+        # Move old subscription IDs to stale set so late-arriving results are silently ignored
+        self._stale_subscription_ids.update(self.subscriptions.keys())
         self.subscriptions.clear()
         self.is_subscribed = False
 

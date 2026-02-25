@@ -7,16 +7,22 @@ Epic C2: Spec registry with versioning and immutable storage
 import hashlib
 import json
 import logging
+import os
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Column, DateTime, Integer, String, Text, create_engine
+from sqlalchemy import Column, DateTime, Integer, String, Text, create_engine, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from ..config import settings
 
 logger = logging.getLogger(__name__)
+
+# Dual-mode PostgreSQL/SQLite support (Epic 39)
+_pg_url = os.getenv("POSTGRES_URL") or ""
+_is_postgres = _pg_url.startswith("postgresql") or _pg_url.startswith("postgres")
+_schema = os.getenv("DATABASE_SCHEMA", "patterns")
 
 Base = declarative_base()
 
@@ -65,15 +71,34 @@ class SpecRegistry:
         Initialize spec registry.
 
         Args:
-            database_url: Database URL (defaults to settings)
+            database_url: Database URL (defaults to settings, ignored for PostgreSQL)
         """
-        self.database_url = database_url or settings.database_url
+        if _is_postgres and not database_url:
+            # PostgreSQL mode: use sync driver (psycopg2)
+            # Convert asyncpg URL to psycopg2 if needed
+            pg_sync_url = _pg_url.replace("+asyncpg", "")
+            self.database_url = pg_sync_url
+            self.engine = create_engine(
+                pg_sync_url,
+                pool_size=10,
+                max_overflow=5,
+                pool_recycle=3600,
+                pool_pre_ping=True,
+            )
 
-        # Create engine and session
-        self.engine = create_engine(
-            self.database_url,
-            connect_args={"check_same_thread": False} if "sqlite" in self.database_url else {}
-        )
+            @event.listens_for(self.engine, "connect")
+            def set_search_path(dbapi_conn, _connection_record):
+                cursor = dbapi_conn.cursor()
+                cursor.execute(f"SET search_path TO {_schema}, public")
+                cursor.close()
+        else:
+            # SQLite mode (original behavior)
+            self.database_url = database_url or settings.database_url
+            self.engine = create_engine(
+                self.database_url,
+                connect_args={"check_same_thread": False} if "sqlite" in self.database_url else {}
+            )
+
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
 
         # Create tables

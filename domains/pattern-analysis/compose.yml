@@ -14,6 +14,8 @@ services:
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///./data/ai_automation.db
       - DATABASE_PATH=/app/data/ai_automation.db
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - DATABASE_SCHEMA=automation
       - DATA_API_URL=http://data-api:8006
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - MQTT_BROKER=${MQTT_BROKER:-}
@@ -57,6 +59,8 @@ services:
       - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
       - HOME_ID=${HOME_ID:-default}
       - DATABASE_URL=sqlite:////app/data/api-automation-edge.db
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - DATABASE_SCHEMA=patterns
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}

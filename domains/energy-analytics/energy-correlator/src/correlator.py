@@ -6,7 +6,7 @@ Analyzes relationships between HA events and power consumption changes
 import logging
 from bisect import bisect_left
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, TypedDict
 
 from influxdb_client import Point
@@ -234,14 +234,16 @@ class EnergyEventCorrelator:
 
         # Calculate time range
         # Epic 48 Story 48.5: Use timezone-aware datetime
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         start_time = now - timedelta(minutes=minutes)
 
         # Flux query for InfluxDB 2.x with batching limits
         safe_bucket = sanitize_flux_value(self.influxdb_bucket)
+        start_iso = start_time.isoformat().replace('+00:00', 'Z')
+        stop_iso = now.isoformat().replace('+00:00', 'Z')
         flux_query = f'''
         from(bucket: "{safe_bucket}")
-          |> range(start: {start_time.isoformat()}Z, stop: {now.isoformat()}Z)
+          |> range(start: time(v: "{start_iso}"), stop: time(v: "{stop_iso}"))
           |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
           |> filter(fn: (r) =>
               r["domain"] == "switch" or
@@ -406,9 +408,11 @@ class EnergyEventCorrelator:
 
         # Flux query for smart_meter measurement
         safe_bucket = sanitize_flux_value(self.influxdb_bucket)
+        start_iso = start_time.isoformat().replace('+00:00', 'Z')
+        end_iso = end_time.isoformat().replace('+00:00', 'Z')
         flux_query = f'''
         from(bucket: "{safe_bucket}")
-          |> range(start: {start_time.isoformat()}Z, stop: {end_time.isoformat()}Z)
+          |> range(start: time(v: "{start_iso}"), stop: time(v: "{end_iso}"))
           |> filter(fn: (r) => r["_measurement"] == "smart_meter")
           |> filter(fn: (r) => r["_field"] == "total_power_w")
           |> sort(columns: ["_time"])
@@ -545,7 +549,7 @@ class EnergyEventCorrelator:
             return []
 
         # Epic 48 Story 48.5: Use timezone-aware datetime
-        cutoff = datetime.now(timezone.utc) - timedelta(
+        cutoff = datetime.now(UTC) - timedelta(
             minutes=max(lookback_minutes, self.retry_window_minutes)
         )
 
@@ -604,7 +608,7 @@ class EnergyEventCorrelator:
             return []
 
         # Epic 48 Story 48.5: Use timezone-aware datetime
-        cutoff = datetime.now(timezone.utc) - timedelta(
+        cutoff = datetime.now(UTC) - timedelta(
             minutes=max(lookback_minutes, self.retry_window_minutes)
         )
 
@@ -646,9 +650,9 @@ class EnergyEventCorrelator:
         # Format times for Flux query - ensure UTC timezone and proper ISO format
         # Flux requires time() function with ISO 8601 format string
         if start_time.tzinfo is None:
-            start_time = start_time.replace(tzinfo=timezone.utc)
+            start_time = start_time.replace(tzinfo=UTC)
         if end_time.tzinfo is None:
-            end_time = end_time.replace(tzinfo=timezone.utc)
+            end_time = end_time.replace(tzinfo=UTC)
 
         start_iso = start_time.isoformat().replace('+00:00', 'Z')
         end_iso = end_time.isoformat().replace('+00:00', 'Z')

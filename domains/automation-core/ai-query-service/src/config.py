@@ -13,6 +13,15 @@ class Settings(BaseSettings):
     database_pool_size: int = 10  # Connection pool size (optimized for query service)
     database_max_overflow: int = 5  # Max overflow connections
 
+    # PostgreSQL (Epic 3-4 migration)
+    postgres_url: str = ""  # Set via POSTGRES_URL env var
+    database_schema: str = "automation"  # Set via DATABASE_SCHEMA env var
+
+    @property
+    def effective_database_url(self) -> str:
+        """Return PostgreSQL URL if set, otherwise fall back to SQLite."""
+        return self.postgres_url or self.database_url
+
     # Data API Configuration
     data_api_url: str = "http://data-api:8006"
 

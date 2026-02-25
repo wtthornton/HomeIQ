@@ -13,6 +13,15 @@ class Settings(BaseSettings):
     database_pool_size: int = 10  # Connection pool size (max 20 per service)
     database_max_overflow: int = 5  # Max overflow connections
 
+    # PostgreSQL (Epic 3-4 migration)
+    postgres_url: str = ""  # Set via POSTGRES_URL env var
+    database_schema: str = "automation"  # Set via DATABASE_SCHEMA env var
+
+    @property
+    def effective_database_url(self) -> str:
+        """Return PostgreSQL URL if set, otherwise fall back to SQLite."""
+        return self.postgres_url or self.database_url
+
     # Training Configuration
     training_script_path: str = "/app/scripts/train_soft_prompt.py"  # Soft prompt training script
     soft_prompt_model_dir: str = "/app/models/soft_prompts"

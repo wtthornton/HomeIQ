@@ -2,15 +2,15 @@
 # Phase 1: Containerized AI Models
 
 # Web Framework
-fastapi>=0.123.0,<0.124.0  # Stable 0.123.x series (December 2025)
-uvicorn[standard]>=0.32.0,<0.33.0  # Stable 0.32.x series with standard extras
+fastapi>=0.115.0,<1.0.0  # Phase 1: aligned
+uvicorn[standard]>=0.30.0,<1.0.0  # Phase 1: aligned
 
 # Data Validation
-pydantic==2.12.4
+pydantic>=2.9.0,<3.0.0  # Phase 1: aligned
 
 # Machine Learning
-scikit-learn>=1.5.0,<1.6.0  # Pinned to 1.5.x to avoid behaviour changes
-numpy>=1.26.0,<1.27.0  # Stable NumPy 1.26.x (CPU-only, compatible with scikit-learn)
+scikit-learn>=1.5.0,<2.0.0  # Phase 3: allow 1.5+ (Feb 2026 upgrade)
+numpy>=1.26.0,<3.0.0  # Phase 3: allow 1.x and 2.x (Feb 2026 upgrade)
 
 # Data Processing
-scipy>=1.16.3,<1.17.0  # Transitive dependency, tightly pinned
+scipy>=1.13.0,<2.0.0  # Phase 3: allow 1.13+ (Feb 2026 upgrade)

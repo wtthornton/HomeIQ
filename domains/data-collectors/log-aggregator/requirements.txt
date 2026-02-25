@@ -1,4 +1,4 @@
-aiohttp==3.13.2
+aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
 docker==7.1.0
 aiohttp-cors==0.7.0
 

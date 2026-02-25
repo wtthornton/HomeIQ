@@ -28,6 +28,8 @@ services:
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5.2-codex}
       - AI_AUTOMATION_API_KEY=${API_KEY:-}
       - DATA_API_KEY=${API_KEY:-}
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - DATABASE_SCHEMA=agent
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     # Cross-group depends_on removed (data-api in core, device-intelligence in ml-engine)
     networks:
@@ -78,6 +80,8 @@ services:
       - OPENAI_REASONING_EFFORT=high
       - OPENAI_TIMEOUT=90
       - DATABASE_URL=sqlite+aiosqlite:////app/data/ai_automation.db
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - DATABASE_SCHEMA=automation
       - SERVICE_PORT=8025
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - OTLP_ENDPOINT=http://jaeger:4317
@@ -123,6 +127,8 @@ services:
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///./data/ai_automation.db
       - DATABASE_PATH=/app/data/ai_automation.db
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - DATABASE_SCHEMA=automation
       - DATA_API_URL=http://data-api:8006
       - HA_URL=${HA_HTTP_URL:-}
       - HA_TOKEN=${HA_TOKEN:-}

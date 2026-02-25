@@ -11,6 +11,14 @@ dependencies = [
     "influxdb-client>=1.36",
     "aiohttp>=3.9",
     "pydantic>=2.0",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "alembic>=1.13.0",
+]
+
+[project.optional-dependencies]
+postgres = [
+    "asyncpg>=0.30.0",
+    "psycopg[binary]>=3.2.0",
 ]
 
 [tool.setuptools.packages.find]
