@@ -5,6 +5,7 @@ Phase 2: Device-Based Automation Suggestions Feature
 Generates automation suggestions for devices by aggregating data from multiple sources.
 """
 
+import json
 import logging
 import uuid
 from typing import Any
@@ -141,16 +142,16 @@ class DeviceSuggestionService:
         # Aggregate sports data if requested
         if context.include_sports:
             try:
-                await self._fetch_sports_data(device_id)
-                # TODO: Add sports data to context when schema supports it
+                sports_data = await self._fetch_sports_data()
+                device_context.sports_data = sports_data
             except Exception as e:
                 logger.warning(f"Failed to fetch sports data: {e}")
 
         # Aggregate weather data if requested
         if context.include_weather:
             try:
-                await self._fetch_weather_data(device_id)
-                # TODO: Add weather data to context when schema supports it
+                weather_data = await self._fetch_weather_data()
+                device_context.weather_data = weather_data
             except Exception as e:
                 logger.warning(f"Failed to fetch weather data: {e}")
 
@@ -164,14 +165,34 @@ class DeviceSuggestionService:
             logger.error(f"Failed to fetch device data: {e}")
             return {}
 
-    async def _fetch_device_capabilities(self, _device_id: str) -> list[dict[str, Any]]:
-        """Fetch device capabilities from data-api"""
+    async def _fetch_device_capabilities(self, device_id: str) -> list[dict[str, Any]]:
+        """Fetch device capabilities from device-intelligence-service.
+
+        Calls GET /api/devices/{device_id}/capabilities on the
+        device-intelligence-service (port 8019).
+
+        Args:
+            device_id: Device ID to query capabilities for
+
+        Returns:
+            List of capability dicts, or empty list on failure
+        """
         try:
-            # TODO: Implement device capabilities endpoint call
-            # For now, return empty list
+            url = f"{self.settings.device_intelligence_url}/api/devices/{device_id}/capabilities"
+            headers: dict[str, str] = {}
+            if self.settings.device_intelligence_api_key:
+                headers["X-API-Key"] = self.settings.device_intelligence_api_key.get_secret_value()
+            response = await self.http_client.get(url, headers=headers, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+            if isinstance(data, list):
+                return data
+            if isinstance(data, dict) and "capabilities" in data:
+                return data["capabilities"]
+            logger.warning("Unexpected capabilities response format: %s", type(data))
             return []
         except Exception as e:
-            logger.error(f"Failed to fetch device capabilities: {e}")
+            logger.warning("Failed to fetch device capabilities: %s", e)
             return []
 
     async def _fetch_device_entities(self, device_id: str) -> list[dict[str, Any]]:
@@ -182,44 +203,118 @@ class DeviceSuggestionService:
             logger.error(f"Failed to fetch device entities: {e}")
             return []
 
-    async def _fetch_synergies(self, _device_id: str) -> list[dict[str, Any]]:
-        """Fetch synergies from ai-pattern-service"""
+    async def _fetch_synergies(self, device_id: str) -> list[dict[str, Any]]:
+        """Fetch synergies from ai-pattern-service.
+
+        Calls GET /api/v1/synergies/list on the ai-pattern-service
+        (port 8020) and filters results to those containing the device_id.
+
+        Args:
+            device_id: Device ID to find synergies for
+
+        Returns:
+            List of synergy dicts related to the device, or empty list on failure
+        """
         try:
-            # TODO: Implement synergies API call
-            # For now, return empty list
-            return []
+            url = f"{self.settings.ai_pattern_service_url}/api/v1/synergies/list"
+            params = {"min_confidence": 0.5, "limit": 50}
+            response = await self.http_client.get(url, params=params, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+            synergies = data.get("synergies", []) if isinstance(data, dict) else data
+            if not isinstance(synergies, list):
+                return []
+            # Filter synergies to those involving the requested device
+            filtered = []
+            for synergy in synergies:
+                device_ids = synergy.get("device_ids", [])
+                if isinstance(device_ids, str):
+                    # device_ids may be stored as JSON string
+                    try:
+                        device_ids = json.loads(device_ids)
+                    except (json.JSONDecodeError, TypeError):
+                        device_ids = []
+                if device_id in device_ids:
+                    filtered.append(synergy)
+            return filtered
         except Exception as e:
-            logger.error(f"Failed to fetch synergies: {e}")
+            logger.warning("Failed to fetch synergies: %s", e)
             return []
 
-    async def _fetch_blueprints(self, _device_id: str) -> list[dict[str, Any]]:
-        """Fetch compatible blueprints from blueprint-suggestion-service"""
+    async def _fetch_blueprints(self, device_id: str) -> list[dict[str, Any]]:
+        """Fetch compatible blueprints from blueprint-suggestion-service.
+
+        Calls GET /api/blueprint-suggestions/suggestions on the
+        blueprint-suggestion-service (port 8032) and filters to those
+        matching the device_id.
+
+        Args:
+            device_id: Device ID to find compatible blueprints for
+
+        Returns:
+            List of blueprint suggestion dicts, or empty list on failure
+        """
         try:
-            # TODO: Implement blueprint API call
-            # For now, return empty list
-            return []
+            url = f"{self.settings.blueprint_suggestion_url}/api/blueprint-suggestions/suggestions"
+            params: dict[str, Any] = {"limit": 50, "status": "pending"}
+            response = await self.http_client.get(url, params=params, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+            suggestions = data.get("suggestions", []) if isinstance(data, dict) else data
+            if not isinstance(suggestions, list):
+                return []
+            # Filter suggestions to those with matched devices containing device_id
+            filtered = []
+            for suggestion in suggestions:
+                matched_devices = suggestion.get("matched_devices", [])
+                for device in matched_devices:
+                    if device.get("device_id") == device_id or device.get("entity_id", "").startswith(device_id):
+                        filtered.append(suggestion)
+                        break
+            return filtered
         except Exception as e:
-            logger.error(f"Failed to fetch blueprints: {e}")
+            logger.warning("Failed to fetch blueprints: %s", e)
             return []
 
-    async def _fetch_sports_data(self, _device_id: str) -> dict[str, Any] | None:
-        """Fetch sports data from sports-api"""
+    async def _fetch_sports_data(self) -> dict[str, Any] | None:
+        """Fetch sports data from sports-api.
+
+        Calls GET /sports-data on the sports-api service (port 8005).
+        Requires X-API-Key header authentication.
+
+        Returns:
+            Sports data dict with sensors and count, or None on failure
+        """
         try:
-            # TODO: Implement sports API call
-            # For now, return None
-            return None
+            url = f"{self.settings.sports_api_url}/sports-data"
+            headers: dict[str, str] = {}
+            if self.settings.sports_api_key:
+                headers["X-API-Key"] = self.settings.sports_api_key.get_secret_value()
+            else:
+                # Sports API requires X-API-Key; send empty to let server decide
+                headers["X-API-Key"] = ""
+            response = await self.http_client.get(url, headers=headers, timeout=10.0)
+            response.raise_for_status()
+            return response.json()
         except Exception as e:
-            logger.error(f"Failed to fetch sports data: {e}")
+            logger.warning("Failed to fetch sports data: %s", e)
             return None
 
-    async def _fetch_weather_data(self, _device_id: str) -> dict[str, Any] | None:
-        """Fetch weather data from weather-api"""
+    async def _fetch_weather_data(self) -> dict[str, Any] | None:
+        """Fetch weather data from weather-api.
+
+        Calls GET /current-weather on the weather-api service (port 8009).
+
+        Returns:
+            Weather data dict with temperature, condition, etc., or None on failure
+        """
         try:
-            # TODO: Implement weather API call
-            # For now, return None
-            return None
+            url = f"{self.settings.weather_api_url}/current-weather"
+            response = await self.http_client.get(url, timeout=10.0)
+            response.raise_for_status()
+            return response.json()
         except Exception as e:
-            logger.error(f"Failed to fetch weather data: {e}")
+            logger.warning("Failed to fetch weather data: %s", e)
             return None
 
     async def _generate_suggestions_from_data(

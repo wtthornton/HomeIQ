@@ -10,10 +10,13 @@ timing without modifying agent logic.
 from __future__ import annotations
 
 import functools
+import json
 import logging
+import os
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from .models import AgentResponse, SessionTrace, ToolCall, UserMessage
@@ -60,6 +63,121 @@ class CallbackSink(TraceSink):
         # Support async callbacks
         if hasattr(result, "__await__"):
             await result
+
+
+class PersistentSink(TraceSink):
+    """
+    Persists session traces to a SQLite database.
+
+    Stores each ``SessionTrace`` as a JSON-serialized record in a
+    ``trace_records`` table, preserving all data without requiring
+    the full scoring pipeline.
+
+    Resilient by design: if the database write fails, the error is
+    logged but the request is not interrupted.
+
+    Uses lazy initialization so no async setup is needed at import time.
+
+    The database path is configurable via the ``store_path`` parameter
+    or the ``EVAL_STORE_PATH`` environment variable (default:
+    ``/data/eval_traces.db``).
+    """
+
+    _CREATE_TRACE_TABLE_SQL = """
+    CREATE TABLE IF NOT EXISTS trace_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT NOT NULL,
+        agent_name TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        trace_json TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_trace_agent
+        ON trace_records(agent_name);
+    CREATE INDEX IF NOT EXISTS idx_trace_session
+        ON trace_records(session_id);
+    CREATE INDEX IF NOT EXISTS idx_trace_timestamp
+        ON trace_records(timestamp);
+    """
+
+    def __init__(self, store_path: str | None = None) -> None:
+        self._store_path = (
+            store_path
+            or os.environ.get("EVAL_STORE_PATH")
+            or "/data/eval_traces.db"
+        )
+        self._db: Any = None  # aiosqlite.Connection
+        self._initialized = False
+
+    async def _ensure_initialized(self) -> None:
+        """Lazily open the database and create tables on first use."""
+        if self._initialized:
+            return
+
+        try:
+            import aiosqlite  # noqa: WPS433 — deferred import
+        except ImportError:
+            logger.warning(
+                "aiosqlite not installed — PersistentSink disabled"
+            )
+            return
+
+        try:
+            # Ensure parent directory exists
+            db_dir = Path(self._store_path).parent
+            db_dir.mkdir(parents=True, exist_ok=True)
+
+            self._db = await aiosqlite.connect(self._store_path)
+            await self._db.executescript(self._CREATE_TRACE_TABLE_SQL)
+            await self._db.commit()
+            self._initialized = True
+            logger.info(
+                "PersistentSink initialized at %s", self._store_path
+            )
+        except Exception:
+            logger.exception(
+                "PersistentSink: failed to initialize database at %s",
+                self._store_path,
+            )
+
+    async def emit(self, trace: SessionTrace) -> None:
+        """Persist a completed session trace to SQLite."""
+        try:
+            await self._ensure_initialized()
+            if self._db is None:
+                return
+
+            trace_json = json.dumps(trace.to_dict(), default=str)
+            await self._db.execute(
+                """
+                INSERT INTO trace_records
+                    (session_id, agent_name, timestamp, trace_json)
+                VALUES (?, ?, ?, ?)
+                """,
+                [
+                    trace.session_id,
+                    trace.agent_name,
+                    trace.timestamp.isoformat(),
+                    trace_json,
+                ],
+            )
+            await self._db.commit()
+            logger.debug(
+                "PersistentSink: stored trace %s for agent %s",
+                trace.session_id,
+                trace.agent_name,
+            )
+        except Exception:
+            logger.exception(
+                "PersistentSink: failed to store trace %s",
+                getattr(trace, "session_id", "unknown"),
+            )
+
+    async def close(self) -> None:
+        """Close the database connection."""
+        if self._db is not None:
+            await self._db.close()
+            self._db = None
+            self._initialized = False
 
 
 # ---------------------------------------------------------------------------

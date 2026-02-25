@@ -72,6 +72,34 @@ class Settings(BaseSettings):
     )
     device_intelligence_enabled: bool = True
 
+    # AI Pattern Service Configuration
+    ai_pattern_service_url: str = Field(
+        default="http://ai-pattern-service:8020",
+        description="AI Pattern Service URL for synergy data"
+    )
+
+    # Blueprint Suggestion Service Configuration
+    blueprint_suggestion_url: str = Field(
+        default="http://blueprint-suggestion-service:8032",
+        description="Blueprint Suggestion Service URL"
+    )
+
+    # Sports API Configuration
+    sports_api_url: str = Field(
+        default="http://sports-api:8005",
+        description="Sports API Service URL for Team Tracker data"
+    )
+    sports_api_key: SecretStr | None = Field(
+        default=None,
+        description="API key for Sports API (X-API-Key auth)"
+    )
+
+    # Weather API Configuration
+    weather_api_url: str = Field(
+        default="http://weather-api:8009",
+        description="Weather API Service URL for weather data"
+    )
+
     # OpenAI Configuration
     openai_api_key: SecretStr | None = Field(
         default=None,

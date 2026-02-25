@@ -37,8 +37,8 @@ from .models import ChatRequest, ChatResponse, ToolCall
 
 # Agent Evaluation Framework: SessionTracer wiring (E3.S4)
 try:
-    from homeiq_patterns.evaluation.session_tracer import InMemorySink, trace_session
-    _eval_sink = InMemorySink()  # TODO: replace with persistent sink when E4 is implemented
+    from homeiq_patterns.evaluation.session_tracer import PersistentSink, trace_session
+    _eval_sink = PersistentSink()  # Persists traces to SQLite (EVAL_STORE_PATH env var)
     _TRACING_AVAILABLE = True
 except ImportError:
     _TRACING_AVAILABLE = False

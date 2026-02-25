@@ -48,6 +48,7 @@ from .llm_judge import (
 from .session_tracer import (
     CallbackSink,
     InMemorySink,
+    PersistentSink,
     SessionTracerContext,
     TraceSink,
     get_tracer_context,
@@ -103,6 +104,7 @@ __all__ = [
     # Session Tracer
     "CallbackSink",
     "InMemorySink",
+    "PersistentSink",
     "SessionTracerContext",
     "TraceSink",
     "get_tracer_context",

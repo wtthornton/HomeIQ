@@ -120,6 +120,23 @@ class CompiledArtifact(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
+class UserPreferences(Base):
+    """
+    User preference settings for automation suggestions.
+
+    Stores per-user configuration for suggestion generation behavior
+    including limits, creativity level, and blueprint preferences.
+    """
+
+    __tablename__ = "user_preferences"
+
+    user_id = Column(String(255), primary_key=True)
+    max_suggestions = Column(Integer, nullable=False, default=10)
+    creativity_level = Column(String(50), nullable=False, default="balanced")
+    blueprint_preference = Column(String(50), nullable=False, default="medium")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class Deployment(Base):
     """
     Deployment record - tracks automation deployment to Home Assistant

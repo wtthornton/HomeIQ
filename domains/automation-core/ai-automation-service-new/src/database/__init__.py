@@ -148,11 +148,11 @@ async def init_db():
                 table_exists = result.scalar() is not None
 
                 if not table_exists:
-                    logger.info("Creating suggestions table (table doesn't exist)")
+                    logger.info("Creating database tables (suggestions table doesn't exist)")
                     from .models import Base
 
                     await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn))
-                    logger.info("Created suggestions table")
+                    logger.info("Created database tables")
                 else:
                     # Table exists - check which columns exist and add missing ones
                     result = await conn.execute(text("PRAGMA table_info(suggestions)"))
@@ -189,6 +189,13 @@ async def init_db():
                                 logger.info(f"Added '{col_name}' column to suggestions table")
                             except Exception as e:
                                 logger.warning(f"Failed to add column '{col_name}': {e}")
+
+                    # Ensure any newer tables (e.g. user_preferences) are created
+                    from .models import Base
+
+                    await conn.run_sync(
+                        lambda sync_conn: Base.metadata.create_all(sync_conn, checkfirst=True)
+                    )
 
         logger.info("Database connection initialized")
     except Exception as e:

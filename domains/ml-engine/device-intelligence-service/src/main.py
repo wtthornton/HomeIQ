@@ -17,7 +17,6 @@ from fastapi.responses import JSONResponse
 
 from .api.database_management import router as database_management_router
 from .api.device_mappings_router import router as device_mappings_router
-from .api.devices import router as devices_router
 from .api.discovery import router as discovery_router
 from .api.discovery import shutdown_discovery_service
 from .api.health import router as health_router
@@ -183,7 +182,10 @@ app.include_router(database_management_router, prefix="/api", tags=["Database Ma
 app.include_router(hygiene_router)
 app.include_router(name_enhancement_router)
 app.include_router(team_tracker_router, tags=["Team Tracker"])
-app.include_router(devices_router, prefix="/api", tags=["Devices"])
+# NOTE: devices_router (api/devices.py) is NOT included here because
+# storage_router already serves the identical /api/devices/* routes with
+# real DeviceService logic.  devices.py is kept as a well-typed alternative
+# that can replace storage_router's device endpoints if needed.
 app.include_router(device_mappings_router)  # Epic AI-24: Device Mapping Library
 
 # Root endpoint

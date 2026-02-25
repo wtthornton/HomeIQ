@@ -145,6 +145,12 @@ class DeviceContext(BaseModel):
     home_assistant_services: list[dict[str, Any]] = Field(
         default_factory=list, description="Available Home Assistant services"
     )
+    sports_data: dict[str, Any] | None = Field(
+        default=None, description="Sports data from Team Tracker sensors"
+    )
+    weather_data: dict[str, Any] | None = Field(
+        default=None, description="Current weather data"
+    )
 
 
 class DeviceSuggestionsResponse(BaseModel):

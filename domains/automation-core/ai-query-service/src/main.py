@@ -47,13 +47,23 @@ except ImportError:
 
 # Import observability modules
 try:
-    from homeiq_observability.observability import CorrelationMiddleware, instrument_fastapi, setup_tracing
+    from homeiq_observability.observability import (
+        CorrelationMiddleware,
+        instrument_fastapi,
+        setup_tracing,
+    )
     OBSERVABILITY_AVAILABLE = True
 except ImportError:
     logger.warning("Observability modules not available")
     OBSERVABILITY_AVAILABLE = False
 
 from .api import health_router, query_router
+from .api.middlewares import (
+    AuthenticationMiddleware,
+    RateLimitMiddleware,
+    start_rate_limit_cleanup,
+    stop_rate_limit_cleanup,
+)
 from .config import settings
 from .database import init_db
 
@@ -113,7 +123,12 @@ async def lifespan(app: FastAPI):
     # Setup observability if available
     await _setup_observability()
 
-    logger.info("✅ AI Query Service startup complete")
+    # Start rate limit cleanup background task
+    if settings.rate_limit_enabled:
+        await start_rate_limit_cleanup()
+        logger.info("Rate limit cleanup task started")
+
+    logger.info("AI Query Service startup complete")
     logger.info("=" * 60)
 
     yield
@@ -121,6 +136,11 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("=" * 60)
     logger.info("AI Query Service Shutting Down")
+
+    # Stop rate limit cleanup
+    await stop_rate_limit_cleanup()
+
+    logger.info("AI Query Service shutdown complete")
     logger.info("=" * 60)
 
 # Create FastAPI app
@@ -168,16 +188,12 @@ if OBSERVABILITY_AVAILABLE:
     except Exception as e:
         logger.warning(f"Failed to instrument FastAPI: {e}")
 
-# TODO: Story 39.10 - Add authentication middleware
-# CRITICAL: Authentication should be added before production deployment
-# See ai-automation-service/src/api/middlewares.py for AuthenticationMiddleware pattern
-# app.add_middleware(AuthenticationMiddleware)
+# Authentication middleware (validates API keys for external requests)
+app.add_middleware(AuthenticationMiddleware)
 
-# TODO: Story 39.10 - Add rate limiting middleware
-# CRITICAL: Rate limiting should be added before production deployment
-# See ai-automation-service/src/api/middlewares.py for RateLimitMiddleware pattern
-# if settings.rate_limit_enabled:
-#     app.add_middleware(RateLimitMiddleware, ...)
+# Rate limiting middleware (token bucket algorithm)
+if settings.rate_limit_enabled:
+    app.add_middleware(RateLimitMiddleware)
 
 # Include routers
 app.include_router(health_router.router, tags=["health"])

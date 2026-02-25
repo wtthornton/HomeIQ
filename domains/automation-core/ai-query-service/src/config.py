@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     clarification_confidence_threshold: float = 0.7
     max_clarification_questions: int = 3
 
+    # Authentication
+    api_keys: set[str] = set()  # Allowed API keys (empty = allow all authenticated)
+
+    # Rate Limiting
+    rate_limit_enabled: bool = True
+
     # Logging
     log_level: str = "INFO"
 
