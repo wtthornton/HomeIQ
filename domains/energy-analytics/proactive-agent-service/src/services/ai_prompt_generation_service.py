@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import Any
 
 import httpx
@@ -53,6 +54,7 @@ class AIPromptGenerationService:
         openai_model: str = "gpt-4o-mini",  # Cost-effective for suggestion generation
         ha_agent_url: str = "http://ha-ai-agent-service:8030",
         device_validation_service: DeviceValidationService | None = None,
+        rag_registry: Any | None = None,
     ):
         """
         Initialize AI Prompt Generation Service.
@@ -62,10 +64,12 @@ class AIPromptGenerationService:
             openai_model: Model to use for generation
             ha_agent_url: URL to HA AI Agent for context retrieval
             device_validation_service: Service for validating device existence
+            rag_registry: Optional RAGContextRegistry for domain-specific context injection
         """
         self.api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         self.model = openai_model
         self.ha_agent_url = ha_agent_url.rstrip("/")
+        self.rag_registry = rag_registry
 
         # Initialize device validation service
         self.device_validation = device_validation_service or DeviceValidationService(
@@ -79,7 +83,8 @@ class AIPromptGenerationService:
             )
 
         self.http_client = httpx.AsyncClient(timeout=60.0)
-        logger.info(f"AI Prompt Generation Service initialized (model={self.model}, device_validation=enabled)")
+        rag_status = f", rag_services={len(rag_registry.services)}" if rag_registry else ""
+        logger.info(f"AI Prompt Generation Service initialized (model={self.model}, device_validation=enabled{rag_status})")
 
     async def generate_prompts(
         self,
@@ -322,6 +327,27 @@ class AIPromptGenerationService:
                     parts.append(f"""### Home Areas
 {areas_section}
 """)
+
+        # RAG domain context (from RAGContextRegistry)
+        if self.rag_registry:
+            try:
+                # Build a probe from all available insights for keyword matching
+                insights: list[str] = []
+                for source_key in ("weather", "energy", "sports", "historical_patterns", "activity"):
+                    source = context_analysis.get(source_key, {})
+                    insights.extend(source.get("insights", []))
+                probe = " ".join(insights)
+                if probe:
+                    # Use sync methods directly (score_relevance, load_corpus, format_context are all sync)
+                    for service in self.rag_registry.services:
+                        score = service.score_relevance(probe)
+                        if score >= service.min_score:
+                            corpus = service.load_corpus()
+                            if corpus:
+                                parts.append(service.format_context(corpus))
+                                logger.debug(f"RAG injected: {service.name} (score={score:.2f})")
+            except Exception as e:
+                logger.warning(f"RAG context injection failed: {e}")
 
         # Summary
         summary = context_analysis.get("summary", {})

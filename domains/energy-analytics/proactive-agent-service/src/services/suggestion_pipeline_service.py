@@ -18,6 +18,17 @@ from ..services.ai_prompt_generation_service import AIPromptGenerationService
 from ..services.prompt_generation_service import PromptGenerationService
 from ..services.suggestion_storage_service import SuggestionStorageService
 
+try:
+    from homeiq_patterns import RAGContextRegistry
+    from ..services.rag_services import (
+        EnergySavingsRAGService,
+        SecurityBestPracticesRAGService,
+        ComfortOptimizationRAGService,
+    )
+    _RAG_AVAILABLE = True
+except ImportError:
+    _RAG_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -64,10 +75,27 @@ class SuggestionPipelineService:
             logger.error(f"Failed to initialize ContextAnalysisService: {e}", exc_info=True)
             raise PipelineInitializationError(f"ContextAnalysisService initialization failed: {e}") from e
 
+        # Initialize RAG Context Registry for domain-specific context
+        rag_registry = None
+        if _RAG_AVAILABLE:
+            try:
+                rag_registry = RAGContextRegistry()
+                rag_registry.register(EnergySavingsRAGService())
+                rag_registry.register(SecurityBestPracticesRAGService())
+                rag_registry.register(ComfortOptimizationRAGService())
+                logger.info(f"RAG registry initialized with {len(rag_registry.services)} services")
+            except Exception as e:
+                logger.warning(f"Failed to initialize RAG registry: {e}")
+                rag_registry = None
+        else:
+            logger.info("homeiq-patterns not available - RAG context disabled")
+
         # Initialize AI-powered prompt service (primary)
         if self.use_ai_generation:
             try:
-                self.ai_prompt_service = ai_prompt_service or AIPromptGenerationService()
+                self.ai_prompt_service = ai_prompt_service or AIPromptGenerationService(
+                    rag_registry=rag_registry,
+                )
                 logger.info("✅ AI-powered prompt generation ENABLED")
             except Exception as e:
                 logger.warning(f"Failed to initialize AIPromptGenerationService: {e}. Falling back to templates.")

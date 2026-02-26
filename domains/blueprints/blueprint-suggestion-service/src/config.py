@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     # Service URLs
     blueprint_index_url: str = "http://blueprint-index:8031"
     data_api_url: str = "http://data-api:8006"
-    ai_pattern_service_url: str = "http://ai-pattern-service:8029"
+    ai_pattern_service_url: str = "http://ai-pattern-service:8020"
 
     # HTTP Settings
     http_timeout_connect: float = 10.0

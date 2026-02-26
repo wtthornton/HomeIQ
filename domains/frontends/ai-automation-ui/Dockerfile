@@ -2,7 +2,7 @@
 # Multi-stage build for production-optimized React app
 
 # Stage 1: Dependencies
-FROM node:20.19.0-alpine AS deps
+FROM node:20.20.0-alpine AS deps
 WORKDIR /app
 
 # Copy dependency files
@@ -41,7 +41,7 @@ RUN rm -rf dist node_modules/.cache .vite 2>/dev/null || true
 RUN npm run build
 
 # Stage 3: Production
-FROM nginx:alpine
+FROM nginx:stable-alpine
 LABEL maintainer="HA Ingestor Team"
 LABEL description="AI Automation UI - Standalone suggestion management interface"
 

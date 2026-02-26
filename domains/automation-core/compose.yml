@@ -134,7 +134,7 @@ services:
       - HA_TOKEN=${HA_TOKEN:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
-      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8023
+      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - QUERY_TIMEOUT=${QUERY_TIMEOUT:-5.0}
       - ENABLE_CACHING=${ENABLE_CACHING:-True}

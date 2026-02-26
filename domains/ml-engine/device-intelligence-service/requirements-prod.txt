@@ -2,8 +2,8 @@
 # Split from requirements.txt to speed up builds and reduce image size
 
 # FastAPI and ASGI server
-fastapi>=0.123.0,<0.124.0
-uvicorn[standard]>=0.32.0,<0.33.0
+fastapi>=0.129.0,<0.130.0  # Stable 0.129.x series (February 2026)
+uvicorn[standard]>=0.41.0,<0.42.0
 
 # Pydantic for settings and data validation
 pydantic>=2.12.4,<3.0.0

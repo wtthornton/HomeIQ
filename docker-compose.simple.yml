@@ -4,7 +4,7 @@ name: homeiq-simple
 services:
   # Database only
   influxdb:
-    image: influxdb:2.7
+    image: influxdb:2.8.0
     container_name: homeiq-influxdb
     restart: unless-stopped
     ports:
