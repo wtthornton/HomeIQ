@@ -12,22 +12,25 @@ import logging
 import os
 from typing import Any
 
-from ..clients.ha_agent_client import HAAgentClient
-from ..services.context_analysis_service import ContextAnalysisService
-from ..services.ai_prompt_generation_service import AIPromptGenerationService
-from ..services.prompt_generation_service import PromptGenerationService
-from ..services.suggestion_storage_service import SuggestionStorageService
-
 try:
     from homeiq_patterns import RAGContextRegistry
-    from ..services.rag_services import (
-        EnergySavingsRAGService,
-        SecurityBestPracticesRAGService,
-        ComfortOptimizationRAGService,
-    )
+
     _RAG_AVAILABLE = True
 except ImportError:
     _RAG_AVAILABLE = False
+
+from ..clients.ha_agent_client import HAAgentClient
+from ..services.ai_prompt_generation_service import AIPromptGenerationService
+from ..services.context_analysis_service import ContextAnalysisService
+from ..services.prompt_generation_service import PromptGenerationService
+from ..services.suggestion_storage_service import SuggestionStorageService
+
+if _RAG_AVAILABLE:
+    from ..services.rag_services import (
+        ComfortOptimizationRAGService,
+        EnergySavingsRAGService,
+        SecurityBestPracticesRAGService,
+    )
 
 logger = logging.getLogger(__name__)
 

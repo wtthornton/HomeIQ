@@ -4,7 +4,7 @@
 # Data Processing
 polars>=1.0.0
 pandas>=2.2.0
-numpy>=1.26.0
+numpy>=1.26.0,<3.0.0  # Phase 3: allow 1.x and 2.x migration path
 
 # Time Series Forecasting
 darts>=0.40.0,<0.41.0  # Feb 2026 upgrade — Chronos2Model, new config system
