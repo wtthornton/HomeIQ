@@ -29,8 +29,8 @@ def show() -> None:
 
     Shows service health, latency metrics, error rates, and dependencies.
     """
-    st.header("⚡ Service Performance Monitoring")
-    st.markdown("Monitor service health across all 30+ microservices")
+    st.header("⚡ Performance")
+    st.caption("Service health, latency, and error rates")
 
     # Sidebar filters
     with st.sidebar:

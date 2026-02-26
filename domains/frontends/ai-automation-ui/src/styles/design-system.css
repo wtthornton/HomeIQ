@@ -1,49 +1,83 @@
 /**
- * Modern & Manly Design System - CSS Variables and Utilities
- * 
- * Based on the ReverseEngineeringLoader aesthetic
- * Version: 1.0.0
+ * HomeIQ Design System - CSS Variables and Utilities
+ *
+ * Palette: Deep Blue-Black + Teal + Liquid Glass
+ * Version: 2.0.0
  */
 
 :root {
   /* ============================================
-     HomeIQ Industrial Design System
-     Palette: Slate + Amber + Warm Neutrals
+     HomeIQ Design System
+     Palette: Deep Blue-Black + Teal + Liquid Glass
      ============================================ */
-  
-  /* Dark Backgrounds - Industrial slate */
-  --bg-primary: #09090b;
-  --bg-secondary: #18181b;
-  --bg-tertiary: #27272a;
-  
-  /* Card/Surface Colors */
-  --card-bg: rgba(24, 24, 27, 0.95);
-  --card-bg-alt: rgba(39, 39, 42, 0.95);
-  --card-border: rgba(63, 63, 70, 0.5);
-  
-  /* Accent Colors - Amber/Orange (Industrial) */
-  --accent-primary: #f97316;
-  --accent-secondary: #eab308;
-  --accent-glow: rgba(249, 115, 22, 0.15);
-  
+
+  /* Dark Backgrounds - Deeper blue-black */
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --bg-tertiary: #1e1e2a;
+
+  /* Card/Surface Colors - Liquid Glass tiers */
+  --card-bg: rgba(18, 18, 26, 0.95);
+  --card-bg-alt: rgba(30, 30, 42, 0.95);
+  --card-border: rgba(63, 63, 90, 0.5);
+
+  /* Accent Colors - Teal (replaces amber/orange) */
+  --accent-primary: #14b8a6;
+  --accent-secondary: #d4a847;
+  --accent-glow: rgba(20, 184, 166, 0.12);
+
   /* Text Colors */
   --text-primary: #fafafa;
   --text-secondary: #d4d4d8;
   --text-tertiary: #a1a1aa;
   --text-muted: #71717a;
-  
-  /* Status Colors - Clear, functional */
+
+  /* Status Colors */
   --success: #22c55e;
   --success-glow: rgba(34, 197, 94, 0.15);
-  --warning: #eab308;
+  --warning: #f59e0b;
   --error: #ef4444;
-  --info: #f97316;
-  
-  /* Interactive States */
-  --hover-bg: rgba(63, 63, 70, 0.3);
-  --active-bg: rgba(63, 63, 70, 0.5);
-  --focus-ring: rgba(249, 115, 22, 0.5);
-  
+  --info: #38bdf8;
+
+  /* Interactive States - Teal focus ring */
+  --hover-bg: rgba(63, 63, 90, 0.3);
+  --active-bg: rgba(63, 63, 90, 0.5);
+  --focus-ring: rgba(20, 184, 166, 0.5);
+
+  /* Semantic Token Aliases */
+  --color-brand: var(--accent-primary);
+  --color-danger: var(--error);
+  --color-caution: var(--warning);
+  --color-positive: var(--success);
+  --color-neutral: var(--text-muted);
+
+  /* Motion Tokens (FR-1.5) */
+  --motion-fast: 150ms;
+  --motion-normal: 250ms;
+  --motion-slow: 400ms;
+  --ease-enter: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Elevation - Liquid Glass (FR-1.3) */
+  --elevation-surface-bg: var(--card-bg);
+  --elevation-surface-blur: 0px;
+  --elevation-surface-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --elevation-raised-bg: rgba(18, 18, 26, 0.85);
+  --elevation-raised-blur: 16px;
+  --elevation-raised-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(20, 184, 166, 0.08);
+  --elevation-floating-bg: rgba(18, 18, 26, 0.75);
+  --elevation-floating-blur: 24px;
+  --elevation-floating-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(20, 184, 166, 0.12);
+
+  /* Typography Scale (FR-1.4) */
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-lg: 1rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 2rem;
+
   /* Spacing - Tighter for density */
   --spacing-xs: 0.125rem;
   --spacing-sm: 0.375rem;
@@ -52,19 +86,58 @@
   --spacing-xl: 1.5rem;
   --spacing-2xl: 2rem;
   --spacing-3xl: 2.5rem;
-  
+
   /* Border Radius - Tighter, more intentional */
   --radius-sm: 0.125rem;
   --radius-md: 0.25rem;
   --radius-lg: 0.375rem;
   --radius-xl: 0.5rem;
   --radius-full: 9999px;
-  
-  /* Shadows - Subtle, no colored glows */
-  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 
-                  0 0 0 1px rgba(63, 63, 70, 0.3);
+
+  /* Shadows */
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.3),
+                  0 0 0 1px rgba(63, 63, 90, 0.3);
   --shadow-button: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
   --shadow-hover: 0 4px 12px -2px rgba(0, 0, 0, 0.25);
+}
+
+/* Light Mode */
+:root[data-theme="light"],
+.light {
+  --bg-primary: #f8f9fc;
+  --bg-secondary: #f0f1f5;
+  --bg-tertiary: #e5e7ed;
+
+  --card-bg: rgba(255, 255, 255, 0.92);
+  --card-bg-alt: rgba(245, 245, 250, 0.95);
+  --card-border: rgba(0, 0, 0, 0.08);
+
+  --accent-primary: #0d9488;
+  --accent-secondary: #b8941f;
+  --accent-glow: rgba(13, 148, 136, 0.1);
+
+  --text-primary: #1a1a2e;
+  --text-secondary: #4a4a5e;
+  --text-tertiary: #6b6b80;
+  --text-muted: #9ca3af;
+
+  --success: #16a34a;
+  --warning: #d97706;
+  --error: #dc2626;
+  --info: #0284c7;
+
+  --hover-bg: rgba(0, 0, 0, 0.04);
+  --active-bg: rgba(0, 0, 0, 0.08);
+  --focus-ring: rgba(13, 148, 136, 0.5);
+
+  --elevation-surface-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --elevation-raised-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(13, 148, 136, 0.06);
+  --elevation-floating-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(13, 148, 136, 0.08);
+}
+
+/* Base font size */
+body {
+  font-size: 0.875rem;
 }
 
 /* Utility Classes */
@@ -77,6 +150,27 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   position: relative;
+}
+
+/* Elevation tier classes */
+.ds-surface {
+  background: var(--elevation-surface-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--elevation-surface-shadow);
+}
+
+.ds-raised {
+  background: var(--elevation-raised-bg);
+  backdrop-filter: blur(var(--elevation-raised-blur));
+  -webkit-backdrop-filter: blur(var(--elevation-raised-blur));
+  box-shadow: var(--elevation-raised-shadow);
+}
+
+.ds-floating {
+  background: var(--elevation-floating-bg);
+  backdrop-filter: blur(var(--elevation-floating-blur));
+  -webkit-backdrop-filter: blur(var(--elevation-floating-blur));
+  box-shadow: var(--elevation-floating-shadow);
 }
 
 /* Corner accents removed - too decorative */
@@ -100,7 +194,6 @@
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.025em;
-  text-transform: uppercase;
 }
 
 .ds-title-card {
@@ -118,10 +211,9 @@
 }
 
 .ds-text-label {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text-tertiary);
-  text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
@@ -139,7 +231,7 @@
 }
 
 .ds-btn-primary:hover {
-  background: #ea580c;
+  background: #0f9d8f;
   box-shadow: var(--shadow-hover);
 }
 
@@ -210,8 +302,8 @@
 .ds-modal-overlay {
   position: fixed;
   inset: 0;
-  background: linear-gradient(135deg, 
-    rgba(10, 14, 39, 0.95) 0%, 
+  background: linear-gradient(135deg,
+    rgba(10, 14, 39, 0.95) 0%,
     rgba(26, 31, 58, 0.95) 100%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -222,8 +314,8 @@
 }
 
 .ds-modal-content {
-  background: linear-gradient(135deg, 
-    var(--card-bg) 0%, 
+  background: linear-gradient(135deg,
+    var(--card-bg) 0%,
     var(--card-bg-alt) 100%);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-xl);
@@ -259,7 +351,7 @@
 }
 
 .ds-grid-bg {
-  background-image: 
+  background-image:
     linear-gradient(rgba(63, 63, 70, 0.3) 1px, transparent 1px),
     linear-gradient(90deg, rgba(63, 63, 70, 0.3) 1px, transparent 1px);
   background-size: 40px 40px;
@@ -272,6 +364,34 @@
   background: var(--bg-primary);
 }
 
+/* FR-6.1: Focus-Visible System */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Skip-to-content link */
+.skip-to-content {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  padding: 8px 16px;
+  z-index: 100;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: top 0.2s;
+}
+
+.skip-to-content:focus {
+  top: 0;
+}
+
 /* Respect reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -282,4 +402,3 @@
     transition-duration: 0.01ms !important;
   }
 }
-

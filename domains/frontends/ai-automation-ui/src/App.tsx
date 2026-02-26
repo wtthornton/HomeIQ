@@ -4,23 +4,39 @@
  */
 
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { CustomToaster } from './components/CustomToast';
 import { SelectionProvider } from './context/SelectionContext';
-import { Navigation } from './components/Navigation';
+import { Sidebar } from './components/Sidebar';
 import { PageErrorBoundaryWrapper } from './components/PageErrorBoundary';
-import { ConversationalDashboard } from './pages/ConversationalDashboard';  // Story AI1.23 - Conversational UI
-import { Patterns } from './pages/Patterns';
-import { Synergies } from './pages/Synergies';  // Epic AI-3, Story AI3.8
+import { Ideas } from './pages/Ideas';
+import { Insights } from './pages/Insights';
 import { Deployed } from './pages/Deployed';
 import { Settings } from './pages/Settings';
-import { DiscoveryPage } from './pages/Discovery';  // Epic AI-4, Story AI4.3
-import { Admin } from './pages/Admin';
-import { NameEnhancementDashboard } from './components/name-enhancement';  // Device Name Enhancement
-import { HAAgentChat } from './pages/HAAgentChat';  // Epic AI-20, Story AI20.7
-import { ProactiveSuggestions } from './pages/ProactiveSuggestions';  // Epic AI-21: Context-aware suggestions
-import { BlueprintSuggestions } from './pages/BlueprintSuggestions';
+import { DiscoveryPage } from './pages/Discovery';
+import { NameEnhancementDashboard } from './components/name-enhancement';
+import { HAAgentChat } from './pages/HAAgentChat';
 import { useAppStore } from './store';
+
+/** Update document title based on current route */
+const TitleUpdater: React.FC = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    const titles: Record<string, string> = {
+      '/': 'Ideas - HomeIQ',
+      '/chat': 'Chat - HomeIQ',
+      '/explore': 'Explore - HomeIQ',
+      '/insights': 'Insights - HomeIQ',
+      '/automations': 'Automations - HomeIQ',
+      '/settings': 'Settings - HomeIQ',
+      '/name-enhancement': 'Name Enhancement - HomeIQ',
+    };
+    document.title = titles[location.pathname] || 'HomeIQ';
+  }, [location.pathname]);
+
+  return null;
+};
 
 export const App: React.FC = () => {
   const { darkMode, initializeDarkMode } = useAppStore();
@@ -45,134 +61,118 @@ export const App: React.FC = () => {
   return (
     <SelectionProvider>
       <Router>
-        <div className="min-h-screen transition-colors ds-bg-gradient-primary">
-          <Navigation />
-        
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Routes>
-            <Route 
-              path="/blueprint-suggestions" 
-              element={
-                <PageErrorBoundaryWrapper pageName="Blueprint Suggestions">
-                  <BlueprintSuggestions />
-                </PageErrorBoundaryWrapper>
-              } 
-            />
-            <Route 
-              path="/" 
-              element={
-                <PageErrorBoundaryWrapper pageName="Dashboard">
-                  <ConversationalDashboard />
-                </PageErrorBoundaryWrapper>
-              } 
-            />
-            <Route 
-              path="/proactive" 
-              element={
-                <PageErrorBoundaryWrapper pageName="Proactive Suggestions">
-                  <ProactiveSuggestions />
-                </PageErrorBoundaryWrapper>
-              } 
-            />
-            <Route 
-              path="/patterns" 
-              element={
-                <PageErrorBoundaryWrapper pageName="Patterns">
-                  <Patterns />
-                </PageErrorBoundaryWrapper>
-              } 
-            />
-            <Route 
-              path="/synergies" 
-              element={
-                <PageErrorBoundaryWrapper pageName="Synergies">
-                  <Synergies />
-                </PageErrorBoundaryWrapper>
-              } 
-            />
-            <Route 
-              path="/deployed" 
-              element={
-                <PageErrorBoundaryWrapper pageName="Deployed">
-                  <Deployed />
-                </PageErrorBoundaryWrapper>
-              } 
-            />
-            <Route 
-              path="/discovery" 
-              element={
-                <PageErrorBoundaryWrapper pageName="Discovery">
-                  <DiscoveryPage />
-                </PageErrorBoundaryWrapper>
-              } 
-            />
-            <Route 
-              path="/name-enhancement" 
-              element={
-                <PageErrorBoundaryWrapper pageName="Name Enhancement">
-                  <NameEnhancementDashboard />
-                </PageErrorBoundaryWrapper>
-              } 
-            />
-            <Route 
-              path="/ha-agent" 
-              element={
-                <PageErrorBoundaryWrapper pageName="HA Agent Chat">
-                  <HAAgentChat />
-                </PageErrorBoundaryWrapper>
-              } 
-            />
-            <Route 
-              path="/settings" 
-              element={
-                <PageErrorBoundaryWrapper pageName="Settings">
-                  <Settings />
-                </PageErrorBoundaryWrapper>
-              } 
-            />
-            <Route 
-              path="/admin" 
-              element={
-                <PageErrorBoundaryWrapper pageName="Admin">
-                  <Admin />
-                </PageErrorBoundaryWrapper>
-              } 
-            />
-          </Routes>
-        </main>
+        <TitleUpdater />
+        <a href="#main-content" className="skip-to-content">
+          Skip to main content
+        </a>
+        <div className="flex min-h-screen transition-colors ds-bg-gradient-primary">
+          <Sidebar />
 
-        {/* Footer */}
-        <footer className={`mt-16 py-8 border-t ${darkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'}`}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className={`text-center text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              <div className="mb-2">
-                <strong>HA AutomateAI</strong> - AI-Powered Smart Home Automation
+          <div className="flex-1 flex flex-col min-w-0">
+            <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <Routes>
+                {/* Primary routes */}
+                <Route
+                  path="/"
+                  element={
+                    <PageErrorBoundaryWrapper pageName="Ideas">
+                      <Ideas />
+                    </PageErrorBoundaryWrapper>
+                  }
+                />
+                <Route
+                  path="/chat"
+                  element={
+                    <PageErrorBoundaryWrapper pageName="Chat">
+                      <HAAgentChat />
+                    </PageErrorBoundaryWrapper>
+                  }
+                />
+                <Route
+                  path="/explore"
+                  element={
+                    <PageErrorBoundaryWrapper pageName="Explore">
+                      <DiscoveryPage />
+                    </PageErrorBoundaryWrapper>
+                  }
+                />
+                <Route
+                  path="/insights"
+                  element={
+                    <PageErrorBoundaryWrapper pageName="Insights">
+                      <Insights />
+                    </PageErrorBoundaryWrapper>
+                  }
+                />
+                <Route
+                  path="/automations"
+                  element={
+                    <PageErrorBoundaryWrapper pageName="Automations">
+                      <Deployed />
+                    </PageErrorBoundaryWrapper>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <PageErrorBoundaryWrapper pageName="Settings">
+                      <Settings />
+                    </PageErrorBoundaryWrapper>
+                  }
+                />
+                <Route
+                  path="/name-enhancement"
+                  element={
+                    <PageErrorBoundaryWrapper pageName="Name Enhancement">
+                      <NameEnhancementDashboard />
+                    </PageErrorBoundaryWrapper>
+                  }
+                />
+
+                {/* Legacy redirects */}
+                <Route path="/ha-agent" element={<Navigate to="/chat" replace />} />
+                <Route path="/deployed" element={<Navigate to="/automations" replace />} />
+                <Route path="/discovery" element={<Navigate to="/explore" replace />} />
+                <Route path="/patterns" element={<Navigate to="/insights" replace />} />
+                <Route path="/synergies" element={<Navigate to="/insights" replace />} />
+                <Route path="/admin" element={<Navigate to="/settings?section=system" replace />} />
+                <Route path="/proactive" element={<Navigate to="/?source=context" replace />} />
+                <Route path="/blueprint-suggestions" element={<Navigate to="/?source=blueprints" replace />} />
+              </Routes>
+            </main>
+
+            {/* Footer */}
+            <footer className={`mt-16 py-8 border-t ${darkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className={`text-center text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <div className="mb-2">
+                    <strong>HomeIQ</strong> - AI-Powered Smart Home Intelligence
+                  </div>
+                  <div className="text-xs">
+                    Powered by OpenAI GPT-4o-mini and Machine Learning Pattern Detection
+                  </div>
+                  <div className="mt-4 flex justify-center gap-4">
+                    <a href="/api/docs" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">
+                      API Docs
+                    </a>
+                    <a href="https://github.com/wtthornton/HomeIQ" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">
+                      Documentation
+                    </a>
+                  </div>
+                </div>
               </div>
-              <div className="text-xs">
-                Powered by OpenAI GPT-4o-mini • Machine Learning Pattern Detection • Cost: ~$0.075/month
-              </div>
-              <div className="mt-4 flex justify-center gap-4">
-                <a href="/admin" className="hover:text-blue-500 transition-colors">
-                  🔧 Admin Panel
-                </a>
-                <a href="/api/docs" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">
-                  📚 API Docs
-                </a>
-                <a href="https://github.com/wtthornton/HomeIQ" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">
-                  📖 Documentation
-                </a>
-              </div>
-            </div>
+            </footer>
+
+            {/* Spacer for mobile bottom nav */}
+            <div className="md:hidden h-14" />
           </div>
-        </footer>
+        </div>
 
         {/* Toast Notifications */}
         <CustomToaster darkMode={darkMode} />
-        </div>
       </Router>
     </SelectionProvider>
   );
 };
 
 export default App;
-

@@ -72,6 +72,8 @@ export default {
           "critical-light": "hsl(var(--status-critical-light))",
           offline: "hsl(var(--status-offline))",
           "offline-light": "hsl(var(--status-offline-light))",
+          info: "hsl(var(--info))",
+          "info-light": "hsl(var(--info-light, var(--info)))",
         },
         
         // Smart home accent colors
@@ -286,10 +288,19 @@ export default {
         "collapsible-up": "collapsible-up 0.2s ease-out",
       },
 
+      // Transition durations (FR-1.5 motion tokens)
+      transitionDuration: {
+        'fast': '150ms',
+        'normal': '250ms',
+        'slow': '400ms',
+      },
+
       // Transition timing functions
       transitionTimingFunction: {
         'ease-spring': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
         'ease-bounce': 'cubic-bezier(0.68, -0.6, 0.32, 1.6)',
+        'enter': 'cubic-bezier(0.4, 0, 0.2, 1)',
+        'exit': 'cubic-bezier(0.4, 0, 1, 1)',
       },
     },
   },

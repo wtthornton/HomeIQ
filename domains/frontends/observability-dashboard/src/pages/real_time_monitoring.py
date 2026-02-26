@@ -34,8 +34,8 @@ def show() -> None:
 
     Shows live trace streaming with auto-refresh and anomaly detection.
     """
-    st.header("📡 Real-Time Observability")
-    st.markdown("Live trace streaming and real-time service health monitoring")
+    st.header("📡 Live")
+    st.caption("Streaming traces and anomaly detection")
 
     # Controls
     col1, col2, col3 = st.columns(3)

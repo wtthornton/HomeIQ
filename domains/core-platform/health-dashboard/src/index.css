@@ -13,39 +13,44 @@
 @layer base {
   :root {
     /* ============================================
-       HomeIQ Industrial Design System
-       Palette: Slate + Amber + Warm Neutrals
+       HomeIQ Design System
+       Palette: Teal + Gold + Cool Neutrals
        ============================================ */
-    
+
     /* Colors - Light theme */
     --background: 0 0% 98%;
     --background-secondary: 220 14% 96%;
     --background-tertiary: 220 13% 93%;
     --foreground: 224 71% 4%;
-    
+
     --card: 0 0% 100%;
     --card-foreground: 224 71% 4%;
-    
+
     --popover: 0 0% 100%;
     --popover-foreground: 224 71% 4%;
-    
-    /* Primary: Amber/Orange - Industrial accent */
-    --primary: 25 95% 53%;
+
+    /* Primary: Teal */
+    --primary: 168 76% 40%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 25 95% 45%;
-    
+    --primary-hover: 168 76% 34%;
+
     --secondary: 220 14% 96%;
     --secondary-foreground: 224 71% 4%;
-    
+
     --muted: 220 14% 96%;
     --muted-foreground: 220 9% 46%;
-    
-    --accent: 45 93% 47%;
+
+    /* Accent: Gold (warm secondary) */
+    --accent: 43 70% 48%;
     --accent-foreground: 224 71% 4%;
-    
+
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    
+
+    /* Info color */
+    --info: 199 89% 48%;
+    --info-light: 199 89% 94%;
+
     /* Status colors - Clear, functional */
     --status-healthy: 142 71% 45%;
     --status-healthy-light: 142 76% 94%;
@@ -55,22 +60,27 @@
     --status-critical-light: 0 84% 94%;
     --status-offline: 220 9% 46%;
     --status-offline-light: 220 9% 94%;
-    
-    /* Smart home accent colors - Warm industrial */
+
+    /* Smart home accent colors */
     --accent-weather: 199 89% 48%;
-    --accent-sports: 25 95% 53%;
+    --accent-sports: 168 76% 40%;
     --accent-automation: 45 93% 47%;
     --accent-energy: 142 71% 45%;
-    
+
     /* Borders - Subtle, defined */
     --border: 220 13% 91%;
     --border-hover: 220 9% 75%;
     --input: 220 13% 91%;
-    --ring: 25 95% 53%;
-    
+    --ring: 168 76% 40%;
+
     /* Border radius - Tighter, more intentional */
     --radius: 0.25rem;
-    
+
+    /* Motion Tokens (FR-1.5) */
+    --motion-fast: 150ms;
+    --motion-normal: 250ms;
+    --motion-slow: 400ms;
+
     /* Shadows - Subtle, functional */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
     --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
@@ -80,41 +90,47 @@
   }
 
   .dark {
-    /* Colors - Dark theme (Industrial slate) */
-    --background: 224 71% 4%;
-    --background-secondary: 220 14% 10%;
-    --background-tertiary: 220 13% 14%;
+    /* Colors - Dark theme (Deep blue-black) */
+    --background: 235 40% 4%;
+    --background-secondary: 235 25% 8%;
+    --background-tertiary: 235 20% 14%;
     --foreground: 210 20% 98%;
-    
-    --card: 220 14% 10%;
+
+    --card: 235 25% 8%;
     --card-foreground: 210 20% 98%;
-    
-    --popover: 220 14% 10%;
+
+    --popover: 235 25% 8%;
     --popover-foreground: 210 20% 98%;
-    
-    /* Primary: Amber/Orange in dark */
-    --primary: 25 95% 53%;
+
+    /* Primary: Teal */
+    --primary: 168 76% 42%;
     --primary-foreground: 224 71% 4%;
-    --primary-hover: 25 95% 60%;
-    
-    --secondary: 220 14% 18%;
+    --primary-hover: 168 76% 50%;
+
+    --secondary: 235 20% 18%;
     --secondary-foreground: 210 20% 98%;
-    
-    --muted: 220 14% 18%;
+
+    --muted: 235 20% 18%;
     --muted-foreground: 220 9% 60%;
-    
-    --accent: 45 93% 47%;
+
+    --accent: 43 70% 48%;
     --accent-foreground: 224 71% 4%;
-    
+
     --destructive: 0 62% 50%;
     --destructive-foreground: 210 20% 98%;
-    
+
+    /* Info color */
+    --info: 199 89% 60%;
+
     /* Borders */
-    --border: 220 14% 20%;
-    --border-hover: 220 9% 35%;
-    --input: 220 14% 20%;
-    --ring: 25 95% 53%;
-    
+    --border: 235 20% 20%;
+    --border-hover: 235 15% 35%;
+    --input: 235 20% 20%;
+    --ring: 168 76% 42%;
+
+    /* accent-sports: teal */
+    --accent-sports: 168 76% 42%;
+
     /* Adjusted shadows for dark mode */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.25);
     --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.35), 0 1px 2px -1px rgb(0 0 0 / 0.25);
@@ -136,30 +152,33 @@
     --popover: 220 25% 6%;
     --popover-foreground: 0 0% 85%;
     
-    --primary: 25 85% 48%;
+    --primary: 168 65% 38%;
     --primary-foreground: 224 40% 3%;
-    --primary-hover: 25 85% 55%;
-    
+    --primary-hover: 168 65% 45%;
+
     --secondary: 220 20% 12%;
     --secondary-foreground: 0 0% 85%;
-    
+
     --muted: 220 20% 12%;
     --muted-foreground: 0 0% 55%;
-    
-    --accent: 45 80% 42%;
+
+    --accent: 43 60% 42%;
     --accent-foreground: 0 0% 85%;
-    
+
     /* Reduced saturation for ambient mode */
     --status-healthy: 142 55% 35%;
     --status-warning: 45 70% 42%;
     --status-critical: 0 60% 45%;
     --status-offline: 220 9% 35%;
-    
+
+    /* accent-sports: teal */
+    --accent-sports: 168 65% 38%;
+
     /* Borders */
     --border: 220 20% 15%;
     --border-hover: 220 15% 28%;
     --input: 220 20% 15%;
-    --ring: 25 85% 48%;
+    --ring: 168 65% 38%;
     
     /* Softer shadows for ambient mode */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.35);
@@ -258,10 +277,27 @@
   }
   
   .badge-info {
-    @apply inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium 
-           bg-primary/15 text-primary;
+    @apply inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium
+           bg-[hsl(var(--info))]/15 text-[hsl(var(--info))];
   }
-  
+
+  /* FR-6.2: Color-independent indicators */
+  .badge-success::before {
+    content: '\2713 ';
+  }
+
+  .badge-warning::before {
+    content: '\26A0 ';
+  }
+
+  .badge-error::before {
+    content: '\2717 ';
+  }
+
+  .badge-info::before {
+    content: '\2139 ';
+  }
+
   /* Input styles - Compact */
   .input-base {
     @apply w-full px-2.5 py-1.5 border border-input rounded 
@@ -299,9 +335,9 @@
     @apply text-[11px] text-muted-foreground;
   }
   
-  /* Label text - Small, uppercase */
+  /* Label text - Small, prominent */
   .text-label {
-    @apply text-[11px] font-medium uppercase tracking-wider text-muted-foreground;
+    @apply text-xs font-semibold tracking-wide text-muted-foreground;
   }
   
   /* Hide scrollbars for horizontal scroll (mobile tabs) */
@@ -379,11 +415,28 @@
     .no-print {
       display: none !important;
     }
-    
+
     body {
       background: white;
       color: black;
     }
+  }
+
+  /* Liquid Glass Elevation System (FR-1.3) */
+  .elevation-surface {
+    @apply bg-card border border-border shadow-sm;
+  }
+
+  .elevation-raised {
+    @apply bg-card/85 border border-border shadow-md;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .elevation-floating {
+    @apply bg-card/75 border border-border shadow-xl;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
   }
 }
 
@@ -421,5 +474,24 @@
   .glow-warning,
   .glow-error {
     /* Disabled - too decorative */
+  }
+
+  /* FR-6.5: Responsive card grids */
+  .card-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 640px) {
+    .card-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .card-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
 }

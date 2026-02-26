@@ -31,6 +31,18 @@ def show() -> None:
     st.header("🔍 Trace Visualization")
     st.markdown("Visualize distributed traces across 30+ HomeIQ services")
 
+    # Filter mode toggle (FR-4.2: merged Trace Visualization + Automation Debugging)
+    filter_mode = st.radio(
+        "View Mode",
+        ["All Services", "Automations Only"],
+        horizontal=True,
+        help="Filter traces to show all services or automation-specific traces only"
+    )
+
+    # Apply automation filter
+    if filter_mode == "Automations Only":
+        st.info("Showing automation execution traces only (ai-automation-service, ha-ai-agent-service)")
+
     # Sidebar filters
     with st.sidebar:
         st.subheader("Filters")
