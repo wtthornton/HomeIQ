@@ -12,10 +12,16 @@
 
 DO NOT proceed with Phase 3 until:
 - [ ] Phase 1 & 2 validated in production for at least 2 weeks
-- [ ] All ML models backed up
-- [ ] Data pipelines documented
+  - **Audit (2026-02-27):** Phase 2 completed Feb 10 (17 days). Pin alignment committed Feb 25 -- restart 2-week clock from that date (earliest green: Mar 11).
+- [x] All ML models inventoried (36 .pkl in device-intelligence-service: 4 root + 32 home-type-specific, plus 4 runtime-only services)
+  - **WARNING:** 36 .pkl files must be regenerated after scikit-learn major bump (joblib format not compatible across majors)
+- [x] Data pipelines documented (see "Data Pipeline Documentation" section below)
 - [ ] Extensive testing environment prepared
-- [ ] Rollback procedures tested
+- [ ] Rollback procedures tested (`scripts/rollback-ml-upgrade.sh` exists; needs dry-run validation)
+- [x] Python 3.12 on all ML services (verified 2026-02-25)
+- [x] numpy upper bounds widened to <3.0.0 on all 4 ML services (verified 2026-02-27)
+- [x] ha-ai-agent-service openai pin aligned to >=2.21.0 (currently `>=2.21.0,<3.0.0`)
+- [ ] device-intelligence-service pandas pin changed from <3.0.0 to <4.0.0 (Phase 3 work)
 
 ---
 
@@ -1057,7 +1063,135 @@ systemctl restart homeiq-ml-service
 
 ---
 
-**Proceed with caution. Test extensively. Good luck!** 🚀
+**Proceed with caution. Test extensively. Good luck!**
+
+---
+
+## Prerequisites Checklist (Updated 2026-02-27)
+
+| Prerequisite | Status | Notes |
+|---|---|---|
+| Phase 1 & 2 validated 2+ weeks | Partial | Phase 2 done Feb 10 (17d). Pin alignment Feb 25 -- earliest green: Mar 11. |
+| All ML models inventoried | Done | 36 .pkl files across 9 home-type subdirs + 4 root models (see Data Pipeline section) |
+| Data pipelines documented | Done | See below |
+| Extensive testing environment prepared | Not started | Need isolated venv with baseline metrics |
+| Rollback procedures tested | Partial | `scripts/rollback-ml-upgrade.sh` created; needs dry-run validation |
+| Python 3.12 on all ML services | Done | Verified 2026-02-25 |
+| numpy upper bounds widened to <3.0.0 | Done | All 4 ML services confirmed |
+| ha-ai-agent-service openai pin >=2.21.0 | Done | Currently `>=2.21.0,<3.0.0` |
+| device-intelligence-service pandas <4.0.0 | Not done | Currently `<3.0.0` — change during Phase 3 |
+
+### Current Library Versions by Service
+
+| Service | numpy | pandas | scikit-learn | scipy | openai | joblib |
+|---|---|---|---|---|---|---|
+| device-intelligence-service | >=1.26.0,<3.0.0 | >=2.2.0,<3.0.0 | >=1.5.0,<2.0.0 | — | — | ==1.4.2 |
+| ml-service | >=1.26.0,<3.0.0 | — | >=1.5.0,<2.0.0 | >=1.13.0,<2.0.0 | — | — |
+| ai-pattern-service | >=1.26.0,<3.0.0 | >=2.2.0,<4.0.0 | >=1.5.0,<2.0.0 | >=1.16.3,<2.0.0 | — | — |
+| ha-ai-agent-service | — | — | — | — | >=2.21.0,<3.0.0 | — |
+
+---
+
+## Data Pipeline Documentation
+
+### Model Files (.pkl) Inventory
+
+**Location:** `domains/ml-engine/device-intelligence-service/`
+
+**36 total .pkl files** in two locations:
+
+1. **Root models** (`models/` dir) — 4 files, used as defaults:
+   - `failure_prediction_model.pkl` (360 KB) — scikit-learn model
+   - `failure_prediction_scaler.pkl` (863 B) — StandardScaler
+   - `anomaly_detection_model.pkl` (1.1 MB) — IsolationForest
+   - `anomaly_detection_scaler.pkl` (129 B) — StandardScaler
+
+2. **Home-type-specific models** (`data/models/home_type_models/<type>/`) — 32 files (4 per type):
+   - 8 home types: apartment, condo, cottage, multi_story, ranch_house, single_family_house, studio, townhouse
+   - Each contains same 4 model files as root (failure model ~250-290 KB, anomaly model ~1.1 MB, plus 2 scalers)
+   - Total size: ~12 MB
+
+### How Models Are Generated
+
+- **Training code:** `src/core/predictive_analytics.py` — `_train_models()` and `_save_models()` methods
+- **Serialization:** `joblib.dump()` (joblib==1.4.2) for all models and scalers
+- **Scheduler:** APScheduler runs nightly retraining (Epic 46.2)
+- **Backup on save:** Models backed up with timestamp suffix before overwrite (e.g., `model.pkl.backup_YYYYMMDD_HHMMSS`)
+
+### How Models Are Loaded
+
+- **Loading code:** `src/core/predictive_analytics.py` — `_load_models()` method
+- **Deserialization:** `joblib.load()` at service startup
+- **Fallback:** If `.pkl` files missing, service starts in degraded mode (no predictions)
+
+### Critical Compatibility Note
+
+joblib-serialized scikit-learn models are NOT compatible across major scikit-learn versions. After upgrading scikit-learn from 1.5.x to 1.8.x, **all 36 .pkl files must be regenerated** by running a full training cycle. The nightly scheduler handles this automatically, but the first startup after upgrade will fail to load old models.
+
+**Recommended upgrade sequence:**
+1. Back up all 36 .pkl files
+2. Upgrade scikit-learn + numpy + pandas
+3. Delete old .pkl files (they will fail to load anyway)
+4. Trigger a manual training run via API (`POST /api/v1/predictions/train`)
+5. Verify new models produce reasonable predictions
+
+---
+
+## Rollback Procedure
+
+### Quick Rollback (Docker-based, recommended)
+
+```bash
+# 1. Stop upgraded containers
+docker compose -f domains/ml-engine/compose.yml down
+
+# 2. Restore pre-upgrade Docker images
+docker tag homeiq/device-intelligence-service:pre-phase3 homeiq/device-intelligence-service:latest
+docker tag homeiq/ml-service:pre-phase3 homeiq/ml-service:latest
+docker tag homeiq/ai-pattern-service:pre-phase3 homeiq/ai-pattern-service:latest
+
+# 3. Restore backed-up .pkl files
+./scripts/rollback-ml-upgrade.sh restore
+
+# 4. Restart with old images
+docker compose -f domains/ml-engine/compose.yml up -d
+```
+
+### Git-based Rollback
+
+```bash
+# 1. Revert requirements.txt files
+git checkout phase-3-pre-upgrade -- \
+  domains/ml-engine/device-intelligence-service/requirements.txt \
+  domains/ml-engine/ml-service/requirements.txt \
+  domains/pattern-analysis/ai-pattern-service/requirements.txt \
+  domains/automation-core/ha-ai-agent-service/requirements.txt
+
+# 2. Restore .pkl files from backup
+./scripts/rollback-ml-upgrade.sh restore
+
+# 3. Rebuild and restart affected containers
+docker compose -f domains/ml-engine/compose.yml build
+docker compose -f domains/ml-engine/compose.yml up -d
+docker compose -f domains/pattern-analysis/compose.yml build
+docker compose -f domains/pattern-analysis/compose.yml up -d
+```
+
+### Verification After Rollback
+
+```bash
+# Check service health
+curl -s http://localhost:8007/health | jq .  # device-intelligence-service
+curl -s http://localhost:8005/health | jq .  # ml-service
+curl -s http://localhost:8035/health | jq .  # ai-pattern-service
+curl -s http://localhost:8030/health | jq .  # ha-ai-agent-service
+
+# Verify library versions inside container
+docker exec homeiq-device-intelligence-service python -c "import sklearn; print(sklearn.__version__)"
+docker exec homeiq-ml-service python -c "import numpy; print(numpy.__version__)"
+```
+
+See also: `scripts/rollback-ml-upgrade.sh` for automated backup/restore of .pkl files.
 
 ---
 

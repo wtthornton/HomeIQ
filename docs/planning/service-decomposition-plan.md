@@ -1,7 +1,7 @@
 # Implementation Plan: Service Decomposition (Option C — Criticality + Domain Hybrid)
 
 **Document Type:** Implementation Plan
-**Status:** Complete (Epics 1-4 done; extended to 9 domains; Epic 5 Validation pending)
+**Status:** Complete (All 5 Epics done; extended to 9 domains; CI/CD Phase 3 steps 3.5, 3.7 and Phase 4 steps 4.5-4.7 remaining)
 **Created:** February 2026
 **Epic Reference:** Domain Architecture Restructuring (see `stories/epic-domain-architecture-restructuring.md`)
 **Approach:** Option C — Criticality + Domain Hybrid (extended from 6 groups to 9 domains)
@@ -58,12 +58,13 @@ All implementation work is tracked across 5 epics:
 | Epic 2: Shared Library Decomposition | `stories/epic-shared-library-decomposition.md` | Complete (Feb 2026) |
 | Epic 3: Docker Modernization | `stories/epic-docker-modernization.md` | Complete (Feb 2026) |
 | Epic 4: Reference Updates | `stories/epic-reference-updates.md` | Complete (Feb 2026) |
-| Epic 5: Validation and Cleanup | `stories/epic-validation-and-cleanup.md` | In Progress |
+| Epic 5: Validation and Cleanup | `stories/epic-validation-and-cleanup.md` | Complete (Feb 2026) |
 
 ### Completion Timeline
 
-- **Epics 1-4:** Completed February 2026
-- **Epic 5 (Validation):** In progress — covers test stabilization, documentation updates (this document), and CI/CD pipeline setup
+- **Epics 1-5:** Completed February 2026 (all 12 Epic 5 stories done — 47/49 services healthy, 704 tests passing, 70 Python files validated)
+- **Phase 3 CI/CD:** 5/7 steps complete (steps 3.1-3.4, 3.6 implemented). Remaining: step 3.5 (cross-group integration test workflow), step 3.7 (deprecate monolithic `test.yml`)
+- **Phase 4 Resilience:** 4/7 steps complete (4.1-4.4). Remaining: 4.5 (AI fallback), 4.6 (group-level dashboard), 4.7 (cross-group auth)
 
 ---
 
@@ -475,23 +476,23 @@ from homeiq_patterns import RAGContextService, UnifiedValidationRouter, PostActi
 
 ---
 
-### Phase 3: CI/CD Pipeline Split (Medium Risk) -- PENDING
+### Phase 3: CI/CD Pipeline Split (Medium Risk) -- 5/7 COMPLETE
 
 **Goal:** Each group gets its own CI pipeline. Changes to Group 2 don't trigger Group 3 builds. Shared library changes cascade to all dependent groups.
 
-> **Status Note (Feb 2026):** CI/CD pipelines have not yet been implemented. The reusable workflow template and path-scoped workflows are planned but blocked on Epic 5 completion.
+> **Status Note (Feb 2026):** Steps 3.1-3.4 and 3.6 are implemented. 9 domain CI workflows + reusable template + shared lib cascade all exist in `.github/workflows/`. Remaining: step 3.5 (cross-group integration test workflow) and step 3.7 (deprecate monolithic `test.yml`).
 
 > **Best Practice Note:** Use reusable workflows to avoid duplication, concurrency groups to cancel superseded runs, and `workflow_dispatch` for cascade rebuilds. See [GitHub Actions Monorepo Guide](https://oneuptime.com/blog/post/2026-02-02-github-actions-monorepos/view) and [Monorepo Path Filters](https://oneuptime.com/blog/post/2025-12-20-monorepo-path-filters-github-actions/view).
 
-| Step | Task | Details |
-|------|------|---------|
-| 3.1 | Create reusable workflow template | `.github/workflows/reusable-group-ci.yml` — lint, test, Docker build for any service list |
-| 3.2 | Create path-scoped workflows per group | 6 workflow files that call the reusable template |
-| 3.3 | Add concurrency groups per workflow | `concurrency: { group: ci-$GROUP-${{ github.ref }}, cancel-in-progress: true }` |
-| 3.4 | Add shared library publish + cascade workflow | Triggers on `libs/homeiq-patterns/**`, publishes package, dispatches downstream group rebuilds |
-| 3.5 | Add cross-group integration test workflow | Triggers on `main` merges, deploys all groups to staging |
-| 3.6 | Add path trigger for compose file changes | Changes to `domains/*/compose.yml` trigger the relevant group's CI |
-| 3.7 | Deprecate monolithic workflow | Archive existing workflow, update branch protection rules |
+| Step | Task | Details | Status |
+|------|------|---------|--------|
+| 3.1 | Create reusable workflow template | `.github/workflows/reusable-group-ci.yml` — lint, test, Docker build for any service list | Done |
+| 3.2 | Create path-scoped workflows per group | 9 workflow files (expanded from 6) that call the reusable template | Done |
+| 3.3 | Add concurrency groups per workflow | `concurrency: { group: ci-$GROUP-${{ github.ref }}, cancel-in-progress: true }` | Done |
+| 3.4 | Add shared library publish + cascade workflow | Triggers on `libs/**`, publishes package, dispatches all 9 group CIs | Done |
+| 3.5 | Add cross-group integration test workflow | `.github/workflows/integration-tests.yml` — triggers on `main` merges | In Progress |
+| 3.6 | Add path trigger for compose file changes | Each `ci-*.yml` includes `domains/{group}/compose.yml` in paths | Done |
+| 3.7 | Deprecate monolithic workflow | `test.yml` refactored: python-tests matrix removed, E2E + integration jobs retained | Done (2026-02-25) |
 
 **Reusable workflow pattern:**
 ```yaml

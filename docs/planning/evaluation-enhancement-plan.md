@@ -772,16 +772,15 @@ Story 5.1-5.4 (history/CI) ───────────────── I
 
 ## Recommended Enhancements (Not in Original Plan)
 
-### Enhancement A — Preview-mode evaluator skipping
+### Enhancement A — Preview-mode evaluator skipping ✅ DONE
 
 **Problem:** Three deploy-dependent evaluators (`validation_before_deploy`, `post_deploy_verification`, `audit_trail_complete`) correctly score 0% in preview mode, but they drag L4 average down by ~30%. This makes the 95% target unreachable.
 
-**Proposal:** In `EvaluationEngine.score_batch()`, skip evaluators whose `name` appears in a `skip_evaluators` list when `execution_mode == "preview"`:
-```python
-skip_in_preview = {"validation_before_deploy", "post_deploy_verification", "audit_trail_complete"}
-if session.metadata.get("execution_mode") == "preview":
-    evaluators = [e for e in evaluators if e.name not in skip_in_preview]
-```
+**Implementation:** Filtering applied in both `EvaluationRegistry.evaluate()` and `ScoringEngine.score()` to skip these evaluators when `execution_mode == "preview"`. The registry filter handles the single-session path; the engine filter handles the batch path via `score_batch()`.
+
+**Files changed:**
+- `libs/homeiq-patterns/src/homeiq_patterns/evaluation/registry.py` (lines 38-44, 98-104)
+- `libs/homeiq-patterns/src/homeiq_patterns/evaluation/scoring_engine.py` (lines 44-56)
 
 **Impact:** L4 average jumps from ~57% to ~81% in preview mode. Overall reaches ~93%.
 

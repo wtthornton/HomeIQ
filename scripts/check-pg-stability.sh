@@ -12,7 +12,7 @@
 #   3. Alembic migration versions present and current
 #   4. No lock contention issues
 #   5. Connection pool utilization < 80%
-#   6. Cache hit ratio > 90%
+#   6. Cache hit ratio > 95%
 #   7. No connection errors in service logs (last 24h)
 #   8. Disk usage within limits
 #
@@ -277,11 +277,11 @@ cache_ratio=$(run_query "
 ")
 
 if [[ -z "$cache_ratio" ]]; then
-    record_warn "Cache hit ratio > 90%" "No data yet (new database)"
-elif (( $(echo "$cache_ratio >= 0.9" | bc -l 2>/dev/null || echo 0) )); then
-    record_pass "Cache hit ratio > 90%" "Ratio: ${cache_ratio}"
+    record_warn "Cache hit ratio > 95%" "No data yet (new database)"
+elif (( $(echo "$cache_ratio >= 0.95" | bc -l 2>/dev/null || echo 0) )); then
+    record_pass "Cache hit ratio > 95%" "Ratio: ${cache_ratio}"
 else
-    record_fail "Cache hit ratio > 90%" "Ratio: ${cache_ratio}"
+    record_fail "Cache hit ratio > 95%" "Ratio: ${cache_ratio}"
 fi
 
 # ---------------------------------------------------------------------------
