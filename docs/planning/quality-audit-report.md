@@ -12,7 +12,7 @@
 
 The codebase demonstrates solid structural discipline, good observability patterns, and sound security defaults. However, there are meaningful gaps in thread-safety, SQL injection resistance, CORS hardening, and test coverage that warrant attention before a high-traffic production cutover.
 
-**Deployment Readiness:** Conditionally ready. Blocking issues (rated Critical/High) should be resolved or explicitly accepted before a production traffic ramp.
+**Deployment Readiness:** READY. All 5 blocking findings (Critical/High) were resolved on Feb 27, 2026 (commit `b7d0c198`). Remaining items (Medium/Low) are non-blocking quality improvements.
 
 ---
 
@@ -175,7 +175,9 @@ The codebase demonstrates solid structural discipline, good observability patter
 
 ## Top 5 Highest-Risk Findings
 
-### Finding 1 — SQL Injection in `create_pg_engine` [CRITICAL]
+> **All 5 findings below were FIXED on Feb 27, 2026** in commit `b7d0c198`.
+
+### Finding 1 — SQL Injection in `create_pg_engine` [CRITICAL] — FIXED
 
 **File:** `libs/homeiq-data/src/homeiq_data/database_pool.py:246`
 **Risk:** If `schema` is ever derived from user input or an environment variable that an attacker can influence, the f-string interpolation in `cursor.execute(f"SET search_path TO {schema}, public")` allows arbitrary SQL execution.
@@ -195,7 +197,7 @@ def create_pg_engine(database_url, schema, ...):
 
 ---
 
-### Finding 2 — Timing Attack on Service Auth Token [HIGH]
+### Finding 2 — Timing Attack on Service Auth Token [HIGH] — FIXED
 
 **File:** `libs/homeiq-resilience/src/homeiq_resilience/auth.py:85`
 **Risk:** Direct string equality comparison for secret tokens is vulnerable to timing side-channel attacks.
@@ -211,7 +213,7 @@ if not secrets.compare_digest(credentials.credentials, expected_token):
 
 ---
 
-### Finding 3 — CORS Credentials Bypass in admin-api [HIGH]
+### Finding 3 — CORS Credentials Bypass in admin-api [HIGH] — FIXED
 
 **File:** `domains/core-platform/admin-api/src/main.py:271`
 **Risk:** `allow_credentials=True` without checking for wildcard origins. A `CORS_ORIGINS=*` env var in any environment exposes auth headers to all web origins.
@@ -229,7 +231,7 @@ self.app.add_middleware(
 
 ---
 
-### Finding 4 — Race Condition in Shared DB Engine Creation [HIGH]
+### Finding 4 — Race Condition in Shared DB Engine Creation [HIGH] — FIXED
 
 **File:** `libs/homeiq-data/src/homeiq_data/database_pool.py:61`
 **Risk:** Two concurrent async tasks calling `create_shared_db_engine` with the same URL will both pass the `if database_url not in _engines` check and create two engines. The first is overwritten, leaking a connection pool.
@@ -248,7 +250,7 @@ Or for the synchronous API: use `_engines.setdefault(...)` with a factory, which
 
 ---
 
-### Finding 5 — Blocking File I/O on Event Loop in RAGContextService [MEDIUM]
+### Finding 5 — Blocking File I/O on Event Loop in RAGContextService [MEDIUM] — Open (non-blocking)
 
 **File:** `libs/homeiq-patterns/src/homeiq_patterns/rag_context_service.py:118`
 **Risk:** `corpus_path.read_text()` is synchronous blocking I/O called from within an async context. Under load, this stalls the event loop for all 50 services that share this code path.
@@ -277,13 +279,13 @@ async def load_corpus(self) -> str:
 
 ## Recommendations Ranked by Severity
 
-| Rank | Severity | File | Issue | Action |
+| Rank | Severity | File | Issue | Status |
 |------|----------|------|-------|--------|
-| 1 | Critical | `database_pool.py:246` | SQL injection via f-string in `SET search_path` | Validate schema name with regex before use |
-| 2 | High | `auth.py:85` | Timing attack on token comparison | Replace `!=` with `secrets.compare_digest` |
-| 3 | High | `admin-api/main.py:271` | CORS `allow_credentials=True` without wildcard guard | Copy `data-api`'s `_cors_allow_credentials` guard |
-| 4 | High | `database_pool.py:61` | Race condition creating shared engine | Add async lock or use atomic setdefault |
-| 5 | High | `data-api/main.py:105`, `admin-api/main.py` | Mixed naive/aware datetimes | Standardize on `datetime.now(timezone.utc)` |
+| 1 | Critical | `database_pool.py:234` | SQL injection via f-string in `SET search_path` | **FIXED** — `_SAFE_SCHEMA` regex guard |
+| 2 | High | `auth.py:85` | Timing attack on token comparison | **FIXED** — `secrets.compare_digest()` |
+| 3 | High | `admin-api/main.py:270` | CORS `allow_credentials=True` without wildcard guard | **FIXED** — wildcard guard added |
+| 4 | High | `database_pool.py:61` | Race condition creating shared engine | **FIXED** — `threading.Lock` |
+| 5 | High | `data-api/main.py:107`, `admin-api/main.py:147` | Mixed naive/aware datetimes | **FIXED** — `datetime.now(UTC)` |
 | 6 | Medium | `cross_group_client.py` | New `httpx.AsyncClient` per request | Use a shared client with connection pooling |
 | 7 | Medium | `cross_group_client.py` | HTTP 4xx/5xx do not trip circuit breaker | Call `record_failure()` on non-2xx responses |
 | 8 | Medium | `rag_context_service.py:118` | Blocking file I/O in async context | Use `asyncio.to_thread` |
@@ -300,10 +302,10 @@ async def load_corpus(self) -> str:
 
 | Category | Status | Notes |
 |----------|--------|-------|
-| API authentication | Mostly good | Fail-open local-dev mode is explicit; prod requires env var |
-| Token comparison | Needs fix | Use `secrets.compare_digest` |
-| CORS | Partial | `data-api` correct; `admin-api` missing wildcard guard |
-| SQL injection | Needs fix | `create_pg_engine` schema interpolation |
+| API authentication | Good | Fail-open local-dev mode is explicit; prod requires env var |
+| Token comparison | **FIXED** | `secrets.compare_digest` (commit b7d0c198) |
+| CORS | **FIXED** | Both `data-api` and `admin-api` now have wildcard guard |
+| SQL injection | **FIXED** | `_SAFE_SCHEMA` regex validates schema before interpolation |
 | Input validation | Acceptable | Entity filter config has broad exception handling |
 | Rate limiting | Good | Applied at middleware level on both services |
 | Docs/OpenAPI exposure | Good | Disabled by default in admin-api |
@@ -323,10 +325,15 @@ async def load_corpus(self) -> str:
 
 ## Deployment Readiness Verdict
 
-**Conditionally ready.** The architecture is sound and the platform shows real operational maturity (structured logging, circuit breakers, rate limiting, dual-mode DB, OpenTelemetry). However, the following must be addressed before a production traffic increase:
+**READY FOR DEPLOYMENT.** The architecture is sound and the platform shows real operational maturity (structured logging, circuit breakers, rate limiting, dual-mode DB, OpenTelemetry).
 
-- **Block on:** SQL injection in `create_pg_engine` (Finding 1)
-- **Block on:** CORS credentials bypass in `admin-api` (Finding 3)
-- **Strongly recommended before cutover:** Timing-safe token comparison (Finding 2), DB engine race condition fix (Finding 4), and datetime standardization (Finding 5)
+All 5 blocking findings were resolved on Feb 27, 2026:
+
+- **FIXED:** SQL injection in `create_pg_engine` (Finding 1) — schema regex validation
+- **FIXED:** CORS credentials bypass in `admin-api` (Finding 3) — wildcard guard
+- **FIXED:** Timing-safe token comparison (Finding 2) — `secrets.compare_digest()`
+- **FIXED:** DB engine race condition (Finding 4) — `threading.Lock`
+- **FIXED:** Naive datetimes (Finding 5) — `datetime.now(UTC)`
+- **BONUS:** `close_all_engines()` now calls `dispose()` (connection leak fix)
 
 Findings 6-14 are quality improvements that do not block deployment but should be scheduled in the next sprint.

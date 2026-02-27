@@ -100,7 +100,7 @@ Migrate all 10 SQLite databases across 15 services to a single PostgreSQL 17 ins
 |------|---------|
 | `infrastructure/postgres/init-schemas.sql` | Creates 8 domain schemas on first boot |
 | `infrastructure/postgres/postgresql.conf` | Tuned settings (pg_stat_statements, slow query logging) |
-| `libs/homeiq-data/src/homeiq_data/database_pool.py` | `create_pg_engine()`, `get_database_url()`, dual-mode support |
+| `libs/homeiq-data/src/homeiq_data/database_pool.py` | `create_pg_engine()` (with SQL injection guard), `get_database_url()`, dual-mode support, thread-safe engine creation |
 | `libs/homeiq-data/src/homeiq_data/alembic_helpers.py` | Shared Alembic migration runners |
 | `libs/homeiq-data/templates/alembic_env.py` | Template for service alembic/env.py |
 | `scripts/migrate-data/migrate_template.py` | Data migration script template |
@@ -127,3 +127,5 @@ Every service maintains dual-mode capability:
 | 2026-02-24 | Claude Code | Migration plan created (6 epics, 27 stories) |
 | 2026-02-24 | Claude Code | Epics 1-5 complete, Epic 6 stories 6.1-6.4 complete |
 | 2026-02-24 | Claude Code | Epic file created to track implementation status |
+| 2026-02-27 | Claude Code | Security hardening: SQL injection guard on `create_pg_engine`, threading lock on engine singleton, `close_all_engines()` dispose fix |
+| 2026-02-27 | Claude Code | Story 6.5 execution plan created: `docs/planning/story-6.5-sqlite-cutover-plan.md` |
