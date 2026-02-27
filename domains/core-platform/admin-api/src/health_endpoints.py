@@ -10,11 +10,7 @@ from datetime import datetime
 from typing import Any
 
 import aiohttp
-
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
-
-from homeiq_observability.alert_manager import get_alert_manager
 from homeiq_data.types.health import (
     DependencyType,
     check_dependency_health,
@@ -22,6 +18,8 @@ from homeiq_data.types.health import (
     determine_overall_status,
 )
 from homeiq_data.types.health import HealthStatus as HealthStatusEnum
+from homeiq_observability.alert_manager import get_alert_manager
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +67,54 @@ class HealthEndpoints:
             "smart-meter-service": os.getenv("SMART_METER_URL", "http://smart-meter:8014"),
             # ML & Blueprint services
             "blueprint-index": os.getenv("BLUEPRINT_INDEX_URL", "http://blueprint-index:8031"),
-            "rule-recommendation-ml": os.getenv("RULE_RECOMMENDATION_URL", "http://rule-recommendation-ml:8035")
+            "rule-recommendation-ml": os.getenv("RULE_RECOMMENDATION_URL", "http://rule-recommendation-ml:8035"),
+            # Energy Analytics
+            "energy-correlator": os.getenv("ENERGY_CORRELATOR_URL", "http://energy-correlator:8015"),
+            "energy-forecasting": os.getenv("ENERGY_FORECASTING_URL", "http://energy-forecasting:8016"),
+            "proactive-agent-service": os.getenv("PROACTIVE_AGENT_URL", "http://proactive-agent-service:8017"),
+            # Blueprint services
+            "blueprint-suggestion-service": os.getenv("BLUEPRINT_SUGGESTION_URL", "http://blueprint-suggestion-service:8032"),
+            # Pattern Analysis
+            "ai-pattern-service": os.getenv("AI_PATTERN_URL", "http://ai-pattern-service:8033"),
+            "api-automation-edge": os.getenv("AUTOMATION_EDGE_URL", "http://api-automation-edge:8034"),
+            # ML Engine
+            "ai-core-service": os.getenv("AI_CORE_URL", "http://ai-core-service:8019"),
+            "device-intelligence-service": os.getenv("DEVICE_INTELLIGENCE_URL", "http://device-intelligence-service:8021"),
+            "rag-service": os.getenv("RAG_SERVICE_URL", "http://rag-service:8027"),
+            # Device Management
+            "device-health-monitor": os.getenv("DEVICE_HEALTH_URL", "http://device-health-monitor:8040"),
+            "device-context-classifier": os.getenv("DEVICE_CLASSIFIER_URL", "http://device-context-classifier:8041"),
+            "device-setup-assistant": os.getenv("DEVICE_SETUP_URL", "http://device-setup-assistant:8042"),
+        }
+
+        # Step 4.6: Domain group mappings for aggregated health
+        self.group_mappings: dict[str, list[str]] = {
+            "core-platform": [
+                "websocket-ingestion", "influxdb", "admin-api",
+            ],
+            "data-collectors": [
+                "weather-api", "sports-api", "carbon-intensity-service",
+                "electricity-pricing-service", "air-quality-service",
+                "calendar-service", "smart-meter-service",
+            ],
+            "ml-engine": [
+                "ai-core-service", "device-intelligence-service", "rag-service",
+            ],
+            "automation-intelligence": [
+                "ai-automation-service",
+            ],
+            "energy-analytics": [
+                "energy-correlator", "energy-forecasting", "proactive-agent-service",
+            ],
+            "blueprints": [
+                "blueprint-index", "blueprint-suggestion-service", "rule-recommendation-ml",
+            ],
+            "pattern-analysis": [
+                "ai-pattern-service", "api-automation-edge",
+            ],
+            "device-management": [
+                "device-health-monitor", "device-context-classifier", "device-setup-assistant",
+            ],
         }
 
         self._add_routes()
@@ -142,7 +187,7 @@ class HealthEndpoints:
                 )
 
             except Exception as e:
-                logger.error(f"Error getting health status: {e}")
+                logger.error("Error getting health status: %s", e)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get health status"
@@ -155,7 +200,7 @@ class HealthEndpoints:
                 services_health = await self._check_services()
                 return services_health
             except Exception as e:
-                logger.error(f"Error getting services health: {e}")
+                logger.error("Error getting services health: %s", e)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get services health"
@@ -168,10 +213,85 @@ class HealthEndpoints:
                 dependencies_health = await self._check_dependencies()
                 return dependencies_health
             except Exception as e:
-                logger.error(f"Error getting dependencies health: {e}")
+                logger.error("Error getting dependencies health: %s", e)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get dependencies health"
+                ) from e
+
+        @self.router.get("/health/groups", response_model=dict[str, Any])
+        async def get_group_health():
+            """Step 4.6: Get aggregated health status per domain group"""
+            try:
+                services_health = await self._check_services()
+                groups = {}
+                total_healthy = 0
+                total_services = 0
+
+                for group_id, service_names in self.group_mappings.items():
+                    healthy = 0
+                    degraded = 0
+                    unhealthy = 0
+
+                    for svc in service_names:
+                        svc_health = services_health.get(svc)
+                        if svc_health:
+                            total_services += 1
+                            svc_status = svc_health.status
+                            if svc_status in ("healthy", "pass"):
+                                healthy += 1
+                                total_healthy += 1
+                            elif svc_status == "degraded":
+                                degraded += 1
+                                total_healthy += 1  # degraded counts as up
+                            else:
+                                unhealthy += 1
+
+                    group_total = healthy + degraded + unhealthy
+                    if group_total == 0:
+                        agg_status = "empty"
+                    elif healthy + degraded == group_total:
+                        agg_status = "healthy" if degraded == 0 else "degraded"
+                    elif healthy + degraded == 0:
+                        agg_status = "unhealthy"
+                    else:
+                        agg_status = "degraded"
+
+                    groups[group_id] = {
+                        "status": agg_status,
+                        "healthy": healthy,
+                        "degraded": degraded,
+                        "unhealthy": unhealthy,
+                        "total": group_total,
+                    }
+
+                healthy_groups = sum(
+                    1 for g in groups.values() if g["status"] == "healthy"
+                )
+                degraded_groups = sum(
+                    1 for g in groups.values() if g["status"] == "degraded"
+                )
+                unhealthy_groups = sum(
+                    1 for g in groups.values() if g["status"] == "unhealthy"
+                )
+
+                return {
+                    "groups": groups,
+                    "summary": {
+                        "total_groups": len(groups),
+                        "healthy_groups": healthy_groups,
+                        "degraded_groups": degraded_groups,
+                        "unhealthy_groups": unhealthy_groups,
+                        "total_services": total_services,
+                        "healthy_services": total_healthy,
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                }
+            except Exception as e:
+                logger.error("Error getting group health: %s", e)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to get group health",
                 ) from e
 
         @self.router.get("/health/metrics", response_model=dict[str, Any])
@@ -181,7 +301,7 @@ class HealthEndpoints:
                 metrics = await self._get_metrics()
                 return metrics
             except Exception as e:
-                logger.error(f"Error getting health metrics: {e}")
+                logger.error("Error getting health metrics: %s", e)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get health metrics"
@@ -196,10 +316,10 @@ class HealthEndpoints:
             "rule-recommendation-ml": "/api/v1/health",
         }
 
-        logger.debug(f"Checking {len(self.service_urls)} services: {list(self.service_urls.keys())}")
+        logger.debug("Checking %d services: %s", len(self.service_urls), list(self.service_urls.keys()))
 
         for service_name, service_url in self.service_urls.items():
-            logger.debug(f"Checking service: {service_name} at {service_url}")
+            logger.debug("Checking service: %s at %s", service_name, service_url)
             try:
                 start_time = datetime.now()
 
@@ -228,7 +348,7 @@ class HealthEndpoints:
                                 error_message=f"HTTP {response.status}"
                             )
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 services_health[service_name] = ServiceHealth(
                     name=service_name,
                     status="unhealthy",
@@ -236,7 +356,7 @@ class HealthEndpoints:
                     error_message="Timeout"
                 )
             except Exception as e:
-                logger.error(f"Error checking {service_name}: {e}", exc_info=True)
+                logger.error("Error checking %s: %s", service_name, e, exc_info=True)
                 services_health[service_name] = ServiceHealth(
                     name=service_name,
                     status="unhealthy",
@@ -244,26 +364,8 @@ class HealthEndpoints:
                     error_message=str(e)
                 )
 
-        logger.debug(f"Returning {len(services_health)} service health results: {list(services_health.keys())}")
+        logger.debug("Returning %d service health results: %s", len(services_health), list(services_health.keys()))
         return services_health
-
-    async def _get_websocket_service_data(self) -> dict[str, Any]:
-        """Get detailed data from websocket service"""
-        try:
-            websocket_url = self.service_urls.get("websocket-ingestion")
-            if not websocket_url:
-                return {}
-
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:  # noqa: SIM117
-                async with session.get(f"{websocket_url}/health") as response:
-                    if response.status == 200:
-                        return await response.json()
-                    else:
-                        logger.warning(f"Failed to get websocket service data: HTTP {response.status}")
-                        return {}
-        except Exception as e:
-            logger.error(f"Error getting websocket service data: {e}")
-            return {}
 
     async def _check_dependencies(self) -> dict[str, Any]:
         """Check health of external dependencies"""
@@ -292,7 +394,10 @@ class HealthEndpoints:
             if weather_api_key:
                 weather_url = self.service_urls["weather-api"]
                 async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:  # noqa: SIM117
-                    async with session.get(f"{weather_url}/weather?q=London&appid={weather_api_key}") as response:
+                    async with session.get(
+                        f"{weather_url}/weather",
+                        params={"q": "London", "appid": weather_api_key},
+                    ) as response:
                         dependencies_health["weather_api"] = {
                             "status": "healthy" if response.status == 200 else "unhealthy",
                             "last_check": datetime.now().isoformat(),
@@ -335,7 +440,7 @@ class HealthEndpoints:
                 async with session.get(f"{influxdb_url}/health") as response:
                     return response.status == 200
         except Exception as e:
-            logger.error(f"InfluxDB health check failed: {e}")
+            logger.error("InfluxDB health check failed: %s", e)
             return False
 
     async def _check_service_health(self, service_url: str) -> bool:
@@ -345,7 +450,7 @@ class HealthEndpoints:
                 async with session.get(service_url) as response:
                     return response.status == 200
         except Exception as e:
-            logger.error(f"Service health check failed for {service_url}: {e}")
+            logger.error("Service health check failed for %s: %s", service_url, e)
             return False
 
     def _format_uptime(self, seconds: float) -> str:
@@ -364,7 +469,7 @@ class HealthEndpoints:
         else:
             return f"{secs}s"
 
-    def _calculate_uptime_percentage(self, dependencies: list[dict[str, Any]], uptime_seconds: float) -> float:
+    def _calculate_uptime_percentage(self, dependencies: list, uptime_seconds: float) -> float:
         """
         Calculate realistic uptime percentage based on dependency health and service uptime.
 
@@ -379,7 +484,9 @@ class HealthEndpoints:
             return 0.0
 
         # Count healthy dependencies
-        healthy_count = sum(1 for dep in dependencies if dep.get('status') == 'healthy')
+        healthy_count = sum(
+            1 for dep in dependencies if getattr(dep, "status", None) == HealthStatusEnum.HEALTHY
+        )
         total_count = len(dependencies)
 
         # Calculate base health ratio (what % of dependencies are healthy)

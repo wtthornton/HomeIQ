@@ -32,14 +32,41 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
   { id: 'air-quality-service', name: 'Air Quality', icon: '💨', type: 'external', description: 'Air quality monitoring', group: 'data-collectors' },
   { id: 'calendar-service', name: 'Calendar', icon: '📅', type: 'external', description: 'Event correlation', group: 'data-collectors' },
   { id: 'smart-meter-service', name: 'Smart Meter', icon: '📈', type: 'external', description: 'Energy consumption tracking', group: 'data-collectors' },
+
+  // Energy Analytics
+  { id: 'energy-correlator', name: 'Energy Correlator', icon: '🔋', type: 'core', port: 8015, description: 'Energy pattern correlation', group: 'energy-analytics' },
+  { id: 'energy-forecasting', name: 'Energy Forecasting', icon: '📉', type: 'core', port: 8016, description: 'Energy demand forecasting', group: 'energy-analytics' },
+  { id: 'proactive-agent-service', name: 'Proactive Agent', icon: '🧠', type: 'core', port: 8017, description: 'Proactive automation suggestions', group: 'energy-analytics' },
+
+  // Blueprints
+  { id: 'blueprint-index', name: 'Blueprint Index', icon: '📋', type: 'core', port: 8031, description: 'Blueprint catalog and search', group: 'blueprints' },
+  { id: 'blueprint-suggestion-service', name: 'Blueprint Suggestions', icon: '💡', type: 'core', port: 8032, description: 'AI-powered blueprint recommendations', group: 'blueprints' },
+  { id: 'rule-recommendation-ml', name: 'Rule Recommendation', icon: '🎯', type: 'core', port: 8035, description: 'ML-based rule suggestions', group: 'blueprints' },
+
+  // Pattern Analysis
+  { id: 'ai-pattern-service', name: 'AI Pattern Service', icon: '🔍', type: 'core', port: 8033, description: 'Pattern detection and synergy analysis', group: 'pattern-analysis' },
+  { id: 'api-automation-edge', name: 'Automation Edge', icon: '⚡', type: 'core', port: 8034, description: 'Edge automation processing', group: 'pattern-analysis' },
+
+  // Device Management
+  { id: 'device-health-monitor', name: 'Device Health Monitor', icon: '🏥', type: 'core', port: 8040, description: 'Device health tracking', group: 'device-management' },
+  { id: 'device-context-classifier', name: 'Context Classifier', icon: '🏷️', type: 'core', port: 8041, description: 'Device context classification', group: 'device-management' },
+  { id: 'device-setup-assistant', name: 'Setup Assistant', icon: '🔧', type: 'core', port: 8042, description: 'Device setup guidance', group: 'device-management' },
+
+  // ML Engine
+  { id: 'ai-core-service', name: 'AI Core Service', icon: '🤖', type: 'core', port: 8019, description: 'Central AI orchestration', group: 'ml-engine' },
+  { id: 'device-intelligence-service', name: 'Device Intelligence', icon: '🧪', type: 'core', port: 8021, description: 'Device behavior analysis', group: 'ml-engine' },
+  { id: 'rag-service', name: 'RAG Service', icon: '📚', type: 'core', port: 8027, description: 'Retrieval-augmented generation', group: 'ml-engine' },
 ];
 
 export const GROUP_DEFINITIONS: Record<ServiceGroupId, { label: string; description: string }> = {
   'core-platform': { label: 'Core Platform', description: 'InfluxDB, Data API, WebSocket Ingestion, Admin API, Health Dashboard' },
   'data-collectors': { label: 'Data Collectors', description: 'Weather, Sports, Smart Meter, Air Quality, Carbon, Electricity, Calendar' },
-  'ml-engine': { label: 'ML Engine', description: 'OpenVINO, ML Service, NER, AI Core, Device Intelligence' },
-  'automation-intelligence': { label: 'Automation Intelligence', description: 'HA AI Agent, AI Automation, Patterns, Blueprints' },
-  'device-management': { label: 'Device Management', description: 'Device Health, Classifier, Setup, Recommender' },
+  'ml-engine': { label: 'ML Engine', description: 'AI Core, Device Intelligence, RAG Service' },
+  'automation-intelligence': { label: 'Automation Intelligence', description: 'HA AI Agent, AI Automation, Query Service' },
+  'energy-analytics': { label: 'Energy Analytics', description: 'Energy Correlator, Forecasting, Proactive Agent' },
+  'blueprints': { label: 'Blueprints', description: 'Blueprint Index, Suggestions, Rule Recommendation' },
+  'pattern-analysis': { label: 'Pattern Analysis', description: 'AI Pattern Service, Automation Edge' },
+  'device-management': { label: 'Device Management', description: 'Device Health, Classifier, Setup Assistant' },
   'frontends': { label: 'Frontends', description: 'Jaeger, Observability Dashboard, AI Automation UI' },
 };
 

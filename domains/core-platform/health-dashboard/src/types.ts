@@ -140,7 +140,34 @@ export type ServiceGroupId =
   | 'ml-engine'
   | 'automation-intelligence'
   | 'device-management'
+  | 'energy-analytics'
+  | 'blueprints'
+  | 'pattern-analysis'
   | 'frontends';
+
+// Step 4.6: Group-Level Health Dashboard types
+export type GroupAggregateStatus = 'healthy' | 'degraded' | 'unhealthy' | 'empty';
+
+export interface GroupHealthSummary {
+  id: ServiceGroupId;
+  label: string;
+  description: string;
+  aggregateStatus: GroupAggregateStatus;
+  healthyCount: number;
+  degradedCount: number;
+  unhealthyCount: number;
+  totalCount: number;
+}
+
+export interface GroupHealthOverview {
+  totalGroups: number;
+  healthyGroups: number;
+  degradedGroups: number;
+  unhealthyGroups: number;
+  totalServices: number;
+  healthyServices: number;
+  timestamp: string;
+}
 
 export interface ServiceDefinition {
   id: string;

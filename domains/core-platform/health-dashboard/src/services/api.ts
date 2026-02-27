@@ -84,6 +84,28 @@ export interface APIKeyTestResponse {
   timestamp: string;
 }
 
+/** Step 4.6: Group health response from admin-api /health/groups */
+export interface GroupHealthEntry {
+  status: 'healthy' | 'degraded' | 'unhealthy' | 'empty';
+  healthy: number;
+  degraded: number;
+  unhealthy: number;
+  total: number;
+}
+
+export interface GroupHealthResponse {
+  groups: Record<string, GroupHealthEntry>;
+  summary: {
+    total_groups: number;
+    healthy_groups: number;
+    degraded_groups: number;
+    unhealthy_groups: number;
+    total_services: number;
+    healthy_services: number;
+    timestamp: string;
+  };
+}
+
 // Epic 13 Story 13.2: Separated API clients for admin vs data APIs
 const ADMIN_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const DATA_API_BASE_URL = import.meta.env.VITE_DATA_API_URL || '';  // Will use nginx routing
@@ -238,6 +260,11 @@ class AdminApiClient extends BaseApiClient {
 
   async getServicesHealth(): Promise<ServicesHealthResponse> {
     return this.fetchWithErrorHandling<ServicesHealthResponse>(this.buildUrl('/api/v1/health/services'));
+  }
+
+  /** Step 4.6: Fetch aggregated group-level health */
+  async getGroupHealth(): Promise<GroupHealthResponse> {
+    return this.fetchWithErrorHandling<GroupHealthResponse>(this.buildUrl('/api/v1/health/groups'));
   }
 
   async getAllDataSources(): Promise<DataSourcesHealthMap> {
