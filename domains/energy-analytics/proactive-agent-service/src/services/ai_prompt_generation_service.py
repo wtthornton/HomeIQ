@@ -22,6 +22,8 @@ from typing import Any
 
 import httpx
 
+from ..clients.breakers import openai_breaker
+
 try:
     from homeiq_ha.prompt_guidance.builder import PromptBuilder
 except ImportError:
@@ -105,6 +107,13 @@ class AIPromptGenerationService:
             logger.warning("No API key - using fallback generation")
             return self._fallback_generation(context_analysis, max_prompts)
 
+        # Circuit breaker: fast-fail to rule-based fallback when LLM is down
+        if not openai_breaker.allow_request():
+            logger.warning(
+                "AI FALLBACK: OpenAI circuit open -- using rule-based suggestion generation"
+            )
+            return self._fallback_generation(context_analysis, max_prompts)
+
         try:
             # Step 1: Get device inventory for validation and LLM context
             device_inventory = await self.device_validation.get_device_list_for_llm()
@@ -171,10 +180,7 @@ class AIPromptGenerationService:
             response = await self.http_client.get(
                 f"{self.ha_agent_url}/api/v1/system-prompt"
             )
-            if response.status_code == 200:
-                system_info = response.json()
-            else:
-                system_info = {}
+            system_info = response.json() if response.status_code == 200 else {}
 
             return {
                 "tier1_context": tier1.get("context", ""),
@@ -478,9 +484,11 @@ Remember:
             )
 
             if response.status_code != 200:
+                await openai_breaker.record_failure()
                 logger.error(f"OpenAI API error: {response.status_code} - {response.text}")
                 return []
 
+            await openai_breaker.record_success()
             result = response.json()
             content = result["choices"][0]["message"]["content"]
 
@@ -500,7 +508,8 @@ Remember:
             logger.error(f"Failed to parse LLM response as JSON: {e}")
             return []
         except Exception as e:
-            logger.error(f"LLM call failed: {e}", exc_info=True)
+            await openai_breaker.record_failure()
+            logger.error(f"LLM call failed (OpenAI degraded): {e}", exc_info=True)
             return []
 
     def _validate_suggestions(

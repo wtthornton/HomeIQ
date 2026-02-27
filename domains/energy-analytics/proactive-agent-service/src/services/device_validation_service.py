@@ -11,6 +11,7 @@ Story: Device Existence Validation (P0)
 from __future__ import annotations
 
 import logging
+import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -18,7 +19,16 @@ from typing import Any
 
 import httpx
 
+from homeiq_resilience import CircuitBreaker
+
 logger = logging.getLogger(__name__)
+
+# Module-level circuit breaker for ha-ai-agent-service calls
+_ha_agent_breaker = CircuitBreaker(
+    name="ha-agent-device-validation",
+    failure_threshold=3,
+    recovery_timeout=60.0,
+)
 
 
 @dataclass
@@ -96,7 +106,11 @@ class DeviceValidationService:
         self._device_cache: list[dict[str, Any]] | None = None
         self._cache_expires_at: datetime | None = None
 
-        self.http_client = httpx.AsyncClient(timeout=30.0)
+        api_key = os.getenv("HA_AGENT_API_KEY") or os.getenv("API_KEY")
+        headers = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        self.http_client = httpx.AsyncClient(timeout=30.0, headers=headers)
         logger.info(
             f"DeviceValidationService initialized "
             f"(ha_agent_url={ha_agent_url}, cache_ttl={cache_ttl_seconds}s)"
@@ -116,6 +130,15 @@ class DeviceValidationService:
                 logger.debug(f"Using cached device inventory ({len(self._device_cache)} devices)")
                 return self._device_cache
 
+        # Circuit breaker: if ha-ai-agent-service is known to be down, use cache
+        if not _ha_agent_breaker.allow_request():
+            logger.warning(
+                "Circuit breaker open for ha-ai-agent-service — using cached "
+                "device inventory (%d devices)",
+                len(self._device_cache) if self._device_cache else 0,
+            )
+            return self._device_cache or []
+
         try:
             # Fetch from ha-ai-agent-service
             logger.info("Fetching device inventory from ha-ai-agent-service...")
@@ -126,6 +149,7 @@ class DeviceValidationService:
             )
 
             if response.status_code != 200:
+                await _ha_agent_breaker.record_failure()
                 logger.warning(f"Failed to fetch device inventory: {response.status_code}")
                 return self._device_cache or []
 
@@ -139,10 +163,21 @@ class DeviceValidationService:
             self._device_cache = devices
             self._cache_expires_at = datetime.now() + timedelta(seconds=self.cache_ttl_seconds)
 
+            await _ha_agent_breaker.record_success()
             logger.info(f"Device inventory updated: {len(devices)} devices")
             return devices
 
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.RemoteProtocolError) as e:
+            await _ha_agent_breaker.record_failure()
+            logger.warning(
+                "ha-ai-agent-service unavailable for device inventory "
+                "(circuit breaker state: %s): %s",
+                _ha_agent_breaker.state.value,
+                e,
+            )
+            return self._device_cache or []
         except Exception as e:
+            await _ha_agent_breaker.record_failure()
             logger.error(f"Error fetching device inventory: {e}", exc_info=True)
             return self._device_cache or []
 

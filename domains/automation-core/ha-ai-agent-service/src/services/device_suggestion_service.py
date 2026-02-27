@@ -11,6 +11,7 @@ import uuid
 from typing import Any
 
 import httpx
+from homeiq_resilience import CircuitBreaker
 
 from ..api.device_suggestions_models import (
     AutomationPreview,
@@ -26,6 +27,10 @@ from ..clients.data_api_client import DataAPIClient
 from ..config import Settings
 
 logger = logging.getLogger(__name__)
+
+# Module-level breakers so all instances share a single circuit per target group
+_ml_engine_breaker = CircuitBreaker(name="ml-engine-suggestions", failure_threshold=3, recovery_timeout=60.0)
+_pattern_analysis_breaker = CircuitBreaker(name="pattern-analysis-suggestions", failure_threshold=3, recovery_timeout=60.0)
 
 
 class DeviceSuggestionService:
@@ -70,7 +75,7 @@ class DeviceSuggestionService:
         if context is None:
             context = DeviceSuggestionContext()
 
-        logger.info(f"Generating suggestions for device: {device_id}")
+        logger.info("Generating suggestions for device: %s", device_id)
 
         # Aggregate data from multiple sources
         device_context = await self._aggregate_device_data(
@@ -108,8 +113,6 @@ class DeviceSuggestionService:
         Returns:
             DeviceContext with aggregated data
         """
-        # Fetch device data from data-api
-        await self._fetch_device_data(device_id)
         capabilities = await self._fetch_device_capabilities(device_id)
         entities = await self._fetch_device_entities(device_id)
 
@@ -129,7 +132,7 @@ class DeviceSuggestionService:
                 synergies = await self._fetch_synergies(device_id)
                 device_context.related_synergies = synergies
             except Exception as e:
-                logger.warning(f"Failed to fetch synergies: {e}")
+                logger.warning("Failed to fetch synergies: %s", e)
 
         # Aggregate blueprints if requested
         if context.include_blueprints:
@@ -137,7 +140,7 @@ class DeviceSuggestionService:
                 blueprints = await self._fetch_blueprints(device_id)
                 device_context.compatible_blueprints = blueprints
             except Exception as e:
-                logger.warning(f"Failed to fetch blueprints: {e}")
+                logger.warning("Failed to fetch blueprints: %s", e)
 
         # Aggregate sports data if requested
         if context.include_sports:
@@ -145,7 +148,7 @@ class DeviceSuggestionService:
                 sports_data = await self._fetch_sports_data()
                 device_context.sports_data = sports_data
             except Exception as e:
-                logger.warning(f"Failed to fetch sports data: {e}")
+                logger.warning("Failed to fetch sports data: %s", e)
 
         # Aggregate weather data if requested
         if context.include_weather:
@@ -153,7 +156,7 @@ class DeviceSuggestionService:
                 weather_data = await self._fetch_weather_data()
                 device_context.weather_data = weather_data
             except Exception as e:
-                logger.warning(f"Failed to fetch weather data: {e}")
+                logger.warning("Failed to fetch weather data: %s", e)
 
         return device_context
 
@@ -162,21 +165,30 @@ class DeviceSuggestionService:
         try:
             return await self.data_api_client.fetch_device(device_id)
         except Exception as e:
-            logger.error(f"Failed to fetch device data: {e}")
+            logger.error("Failed to fetch device data: %s", e)
             return {}
 
     async def _fetch_device_capabilities(self, device_id: str) -> list[dict[str, Any]]:
         """Fetch device capabilities from device-intelligence-service.
 
         Calls GET /api/devices/{device_id}/capabilities on the
-        device-intelligence-service (port 8019).
+        device-intelligence-service (port 8019).  Protected by a circuit
+        breaker -- when the ml-engine group is unreachable the method
+        returns an empty list immediately instead of waiting for timeouts.
 
         Args:
             device_id: Device ID to query capabilities for
 
         Returns:
-            List of capability dicts, or empty list on failure
+            List of capability dicts, or empty list on failure / circuit open
         """
+        if not _ml_engine_breaker.allow_request():
+            logger.warning(
+                "AI FALLBACK: ml-engine circuit open -- skipping device capabilities for %s",
+                device_id,
+            )
+            return []
+
         try:
             url = f"{self.settings.device_intelligence_url}/api/devices/{device_id}/capabilities"
             headers: dict[str, str] = {}
@@ -184,6 +196,7 @@ class DeviceSuggestionService:
                 headers["X-API-Key"] = self.settings.device_intelligence_api_key.get_secret_value()
             response = await self.http_client.get(url, headers=headers, timeout=10.0)
             response.raise_for_status()
+            await _ml_engine_breaker.record_success()
             data = response.json()
             if isinstance(data, list):
                 return data
@@ -192,7 +205,8 @@ class DeviceSuggestionService:
             logger.warning("Unexpected capabilities response format: %s", type(data))
             return []
         except Exception as e:
-            logger.warning("Failed to fetch device capabilities: %s", e)
+            await _ml_engine_breaker.record_failure()
+            logger.warning("Failed to fetch device capabilities (ml-engine degraded): %s", e)
             return []
 
     async def _fetch_device_entities(self, device_id: str) -> list[dict[str, Any]]:
@@ -200,7 +214,7 @@ class DeviceSuggestionService:
         try:
             return await self.data_api_client.fetch_entities(device_id=device_id)
         except Exception as e:
-            logger.error(f"Failed to fetch device entities: {e}")
+            logger.error("Failed to fetch device entities: %s", e)
             return []
 
     async def _fetch_synergies(self, device_id: str) -> list[dict[str, Any]]:
@@ -208,18 +222,28 @@ class DeviceSuggestionService:
 
         Calls GET /api/v1/synergies/list on the ai-pattern-service
         (port 8020) and filters results to those containing the device_id.
+        Protected by a circuit breaker -- when the pattern-analysis group
+        is unreachable the method returns an empty list immediately.
 
         Args:
             device_id: Device ID to find synergies for
 
         Returns:
-            List of synergy dicts related to the device, or empty list on failure
+            List of synergy dicts related to the device, or empty list on failure / circuit open
         """
+        if not _pattern_analysis_breaker.allow_request():
+            logger.warning(
+                "AI FALLBACK: pattern-analysis circuit open -- skipping synergies for %s",
+                device_id,
+            )
+            return []
+
         try:
             url = f"{self.settings.ai_pattern_service_url}/api/v1/synergies/list"
             params = {"min_confidence": 0.5, "limit": 50}
             response = await self.http_client.get(url, params=params, timeout=10.0)
             response.raise_for_status()
+            await _pattern_analysis_breaker.record_success()
             data = response.json()
             synergies = data.get("synergies", []) if isinstance(data, dict) else data
             if not isinstance(synergies, list):
@@ -238,7 +262,8 @@ class DeviceSuggestionService:
                     filtered.append(synergy)
             return filtered
         except Exception as e:
-            logger.warning("Failed to fetch synergies: %s", e)
+            await _pattern_analysis_breaker.record_failure()
+            logger.warning("Failed to fetch synergies (pattern-analysis degraded): %s", e)
             return []
 
     async def _fetch_blueprints(self, device_id: str) -> list[dict[str, Any]]:

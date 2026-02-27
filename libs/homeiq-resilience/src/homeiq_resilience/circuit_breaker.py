@@ -40,6 +40,30 @@ class CircuitOpenError(Exception):
     """Raised when a request is attempted while the circuit is open."""
 
 
+class ServiceDegradedError(Exception):
+    """Raised when a service is reachable but returning degraded results.
+
+    Use this to distinguish between "service is down" (CircuitOpenError)
+    and "service responded but the response indicates degraded operation"
+    (e.g. partial data, stale cache, fallback mode).
+
+    Parameters
+    ----------
+    service_name:
+        Name of the degraded service.
+    reason:
+        Human-readable explanation of the degradation.
+    """
+
+    def __init__(self, service_name: str = "", reason: str = "") -> None:
+        self.service_name = service_name
+        self.reason = reason
+        msg = f"Service '{service_name}' is degraded"
+        if reason:
+            msg += f": {reason}"
+        super().__init__(msg)
+
+
 class CircuitBreaker:
     """Three-state circuit breaker with configurable thresholds.
 

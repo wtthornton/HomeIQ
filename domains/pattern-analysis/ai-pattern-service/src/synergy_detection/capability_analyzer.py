@@ -8,11 +8,20 @@ such as dimmable lights, color control, scheduling, etc.
 """
 
 import logging
+import uuid
 from typing import Any
 
 import httpx
+from homeiq_resilience import CircuitBreaker
 
 logger = logging.getLogger(__name__)
+
+# Module-level breaker shared across all DeviceCapabilityAnalyzer instances
+_ml_engine_breaker = CircuitBreaker(
+    name="ml-engine-capability-analyzer",
+    failure_threshold=3,
+    recovery_timeout=60.0,
+)
 
 
 class DeviceCapabilityAnalyzer:
@@ -73,6 +82,10 @@ class DeviceCapabilityAnalyzer:
         """
         Fetch and parse capabilities for a device.
 
+        Protected by a circuit breaker -- when device-intelligence-service
+        is unreachable the method returns an empty list immediately instead
+        of accumulating timeouts.
+
         Args:
             device_id: Device identifier
 
@@ -86,12 +99,21 @@ class DeviceCapabilityAnalyzer:
         if device_id in self._cache:
             return self._cache[device_id]
 
+        # Circuit breaker fast-fail when ml-engine group is down
+        if not _ml_engine_breaker.allow_request():
+            logger.warning(
+                "AI FALLBACK: ml-engine circuit open -- returning empty capabilities for %s",
+                device_id,
+            )
+            return []
+
         try:
             client = await self._get_client()
             response = await client.get(
                 f"{self.base_url}/api/devices/{device_id}/capabilities"
             )
             response.raise_for_status()
+            await _ml_engine_breaker.record_success()
 
             data = response.json()
             # Handle response format (list of DeviceCapabilityResponse)
@@ -108,17 +130,20 @@ class DeviceCapabilityAnalyzer:
             return capabilities
 
         except httpx.HTTPStatusError as e:
+            await _ml_engine_breaker.record_failure()
             if e.response.status_code == 404:
-                # Device not found - return empty list
+                # Device not found - return empty list (don't penalise breaker further)
                 logger.debug(f"Device {device_id} not found in device intelligence service")
                 return []
-            logger.warning(f"⚠️ Device Intelligence Service error for capabilities ({device_id}): {e.response.status_code}")
+            logger.warning(f"Device Intelligence Service error for capabilities ({device_id}): {e.response.status_code}")
             return []
         except httpx.RequestError as e:
-            logger.warning(f"⚠️ Device Intelligence Service unavailable for capabilities ({device_id}): {e}")
+            await _ml_engine_breaker.record_failure()
+            logger.warning(f"Device Intelligence Service unavailable for capabilities ({device_id}): {e}")
             return []
         except Exception as e:
-            logger.warning(f"⚠️ Error getting device capabilities for {device_id}: {e}")
+            await _ml_engine_breaker.record_failure()
+            logger.warning(f"Error getting device capabilities for {device_id}: {e}")
             return []
 
     def match_capabilities(
@@ -234,7 +259,6 @@ class DeviceCapabilityAnalyzer:
             return None
 
         # Create synergy suggestion
-        import uuid
         synergy = {
             'synergy_id': str(uuid.uuid4()),
             'synergy_type': 'device_pair',
