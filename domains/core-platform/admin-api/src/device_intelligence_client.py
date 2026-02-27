@@ -2,24 +2,40 @@
 Device Intelligence Service Client for Admin API
 
 This client allows the admin-api to query device data from the Device Intelligence Service
-instead of querying InfluxDB directly.
+(cross-group call: core-platform -> ml-engine).
+Uses CrossGroupClient with circuit breaker for resilience.
 """
 
 import logging
+import os
 from typing import Any
 
 import httpx
 
+from homeiq_resilience import CircuitBreaker, CircuitOpenError, CrossGroupClient
+
 logger = logging.getLogger(__name__)
+
+# Shared circuit breaker for ml-engine group calls
+ml_engine_breaker = CircuitBreaker(name="ml-engine")
+
 
 class DeviceIntelligenceClient:
     """Client for interacting with Device Intelligence Service from admin-api."""
 
     def __init__(self, base_url: str = "http://device-intelligence-service:8019"):
         """Initialize the client with Device Intelligence Service URL."""
-        self.base_url = base_url
-        self.client = httpx.AsyncClient(timeout=30.0)
-        logger.info(f"Device Intelligence Client initialized with URL: {base_url}")
+        self.base_url = base_url.rstrip("/")
+        api_key = os.getenv("DEVICE_INTELLIGENCE_API_KEY") or os.getenv("API_KEY")
+        self._cross_client = CrossGroupClient(
+            base_url=self.base_url,
+            group_name="ml-engine",
+            timeout=30.0,
+            max_retries=3,
+            auth_token=api_key,
+            circuit_breaker=ml_engine_breaker,
+        )
+        logger.info("Device Intelligence Client initialized with URL: %s", base_url)
 
     async def get_devices(
         self,
@@ -41,7 +57,7 @@ class DeviceIntelligenceClient:
             Dictionary with devices, count, and limit
         """
         try:
-            params = {"limit": limit}
+            params: dict[str, Any] = {"limit": limit}
             if manufacturer:
                 params["manufacturer"] = manufacturer
             if model:
@@ -49,24 +65,26 @@ class DeviceIntelligenceClient:
             if area_id:
                 params["area_id"] = area_id
 
-            response = await self.client.get(f"{self.base_url}/api/devices", params=params)
+            response = await self._cross_client.call(
+                "GET", "/api/devices", params=params,
+            )
             response.raise_for_status()
 
             data = response.json()
-            logger.debug(f"Retrieved {data.get('count', 0)} devices from Device Intelligence Service")
+            logger.debug("Retrieved %s devices from Device Intelligence Service", data.get('count', 0))
             return data
 
+        except CircuitOpenError:
+            logger.warning("Device Intelligence circuit open")
+            raise
         except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error getting devices: {e}")
+            logger.error("HTTP error getting devices: %s", e)
             raise
-        except httpx.RequestError as e:
-            logger.error(f"Request error getting devices: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error getting devices: {e}")
+        except httpx.HTTPError as e:
+            logger.error("Request error getting devices: %s", e)
             raise
 
-    async def get_device_by_id(self, device_id: str) -> dict[str, Any]:
+    async def get_device_by_id(self, device_id: str) -> dict[str, Any] | None:
         """
         Get a specific device by ID.
 
@@ -77,24 +95,26 @@ class DeviceIntelligenceClient:
             Device data dictionary
         """
         try:
-            response = await self.client.get(f"{self.base_url}/api/devices/{device_id}")
+            response = await self._cross_client.call(
+                "GET", f"/api/devices/{device_id}",
+            )
             response.raise_for_status()
 
             data = response.json()
-            logger.debug(f"Retrieved device {device_id} from Device Intelligence Service")
+            logger.debug("Retrieved device %s from Device Intelligence Service", device_id)
             return data
 
+        except CircuitOpenError:
+            logger.warning("Device Intelligence circuit open for device %s", device_id)
+            return None
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                logger.warning(f"Device {device_id} not found in Device Intelligence Service")
+                logger.warning("Device %s not found in Device Intelligence Service", device_id)
                 return None
-            logger.error(f"HTTP error getting device {device_id}: {e}")
+            logger.error("HTTP error getting device %s: %s", device_id, e)
             raise
-        except httpx.RequestError as e:
-            logger.error(f"Request error getting device {device_id}: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error getting device {device_id}: {e}")
+        except httpx.HTTPError as e:
+            logger.error("Request error getting device %s: %s", device_id, e)
             raise
 
     async def get_device_stats(self) -> dict[str, Any]:
@@ -105,21 +125,21 @@ class DeviceIntelligenceClient:
             Device statistics dictionary
         """
         try:
-            response = await self.client.get(f"{self.base_url}/api/stats")
+            response = await self._cross_client.call("GET", "/api/stats")
             response.raise_for_status()
 
             data = response.json()
             logger.debug("Retrieved device statistics from Device Intelligence Service")
             return data
 
+        except CircuitOpenError:
+            logger.warning("Device Intelligence circuit open for stats")
+            raise
         except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error getting device stats: {e}")
+            logger.error("HTTP error getting device stats: %s", e)
             raise
-        except httpx.RequestError as e:
-            logger.error(f"Request error getting device stats: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error getting device stats: {e}")
+        except httpx.HTTPError as e:
+            logger.error("Request error getting device stats: %s", e)
             raise
 
     async def get_device_capabilities(self, device_id: str) -> list[dict[str, Any]]:
@@ -133,36 +153,36 @@ class DeviceIntelligenceClient:
             List of device capabilities
         """
         try:
-            response = await self.client.get(f"{self.base_url}/api/devices/{device_id}/capabilities")
+            response = await self._cross_client.call(
+                "GET", f"/api/devices/{device_id}/capabilities",
+            )
             response.raise_for_status()
 
             data = response.json()
-            logger.debug(f"Retrieved {len(data)} capabilities for device {device_id}")
+            logger.debug("Retrieved %d capabilities for device %s", len(data), device_id)
             return data
 
+        except CircuitOpenError:
+            logger.warning("Device Intelligence circuit open for capabilities %s", device_id)
+            return []
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                logger.warning(f"Device {device_id} not found for capabilities")
+                logger.warning("Device %s not found for capabilities", device_id)
                 return []
-            logger.error(f"HTTP error getting capabilities for device {device_id}: {e}")
+            logger.error("HTTP error getting capabilities for device %s: %s", device_id, e)
             raise
-        except httpx.RequestError as e:
-            logger.error(f"Request error getting capabilities for device {device_id}: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error getting capabilities for device {device_id}: {e}")
+        except httpx.HTTPError as e:
+            logger.error("Request error getting capabilities for device %s: %s", device_id, e)
             raise
 
     async def close(self):
-        """Close the HTTP client."""
-        try:
-            await self.client.aclose()
-            logger.info("Device Intelligence Client closed")
-        except Exception as e:
-            logger.error(f"Error closing Device Intelligence Client: {e}")
+        """No-op — CrossGroupClient uses per-request clients."""
+        logger.debug("Device Intelligence Client close (no-op with CrossGroupClient)")
+
 
 # Global client instance
 _device_intelligence_client = None
+
 
 def get_device_intelligence_client() -> DeviceIntelligenceClient:
     """Get or create the global Device Intelligence Service client."""
@@ -170,6 +190,7 @@ def get_device_intelligence_client() -> DeviceIntelligenceClient:
     if _device_intelligence_client is None:
         _device_intelligence_client = DeviceIntelligenceClient()
     return _device_intelligence_client
+
 
 async def close_device_intelligence_client():
     """Close the global Device Intelligence Service client."""
