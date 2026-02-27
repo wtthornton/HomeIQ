@@ -8,7 +8,7 @@ import os
 import secrets
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
@@ -17,10 +17,9 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
-
 from homeiq_observability.correlation_middleware import FastAPICorrelationMiddleware
 from homeiq_observability.logging_config import setup_logging
+from pydantic import BaseModel, Field
 
 # Load environment variables
 load_dotenv()
@@ -37,7 +36,9 @@ except ImportError:
 
 # Import observability modules
 try:
-    from homeiq_observability.observability import CorrelationMiddleware as ObservabilityCorrelationMiddleware
+    from homeiq_observability.observability import (
+        CorrelationMiddleware as ObservabilityCorrelationMiddleware,
+    )
     from homeiq_observability.observability import instrument_fastapi, setup_tracing
     OBSERVABILITY_AVAILABLE = True
 except ImportError:
@@ -45,6 +46,7 @@ except ImportError:
     OBSERVABILITY_AVAILABLE = False
 
 from homeiq_data.auth import AuthManager
+from homeiq_data.rate_limiter import RateLimiter, rate_limit_middleware
 from homeiq_observability.monitoring import (
     MonitoringEndpoints,
     StatsEndpoints,
@@ -52,13 +54,13 @@ from homeiq_observability.monitoring import (
     logging_service,
     metrics_service,
 )
-from homeiq_data.rate_limiter import RateLimiter, rate_limit_middleware
 
 from .config_endpoints import ConfigEndpoints
 from .docker_endpoints import DockerEndpoints
 from .ha_proxy_endpoints import router as ha_proxy_router
 from .health_endpoints import HealthEndpoints
-from .mqtt_config_endpoints import router as mqtt_config_router, public_router as mqtt_config_public_router
+from .mqtt_config_endpoints import public_router as mqtt_config_public_router
+from .mqtt_config_endpoints import router as mqtt_config_router
 
 
 class APIResponse(BaseModel):
@@ -112,7 +114,7 @@ class AdminAPIService:
     def __init__(self):
         """Initialize Admin API service"""
         # Configuration
-        self.api_host = os.getenv('API_HOST', '0.0.0.0')
+        self.api_host = os.getenv('API_HOST', '0.0.0.0')  # nosec B104
         self.api_port = int(os.getenv('API_PORT', '8000'))
         self.api_title = os.getenv('API_TITLE', 'Home Assistant Ingestor Admin API')
         self.api_version = os.getenv('API_VERSION', '1.0.0')
@@ -144,7 +146,7 @@ class AdminAPIService:
         self.cors_headers = os.getenv('CORS_HEADERS', '*').split(',')
 
         # Initialize components
-        self.start_time = datetime.now()  # Add start time for uptime calculation
+        self.start_time = datetime.now(UTC)  # Add start time for uptime calculation
         self.auth_manager = AuthManager(
             api_key=self.api_key,
             allow_anonymous=self.allow_anonymous,
@@ -266,11 +268,12 @@ class AdminAPIService:
             # Fallback to existing correlation middleware
             self.app.add_middleware(FastAPICorrelationMiddleware)
 
-        # CORS middleware
+        # CORS middleware — disable credentials when wildcard origins are used
+        _cors_allow_credentials = "*" not in self.cors_origins
         self.app.add_middleware(
             CORSMiddleware,
             allow_origins=self.cors_origins,
-            allow_credentials=True,
+            allow_credentials=_cors_allow_credentials,
             allow_methods=self.cors_methods,
             allow_headers=self.cors_headers
         )

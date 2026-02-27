@@ -7,6 +7,8 @@ Supports both PostgreSQL (asyncpg) and SQLite (aiosqlite).
 """
 
 import os
+import re
+import threading
 
 from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
@@ -21,10 +23,13 @@ from .logging_config import get_logger
 
 logger = get_logger(__name__)
 
+# Schema name validator — prevents SQL injection in SET search_path
+_SAFE_SCHEMA = re.compile(r'^[a-z_][a-z0-9_]*$', re.IGNORECASE)
 
 # Global engine instances (one per database path)
 _engines: dict[str, AsyncEngine] = {}
 _session_makers: dict[str, async_sessionmaker] = {}
+_engine_lock = threading.Lock()
 
 
 def _is_postgres_url(url: str) -> bool:
@@ -58,41 +63,42 @@ def create_shared_db_engine(
     Returns:
         Shared AsyncEngine instance
     """
-    if database_url not in _engines:
-        connect_args: dict = {}
-        poolclass = None
-        extra_kwargs: dict = {}
+    with _engine_lock:
+        if database_url not in _engines:
+            connect_args: dict = {}
+            poolclass = None
+            extra_kwargs: dict = {}
 
-        if _is_postgres_url(database_url):
-            # PostgreSQL: use real connection pool
-            extra_kwargs = {
-                "pool_recycle": 3600,
+            if _is_postgres_url(database_url):
+                # PostgreSQL: use real connection pool
+                extra_kwargs = {
+                    "pool_recycle": 3600,
+                }
+            elif "sqlite" in database_url:
+                # SQLite: use StaticPool for thread safety
+                connect_args = {"check_same_thread": False}
+                poolclass = StaticPool
+
+            engine_kwargs: dict = {
+                "pool_size": pool_size,
+                "max_overflow": max_overflow,
+                "pool_pre_ping": True,
+                "connect_args": connect_args,
+                "echo": False,
+                **extra_kwargs,
             }
-        elif "sqlite" in database_url:
-            # SQLite: use StaticPool for thread safety
-            connect_args = {"check_same_thread": False}
-            poolclass = StaticPool
+            if poolclass is not None:
+                engine_kwargs["poolclass"] = poolclass
 
-        engine_kwargs: dict = {
-            "pool_size": pool_size,
-            "max_overflow": max_overflow,
-            "pool_pre_ping": True,
-            "connect_args": connect_args,
-            "echo": False,
-            **extra_kwargs,
-        }
-        if poolclass is not None:
-            engine_kwargs["poolclass"] = poolclass
+            _engines[database_url] = create_async_engine(
+                database_url,
+                **engine_kwargs,
+            )
 
-        _engines[database_url] = create_async_engine(
-            database_url,
-            **engine_kwargs,
-        )
-
-        logger.info(
-            f"Created shared database engine: {database_path or database_url} "
-            f"(pool_size={pool_size}, max_overflow={max_overflow})"
-        )
+            logger.info(
+                f"Created shared database engine: {database_path or database_url} "
+                f"(pool_size={pool_size}, max_overflow={max_overflow})"
+            )
 
     return _engines[database_url]
 
@@ -192,6 +198,8 @@ def close_all_engines():
     """Close all shared database engines (synchronous, for backward compat)."""
     global _engines, _session_makers
 
+    for _url, engine in _engines.items():
+        engine.sync_engine.dispose()
     _engines.clear()
     _session_makers.clear()
     logger.info("All shared database engines closed")
@@ -231,6 +239,9 @@ def create_pg_engine(
     Returns:
         AsyncEngine configured for the specified schema
     """
+    if not _SAFE_SCHEMA.match(schema):
+        raise ValueError(f"Invalid schema name: {schema!r}")
+
     engine = create_async_engine(
         database_url,
         pool_size=pool_size,

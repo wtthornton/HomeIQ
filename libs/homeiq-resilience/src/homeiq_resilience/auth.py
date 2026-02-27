@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
+import secrets
 
 from fastapi import HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -82,7 +83,7 @@ class ServiceAuthValidator:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        if credentials.credentials != expected_token:
+        if not secrets.compare_digest(credentials.credentials, expected_token):
             logger.warning(
                 "Invalid service token on %s %s (source=%s)",
                 request.method,

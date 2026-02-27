@@ -12,10 +12,11 @@ This service provides access to feature data including:
 
 import logging
 import os
+import pathlib
 import secrets
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import uvicorn
@@ -28,8 +29,8 @@ from pydantic import BaseModel, Field
 _early_logger = logging.getLogger("data-api.startup")
 
 from homeiq_data.auth import AuthManager
-from homeiq_observability.correlation_middleware import FastAPICorrelationMiddleware
 from homeiq_data.influxdb_query_client import InfluxDBQueryClient
+from homeiq_observability.correlation_middleware import FastAPICorrelationMiddleware
 from homeiq_observability.logging_config import setup_logging
 
 # Import shared error handler
@@ -41,24 +42,22 @@ except ImportError:
 
 # Import observability modules
 try:
-    from homeiq_observability.observability import CorrelationMiddleware as ObservabilityCorrelationMiddleware
+    from homeiq_observability.observability import (
+        CorrelationMiddleware as ObservabilityCorrelationMiddleware,
+    )
     from homeiq_observability.observability import instrument_fastapi, setup_tracing
     OBSERVABILITY_AVAILABLE = True
 except ImportError:
     _early_logger.warning("Observability modules not available")
     OBSERVABILITY_AVAILABLE = False
 
-# Story 22.1: SQLite database
-import pathlib
-
 # Load environment variables
 from dotenv import load_dotenv
-
+from homeiq_data.rate_limiter import RateLimiter, rate_limit_middleware
 from homeiq_observability.endpoints import create_integration_router
 
 # WebSocket endpoints removed - using HTTP polling only
 from homeiq_observability.monitoring import alerting_service, metrics_service
-from homeiq_data.rate_limiter import RateLimiter, rate_limit_middleware
 
 # Import endpoint routers (Stories 13.2-13.4)
 from .activity_endpoints import router as activity_router
@@ -102,7 +101,7 @@ load_dotenv()
 logger = setup_logging("data-api")
 
 # Story 24.1: Track service start time for accurate uptime calculation
-SERVICE_START_TIME = datetime.utcnow()
+SERVICE_START_TIME = datetime.now(UTC)
 
 
 class APIResponse(BaseModel):
@@ -127,7 +126,7 @@ class DataAPIService:
     def __init__(self):
         """Initialize Data API service"""
         # Configuration - Configurable via environment variables
-        self.api_host = os.getenv('DATA_API_HOST', '0.0.0.0')
+        self.api_host = os.getenv('DATA_API_HOST', '0.0.0.0')  # nosec B104 — intentional; host is env-configurable
         self.api_port = int(os.getenv('DATA_API_PORT', '8006'))
         self.request_timeout = int(os.getenv('REQUEST_TIMEOUT', '30'))  # seconds
         self.db_query_timeout = int(os.getenv('DB_QUERY_TIMEOUT', '10'))  # seconds
@@ -203,11 +202,11 @@ class DataAPIService:
             else:
                 logger.warning("InfluxDB connection failed - webhook detector disabled")
         except Exception as e:
-            logger.error(f"Error connecting to InfluxDB: {e}")
+            logger.error("Error connecting to InfluxDB: %s", e)
             logger.warning("Service will start without InfluxDB connection")
 
         self.is_running = True
-        logger.info(f"Data API service started on {self.api_host}:{self.api_port}")
+        logger.info("Data API service started on %s:%s", self.api_host, self.api_port)
 
     async def shutdown(self):
         """Stop the Data API service"""
@@ -224,7 +223,7 @@ class DataAPIService:
         try:
             await self.influxdb_client.close()
         except Exception as e:
-            logger.error(f"Error closing InfluxDB connection: {e}")
+            logger.error("Error closing InfluxDB connection: %s", e)
 
         self.is_running = False
         logger.info("Data API service stopped")
@@ -236,18 +235,18 @@ data_api_service = DataAPIService()
 
 # Lifespan context manager for startup/shutdown
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Handle application lifecycle"""
     # Epic 40: Deployment mode validation and logging
     try:
         from homeiq_ha.deployment_validation import get_deployment_mode, log_deployment_info
         log_deployment_info("data-api")
-        logger.info(f"Deployment Mode: {get_deployment_mode()}")
+        logger.info("Deployment Mode: %s", get_deployment_mode())
     except ImportError:
         # Fallback if shared module not available
         import os
         deployment_mode = os.getenv("DEPLOYMENT_MODE", "production")
-        logger.info(f"Data API starting in {deployment_mode} mode")
+        logger.info("Data API starting in %s mode", deployment_mode)
 
     # Startup
     # Ensure data directory exists
@@ -258,7 +257,7 @@ async def lifespan(app: FastAPI):
         await init_db()
         logger.info("SQLite database initialized")
     except Exception as e:
-        logger.error(f"SQLite initialization failed: {e}")
+        logger.error("SQLite initialization failed: %s", e)
         # Don't crash - service can run without SQLite initially
 
     await data_api_service.startup()
@@ -548,7 +547,7 @@ if register_error_handlers:
 else:
     # Fallback to local error handlers with request tracking
     @app.exception_handler(HTTPException)
-    async def http_exception_handler(request, exc: HTTPException):
+    async def http_exception_handler(_request, exc: HTTPException):
         """Handle HTTP exceptions (request counting handled by metrics middleware)"""
         return JSONResponse(
             status_code=exc.status_code,
@@ -559,9 +558,9 @@ else:
         )
 
     @app.exception_handler(Exception)
-    async def general_exception_handler(request, exc: Exception):
+    async def general_exception_handler(_request, exc: Exception):
         """Handle general exceptions (request counting handled by metrics middleware)"""
-        logger.error(f"Unhandled exception: {exc}", exc_info=True)
+        logger.error("Unhandled exception: %s", exc, exc_info=True)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=ErrorResponse(

@@ -236,7 +236,19 @@ Prerequisites: Phases 1-2 stable in production 2+ weeks, ML models backed up, ro
 
 ## 🔄 Change Log
 
-### February 27, 2026
+### February 27, 2026 (PM — Execution Sprint)
+- ✅ **Phase 3 Readiness Report** created (`docs/planning/phase-3-readiness-report.md`) — 98% ready, Mar 11 start achievable
+- ✅ **Story 6.5 Execution Plan** created (`docs/planning/story-6.5-sqlite-cutover-plan.md`) — 3-4 hours, ready after Mar 10
+- ✅ **Phase 5 Deployment Plan** created (`docs/planning/phase-5-deployment-plan.md`) — 5-day staged rollout by tier
+- ✅ **Quality Audit Report** completed (`docs/planning/quality-audit-report.md`) — Score 7.5/10, 5 blocking findings
+- ✅ **Finding 1 FIXED**: SQL injection in `database_pool.py` — schema name regex validation before `SET search_path`
+- ✅ **Finding 2 FIXED**: Timing attack in `auth.py` — `secrets.compare_digest()` replaces `!=`
+- ✅ **Finding 3 FIXED**: CORS credentials bypass in `admin-api` — wildcard guard added
+- ✅ **Finding 4 FIXED**: Race condition in `database_pool.py` — `threading.Lock` on engine creation
+- ✅ **Finding 5 FIXED**: Naive datetimes in `data-api` and `admin-api` — `datetime.now(timezone.utc)`
+- ✅ **Bonus**: `close_all_engines()` now calls `dispose()` (was leaking PG connections)
+
+### February 27, 2026 (AM — Phase 4 Resilience)
 - ✅ Step 3.5: Cross-group integration test workflow committed (5 jobs, fixtures at `tests/integration/cross_group/`)
 - ✅ Step 4.5: AI fallback with CircuitBreaker — breakers in device_suggestion, capability_analyzer, ai_prompt_generation, device_validation services
 - ✅ Step 4.6: Group-level health dashboard — GET /health/groups endpoint, redesigned GroupsTab with color-coded badges and progress bars
