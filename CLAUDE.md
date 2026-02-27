@@ -127,3 +127,25 @@ claude --headless \
 
 In headless or non-interactive VS Code contexts, set:
 `claude.enableAllProjectMcpServers: true` in workspace settings.
+
+
+# Install TappsMCP
+pip install tapps-mcp
+
+# Validate changed files
+TAPPS_MCP_PROJECT_ROOT=/workspace \
+  tapps-mcp validate-changed --preset staging
+```
+
+### Claude Code headless mode
+
+```bash
+claude --headless \
+  --allowedTools "mcp__tapps-mcp__tapps_validate_changed" \
+  "Run tapps_validate_changed with preset=staging"
+```
+
+### VS Code / headless — enableAllProjectMcpServers
+
+In headless or non-interactive VS Code contexts, set:
+`claude.enableAllProjectMcpServers: true` in workspace settings.

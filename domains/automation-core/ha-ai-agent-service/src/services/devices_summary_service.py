@@ -9,8 +9,6 @@ import logging
 from collections import defaultdict
 from typing import Any
 
-import httpx
-
 from ..clients.data_api_client import DataAPIClient
 from ..clients.device_intelligence_client import DeviceIntelligenceClient
 from ..clients.ha_client import HomeAssistantClient
@@ -47,9 +45,8 @@ class DevicesSummaryService:
         )
         self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
         # Phase 1.2: Device Intelligence Client for device relationships/context
+        # Uses CircuitBreaker for ml-engine fallback protection
         self.device_intelligence_client = DeviceIntelligenceClient(settings)
-        # Device Intelligence Service URL (optional - for Zigbee2MQTT data)
-        self.device_intelligence_url = settings.device_intelligence_url
         self._cache_key = "devices_summary"
         self._cache_ttl = 1800  # 30 minutes (P1: Increased TTL for static data - devices rarely change)
 
@@ -159,27 +156,23 @@ class DevicesSummaryService:
                 device_capabilities = {}
 
             # Fetch Zigbee2MQTT metadata from device-intelligence-service (if available)
+            # Uses DeviceIntelligenceClient which has CircuitBreaker protection
             zigbee_metadata_map: dict[str, dict[str, Any]] = {}
             try:
-                async with httpx.AsyncClient(timeout=5.0) as client:
-                    # Use the devices API endpoint to get devices with Zigbee data
-                    response = await client.get(f"{self.device_intelligence_url}/api/devices?limit=1000")
-                    if response.status_code == 200:
-                        result = response.json()
-                        zigbee_devices = result.get("devices", []) if isinstance(result, dict) else result
-                        # Create mapping by device_id
-                        for z_device in zigbee_devices:
-                            device_id_from_zigbee = z_device.get("device_id")
-                            if device_id_from_zigbee:
-                                zigbee_metadata_map[device_id_from_zigbee] = {
-                                    "lqi": z_device.get("lqi"),
-                                    "availability_status": z_device.get("availability_status"),
-                                    "battery_level": z_device.get("battery_level"),
-                                    "battery_low": z_device.get("battery_low"),
-                                }
-                        logger.info(f"✅ Fetched Zigbee2MQTT metadata for {len(zigbee_metadata_map)} devices")
+                zigbee_devices = await self.device_intelligence_client.get_devices(limit=1000)
+                for z_device in zigbee_devices:
+                    device_id_from_zigbee = z_device.get("device_id")
+                    if device_id_from_zigbee:
+                        zigbee_metadata_map[device_id_from_zigbee] = {
+                            "lqi": z_device.get("lqi"),
+                            "availability_status": z_device.get("availability_status"),
+                            "battery_level": z_device.get("battery_level"),
+                            "battery_low": z_device.get("battery_low"),
+                        }
+                if zigbee_metadata_map:
+                    logger.info("Fetched Zigbee2MQTT metadata for %d devices", len(zigbee_metadata_map))
             except Exception as e:
-                logger.warning(f"⚠️ Could not fetch Zigbee2MQTT metadata (device-intelligence-service may not be available): {e}")
+                logger.warning("Could not fetch Zigbee2MQTT metadata (ml-engine may be unavailable): %s", e)
                 # Continue without Zigbee metadata - not critical
 
             # Group devices by area

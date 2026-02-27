@@ -251,6 +251,7 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-adminpass}
       - WEBSOCKET_INGESTION_URL=http://websocket-ingestion:8001
       - DATA_API_URL=http://data-api:8006
+      - DEVICE_INTELLIGENCE_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
       - AI_AUTOMATION_URL=http://ai-automation-service-new:8025
       - WEATHER_SERVICE_URL=http://weather-api:8009
       - OTLP_ENDPOINT=http://jaeger:4317

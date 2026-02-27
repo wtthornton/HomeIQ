@@ -8,6 +8,7 @@ Uses CrossGroupClient with shared circuit breaker for resilience.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 import httpx
@@ -24,11 +25,13 @@ class WeatherAPIClient:
 
     def __init__(self, base_url: str = "http://weather-api:8009"):
         self.base_url = base_url.rstrip("/")
+        api_key = os.getenv("DATA_COLLECTORS_API_KEY") or os.getenv("API_KEY")
         self._cross_client = CrossGroupClient(
             base_url=self.base_url,
             group_name="data-collectors",
             timeout=30.0,
             max_retries=3,
+            auth_token=api_key,
             circuit_breaker=data_collectors_breaker,
         )
         logger.info("Weather API client initialized with base_url=%s", self.base_url)

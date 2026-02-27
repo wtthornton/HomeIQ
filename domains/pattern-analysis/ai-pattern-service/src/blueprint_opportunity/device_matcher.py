@@ -111,6 +111,10 @@ class DeviceMatcher:
         self.enable_wyze_scoring = enable_wyze_scoring
         self._http_client: httpx.AsyncClient | None = None
         self._wyze_service_available: bool | None = None
+        _rule_rec_key = os.getenv("RULE_REC_API_KEY") or os.getenv("API_KEY")
+        self._rule_rec_headers: dict[str, str] = (
+            {"Authorization": f"Bearer {_rule_rec_key}"} if _rule_rec_key else {}
+        )
 
         # Cache for Wyze pattern scores (pattern -> score)
         self._wyze_pattern_cache: dict[str, float] = {}
@@ -399,7 +403,9 @@ class DeviceMatcher:
         try:
             # Lazy initialize HTTP client
             if self._http_client is None:
-                self._http_client = httpx.AsyncClient(timeout=5.0)
+                self._http_client = httpx.AsyncClient(
+                    timeout=5.0, headers=self._rule_rec_headers
+                )
 
             # Request device-based recommendations
             params = {"device_domains": user_domains, "limit": 20}
@@ -448,7 +454,9 @@ class DeviceMatcher:
 
         try:
             if self._http_client is None:
-                self._http_client = httpx.AsyncClient(timeout=5.0)
+                self._http_client = httpx.AsyncClient(
+                    timeout=5.0, headers=self._rule_rec_headers
+                )
 
             response = await self._http_client.get(
                 f"{self.RULE_REC_SERVICE_URL}/api/v1/rule-recommendations/popular",

@@ -17,6 +17,10 @@ services:
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
       - DATABASE_SCHEMA=automation
       - DATA_API_URL=http://data-api:8006
+      - DATA_API_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - DEVICE_INTELLIGENCE_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - RULE_REC_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - MQTT_BROKER=${MQTT_BROKER:-}
       - MQTT_PORT=${MQTT_PORT:-1883}

@@ -41,6 +41,14 @@ class ScoringEngine:
     def __init__(self, thresholds: dict[str, float] | None = None):
         self.thresholds: dict[str, float] = thresholds or {}
 
+    # Deploy-dependent evaluators that correctly score 0% in preview mode.
+    # Skipping them avoids dragging the L4 average down with irrelevant 0%s.
+    _DEPLOY_ONLY_EVALUATORS = frozenset({
+        "validation_before_deploy",
+        "post_deploy_verification",
+        "audit_trail_complete",
+    })
+
     async def score(
         self,
         session: SessionTrace,
@@ -48,6 +56,13 @@ class ScoringEngine:
     ) -> EvaluationReport:
         """Run all evaluators on a single session and build a report."""
         results: list[EvaluationResult] = []
+
+        # Filter out deploy-only evaluators in preview mode
+        if session.metadata.get("execution_mode") == "preview":
+            evaluators = [
+                e for e in evaluators
+                if e.name not in self._DEPLOY_ONLY_EVALUATORS
+            ]
 
         for evaluator in evaluators:
             try:

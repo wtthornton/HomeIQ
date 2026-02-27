@@ -1,6 +1,7 @@
 """Blueprint Opportunity Engine - Discovers automation opportunities."""
 
 import logging
+import os
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -62,6 +63,10 @@ class BlueprintOpportunityEngine:
         headers = {"Accept": "application/json"}
         if self.api_key:
             headers["X-API-Key"] = self.api_key
+        # Bearer auth for cross-group data-api calls
+        data_api_key = os.getenv("DATA_API_API_KEY") or os.getenv("API_KEY")
+        if data_api_key:
+            headers["Authorization"] = f"Bearer {data_api_key}"
 
         self._client = httpx.AsyncClient(
             headers=headers,

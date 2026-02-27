@@ -379,10 +379,12 @@ async def get_optimization_recommendation():
         # Story 4.1: Optional activity-aware guidance (graceful degradation)
         import os
         data_api_url = (os.getenv("DATA_API_URL") or "http://data-api:8006").rstrip("/")
+        data_api_key = os.getenv("DATA_API_API_KEY") or os.getenv("API_KEY")
         try:
             import httpx
+            _headers = {"Authorization": f"Bearer {data_api_key}"} if data_api_key else {}
             async with httpx.AsyncClient(timeout=5.0) as client:
-                r = await client.get(f"{data_api_url}/api/v1/activity/history", params={"hours": 24, "limit": 100})
+                r = await client.get(f"{data_api_url}/api/v1/activity/history", params={"hours": 24, "limit": 100}, headers=_headers)
                 if r.is_success and r.json():
                     activity_items = r.json()
                     activity_enabled = True

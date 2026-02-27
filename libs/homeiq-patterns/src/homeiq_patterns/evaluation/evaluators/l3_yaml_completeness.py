@@ -12,6 +12,16 @@ import yaml
 from ..base_evaluator import DetailsEvaluator
 from ..models import EvaluationResult, SessionTrace
 
+# Templates known to require a condition block for correct behavior.
+# Kept at module level so evaluator subclasses can reference or extend it.
+CONDITION_EXPECTED_TEMPLATES: frozenset[str] = frozenset({
+    "tmpl_thermostat",
+    "tmpl_presence",
+    "tmpl_time_range",
+    "tmpl_energy_saving",
+    "tmpl_night_mode",
+})
+
 
 class YAMLCompletenessEvaluator(DetailsEvaluator):
     """L3 — Verify generated YAML has all required HA automation structure.
@@ -23,6 +33,7 @@ class YAMLCompletenessEvaluator(DetailsEvaluator):
       - trigger is list: 0.1  (HA 2024.x+ compliance)
       - action is list:  0.1  (HA 2024.x+ compliance)
       - no unresolved placeholders: 0.2
+      - condition present (bonus when template expects it): 0.1
     """
 
     name = "yaml_completeness"
@@ -82,10 +93,23 @@ class YAMLCompletenessEvaluator(DetailsEvaluator):
         else:
             checks.append(f"Unresolved: {placeholders}")
 
-        # Optional bonus: condition block present (0.1 bonus, capped at 1.0)
-        if "condition" in parsed and parsed["condition"]:
+        # Condition block check (0.1 bonus, capped at 1.0).
+        # When the session's template is known to require a condition, note
+        # its absence explicitly; otherwise treat it as a generic bonus.
+        template_id = session.metadata.get("template_id", "")
+        condition_expected = (
+            session.metadata.get("condition_expected")
+            or template_id in CONDITION_EXPECTED_TEMPLATES
+        )
+        has_condition = "condition" in parsed and parsed["condition"]
+
+        if has_condition:
             score_parts.append(0.1)
             checks.append("condition: present (bonus)")
+        elif condition_expected:
+            checks.append(
+                f"condition: MISSING (expected for template '{template_id}')"
+            )
 
         score = min(sum(score_parts), 1.0)
         label = "Complete" if score >= 0.8 else "Incomplete"

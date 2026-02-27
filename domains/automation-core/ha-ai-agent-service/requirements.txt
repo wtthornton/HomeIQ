@@ -24,7 +24,7 @@ aiosqlite>=0.20.0,<0.23.0  # Phase 1: aligned
 asyncpg>=0.30.0  # Phase 1C: PostgreSQL migration
 
 # OpenAI Integration (Epic AI-20)
-openai>=1.54.0,<3.0.0  # Phase 3: allow 1.x and 2.x (Feb 2026 upgrade)
+openai>=2.21.0,<3.0.0  # Phase 3: aligned with ai-automation/ai-query (Feb 2026 upgrade)
 tiktoken>=0.8.0,<1.0.0  # Phase 3: aligned (Feb 2026 upgrade)
 
 # Utilities

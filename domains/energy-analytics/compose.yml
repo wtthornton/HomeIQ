@@ -62,6 +62,9 @@ services:
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - MODEL_PATH=${ENERGY_MODEL_PATH:-/app/models/energy_forecaster}
+      - DATA_API_URL=http://data-api:8006
+      - DATA_API_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
       - energy_forecasting_models:/app/models
@@ -104,6 +107,10 @@ services:
       - WEATHER_API_URL=http://weather-api:8009
       - CARBON_INTENSITY_URL=http://carbon-intensity:8010
       - DATA_API_URL=http://data-api:8006
+      - DATA_API_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - HA_AGENT_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - DATA_COLLECTORS_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
