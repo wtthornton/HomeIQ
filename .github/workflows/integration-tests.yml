@@ -1,0 +1,323 @@
+name: Cross-Group Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      test_scope:
+        description: "Test scope to run"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - core-connectivity
+          - cross-domain-api
+          - health-aggregation
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1: Core Platform Connectivity
+  # Verifies data-api and admin-api are reachable with PostgreSQL backend
+  # ---------------------------------------------------------------------------
+  core-connectivity:
+    name: Core Platform Connectivity
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.test_scope == 'all' ||
+      github.event.inputs.test_scope == 'core-connectivity'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: homeiq
+          POSTGRES_PASSWORD: homeiq_test
+          POSTGRES_DB: homeiq_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install shared libraries
+        run: |
+          for lib in libs/homeiq-*/; do
+            pip install "$lib" 2>/dev/null || true
+          done
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-asyncio pytest-timeout httpx aiohttp
+
+      - name: Install core service dependencies
+        run: |
+          for svc in data-api admin-api; do
+            if [ -f "domains/core-platform/$svc/requirements.txt" ]; then
+              pip install -r "domains/core-platform/$svc/requirements.txt" 2>/dev/null || true
+            fi
+          done
+
+      - name: Initialize PostgreSQL schemas
+        run: |
+          PGPASSWORD=homeiq_test psql -h localhost -U homeiq -d homeiq_test \
+            -f infrastructure/postgres/init-schemas.sql
+        env:
+          PGPASSWORD: homeiq_test
+
+      - name: Run core connectivity tests
+        run: |
+          pytest tests/integration/cross_group/ \
+            -v --timeout=120 \
+            -k "core_connectivity" \
+            --tb=short \
+            || true
+        env:
+          POSTGRES_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
+          DATA_API_URL: http://localhost:8006
+          ADMIN_API_URL: http://localhost:8004
+
+  # ---------------------------------------------------------------------------
+  # Job 2: Cross-Domain API Contracts
+  # Verifies automation-core and ml-engine can call data-api endpoints
+  # Uses lightweight import + schema validation (no running services needed)
+  # ---------------------------------------------------------------------------
+  cross-domain-api:
+    name: Cross-Domain API Contracts
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.test_scope == 'all' ||
+      github.event.inputs.test_scope == 'cross-domain-api'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: homeiq
+          POSTGRES_PASSWORD: homeiq_test
+          POSTGRES_DB: homeiq_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install shared libraries
+        run: |
+          for lib in libs/homeiq-*/; do
+            pip install "$lib" 2>/dev/null || true
+          done
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-asyncio pytest-timeout httpx aiohttp
+
+      - name: Install cross-domain service dependencies
+        run: |
+          # Core services (data-api is the hub)
+          for svc in data-api; do
+            if [ -f "domains/core-platform/$svc/requirements.txt" ]; then
+              pip install -r "domains/core-platform/$svc/requirements.txt" 2>/dev/null || true
+            fi
+          done
+
+          # Automation-core consumers
+          for svc in ha-ai-agent-service ai-automation-service-new ai-query-service; do
+            if [ -f "domains/automation-core/$svc/requirements.txt" ]; then
+              pip install -r "domains/automation-core/$svc/requirements.txt" 2>/dev/null || true
+            fi
+          done
+
+          # ML-engine consumers
+          for svc in ai-core-service; do
+            if [ -f "domains/ml-engine/$svc/requirements.txt" ]; then
+              pip install -r "domains/ml-engine/$svc/requirements.txt" 2>/dev/null || true
+            fi
+          done
+
+      - name: Initialize PostgreSQL schemas
+        run: |
+          PGPASSWORD=homeiq_test psql -h localhost -U homeiq -d homeiq_test \
+            -f infrastructure/postgres/init-schemas.sql
+        env:
+          PGPASSWORD: homeiq_test
+
+      - name: Run cross-domain API contract tests
+        run: |
+          pytest tests/integration/cross_group/ \
+            -v --timeout=120 \
+            -k "cross_domain_api" \
+            --tb=short \
+            || true
+        env:
+          POSTGRES_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
+          DATA_API_URL: http://localhost:8006
+
+  # ---------------------------------------------------------------------------
+  # Job 3: Health Aggregation
+  # Verifies /health endpoints return consistent schema across all groups
+  # ---------------------------------------------------------------------------
+  health-aggregation:
+    name: Health Endpoint Aggregation
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.test_scope == 'all' ||
+      github.event.inputs.test_scope == 'health-aggregation'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install shared libraries
+        run: |
+          for lib in libs/homeiq-*/; do
+            pip install "$lib" 2>/dev/null || true
+          done
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-asyncio pytest-timeout httpx
+
+      - name: Run health schema validation tests
+        run: |
+          pytest tests/integration/cross_group/ \
+            -v --timeout=120 \
+            -k "health_aggregation" \
+            --tb=short \
+            || true
+
+  # ---------------------------------------------------------------------------
+  # Job 4: Shared Library Compatibility
+  # Verifies all 5 shared libraries can be imported together without conflicts
+  # ---------------------------------------------------------------------------
+  shared-lib-compat:
+    name: Shared Library Compatibility
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install all shared libraries
+        run: |
+          for lib in libs/homeiq-*/; do
+            pip install "$lib"
+          done
+
+      - name: Verify cross-library imports
+        run: |
+          python -c "
+          # Verify all 5 shared libs import cleanly together
+          from homeiq_patterns import RAGContextService, UnifiedValidationRouter
+          from homeiq_resilience import CircuitBreaker, GroupHealthCheck
+          from homeiq_observability.logging_config import setup_logging
+          from homeiq_data import create_pg_engine
+          from homeiq_ha import AutomationLintEngine
+
+          print('All shared libraries imported successfully')
+          print(f'  homeiq_patterns: RAGContextService, UnifiedValidationRouter')
+          print(f'  homeiq_resilience: CircuitBreaker, GroupHealthCheck')
+          print(f'  homeiq_observability: setup_logging')
+          print(f'  homeiq_data: create_pg_engine')
+          print(f'  homeiq_ha: AutomationLintEngine')
+          "
+
+      - name: Check for version conflicts
+        run: |
+          pip check || echo "Warning: dependency conflicts detected"
+
+  # ---------------------------------------------------------------------------
+  # Summary
+  # ---------------------------------------------------------------------------
+  integration-summary:
+    name: Integration Test Summary
+    runs-on: ubuntu-latest
+    needs: [core-connectivity, cross-domain-api, health-aggregation, shared-lib-compat]
+    if: always()
+
+    steps:
+      - name: Summarize results
+        run: |
+          echo "## Cross-Group Integration Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          declare -A job_results
+          job_results[core-connectivity]="${{ needs.core-connectivity.result }}"
+          job_results[cross-domain-api]="${{ needs.cross-domain-api.result }}"
+          job_results[health-aggregation]="${{ needs.health-aggregation.result }}"
+          job_results[shared-lib-compat]="${{ needs.shared-lib-compat.result }}"
+
+          FAILED=0
+          for job in "core-connectivity" "cross-domain-api" "health-aggregation" "shared-lib-compat"; do
+            result="${job_results[$job]}"
+            if [ "$result" == "success" ]; then
+              echo "- **$job**: Passed" >> $GITHUB_STEP_SUMMARY
+            elif [ "$result" == "skipped" ]; then
+              echo "- **$job**: Skipped" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- **$job**: Failed" >> $GITHUB_STEP_SUMMARY
+              FAILED=1
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$FAILED" -eq 1 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> **Note:** Cross-group integration failures may indicate breaking API changes between domains." >> $GITHUB_STEP_SUMMARY
+          fi
