@@ -12,9 +12,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from homeiq_observability.endpoints import create_integration_router, simple_health_router
 from src.config_manager import config_manager
+from src.health_endpoints import HealthEndpointManager
 
 health_router = simple_health_router
 integration_router = create_integration_router(config_manager)
+health_manager = HealthEndpointManager()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -51,6 +53,9 @@ app.include_router(health_router, prefix="/api/v1", tags=["Health"])
 
 # Include integration management router
 app.include_router(integration_router, prefix="/api/v1", tags=["Integration Management"])
+
+# Include health endpoint manager (group health, service health, dependencies, metrics)
+app.include_router(health_manager.router, tags=["Health Management"])
 
 
 @app.get("/")
