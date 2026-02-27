@@ -1,7 +1,7 @@
 # HomeIQ Rebuild and Deployment - Status Tracker
 
-**Last Updated:** February 25, 2026
-**Current Phase:** Phases 0-4 Complete; Phase 3 ML/AI deferred; Phase 4b Frontend Redesign planned; Phase 5-6 pending deployment validation
+**Last Updated:** February 27, 2026
+**Current Phase:** Phases 0-4 Complete; Phase 3 ML/AI deferred (prereqs tracked); Phase 4b Frontend Redesign complete; Phase 5-6 pending deployment validation
 **Overall Progress:** 66.7% (4/6 phases complete)
 
 ---
@@ -148,7 +148,7 @@ Prerequisites: Phases 1-2 stable in production 2+ weeks, ML models backed up, ro
 ## 📈 Progress Metrics
 
 ### Completion Status
-- **Phases Completed:** 4/6 (66.7%) — Phases 0, 1, 2, 4 complete; Phase 3 deferred; Phase 4b planned
+- **Phases Completed:** 5/6 (83.3%) — Phases 0, 1, 2, 4, 4b complete; Phase 3 deferred
 - **Files Changed:** 107 across 45+ services (Phases 1-2)
 - **Tests Passed:** 704 (all passing)
 - **Frontend Redesign:** 6 epics, 31 stories, ~118 points planned ([details](./frontend-redesign-plan.md))
@@ -236,6 +236,14 @@ Prerequisites: Phases 1-2 stable in production 2+ weeks, ML models backed up, ro
 
 ## 🔄 Change Log
 
+### February 27, 2026
+- ✅ Step 3.5: Cross-group integration test workflow committed (5 jobs, fixtures at `tests/integration/cross_group/`)
+- ✅ Step 4.5: AI fallback with CircuitBreaker — breakers in device_suggestion, capability_analyzer, ai_prompt_generation, device_validation services
+- ✅ Step 4.6: Group-level health dashboard — GET /health/groups endpoint, redesigned GroupsTab with color-coded badges and progress bars
+- ✅ Step 4.7: Cross-group bearer token auth — ServiceAuthValidator in homeiq-resilience, ha_agent_client and device_intelligence_client migrated to CrossGroupClient
+- ✅ Phase 4 Resilience now 7/7 complete
+- ✅ Phase 3 ML prereqs updated (5/9 done, earliest upgrade Mar 11)
+
 ### February 4, 2026
 - ✅ Phase 0 completed successfully
 - ✅ All 5 stories executed and validated
@@ -269,6 +277,6 @@ Prerequisites: Phases 1-2 stable in production 2+ weeks, ML models backed up, ro
 
 ---
 
-**Status:** ✅ Phases 0-2, 4 Complete | ⏳ Phase 3 Deferred | 📐 Phase 4b Planned | ⏳ Phases 5-6 Pending
-**Next Milestone:** Phase 4b Frontend Redesign (independent) or Phase 3 ML/AI upgrades (after production stability)
+**Status:** ✅ Phases 0-2, 4, 4b Complete | ⏳ Phase 3 Deferred | ⏳ Phases 5-6 Pending
+**Next Milestone:** Phase 3 ML/AI upgrades (earliest Mar 11 after production stability) or Phase 5 deployment
 **Project Health:** 🟢 GREEN

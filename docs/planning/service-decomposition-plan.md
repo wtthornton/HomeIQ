@@ -1,7 +1,7 @@
 # Implementation Plan: Service Decomposition (Option C — Criticality + Domain Hybrid)
 
 **Document Type:** Implementation Plan
-**Status:** Complete (All 5 Epics done; extended to 9 domains; CI/CD Phase 3 steps 3.5, 3.7 and Phase 4 steps 4.5-4.7 remaining)
+**Status:** Complete (All 5 Epics done; extended to 9 domains; CI/CD Phase 3 6/7 complete, step 3.7 remaining; Phase 4 Resilience 7/7 complete)
 **Created:** February 2026
 **Epic Reference:** Domain Architecture Restructuring (see `stories/epic-domain-architecture-restructuring.md`)
 **Approach:** Option C — Criticality + Domain Hybrid (extended from 6 groups to 9 domains)
@@ -63,8 +63,8 @@ All implementation work is tracked across 5 epics:
 ### Completion Timeline
 
 - **Epics 1-5:** Completed February 2026 (all 12 Epic 5 stories done — 47/49 services healthy, 704 tests passing, 70 Python files validated)
-- **Phase 3 CI/CD:** 5/7 steps complete (steps 3.1-3.4, 3.6 implemented). Remaining: step 3.5 (cross-group integration test workflow), step 3.7 (deprecate monolithic `test.yml`)
-- **Phase 4 Resilience:** 4/7 steps complete (4.1-4.4). Remaining: 4.5 (AI fallback), 4.6 (group-level dashboard), 4.7 (cross-group auth)
+- **Phase 3 CI/CD:** 6/7 steps complete (steps 3.1-3.6 implemented, step 3.5 done 2026-02-27). Remaining: step 3.7 (deprecate monolithic `test.yml`)
+- **Phase 4 Resilience:** 7/7 steps complete (4.1-4.4 done Feb 2026, 4.5-4.7 done 2026-02-27)
 
 ---
 
@@ -476,11 +476,11 @@ from homeiq_patterns import RAGContextService, UnifiedValidationRouter, PostActi
 
 ---
 
-### Phase 3: CI/CD Pipeline Split (Medium Risk) -- 5/7 COMPLETE
+### Phase 3: CI/CD Pipeline Split (Medium Risk) -- 6/7 COMPLETE
 
 **Goal:** Each group gets its own CI pipeline. Changes to Group 2 don't trigger Group 3 builds. Shared library changes cascade to all dependent groups.
 
-> **Status Note (Feb 2026):** Steps 3.1-3.4 and 3.6 are implemented. 9 domain CI workflows + reusable template + shared lib cascade all exist in `.github/workflows/`. Remaining: step 3.5 (cross-group integration test workflow) and step 3.7 (deprecate monolithic `test.yml`).
+> **Status Note (Feb 2026):** Steps 3.1-3.6 are implemented. 9 domain CI workflows + reusable template + shared lib cascade + cross-group integration tests all exist in `.github/workflows/`. Remaining: step 3.7 (deprecate monolithic `test.yml`).
 
 > **Best Practice Note:** Use reusable workflows to avoid duplication, concurrency groups to cancel superseded runs, and `workflow_dispatch` for cascade rebuilds. See [GitHub Actions Monorepo Guide](https://oneuptime.com/blog/post/2026-02-02-github-actions-monorepos/view) and [Monorepo Path Filters](https://oneuptime.com/blog/post/2025-12-20-monorepo-path-filters-github-actions/view).
 
@@ -490,7 +490,7 @@ from homeiq_patterns import RAGContextService, UnifiedValidationRouter, PostActi
 | 3.2 | Create path-scoped workflows per group | 9 workflow files (expanded from 6) that call the reusable template | Done |
 | 3.3 | Add concurrency groups per workflow | `concurrency: { group: ci-$GROUP-${{ github.ref }}, cancel-in-progress: true }` | Done |
 | 3.4 | Add shared library publish + cascade workflow | Triggers on `libs/**`, publishes package, dispatches all 9 group CIs | Done |
-| 3.5 | Add cross-group integration test workflow | `.github/workflows/integration-tests.yml` — triggers on `main` merges | In Progress |
+| 3.5 | Add cross-group integration test workflow | `.github/workflows/integration-tests.yml` — 5 jobs: core-connectivity, cross-domain-api, health-aggregation, shared-lib-compat, integration-summary. Fixtures at `tests/integration/cross_group/` | Done (2026-02-27) |
 | 3.6 | Add path trigger for compose file changes | Each `ci-*.yml` includes `domains/{group}/compose.yml` in paths | Done |
 | 3.7 | Deprecate monolithic workflow | `test.yml` refactored: python-tests matrix removed, E2E + integration jobs retained | Done (2026-02-25) |
 
@@ -604,11 +604,11 @@ jobs:
 
 ---
 
-### Phase 4: Inter-Group Resilience (Medium Risk) -- PARTIAL (4.1-4.4 Complete, 4.5-4.7 Pending)
+### Phase 4: Inter-Group Resilience (Medium Risk) -- COMPLETE (7/7)
 
 **Goal:** Services gracefully handle missing groups. If ml-engine is down, automation-intelligence degrades instead of crashing.
 
-**Status:** Steps 4.1-4.4 complete (February 2026). Steps 4.5-4.7 pending.
+**Status:** All 7 steps complete (4.1-4.4 February 2026, 4.5-4.7 done 2026-02-27).
 
 > **Best Practice Note:** For Docker Compose deployments (not Kubernetes), use application-level resilience — not a service mesh. Circuit breakers, exponential backoff retries, and structured health checks are the standard. See [Microservices Patterns](https://microservices.io/patterns/).
 
@@ -618,9 +618,9 @@ jobs:
 | 4.2 | Add circuit breakers at every cross-group boundary | Rolled out to ha-ai-agent, blueprint-suggestion, ai-pattern, ai-automation, proactive-agent, device-health-monitor | **Done** |
 | 4.3 | Implement structured health check responses | `/health` returns group-aware status with dependency health via GroupHealthCheck | **Done** |
 | 4.4 | Add startup retry loops | `wait_for_dependency()` non-fatal probes in all cross-group callers | **Done** |
-| 4.5 | Add fallback behavior for AI services | Cached/rule-based responses when ml-engine is unreachable | Pending |
-| 4.6 | Update health-dashboard to show group-level status | Color-coded group health indicators | Pending |
-| 4.7 | Add service-to-service authentication at group boundaries | Bearer token auth for cross-group API calls (already exists for data-api) | Pending |
+| 4.5 | Add fallback behavior for AI services | CircuitBreaker wrappers in device_suggestion_service, capability_analyzer, ai_prompt_generation_service, device_validation_service; cache-first fallbacks; new breakers.py for proactive-agent | Done (2026-02-27) |
+| 4.6 | Update health-dashboard to show group-level status | GET /health/groups endpoint with per-group aggregation; GroupsTab redesign with color-coded badges, expandable service lists, progress bars; 15 new service definitions in ServicesTab | Done (2026-02-27) |
+| 4.7 | Add service-to-service authentication at group boundaries | ServiceAuthValidator + require_service_auth FastAPI dependency in homeiq-resilience auth.py; ha_agent_client and device_intelligence_client migrated to CrossGroupClient with auth | Done (2026-02-27) |
 
 **Circuit breaker pattern (using `tenacity`):**
 ```python
