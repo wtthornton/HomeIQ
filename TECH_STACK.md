@@ -1,6 +1,6 @@
 # HomeIQ Tech Stack
 
-**Last Updated:** February 24, 2026
+**Last Updated:** February 27, 2026
 **Source of Truth:** Actual `requirements.txt`, `package.json`, and `Dockerfile` files in the codebase
 
 ---
