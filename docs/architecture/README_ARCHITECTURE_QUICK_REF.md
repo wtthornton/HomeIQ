@@ -101,7 +101,7 @@ HA → websocket-ingestion → InfluxDB (DIRECT)
 2. Subscribe to state_changed events
 3. Process and normalize events inline
 4. Write directly to InfluxDB
-5. Discover devices/entities → data-api → SQLite
+5. Discover devices/entities → data-api → PostgreSQL
 ```
 
 **Key Files:**
@@ -146,7 +146,7 @@ await influxdb.write_sports_data(sensors)
 
 **Queries:**
 - Events → InfluxDB
-- Devices/Entities → SQLite
+- Devices/Entities → PostgreSQL
 - Sports → InfluxDB
 - Analytics → InfluxDB
 
@@ -257,9 +257,9 @@ point = Point("home_assistant_events") \
 await influxdb.write(point)
 ```
 
-### Metadata → SQLite
+### Metadata → PostgreSQL
 
-**Use SQLite for:**
+**Use PostgreSQL for:**
 - Devices (manufacturer, model, etc.)
 - Entities (friendly_name, device_class, etc.)
 - Webhooks (team_id, event_type, etc.)
@@ -318,7 +318,7 @@ await influxdb_manager.write_points(points)
 |---------|------|---------|--------------|
 | websocket-ingestion | 8001 | HA event ingestion | InfluxDB, data-api |
 | admin-api | 8004 | System monitoring | All services |
-| data-api | 8006 | Query hub | InfluxDB, SQLite |
+| data-api | 8006 | Query hub | InfluxDB, PostgreSQL |
 | InfluxDB | 8086 | Time-series DB | None |
 | health-dashboard | 3000 | React UI | data-api, admin-api |
 
@@ -326,7 +326,7 @@ await influxdb_manager.write_points(points)
 
 | Service | Port | Purpose | Dependencies |
 |---------|------|---------|--------------|
-| data-retention | 8080 | Data lifecycle management | InfluxDB, SQLite |
+| data-retention | 8080 | Data lifecycle management | InfluxDB, PostgreSQL |
 | ha-setup-service | 8024 | HA health monitoring | HA, MQTT, Zigbee2MQTT |
 | weather-api | 8009 | Weather data | InfluxDB |
 | smart-meter-service | 8014 | Power monitoring | InfluxDB |
@@ -337,7 +337,7 @@ await influxdb_manager.write_points(points)
 | Service | Port | Purpose | Dependencies |
 |---------|------|---------|--------------|
 | ai-core-service | 8018 | AI orchestration | openvino, ml-service |
-| device-intelligence-service | 8028 | Device capabilities | SQLite |
+| device-intelligence-service | 8028 | Device capabilities | PostgreSQL |
 | openvino-service | 8026 | Embeddings/reranking | PyTorch |
 | ml-service | 8025 | Clustering/anomaly | scikit-learn |
 | energy-forecasting | 8042 | Energy predictions | InfluxDB |
@@ -352,7 +352,7 @@ await influxdb_manager.write_points(points)
 | electricity-pricing-service | 8011 | Pricing data | InfluxDB |
 | calendar-service | 8013 | HA calendar | InfluxDB |
 | log-aggregator | 8015 | Centralized logs | Docker |
-| automation-miner | 8029 | Community crawling | SQLite |
+| automation-miner | 8029 | Community crawling | PostgreSQL |
 | automation-linter | 8016 | YAML linting | None (standalone) |
 | ai-automation-ui | 3001 | AI automation UI | ai services |
 

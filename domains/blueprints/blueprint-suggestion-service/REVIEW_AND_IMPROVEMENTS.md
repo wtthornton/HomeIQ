@@ -447,7 +447,7 @@ Every single `GET /suggestions` call runs `check_schema_version(db)`, which quer
 **File**: `alembic.ini:9`
 
 ```ini
-sqlalchemy.url = sqlite+aiosqlite:///./data/blueprint_suggestions.db
+sqlalchemy.url = postgresql+asyncpg://homeiq:homeiq@homeiq-postgres:5432/homeiq
 ```
 
 This hardcoded URL will not respect the `DATABASE_URL` environment variable. In production with a different database, Alembic migrations would target the wrong database.
@@ -502,7 +502,7 @@ routes.py
             -> data_api_client.py  (HTTP -> data-api:8006)
             -> suggestion_scorer.py
                  -> ai-pattern-service (sys.path import -- problematic)
-       -> suggestion model (SQLAlchemy -> SQLite)
+       -> suggestion model (SQLAlchemy -> PostgreSQL)
 ```
 
 ### Positive Patterns Observed

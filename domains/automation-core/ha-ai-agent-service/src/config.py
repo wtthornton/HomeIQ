@@ -132,8 +132,8 @@ class Settings(BaseSettings):
 
     # Database Configuration
     database_url: str = Field(
-        default="sqlite+aiosqlite:///./data/ha_ai_agent.db",
-        description="SQLite database URL for context cache and conversations"
+        default="",
+        description="Database URL (set POSTGRES_URL env var for PostgreSQL)"
     )
     conversation_ttl_days: int = Field(
         default=30,

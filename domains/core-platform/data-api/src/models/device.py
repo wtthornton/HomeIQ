@@ -1,5 +1,5 @@
 """
-Device Model for SQLite Storage
+Device Model for Database Storage
 Story 22.2 - Simple device registry
 Phase 1.1: Enhanced with device intelligence fields
 """

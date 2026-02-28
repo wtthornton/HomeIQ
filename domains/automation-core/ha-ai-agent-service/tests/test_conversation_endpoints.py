@@ -20,7 +20,7 @@ from src.services.context_builder import ContextBuilder
 async def settings():
     """Create test settings with in-memory database"""
     test_settings = Settings(
-        database_url="sqlite+aiosqlite:///:memory:"
+        database_url="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq"
     )
     # Initialize database
     await init_database(test_settings.database_url)

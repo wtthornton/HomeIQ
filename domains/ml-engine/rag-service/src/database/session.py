@@ -2,17 +2,16 @@
 Database Session Management
 
 Provides async database session factory and initialization.
-Following 2025 patterns: SQLAlchemy async with aiosqlite.
+PostgreSQL via homeiq_data shared library.
 """
 
 import logging
 import os
-from pathlib import Path
 
-from sqlalchemy import event
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
-from sqlalchemy.pool import StaticPool
+
+from homeiq_data.database_pool import create_pg_engine
 
 from ..config import settings
 
@@ -21,44 +20,14 @@ logger = logging.getLogger(__name__)
 # Base class for database models
 Base = declarative_base()
 
-# Dual-mode PostgreSQL/SQLite support (Epic 39)
+# PostgreSQL configuration
 _pg_url = os.getenv("POSTGRES_URL") or ""
-_is_postgres = _pg_url.startswith("postgresql") or _pg_url.startswith("postgres")
 _schema = os.getenv("DATABASE_SCHEMA", "rag")
 
-if _is_postgres:
-    from homeiq_data.database_pool import create_pg_engine
-    engine = create_pg_engine(
-        database_url=_pg_url,
-        schema=_schema,
-    )
-else:
-    # Database URL
-    database_url = f"sqlite+aiosqlite:///{settings.database_path}"
-
-    # Create async engine with StaticPool for SQLite
-    engine = create_async_engine(
-        database_url,
-        poolclass=StaticPool,
-        connect_args={
-            "check_same_thread": False,
-            "timeout": 30.0,  # 30 second timeout for database operations
-        },
-        echo=settings.database_echo,
-    )
-
-    # Set PRAGMA settings on connection pool initialization
-    @event.listens_for(engine.sync_engine, "connect")
-    def set_sqlite_pragma(dbapi_conn, connection_record):  # noqa: ARG001
-        """Set SQLite PRAGMA settings for optimal performance."""
-        cursor = dbapi_conn.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging for concurrent reads
-        cursor.execute("PRAGMA synchronous=NORMAL")  # Fast writes, survives OS crash
-        cursor.execute("PRAGMA cache_size=-64000")  # 64MB cache (negative = KB)
-        cursor.execute("PRAGMA temp_store=MEMORY")  # Fast temp tables
-        cursor.execute("PRAGMA foreign_keys=ON")  # Referential integrity
-        cursor.execute("PRAGMA busy_timeout=30000")  # 30s lock wait (vs fail immediately)
-        cursor.close()
+engine = create_pg_engine(
+    database_url=_pg_url,
+    schema=_schema,
+)
 
 # Session factory
 async_session_maker = async_sessionmaker(
@@ -98,10 +67,6 @@ async def init_db() -> None:
     """
     logger.info(f"Initializing database: {settings.database_path}")
 
-    # Ensure database directory exists
-    db_path = Path(settings.database_path)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-
     try:
         from sqlalchemy import text
 
@@ -116,7 +81,7 @@ async def init_db() -> None:
         async with engine.begin() as conn:
             await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn))
 
-        logger.info("✅ Database initialized successfully")
+        logger.info("Database initialized successfully")
     except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}", exc_info=True)
+        logger.error(f"Database initialization failed: {e}", exc_info=True)
         raise

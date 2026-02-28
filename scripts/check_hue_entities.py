@@ -1,29 +1,27 @@
 #!/usr/bin/env python3
 """Check Hue entities in database"""
-import sqlite3
-import sys
 import os
+import sys
 
-db_path = 'services/data-api/data/metadata.db'
+import psycopg2
 
-if not os.path.exists(db_path):
-    print(f"Database not found at {db_path}")
-    sys.exit(1)
+# PostgreSQL connection URL
+POSTGRES_URL = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
 
-conn = sqlite3.connect(db_path)
+conn = psycopg2.connect(POSTGRES_URL)
 cursor = conn.cursor()
 
 # Check total entities
-cursor.execute('SELECT COUNT(*) FROM entities')
+cursor.execute('SELECT COUNT(*) FROM core.entities')
 total = cursor.fetchone()[0]
 print(f"Total entities in database: {total}\n")
 
 # Check Hue entities
 cursor.execute("""
-    SELECT entity_id, name, name_by_user, original_name, friendly_name 
-    FROM entities 
-    WHERE entity_id LIKE '%hue%' 
-    ORDER BY entity_id 
+    SELECT entity_id, name, name_by_user, original_name, friendly_name
+    FROM core.entities
+    WHERE entity_id LIKE '%%hue%%'
+    ORDER BY entity_id
     LIMIT 20
 """)
 rows = cursor.fetchall()
@@ -49,9 +47,9 @@ specific = [
 print("\nChecking specific devices:")
 for entity_id in specific:
     cursor.execute("""
-        SELECT entity_id, name, name_by_user, original_name, friendly_name 
-        FROM entities 
-        WHERE entity_id = ?
+        SELECT entity_id, name, name_by_user, original_name, friendly_name
+        FROM core.entities
+        WHERE entity_id = %s
     """, (entity_id,))
     row = cursor.fetchone()
     if row:
@@ -65,4 +63,3 @@ for entity_id in specific:
         print(f"\n{entity_id}: NOT FOUND")
 
 conn.close()
-

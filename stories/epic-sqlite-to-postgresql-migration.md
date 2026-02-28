@@ -1,7 +1,7 @@
 ---
 epic: sqlite-to-postgresql-migration
 priority: critical
-status: in-progress
+status: complete
 estimated_duration: 3-4 weeks
 risk_level: high
 source: docs/planning/sqlite-to-postgresql-migration-plan.md
@@ -9,7 +9,11 @@ source: docs/planning/sqlite-to-postgresql-migration-plan.md
 
 # Epic: SQLite to PostgreSQL Migration
 
-**Status:** In Progress (29/30 stories complete)
+## STATUS: COMPLETE (Feb 2026)
+
+All 30/30 stories complete. SQLite fully removed from codebase. PostgreSQL is the sole database.
+
+**Status:** Complete (30/30 stories)
 **Priority:** Critical
 **Duration:** 3-4 weeks
 **Risk Level:** High
@@ -84,13 +88,13 @@ Migrate all 10 SQLite databases across 15 services to a single PostgreSQL 17 ins
 - **Story 5.6** (device-database-client → `devices`): Complete — Cache pattern evaluated and migrated
 - **Story 5.7** (Data Migration Scripts): Complete — All remaining migration scripts in `scripts/migrate-data/`
 
-### Epic 6: Validation, Cleanup & Cutover — In Progress (4/5)
+### Epic 6: Validation, Cleanup & Cutover — Complete (5/5)
 
-- **Story 6.1** (Remove SQLite Dependencies): Complete — All 15 services have dual-mode support; SQLite fallback retained for rollback
-- **Story 6.2** (Full Stack Integration Testing): Complete — Health checks pass with both backends
+- **Story 6.1** (Remove SQLite Dependencies): Complete — All 15 services have dual-mode support
+- **Story 6.2** (Full Stack Integration Testing): Complete — Health checks pass with PostgreSQL
 - **Story 6.3** (Backup and Monitoring): Complete — `scripts/backup-postgres.sh` with per-schema dumps, 30-day retention
 - **Story 6.4** (Documentation): Complete — Migration plan updated, architecture docs reflect PostgreSQL
-- **Story 6.5** (Final SQLite Volume Removal): **Pending** — Awaiting 1-2 week stabilization period before removing SQLite volumes and fallback code
+- **Story 6.5** (Final SQLite Volume Removal): **Complete** — All SQLite code, volumes, and fallback paths removed from codebase
 
 ---
 
@@ -110,13 +114,13 @@ Migrate all 10 SQLite databases across 15 services to a single PostgreSQL 17 ins
 | 7 compose files | POSTGRES_URL, DATABASE_SCHEMA env vars |
 | 40+ requirements.txt | asyncpg, psycopg dependencies added |
 
-## Rollback Strategy
+## Rollback Strategy (Historical)
 
-Every service maintains dual-mode capability:
+> **Note:** SQLite has been fully removed. PostgreSQL is now the sole database. The rollback strategy below was used during the migration period.
+
 1. `DATABASE_URL` env var controls which backend is active
-2. To rollback: change `DATABASE_URL` back to `sqlite+aiosqlite://...` in compose
-3. SQLite volumes retained for 2 weeks after cutover (Story 6.5)
-4. Rollback is instant — restart service with old env var
+2. PostgreSQL backups via `scripts/backup-postgres.sh` with per-schema dumps and 30-day retention
+3. Disaster recovery documented in `docs/operations/disaster-recovery.md`
 
 ---
 

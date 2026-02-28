@@ -60,7 +60,7 @@ Phase 6: Post-Deployment Validation ⏳ [          ] PENDING
 
 | Item | Target Date | Duration | Blocker |
 |------|------------|----------|---------|
-| Story 6.5: SQLite cutover | Mar 10 | 3-4 hours | PG stability window |
+| ~~Story 6.5: Legacy DB removal~~ | Feb 27 | Complete | PostgreSQL is sole database |
 | Phase 3: ML/AI upgrades | Mar 11 | 2-3 weeks | 2-week stability |
 | Phase 5: Deployment | Mar 5-12 | 5 days | Can proceed now |
 | Phase 6: Validation | After Phase 5 | 3 days | Phase 5 |
@@ -73,7 +73,7 @@ Phase 6: Post-Deployment Validation ⏳ [          ] PENDING
 |----------|------|
 | Detailed Status | [docs/planning/rebuild-status.md](docs/planning/rebuild-status.md) |
 | Phase 3 Readiness | [docs/planning/phase-3-readiness-report.md](docs/planning/phase-3-readiness-report.md) |
-| Story 6.5 Cutover | [docs/planning/story-6.5-sqlite-cutover-plan.md](docs/planning/story-6.5-sqlite-cutover-plan.md) |
+| PostgreSQL Migration | Complete — PostgreSQL is sole database |
 | Phase 5 Deployment | [docs/planning/phase-5-deployment-plan.md](docs/planning/phase-5-deployment-plan.md) |
 | Quality Audit | [docs/planning/quality-audit-report.md](docs/planning/quality-audit-report.md) |
 | Deploy Script | [scripts/deploy-phase-5.sh](scripts/deploy-phase-5.sh) |

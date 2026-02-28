@@ -870,9 +870,9 @@ pydantic-settings==2.12.0
 httpx>=0.28.1,<0.29.0
 aiohttp==3.13.3
 
-# Database (if used)
+# Database (PostgreSQL)
 sqlalchemy[asyncio]==2.0.46
-aiosqlite==0.22.1
+asyncpg==0.30.0
 alembic==1.18.3
 
 # Database Clients (if used)
@@ -1041,7 +1041,7 @@ echo "Update complete for $SERVICE_PATH ($PHASE)"
 ### Python Service Checklist
 
 - [ ] Import all modules successfully
-- [ ] Database connections work (SQLAlchemy, aiosqlite)
+- [ ] Database connections work (SQLAlchemy, asyncpg)
 - [ ] API endpoints return expected responses
 - [ ] Authentication/authorization working
 - [ ] Background jobs/tasks execute correctly

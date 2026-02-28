@@ -55,7 +55,7 @@ pytest --cov=src --cov-report=html
 ## Test Fixtures
 
 ### Database Fixtures
-- `test_db` - In-memory SQLite database session (fresh for each test)
+- `test_db` - In-memory PostgreSQL database session (fresh for each test)
 
 ### Sample Data Fixtures
 - `sample_pattern_data` - Sample pattern dictionary
@@ -75,7 +75,7 @@ pytest --cov=src --cov-report=html
 ## Notes
 
 - Pattern and SynergyOpportunity models are in shared database
-- Tests use in-memory SQLite with minimal schema
+- Tests use in-memory PostgreSQL with minimal schema
 - Some tests may require external services (marked with `@pytest.mark.requires_data_api` or `@pytest.mark.requires_mqtt`)
 - Integration tests for 2025 enhancements include:
   - Mocked external context data (weather, energy)

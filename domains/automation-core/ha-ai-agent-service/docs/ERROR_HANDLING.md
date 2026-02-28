@@ -212,7 +212,7 @@ Database connection failed
 ```
 
 **Causes:**
-- SQLite file locked
+- PostgreSQL file locked
 - Disk full
 - Permission issues
 
@@ -330,7 +330,7 @@ docker exec homeiq-ha-ai-agent-service curl -v https://api.openai.com/v1/models
 **Diagnosis:**
 ```bash
 # Check database
-docker exec homeiq-ha-ai-agent-service sqlite3 /app/data/ha_ai_agent.db ".tables"
+docker exec homeiq-ha-ai-agent-service psql /app/data/ha_ai_agent.db ".tables"
 
 # Check volume mount
 docker volume inspect homeiq_ha_ai_agent_data

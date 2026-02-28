@@ -11,9 +11,9 @@ This document describes the shared infrastructure components set up for Epic 39 
 **Location:** `libs/homeiq-patterns/correlation_cache.py`
 
 **Features:**
-- SQLite-backed persistent cache
+- PostgreSQL-backed persistent cache
 - In-memory LRU cache for fast lookups
-- Two-tier caching (memory + SQLite)
+- Two-tier caching (memory + PostgreSQL)
 - Automatic cache invalidation
 - Thread-safe for async usage
 
@@ -58,7 +58,7 @@ print(f"Hit rate: {stats['hit_rate_percent']}%")
 from shared.database_pool import create_shared_session_maker
 
 AsyncSessionLocal = create_shared_session_maker(
-    database_url="sqlite+aiosqlite:////app/data/ai_automation.db",
+    database_url="postgresql+asyncpg://homeiq:homeiq@homeiq-postgres:5432/homeiq",
     pool_size=10,
     max_overflow=5
 )
@@ -122,12 +122,9 @@ All services share:
 ### Environment Variables
 
 ```bash
-# Shared database
-DATABASE_URL=sqlite+aiosqlite:////app/data/ai_automation.db
-DATABASE_PATH=/app/data/ai_automation.db
-
-# Cache
-CORRELATION_CACHE_DB=/app/data/correlation_cache.db
+# Shared database (PostgreSQL)
+DATABASE_URL=postgresql+asyncpg://homeiq:homeiq@homeiq-postgres:5432/homeiq
+POSTGRES_SCHEMA=automation
 
 # Service URLs (for inter-service communication)
 DATA_API_URL=http://data-api:8006
@@ -142,7 +139,7 @@ AI_PATTERN_SERVICE_URL=http://ai-pattern-service:8016
 ### Cache Performance
 - Hit rate: >80%
 - Memory cache lookup: <1ms
-- SQLite cache lookup: <5ms
+- PostgreSQL cache lookup: <5ms
 
 ### Database Connection Pool
 - Connection acquisition: <10ms

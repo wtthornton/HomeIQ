@@ -5,7 +5,7 @@
 **Port:** 8020 (internal), exposed as 8027 (external)
 **Technology:** Python 3.11+, FastAPI, SQLAlchemy, AsyncIO
 **Container:** homeiq-ha-setup-service
-**Database:** SQLite (ha-setup.db)
+**Database:** PostgreSQL (schema: `devices`)
 **Scale:** Optimized for single Home Assistant instance
 
 ## Overview
@@ -430,7 +430,7 @@ Root endpoint with service information and available endpoints.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `sqlite+aiosqlite:////app/data/ha-setup.db` | SQLite database URL (absolute path for Docker) |
+| `DATABASE_URL` | `postgresql+asyncpg:////app/data/ha-setup.db` | PostgreSQL database URL (absolute path for Docker) |
 
 #### API Configuration
 
@@ -519,14 +519,14 @@ curl http://localhost:8027/api/optimization/analyze
 - **admin-api** (Port 8003) - System control
 - **MQTT Broker** (Optional) - MQTT integration health checks (typically 192.168.1.86:1883)
 - **Zigbee2MQTT** (Optional) - Zigbee integration monitoring
-- **SQLite Database** - Health history and validation results
+- **PostgreSQL Database** - Health history and validation results
 
 ### Python Dependencies
 
 - `fastapi` - Web framework
 - `uvicorn` - ASGI server
 - `sqlalchemy` - Database ORM with async support
-- `aiosqlite` - Async SQLite driver
+- `asyncpg` - Async PostgreSQL driver
 - `pydantic` - Configuration management and validation
 - `pydantic-settings` - Environment variable loading
 - `aiohttp` - Async HTTP client for HA API calls
@@ -625,7 +625,7 @@ All logs follow structured logging format:
 - **HA Token** - Automatically loaded from `infrastructure/.env.websocket`
 - **CORS Configuration** - Allows localhost:3000 and localhost:3001
 - **No Public Exposure** - Internal service, assumes trusted network
-- **SQLite Security** - Database file permissions restricted to service user
+- **PostgreSQL Security** - Database file permissions restricted to service user
 
 ## Troubleshooting
 

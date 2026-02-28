@@ -9,8 +9,11 @@ import pytest
 import pytest_asyncio
 
 # Set test database URL BEFORE any imports
-# This ensures the database module uses in-memory database for tests
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+# This ensures the database module uses the test PostgreSQL database
+os.environ["DATABASE_URL"] = os.environ.get(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq_test",
+)
 # Allow data-api to start without DATA_API_API_KEY (for test_main and app imports)
 os.environ.setdefault("DATA_API_ALLOW_ANONYMOUS", "true")
 
@@ -74,10 +77,10 @@ def mock_influxdb():
         yield mock
 
 
-# ✅ Context7 Best Practice: Shared SQLite mock fixture
+# ✅ Context7 Best Practice: Shared database mock fixture
 @pytest.fixture
-def mock_sqlite():
-    """Mock SQLite database for testing"""
+def mock_database():
+    """Mock database for testing"""
     with patch('src.database.get_session') as mock:
         yield mock
 
@@ -86,7 +89,7 @@ def mock_sqlite():
 @pytest_asyncio.fixture(autouse=True)
 async def fresh_db():
     """
-    Create a fresh in-memory database for each test.
+    Create a fresh PostgreSQL database for each test.
     Ensures tests don't interfere with each other and use latest schema.
     """
     from src.database import Base, async_engine
@@ -100,11 +103,10 @@ async def fresh_db():
         await conn.run_sync(Base.metadata.drop_all)
         # Create all tables with latest schema
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield
-    
+
     # Cleanup: Delete all data but keep table structure
-    # This preserves the SQLAlchemy mapping while clearing test data
     async with async_engine.begin() as conn:
         # Delete all rows from all tables
         for table in reversed(Base.metadata.sorted_tables):

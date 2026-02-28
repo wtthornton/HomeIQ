@@ -92,7 +92,7 @@ The codebase demonstrates solid structural discipline, good observability patter
 **Strengths:**
 - Singleton engine per URL prevents connection pool exhaustion.
 - `pool_pre_ping=True` catches stale connections automatically.
-- Dual-mode support (PostgreSQL / SQLite) with clear code paths.
+- PostgreSQL as sole database backend with schema-per-domain isolation.
 - `create_pg_engine` correctly uses a `connect` event listener for `search_path` isolation.
 
 **Issues:**

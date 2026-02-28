@@ -8,7 +8,7 @@
 
 ## Overview
 
-The Agent Evaluation Framework continuously measures AI agent quality across a **5-level Evaluation Pyramid**: Outcome, Path, Details, Quality, and Safety. It runs scheduled evaluations, stores results in InfluxDB + SQLite, surfaces scores in the health-dashboard, and alerts operators when thresholds are violated.
+The Agent Evaluation Framework continuously measures AI agent quality across a **5-level Evaluation Pyramid**: Outcome, Path, Details, Quality, and Safety. It runs scheduled evaluations, stores results in InfluxDB + PostgreSQL, surfaces scores in the health-dashboard, and alerts operators when thresholds are violated.
 
 ### SessionTracer Wiring Status (February 2026)
 
@@ -41,7 +41,7 @@ The decorator uses conditional imports — services still start normally if `hom
 ┌────────────────────────────────────┐
 │  EvaluationStore                   │  libs/homeiq-patterns/src/homeiq_patterns/evaluation/store.py
 │  InfluxDB (time-series scores)     │
-│  SQLite   (session details)        │
+│  PostgreSQL   (session details)        │
 └────────────┬───────────────────────┘
              │
              ▼
@@ -269,7 +269,7 @@ python -m shared.patterns.evaluation.run_evaluation --agent my-new-agent
 **Symptoms:** Dashboard shows old timestamps, trends not updating
 **Causes:**
 - Scheduler not running (service stopped)
-- InfluxDB connection failed (degraded mode — SQLite only)
+- InfluxDB connection failed (degraded mode — PostgreSQL only)
 - Retention cleanup too aggressive
 
 **Fix:** Check data-api health endpoint: `GET /api/v1/evaluations/health`. Verify InfluxDB connection at `GET /health`.
@@ -306,7 +306,7 @@ python -m shared.patterns.evaluation.run_evaluation --agent my-new-agent
 | Store | Default Retention | Configuration |
 |-------|-------------------|---------------|
 | InfluxDB (time-series scores) | 90 days | `influxdb_retention_days` in EvaluationStore |
-| SQLite (session details) | 30 days | `sqlite_retention_days` in EvaluationStore |
+| PostgreSQL (session details) | 30 days | `postgresql_retention_days` in EvaluationStore |
 
 Cleanup runs automatically via `store.cleanup_expired()`.
 

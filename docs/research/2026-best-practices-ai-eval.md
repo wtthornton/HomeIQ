@@ -116,7 +116,7 @@ HomeIQ implements a sophisticated 5-level evaluation pyramid:
 - **L4 Quality:** 11 rubrics (correctness, faithfulness, coherence, helpfulness, instruction-following, response-relevance, system prompt rules)
 - **L5 Safety:** Harmfulness, refusal evaluators (per-response scope)
 
-**Total:** 20 evaluators, 394+ tests, InfluxDB time-series storage, SQLite session details, REST API for dashboards.
+**Total:** 20 evaluators, 394+ tests, InfluxDB time-series storage, PostgreSQL session details, REST API for dashboards.
 
 This is **well-ahead of the 2026 average** (most companies are at 3-5 evaluators).
 
@@ -136,7 +136,7 @@ This is **well-ahead of the 2026 average** (most companies are at 3-5 evaluators
 **Strengths:**
 - ✅ Scheduler-based evaluations (decoupled from request path)
 - ✅ InfluxDB for time-series trends (essential for regression detection)
-- ✅ SQLite session-level audit trail
+- ✅ PostgreSQL session-level audit trail
 - ✅ REST API for dashboard integration
 - ✅ Alert lifecycle management (active → acknowledged → resolved)
 - ✅ Deterministic path-rule exceptions (Story 4.3 via metadata checks)
@@ -482,7 +482,7 @@ The decision is not whether to centralize, but **when** (now vs Q2 2026).
 | **Session tracing** (L0) | ~60% (ha-ai-agent only) | 2 of 4 agents |
 | **Evaluation pyramid** (L1-L5) | Excellent (20 evaluators) | All agents |
 | **Time-series metrics** (InfluxDB) | Excellent | Evaluation results |
-| **Historical audit trail** (SQLite) | Good | Session details |
+| **Historical audit trail** (PostgreSQL) | Good | Session details |
 | **REST API + Dashboard** | Good | Trends, alerts |
 | **Regression detection** (CI) | In progress (Story 5.2) | New PRs only |
 | **RAG context observability** | Partial (missing proactive) | 3 of 4 agents |

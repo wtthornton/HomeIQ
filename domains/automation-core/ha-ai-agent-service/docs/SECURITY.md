@@ -148,7 +148,7 @@ app.add_middleware(
 
 ## Database Security
 
-### SQLite Database
+### PostgreSQL Database
 
 **Location:**
 - `/app/data/ha_ai_agent.db` (container)
@@ -278,7 +278,7 @@ async def authenticate(request: Request, call_next):
 ### Conversation Storage
 
 **Storage:**
-- SQLite database (conversations, messages)
+- PostgreSQL database (conversations, messages)
 - TTL-based cleanup (30 days default)
 
 **Privacy:**

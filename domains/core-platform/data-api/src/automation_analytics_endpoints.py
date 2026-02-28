@@ -2,7 +2,7 @@
 Automation analytics endpoints — query automation performance,
 frequency, errors, and improvement opportunities.
 
-All data sourced from SQLite (automations + automation_executions tables)
+All data sourced from the database (automations + automation_executions tables)
 with optional InfluxDB queries for time-series aggregation.
 """
 

@@ -48,9 +48,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = Field(default="INFO", description="Logging level")
 
     # Database Configuration
-    SQLITE_DATABASE_URL: str = Field(
-        default="sqlite:///./data/device_intelligence.db",
-        description="SQLite database URL"
+    DATABASE_URL: str = Field(
+        default="",
+        description="Database URL (set POSTGRES_URL env var for PostgreSQL)"
     )
     REDIS_URL: str = Field(
         default="redis://redis:6379/0",
@@ -276,7 +276,7 @@ class Settings(BaseSettings):
 
     def get_database_url(self) -> str:
         """Get the database URL for SQLAlchemy."""
-        return self.SQLITE_DATABASE_URL
+        return self.DATABASE_URL
 
     def get_redis_url(self) -> str:
         """Get the Redis URL for caching."""

@@ -11,12 +11,14 @@ import argparse
 import json
 import logging
 import os
-import sqlite3
 import sys
 import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict
+
+import psycopg2
+import psycopg2.extras
 
 # Suppress TRANSFORMERS_CACHE deprecation warnings
 warnings.filterwarnings("ignore", category=FutureWarning, message=".*TRANSFORMERS_CACHE.*")
@@ -27,10 +29,10 @@ logger = logging.getLogger(__name__)
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train soft prompt adapter from Ask AI history")
     parser.add_argument(
-        "--db-path",
-        type=Path,
-        default=Path("data/ai_automation.db"),
-        help="Path to the ai_automation SQLite database",
+        "--pg-url",
+        type=str,
+        default=os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq"),
+        help="PostgreSQL connection URL",
     )
     parser.add_argument(
         "--output-dir",
@@ -120,23 +122,22 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_training_examples(db_path: Path, limit: int) -> List[Dict[str, str]]:
-    if not db_path.exists():
-        raise FileNotFoundError(f"SQLite database not found at {db_path}")
-
+def load_training_examples(pg_url: str, limit: int) -> List[Dict[str, str]]:
     query = """
         SELECT original_query, suggestions
-        FROM ask_ai_queries
+        FROM automation.ask_ai_queries
         WHERE suggestions IS NOT NULL
         ORDER BY created_at DESC
-        LIMIT ?
+        LIMIT %s
     """
 
     examples: List[Dict[str, str]] = []
 
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        for row in conn.execute(query, (limit,)):
+    conn = psycopg2.connect(pg_url)
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute(query, (limit,))
+        for row in cursor:
             original_query = row["original_query"] or ""
             raw_suggestions = row["suggestions"]
 
@@ -166,6 +167,8 @@ def load_training_examples(db_path: Path, limit: int) -> List[Dict[str, str]]:
                             "response": response_text.strip(),
                         }
                     )
+    finally:
+        conn.close()
 
     return examples
 
@@ -232,7 +235,7 @@ def main():
 
     run_identifier = args.run_id or datetime.utcnow().strftime("run_%Y%m%d_%H%M%S")
 
-    examples = load_training_examples(args.db_path, args.max_samples)
+    examples = load_training_examples(args.pg_url, args.max_samples)
     if not examples:
         logger.error("No Ask AI labelled data available. Nothing to train.")
         return

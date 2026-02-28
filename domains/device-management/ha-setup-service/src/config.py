@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     home_assistant_token: str = ""
 
     # Database configuration
-    database_url: str = "sqlite+aiosqlite:////app/data/ha-setup.db"  # Absolute path for Docker volume
+    database_url: str = ""  # Set via POSTGRES_URL or DATABASE_URL env var
 
     # Data API configuration
     data_api_url: str = "http://homeiq-data-api:8006"

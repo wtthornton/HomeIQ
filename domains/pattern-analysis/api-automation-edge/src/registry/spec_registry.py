@@ -8,10 +8,10 @@ import hashlib
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import Column, DateTime, Integer, String, Text, create_engine, event
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, create_engine, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -19,9 +19,8 @@ from ..config import settings
 
 logger = logging.getLogger(__name__)
 
-# Dual-mode PostgreSQL/SQLite support (Epic 39)
+# PostgreSQL configuration
 _pg_url = os.getenv("POSTGRES_URL") or ""
-_is_postgres = _pg_url.startswith("postgresql") or _pg_url.startswith("postgres")
 _schema = os.getenv("DATABASE_SCHEMA", "patterns")
 
 Base = declarative_base()
@@ -37,9 +36,9 @@ class SpecVersion(Base):
     home_id = Column(String, index=True, nullable=False)
     spec_hash = Column(String, unique=True, nullable=False, index=True)
     spec_content = Column(Text, nullable=False)  # JSON string
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
     deployed_at = Column(DateTime, nullable=True)
-    is_active = Column(String, default="false")  # "true" or "false" for SQLite compatibility
+    is_active = Column(Boolean, default=False)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary"""
@@ -52,7 +51,7 @@ class SpecVersion(Base):
             "spec_content": json.loads(self.spec_content),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "deployed_at": self.deployed_at.isoformat() if self.deployed_at else None,
-            "is_active": self.is_active == "true"
+            "is_active": self.is_active
         }
 
 
@@ -71,33 +70,25 @@ class SpecRegistry:
         Initialize spec registry.
 
         Args:
-            database_url: Database URL (defaults to settings, ignored for PostgreSQL)
+            database_url: Database URL (defaults to PostgreSQL via POSTGRES_URL)
         """
-        if _is_postgres and not database_url:
-            # PostgreSQL mode: use sync driver (psycopg2)
-            # Convert asyncpg URL to psycopg2 if needed
-            pg_sync_url = _pg_url.replace("+asyncpg", "")
-            self.database_url = pg_sync_url
-            self.engine = create_engine(
-                pg_sync_url,
-                pool_size=10,
-                max_overflow=5,
-                pool_recycle=3600,
-                pool_pre_ping=True,
-            )
+        # PostgreSQL mode: use sync driver (psycopg2)
+        # Convert asyncpg URL to psycopg2 if needed
+        pg_sync_url = (database_url or _pg_url).replace("+asyncpg", "")
+        self.database_url = pg_sync_url
+        self.engine = create_engine(
+            pg_sync_url,
+            pool_size=10,
+            max_overflow=5,
+            pool_recycle=3600,
+            pool_pre_ping=True,
+        )
 
-            @event.listens_for(self.engine, "connect")
-            def set_search_path(dbapi_conn, _connection_record):
-                cursor = dbapi_conn.cursor()
-                cursor.execute(f"SET search_path TO {_schema}, public")
-                cursor.close()
-        else:
-            # SQLite mode (original behavior)
-            self.database_url = database_url or settings.database_url
-            self.engine = create_engine(
-                self.database_url,
-                connect_args={"check_same_thread": False} if "sqlite" in self.database_url else {}
-            )
+        @event.listens_for(self.engine, "connect")
+        def set_search_path(dbapi_conn, _connection_record):
+            cursor = dbapi_conn.cursor()
+            cursor.execute(f"SET search_path TO {_schema}, public")
+            cursor.close()
 
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
 
@@ -161,7 +152,7 @@ class SpecRegistry:
                 db.query(SpecVersion).filter(
                     SpecVersion.spec_id == spec_id,
                     SpecVersion.home_id == home_id
-                ).update({"is_active": "false"})
+                ).update({"is_active": False})
 
             # Create new version
             spec_version = SpecVersion(
@@ -170,8 +161,8 @@ class SpecRegistry:
                 home_id=home_id,
                 spec_hash=spec_hash,
                 spec_content=spec_content,
-                deployed_at=datetime.utcnow() if deploy else None,
-                is_active="true" if deploy else "false"
+                deployed_at=datetime.now(UTC) if deploy else None,
+                is_active=True if deploy else False
             )
 
             db.add(spec_version)
@@ -215,7 +206,7 @@ class SpecRegistry:
             if version:
                 query = query.filter(SpecVersion.version == version)
             else:
-                query = query.filter(SpecVersion.is_active == "true")
+                query = query.filter(SpecVersion.is_active == True)  # noqa: E712
 
             spec_version = query.first()
 
@@ -266,7 +257,7 @@ class SpecRegistry:
         try:
             versions = db.query(SpecVersion).filter(
                 SpecVersion.home_id == home_id,
-                SpecVersion.is_active == "true"
+                SpecVersion.is_active == True  # noqa: E712
             ).all()
 
             return [json.loads(v.spec_content) for v in versions]
@@ -296,7 +287,7 @@ class SpecRegistry:
             db.query(SpecVersion).filter(
                 SpecVersion.spec_id == spec_id,
                 SpecVersion.home_id == home_id
-            ).update({"is_active": "false"})
+            ).update({"is_active": False})
 
             # Activate specified version
             result = db.query(SpecVersion).filter(
@@ -304,8 +295,8 @@ class SpecRegistry:
                 SpecVersion.home_id == home_id,
                 SpecVersion.version == version
             ).update({
-                "is_active": "true",
-                "deployed_at": datetime.utcnow()
+                "is_active": True,
+                "deployed_at": datetime.now(UTC)
             })
 
             db.commit()

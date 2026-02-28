@@ -7,14 +7,16 @@ Analyzes synergy scores and groups them by score ranges.
 """
 
 import json
-import sqlite3
+import os
 import sys
 from collections import defaultdict
 from pathlib import Path
 
+import psycopg2
+import psycopg2.extras
+
 # Set UTF-8 encoding for Windows console
 if sys.platform == "win32":
-    import os
     os.environ["PYTHONIOENCODING"] = "utf-8"
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -22,29 +24,32 @@ if sys.platform == "win32":
     except AttributeError:
         pass
 
+# PostgreSQL connection URL
+POSTGRES_URL = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
 
-def analyze_synergy_scoring(db_path: str = "/app/data/ai_automation.db", use_docker: bool = True):
+
+def analyze_synergy_scoring(pg_url: str = POSTGRES_URL, use_docker: bool = True):
     """Analyze synergy scoring and group by score ranges."""
-    
+
     if use_docker:
         # Query via docker exec
         import subprocess
         cmd = [
             "docker", "exec", "ai-pattern-service", "python", "-c",
             """
-import sqlite3
-import json
-conn = sqlite3.connect('/app/data/ai_automation.db')
+import os, json, psycopg2
+pg_url = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@postgres:5432/homeiq")
+conn = psycopg2.connect(pg_url)
 cursor = conn.cursor()
 cursor.execute('''
-    SELECT 
+    SELECT
         quality_score,
         quality_tier,
         impact_score,
         confidence,
         final_score,
         synergy_type
-    FROM synergy_opportunities
+    FROM patterns.synergy_opportunities
 ''')
 rows = cursor.fetchall()
 results = {
@@ -71,18 +76,17 @@ print(json.dumps(results))
         data = json.loads(result.stdout)
     else:
         # Direct database access
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+        conn = psycopg2.connect(pg_url)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
-            SELECT 
+            SELECT
                 quality_score,
                 quality_tier,
                 impact_score,
                 confidence,
                 final_score,
                 synergy_type
-            FROM synergy_opportunities
+            FROM patterns.synergy_opportunities
         """)
         rows = cursor.fetchall()
         data = {
@@ -100,20 +104,20 @@ print(json.dumps(results))
             ]
         }
         conn.close()
-    
+
     total = data['total']
     scores = data['scores']
-    
+
     print("=" * 80)
     print("Synergy Scoring Analysis")
     print("=" * 80)
     print(f"\nTotal Synergies: {total:,}")
-    
+
     # Analyze quality_score
     print("\n" + "-" * 80)
     print("Quality Score Distribution")
     print("-" * 80)
-    
+
     quality_score_ranges = {
         "0.0": 0,
         "0.1-0.2": 0,
@@ -128,16 +132,16 @@ print(json.dumps(results))
         "1.0": 0,
         "NULL": 0
     }
-    
+
     quality_tier_counts = defaultdict(int)
-    
+
     for score_data in scores:
         qs = score_data['quality_score']
         qt = score_data['quality_tier']
-        
+
         if qt:
             quality_tier_counts[qt] += 1
-        
+
         if qs is None:
             quality_score_ranges["NULL"] += 1
         elif qs == 0.0:
@@ -162,24 +166,24 @@ print(json.dumps(results))
             quality_score_ranges["0.8-0.9"] += 1
         elif 0.9 <= qs < 1.0:
             quality_score_ranges["0.9-1.0"] += 1
-    
+
     print("\nQuality Score Ranges:")
     for range_name in sorted(quality_score_ranges.keys(), key=lambda x: (x == "NULL", float(x.split("-")[0]) if "-" in x else (float(x) if x != "NULL" else 999))):
         count = quality_score_ranges[range_name]
         pct = (count / total * 100) if total > 0 else 0
         print(f"  {range_name:10s}: {count:6,} ({pct:5.1f}%)")
-    
+
     print("\nQuality Tiers:")
     for tier in sorted(quality_tier_counts.keys()):
         count = quality_tier_counts[tier]
         pct = (count / total * 100) if total > 0 else 0
         print(f"  {tier:10s}: {count:6,} ({pct:5.1f}%)")
-    
+
     # Analyze impact_score
     print("\n" + "-" * 80)
     print("Impact Score Distribution")
     print("-" * 80)
-    
+
     impact_ranges = {
         "0.0-0.1": 0,
         "0.1-0.2": 0,
@@ -193,7 +197,7 @@ print(json.dumps(results))
         "0.9-1.0": 0,
         "NULL": 0
     }
-    
+
     impact_values = [s['impact_score'] for s in scores if s['impact_score'] is not None]
     if impact_values:
         min_impact = min(impact_values)
@@ -201,7 +205,7 @@ print(json.dumps(results))
         avg_impact = sum(impact_values) / len(impact_values)
     else:
         min_impact = max_impact = avg_impact = None
-    
+
     for score_data in scores:
         impact = score_data['impact_score']
         if impact is None:
@@ -226,24 +230,24 @@ print(json.dumps(results))
             impact_ranges["0.8-0.9"] += 1
         elif 0.9 <= impact <= 1.0:
             impact_ranges["0.9-1.0"] += 1
-    
+
     print(f"\nImpact Score Stats:")
     if min_impact is not None:
         print(f"  Min: {min_impact:.3f}")
         print(f"  Max: {max_impact:.3f}")
         print(f"  Avg: {avg_impact:.3f}")
-    
+
     print("\nImpact Score Ranges:")
     for range_name in sorted(impact_ranges.keys(), key=lambda x: (x == "NULL", float(x.split("-")[0]) if "-" in x else 999)):
         count = impact_ranges[range_name]
         pct = (count / total * 100) if total > 0 else 0
         print(f"  {range_name:10s}: {count:6,} ({pct:5.1f}%)")
-    
+
     # Analyze confidence
     print("\n" + "-" * 80)
     print("Confidence Distribution")
     print("-" * 80)
-    
+
     confidence_ranges = {
         "0.0-0.1": 0,
         "0.1-0.2": 0,
@@ -257,7 +261,7 @@ print(json.dumps(results))
         "0.9-1.0": 0,
         "NULL": 0
     }
-    
+
     confidence_values = [s['confidence'] for s in scores if s['confidence'] is not None]
     if confidence_values:
         min_conf = min(confidence_values)
@@ -265,7 +269,7 @@ print(json.dumps(results))
         avg_conf = sum(confidence_values) / len(confidence_values)
     else:
         min_conf = max_conf = avg_conf = None
-    
+
     for score_data in scores:
         conf = score_data['confidence']
         if conf is None:
@@ -290,24 +294,24 @@ print(json.dumps(results))
             confidence_ranges["0.8-0.9"] += 1
         elif 0.9 <= conf <= 1.0:
             confidence_ranges["0.9-1.0"] += 1
-    
+
     print(f"\nConfidence Stats:")
     if min_conf is not None:
         print(f"  Min: {min_conf:.3f}")
         print(f"  Max: {max_conf:.3f}")
         print(f"  Avg: {avg_conf:.3f}")
-    
+
     print("\nConfidence Ranges:")
     for range_name in sorted(confidence_ranges.keys(), key=lambda x: (x == "NULL", float(x.split("-")[0]) if "-" in x else 999)):
         count = confidence_ranges[range_name]
         pct = (count / total * 100) if total > 0 else 0
         print(f"  {range_name:10s}: {count:6,} ({pct:5.1f}%)")
-    
+
     # Analyze final_score
     print("\n" + "-" * 80)
     print("Final Score Distribution")
     print("-" * 80)
-    
+
     final_score_ranges = {
         "0.0": 0,
         "0.0-0.1": 0,
@@ -322,7 +326,7 @@ print(json.dumps(results))
         "0.9-1.0": 0,
         "NULL": 0
     }
-    
+
     final_values = [s['final_score'] for s in scores if s['final_score'] is not None]
     if final_values:
         min_final = min(final_values)
@@ -330,7 +334,7 @@ print(json.dumps(results))
         avg_final = sum(final_values) / len(final_values)
     else:
         min_final = max_final = avg_final = None
-    
+
     for score_data in scores:
         final = score_data['final_score']
         if final is None:
@@ -357,26 +361,26 @@ print(json.dumps(results))
             final_score_ranges["0.8-0.9"] += 1
         elif 0.9 <= final <= 1.0:
             final_score_ranges["0.9-1.0"] += 1
-    
+
     print(f"\nFinal Score Stats:")
     if min_final is not None:
         print(f"  Min: {min_final:.3f}")
         print(f"  Max: {max_final:.3f}")
         print(f"  Avg: {avg_final:.3f}")
-    
+
     print("\nFinal Score Ranges:")
     for range_name in sorted(final_score_ranges.keys(), key=lambda x: (x == "NULL", float(x.split("-")[0]) if "-" in x else (float(x) if x != "NULL" else 999))):
         count = final_score_ranges[range_name]
         pct = (count / total * 100) if total > 0 else 0
         print(f"  {range_name:10s}: {count:6,} ({pct:5.1f}%)")
-    
+
     # Summary by synergy type
     print("\n" + "-" * 80)
     print("Scoring Summary by Synergy Type")
     print("-" * 80)
-    
+
     type_stats = defaultdict(lambda: {'count': 0, 'quality_scores': [], 'impact_scores': [], 'confidence_scores': []})
-    
+
     for score_data in scores:
         stype = score_data['synergy_type']
         type_stats[stype]['count'] += 1
@@ -386,7 +390,7 @@ print(json.dumps(results))
             type_stats[stype]['impact_scores'].append(score_data['impact_score'])
         if score_data['confidence'] is not None:
             type_stats[stype]['confidence_scores'].append(score_data['confidence'])
-    
+
     for stype in sorted(type_stats.keys()):
         stats = type_stats[stype]
         print(f"\n{stype}:")
@@ -400,9 +404,9 @@ print(json.dumps(results))
         if stats['confidence_scores']:
             avg_cs = sum(stats['confidence_scores']) / len(stats['confidence_scores'])
             print(f"  Avg Confidence: {avg_cs:.3f}")
-    
+
     print("\n" + "=" * 80)
-    
+
     # Return results for further processing
     return {
         'total': total,

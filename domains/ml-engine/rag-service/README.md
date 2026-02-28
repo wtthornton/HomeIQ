@@ -20,7 +20,7 @@ The RAG Service provides semantic knowledge storage and retrieval capabilities u
 ```
 rag-service (Port 8027)
 ├── FastAPI application (async/await)
-├── SQLAlchemy async database (SQLite)
+├── SQLAlchemy async database (PostgreSQL)
 ├── OpenVINO client (embeddings, reranking)
 ├── RAG service (store, retrieve, search)
 ├── API routers (store, retrieve, search, metrics)
@@ -58,7 +58,7 @@ Environment variables (prefixed with `RAG_`):
 
 ## Database
 
-- **Type**: SQLite (async)
+- **Type**: PostgreSQL (async, schema: `rag`)
 - **Model**: `RAGKnowledge`
   - `id`: Primary key
   - `text`: Text content

@@ -105,7 +105,7 @@ All compose files must include:
 **Acceptance Criteria:**
 - [ ] `domains/core-platform/compose.yml` defines 6 services: influxdb, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention
 - [ ] Defines `homeiq-network` as a bridge network (other domains reference it as `external: true`)
-- [ ] Defines shared volumes (e.g., influxdb-data, sqlite-data)
+- [ ] Defines shared volumes (e.g., influxdb-data, postgres-data)
 - [ ] All 6 services have health checks (HTTP `/health` or TCP socket)
 - [ ] Resource limits set for each service (influxdb gets higher memory allocation)
 - [ ] Build contexts reference `domains/core-platform/{service}/Dockerfile`

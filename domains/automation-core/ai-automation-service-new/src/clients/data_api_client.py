@@ -6,7 +6,7 @@ Provides resilient async access to historical Home Assistant data via Data API s
 
 Architecture Notes (Epic 31):
 - Events are queried via data-api, which reads from InfluxDB
-- Devices/Entities are queried via data-api, which reads from SQLite
+- Devices/Entities are queried via data-api, which reads from PostgreSQL
 - This client follows the Epic 31 pattern: Query via data-api, NOT direct writes
 
 API Endpoint Paths:
@@ -92,7 +92,7 @@ class DataAPIClient:
             raise
 
     async def fetch_devices(self, limit: int = 1000) -> list[dict[str, Any]]:
-        """Fetch devices from Data API (SQLite)."""
+        """Fetch devices from Data API."""
         try:
             logger.debug("Fetching devices from %s/api/devices", self.base_url)
             response = await self._cross_client.call(
@@ -114,7 +114,7 @@ class DataAPIClient:
             raise
 
     async def fetch_entities(self, limit: int = 1000) -> list[dict[str, Any]]:
-        """Fetch entities from Data API (SQLite)."""
+        """Fetch entities from Data API."""
         try:
             logger.debug("Fetching entities from %s/api/entities", self.base_url)
             response = await self._cross_client.call(

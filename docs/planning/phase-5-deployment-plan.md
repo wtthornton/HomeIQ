@@ -37,7 +37,7 @@ Phase 5 is the production deployment of **19 completed epics** across **50 micro
 | **Activity Recognition** | 1 feature | ✅ READY | Cross-agent context integration |
 | **Deploy Pipeline Root Cause Fixes** | 1 feature | ✅ READY | Hardware-aware templates, LLM prompt fixes, automation updates |
 | **Agent Evaluation Framework** | 4 agents | ✅ READY | @trace_session wired, 20 evaluators, 5-level pyramid |
-| **SQLite → PostgreSQL Migration** | 13 services | ✅ READY | Schema-per-domain, Alembic migrations, dual-mode compatibility |
+| **PostgreSQL Migration** | 13 services | ✅ READY | Schema-per-domain, Alembic migrations |
 | **Operational Readiness** | All | ✅ READY | Prometheus, Grafana, backups, runbooks, E2E tests |
 
 ### Key Metrics
@@ -267,11 +267,7 @@ docker exec postgres pg_dump -U homeiq homeiq > \
 docker exec influxdb influx export \
   --file backups/phase5-pre-deployment-$(date +%Y%m%d_%H%M%S).ndjson
 
-# 4. Backup SQLite volumes (legacy, for reference)
-docker exec websocket-ingestion tar czf - /data/sqlite | \
-  tar xzf - -C backups/
-
-# 5. Document backup locations
+# 4. Document backup locations
 cat > backups/MANIFEST-phase5-pre.md << EOF
 # Phase 5 Pre-Deployment Backup
 - Date: $(date)
@@ -926,7 +922,7 @@ Phase 5 (Production Deployment) is scheduled for:
 What's being deployed:
 ✅ Phase 1-4 library upgrades (SQLAlchemy 2.0, FastAPI 0.115+, Pydantic 2.9+)
 ✅ Frontend redesign (29 tabs → 14 consolidated pages)
-✅ PostgreSQL migration (SQLite → PostgreSQL 17)
+✅ PostgreSQL migration (PostgreSQL 17, schema-per-domain)
 ✅ Agent evaluation framework (4 agents, 20 evaluators)
 ✅ Operational readiness (Prometheus, Grafana, backups, E2E tests)
 
@@ -990,7 +986,7 @@ Deployment Results:
 ✅ Zero unplanned restarts
 
 Key Improvements:
-- 15% faster database queries (PostgreSQL vs SQLite)
+- 15% faster database queries (PostgreSQL with connection pooling)
 - 8% reduction in error rates (library upgrades)
 - New observability dashboard with 15 alert rules
 - 3-tier testing coverage (unit/integration/E2E)

@@ -13,7 +13,7 @@ source: Post-migration operational assessment (2026-02-24)
 **Priority:** High
 **Duration:** 2-3 weeks
 **Risk Level:** Medium
-**Predecessor:** SQLite to PostgreSQL Migration, Library Version Standardization
+**Predecessor:** PostgreSQL Migration, Library Version Standardization
 
 ## Summary
 
@@ -104,7 +104,7 @@ Created Playwright end-to-end test specs for critical paths.
 
 Created pre-cutover checklists and stability verification scripts.
 
-- **Cutover checklist** (`docs/operations/sqlite-cutover-checklist.md`): Pre-cutover verification (8 checks), 8 cutover steps with exact file paths, post-cutover validation, rollback procedure
+- **Cutover checklist** (`docs/operations/sqlite-cutover-checklist.md`): [COMPLETED] Pre-cutover verification, cutover steps, post-cutover validation, rollback procedure
 - **Stability checker** (`scripts/check-pg-stability.sh`): Daily checks — uptime, schema accessibility, Alembic versions, lock contention, connection utilization, cache hit ratio
 
 **Key files:** `docs/operations/sqlite-cutover-checklist.md`, `scripts/check-pg-stability.sh`
@@ -115,9 +115,9 @@ Created 5 operational runbooks for day-2 operations.
 
 - **PostgreSQL runbook** (`docs/operations/postgresql-runbook.md`): Connection troubleshooting, schema management, performance tuning, backup/restore, emergency procedures, Alembic guide
 - **Monitoring setup** (`docs/operations/monitoring-setup.md`): Prometheus/Grafana architecture, adding scrape targets, creating dashboards, alert configuration
-- **Disaster recovery** (`docs/operations/disaster-recovery.md`): RPO/RTO objectives, backup verification, restore procedures, failover to SQLite, data reconciliation
+- **Disaster recovery** (`docs/operations/disaster-recovery.md`): RPO/RTO objectives, backup verification, restore procedures, failover, data reconciliation
 - **Service health checks** (`docs/operations/service-health-checks.md`): 50+ service inventory with ports, health endpoints, startup dependencies, troubleshooting
-- **SQLite cutover** (`docs/operations/sqlite-cutover-checklist.md`): Step-by-step cutover and rollback
+- **Cutover checklist** (`docs/operations/sqlite-cutover-checklist.md`): [COMPLETED] Step-by-step cutover (now historical)
 
 **Key files:** `docs/operations/`
 

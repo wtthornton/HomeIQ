@@ -2,6 +2,7 @@
 Unit tests for TrainingDataExporter.
 """
 
+import os
 import tempfile
 from pathlib import Path
 
@@ -60,8 +61,12 @@ def test_export_soft_prompt_json(exporter):
     assert output_path.suffix == ".json"
 
 
-def test_export_soft_prompt_sqlite(exporter):
-    """Test Soft Prompt data export (SQLite)."""
+@pytest.mark.skipif(
+    not os.environ.get("POSTGRES_URL"),
+    reason="POSTGRES_URL not set, skipping PostgreSQL export test"
+)
+def test_export_soft_prompt_postgresql(exporter):
+    """Test Soft Prompt data export (PostgreSQL)."""
     prompt_data = [
         {
             "suggestion": {
@@ -74,10 +79,10 @@ def test_export_soft_prompt_sqlite(exporter):
             }
         }
     ]
-    
-    output_path = exporter.export_soft_prompt_data(prompt_data, format="sqlite")
+
+    output_path = exporter.export_soft_prompt_data(prompt_data, format="postgresql")
     assert output_path.exists()
-    assert output_path.suffix == ".db"
+    assert output_path.suffix == ".json"
 
 
 def test_export_pattern_detection_json(exporter):

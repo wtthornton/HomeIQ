@@ -252,13 +252,12 @@ async def lifespan(_app: FastAPI):
     # Ensure data directory exists
     pathlib.Path("./data").mkdir(exist_ok=True)
 
-    # Initialize SQLite database
+    # Initialize database
     try:
         await init_db()
-        logger.info("SQLite database initialized")
+        logger.info("Database initialized")
     except Exception as e:
-        logger.error("SQLite initialization failed: %s", e)
-        # Don't crash - service can run without SQLite initially
+        logger.error("Database initialization failed: %s", e)
 
     await data_api_service.startup()
     yield
@@ -476,12 +475,12 @@ async def health_check():
     """
     Health check endpoint
 
-    Returns service health status including InfluxDB and SQLite connections
+    Returns service health status including InfluxDB and database connections
     Plus error rate metrics for monitoring
     """
     uptime = (datetime.now() - data_api_service.start_time).total_seconds()
     influxdb_status = data_api_service.influxdb_client.get_connection_status()
-    sqlite_status = await check_db_health()
+    db_status = await check_db_health()
 
     # Calculate error rate
     error_rate = 0.0
@@ -509,7 +508,7 @@ async def health_check():
                 "avg_query_time_ms": influxdb_status["avg_query_time_ms"],
                 "success_rate": influxdb_status["success_rate"]
             },
-            "sqlite": sqlite_status
+            "database": db_status
         },
         "authentication": {
             "api_key_required": not data_api_service.allow_anonymous

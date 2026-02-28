@@ -96,7 +96,7 @@ This document describes performance targets, benchmarks, and optimization strate
 
 ### 1. Context Caching
 
-**Strategy:** TTL-based caching in SQLite
+**Strategy:** TTL-based caching in PostgreSQL
 
 **Performance Impact:**
 - First call: 400ms → Cached: 20ms
@@ -116,7 +116,7 @@ This document describes performance targets, benchmarks, and optimization strate
 
 ### 2. Database Optimization
 
-**SQLite Configuration:**
+**PostgreSQL Configuration:**
 - WAL mode enabled
 - Indexes on conversation_id, created_at
 - Connection pooling (async)

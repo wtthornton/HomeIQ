@@ -2,12 +2,12 @@
 Agent Evaluation Framework — Evaluation History Storage
 
 Dual-write evaluation results to InfluxDB (time-series scores) and
-SQLite (session-level details).  Provides query methods for trends,
-historical scores, and latest reports.
+a PostgreSQL database (session-level details).  Provides query methods for
+trends, historical scores, and latest reports.
 
 Usage::
 
-    store = EvaluationStore(influxdb_client=client, sqlite_path=":memory:")
+    store = EvaluationStore(influxdb_writer=client, db_url="postgresql+asyncpg://...")
     await store.initialize()
     await store.store_batch_report(report)
     scores = await store.get_scores("ha-ai-agent", period="7d")
@@ -17,11 +17,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Any, Protocol, runtime_checkable
 
-import aiosqlite
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from .models import BatchReport, EvalLevel, EvaluationReport, EvaluationResult
 
@@ -55,88 +57,102 @@ class NullInfluxDBWriter:
 
 # Default retention periods
 _DEFAULT_INFLUXDB_RETENTION_DAYS = 90
-_DEFAULT_SQLITE_RETENTION_DAYS = 30
+_DEFAULT_DB_RETENTION_DAYS = 30
 
-_CREATE_TABLES_SQL = """
-CREATE TABLE IF NOT EXISTS evaluation_runs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    agent_name TEXT NOT NULL,
-    run_timestamp TEXT NOT NULL,
-    sessions_evaluated INTEGER NOT NULL DEFAULT 0,
-    total_evaluations INTEGER NOT NULL DEFAULT 0,
-    alerts_triggered INTEGER NOT NULL DEFAULT 0,
-    summary_json TEXT DEFAULT '{}'
-);
-
-CREATE TABLE IF NOT EXISTS evaluation_results (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_id INTEGER NOT NULL,
-    session_id TEXT NOT NULL,
-    agent_name TEXT NOT NULL,
-    evaluator_name TEXT NOT NULL,
-    level TEXT NOT NULL,
-    score REAL NOT NULL,
-    label TEXT DEFAULT '',
-    explanation TEXT DEFAULT '',
-    timestamp TEXT NOT NULL,
-    FOREIGN KEY (run_id) REFERENCES evaluation_runs(id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_results_agent ON evaluation_results(agent_name);
-CREATE INDEX IF NOT EXISTS idx_results_run ON evaluation_results(run_id);
-CREATE INDEX IF NOT EXISTS idx_runs_agent ON evaluation_runs(agent_name);
-"""
+_CREATE_TABLES_SQL = [
+    """
+    CREATE TABLE IF NOT EXISTS evaluation_runs (
+        id SERIAL PRIMARY KEY,
+        agent_name TEXT NOT NULL,
+        run_timestamp TEXT NOT NULL,
+        sessions_evaluated INTEGER NOT NULL DEFAULT 0,
+        total_evaluations INTEGER NOT NULL DEFAULT 0,
+        alerts_triggered INTEGER NOT NULL DEFAULT 0,
+        summary_json TEXT DEFAULT '{}'
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS evaluation_results (
+        id SERIAL PRIMARY KEY,
+        run_id INTEGER NOT NULL,
+        session_id TEXT NOT NULL,
+        agent_name TEXT NOT NULL,
+        evaluator_name TEXT NOT NULL,
+        level TEXT NOT NULL,
+        score REAL NOT NULL,
+        label TEXT DEFAULT '',
+        explanation TEXT DEFAULT '',
+        timestamp TEXT NOT NULL,
+        FOREIGN KEY (run_id) REFERENCES evaluation_runs(id)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_results_agent ON evaluation_results(agent_name)",
+    "CREATE INDEX IF NOT EXISTS idx_results_run ON evaluation_results(run_id)",
+    "CREATE INDEX IF NOT EXISTS idx_runs_agent ON evaluation_runs(agent_name)",
+]
 
 
 class EvaluationStore:
     """
-    Dual-write evaluation storage: InfluxDB for time-series, SQLite for details.
+    Dual-write evaluation storage: InfluxDB for time-series, PostgreSQL for details.
 
-    Supports degraded mode: if InfluxDB is unavailable, writes only to SQLite.
+    Supports degraded mode: if InfluxDB is unavailable, writes only to PostgreSQL.
     """
 
     def __init__(
         self,
         influxdb_writer: InfluxDBWriter | None = None,
-        sqlite_path: str = ":memory:",
+        db_url: str | None = None,
+        db_path: str | None = None,
         influxdb_retention_days: int = _DEFAULT_INFLUXDB_RETENTION_DAYS,
-        sqlite_retention_days: int = _DEFAULT_SQLITE_RETENTION_DAYS,
+        db_retention_days: int = _DEFAULT_DB_RETENTION_DAYS,
     ):
         self._influx = influxdb_writer or NullInfluxDBWriter()
-        self._sqlite_path = sqlite_path
+        self._db_url = (
+            db_url
+            or os.environ.get("POSTGRES_URL")
+            or os.environ.get("DATABASE_URL")
+            or "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq"
+        )
         self._influx_retention = influxdb_retention_days
-        self._sqlite_retention = sqlite_retention_days
-        self._db: aiosqlite.Connection | None = None
+        self._db_retention = db_retention_days
+        self._engine = None
+        self._session_maker: async_sessionmaker | None = None
 
     async def initialize(self) -> None:
-        """Create SQLite tables if they don't exist."""
-        self._db = await aiosqlite.connect(self._sqlite_path)
-        await self._db.executescript(_CREATE_TABLES_SQL)
-        await self._db.commit()
+        """Create database tables if they don't exist."""
+        self._engine = create_async_engine(self._db_url, echo=False)
+        self._session_maker = async_sessionmaker(
+            self._engine, class_=AsyncSession, expire_on_commit=False
+        )
+        async with self._engine.begin() as conn:
+            for sql in _CREATE_TABLES_SQL:
+                await conn.execute(text(sql))
 
     async def close(self) -> None:
         """Close the database connection."""
-        if self._db:
-            await self._db.close()
-            self._db = None
+        if self._engine:
+            await self._engine.dispose()
+            self._engine = None
+            self._session_maker = None
 
     async def store_batch_report(self, report: BatchReport) -> int:
         """
-        Store a BatchReport: write scores to InfluxDB and details to SQLite.
+        Store a BatchReport: write scores to InfluxDB and details to PostgreSQL.
 
         Returns the evaluation_runs.id for the stored run.
         """
-        if self._db is None:
+        if self._session_maker is None:
             await self.initialize()
-        assert self._db is not None
+        assert self._session_maker is not None
 
         # 1. Write to InfluxDB (time-series scores)
         self._write_influxdb_points(report)
 
-        # 2. Write run record to SQLite
+        # 2. Write run record to PostgreSQL
         run_id = await self._write_run_record(report)
 
-        # 3. Write individual results to SQLite
+        # 3. Write individual results
         await self._write_result_records(run_id, report)
 
         return run_id
@@ -148,32 +164,33 @@ class EvaluationStore:
         start: datetime | None = None,
         end: datetime | None = None,
     ) -> list[dict[str, Any]]:
-        """Query historical scores from SQLite."""
-        if self._db is None:
+        """Query historical scores from PostgreSQL."""
+        if self._session_maker is None:
             return []
 
         query = """
             SELECT er.evaluator_name, er.level, er.score, er.label, er.timestamp
             FROM evaluation_results er
             JOIN evaluation_runs r ON er.run_id = r.id
-            WHERE er.agent_name = ?
+            WHERE er.agent_name = :agent_name
         """
-        params: list[Any] = [agent_name]
+        params: dict[str, Any] = {"agent_name": agent_name}
 
         if evaluator:
-            query += " AND er.evaluator_name = ?"
-            params.append(evaluator)
+            query += " AND er.evaluator_name = :evaluator"
+            params["evaluator"] = evaluator
         if start:
-            query += " AND er.timestamp >= ?"
-            params.append(start.isoformat())
+            query += " AND er.timestamp >= :start"
+            params["start"] = start.isoformat()
         if end:
-            query += " AND er.timestamp <= ?"
-            params.append(end.isoformat())
+            query += " AND er.timestamp <= :end"
+            params["end"] = end.isoformat()
 
         query += " ORDER BY er.timestamp DESC"
 
-        async with self._db.execute(query, params) as cursor:
-            rows = await cursor.fetchall()
+        async with self._session_maker() as session:
+            result = await session.execute(text(query), params)
+            rows = result.fetchall()
 
         return [
             {
@@ -197,7 +214,7 @@ class EvaluationStore:
         Returns dict keyed by evaluator_name, each with a list of
         {timestamp, score} entries.
         """
-        if self._db is None:
+        if self._session_maker is None:
             return {}
 
         days = _parse_period(period)
@@ -207,13 +224,14 @@ class EvaluationStore:
             SELECT er.evaluator_name, r.run_timestamp, AVG(er.score) as avg_score
             FROM evaluation_results er
             JOIN evaluation_runs r ON er.run_id = r.id
-            WHERE er.agent_name = ? AND r.run_timestamp >= ?
+            WHERE er.agent_name = :agent_name AND r.run_timestamp >= :cutoff
             GROUP BY er.evaluator_name, r.run_timestamp
             ORDER BY r.run_timestamp ASC
         """
 
-        async with self._db.execute(query, [agent_name, cutoff]) as cursor:
-            rows = await cursor.fetchall()
+        async with self._session_maker() as session:
+            result = await session.execute(text(query), {"agent_name": agent_name, "cutoff": cutoff})
+            rows = result.fetchall()
 
         trends: dict[str, list[dict[str, Any]]] = {}
         for row in rows:
@@ -229,20 +247,21 @@ class EvaluationStore:
         self, agent_name: str
     ) -> dict[str, Any] | None:
         """Get the most recent evaluation run summary."""
-        if self._db is None:
+        if self._session_maker is None:
             return None
 
         query = """
             SELECT id, agent_name, run_timestamp, sessions_evaluated,
                    total_evaluations, alerts_triggered, summary_json
             FROM evaluation_runs
-            WHERE agent_name = ?
+            WHERE agent_name = :agent_name
             ORDER BY run_timestamp DESC
             LIMIT 1
         """
 
-        async with self._db.execute(query, [agent_name]) as cursor:
-            row = await cursor.fetchone()
+        async with self._session_maker() as session:
+            result = await session.execute(text(query), {"agent_name": agent_name})
+            row = result.fetchone()
 
         if row is None:
             return None
@@ -259,44 +278,46 @@ class EvaluationStore:
 
     async def get_run_count(self, agent_name: str) -> int:
         """Get the total number of evaluation runs for an agent."""
-        if self._db is None:
+        if self._session_maker is None:
             return 0
-        async with self._db.execute(
-            "SELECT COUNT(*) FROM evaluation_runs WHERE agent_name = ?",
-            [agent_name],
-        ) as cursor:
-            row = await cursor.fetchone()
+        async with self._session_maker() as session:
+            result = await session.execute(
+                text("SELECT COUNT(*) FROM evaluation_runs WHERE agent_name = :agent_name"),
+                {"agent_name": agent_name},
+            )
+            row = result.fetchone()
         return row[0] if row else 0
 
     async def cleanup_expired(self) -> int:
         """
-        Remove expired data from SQLite.
+        Remove expired data from PostgreSQL.
 
         Returns the number of deleted rows.
         """
-        if self._db is None:
+        if self._session_maker is None:
             return 0
 
         cutoff = (
-            datetime.now(timezone.utc) - timedelta(days=self._sqlite_retention)
+            datetime.now(timezone.utc) - timedelta(days=self._db_retention)
         ).isoformat()
 
-        # Delete results first (FK constraint)
-        await self._db.execute(
-            """
-            DELETE FROM evaluation_results
-            WHERE run_id IN (
-                SELECT id FROM evaluation_runs WHERE run_timestamp < ?
+        async with self._session_maker() as session:
+            # Delete results first (FK constraint)
+            await session.execute(
+                text("""
+                DELETE FROM evaluation_results
+                WHERE run_id IN (
+                    SELECT id FROM evaluation_runs WHERE run_timestamp < :cutoff
+                )
+                """),
+                {"cutoff": cutoff},
             )
-            """,
-            [cutoff],
-        )
-        cursor = await self._db.execute(
-            "DELETE FROM evaluation_runs WHERE run_timestamp < ?",
-            [cutoff],
-        )
-        deleted = cursor.rowcount
-        await self._db.commit()
+            result = await session.execute(
+                text("DELETE FROM evaluation_runs WHERE run_timestamp < :cutoff"),
+                {"cutoff": cutoff},
+            )
+            deleted = result.rowcount
+            await session.commit()
 
         if deleted:
             logger.info("Cleaned up %d expired evaluation runs", deleted)
@@ -331,64 +352,66 @@ class EvaluationStore:
                 self._influx.write_points(points)
             except Exception:
                 logger.warning(
-                    "InfluxDB write failed — scores only in SQLite",
+                    "InfluxDB write failed — scores only in PostgreSQL",
                     exc_info=True,
                 )
 
     async def _write_run_record(self, report: BatchReport) -> int:
-        """Insert an evaluation_runs record and return its ID."""
-        assert self._db is not None
+        """Insert an evaluation_runs record and return its id."""
+        assert self._session_maker is not None
         summary = json.dumps(report.aggregate_scores or {})
-        cursor = await self._db.execute(
-            """
-            INSERT INTO evaluation_runs
-                (agent_name, run_timestamp, sessions_evaluated,
-                 total_evaluations, alerts_triggered, summary_json)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            [
-                report.agent_name,
-                report.timestamp.isoformat(),
-                report.sessions_evaluated,
-                report.total_evaluations,
-                len(report.alerts),
-                summary,
-            ],
-        )
-        await self._db.commit()
-        return cursor.lastrowid  # type: ignore[return-value]
+        async with self._session_maker() as session:
+            result = await session.execute(
+                text("""
+                INSERT INTO evaluation_runs
+                    (agent_name, run_timestamp, sessions_evaluated,
+                     total_evaluations, alerts_triggered, summary_json)
+                VALUES (:agent_name, :run_timestamp, :sessions_evaluated,
+                        :total_evaluations, :alerts_triggered, :summary_json)
+                RETURNING id
+                """),
+                {
+                    "agent_name": report.agent_name,
+                    "run_timestamp": report.timestamp.isoformat(),
+                    "sessions_evaluated": report.sessions_evaluated,
+                    "total_evaluations": report.total_evaluations,
+                    "alerts_triggered": len(report.alerts),
+                    "summary_json": summary,
+                },
+            )
+            run_id = result.scalar()
+            await session.commit()
+        return run_id
 
     async def _write_result_records(
         self, run_id: int, report: BatchReport
     ) -> None:
         """Insert evaluation_results records for all session results."""
-        assert self._db is not None
-        rows = []
-        for session_report in report.reports:
-            for result in session_report.results:
-                rows.append((
-                    run_id,
-                    session_report.session_id,
-                    report.agent_name,
-                    result.evaluator_name,
-                    result.level.value,
-                    result.score,
-                    result.label,
-                    result.explanation,
-                    report.timestamp.isoformat(),
-                ))
-
-        if rows:
-            await self._db.executemany(
-                """
-                INSERT INTO evaluation_results
-                    (run_id, session_id, agent_name, evaluator_name, level,
-                     score, label, explanation, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                rows,
-            )
-            await self._db.commit()
+        assert self._session_maker is not None
+        async with self._session_maker() as session:
+            for session_report in report.reports:
+                for result in session_report.results:
+                    await session.execute(
+                        text("""
+                        INSERT INTO evaluation_results
+                            (run_id, session_id, agent_name, evaluator_name, level,
+                             score, label, explanation, timestamp)
+                        VALUES (:run_id, :session_id, :agent_name, :evaluator_name,
+                                :level, :score, :label, :explanation, :timestamp)
+                        """),
+                        {
+                            "run_id": run_id,
+                            "session_id": session_report.session_id,
+                            "agent_name": report.agent_name,
+                            "evaluator_name": result.evaluator_name,
+                            "level": result.level.value,
+                            "score": result.score,
+                            "label": result.label,
+                            "explanation": result.explanation,
+                            "timestamp": report.timestamp.isoformat(),
+                        },
+                    )
+            await session.commit()
 
 
 # ---------------------------------------------------------------------------

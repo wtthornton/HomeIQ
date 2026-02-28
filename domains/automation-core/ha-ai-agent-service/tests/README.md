@@ -180,7 +180,7 @@ All external services are mocked in tests:
 - Home Assistant API - Mocked HA client responses
 - Data API - Mocked Data API client responses
 - Device Intelligence Service - Mocked device intelligence responses
-- SQLite Database - In-memory database for tests
+- PostgreSQL Database - In-memory database for tests
 
 ## Mocking Strategies
 

@@ -90,7 +90,7 @@ python scripts/deployment/validate-deployment.py --pre-deployment
 
 **Checks:**
 - Service connectivity verification
-- Database connectivity (InfluxDB, SQLite)
+- Database connectivity (InfluxDB, PostgreSQL)
 - Inter-service communication tests
 
 **Usage:**
@@ -161,7 +161,7 @@ bash scripts/deployment/rollback.sh --tag <tag>
 **Purpose:** Track deployment history and metrics
 
 **Features:**
-- Deployment history database (SQLite)
+- Deployment history database (PostgreSQL)
 - Deployment metrics:
   - Total deployments
   - Success/failure rates
@@ -376,7 +376,7 @@ python scripts/deployment/track-deployment.py --list
 
 ### Deployment Tracking
 
-**Database:** `data/deployments.db` (SQLite)
+**Database:** `data/deployments.db` (PostgreSQL)
 
 **Tables:**
 - `deployments` - Deployment history

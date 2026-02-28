@@ -153,7 +153,7 @@ return FeedbackResponse(
 )
 ```
 
-**Recommended Fix**: At minimum, persist feedback to a JSON file or SQLite database. Ideally, write to InfluxDB following the HomeIQ pattern.
+**Recommended Fix**: At minimum, persist feedback to a JSON file or PostgreSQL database. Ideally, write to InfluxDB following the HomeIQ pattern.
 
 ```python
 import json
@@ -780,7 +780,7 @@ For new users (not in training data), the only fallback is popular rules. A cont
 | # | Finding | Action | Effort |
 |---|---------|--------|--------|
 | 1 | C1 | Replace pickle with restricted unpickler or safer serialization | 2-3 hours |
-| 2 | C2 | Implement feedback persistence (JSONL file or SQLite) | 1-2 hours |
+| 2 | C2 | Implement feedback persistence (JSONL file or PostgreSQL) | 1-2 hours |
 | 3 | H4 | Fix Dockerfile health check to use urllib (stdlib) | 15 min |
 | 4 | H5 | Remove unused dependencies (duckdb, onnxruntime, scikit-learn, joblib, python-dotenv) | 15 min |
 | 5 | L4 | Remove `__pycache__` and add `.gitignore` | 5 min |

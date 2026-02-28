@@ -9,17 +9,17 @@ class Settings(BaseSettings):
 
     # Database
     database_path: str = "/app/data/ai_automation.db"
-    database_url: str = "sqlite+aiosqlite:////app/data/ai_automation.db"  # Absolute path for SQLite
+    database_url: str = ""  # Set via POSTGRES_URL or DATABASE_URL env var
     database_pool_size: int = 10  # Connection pool size (max 20 per service)
     database_max_overflow: int = 5  # Max overflow connections
 
-    # PostgreSQL (Epic 3-4 migration)
+    # PostgreSQL
     postgres_url: str = ""  # Set via POSTGRES_URL env var
     database_schema: str = "automation"  # Set via DATABASE_SCHEMA env var
 
     @property
     def effective_database_url(self) -> str:
-        """Return PostgreSQL URL if set, otherwise fall back to SQLite."""
+        """Return the PostgreSQL database URL."""
         return self.postgres_url or self.database_url
 
     # Data API Configuration

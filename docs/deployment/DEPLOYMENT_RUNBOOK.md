@@ -39,7 +39,7 @@ For complete service ranking and deployment priority, see **[Services Ranked by 
 
 #### 📊 Data Management & Analytics
 - **Real-time Event Capture** - Direct WebSocket connection to Home Assistant
-- **Hybrid Database Architecture** - InfluxDB (time-series) + SQLite (metadata) for 5-10x faster queries
+- **Hybrid Database Architecture** - InfluxDB (time-series) + PostgreSQL (metadata) for fast queries
 - **Multi-Source Data Enrichment** - Weather, energy pricing, air quality, sports, carbon intensity
 - **Advanced Analytics** - Deep insights with spatial and temporal analysis
 - **Data Export** - Multiple formats (CSV, JSON, PDF, Excel)
@@ -114,7 +114,7 @@ HomeIQ deploys **50 microservices** organized into **7 tiers by criticality** (s
 - **Why Deployed:** Single API endpoint for all data queries (events, devices, entities, sports)
 - **Features:**
   - InfluxDB query interface
-  - SQLite metadata queries (devices, entities, webhooks)
+  - PostgreSQL metadata queries (devices, entities, webhooks)
   - Sports data queries (from InfluxDB)
   - CORS support for frontend
   - Authentication support

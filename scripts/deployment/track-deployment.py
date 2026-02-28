@@ -12,11 +12,14 @@ Usage:
 import argparse
 import json
 import logging
-import sqlite3
+import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
+
+import psycopg2
+import psycopg2.extras
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,28 +27,31 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# PostgreSQL connection URL
+POSTGRES_URL = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
+
 
 class DeploymentTracker:
     """Tracks deployment history and metrics."""
 
-    def __init__(self, db_path: Optional[Path] = None):
-        if db_path is None:
-            project_root = Path(__file__).parent.parent.parent
-            db_path = project_root / "data" / "deployments.db"
-        self.db_path = db_path
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(self, pg_url: str = POSTGRES_URL):
+        self.pg_url = pg_url
         self._init_database()
 
+    def _get_conn(self):
+        """Get a new database connection."""
+        return psycopg2.connect(self.pg_url)
+
     def _init_database(self):
-        """Initialize deployment tracking database."""
-        conn = sqlite3.connect(str(self.db_path))
+        """Initialize deployment tracking tables."""
+        conn = self._get_conn()
         cursor = conn.cursor()
-        
-        # Create deployments table
+
+        # Create deployments table in core schema
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS deployments (
+            CREATE TABLE IF NOT EXISTS core.deployments (
                 id TEXT PRIMARY KEY,
-                timestamp TEXT NOT NULL,
+                timestamp TIMESTAMPTZ NOT NULL,
                 status TEXT NOT NULL,
                 commit_sha TEXT NOT NULL,
                 branch TEXT NOT NULL,
@@ -53,36 +59,36 @@ class DeploymentTracker:
                 services_count INTEGER,
                 passed_checks INTEGER,
                 failed_checks INTEGER,
-                rollback_performed INTEGER DEFAULT 0,
+                rollback_performed BOOLEAN DEFAULT FALSE,
                 notes TEXT
             )
         """)
-        
+
         # Create deployment_metrics table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS deployment_metrics (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+            CREATE TABLE IF NOT EXISTS core.deployment_metrics (
+                id SERIAL PRIMARY KEY,
                 deployment_id TEXT NOT NULL,
                 metric_name TEXT NOT NULL,
                 metric_value REAL NOT NULL,
-                timestamp TEXT NOT NULL,
-                FOREIGN KEY (deployment_id) REFERENCES deployments(id)
+                timestamp TIMESTAMPTZ NOT NULL,
+                FOREIGN KEY (deployment_id) REFERENCES core.deployments(id)
             )
         """)
-        
+
         # Create indexes
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_deployments_timestamp 
-            ON deployments(timestamp DESC)
+            CREATE INDEX IF NOT EXISTS idx_deployments_timestamp
+            ON core.deployments(timestamp DESC)
         """)
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_deployments_status 
-            ON deployments(status)
+            CREATE INDEX IF NOT EXISTS idx_deployments_status
+            ON core.deployments(status)
         """)
-        
+
         conn.commit()
         conn.close()
-        logger.info(f"Initialized deployment tracking database: {self.db_path}")
+        logger.info(f"Initialized deployment tracking tables in PostgreSQL")
 
     def track_deployment(
         self,
@@ -98,16 +104,27 @@ class DeploymentTracker:
         notes: Optional[str] = None
     ):
         """Track a deployment."""
-        conn = sqlite3.connect(str(self.db_path))
+        conn = self._get_conn()
         cursor = conn.cursor()
-        
-        timestamp = datetime.utcnow().isoformat()
-        
+
+        timestamp = datetime.now(timezone.utc)
+
         cursor.execute("""
-            INSERT OR REPLACE INTO deployments 
-            (id, timestamp, status, commit_sha, branch, duration_seconds, 
+            INSERT INTO core.deployments
+            (id, timestamp, status, commit_sha, branch, duration_seconds,
              services_count, passed_checks, failed_checks, rollback_performed, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO UPDATE SET
+                timestamp = EXCLUDED.timestamp,
+                status = EXCLUDED.status,
+                commit_sha = EXCLUDED.commit_sha,
+                branch = EXCLUDED.branch,
+                duration_seconds = EXCLUDED.duration_seconds,
+                services_count = EXCLUDED.services_count,
+                passed_checks = EXCLUDED.passed_checks,
+                failed_checks = EXCLUDED.failed_checks,
+                rollback_performed = EXCLUDED.rollback_performed,
+                notes = EXCLUDED.notes
         """, (
             deployment_id,
             timestamp,
@@ -118,88 +135,87 @@ class DeploymentTracker:
             services_count,
             passed_checks,
             failed_checks,
-            1 if rollback_performed else 0,
+            rollback_performed,
             notes
         ))
-        
+
         conn.commit()
         conn.close()
         logger.info(f"Tracked deployment: {deployment_id} ({status})")
 
     def add_metric(self, deployment_id: str, metric_name: str, metric_value: float):
         """Add a metric for a deployment."""
-        conn = sqlite3.connect(str(self.db_path))
+        conn = self._get_conn()
         cursor = conn.cursor()
-        
-        timestamp = datetime.utcnow().isoformat()
-        
+
+        timestamp = datetime.now(timezone.utc)
+
         cursor.execute("""
-            INSERT INTO deployment_metrics (deployment_id, metric_name, metric_value, timestamp)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO core.deployment_metrics (deployment_id, metric_name, metric_value, timestamp)
+            VALUES (%s, %s, %s, %s)
         """, (deployment_id, metric_name, metric_value, timestamp))
-        
+
         conn.commit()
         conn.close()
         logger.info(f"Added metric {metric_name}={metric_value} for deployment {deployment_id}")
 
     def list_deployments(self, limit: int = 10) -> List[Dict]:
         """List recent deployments."""
-        conn = sqlite3.connect(str(self.db_path))
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
+        conn = self._get_conn()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
         cursor.execute("""
-            SELECT * FROM deployments 
-            ORDER BY timestamp DESC 
-            LIMIT ?
+            SELECT * FROM core.deployments
+            ORDER BY timestamp DESC
+            LIMIT %s
         """, (limit,))
-        
+
         rows = cursor.fetchall()
         conn.close()
-        
+
         return [dict(row) for row in rows]
 
     def get_metrics(self) -> Dict:
         """Get deployment metrics."""
-        conn = sqlite3.connect(str(self.db_path))
+        conn = self._get_conn()
         cursor = conn.cursor()
-        
+
         # Total deployments
-        cursor.execute("SELECT COUNT(*) FROM deployments")
+        cursor.execute("SELECT COUNT(*) FROM core.deployments")
         total_deployments = cursor.fetchone()[0]
-        
+
         # Successful deployments
-        cursor.execute("SELECT COUNT(*) FROM deployments WHERE status = 'success'")
+        cursor.execute("SELECT COUNT(*) FROM core.deployments WHERE status = 'success'")
         successful_deployments = cursor.fetchone()[0]
-        
+
         # Failed deployments
-        cursor.execute("SELECT COUNT(*) FROM deployments WHERE status = 'failure'")
+        cursor.execute("SELECT COUNT(*) FROM core.deployments WHERE status = 'failure'")
         failed_deployments = cursor.fetchone()[0]
-        
+
         # Rollbacks
-        cursor.execute("SELECT COUNT(*) FROM deployments WHERE rollback_performed = 1")
+        cursor.execute("SELECT COUNT(*) FROM core.deployments WHERE rollback_performed = true")
         rollbacks = cursor.fetchone()[0]
-        
+
         # Average duration
         cursor.execute("""
-            SELECT AVG(duration_seconds) 
-            FROM deployments 
+            SELECT AVG(duration_seconds)
+            FROM core.deployments
             WHERE duration_seconds IS NOT NULL
         """)
         avg_duration = cursor.fetchone()[0] or 0
-        
+
         # Success rate
         success_rate = (successful_deployments / total_deployments * 100) if total_deployments > 0 else 0
-        
+
         # Recent deployments (last 7 days)
         cursor.execute("""
-            SELECT COUNT(*) FROM deployments 
-            WHERE timestamp > datetime('now', '-7 days')
+            SELECT COUNT(*) FROM core.deployments
+            WHERE timestamp > NOW() - INTERVAL '7 days'
         """)
         recent_deployments = cursor.fetchone()[0]
-        
+
         conn.close()
-        
+
         return {
             "total_deployments": total_deployments,
             "successful_deployments": successful_deployments,
@@ -212,14 +228,13 @@ class DeploymentTracker:
 
     def get_deployment(self, deployment_id: str) -> Optional[Dict]:
         """Get a specific deployment."""
-        conn = sqlite3.connect(str(self.db_path))
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT * FROM deployments WHERE id = ?", (deployment_id,))
+        conn = self._get_conn()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cursor.execute("SELECT * FROM core.deployments WHERE id = %s", (deployment_id,))
         row = cursor.fetchone()
         conn.close()
-        
+
         return dict(row) if row else None
 
 
@@ -237,13 +252,13 @@ def main():
     parser.add_argument("--notes", help="Additional notes")
     parser.add_argument("--list", action="store_true", help="List recent deployments")
     parser.add_argument("--metrics", action="store_true", help="Show deployment metrics")
-    parser.add_argument("--db-path", help="Path to deployment database")
-    
+    parser.add_argument("--pg-url", help="PostgreSQL connection URL")
+
     args = parser.parse_args()
-    
-    db_path = Path(args.db_path) if args.db_path else None
-    tracker = DeploymentTracker(db_path)
-    
+
+    pg_url = args.pg_url or POSTGRES_URL
+    tracker = DeploymentTracker(pg_url)
+
     if args.list:
         deployments = tracker.list_deployments()
         print("\nRecent Deployments:")
@@ -260,7 +275,7 @@ def main():
                 print(f"  Rollback: Yes")
             print()
         sys.exit(0)
-    
+
     if args.metrics:
         metrics = tracker.get_metrics()
         print("\nDeployment Metrics:")
@@ -274,11 +289,11 @@ def main():
         print(f"Recent (7 days): {metrics['recent_deployments_7d']}")
         print()
         sys.exit(0)
-    
+
     if not args.deployment_id or not args.status:
         parser.print_help()
         sys.exit(1)
-    
+
     tracker.track_deployment(
         deployment_id=args.deployment_id,
         status=args.status,
@@ -291,10 +306,9 @@ def main():
         rollback_performed=args.rollback,
         notes=args.notes
     )
-    
+
     print(f"✅ Deployment tracked: {args.deployment_id} ({args.status})")
 
 
 if __name__ == "__main__":
     main()
-

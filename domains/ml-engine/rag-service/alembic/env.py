@@ -1,6 +1,6 @@
 """
 Alembic Migration Environment for rag-service
-Configured for async SQLAlchemy with dual-mode support (PostgreSQL + SQLite).
+Configured for async SQLAlchemy with PostgreSQL.
 Uses shared helpers from homeiq_data.alembic_helpers.
 """
 
@@ -20,10 +20,8 @@ from src.database.session import Base  # noqa: E402
 # --- Service-specific configuration ---
 SCHEMA_NAME = os.getenv("DATABASE_SCHEMA", "rag")
 
-# Resolve database URL: prefer PostgreSQL, fall back to SQLite
-_pg_url = os.getenv("POSTGRES_URL") or ""
-_is_postgres = _pg_url.startswith("postgresql") or _pg_url.startswith("postgres")
-_database_url = _pg_url if _is_postgres else f"sqlite+aiosqlite:///{settings.database_path}"
+# Resolve database URL from environment
+_database_url = os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL") or ""
 
 # Alembic Config object
 config = context.config

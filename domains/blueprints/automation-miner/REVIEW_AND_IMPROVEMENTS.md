@@ -238,7 +238,7 @@ def get_database() -> Database:
 
 This means tests share the same database instance and state. There is no way to reset or override it cleanly. The `test_db` fixture in conftest.py calls `get_database()` which returns the global singleton pointing to `data/automation_miner.db` -- the real database, not an isolated test database.
 
-**Fix:** Allow dependency injection of the database path, and use an in-memory SQLite database for tests:
+**Fix:** Allow dependency injection of the database URL, and use a test database for tests:
 ```python
 def get_database(db_path: str | None = None) -> Database:
     if db_path:
@@ -429,7 +429,7 @@ The `.dockerignore` excludes these from Docker builds, but there is no `.gitigno
 **File:** `c:\cursor\HomeIQ\services\automation-miner\alembic.ini:60`
 
 ```ini
-sqlalchemy.url = sqlite+aiosqlite:///data/automation_miner.db
+sqlalchemy.url = postgresql+asyncpg://homeiq:homeiq@homeiq-postgres:5432/homeiq
 ```
 
 This is hardcoded rather than using the `MINER_DB_PATH` environment variable. The `alembic/env.py` does not override this from settings.
@@ -502,9 +502,9 @@ MD5 is not used for security here (only dedup hashing), so this is not a vulnera
 
 ---
 
-### m12. `data/` Directory Committed with SQLite Database
+### m12. `data/` Directory Committed with Legacy Database Files
 
-The `data/automation_miner.db` file (a binary SQLite database) is tracked in git. This will cause merge conflicts and bloat the repository.
+The `data/` directory may contain legacy database files tracked in git. This will cause merge conflicts and bloat the repository.
 
 ---
 
@@ -546,7 +546,7 @@ Consider adding `prometheus-fastapi-instrumentator` for automatic request metric
 
 **File:** `c:\cursor\HomeIQ\services\automation-miner\src\miner\database.py:123-127`
 
-The SQLAlchemy engine has no pool size configuration. For async SQLite this is less critical, but explicit pool settings would be beneficial for future database migration (e.g., to PostgreSQL).
+The SQLAlchemy engine pool size configuration should be verified now that the service uses PostgreSQL. Explicit pool settings ensure proper connection management under concurrent load.
 
 ### E8. GitHub Client Has No Depth Limit on Recursive Directory Traversal
 
@@ -627,7 +627,7 @@ The existing tests cover the parser's core logic reasonably well, but the reposi
 | `fastapi` | `>=0.123.0,<0.124.0` | 0.125.x | Over-pinned to minor version |
 | `uvicorn` | `>=0.32.0,<0.33.0` | 0.34.x | Over-pinned to minor version |
 | `sqlalchemy` | `==2.0.46` | 2.0.47 | Exact pin, one patch behind |
-| `aiosqlite` | `==0.22.1` | 0.22.1 | OK |
+| `asyncpg` | `>=0.30.0` | 0.30.0 | OK |
 | `alembic` | `==1.18.3` | 1.18.3 | OK |
 | `httpx` | `>=0.28.1` | 0.28.2 | OK (floor pin) |
 | `pydantic` | `>=2.9.0,<3.0.0` | 2.10.x | OK |
@@ -702,7 +702,7 @@ The existing tests cover the parser's core logic reasonably well, but the reposi
 |----|-------|-------------|
 | M1 | Blueprint search loads entire table | Added `is_blueprint` boolean column (indexed) to `CommunityAutomation`. Rewrote `search_blueprints()` to use SQL `WHERE is_blueprint = true` with all filters applied at SQL level |
 | M2 | `get_stats` iterates all rows for blueprint count | Replaced Python iteration with `SELECT COUNT(*) WHERE is_blueprint = true` |
-| M3 | `get_stats` loads all devices/integrations | Kept current approach (JSON arrays in SQLite require Python-side aggregation) but M2 blueprint fix significantly reduces load |
+| M3 | `get_stats` loads all devices/integrations | Kept current approach (JSON arrays in database require Python-side aggregation) but M2 blueprint fix significantly reduces load |
 | M4 | Global mutable state for initialization | Replaced `_initialization_in_progress` / `_initialization_complete` globals with `app.state.initialization_in_progress` / `app.state.initialization_complete` |
 | M5 | Database singleton prevents test isolation | Added `db_path` parameter to `get_database()` for custom paths (no caching). Added `reset_database()` for test cleanup. Updated test fixtures to use `get_database(db_path=":memory:")` |
 | M6 | Tests entirely gated behind env var | Removed module-level `pytest.skip()`. Added `needs_external` marker for integration tests only. Unit tests now always run |
@@ -715,7 +715,7 @@ The existing tests cover the parser's core logic reasonably well, but the reposi
 | ID | Issue | Fix Applied |
 |----|-------|-------------|
 | m1 | `test_blueprint_parser.py` wrong method signature | Changed `parser.parse_blueprint(blueprint_yaml)` to `parser.parse_yaml(blueprint_yaml)` (which handles string input). Fixed assertions to check for `_blueprint_metadata` key. Fixed YAML indentation |
-| m2 | `test_api.py` missing path setup | Added `sys.path` setup matching other test files. Updated `test_db` fixture to use in-memory SQLite |
+| m2 | `test_api.py` missing path setup | Added `sys.path` setup matching other test files. Updated `test_db` fixture to use test database |
 | m3 | Deprecated `datetime.utcnow()` in tests | Replaced all `datetime.utcnow()` with `datetime.now(timezone.utc)` in `conftest.py`, `test_api.py`, and `test_deduplicator.py` |
 | m5 | `test_parser_standalone.py` duplicates code | Deleted the file entirely (283 lines of duplicated parser logic) |
 | m6 | No `.gitignore` at service level | Created `.gitignore` covering `__pycache__/`, `*.db`, `.ruff_cache/`, `.pytest_cache/`, `coverage_html/`, `.env` |

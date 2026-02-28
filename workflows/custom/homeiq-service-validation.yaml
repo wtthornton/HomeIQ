@@ -66,11 +66,11 @@ workflow:
           * Epic 31 compliance: Verify direct InfluxDB writes (NO enrichment-pipeline references)
           * Service pattern compliance:
             - websocket-ingestion: Event Ingestion pattern (HA WebSocket → inline normalization → direct InfluxDB)
-            - data-api: Query API pattern (central query endpoint, InfluxDB for events, SQLite for metadata)
+            - data-api: Query API pattern (central query endpoint, InfluxDB for events, PostgreSQL for metadata)
             - ai-automation-service-new: AI service pattern (standalone, writes to InfluxDB, queries via data-api)
           * Database architecture (Epic 22): Hybrid pattern validation
             - InfluxDB for time-series data (events, metrics, sports scores)
-            - SQLite for relational metadata (devices, entities, webhooks)
+            - PostgreSQL for relational metadata (devices, entities, webhooks)
           * No service-to-service HTTP dependencies (standalone services)
         - For each service, generate architecture validation report with:
           * Expert feedback from all consulted experts
@@ -133,7 +133,7 @@ workflow:
           * Business value alignment: Does the service provide clear business value and meet user needs?
           * Service pattern adherence:
             - websocket-ingestion: Event ingestion from Home Assistant, direct InfluxDB writes
-            - data-api: Central query endpoint for all data (InfluxDB + SQLite)
+            - data-api: Central query endpoint for all data (InfluxDB + PostgreSQL)
             - ai-automation-service-new: AI automation logic, writes to InfluxDB
         - For each service, generate business validation report with:
           * Service purpose and role assessment

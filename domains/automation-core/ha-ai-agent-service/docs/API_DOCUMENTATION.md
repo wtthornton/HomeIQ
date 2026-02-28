@@ -541,7 +541,7 @@ Context components are cached with TTL-based expiration:
 - Helpers & scenes summary: 10 minutes
 - Entity attributes: 5 minutes
 
-Cache is stored in SQLite database (`ha_ai_agent.db`).
+Cache is stored in PostgreSQL database (`ha_ai_agent.db`).
 
 ---
 

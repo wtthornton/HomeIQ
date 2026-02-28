@@ -18,7 +18,7 @@ The ai-query-service is a **foundation/scaffold** implementation extracted from 
 - Good use of FastAPI, async patterns, and SQLAlchemy async sessions
 - Multi-stage Docker build with non-root user
 - Observability integration (OpenTelemetry) with graceful fallback
-- Proper SQLite PRAGMA configuration for performance
+- Proper database configuration for performance
 
 **Key Weaknesses:**
 - No authentication or rate limiting (explicitly TODO)
@@ -141,15 +141,13 @@ Neither `pandas` nor `numpy` is imported or used anywhere in the service source 
 
 ---
 
-### M3. SQLite Connection Pool Misconfiguration Risk
+### M3. Connection Pool Misconfiguration Risk
 
 **File:** `src/database/__init__.py:18-29`
 
-The code correctly uses `StaticPool` for SQLite, but the `Settings` class still exposes `database_pool_size` and `database_max_overflow` configuration (lines 13-14 in config.py) that are never used with SQLite. This is misleading documentation for operators.
+Now that the service uses PostgreSQL via asyncpg, the `pool_size` and `max_overflow` settings in config.py are properly utilized by the connection pool. The previous `StaticPool` limitation no longer applies.
 
-Additionally, using `StaticPool` means a single connection is reused. Under concurrent async requests, this could cause `database is locked` errors if WAL mode isn't fully effective.
-
-**Recommendation:** Document in the README that pool_size/max_overflow only apply to PostgreSQL. Consider using `NullPool` or a connection-per-request pattern for better concurrency handling.
+**Recommendation:** Verify pool_size and max_overflow values are appropriate for the expected concurrent load.
 
 ---
 
@@ -421,12 +419,9 @@ Currently, `QueryProcessor` receives its dependencies via constructor arguments,
 
 ### A3. Shared Database Access Is a Scaling Bottleneck
 
-The service shares `ai_automation.db` (SQLite) with ai-automation-service. SQLite has fundamental limitations for concurrent write access across services:
-- Single writer at a time (even with WAL mode)
-- File-level locking
-- No network access (both services must access the same filesystem)
+The service shares the `automation` schema in PostgreSQL with ai-automation-service. PostgreSQL provides proper connection pooling and concurrent write access, resolving the previous scaling limitations.
 
-**Recommendation:** For production scaling, migrate to PostgreSQL or separate the databases. The code already has a PostgreSQL path in `database/__init__.py` (lines 43-50), so this is partially prepared.
+**Status:** [COMPLETED] Migration to PostgreSQL is complete. Both services now use the shared `automation` schema with proper connection pooling via asyncpg.
 
 ---
 
@@ -498,7 +493,7 @@ The service shares `ai_automation.db` (SQLite) with ai-automation-service. SQLit
 | pydantic | 2.9.x | OK | |
 | pydantic-settings | 2.5.x | OK | |
 | sqlalchemy | 2.0.x | OK | |
-| aiosqlite | 0.20.x | OK | |
+| asyncpg | 0.30.x | OK | PostgreSQL async driver |
 | aiohttp | 3.13.x | OK | Not used in current code |
 | httpx | 0.28.x | OK | Used in tests |
 | openai | >=1.0.0 | WARN | No upper bound |
@@ -535,7 +530,7 @@ The service shares `ai_automation.db` (SQLite) with ai-automation-service. SQLit
 15. Remove `sys.path.insert` hack (M7)
 
 ### Long-term
-16. Migrate from SQLite to PostgreSQL for multi-service scaling (A3)
+16. ~~Migrate from SQLite to PostgreSQL for multi-service scaling (A3)~~ [COMPLETED]
 17. Implement repository pattern (A1)
 18. Add DI container (A2)
 19. Separate test dependencies (m7)

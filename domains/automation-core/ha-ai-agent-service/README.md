@@ -15,7 +15,7 @@ The HA AI Agent Service is a full-featured conversational AI agent that enables 
 - **Context-Aware**: Automatically injects Tier 1 context (entities, areas, services, capabilities, entity attributes) into every conversation
 - **Automation Creation**: Single unified tool (`create_automation_from_prompt`) that validates and creates Home Assistant automations
 - **OpenAI Integration**: Full integration with OpenAI API including retry logic, rate limiting, and token budget management
-- **Conversation Management**: SQLite-backed conversation persistence with message history, state management, and TTL-based cleanup
+- **Conversation Management**: PostgreSQL-backed conversation persistence with message history, state management, and TTL-based cleanup
 - **Token Management**: Intelligent token counting and budget enforcement with conversation history truncation
 - **Health Monitoring**: Comprehensive health checks for all dependencies
 
@@ -81,7 +81,7 @@ This epic implemented the foundational context injection system with the followi
 
 - **FastAPI** - Modern async web framework
 - **SQLAlchemy 2.0** - Async ORM for database operations
-- **SQLite** - Database for conversation persistence and context caching
+- **PostgreSQL** - Database for conversation persistence and context caching (schema: `agent`)
 - **OpenAI Python SDK** - Official OpenAI API client
 - **Pydantic** - Settings and data validation
 - **Tenacity** - Retry logic for API calls
@@ -188,7 +188,7 @@ This epic implemented the foundational context injection system with the followi
 - `OPENAI_MAX_RETRIES` - Maximum retry attempts (default: `3`)
 
 **Database:**
-- `DATABASE_URL` - SQLite database URL (default: `sqlite+aiosqlite:///./data/ha_ai_agent.db`)
+- `DATABASE_URL` - PostgreSQL database URL
 - `CONVERSATION_TTL_DAYS` - Conversation TTL in days (default: `30`)
 
 **CORS:**
@@ -262,7 +262,7 @@ python -m uvicorn src.main:app --host 0.0.0.0 --port 8030 --reload
 
 ## Database
 
-SQLite database (`ha_ai_agent.db`) stores:
+PostgreSQL database (schema: `agent`) stores:
 
 ### Context Cache (TTL-based expiration)
 - Entity summaries (5 min TTL)

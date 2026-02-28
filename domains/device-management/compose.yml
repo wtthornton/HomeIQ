@@ -317,7 +317,6 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}}
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
-      - DATABASE_URL=sqlite+aiosqlite:///./data/ha-setup.db
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
       - DATABASE_SCHEMA=devices
       - DATA_API_URL=http://data-api:8006

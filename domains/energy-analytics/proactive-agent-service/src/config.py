@@ -41,8 +41,8 @@ class Settings(BaseSettings):
 
     # Database Configuration
     database_url: str = Field(
-        default="sqlite+aiosqlite:///./data/proactive_agent.db",
-        description="SQLite database URL for suggestions storage"
+        default="",
+        description="Database URL (set POSTGRES_URL env var for PostgreSQL)"
     )
 
     # Scheduler Configuration

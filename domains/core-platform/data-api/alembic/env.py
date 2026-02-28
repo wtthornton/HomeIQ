@@ -1,6 +1,6 @@
 """
-Alembic Migration Environment
-Configured for async SQLAlchemy with dual-mode support (PostgreSQL + SQLite).
+Alembic Migration Environment for data-api
+Configured for async SQLAlchemy with PostgreSQL.
 """
 
 import asyncio
@@ -9,21 +9,21 @@ import sys
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import pool
+from sqlalchemy import pool, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from src.database import DATABASE_SCHEMA, DATABASE_URL, Base, _is_postgres
+from src.database import DATABASE_SCHEMA, DATABASE_URL, Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
 # Override sqlalchemy.url from environment variable so Alembic uses the same
-# database as the application (supports both PostgreSQL and SQLite).
+# database as the application.
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 # Interpret the config file for Python logging.
@@ -36,49 +36,30 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
+    from homeiq_data.alembic_helpers import (
+        run_migrations_offline as _run_pg_offline,
+    )
+
     url = config.get_main_option("sqlalchemy.url")
-
-    if _is_postgres:
-        from homeiq_data.alembic_helpers import (
-            run_migrations_offline as _run_pg_offline,
-        )
-
-        _run_pg_offline(
-            target_metadata=target_metadata,
-            schema_name=DATABASE_SCHEMA,
-            database_url=url,
-        )
-    else:
-        context.configure(
-            url=url,
-            target_metadata=target_metadata,
-            literal_binds=True,
-            dialect_opts={"paramstyle": "named"},
-        )
-
-        with context.begin_transaction():
-            context.run_migrations()
+    _run_pg_offline(
+        target_metadata=target_metadata,
+        schema_name=DATABASE_SCHEMA,
+        database_url=url,
+    )
 
 
 def do_run_migrations(connection: Connection) -> None:
-    if _is_postgres:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-            version_table_schema=DATABASE_SCHEMA,
-            include_schemas=True,
-            compare_type=True,
-            compare_server_default=True,
-        )
-    else:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-        )
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        version_table_schema=DATABASE_SCHEMA,
+        include_schemas=True,
+        compare_type=True,
+        compare_server_default=True,
+    )
 
     with context.begin_transaction():
-        if _is_postgres:
-            context.execute(f"SET search_path TO {DATABASE_SCHEMA}, public")
+        context.execute(f"SET search_path TO {DATABASE_SCHEMA}, public")
         context.run_migrations()
 
 
@@ -91,13 +72,10 @@ async def run_async_migrations() -> None:
     )
 
     async with connectable.connect() as connection:
-        if _is_postgres:
-            from sqlalchemy import text
-
-            await connection.execute(
-                text(f"SET search_path TO {DATABASE_SCHEMA}, public")
-            )
-            await connection.commit()
+        await connection.execute(
+            text(f"SET search_path TO {DATABASE_SCHEMA}, public")
+        )
+        await connection.commit()
 
         await connection.run_sync(do_run_migrations)
 

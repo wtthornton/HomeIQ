@@ -18,7 +18,7 @@ The WebSocket Ingestion Service connects to Home Assistant's WebSocket API to ca
 - 🔄 **Infinite Retry** - Never gives up on reconnection (October 2025)
 - 🔐 **Secure Authentication** - Token-based authentication with validation
 - 📊 **Event Processing** - Captures and normalizes state_changed events
-- 🔍 **Device Discovery** - Automatic discovery of devices and entities (stores to SQLite via data-api)
+- 🔍 **Device Discovery** - Automatic discovery of devices and entities (stores to PostgreSQL via data-api)
 - 🔄 **Auto-Refresh Cache** - Periodic device/area cache refresh (November 2025)
 - 📈 **Health Monitoring** - Comprehensive health checks and metrics
 - 🔁 **Automatic Reconnection** - Smart exponential backoff on connection failures
@@ -170,7 +170,7 @@ curl http://localhost:8001/health
 2. Authenticate with long-lived access token (from HA Profile → Long-Lived Access Tokens)
 3. Query device registry: `config/device_registry/list`
 4. Query entity registry: `config/entity_registry/list`
-5. **POST to data-api** → Stores in SQLite (primary storage) ✅
+5. **POST to data-api** → Stores in PostgreSQL (primary storage) ✅
 6. (Optional) Store snapshot in InfluxDB for history tracking
 
 **Data Flow**:
@@ -179,7 +179,7 @@ Home Assistant @ 192.168.1.86:8123
          ↓ WebSocket Discovery
   Discovery Service
          ↓ HTTP POST
-    Data-API → SQLite ✅ PRIMARY
+    Data-API → PostgreSQL ✅ PRIMARY
          ↓ Served via
     /api/devices, /api/entities
 ```
@@ -199,7 +199,7 @@ DATA_API_URL=http://data-api:8006  # Container name (Docker network)
 STORE_DEVICE_HISTORY_IN_INFLUXDB=false
 ```
 
-**Note**: Device/entity data is now stored directly to SQLite for fast queries (<10ms). InfluxDB storage is optional for historical tracking only.
+**Note**: Device/entity data is now stored directly to PostgreSQL for fast queries (<10ms). InfluxDB storage is optional for historical tracking only.
 
 ## Configuration
 
@@ -365,7 +365,7 @@ GET /metrics
 │  - Batch writes  │             │
 │  - 100/batch     │             ↓
 │  - 5s timeout    │   ┌──────────────────┐
-└──────────────────┘   │  SQLite          │
+└──────────────────┘   │  PostgreSQL          │
                        │  (Metadata)      │
                        │  metadata.db     │
                        │  - devices       │
@@ -380,8 +380,8 @@ Note: enrichment-pipeline (Port 8002) DEPRECATED in Epic 31
 | Data Type | Storage | Purpose | Performance |
 |-----------|---------|---------|-------------|
 | **HA Events** | InfluxDB | Time-series state changes | 10k+ events/sec |
-| **Devices** | SQLite (via data-api) | Current metadata, fast queries ✅ | <10ms queries |
-| **Entities** | SQLite (via data-api) | Current metadata, fast queries ✅ | <10ms queries |
+| **Devices** | PostgreSQL (via data-api) | Current metadata, fast queries ✅ | <10ms queries |
+| **Entities** | PostgreSQL (via data-api) | Current metadata, fast queries ✅ | <10ms queries |
 | **Device History** | InfluxDB (optional) | Historical snapshots | Disabled by default |
 
 ### Component Architecture
@@ -491,7 +491,7 @@ pytest tests/ -v
 - **Memory Usage:** ~150MB typical, ~500MB peak
 - **CPU Usage:** <5% typical, <20% peak
 - **InfluxDB Write Latency:** <50ms per batch
-- **Device Query Latency:** <10ms (SQLite)
+- **Device Query Latency:** <10ms (PostgreSQL)
 
 ### Resource Limits
 
@@ -624,7 +624,7 @@ CIRCUIT_BREAKER_THRESHOLD=10  # More tolerant
 1. Data API is running (http://localhost:8006/health)
 2. WebSocket connection is established
 3. HA token has device registry permissions
-4. Data API SQLite database is writable
+4. Data API PostgreSQL database is writable
 
 **Debug Steps:**
 ```bash

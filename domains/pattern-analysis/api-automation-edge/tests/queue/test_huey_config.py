@@ -21,7 +21,7 @@ def temp_db():
 
 
 def test_huey_initialization(temp_db):
-    """Test Huey initialization with SQLite backend"""
+    """Test Huey initialization"""
     try:
         from src.queue.huey_config import get_huey_instance
         

@@ -37,8 +37,9 @@
 ### Database & Storage
 | Library | Version Range | Notes |
 |---------|--------------|-------|
-| **SQLAlchemy** | 2.0.25 – 2.0.46 | ORM for SQLite metadata |
-| **aiosqlite** | 0.20.0 – 0.21.0 | Async SQLite driver |
+| **SQLAlchemy** | 2.0.25 – 2.0.46 | ORM for PostgreSQL |
+| **asyncpg** | 0.30.0+ | Async PostgreSQL driver |
+| **psycopg** | 3.x | Sync PostgreSQL driver (Alembic) |
 | **influxdb-client** | 1.38.0 – 1.48.0 | InfluxDB 2.x Python client |
 
 ### HTTP & Networking
@@ -122,7 +123,7 @@
 | Database | Version | Purpose |
 |----------|---------|---------|
 | **InfluxDB** | 2.7.12 | Time-series data (events, metrics, sensor data) |
-| **SQLite** | (via aiosqlite) | Metadata (devices, entities, config) per service |
+| **PostgreSQL** | 17 | Metadata (devices, entities, config) — single instance, schema-per-domain |
 
 ### Observability
 | Tool | Version | Purpose |

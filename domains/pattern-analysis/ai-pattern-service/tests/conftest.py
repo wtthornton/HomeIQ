@@ -10,8 +10,9 @@ from datetime import datetime, timezone
 from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
 
+import os
+
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import StaticPool
 from sqlalchemy import text
 from fastapi.testclient import TestClient
 
@@ -27,20 +28,22 @@ from src.main import app
 @pytest.fixture(scope="function")
 async def test_db() -> AsyncGenerator[AsyncSession, None]:
     """
-    Create a test database session using in-memory SQLite.
-    
+    Create a test database session using PostgreSQL.
+
     Each test gets a fresh database.
     Note: Pattern and SynergyOpportunity tables are in shared database,
     so we'll use raw SQL or mock models for testing.
     """
-    # Use in-memory SQLite for tests
+    # Use PostgreSQL for tests
+    test_url = os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq_test",
+    )
     engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        poolclass=StaticPool,
-        connect_args={"check_same_thread": False},
+        test_url,
         echo=False,
     )
-    
+
     # Create basic tables (Pattern and SynergyOpportunity would be in shared DB)
     # For testing, we'll create minimal schema or use mocks
     async with engine.begin() as conn:
@@ -48,10 +51,10 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
         await conn.execute(
             text("""
             CREATE TABLE IF NOT EXISTS patterns (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 pattern_type TEXT NOT NULL,
                 device_id TEXT NOT NULL,
-                pattern_metadata JSON,
+                pattern_metadata JSONB,
                 confidence REAL NOT NULL,
                 occurrences INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -63,17 +66,17 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
         await conn.execute(
             text("""
             CREATE TABLE IF NOT EXISTS synergy_opportunities (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 synergy_id TEXT UNIQUE NOT NULL,
                 synergy_type TEXT NOT NULL,
                 device_ids TEXT NOT NULL,
-                opportunity_metadata JSON,
+                opportunity_metadata JSONB,
                 impact_score REAL NOT NULL,
                 complexity TEXT NOT NULL,
                 confidence REAL NOT NULL,
                 area TEXT,
-                explanation JSON,
-                context_breakdown JSON,
+                explanation JSONB,
+                context_breakdown JSONB,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """)
@@ -82,7 +85,7 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
         await conn.execute(
             text("""
             CREATE TABLE IF NOT EXISTS synergy_feedback (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 synergy_id TEXT NOT NULL,
                 accepted BOOLEAN NOT NULL,
                 feedback_text TEXT,

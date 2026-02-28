@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Sync Devices from InfluxDB to SQLite
+Sync Devices from InfluxDB to PostgreSQL
 
-This script reads discovered devices from InfluxDB and populates the SQLite database
+This script reads discovered devices from InfluxDB and populates the PostgreSQL database
 in the data-api service so the devices API endpoint works properly.
 """
 
@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class DeviceSync:
-    """Sync devices from InfluxDB to SQLite via data API"""
+    """Sync devices from InfluxDB to PostgreSQL via data API"""
     
     def __init__(self):
         # InfluxDB configuration
@@ -35,9 +35,9 @@ class DeviceSync:
         self.data_api_url = os.getenv("DATA_API_URL", "http://localhost:8006")
         
     async def sync_devices(self):
-        """Sync devices from InfluxDB to SQLite"""
+        """Sync devices from InfluxDB to PostgreSQL"""
         try:
-            logger.info("Starting device sync from InfluxDB to SQLite...")
+            logger.info("Starting device sync from InfluxDB to PostgreSQL...")
             
             # Get devices from InfluxDB
             devices = await self._get_devices_from_influxdb()
@@ -47,14 +47,14 @@ class DeviceSync:
                 logger.warning("No devices found in InfluxDB")
                 return False
             
-            # Store devices in SQLite via data API
-            success = await self._store_devices_in_sqlite(devices)
+            # Store devices in PostgreSQL via data API
+            success = await self._store_devices_in_pg(devices)
             
             if success:
-                logger.info(f"Successfully synced {len(devices)} devices to SQLite")
+                logger.info(f"Successfully synced {len(devices)} devices to PostgreSQL")
                 return True
             else:
-                logger.error("Failed to sync devices to SQLite")
+                logger.error("Failed to sync devices to PostgreSQL")
                 return False
                 
         except Exception as e:
@@ -104,73 +104,25 @@ class DeviceSync:
             logger.error(f"Error getting devices from InfluxDB: {e}")
             return []
     
-    async def _store_devices_in_sqlite(self, devices: List[Dict[str, Any]]) -> bool:
-        """Store devices in SQLite via data API"""
+    async def _store_devices_in_pg(self, devices: List[Dict[str, Any]]) -> bool:
+        """Store devices in PostgreSQL via data API bulk upsert endpoint."""
         try:
-            # For now, we'll create a simple script that can be run inside the data-api container
-            # to populate SQLite directly
-            
-            logger.info("Creating SQLite population script...")
-            
-            script_content = f'''
-import asyncio
-import sys
-import os
-from datetime import datetime
-
-# Add the src directory to the path
-sys.path.append('/app/src')
-
-from database import AsyncSessionLocal, init_db
-from models.device import Device
-from models.entity import Entity
-
-async def populate_devices():
-    """Populate SQLite with devices from InfluxDB"""
-    
-    # Initialize database
-    await init_db()
-    
-    # Device data from InfluxDB
-    devices_data = {devices}
-    
-    async with AsyncSessionLocal() as session:
-        # Clear existing devices
-        await session.execute("DELETE FROM devices")
-        await session.execute("DELETE FROM entities")
-        await session.commit()
-        
-        # Insert devices
-        for device_data in devices_data:
-            device = Device(
-                device_id=device_data["device_id"],
-                name=device_data["name"],
-                manufacturer=device_data["manufacturer"],
-                model=device_data["model"],
-                sw_version=device_data["sw_version"],
-                area_id=device_data["area_id"],
-                last_seen=device_data["last_seen"]
-            )
-            session.add(device)
-        
-        await session.commit()
-        print(f"Inserted {{len(devices_data)}} devices into SQLite")
-
-if __name__ == "__main__":
-    asyncio.run(populate_devices())
-'''
-            
-            # Write script to file
-            with open("populate_sqlite.py", "w") as f:
-                f.write(script_content)
-            
-            logger.info("SQLite population script created: populate_sqlite.py")
-            logger.info("Run this script inside the data-api container to populate SQLite")
-            
-            return True
-            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{self.data_api_url}/internal/devices/bulk_upsert",
+                    json=devices,
+                    timeout=aiohttp.ClientTimeout(total=30)
+                ) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        logger.info(f"Stored {result.get('upserted', 0)} devices via data-api")
+                        return True
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"Failed to store devices: {response.status} - {error_text}")
+                        return False
         except Exception as e:
-            logger.error(f"Error storing devices in SQLite: {e}")
+            logger.error(f"Error storing devices in PostgreSQL: {e}")
             return False
 
 async def main():

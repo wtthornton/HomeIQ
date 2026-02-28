@@ -10,7 +10,7 @@
 - **Compose project name:** `homeiq` (from `name: homeiq` in `docker-compose.yml`)
 - **Containers:** 47+ services; names usually start with `homeiq-` or match service names (e.g. `ai-automation-ui`, `homeiq-influxdb`)
 - **Images:** Built from repo (e.g. `homeiq-websocket-ingestion`, `homeiq-data-api`) plus a few pulled images (`influxdb:2.7.12`, `jaegertracing/all-in-one:1.75.0`, `ghcr.io/home-assistant/home-assistant:stable`)
-- **Volumes:** Named volumes in `docker-compose.yml` become `homeiq_<volume_name>` (e.g. `homeiq_influxdb_data`, `homeiq_sqlite-data`)
+- **Volumes:** Named volumes in `docker-compose.yml` become `homeiq_<volume_name>` (e.g. `homeiq_influxdb_data`, `homeiq_postgres_data`)
 - **Network:** `homeiq_homeiq-network`
 - **Other compose files:** `docker-compose.dev.yml`, `docker-compose.minimal.yml`, `docker-compose.simple.yml`, and service-specific compose files may create extra containers/volumes when used
 
@@ -96,7 +96,7 @@ docker image prune -a -f
 
 ### Phase 4: Remove Unused Volumes
 
-**Risk:** Volumes store data (InfluxDB, SQLite, logs, etc.). Removing a volume **deletes that data**.
+**Risk:** Volumes store data (InfluxDB, PostgreSQL, logs, etc.). Removing a volume **deletes that data**.
 
 ```powershell
 # List volumes (confirm names before pruning)
@@ -112,7 +112,7 @@ docker volume prune -f
 **Safe approach:**
 
 1. Bring down the stack: `docker compose down` (containers are removed; volumes remain).
-2. Run `docker volume ls` and note names like `homeiq_influxdb_data`, `homeiq_sqlite-data`, etc.
+2. Run `docker volume ls` and note names like `homeiq_influxdb_data`, `homeiq_postgres_data`, etc.
 3. Run `docker volume prune -f` only if you are sure no important **non-HomeIQ** data is in unused volumes.
 4. To remove **only** a specific volume (e.g. an old test volume):  
    `docker volume rm <volume_name>`
@@ -225,4 +225,4 @@ See script header for usage.
 
 - Confirm stack: `docker compose ps`
 - Check disk: `docker system df`
-- If something is missing: restore from backups (e.g. InfluxDB, SQLite) if you have them; volumes removed with `docker volume prune` are not recoverable.
+- If something is missing: restore from backups (e.g. InfluxDB, PostgreSQL) if you have them; volumes removed with `docker volume prune` are not recoverable.

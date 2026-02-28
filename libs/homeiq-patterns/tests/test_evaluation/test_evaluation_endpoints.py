@@ -51,7 +51,7 @@ from homeiq_patterns.evaluation import (
 
 @pytest_asyncio.fixture
 async def store():
-    s = EvaluationStore(sqlite_path=":memory:")
+    s = EvaluationStore(db_url="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq")
     await s.initialize()
     yield s
     await s.close()
@@ -302,7 +302,7 @@ async def test_cleanup_expired(store):
 
 @pytest.mark.asyncio
 async def test_store_close_and_reopen():
-    s = EvaluationStore(sqlite_path=":memory:")
+    s = EvaluationStore(db_url="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq")
     await s.initialize()
     await s.store_batch_report(_make_report())
     await s.close()

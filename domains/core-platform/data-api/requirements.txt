@@ -13,7 +13,6 @@ aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
 # Database
 influxdb-client>=1.49.0,<2.0.0  # Unpinned for patch updates
 sqlalchemy>=2.0.36,<2.1.0  # Phase 1: aligned
-aiosqlite>=0.20.0,<0.23.0  # Phase 1: aligned
 alembic>=1.13.0,<2.0.0  # Phase 1: aligned
 asyncpg>=0.30.0  # Phase 1C: PostgreSQL migration
 

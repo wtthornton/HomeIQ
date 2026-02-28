@@ -18,7 +18,7 @@ The AI Automation Service is a microservice extracted from `ai-automation-servic
 ## Service Configuration
 
 - **Port**: 8025 (Note: 8021 is used by device-setup-assistant)
-- **Database**: Shared SQLite database at `/app/data/ai_automation.db`
+- **Database**: PostgreSQL (schema: `automation`)
 - **Dependencies**: 
   - Data API (Port 8006)
   - Query Service (Port 8018)

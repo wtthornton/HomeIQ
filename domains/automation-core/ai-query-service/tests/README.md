@@ -53,7 +53,7 @@ pytest -m asyncio
 ## Test Fixtures
 
 ### Database Fixtures
-- `test_db` - In-memory SQLite database session (fresh for each test)
+- `test_db` - In-memory PostgreSQL database session (fresh for each test)
 
 ### Sample Data Fixtures
 - `sample_query_request` - Sample query request dictionary
@@ -72,7 +72,7 @@ pytest -m asyncio
 
 ## Notes
 
-- Tests use in-memory SQLite for isolation
+- Tests use in-memory PostgreSQL for isolation
 - Query endpoint tests currently expect 501 (not implemented yet)
 - Performance tests will be enabled after full implementation
 - Integration tests verify service-to-service communication

@@ -200,7 +200,7 @@ echo "Deployment complete. Active environment: $INACTIVE_ENV"
   - Pydantic: `>=2.12.5,<3.0.0`
 - Per-service `requirements.txt` — Service-specific dependencies
   - Can override base versions if needed
-  - Example: `aiosqlite>=0.22.1,<0.23.0` pinned to patch level
+  - Example: `asyncpg>=0.30.0,<0.31.0` pinned to patch level
 
 ### 2026 Best Practice: Centralized Base + Per-Service Pinning
 
@@ -302,7 +302,7 @@ pytest domains/*/tests/unit -v --cov
 - Test ai-core-service with rag-service
 - Test device-intelligence-service with device-health-monitor
 - InfluxDB read/write validation
-- SQLite metadata store validation
+- PostgreSQL metadata store validation
 
 **Example:**
 ```bash
@@ -424,7 +424,7 @@ Currently missing:
 ### Current HomeIQ State
 
 **Implemented Phase 0 backup script:**
-- Creates Docker volume backups (InfluxDB, SQLite)
+- Creates Docker volume backups (InfluxDB, PostgreSQL)
 - Backs up configuration files
 - Tags Docker images with `pre-rebuild` tag
 - Estimated time: 1-1.5 hours

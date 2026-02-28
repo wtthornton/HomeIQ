@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the complete event flow from Home Assistant through the HA-Ingestor system. **Updated February 24, 2026**: Cross-group resilience section added (CircuitBreaker, CrossGroupClient, GroupHealthCheck). Service group boundary annotations added to flow diagrams (Phase 5). State machine pattern implemented for robust connection and processing state management. Activity-recognition and energy-forecasting added to Docker deployment. Automation execution architecture includes asynchronous task queue with Huey SQLite backend.
+This document describes the complete event flow from Home Assistant through the HA-Ingestor system. **Updated February 24, 2026**: Cross-group resilience section added (CircuitBreaker, CrossGroupClient, GroupHealthCheck). Service group boundary annotations added to flow diagrams (Phase 5). State machine pattern implemented for robust connection and processing state management. Activity-recognition and energy-forecasting added to Docker deployment. Automation execution architecture includes asynchronous task queue with Huey backend.
 
 ## Service Tiers and Groups
 
@@ -563,7 +563,7 @@ The event data flowing through this architecture is also analyzed by the AI Patt
 
 ## Automation Execution Architecture (January 2026)
 
-The `api-automation-edge` service (Port 8025) handles automation execution with an asynchronous task queue pattern using Huey with SQLite backend.
+The `api-automation-edge` service (Port 8025) handles automation execution with an asynchronous task queue pattern using Huey with PostgreSQL backend.
 
 ### Execution Flow
 
@@ -576,7 +576,7 @@ HTTP Request → Validate → Execute → Return Result (blocks)
 ```
 HTTP Request → Validate → Queue Task → Return Task ID (fast)
                      ↓
-              Huey Queue (SQLite)
+              Huey Queue (PostgreSQL)
                      ↓
               Worker Process → Execute → Store Result
                      ↓
@@ -585,7 +585,7 @@ HTTP Request → Validate → Queue Task → Return Task ID (fast)
 
 ### Task Queue Components
 
-1. **Huey SQLite Backend**: Persistent task queue (survives restarts)
+1. **Huey PostgreSQL Backend**: Persistent task queue (survives restarts)
    - Database: `./data/automation_queue.db` (persisted in Docker volume)
    - Workers: 4 threads (configurable via `HUEY_WORKERS`)
    - Result Storage: 7 days TTL (configurable via `HUEY_RESULT_TTL`)
@@ -628,7 +628,7 @@ HTTP Request → Validate → Queue Task → Return Task ID (fast)
 
 Environment variables:
 - `USE_TASK_QUEUE`: Enable task queue (default: "true")
-- `HUEY_DATABASE_PATH`: SQLite database path (default: "./data/automation_queue.db")
+- `HUEY_DATABASE_PATH`: PostgreSQL database path (default: "./data/automation_queue.db")
 - `HUEY_WORKERS`: Number of worker threads (default: 4)
 - `HUEY_RESULT_TTL`: Result storage TTL in seconds (default: 604800 = 7 days)
 - `HUEY_SCHEDULER_INTERVAL`: Periodic task check interval in seconds (default: 1.0)

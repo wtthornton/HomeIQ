@@ -18,7 +18,7 @@ The rag-service is a well-structured FastAPI microservice providing semantic kno
 - Good use of FastAPI dependency injection with Annotated types
 - Proper async/await throughout
 - Reasonable retry logic on the OpenVINO client
-- SQLite WAL mode and PRAGMA tuning
+- PostgreSQL connection pooling and schema isolation
 - Multi-stage Dockerfile with non-root user
 - Thread-safe metrics tracking
 
@@ -88,7 +88,7 @@ for entry in entries:
 
 **Recommended Fix**: For production scale:
 1. **Short-term**: Add a LIMIT to the SQL query when filtering by knowledge_type (reduces scan scope), and consider pre-filtering by time range or success_score.
-2. **Medium-term**: Use a dedicated vector database extension or library (e.g., sqlite-vss, pgvector, or FAISS as an in-memory index alongside SQLite for metadata).
+2. **Medium-term**: Use a dedicated vector database extension or library (e.g., pgvector extension for PostgreSQL, or FAISS as an in-memory index alongside PostgreSQL for metadata).
 3. **Immediate mitigation**: Add pagination support and a configurable max scan limit to prevent unbounded memory usage.
 
 ---
@@ -186,7 +186,7 @@ The health and readiness endpoints always return "healthy"/"ready" without check
 
 The `StoreRequest.text` field has no maximum length constraint. A client could submit megabytes of text, which would:
 1. Be sent to OpenVINO for embedding (potentially causing timeouts or OOM)
-2. Be stored entirely in SQLite (bloating the database)
+2. Be stored entirely in the database (bloating it)
 3. Be loaded back into memory on every search (amplifying C2)
 
 **Before**:
@@ -234,7 +234,7 @@ A migration rollback script with hardcoded local Windows paths (`C:\cursor\HomeI
 
 **File**: `data/rag_service.db`, `data/rag_service.db-wal`, `data/rag_service.db-shm`
 
-SQLite database files (including WAL and shared memory files) are present in the repository. These are runtime artifacts and should never be committed.
+Legacy database files may be present in the repository. These are runtime artifacts and should never be committed.
 
 **Impact**: Binary files bloat the git repository, can cause merge conflicts, and may contain sensitive data.
 
@@ -442,7 +442,7 @@ rag-service/
 **Data Flow**:
 ```
 Client -> FastAPI Router -> RAGService -> OpenVINO Client (embeddings)
-                                      -> SQLAlchemy/SQLite (storage)
+                                      -> SQLAlchemy/PostgreSQL (storage)
                                       -> numpy (similarity computation)
 ```
 

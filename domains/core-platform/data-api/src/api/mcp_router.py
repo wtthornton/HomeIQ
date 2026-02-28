@@ -100,13 +100,12 @@ async def get_devices():
         logger.info("MCP get_devices")
 
         # Import here to avoid circular dependencies
-        from ..database.sqlite_client import SQLiteClient
+        from ..database import get_db_session
 
-        sqlite_client = SQLiteClient()
-
-        # Query SQLite metadata
-        query = "SELECT * FROM devices ORDER BY entity_id"
-        devices = await sqlite_client.query(query)
+        async for session in get_db_session():
+            from sqlalchemy import text
+            result = await session.execute(text("SELECT * FROM devices ORDER BY entity_id"))
+            devices = [dict(row._mapping) for row in result.fetchall()]
 
         return {
             "count": len(devices),

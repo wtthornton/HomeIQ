@@ -18,12 +18,12 @@ library_upgrades:
       priority: critical
       notes: "SQLAlchemy 2.0 - Major rewrite, async support"
 
-    aiosqlite:
-      from: ">=0.20.0,<0.22.0"
-      to: ">=0.22.1"
+    asyncpg:
+      from: ">=0.29.0"
+      to: ">=0.30.0"
       breaking: false
       priority: high
-      notes: "Async SQLite support improvements"
+      notes: "Async PostgreSQL driver (replaced aiosqlite)"
 
     fastapi:
       from: ">=0.115.0,<0.120.0"

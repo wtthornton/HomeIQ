@@ -62,7 +62,7 @@ Added PostgreSQL drivers as part of the migration initiative.
 
 - **asyncpg >=0.30.0**: Added to all 15 database-using services — async PostgreSQL driver for SQLAlchemy
 - **psycopg[binary] >=3.2.0**: Added to `homeiq-data` shared library — sync driver for Alembic migrations
-- **aiosqlite**: Retained for dual-mode fallback during migration stabilization period
+- **asyncpg**: PostgreSQL async driver (replaced aiosqlite after migration)
 
 ### Phase 4: ML/AI Library Alignment — Complete
 

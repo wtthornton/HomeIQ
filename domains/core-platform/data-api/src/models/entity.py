@@ -1,5 +1,5 @@
 """
-Entity Model for SQLite Storage
+Entity Model for Database Storage
 Story 22.2 - Simple entity registry with FK to devices
 Epic 2025: Enhanced with Entity Registry name fields and capabilities
 """

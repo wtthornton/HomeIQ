@@ -15,7 +15,7 @@ The API Automation Edge Service is a FastAPI-based automation engine that transi
 - **Capability Graph**: Discovers and maintains entity/service inventory from Home Assistant
 - **Validation Pipeline**: Target resolution, service compatibility, policy gates
 - **Execution Engine**: Idempotent executor with retry, circuit breaker, confirmation
-- **Task Queue**: Async execution via Huey SQLite backend
+- **Task Queue**: Async execution via Huey backend
 - **Rollout Management**: Canary rollouts, rollback, kill switch
 - **Security**: Encrypted secrets, webhook HMAC validation
 
@@ -243,7 +243,7 @@ self.idempotency_store: Dict[str, Dict[str, float]] = {}
 ```
 **Issue**: The idempotency store is an in-memory dictionary. On service restart, all idempotency keys are lost, allowing duplicate executions. In the task queue scenario (H1), there are multiple ActionExecutor instances each with their own empty store.
 
-**Fix**: Use the SQLite database or a shared store for idempotency keys.
+**Fix**: Use the PostgreSQL database or a shared store for idempotency keys.
 
 ---
 

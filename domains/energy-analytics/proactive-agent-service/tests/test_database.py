@@ -4,6 +4,8 @@ Tests for database initialization and session management
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -22,18 +24,22 @@ def test_get_async_session_maker_returns_none_before_init():
 @pytest.mark.asyncio
 async def test_get_async_session_maker_returns_maker_after_init():
     """Test that get_async_session_maker returns session maker after initialization"""
-    # Create test settings
+    test_url = os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq_test",
+    )
+    # Create test settings with PostgreSQL URL
     settings = Settings(
-        database_url="sqlite+aiosqlite:///:memory:",
+        database_url=test_url,
         log_level="INFO",
     )
-    
+
     # Initialize database
     await init_database(settings)
-    
+
     # Get session maker
     session_maker = get_async_session_maker()
-    
+
     # Verify it's not None
     assert session_maker is not None
     # Verify it's callable (session factory)

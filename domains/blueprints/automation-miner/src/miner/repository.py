@@ -215,7 +215,7 @@ class CorpusRepository:
         # Device filter (JSON contains check)
         if 'device' in filters and filters['device']:
             device = filters['device']
-            # SQLite JSON support: json_each for array containment
+            # JSON array containment check
             conditions.append(
                 CommunityAutomation.devices.contains([device])
             )

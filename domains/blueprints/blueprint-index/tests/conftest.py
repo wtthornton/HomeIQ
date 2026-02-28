@@ -1,9 +1,10 @@
 """Test fixtures for Blueprint Index Service."""
 
+import os
+
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from src.models import Base
 
@@ -12,11 +13,14 @@ from src.models import Base
 
 @pytest_asyncio.fixture
 async def db_session():
-    """Create in-memory database session for testing."""
+    """Create PostgreSQL database session for testing."""
+    test_url = os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq_test",
+    )
     engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        test_url,
+        echo=False,
     )
     
     async with engine.begin() as conn:

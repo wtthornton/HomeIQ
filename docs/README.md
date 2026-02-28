@@ -18,7 +18,7 @@
 ### Architecture
 | Path | Description |
 |------|-------------|
-| [docs/architecture/database-schema.md](architecture/database-schema.md) | Hybrid DB schema (InfluxDB + SQLite) |
+| [docs/architecture/database-schema.md](architecture/database-schema.md) | Hybrid DB schema (InfluxDB + PostgreSQL) |
 | [docs/architecture/event-flow-architecture.md](architecture/event-flow-architecture.md) | Event flow and tiers |
 | [docs/architecture/influxdb-schema.md](architecture/influxdb-schema.md) | InfluxDB schema |
 

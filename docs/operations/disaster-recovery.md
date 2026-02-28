@@ -70,7 +70,6 @@ This script:
 | PostgreSQL (full) | `backups/postgres/homeiq_full_*.dump` | pg_dump custom | 30 days |
 | PostgreSQL (per-schema) | `backups/postgres/homeiq_{schema}_*.dump` | pg_dump custom | 30 days |
 | InfluxDB | Container volume or `backups/influxdb/` | InfluxDB native backup | 30 days |
-| SQLite (legacy) | `backups/` via `backup-all.sh` | Raw .db copy | Until migration complete |
 | Docker volumes | `backups/` via `backup-all.sh` | tar.gz | Manual |
 
 ---
@@ -173,38 +172,23 @@ curl -s http://localhost:8004/api/v1/health | python -m json.tool
 
 ## Failover Procedures
 
-### PostgreSQL Down -- SQLite Fallback
+### PostgreSQL Down -- Recovery
 
-During the migration period, services can fall back to SQLite if PostgreSQL becomes unavailable.
-
-**Automatic failover (if implemented in the service):**
-
-Services using `homeiq-data` library check PostgreSQL on startup. If unavailable, they fall back to the local SQLite database.
-
-**Manual failover:**
+PostgreSQL is the sole metadata database. If PostgreSQL becomes unavailable, restore from backup immediately.
 
 ```bash
 # 1. Verify PostgreSQL is actually down
 docker exec homeiq-postgres pg_isready -U homeiq || echo "PostgreSQL is DOWN"
 
-# 2. Set environment variables to force SQLite mode
-# In the service's environment or .env file:
-DATABASE_BACKEND=sqlite
-SQLITE_DATABASE_PATH=/app/data/metadata.db
+# 2. Check PostgreSQL container logs
+docker logs homeiq-postgres --tail 50
 
-# 3. Restart affected services
-docker compose restart data-api admin-api
+# 3. Try restarting the container
+docker compose restart postgres
 
-# 4. Verify services are healthy in SQLite mode
-curl -s http://localhost:8006/health | python -m json.tool
-# Should show database_backend: "sqlite" or similar indicator
+# 4. If restart fails, restore from backup (see Restore Procedures above)
+./scripts/restore-postgres.sh backups/postgres/homeiq_full_YYYYMMDD_HHMMSS.dump
 ```
-
-**Limitations of SQLite fallback:**
-- No cross-schema queries
-- No concurrent write support (single-writer lock)
-- Data written during failover must be reconciled (see next section)
-- Some advanced PostgreSQL features (JSONB operators, array types) are unavailable
 
 ### InfluxDB Down -- Degraded Mode
 
@@ -231,34 +215,6 @@ curl -s http://localhost:8001/health | python -m json.tool
 ---
 
 ## Data Reconciliation After Failover
-
-### PostgreSQL Restored After SQLite Failover
-
-If services wrote to SQLite during a PostgreSQL outage, data reconciliation is needed:
-
-```bash
-# 1. Identify the failover window
-# Check service logs for when SQLite mode was activated and deactivated
-docker logs homeiq-data-api 2>&1 | grep -i "sqlite\|fallback\|failover"
-
-# 2. Export data written during failover from SQLite
-docker exec homeiq-data-api sqlite3 /app/data/metadata.db \
-    ".dump" > /tmp/failover_data.sql
-
-# 3. Review the exported data
-# Look for INSERT/UPDATE statements with timestamps during the failover window
-
-# 4. Apply missing data to PostgreSQL
-# This is manual and schema-specific -- use INSERT ON CONFLICT DO UPDATE
-# to avoid duplicates
-
-# 5. Verify data consistency
-# Compare row counts between SQLite and PostgreSQL for the affected time range
-
-# 6. Switch services back to PostgreSQL
-# Remove DATABASE_BACKEND=sqlite from environment
-docker compose restart data-api admin-api
-```
 
 ### InfluxDB Restored After Outage
 
@@ -339,8 +295,8 @@ ACTIONS:
 1. **Pre-drill**: Notify team, ensure recent backup exists
 2. **Simulate failure**: Stop PostgreSQL container
 3. **Verify detection**: Confirm alerts fire within 2 minutes
-4. **Execute failover**: Follow failover procedure (SQLite fallback)
-5. **Restore**: Follow PostgreSQL restore procedure
+4. **Execute recovery**: Follow PostgreSQL restore procedure
+5. **Verify**: Confirm data integrity after restore
 6. **Validate**: Run health checks and E2E tests
 7. **Measure**: Record RTO and RPO achieved
 8. **Document**: Update this runbook with lessons learned

@@ -1,6 +1,6 @@
 """
 Alembic Migration Environment for ha-setup-service
-Configured for async SQLAlchemy with dual-mode support (PostgreSQL + SQLite).
+Configured for async SQLAlchemy with PostgreSQL.
 Uses shared helpers from homeiq_data.alembic_helpers.
 """
 
@@ -26,10 +26,8 @@ from src.models import (  # noqa: E402, F401
 SCHEMA_NAME = os.getenv("DATABASE_SCHEMA", "devices")
 settings = get_settings()
 
-# Resolve database URL: prefer PostgreSQL, fall back to SQLite
-_pg_url = os.getenv("POSTGRES_URL") or ""
-_is_postgres = _pg_url.startswith("postgresql") or _pg_url.startswith("postgres")
-_database_url = _pg_url if _is_postgres else settings.database_url
+# Resolve database URL from environment
+_database_url = os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL") or settings.database_url
 
 # Alembic Config object
 config = context.config

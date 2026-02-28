@@ -83,7 +83,7 @@ The existing `ai-automation-service` is monolithic and contains:
 ## Notes
 
 - This service will run on Port 8021 (per PRD)
-- Uses shared database (SQLite)
+- Uses shared database (PostgreSQL)
 - Will communicate with other services via HTTP
 - Full extraction will happen in subsequent stories
 

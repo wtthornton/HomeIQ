@@ -35,7 +35,7 @@ This epic spans **3 locations** — shared backend, data-api service, and health
 ```
 SHARED BACKEND (libs/homeiq-patterns/src/homeiq_patterns/evaluation/) — scheduler, store, alerts:
 ├── scheduler.py                          ← EvaluationScheduler (runs eval pipelines)
-├── store.py                              ← EvaluationStore (InfluxDB + SQLite writes)
+├── store.py                              ← EvaluationStore (InfluxDB + PostgreSQL writes)
 └── alerts.py                             ← AlertEngine (threshold checking + lifecycle)
 
 DATA-API SERVICE (domains/core-platform/data-api/src/) — API endpoints:
@@ -58,12 +58,12 @@ HEALTH-DASHBOARD (domains/core-platform/health-dashboard/src/components/) — Re
 - `data-api` already has `*_endpoints.py` pattern (`health_endpoints.py`, `sports_endpoints.py`, etc.)
 - `health-dashboard` already has 62+ components; new evaluation components go in a subdirectory
 - InfluxDB writes follow existing `influxdb_query_client.py` patterns in `shared/`
-- SQLite storage follows existing `database.py` pattern in `data-api`
+- PostgreSQL storage follows existing `database.py` pattern in `data-api`
 
 ## Objectives
 
 1. Automate evaluation runs on a configurable schedule matching each agent's priority matrix
-2. Store evaluation history in InfluxDB (time-series scores) and SQLite (session details, reports)
+2. Store evaluation history in InfluxDB (time-series scores) and PostgreSQL (session details, reports)
 3. Extend the existing health-dashboard with an Agent Evaluation section
 4. Surface threshold violations as alerts visible in the dashboard and via notifications
 5. Provide API endpoints for evaluation data so external tools can consume results
@@ -118,10 +118,10 @@ HEALTH-DASHBOARD (domains/core-platform/health-dashboard/src/components/) — Re
   - Tags: `agent_name`, `evaluator_name`, `level` (L1-L5)
   - Fields: `score` (float), `label` (string), `passed` (bool)
   - Timestamp: evaluation run time
-- [x] Session-level details stored in SQLite (via data-api):
+- [x] Session-level details stored in PostgreSQL (via data-api):
   - Table: `evaluation_results` — `id`, `session_id`, `agent_name`, `evaluator_name`, `level`, `score`, `label`, `explanation`, `timestamp`
   - Table: `evaluation_runs` — `id`, `agent_name`, `run_timestamp`, `sessions_evaluated`, `total_evaluations`, `alerts_triggered`
-- [x] Retention: InfluxDB scores kept for 90 days, SQLite details kept for 30 days
+- [x] Retention: InfluxDB scores kept for 90 days, PostgreSQL details kept for 30 days
 - [x] Query methods: `get_scores(agent, evaluator, start, end)`, `get_trends(agent, period)`, `get_latest_report(agent)`
 - [x] Unit tests for storage write and query operations
 
@@ -249,7 +249,7 @@ HEALTH-DASHBOARD (domains/core-platform/health-dashboard/src/components/) — Re
 - [x] Syntax highlighting for YAML content in tool call params/results
 - [x] Evaluator explanation shown inline next to the relevant turn/tool call
 - [x] Copy session trace as JSON for external analysis
-- [x] Data sourced from SQLite session store + evaluation results
+- [x] Data sourced from PostgreSQL session store + evaluation results
 - [x] Responsive layout — handles long sessions without performance issues
 
 **Story Points:** 5

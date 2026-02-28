@@ -7,7 +7,7 @@ API-driven automation engine that transitions from YAML-based automations to typ
 - **Capability Graph**: Discovers and maintains entity/service inventory from Home Assistant
 - **Validation Pipeline**: Validates specs with target resolution, service compatibility, and policy gates
 - **Execution Engine**: Deterministic executor with idempotency, retry, circuit breaker, and confirmation
-- **Task Queue**: Asynchronous execution with Huey SQLite backend (prioritization, persistent retry, delayed execution)
+- **Task Queue**: Asynchronous execution with Huey PostgreSQL backend (prioritization, persistent retry, delayed execution)
 - **Scheduling**: Cron-based periodic task scheduling for automation specs
 - **Observability**: Structured logging, metrics, and explainability
 - **Rollout Management**: Canary rollouts, rollback, and kill switch
@@ -34,7 +34,7 @@ Environment variables:
 - `HA_URL` / `HOME_ASSISTANT_URL`: Home Assistant URL
 - `HA_TOKEN` / `HOME_ASSISTANT_TOKEN`: Home Assistant access token
 - `HOME_ID`: Home ID (default: "default")
-- `DATABASE_URL`: Database URL (default: SQLite)
+- `DATABASE_URL`: Database URL (default: PostgreSQL)
 - `INFLUXDB_URL`: InfluxDB URL for metrics
 - `INFLUXDB_TOKEN`: InfluxDB token
 - `INFLUXDB_ORG`: InfluxDB organization
@@ -45,7 +45,7 @@ Environment variables:
 ### Task Queue Configuration (Huey)
 
 - `USE_TASK_QUEUE`: Enable task queue (default: "true")
-- `HUEY_DATABASE_PATH`: SQLite database path for task queue (default: "./data/automation_queue.db")
+- `HUEY_DATABASE_PATH`: PostgreSQL database path for task queue (default: "./data/automation_queue.db")
 - `HUEY_WORKERS`: Number of worker threads (default: 4)
 - `HUEY_RESULT_TTL`: Result storage TTL in seconds (default: 604800 = 7 days)
 - `HUEY_SCHEDULER_INTERVAL`: Periodic task check interval in seconds (default: 1.0)
@@ -165,7 +165,7 @@ docker run -p 8025:8025 \
   api-automation-edge
 ```
 
-**Note:** The data volume (`api_automation_edge_data:/app/data`) persists the SQLite task queue database across container restarts.
+**Note:** The data volume (`api_automation_edge_data:/app/data`) persists the PostgreSQL task queue database across container restarts.
 
 ## References
 

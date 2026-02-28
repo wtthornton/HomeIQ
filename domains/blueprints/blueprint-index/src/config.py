@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # Database
-    database_url: str = "sqlite+aiosqlite:///data/blueprint_index.db"
+    database_url: str = ""  # Set via POSTGRES_URL or DATABASE_URL env var
     database_pool_size: int = 10
     database_max_overflow: int = 5
 

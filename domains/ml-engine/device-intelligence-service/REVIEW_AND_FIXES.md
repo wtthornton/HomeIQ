@@ -10,7 +10,7 @@
 
 ## Service Overview
 
-The Device Intelligence Service is a FastAPI-based microservice providing centralized device discovery, health scoring, predictive analytics (ML-powered failure prediction), device hygiene analysis, name enhancement, and device mapping intelligence for a Home Assistant integration platform. It discovers devices from Home Assistant WebSocket API and Zigbee2MQTT via MQTT, unifies them into a common model, stores them in SQLite, and exposes REST + WebSocket APIs.
+The Device Intelligence Service is a FastAPI-based microservice providing centralized device discovery, health scoring, predictive analytics (ML-powered failure prediction), device hygiene analysis, name enhancement, and device mapping intelligence for a Home Assistant integration platform. It discovers devices from Home Assistant WebSocket API and Zigbee2MQTT via MQTT, unifies them into a common model, stores them in PostgreSQL, and exposes REST + WebSocket APIs.
 
 **Key Components**:
 - **Discovery Engine**: Multi-source device discovery (HA WebSocket API + Zigbee2MQTT MQTT)
@@ -20,7 +20,7 @@ The Device Intelligence Service is a FastAPI-based microservice providing centra
 - **Device Mappings**: Extensible handler registry for device-specific intelligence (Hue, WLED)
 - **Training Scheduler**: APScheduler-based nightly model retraining
 
-**Tech Stack**: Python 3.12, FastAPI 0.123.x, SQLAlchemy 2.0 (async SQLite), scikit-learn, LightGBM, TabPFN, River, APScheduler, Pydantic 2.12, WebSockets
+**Tech Stack**: Python 3.12, FastAPI 0.123.x, SQLAlchemy 2.0 (async PostgreSQL via asyncpg), scikit-learn, LightGBM, TabPFN, River, APScheduler, Pydantic 2.12, WebSockets
 
 ---
 
@@ -71,7 +71,7 @@ for table in inspector.get_table_names():
         logger.warning(f"Skipping unknown table: {table}")
         continue
     result = await session.execute(
-        text(f"SELECT COUNT(*) FROM [{table}]")  # SQLite bracket quoting
+        text(f"SELECT COUNT(*) FROM {table}")  # table name quoting
     )
     count = result.scalar()
 ```
@@ -92,7 +92,7 @@ placeholders = ", ".join([f":{key}" for key in devices_data[0].keys()])
 sql = f"INSERT OR REPLACE INTO devices ({columns}) VALUES ({placeholders})"
 ```
 
-**Fix**: Use SQLAlchemy's parameterized `sqlite_insert` with `on_conflict_do_update` instead of raw SQL string construction, similar to how `repository.py` handles `bulk_upsert_capabilities`.
+**Fix**: Use SQLAlchemy's parameterized `insert().on_conflict_do_update()` instead of raw SQL string construction, similar to how `repository.py` handles `bulk_upsert_capabilities`.
 
 ### CRIT-3: No Authentication on Destructive Endpoints
 
@@ -803,7 +803,7 @@ For a Tier 3 service with complex discovery -> ML -> prediction pipelines, distr
 | uvicorn[standard] | >=0.32.0,<0.33.0 | LOW | Pinned minor |
 | pydantic | >=2.12.4,<3.0.0 | LOW | Wide patch range OK |
 | sqlalchemy | >=2.0.44,<3.0.0 | LOW | Wide range, stable 2.x |
-| aiosqlite | >=0.21.0,<0.22.0 | LOW | Pinned minor |
+| asyncpg | >=0.30.0 | LOW | PostgreSQL async driver |
 | httpx | >=0.28.1,<0.29.0 | LOW | Pinned minor |
 | aiohttp | >=3.13.2,<4.0.0 | LOW | Wide range |
 | scikit-learn | >=1.5.0,<2.0.0 | LOW | Stable |

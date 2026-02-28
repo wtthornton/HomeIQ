@@ -88,15 +88,11 @@ services:
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - DATABASE_URL=sqlite+aiosqlite:///./data/metadata.db
-      - SQLITE_TIMEOUT=30
-      - SQLITE_CACHE_SIZE=-64000
       - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
       - ENABLE_AUTH=false
     volumes:
       - ./services/data-api:/app
       - ./shared:/app/shared
-      - sqlite-data-dev:/app/data
     depends_on: []
     networks:
       - homeiq-network-dev
@@ -266,7 +262,6 @@ services:
 volumes:
   influxdb_data_dev:
   influxdb_config_dev:
-  sqlite-data-dev:
   data_retention_backups_dev:
 
 networks:

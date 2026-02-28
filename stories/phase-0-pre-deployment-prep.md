@@ -52,7 +52,7 @@ Prepare the HomeIQ platform (48 microservices) for a comprehensive rebuild and d
 
 ✅ **AC1:** Docker volumes backed up
 - [ ] InfluxDB data volume backed up to `backups/influxdb_data_[timestamp].tar.gz`
-- [ ] SQLite data volume backed up to `backups/sqlite_data_[timestamp].tar.gz`
+- [x] ~~SQLite data volume backed up~~ [COMPLETED - SQLite removed, PostgreSQL is sole DB]
 - [ ] Backups verified (can be extracted successfully)
 - [ ] Backup size and integrity logged
 
@@ -83,9 +83,8 @@ mkdir -p backups
 docker run --rm -v homeiq_influxdb_data:/data -v $(pwd)/backups:/backup \
   alpine tar czf /backup/influxdb_data_$(date +%Y%m%d_%H%M%S).tar.gz -C /data .
 
-# Backup SQLite data
-docker run --rm -v homeiq_sqlite-data:/data -v $(pwd)/backups:/backup \
-  alpine tar czf /backup/sqlite_data_$(date +%Y%m%d_%H%M%S).tar.gz -C /data .
+# [COMPLETED] SQLite volumes removed - PostgreSQL is sole database
+# Backup PostgreSQL: ./scripts/backup-postgres.sh
 
 # Verify backups
 ls -lh backups/

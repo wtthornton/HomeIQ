@@ -4,7 +4,7 @@ Epic AI-20 Story AI20.2: Conversation Service Foundation
 Epic AI-20 Story AI20.6: Conversation Persistence
 
 Manages conversation state, message history, and context injection.
-Database-backed implementation with SQLite persistence.
+Database-backed implementation with persistent storage.
 """
 
 import logging

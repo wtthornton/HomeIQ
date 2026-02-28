@@ -79,7 +79,6 @@ services:
       - OPENAI_YAML_MODEL=${OPENAI_YAML_MODEL:-gpt-5.2-codex}
       - OPENAI_REASONING_EFFORT=high
       - OPENAI_TIMEOUT=90
-      - DATABASE_URL=sqlite+aiosqlite:////app/data/ai_automation.db
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
       - DATABASE_SCHEMA=automation
       - SERVICE_PORT=8025
@@ -125,8 +124,6 @@ services:
     env_file:
       - ../../.env
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:///./data/ai_automation.db
-      - DATABASE_PATH=/app/data/ai_automation.db
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
       - DATABASE_SCHEMA=automation
       - DATA_API_URL=http://data-api:8006

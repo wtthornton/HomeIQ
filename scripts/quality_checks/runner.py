@@ -11,10 +11,10 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy import text
 from influxdb_client import InfluxDBClient
 
-from .config import SQLITE_CHECKS, INFLUXDB_CHECKS
-from .db_common import find_database_path, get_database_config
+from .config import PG_CHECKS, INFLUXDB_CHECKS, POSTGRES_URL
+from .db_common import get_database_config, get_postgres_url
 from .influxdb_common import get_influxdb_config
-from .sqlite_checks import (
+from .pg_checks import (
     get_all_tables,
     check_table_basics,
     check_null_values,
@@ -53,11 +53,11 @@ class DatabaseCheckResults:
     error: Optional[str] = None
 
 
-class SQLiteCheckRunner:
-    """Runner for SQLite database quality checks."""
-    
+class PostgresCheckRunner:
+    """Runner for PostgreSQL database quality checks."""
+
     def __init__(self, enabled_checks: Optional[Set[str]] = None):
-        self.enabled_checks = enabled_checks or set(SQLITE_CHECKS)
+        self.enabled_checks = enabled_checks or set(PG_CHECKS)
         self.check_dispatch = {
             'tables': self._check_tables,
             'null_values': self._check_null_values,
@@ -69,16 +69,18 @@ class SQLiteCheckRunner:
             'table_specific': self._check_table_specific,
         }
     
-    async def run_checks(self, db_key: str, db_path: Path, db_name: str) -> DatabaseCheckResults:
+    async def run_checks(self, db_key: str, db_name: str, pg_url: str = None) -> DatabaseCheckResults:
         """Run all enabled checks on a database."""
         results = DatabaseCheckResults(
             db_name=db_name,
-            db_path=str(db_path),
+            db_path=pg_url or get_postgres_url(),
             checks=[]
         )
-        
-        abs_path = db_path.resolve()
-        database_url = f"sqlite+aiosqlite:///{abs_path}"
+
+        database_url = pg_url or get_postgres_url()
+        # Convert psycopg2 URL to asyncpg URL for SQLAlchemy async
+        if database_url.startswith("postgresql://"):
+            database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
         engine = create_async_engine(database_url, echo=False)
         async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
         
@@ -142,8 +144,8 @@ class SQLiteCheckRunner:
         warnings = []
         info = []
         
-        # SQLite doesn't enforce foreign keys by default
-        info.append("Foreign key checks: SQLite doesn't enforce foreign keys by default")
+        # PostgreSQL enforces foreign keys by default
+        info.append("Foreign key checks: PostgreSQL enforces foreign keys by default")
         
         return CheckResult('foreign_keys', issues, warnings, info)
     
@@ -176,14 +178,12 @@ class SQLiteCheckRunner:
         info = []
         
         try:
-            result = await db.execute(text("PRAGMA integrity_check"))
-            integrity_result = result.scalar()
-            if integrity_result == "ok":
-                info.append("Database integrity: OK")
-            else:
-                issues.append(f"Database integrity check failed: {integrity_result}")
+            # PostgreSQL doesn't have PRAGMA integrity_check; use pg_stat_user_tables instead
+            result = await db.execute(text("SELECT count(*) FROM pg_stat_user_tables"))
+            table_count = result.scalar()
+            info.append(f"Database accessible: {table_count} user tables found")
         except Exception as e:
-            warnings.append(f"Could not check integrity: {e}")
+            warnings.append(f"Could not check database accessibility: {e}")
         
         return CheckResult('integrity', issues, warnings, info)
     

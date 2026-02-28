@@ -1,26 +1,24 @@
-"""Check blueprints in local database."""
-import sqlite3
-from pathlib import Path
+"""Check blueprints in PostgreSQL database."""
+import os
 
-db_path = Path(__file__).parent.parent / "data" / "blueprint_index.db"
+import psycopg2
 
-if not db_path.exists():
-    print(f"Database not found at {db_path}")
-    exit(1)
+# PostgreSQL connection URL
+POSTGRES_URL = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
 
-conn = sqlite3.connect(str(db_path))
+conn = psycopg2.connect(POSTGRES_URL)
 cursor = conn.cursor()
 
 # Count total blueprints
-cursor.execute("SELECT COUNT(*) FROM indexed_blueprints")
+cursor.execute("SELECT COUNT(*) FROM blueprints.indexed_blueprints")
 total = cursor.fetchone()[0]
-print(f"Local database has {total} blueprints")
+print(f"Database has {total} blueprints")
 
 # Find motion-related blueprints
 cursor.execute("""
-    SELECT name, source_url, description 
-    FROM indexed_blueprints 
-    WHERE name LIKE '%motion%' OR name LIKE '%Motion%' OR description LIKE '%motion%'
+    SELECT name, source_url, description
+    FROM blueprints.indexed_blueprints
+    WHERE name ILIKE '%%motion%%' OR description ILIKE '%%motion%%'
     LIMIT 10
 """)
 results = cursor.fetchall()
@@ -33,8 +31,8 @@ for name, url, desc in results:
 
 # Test search by domain
 cursor.execute("""
-    SELECT name, domain, required_domains 
-    FROM indexed_blueprints 
+    SELECT name, domain, required_domains
+    FROM blueprints.indexed_blueprints
     WHERE required_domains IS NOT NULL
     LIMIT 5
 """)
@@ -47,9 +45,9 @@ for name, domain, req_domains in domain_results:
 
 # Show recent imports
 cursor.execute("""
-    SELECT name, source_url, indexed_at 
-    FROM indexed_blueprints 
-    ORDER BY indexed_at DESC 
+    SELECT name, source_url, indexed_at
+    FROM blueprints.indexed_blueprints
+    ORDER BY indexed_at DESC
     LIMIT 5
 """)
 recent = cursor.fetchall()
@@ -59,6 +57,4 @@ for name, url, indexed_at in recent:
     print(f"    Indexed: {indexed_at}")
 
 conn.close()
-print("\n[OK] Local database verification complete!")
-print("\nNOTE: Docker service uses a separate database volume.")
-print("To sync: Update docker-compose.yml to mount ./data:/app/data")
+print("\n[OK] Database verification complete!")

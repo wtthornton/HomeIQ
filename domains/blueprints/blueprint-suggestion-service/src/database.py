@@ -10,44 +10,26 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from homeiq_data.database_pool import create_pg_engine
 
 from .config import settings
 from .models import Base
 
 logger = logging.getLogger(__name__)
 
-# Dual-mode PostgreSQL/SQLite support (Epic 39)
-_db_url = os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL", settings.database_url)
-_is_postgres = _db_url.startswith("postgresql") or _db_url.startswith("postgres")
+# PostgreSQL configuration
+_db_url = os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL", "")
 _schema = os.getenv("DATABASE_SCHEMA", "blueprints")
 
-# Create async engine
-if _is_postgres:
-    from homeiq_data.database_pool import create_pg_engine
-    engine = create_pg_engine(
-        database_url=_db_url,
-        schema=_schema,
-        pool_size=settings.database_pool_size,
-        max_overflow=settings.database_max_overflow,
-    )
-elif "sqlite" in _db_url:
-    # SQLite-specific configuration
-    engine = create_async_engine(
-        _db_url,
-        echo=False,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-else:
-    # Other databases
-    engine = create_async_engine(
-        _db_url,
-        echo=False,
-        pool_size=settings.database_pool_size,
-        max_overflow=settings.database_max_overflow,
-    )
+# Create async engine (PostgreSQL only)
+engine = create_pg_engine(
+    database_url=_db_url,
+    schema=_schema,
+    pool_size=settings.database_pool_size,
+    max_overflow=settings.database_max_overflow,
+)
 
 # Create async session factory
 async_session_maker = async_sessionmaker(
@@ -107,69 +89,35 @@ async def _run_manual_migrations(conn):
     """Fallback: Run manual database migrations to add missing columns."""
     logger.info("Checking for required manual migrations...")
 
-    if "sqlite" in settings.database_url:
-        # For SQLite, check if table exists and what columns it has
-        result = await conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='blueprint_suggestions'"))
-        table_exists = result.fetchone() is not None
-
-        if table_exists:
-            # Check existing columns
-            result = await conn.execute(text("PRAGMA table_info(blueprint_suggestions)"))
-            columns = {row[1]: row for row in result.fetchall()}
-
-            # Add blueprint_name if missing
-            if "blueprint_name" not in columns:
-                logger.info("Adding blueprint_name column (manual migration)...")
-                await conn.execute(text("ALTER TABLE blueprint_suggestions ADD COLUMN blueprint_name VARCHAR(255)"))
-                logger.info("✓ Added blueprint_name column")
-
-            # Add blueprint_description if missing
-            if "blueprint_description" not in columns:
-                logger.info("Adding blueprint_description column (manual migration)...")
-                await conn.execute(text("ALTER TABLE blueprint_suggestions ADD COLUMN blueprint_description TEXT"))
-                logger.info("✓ Added blueprint_description column")
-        else:
-            logger.info("Table doesn't exist yet, will be created by create_all()")
-    else:
-        # For PostgreSQL, use IF NOT EXISTS
-        logger.info("Running PostgreSQL manual migrations...")
-        await conn.execute(text("""
-            ALTER TABLE blueprint_suggestions
-            ADD COLUMN IF NOT EXISTS blueprint_name VARCHAR(255)
-        """))
-        await conn.execute(text("""
-            ALTER TABLE blueprint_suggestions
-            ADD COLUMN IF NOT EXISTS blueprint_description TEXT
-        """))
-        logger.info("✓ PostgreSQL manual migrations completed")
+    # For PostgreSQL, use IF NOT EXISTS
+    logger.info("Running PostgreSQL manual migrations...")
+    await conn.execute(text("""
+        ALTER TABLE blueprint_suggestions
+        ADD COLUMN IF NOT EXISTS blueprint_name VARCHAR(255)
+    """))
+    await conn.execute(text("""
+        ALTER TABLE blueprint_suggestions
+        ADD COLUMN IF NOT EXISTS blueprint_description TEXT
+    """))
+    logger.info("PostgreSQL manual migrations completed")
 
 
 async def check_schema_version(db: AsyncSession) -> bool:
     """Check if database schema matches the model."""
     try:
-        if "sqlite" in settings.database_url:
-            result = await db.execute(text("PRAGMA table_info(blueprint_suggestions)"))
-            columns = {row[1] for row in result.fetchall()}
-            required_columns = {
-                "id", "blueprint_id", "blueprint_name", "blueprint_description",
-                "suggestion_score", "matched_devices", "use_case", "status",
-                "created_at", "updated_at", "accepted_at", "declined_at", "conversation_id"
-            }
-            return required_columns.issubset(columns)
-        else:
-            # For PostgreSQL, check using information_schema
-            result = await db.execute(text("""
-                SELECT column_name
-                FROM information_schema.columns
-                WHERE table_name = 'blueprint_suggestions'
-            """))
-            columns = {row[0] for row in result.fetchall()}
-            required_columns = {
-                "id", "blueprint_id", "blueprint_name", "blueprint_description",
-                "suggestion_score", "matched_devices", "use_case", "status",
-                "created_at", "updated_at", "accepted_at", "declined_at", "conversation_id"
-            }
-            return required_columns.issubset(columns)
+        # Check using information_schema
+        result = await db.execute(text("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'blueprint_suggestions'
+        """))
+        columns = {row[0] for row in result.fetchall()}
+        required_columns = {
+            "id", "blueprint_id", "blueprint_name", "blueprint_description",
+            "suggestion_score", "matched_devices", "use_case", "status",
+            "created_at", "updated_at", "accepted_at", "declined_at", "conversation_id"
+        }
+        return required_columns.issubset(columns)
     except Exception as e:
         logger.error(f"Failed to check schema version: {e}", exc_info=True)
         return False

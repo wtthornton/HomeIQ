@@ -20,24 +20,23 @@ class TestAutomationTracker:
     
     @pytest.fixture
     async def test_db(self) -> AsyncSession:
-        """Create test database session."""
+        """Create test database session using PostgreSQL."""
+        import os
         from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-        from sqlalchemy.pool import StaticPool
-        
-        engine = create_async_engine(
-            "sqlite+aiosqlite:///:memory:",
-            poolclass=StaticPool,
-            connect_args={"check_same_thread": False},
-            echo=False,
+
+        test_url = os.environ.get(
+            "TEST_DATABASE_URL",
+            "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq_test",
         )
-        
+        engine = create_async_engine(test_url, echo=False)
+
         async_session = async_sessionmaker(engine, expire_on_commit=False)
-        
+
         # Create tables
         async with engine.begin() as conn:
             await conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS automation_executions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     automation_id TEXT NOT NULL,
                     synergy_id TEXT NOT NULL,
                     success BOOLEAN NOT NULL,
@@ -49,16 +48,22 @@ class TestAutomationTracker:
             """))
             await conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS synergy_opportunities (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     synergy_id TEXT UNIQUE NOT NULL,
                     confidence REAL NOT NULL,
                     impact_score REAL NOT NULL,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """))
-        
+
         async with async_session() as session:
             yield session
+
+        # Cleanup
+        async with engine.begin() as conn:
+            await conn.execute(text("DROP TABLE IF EXISTS automation_executions"))
+            await conn.execute(text("DROP TABLE IF EXISTS synergy_opportunities"))
+        await engine.dispose()
     
     @pytest.fixture
     def tracker(self, test_db: AsyncSession) -> AutomationTracker:

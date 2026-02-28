@@ -78,7 +78,7 @@ class VerificationResultStore(ABC):
     """
     Abstract store for persisting verification results.
 
-    Implementations write results to a backing store (InfluxDB, SQLite, etc.)
+    Implementations write results to a backing store (InfluxDB, PostgreSQL, etc.)
     and support querying recent failures/successes for feedback loops.
     """
 

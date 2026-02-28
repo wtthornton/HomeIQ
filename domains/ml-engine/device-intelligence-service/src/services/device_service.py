@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import func, select
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.database import Device, DeviceCapability, DeviceHealthMetric
@@ -104,17 +104,17 @@ class DeviceService:
                 columns = list(safe_entry.keys())
                 placeholders = [f":{col}" for col in columns]
 
-                # Build UPDATE SET clause (exclude id and created_at)
-                update_parts = [f"[{col}]=excluded.[{col}]" for col in columns if col not in {"id", "created_at"}]
+                # Use PostgreSQL quoting for column names
+                quoted_columns = [f'"{col}"' for col in columns]
 
-                # Use SQLite bracket quoting for column names
-                quoted_columns = [f"[{col}]" for col in columns]
+                # Build UPDATE SET clause for PostgreSQL
+                update_parts_pg = [f'"{col}"=EXCLUDED."{col}"' for col in columns if col not in {"id", "created_at"}]
 
                 sql = f"""
                 INSERT INTO devices ({', '.join(quoted_columns)})
                 VALUES ({', '.join(placeholders)})
                 ON CONFLICT(id) DO UPDATE SET
-                {', '.join(update_parts)}
+                {', '.join(update_parts_pg)}
                 """
 
                 await self.session.execute(text(sql), safe_entry)
@@ -164,7 +164,7 @@ class DeviceService:
             return 0
 
         try:
-            stmt = sqlite_insert(DeviceCapability).values(capabilities_data)
+            stmt = pg_insert(DeviceCapability).values(capabilities_data)
             stmt = stmt.on_conflict_do_update(
                 index_elements=["device_id", "capability_name"],
                 set_={

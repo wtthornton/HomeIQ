@@ -13,11 +13,13 @@ import argparse
 import json
 import logging
 import os
-import sqlite3
 import sys
 import warnings
 from datetime import datetime
 from pathlib import Path
+
+import psycopg2
+import psycopg2.extras
 
 # Suppress TRANSFORMERS_CACHE deprecation warnings
 warnings.filterwarnings("ignore", category=FutureWarning, message=".*TRANSFORMERS_CACHE.*")
@@ -28,10 +30,10 @@ logger = logging.getLogger(__name__)
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train soft prompt adapter from Ask AI history")
     parser.add_argument(
-        "--db-path",
-        type=Path,
-        default=Path("data/ai_automation.db"),
-        help="Path to the ai_automation SQLite database",
+        "--pg-url",
+        type=str,
+        default=os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq"),
+        help="PostgreSQL connection URL",
     )
     parser.add_argument(
         "--output-dir",
@@ -121,23 +123,22 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_training_examples(db_path: Path, limit: int) -> list[dict[str, str]]:
-    if not db_path.exists():
-        raise FileNotFoundError(f"SQLite database not found at {db_path}")
-
+def load_training_examples(pg_url: str, limit: int) -> list[dict[str, str]]:
     query = """
         SELECT original_query, suggestions
-        FROM ask_ai_queries
+        FROM automation.ask_ai_queries
         WHERE suggestions IS NOT NULL
         ORDER BY created_at DESC
-        LIMIT ?
+        LIMIT %s
     """
 
     examples: list[dict[str, str]] = []
 
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        for row in conn.execute(query, (limit,)):
+    conn = psycopg2.connect(pg_url)
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute(query, (limit,))
+        for row in cursor:
             original_query = row["original_query"] or ""
             raw_suggestions = row["suggestions"]
 
@@ -167,6 +168,8 @@ def load_training_examples(db_path: Path, limit: int) -> list[dict[str, str]]:
                             "response": response_text.strip(),
                         }
                     )
+    finally:
+        conn.close()
 
     return examples
 
@@ -239,7 +242,7 @@ def main():
     logger.info("Starting soft prompt training")
     logger.info("=" * 60)
     logger.info("Run ID: %s", args.run_id or "auto-generated")
-    logger.info("Database: %s", args.db_path)
+    logger.info("Database: %s", args.pg_url)
     logger.info("Output directory: %s", args.output_dir)
     logger.info("Base model: %s", args.base_model)
     logger.info("Max samples: %d", args.max_samples)
@@ -256,7 +259,7 @@ def main():
 
     try:
         logger.info("Loading training examples from database...")
-        examples = load_training_examples(args.db_path, args.max_samples)
+        examples = load_training_examples(args.pg_url, args.max_samples)
         if not examples:
             logger.error("No Ask AI labelled data available. Nothing to train.")
             logger.error("Ensure you have approved suggestions in the database.")

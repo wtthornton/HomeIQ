@@ -55,7 +55,7 @@ pytest -m performance
 ## Test Fixtures
 
 ### Database Fixtures
-- `test_db` - In-memory SQLite database session (fresh for each test)
+- `test_db` - In-memory PostgreSQL database session (fresh for each test)
 
 ### Sample Data Fixtures
 - `sample_suggestion_data` - Sample suggestion dictionary
@@ -67,7 +67,7 @@ pytest -m performance
 
 ## Notes
 
-- Tests use in-memory SQLite for isolation
+- Tests use in-memory PostgreSQL for isolation
 - Suggestion and Deployment router tests will be added after routers are created
 - YAML generation tests will validate YAML syntax and structure
 - Deployment tests will verify HA integration

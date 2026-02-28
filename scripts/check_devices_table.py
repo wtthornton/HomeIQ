@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 """Check device names in devices table"""
-import sqlite3
-import sys
 import os
+import sys
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import psycopg2
 
-db_path = 'services/data-api/data/metadata.db'
+# PostgreSQL connection URL
+POSTGRES_URL = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
 
-if not os.path.exists(db_path):
-    print(f"Database not found at {db_path}")
-    sys.exit(1)
-
-conn = sqlite3.connect(db_path)
+conn = psycopg2.connect(POSTGRES_URL)
 cursor = conn.cursor()
 
 print("=" * 120)
@@ -20,18 +16,26 @@ print("DEVICES TABLE - Hue Devices")
 print("=" * 120)
 
 # Check if devices table exists
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='devices'")
+cursor.execute("""
+    SELECT table_name FROM information_schema.tables
+    WHERE table_schema = 'core' AND table_name = 'devices'
+""")
 if not cursor.fetchone():
-    print("devices table does not exist")
+    print("devices table does not exist in core schema")
     conn.close()
     sys.exit(1)
 
 # Get schema
-cursor.execute("PRAGMA table_info(devices)")
+cursor.execute("""
+    SELECT column_name, data_type
+    FROM information_schema.columns
+    WHERE table_schema = 'core' AND table_name = 'devices'
+    ORDER BY ordinal_position
+""")
 columns = cursor.fetchall()
 print("Devices table columns:")
 for col in columns:
-    print(f"  {col[1]} ({col[2]})")
+    print(f"  {col[0]} ({col[1]})")
 
 print("\n" + "=" * 120)
 print("Hue Devices in devices table:")
@@ -39,8 +43,8 @@ print("=" * 120)
 
 query = """
 SELECT device_id, name, name_by_user, manufacturer, model, area_id
-FROM devices
-WHERE manufacturer LIKE '%hue%' OR manufacturer LIKE '%philips%' OR name LIKE '%hue%' OR name LIKE '%Office%'
+FROM core.devices
+WHERE manufacturer ILIKE '%%hue%%' OR manufacturer ILIKE '%%philips%%' OR name ILIKE '%%hue%%' OR name ILIKE '%%Office%%'
 ORDER BY name
 LIMIT 50
 """
@@ -64,9 +68,9 @@ print("=" * 120)
 # Get entities that link to Hue devices
 query = """
 SELECT e.entity_id, e.device_id, e.friendly_name, e.name, e.name_by_user, d.name as device_name, d.name_by_user as device_name_by_user
-FROM entities e
-LEFT JOIN devices d ON e.device_id = d.device_id
-WHERE e.entity_id LIKE '%hue%' AND e.device_id IS NOT NULL
+FROM core.entities e
+LEFT JOIN core.devices d ON e.device_id = d.device_id
+WHERE e.entity_id LIKE '%%hue%%' AND e.device_id IS NOT NULL
 ORDER BY d.name, e.entity_id
 LIMIT 20
 """
@@ -82,4 +86,3 @@ if rows:
         print(f"{str(entity_id or ''):<40} {str(device_id or ''):<50} {str(entity_friendly_name or ''):<30} {str(device_name or ''):<40} {str(device_name_by_user or ''):<40}")
 
 conn.close()
-

@@ -5,7 +5,7 @@
 **Port:** 8020 (internal), exposed as 8034 (external)
 **Technology:** Python 3.11+, FastAPI, SQLAlchemy
 **Container:** homeiq-ai-pattern-service
-**Database:** SQLite (ai_automation.db)
+**Database:** PostgreSQL (schema: `automation`)
 **Scale:** Optimized for ~50-100 devices (single-home)
 
 ## Overview
@@ -431,8 +431,8 @@ Preview a blueprint deployment with auto-filled inputs.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_PATH` | `/app/data/ai_automation.db` | Path to SQLite database file |
-| `DATABASE_URL` | `sqlite+aiosqlite:////app/data/ai_automation.db` | SQLAlchemy database URL |
+| `DATABASE_PATH` | `/app/data/ai_automation.db` | Path to PostgreSQL database file |
+| `DATABASE_URL` | `postgresql+asyncpg:////app/data/ai_automation.db` | SQLAlchemy database URL |
 | `DATABASE_POOL_SIZE` | `10` | Database connection pool size (max 20 per service) |
 | `DATABASE_MAX_OVERFLOW` | `5` | Max overflow connections |
 | `DATA_API_URL` | `http://data-api:8006` | Data API service URL |
@@ -519,7 +519,7 @@ curl http://localhost:8034/
 
 - **data-api** (Port 8006) - Historical data queries, device/entity metadata
 - **blueprint-index** (Port 8031) - Blueprint indexing and search service
-- **SQLite Database** - Shared ai_automation.db for pattern storage
+- **PostgreSQL Database** - Shared ai_automation.db for pattern storage
 - **MQTT Broker** (Optional) - Pattern detection notifications (typically Home Assistant's MQTT at 192.168.1.86:1883)
 
 ### Python Dependencies
@@ -528,7 +528,7 @@ curl http://localhost:8034/
 - `fastapi` - Web framework
 - `uvicorn` - ASGI server
 - `sqlalchemy` - Database ORM
-- `aiosqlite` - Async SQLite driver
+- `asyncpg` - Async PostgreSQL driver
 - `pydantic` - Configuration management
 - `pydantic-settings` - Environment variable loading
 - `shared` - HomeIQ shared libraries (logging, observability, error handling)
@@ -627,7 +627,7 @@ src/synergy_detection/
 
 ### Database Sharing
 
-This service shares the `ai_automation.db` SQLite database with ai-automation-service:
+This service shares the `ai_automation.db` PostgreSQL database with ai-automation-service:
 - **Pattern Storage** - Detected patterns, synergy relationships
 - **Community Patterns** - Mined automation patterns
 - **Configuration** - Pattern detection thresholds and overrides

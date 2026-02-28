@@ -47,7 +47,7 @@ websockets>=12.0               # WebSocket client for testing
 pytest-websocket>=0.0.1        # WebSocket testing utilities
 
 # Database Testing
-sqlalchemy>=2.0.45,<3.0.0      # Latest stable 2.0.45 (January 2026) - For SQLite test fixtures
+sqlalchemy>=2.0.45,<3.0.0      # Latest stable 2.0.45 (January 2026) - For database test fixtures
 
 # Application Dependencies (for testing)
 aiohttp>=3.13.3,<4.0.0         # Latest stable 3.13.3 (January 2026) - Align with base

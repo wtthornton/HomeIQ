@@ -3,6 +3,7 @@ Unit tests for Database Initialization
 
 Epic 39, Story 39.10: Automation Service Foundation
 Tests for database initialization, migrations, and schema sync.
+Updated for PostgreSQL.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -89,34 +90,16 @@ class TestInitDb:
     @pytest.mark.unit
     @patch("src.database.run_migrations")
     @patch("src.database.engine")
+    @patch("src.database._is_postgres", True)
     async def test_init_db_success(self, mock_engine, mock_run_migrations):
-        """Test successful database initialization."""
+        """Test successful database initialization (PostgreSQL path)."""
         from src.database import init_db
 
         # Mock engine context manager
         mock_conn = AsyncMock()
-        mock_result = AsyncMock()
-        mock_result.scalar.return_value = "suggestions"  # Table exists
+        mock_result = MagicMock()
+        mock_result.scalar.return_value = 1  # SELECT 1 result
         mock_conn.execute.return_value = mock_result
-
-        # Mock PRAGMA table_info result (no missing columns)
-        mock_pragma_result = MagicMock()
-        mock_pragma_result.fetchall.return_value = [
-            (0, "id", "INTEGER", 0, None, 1),  # col_id, name, type, notnull, default, pk
-            (1, "title", "TEXT", 1, None, 0),
-            (2, "description", "TEXT", 0, None, 0),
-            (3, "automation_json", "TEXT", 0, None, 0),
-            (4, "automation_yaml", "TEXT", 0, None, 0),
-            (5, "ha_version", "TEXT", 0, None, 0),
-            (6, "json_schema_version", "TEXT", 0, None, 0),
-            (7, "automation_id", "TEXT", 0, None, 0),
-            (8, "deployed_at", "TEXT", 0, None, 0),
-            (9, "confidence_score", "REAL", 0, None, 0),
-            (10, "safety_score", "REAL", 0, None, 0),
-            (11, "user_feedback", "TEXT", 0, None, 0),
-            (12, "feedback_at", "TEXT", 0, None, 0),
-        ]
-        mock_conn.execute.return_value = mock_pragma_result
 
         mock_engine.begin.return_value.__aenter__.return_value = mock_conn
 
@@ -125,67 +108,14 @@ class TestInitDb:
 
         # Verify migrations were called
         mock_run_migrations.assert_called_once()
-        # Verify connection was tested
+        # Verify connection was tested (SELECT 1)
         assert mock_conn.execute.called
 
     @pytest.mark.asyncio
     @pytest.mark.unit
     @patch("src.database.run_migrations")
     @patch("src.database.engine")
-    async def test_init_db_adds_missing_columns(self, mock_engine, mock_run_migrations):
-        """Test that init_db adds missing columns."""
-        from src.database import init_db
-
-        # Mock engine context manager
-        mock_conn = AsyncMock()
-
-        # Mock table exists check
-        mock_table_exists_result = MagicMock()
-        mock_table_exists_result.scalar.return_value = "suggestions"
-
-        # Mock PRAGMA table_info result (missing JSON columns)
-        mock_pragma_result = MagicMock()
-        mock_pragma_result.fetchall.return_value = [
-            (0, "id", "INTEGER", 0, None, 1),
-            (1, "title", "TEXT", 1, None, 0),
-            (2, "description", "TEXT", 0, None, 0),
-            # Missing: automation_json, automation_yaml, ha_version, json_schema_version
-        ]
-
-        # Track ALTER TABLE calls
-        alter_table_calls = []
-
-        # Mock execute to return different results based on query
-        async def execute_side_effect(query):
-            query_str = str(query)
-            if "sqlite_master" in query_str:
-                return mock_table_exists_result
-            elif "PRAGMA table_info" in query_str:
-                return mock_pragma_result
-            elif "SELECT 1" in query_str:
-                return MagicMock()
-            elif "ALTER TABLE" in query_str:
-                # Track ALTER TABLE calls
-                alter_table_calls.append(query_str)
-                return MagicMock()
-            return MagicMock()
-
-        mock_conn.execute.side_effect = execute_side_effect
-        mock_engine.begin.return_value.__aenter__.return_value = mock_conn
-
-        # Run initialization
-        await init_db()
-
-        # Verify ALTER TABLE was called to add missing columns
-        # Should be called for each missing column (automation_json, automation_yaml, ha_version, json_schema_version)
-        assert len(alter_table_calls) >= 4, (
-            f"Should have called ALTER TABLE at least 4 times (for missing JSON columns), got {len(alter_table_calls)}"
-        )
-
-    @pytest.mark.asyncio
-    @pytest.mark.unit
-    @patch("src.database.run_migrations")
-    @patch("src.database.engine")
+    @patch("src.database._is_postgres", True)
     async def test_init_db_handles_connection_failure(self, mock_engine, mock_run_migrations):
         """Test that init_db handles database connection failures."""
         from src.database import init_db
@@ -200,47 +130,14 @@ class TestInitDb:
         # Migrations should have been attempted
         mock_run_migrations.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.unit
-    @patch("src.database.run_migrations")
-    @patch("src.database.engine")
-    async def test_init_db_no_table_exists(self, mock_engine, mock_run_migrations):
-        """Test init_db when suggestions table doesn't exist."""
-        from src.database import init_db
-
-        # Mock engine context manager
-        mock_conn = AsyncMock()
-
-        # Mock table doesn't exist
-        mock_table_exists_result = MagicMock()
-        mock_table_exists_result.scalar.return_value = None
-
-        # Mock execute to return different results
-        async def execute_side_effect(query):
-            if "sqlite_master" in str(query):
-                return mock_table_exists_result
-            elif "SELECT 1" in str(query):
-                return MagicMock()
-            return MagicMock()
-
-        mock_conn.execute.side_effect = execute_side_effect
-        mock_engine.begin.return_value.__aenter__.return_value = mock_conn
-
-        # Run initialization
-        await init_db()
-
-        # Should not try to add columns if table doesn't exist
-        # (table creation should be handled by migrations)
-        assert mock_conn.execute.called
-
 
 class TestSchemaSync:
-    """Test suite for manual schema synchronization."""
+    """Test suite for model schema validation."""
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_required_columns_in_init_db(self, test_db):
-        """Test that all required columns from the model are in init_db's required_columns."""
+    async def test_required_columns_in_model(self, test_db):
+        """Test that all required columns exist in the Suggestion model."""
 
         # Get the model columns
         suggestion_columns = {col.name: str(col.type) for col in Suggestion.__table__.columns}
@@ -250,9 +147,6 @@ class TestSchemaSync:
         assert "automation_yaml" in suggestion_columns
         assert "ha_version" in suggestion_columns
         assert "json_schema_version" in suggestion_columns
-
-        # Note: We can't directly check init_db's required_columns dict from here
-        # but we can verify the model has the columns it should sync
 
 
 class TestDatabaseConnection:

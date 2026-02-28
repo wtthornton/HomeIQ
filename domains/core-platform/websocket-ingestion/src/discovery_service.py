@@ -609,7 +609,7 @@ class DiscoveryService:
         Args:
             websocket: Optional WebSocket client
             connection_manager: Connection manager for sending messages (preferred)
-            store: Whether to store results in SQLite via data-api (default: True)
+            store: Whether to store results via data-api (default: True)
 
         Returns:
             Dictionary with 'devices', 'entities', 'config_entries', and 'services' keys
@@ -636,9 +636,9 @@ class DiscoveryService:
         logger.info("=" * 80)
 
         # Convert to models and store if requested
-        # CRITICAL FIX: Always store to SQLite via data-api when store=True, regardless of influxdb_manager
+        # CRITICAL FIX: Always store via data-api when store=True, regardless of influxdb_manager
         if store:
-            logger.info("💾 Storing discovered data to SQLite via data-api...")
+            logger.info("💾 Storing discovered data via data-api...")
             logger.info(f"   Devices: {len(devices_data)}, Entities: {len(entities_data)}, Services: {len(services_data)}")
             await self.store_discovery_results(devices_data, entities_data, config_entries_data, services_data)
         else:
@@ -734,7 +734,7 @@ class DiscoveryService:
         services_data: dict[str, dict[str, Any]] = None
     ) -> bool:
         """
-        Store discovery results to SQLite (via data-api) and optionally to InfluxDB
+        Store discovery results via data-api and optionally to InfluxDB
 
         Args:
             devices_data: List of device dictionaries from HA
@@ -749,7 +749,7 @@ class DiscoveryService:
         import aiohttp
 
         try:
-            # Primary storage: SQLite via data-api (simple HTTP POST)
+            # Primary storage: data-api (simple HTTP POST)
             # Use service name from docker-compose (data-api) as default
             data_api_url = os.getenv('DATA_API_URL', 'http://data-api:8006')
             api_key = os.getenv('DATA_API_API_KEY') or os.getenv('DATA_API_KEY') or os.getenv('API_KEY')
@@ -873,7 +873,7 @@ class DiscoveryService:
                     if zigbee_devices_found > 0:
                         logger.info(f"🔍 Identified {zigbee_devices_found} Zigbee devices within MQTT integration")
 
-                # Store devices to SQLite
+                # Store devices to database
                 if devices_data:
                     try:
                         async with session.post(
@@ -884,14 +884,14 @@ class DiscoveryService:
                         ) as response:
                             if response.status == 200:
                                 result = await response.json()
-                                logger.info(f"✅ Stored {result.get('upserted', 0)} devices to SQLite")
+                                logger.info(f"✅ Stored {result.get('upserted', 0)} devices to database")
                             else:
                                 error_text = await response.text()
-                                logger.error(f"❌ Failed to store devices to SQLite: {response.status} - {error_text}")
+                                logger.error(f"❌ Failed to store devices to database: {response.status} - {error_text}")
                     except Exception as e:
                         logger.error(f"❌ Error posting devices to data-api: {e}")
 
-                # Store entities to SQLite
+                # Store entities to database
                 if entities_data:
                     try:
                         headers = {}
@@ -907,14 +907,14 @@ class DiscoveryService:
                         ) as response:
                             if response.status == 200:
                                 result = await response.json()
-                                logger.info(f"✅ Stored {result.get('upserted', 0)} entities to SQLite")
+                                logger.info(f"✅ Stored {result.get('upserted', 0)} entities to database")
                             else:
                                 error_text = await response.text()
-                                logger.error(f"❌ Failed to store entities to SQLite: {response.status} - {error_text}")
+                                logger.error(f"❌ Failed to store entities to database: {response.status} - {error_text}")
                     except Exception as e:
                         logger.error(f"❌ Error posting entities to data-api: {e}")
 
-                # Store services to SQLite (Epic 2025) - with graceful degradation
+                # Store services to database (Epic 2025) - with graceful degradation
                 if services_data:
                     try:
                         headers = {}
@@ -933,7 +933,7 @@ class DiscoveryService:
                         ) as response:
                             if response.status == 200:
                                 result = await response.json()
-                                logger.info(f"✅ Stored {result.get('upserted', 0)} services to SQLite")
+                                logger.info(f"✅ Stored {result.get('upserted', 0)} services to database")
                             elif response.status == 404:
                                 # Endpoint doesn't exist - check if this is expected
                                 # Log as warning but note it might indicate missing endpoint implementation
@@ -950,7 +950,7 @@ class DiscoveryService:
                                 logger.error("   Check DATA_API_API_KEY or DATA_API_KEY environment variable")
                             else:
                                 error_text = await response.text()
-                                logger.warning(f"⚠️  Failed to store services to SQLite: HTTP {response.status}")
+                                logger.warning(f"⚠️  Failed to store services to database: HTTP {response.status}")
                                 logger.warning(f"   Error: {error_text}")
                                 logger.warning("   Discovery will continue, but services will not be stored")
                     except Exception as e:

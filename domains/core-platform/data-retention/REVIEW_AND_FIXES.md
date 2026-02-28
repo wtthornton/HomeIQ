@@ -426,7 +426,7 @@ With 200 entities, this could be 200-600 queries every 5 minutes!
 
 ---
 
-### H7. SQLite Connection Not Using Context Manager / Connection Pool
+### H7. Database Connection Not Using Context Manager / Connection Pool
 
 **File**: `c:\cursor\HomeIQ\services\data-retention\src\statistics_aggregator.py`, lines 71-95
 **Severity**: HIGH
@@ -447,7 +447,7 @@ def _get_eligible_entities(self) -> list[dict[str, Any]]:
         conn.close()  # No finally block - connection leaked on exception!
         return entities
     except Exception as e:
-        logger.error(f"Error fetching eligible entities from SQLite: {e}")
+        logger.error(f"Error fetching eligible entities from database: {e}")
         return []
 ```
 
@@ -475,7 +475,7 @@ def _get_eligible_entities(self) -> list[dict[str, Any]]:
                 for row in cursor
             ]
     except Exception as e:
-        logger.error(f"Error fetching eligible entities from SQLite: {e}")
+        logger.error(f"Error fetching eligible entities from database: {e}")
         return []
 ```
 
@@ -915,7 +915,7 @@ This makes one DELETE API call per record. InfluxDB's delete API supports time r
 | `storage_analytics.py` | MEDIUM | Metrics calculation |
 | `tiered_retention.py` | HIGH | Core downsampling logic |
 | `scheduler.py` | MEDIUM | Scheduling correctness |
-| `statistics_aggregator.py` | HIGH | N+1 query, SQLite interaction |
+| `statistics_aggregator.py` | HIGH | N+1 query, database interaction |
 | `pattern_aggregate_retention.py` | MEDIUM | Cleanup logic |
 | `api/routers/policies.py` | LOW | Covered indirectly via test_health_check |
 | `api/routers/retention.py` | HIGH | Retention operation triggers |
@@ -971,7 +971,7 @@ The tiered retention (hot->warm->cold) downsampling is implemented at the applic
 
 The current health check returns "healthy", "warning", or "critical" based only on storage alerts. A comprehensive health check should also verify:
 - InfluxDB connectivity
-- SQLite accessibility
+- PostgreSQL accessibility
 - Scheduler running status
 - Last successful cleanup/compression time
 - Memory usage
@@ -1056,7 +1056,7 @@ Endpoints like `POST /cleanup`, `POST /retention/downsample-hourly`, `POST /back
 7. Remove dead aiohttp code [H2]
 8. Make compression non-blocking [H3]
 9. Fix error message leaking [H8]
-10. Fix SQLite connection handling [H7]
+10. Fix database connection handling [H7]
 
 ### Backlog
 11. Fix deprecated `datetime.utcnow()` usage [M1]

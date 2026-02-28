@@ -10,7 +10,7 @@
 
 ## Service Overview
 
-The Blueprint Index Service crawls GitHub repositories and Home Assistant Community Discourse forums to build a searchable index of Home Assistant blueprints. It provides APIs for searching by device domain, device class, trigger/action patterns, text queries, and quality scores. The service uses SQLite (via aiosqlite/SQLAlchemy async) for storage and httpx for async HTTP requests to external APIs.
+The Blueprint Index Service crawls GitHub repositories and Home Assistant Community Discourse forums to build a searchable index of Home Assistant blueprints. It provides APIs for searching by device domain, device class, trigger/action patterns, text queries, and quality scores. The service uses PostgreSQL (via asyncpg/SQLAlchemy async) for storage and httpx for async HTTP requests to external APIs.
 
 **Architecture Components**:
 - `src/main.py` - FastAPI application with CORS, lifespan, health check
@@ -586,7 +586,7 @@ mode = "auto"
 ## Enhancement Suggestions
 
 ### 1. Full-Text Search Index
-The current text search uses `LIKE %query%` which does not scale. Consider using SQLite FTS5 for proper full-text search capabilities.
+The current text search uses `LIKE %query%` which does not scale. Consider using PostgreSQL full-text search (`tsvector`/`tsquery`) for proper full-text search capabilities.
 
 ### 2. Caching Layer
 Blueprint search results are queried from the database on every request. Add an in-memory cache (e.g., `cachetools.TTLCache`) for frequently searched patterns.

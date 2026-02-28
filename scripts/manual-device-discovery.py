@@ -3,7 +3,7 @@
 Manual Device Discovery Script for HA Ingestor
 
 This script manually queries Home Assistant's device and entity registries
-and stores the results in the HA Ingestor SQLite database.
+and stores the results in the HA Ingestor PostgreSQL database.
 
 Use this when the automatic discovery process hangs or fails.
 """
@@ -66,7 +66,7 @@ async def get_ha_entities(session: aiohttp.ClientSession) -> List[Dict[str, Any]
         return []
 
 async def store_devices_to_ingestor(session: aiohttp.ClientSession, devices: List[Dict[str, Any]]) -> bool:
-    """Store devices to HA Ingestor SQLite database"""
+    """Store devices to HA Ingestor PostgreSQL database"""
     if not devices:
         return True
     
@@ -89,7 +89,7 @@ async def store_devices_to_ingestor(session: aiohttp.ClientSession, devices: Lis
         return False
 
 async def store_entities_to_ingestor(session: aiohttp.ClientSession, entities: List[Dict[str, Any]]) -> bool:
-    """Store entities to HA Ingestor SQLite database"""
+    """Store entities to HA Ingestor PostgreSQL database"""
     if not entities:
         return True
     

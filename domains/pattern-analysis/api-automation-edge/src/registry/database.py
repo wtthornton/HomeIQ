@@ -21,4 +21,4 @@ class SpecVersion(Base):
     spec_content = Column(Text, nullable=False)  # JSON string
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     deployed_at = Column(DateTime, nullable=True)
-    is_active = Column(String, default="false")  # "true" or "false" for SQLite compatibility
+    is_active = Column(String, default="false")

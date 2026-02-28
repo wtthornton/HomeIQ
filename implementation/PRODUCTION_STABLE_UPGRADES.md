@@ -48,7 +48,7 @@ All recommendations below are for **production-stable** versions (no alpha/beta 
 | **aiohttp** | >=3.13.3,<4.0.0 | *(no change)* | Still current. |
 | **opentelemetry-*** | 1.24.0 / 0.45b0 | 1.24.x + instrumentation 0.45b0 or 0.60b1 | 0.60b1 is beta; stay on 0.45b0 for stability or test 0.60b1 in one service first. |
 | **sqlalchemy** | >=2.0.46,<3.0.0 | *(no change)* | 2.0.46 is current. |
-| **aiosqlite** | >=0.22.1,<0.23.0 | *(no change)* | Keep. |
+| **asyncpg** | >=0.30.0,<0.31.0 | *(no change)* | Keep. PostgreSQL async driver. |
 | **influxdb-client** | >=1.49.0,<2.0.0 | *(no change)* | Keep; validate with InfluxDB 2.8.0. |
 | **websockets** | >=12.0,<13.0.0 | *(no change)* | Keep. |
 | **paho-mqtt** | >=1.6.1,<2.0.0 | *(no change)* | Keep. |

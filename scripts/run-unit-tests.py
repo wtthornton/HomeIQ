@@ -89,7 +89,7 @@ class UnitTestFramework:
             'test_ml_service', 'test_storage_api', 'test_realtime_monitoring',
             'test_predictive_analytics', 'test_health', 'test_discovery_service',
             'test_fallback', 'test_ai_core_service', 'test_context_hierarchy',
-            'test_webhook_sqlite', 'test_database', 'test_ha_endpoints',
+            'test_webhook_postgres', 'test_database', 'test_ha_endpoints',
             'test_webhook_manager', 'test_event_detector', 'test_historical_endpoints',
             'test_analytics_uptime', 'test_stats_data_sources', 'test_influxdb_client_simple',
             'test_utils_config', 'test_utils_api_client', 'test_pattern_aggregate_performance',

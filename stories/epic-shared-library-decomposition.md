@@ -181,7 +181,7 @@ libs/
 - [ ] `shared/service_client.py` moved to `libs/homeiq-data/src/homeiq_data/service_client.py`
 - [ ] `shared/auth.py` moved to `libs/homeiq-data/src/homeiq_data/auth.py`
 - [ ] `shared/error_handler.py` moved to `libs/homeiq-data/src/homeiq_data/error_handler.py`
-- [ ] `pyproject.toml` declares dependencies: `influxdb-client`, `aiosqlite`, `aiohttp`, `pydantic`
+- [ ] `pyproject.toml` declares dependencies: `influxdb-client`, `asyncpg`, `aiohttp`, `pydantic`
 - [ ] `__init__.py` exports key classes: `InfluxDBQueryClient`, `DatabasePool`, `Cache`, `ServiceClient`
 - [ ] Package installable: `pip install -e libs/homeiq-data/` succeeds
 

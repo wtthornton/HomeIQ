@@ -8,8 +8,7 @@ import logging
 import time
 from typing import Any
 
-from huey import crontab
-from huey.contrib.sqlitedb import SqliteHuey
+from huey import crontab, Huey
 
 from ..config import settings
 from ..registry.spec_registry import SpecRegistry
@@ -66,7 +65,7 @@ class AutomationScheduler:
     def __init__(
         self,
         spec_registry: SpecRegistry | None = None,
-        huey_instance: SqliteHuey | None = None
+        huey_instance: Huey | None = None
     ):
         """
         Initialize automation scheduler.

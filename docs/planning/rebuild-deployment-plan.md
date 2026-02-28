@@ -284,9 +284,6 @@ The rebuild strategy follows a phased approach aligned with the library upgrade 
 docker run --rm -v homeiq_influxdb_data:/data -v $(pwd)/backups:/backup \
   alpine tar czf /backup/influxdb_data_$(date +%Y%m%d_%H%M%S).tar.gz -C /data .
 
-docker run --rm -v homeiq_sqlite-data:/data -v $(pwd)/backups:/backup \
-  alpine tar czf /backup/sqlite_data_$(date +%Y%m%d_%H%M%S).tar.gz -C /data .
-
 # Backup environment configuration
 cp .env .env.backup_$(date +%Y%m%d_%H%M%S)
 cp docker-compose.yml docker-compose.yml.backup_$(date +%Y%m%d_%H%M%S)
@@ -1253,8 +1250,8 @@ done
 echo "Restoring InfluxDB data..."
 # (Add restore commands here)
 
-echo "Restoring SQLite data..."
-# (Add restore commands here)
+echo "Restoring PostgreSQL data..."
+# (Use scripts/restore-postgres.sh)
 
 # Restart all services with previous images
 docker-compose --profile production up -d
@@ -1523,10 +1520,8 @@ BACKUP_FILE=$(ls -t backups/influxdb_data_*.tar.gz | head -1)
 docker run --rm -v homeiq_influxdb_data:/data -v $(pwd)/backups:/backup \
   alpine tar xzf /backup/$(basename $BACKUP_FILE) -C /data
 
-# SQLite
-BACKUP_FILE=$(ls -t backups/sqlite_data_*.tar.gz | head -1)
-docker run --rm -v homeiq_sqlite-data:/data -v $(pwd)/backups:/backup \
-  alpine tar xzf /backup/$(basename $BACKUP_FILE) -C /data
+# PostgreSQL
+./scripts/restore-postgres.sh backups/postgres/homeiq_full_*.dump
 
 # 4. Restore environment configuration
 cp .env.backup_* .env

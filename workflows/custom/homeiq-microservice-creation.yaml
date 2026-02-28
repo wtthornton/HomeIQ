@@ -33,7 +33,7 @@ workflow:
         - Epic 31 architecture: Direct InfluxDB writes (no enrichment-pipeline)
         - Standalone service pattern (no service-to-service HTTP dependencies)
         - Follow existing HomeIQ service patterns (see services/ directory)
-        - Consider hybrid database architecture (InfluxDB for time-series, SQLite for metadata)
+        - Consider hybrid database architecture (InfluxDB for time-series, PostgreSQL for metadata)
       requires: []
       creates:
         - architecture.md

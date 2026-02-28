@@ -74,7 +74,7 @@ async def health_check(settings: Settings = Depends(lambda: Settings())) -> Heal
         logger.warning("Health check database test failed: %s", e)
 
     dependencies = {
-        "sqlite": db_status,
+        "database": db_status,
         "redis": "not_configured",
         "home_assistant": "not_checked",
         "mqtt": "not_checked"

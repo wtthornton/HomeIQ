@@ -10,7 +10,6 @@ websockets>=12.0,<13.0.0
 # Database
 sqlalchemy>=2.0.36,<2.1.0  # Phase 1: aligned
 alembic>=1.13.0,<2.0.0  # Phase 1: aligned
-aiosqlite>=0.20.0,<0.23.0  # Phase 1: aligned
 asyncpg>=0.30.0  # Phase 1C: PostgreSQL migration
 
 # Validation

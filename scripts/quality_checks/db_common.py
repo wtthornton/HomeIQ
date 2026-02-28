@@ -1,38 +1,15 @@
 """
-Common utilities for SQLite database operations.
+Common utilities for PostgreSQL database operations.
 """
-from pathlib import Path
+import os
 from typing import Optional
 
-from .config import DATABASE_CONFIGS, PROJECT_ROOT
-
-# Script directory for path resolution
-SCRIPT_DIR = Path(__file__).parent.parent
+from .config import DATABASE_CONFIGS, POSTGRES_URL
 
 
-def find_database_path(db_key: str) -> Optional[Path]:
-    """Find database file path using multiple possible locations."""
-    config = DATABASE_CONFIGS.get(db_key)
-    if not config:
-        return None
-    
-    for path_str in config['paths']:
-        path = Path(path_str)
-        # Handle absolute paths
-        if path.is_absolute():
-            if path.exists():
-                return path
-        # Handle relative paths from script directory
-        else:
-            # Try from script directory
-            full_path = SCRIPT_DIR.parent / path
-            if full_path.exists():
-                return full_path
-            # Try from current directory
-            if path.exists():
-                return path
-    
-    return None
+def get_postgres_url() -> str:
+    """Get PostgreSQL connection URL."""
+    return POSTGRES_URL
 
 
 def get_database_config(db_key: str) -> Optional[dict]:
@@ -40,7 +17,14 @@ def get_database_config(db_key: str) -> Optional[dict]:
     return DATABASE_CONFIGS.get(db_key)
 
 
+def get_database_schema(db_key: str) -> Optional[str]:
+    """Get the PostgreSQL schema for a database key."""
+    config = DATABASE_CONFIGS.get(db_key)
+    if config:
+        return config.get('schema')
+    return None
+
+
 def list_all_databases() -> list[str]:
     """List all available database keys."""
     return list(DATABASE_CONFIGS.keys())
-

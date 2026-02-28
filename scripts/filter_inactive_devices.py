@@ -11,7 +11,7 @@ historical reference.
 import asyncio
 import json
 import logging
-import sqlite3
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -24,6 +24,9 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from scripts.quality_evaluation.database_accessor import DatabaseAccessor
+
+# PostgreSQL connection URL
+POSTGRES_URL = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -61,14 +64,14 @@ class InactiveDeviceFilter:
     
     def __init__(
         self,
-        db_path: str,
+        pg_url: str = POSTGRES_URL,
         data_api_url: str = "http://localhost:8006",
         activity_window_days: int = 30
     ):
-        self.db_path = db_path
+        self.pg_url = pg_url
         self.data_api_url = data_api_url
         self.activity_window_days = activity_window_days
-        self.db_accessor = DatabaseAccessor(db_path)
+        self.db_accessor = DatabaseAccessor(pg_url)
         self.active_devices: Set[str] = set()
         
     async def identify_active_devices(
@@ -375,21 +378,10 @@ async def main():
         description='Filter inactive devices from patterns and synergies'
     )
     parser.add_argument(
-        '--db-path',
+        '--pg-url',
         type=str,
-        default='data/ai_automation.db',
-        help='Database path'
-    )
-    parser.add_argument(
-        '--docker-container',
-        type=str,
-        default='ai-pattern-service',
-        help='Docker container name'
-    )
-    parser.add_argument(
-        '--use-docker-db',
-        action='store_true',
-        help='Copy database from Docker container'
+        default=POSTGRES_URL,
+        help='PostgreSQL connection URL'
     )
     parser.add_argument(
         '--activity-window',
@@ -406,34 +398,10 @@ async def main():
     )
     
     args = parser.parse_args()
-    
-    # Handle Docker database
-    db_path = args.db_path
-    temp_db_path = None
-    
-    if args.use_docker_db:
-        import subprocess
-        import tempfile
-        
-        logger.info(f"Copying database from Docker container: {args.docker_container}")
-        temp_dir = tempfile.mkdtemp(prefix='device_activity_')
-        temp_db_path = Path(temp_dir) / 'ai_automation.db'
-        
-        try:
-            subprocess.run([
-                'docker', 'cp',
-                f'{args.docker_container}:/app/data/ai_automation.db',
-                str(temp_db_path)
-            ], check=True, capture_output=True)
-            db_path = str(temp_db_path)
-            logger.info(f"Database copied to: {db_path}")
-        except Exception as e:
-            logger.error(f"Failed to copy database: {e}")
-            sys.exit(1)
-    
+
     try:
         filter_tool = InactiveDeviceFilter(
-            db_path,
+            pg_url=args.pg_url,
             activity_window_days=args.activity_window
         )
         
@@ -470,13 +438,6 @@ async def main():
     except Exception as e:
         logger.error(f"Analysis failed: {e}", exc_info=True)
         sys.exit(1)
-    finally:
-        if temp_db_path and temp_db_path.exists():
-            try:
-                temp_db_path.unlink()
-                temp_db_path.parent.rmdir()
-            except:
-                pass
 
 
 if __name__ == "__main__":

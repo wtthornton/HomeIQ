@@ -15,8 +15,9 @@ from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock
 
 import pytest
+import os
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 # Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
 
@@ -24,16 +25,18 @@ from sqlalchemy.pool import StaticPool
 @pytest.fixture(scope="function")
 async def test_db() -> AsyncGenerator[AsyncSession, None]:
     """
-    Create a test database session using in-memory SQLite.
+    Create a test database session using PostgreSQL.
 
     Each test gets a fresh database.
     Note: Automation service uses shared database models (Suggestion, etc.).
     """
-    # Use in-memory SQLite for tests
+    # Use PostgreSQL for tests
+    test_url = os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq_test",
+    )
     engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        poolclass=StaticPool,
-        connect_args={"check_same_thread": False},
+        test_url,
         echo=False,
     )
 

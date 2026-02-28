@@ -113,7 +113,7 @@ ai-automation-service-new:
   ports:
     - "8025:8025"
   environment:
-    - DATABASE_URL=sqlite+aiosqlite:////app/data/ai_automation.db
+    - DATABASE_URL=postgresql+asyncpg://homeiq:homeiq@homeiq-postgres:5432/homeiq
     - DATA_API_URL=http://data-api:8006
     - HA_URL=${HA_URL}
     - HA_TOKEN=${HA_TOKEN}

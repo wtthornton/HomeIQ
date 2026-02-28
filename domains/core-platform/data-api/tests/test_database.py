@@ -1,5 +1,5 @@
 """
-Tests for SQLite database configuration
+Tests for PostgreSQL database configuration
 Story 22.1
 """
 
@@ -15,15 +15,13 @@ from src.database import (
     init_db,
 )
 
-# In-memory SQLite uses journal_mode "memory", not "wal"
-_IS_MEMORY = ":memory:" in (DATABASE_URL or "")
-
 
 @pytest.mark.asyncio
 async def test_database_engine_initialization():
     """Test that async engine is properly configured"""
     assert async_engine is not None
-    assert "sqlite+aiosqlite" in str(async_engine.url)
+    url_str = str(async_engine.url)
+    assert "postgresql" in url_str or "asyncpg" in url_str
 
 
 @pytest.mark.asyncio
@@ -34,25 +32,6 @@ async def test_session_factory_creation():
         # Test simple query
         result = await session.execute(text("SELECT 1"))
         assert result.scalar() == 1
-
-
-@pytest.mark.asyncio
-async def test_wal_mode_enabled():
-    """Test that WAL mode is enabled (or memory for in-memory DBs)"""
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(text("PRAGMA journal_mode"))
-        journal_mode = (result.scalar() or "").lower()
-        # In-memory DBs use "memory"; on-disk use "wal"
-        assert journal_mode in ("wal", "memory")
-
-
-@pytest.mark.asyncio
-async def test_foreign_keys_enabled():
-    """Test that foreign key constraints are enabled"""
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(text("PRAGMA foreign_keys"))
-        foreign_keys = result.scalar()
-        assert foreign_keys == 1
 
 
 @pytest.mark.asyncio
@@ -67,13 +46,9 @@ async def test_check_db_health():
     """Test health check function"""
     health = await check_db_health()
     assert health["status"] == "healthy"
-    # In-memory DBs use journal_mode "memory"; on-disk use "wal"
-    assert health["journal_mode"] in ("wal", "memory")
-    if _IS_MEMORY:
-        assert "wal_enabled" in health  # may be False for memory
-    else:
-        assert health["wal_enabled"] is True
-    assert "database_size_mb" in health
+    assert health["backend"] == "postgresql"
+    assert "schema" in health
+    assert "connection" in health
 
 
 @pytest.mark.asyncio

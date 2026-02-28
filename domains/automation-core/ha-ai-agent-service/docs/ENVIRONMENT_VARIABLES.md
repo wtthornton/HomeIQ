@@ -179,9 +179,9 @@ The service uses Pydantic Settings to load configuration from environment variab
 
 ### `DATABASE_URL`
 - **Type:** String (SQLAlchemy URL)
-- **Default:** `sqlite+aiosqlite:///./data/ha_ai_agent.db`
-- **Description:** SQLite database URL for context cache and conversations
-- **Example:** `sqlite+aiosqlite:///./data/ha_ai_agent.db`
+- **Default:** `postgresql+asyncpg:///./data/ha_ai_agent.db`
+- **Description:** PostgreSQL database URL for context cache and conversations
+- **Example:** `postgresql+asyncpg:///./data/ha_ai_agent.db`
 - **Required:** No
 - **Note:** Database directory will be created automatically
 
@@ -270,7 +270,7 @@ LOG_LEVEL=INFO
 SERVICE_PORT=8030
 
 # Database Configuration
-DATABASE_URL=sqlite+aiosqlite:///./data/ha_ai_agent.db
+DATABASE_URL=postgresql+asyncpg:///./data/ha_ai_agent.db
 CONVERSATION_TTL_DAYS=30
 
 # CORS Configuration
@@ -293,7 +293,7 @@ services:
       - YAML_VALIDATION_SERVICE_URL=http://yaml-validation-service:8037
       - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8028
       - LOG_LEVEL=INFO
-      - DATABASE_URL=sqlite+aiosqlite:///./data/ha_ai_agent.db
+      - DATABASE_URL=postgresql+asyncpg:///./data/ha_ai_agent.db
 ```
 
 ## Security Notes

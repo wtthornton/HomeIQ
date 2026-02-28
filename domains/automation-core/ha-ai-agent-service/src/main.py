@@ -70,41 +70,8 @@ def _fix_database_permissions(settings: Settings) -> None:
     Args:
         settings: Application settings containing database URL
     """
-    if not settings.database_url.startswith("sqlite"):
-        return
-
-    import os
-    import stat
-    from pathlib import Path
-
-    path_str = settings.database_url.split("///")[-1]
-    db_path = Path(path_str)
-    data_dir = db_path.parent
-
-    # Fix permissions if directory exists (Docker volume might be root-owned)
-    if not data_dir.exists():
-        return
-
-    try:
-        current_uid = os.getuid() if hasattr(os, 'getuid') else None
-        current_gid = os.getgid() if hasattr(os, 'getgid') else None
-
-        # Try to fix directory permissions
-        data_dir.chmod(stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH)
-        if current_uid is not None and current_uid != 0:
-            with suppress(PermissionError, OSError):
-                os.chown(data_dir, current_uid, current_gid)
-
-        # Fix database file if it exists
-        if db_path.exists():
-            db_path.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH)
-            if current_uid is not None and current_uid != 0:
-                with suppress(PermissionError, OSError):
-                    os.chown(db_path, current_uid, current_gid)
-
-        logger.info(f"✅ Fixed permissions for {data_dir}")
-    except Exception as e:
-        logger.warning(f"⚠️  Could not fix permissions (non-fatal): {e}")
+    # PostgreSQL connections don't need local file permission fixes
+    pass
 
 
 @asynccontextmanager

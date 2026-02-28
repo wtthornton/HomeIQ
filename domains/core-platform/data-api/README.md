@@ -5,15 +5,15 @@
 **Port:** 8006
 **Technology:** Python 3.11+, FastAPI 0.121, SQLAlchemy 2.0, InfluxDB 2.x
 **Container:** `homeiq-data-api`
-**Database:** Hybrid (SQLite + InfluxDB)
+**Database:** Hybrid (PostgreSQL + InfluxDB)
 
 ## Overview
 
-The Data API service is a specialized microservice that handles all feature-related data access, providing a unified interface to both SQLite metadata and InfluxDB time-series data. It delivers:
+The Data API service is a specialized microservice that handles all feature-related data access, providing a unified interface to both PostgreSQL metadata and InfluxDB time-series data. It delivers:
 
-- **Hybrid Database Architecture** - SQLite for metadata (<10ms), InfluxDB for time-series
+- **Hybrid Database Architecture** - PostgreSQL for metadata (<10ms), InfluxDB for time-series
 - **HA Event Queries** - Historical state changes from InfluxDB
-- **Device & Entity Browsing** - Fast metadata queries from SQLite (Story 22.1-22.2)
+- **Device & Entity Browsing** - Fast metadata queries from PostgreSQL (Story 22.1-22.2)
 - **Integration Management** - Device discovery and integration tracking
 - **Sports Data** - Real-time and historical sports scores (Epic 12)
 - **Home Assistant Automation** - Webhook endpoints for HA automations
@@ -22,11 +22,11 @@ The Data API service is a specialized microservice that handles all feature-rela
 
 ### Database Architecture (Epic 22)
 
-**SQLite (Metadata - Fast Queries)**:
+**PostgreSQL (Metadata - Fast Queries)**:
 - Devices table with indexes on area_id, manufacturer, integration
 - Entities table with foreign key to devices
 - Webhooks, preferences, and configuration
-- Query performance: <10ms (vs ~50ms with InfluxDB)
+- Schema: `core` (schema-per-domain pattern)
 
 **InfluxDB (Time-Series Data)**:
 - HA state_changed events (365-day retention)
@@ -41,7 +41,7 @@ The Data API service is a specialized microservice that handles all feature-rela
 
 - Python 3.11+
 - InfluxDB 2.7+
-- SQLite 3.x
+- PostgreSQL 17
 
 ### Running Locally
 
@@ -108,7 +108,7 @@ Response:
   "uptime_seconds": 3600,
   "dependencies": {
     "influxdb": "healthy",
-    "sqlite": "healthy"
+    "postgresql": "healthy"
   },
   "performance": {
     "avg_query_time_ms": 8.5,
@@ -167,7 +167,7 @@ curl http://localhost:8006/api/v1/events/stats?entity_id=light.office
 ### Devices & Entities (Story 13.2 + Epic 22)
 
 #### `GET /api/devices`
-List all devices from SQLite (<10ms)
+List all devices from PostgreSQL (<10ms)
 ```bash
 curl http://localhost:8006/api/devices
 ```
@@ -201,7 +201,7 @@ curl http://localhost:8006/api/devices/abc123
 ```
 
 #### `GET /api/entities`
-List all entities from SQLite (<10ms)
+List all entities from PostgreSQL (<10ms)
 ```bash
 curl http://localhost:8006/api/entities
 ```
@@ -334,9 +334,8 @@ curl -X POST http://localhost:8006/api/v1/ha/webhooks/register \
 | `INFLUXDB_TOKEN` | InfluxDB auth token | Required |
 | `INFLUXDB_ORG` | InfluxDB organization | `homeiq` |
 | `INFLUXDB_BUCKET` | InfluxDB bucket | `home_assistant_events` |
-| `DATABASE_URL` | SQLite database URL | `sqlite+aiosqlite:///./data/metadata.db` |
-| `SQLITE_TIMEOUT` | Connection timeout (seconds) | `30` |
-| `SQLITE_CACHE_SIZE` | Cache size (KB, negative) | `-64000` (64MB) |
+| `DATABASE_URL` | PostgreSQL database URL | `postgresql+asyncpg://homeiq:homeiq@postgres:5432/homeiq` |
+| `DATABASE_SCHEMA` | PostgreSQL schema | `core` |
 | `LOG_LEVEL` | Logging level | `INFO` |
 | `ENABLE_AUTH` | Enable API authentication | `true` (invalid values default to `true`) |
 | `API_KEY` | API key (if auth enabled) | - |
@@ -357,15 +356,9 @@ INFLUXDB_TOKEN=your-token-here
 INFLUXDB_ORG=homeiq
 INFLUXDB_BUCKET=home_assistant_events
 
-# SQLite Configuration (Story 22.1 - Epic 22)
-DATABASE_URL=sqlite+aiosqlite:///./data/metadata.db
-SQLITE_TIMEOUT=30
-SQLITE_CACHE_SIZE=-64000  # 64MB cache
-
-# Performance Tuning
-SQLITE_JOURNAL_MODE=WAL  # Write-Ahead Logging
-SQLITE_SYNCHRONOUS=NORMAL  # Fast writes
-SQLITE_TEMP_STORE=MEMORY  # Fast temp tables
+# PostgreSQL Configuration
+DATABASE_URL=postgresql+asyncpg://homeiq:homeiq@postgres:5432/homeiq
+DATABASE_SCHEMA=core
 
 # Logging
 LOG_LEVEL=INFO
@@ -386,7 +379,7 @@ The HomeIQ system uses two API services:
 
 **data-api** (port 8006): Feature data hub ← THIS SERVICE
 - HA event queries (InfluxDB)
-- Device/entity browsing (SQLite)
+- Device/entity browsing (PostgreSQL)
 - Sports data (InfluxDB)
 - Analytics and metrics
 - HA automation integration
@@ -416,7 +409,7 @@ The HomeIQ system uses two API services:
 │ Data API (8006)           │
 │                           │
 │ ┌─────────┐ ┌──────────┐ │
-│ │ SQLite  │ │ InfluxDB │ │
+│ │ PostgreSQL  │ │ InfluxDB │ │
 │ │Metadata │ │Time-Series│ │
 │ │ <10ms   │ │ <100ms   │ │
 │ └─────────┘ └──────────┘ │
@@ -433,7 +426,7 @@ The HomeIQ system uses two API services:
 
 ### Database Access
 
-**SQLite (Primary for Metadata - Epic 22)**:
+**PostgreSQL (Primary for Metadata - Epic 22)**:
 - `devices` - Device registry (99 devices, <10ms queries)
   - Indexes: area_id, manufacturer, integration
   - Foreign keys: None (root table)
@@ -465,12 +458,12 @@ data-api/
 │   │   ├── models.py                 # SQLAlchemy models
 │   │   └── session.py                # Database session management
 │   ├── events_endpoints.py           # Event queries (InfluxDB)
-│   ├── devices_endpoints.py          # Device/entity queries (SQLite)
+│   ├── devices_endpoints.py          # Device/entity queries (PostgreSQL)
 │   ├── internal_endpoints.py         # Bulk upsert endpoints
 │   ├── sports_endpoints.py           # Sports data (Epic 12)
 │   ├── ha_automation_endpoints.py    # HA automation webhooks
 │   ├── influxdb_client.py            # InfluxDB query client
-│   └── sqlite_client.py              # SQLite query client
+│   └── postgresql_client.py              # PostgreSQL query client
 ├── alembic/                          # Database migrations
 │   ├── versions/
 │   └── env.py
@@ -489,8 +482,8 @@ data-api/
 | Endpoint Type | Target | Acceptable | Investigation |
 |---------------|--------|------------|---------------|
 | Health checks | <20ms | <50ms | >100ms |
-| Device queries (SQLite) | <10ms | <50ms | >100ms |
-| Entity queries (SQLite) | <10ms | <50ms | >100ms |
+| Device queries (PostgreSQL) | <10ms | <50ms | >100ms |
+| Entity queries (PostgreSQL) | <10ms | <50ms | >100ms |
 | Event queries (InfluxDB) | <100ms | <200ms | >500ms |
 | HA automation endpoints | <50ms | <100ms | >200ms |
 | Sports data queries | <100ms | <200ms | >500ms |
@@ -499,7 +492,7 @@ data-api/
 
 - **Memory:** 256-512 MB typical
 - **CPU:** 0.5-1.0 cores typical
-- **Disk:** <100 MB (SQLite database)
+- **Disk:** <100 MB (PostgreSQL database)
 - **InfluxDB Connections:** Pool of 10 connections
 
 ### Scaling
@@ -507,11 +500,11 @@ data-api/
 - Can scale horizontally (2-4 instances)
 - InfluxDB connection pooling (max 10 connections)
 - Query result caching (5-minute TTL)
-- SQLite per-instance (no sharing required)
+- PostgreSQL per-instance (no sharing required)
 
 ### Optimization
 
-**SQLite Optimizations:**
+**PostgreSQL Optimizations:**
 ```sql
 PRAGMA journal_mode=WAL;       -- Write-Ahead Logging
 PRAGMA synchronous=NORMAL;     -- Fast writes
@@ -708,7 +701,7 @@ curl -H "X-API-Key: your-api-key" \
 curl http://localhost:8086/health
 ```
 
-**Check SQLite database:**
+**Check PostgreSQL database:**
 ```bash
 ls -la data/metadata.db
 # Should exist and be writable
@@ -721,7 +714,7 @@ docker compose logs data-api
 
 **Common issues:**
 - InfluxDB not accessible → Check `INFLUXDB_URL` and network
-- SQLite database locked → Check file permissions
+- PostgreSQL database locked → Check file permissions
 - Port 8006 already in use → Change `DATA_API_PORT`
 - Missing migrations → Run `alembic upgrade head`
 
@@ -740,7 +733,7 @@ LOG_LEVEL=DEBUG
 **Optimize queries:**
 - Use specific time ranges
 - Limit result sets
-- Add indexes to SQLite tables
+- Add indexes to PostgreSQL tables
 - Use query result caching
 
 ### Dashboard Can't Connect
@@ -760,25 +753,23 @@ curl http://localhost:8006/health
 CORS_ORIGINS=http://localhost:3000,http://localhost:3001
 ```
 
-### SQLite Database Locked
+### PostgreSQL Connection Issues
 
 **Symptoms:**
-- "database is locked" errors
+- Connection refused errors
 - Slow write operations
 - Timeout errors
 
 **Solutions:**
 ```bash
-# Increase timeout
-SQLITE_TIMEOUT=60
+# Check PostgreSQL is running
+docker exec homeiq-postgres pg_isready -U homeiq
 
-# Check WAL mode
-sqlite3 data/metadata.db "PRAGMA journal_mode;"
-# Should return: wal
+# Check active connections
+docker exec homeiq-postgres psql -U homeiq -d homeiq -c "SELECT COUNT(*) FROM pg_stat_activity WHERE datname='homeiq';"
 
-# Reset database (DESTRUCTIVE)
-rm data/metadata.db
-alembic upgrade head
+# Reset schema (DESTRUCTIVE)
+alembic downgrade base && alembic upgrade head
 ```
 
 ### Entities Endpoint Returns 500 Error
@@ -812,8 +803,8 @@ docker exec -w /app/domains/core-platform/data-api homeiq-data-api alembic upgra
 docker exec -it homeiq-data-api python
 
 # Run the following Python code:
-import sqlite3
-conn = sqlite3.connect('/app/data/metadata.db')
+import psql
+conn = psql.connect('/app/data/metadata.db')
 cursor = conn.cursor()
 
 # Add missing columns from migration 004
@@ -888,7 +879,7 @@ aiohttp==3.13.2             # Async HTTP client
 ```
 influxdb-client==1.49.0     # InfluxDB 2.x client
 sqlalchemy==2.0.44          # ORM
-aiosqlite==0.21.0           # Async SQLite driver
+asyncpg==0.21.0           # Async PostgreSQL driver
 alembic==1.17.2             # Database migrations
 ```
 
@@ -912,7 +903,7 @@ httpx==0.28.1               # FastAPI testing
 ## Related Documentation
 
 - [Epic 13: Admin API Service Separation](../../docs/stories/epic-13-admin-api-service-separation.md)
-- [Epic 22: SQLite Metadata Storage](../../docs/stories/epic-22-sqlite-metadata.md)
+- [Epic 22: PostgreSQL Metadata Storage](../../docs/stories/epic-22-postgresql-metadata.md)
 - [Admin API Separation Analysis](../../implementation/analysis/ADMIN_API_SEPARATION_ANALYSIS.md)
 - [Architecture Overview](../../docs/architecture/)
 - [Database Schema](../../docs/architecture/database-schema.md)
@@ -938,7 +929,7 @@ httpx==0.28.1               # FastAPI testing
 - Updated admin-api port reference (8003 → 8004)
 
 ### 2.0 (October 2025)
-- Added Epic 22 SQLite metadata storage
+- Added Epic 22 PostgreSQL metadata storage
 - Implemented internal bulk upsert endpoints
 - Enhanced device/entity query performance (<10ms)
 - Added comprehensive error handling
@@ -956,4 +947,4 @@ httpx==0.28.1               # FastAPI testing
 **Version:** 2.1
 **Status:** Production Ready ✅
 **Port:** 8006
-**Architecture:** Hybrid Database (SQLite + InfluxDB)
+**Architecture:** Hybrid Database (PostgreSQL + InfluxDB)

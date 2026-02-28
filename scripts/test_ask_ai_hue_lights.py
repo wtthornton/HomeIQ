@@ -149,41 +149,37 @@ class AskAIHueLightsTest:
                     continue
             
             if not found_entities:
-                # Try direct database query
+                # Try direct PostgreSQL database query
                 try:
-                    import sqlite3
-                    db_path = 'services/data-api/data/metadata.db'
-                    if os.path.exists(db_path):
-                        conn = sqlite3.connect(db_path)
-                        cursor = conn.cursor()
-                        # First check total entity count
-                        cursor.execute("SELECT COUNT(*) FROM entities")
-                        total_count = cursor.fetchone()[0]
-                        
-                        if total_count == 0:
-                            print_error("CRITICAL: Database has 0 entities - discovery is not working!")
-                            print_warning("Expected: Many entities from Home Assistant (including Hue devices)")
-                            print_warning("Actual: 0 entities discovered - this is NOT a correct answer")
-                            self.errors.append("Database has 0 entities - discovery failed")
-                            conn.close()
-                            return False
-                        
-                        # Then check for Hue entities
-                        cursor.execute("SELECT COUNT(*) FROM entities WHERE entity_id LIKE '%hue%'")
-                        count = cursor.fetchone()[0]
+                    import psycopg2
+                    pg_url = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
+                    conn = psycopg2.connect(pg_url)
+                    cursor = conn.cursor()
+                    # First check total entity count
+                    cursor.execute("SELECT COUNT(*) FROM core.entities")
+                    total_count = cursor.fetchone()[0]
+
+                    if total_count == 0:
+                        print_error("CRITICAL: Database has 0 entities - discovery is not working!")
+                        print_warning("Expected: Many entities from Home Assistant (including Hue devices)")
+                        print_warning("Actual: 0 entities discovered - this is NOT a correct answer")
+                        self.errors.append("Database has 0 entities - discovery failed")
                         conn.close()
-                        
-                        if count > 0:
-                            print_success(f"Found {count} Hue entities in database (out of {total_count} total)")
-                            found_entities = True
-                            entity_count = count
-                        else:
-                            print_error(f"No Hue entities found in database (but {total_count} total entities exist)")
-                            print_warning("No Hue entities found - this may cause AI to say 'no Hue lights'")
-                            self.errors.append("No Hue entities in database")
+                        return False
+
+                    # Then check for Hue entities
+                    cursor.execute("SELECT COUNT(*) FROM core.entities WHERE entity_id LIKE '%%hue%%'")
+                    count = cursor.fetchone()[0]
+                    conn.close()
+
+                    if count > 0:
+                        print_success(f"Found {count} Hue entities in database (out of {total_count} total)")
+                        found_entities = True
+                        entity_count = count
                     else:
-                        print_error(f"Database not found at {db_path}")
-                        self.errors.append("Database not found")
+                        print_error(f"No Hue entities found in database (but {total_count} total entities exist)")
+                        print_warning("No Hue entities found - this may cause AI to say 'no Hue lights'")
+                        self.errors.append("No Hue entities in database")
                 except Exception as e:
                     print_error(f"Database query failed: {e}")
                     self.errors.append(f"Database query error: {e}")

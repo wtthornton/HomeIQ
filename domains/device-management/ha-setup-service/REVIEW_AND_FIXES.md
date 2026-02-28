@@ -990,7 +990,7 @@ Bridge restart and recovery endpoints should have rate limiting to prevent abuse
 | Security scanning | UNKNOWN | No Trivy/Grype configured |
 | Resource limits | PASS | 256M memory limit in compose |
 | Logging driver | PASS | JSON file with rotation |
-| Volume for data | PASS | Named volume for SQLite |
+| Volume for data | PASS | Named volume for persistent data |
 
 ---
 

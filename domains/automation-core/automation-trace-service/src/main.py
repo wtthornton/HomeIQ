@@ -3,7 +3,7 @@ Automation Trace Service — main entry point.
 
 FastAPI app that connects to Home Assistant via WebSocket, polls
 automation traces every 2 minutes, and stores them in InfluxDB +
-data-api (SQLite).
+data-api.
 """
 
 from __future__ import annotations

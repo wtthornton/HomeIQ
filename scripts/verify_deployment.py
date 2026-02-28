@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Verify database optimization deployment"""
-import sqlite3
-from pathlib import Path
+import os
 
-DB_PATH = Path("/app/data/ai_automation.db")
+import psycopg2
+
+# PostgreSQL connection URL
+POSTGRES_URL = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
 
 # Expected new indexes
 EXPECTED_INDEXES = [
@@ -18,9 +20,13 @@ EXPECTED_INDEXES = [
     'idx_patterns_active_type_device_confidence'
 ]
 
-conn = sqlite3.connect(str(DB_PATH))
+conn = psycopg2.connect(POSTGRES_URL)
 cursor = conn.cursor()
-cursor.execute("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%' ORDER BY name")
+cursor.execute("""
+    SELECT indexname FROM pg_catalog.pg_indexes
+    WHERE indexname LIKE 'idx_%%'
+    ORDER BY indexname
+""")
 all_indexes = [row[0] for row in cursor.fetchall()]
 
 print("=" * 80)
@@ -48,4 +54,3 @@ else:
     print(f"⚠️  {len(EXPECTED_INDEXES) - found} indexes missing")
 
 conn.close()
-

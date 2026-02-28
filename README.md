@@ -174,7 +174,7 @@ HomeIQ runs as a collection of **50 microservices** organized into **9 domain gr
 │    • Device Intelligence • Automation Mining                 │
 ├──────────────────────────────────────────────────────────────┤
 │  📊 Data Layer                                                │
-│    • InfluxDB (time-series) • SQLite (metadata)              │
+│    • InfluxDB (time-series) • PostgreSQL (metadata)           │
 ├──────────────────────────────────────────────────────────────┤
 │  🌐 Enrichment Services                                       │
 │    • Weather • Energy • Air Quality • Sports • Calendar      │
@@ -266,7 +266,7 @@ See [Service Groups Architecture](docs/architecture/service-groups.md) for full 
 | **Backend** | Python 3.12, FastAPI 0.115–0.124, Pydantic 2.x |
 | **Frontend** | React 18.3, TypeScript 5.9, Vite 6.4, TailwindCSS 3.4 |
 | **AI/ML** | Sentence-Transformers 3.3, OpenAI GPT-4o-mini, scikit-learn |
-| **Database** | InfluxDB 2.7.12 (time-series), SQLite (metadata) |
+| **Database** | InfluxDB 2.7.12 (time-series), PostgreSQL 17 (metadata) |
 
 For detailed technology information, see [TECH_STACK.md](TECH_STACK.md).
 

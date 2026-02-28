@@ -10,7 +10,7 @@
 This system uses a **hybrid database architecture** optimizing for different data types:
 
 - **InfluxDB 2.7**: Time-series data (events, metrics, sports scores)
-- **SQLite 3.45+**: Metadata and relational data (devices, entities, webhooks)
+- **PostgreSQL 17**: Metadata and relational data (devices, entities, webhooks) — single instance, schema-per-domain
 
 ---
 
@@ -275,24 +275,18 @@ END
 
 ---
 
-## SQLite Schema Design (Epic 22 + October 2025 Enhancement)
+## PostgreSQL Schema Design (Epic 22 + PostgreSQL Migration)
 
-**Database Files:**
-- `data/metadata.db` (data-api service) - Devices and entities
+**Database:** PostgreSQL 17 — single instance, schema-per-domain
+**Schemas:** `core`, `automation`, `agent`, `blueprints`, `energy`, `devices`, `patterns`, `rag`
 
-**Note:** Sports data is stored in InfluxDB (`sports_data` measurement), not SQLite. The sports-api service writes directly to InfluxDB following Epic 31 architecture.
+**Note:** Sports data is stored in InfluxDB (`sports_data` measurement), not PostgreSQL. The sports-api service writes directly to InfluxDB following Epic 31 architecture.
 
-**Data Population** (Updated October 2025):
+**Data Population:**
 - **Devices & Entities**: Direct from Home Assistant WebSocket discovery
 - **Method**: POST to `/internal/devices/bulk_upsert` (automated on connection)
 - **Frequency**: On WebSocket connect/reconnect
-- **Current Data**: 99 real devices, 100+ real entities ✅
-
-**Configuration:**
-- **WAL Mode**: Enabled for concurrent reads/writes
-- **Synchronous**: NORMAL (fast, safe)
-- **Cache Size**: 64MB
-- **Foreign Keys**: Enabled
+- **Current Data**: 99 real devices, 100+ real entities
 
 ### Devices Table (data-api)
 
@@ -417,7 +411,7 @@ The EntityRegistry service provides relationship query methods:
 
 ### Sports Data Storage (InfluxDB - Epic 31)
 
-**Storage:** InfluxDB (not SQLite) - sports-api service writes directly to InfluxDB following Epic 31 architecture.
+**Storage:** InfluxDB (not PostgreSQL) - sports-api service writes directly to InfluxDB following Epic 31 architecture.
 
 **Measurement:** `sports_data`
 
@@ -446,7 +440,7 @@ The EntityRegistry service provides relationship query methods:
 
 ## Query Performance Comparison
 
-| Operation | InfluxDB (Before) | SQLite (After) | Improvement |
+| Operation | InfluxDB (Before) | PostgreSQL (After) | Improvement |
 |-----------|-------------------|----------------|-------------|
 | Get device by ID | ~50ms | <10ms | **5x faster** |
 | List devices with filter | ~100ms | <15ms | **6-7x faster** |
@@ -462,18 +456,16 @@ The EntityRegistry service provides relationship query methods:
 - Backup retention: 30 days
 - Location: `./backups/influxdb/`
 
-### SQLite Backups
-- Simple file copy (database files are self-contained)
-- Backup command: `cp data/*.db backups/sqlite/`
-- Can backup while database is running (WAL mode safe)
-- Location: `./backups/sqlite/`
+### PostgreSQL Backups
+- Automated daily via `scripts/backup-postgres.sh` (per-schema dumps)
+- Retention: 30 days
+- Location: `./backups/postgres/`
+- Restore: `scripts/restore-postgres.sh`
 
 **Backup Script:**
 ```bash
 # Backup both databases
-mkdir -p backups/influxdb backups/sqlite
+./scripts/backup-postgres.sh
 influx backup backups/influxdb/
-cp domains/core-platform/data-api/data/metadata.db backups/sqlite/
-# Note: sports-api stores data in InfluxDB (sports_data measurement), not SQLite
 ```
 

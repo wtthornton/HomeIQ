@@ -32,77 +32,109 @@ if sys.platform == "win32":
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import aiosqlite
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 from src.config import settings
 from src.database.models import AutomationVersion, Base, Suggestion
 
-# SQLite type mappings (SQLAlchemy types -> SQLite types)
-SQLITE_TYPE_MAP = {
-    "INTEGER": ["Integer", "int"],
-    "TEXT": ["String", "Text", "JSON", "DateTime", "Date", "Time"],
-    "REAL": ["Float", "Numeric"],
-    "BLOB": ["LargeBinary", "Binary"],
-    "NUMERIC": ["Numeric"],
+# PostgreSQL type mappings (SQLAlchemy types -> PostgreSQL types)
+PG_TYPE_MAP = {
+    "integer": ["Integer", "int"],
+    "text": ["String", "Text", "JSON"],
+    "character varying": ["String", "VARCHAR"],
+    "timestamp without time zone": ["DateTime", "Date", "Time"],
+    "double precision": ["Float"],
+    "numeric": ["Numeric"],
+    "boolean": ["Boolean"],
+    "bytea": ["LargeBinary", "Binary"],
 }
 
 
-def sqlalchemy_to_sqlite_type(sqlalchemy_type: str) -> str:
-    """Convert SQLAlchemy type to SQLite type."""
+def sqlalchemy_to_pg_type(sqlalchemy_type: str) -> str:
+    """Convert SQLAlchemy type to PostgreSQL type."""
     sqlalchemy_type_str = str(sqlalchemy_type).upper()
 
-    # Check mappings
-    for sqlite_type, sa_types in SQLITE_TYPE_MAP.items():
+    for pg_type, sa_types in PG_TYPE_MAP.items():
         if any(t.upper() in sqlalchemy_type_str for t in sa_types):
-            return sqlite_type
+            return pg_type
 
-    # Default to TEXT for unknown types
-    return "TEXT"
+    return "text"
 
 
-async def get_db_schema(db_path: str) -> dict[str, dict[str, Any]]:
-    """Get actual database schema from SQLite."""
+async def get_db_schema(db_url: str) -> dict[str, dict[str, Any]]:
+    """Get actual database schema from PostgreSQL."""
     schema = {}
 
-    async with aiosqlite.connect(db_path) as db:
-        # Get all tables
-        cursor = await db.execute("""
-            SELECT name FROM sqlite_master
-            WHERE type='table' AND name NOT LIKE 'sqlite_%'
-            ORDER BY name
-        """)
-        tables = [row[0] for row in await cursor.fetchall()]
+    engine = create_async_engine(db_url)
+    async with engine.begin() as conn:
+        # Get all tables in current schema
+        result = await conn.execute(text("""
+            SELECT table_name FROM information_schema.tables
+            WHERE table_schema = current_schema()
+            AND table_type = 'BASE TABLE'
+            ORDER BY table_name
+        """))
+        tables = [row[0] for row in result.fetchall()]
 
         for table_name in tables:
             # Get column info
-            cursor = await db.execute(f"PRAGMA table_info({table_name})")
-            columns = await cursor.fetchall()
+            result = await conn.execute(text("""
+                SELECT column_name, data_type, is_nullable, column_default
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                AND table_name = :table_name
+                ORDER BY ordinal_position
+            """), {"table_name": table_name})
+            columns = result.fetchall()
+
+            # Get primary keys
+            result = await conn.execute(text("""
+                SELECT kcu.column_name
+                FROM information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu
+                    ON tc.constraint_name = kcu.constraint_name
+                WHERE tc.table_schema = current_schema()
+                AND tc.table_name = :table_name
+                AND tc.constraint_type = 'PRIMARY KEY'
+            """), {"table_name": table_name})
+            primary_keys = [row[0] for row in result.fetchall()]
 
             # Get foreign keys
-            cursor = await db.execute(f"PRAGMA foreign_key_list({table_name})")
-            foreign_keys = await cursor.fetchall()
+            result = await conn.execute(text("""
+                SELECT kcu.column_name, ccu.table_name AS foreign_table,
+                       ccu.column_name AS foreign_column
+                FROM information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu
+                    ON tc.constraint_name = kcu.constraint_name
+                JOIN information_schema.constraint_column_usage ccu
+                    ON tc.constraint_name = ccu.constraint_name
+                WHERE tc.table_schema = current_schema()
+                AND tc.table_name = :table_name
+                AND tc.constraint_type = 'FOREIGN KEY'
+            """), {"table_name": table_name})
+            foreign_keys = result.fetchall()
 
-            schema[table_name] = {"columns": {}, "primary_keys": [], "foreign_keys": []}
+            schema[table_name] = {"columns": {}, "primary_keys": primary_keys, "foreign_keys": []}
 
             for col in columns:
-                col_id, name, col_type, not_null, default_val, pk = col
-                schema[table_name]["columns"][name] = {
-                    "type": col_type.upper(),
-                    "nullable": not not_null,
+                col_name, data_type, is_nullable, default_val = col
+                schema[table_name]["columns"][col_name] = {
+                    "type": data_type,
+                    "nullable": is_nullable == "YES",
                     "default": default_val,
-                    "primary_key": bool(pk),
+                    "primary_key": col_name in primary_keys,
                 }
-                if pk:
-                    schema[table_name]["primary_keys"].append(name)
 
             for fk in foreign_keys:
                 schema[table_name]["foreign_keys"].append(
                     {
-                        "column": fk[3],  # from column
-                        "referenced_table": fk[2],  # table
-                        "referenced_column": fk[4],  # to column
+                        "column": fk[0],
+                        "referenced_table": fk[1],
+                        "referenced_column": fk[2],
                     }
                 )
 
+    await engine.dispose()
     return schema
 
 
@@ -110,7 +142,6 @@ def get_model_schema() -> dict[str, dict[str, Any]]:
     """Get expected schema from SQLAlchemy models."""
     schema = {}
 
-    # Directly inspect Base.metadata (no engine needed)
     for table_name in Base.metadata.tables:
         table = Base.metadata.tables[table_name]
 
@@ -120,12 +151,9 @@ def get_model_schema() -> dict[str, dict[str, Any]]:
             "foreign_keys": [],
         }
 
-        # Get columns
         for column in table.columns:
-            # Convert SQLAlchemy type to SQLite type
-            sqlite_type = sqlalchemy_to_sqlite_type(str(column.type))
+            pg_type = sqlalchemy_to_pg_type(str(column.type))
 
-            # Get default value
             default_val = None
             if column.default is not None:
                 if hasattr(column.default, "arg"):
@@ -134,13 +162,12 @@ def get_model_schema() -> dict[str, dict[str, Any]]:
                     default_val = str(column.default)
 
             schema[table_name]["columns"][column.name] = {
-                "type": sqlite_type,
+                "type": pg_type,
                 "nullable": column.nullable,
                 "default": default_val,
                 "primary_key": column.primary_key,
             }
 
-        # Get foreign keys
         for fk in table.foreign_keys:
             schema[table_name]["foreign_keys"].append(
                 {
@@ -159,17 +186,15 @@ def compare_schemas(actual: dict, expected: dict) -> dict[str, Any]:
     warnings = []
     matches = []
 
-    # Check all expected tables exist
     for table_name in expected:
         if table_name not in actual:
             issues.append(f"[ERROR] Table '{table_name}' does not exist in database")
             continue
 
-            matches.append(f"[OK] Table '{table_name}' exists")
+        matches.append(f"[OK] Table '{table_name}' exists")
         actual_table = actual[table_name]
         expected_table = expected[table_name]
 
-        # Check all expected columns exist
         for col_name, expected_col in expected_table["columns"].items():
             if col_name not in actual_table["columns"]:
                 issues.append(
@@ -179,16 +204,14 @@ def compare_schemas(actual: dict, expected: dict) -> dict[str, Any]:
 
             actual_col = actual_table["columns"][col_name]
 
-            # Check type (allow some flexibility)
             expected_type = expected_col["type"]
             actual_type = actual_col["type"]
 
-            # SQLite is flexible with types, so we allow some variation
             type_compatible = (
                 expected_type == actual_type
-                or (expected_type == "TEXT" and actual_type in ["TEXT", "VARCHAR"])
-                or (expected_type in ["TEXT", "VARCHAR"] and actual_type == "TEXT")
-                or (expected_type == "INTEGER" and actual_type == "INTEGER")
+                or (expected_type == "text" and actual_type in ["text", "character varying"])
+                or (expected_type in ["text", "character varying"] and actual_type == "text")
+                or (expected_type == "integer" and actual_type == "integer")
             )
 
             if not type_compatible:
@@ -197,14 +220,12 @@ def compare_schemas(actual: dict, expected: dict) -> dict[str, Any]:
                     f"Expected {expected_type}, got {actual_type}"
                 )
 
-            # Check nullability
             if expected_col["nullable"] != actual_col["nullable"]:
                 issues.append(
                     f"[ERROR] Nullability mismatch: '{table_name}.{col_name}' - "
                     f"Expected nullable={expected_col['nullable']}, got {actual_col['nullable']}"
                 )
 
-            # Check primary key
             if expected_col["primary_key"] != actual_col["primary_key"]:
                 issues.append(
                     f"[ERROR] Primary key mismatch: '{table_name}.{col_name}' - "
@@ -213,7 +234,6 @@ def compare_schemas(actual: dict, expected: dict) -> dict[str, Any]:
 
             matches.append(f"[OK] Column '{table_name}.{col_name}' matches")
 
-        # Check for extra columns in database (warnings only)
         for col_name in actual_table["columns"]:
             if col_name not in expected_table["columns"]:
                 warnings.append(
@@ -221,7 +241,6 @@ def compare_schemas(actual: dict, expected: dict) -> dict[str, Any]:
                     f"(not in model definition)"
                 )
 
-        # Check primary keys match
         expected_pks = set(expected_table["primary_keys"])
         actual_pks = set(actual_table["primary_keys"])
         if expected_pks != actual_pks:
@@ -230,7 +249,6 @@ def compare_schemas(actual: dict, expected: dict) -> dict[str, Any]:
                 f"Expected {expected_pks}, got {actual_pks}"
             )
 
-    # Check for extra tables in database
     for table_name in actual:
         if table_name not in expected:
             warnings.append(f"[WARN] Extra table in database: '{table_name}' (not in models)")
@@ -243,29 +261,18 @@ async def main():
     print("=" * 80)
     print("Database Schema Validation")
     print("=" * 80)
-    print(f"Database: {settings.database_path}")
+    print(f"Database: {settings.effective_database_url}")
     print(f"Model: {Suggestion.__tablename__}, {AutomationVersion.__tablename__}")
     print("=" * 80)
     print()
 
-    # Check if database exists (use relative path for local execution)
-    # In Docker, path is /app/data/ai_automation.db, locally it's ./data/ai_automation.db
-    if settings.database_path.startswith("/app/"):
-        # Running in Docker or with Docker path - check local path
-        db_path = Path(__file__).parent.parent / "data" / "ai_automation.db"
-    else:
-        db_path = Path(settings.database_path)
-
-    if not db_path.exists():
-        print(f"[ERROR] Database file not found: {db_path}")
-        print(f"       Also checked: {settings.database_path}")
-        print("\nRun migrations to create database:")
-        print("  cd services/ai-automation-service-new")
-        print("  alembic upgrade head")
+    db_url = settings.effective_database_url
+    if not db_url:
+        print("[ERROR] No database URL configured")
         sys.exit(1)
 
-    print(f"[INFO] Reading database schema from: {db_path}")
-    actual_schema = await get_db_schema(str(db_path))
+    print(f"[INFO] Reading database schema from: {db_url}")
+    actual_schema = await get_db_schema(db_url)
 
     print("[INFO] Reading model schema...")
     expected_schema = get_model_schema()
@@ -275,7 +282,6 @@ async def main():
 
     results = compare_schemas(actual_schema, expected_schema)
 
-    # Print results
     if results["matches"]:
         print("[OK] MATCHES:")
         for match in results["matches"]:
@@ -296,7 +302,6 @@ async def main():
         print("=" * 80)
         print("ACTION REQUIRED:")
         print("  Run migrations to fix schema:")
-        print("    cd services/ai-automation-service-new")
         print("    alembic upgrade head")
         print("=" * 80)
         sys.exit(1)

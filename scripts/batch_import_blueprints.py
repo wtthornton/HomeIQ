@@ -32,10 +32,8 @@ blueprint_index_path = project_root / "domains" / "blueprints" / "blueprint-inde
 sys.path.insert(0, str(blueprint_index_path))
 sys.path.insert(0, str(project_root / "domains" / "blueprints" / "blueprint-index"))
 
-# Set database path to match Docker volume location
-data_dir = project_root / "data"
-data_dir.mkdir(exist_ok=True)
-os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{data_dir / 'blueprint_index.db'}"
+# Set database URL to PostgreSQL
+os.environ["DATABASE_URL"] = os.getenv("POSTGRES_URL", os.getenv("DATABASE_URL", "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq"))
 
 import httpx
 from src.indexer.blueprint_parser import BlueprintParser
@@ -246,7 +244,7 @@ async def import_blueprint(
                                     input_type=input_type,
                                     description=input_def.get('description'),
                                 )
-                        session.add(input_obj)
+                                session.add(input_obj)
             await session.commit()
             
             print(f"[OK] Imported blueprint into database (ID: {blueprint.id})")

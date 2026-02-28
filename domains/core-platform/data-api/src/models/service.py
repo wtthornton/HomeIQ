@@ -1,5 +1,5 @@
 """
-Service Model for SQLite Storage
+Service Model for Database Storage
 Epic 2025: Stores available services per domain from HA Services API
 """
 

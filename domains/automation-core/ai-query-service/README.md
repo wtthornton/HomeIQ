@@ -5,7 +5,7 @@
 **Port:** 8018 (internal), exposed as 8035 (external)
 **Technology:** Python 3.11+, FastAPI, SQLAlchemy
 **Container:** homeiq-ai-query-service
-**Database:** SQLite (ai_automation.db)
+**Database:** PostgreSQL (schema: `automation`)
 **Scale:** Optimized for ~50-100 devices (single-home)
 
 ## Overview
@@ -168,8 +168,8 @@ Refine query results based on user feedback.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_PATH` | `/app/data/ai_automation.db` | Path to SQLite database file |
-| `DATABASE_URL` | `sqlite+aiosqlite:////app/data/ai_automation.db` | SQLAlchemy database URL |
+| `DATABASE_URL` | `postgresql+asyncpg://homeiq:homeiq@postgres:5432/homeiq` | SQLAlchemy database URL |
+| `DATABASE_SCHEMA` | `automation` | PostgreSQL schema |
 | `DATABASE_POOL_SIZE` | `10` | Database connection pool size (optimized for query service) |
 | `DATABASE_MAX_OVERFLOW` | `5` | Max overflow connections |
 | `DATA_API_URL` | `http://data-api:8006` | Data API service URL |
@@ -266,14 +266,14 @@ curl http://localhost:8035/api/v1/query/query-abc123/suggestions
 - **device-intelligence-service** (Port 8023) - Device capability information
 - **Home Assistant** - External instance for entity data and area information
 - **OpenAI API** - GPT-4o-mini for natural language processing
-- **SQLite Database** - Shared ai_automation.db for query history and suggestions
+- **PostgreSQL** - Shared `automation` schema for query history and suggestions
 
 ### Python Dependencies
 
 - `fastapi` - Web framework
 - `uvicorn` - ASGI server
 - `sqlalchemy` - Database ORM
-- `aiosqlite` - Async SQLite driver
+- `asyncpg` - Async PostgreSQL driver
 - `pydantic` - Configuration management
 - `pydantic-settings` - Environment variable loading
 - `openai` - OpenAI API client
@@ -313,7 +313,7 @@ The service is optimized for low-latency query processing:
 
 ### Database Sharing
 
-This service shares the `ai_automation.db` SQLite database with ai-automation-service:
+This service shares the PostgreSQL `automation` schema with ai-automation-service:
 - **Query History** - Stores processed queries for analytics
 - **Suggestion Cache** - Cached automation suggestions
 - **User Preferences** - Clarification preferences and feedback

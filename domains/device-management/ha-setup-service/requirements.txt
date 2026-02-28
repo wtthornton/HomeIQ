@@ -6,7 +6,6 @@ pydantic-settings>=2.6.0,<3.0.0  # Phase 1: aligned
 
 # Async support
 aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
-aiosqlite>=0.20.0,<0.23.0  # Phase 1: aligned
 
 # System metrics
 psutil>=5.9.0,<6.0.0

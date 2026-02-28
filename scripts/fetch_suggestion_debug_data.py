@@ -52,27 +52,23 @@ def find_suggestion_in_database(suggestion_id: str) -> Optional[tuple[str, Dict[
         from sqlalchemy import create_engine, text
         from sqlalchemy.orm import sessionmaker
         import os
-        
-        # Get database URL from environment or use default
-        script_dir = Path(__file__).parent.parent
-        default_db = script_dir / "data" / "ai_automation.db"
-        
-        db_path = os.getenv("DATABASE_URL", f"sqlite:///{default_db}")
-        if not db_path.startswith("sqlite:///"):
-            # If it's a relative path, make it absolute
-            if not os.path.isabs(db_path.replace("sqlite:///", "")):
-                db_path = f"sqlite:///{os.path.join(script_dir, db_path.replace('sqlite:///', ''))}"
-        
-        engine = create_engine(db_path, echo=False)
+
+        # Get database URL from environment or use default PostgreSQL
+        POSTGRES_URL = os.getenv("POSTGRES_URL", os.getenv("DATABASE_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq"))
+
+        # Ensure we're using PostgreSQL URL
+        if POSTGRES_URL.startswith("sqlite"):
+            POSTGRES_URL = "postgresql://homeiq:homeiq@localhost:5432/homeiq"
+
+        engine = create_engine(POSTGRES_URL, echo=False)
         Session = sessionmaker(bind=engine)
         session = Session()
-        
+
         try:
             # Query to find suggestion in JSON field
-            # SQLite JSON functions: json_extract, json_each
             query = text("""
                 SELECT query_id, suggestions
-                FROM ask_ai_queries
+                FROM automation.ask_ai_queries
                 WHERE suggestions IS NOT NULL
             """)
             

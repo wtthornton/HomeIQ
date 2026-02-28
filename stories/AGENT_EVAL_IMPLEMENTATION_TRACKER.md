@@ -117,7 +117,7 @@
 |----|-------|-----|--------|-----------|-------|
 | E3.S8 | Baseline Evaluation Run & Report | 5 | Complete | 2026-02-10 | session_generator + run_evaluation + 4 baseline reports, 27 tests |
 | E4.S1 | Evaluation Scheduler Service | 5 | Complete | 2026-02-10 | scheduler.py + SessionSource protocol + InMemorySessionSource, 26 tests |
-| E4.S2 | Evaluation History Storage | 5 | Complete | 2026-02-10 | store.py (InfluxDB + SQLite dual-write), 19 tests |
+| E4.S2 | Evaluation History Storage | 5 | Complete | 2026-02-10 | store.py (InfluxDB + PostgreSQL dual-write), 19 tests |
 | E4.S6 | Alert System for Threshold Violations | 5 | Complete | 2026-02-10 | alerts.py + EvalAlert model + lifecycle management, 20 tests |
 
 **Sprint 6 Progress:** 20/20 points — COMPLETE
@@ -266,7 +266,7 @@ Wk 1    Wk 2    Wk 4     Wk 7    Wk 9    Wk 10   Wk 11    Wk 12   Wk 12   Wk 13 
 | 2026-02-10 | Sprint 3 COMPLETE: E1.S7 + E2.S2-S4 (registry, L2 path evaluators, L3 details evaluator, 2 rubric YAMLs) — 181 tests all passing | Claude |
 | 2026-02-10 | Sprint 4 COMPLETE: E2.S6-S8 + E3.S1 (L4 quality evaluators: Helpfulness, Conciseness, ResponseRelevance, InstructionFollowing, SystemPromptRuleEvaluator; HA AI Agent config; 4 rubric YAMLs) — 226 tests all passing | Claude |
 | 2026-02-10 | Sprint 5 COMPLETE: E1.S8 + E2.S10 + E3.S2-S7 (Foundation docs, rubric catalog, HA AI Agent rules/params/SessionTracer, Proactive Agent config, AI Automation config, AI Core config) — 281 tests all passing | Claude |
-| 2026-02-10 | Sprint 6 COMPLETE: E3.S8 + E4.S1 + E4.S2 + E4.S6 (session_generator, run_evaluation CLI, baseline reports for 4 agents, EvaluationScheduler, EvaluationStore dual-write InfluxDB+SQLite, AlertEngine with lifecycle) — 373 tests all passing |
+| 2026-02-10 | Sprint 6 COMPLETE: E3.S8 + E4.S1 + E4.S2 + E4.S6 (session_generator, run_evaluation CLI, baseline reports for 4 agents, EvaluationScheduler, EvaluationStore dual-write InfluxDB+PostgreSQL, AlertEngine with lifecycle) — 373 tests all passing |
 | 2026-02-10 | Sprint 7 COMPLETE: E4.S3-S5 + E4.S7-S8 (evaluation_endpoints.py with 8 REST endpoints, AgentEvaluationTab + SummaryMatrix + ScoreTrendChart + SessionTraceViewer + EvalAlertBanner in health-dashboard, operational runbook) — 394 tests all passing. **PROJECT COMPLETE** | Claude |
 
 ---

@@ -3,7 +3,7 @@
 Delete all suggestions from the ai-automation-service database.
 
 This script:
-1. Connects to the SQLite database
+1. Connects to the PostgreSQL database
 2. Counts existing suggestions
 3. Deletes all suggestions
 4. Verifies deletion
@@ -48,26 +48,20 @@ async def delete_all_suggestions():
     print("=" * 60)
     print()
     
-    # Database path - works in both local and Docker
-    if Path("/app/data/ai_automation.db").exists():
-        db_path = "/app/data/ai_automation.db"
-    elif (script_dir.parent / "domains" / "automation-core" / "ai-automation-service-new" / "data" / "ai_automation.db").exists():
-        db_path = str(script_dir.parent / "domains" / "automation-core" / "ai-automation-service-new" / "data" / "ai_automation.db")
-    else:
-        print("[ERROR] Database not found")
-        print("   Checked paths:")
-        print(f"   - /app/data/ai_automation.db")
-        print(f"   - {script_dir.parent / 'services' / 'ai-automation-service-new' / 'data' / 'ai_automation.db'}")
-        return -1
-    
+    # PostgreSQL connection URL
+    database_url = os.getenv("POSTGRES_URL", os.getenv("DATABASE_URL", "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq"))
+
+    # Ensure we're using PostgreSQL URL
+    if "sqlite" in database_url:
+        database_url = "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq"
+
     # Create async engine
-    database_url = f"sqlite+aiosqlite:///{db_path}"
     engine = create_async_engine(database_url, echo=False)
     async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     
     async with async_session() as db:
         # Count existing suggestions using raw SQL
-        result = await db.execute(text("SELECT COUNT(*) FROM suggestions"))
+        result = await db.execute(text("SELECT COUNT(*) FROM automation.suggestions"))
         count = result.scalar()
         
         if count == 0:
@@ -79,7 +73,7 @@ async def delete_all_suggestions():
         print()
         
         # Show some details about what will be deleted
-        result = await db.execute(text("SELECT id, title, status FROM suggestions LIMIT 5"))
+        result = await db.execute(text("SELECT id, title, status FROM automation.suggestions LIMIT 5"))
         rows = result.fetchall()
         print("Sample suggestions to be deleted:")
         for i, row in enumerate(rows, 1):
@@ -90,7 +84,7 @@ async def delete_all_suggestions():
         
         # Delete all suggestions
         print(f"[DELETE] Deleting {count} suggestions...")
-        await db.execute(text("DELETE FROM suggestions"))
+        await db.execute(text("DELETE FROM automation.suggestions"))
         await db.commit()
         
         print(f"[OK] Successfully deleted {count} suggestions")
@@ -98,14 +92,14 @@ async def delete_all_suggestions():
         
         # Verify deletion
         print("Verifying deletion...")
-        result = await db.execute(text("SELECT COUNT(*) FROM suggestions"))
+        result = await db.execute(text("SELECT COUNT(*) FROM automation.suggestions"))
         remaining_count = result.scalar()
         
         if remaining_count == 0:
             print("✅ Verification successful: All suggestions deleted")
         else:
             print(f"⚠️  WARNING: {remaining_count} suggestions still remain!")
-            result = await db.execute(text("SELECT id, title FROM suggestions"))
+            result = await db.execute(text("SELECT id, title FROM automation.suggestions"))
             for row in result.fetchall():
                 print(f"  - ID: {row[0]}, Title: {row[1]}")
         

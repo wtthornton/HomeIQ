@@ -239,8 +239,6 @@ services:
     env_file:
       - ../../.env
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:///./data/ai_automation.db
-      - DATABASE_PATH=/app/data/ai_automation.db
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
       - DATABASE_SCHEMA=automation
       - TRAINING_SCRIPT_PATH=/app/scripts/train_soft_prompt.py
@@ -292,7 +290,6 @@ services:
       - DEVICE_INTELLIGENCE_PORT=${DEVICE_INTELLIGENCE_PORT:-8019}
       - DEVICE_INTELLIGENCE_HOST=${DEVICE_INTELLIGENCE_HOST:-0.0.0.0}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - SQLITE_DATABASE_URL=${SQLITE_DATABASE_URL:-sqlite:///./data/device_intelligence.db}
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
       - DATABASE_SCHEMA=devices
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}

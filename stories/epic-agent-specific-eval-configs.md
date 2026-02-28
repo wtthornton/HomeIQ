@@ -188,7 +188,7 @@ def execute_tool(tool_name, params):
   - `POST /api/v1/conversations/{id}/messages` (multi-turn continuation)
 - [x] Tool calls captured: `preview_automation_from_prompt`, `create_automation_from_prompt`, `suggest_automation_enhancements`
 - [x] Captures: OpenAI function call parameters, results, and latency
-- [x] `SessionTrace` objects written to configurable sink (default: SQLite table `evaluation_sessions`)
+- [x] `SessionTrace` objects written to configurable sink (default: PostgreSQL table `evaluation_sessions`)
 - [x] Session traces include conversation context (Tier 1 context summary, conversation history)
 - [x] No impact on chat latency (async trace emission)
 - [x] Integration test: complete chat flow produces valid `SessionTrace`
@@ -302,7 +302,7 @@ def execute_tool(tool_name, params):
 
 **Acceptance Criteria:**
 - [x] Evaluation runner script: `libs/homeiq-patterns/src/homeiq_patterns/evaluation/run_evaluation.py`
-- [x] Accepts: agent name, session trace source (SQLite DB path or JSON file), output format (markdown, JSON)
+- [x] Accepts: agent name, session trace source (PostgreSQL or JSON file), output format (markdown, JSON)
 - [x] Runs all configured evaluators for the specified agent
 - [x] Produces `BatchReport` with Summary Matrix per agent
 - [x] Baseline report generated for each agent with at least 5 sessions each

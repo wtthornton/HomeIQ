@@ -57,7 +57,7 @@ Environment variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DATABASE_URL` | Database connection string | `sqlite+aiosqlite:///data/blueprint_index.db` |
+| `DATABASE_URL` | Database connection string | `postgresql+asyncpg://homeiq:homeiq@postgres:5432/homeiq` |
 | `GITHUB_TOKEN` | GitHub API token (optional, for higher rate limits) | None |
 | `LOG_LEVEL` | Logging level | `INFO` |
 | `SERVICE_PORT` | Service port | `8031` |
@@ -117,7 +117,7 @@ docker run -p 8031:8031 -v ./data:/app/data blueprint-index
 │                   └──────┬──────┘                       │
 │                          │                              │
 │                   ┌──────▼──────┐                       │
-│                   │  SQLite DB  │                       │
+│                   │  PostgreSQL DB  │                       │
 │                   └─────────────┘                       │
 └─────────────────────────────────────────────────────────┘
 ```

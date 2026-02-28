@@ -36,7 +36,7 @@ jobs:
 
       - name: Start services
         run: |
-          docker compose up -d influxdb sqlite-data
+          docker compose up -d influxdb
           sleep 10
 
       - name: Test service health checks

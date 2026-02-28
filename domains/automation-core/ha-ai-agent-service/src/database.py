@@ -1,11 +1,8 @@
 """Database initialization and models for context cache"""
 
-import contextlib
 import logging
 import os
-import stat
 from datetime import datetime
-from pathlib import Path
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text, func, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -13,9 +10,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 logger = logging.getLogger(__name__)
 
-# Dual-mode PostgreSQL/SQLite support (Epic 39)
+# PostgreSQL configuration
 _pg_url = os.getenv("POSTGRES_URL") or ""
-_is_postgres = _pg_url.startswith("postgresql") or _pg_url.startswith("postgres")
 _schema = os.getenv("DATABASE_SCHEMA", "agent")
 
 
@@ -136,84 +132,17 @@ async def init_database(database_url: str) -> None:
     Initialize database connection and create tables.
 
     Args:
-        database_url: SQLite database URL (e.g., "sqlite+aiosqlite:///./data/ha_ai_agent.db")
+        database_url: Database URL (ignored when POSTGRES_URL is set)
     """
     global _engine, _session_factory
 
     try:
-        # Check for PostgreSQL mode
-        if _is_postgres:
-            from homeiq_data.database_pool import create_pg_engine
-            _engine = create_pg_engine(
-                database_url=_pg_url,
-                schema=_schema,
-            )
-            logger.info(f"Using PostgreSQL with schema '{_schema}'")
-        elif database_url.startswith("sqlite"):
-            # Create data directory if it doesn't exist
-            # Extract path from SQLite URL
-            path_str = database_url.split("///")[-1]
-            db_path = Path(path_str)
-            db_path.parent.mkdir(parents=True, exist_ok=True)
-
-            # Fix directory permissions if needed (Docker/non-root user)
-            # This is critical for Docker volumes which are created as root-owned
-            if db_path.parent.exists():
-                try:
-                    # Get current user ID
-                    current_uid = os.getuid() if hasattr(os, 'getuid') else None
-                    current_gid = os.getgid() if hasattr(os, 'getgid') else None
-
-                    # Make directory writable for owner and group
-                    db_path.parent.chmod(stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH)
-
-                    # Try to change ownership if we're not root (in Docker, we're appuser)
-                    # Note: This will fail if we don't have permission, but that's OK - chmod should be enough
-                    if current_uid is not None and current_uid != 0:
-                        with contextlib.suppress(PermissionError, OSError):
-                            os.chown(db_path.parent, current_uid, current_gid)
-
-                    logger.info(f"✅ Set directory permissions for {db_path.parent} (UID: {current_uid}, GID: {current_gid})")
-                except Exception as perm_error:
-                    logger.error(f"❌ Could not set directory permissions: {perm_error}", exc_info=True)
-                    # Don't fail initialization - try to continue
-
-            # Check database file permissions if it exists
-            if db_path.exists():
-                # Fix database file permissions if read-only
-                try:
-                    current_uid = os.getuid() if hasattr(os, 'getuid') else None
-                    current_gid = os.getgid() if hasattr(os, 'getgid') else None
-
-                    # Make file readable and writable for owner and group
-                    db_path.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH)
-
-                    # Try to change ownership if we're not root
-                    if current_uid is not None and current_uid != 0:
-                        with contextlib.suppress(PermissionError, OSError):
-                            os.chown(db_path, current_uid, current_gid)
-
-                    logger.info(f"✅ Set database file permissions for {db_path} (UID: {current_uid}, GID: {current_gid})")
-                except Exception as perm_error:
-                    logger.error(f"❌ Could not set database file permissions: {perm_error}", exc_info=True)
-                    # Don't fail initialization - try to continue
-
-            logger.info(f"✅ Database directory created: {db_path.parent}")
-
-            # Create SQLite async engine
-            _engine = create_async_engine(
-                database_url,
-                echo=False,  # Set to True for SQL debugging
-                pool_pre_ping=True,  # Verify connections before using
-                connect_args={"check_same_thread": False}
-            )
-        else:
-            # Other database URL
-            _engine = create_async_engine(
-                database_url,
-                echo=False,
-                pool_pre_ping=True,
-            )
+        from homeiq_data.database_pool import create_pg_engine
+        _engine = create_pg_engine(
+            database_url=_pg_url,
+            schema=_schema,
+        )
+        logger.info(f"Using PostgreSQL with schema '{_schema}'")
 
         # Create session factory
         _session_factory = async_sessionmaker(
@@ -226,121 +155,9 @@ async def init_database(database_url: str) -> None:
         async with _engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
-        # Migrate: Add pending_preview and debug_id columns if they don't exist
-        # This handles existing databases that were created before these columns were added
-        # Run migration in separate transaction to ensure it commits
-        if not _is_postgres and database_url.startswith("sqlite"):
-            try:
-                logger.info("🔄 Checking for database migrations...")
-                async with _engine.begin() as conn:
-                    # Check if table exists first
-                    table_result = await conn.execute(
-                        text("SELECT name FROM sqlite_master WHERE type='table' AND name='conversations'")
-                    )
-                    table_row = table_result.fetchone()
-                    table_exists = table_row is not None
-
-                    if table_exists:
-                        # Check and migrate pending_preview column
-                        column_result = await conn.execute(
-                            text("SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name = 'pending_preview'")
-                        )
-                        column_count = column_result.scalar() or 0
-                        if column_count == 0:
-                            logger.info("🔄 Adding missing column: pending_preview to conversations table")
-                            await conn.execute(
-                                text("ALTER TABLE conversations ADD COLUMN pending_preview JSON")
-                            )
-                            logger.info("✅ Successfully added pending_preview column")
-                        else:
-                            logger.debug("✅ Column pending_preview already exists")
-
-                        # Check and migrate debug_id column
-                        debug_id_result = await conn.execute(
-                            text("SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name = 'debug_id'")
-                        )
-                        debug_id_count = debug_id_result.scalar() or 0
-                        if debug_id_count == 0:
-                            logger.info("🔄 Adding missing column: debug_id to conversations table")
-                            await conn.execute(
-                                text("ALTER TABLE conversations ADD COLUMN debug_id TEXT")
-                            )
-                            logger.info("✅ Successfully added debug_id column")
-
-                            # Generate debug_ids for existing conversations that don't have one
-                            from uuid import uuid4
-                            logger.info("🔄 Generating debug_ids for existing conversations...")
-                            result = await conn.execute(
-                                text("SELECT conversation_id FROM conversations WHERE debug_id IS NULL")
-                            )
-                            rows = result.fetchall()
-                            for row in rows:
-                                conv_id = row[0]
-                                debug_id = str(uuid4())
-                                await conn.execute(
-                                    text("UPDATE conversations SET debug_id = :debug_id WHERE conversation_id = :conv_id"),
-                                    {"debug_id": debug_id, "conv_id": conv_id}
-                                )
-                            logger.info(f"✅ Generated debug_ids for {len(rows)} existing conversations")
-
-                            # Create index on debug_id
-                            try:
-                                await conn.execute(
-                                    text("CREATE UNIQUE INDEX idx_conversations_debug_id ON conversations(debug_id)")
-                                )
-                                logger.info("✅ Created index on debug_id column")
-                            except Exception as idx_error:
-                                logger.warning(f"⚠️  Could not create index on debug_id (may already exist): {idx_error}")
-                        else:
-                            logger.debug("✅ Column debug_id already exists")
-
-                        # Check and migrate title column (Epic AI-20.9)
-                        title_result = await conn.execute(
-                            text("SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name = 'title'")
-                        )
-                        title_count = title_result.scalar() or 0
-                        if title_count == 0:
-                            logger.info("🔄 Adding missing column: title to conversations table")
-                            await conn.execute(
-                                text("ALTER TABLE conversations ADD COLUMN title TEXT")
-                            )
-                            logger.info("✅ Successfully added title column")
-                        else:
-                            logger.debug("✅ Column title already exists")
-
-                        # Check and migrate source column (Epic AI-20.9)
-                        source_result = await conn.execute(
-                            text("SELECT COUNT(*) FROM pragma_table_info('conversations') WHERE name = 'source'")
-                        )
-                        source_count = source_result.scalar() or 0
-                        if source_count == 0:
-                            logger.info("🔄 Adding missing column: source to conversations table")
-                            await conn.execute(
-                                text("ALTER TABLE conversations ADD COLUMN source TEXT DEFAULT 'user'")
-                            )
-                            logger.info("✅ Successfully added source column")
-
-                            # Create index on source
-                            try:
-                                await conn.execute(
-                                    text("CREATE INDEX idx_conversations_source ON conversations(source)")
-                                )
-                                logger.info("✅ Created index on source column")
-                            except Exception as idx_error:
-                                logger.warning(f"⚠️  Could not create index on source (may already exist): {idx_error}")
-                        else:
-                            logger.debug("✅ Column source already exists")
-                    else:
-                        logger.debug("ℹ️  Conversations table doesn't exist yet (will be created with all columns)")
-            except Exception as e:
-                # Log error but don't fail initialization - migration is optional
-                logger.warning(f"⚠️  Migration check failed (non-fatal): {e}")
-                import traceback
-                logger.debug(traceback.format_exc())
-
-        logger.info("✅ Database initialized successfully")
+        logger.info("Database initialized successfully")
     except Exception as e:
-        logger.error(f"❌ Failed to initialize database: {e}", exc_info=True)
+        logger.error(f"Failed to initialize database: {e}", exc_info=True)
         raise
 
 
@@ -369,5 +186,4 @@ async def close_database() -> None:
         await _engine.dispose()
         _engine = None
         _session_factory = None
-        logger.info("✅ Database connections closed")
-
+        logger.info("Database connections closed")

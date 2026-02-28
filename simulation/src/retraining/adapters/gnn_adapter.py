@@ -6,63 +6,67 @@ Converts simulation JSON data to format expected by GNN training script.
 
 import json
 import logging
-import sqlite3
+import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import psycopg2
+
 logger = logging.getLogger(__name__)
+
+# PostgreSQL connection URL
+POSTGRES_URL = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
 
 
 class GNNDataAdapter:
     """
     Adapter to prepare GNN training environment from simulation JSON data.
-    
+
     Converts JSON synergy data to:
     1. Entities list (for Data API mock)
     2. Database synergies (synergy_opportunities table)
     """
-    
-    def __init__(self, db_path: Path):
+
+    def __init__(self, pg_url: str = POSTGRES_URL):
         """
         Initialize GNN data adapter.
-        
+
         Args:
-            db_path: Path to SQLite database for synergies
+            pg_url: PostgreSQL connection URL
         """
-        self.db_path = Path(db_path)
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        logger.info(f"GNNDataAdapter initialized: db_path={db_path}")
-    
+        self.pg_url = pg_url
+        logger.info(f"GNNDataAdapter initialized with PostgreSQL")
+
     def prepare_training_environment(
         self,
         json_path: Path
-    ) -> tuple[list[dict[str, Any]], Path]:
+    ) -> tuple[list[dict[str, Any]], str]:
         """
         Prepare training environment from JSON data.
-        
+
         Args:
             json_path: Path to gnn_synergy_data.json
-            
+
         Returns:
-            Tuple of (entities_list, db_path)
+            Tuple of (entities_list, pg_url)
         """
         logger.info(f"Preparing GNN training environment from {json_path}")
-        
+
         # Load JSON data
         if not json_path.exists():
             raise FileNotFoundError(f"GNN synergy data not found: {json_path}")
-        
+
         with open(json_path, "r", encoding="utf-8") as f:
             synergy_data = json.load(f)
-        
+
         logger.info(f"Loaded {len(synergy_data)} synergy entries from JSON")
-        
+
         # Extract entities and synergies
         entities_set = set()
         synergies = []
-        
+
         for entry in synergy_data:
             # Handle both formats: nested "synergy" key or flat structure
             if "synergy" in entry:
@@ -79,15 +83,15 @@ class GNNDataAdapter:
                 synergy_score = entry.get("confidence", 0.5)
                 synergy_type = entry.get("synergy_type", "co_activation")
                 relationship = entry.get("relationship", {})
-            
+
             if not entity_1 or not entity_2:
                 logger.warning(f"Skipping entry with missing entities: {entry}")
                 continue
-            
+
             # Add to entities set
             entities_set.add(entity_1)
             entities_set.add(entity_2)
-            
+
             # Create synergy record
             synergies.append({
                 "synergy_id": str(uuid.uuid4()),
@@ -102,16 +106,16 @@ class GNNDataAdapter:
                 "validated_by_patterns": False,
                 "synergy_depth": 2
             })
-        
+
         logger.info(f"Extracted {len(entities_set)} unique entities and {len(synergies)} synergies")
-        
+
         # Create entities list (minimal format for training)
         entities = []
         for entity_id in entities_set:
             # Parse entity_id to extract domain
             parts = entity_id.split(".")
             domain = parts[0] if len(parts) > 1 else "unknown"
-            
+
             entities.append({
                 "entity_id": entity_id,
                 "domain": domain,
@@ -120,32 +124,31 @@ class GNNDataAdapter:
                 "state": "unknown",
                 "attributes": {}
             })
-        
+
         # Populate database
         self._populate_database(synergies)
-        
-        logger.info(f"✅ GNN training environment prepared: {len(entities)} entities, {len(synergies)} synergies")
-        
-        return entities, self.db_path
-    
+
+        logger.info(f"GNN training environment prepared: {len(entities)} entities, {len(synergies)} synergies")
+
+        return entities, self.pg_url
+
     def _populate_database(self, synergies: list[dict[str, Any]]) -> None:
         """
         Populate synergy_opportunities table in database.
-        
+
         Args:
             synergies: List of synergy dictionaries
         """
         logger.info(f"Populating database with {len(synergies)} synergies...")
-        
-        # Connect to database
-        conn = sqlite3.connect(self.db_path)
+
+        conn = psycopg2.connect(self.pg_url)
         cursor = conn.cursor()
-        
+
         try:
             # Create table if it doesn't exist
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS synergy_opportunities (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                CREATE TABLE IF NOT EXISTS patterns.synergy_opportunities (
+                    id SERIAL PRIMARY KEY,
                     synergy_id TEXT UNIQUE NOT NULL,
                     synergy_type TEXT NOT NULL,
                     device_ids TEXT NOT NULL,
@@ -154,9 +157,9 @@ class GNNDataAdapter:
                     complexity TEXT NOT NULL,
                     confidence REAL NOT NULL,
                     area TEXT,
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     pattern_support_score REAL DEFAULT 0.0,
-                    validated_by_patterns INTEGER DEFAULT 0,
+                    validated_by_patterns BOOLEAN DEFAULT FALSE,
                     supporting_pattern_ids TEXT,
                     synergy_depth INTEGER DEFAULT 2,
                     chain_devices TEXT,
@@ -165,24 +168,24 @@ class GNNDataAdapter:
                     final_score REAL
                 )
             """)
-            
+
             # Create index
             cursor.execute("""
-                CREATE INDEX IF NOT EXISTS ix_synergy_opportunities_synergy_id 
-                ON synergy_opportunities(synergy_id)
+                CREATE INDEX IF NOT EXISTS ix_synergy_opportunities_synergy_id
+                ON patterns.synergy_opportunities(synergy_id)
             """)
-            
+
             # Clear existing synergies (for fresh training)
-            cursor.execute("DELETE FROM synergy_opportunities")
-            
+            cursor.execute("DELETE FROM patterns.synergy_opportunities")
+
             # Insert synergies
             for synergy in synergies:
                 cursor.execute("""
-                    INSERT INTO synergy_opportunities (
+                    INSERT INTO patterns.synergy_opportunities (
                         synergy_id, synergy_type, device_ids, opportunity_metadata,
                         impact_score, complexity, confidence, area,
                         pattern_support_score, validated_by_patterns, synergy_depth
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     synergy["synergy_id"],
                     synergy["synergy_type"],
@@ -193,36 +196,35 @@ class GNNDataAdapter:
                     synergy["confidence"],
                     synergy["area"],
                     synergy["pattern_support_score"],
-                    1 if synergy["validated_by_patterns"] else 0,
+                    synergy["validated_by_patterns"],
                     synergy["synergy_depth"]
                 ))
-            
+
             conn.commit()
-            logger.info(f"✅ Inserted {len(synergies)} synergies into database")
-            
+            logger.info(f"Inserted {len(synergies)} synergies into database")
+
         except Exception as e:
             conn.rollback()
             logger.error(f"Failed to populate database: {e}", exc_info=True)
             raise
         finally:
             conn.close()
-    
+
     def create_entities_json(self, entities: list[dict[str, Any]], output_path: Path) -> Path:
         """
         Create entities JSON file for mock Data API.
-        
+
         Args:
             entities: List of entity dictionaries
             output_path: Path to save entities JSON
-            
+
         Returns:
             Path to created JSON file
         """
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(entities, f, indent=2)
-        
+
         logger.info(f"Created entities JSON: {output_path}")
         return output_path
-

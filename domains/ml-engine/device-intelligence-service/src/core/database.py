@@ -1,7 +1,7 @@
 """
 Device Intelligence Service - Database Connection
 
-Simple database connection and session management for SQLite and PostgreSQL.
+PostgreSQL database connection and session management.
 """
 
 import logging
@@ -9,53 +9,31 @@ import os
 from collections.abc import AsyncGenerator
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ..config import Settings
 from ..models.database import Base
 
 logger = logging.getLogger(__name__)
 
-# Dual-mode PostgreSQL/SQLite support (Epic 39)
+# PostgreSQL configuration
 _pg_url = os.getenv("POSTGRES_URL") or ""
-_is_postgres = _pg_url.startswith("postgresql") or _pg_url.startswith("postgres")
 _schema = os.getenv("DATABASE_SCHEMA", "devices")
 
 # Global database engine and session factory
 _engine = None
 _session_factory = None
 
-def get_database_url(settings: Settings) -> str:
-    """Get database URL from settings."""
-    # Convert SQLite URL to async SQLite URL
-    db_url = settings.get_database_url()
-    if db_url.startswith("sqlite:///"):
-        # Ensure database directory exists
-        db_path = db_url.replace("sqlite:///", "")
-        db_dir = os.path.dirname(db_path)
-        if db_dir:
-            os.makedirs(db_dir, exist_ok=True)
-            logger.info(f"Database directory ensured: {db_dir}")
-        return db_url.replace("sqlite:///", "sqlite+aiosqlite:///")
-    return db_url
-
 async def initialize_database(settings: Settings):
     """Initialize database connection and create tables."""
     global _engine, _session_factory
 
-    if _is_postgres:
-        from homeiq_data.database_pool import create_pg_engine
-        _engine = create_pg_engine(
-            database_url=_pg_url,
-            schema=_schema,
-        )
-    else:
-        database_url = get_database_url(settings)
-        _engine = create_async_engine(
-            database_url,
-            echo=False,  # Set to True for SQL logging
-            future=True
-        )
+    from homeiq_data.database_pool import create_pg_engine
+    _engine = create_pg_engine(
+        database_url=_pg_url,
+        schema=_schema,
+    )
+
     _session_factory = async_sessionmaker(
         _engine,
         class_=AsyncSession,

@@ -201,16 +201,13 @@ async def optimize_database(
     session: AsyncSession = Depends(get_db_session)
 ) -> DatabaseOptimizeResponse:
     """
-    Optimize database by running VACUUM and ANALYZE.
+    Optimize database by running ANALYZE.
 
     Returns:
         DatabaseOptimizeResponse: Optimization results
     """
     try:
         logger.info("Starting database optimization")
-
-        # Run VACUUM to reclaim space
-        await session.execute(text("VACUUM"))
 
         # Run ANALYZE to update statistics
         await session.execute(text("ANALYZE"))
@@ -220,7 +217,7 @@ async def optimize_database(
         logger.info("Database optimization completed")
         return DatabaseOptimizeResponse(
             success=True,
-            message="Database optimized successfully (VACUUM and ANALYZE completed)"
+            message="Database optimized successfully (ANALYZE completed)"
         )
 
     except Exception as e:
@@ -243,21 +240,17 @@ async def get_database_stats(
         DatabaseStatsResponse: Database statistics
     """
     try:
-        # Get database file size
-        db_url = settings.get_database_url()
-        if db_url.startswith("sqlite:///"):
-            db_path = Path(db_url.replace("sqlite:///", ""))
-            if db_path.exists():
-                db_size_bytes = db_path.stat().st_size
-                db_size_mb = db_size_bytes / (1024 * 1024)
-            else:
-                db_size_mb = 0.0
-        else:
+        # Get database size from PostgreSQL
+        try:
+            result = await session.execute(text("SELECT pg_database_size(current_database())"))
+            db_size_bytes = result.scalar() or 0
+            db_size_mb = db_size_bytes / (1024 * 1024)
+        except Exception:
             db_size_mb = 0.0
 
-        # Get table names and record counts
+        # Get table names and record counts from PostgreSQL
         result = await session.execute(
-            text("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+            text("SELECT tablename FROM pg_tables WHERE schemaname = current_schema()")
         )
         tables = [row[0] for row in result.fetchall()]
 
@@ -269,8 +262,7 @@ async def get_database_stats(
                 logger.warning("Skipping unrecognized table: %s", table)
                 continue
             try:
-                # Use SQLite bracket quoting for table name safety (CRIT-1)
-                result = await session.execute(text(f"SELECT COUNT(*) FROM [{table}]"))
+                result = await session.execute(text(f'SELECT COUNT(*) FROM "{table}"'))
                 count = result.scalar()
                 table_counts[table] = count
                 total_records += count

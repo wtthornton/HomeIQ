@@ -73,13 +73,13 @@ HomeIQ's 50 microservices are organized into **9 independently deployable domain
 
 **Volumes:**
 - `influxdb_data` -- InfluxDB persistent storage
-- `data_api_sqlite` -- SQLite metadata database
+- `postgres_data` -- PostgreSQL metadata database
 - `data_retention_data` -- Retention state
 
 **Key environment variables:**
 - `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, `INFLUXDB_BUCKET`
 - `HA_WS_URL`, `HA_TOKEN` (for websocket-ingestion)
-- `DATABASE_URL` (SQLite path for data-api)
+- `DATABASE_URL` (PostgreSQL URL for data-api)
 - `API_KEY` (Bearer auth for data-api)
 
 **Deploy commands:**

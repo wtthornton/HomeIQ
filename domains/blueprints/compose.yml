@@ -18,7 +18,6 @@ services:
     env_file:
       - ../../.env
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:///data/blueprint_index.db
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
       - DATABASE_SCHEMA=blueprints
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
@@ -60,7 +59,6 @@ services:
     env_file:
       - ../../.env
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:///data/blueprint_suggestions.db
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
       - DATABASE_SCHEMA=blueprints
       - BLUEPRINT_INDEX_URL=http://blueprint-index:8031

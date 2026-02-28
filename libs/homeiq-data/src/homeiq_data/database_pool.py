@@ -3,7 +3,7 @@ Shared Database Connection Pool Utilities
 
 Epic 39, Story 39.11: Shared Infrastructure Setup
 Utilities for managing shared database connections across microservices.
-Supports both PostgreSQL (asyncpg) and SQLite (aiosqlite).
+Supports PostgreSQL via asyncpg.
 """
 
 import os
@@ -17,8 +17,6 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.pool import StaticPool
-
 from .logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -50,10 +48,6 @@ def create_shared_db_engine(
     This prevents connection pool exhaustion when multiple services
     access the same shared database.
 
-    Supports both PostgreSQL and SQLite URLs:
-    - PostgreSQL: uses real connection pool with pool_recycle
-    - SQLite: uses StaticPool for thread safety (backward compat)
-
     Args:
         database_url: SQLAlchemy database URL
         pool_size: Connection pool size (default: 10, max: 20 per service)
@@ -65,30 +59,13 @@ def create_shared_db_engine(
     """
     with _engine_lock:
         if database_url not in _engines:
-            connect_args: dict = {}
-            poolclass = None
-            extra_kwargs: dict = {}
-
-            if _is_postgres_url(database_url):
-                # PostgreSQL: use real connection pool
-                extra_kwargs = {
-                    "pool_recycle": 3600,
-                }
-            elif "sqlite" in database_url:
-                # SQLite: use StaticPool for thread safety
-                connect_args = {"check_same_thread": False}
-                poolclass = StaticPool
-
             engine_kwargs: dict = {
                 "pool_size": pool_size,
                 "max_overflow": max_overflow,
                 "pool_pre_ping": True,
-                "connect_args": connect_args,
+                "pool_recycle": 3600,
                 "echo": False,
-                **extra_kwargs,
             }
-            if poolclass is not None:
-                engine_kwargs["poolclass"] = poolclass
 
             _engines[database_url] = create_async_engine(
                 database_url,
@@ -270,7 +247,7 @@ def get_database_url(service_name: str = "") -> str:
     Build DATABASE_URL from environment variables with fallback.
 
     Checks POSTGRES_URL first, then DATABASE_URL, then falls back
-    to a SQLite URL for backward compatibility.
+    to a default PostgreSQL URL.
 
     Args:
         service_name: Optional service name for logging
@@ -282,11 +259,8 @@ def get_database_url(service_name: str = "") -> str:
     if url:
         return url
 
-    # Fallback to SQLite
-    sqlite_path = os.environ.get(
-        "SQLITE_PATH", f"./data/{service_name or 'app'}.db"
-    )
-    return f"sqlite+aiosqlite:///{sqlite_path}"
+    # Default PostgreSQL URL
+    return "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq"
 
 
 async def check_pg_connection(engine: AsyncEngine) -> bool:

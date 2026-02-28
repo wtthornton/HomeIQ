@@ -7,9 +7,11 @@ Export training data in different formats for model training.
 import csv
 import json
 import logging
-import sqlite3
+import os
 from pathlib import Path
 from typing import Any
+
+import psycopg2
 
 try:
     import pandas as pd
@@ -27,7 +29,7 @@ class TrainingDataExporter:
     
     Supports:
     - GNN synergy data (JSON, Parquet)
-    - Soft Prompt data (JSON, SQLite)
+    - Soft Prompt data (JSON, PostgreSQL)
     - Pattern detection data (JSON, Parquet)
     - YAML generation data (JSON)
     - Device intelligence data (JSON, CSV)
@@ -107,7 +109,7 @@ class TrainingDataExporter:
         
         Args:
             prompt_data: List of prompt data entries
-            format: Export format ("json" or "sqlite")
+            format: Export format ("json" or "postgresql")
             
         Returns:
             Path to exported file
@@ -135,32 +137,33 @@ class TrainingDataExporter:
             except (OSError, TypeError) as e:
                 logger.error(f"Failed to export Soft Prompt data to {output_path}: {e}")
                 raise
-        elif format == "sqlite":
-            output_path = self.output_directory / "soft_prompt_data.db"
+        elif format == "postgresql":
+            pg_url = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
+            output_path = self.output_directory / "soft_prompt_data_exported.json"
             try:
-                conn = sqlite3.connect(output_path, timeout=30.0)
+                conn = psycopg2.connect(pg_url)
                 try:
                     cursor = conn.cursor()
-                    
+
                     # Create table
                     cursor.execute("""
-                        CREATE TABLE IF NOT EXISTS ask_ai_queries (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        CREATE TABLE IF NOT EXISTS automation.ask_ai_queries_training (
+                            id SERIAL PRIMARY KEY,
                             query TEXT NOT NULL,
                             suggestion TEXT,
                             automation_type TEXT,
                             quality_score REAL,
                             response TEXT,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            created_at TIMESTAMPTZ DEFAULT NOW()
                         )
                     """)
-                    
+
                     # Insert data
                     for entry in soft_prompt_data:
                         cursor.execute("""
-                            INSERT INTO ask_ai_queries 
+                            INSERT INTO automation.ask_ai_queries_training
                             (query, suggestion, automation_type, quality_score, response)
-                            VALUES (?, ?, ?, ?, ?)
+                            VALUES (%s, %s, %s, %s, %s)
                         """, (
                             entry["query"],
                             entry["suggestion"],
@@ -168,12 +171,15 @@ class TrainingDataExporter:
                             entry["quality_score"],
                             json.dumps(entry["response"])
                         ))
-                    
+
                     conn.commit()
                 finally:
                     conn.close()
-            except (sqlite3.Error, json.JSONEncodeError) as e:
-                logger.error(f"Failed to export Soft Prompt data to SQLite {output_path}: {e}")
+                # Also write a JSON manifest for the export
+                with open(output_path, "w", encoding="utf-8") as f:
+                    json.dump({"exported_to": "postgresql", "records": len(soft_prompt_data)}, f, indent=2)
+            except (psycopg2.Error, json.JSONEncoder) as e:
+                logger.error(f"Failed to export Soft Prompt data to PostgreSQL: {e}")
                 raise
         else:
             raise ValueError(f"Unsupported format: {format}")

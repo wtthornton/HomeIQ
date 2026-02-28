@@ -575,7 +575,7 @@ After all phases complete:
 
 ### Data Integrity
 - [ ] ✅ InfluxDB data intact (no data loss)
-- [ ] ✅ SQLite databases intact
+- [ ] ✅ PostgreSQL databases intact
 - [ ] ✅ Configuration files unchanged
 - [ ] ✅ Historical data accessible
 

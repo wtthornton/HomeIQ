@@ -1,6 +1,6 @@
 """
 Alembic Migration Environment for ai-query-service
-Configured for async SQLAlchemy with dual-mode support (PostgreSQL + SQLite).
+Configured for async SQLAlchemy with PostgreSQL.
 Uses shared helpers from homeiq_data.alembic_helpers.
 """
 

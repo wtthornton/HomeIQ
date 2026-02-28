@@ -5,44 +5,26 @@ import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from homeiq_data.database_pool import create_pg_engine
 
 from .config import settings
 from .models import Base
 
 logger = logging.getLogger(__name__)
 
-# Dual-mode PostgreSQL/SQLite support (Epic 39)
-_db_url = os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL", settings.database_url)
-_is_postgres = _db_url.startswith("postgresql") or _db_url.startswith("postgres")
+# PostgreSQL configuration
+_db_url = os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL", "")
 _schema = os.getenv("DATABASE_SCHEMA", "blueprints")
 
-# Create async engine
-if _is_postgres:
-    from homeiq_data.database_pool import create_pg_engine
-    engine = create_pg_engine(
-        database_url=_db_url,
-        schema=_schema,
-        pool_size=settings.database_pool_size,
-        max_overflow=settings.database_max_overflow,
-    )
-elif "sqlite" in _db_url:
-    # SQLite-specific configuration
-    engine = create_async_engine(
-        _db_url,
-        echo=False,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-else:
-    # Other databases
-    engine = create_async_engine(
-        _db_url,
-        echo=False,
-        pool_size=settings.database_pool_size,
-        max_overflow=settings.database_max_overflow,
-    )
+# Create async engine (PostgreSQL only)
+engine = create_pg_engine(
+    database_url=_db_url,
+    schema=_schema,
+    pool_size=settings.database_pool_size,
+    max_overflow=settings.database_max_overflow,
+)
 
 # Create async session factory
 async_session_maker = async_sessionmaker(

@@ -2,61 +2,30 @@
 Database initialization and connection management
 
 Epic 39, Story 39.10: Automation Service Foundation
-Database connection pooling for shared SQLite database.
-Epics 3-4: Dual-mode PostgreSQL/SQLite support.
+PostgreSQL connection pooling via homeiq_data shared library.
 """
 
 import asyncio
 import logging
 from pathlib import Path
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from homeiq_data.database_pool import create_pg_engine
 
 from ..config import settings
 
 logger = logging.getLogger("ai-automation-service")
 
-# Determine effective database URL and backend type
+# PostgreSQL engine via shared library (schema isolation, real connection pool)
 _db_url = settings.effective_database_url
-_is_postgres = _db_url.startswith("postgresql") or _db_url.startswith("postgres")
 
-if _is_postgres:
-    # PostgreSQL via shared library (schema isolation, real connection pool)
-    from homeiq_data.database_pool import create_pg_engine
-
-    engine = create_pg_engine(
-        database_url=_db_url,
-        schema=settings.database_schema,
-        pool_size=settings.database_pool_size,
-        max_overflow=settings.database_max_overflow,
-    )
-else:
-    # SQLite configuration (backward compatible - original code preserved)
-    from sqlalchemy import event
-    from sqlalchemy.pool import StaticPool
-
-    engine = create_async_engine(
-        _db_url,
-        poolclass=StaticPool,
-        connect_args={
-            "check_same_thread": False,
-            "timeout": 30.0,  # 30 second timeout for database operations
-        },
-        echo=False,
-    )
-
-    # Set PRAGMA settings on connection pool initialization
-    @event.listens_for(engine.sync_engine, "connect")
-    def set_sqlite_pragma(dbapi_conn, _connection_record):
-        """Set SQLite PRAGMA settings for optimal performance."""
-        cursor = dbapi_conn.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging for concurrent reads
-        cursor.execute("PRAGMA synchronous=NORMAL")  # Fast writes, survives OS crash
-        cursor.execute("PRAGMA cache_size=-64000")  # 64MB cache (negative = KB)
-        cursor.execute("PRAGMA temp_store=MEMORY")  # Fast temp tables
-        cursor.execute("PRAGMA foreign_keys=ON")  # Referential integrity
-        cursor.execute("PRAGMA busy_timeout=30000")  # 30s lock wait (vs fail immediately)
-        cursor.close()
+engine = create_pg_engine(
+    database_url=_db_url,
+    schema=settings.database_schema,
+    pool_size=settings.database_pool_size,
+    max_overflow=settings.database_max_overflow,
+)
 
 # Create session factory
 async_session_maker = async_sessionmaker(
@@ -124,8 +93,7 @@ async def init_db():
     """
     Initialize database connection and verify connectivity.
 
-    For PostgreSQL: runs Alembic migrations, tests connectivity.
-    For SQLite: runs Alembic migrations, tests connectivity, performs manual schema sync.
+    Runs Alembic migrations and tests connectivity.
     """
     try:
         # Step 1: Run Alembic migrations first
@@ -136,66 +104,6 @@ async def init_db():
 
         async with engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
-
-            # Step 3: SQLite-only manual schema sync (fallback for missing columns)
-            if not _is_postgres:
-                result = await conn.execute(
-                    text("""
-                    SELECT name FROM sqlite_master
-                    WHERE type='table' AND name='suggestions'
-                """)
-                )
-                table_exists = result.scalar() is not None
-
-                if not table_exists:
-                    logger.info("Creating database tables (suggestions table doesn't exist)")
-                    from .models import Base
-
-                    await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn))
-                    logger.info("Created database tables")
-                else:
-                    # Table exists - check which columns exist and add missing ones
-                    result = await conn.execute(text("PRAGMA table_info(suggestions)"))
-                    columns = result.fetchall()
-                    column_names = [col[1] for col in columns]
-
-                    required_columns = {
-                        "description": "TEXT",
-                        "automation_json": "TEXT",
-                        "automation_yaml": "TEXT",
-                        "ha_version": "TEXT",
-                        "json_schema_version": "TEXT",
-                        "automation_id": "TEXT",
-                        "deployed_at": "TEXT",
-                        "confidence_score": "REAL",
-                        "safety_score": "REAL",
-                        "user_feedback": "TEXT",
-                        "feedback_at": "TEXT",
-                        "plan_id": "TEXT",
-                        "compiled_id": "TEXT",
-                        "deployment_id": "TEXT",
-                    }
-
-                    for col_name, col_type in required_columns.items():
-                        if col_name not in column_names:
-                            logger.info(f"Adding missing '{col_name}' column to suggestions table")
-                            try:
-                                await conn.execute(
-                                    text(f"""
-                                    ALTER TABLE suggestions
-                                    ADD COLUMN {col_name} {col_type}
-                                """)
-                                )
-                                logger.info(f"Added '{col_name}' column to suggestions table")
-                            except Exception as e:
-                                logger.warning(f"Failed to add column '{col_name}': {e}")
-
-                    # Ensure any newer tables (e.g. user_preferences) are created
-                    from .models import Base
-
-                    await conn.run_sync(
-                        lambda sync_conn: Base.metadata.create_all(sync_conn, checkfirst=True)
-                    )
 
         logger.info("Database connection initialized")
     except Exception as e:

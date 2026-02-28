@@ -10,7 +10,7 @@
 
 **What is HomeIQ?** AI-powered Home Assistant intelligence platform with 24 active microservices (plus InfluxDB infrastructure)
 **Deployment:** Single NUC (Intel NUC or similar), Docker Compose, local network
-**Architecture:** Hybrid database (InfluxDB + 5 SQLite), distributed AI services, microservices
+**Architecture:** Hybrid database (InfluxDB + PostgreSQL 17), distributed AI services, microservices
 **Languages:** Python 3.11+ (backend), TypeScript/React 18 (frontend)
 **Home Assistant:** External instance (typically `192.168.1.86:8123`), WebSocket connection
 **Documentation:** See [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md)
@@ -84,7 +84,7 @@ HomeIQ/
 **Core API Layer (3 services):**
 - WebSocket Ingestion - Port 8001 (infinite retry + circuit breaker)
 - Admin API - Port 8003→8004
-- Data API - Port 8006 (SQLite + InfluxDB queries)
+- Data API - Port 8006 (PostgreSQL + InfluxDB queries)
 
 **AI Services Layer (8 services):**
 - AI Automation Service - Port 8024→8018 (pattern detection)
@@ -98,12 +98,12 @@ HomeIQ/
 
 **Data Layer:**
 - InfluxDB 2.7 - Port 8086 (time-series: 365-day retention, ~150 fields)
-- SQLite (5 databases):
-  - metadata.db (devices, entities)
-  - ai_automation.db (11 tables)
-  - automation_miner.db (community corpus)
-  - device_intelligence.db (7 tables)
-  - webhooks.db
+- PostgreSQL 17 - Port 5432 (metadata: schema-per-domain):
+  - core (devices, entities, metadata)
+  - automation (automations, plans, deployments)
+  - blueprints (community corpus, suggestions)
+  - devices (device intelligence, 7 tables)
+  - energy, patterns, agent, rag
 
 **Data Enrichment Layer (5 active + 1 disabled - Epic 31 Direct Writes):**
 - Weather API - Port 8009 → InfluxDB
@@ -131,14 +131,14 @@ HomeIQ/
 
 ### 1. Hybrid Database Architecture (5-10x Speedup)
 
-**WHY:** InfluxDB excels at time-series writes but has 50ms+ query latency. SQLite provides <10ms metadata lookups.
+**WHY:** InfluxDB excels at time-series writes but has 50ms+ query latency. PostgreSQL provides <10ms metadata lookups with connection pooling.
 
 ```
-InfluxDB (Time-Series)          SQLite (Metadata)
-├── state_changed events        ├── devices (99 devices)
-├── metrics & telemetry         ├── entities (100+ entities)
-├── historical queries          ├── webhooks
-└── retention policies          └── AI suggestions
+InfluxDB (Time-Series)          PostgreSQL (Metadata)
+├── state_changed events        ├── core: devices, entities
+├── metrics & telemetry         ├── automation: plans, deployments
+├── historical queries          ├── blueprints: community corpus
+└── retention policies          └── devices, energy, patterns, agent, rag
 ```
 
 **Performance Impact:** Device queries: 50ms → <10ms = **5x faster**
@@ -158,15 +158,15 @@ class BatchProcessor:
 
 **Performance Impact:** 1 batch write vs 100 individual writes = **10-100x faster**
 
-### 3. SQLite Optimization
+### 3. PostgreSQL Optimization
 
 ```python
-PRAGMA journal_mode=WAL          # Writers don't block readers
-PRAGMA synchronous=NORMAL        # Fast writes, survives OS crash
-PRAGMA cache_size=-64000         # 64MB cache
-PRAGMA temp_store=MEMORY         # Fast temp tables
-PRAGMA foreign_keys=ON           # Referential integrity
-PRAGMA busy_timeout=30000        # 30s lock wait
+# Connection pooling via asyncpg
+pool_size=10                     # Per-service connection pool
+max_overflow=5                   # Extra connections under load
+pool_pre_ping=True               # Detect stale connections
+# Schema-per-domain isolation
+SET search_path TO {schema}, public  # Each service uses its own schema
 ```
 
 ### 4. InfluxDB Optimization
@@ -515,7 +515,7 @@ git push origin feature/amazing-feature
 - Infinite retry with circuit breaker
 - Batch processing (100 events / 5 seconds)
 - Direct InfluxDB writes
-- SQLite metadata caching
+- PostgreSQL metadata caching
 
 **Critical Patterns:**
 - Always use async/await
@@ -528,14 +528,14 @@ git push origin feature/amazing-feature
 **Location:** `domains/core-platform/data-api/`
 
 **Key Features:**
-- Hybrid query router (SQLite + InfluxDB)
+- Hybrid query router (PostgreSQL + InfluxDB)
 - Device/entity metadata queries (<10ms)
 - Historical event queries (<100ms)
 - RESTful API with FastAPI
 
 **Performance Targets:**
 - Health checks: <10ms
-- Device queries: <10ms (SQLite)
+- Device queries: <10ms (PostgreSQL)
 - Event queries: <100ms (InfluxDB)
 
 ### Shared Libraries
@@ -623,7 +623,7 @@ async def example_endpoint(request: ExampleRequest):
 ### Adding Database Migrations
 
 ```bash
-# For SQLite services with Alembic
+# For services with Alembic (PostgreSQL)
 cd services/[service]
 alembic revision --autogenerate -m "Add new table"
 alembic upgrade head
@@ -700,8 +700,8 @@ curl http://localhost:8003/health
 curl http://localhost:8006/health
 curl http://localhost:8024/health
 
-# Database queries
-sqlite3 data/metadata.db "SELECT * FROM devices LIMIT 5;"
+# Database queries (PostgreSQL)
+docker exec homeiq-postgres psql -U homeiq -d homeiq -c "SELECT * FROM core.devices LIMIT 5;"
 
 # Restart specific service
 docker compose restart ai-automation-service
@@ -794,8 +794,8 @@ docker compose ps
 # Check InfluxDB
 curl http://localhost:8086/health
 
-# Check SQLite permissions
-ls -la data/*.db
+# Check PostgreSQL connectivity
+docker exec homeiq-postgres pg_isready -U homeiq
 
 # Verify configuration
 echo $INFLUXDB_TOKEN
@@ -851,7 +851,7 @@ docker compose logs websocket-ingestion
 6. **Use Single Sources of Truth** - Don't create duplicate documentation
 7. **Handle Errors Gracefully** - Proper logging, retries, circuit breakers
 8. **Think Microservices** - Each service has a single responsibility
-9. **Optimize Databases** - Right tool for right job (SQLite vs InfluxDB)
+9. **Optimize Databases** - Right tool for right job (PostgreSQL for metadata, InfluxDB for time-series)
 10. **Communicate Clearly** - Commit messages, PR descriptions, code comments
 
 ---

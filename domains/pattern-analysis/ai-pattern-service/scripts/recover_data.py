@@ -1,33 +1,35 @@
 #!/usr/bin/env python3
 """
-Recover data from corrupted SQLite database.
+Recover data from a PostgreSQL database backup.
 
-This script attempts to extract as much data as possible from a corrupted database
-and create a new clean database.
+This script attempts to extract pattern data from a backup and insert it into
+the current database.
 """
 
-import sqlite3
+import os
 import sys
-from pathlib import Path
-import json
 import logging
+
+import psycopg2
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def recover_patterns(corrupted_db: str, new_db: str):
-    """Recover patterns from corrupted database."""
+def recover_patterns(source_url: str, target_url: str):
+    """Recover patterns from source database to target database."""
     try:
-        # Connect to corrupted database (read-only if possible)
-        corrupted_conn = sqlite3.connect(f"file:{corrupted_db}?mode=ro", uri=True)
-        corrupted_conn.row_factory = sqlite3.Row
-        
-        # Create new database
-        new_conn = sqlite3.connect(new_db)
-        new_conn.execute("""
+        source_conn = psycopg2.connect(source_url)
+        source_conn.set_session(readonly=True)
+        source_cursor = source_conn.cursor()
+
+        target_conn = psycopg2.connect(target_url)
+        target_cursor = target_conn.cursor()
+
+        # Ensure target table exists
+        target_cursor.execute("""
             CREATE TABLE IF NOT EXISTS patterns (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 pattern_type TEXT NOT NULL,
                 device_id TEXT,
                 pattern_metadata TEXT,
@@ -41,62 +43,65 @@ def recover_patterns(corrupted_db: str, new_db: str):
                 confidence_history_count INTEGER DEFAULT 0
             )
         """)
-        
+        target_conn.commit()
+
         # Try to recover patterns
         recovered_count = 0
         error_count = 0
-        
+
         try:
-            cursor = corrupted_conn.execute("SELECT * FROM patterns LIMIT 10000")
-            for row in cursor:
+            source_cursor.execute("SELECT * FROM patterns LIMIT 10000")
+            columns = [desc[0] for desc in source_cursor.description]
+            for row in source_cursor:
+                row_dict = dict(zip(columns, row))
                 try:
-                    new_conn.execute("""
-                        INSERT INTO patterns 
+                    target_cursor.execute("""
+                        INSERT INTO patterns
                         (pattern_type, device_id, pattern_metadata, confidence, occurrences,
                          created_at, first_seen, last_seen, trend_direction, trend_strength, confidence_history_count)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
-                        row.get('pattern_type'),
-                        row.get('device_id'),
-                        row.get('pattern_metadata'),
-                        row.get('confidence'),
-                        row.get('occurrences', 0),
-                        row.get('created_at'),
-                        row.get('first_seen'),
-                        row.get('last_seen'),
-                        row.get('trend_direction'),
-                        row.get('trend_strength'),
-                        row.get('confidence_history_count', 0)
+                        row_dict.get('pattern_type'),
+                        row_dict.get('device_id'),
+                        row_dict.get('pattern_metadata'),
+                        row_dict.get('confidence'),
+                        row_dict.get('occurrences', 0),
+                        row_dict.get('created_at'),
+                        row_dict.get('first_seen'),
+                        row_dict.get('last_seen'),
+                        row_dict.get('trend_direction'),
+                        row_dict.get('trend_strength'),
+                        row_dict.get('confidence_history_count', 0)
                     ))
                     recovered_count += 1
                 except Exception as e:
                     error_count += 1
-                    if error_count < 10:  # Log first 10 errors
+                    if error_count < 10:
                         logger.warning(f"Failed to recover pattern row: {e}")
         except Exception as e:
             logger.error(f"Failed to query patterns table: {e}")
-        
-        new_conn.commit()
-        corrupted_conn.close()
-        new_conn.close()
-        
+
+        target_conn.commit()
+        source_conn.close()
+        target_conn.close()
+
         logger.info(f"Recovered {recovered_count} patterns, {error_count} errors")
         return recovered_count > 0
-        
+
     except Exception as e:
         logger.error(f"Recovery failed: {e}")
         return False
 
 
 def main():
-    corrupted_db = "/app/data/ai_automation.db"
-    new_db = "/app/data/ai_automation_recovered.db"
-    
-    logger.info(f"Attempting to recover data from {corrupted_db}")
-    
-    if recover_patterns(corrupted_db, new_db):
-        logger.info(f"Recovery successful. New database: {new_db}")
-        logger.info("You can now replace the old database with the recovered one.")
+    source_url = os.environ.get("SOURCE_DATABASE_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq_backup")
+    target_url = os.environ.get("POSTGRES_URL", os.environ.get("DATABASE_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq"))
+
+    logger.info(f"Attempting to recover data from {source_url}")
+
+    if recover_patterns(source_url, target_url):
+        logger.info("Recovery successful.")
+        logger.info("Data has been inserted into the target database.")
         return 0
     else:
         logger.error("Recovery failed")

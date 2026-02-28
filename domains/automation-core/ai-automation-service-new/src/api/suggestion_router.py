@@ -383,8 +383,7 @@ async def query_suggestions(
             "offset": offset,
         }
 
-    # Load suggestions with JSON (SQLite doesn't support complex JSON queries,
-    # so we filter in Python but limit the initial load)
+    # Load suggestions with JSON and filter in Python
     stmt = (
         select(Suggestion)
         .where(Suggestion.automation_json.isnot(None))

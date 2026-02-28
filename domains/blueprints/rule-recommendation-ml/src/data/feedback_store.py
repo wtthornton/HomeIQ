@@ -1,22 +1,28 @@
 """
-Async SQLite feedback store for recommendation feedback.
+Async feedback store for recommendation feedback.
 
 Persists user feedback on rule recommendations so the model can
 be incrementally retrained when enough new feedback accumulates.
+Uses SQLAlchemy async with PostgreSQL.
 """
 
 import logging
+import os
 from pathlib import Path
 
-import aiosqlite
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 logger = logging.getLogger(__name__)
 
 # Feedback types that count as positive signal for the interaction matrix
 POSITIVE_FEEDBACK_TYPES = frozenset({"accepted", "created"})
 
-# Default path for the feedback database
-DEFAULT_DB_PATH = Path("/data/feedback.db")
+# Default PostgreSQL URL
+DEFAULT_DB_URL = os.environ.get(
+    "POSTGRES_URL",
+    os.environ.get("DATABASE_URL", "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq"),
+)
 
 _CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS recommendation_feedback (
@@ -39,7 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_feedback_pattern
 _INSERT_SQL = """
 INSERT INTO recommendation_feedback
     (id, rule_pattern, user_id, feedback_type, rating, comment, automation_id)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+VALUES (:id, :rule_pattern, :user_id, :feedback_type, :rating, :comment, :automation_id)
 """
 
 _COUNT_SQL = "SELECT COUNT(*) FROM recommendation_feedback"
@@ -48,13 +54,13 @@ _COUNT_SINCE_SQL = """
 SELECT COUNT(*) FROM recommendation_feedback
 WHERE created_at > COALESCE(
     (SELECT MAX(created_at) FROM model_retrain_log),
-    '1970-01-01'
+    '1970-01-01'::timestamp
 )
 """
 
 _CREATE_RETRAIN_LOG_SQL = """
 CREATE TABLE IF NOT EXISTS model_retrain_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     feedback_count INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'started'
@@ -70,38 +76,41 @@ ORDER BY created_at
 
 _LOG_RETRAIN_SQL = """
 INSERT INTO model_retrain_log (feedback_count, status)
-VALUES (?, ?)
+VALUES (:feedback_count, :status)
 """
 
 
 class FeedbackStore:
-    """Async SQLite store for recommendation feedback.
+    """Async store for recommendation feedback.
 
-    Uses lazy initialization -- the database file and tables are created
+    Uses lazy initialization -- the database connection and tables are created
     on the first operation, not at construction time.  All public methods
     are safe to call concurrently from asyncio tasks.
     """
 
-    def __init__(self, db_path: Path | str | None = None) -> None:
-        self._db_path = Path(db_path) if db_path else DEFAULT_DB_PATH
+    def __init__(self, db_url: str | None = None) -> None:
+        self._db_url = db_url or DEFAULT_DB_URL
+        self._engine = None
+        self._session_maker = None
         self._initialized = False
 
-    async def _ensure_initialized(self) -> aiosqlite.Connection:
-        """Open connection and create tables if needed.
+    async def _ensure_initialized(self) -> async_sessionmaker:
+        """Create engine and tables if needed.
 
-        Returns an *open* connection.  Callers are responsible for
-        closing it (prefer ``async with`` around the returned value).
+        Returns a session maker.
         """
-        self._db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = await aiosqlite.connect(str(self._db_path))
         if not self._initialized:
-            await conn.execute(_CREATE_TABLE_SQL)
-            await conn.execute(_CREATE_INDEX_SQL)
-            await conn.execute(_CREATE_RETRAIN_LOG_SQL)
-            await conn.commit()
+            self._engine = create_async_engine(self._db_url, echo=False)
+            self._session_maker = async_sessionmaker(
+                self._engine, class_=AsyncSession, expire_on_commit=False
+            )
+            async with self._engine.begin() as conn:
+                await conn.execute(text(_CREATE_TABLE_SQL))
+                await conn.execute(text(_CREATE_INDEX_SQL))
+                await conn.execute(text(_CREATE_RETRAIN_LOG_SQL))
             self._initialized = True
-            logger.info("Feedback store initialized at %s", self._db_path)
-        return conn
+            logger.info("Feedback store initialized at %s", self._db_url)
+        return self._session_maker
 
     # ------------------------------------------------------------------
     # Public API
@@ -119,65 +128,59 @@ class FeedbackStore:
         automation_id: str | None,
     ) -> None:
         """Persist a single feedback record."""
-        conn = await self._ensure_initialized()
+        session_maker = await self._ensure_initialized()
         try:
-            await conn.execute(
-                _INSERT_SQL,
-                (
-                    feedback_id,
-                    rule_pattern,
-                    user_id,
-                    feedback_type,
-                    rating,
-                    comment,
-                    automation_id,
-                ),
-            )
-            await conn.commit()
+            async with session_maker() as session:
+                await session.execute(
+                    text(_INSERT_SQL),
+                    {
+                        "id": feedback_id,
+                        "rule_pattern": rule_pattern,
+                        "user_id": user_id,
+                        "feedback_type": feedback_type,
+                        "rating": rating,
+                        "comment": comment,
+                        "automation_id": automation_id,
+                    },
+                )
+                await session.commit()
         except Exception:
             logger.exception("Failed to insert feedback %s", feedback_id)
             raise
-        finally:
-            await conn.close()
 
     async def count_since_last_retrain(self) -> int:
         """Return number of feedback rows added since the last retrain."""
-        conn = await self._ensure_initialized()
-        try:
-            async with conn.execute(_COUNT_SINCE_SQL) as cursor:
-                row = await cursor.fetchone()
-                return row[0] if row else 0
-        finally:
-            await conn.close()
+        session_maker = await self._ensure_initialized()
+        async with session_maker() as session:
+            result = await session.execute(text(_COUNT_SINCE_SQL))
+            row = result.fetchone()
+            return row[0] if row else 0
 
     async def total_count(self) -> int:
         """Return total feedback count."""
-        conn = await self._ensure_initialized()
-        try:
-            async with conn.execute(_COUNT_SQL) as cursor:
-                row = await cursor.fetchone()
-                return row[0] if row else 0
-        finally:
-            await conn.close()
+        session_maker = await self._ensure_initialized()
+        async with session_maker() as session:
+            result = await session.execute(text(_COUNT_SQL))
+            row = result.fetchone()
+            return row[0] if row else 0
 
     async def get_all_feedback(
         self,
     ) -> list[dict]:
         """Return all feedback rows as dicts (for model retraining)."""
-        conn = await self._ensure_initialized()
-        try:
-            async with conn.execute(_ALL_FEEDBACK_SQL) as cursor:
-                columns = [desc[0] for desc in cursor.description]
-                rows = await cursor.fetchall()
-                return [dict(zip(columns, row, strict=True)) for row in rows]
-        finally:
-            await conn.close()
+        session_maker = await self._ensure_initialized()
+        async with session_maker() as session:
+            result = await session.execute(text(_ALL_FEEDBACK_SQL))
+            columns = list(result.keys())
+            rows = result.fetchall()
+            return [dict(zip(columns, row, strict=True)) for row in rows]
 
     async def log_retrain(self, feedback_count: int, status: str) -> None:
         """Record a retrain event so ``count_since_last_retrain`` resets."""
-        conn = await self._ensure_initialized()
-        try:
-            await conn.execute(_LOG_RETRAIN_SQL, (feedback_count, status))
-            await conn.commit()
-        finally:
-            await conn.close()
+        session_maker = await self._ensure_initialized()
+        async with session_maker() as session:
+            await session.execute(
+                text(_LOG_RETRAIN_SQL),
+                {"feedback_count": feedback_count, "status": status},
+            )
+            await session.commit()

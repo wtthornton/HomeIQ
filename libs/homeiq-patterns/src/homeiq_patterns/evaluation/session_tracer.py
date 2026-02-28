@@ -67,7 +67,7 @@ class CallbackSink(TraceSink):
 
 class PersistentSink(TraceSink):
     """
-    Persists session traces to a SQLite database.
+    Persists session traces to a PostgreSQL database.
 
     Stores each ``SessionTrace`` as a JSON-serialized record in a
     ``trace_records`` table, preserving all data without requiring
@@ -78,89 +78,95 @@ class PersistentSink(TraceSink):
 
     Uses lazy initialization so no async setup is needed at import time.
 
-    The database path is configurable via the ``store_path`` parameter
-    or the ``EVAL_STORE_PATH`` environment variable (default:
-    ``/data/eval_traces.db``).
+    The database URL is configurable via the ``db_url`` parameter
+    or the ``EVAL_STORE_URL`` / ``POSTGRES_URL`` environment variable.
     """
 
     _CREATE_TRACE_TABLE_SQL = """
     CREATE TABLE IF NOT EXISTS trace_records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         session_id TEXT NOT NULL,
         agent_name TEXT NOT NULL,
         timestamp TEXT NOT NULL,
         trace_json TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_trace_agent
-        ON trace_records(agent_name);
-    CREATE INDEX IF NOT EXISTS idx_trace_session
-        ON trace_records(session_id);
-    CREATE INDEX IF NOT EXISTS idx_trace_timestamp
-        ON trace_records(timestamp);
+    )
     """
 
-    def __init__(self, store_path: str | None = None) -> None:
-        self._store_path = (
-            store_path
-            or os.environ.get("EVAL_STORE_PATH")
-            or "/data/eval_traces.db"
+    _CREATE_INDEXES_SQL = [
+        "CREATE INDEX IF NOT EXISTS idx_trace_agent ON trace_records(agent_name)",
+        "CREATE INDEX IF NOT EXISTS idx_trace_session ON trace_records(session_id)",
+        "CREATE INDEX IF NOT EXISTS idx_trace_timestamp ON trace_records(timestamp)",
+    ]
+
+    def __init__(self, db_url: str | None = None, store_path: str | None = None) -> None:
+        self._db_url = (
+            db_url
+            or os.environ.get("EVAL_STORE_URL")
+            or os.environ.get("POSTGRES_URL")
+            or os.environ.get("DATABASE_URL")
+            or "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq"
         )
-        self._db: Any = None  # aiosqlite.Connection
+        self._engine: Any = None
+        self._session_maker: Any = None
         self._initialized = False
 
     async def _ensure_initialized(self) -> None:
-        """Lazily open the database and create tables on first use."""
+        """Lazily create the engine and tables on first use."""
         if self._initialized:
             return
 
         try:
-            import aiosqlite  # noqa: WPS433 — deferred import
-        except ImportError:
-            logger.warning(
-                "aiosqlite not installed — PersistentSink disabled"
+            from sqlalchemy import text
+            from sqlalchemy.ext.asyncio import (
+                AsyncSession,
+                async_sessionmaker,
+                create_async_engine,
             )
-            return
 
-        try:
-            # Ensure parent directory exists
-            db_dir = Path(self._store_path).parent
-            db_dir.mkdir(parents=True, exist_ok=True)
+            self._engine = create_async_engine(self._db_url, echo=False)
+            self._session_maker = async_sessionmaker(
+                self._engine, class_=AsyncSession, expire_on_commit=False
+            )
 
-            self._db = await aiosqlite.connect(self._store_path)
-            await self._db.executescript(self._CREATE_TRACE_TABLE_SQL)
-            await self._db.commit()
+            async with self._engine.begin() as conn:
+                await conn.execute(text(self._CREATE_TRACE_TABLE_SQL))
+                for idx_sql in self._CREATE_INDEXES_SQL:
+                    await conn.execute(text(idx_sql))
+
             self._initialized = True
             logger.info(
-                "PersistentSink initialized at %s", self._store_path
+                "PersistentSink initialized with PostgreSQL"
             )
         except Exception:
             logger.exception(
-                "PersistentSink: failed to initialize database at %s",
-                self._store_path,
+                "PersistentSink: failed to initialize database",
             )
 
     async def emit(self, trace: SessionTrace) -> None:
-        """Persist a completed session trace to SQLite."""
+        """Persist a completed session trace to the database."""
         try:
             await self._ensure_initialized()
-            if self._db is None:
+            if self._session_maker is None:
                 return
 
+            from sqlalchemy import text
+
             trace_json = json.dumps(trace.to_dict(), default=str)
-            await self._db.execute(
-                """
-                INSERT INTO trace_records
-                    (session_id, agent_name, timestamp, trace_json)
-                VALUES (?, ?, ?, ?)
-                """,
-                [
-                    trace.session_id,
-                    trace.agent_name,
-                    trace.timestamp.isoformat(),
-                    trace_json,
-                ],
-            )
-            await self._db.commit()
+            async with self._session_maker() as session:
+                await session.execute(
+                    text("""
+                    INSERT INTO trace_records
+                        (session_id, agent_name, timestamp, trace_json)
+                    VALUES (:session_id, :agent_name, :timestamp, :trace_json)
+                    """),
+                    {
+                        "session_id": trace.session_id,
+                        "agent_name": trace.agent_name,
+                        "timestamp": trace.timestamp.isoformat(),
+                        "trace_json": trace_json,
+                    },
+                )
+                await session.commit()
             logger.debug(
                 "PersistentSink: stored trace %s for agent %s",
                 trace.session_id,
@@ -174,9 +180,10 @@ class PersistentSink(TraceSink):
 
     async def close(self) -> None:
         """Close the database connection."""
-        if self._db is not None:
-            await self._db.close()
-            self._db = None
+        if self._engine is not None:
+            await self._engine.dispose()
+            self._engine = None
+            self._session_maker = None
             self._initialized = False
 
 

@@ -334,12 +334,12 @@ While this is standard practice, the key is also passed in HTTP request headers 
 
 No rate limiting is applied to any endpoint. The `/trigger` endpoint can be called repeatedly to generate unbounded suggestions. The `/sample` endpoint can be called to fill the database with test data.
 
-### S5. SQLite Database in Writable Docker Volume
+### S5. Database in Writable Docker Volume
 
 **File:** `Dockerfile:39-41`
 **Severity:** LOW
 
-The SQLite database is stored in `/app/data/` which is a writable directory. If the container is compromised, the database can be modified. Consider mounting this as a volume with appropriate permissions.
+The data directory `/app/data/` is writable. Now that the service uses PostgreSQL, local data files are minimal. Ensure the PostgreSQL connection uses proper credentials and network isolation.
 
 ---
 

@@ -38,7 +38,7 @@ async def setup_database(tmp_path_factory):
     db_dir = Path("./data")
     db_dir.mkdir(exist_ok=True)
     db_path = tmp_path_factory.mktemp("device-int-api") / "hygiene_api.db"
-    settings = Settings(SQLITE_DATABASE_URL=f"sqlite+aiosqlite:///{db_path}")
+    settings = Settings(DATABASE_URL=f"postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq")
     await initialize_database(settings)
 
     # Seed sample data

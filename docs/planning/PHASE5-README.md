@@ -49,7 +49,7 @@ This directory contains all documentation and tools needed to deploy Phase 5 (pr
 ### Features Deployed
 
 - ✅ **Frontend Redesign** (Phase 4b): 29 tabs → 14 consolidated pages, new design system
-- ✅ **SQLite → PostgreSQL Migration** (Epics): Schema-per-domain pattern, Alembic migrations
+- ✅ **PostgreSQL Migration** (Epics): Schema-per-domain pattern, Alembic migrations
 - ✅ **Agent Evaluation Framework** (Epics): 4 agents, 20 evaluators, 5-level pyramid
 - ✅ **Activity Recognition Integration** (Epics): Cross-agent context
 - ✅ **Deploy Pipeline Fixes** (Epics): Hardware-aware templates, LLM improvements

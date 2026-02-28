@@ -1,7 +1,7 @@
 """
 Devices and Entities Endpoints for Data API
 Migrated from admin-api as part of Epic 13 Story 13.2
-Story 22.2: Updated to use SQLite storage
+Story 22.2: Updated to use database storage
 """
 
 import logging
@@ -21,7 +21,7 @@ from homeiq_data.influxdb_query_client import InfluxDBQueryClient
 
 from .cache import cache
 
-# Story 22.2: SQLite models and database
+# Story 22.2: Database models
 from .database import get_db
 from .flux_utils import sanitize_flux_value
 from .models import Device, Entity, Service
@@ -190,9 +190,9 @@ async def list_devices(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    List all discovered devices from Home Assistant (SQLite storage)
+    List all discovered devices from Home Assistant
 
-    Story 22.2: Simple, fast SQLite queries with JOIN for entity counts
+    Story 22.2: Simple, fast queries with JOIN for entity counts
     Enhanced: Platform filtering support for Top Integrations feature
     Cached: 5-minute cache for improved performance
     """
@@ -384,7 +384,7 @@ async def list_devices(
         return result
 
     except Exception as e:
-        logger.error(f"Error listing devices from SQLite: {e}", exc_info=True)
+        logger.error(f"Error listing devices from database: {e}", exc_info=True)
         import traceback
         error_details = traceback.format_exc()
         logger.error(f"Full traceback: {error_details}")
@@ -396,7 +396,7 @@ async def list_devices(
 
 @router.get("/api/devices/{device_id}", response_model=DeviceResponse)
 async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
-    """Get device by ID (SQLite) - Story 22.2"""
+    """Get device by ID - Story 22.2"""
     try:
         # Simple SELECT with entity count (including Phase 1.1 device intelligence fields)
         device_columns = [
@@ -598,7 +598,7 @@ async def list_entities(
     device_id: str | None = Query(default=None, description="Filter by device ID"),
     db: AsyncSession = Depends(get_db)
 ):
-    """List entities (SQLite) - Story 22.2"""
+    """List entities - Story 22.2"""
     try:
         # Debug: Check raw query parameters
         raw_query = dict(request.query_params)
@@ -628,7 +628,7 @@ async def list_entities(
             logger.debug(f"🔍 [list_entities] Applied platform filter: {platform}")
         if device_id:
             # Use case-insensitive comparison to handle potential case mismatches
-            # SQLite's default comparison is case-sensitive, so we normalize both sides
+            # Normalize both sides for case-insensitive comparison
             query = query.where(func.lower(Entity.device_id) == func.lower(device_id))
             logger.info(f"🔍 [list_entities] Applied device_id filter (case-insensitive): {device_id}")
 
@@ -679,13 +679,13 @@ async def list_entities(
             limit=limit
         )
     except Exception as e:
-        logger.error(f"Error listing entities from SQLite: {e}")
+        logger.error(f"Error listing entities from database: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve entities: {str(e)}") from e
 
 
 @router.get("/api/entities/{entity_id}", response_model=EntityResponse)
 async def get_entity(entity_id: str, db: AsyncSession = Depends(get_db)):
-    """Get entity by ID (SQLite) - Story 22.2"""
+    """Get entity by ID - Story 22.2"""
     try:
         # Simple SELECT
         result = await db.execute(select(Entity).where(Entity.entity_id == entity_id))

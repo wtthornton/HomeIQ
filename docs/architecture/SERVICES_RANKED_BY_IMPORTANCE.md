@@ -52,7 +52,7 @@ Services are organized into **9 independently deployable domain groups** based o
 | Rank | Service | Port | Role | Dependencies |
 |------|---------|------|------|--------------|
 | **1** | **websocket-ingestion** | 8001 | Primary data pipeline - captures ALL Home Assistant events | InfluxDB, data-api |
-| **2** | **data-api** | 8006 | Central query hub - ALL services query through this | InfluxDB, SQLite |
+| **2** | **data-api** | 8006 | Central query hub - ALL services query through this | InfluxDB, PostgreSQL |
 | **3** | **InfluxDB** | 8086 | Time-series database - stores ALL event/sensor data | None |
 | **4** | **admin-api** | 8004 | System control plane - health, config, service mgmt | All services |
 | **5** | **health-dashboard** | 3000 | Primary user interface - visibility and configuration | admin-api, data-api |
@@ -80,7 +80,7 @@ Home Assistant (192.168.1.86:8123)
     ▼           ▼
 ┌────────┐  ┌─────────┐
 │InfluxDB│  │ data-api│ ◄── Port 8006
-│ :8086  │  │ (SQLite)│
+│ :8086  │  │ (PgSQL) │
 └────┬───┘  └────┬────┘
      │           │
      └─────┬─────┘
@@ -99,7 +99,7 @@ Home Assistant (192.168.1.86:8123)
 
 | Rank | Service | Port | Role | Dependencies |
 |------|---------|------|------|--------------|
-| **6** | **data-retention** | 8080 | Data lifecycle management - prevents bloat/data loss | InfluxDB, SQLite |
+| **6** | **data-retention** | 8080 | Data lifecycle management - prevents bloat/data loss | InfluxDB, PostgreSQL |
 | **7** | **ha-setup-service** | 8024 | HA health monitoring, integration checks, setup wizards | HA, MQTT, Zigbee2MQTT |
 | **8** | **weather-api** | 8009 | Weather data for automations | InfluxDB |
 | **9** | **smart-meter-service** | 8014 | Real-time power monitoring | InfluxDB |
@@ -122,7 +122,7 @@ Home Assistant (192.168.1.86:8123)
 | Rank | Service | Port | Role | Dependencies |
 |------|---------|------|------|--------------|
 | **11** | **ai-core-service** | 8018 | Orchestrates all AI/ML services | openvino, ml-service |
-| **12** | **device-intelligence-service** | 8028 | 6,000+ device capability mapping | SQLite, scikit-learn |
+| **12** | **device-intelligence-service** | 8028 | 6,000+ device capability mapping | PostgreSQL, scikit-learn |
 | **13** | **openvino-service** | 8026 | Transformer embeddings, semantic search | PyTorch |
 | **14** | **ml-service** | 8025 | Clustering, anomaly detection | scikit-learn |
 | **15** | **energy-forecasting** | 8042 | 7-day energy consumption predictions | InfluxDB |

@@ -1,7 +1,7 @@
 """
 Name Uniqueness Validator
 
-Fast uniqueness validation with in-memory cache and SQLite fallback.
+Fast uniqueness validation with in-memory cache and database fallback.
 """
 
 import logging
@@ -72,7 +72,7 @@ class NameUniquenessValidator:
         """
         Fast validation using in-memory cache.
 
-        Performance: <1ms (cache hit) or 5-10ms (SQLite query)
+        Performance: <1ms (cache hit) or 5-10ms (database query)
         """
         normalized_name = self._normalize_name(proposed_name)
 

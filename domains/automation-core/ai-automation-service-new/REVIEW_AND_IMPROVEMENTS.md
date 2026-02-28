@@ -181,7 +181,7 @@ paginated = matching_automations[offset:offset + limit]
 
 **Impact**: O(N) memory usage with full table scans. With large datasets, this will cause OOM errors and extreme latency.
 
-**Recommendation**: Push filtering to SQL where possible (JSON field queries in SQLite). For complex JSON queries, consider adding indexed materialized columns for frequently queried fields.
+**Recommendation**: Push filtering to SQL where possible (JSON field queries in PostgreSQL). For complex JSON queries, consider adding indexed materialized columns for frequently queried fields.
 
 ---
 
@@ -636,7 +636,7 @@ Deployment operations (`deploy_suggestion`, `deploy_compiled_automation`) should
 | C3 | Replaced `str(e)` in all HTTP error responses with generic messages ("Check server logs for details"). Full errors still logged server-side. Fixed in: `error_handlers.py`, `deployment_router.py`, `suggestion_router.py`, `automation_compile_router.py`, `automation_validate_router.py`, `health_router.py`. | 6 files |
 | C4 | HTTP clients are now application-scoped singletons. Added `init_clients()` and `close_clients()` in `dependencies.py`, called from lifespan startup/shutdown in `main.py`. Fallback to per-request creation for tests. | `src/api/dependencies.py`, `src/main.py` |
 | C5 | `get_usage_stats()` now uses `SELECT status, COUNT(*) GROUP BY status` instead of loading all rows into memory. | `src/services/suggestion_service.py` |
-| C6 | `query_suggestions` now adds ordering and early-exit for empty results. Full SQL-level JSON filtering not feasible in SQLite, but improved with count check and ordering. | `src/api/suggestion_router.py` |
+| C6 | `query_suggestions` now adds ordering and early-exit for empty results. Full SQL-level JSON filtering improved with count check and ordering. | `src/api/suggestion_router.py` |
 
 ### Major Issues Fixed
 

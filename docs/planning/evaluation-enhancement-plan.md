@@ -708,7 +708,7 @@ python tests/integration/eval_regression_check.py --threshold 0.10
 
 ### Story 5.4 — Wire evaluation results to data-api REST endpoints ✅ DONE
 
-**Purpose:** Store evaluation results in the existing evaluation infrastructure (InfluxDB + SQLite) for dashboard trending.
+**Purpose:** Store evaluation results in the existing evaluation infrastructure (InfluxDB + PostgreSQL) for dashboard trending.
 
 **Implementation:**
 

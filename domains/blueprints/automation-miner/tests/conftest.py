@@ -36,11 +36,21 @@ async def test_db():
     """
     Test database with automatic setup and teardown.
 
-    Uses in-memory SQLite for test isolation.
+    Uses PostgreSQL for test isolation.
     """
-    from src.miner.database import get_database
+    from src.miner.database import Database
 
-    db = get_database(db_path=":memory:")
+    test_url = os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq_test",
+    )
+    db = Database.__new__(Database)
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    db.engine = create_async_engine(test_url, echo=False)
+    db.async_session = async_sessionmaker(
+        db.engine, class_=AsyncSession, expire_on_commit=False
+    )
+    db.db_path = None
     await db.create_tables()
     yield db
     await db.drop_tables()

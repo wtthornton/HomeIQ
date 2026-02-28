@@ -1422,7 +1422,7 @@ curl -X PUT "http://localhost:8024/api/v1/preferences?user_id=default" \
 - Preferences are applied to both daily batch job (3 AM) and Ask AI query suggestions
 - Changes take effect immediately for new suggestions
 - If preferences are not set, default values are used
-- Preferences are stored in `suggestion_preferences` table in SQLite
+- Preferences are stored in `suggestion_preferences` table in PostgreSQL
 - See [User Guide: Preferences](../current/USER_GUIDE_PREFERENCES.md) for detailed explanations
 - See [Epic AI-6 Documentation](../../docs/prd/epic-ai6-blueprint-enhanced-suggestion-intelligence.md) for architecture details
 
@@ -1952,7 +1952,7 @@ curl http://ha-ai-agent-service:8030/api/v1/complete-prompt
 
 ### Caching
 
-Context components are cached in SQLite database (`ha_ai_agent.db`) with TTL-based expiration:
+Context components are cached in PostgreSQL database (`ha_ai_agent.db`) with TTL-based expiration:
 - Entity summaries: 5 minutes
 - Areas list: 10 minutes
 - Services summary: 10 minutes

@@ -25,7 +25,7 @@ from ..models import Suggestion, InvalidSuggestionReport
 # Agent Evaluation Framework: SessionTracer wiring (E3.S5)
 try:
     from homeiq_patterns.evaluation.session_tracer import PersistentSink, trace_session
-    _eval_sink = PersistentSink()  # Persists traces to SQLite (EVAL_STORE_PATH env var)
+    _eval_sink = PersistentSink()  # Persists traces to database (EVAL_STORE_PATH env var)
     _TRACING_AVAILABLE = True
 except ImportError:
     _TRACING_AVAILABLE = False

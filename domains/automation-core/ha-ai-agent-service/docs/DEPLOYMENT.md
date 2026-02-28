@@ -148,7 +148,7 @@ HA_AI_AGENT_ALLOWED_ORIGINS=https://your-frontend.com,https://app.your-domain.co
 
 ### Volume Configuration
 
-The service uses a persistent volume for SQLite database:
+The service uses a persistent volume for PostgreSQL database:
 
 ```yaml
 volumes:
@@ -235,7 +235,7 @@ Internal service URLs:
 
 ## Database Setup
 
-### SQLite Database
+### PostgreSQL Database
 
 Database is created automatically on first run:
 
@@ -247,7 +247,7 @@ Database is created automatically on first run:
 
 ```bash
 # Backup database
-docker exec homeiq-ha-ai-agent-service sqlite3 /app/data/ha_ai_agent.db ".backup /app/data/backup.db"
+docker exec homeiq-ha-ai-agent-service psql /app/data/ha_ai_agent.db ".backup /app/data/backup.db"
 
 # Copy backup out
 docker cp homeiq-ha-ai-agent-service:/app/data/backup.db ./backup.db
@@ -383,7 +383,7 @@ The service is designed for single-instance deployment. For high availability:
 2. **Shared database** (consider PostgreSQL for multi-instance)
 3. **Session affinity** (conversations tied to instance)
 
-**Note:** Current SQLite database limits to single instance.
+**Note:** Current PostgreSQL database limits to single instance.
 
 ## Related Documentation
 

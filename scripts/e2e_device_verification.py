@@ -6,11 +6,12 @@ Verifies that devices are correctly discovered, stored, and used throughout the 
 
 import sys
 import os
-import sqlite3
-import requests
 import json
+import requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
+
+import psycopg2
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -18,7 +19,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 # Configuration
 DATA_API_URL = os.getenv('DATA_API_URL', 'http://localhost:8006')
 WEBSOCKET_INGESTION_URL = os.getenv('WEBSOCKET_INGESTION_URL', 'http://localhost:8001')
-DB_PATH = 'services/data-api/data/metadata.db'
+POSTGRES_URL = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
 INFLUXDB_URL = os.getenv('INFLUXDB_URL', 'http://localhost:8086')
 
 class Colors:
@@ -112,41 +113,36 @@ class DeviceVerificationTest:
                 self.errors.append(f"{service_name} is not reachable")
     
     def test_database_exists(self):
-        """Test 2: Verify SQLite database exists"""
+        """Test 2: Verify PostgreSQL database is accessible"""
         print_header("TEST 2: Database Existence Check")
-        
-        if os.path.exists(DB_PATH):
-            print_success(f"Database exists at {DB_PATH}")
-            
-            # Check database is readable
-            try:
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-                tables = cursor.fetchall()
-                print_success(f"Database is readable. Found {len(tables)} tables")
-                conn.close()
-            except Exception as e:
-                print_error(f"Database is not readable: {e}")
-                self.errors.append(f"Database read error: {e}")
-        else:
-            print_error(f"Database not found at {DB_PATH}")
-            self.errors.append(f"Database not found at {DB_PATH}")
+
+        try:
+            conn = psycopg2.connect(POSTGRES_URL)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT table_name FROM information_schema.tables
+                WHERE table_schema = 'core' AND table_type = 'BASE TABLE'
+            """)
+            tables = cursor.fetchall()
+            print_success(f"Database is accessible. Found {len(tables)} tables in core schema")
+            conn.close()
+        except Exception as e:
+            print_error(f"Database is not accessible: {e}")
+            self.errors.append(f"Database connection error: {e}")
     
     def test_entities_in_database(self):
         """Test 3: Verify entities exist in database"""
         print_header("TEST 3: Entities in Database Check")
-        
-        if not os.path.exists(DB_PATH):
-            print_error("Database not found, skipping test")
-            return
-        
+
         try:
-            conn = sqlite3.connect(DB_PATH)
+            conn = psycopg2.connect(POSTGRES_URL)
             cursor = conn.cursor()
-            
+
             # Check entities table exists
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='entities';")
+            cursor.execute("""
+                SELECT table_name FROM information_schema.tables
+                WHERE table_schema = 'core' AND table_name = 'entities'
+            """)
             if cursor.fetchone():
                 print_success("Entities table exists")
             else:
@@ -154,29 +150,29 @@ class DeviceVerificationTest:
                 self.errors.append("Entities table missing")
                 conn.close()
                 return
-            
+
             # Count entities
-            cursor.execute("SELECT COUNT(*) FROM entities;")
+            cursor.execute("SELECT COUNT(*) FROM core.entities;")
             count = cursor.fetchone()[0]
             print_info(f"Total entities in database: {count}")
-            
+
             if count == 0:
                 print_warning("No entities found in database. Discovery may not have run.")
                 self.warnings.append("No entities in database")
             else:
                 print_success(f"Found {count} entities in database")
-            
+
             # Check for Hue entities specifically
-            cursor.execute("SELECT COUNT(*) FROM entities WHERE entity_id LIKE '%hue%';")
+            cursor.execute("SELECT COUNT(*) FROM core.entities WHERE entity_id LIKE '%%hue%%';")
             hue_count = cursor.fetchone()[0]
             print_info(f"Hue entities found: {hue_count}")
-            
+
             if hue_count == 0:
                 print_warning("No Hue entities found. This may be expected if no Hue devices are configured.")
                 self.warnings.append("No Hue entities found")
-            
+
             conn.close()
-            
+
         except Exception as e:
             print_error(f"Error checking entities: {e}")
             self.errors.append(f"Entity check error: {e}")
@@ -184,20 +180,16 @@ class DeviceVerificationTest:
     def test_device_name_fields(self):
         """Test 4: Verify device name fields are populated correctly"""
         print_header("TEST 4: Device Name Fields Check")
-        
-        if not os.path.exists(DB_PATH):
-            print_error("Database not found, skipping test")
-            return
-        
+
         try:
-            conn = sqlite3.connect(DB_PATH)
+            conn = psycopg2.connect(POSTGRES_URL)
             cursor = conn.cursor()
-            
+
             # Check for entities with missing name fields
             cursor.execute("""
                 SELECT entity_id, name, name_by_user, original_name, friendly_name
-                FROM entities
-                WHERE entity_id LIKE '%hue%'
+                FROM core.entities
+                WHERE entity_id LIKE '%%hue%%'
                 LIMIT 10
             """)
             

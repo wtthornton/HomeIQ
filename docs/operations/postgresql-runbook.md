@@ -8,7 +8,7 @@
 
 ## Overview
 
-HomeIQ uses PostgreSQL 17 as the primary metadata store, replacing the original per-service SQLite databases. The database uses a **schema-per-domain** pattern with 8 schemas: `core`, `automation`, `agent`, `blueprints`, `energy`, `devices`, `patterns`, `rag`.
+HomeIQ uses PostgreSQL 17 as the sole metadata store. The database uses a **schema-per-domain** pattern with 8 schemas: `core`, `automation`, `agent`, `blueprints`, `energy`, `devices`, `patterns`, `rag`.
 
 ### Architecture
 
@@ -462,5 +462,4 @@ alembic downgrade base
 - [Disaster Recovery Procedures](disaster-recovery.md)
 - [Monitoring Setup](monitoring-setup.md)
 - [Service Health Checks](service-health-checks.md)
-- [SQLite to PostgreSQL Migration Plan](../planning/sqlite-to-postgresql-migration-plan.md)
 - [Init Schemas SQL](../../infrastructure/postgres/init-schemas.sql)

@@ -17,7 +17,6 @@
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - HA_URL=${HA_HTTP_URL:-http://192.168.1.86:8123}
       # HA_TOKEN loaded from infrastructure/.env.websocket
-      - DATABASE_URL=sqlite+aiosqlite:///./data/ha-setup.db
       - DATA_API_URL=http://homeiq-data-api:8006
       - ADMIN_API_URL=http://homeiq-admin-api:8003
       - HEALTH_CHECK_INTERVAL=60

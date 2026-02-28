@@ -1,30 +1,17 @@
 #!/usr/bin/env python3
 """Check device names in database"""
-import sqlite3
-import sys
 import os
+import sys
 
-# Add project root to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import psycopg2
 
-db_path = 'services/data-api/data/metadata.db'
+# PostgreSQL connection URL
+POSTGRES_URL = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
 
-if not os.path.exists(db_path):
-    print(f"Database not found at {db_path}")
-    sys.exit(1)
-
-conn = sqlite3.connect(db_path)
+conn = psycopg2.connect(POSTGRES_URL)
 cursor = conn.cursor()
 
 # Search for devices
-search_terms = [
-    '%Office%',
-    '%Downlight%',
-    '%Play%',
-    '%LR Back%',
-    '%Ceiling%'
-]
-
 print("=" * 120)
 print("DEVICE NAME FIELDS IN DATABASE")
 print("=" * 120)
@@ -32,15 +19,15 @@ print(f"{'Entity ID':<40} {'name':<30} {'name_by_user':<30} {'original_name':<30
 print("-" * 120)
 
 query = """
-SELECT entity_id, name, name_by_user, original_name, friendly_name 
-FROM entities 
-WHERE entity_id LIKE '%hue%' 
-   OR friendly_name LIKE '%Office%' 
-   OR friendly_name LIKE '%Downlight%' 
-   OR friendly_name LIKE '%Play%'
-   OR friendly_name LIKE '%LR%'
-   OR name LIKE '%Office%'
-   OR name_by_user LIKE '%Office%'
+SELECT entity_id, name, name_by_user, original_name, friendly_name
+FROM core.entities
+WHERE entity_id LIKE '%%hue%%'
+   OR friendly_name ILIKE '%%Office%%'
+   OR friendly_name ILIKE '%%Downlight%%'
+   OR friendly_name ILIKE '%%Play%%'
+   OR friendly_name ILIKE '%%LR%%'
+   OR name ILIKE '%%Office%%'
+   OR name_by_user ILIKE '%%Office%%'
 ORDER BY friendly_name
 LIMIT 30
 """
@@ -66,9 +53,9 @@ specific_devices = [
 
 for entity_id_pattern, description in specific_devices:
     query = """
-    SELECT entity_id, name, name_by_user, original_name, friendly_name 
-    FROM entities 
-    WHERE entity_id LIKE ?
+    SELECT entity_id, name, name_by_user, original_name, friendly_name
+    FROM core.entities
+    WHERE entity_id LIKE %s
     LIMIT 5
     """
     cursor.execute(query, (f'%{entity_id_pattern.split(".")[-1]}%',))
@@ -86,4 +73,3 @@ for entity_id_pattern, description in specific_devices:
         print(f"\n{description} ({entity_id_pattern}): NOT FOUND")
 
 conn.close()
-

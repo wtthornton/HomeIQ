@@ -238,7 +238,7 @@ Prerequisites: Phases 1-2 stable in production 2+ weeks, ML models backed up, ro
 
 ### February 27, 2026 (PM — Execution Sprint)
 - ✅ **Phase 3 Readiness Report** created (`docs/planning/phase-3-readiness-report.md`) — 98% ready, Mar 11 start achievable
-- ✅ **Story 6.5 Execution Plan** created (`docs/planning/story-6.5-sqlite-cutover-plan.md`) — 3-4 hours, ready after Mar 10
+- ✅ **Story 6.5 SQLite Removal** complete — all SQLite code, volumes, and fallback paths removed; PostgreSQL is sole database
 - ✅ **Phase 5 Deployment Plan** created (`docs/planning/phase-5-deployment-plan.md`) — 5-day staged rollout by tier
 - ✅ **Quality Audit Report** completed (`docs/planning/quality-audit-report.md`) — Score 7.5/10, 5 blocking findings
 - ✅ **Finding 1 FIXED**: SQL injection in `database_pool.py` — schema name regex validation before `SET search_path`

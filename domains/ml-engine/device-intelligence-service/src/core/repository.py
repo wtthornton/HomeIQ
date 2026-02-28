@@ -2,7 +2,6 @@
 Device Intelligence Service - Data Access Layer
 
 Optimized data access layer using SQLAlchemy 2.0 async patterns and bulk operations.
-Based on Context7 best practices for SQLite performance.
 """
 
 import logging
@@ -10,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import bindparam, func, insert, select, update
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.cache import DeviceCache
@@ -259,12 +258,11 @@ class DeviceRepository:
         return result.scalars().all()
 
     async def bulk_upsert_capabilities(self, session: AsyncSession, capabilities_data: list[dict[str, Any]]) -> int:
-        """Bulk upsert capabilities using SQLite UPSERT."""
+        """Bulk upsert capabilities using PostgreSQL UPSERT."""
         if not capabilities_data:
             return 0
 
-        # Use SQLite UPSERT for efficiency
-        stmt = sqlite_insert(DeviceCapability).values(capabilities_data)
+        stmt = pg_insert(DeviceCapability).values(capabilities_data)
         stmt = stmt.on_conflict_do_update(
             index_elements=["device_id", "capability_name"],
             set_={

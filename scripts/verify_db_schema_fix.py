@@ -46,21 +46,25 @@ async def verify_schema():
         async with engine.begin() as conn:
             # Check if table exists
             result = await conn.execute(text("""
-                SELECT name FROM sqlite_master 
-                WHERE type='table' AND name='suggestions'
+                SELECT table_name FROM information_schema.tables
+                WHERE table_schema = 'automation' AND table_name = 'suggestions'
             """))
             table_exists = result.scalar() is not None
-            
+
             if not table_exists:
                 print("   ❌ ERROR: suggestions table does not exist!")
                 return False
-            
+
             print("   ✅ suggestions table exists")
-            
+
             # Check columns
-            result = await conn.execute(text("PRAGMA table_info(suggestions)"))
+            result = await conn.execute(text("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_schema = 'automation' AND table_name = 'suggestions'
+                ORDER BY ordinal_position
+            """))
             columns = result.fetchall()
-            column_names = [col[1] for col in columns]
+            column_names = [col[0] for col in columns]
             
             required_columns = [
                 'id', 'pattern_id', 'title', 'description',

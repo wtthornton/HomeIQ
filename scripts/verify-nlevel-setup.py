@@ -142,21 +142,18 @@ def check_database():
     print("\n🗄️  Checking database...")
     
     try:
-        import sqlite3
-        
-        db_path = Path("./data/ai_automation.db")
-        
-        if not db_path.exists():
-            print_error(f"Database not found: {db_path}")
-            print(f"\n{Colors.YELLOW}Run migration first:{Colors.NC}")
-            print("alembic upgrade head")
-            return False
-        
-        conn = sqlite3.connect(db_path)
+        import psycopg2
+
+        POSTGRES_URL = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
+
+        conn = psycopg2.connect(POSTGRES_URL)
         cursor = conn.cursor()
-        
+
         # Check for device_embeddings table
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='device_embeddings'")
+        cursor.execute("""
+            SELECT table_name FROM information_schema.tables
+            WHERE table_schema = 'devices' AND table_name = 'device_embeddings'
+        """)
         if cursor.fetchone():
             print_success("device_embeddings table exists")
         else:
@@ -165,14 +162,17 @@ def check_database():
             print("alembic upgrade head")
             conn.close()
             return False
-        
+
         # Check for updated synergy_opportunities columns
-        cursor.execute("PRAGMA table_info(synergy_opportunities)")
-        columns = {row[1] for row in cursor.fetchall()}
-        
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_schema = 'patterns' AND table_name = 'synergy_opportunities'
+        """)
+        columns = {row[0] for row in cursor.fetchall()}
+
         required_columns = {'synergy_depth', 'chain_devices', 'embedding_similarity', 'final_score'}
         missing_columns = required_columns - columns
-        
+
         if missing_columns:
             print_error(f"synergy_opportunities missing columns: {missing_columns}")
             print(f"\n{Colors.YELLOW}Run migration:{Colors.NC}")
@@ -181,7 +181,7 @@ def check_database():
             return False
         else:
             print_success("synergy_opportunities table updated")
-        
+
         conn.close()
         return True
         

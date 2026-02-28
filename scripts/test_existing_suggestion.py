@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
 """Check existing suggestions from database to verify device names"""
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import sys
 import os
 import json
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-db_path = 'services/ai-automation-service/data/ai_automation.db'
+# PostgreSQL connection URL
+POSTGRES_URL = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
 
-if not os.path.exists(db_path):
-    print(f"[ERROR] Database not found at {db_path}")
+try:
+    conn = psycopg2.connect(POSTGRES_URL)
+except Exception as e:
+    print(f"[ERROR] Cannot connect to PostgreSQL: {e}")
     sys.exit(1)
 
-conn = sqlite3.connect(db_path)
-conn.row_factory = sqlite3.Row
-cursor = conn.cursor()
+cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
 print("=" * 120)
 print("CHECKING EXISTING SUGGESTIONS FOR DEVICE NAMES")
@@ -24,7 +26,7 @@ print("=" * 120)
 # Get recent suggestions
 cursor.execute("""
     SELECT query_id, suggestion_id, devices_involved, created_at
-    FROM suggestions
+    FROM automation.suggestions
     WHERE devices_involved IS NOT NULL
     ORDER BY created_at DESC
     LIMIT 5

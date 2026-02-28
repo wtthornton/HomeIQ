@@ -30,10 +30,8 @@ services:
       - INFLUXDB_TOKEN=homeiq-token
       - INFLUXDB_ORG=homeiq
       - INFLUXDB_BUCKET=home_assistant_events
-      - DATABASE_URL=sqlite+aiosqlite:///./data/metadata.db
       - ENABLE_AUTH=false
     volumes:
-      - sqlite_data:/app/data
     depends_on:
       influxdb:
         condition: service_healthy
@@ -101,4 +99,3 @@ services:
 
 volumes:
   influxdb_data:
-  sqlite_data:

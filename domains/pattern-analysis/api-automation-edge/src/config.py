@@ -24,10 +24,10 @@ class Settings(BaseSettings):
     # Home ID
     home_id: str = os.getenv("HOME_ID", "default")
 
-    # Database configuration (synchronous SQLite for SQLAlchemy)
+    # Database configuration (PostgreSQL via POSTGRES_URL)
     database_url: str = os.getenv(
         "DATABASE_URL",
-        "sqlite:///./api-automation-edge.db"
+        ""
     )
 
     # InfluxDB configuration (for metrics)

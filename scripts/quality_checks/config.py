@@ -1,75 +1,51 @@
 """
 Configuration constants for quality checks.
 """
+import os
 from pathlib import Path
 from typing import Dict, List
 
 # Project root
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
-# Database configurations (2025)
+# PostgreSQL connection URL
+POSTGRES_URL = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
+
+# Database configurations (PostgreSQL schema-per-domain)
 DATABASE_CONFIGS: Dict[str, Dict[str, any]] = {
     'ai_automation': {
         'name': 'AI Automation Service',
-        'paths': [
-            '/app/data/ai_automation.db',
-            'services/ai-automation-service/data/ai_automation.db',
-            'data/ai_automation.db',
-        ],
+        'schema': 'automation',
         'service': 'ai-automation-service'
     },
     'metadata': {
         'name': 'Data API (Metadata)',
-        'paths': [
-            '/app/data/metadata.db',
-            'services/data-api/data/metadata.db',
-            'data/metadata.db',
-        ],
+        'schema': 'core',
         'service': 'data-api'
     },
     'ha_ai_agent': {
         'name': 'HA AI Agent Service',
-        'paths': [
-            '/app/data/ha_ai_agent.db',
-            'services/ha-ai-agent-service/data/ha_ai_agent.db',
-            'data/ha_ai_agent.db',
-        ],
+        'schema': 'agent',
         'service': 'ha-ai-agent-service'
     },
     'proactive_agent': {
         'name': 'Proactive Agent Service',
-        'paths': [
-            '/app/data/proactive_agent.db',
-            'services/proactive-agent-service/data/proactive_agent.db',
-            'data/proactive_agent.db',
-        ],
+        'schema': 'automation',
         'service': 'proactive-agent-service'
     },
     'device_intelligence': {
         'name': 'Device Intelligence Service',
-        'paths': [
-            '/app/data/device_intelligence.db',
-            'services/device-intelligence-service/data/device_intelligence.db',
-            'data/device_intelligence.db',
-        ],
+        'schema': 'devices',
         'service': 'device-intelligence-service'
     },
     'ha-setup': {
         'name': 'HA Setup Service',
-        'paths': [
-            '/app/data/ha-setup.db',
-            'services/ha-setup-service/data/ha-setup.db',
-            'data/ha-setup.db',
-        ],
+        'schema': 'core',
         'service': 'ha-setup-service'
     },
     'automation_miner': {
         'name': 'Automation Miner',
-        'paths': [
-            '/app/data/automation_miner.db',
-            'services/automation-miner/data/automation_miner.db',
-            'data/automation_miner.db',
-        ],
+        'schema': 'automation',
         'service': 'automation-miner'
     },
 }
@@ -80,12 +56,12 @@ INFLUXDB_DEFAULT_ORG = 'homeiq'
 INFLUXDB_DEFAULT_BUCKET = 'home_assistant_events'
 
 # Available check types
-SQLITE_CHECKS = [
+PG_CHECKS = [
     'tables',
     'null_values',
     'foreign_keys',
     'indexes',
-    'vacuum',
+    'bloat',
     'integrity',
     'orphaned',
     'table_specific',
@@ -101,4 +77,3 @@ INFLUXDB_CHECKS = [
     'retention',
     'schema',
 ]
-

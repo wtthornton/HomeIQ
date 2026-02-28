@@ -256,7 +256,7 @@ docker-compose logs ha-ai-agent-service | grep "tokens_used"
 
 **Check database size:**
 ```bash
-docker exec homeiq-ha-ai-agent-service sqlite3 /app/data/ha_ai_agent.db "PRAGMA page_count * PRAGMA page_size;"
+docker exec homeiq-ha-ai-agent-service psql /app/data/ha_ai_agent.db "PRAGMA page_count * PRAGMA page_size;"
 ```
 
 ## Log Aggregation

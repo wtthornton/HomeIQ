@@ -121,7 +121,6 @@ async def list_community_patterns(
     query = select(CommunityPattern).where(*base_conditions)
 
     # Apply tag filtering if provided
-    # JSON column filtering depends on the backend; for SQLite we use LIKE on the serialized value
     if tags:
         for tag in tags:
             query = query.where(CommunityPattern.tags.cast(str).contains(tag))

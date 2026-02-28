@@ -5,7 +5,7 @@
 **Port:** 8029 (External) → 8019 (Internal)
 **Technology:** Python 3.11+, FastAPI 0.121, SQLAlchemy 2.0, BeautifulSoup 4.14
 **Container:** `homeiq-automation-miner`
-**Database:** SQLite (automation_miner.db)
+**Database:** PostgreSQL (schema: `blueprints`)
 **Epic:** AI-4 (Community Knowledge Augmentation)
 
 ## Overview
@@ -16,7 +16,7 @@ The Automation Miner service crawls high-quality Home Assistant automations from
 
 - **Selective Crawling** - Only fetches high-quality automations (500+ votes)
 - **Normalization** - Extracts structured metadata (devices, integrations, use cases)
-- **Storage** - SQLite-based corpus with fast query API
+- **Storage** - PostgreSQL-based corpus with fast query API
 - **Performance** - <100ms query response time
 - **Quality** - 2,000+ automations, avg quality ≥0.7
 - **Weekly Refresh** - Incremental corpus updates (Story AI4.4)
@@ -27,7 +27,7 @@ The Automation Miner service crawls high-quality Home Assistant automations from
 ### Prerequisites
 
 - Python 3.11+
-- SQLite 3.x
+- PostgreSQL 17
 - Internet connectivity (for crawling)
 
 ### Running Locally
@@ -222,7 +222,7 @@ LOG_LEVEL=INFO
             │
             ↓
 ┌──────────────────────────────┐
-│ SQLite Database              │
+│ PostgreSQL Database              │
 │ automation_miner.db          │
 │ - community_automations      │
 └───────────┬──────────────────┘
@@ -416,7 +416,7 @@ lxml>=6.0.2               # XML/HTML parser
 
 ```
 sqlalchemy[asyncio]>=2.0.0  # Async ORM
-aiosqlite>=0.20.0          # Async SQLite
+asyncpg>=0.20.0          # Async PostgreSQL
 alembic>=1.13.0            # Migrations
 ```
 
@@ -454,7 +454,7 @@ docker logs automation-miner
 
 **Verify database:**
 ```bash
-sqlite3 data/automation_miner.db "SELECT COUNT(*) FROM community_automations;"
+psql data/automation_miner.db "SELECT COUNT(*) FROM community_automations;"
 ```
 
 ### Admin Routes Not Working
@@ -499,7 +499,7 @@ from ..miner.database import get_db_session
 - Database > 1GB
 
 **Solutions:**
-- Run vacuum: `sqlite3 data/automation_miner.db "VACUUM;"`
+- Run vacuum: `psql data/automation_miner.db "VACUUM;"`
 - Archive old/low-quality automations
 - Review deduplication logic
 

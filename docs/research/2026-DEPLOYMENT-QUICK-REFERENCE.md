@@ -37,7 +37,7 @@ requirements-base.txt          ← Shared dependencies
 
 domains/core-platform/data-api/requirements.txt
   ├─ -r ../requirements-base.txt
-  └─ aiosqlite>=0.22.1,<0.23.0  ← Service-specific override
+  └─ asyncpg>=0.30.0,<0.31.0    ← Service-specific override
 ```
 
 **Minor enhancement:** Add lock files with `pip-compile` for reproducibility.

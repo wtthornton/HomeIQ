@@ -102,7 +102,7 @@ python scripts\check_database_quality.py ai_automation
 ```
 
 **What it checks:**
-- All SQLite databases in the project
+- All databases in the project
 - Data quality issues
 - Missing required fields
 - Orphaned records
@@ -159,7 +159,7 @@ python scripts\optimize_influxdb_shards.py
 - **Ruff Integration**: Primary Python linter (10-100x faster than pylint)
 - **mypy Type Checking**: Strict type checking for Python
 - **Multi-Service Support**: Both TypeScript services analyzed (health-dashboard + ai-automation-ui)
-- **Multi-Database Support**: All SQLite databases checked
+- **Multi-Database Support**: All PostgreSQL databases checked
 - **Windows Native**: All scripts have PowerShell versions
 
 ### Tool Changes

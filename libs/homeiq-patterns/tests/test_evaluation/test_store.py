@@ -1,7 +1,7 @@
 """
 Tests for E4.S2: Evaluation History Storage
 
-Tests the EvaluationStore with in-memory SQLite and mock InfluxDB writer.
+Tests the EvaluationStore with PostgreSQL and mock InfluxDB writer.
 """
 
 from datetime import datetime, timezone, timedelta
@@ -124,11 +124,11 @@ class TestNullInfluxDBWriter:
 
 
 class TestEvaluationStore:
-    """Test EvaluationStore with in-memory SQLite."""
+    """Test EvaluationStore with PostgreSQL."""
 
     @pytest_asyncio.fixture
     async def store(self):
-        s = EvaluationStore(sqlite_path=":memory:")
+        s = EvaluationStore(db_url="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq")
         await s.initialize()
         yield s
         await s.close()
@@ -136,7 +136,7 @@ class TestEvaluationStore:
     @pytest.mark.asyncio
     async def test_initialize_creates_tables(self, store):
         # Should not raise
-        assert store._db is not None
+        assert store._session_maker is not None
 
     @pytest.mark.asyncio
     async def test_store_batch_report(self, store):
@@ -238,7 +238,7 @@ class TestInfluxDBIntegration:
         writer = MockInfluxDBWriter()
         s = EvaluationStore(
             influxdb_writer=writer,
-            sqlite_path=":memory:",
+            db_url="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq",
         )
         await s.initialize()
         yield s, writer
@@ -259,14 +259,14 @@ class TestInfluxDBIntegration:
     async def test_influxdb_failure_degrades_gracefully(self):
         store = EvaluationStore(
             influxdb_writer=FailingInfluxDBWriter(),
-            sqlite_path=":memory:",
+            db_url="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq",
         )
         await store.initialize()
 
-        # Should not raise — degrades to SQLite only
+        # Should not raise — degrades to PostgreSQL only
         run_id = await store.store_batch_report(_make_batch_report())
         assert run_id >= 1
 
-        # SQLite data should still be written
+        # PostgreSQL data should still be written
         assert await store.get_run_count("test-agent") == 1
         await store.close()

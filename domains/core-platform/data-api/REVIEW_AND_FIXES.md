@@ -11,7 +11,7 @@
 
 ## Executive Summary
 
-The data-api service is the central query hub for all 46+ HomeIQ microservices. It provides InfluxDB time-series queries, SQLite metadata access, sports data, energy correlations, Docker management, and Home Assistant automation endpoints. The service has undergone significant improvements since initial development -- authentication is now enforced on all sensitive routes, CORS wildcard handling has been hardened, the early logger crash has been fixed, and several Flux injection vectors in sports/HA automation endpoints have been addressed with `sanitize_flux_value()`. However, critical issues remain in the MCP router (weak sanitization, broken imports), mock data masquerading as real metrics in production, in-memory webhook storage, and inconsistent InfluxDB client patterns.
+The data-api service is the central query hub for all 46+ HomeIQ microservices. It provides InfluxDB time-series queries, PostgreSQL metadata access, sports data, energy correlations, Docker management, and Home Assistant automation endpoints. The service has undergone significant improvements since initial development -- authentication is now enforced on all sensitive routes, CORS wildcard handling has been hardened, the early logger crash has been fixed, and several Flux injection vectors in sports/HA automation endpoints have been addressed with `sanitize_flux_value()`. However, critical issues remain in the MCP router (weak sanitization, broken imports), mock data masquerading as real metrics in production, in-memory webhook storage, and inconsistent InfluxDB client patterns.
 
 ---
 
@@ -25,7 +25,7 @@ The data-api service is the central query hub for all 46+ HomeIQ microservices. 
 | **Data Integrity** | 7.5/10 | B+ | WAL mode configured; proper session management; pagination now correct |
 | **Code Quality** | 5.5/10 | D+ | Significant dead code; mock data in production; naming confusion |
 | **API Design** | 6.5/10 | C+ | Consistent auth; inconsistent response models; mixed pagination styles |
-| **Database** | 8/10 | B+ | Excellent SQLite config; proper indexes; WAL mode; async sessions |
+| **Database** | 8/10 | B+ | Excellent PostgreSQL config; proper indexes; async sessions |
 | **InfluxDB Integration** | 5.5/10 | D+ | Shared clients partially adopted; two different client patterns; no query timeouts |
 | **Testing** | 4/10 | F | 10 test files exist but critical paths untested; ~20% coverage estimate |
 | **Overall** | 6.2/10 | C- | Improved from initial development but significant gaps remain for a Tier 1 service |
@@ -87,7 +87,7 @@ All three MCP endpoints import from non-existent modules:
 # mcp_router.py line 52 - DOES NOT EXIST
 from ..database.influx_client import InfluxDBQueryClient
 # mcp_router.py line 104 - DOES NOT EXIST
-from ..database.sqlite_client import SQLiteClient
+from ..database.db_client import DatabaseClient
 ```
 
 The `database` module is `database.py` (a single file), not a package with submodules. Every MCP endpoint will crash with `ImportError` at runtime.
@@ -185,7 +185,7 @@ For a Tier 1 service managing Home Assistant automation event subscriptions, los
 
 **Impact**: Service restarts silently break all Home Assistant game-event automations.
 
-**Fix**: Persist webhooks to the existing SQLite database. The infrastructure (`database.py`, `get_db()`) is already in place.
+**Fix**: Persist webhooks to the existing PostgreSQL database. The infrastructure (`database.py`, `get_db()`) is already in place.
 
 ---
 
@@ -438,16 +438,13 @@ This returns exception details (potentially including InfluxDB connection string
 
 ## Database Layer Analysis
 
-### SQLite (via SQLAlchemy 2.0 Async)
+### PostgreSQL (via SQLAlchemy 2.0 Async + asyncpg)
 
-**Excellent Configuration** (`c:\cursor\HomeIQ\services\data-api\src\database.py`):
-- WAL mode enabled for concurrent read/write
-- `synchronous=NORMAL` for better write performance with crash safety
-- 64MB cache configured via `PRAGMA cache_size`
-- Memory temp tables for fast temporary operations
-- Foreign keys enforced
-- 30-second busy timeout prevents immediate lock failures
-- Configurable via environment variables (`SQLITE_TIMEOUT`, `SQLITE_CACHE_SIZE`)
+**Configuration** (`database_pool.py` via homeiq-data):
+- Schema-per-domain isolation (`core` schema for data-api)
+- Connection pooling via asyncpg (pool_size=10, max_overflow=5)
+- `pool_pre_ping=True` for stale connection detection
+- Proper search_path isolation per schema
 
 **Session Management**: Proper `get_db()` dependency with auto commit/rollback/cleanup. `expire_on_commit=False` prevents lazy loading issues.
 
@@ -497,7 +494,7 @@ This returns exception details (potentially including InfluxDB connection string
 | Test File | What It Tests | Lines |
 |-----------|---------------|-------|
 | `test_main.py` | App creation, root endpoint, health endpoint | Basic |
-| `test_database.py` | SQLite connection, WAL mode, session management | Good |
+| `test_database.py` | PostgreSQL connection, session management | Good |
 | `test_models.py` | Pydantic model validation | Basic |
 | `test_flux_security.py` | `sanitize_flux_value()` edge cases | Good |
 | `test_hygiene_endpoints.py` | Device hygiene scoring | Good |
@@ -505,7 +502,7 @@ This returns exception details (potentially including InfluxDB connection string
 | `test_entity_registry_endpoints.py` | Entity API endpoints | Moderate |
 | `test_analytics_uptime.py` | Uptime calculation | Minimal |
 | `conftest.py` | Shared fixtures | N/A |
-| `integration/test_database_operations.py` | SQLite operations | Basic |
+| `integration/test_database_operations.py` | Database operations | Basic |
 
 ### Critical Coverage Gaps
 
@@ -580,7 +577,7 @@ The Dockerfile (`c:\cursor\HomeIQ\services\data-api\Dockerfile`) follows good pr
 
 ### What Works Well
 1. **Flux sanitization** (`flux_utils.py`) is robust and used consistently across events, energy, sports, and HA automation endpoints
-2. **SQLite configuration is excellent** - WAL mode, proper pragmas, async sessions, foreign keys, configurable via env vars
+2. **PostgreSQL configuration is excellent** - schema-per-domain isolation, connection pooling, async sessions, proper indexes
 3. **Authentication is properly enforced** - `_auth_dependency` applied to all sensitive routers with `shared.auth.AuthManager`
 4. **CORS is correctly configured** - Disables credentials when wildcard origins detected
 5. **Error handling is generally good** - Most endpoints have proper try/except with logging and appropriate HTTP status codes

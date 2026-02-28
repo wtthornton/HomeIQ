@@ -8,8 +8,9 @@ import pytest
 from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
 
+import os
+
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
@@ -23,19 +24,21 @@ from src.main import app
 @pytest.fixture(scope="function")
 async def test_db() -> AsyncGenerator[AsyncSession, None]:
     """
-    Create a test database session using in-memory SQLite.
-    
+    Create a test database session using PostgreSQL.
+
     Each test gets a fresh database.
     Note: Query service uses shared database models (AskAIQuery, ClarificationSessionDB).
     """
-    # Use in-memory SQLite for tests
+    # Use PostgreSQL for tests
+    test_url = os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq_test",
+    )
     engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        poolclass=StaticPool,
-        connect_args={"check_same_thread": False},
+        test_url,
         echo=False,
     )
-    
+
     # Create basic tables for query service (would be in shared DB in production)
     async with engine.begin() as conn:
         # Create ask_ai_queries table (simplified for testing)
@@ -45,15 +48,15 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
                 original_query TEXT NOT NULL,
                 user_id TEXT,
                 parsed_intent TEXT,
-                extracted_entities JSON,
-                suggestions JSON,
+                extracted_entities JSONB,
+                suggestions JSONB,
                 confidence REAL,
                 processing_time_ms INTEGER,
                 failure_reason TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """))
-        
+
         # Create clarification_sessions table (simplified for testing)
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS clarification_sessions (
@@ -61,8 +64,8 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
                 original_query_id TEXT,
                 original_query TEXT,
                 user_id TEXT,
-                questions JSON,
-                ambiguities JSON,
+                questions JSONB,
+                ambiguities JSONB,
                 current_confidence REAL,
                 confidence_threshold REAL,
                 status TEXT,

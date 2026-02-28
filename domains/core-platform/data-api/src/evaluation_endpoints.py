@@ -117,7 +117,7 @@ async def _get_store():
     global _store, _store_initialized
     if _store is None:
         from homeiq_patterns.evaluation import EvaluationStore
-        _store = EvaluationStore(sqlite_path="./data/evaluations.db")
+        _store = EvaluationStore(db_path="./data/evaluations.db")
     if not _store_initialized:
         await _store.initialize()
         _store_initialized = True
@@ -402,7 +402,7 @@ async def submit_evaluation_results(
         aggregate_scores=body.aggregate_scores,
     )
 
-    # Store in InfluxDB + SQLite
+    # Store in InfluxDB + local DB
     store = await _get_store()
     run_id = await store.store_batch_report(report)
 

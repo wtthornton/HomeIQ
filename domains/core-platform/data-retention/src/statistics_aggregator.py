@@ -30,8 +30,8 @@ class StatisticsAggregator:
         self.influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
         self.influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
 
-        # SQLite metadata database (for statistics_meta table)
-        self.sqlite_path = os.getenv("SQLITE_PATH", "data/metadata.db")
+        # PostgreSQL metadata database (for statistics_meta table)
+        self.pg_url = os.getenv("POSTGRES_URL", os.getenv("DATABASE_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq"))
 
         self.client: InfluxDBClient | None = None
         self.query_api = None
@@ -62,32 +62,33 @@ class StatisticsAggregator:
 
     def _get_eligible_entities(self) -> list[dict[str, Any]]:
         """
-        Get list of entities eligible for statistics aggregation from SQLite.
+        Get list of entities eligible for statistics aggregation from PostgreSQL.
 
         Returns:
             List of dictionaries with statistic_id, state_class, has_mean, has_sum, unit_of_measurement
         """
         try:
-            import sqlite3
+            import psycopg2
 
-            with sqlite3.connect(self.sqlite_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.execute("""
-                    SELECT statistic_id, state_class, has_mean, has_sum, unit_of_measurement
-                    FROM statistics_meta
-                """)
-                return [
-                    {
-                        "statistic_id": row["statistic_id"],
-                        "state_class": row["state_class"],
-                        "has_mean": bool(row["has_mean"]),
-                        "has_sum": bool(row["has_sum"]),
-                        "unit_of_measurement": row["unit_of_measurement"]
-                    }
-                    for row in cursor
-                ]
+            with psycopg2.connect(self.pg_url) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT statistic_id, state_class, has_mean, has_sum, unit_of_measurement
+                        FROM statistics_meta
+                    """)
+                    columns = [desc[0] for desc in cursor.description]
+                    return [
+                        {
+                            "statistic_id": row[columns.index("statistic_id")],
+                            "state_class": row[columns.index("state_class")],
+                            "has_mean": bool(row[columns.index("has_mean")]),
+                            "has_sum": bool(row[columns.index("has_sum")]),
+                            "unit_of_measurement": row[columns.index("unit_of_measurement")]
+                        }
+                        for row in cursor
+                    ]
         except Exception as e:
-            logger.error(f"Error fetching eligible entities from SQLite: {e}")
+            logger.error(f"Error fetching eligible entities from PostgreSQL: {e}")
             return []
 
     async def aggregate_short_term(self) -> dict[str, Any]:

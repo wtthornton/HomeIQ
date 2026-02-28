@@ -95,7 +95,7 @@ tests/e2e/test_json_storage_e2e.py::test_json_update_e2e PASSED
 
 ### Database Fixtures
 
-Tests use in-memory SQLite database via `db_session` fixture:
+Tests use in-memory PostgreSQL database via `db_session` fixture:
 - Fresh database for each test
 - Automatic table creation
 - Clean isolation between tests

@@ -39,7 +39,11 @@ def mock_websocket_client():
 
 
 @pytest.fixture
-def spec_registry(tmp_path):
-    """Spec registry with temporary database"""
-    db_path = tmp_path / "test.db"
-    return SpecRegistry(f"sqlite:///{db_path}")
+def spec_registry():
+    """Spec registry with PostgreSQL test database"""
+    import os
+    test_url = os.environ.get(
+        "TEST_DATABASE_URL_SYNC",
+        "postgresql://homeiq:homeiq@localhost:5432/homeiq_test",
+    )
+    return SpecRegistry(test_url)

@@ -1,33 +1,36 @@
 #!/usr/bin/env python3
 """Check entity table schema and name fields"""
-import sqlite3
 import os
 
-db_path = 'services/data-api/data/metadata.db'
+import psycopg2
 
-if not os.path.exists(db_path):
-    print(f"Database not found at {db_path}")
-    exit(1)
+# PostgreSQL connection URL
+POSTGRES_URL = os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq")
 
-conn = sqlite3.connect(db_path)
+conn = psycopg2.connect(POSTGRES_URL)
 cursor = conn.cursor()
 
 # Check table schema
 print("Entity table columns:")
-cursor.execute('PRAGMA table_info(entities)')
+cursor.execute("""
+    SELECT column_name, data_type
+    FROM information_schema.columns
+    WHERE table_schema = 'core' AND table_name = 'entities'
+    ORDER BY ordinal_position
+""")
 cols = cursor.fetchall()
 for col in cols:
-    print(f"  {col[1]} ({col[2]})")
+    print(f"  {col[0]} ({col[1]})")
 
 # Check if name columns exist
-name_cols = [c[1] for c in cols if 'name' in c[1].lower()]
+name_cols = [c[0] for c in cols if 'name' in c[0].lower()]
 print(f"\nName-related columns: {name_cols}")
 
 # Check Hue entity with name fields
 print("\nChecking light.hue_color_downlight_1_5:")
 cursor.execute("""
-    SELECT entity_id, name, name_by_user, original_name, friendly_name 
-    FROM entities 
+    SELECT entity_id, name, name_by_user, original_name, friendly_name
+    FROM core.entities
     WHERE entity_id = 'light.hue_color_downlight_1_5'
 """)
 row = cursor.fetchone()
@@ -42,14 +45,14 @@ else:
 
 # Count entities with NULL name fields
 cursor.execute("""
-    SELECT 
+    SELECT
         COUNT(*) as total,
         SUM(CASE WHEN name IS NULL THEN 1 ELSE 0 END) as null_name,
         SUM(CASE WHEN name_by_user IS NULL THEN 1 ELSE 0 END) as null_name_by_user,
         SUM(CASE WHEN original_name IS NULL THEN 1 ELSE 0 END) as null_original_name,
         SUM(CASE WHEN friendly_name IS NULL THEN 1 ELSE 0 END) as null_friendly_name
-    FROM entities
-    WHERE entity_id LIKE '%hue%'
+    FROM core.entities
+    WHERE entity_id LIKE '%%hue%%'
 """)
 stats = cursor.fetchone()
 if stats:
@@ -62,4 +65,3 @@ if stats:
     print(f"  NULL friendly_name: {null_friendly_name}")
 
 conn.close()
-

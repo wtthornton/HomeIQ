@@ -154,29 +154,29 @@ def calculate_pattern_support_score(
 
 
 async def validate_all_synergies(
-    db_path: str,
+    pg_url: str,
     min_support_threshold: float = 0.7
 ) -> Dict[str, Any]:
     """
     Validate all synergies against patterns and update database.
-    
+
     Args:
-        db_path: Path to database file
+        pg_url: PostgreSQL connection URL
         min_support_threshold: Minimum support score to set validated_by_patterns=True
-        
+
     Returns:
         Dictionary with validation results
     """
-    db_accessor = DatabaseAccessor(db_path)
-    
+    db_accessor = DatabaseAccessor(pg_url)
+
     try:
         # Fetch all patterns and synergies
         logger.info("Fetching patterns and synergies from database...")
         patterns = await db_accessor.get_all_patterns()
         synergies = await db_accessor.get_all_synergies()
-        
+
         logger.info(f"Found {len(patterns)} patterns and {len(synergies)} synergies")
-        
+
         if not patterns:
             logger.warning("No patterns found - cannot validate synergies")
             return {
@@ -185,20 +185,16 @@ async def validate_all_synergies(
                 'updated': 0,
                 'errors': []
             }
-        
+
         # Validate each synergy
         validated_count = 0
         updated_count = 0
         errors = []
-        
-        # Connect to database for updates (use same connection as accessor)
-        import sqlite3
-        if db_accessor.conn is None:
-            db_accessor.conn = sqlite3.connect(db_path)
-            db_accessor.conn.row_factory = sqlite3.Row
-        
-        conn = db_accessor.conn
-        
+
+        # Connect to database for updates
+        import psycopg2
+        conn = psycopg2.connect(pg_url)
+
         for synergy in synergies:
             try:
                 synergy_id = synergy.get('synergy_id')
@@ -208,54 +204,56 @@ async def validate_all_synergies(
                     if not synergy_id:
                         logger.warning(f"Skipping synergy without synergy_id: {synergy.get('synergy_type', 'unknown')}")
                         continue
-                
+
                 # Calculate support score
                 support_score, supporting_pattern_ids = calculate_pattern_support_score(
                     synergy, patterns
                 )
-                
+
                 # Determine if validated
                 validated_by_patterns = support_score >= min_support_threshold
-                
+
                 # Update database
                 update_query = """
-                    UPDATE synergy_opportunities
-                    SET pattern_support_score = ?,
-                        validated_by_patterns = ?,
-                        supporting_pattern_ids = ?
-                    WHERE synergy_id = ?
+                    UPDATE patterns.synergy_opportunities
+                    SET pattern_support_score = %s,
+                        validated_by_patterns = %s,
+                        supporting_pattern_ids = %s
+                    WHERE synergy_id = %s
                 """
-                
+
                 supporting_patterns_json = json.dumps(supporting_pattern_ids) if supporting_pattern_ids else None
-                
-                cursor = conn.execute(update_query, (
+
+                cursor = conn.cursor()
+                cursor.execute(update_query, (
                     support_score,
-                    1 if validated_by_patterns else 0,  # SQLite uses 0/1 for boolean
+                    validated_by_patterns,
                     supporting_patterns_json,
                     synergy_id
                 ))
-                
+
                 if cursor.rowcount > 0:
                     updated_count += 1
                     if validated_by_patterns:
                         validated_count += 1
                 else:
                     logger.warning(f"No rows updated for synergy_id: {synergy_id}")
-                
+
                 if updated_count % 10 == 0:
                     logger.info(f"Validated {updated_count}/{len(synergies)} synergies...")
-                    
+
             except Exception as e:
                 error_msg = f"Error validating synergy {synergy.get('synergy_id', 'unknown')}: {e}"
                 logger.error(error_msg, exc_info=True)
                 errors.append(error_msg)
-        
+
         # Commit changes
         conn.commit()
-        
-        logger.info(f"✅ Validated {validated_count}/{len(synergies)} synergies (support >= {min_support_threshold})")
-        logger.info(f"✅ Updated {updated_count} synergies in database")
-        
+        conn.close()
+
+        logger.info(f"Validated {validated_count}/{len(synergies)} synergies (support >= {min_support_threshold})")
+        logger.info(f"Updated {updated_count} synergies in database")
+
         return {
             'total_synergies': len(synergies),
             'validated': validated_count,
@@ -263,7 +261,7 @@ async def validate_all_synergies(
             'errors': errors,
             'min_support_threshold': min_support_threshold
         }
-        
+
     finally:
         await db_accessor.close()
 
@@ -274,21 +272,10 @@ async def main() -> None:
         description='Validate synergies against patterns and update pattern_support_score'
     )
     parser.add_argument(
-        '--db-path',
+        '--pg-url',
         type=str,
-        default='data/ai_automation.db',
-        help='Database path (default: data/ai_automation.db)'
-    )
-    parser.add_argument(
-        '--docker-container',
-        type=str,
-        default='ai-pattern-service',
-        help='Docker container name to copy database from (default: ai-pattern-service)'
-    )
-    parser.add_argument(
-        '--use-docker-db',
-        action='store_true',
-        help='Copy database from Docker container instead of using local path'
+        default=os.environ.get("POSTGRES_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq"),
+        help='PostgreSQL connection URL'
     )
     parser.add_argument(
         '--min-support-threshold',
@@ -306,39 +293,14 @@ async def main() -> None:
     
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
-    
-    # Handle Docker database access
-    db_path = args.db_path
-    temp_db_path = None
-    
-    if args.use_docker_db:
-        logger.info(f"Copying database from Docker container: {args.docker_container}")
-        try:
-            temp_dir = tempfile.mkdtemp(prefix='synergy_validate_')
-            temp_db_path = Path(temp_dir) / 'ai_automation.db'
-            
-            copy_cmd = [
-                'docker', 'cp',
-                f'{args.docker_container}:/app/data/ai_automation.db',
-                str(temp_db_path)
-            ]
-            subprocess.run(copy_cmd, check=True, capture_output=True)
-            db_path = str(temp_db_path)
-            logger.info(f"Database copied from Docker to: {db_path}")
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to copy database from Docker: {e.stderr.decode()}")
-            sys.exit(1)
-        except FileNotFoundError:
-            logger.error("Docker command not found. Please install Docker or use --db-path with local database.")
-            sys.exit(1)
-    
+
     try:
         logger.info("=" * 80)
         logger.info("Synergy Pattern Validation")
         logger.info("=" * 80)
-        
-        results = await validate_all_synergies(db_path, args.min_support_threshold)
-        
+
+        results = await validate_all_synergies(args.pg_url, args.min_support_threshold)
+
         logger.info("=" * 80)
         logger.info("Validation Complete!")
         logger.info(f"Total Synergies: {results['total_synergies']}")
@@ -347,32 +309,10 @@ async def main() -> None:
         if results['errors']:
             logger.warning(f"Errors: {len(results['errors'])}")
         logger.info("=" * 80)
-        
-        # If using Docker, copy updated database back
-        if args.use_docker_db and temp_db_path and temp_db_path.exists():
-            logger.info("Copying updated database back to Docker container...")
-            try:
-                copy_back_cmd = [
-                    'docker', 'cp',
-                    str(temp_db_path),
-                    f'{args.docker_container}:/app/data/ai_automation.db'
-                ]
-                subprocess.run(copy_back_cmd, check=True, capture_output=True)
-                logger.info("✅ Database updated in Docker container")
-            except subprocess.CalledProcessError as e:
-                logger.error(f"Failed to copy database back to Docker: {e.stderr.decode()}")
-                logger.warning("Database was updated locally but not in Docker container")
-        
+
     except Exception as e:
         logger.error(f"Validation failed: {e}", exc_info=True)
         sys.exit(1)
-    finally:
-        if temp_db_path and temp_db_path.exists():
-            try:
-                temp_db_path.unlink()
-                temp_db_path.parent.rmdir()
-            except Exception as e:
-                logger.warning(f"Failed to clean up temp database: {e}")
 
 
 if __name__ == "__main__":

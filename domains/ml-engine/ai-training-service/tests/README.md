@@ -49,13 +49,13 @@ pytest -m asyncio
 
 ## Test Fixtures
 
-- `test_db`: In-memory SQLite database for each test
+- `test_db`: In-memory PostgreSQL database for each test
 - `sample_training_run_data`: Sample training run data
 - `client`: FastAPI test client with database override
 
 ## Notes
 
-- Tests use in-memory SQLite for isolation
+- Tests use in-memory PostgreSQL for isolation
 - Synthetic data generator tests migrated from ai-automation-service
 - Integration tests verify service-to-service communication
 - Performance tests validate memory and latency targets

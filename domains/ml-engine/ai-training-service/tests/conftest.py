@@ -9,8 +9,9 @@ from pathlib import Path
 from datetime import datetime
 from typing import AsyncGenerator
 
+import os
+
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from src.database.models import Base, TrainingRun
 from src.config import settings
@@ -21,15 +22,17 @@ from src.config import settings
 @pytest.fixture(scope="function")
 async def test_db() -> AsyncGenerator[AsyncSession, None]:
     """
-    Create a test database session using in-memory SQLite.
-    
+    Create a test database session using PostgreSQL.
+
     Each test gets a fresh database.
     """
-    # Use in-memory SQLite for tests
+    # Use PostgreSQL for tests
+    test_url = os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq_test",
+    )
     engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        poolclass=StaticPool,
-        connect_args={"check_same_thread": False},
+        test_url,
         echo=False,
     )
     

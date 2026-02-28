@@ -7,7 +7,6 @@ python-multipart>=0.0.9,<1.0.0  # Phase 2: standardized
 aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
 influxdb-client>=1.40.0,<2.0.0
 sqlalchemy>=2.0.35,<3.0.0
-aiosqlite>=0.20.0,<0.21.0
 alembic>=1.13.0,<2.0.0
 pydantic>=2.9.0,<3.0.0
 pydantic-settings>=2.5.0,<3.0.0

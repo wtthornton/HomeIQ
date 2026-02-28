@@ -33,7 +33,7 @@ def settings():
     return Settings(
         openai_api_key="test-key",
         openai_model="gpt-4o-mini",
-        database_url="sqlite+aiosqlite:///:memory:",
+        database_url="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq",
     )
 
 
