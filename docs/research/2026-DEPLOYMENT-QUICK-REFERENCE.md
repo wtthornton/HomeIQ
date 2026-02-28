@@ -1,6 +1,6 @@
 # 2026 Deployment Best Practices: Quick Reference
 
-**For:** HomeIQ Project (52 microservices)
+**For:** HomeIQ Project (50 microservices)
 **Date:** February 23, 2026
 **Status:** Research Complete
 

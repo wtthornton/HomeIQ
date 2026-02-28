@@ -1,9 +1,14 @@
 # HomeIQ Automation Linter - Implementation Status
 
-**Last Updated:** 2026-02-03
+**Last Updated:** 2026-02-27
 **Phase:** Phase 0 - MVP Implementation
 **Status:** ✅ Implementation Complete - Ready for Testing
 **Overall Progress:** 95% (Testing Pending)
+
+> **Note (Feb 2026):** The lint engine was relocated from `shared/ha_automation_lint/` to
+> `libs/homeiq-ha/src/homeiq_ha/ha_automation_lint/` during the domain architecture restructuring.
+> Paths below reflect the original implementation location. Import pattern is now
+> `from homeiq_ha.ha_automation_lint import LintEngine`.
 
 ---
 

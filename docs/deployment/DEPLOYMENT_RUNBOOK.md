@@ -1,6 +1,6 @@
 # HomeIQ Deployment Runbook
 
-**Last Updated:** February 24, 2026
+**Last Updated:** February 27, 2026
 **Status:** Active
 **Version:** 2.5
 
@@ -39,7 +39,7 @@ For complete service ranking and deployment priority, see **[Services Ranked by 
 
 #### 📊 Data Management & Analytics
 - **Real-time Event Capture** - Direct WebSocket connection to Home Assistant
-- **Hybrid Database Architecture** - InfluxDB (time-series) + PostgreSQL (metadata) for fast queries
+- **Dual Database Architecture** - InfluxDB (time-series) + PostgreSQL 17 (metadata) for fast queries
 - **Multi-Source Data Enrichment** - Weather, energy pricing, air quality, sports, carbon intensity
 - **Advanced Analytics** - Deep insights with spatial and temporal analysis
 - **Data Export** - Multiple formats (CSV, JSON, PDF, Excel)
@@ -953,10 +953,10 @@ docker exec ai-pattern-service python3 -c "from src.main import app; from fastap
 **Check Logs:**
 ```bash
 # View service logs
-docker-compose logs -f <service-name>
+docker compose logs -f <service-name>
 
 # Check for errors
-docker-compose logs | grep -i error
+docker compose logs | grep -i error
 ```
 
 **Monitor Health:**
@@ -1058,8 +1058,8 @@ bash scripts/deployment/health-check.sh
 **Check:**
 - Docker daemon running: `docker ps`
 - Port conflicts: `netstat -an | grep <port>`
-- Environment variables: `docker-compose config`
-- Logs: `docker-compose logs <service-name>`
+- Environment variables: `docker compose config`
+- Logs: `docker compose logs <service-name>`
 
 ### Service Unhealthy
 
@@ -1077,7 +1077,7 @@ bash scripts/deployment/health-check.sh
 
 **Solution:**
 1. Verify route order: `/stats` must be registered before `/{synergy_id}`
-2. Use full container restart: `docker-compose down ai-pattern-service && docker-compose up -d ai-pattern-service`
+2. Use full container restart: `docker compose down ai-pattern-service && docker compose up -d ai-pattern-service`
 3. Check route registration order in container:
    ```bash
    docker exec ai-pattern-service python3 -c "from src.main import app; from fastapi.routing import APIRoute; routes = [(r.path, r.endpoint.__name__) for r in app.routes if isinstance(r, APIRoute) and 'synerg' in r.path.lower()]; [print(f'{i+1}. {p}') for i, (p, _) in enumerate(routes)]"

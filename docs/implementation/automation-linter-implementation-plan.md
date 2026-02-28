@@ -1,9 +1,13 @@
 # HomeIQ Automation Linter Service — Implementation Plan
 
 **Version:** 1.0
-**Last Updated:** 2026-02-03
+**Last Updated:** 2026-02-27
 **Status:** ✅ MVP Implementation Complete - Ready for Testing
 **Progress:** Phase 0 Complete (100%)
+
+> **Note (Feb 2026):** The lint engine was relocated from `shared/ha_automation_lint/` to
+> `libs/homeiq-ha/src/homeiq_ha/ha_automation_lint/` during the domain architecture restructuring.
+> Paths in this plan reflect the original implementation location.
 
 ---
 

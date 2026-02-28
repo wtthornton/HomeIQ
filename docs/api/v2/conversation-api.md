@@ -1,6 +1,6 @@
 # v2 Conversation API Documentation
 
-**Last Updated:** January 2025  
+**Last Updated:** February 2026
 **Base URL:** `/api/v2`
 
 ## Overview

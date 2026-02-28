@@ -1,6 +1,6 @@
 # Nginx Proxy Configuration Guide
 
-**Last Updated:** February 7, 2026  
+**Last Updated:** February 27, 2026  
 **Status:** Active  
 **Version:** 1.0
 
@@ -196,10 +196,10 @@ location /setup-service/ {
 
 ## Service Name Reference
 
-**Current Service Names (December 2025):**
+**Current Service Names (February 2026):**
 - `data-api` - Port 8006 (use `data_api` upstream block)
 - `admin-api` - Port 8004
-- `ha-setup-service` - Port 8020 (internal), 8027 (external)
+- `ha-setup-service` - Port 8038
 - `ai-automation-service-new` - Port 8025 (internal), 8036 (external)
 - `log-aggregator` - Port 8015
 - `weather-api` - Port 8009 (optional service)
@@ -256,7 +256,7 @@ grep -E "container_name:|ports:" docker-compose.yml | grep -A 1 "service-name"
 3. **Verify service names** match docker-compose.yml container names
 4. **Use internal ports** in proxy_pass (not external ports)
 5. **Test configuration** after changes: `docker exec homeiq-dashboard nginx -t`
-6. **Rebuild container** after nginx.conf changes: `docker-compose build health-dashboard`
+6. **Rebuild container** after nginx.conf changes: `docker compose build health-dashboard`
 7. **Check logs** if proxy fails: `docker logs homeiq-dashboard`
 
 ## References
@@ -268,7 +268,7 @@ grep -E "container_name:|ports:" docker-compose.yml | grep -A 1 "service-name"
 
 ---
 
-**Maintainer:** DevOps Team  
-**Review Frequency:** Quarterly  
-**Last Review:** December 29, 2025
+**Maintainer:** HomeIQ Platform Team
+**Review Frequency:** Quarterly
+**Last Review:** February 27, 2026
 

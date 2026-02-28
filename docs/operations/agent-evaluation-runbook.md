@@ -1,7 +1,7 @@
 # Agent Evaluation — Operational Runbook
 
 **Version:** 1.1
-**Last Updated:** 2026-02-23
+**Last Updated:** 2026-02-27
 **Maintainer:** HomeIQ Platform Team
 
 ---
@@ -219,7 +219,7 @@ curl -X POST -H "X-API-Key: $KEY" \
   http://localhost:8006/api/v1/evaluations/my-new-agent/trigger
 
 # Via CLI
-python -m shared.patterns.evaluation.run_evaluation --agent my-new-agent
+python -m homeiq_patterns.evaluation.run_evaluation --agent my-new-agent
 ```
 
 ---

@@ -586,7 +586,7 @@ HTTP Request → Validate → Queue Task → Return Task ID (fast)
 ### Task Queue Components
 
 1. **Huey PostgreSQL Backend**: Persistent task queue (survives restarts)
-   - Database: `./data/automation_queue.db` (persisted in Docker volume)
+   - Database: PostgreSQL (persisted, schema-per-domain)
    - Workers: 4 threads (configurable via `HUEY_WORKERS`)
    - Result Storage: 7 days TTL (configurable via `HUEY_RESULT_TTL`)
 
@@ -628,7 +628,7 @@ HTTP Request → Validate → Queue Task → Return Task ID (fast)
 
 Environment variables:
 - `USE_TASK_QUEUE`: Enable task queue (default: "true")
-- `HUEY_DATABASE_PATH`: PostgreSQL database path (default: "./data/automation_queue.db")
+- `HUEY_DATABASE_URL`: PostgreSQL connection URL
 - `HUEY_WORKERS`: Number of worker threads (default: 4)
 - `HUEY_RESULT_TTL`: Result storage TTL in seconds (default: 604800 = 7 days)
 - `HUEY_SCHEDULER_INTERVAL`: Periodic task check interval in seconds (default: 1.0)

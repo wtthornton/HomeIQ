@@ -1,6 +1,6 @@
 # HomeIQ Deployment Pipeline Documentation
 
-**Last Updated:** February 7, 2026  
+**Last Updated:** February 27, 2026  
 **Status:** Active  
 **Version:** 2.1
 
@@ -8,7 +8,7 @@
 
 ## Overview
 
-The HomeIQ deployment pipeline is a comprehensive CI/CD system that automates the build, test, validation, and deployment of 47+ microservices to production. The pipeline implements 2025 best practices including quality gates, automated rollback, deployment tracking, and comprehensive notifications.
+The HomeIQ deployment pipeline is a comprehensive CI/CD system that automates the build, test, validation, and deployment of 50 microservices to production. The pipeline implements 2025 best practices including quality gates, automated rollback, deployment tracking, and comprehensive notifications.
 
 ## Pipeline Architecture
 
@@ -90,7 +90,7 @@ python scripts/deployment/validate-deployment.py --pre-deployment
 
 **Checks:**
 - Service connectivity verification
-- Database connectivity (InfluxDB, PostgreSQL)
+- Database connectivity (PostgreSQL, InfluxDB)
 - Inter-service communication tests
 
 **Usage:**
@@ -102,7 +102,7 @@ python scripts/deployment/validate-deployment.py --post-deployment
 
 **File:** `scripts/deployment/health-check.sh`
 
-**Purpose:** Comprehensive health checks for all 30+ services
+**Purpose:** Comprehensive health checks for all 50 services
 
 **Features:**
 - Health endpoint verification for all services
@@ -376,7 +376,7 @@ python scripts/deployment/track-deployment.py --list
 
 ### Deployment Tracking
 
-**Database:** `data/deployments.db` (PostgreSQL)
+**Database:** PostgreSQL (`core` schema, `deployments` table)
 
 **Tables:**
 - `deployments` - Deployment history
@@ -482,7 +482,7 @@ See `infrastructure/env.example` for all environment variables.
 
 ---
 
-**Maintainer:** DevOps Team  
-**Review Frequency:** Quarterly  
-**Last Review:** December 27, 2025
+**Maintainer:** HomeIQ Platform Team
+**Review Frequency:** Quarterly
+**Last Review:** February 27, 2026
 

@@ -1,7 +1,7 @@
 # Monitoring Setup Guide
 
 **Version:** 1.0
-**Last Updated:** 2026-02-24
+**Last Updated:** 2026-02-27
 **Maintainer:** HomeIQ Platform Team
 
 ---
@@ -20,7 +20,7 @@ HomeIQ uses a Prometheus + Grafana monitoring stack alongside service-native hea
 │                                                                              │
 │  ┌─────────────────┐     ┌──────────────┐     ┌─────────────────────────┐  │
 │  │   Prometheus     │────>│   Grafana    │     │   Jaeger (Tracing)      │  │
-│  │   (port 9090)   │     │  (port 3001) │     │   (port 16686)          │  │
+│  │   (port 9090)   │     │  (port 3002) │     │   (port 16686)          │  │
 │  └────────┬────────┘     └──────────────┘     └─────────────────────────┘  │
 │           │ scrapes                                                          │
 │           │                                                                  │
@@ -121,7 +121,7 @@ curl -s 'http://localhost:9090/api/v1/query?query=up{job="my-new-service"}'
 
 ### Accessing Grafana
 
-- URL: `http://localhost:3001`
+- URL: `http://localhost:3002`
 - Default credentials: `admin` / `admin` (change on first login)
 
 ### Adding a Data Source
@@ -187,13 +187,13 @@ histogram_quantile(0.95, rate(influxdb_query_duration_seconds_bucket[5m]))
 ```bash
 # Export a dashboard as JSON
 curl -H "Authorization: Bearer <api-key>" \
-  http://localhost:3001/api/dashboards/uid/<dashboard-uid> > dashboard.json
+  http://localhost:3002/api/dashboards/uid/<dashboard-uid> > dashboard.json
 
 # Import a dashboard
 curl -X POST -H "Authorization: Bearer <api-key>" \
   -H "Content-Type: application/json" \
   -d @dashboard.json \
-  http://localhost:3001/api/dashboards/db
+  http://localhost:3002/api/dashboards/db
 ```
 
 ---

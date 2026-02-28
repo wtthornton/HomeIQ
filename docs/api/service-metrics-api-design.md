@@ -1,8 +1,10 @@
 # Service Metrics API & Data Model Design
 
-**Created:** 2026-01-14  
-**Status:** API Design - Ready for Implementation  
+**Created:** 2026-01-14
+**Last Updated:** 2026-02-27
+**Status:** API Design - Ready for Implementation
 **Epic:** Service Management Dashboard Enhancement
+**Note:** Component props reference `darkMode` boolean; post Phase 4b redesign (Feb 2026) HomeIQ uses full light mode only. Remove `darkMode` props when implementing.
 
 ## API Overview
 

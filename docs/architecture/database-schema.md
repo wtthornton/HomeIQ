@@ -356,7 +356,7 @@ CREATE TABLE entities (
     platform TEXT,
     unique_id TEXT,
     area_id TEXT,
-    disabled BOOLEAN DEFAULT 0,
+    disabled BOOLEAN DEFAULT FALSE,
     config_entry_id TEXT,
     created_at TIMESTAMP
 );

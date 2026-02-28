@@ -1,7 +1,7 @@
 # Disaster Recovery Procedures
 
 **Version:** 1.0
-**Last Updated:** 2026-02-24
+**Last Updated:** 2026-02-27
 **Maintainer:** HomeIQ Platform Team
 
 ---
@@ -22,8 +22,8 @@ This document defines the disaster recovery (DR) procedures for the HomeIQ platf
 
 | Tier | Services | Recovery Priority |
 |------|----------|-------------------|
-| **Tier 1 (Critical)** | websocket-ingestion, data-api, InfluxDB, admin-api, health-dashboard | Restore first, within 30 minutes |
-| **Tier 2 (Essential)** | PostgreSQL, data-retention, ha-setup-service, weather-api, smart-meter-service | Restore second, within 1 hour |
+| **Tier 1 (Critical)** | InfluxDB, PostgreSQL, websocket-ingestion, data-api, admin-api, health-dashboard | Restore first, within 30 minutes |
+| **Tier 2 (Essential)** | data-retention, ha-setup-service, weather-api, smart-meter-service | Restore second, within 1 hour |
 | **Tier 3 (AI/ML)** | ai-core-service, device-intelligence, openvino-service, ml-service | Restore third, within 4 hours |
 | **Tier 4+** | All other services | Restore as capacity allows |
 

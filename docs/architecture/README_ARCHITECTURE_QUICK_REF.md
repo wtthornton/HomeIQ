@@ -1,6 +1,6 @@
 # Services Architecture Quick Reference
 
-**Last Updated:** February 24, 2026 (Phase 5: Service Groups + Resilience)
+**Last Updated:** February 27, 2026 (Phase 5: Service Groups + Resilience, PostgreSQL-only)
 **Purpose:** Quick reference for developers working on services
 
 ---
@@ -252,18 +252,22 @@ point = Point("home_assistant_events") \
     .tag("entity_id", "light.living_room") \
     .tag("domain", "light") \
     .field("state", "on") \
-    .time(datetime.now())
+    .time(datetime.now(UTC))
 
 await influxdb.write(point)
 ```
 
-### Metadata → PostgreSQL
+### Metadata → PostgreSQL 17 (Schema-per-Domain)
 
 **Use PostgreSQL for:**
 - Devices (manufacturer, model, etc.)
 - Entities (friendly_name, device_class, etc.)
 - Webhooks (team_id, event_type, etc.)
 - Configuration
+
+**Schemas:** `core`, `automation`, `agent`, `blueprints`, `energy`, `devices`, `patterns`, `rag`
+
+**Note:** SQLite has been fully removed (February 27, 2026). PostgreSQL is the sole relational database.
 
 **Example:**
 ```python
@@ -469,7 +473,7 @@ HA → websocket-ingestion → enrichment-pipeline → InfluxDB
 
 ---
 
-**Last Updated:** February 24, 2026
-**Epic Context:** Post-Epic 31 (enrichment-pipeline deprecated), Phase 5 (Service Groups + Resilience)
+**Last Updated:** February 27, 2026
+**Epic Context:** Post-Epic 31 (enrichment-pipeline deprecated), Phase 5 (Service Groups + Resilience), PostgreSQL-only (SQLite removed)
 **Service Count:** 50 microservices across 9 domain groups and 7 criticality tiers
 

@@ -19,7 +19,7 @@ This document describes the shared infrastructure components set up for Epic 39 
 
 **Usage:**
 ```python
-from shared.correlation_cache import get_correlation_cache
+from homeiq_patterns.correlation_cache import get_correlation_cache
 
 cache = get_correlation_cache(
     cache_db_path="/app/data/correlation_cache.db",
@@ -55,7 +55,7 @@ print(f"Hit rate: {stats['hit_rate_percent']}%")
 
 **Usage:**
 ```python
-from shared.database_pool import create_shared_session_maker
+from homeiq_data.database_pool import create_shared_session_maker
 
 AsyncSessionLocal = create_shared_session_maker(
     database_url="postgresql+asyncpg://homeiq:homeiq@homeiq-postgres:5432/homeiq",
@@ -85,7 +85,7 @@ async with AsyncSessionLocal() as session:
 
 **Usage:**
 ```python
-from shared.service_client import get_service_client
+from homeiq_resilience.service_client import get_service_client
 
 # Get client for data-api
 client = get_service_client(
@@ -105,10 +105,10 @@ health = await client.health_check()
 
 **Pre-configured Services:**
 - `data-api`: http://data-api:8006
-- `ai-query-service`: http://ai-query-service:8018
-- `ai-automation-service`: http://ai-automation-service:8021
-- `ai-training-service`: http://ai-training-service:8015
-- `ai-pattern-service`: http://ai-pattern-service:8016
+- `ai-query-service`: http://ai-query-service:8035
+- `ai-automation-service-new`: http://ai-automation-service-new:8036
+- `ai-training-service`: http://ai-training-service:8033
+- `ai-pattern-service`: http://ai-pattern-service:8034
 
 ## Shared Infrastructure Configuration
 
@@ -128,10 +128,10 @@ POSTGRES_SCHEMA=automation
 
 # Service URLs (for inter-service communication)
 DATA_API_URL=http://data-api:8006
-AI_QUERY_SERVICE_URL=http://ai-query-service:8018
-AI_AUTOMATION_SERVICE_URL=http://ai-automation-service:8021
-AI_TRAINING_SERVICE_URL=http://ai-training-service:8015
-AI_PATTERN_SERVICE_URL=http://ai-pattern-service:8016
+AI_QUERY_SERVICE_URL=http://ai-query-service:8035
+AI_AUTOMATION_SERVICE_URL=http://ai-automation-service-new:8036
+AI_TRAINING_SERVICE_URL=http://ai-training-service:8033
+AI_PATTERN_SERVICE_URL=http://ai-pattern-service:8034
 ```
 
 ## Performance Targets
@@ -155,9 +155,9 @@ AI_PATTERN_SERVICE_URL=http://ai-pattern-service:8016
 
 Services can now use shared infrastructure:
 
-1. **Replace local cache** with `shared.correlation_cache`
-2. **Replace local DB pool** with `shared.database_pool`
-3. **Use service clients** for inter-service calls
+1. **Replace local cache** with `homeiq_patterns.correlation_cache`
+2. **Replace local DB pool** with `homeiq_data.database_pool`
+3. **Use service clients** via `homeiq_resilience.CrossGroupClient` for inter-service calls
 
 ## Next Steps
 

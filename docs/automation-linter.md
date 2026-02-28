@@ -283,7 +283,7 @@ curl -f http://localhost:8020/health || echo "Service unhealthy"
          │                                   │
          ▼                                   │
 ┌────────────────────────────────────────────┤
-│      Shared Lint Engine Module             │
+│      Lint Engine (homeiq-ha library)       │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
 │  │  Parser  │→ │  Engine  │→ │ Renderer │ │
 │  └──────────┘  └────┬─────┘  └──────────┘ │
@@ -298,12 +298,12 @@ curl -f http://localhost:8020/health || echo "Service unhealthy"
 └──────────────────────────────────────────────┘
 ```
 
-### Shared Module (`shared/ha_automation_lint/`)
+### Lint Engine (`libs/homeiq-ha/src/homeiq_ha/ha_automation_lint/`)
 
-The lint engine is implemented as a reusable Python module:
+The lint engine is part of the `homeiq-ha` shared library (`libs/homeiq-ha/`):
 
 ```
-ha_automation_lint/
+libs/homeiq-ha/src/homeiq_ha/ha_automation_lint/
 ├── __init__.py           # Public API
 ├── constants.py          # Version and configuration constants
 ├── models.py             # Internal Representation (IR) models
@@ -383,7 +383,7 @@ pytest tests/automation-linter/integration/ -v
 pytest tests/automation-linter/regression/ -v
 
 # All tests with coverage
-pytest tests/automation-linter/ --cov=shared/ha_automation_lint --cov-report=html
+pytest tests/automation-linter/ --cov=homeiq_ha.ha_automation_lint --cov-report=html
 ```
 
 ### Adding New Rules
@@ -392,7 +392,7 @@ See [automation-linter-rules.md](./automation-linter-rules.md) for the complete 
 
 **Steps to add a new rule:**
 
-1. **Define the rule class** in `shared/ha_automation_lint/rules/mvp_rules.py`:
+1. **Define the rule class** in `libs/homeiq-ha/src/homeiq_ha/ha_automation_lint/rules/mvp_rules.py`:
 
 ```python
 class MyNewRule(Rule):
@@ -422,7 +422,7 @@ def get_all_rules() -> List[Rule]:
 
 4. **Update documentation** in `docs/automation-linter-rules.md`
 
-5. **Increment RULESET_VERSION** in `shared/ha_automation_lint/constants.py`
+5. **Increment RULESET_VERSION** in `libs/homeiq-ha/src/homeiq_ha/ha_automation_lint/constants.py`
 
 ---
 
@@ -463,7 +463,7 @@ automation-linter:
 volumes:
   - ./domains/automation-core/automation-linter/src:/app/src           # Live reload
   - ./domains/automation-core/automation-linter/ui:/app/ui             # UI updates
-  - ./shared/ha_automation_lint:/app/shared/ha_automation_lint  # Engine updates
+  - ./libs/homeiq-ha:/tmp/homeiq-ha  # Engine updates
 ```
 
 ---
@@ -552,7 +552,7 @@ docker-compose logs automation-linter
 netstat -an | grep 8020
 
 # Test shared module import
-docker-compose exec automation-linter python -c "from ha_automation_lint import LintEngine; print('OK')"
+docker-compose exec automation-linter python -c "from homeiq_ha.ha_automation_lint import LintEngine; print('OK')"
 ```
 
 ### Health Check Failing
@@ -603,6 +603,7 @@ Part of the HomeIQ project. See [LICENSE](../LICENSE) for details.
 
 ---
 
-**Last Updated:** 2026-02-03
+**Last Updated:** 2026-02-27
 **Maintainer:** HomeIQ Team
 **Version:** 0.1.0 MVP
+**Database:** PostgreSQL 17 (if persistence added in Phase 2)

@@ -1,11 +1,12 @@
 # API Reference - Complete Endpoint Documentation
 
-**Last Updated:** February 2026 (Docker: activity-recognition, energy-forecasting)  
-**API Version:** v4.9  
-**Status:** ✅ Production Ready  
-**Recent Updates:** Blueprint-First Architecture (January 2026) - Blueprint Index Service, Blueprint Opportunity Engine, Blueprint Deployer, Blueprint-enriched synergies; Epic AI-24 Device Mapping Library (January 2025), Device mapping API endpoints, Plugin-based device handlers, Epic AI-6 Blueprint-Enhanced Suggestion Intelligence (December 2025), Preference API endpoints, Pattern validation, Preference-aware ranking
+**Last Updated:** February 27, 2026
+**API Version:** v4.9
+**Status:** ✅ Production Ready
+**Database:** PostgreSQL 17 (sole metadata DB) + InfluxDB 2.7.12 (time-series)
+**Recent Updates:** SQLite fully removed (February 2026); Blueprint-First Architecture (January 2026) - Blueprint Index Service, Blueprint Opportunity Engine, Blueprint Deployer, Blueprint-enriched synergies; Epic AI-24 Device Mapping Library (January 2025), Device mapping API endpoints, Plugin-based device handlers
 
-> **📌 This is the SINGLE SOURCE OF TRUTH for all HA Ingestor API documentation.**  
+> **📌 This is the SINGLE SOURCE OF TRUTH for all HomeIQ API documentation.**
 > **Supersedes:** API_DOCUMENTATION.md, API_COMPREHENSIVE_REFERENCE.md, API_ENDPOINTS_REFERENCE.md
 
 ---
@@ -33,7 +34,7 @@
 
 ### System Purpose
 
-The HA Ingestor is an **API-first platform** designed for Home Automation data management and intelligent automation.
+HomeIQ is an **API-first platform** designed for Home Automation data management and intelligent automation.
 
 **Primary Consumers:**
 - Home Assistant automations (webhook triggers, fast status APIs <50ms)
@@ -2675,5 +2676,5 @@ setInterval(updateDashboard, 5000);
 **Document Version:** 4.9  
 **Last Updated:** February 2026 (Docker: activity-recognition, energy-forecasting)  
 **Status:** ✅ Production Ready  
-**Maintained By:** HA Ingestor Team
+**Maintained By:** HomeIQ Team
 

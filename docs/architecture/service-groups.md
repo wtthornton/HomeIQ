@@ -1,6 +1,6 @@
 # Service Groups Architecture
 
-**Last Updated:** February 24, 2026
+**Last Updated:** February 27, 2026
 **Status:** Active
 **Epic Reference:** Domain Architecture Restructuring (Epics 1-5 Complete)
 **Approach:** 9-domain structure (extended from Option C -- Criticality + Domain Hybrid)
@@ -155,7 +155,7 @@ done
 
 ---
 
-## Group 3: ml-engine (9 services + model-prep)
+## Group 3: ml-engine (10 services)
 
 **Purpose:** All ML model inference, embedding generation, and training. Heaviest compute requirements (GPU/high memory). Changes driven by model updates, not feature work.
 
@@ -169,6 +169,7 @@ done
 | rag-service | 8027 | Retrieval-Augmented Generation + vector search |
 | ai-training-service | 8033 | Soft prompt training, model fine-tuning |
 | device-intelligence-service | 8028 | 6,000+ device capability mapping (ML models) |
+| nlp-fine-tuning | (offline) | NLP model fine-tuning |
 | model-prep | (one-shot) | HuggingFace model download/cache |
 
 **Compose file:** `domains/ml-engine/compose.yml`
@@ -580,4 +581,4 @@ docker-bake.hcl              # Parallel build groups
 ---
 
 **Maintained by:** HomeIQ DevOps Team
-**Last Updated:** February 23, 2026
+**Last Updated:** February 27, 2026

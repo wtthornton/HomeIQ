@@ -1,6 +1,6 @@
 # HomeIQ Services Ranked by Importance
 
-**Last Updated:** February 24, 2026
+**Last Updated:** February 27, 2026
 **Purpose:** Comprehensive ranking of all services by criticality to system operation
 
 ---
@@ -379,4 +379,4 @@ In `docker-compose.yml`, some services use a different **host** port to avoid co
 ---
 
 **Maintained by:** HomeIQ DevOps Team
-**Last Updated:** February 24, 2026
+**Last Updated:** February 27, 2026
