@@ -6,7 +6,7 @@ import { waitForLoadingComplete, waitForModalOpen } from '../../../shared/helper
 test.describe('AI Automation UI - HA Agent Chat', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await page.goto('/ha-agent');
+    await page.goto('/chat');
     await waitForLoadingComplete(page);
   });
 

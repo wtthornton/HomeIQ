@@ -6,7 +6,7 @@ import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 test.describe('AI Automation UI - Synergies Page', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await page.goto('/synergies');
+    await page.goto('/insights');
     await waitForLoadingComplete(page);
   });
 

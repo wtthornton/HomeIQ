@@ -2,7 +2,7 @@
  * Page Object Model for AI Automation Patterns Page
  * 
  * Pattern visualization and analysis interface
- * URL: http://localhost:3001/patterns
+ * URL: http://localhost:3001/insights
  */
 
 import { Page, Locator, expect } from '@playwright/test';
@@ -14,7 +14,7 @@ export class PatternsPage {
    * Navigate to Patterns page
    */
   async goto() {
-    await this.page.goto('http://localhost:3001/patterns');
+    await this.page.goto('http://localhost:3001/insights');
     await expect(this.page.getByTestId('patterns-container')).toBeVisible();
   }
 

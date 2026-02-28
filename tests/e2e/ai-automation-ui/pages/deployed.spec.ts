@@ -6,7 +6,7 @@ import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 test.describe('AI Automation UI - Deployed Page', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await page.goto('/deployed');
+    await page.goto('/automations');
     await waitForLoadingComplete(page);
   });
 

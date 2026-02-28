@@ -13,7 +13,7 @@ import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 test.describe('Enhancement Button After Automation Creation', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await page.goto('/ha-agent');
+    await page.goto('/chat');
     await waitForLoadingComplete(page);
   });
 

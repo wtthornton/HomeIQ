@@ -45,12 +45,12 @@ test.describe('AI Automation UI Smoke Tests', () => {
     await page.goto('http://localhost:3001');
     await expect(page.getByTestId('dashboard-container')).toBeVisible();
     
-    // Patterns
-    await page.goto('http://localhost:3001/patterns');
+    // Insights (formerly Patterns)
+    await page.goto('http://localhost:3001/insights');
     await expect(page.getByTestId('patterns-container')).toBeVisible();
-    
-    // Deployed
-    await page.goto('http://localhost:3001/deployed');
+
+    // Automations (formerly Deployed)
+    await page.goto('http://localhost:3001/automations');
     await expect(page.getByTestId('deployed-container')).toBeVisible();
     
     // Settings

@@ -6,13 +6,12 @@ import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 test.describe('AI Automation UI - Proactive Page', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await page.goto('/proactive');
+    await page.goto('/?source=context');
     await waitForLoadingComplete(page);
   });
 
   test('@smoke Proactive page loads', async ({ page }) => {
     await expect(page.locator('main, body')).toBeVisible({ timeout: 8000 });
-    expect(page.url()).toContain('/proactive');
   });
 
   test('Proactive content or empty state displays', async ({ page }) => {

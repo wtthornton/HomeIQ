@@ -73,7 +73,7 @@ export async function expectDeploymentSuccess(page: Page, id: string): Promise<v
   await expectToastMessage(page, 'success', 'deployed');
   
   // Navigate to deployed tab and verify
-  await page.goto('http://localhost:3001/deployed');
+  await page.goto('http://localhost:3001/automations');
   const automation = page.getByTestId(`deployed-automation-${id}`);
   await expect(automation).toBeVisible();
 }

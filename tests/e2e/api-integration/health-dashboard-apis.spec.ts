@@ -32,7 +32,9 @@ test.describe('Health Dashboard APIs - Endpoint matrix', () => {
   });
 
   test('P6.1 GET /api/v1/health/services returns service map', async ({ request }) => {
-    const res = await request.get(`${ADMIN_BASE}/api/v1/health/services`);
+    // Admin-API sequentially health-checks ~27 services (2s timeout each) — extend test timeout
+    test.setTimeout(90000);
+    const res = await request.get(`${ADMIN_BASE}/api/v1/health/services`, { timeout: 60000 });
     expect([200, 500, 503]).toContain(res.status());
 
     if (res.ok()) {
@@ -106,8 +108,10 @@ test.describe('Health Dashboard APIs - Endpoint matrix', () => {
   });
 
   test('P6.1 GET /api/v1/real-time-metrics returns metrics', async ({ request }) => {
+    // Real-time metrics aggregates across all services, allow extra time
     const res = await request.get(`${ADMIN_BASE}/api/v1/real-time-metrics`, {
       headers: authHeaders,
+      timeout: 30000,
     });
     expect([200, 401, 500, 503]).toContain(res.status());
 

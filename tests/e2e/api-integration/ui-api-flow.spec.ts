@@ -15,8 +15,7 @@ test.describe('UI to API flow verification', () => {
     await page.goto(`${DASHBOARD_URL}/#services`);
     await waitForLoadingComplete(page);
 
-    const dashboardVisible = await page.locator('[data-testid="dashboard-root"], main, body').first().isVisible({ timeout: 8000 }).catch(() => false);
-    expect(dashboardVisible).toBe(true);
+    await expect(page.locator('[data-testid="dashboard-root"]')).toBeVisible({ timeout: 15000 });
   });
 
   test('P6.3 AI Automation dashboard loads and UI renders', async ({ page }) => {

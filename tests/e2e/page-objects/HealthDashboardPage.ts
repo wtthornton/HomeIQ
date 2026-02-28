@@ -9,8 +9,8 @@ import { Page, Locator, expect } from '@playwright/test';
 
 const HEALTH_DASHBOARD_TAB_IDS = [
   'overview',
-  'setup',
   'services',
+  'groups',
   'dependencies',
   'devices',
   'events',
@@ -22,7 +22,7 @@ const HEALTH_DASHBOARD_TAB_IDS = [
   'alerts',
   'hygiene',
   'validation',
-  'synergies',
+  'evaluation',
   'configuration',
 ] as const;
 
@@ -62,18 +62,16 @@ export class HealthDashboardPage {
   }
 
   getTab(tabId: string): Locator {
+    if (tabId === 'overview') {
+      return this.page.locator('[data-tab="overview"]');
+    }
     return this.page.getByTestId(`tab-${tabId}`);
   }
 
-  /** Switch to a tab by id */
+  /** Switch to a tab by id — uses hash navigation so sidebar group auto-expands */
   async goToTab(tabId: string): Promise<void> {
-    const tab = this.getTab(tabId);
-    await expect(tab).toBeVisible({ timeout: 5000 });
-    await tab.click();
-    // URL hash may not update for all tabs (e.g. overview at root); allow gracefully
-    await this.page.waitForURL(RegExp(`#${tabId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`), { timeout: 3000 }).catch(() => {
-      // Some tabs (e.g. overview) don't update the hash — this is expected
-    });
+    await this.page.goto(`/#${tabId}`);
+    await expect(this.getDashboardRoot()).toBeVisible({ timeout: 10000 });
   }
 
   /** All 16 tab ids from the plan */

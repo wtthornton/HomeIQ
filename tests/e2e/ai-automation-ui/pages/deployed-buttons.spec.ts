@@ -149,7 +149,7 @@ test.describe('Deployed Automations - Button Functionality', () => {
     });
 
     // Navigate to page
-    await page.goto('/deployed');
+    await page.goto('/automations');
     await page.waitForSelector('[data-testid="deployed-container"]', { timeout: 10000 });
 
     // Get first automation details

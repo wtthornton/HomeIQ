@@ -10,7 +10,7 @@ import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 test.describe('Device-Based Automation Suggestions', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await page.goto('/ha-agent');
+    await page.goto('/chat');
     await waitForLoadingComplete(page);
   });
 
@@ -292,7 +292,7 @@ test.describe('Device-Based Automation Suggestions', () => {
     test('Error messages display gracefully', async ({ page }) => {
       // This test would require mocking API errors
       // For now, just verify the page loads
-      await expect(page).toHaveURL(/.*ha-agent/, { timeout: 5000 });
+      await expect(page).toHaveURL(/.*chat/, { timeout: 5000 });
     });
 
     test('Empty state displays when no suggestions', async ({ page }) => {

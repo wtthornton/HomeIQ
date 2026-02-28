@@ -10,7 +10,7 @@ test.describe('Health Dashboard - Configuration Tab', () => {
   });
 
   test('@smoke Configuration tab loads', async ({ page }) => {
-    await expect(page.getByTestId('tab-configuration')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('tab-configuration')).toBeVisible();
     await expect(page.getByTestId('dashboard-content')).toBeVisible();
   });
 

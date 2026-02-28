@@ -52,7 +52,7 @@ test.describe('AI Automation UI - Modal Components', () => {
   });
 
   test('P5.5 Modals (ClearChat, DeleteConversation, BatchAction, DeviceMapping, PatternDetails) open and close', async ({ page }) => {
-    await page.goto('/ha-agent');
+    await page.goto('/chat');
     await waitForLoadingComplete(page);
     const openModalTriggers = page.locator('button:has-text("Clear"), button:has-text("Delete"), [data-testid="open-modal"], button:has-text("Batch")');
     const count = await openModalTriggers.count();
@@ -82,7 +82,7 @@ test.describe('AI Automation UI - Modal Components', () => {
   });
 
   test('P5.5 PatternDetails modal from patterns page', async ({ page }) => {
-    await page.goto('/patterns');
+    await page.goto('/insights');
     await waitForLoadingComplete(page);
     const patternTrigger = page.locator('[data-testid="pattern-chart"], [class*="PatternChart"], [class*="pattern-card"]').first();
     if (await patternTrigger.isVisible({ timeout: 5000 }).catch(() => false)) {

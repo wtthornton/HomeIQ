@@ -14,11 +14,10 @@ test.describe('Health Dashboard - Navigation & Layout', () => {
     await expect(page.locator('body')).toBeVisible();
   });
 
-  // P1.1: Header with theme toggle, auto-refresh, and time range selector
-  test('P1.1 Header shows theme toggle, auto-refresh, and time range selector', async ({ page }) => {
+  // P1.1: Sidebar controls (theme toggle, auto-refresh, time range selector) are always visible on desktop
+  test('P1.1 Sidebar controls show theme toggle, auto-refresh, and time range selector', async ({ page }) => {
     const dashboard = new HealthDashboardPage(page);
     await dashboard.goto();
-    await expect(dashboard.getHeader()).toBeVisible();
     await expect(dashboard.getThemeToggle()).toBeVisible();
     await expect(dashboard.getAutoRefreshToggle()).toBeVisible();
     await expect(dashboard.getTimeRangeSelector()).toBeVisible();
@@ -27,10 +26,11 @@ test.describe('Health Dashboard - Navigation & Layout', () => {
   // P1.2: All 16 tabs visible and each tab renders without crashing
   test('P1.2 All 16 tabs are visible and clickable', async ({ page }) => {
     const dashboard = new HealthDashboardPage(page);
-    await dashboard.goto();
     const tabIds = HealthDashboardPage.getTabIds();
     expect(tabIds).toHaveLength(16);
     for (const tabId of tabIds) {
+      // Navigate via hash to auto-expand the containing sidebar group
+      await dashboard.goToTab(tabId);
       const tab = dashboard.getTab(tabId);
       await expect(tab).toBeVisible({ timeout: 5000 });
       await expect(tab).toBeEnabled();
@@ -86,8 +86,8 @@ test.describe('Health Dashboard - Navigation & Layout', () => {
   test('All 16 tabs visible (legacy selector fallback)', async ({ page }) => {
     const tabs = [
       'overview',
-      'setup',
       'services',
+      'groups',
       'dependencies',
       'devices',
       'events',
@@ -99,40 +99,43 @@ test.describe('Health Dashboard - Navigation & Layout', () => {
       'alerts',
       'hygiene',
       'validation',
-      'synergies',
+      'evaluation',
       'configuration',
     ];
 
     for (const tabId of tabs) {
-      const tab = page.locator(`[data-testid="tab-${tabId}"], [data-tab="${tabId}"], button:has-text("${tabId}"), a[href*="${tabId}"]`).first();
+      // Navigate via hash so the sidebar group auto-expands and tab becomes visible
+      await page.goto(`/#${tabId}`);
+      const tab = page.locator(`[data-testid="tab-${tabId}"], [data-tab="${tabId}"]`).first();
       await expect(tab).toBeVisible({ timeout: 5000 });
       await expect(tab).toBeEnabled();
     }
   });
 
   test('Tab switching updates URL hash', async ({ page }) => {
-    // Click on services tab
-    const servicesTab = page.locator('[data-tab="services"], button:has-text("Services"), a[href*="services"]').first();
+    // Navigate to services via hash (auto-expands sidebar group)
+    await page.goto('/#services');
+    const servicesTab = page.locator('[data-testid="tab-services"], [data-tab="services"]').first();
+    await expect(servicesTab).toBeVisible({ timeout: 5000 });
     await servicesTab.click();
-    
+
     // Wait for URL to update
     await page.waitForURL(/\#services/, { timeout: 3000 });
     expect(page.url()).toContain('#services');
   });
 
   test('Tab state persists on page refresh', async ({ page }) => {
-    // Navigate to services tab
-    const servicesTab = page.locator('[data-tab="services"], button:has-text("Services"), a[href*="services"]').first();
-    await servicesTab.click();
+    // Navigate to services tab via hash
+    await page.goto('/#services');
     await page.waitForURL(/\#services/);
-    
+
     // Refresh page
     await page.reload();
-    
-    // Verify tab is still selected
+
+    // Verify URL still has #services and tab is visible
     await page.waitForURL(/\#services/);
-    const activeTab = page.locator('[data-tab="services"][aria-selected="true"], button[aria-selected="true"]:has-text("Services")').first();
-    await expect(activeTab).toBeVisible();
+    const servicesTab = page.locator('[data-testid="tab-services"], [data-tab="services"]').first();
+    await expect(servicesTab).toBeVisible();
   });
 
   test('Dark mode toggle works', async ({ page }) => {

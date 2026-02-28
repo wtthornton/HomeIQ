@@ -6,7 +6,7 @@ import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 test.describe('AI Automation UI - Conversation Flow Workflow', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await page.goto('/ha-agent');
+    await page.goto('/chat');
     await waitForLoadingComplete(page);
   });
 

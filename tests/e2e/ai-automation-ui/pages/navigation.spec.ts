@@ -12,14 +12,12 @@ test.describe('AI Automation UI - Navigation', () => {
 
   test('@smoke All routes accessible', async ({ page }) => {
     const routes = [
-      { path: '/', name: 'Dashboard' },
-      { path: '/patterns', name: 'Patterns' },
-      { path: '/synergies', name: 'Synergies' },
-      { path: '/deployed', name: 'Deployed' },
-      { path: '/discovery', name: 'Discovery' },
-      { path: '/ha-agent', name: 'HA Agent Chat' },
+      { path: '/', name: 'Ideas' },
+      { path: '/insights', name: 'Insights' },
+      { path: '/automations', name: 'Automations' },
+      { path: '/explore', name: 'Explore' },
+      { path: '/chat', name: 'Chat' },
       { path: '/settings', name: 'Settings' },
-      { path: '/admin', name: 'Admin' },
     ];
 
     for (const route of routes) {
@@ -29,19 +27,14 @@ test.describe('AI Automation UI - Navigation', () => {
     }
   });
 
-  test('P4.1 Navigate to all AI automation pages (Dashboard, Ask AI, Deployed, Patterns, Settings, Discovery, Synergies, Proactive, Blueprint, Name Enhancement, Admin)', async ({ page }) => {
+  test('P4.1 Navigate to all AI automation pages (Ideas, Chat, Automations, Insights, Settings, Explore)', async ({ page }) => {
     const routes = [
-      { path: '/', name: 'Dashboard' },
-      { path: '/ha-agent', name: 'Ask AI / HA Agent' },
-      { path: '/deployed', name: 'Deployed' },
-      { path: '/patterns', name: 'Patterns' },
+      { path: '/', name: 'Ideas' },
+      { path: '/chat', name: 'Chat' },
+      { path: '/automations', name: 'Automations' },
+      { path: '/insights', name: 'Insights' },
       { path: '/settings', name: 'Settings' },
-      { path: '/discovery', name: 'Discovery' },
-      { path: '/synergies', name: 'Synergies' },
-      { path: '/proactive', name: 'Proactive' },
-      { path: '/blueprint-suggestions', name: 'Blueprint' },
-      { path: '/name-enhancement', name: 'Name Enhancement' },
-      { path: '/admin', name: 'Admin' },
+      { path: '/explore', name: 'Explore' },
     ];
     for (const route of routes) {
       await page.goto(route.path);
@@ -61,17 +54,17 @@ test.describe('AI Automation UI - Navigation', () => {
     await page.goto('/');
     await waitForLoadingComplete(page);
     
-    await page.goto('/patterns');
+    await page.goto('/insights');
     await waitForLoadingComplete(page);
-    
-    await expect(page.url()).toContain('/patterns');
+
+    await expect(page.url()).toContain('/insights');
   });
 
   test('Active route highlighting', async ({ page }) => {
-    await page.goto('/patterns');
+    await page.goto('/insights');
     await waitForLoadingComplete(page);
-    
-    const activeLink = page.locator('a[href="/patterns"][aria-current], a.active, [class*="active"]').first();
+
+    const activeLink = page.locator('[data-nav-item][aria-current="page"], a[href="/insights"][aria-current], a.active, [class*="active"]').first();
     const exists = await activeLink.isVisible().catch(() => false);
     // Active state might be implemented
   });
@@ -80,25 +73,25 @@ test.describe('AI Automation UI - Navigation', () => {
     await page.goto('/');
     await waitForLoadingComplete(page);
     
-    await page.goto('/patterns');
+    await page.goto('/insights');
     await waitForLoadingComplete(page);
-    
+
     await page.goBack();
     await waitForLoadingComplete(page);
-    
-    await expect(page.url()).not.toContain('/patterns');
-    
+
+    await expect(page.url()).not.toContain('/insights');
+
     await page.goForward();
     await waitForLoadingComplete(page);
-    
-    await expect(page.url()).toContain('/patterns');
+
+    await expect(page.url()).toContain('/insights');
   });
 
   test('Deep linking works', async ({ page }) => {
-    await page.goto('/patterns');
+    await page.goto('/insights');
     await waitForLoadingComplete(page);
-    
-    await expect(page.url()).toContain('/patterns');
+
+    await expect(page.url()).toContain('/insights');
     await expect(page.locator('body')).toBeVisible();
   });
 });

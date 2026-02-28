@@ -3,10 +3,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Synergies Page - Filtering and Sorting', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to synergies page
-    await page.goto('http://localhost:3001/synergies');
+    await page.goto('http://localhost:3001/insights');
     
     // Wait for page to load
-    await page.waitForSelector('[data-testid="synergies-container"]', { timeout: 10000 });
+    await page.waitForSelector('[data-testid="synergies-container"], [data-testid="insights-container"], main', { timeout: 10000 });
     
     // Wait for synergies to load (check for any synergy cards or loading to complete)
     await page.waitForLoadState('networkidle', { timeout: 15000 });

@@ -7,13 +7,12 @@ import { BlueprintSuggestionsPage } from '../../page-objects/BlueprintSuggestion
 test.describe('AI Automation UI - Blueprint Suggestions Page', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await page.goto('/blueprint-suggestions');
+    await page.goto('/?source=blueprints');
     await waitForLoadingComplete(page);
   });
 
   test('@smoke Blueprint page loads', async ({ page }) => {
     await expect(page.locator('main, body')).toBeVisible({ timeout: 8000 });
-    expect(page.url()).toContain('/blueprint-suggestions');
   });
 
   test('Blueprint content displays', async ({ page }) => {

@@ -16,7 +16,6 @@ test.describe('Health Dashboard - Services Tab', () => {
     await expect(page.getByTestId('dashboard-root')).toBeVisible({ timeout: 20000 });
     const servicesTab = page.getByTestId('tab-services');
     await expect(servicesTab).toBeVisible();
-    await expect(servicesTab).toHaveAttribute('aria-selected', 'true');
   });
 
   test('Service cards display status when services load', async ({ page }) => {

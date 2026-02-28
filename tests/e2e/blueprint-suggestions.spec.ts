@@ -1,7 +1,7 @@
 /**
  * Blueprint Suggestions - Comprehensive UI/UX Tests
  * 
- * Tests for the Blueprint Suggestions page at http://localhost:3001/blueprint-suggestions
+ * Tests for the Blueprint Suggestions page at http://localhost:3001/?source=blueprints
  * 
  * Coverage:
  * - Page load and navigation
@@ -332,8 +332,8 @@ test.describe('Blueprint Suggestions - Accept/Decline Actions', () => {
       await page.acceptSuggestion(0);
       await page.waitForSuccessToast(/accepted/i);
       
-      // Should navigate to ha-agent page
-      await expect(playwrightPage).toHaveURL(/.*ha-agent/, { timeout: 10000 });
+      // Should navigate to chat page
+      await expect(playwrightPage).toHaveURL(/.*chat/, { timeout: 10000 });
     } else {
       test.skip();
     }
@@ -622,7 +622,7 @@ test.describe('Blueprint Suggestions - Loading and Empty States', () => {
 
   test('Loading indicator shows during initial load', async () => {
     // Navigate and immediately check for loading
-    await page.page.goto('http://localhost:3001/blueprint-suggestions');
+    await page.page.goto('http://localhost:3001/?source=blueprints');
     
     // Loading indicator may appear briefly
     const loadingVisible = await page.getLoadingIndicator().isVisible({ timeout: 2000 }).catch(() => false);

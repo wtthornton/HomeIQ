@@ -2,7 +2,7 @@
  * Page Object Model for AI Automation Deployed Page
  * 
  * Deployed automations management interface
- * URL: http://localhost:3001/deployed
+ * URL: http://localhost:3001/automations
  */
 
 import { Page, Locator, expect } from '@playwright/test';
@@ -14,7 +14,7 @@ export class DeployedPage {
    * Navigate to Deployed page
    */
   async goto() {
-    await this.page.goto('http://localhost:3001/deployed');
+    await this.page.goto('http://localhost:3001/automations');
     await expect(this.page.getByTestId('deployed-container')).toBeVisible();
   }
 

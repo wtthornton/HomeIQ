@@ -6,7 +6,7 @@ import { waitForLoadingComplete, waitForModalOpen, waitForChartRender } from '..
 test.describe('AI Automation UI - Patterns Page', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await page.goto('/patterns');
+    await page.goto('/insights');
     await waitForLoadingComplete(page);
   });
 

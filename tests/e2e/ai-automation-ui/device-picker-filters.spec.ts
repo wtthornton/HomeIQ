@@ -3,7 +3,7 @@
  *
  * P5.4 - As a user, the DevicePicker opens and I can select devices
  * Tests: search, device type, area, manufacturer filters
- * URL: /ha-agent (baseURL 3001)
+ * URL: /chat (baseURL 3001)
  */
 
 import { test, expect } from '@playwright/test';
@@ -13,7 +13,7 @@ import { waitForLoadingComplete } from '../../shared/helpers/wait-helpers';
 test.describe('DevicePicker Filters', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await page.goto('/ha-agent');
+    await page.goto('/chat');
     await waitForLoadingComplete(page);
     await page.waitForLoadState('domcontentloaded');
 

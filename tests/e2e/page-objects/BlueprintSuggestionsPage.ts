@@ -1,7 +1,7 @@
 /**
  * Page Object Model for Blueprint Suggestions Page
  * 
- * URL: http://localhost:3001/blueprint-suggestions
+ * URL: http://localhost:3001/?source=blueprints
  * 
  * Provides methods to interact with the Blueprint Suggestions page:
  * - Navigation and page load
@@ -22,7 +22,7 @@ export class BlueprintSuggestionsPage {
    * Navigate to Blueprint Suggestions page
    */
   async goto() {
-    await this.page.goto('http://localhost:3001/blueprint-suggestions');
+    await this.page.goto('http://localhost:3001/?source=blueprints');
     await this.page.waitForLoadState('networkidle');
     // Wait for initial data to load
     await this.waitForPageReady();

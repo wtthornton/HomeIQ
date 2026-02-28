@@ -5,7 +5,7 @@ import { waitForModalOpen } from '../../../shared/helpers/wait-helpers';
 test.describe('AI Automation UI - Automation Preview Component', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
-    await page.goto('/ha-agent');
+    await page.goto('/chat');
   });
 
   test('YAML display works', async ({ page }) => {
