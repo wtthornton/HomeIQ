@@ -77,7 +77,9 @@ function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
   };
 }
 
-async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
+const DEFAULT_TIMEOUT_MS = 10000; // 10 seconds
+
+async function fetchJSON<T>(url: string, options?: RequestInit & { timeoutMs?: number }): Promise<T> {
   try {
     // Add authentication headers to all requests
     const headers = withAuthHeaders({
@@ -85,10 +87,26 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
       ...options?.headers,
     });
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    // Apply timeout via AbortController (caller can override with timeoutMs, or pass their own signal)
+    const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    // If caller already provides a signal, forward its abort to our controller
+    if (options?.signal) {
+      options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       // Try to parse error response body for better error messages
@@ -116,6 +134,13 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 
     return await response.json();
   } catch (error) {
+    // Handle abort/timeout
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      console.error(`API request timed out: ${url}`);
+      const timeoutError = new APIError(0, `Request timed out. The server at ${url} did not respond in time.`);
+      (timeoutError as any).isTimeout = true;
+      throw timeoutError;
+    }
     // Enhanced error logging with more context
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
       console.error(`API request failed (network error): ${url}`, {
@@ -673,34 +698,20 @@ export const api = {
 
   // Ask AI - Natural Language Query Interface
   async clarifyAnswers(sessionId: string, answers: ClarificationAnswer[]): Promise<ClarificationResponse> {
-    // Create abort controller for timeout
     // Frontend timeout: 180s (3 minutes) to allow for complex processing:
     // - Entity extraction: 30s
     // - Entity re-enrichment: 45s
     // - Suggestion generation: 60s
     // - RAG operations: variable
     // Total can exceed 2 minutes for complex queries
-    const FRONTEND_TIMEOUT_MS = 180000; // 3 minutes
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FRONTEND_TIMEOUT_MS);
-    
-    try {
-      return await fetchJSON(`${API_BASE_URL}/v1/ask-ai/clarify`, {
-        method: 'POST',
-        body: JSON.stringify({
-          session_id: sessionId,
-          answers
-        }),
-        signal: controller.signal
-      });
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        throw new Error('Request timed out after 3 minutes. The AI is processing a very complex request. Please try again with a simpler query or wait a moment.');
-      }
-      throw error;
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    return fetchJSON(`${API_BASE_URL}/v1/ask-ai/clarify`, {
+      method: 'POST',
+      body: JSON.stringify({
+        session_id: sessionId,
+        answers
+      }),
+      timeoutMs: 180000, // 3 minutes
+    });
   },
 
   async askAIQuery(query: string, options?: {

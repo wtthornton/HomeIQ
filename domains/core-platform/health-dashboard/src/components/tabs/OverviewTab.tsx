@@ -85,27 +85,41 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   // Error state for enhanced health
   const [enhancedHealthError, setEnhancedHealthError] = useState<string | null>(null);
 
-  // Fetch enhanced health data
+  // Fetch enhanced health data (with 10s timeout)
   useEffect(() => {
+    let mounted = true;
+
     const fetchEnhancedHealth = async () => {
       try {
-        setEnhancedHealthError(null);
-        const data = await apiService.getEnhancedHealth();
-        setEnhancedHealth(data);
-        setEnhancedHealthLoading(false);
+        if (mounted) setEnhancedHealthError(null);
+        const data = await new Promise<ServiceHealthResponse>((resolve, reject) => {
+          const timeoutId = setTimeout(() => reject(new Error('Request timed out')), 10000);
+          apiService.getEnhancedHealth()
+            .then((result) => { clearTimeout(timeoutId); resolve(result); })
+            .catch((err) => { clearTimeout(timeoutId); reject(err); });
+        });
+        if (mounted) {
+          setEnhancedHealth(data);
+          setEnhancedHealthLoading(false);
+        }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch enhanced health';
-        console.error('Failed to fetch enhanced health:', error);
-        setEnhancedHealthError(errorMessage);
-        setEnhancedHealthLoading(false);
-        // Don't clear existing data on error - show stale data with error indicator
+        if (mounted) {
+          const errorMessage = error instanceof Error ? error.message : 'Failed to fetch enhanced health';
+          console.error('Failed to fetch enhanced health:', error);
+          setEnhancedHealthError(errorMessage);
+          setEnhancedHealthLoading(false);
+          // Don't clear existing data on error - show stale data with error indicator
+        }
       }
     };
 
     fetchEnhancedHealth();
     const interval = setInterval(fetchEnhancedHealth, 30000); // Refresh every 30s
 
-    return () => clearInterval(interval);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   // Fetch container data
@@ -138,8 +152,8 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   const summary = null;
 
   // HTTP polling for health and statistics (30s refresh)
-  const { health, loading: healthLoading, error: healthError } = useHealth(30000);
-  const { statistics, loading: statsLoading, error: statsError } = useStatistics('1h', 30000);
+  const { health, loading: healthLoading, error: healthError, lastUpdated: healthLastUpdated, refresh: refreshHealth } = useHealth(30000);
+  const { statistics, loading: statsLoading, error: statsError, lastUpdated: statsLastUpdated, refresh: refreshStats } = useStatistics('1h', 30000);
   const { dataSources } = useDataSources(30000);
   
   // RAG Status calculation
@@ -459,6 +473,10 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
           lastUpdate={new Date()}
           darkMode={darkMode}
           loading={enhancedHealthLoading || statsLoading}
+          error={enhancedHealthError || statsError || healthError || null}
+          onRetry={() => { refreshHealth(); refreshStats(); }}
+          staleData={!!(enhancedHealthError || statsError || healthError) && !!(enhancedHealth || statistics)}
+          lastUpdated={statsLastUpdated || healthLastUpdated || null}
           trends={throughputStats ? {
             throughput: throughputStats.previous,
             latency: metrics.latency ?? 0,

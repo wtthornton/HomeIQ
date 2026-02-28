@@ -1,6 +1,6 @@
 # HomeIQ Rebuild Status
 
-**Last Updated:** February 27, 2026
+**Last Updated:** February 28, 2026
 **Current Phase:** Phases 0–4b complete; Phase 3 ML deferred; Phase 5–6 pending
 **Overall Progress:** 83.3% complete (5/6 phases)
 
@@ -70,11 +70,26 @@ PostgreSQL is now the **sole database**. All SQLite code, configs, dependencies,
 
 ---
 
+## Browser Review & Quality Fixes (Feb 28) — IN PROGRESS
+
+6 critical stories completed across 3 new epics (39 files changed, +1183 / -691 lines):
+
+| Epic | Stories Done | Key Changes |
+|------|-------------|-------------|
+| TAPPS Quality Gate | 2/3 | Bandit findings fixed, converter.py MI 64→71, yaml_transformer.py MI 68→70 |
+| Browser Review – AI UI (3001) | 2/4 | Ideas page error/retry/empty state, Explore demo mode + mobile nav |
+| Browser Review – Health (3000) | 2/5 | KPI "Unavailable" vs "Loading…" + retry, Logs secret sanitization (7 patterns) |
+
+---
+
 ## Pending Work
 
 | Item | Target Date | Duration | Blocker |
 |------|------------|----------|---------|
 | Epic 1: Frontend Security | Mar 3 | 3–5 days | None |
+| Epic 9: TAPPS CI Integration (Story 3) | Mar 3 | 2h | None |
+| Epic 10: AI UI Stories 3-4 (UX + a11y) | Mar 10 | 1 week | None |
+| Epic 11: Health Dashboard Stories 3-5 | Mar 10 | 1.5 weeks | None |
 | Phase 3: ML/AI upgrades | Mar 11 | 2–3 weeks | 2-week stability window |
 | Phase 5: Deployment | Mar 5–12 | 5 days | None — can proceed now |
 | Phase 6: Validation | After Phase 5 | 3 days | Phase 5 |
@@ -86,6 +101,9 @@ PostgreSQL is now the **sole database**. All SQLite code, configs, dependencies,
 | Document | Path |
 |----------|------|
 | Open Epics Index | [stories/OPEN-EPICS-INDEX.md](stories/OPEN-EPICS-INDEX.md) |
+| TAPPS Quality Gate | [stories/epic-tapps-quality-gate-compliance.md](stories/epic-tapps-quality-gate-compliance.md) |
+| Browser Review – AI UI | [stories/epic-browser-review-ai-automation-ui.md](stories/epic-browser-review-ai-automation-ui.md) |
+| Browser Review – Health | [stories/epic-browser-review-health-dashboard.md](stories/epic-browser-review-health-dashboard.md) |
 | Phase 3 Readiness | [docs/planning/phase-3-readiness-report.md](docs/planning/phase-3-readiness-report.md) |
 | Phase 5 Deployment | [docs/planning/phase-5-deployment-plan.md](docs/planning/phase-5-deployment-plan.md) |
 | Quality Audit | [docs/planning/quality-audit-report.md](docs/planning/quality-audit-report.md) |
@@ -93,4 +111,4 @@ PostgreSQL is now the **sole database**. All SQLite code, configs, dependencies,
 
 ---
 
-**Project Health:** GREEN | **Blockers:** 0 | **Quality Score:** 7.5/10 (all blocking issues resolved)
+**Project Health:** GREEN | **Blockers:** 0 | **Quality Score:** 8.0/10 (TAPPS gate + browser review fixes applied)

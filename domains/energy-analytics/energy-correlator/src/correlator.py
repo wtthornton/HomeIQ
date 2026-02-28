@@ -471,7 +471,7 @@ class EnergyEventCorrelator:
                     delta = abs(t - event_ts)
                     if best is None or delta < best[0]:
                         best = (delta, str(activity))
-                except Exception:
+                except (ValueError, TypeError, AttributeError):
                     continue
             return best[1] if best else None
         except Exception as e:

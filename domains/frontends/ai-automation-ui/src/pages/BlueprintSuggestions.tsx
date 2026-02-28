@@ -45,8 +45,14 @@ export const BlueprintSuggestions: React.FC = () => {
     min_quality_score: undefined,
   });
 
-  const loadSuggestions = useCallback(async () => {
+  const [error, setError] = useState<string | null>(null);
+
+  const loadSuggestions = useCallback(async (retryAttempt = 0) => {
+    const maxRetries = 2;
+    const retryDelay = Math.min(1000 * Math.pow(2, retryAttempt), 5000);
+
     setLoading(true);
+    setError(null);
     try {
       const response = await getSuggestions({
         min_score: filters.min_score,
@@ -58,9 +64,26 @@ export const BlueprintSuggestions: React.FC = () => {
       });
       setSuggestions(response.suggestions);
       setPage(prev => ({ ...prev, total: response.total }));
-    } catch (error) {
-      console.error('Failed to load suggestions:', error);
-      toast.error('Failed to load suggestions');
+    } catch (err) {
+      const isBlueprintErr = err instanceof BlueprintSuggestionsAPIError;
+      const status = isBlueprintErr ? err.status : 0;
+      const isRetryable = status === 0 || status >= 500;
+
+      // Auto-retry transient errors
+      if (isRetryable && retryAttempt < maxRetries) {
+        console.log(`Blueprint suggestions: retrying in ${retryDelay}ms (attempt ${retryAttempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return loadSuggestions(retryAttempt + 1);
+      }
+
+      let message = isBlueprintErr ? err.message : 'Failed to load suggestions';
+      if (isBlueprintErr && (status === 401 || status === 403)) {
+        message = 'Authentication failed. Check your API key configuration.';
+      }
+
+      setError(message);
+      console.error('Failed to load suggestions:', err);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -411,9 +434,52 @@ export const BlueprintSuggestions: React.FC = () => {
           <div className="text-center py-12">
             <div className="text-[var(--text-secondary)]">Loading suggestions...</div>
           </div>
+        ) : error ? (
+          <div className="text-center py-16 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg">
+            <div className="text-5xl mb-4">
+              {error.includes('Authentication') ? '🔒' : error.includes('timed out') ? '⏱️' : '⚠️'}
+            </div>
+            <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
+              {error.includes('Authentication') ? 'Authentication Error' : 'Unable to Load Blueprint Suggestions'}
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-2 max-w-md mx-auto">
+              {error}
+            </p>
+            {error.includes('timed out') && (
+              <p className="text-xs text-[var(--text-tertiary)] mb-4">
+                The blueprint-suggestion-service (port 8032) may be starting up or overloaded.
+              </p>
+            )}
+            {error.includes('connect') && (
+              <p className="text-xs text-[var(--text-tertiary)] mb-4">
+                Ensure blueprint-suggestion-service is running on port 8032.
+              </p>
+            )}
+            {!error.includes('Authentication') && (
+              <button
+                onClick={() => loadSuggestions()}
+                className="px-4 py-2 bg-[var(--accent-primary)] text-white rounded hover:opacity-90"
+              >
+                Try Again
+              </button>
+            )}
+          </div>
         ) : suggestions.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-[var(--text-secondary)]">No suggestions found</div>
+          <div className="text-center py-16 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg">
+            <div className="text-5xl mb-4">📋</div>
+            <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
+              No Blueprint Suggestions Yet
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-4 max-w-md mx-auto">
+              Blueprint suggestions match proven automation templates to your devices.
+              Click "Generate Suggestions" above to discover automations for your setup.
+            </p>
+            <button
+              onClick={() => setShowGenerateForm(true)}
+              className="px-4 py-2 bg-[var(--accent-primary)] text-white rounded hover:opacity-90"
+            >
+              Generate Suggestions
+            </button>
           </div>
         ) : (
           <div className="space-y-4">

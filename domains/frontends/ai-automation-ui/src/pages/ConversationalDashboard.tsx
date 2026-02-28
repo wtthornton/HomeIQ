@@ -114,34 +114,43 @@ export const ConversationalDashboard: React.FC = () => {
       setRetryCount(0); // Reset retry count on success
     } catch (error: any) {
       console.error('Failed to load suggestions:', error);
-      
+
       // Extract error details from API response
       const errorDetail = error?.response?.data?.detail;
       const errorCode = typeof errorDetail === 'object' ? errorDetail?.error_code : undefined;
       const errorMessage = typeof errorDetail === 'object' ? errorDetail?.message : (typeof errorDetail === 'string' ? errorDetail : error?.message || 'Failed to load suggestions');
-      
-      // Determine if error is retryable (5xx errors, network errors)
-      const isRetryable = error?.status >= 500 || error?.status === 0 || !error?.status;
-      
+
+      // Classify error type
+      const status = error?.status;
+      const isAuthError = status === 401 || status === 403;
+      const isTimeout = !!(error as any)?.isTimeout || errorMessage?.toLowerCase().includes('timeout');
+      const isRetryable = !isAuthError && (status >= 500 || status === 0 || !status || isTimeout);
+
       // Auto-retry for retryable errors
       if (isRetryable && retryAttempt < maxRetries) {
         console.log(`Retrying in ${retryDelay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
         return loadSuggestions(retryAttempt + 1);
       }
-      
-      // Set error state for UI display
+
+      // Build user-facing message with specific guidance
+      let userMessage = errorMessage;
+      if (isAuthError) {
+        userMessage = 'Authentication failed. Check your API key in Settings or contact your admin.';
+      } else if (isTimeout) {
+        userMessage = 'Request timed out. The suggestions service may be slow or unavailable.';
+      } else if (errorCode === 'SUGGESTIONS_LIST_ERROR') {
+        userMessage = 'Unable to load suggestions. Please try again.';
+      }
+
+      // Set error state for UI display (retryable is always true so users can manually retry)
       setError({
-        message: errorMessage,
-        code: errorCode,
-        retryable: isRetryable && retryAttempt < maxRetries
+        message: userMessage,
+        code: isAuthError ? 'AUTH_ERROR' : errorCode,
+        retryable: !isAuthError
       });
       setRetryCount(retryAttempt);
-      
-      // Show user-friendly error message
-      const userMessage = errorCode === 'SUGGESTIONS_LIST_ERROR' 
-        ? 'Unable to load suggestions. Please try again.'
-        : errorMessage;
+
       toast.error(userMessage);
     } finally {
       setLoading(false);
@@ -590,20 +599,25 @@ export const ConversationalDashboard: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           className={`rounded-lg p-6 border ${
-            darkMode 
-              ? 'bg-red-900/20 border-red-800 text-red-200' 
+            darkMode
+              ? 'bg-red-900/20 border-red-800 text-red-200'
               : 'bg-red-50 border-red-200 text-red-900'
           }`}
         >
           <div className="flex items-start gap-3">
-            <span className="text-2xl">⚠️</span>
+            <span className="text-2xl">{error.code === 'AUTH_ERROR' ? '🔒' : '⚠️'}</span>
             <div className="flex-1">
               <h3 className={`font-semibold mb-1 ${darkMode ? 'text-red-200' : 'text-red-900'}`}>
-                Failed to Load Suggestions
+                {error.code === 'AUTH_ERROR' ? 'Authentication Error' : 'Failed to Load Suggestions'}
               </h3>
-              <p className={`text-sm mb-4 ${darkMode ? 'text-red-300' : 'text-red-700'}`}>
+              <p className={`text-sm mb-2 ${darkMode ? 'text-red-300' : 'text-red-700'}`}>
                 {error.message}
               </p>
+              {error.code === 'AUTH_ERROR' && (
+                <p className={`text-xs mb-4 ${darkMode ? 'text-red-400' : 'text-red-600'}`}>
+                  Verify your VITE_API_KEY environment variable is set correctly and the backend accepts it.
+                </p>
+              )}
               {error.retryable && (
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -615,7 +629,7 @@ export const ConversationalDashboard: React.FC = () => {
                       : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg shadow-red-400/30'
                   }`}
                 >
-                  🔄 Retry {retryCount > 0 && `(Attempt ${retryCount + 1})`}
+                  Retry {retryCount > 0 && `(Attempt ${retryCount + 1})`}
                 </motion.button>
               )}
             </div>
@@ -702,25 +716,14 @@ export const ConversationalDashboard: React.FC = () => {
                 <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} max-w-md mx-auto mb-6`}>
                   {selectedStatus === 'draft' && totalSuggestions === 0 ? (
                     <>
-                      {error ? (
-                        <>
-                          <span className="text-red-500 dark:text-red-400 font-medium">⚠️ {(error as { message: string }).message}</span>
-                          <br />
-                          <span className="text-xs opacity-70 mt-2 block">
-                            Suggestions require at least 100 events from Home Assistant. Check that websocket-ingestion is running and writing events to InfluxDB.
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          Generate a sample suggestion to try the conversational automation flow.
-                          <br />
-                          <span className="text-xs opacity-70 mt-2 block">
-                            AI will analyze your Home Assistant usage patterns and suggest automations in plain English.
-                            <br />
-                            <strong className="font-medium">Note:</strong> Requires at least 100 events from Home Assistant to generate suggestions.
-                          </span>
-                        </>
-                      )}
+                      No suggestions yet &mdash; we'll suggest automations based on your data.
+                      <br />
+                      <span className="text-xs opacity-70 mt-2 block">
+                        AI analyzes your Home Assistant event history to detect patterns
+                        and suggest automations that match your usage.
+                        <br />
+                        <strong className="font-medium">Note:</strong> Requires at least 100 events from Home Assistant. You can also generate a sample to try the flow.
+                      </span>
                     </>
                   ) : hasOtherStatuses ? (
                     <>

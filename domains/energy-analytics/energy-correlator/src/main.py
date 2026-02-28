@@ -6,6 +6,7 @@ Post-processes HA events and power data to find causality relationships
 import asyncio
 import os
 import signal
+import sys
 from datetime import datetime, timezone
 
 from aiohttp import web
@@ -269,7 +270,7 @@ async def main():
 
         # Start HTTP server — bind host configurable for Docker networking
         port = int(os.getenv('SERVICE_PORT', '8017'))
-        host = os.getenv('SERVICE_HOST', '0.0.0.0')  # noqa: S104
+        host = os.getenv('SERVICE_HOST', '0.0.0.0')  # noqa: S104  # nosec B104 — Docker
         site = web.TCPSite(runner, host, port)
         await site.start()
 

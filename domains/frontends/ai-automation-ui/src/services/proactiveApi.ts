@@ -52,14 +52,24 @@ function getHeaders(): HeadersInit {
   return headers;
 }
 
+const DEFAULT_TIMEOUT_MS = 10000; // 10 seconds
+
 /**
- * Generic fetch wrapper with error handling
+ * Generic fetch wrapper with error handling and timeout
  */
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+  if (options?.signal) {
+    options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
   try {
     const response = await fetch(url, {
       ...options,
       headers: getHeaders(),
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -83,6 +93,15 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
       throw error;
     }
 
+    // Handle abort/timeout
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ProactiveAPIError(
+        0,
+        'Request timed out. The Proactive Agent Service may be slow or unavailable.',
+        { isTimeout: true }
+      );
+    }
+
     // Network error or other fetch failure
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
       throw new ProactiveAPIError(
@@ -97,6 +116,8 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
       error instanceof Error ? error.message : 'Unknown error',
       error
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

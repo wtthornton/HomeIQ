@@ -235,3 +235,44 @@ export function validateTimeRange(range: string): boolean {
   const validRanges = ['15m', '30m', '1h', '6h', '12h', '24h', '7d', '30d'];
   return validRanges.includes(range);
 }
+
+/**
+ * Secret redaction patterns for log messages.
+ * Each entry: [regex, replacement string].
+ * Order matters: more specific patterns (Bearer, connection strings) come before
+ * generic ones (token, secret) to avoid partial matches.
+ */
+const SECRET_PATTERNS: Array<[RegExp, string]> = [
+  // Connection strings (postgres, mysql, redis, influx) — must be before generic patterns
+  [/(postgres|mysql|redis|influx)[a-z]*:\/\/[^\s"']+/gi, '[DB_URL_REDACTED]'],
+  // Authorization headers (including "Bearer ..." and "Basic ..." multi-word values)
+  [/[Aa]uthorization["'\s:=]+\S+(?:\s+\S+)*/g, 'Authorization: [REDACTED]'],
+  // Standalone Bearer tokens (when not preceded by "Authorization")
+  [/Bearer\s+[A-Za-z0-9\-._~+/]+=*/g, 'Bearer [REDACTED]'],
+  // API keys: api_key="...", api-key: ..., ApiKey=... (value + optional trailing quote)
+  [/[Aa]pi[_-]?[Kk]ey["'\s:=]+[A-Za-z0-9\-._]{8,}["']?/g, 'api_key=[REDACTED]'],
+  // Passwords (value + optional trailing quote)
+  [/[Pp]assword["'\s:=]+\S+/g, 'password=[REDACTED]'],
+  // Tokens (generic, value + optional trailing quote)
+  [/[Tt]oken["'\s:=]+[A-Za-z0-9\-._]{8,}["']?/g, 'token=[REDACTED]'],
+  // Secrets (generic, value + optional trailing quote)
+  [/[Ss]ecret["'\s:=]+\S+/g, 'secret=[REDACTED]'],
+];
+
+/**
+ * Sanitizes a log message by redacting secrets, tokens, passwords,
+ * connection strings, and other sensitive values.
+ *
+ * Defense-in-depth: backend should also redact, but we cannot assume it does.
+ */
+export function sanitizeLogMessage(message: string): string {
+  if (typeof message !== 'string') {
+    return '';
+  }
+
+  let result = message;
+  for (const [pattern, replacement] of SECRET_PATTERNS) {
+    result = result.replace(pattern, replacement);
+  }
+  return result;
+}

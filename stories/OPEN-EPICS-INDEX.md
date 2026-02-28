@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27
-**Total:** 9 Epics, 59 Stories, ~356 files addressed
+**Created:** 2026-02-27 | **Updated:** 2026-02-28
+**Total:** 12 Epics, 72 Stories, ~395 files addressed
 
 ## Execution Order & Dependencies
 
@@ -41,16 +41,20 @@ Sprint 4 (Apr — future)
 | 6 | [Backend Completion](epic-backend-completion.md) | `epic-backend-completion.md` | P1 High | 7 | 2-3 weeks | Open |
 | 7 | [Feature Gaps](epic-feature-gaps.md) | `epic-feature-gaps.md` | P2 Medium | 6 | 4-6 weeks | Open |
 | 8 | [Production Deployment](epic-production-deployment.md) | `epic-production-deployment.md` | P1 High | 8 | 2 weeks | Open |
+| 9 | [TAPPS Quality Gate Compliance](epic-tapps-quality-gate-compliance.md) | `epic-tapps-quality-gate-compliance.md` | P1 High | 3 | 1 week | **In Progress** (2/3) |
+| 10 | [Browser Review – AI Automation UI](epic-browser-review-ai-automation-ui.md) | `epic-browser-review-ai-automation-ui.md` | P1 High | 4 | 2-3 weeks | **In Progress** (2/4) |
+| 11 | [Browser Review – Health Dashboard](epic-browser-review-health-dashboard.md) | `epic-browser-review-health-dashboard.md` | P1 High | 5 | 2-3 weeks | **In Progress** (2/5) |
 
 ## Story Count by Priority
 
 | Priority | Count | Description |
 |----------|-------|-------------|
 | P0 Critical | 16 | DB migration (10, complete) + Security hardening (6) |
-| P1 High | 28 | Quality, performance, testing, deployment |
+| P1 High | 40 | Quality, performance, testing, deployment, browser review |
 | P2 Medium | 11 | Framework upgrades, feature integrations |
 | P3 Low | 4 | ML model training, placeholder implementations |
-| **Total** | **59** | |
+| P1 High (complete) | 6 | Browser review (4) + TAPPS (2) done in Sprint 1.5 |
+| **Total** | **72** | |
 
 ## Key Dates
 

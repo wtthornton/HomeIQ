@@ -31,14 +31,25 @@
 - **OTel mock fallbacks, blueprint-suggestion Docker context, resilience E2E tests** (7d6c3e9) - Bill Thornton
 - **resolve 3 deployment bugs in resilience startup and health probes** (e206790) - Bill Thornton
 
-
 ### Major
 
 - **feat: complete SQLite removal — PostgreSQL is sole database (Epic 0)** (81a233dc) — 311 files changed across all 10 stories: removed SQLite from 11 compose files, 12 database init files, 11 config files, 19 requirements files, 13 Alembic configs, 12 test fixtures, CI workflows, 100+ docs; deleted 24 SQLite-specific scripts; archived migration tools
 
 ### Security
 
+- **fix: Logs tab secret sanitization (browser-review Story 2)** — Added `sanitizeLogMessage()` with 7 regex patterns to redact Bearer tokens, API keys, passwords, connection strings, and secrets in LogTailViewer (fetchLogs, searchLogs, copyLog); 11 new tests
+- **fix: resolve Bandit security findings (TAPPS Story 2)** — B104 nosec for Docker bind-all in blueprint-suggestion-service and energy-correlator; B112 narrowed bare except to specific types in correlator.py
 - **fix: resolve 5 blocking security/quality findings** (b7d0c198) — SQL injection prevention in `database_pool.py`, timing-safe auth token comparison, CORS credentials bypass guard in admin-api, race condition lock on shared engine creation, timezone-aware datetimes in data-api and admin-api
+
+### Fixed
+
+- **fix: Ideas page suggestions API failure (browser-review Story 1)** — 10s fetch timeout via AbortController in api.ts, auth error classification (401/403), exponential backoff retries, error/empty state UI in ConversationalDashboard, ProactiveSuggestions, and BlueprintSuggestions
+- **fix: Overview KPI perpetual loading (browser-review Story 1)** — `fetchWithTimeout(10s)` in useHealth/useStatistics hooks, `KPIValue` component with 3 states (loading/unavailable/stale), stale data preserved with "Xm ago" indicator, Retry button in SystemStatusHero
+- **fix: Explore page devices API and mobile nav (browser-review Story 2)** — Demo mode banner with retry in Discovery.tsx, loading skeleton, dropdown disabled with spinner in DeviceExplorer, Explore added to MOBILE_TABS replacing Settings in Sidebar.tsx
+
+### Improved
+
+- **refactor: raise converter.py and yaml_transformer.py quality scores (TAPPS Story 1)** — converter.py MI 64→71 (CC 14→7 via data-driven field mapping), yaml_transformer.py MI 68→70 (CC 10→6 via strategy dispatch dict)
 
 ### Added
 

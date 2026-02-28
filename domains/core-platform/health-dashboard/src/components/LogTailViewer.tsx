@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { sanitizeLogMessage } from '../utils/inputSanitizer';
 
 interface LogEntry {
   id?: string;
@@ -57,7 +58,11 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
         });
         if (response.ok) {
           const data = await response.json();
-          setLogs(data.logs || []);
+          const sanitized = (data.logs || []).map((log: LogEntry) => ({
+            ...log,
+            message: sanitizeLogMessage(log.message),
+          }));
+          setLogs(sanitized);
         } else {
           console.error('Failed to fetch logs:', response.statusText);
         }
@@ -65,7 +70,7 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
         console.error('Error fetching logs:', error);
       }
     };
-    
+
     if (!isPaused) {
       // Fetch logs immediately
       fetchLogs();
@@ -109,7 +114,11 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
       });
       if (response.ok) {
         const data = await response.json();
-        setLogs(data.logs || []);
+        const sanitized = (data.logs || []).map((log: LogEntry) => ({
+          ...log,
+          message: sanitizeLogMessage(log.message),
+        }));
+        setLogs(sanitized);
       } else {
         console.error('Failed to search logs:', response.statusText);
       }
@@ -135,7 +144,7 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
 
   // Copy log to clipboard
   const copyLog = (log: LogEntry) => {
-    const logText = `[${log.timestamp}] ${log.level} ${log.service}: ${log.message}`;
+    const logText = `[${log.timestamp}] ${log.level} ${log.service}: ${sanitizeLogMessage(log.message)}`;
     navigator.clipboard.writeText(logText).then(() => {
       if (import.meta.env.MODE !== 'production') {
         console.log('Log copied to clipboard');

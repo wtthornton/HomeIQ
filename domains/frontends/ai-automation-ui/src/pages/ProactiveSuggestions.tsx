@@ -36,8 +36,11 @@ export const ProactiveSuggestions: React.FC = () => {
     offset: 0,
   });
 
-  // Load suggestions
-  const loadSuggestions = useCallback(async () => {
+  // Load suggestions with retry support
+  const loadSuggestions = useCallback(async (retryAttempt = 0) => {
+    const maxRetries = 2;
+    const retryDelay = Math.min(1000 * Math.pow(2, retryAttempt), 5000);
+
     setLoading(true);
     setError(null);
 
@@ -45,9 +48,22 @@ export const ProactiveSuggestions: React.FC = () => {
       const response = await proactiveApi.getSuggestions(filters);
       setSuggestions(response.suggestions);
     } catch (err) {
-      const message = err instanceof ProactiveAPIError 
-        ? err.message 
-        : 'Failed to load suggestions';
+      const isProactiveErr = err instanceof ProactiveAPIError;
+      const status = isProactiveErr ? err.status : 0;
+      const isRetryable = status === 0 || status >= 500;
+
+      // Auto-retry for transient errors
+      if (isRetryable && retryAttempt < maxRetries) {
+        console.log(`Proactive suggestions: retrying in ${retryDelay}ms (attempt ${retryAttempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return loadSuggestions(retryAttempt + 1);
+      }
+
+      let message = isProactiveErr ? err.message : 'Failed to load suggestions';
+      if (isProactiveErr && (status === 401 || status === 403)) {
+        message = 'Authentication failed. Check your API key configuration.';
+      }
+
       setError(message);
       console.error('Failed to load proactive suggestions:', err);
     } finally {
@@ -236,23 +252,37 @@ export const ProactiveSuggestions: React.FC = () => {
             text-center py-20 rounded-xl
             ${darkMode ? 'bg-slate-800/50' : 'bg-white border border-gray-200'}
           `}>
-            <div className="text-5xl mb-4">⚠️</div>
+            <div className="text-5xl mb-4">
+              {error.includes('Authentication') ? '🔒' : error.includes('timed out') ? '⏱️' : '⚠️'}
+            </div>
             <h3 className={`text-lg font-medium mb-2 ${
               darkMode ? 'text-white' : 'text-gray-900'
             }`}>
-              Unable to Load Proactive Suggestions
+              {error.includes('Authentication') ? 'Authentication Error' : 'Unable to Load Proactive Suggestions'}
             </h3>
-            <p className={`text-sm mb-4 ${
+            <p className={`text-sm mb-2 ${
               darkMode ? 'text-slate-400' : 'text-gray-500'
             }`}>
               {error}
             </p>
-            <button
-              onClick={handleRefresh}
-              className="px-4 py-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors"
-            >
-              Try Again
-            </button>
+            {error.includes('timed out') && (
+              <p className={`text-xs mb-4 ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
+                The proactive-agent-service (port 8031) may be starting up or overloaded.
+              </p>
+            )}
+            {error.includes('connect') && (
+              <p className={`text-xs mb-4 ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>
+                Ensure proactive-agent-service is running on port 8031.
+              </p>
+            )}
+            {!error.includes('Authentication') && (
+              <button
+                onClick={() => { loadSuggestions(); loadStats(); }}
+                className="px-4 py-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors"
+              >
+                Try Again
+              </button>
+            )}
           </div>
         ) : suggestions.length === 0 ? (
           <div className={`

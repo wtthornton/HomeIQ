@@ -47,9 +47,9 @@ const NAV_SECTIONS: NavSection[] = [
 const MOBILE_TABS: NavItem[] = [
   { path: '/', label: 'Ideas', icon: '\u{1F4A1}', ariaLabel: 'Navigate to Ideas' },
   { path: '/chat', label: 'Chat', icon: '\u{1F4AC}', ariaLabel: 'Navigate to Chat' },
+  { path: '/explore', label: 'Explore', icon: '\u{1F50D}', ariaLabel: 'Navigate to Explore' },
   { path: '/insights', label: 'Insights', icon: '\u{1F4CA}', ariaLabel: 'Navigate to Insights' },
   { path: '/automations', label: 'Automations', icon: '\u{26A1}', ariaLabel: 'Navigate to Automations' },
-  { path: '/settings', label: 'Settings', icon: '\u{2699}\u{FE0F}', ariaLabel: 'Navigate to Settings' },
 ];
 
 const STORAGE_KEY = 'sidebar-collapsed';

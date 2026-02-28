@@ -20,6 +20,7 @@ import {
   sanitizeJsonInput,
   validateNumericInput,
   validateTimeRange,
+  sanitizeLogMessage,
 } from '../inputSanitizer';
 
 describe('sanitizeText', () => {
@@ -325,5 +326,93 @@ describe('validateTimeRange', () => {
     expect(validateTimeRange('1d')).toBe(false);
     expect(validateTimeRange('invalid')).toBe(false);
     expect(validateTimeRange('')).toBe(false);
+  });
+});
+
+describe('sanitizeLogMessage', () => {
+  it('should return empty string for non-string input', () => {
+    expect(sanitizeLogMessage(null as unknown as string)).toBe('');
+    expect(sanitizeLogMessage(undefined as unknown as string)).toBe('');
+    expect(sanitizeLogMessage(123 as unknown as string)).toBe('');
+  });
+
+  it('should pass through normal log messages unchanged', () => {
+    expect(sanitizeLogMessage('Service started on port 8001')).toBe('Service started on port 8001');
+    expect(sanitizeLogMessage('Connected to database successfully')).toBe('Connected to database successfully');
+    expect(sanitizeLogMessage('Processing 42 items in batch')).toBe('Processing 42 items in batch');
+    expect(sanitizeLogMessage('')).toBe('');
+  });
+
+  it('should redact Bearer tokens', () => {
+    expect(sanitizeLogMessage('Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.test.sig'))
+      .toBe('Authorization: [REDACTED]');
+    expect(sanitizeLogMessage('Header Bearer abc123-def.456+xyz/789='))
+      .toBe('Header Bearer [REDACTED]');
+  });
+
+  it('should redact API keys', () => {
+    expect(sanitizeLogMessage('Using api_key=sk-abc12345def'))
+      .toBe('Using api_key=[REDACTED]');
+    expect(sanitizeLogMessage('Set Api-Key: abcdefgh12345'))
+      .toBe('Set api_key=[REDACTED]');
+    expect(sanitizeLogMessage('Config apiKey="my_secret_key_12345"'))
+      .toBe('Config api_key=[REDACTED]');
+  });
+
+  it('should redact Authorization headers', () => {
+    expect(sanitizeLogMessage('authorization: Basic dXNlcjpwYXNz'))
+      .toBe('Authorization: [REDACTED]');
+    expect(sanitizeLogMessage('Authorization="token-value"'))
+      .toBe('Authorization: [REDACTED]');
+  });
+
+  it('should redact passwords', () => {
+    expect(sanitizeLogMessage('password=SuperSecret123!'))
+      .toBe('password=[REDACTED]');
+    expect(sanitizeLogMessage('Password: my_password'))
+      .toBe('password=[REDACTED]');
+    expect(sanitizeLogMessage('Set password="hunter2"'))
+      .toBe('Set password=[REDACTED]');
+  });
+
+  it('should redact connection strings', () => {
+    expect(sanitizeLogMessage('Connecting to postgresql://user:pass@host:5432/db'))
+      .toBe('Connecting to [DB_URL_REDACTED]');
+    expect(sanitizeLogMessage('redis://default:secret@redis-host:6379'))
+      .toBe('[DB_URL_REDACTED]');
+    expect(sanitizeLogMessage('mysql://root:root@localhost/mydb'))
+      .toBe('[DB_URL_REDACTED]');
+    expect(sanitizeLogMessage('influxdb://admin:admin@influx:8086'))
+      .toBe('[DB_URL_REDACTED]');
+  });
+
+  it('should redact tokens', () => {
+    expect(sanitizeLogMessage('token=abcdef12345678'))
+      .toBe('token=[REDACTED]');
+    expect(sanitizeLogMessage('Token: ghp_abc123def456xyz'))
+      .toBe('token=[REDACTED]');
+  });
+
+  it('should redact secrets', () => {
+    expect(sanitizeLogMessage('secret=my_super_secret'))
+      .toBe('secret=[REDACTED]');
+    expect(sanitizeLogMessage('Secret: shh-dont-tell'))
+      .toBe('secret=[REDACTED]');
+  });
+
+  it('should handle multiple secrets in one line', () => {
+    const input = 'Connecting to postgresql://user:pass@db:5432/x with password=abc123 and token=xyz789token';
+    const result = sanitizeLogMessage(input);
+    expect(result).not.toContain('user:pass');
+    expect(result).toContain('[DB_URL_REDACTED]');
+    expect(result).toContain('password=[REDACTED]');
+    expect(result).toContain('token=[REDACTED]');
+  });
+
+  it('should not redact short values that do not meet minimum length', () => {
+    // API key pattern requires 8+ char value — short values should not match
+    expect(sanitizeLogMessage('api_key=short')).toBe('api_key=short');
+    // Token pattern requires 8+ char value
+    expect(sanitizeLogMessage('token=abc')).toBe('token=abc');
   });
 });

@@ -10,37 +10,48 @@ Strategy:
 """
 
 import logging
-from typing import Any
 
-from shared.yaml_validation_service.schema import AutomationSpec
-from shared.yaml_validation_service.version_aware_renderer import VersionAwareRenderer
+from homeiq_ha.yaml_validation_service.version_aware_renderer import VersionAwareRenderer
 
 from .blueprints import BlueprintPatternLibrary
+from .converter import HomeIQToAutomationSpecConverter
 from .schema import HomeIQAutomation
 
 logger = logging.getLogger(__name__)
+
+# LLM prompt template — version and JSON placeholders filled at runtime.
+_LLM_PROMPT = (
+    "Convert this HomeIQ JSON Automation to Home Assistant YAML format.\n\n"
+    "Target HA Version: {version}\n\nHomeIQ JSON:\n{json}\n\n"
+    "Requirements:\n"
+    "- Valid HA automation YAML following {version} format\n"
+    "- All triggers, conditions, and actions included\n"
+    "- Proper field names (trigger:/action: for 2025.10+)\n"
+    "- initial_state: true for 2025.10+\n"
+    "- Return ONLY the YAML, no explanations\n"
+)
 
 
 class YAMLTransformer:
     """
     Transforms HomeIQ JSON to YAML using multiple strategies.
-    
+
     Strategy order:
     1. Strict rules (deterministic, version-based)
     2. Blueprint matching (reusable patterns)
     3. Example-based (community automations)
     4. LLM fallback (complex cases)
     """
-    
+
     def __init__(
         self,
         ha_version: str | None = None,
         openai_client=None,
-        use_llm_fallback: bool = True
+        use_llm_fallback: bool = True,
     ):
         """
         Initialize YAML transformer.
-        
+
         Args:
             ha_version: Target Home Assistant version
             openai_client: Optional OpenAI client for LLM fallback
@@ -49,12 +60,13 @@ class YAMLTransformer:
         self.ha_version = ha_version
         self.openai_client = openai_client
         self.use_llm_fallback = use_llm_fallback
+        # Renderer handles HA version-specific YAML field names and structure
         self.version_renderer = VersionAwareRenderer(ha_version=ha_version)
+        # Blueprint library provides reusable automation templates
         self.blueprint_library = BlueprintPatternLibrary()
-        
-        # Example YAML patterns (could be loaded from community automations)
+        # Extensible pattern store for community-contributed examples
         self.example_patterns: dict[str, str] = {}
-    
+
     async def transform_to_yaml(
         self,
         automation: HomeIQAutomation,
@@ -62,136 +74,104 @@ class YAMLTransformer:
     ) -> str:
         """
         Transform HomeIQ JSON Automation to YAML.
-        
+
         Args:
             automation: HomeIQ JSON Automation
             strategy: Transformation strategy ("strict", "blueprint", "example", "llm", "auto")
-        
+
         Returns:
             YAML string
         """
-        if strategy == "auto":
-            # Try strategies in order until one succeeds
-            strategies = ["strict", "blueprint", "example", "llm"]
-        else:
-            strategies = [strategy]
-        
+        # Strategy dispatch: maps strategy name to async handler method
+        dispatch = {
+            "strict": self._transform_with_strict_rules,
+            "blueprint": self._transform_with_blueprint,
+            "example": self._transform_with_examples,
+            "llm": self._transform_with_llm,
+        }
+        # "auto" tries all strategies in priority order; named strategy tries only one
+        strategies = list(dispatch) if strategy == "auto" else [strategy]
+
         for strat in strategies:
+            handler = dispatch.get(strat)
+            if not handler:
+                continue
             try:
-                if strat == "strict":
-                    yaml_content = await self._transform_with_strict_rules(automation)
-                elif strat == "blueprint":
-                    yaml_content = await self._transform_with_blueprint(automation)
-                elif strat == "example":
-                    yaml_content = await self._transform_with_examples(automation)
-                elif strat == "llm":
-                    yaml_content = await self._transform_with_llm(automation)
-                else:
-                    continue
-                
+                yaml_content = await handler(automation)
                 if yaml_content:
-                    logger.info(f"Successfully transformed using {strat} strategy")
+                    logger.info("Successfully transformed using %s strategy", strat)
                     return yaml_content
             except Exception as e:
-                logger.warning(f"Strategy {strat} failed: {e}")
+                logger.warning("Strategy %s failed: %s", strat, e)
                 continue
-        
-        # Fallback: use version-aware renderer directly
-        logger.warning("All transformation strategies failed, using direct renderer")
-        from shared.homeiq_automation.converter import HomeIQToAutomationSpecConverter
-        converter = HomeIQToAutomationSpecConverter()
-        spec = converter.convert(automation)
+
+        # All strategies exhausted — use direct converter as last resort
+        return self._fallback_render(automation)
+
+    def _fallback_render(self, automation: HomeIQAutomation) -> str:
+        """Fallback: convert via AutomationSpec and render directly."""
+        logger.warning("All strategies failed, using direct renderer")
+        # Direct path: HomeIQ JSON → AutomationSpec → version-aware YAML
+        spec = HomeIQToAutomationSpecConverter().convert(automation)
         return self.version_renderer.render(spec)
-    
+
     async def _transform_with_strict_rules(self, automation: HomeIQAutomation) -> str:
-        """
-        Transform using strict deterministic rules.
-        
-        This is the primary method - applies version-specific rules.
-        """
-        # Convert to AutomationSpec
-        from shared.homeiq_automation.converter import HomeIQToAutomationSpecConverter
-        converter = HomeIQToAutomationSpecConverter()
-        spec = converter.convert(automation)
-        
-        # Render with version awareness
-        yaml_content = self.version_renderer.render(spec)
-        
-        return yaml_content
-    
+        """Transform using strict deterministic rules (version-specific)."""
+        # Primary strategy: deterministic conversion without LLM or pattern matching
+        spec = HomeIQToAutomationSpecConverter().convert(automation)
+        return self.version_renderer.render(spec)
+
     async def _transform_with_blueprint(self, automation: HomeIQAutomation) -> str:
-        """
-        Transform using Home Assistant blueprint patterns.
-        
-        Matches automation to blueprint and generates blueprint YAML.
-        """
-        # Find matching blueprint
+        """Transform by matching automation to Home Assistant blueprint patterns."""
+        # Match automation triggers/actions to a known blueprint template
         blueprint = self.blueprint_library.find_matching_blueprint(automation)
         if not blueprint:
             raise ValueError("No matching blueprint found")
-        
-        # Generate blueprint YAML
-        blueprint_yaml = self.blueprint_library.generate_blueprint_yaml(
-            automation, blueprint
-        )
-        
-        return blueprint_yaml
-    
+        # Generate YAML using the matched blueprint's template and input values
+        return self.blueprint_library.generate_blueprint_yaml(automation, blueprint)
+
     async def _transform_with_examples(self, automation: HomeIQAutomation) -> str:
-        """
-        Transform using example YAML from community automations.
-        
-        Matches automation structure to known examples and adapts them.
-        """
-        # For now, fall back to strict rules
-        # In full implementation, would match to example patterns
+        """Transform using example YAML from community automations."""
+        # Delegates to strict rules until community example matching is implemented
         return await self._transform_with_strict_rules(automation)
-    
+
+    @staticmethod
+    def _strip_markdown_fences(text: str) -> str:
+        """Strip markdown code fences (``` blocks) from LLM-generated YAML."""
+        # Early return when no fences are present
+        if not text.startswith("```"):
+            return text
+        lines = text.split("\n")
+        # Skip opening fence (e.g. ```yaml) and optional closing fence
+        lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        return "\n".join(lines)
+
+    def _build_llm_prompt(self, automation: HomeIQAutomation) -> str:
+        """Build the LLM prompt for YAML generation."""
+        # Fill module-level template with HA version and serialized automation JSON
+        return _LLM_PROMPT.format(
+            version=self.ha_version or "latest",
+            json=automation.model_dump_json(indent=2),
+        )
+
     async def _transform_with_llm(self, automation: HomeIQAutomation) -> str:
-        """
-        Transform using LLM for complex cases.
-        
-        Uses LLM to generate YAML from HomeIQ JSON when other methods fail.
-        """
+        """Transform using LLM for complex cases not covered by other strategies."""
+        # Requires both an OpenAI client and LLM fallback to be enabled
         if not self.openai_client or not self.use_llm_fallback:
             raise ValueError("LLM fallback not available")
-        
-        # Build prompt with HomeIQ JSON and version requirements
-        prompt = f"""Convert this HomeIQ JSON Automation to Home Assistant YAML format.
 
-Target Home Assistant Version: {self.ha_version or 'latest'}
-
-HomeIQ JSON:
-{automation.model_dump_json(indent=2)}
-
-Requirements:
-- Generate valid Home Assistant automation YAML
-- Follow {self.ha_version or 'latest'} format requirements
-- Include all triggers, conditions, and actions
-- Use proper field names (trigger: not triggers:, action: not actions: for 2025.10+)
-- Include initial_state: true for 2025.10+
-- Return ONLY the YAML, no explanations or markdown code blocks
-"""
-        
         try:
+            # Low temperature for deterministic YAML output
             yaml_content = await self.openai_client.generate_yaml(
-                prompt=prompt,
+                prompt=self._build_llm_prompt(automation),
                 temperature=0.1,
-                max_tokens=3000
+                max_tokens=3000,
             )
-            
-            # Clean YAML
-            if yaml_content.startswith("```"):
-                lines = yaml_content.split("\n")
-                if lines[0].startswith("```"):
-                    lines = lines[1:]
-                if lines and lines[-1].strip() == "```":
-                    lines = lines[:-1]
-                yaml_content = "\n".join(lines)
-            
-            return yaml_content.strip()
-        
+            # LLM may wrap YAML in markdown fences — strip them
+            return self._strip_markdown_fences(yaml_content).strip()
         except Exception as e:
-            logger.error(f"LLM transformation failed: {e}")
+            logger.error("LLM transformation failed: %s", e)
             raise
 

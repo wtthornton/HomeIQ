@@ -104,16 +104,40 @@ function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
   };
 }
 
+const DEFAULT_TIMEOUT_MS = 10000; // 10 seconds
+
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const headers = withAuthHeaders({
     'Content-Type': 'application/json',
     ...options?.headers,
   });
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+  if (options?.signal) {
+    options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new BlueprintSuggestionsAPIError(0, 'Request timed out. The Blueprint Suggestions service may be slow or unavailable.');
+    }
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      throw new BlueprintSuggestionsAPIError(0, 'Unable to connect to Blueprint Suggestions service. Check if the service is running.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     let errorDetail: string | undefined;

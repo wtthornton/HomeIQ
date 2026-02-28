@@ -10,6 +10,7 @@ import { useAppStore } from '../../store';
 
 interface DeviceExplorerProps {
   devices: string[];
+  demoMode?: boolean;
 }
 
 interface Possibility {
@@ -21,11 +22,12 @@ interface Possibility {
   avg_quality: number;
 }
 
-export const DeviceExplorer: React.FC<DeviceExplorerProps> = ({ devices }) => {
+export const DeviceExplorer: React.FC<DeviceExplorerProps> = ({ devices, demoMode = false }) => {
   const { darkMode } = useAppStore();
   const [selectedDevice, setSelectedDevice] = useState<string>('');
   const [possibilities, setPossibilities] = useState<Possibility[]>([]);
   const [loading, setLoading] = useState(false);
+  const devicesLoading = devices.length === 0 && !demoMode;
 
   const handleDeviceSelect = async (device: string) => {
     setSelectedDevice(device);
@@ -80,19 +82,38 @@ export const DeviceExplorer: React.FC<DeviceExplorerProps> = ({ devices }) => {
       <div>
         <label className="block text-sm font-medium mb-2">
           Select a device to explore:
+          {demoMode && (
+            <span className={`ml-2 inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${
+              darkMode ? 'bg-amber-700/50 text-amber-200' : 'bg-amber-100 text-amber-700'
+            }`}>
+              Demo
+            </span>
+          )}
         </label>
-        <select
-          value={selectedDevice}
-          onChange={(e) => handleDeviceSelect(e.target.value)}
-          className="w-full md:w-1/2 px-4 py-2 border rounded-xl backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 dark:bg-slate-800/60 border-gray-300/50 dark:border-gray-700/50"
-        >
-          <option value="">-- Choose a device --</option>
-          {devices.map((device) => (
-            <option key={device} value={device}>
-              {device.replace('_', ' ')}
+        <div className="relative w-full md:w-1/2">
+          <select
+            value={selectedDevice}
+            onChange={(e) => handleDeviceSelect(e.target.value)}
+            disabled={devicesLoading}
+            className={`w-full px-4 py-2 border rounded-xl backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 dark:bg-slate-800/60 border-gray-300/50 dark:border-gray-700/50 ${
+              devicesLoading ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            <option value="">
+              {devicesLoading ? 'Loading devices...' : '-- Choose a device --'}
             </option>
-          ))}
-        </select>
+            {devices.map((device) => (
+              <option key={device} value={device}>
+                {demoMode ? `${device.replace('_', ' ')} (demo)` : device.replace('_', ' ')}
+              </option>
+            ))}
+          </select>
+          {devicesLoading && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Loading */}
