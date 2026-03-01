@@ -1,6 +1,36 @@
 # Changelog
 
-## [Unreleased] - 2026-02-28
+## [Unreleased] - 2026-03-01
+
+### Added
+
+- **TAPPS quality gate fixes + browser review critical stories (6 stories, 52 files)** (c224571) - Bill Thornton
+- **complete SQLite removal — PostgreSQL is sole database (Epic 0)** (6c5480b) - Bill Thornton
+- **Phase 4.7 — cross-group service-to-service Bearer token auth** (b99aef7) - Bill Thornton
+- **Phase 4.6 — group-level health dashboard with color-coded aggregation** (2af65d4) - Bill Thornton
+- **Phase 4.5 — AI fallback with CircuitBreaker for ml-engine degradation** (d885f05) - Bill Thornton
+- **Phase 4b frontend redesign — teal palette, sidebar nav, app consolidation** (9c170ff) - Bill Thornton
+- **infra fixes, library bumps, and proactive-agent RAG integration** (74ee779) - Bill Thornton
+- **implement 5 service stubs across 4 domains** (c0c7919) - Bill Thornton
+- **implement 6 stub services and wire persistent eval sinks** (88a4a31) - Bill Thornton
+- **operational readiness - Alembic, monitoring, CI, backups, E2E, runbooks** (41c61dd) - Bill Thornton
+- **SQLite to PostgreSQL migration + library version standardization** (8508f97) - Bill Thornton
+- **Phase 1 dependency updates, Dockerfile modernization, and documentation refresh** (7066ce7) - Bill Thornton
+- **complete domain architecture restructuring (Epics 1-4)** (d47f7c0) - Bill Thornton
+
+### Fixed
+
+- **eliminate false-positive health status for data sources** (e5d3cb6) - Bill Thornton
+- **resolve 119 E2E test failures after frontend sidebar redesign** (c27e453) - Bill Thornton
+- **resolve 5 blocking security/quality findings + add deployment planning docs** (9d570d2) - Bill Thornton
+- **wire HealthEndpointManager into simple_main.py for /health/groups** (6991a46) - Bill Thornton
+- **add missing logging_config module to homeiq-data package** (e26008a) - Bill Thornton
+- **switch Claude Code hooks from .sh to .ps1 for Windows compatibility** (06dfa52) - Bill Thornton
+- **remove 20 files committed with literal ${workspaceFolder} path prefix** (850d47a) - Bill Thornton
+- **update pytest-asyncio config for explicit loop scope across all services** (141da0d) - Bill Thornton
+- **resolve data-api startup and legacy shared.* imports (Phase 1 complete)** (296ce95) - Bill Thornton
+- **resolve pre-existing e2e test failures** (d1d0921) - Bill Thornton
+
 
 ### Added
 
