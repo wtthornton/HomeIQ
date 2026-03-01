@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-02-28
-**Total:** 12 Epics, 72 Stories, ~395 files addressed
+**Created:** 2026-02-27 | **Updated:** 2026-03-01
+**Total:** 15 Epics, 82 Stories, ~395+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -26,6 +26,11 @@ Sprint 3 (Mar 17-28) — overlaps Sprint 2
 Sprint 4 (Apr — future)
 ├── Epic 5: Frontend Framework Upgrades [P2, 3-4 weeks]
 └── Epic 7: Feature Gaps [P2-P3, 4-6 weeks]
+
+Sprint 5 (Apr-May — Shared Library Standardization)
+├── Epic 12: Core Service Bootstrap [P1, 3-4 weeks]  ← HealthCheck, AppFactory, Settings, Lifespan
+├── Epic 13: External Connectors [P1, 2-3 weeks]     ← InfluxDB, DataAPI, HTTP, OpenAI
+└── Epic 14: Background Processing [P2, 1-2 weeks]   ← TaskManager, Scheduler
 ```
 
 ## Epic Summary
@@ -44,6 +49,9 @@ Sprint 4 (Apr — future)
 | 9 | [TAPPS Quality Gate Compliance](epic-tapps-quality-gate-compliance.md) | `epic-tapps-quality-gate-compliance.md` | P1 High | 3 | 1 week | **In Progress** (2/3) |
 | 10 | [Browser Review – AI Automation UI](epic-browser-review-ai-automation-ui.md) | `epic-browser-review-ai-automation-ui.md` | P1 High | 4 | 2-3 weeks | **In Progress** (2/4) |
 | 11 | [Browser Review – Health Dashboard](epic-browser-review-health-dashboard.md) | `epic-browser-review-health-dashboard.md` | P1 High | 5 | 2-3 weeks | **In Progress** (2/5) |
+| 12 | [Core Service Bootstrap Standardization](epic-core-service-bootstrap-standardization.md) | `epic-core-service-bootstrap-standardization.md` | P1 High | 4 | 3-4 weeks | Open |
+| 13 | [External Service Connector Standardization](epic-external-service-connector-standardization.md) | `epic-external-service-connector-standardization.md` | P1 High | 4 | 2-3 weeks | Open |
+| 14 | [Background Processing Standardization](epic-background-processing-standardization.md) | `epic-background-processing-standardization.md` | P2 Medium | 2 | 1-2 weeks | Open |
 
 ## Story Count by Priority
 
@@ -51,10 +59,11 @@ Sprint 4 (Apr — future)
 |----------|-------|-------------|
 | P0 Critical | 16 | DB migration (10, complete) + Security hardening (6) |
 | P1 High | 40 | Quality, performance, testing, deployment, browser review |
-| P2 Medium | 11 | Framework upgrades, feature integrations |
+| P1 High | 8 | Shared library standardization (Epics 12-13) |
+| P2 Medium | 13 | Framework upgrades, feature integrations, background processing (Epic 14) |
 | P3 Low | 4 | ML model training, placeholder implementations |
 | P1 High (complete) | 6 | Browser review (4) + TAPPS (2) done in Sprint 1.5 |
-| **Total** | **72** | |
+| **Total** | **82** | |
 
 ## Key Dates
 
@@ -131,3 +140,14 @@ Sprint 4 (Apr — future)
 | Phase 6 post-deployment validation | Epic 8, Stories 7-8 |
 | 6 npm vulnerabilities (react-force-graph) | Epic 5, Story 2 (reassessed during React 19) |
 | automation-linter future roadmap | Out of scope (product roadmap, not engineering debt) |
+| **Shared library standardization (~7,400 dup lines)** | **Epics 12-14** |
+| Health check boilerplate (38 services, 8+ status variants) | Epic 12, Story 1 |
+| FastAPI app factory duplication (34 services) | Epic 12, Story 2 |
+| Settings class boilerplate (16+ services) | Epic 12, Story 3 |
+| Lifespan handler duplication (29 services) | Epic 12, Story 4 |
+| InfluxDB client duplication (3 implementations) | Epic 13, Story 1 |
+| DataAPIClient duplication (7 implementations) | Epic 13, Story 2 |
+| HTTP session lifecycle (7+ services) | Epic 13, Story 3 |
+| OpenAI client duplication (3 implementations) | Epic 13, Story 4 |
+| Background task management (10 services) | Epic 14, Story 1 |
+| APScheduler boilerplate (11 services) | Epic 14, Story 2 |
