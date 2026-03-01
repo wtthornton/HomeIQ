@@ -16,6 +16,36 @@
 - **implement 6 stub services and wire persistent eval sinks** (88a4a31) - Bill Thornton
 - **operational readiness - Alembic, monitoring, CI, backups, E2E, runbooks** (41c61dd) - Bill Thornton
 - **SQLite to PostgreSQL migration + library version standardization** (8508f97) - Bill Thornton
+
+### Fixed
+
+- **resolve 3 deployment issues in DatabaseManager rollout** (e7ec2a2) - Bill Thornton
+- **update E2E test to accept degraded status from api-automation-edge** (a525412) - Bill Thornton
+- **508-compliant status indicators + resolve 12 false health statuses** (3b40295) - Bill Thornton
+- **eliminate false-positive health status for data sources** (e5d3cb6) - Bill Thornton
+- **resolve 119 E2E test failures after frontend sidebar redesign** (c27e453) - Bill Thornton
+- **resolve 5 blocking security/quality findings + add deployment planning docs** (9d570d2) - Bill Thornton
+- **wire HealthEndpointManager into simple_main.py for /health/groups** (6991a46) - Bill Thornton
+- **add missing logging_config module to homeiq-data package** (e26008a) - Bill Thornton
+- **switch Claude Code hooks from .sh to .ps1 for Windows compatibility** (06dfa52) - Bill Thornton
+- **remove 20 files committed with literal ${workspaceFolder} path prefix** (850d47a) - Bill Thornton
+- **update pytest-asyncio config for explicit loop scope across all services** (141da0d) - Bill Thornton
+
+
+### Added
+
+- **standardize PostgreSQL initialization with DatabaseManager across all 13 services** (d93bcac) - Bill Thornton
+- **TAPPS quality gate fixes + browser review critical stories (6 stories, 52 files)** (c224571) - Bill Thornton
+- **complete SQLite removal — PostgreSQL is sole database (Epic 0)** (6c5480b) - Bill Thornton
+- **Phase 4.7 — cross-group service-to-service Bearer token auth** (b99aef7) - Bill Thornton
+- **Phase 4.6 — group-level health dashboard with color-coded aggregation** (2af65d4) - Bill Thornton
+- **Phase 4.5 — AI fallback with CircuitBreaker for ml-engine degradation** (d885f05) - Bill Thornton
+- **Phase 4b frontend redesign — teal palette, sidebar nav, app consolidation** (9c170ff) - Bill Thornton
+- **infra fixes, library bumps, and proactive-agent RAG integration** (74ee779) - Bill Thornton
+- **implement 5 service stubs across 4 domains** (c0c7919) - Bill Thornton
+- **implement 6 stub services and wire persistent eval sinks** (88a4a31) - Bill Thornton
+- **operational readiness - Alembic, monitoring, CI, backups, E2E, runbooks** (41c61dd) - Bill Thornton
+- **SQLite to PostgreSQL migration + library version standardization** (8508f97) - Bill Thornton
 - **Phase 1 dependency updates, Dockerfile modernization, and documentation refresh** (7066ce7) - Bill Thornton
 
 ### Fixed
