@@ -1,95 +1,77 @@
-"""Database connection and session management for Blueprint Suggestion Service."""
+"""Database connection and session management for Blueprint Suggestion Service.
+
+PostgreSQL via homeiq_data DatabaseManager (standardized lifecycle).
+"""
 
 import asyncio
 import logging
 import os
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 from pathlib import Path
 
-from alembic import command
-from alembic.config import Config
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from homeiq_data.database_pool import create_pg_engine
+from homeiq_data import DatabaseManager
 
 from .config import settings
 from .models import Base
 
 logger = logging.getLogger(__name__)
 
-# PostgreSQL configuration
-_db_url = os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL", "")
+# Schema configuration
 _schema = os.getenv("DATABASE_SCHEMA", "blueprints")
 
-# Create async engine (PostgreSQL only)
-engine = create_pg_engine(
-    database_url=_db_url,
+# Standardized database manager (lazy initialization)
+db = DatabaseManager(
     schema=_schema,
+    service_name="blueprint-suggestion-service",
     pool_size=settings.database_pool_size,
     max_overflow=settings.database_max_overflow,
+    auto_commit_sessions=True,
 )
 
-# Create async session factory
-async_session_maker = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False,
-)
+# Module-level aliases for backwards compatibility
+engine = None
+async_session_maker = None
 
 
 async def run_alembic_migrations():
-    """
-    Run Alembic migrations to ensure database schema is up to date.
-
-    This should be called on service startup to ensure all migrations are applied.
-    """
+    """Run Alembic migrations to ensure database schema is up to date."""
     try:
-        # Try multiple paths for alembic.ini
-        # In container: /app/src/database.py -> service_dir would be /app
-        # Path resolution: /app/src/database.py -> parent: /app/src -> parent: /app -> parent: /
-        # So we check both /app/alembic.ini (direct) and calculated path
-
-        # First, try direct container path (most reliable)
         container_path = Path("/app/alembic.ini")
         calculated_path = Path(__file__).parent.parent.parent / "alembic.ini"
 
         alembic_ini_path = None
         if container_path.exists():
             alembic_ini_path = container_path
-            logger.info(f"Found Alembic config at container path: {alembic_ini_path}")
         elif calculated_path.exists():
             alembic_ini_path = calculated_path
-            logger.info(f"Found Alembic config at calculated path: {alembic_ini_path}")
         else:
-            logger.warning(f"Alembic config not found at {container_path} or {calculated_path}, skipping migrations")
+            logger.warning("Alembic config not found, skipping migrations")
             return False
 
-        # Configure Alembic
-        alembic_cfg = Config(str(alembic_ini_path))
-
-        # Run migrations in a thread pool to avoid blocking the event loop
-        # (Alembic's env.py calls asyncio.run() internally for async engines)
         logger.info("Running Alembic migrations...")
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, lambda: command.upgrade(alembic_cfg, "head"))
+        await loop.run_in_executor(None, _run_alembic_sync, str(alembic_ini_path))
         logger.info("Alembic migrations completed")
         return True
     except Exception as e:
-        logger.error(f"Failed to run Alembic migrations: {e}", exc_info=True)
-        # Don't raise - fallback to manual schema sync
+        logger.error("Failed to run Alembic migrations: %s", e, exc_info=True)
         logger.warning("Will attempt manual schema sync as fallback")
         return False
 
 
+def _run_alembic_sync(alembic_ini_path: str) -> None:
+    """Run Alembic upgrade synchronously."""
+    from alembic import command
+    from alembic.config import Config
+    alembic_cfg = Config(alembic_ini_path)
+    command.upgrade(alembic_cfg, "head")
+
+
 async def _run_manual_migrations(conn):
     """Fallback: Run manual database migrations to add missing columns."""
-    logger.info("Checking for required manual migrations...")
-
-    # For PostgreSQL, use IF NOT EXISTS
     logger.info("Running PostgreSQL manual migrations...")
     await conn.execute(text("""
         ALTER TABLE blueprint_suggestions
@@ -102,11 +84,10 @@ async def _run_manual_migrations(conn):
     logger.info("PostgreSQL manual migrations completed")
 
 
-async def check_schema_version(db: AsyncSession) -> bool:
+async def check_schema_version(db_session: AsyncSession) -> bool:
     """Check if database schema matches the model."""
     try:
-        # Check using information_schema
-        result = await db.execute(text("""
+        result = await db_session.execute(text("""
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = 'blueprint_suggestions'
@@ -119,64 +100,49 @@ async def check_schema_version(db: AsyncSession) -> bool:
         }
         return required_columns.issubset(columns)
     except Exception as e:
-        logger.error(f"Failed to check schema version: {e}", exc_info=True)
+        logger.error("Failed to check schema version: %s", e, exc_info=True)
         return False
 
 
-async def init_db():
+async def init_db() -> bool:
     """
     Initialize database tables and run migrations.
 
-    This function:
-    1. Runs Alembic migrations to ensure schema is up to date
-    2. Creates all tables (if they don't exist)
-    3. Performs manual schema sync as fallback (adds missing columns)
+    Returns True if successful, False if degraded. Never raises.
     """
-    logger.info("Initializing database...")
+    global engine, async_session_maker
 
     # Step 1: Try Alembic migrations first
     alembic_success = await run_alembic_migrations()
 
-    # Step 2: Create all tables (if they don't exist)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Step 2: Initialize via DatabaseManager (creates engine, tests connection, creates tables)
+    result = await db.initialize(base=Base)
+    engine = db.engine
+    async_session_maker = db.session_maker
 
-        # Step 3: Run manual migrations as fallback if Alembic failed
-        if not alembic_success:
-            await _run_manual_migrations(conn)
+    # Step 3: Run manual migrations as fallback if Alembic failed
+    if result and not alembic_success and db.engine is not None:
+        try:
+            async with db.engine.begin() as conn:
+                await _run_manual_migrations(conn)
+        except Exception as e:
+            logger.error("Manual migrations failed: %s", e, exc_info=True)
 
-    logger.info("Database initialized successfully")
+    return result
 
 
 async def close_db():
     """Close database connections."""
-    logger.info("Closing database connections...")
-    await engine.dispose()
-    logger.info("Database connections closed")
+    await db.close()
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency for getting database sessions."""
-    async with async_session_maker() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+    async with db.get_db() as session:
+        yield session
 
 
-@asynccontextmanager
-async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
+async def get_db_context():
     """Context manager for database sessions."""
-    async with async_session_maker() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+    async with db.get_db_context() as session:
+        yield session

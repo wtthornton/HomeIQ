@@ -216,12 +216,11 @@ async def generate_daily_suggestions() -> None:
 
 async def _initialize_database() -> None:
     """Initialize database connection and tables."""
-    try:
-        await init_db()
-        logger.info("✅ Database initialized")
-    except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}", exc_info=True)
-        raise
+    db_ok = await init_db()
+    if db_ok:
+        logger.info("Database initialized")
+    else:
+        logger.warning("Database unavailable — starting in degraded mode")
 
 
 async def _setup_observability() -> None:

@@ -4,36 +4,7 @@
 
 ### Added
 
-- **TAPPS quality gate fixes + browser review critical stories (6 stories, 52 files)** (c224571) - Bill Thornton
-- **complete SQLite removal — PostgreSQL is sole database (Epic 0)** (6c5480b) - Bill Thornton
-- **Phase 4.7 — cross-group service-to-service Bearer token auth** (b99aef7) - Bill Thornton
-- **Phase 4.6 — group-level health dashboard with color-coded aggregation** (2af65d4) - Bill Thornton
-- **Phase 4.5 — AI fallback with CircuitBreaker for ml-engine degradation** (d885f05) - Bill Thornton
-- **Phase 4b frontend redesign — teal palette, sidebar nav, app consolidation** (9c170ff) - Bill Thornton
-- **infra fixes, library bumps, and proactive-agent RAG integration** (74ee779) - Bill Thornton
-- **implement 5 service stubs across 4 domains** (c0c7919) - Bill Thornton
-- **implement 6 stub services and wire persistent eval sinks** (88a4a31) - Bill Thornton
-- **operational readiness - Alembic, monitoring, CI, backups, E2E, runbooks** (41c61dd) - Bill Thornton
-- **SQLite to PostgreSQL migration + library version standardization** (8508f97) - Bill Thornton
-- **Phase 1 dependency updates, Dockerfile modernization, and documentation refresh** (7066ce7) - Bill Thornton
-- **complete domain architecture restructuring (Epics 1-4)** (d47f7c0) - Bill Thornton
-
-### Fixed
-
-- **eliminate false-positive health status for data sources** (e5d3cb6) - Bill Thornton
-- **resolve 119 E2E test failures after frontend sidebar redesign** (c27e453) - Bill Thornton
-- **resolve 5 blocking security/quality findings + add deployment planning docs** (9d570d2) - Bill Thornton
-- **wire HealthEndpointManager into simple_main.py for /health/groups** (6991a46) - Bill Thornton
-- **add missing logging_config module to homeiq-data package** (e26008a) - Bill Thornton
-- **switch Claude Code hooks from .sh to .ps1 for Windows compatibility** (06dfa52) - Bill Thornton
-- **remove 20 files committed with literal ${workspaceFolder} path prefix** (850d47a) - Bill Thornton
-- **update pytest-asyncio config for explicit loop scope across all services** (141da0d) - Bill Thornton
-- **resolve data-api startup and legacy shared.* imports (Phase 1 complete)** (296ce95) - Bill Thornton
-- **resolve pre-existing e2e test failures** (d1d0921) - Bill Thornton
-
-
-### Added
-
+- **DatabaseManager standardization across all 13 PostgreSQL services** — new `DatabaseManager` class in homeiq-data shared library replaces 4 different database initialization patterns with a single, standardized approach. `initialize()` never raises, enabling graceful degradation. Added `validate_database_url()` to prevent empty-string URLs from reaching SQLAlchemy. 14 database modules + 12 lifespan handlers updated. Fixes proactive-agent-service crash when `POSTGRES_URL` is unset.
 - **508 accessibility compliance for health dashboard status indicators** — replaced color-only dots with distinct SVG icon shapes (CheckCircle, AlertTriangle, Octagon/stop-sign, CircleMinus), added ARIA roles/labels, replaced emoji indicators in ConnectionStatusIndicator with Lucide icons
 - **TAPPS quality gate fixes + browser review critical stories (6 stories, 52 files)** (c224571) - Bill Thornton
 - **complete SQLite removal — PostgreSQL is sole database (Epic 0)** (6c5480b) - Bill Thornton
@@ -51,6 +22,8 @@
 
 ### Fixed
 
+- **proactive-agent-service crash when POSTGRES_URL is unset** — empty string passed to SQLAlchemy caused service to never start. Now handled by DatabaseManager graceful degradation.
+- **eliminate false-positive health status for data sources** (e5d3cb6) - Bill Thornton
 - **health dashboard: 10 services showing false-positive RED** — changed health endpoints to return HTTP 200 with `"status": "degraded"` instead of HTTP 503 for expected conditions (missing HA config, unavailable DB, downstream services down). Affected: energy-correlator, energy-forecasting, proactive-agent-service, ai-pattern-service, api-automation-edge, ai-core-service, device-intelligence-service, device-context-classifier, device-setup-assistant
 - **health dashboard: 2 services showing false-positive GREEN** — air-quality-service now reports "degraded" when 0% fetch success rate; calendar-service no longer returns 503 for "no_calendars_found"
 - **health dashboard: weather-api and carbon-intensity-service incorrectly shown as stopped** — removed hardcoded STOPPED status in admin-api mock container data; added Compose label fallback for service name matching

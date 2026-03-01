@@ -2,11 +2,13 @@
 Database Models and Session Management
 
 SQLAlchemy async models for automation corpus storage.
-PostgreSQL via homeiq_data shared library.
+PostgreSQL via homeiq_data DatabaseManager (standardized lifecycle).
 """
+
 import os
 from datetime import UTC, datetime
 
+from homeiq_data import DatabaseManager
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -18,10 +20,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
-
-from ..config import settings
 
 # Base class for all models
 Base = declarative_base()
@@ -101,85 +100,43 @@ class MinerState(Base):
         return f"<MinerState(key='{self.key}', value='{self.value}')>"
 
 
-# PostgreSQL configuration
-_pg_url = os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL", "")
+# Schema configuration
 _schema = os.getenv("DATABASE_SCHEMA", "blueprints")
 
+# Standardized database manager (lazy initialization)
+db_manager = DatabaseManager(
+    schema=_schema,
+    service_name="automation-miner",
+    auto_commit_sessions=False,
+)
 
-# Database engine and session factory
-class Database:
-    """Database connection manager"""
-
-    def __init__(self, db_path: str = None):
-        """
-        Initialize database connection
-
-        Args:
-            db_path: Unused (kept for API compatibility). PostgreSQL URL is read from POSTGRES_URL env var.
-        """
-        self.db_path = db_path or settings.miner_db_path
-
-        from homeiq_data.database_pool import create_pg_engine
-        self.engine = create_pg_engine(
-            database_url=_pg_url,
-            schema=_schema,
-        )
-
-        # Create async session factory
-        self.async_session = async_sessionmaker(
-            self.engine,
-            class_=AsyncSession,
-            expire_on_commit=False
-        )
-
-    async def create_tables(self):
-        """Create all tables (for testing/initialization)"""
-        async with self.engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-    async def drop_tables(self):
-        """Drop all tables (for testing)"""
-        async with self.engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-
-    async def close(self):
-        """Close database connection"""
-        await self.engine.dispose()
-
-    def get_session(self) -> AsyncSession:
-        """Get new async session"""
-        return self.async_session()
+# Module-level alias for backwards compatibility
+engine = None
 
 
-# Global database instance
-_db: Database | None = None
+async def init_db() -> bool:
+    """
+    Initialize database.
+
+    Returns True if successful, False if degraded. Never raises.
+    """
+    global engine
+    result = await db_manager.initialize(base=Base)
+    engine = db_manager.engine
+    return result
 
 
-def get_database(db_path: str | None = None) -> Database:
-    """Get database instance. Uses singleton for default path, new instance for custom paths."""
-    if db_path:
-        return Database(db_path)
-    global _db
-    if _db is None:
-        _db = Database()
-    return _db
+def get_database():
+    """Get database manager instance."""
+    return db_manager
 
 
 def reset_database() -> None:
-    """Reset the global database singleton (for testing)."""
-    global _db
-    _db = None
+    """Reset the global database (for testing)."""
+    pass  # DatabaseManager handles state internally
 
 
 async def get_db_session():
-    """
-    Dependency for FastAPI to get database session
-
-    Usage:
-        @app.get("/...")
-        async def endpoint(db: AsyncSession = Depends(get_db_session)):
-            ...
-    """
-    db = get_database()
-    async with db.get_session() as session:
+    """Dependency for FastAPI to get database session."""
+    async with db_manager.get_db() as session:
         yield session

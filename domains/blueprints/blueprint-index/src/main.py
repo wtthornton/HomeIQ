@@ -31,8 +31,11 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown."""
     # Startup
     logger.info(f"Starting {settings.service_name} on port {settings.service_port}")
-    await init_db()
-    logger.info("Blueprint Index Service started successfully")
+    db_ok = await init_db()
+    if db_ok:
+        logger.info("Blueprint Index Service started successfully")
+    else:
+        logger.warning("Database unavailable — starting in degraded mode")
 
     yield
 

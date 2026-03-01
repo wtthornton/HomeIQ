@@ -2,66 +2,52 @@
 Database initialization and session management for AI Query Service
 
 Epic 39, Story 39.9: Query Service Foundation
-PostgreSQL connection pooling via homeiq_data shared library.
+PostgreSQL connection pooling via homeiq_data DatabaseManager.
 """
 
 import logging
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from homeiq_data.database_pool import create_pg_engine
+from homeiq_data import DatabaseManager
 
 from ..config import settings
 
 logger = logging.getLogger(__name__)
 
-# PostgreSQL engine via shared library (schema isolation, real connection pool)
-_db_url = settings.effective_database_url
-
-engine = create_pg_engine(
-    database_url=_db_url,
+# Standardized database manager (lazy initialization)
+db = DatabaseManager(
     schema=settings.database_schema,
+    service_name="ai-query-service",
+    database_url=settings.effective_database_url,
     pool_size=settings.database_pool_size,
     max_overflow=settings.database_max_overflow,
+    auto_commit_sessions=True,
 )
 
-# Create session factory
-async_session_maker = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+# Module-level aliases for backwards compatibility
+engine = None
+async_session_maker = None
 
 
 async def get_db() -> AsyncSession:
     """
     Dependency for getting database session.
 
-    Commits on success, rolls back on exception.  The ``async with``
-    context manager already closes the session when exiting.
-
-    Usage:
-        @router.get("/endpoint")
-        async def endpoint(db: AsyncSession = Depends(get_db)):
-            ...
+    Commits on success, rolls back on exception.
     """
-    async with async_session_maker() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+    async with db.get_db() as session:
+        yield session
 
 
-async def init_db():
-    """Initialize database connection and verify connectivity."""
-    try:
-        from sqlalchemy import text
-        async with engine.begin() as conn:
-            # Test connection
-            await conn.execute(text("SELECT 1"))
-        logger.info("Database connection initialized")
-    except Exception as e:
-        logger.error(f"Database initialization failed: {e}", exc_info=True)
-        raise  # Re-raise to fail fast on startup
+async def init_db() -> bool:
+    """
+    Initialize database connection and verify connectivity.
+
+    Returns True if successful, False if degraded. Never raises.
+    """
+    global engine, async_session_maker
+    result = await db.initialize()
+    engine = db.engine
+    async_session_maker = db.session_maker
+    return result

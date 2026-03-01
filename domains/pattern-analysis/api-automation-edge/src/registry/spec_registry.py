@@ -11,16 +11,16 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
+from homeiq_data import validate_database_url
+from homeiq_data.database_pool import get_database_url
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, create_engine, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from ..config import settings
-
 logger = logging.getLogger(__name__)
 
 # PostgreSQL configuration
-_pg_url = os.getenv("POSTGRES_URL") or ""
+_pg_url = get_database_url("api-automation-edge")
 _schema = os.getenv("DATABASE_SCHEMA", "patterns")
 
 Base = declarative_base()
@@ -74,7 +74,9 @@ class SpecRegistry:
         """
         # PostgreSQL mode: use sync driver (psycopg2)
         # Convert asyncpg URL to psycopg2 if needed
-        pg_sync_url = (database_url or _pg_url).replace("+asyncpg", "")
+        raw_url = database_url or _pg_url
+        validate_database_url(raw_url)
+        pg_sync_url = raw_url.replace("+asyncpg", "")
         self.database_url = pg_sync_url
         self.engine = create_engine(
             pg_sync_url,
@@ -162,7 +164,7 @@ class SpecRegistry:
                 spec_hash=spec_hash,
                 spec_content=spec_content,
                 deployed_at=datetime.now(UTC) if deploy else None,
-                is_active=True if deploy else False
+                is_active=bool(deploy)
             )
 
             db.add(spec_version)

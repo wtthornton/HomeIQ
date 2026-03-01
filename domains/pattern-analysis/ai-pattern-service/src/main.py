@@ -168,12 +168,11 @@ async def lifespan(_app: FastAPI):
     logger.info("=" * 60)
 
     # Initialize database
-    try:
-        await init_db()
-        logger.info("✅ Database initialized")
-    except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}", exc_info=True)
-        raise
+    db_ok = await init_db()
+    if db_ok:
+        logger.info("Database initialized")
+    else:
+        logger.warning("Database unavailable — starting in degraded mode")
 
     # Probe cross-group dependencies (non-fatal)
     data_api_available = await wait_for_dependency(

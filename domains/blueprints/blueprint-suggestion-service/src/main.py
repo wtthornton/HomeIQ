@@ -40,10 +40,13 @@ async def lifespan(app: FastAPI):
 
     # Startup
     logger.info("Starting %s on port %s", settings.service_name, settings.service_port)
-    await init_db()
-    # Cache schema check so we don't run PRAGMA on every GET /suggestions
-    async with get_db_context() as db:
-        await init_schema_cache(db)
+    db_ok = await init_db()
+    if db_ok:
+        # Cache schema check so we don't run PRAGMA on every GET /suggestions
+        async with get_db_context() as db:
+            await init_schema_cache(db)
+    else:
+        logger.warning("Database unavailable — starting in degraded mode")
 
     # Probe cross-group dependencies (non-fatal)
     data_api_available = await wait_for_dependency(

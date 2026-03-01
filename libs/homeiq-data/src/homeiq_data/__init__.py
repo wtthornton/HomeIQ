@@ -7,6 +7,7 @@ from .alembic_helpers import (
     run_async_migrations,
     run_migrations_on_startup,
 )
+from .database_manager import DatabaseManager
 from .database_pool import (
     check_pg_connection,
     close_all_engines,
@@ -17,9 +18,11 @@ from .database_pool import (
     get_database_url,
     get_pool_stats,
     get_shared_db_session,
+    validate_database_url,
 )
 
 __all__ = [
+    "DatabaseManager",
     "check_pg_connection",
     "close_all_engines",
     "close_all_engines_async",
@@ -32,4 +35,5 @@ __all__ = [
     "get_shared_db_session",
     "run_async_migrations",
     "run_migrations_on_startup",
+    "validate_database_url",
 ]

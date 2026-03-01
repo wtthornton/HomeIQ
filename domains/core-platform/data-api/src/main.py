@@ -253,11 +253,11 @@ async def lifespan(_app: FastAPI):
     pathlib.Path("./data").mkdir(exist_ok=True)
 
     # Initialize database
-    try:
-        await init_db()
+    db_ok = await init_db()
+    if db_ok:
         logger.info("Database initialized")
-    except Exception as e:
-        logger.error("Database initialization failed: %s", e)
+    else:
+        logger.warning("Database unavailable — starting in degraded mode")
 
     await data_api_service.startup()
     yield

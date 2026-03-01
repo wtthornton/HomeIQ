@@ -4,14 +4,13 @@ import logging
 import os
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text, func, text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from homeiq_data import DatabaseManager
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 logger = logging.getLogger(__name__)
 
 # PostgreSQL configuration
-_pg_url = os.getenv("POSTGRES_URL") or ""
 _schema = os.getenv("DATABASE_SCHEMA", "agent")
 
 
@@ -122,68 +121,40 @@ Index("idx_messages_conversation_id", MessageModel.conversation_id)
 Index("idx_messages_created_at", MessageModel.created_at)
 
 
-# Global engine and session factory
-_engine = None
-_session_factory: async_sessionmaker[AsyncSession] | None = None
+# Standardized database manager (lazy initialization)
+db = DatabaseManager(
+    schema=_schema,
+    service_name="ha-ai-agent-service",
+    auto_commit_sessions=False,
+)
+
+# Module-level aliases for backwards compatibility
+engine = None
+_session_factory = None
 
 
-async def init_database(database_url: str) -> None:
+async def init_database(_database_url: str = "") -> bool:
     """
     Initialize database connection and create tables.
 
+    Returns True if successful, False if degraded. Never raises.
+
     Args:
-        database_url: Database URL (ignored when POSTGRES_URL is set)
+        _database_url: Unused (kept for API compat). URL resolved from env vars.
     """
-    global _engine, _session_factory
-
-    try:
-        from homeiq_data.database_pool import create_pg_engine
-        _engine = create_pg_engine(
-            database_url=_pg_url,
-            schema=_schema,
-        )
-        logger.info(f"Using PostgreSQL with schema '{_schema}'")
-
-        # Create session factory
-        _session_factory = async_sessionmaker(
-            _engine,
-            class_=AsyncSession,
-            expire_on_commit=False
-        )
-
-        # Create tables
-        async with _engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-        logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize database: {e}", exc_info=True)
-        raise
+    global engine, _session_factory
+    result = await db.initialize(base=Base)
+    engine = db.engine
+    _session_factory = db.session_maker
+    return result
 
 
 async def get_session():
-    """
-    Get database session (async generator).
-
-    Yields:
-        AsyncSession instance
-
-    Raises:
-        RuntimeError: If database not initialized
-    """
-    if _session_factory is None:
-        raise RuntimeError("Database not initialized. Call init_database() first.")
-
-    async with _session_factory() as session:
+    """Get database session (async generator)."""
+    async with db.get_db() as session:
         yield session
 
 
 async def close_database() -> None:
-    """Close database connections"""
-    global _engine, _session_factory
-
-    if _engine:
-        await _engine.dispose()
-        _engine = None
-        _session_factory = None
-        logger.info("Database connections closed")
+    """Close database connections."""
+    await db.close()

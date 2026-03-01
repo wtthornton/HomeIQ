@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+
 from .logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -261,6 +262,28 @@ def get_database_url(service_name: str = "") -> str:
 
     # Default PostgreSQL URL
     return "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq"
+
+
+def validate_database_url(url: str) -> str:
+    """
+    Validate that a database URL is non-empty and points to PostgreSQL.
+
+    Args:
+        url: Database URL to validate.
+
+    Returns:
+        The validated URL string.
+
+    Raises:
+        ValueError: If URL is empty or not a PostgreSQL URL.
+    """
+    if not url or not url.strip():
+        raise ValueError(
+            "Database URL is empty. Set POSTGRES_URL or DATABASE_URL environment variable."
+        )
+    if not _is_postgres_url(url):
+        raise ValueError(f"Not a PostgreSQL URL: {url[:30]}...")
+    return url
 
 
 async def check_pg_connection(engine: AsyncEngine) -> bool:

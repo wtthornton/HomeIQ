@@ -89,8 +89,11 @@ async def lifespan(_app: FastAPI) -> None:
         _fix_database_permissions(settings)
 
         # Initialize database
-        await init_database(settings.database_url)
-        logger.info("Database initialized")
+        db_ok = await init_database(settings.database_url)
+        if db_ok:
+            logger.info("Database initialized")
+        else:
+            logger.warning("Database unavailable — starting in degraded mode")
 
         # Probe cross-group dependencies (non-fatal — start in degraded mode if unavailable)
         from homeiq_resilience import GroupHealthCheck, wait_for_dependency

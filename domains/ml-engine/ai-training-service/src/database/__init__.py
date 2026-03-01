@@ -2,76 +2,54 @@
 Database initialization and connection management
 
 Epic 39, Story 39.1: Training Service Foundation
-PostgreSQL connection pooling via homeiq_data shared library.
+PostgreSQL connection pooling via homeiq_data DatabaseManager.
 """
 
 import logging
 
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-)
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from homeiq_data.database_pool import create_pg_engine
+from homeiq_data import DatabaseManager
 
 from ..config import settings
 
 logger = logging.getLogger("ai-training-service")
 
-# PostgreSQL engine via shared library (schema isolation, real connection pool)
-_db_url = settings.effective_database_url
-
-engine = create_pg_engine(
-    database_url=_db_url,
+# Standardized database manager (lazy initialization)
+db = DatabaseManager(
     schema=settings.database_schema,
+    service_name="ai-training-service",
+    database_url=settings.effective_database_url,
     pool_size=settings.database_pool_size,
     max_overflow=settings.database_max_overflow,
+    auto_commit_sessions=True,
 )
 
-# Create async session factory
-AsyncSessionLocal = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False,
-)
+# Module-level aliases for backwards compatibility
+engine = None
+AsyncSessionLocal = None
 
 
 async def get_db() -> AsyncSession:
     """
     Dependency for getting database session.
 
-    Usage:
-        @router.get("/endpoint")
-        async def endpoint(db: AsyncSession = Depends(get_db)):
-            ...
+    Commits on success, rolls back on exception.
     """
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+    async with db.get_db() as session:
+        yield session
 
 
-async def init_db():
-    """Initialize database connection and verify connectivity"""
-    try:
-        # Import database models to ensure they're registered
-        from sqlalchemy import text
+async def init_db() -> bool:
+    """
+    Initialize database connection and verify connectivity.
 
-        from .models import Base  # noqa: F401
+    Returns True if successful, False if degraded. Never raises.
+    """
+    global engine, AsyncSessionLocal
+    from .models import Base  # noqa: F401 - imported for side-effect registration
 
-        # Create tables if they don't exist (for shared database, this may already exist)
-        # We'll just test connectivity
-        async with engine.begin() as conn:
-            # Test connection
-            await conn.execute(text("SELECT 1"))
-        logger.info(f"Database initialized: {settings.database_path}")
-    except Exception as e:
-        logger.error(f"Database initialization failed: {e}", exc_info=True)
-        raise
+    result = await db.initialize(base=Base)
+    engine = db.engine
+    AsyncSessionLocal = db.session_maker
+    return result

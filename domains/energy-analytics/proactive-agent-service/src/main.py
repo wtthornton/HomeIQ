@@ -62,10 +62,14 @@ def _parse_allowed_origins() -> list[str]:
 ALLOWED_ORIGINS = _parse_allowed_origins()
 
 
-async def _initialize_database(settings_instance: Settings) -> None:
-    """Initialize database connection."""
-    await init_database(settings_instance)
-    logger.info("Database initialized")
+async def _initialize_database(settings_instance: Settings) -> bool:
+    """Initialize database connection. Returns True if successful."""
+    success = await init_database(settings_instance)
+    if success:
+        logger.info("Database initialized")
+    else:
+        logger.warning("Database unavailable — starting in degraded mode")
+    return success
 
 
 def _initialize_scheduler(settings_instance: Settings) -> SchedulerService:

@@ -71,8 +71,11 @@ async def lifespan(app: FastAPI):
     logger.info("HA Setup Service Starting")
 
     # Initialize database
-    await init_db()
-    logger.info("Database initialized")
+    db_ok = await init_db()
+    if db_ok:
+        logger.info("Database initialized")
+    else:
+        logger.warning("Database unavailable — starting in degraded mode")
 
     # Initialize health monitoring service
     app.state.monitor = HealthMonitoringService()

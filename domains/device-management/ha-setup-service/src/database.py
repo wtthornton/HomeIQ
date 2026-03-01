@@ -1,31 +1,28 @@
-"""Database configuration using SQLAlchemy 2.0 async patterns"""
+"""Database configuration using SQLAlchemy 2.0 async patterns
+
+PostgreSQL via homeiq_data DatabaseManager (standardized lifecycle).
+"""
+
 import os
 from collections.abc import AsyncGenerator
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
-from homeiq_data.database_pool import create_pg_engine
+from homeiq_data import DatabaseManager
 
 from .config import get_settings
 
 settings = get_settings()
 
-# PostgreSQL configuration
-_db_url = os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL", "")
+# Schema configuration
 _schema = os.getenv("DATABASE_SCHEMA", "devices")
 
-# Create async engine (PostgreSQL only)
-engine = create_pg_engine(
-    database_url=_db_url,
+# Standardized database manager (lazy initialization)
+db = DatabaseManager(
     schema=_schema,
-)
-
-# Create async session factory (Context7 best practice)
-async_session_maker = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False
+    service_name="ha-setup-service",
+    auto_commit_sessions=False,
 )
 
 
@@ -34,23 +31,25 @@ class Base(DeclarativeBase):
     pass
 
 
+# Module-level aliases for backwards compatibility
+engine = None
+async_session_maker = None
+
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Dependency for FastAPI endpoints to get database session."""
+    async with db.get_db() as session:
+        yield session
+
+
+async def init_db() -> bool:
     """
-    Dependency for FastAPI endpoints to get database session.
+    Initialize database tables.
 
-    Context7 Pattern: Async dependency injection with proper exception handling
+    Returns True if successful, False if degraded. Never raises.
     """
-    async with async_session_maker() as session:
-        try:
-            yield session
-        except Exception:
-            await session.rollback()
-            raise  # CRITICAL: Must re-raise for proper error propagation
-        finally:
-            await session.close()
-
-
-async def init_db():
-    """Initialize database tables"""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    global engine, async_session_maker
+    result = await db.initialize(base=Base)
+    engine = db.engine
+    async_session_maker = db.session_maker
+    return result

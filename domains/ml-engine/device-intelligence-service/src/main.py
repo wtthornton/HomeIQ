@@ -53,8 +53,11 @@ async def lifespan(app: FastAPI):
 
     try:
         settings.validate_required_runtime_fields()
-        await initialize_database(settings)
-        logger.info("Database initialized successfully")
+        db_ok = await initialize_database(settings)
+        if db_ok:
+            logger.info("Database initialized successfully")
+        else:
+            logger.warning("Database unavailable — starting in degraded mode")
 
         analytics_engine = PredictiveAnalyticsEngine()
         await analytics_engine.initialize_models()
