@@ -80,6 +80,20 @@ PostgreSQL is now the **sole database**. All SQLite code, configs, dependencies,
 | Browser Review – AI UI (3001) | 2/4 | Ideas page error/retry/empty state, Explore demo mode + mobile nav |
 | Browser Review – Health (3000) | 2/5 | KPI "Unavailable" vs "Loading…" + retry, Logs secret sanitization (7 patterns) |
 
+### E2E Test Fixes (Feb 28) — COMPLETE
+
+All 119 Playwright E2E test failures resolved after Phase 4b sidebar redesign:
+
+| Suite | Before | After |
+|-------|--------|-------|
+| Health Dashboard (Chromium) | 108 passed, 52 failed | 102 passed, 0 failed |
+| AI Automation UI (Chromium) | 98 passed, 65 failed | 109 passed, 0 failed |
+| API Integration | 21 passed, 2 failed | 23 passed, 0 failed |
+
+### Data Source Health Accuracy (Feb 28) — COMPLETE
+
+Eliminated false-positive "healthy" status for data sources: admin-api now overrides status when credentials are missing or all fetches fail; calendar-service reports degraded when no calendars discovered; dashboard labels insert spaces in camelCase keys.
+
 ---
 
 ## Pending Work

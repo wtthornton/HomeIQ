@@ -230,7 +230,7 @@ pytest tests/validation/check_schemas.py -v
 pytest tests/validation/validate_data.py -v
 ```
 
-**InfluxDB 2.7.12 Validation:**
+**InfluxDB 2.8.0 Validation:**
 
 ```bash
 # 1. Verify InfluxDB running
@@ -844,7 +844,7 @@ scripts/pre-deployment-health-check.sh
 - [ ] 704+ tests passing (100% pass rate)
 - [ ] Docker builds successful for all 53 services
 - [ ] PostgreSQL 17 with all 8 schemas deployed
-- [ ] InfluxDB 2.7.12 with all buckets created
+- [ ] InfluxDB 2.8.0 with all buckets created
 - [ ] Alembic migrations run on all services
 - [ ] Pre-deployment backups created and verified
 - [ ] Monitoring dashboard operational
@@ -1014,7 +1014,7 @@ Thank you for your patience during the deployment window!
 | **Phase 1-4 Completion** | ✅ COMPLETE | BLOCKING | All complete, no blockers |
 | **Docker Infrastructure** | ✅ READY | BLOCKING | Docker 29.1.3, Compose 2.40.3 verified |
 | **PostgreSQL 17** | ✅ READY | BLOCKING | Container ready, schemas created |
-| **InfluxDB 2.7.12** | ✅ READY | BLOCKING | Container ready, buckets created |
+| **InfluxDB 2.8.0** | ✅ READY | BLOCKING | Container ready, buckets created |
 | **Network Connectivity** | ✅ READY | BLOCKING | homeiq-network bridge created |
 | **Disk Space** | ✅ 50+ GB | BLOCKING | Verified, expansion available if needed |
 | **Home Assistant** | ✅ (assumed) | OPTIONAL | Gracefully degrades if unavailable |

@@ -116,19 +116,19 @@
 | `python:3.12-alpine` | Primary backend (28+ services) |
 | `python:3.12-slim` | Services needing glibc (13 services) |
 | `python:3.11-slim` | Streamlit services (2 services) |
-| `node:20.19.0-alpine` | Frontend build stage |
+| `node:20.20.0-alpine` | Frontend build stage |
 | `nginx:alpine` | Frontend production (ai-automation-ui) |
 
 ### Databases
 | Database | Version | Purpose |
 |----------|---------|---------|
-| **InfluxDB** | 2.7.12 | Time-series data (events, metrics, sensor data) |
+| **InfluxDB** | 2.8.0 | Time-series data (events, metrics, sensor data) |
 | **PostgreSQL** | 17 | Metadata (devices, entities, config) — single instance, schema-per-domain |
 
 ### Observability
 | Tool | Version | Purpose |
 |------|---------|---------|
-| **Jaeger** | 1.75.0 | Distributed tracing UI |
+| **Jaeger** | 2.15.0 | Distributed tracing UI |
 | **OpenTelemetry** | (see libraries) | Trace collection and export |
 
 ---

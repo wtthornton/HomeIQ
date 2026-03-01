@@ -65,6 +65,11 @@
 
 - **feat: complete SQLite removal — PostgreSQL is sole database (Epic 0)** (81a233dc) — 311 files changed across all 10 stories: removed SQLite from 11 compose files, 12 database init files, 11 config files, 19 requirements files, 13 Alembic configs, 12 test fixtures, CI workflows, 100+ docs; deleted 24 SQLite-specific scripts; archived migration tools
 
+### Testing
+
+- **fix: resolve 119 E2E test failures after frontend sidebar redesign** (c27e453b) — Updated all Playwright E2E tests for Phase 4b sidebar navigation: page objects, route mappings (/ha-agent→/chat, /deployed→/automations, etc.), removed aria-selected assertions, deleted obsolete setup/synergies test files, added API timeout handling; 234 passed, 0 failed
+- **fix: eliminate false-positive health status for data sources** (833be425) — Admin-api now overrides "healthy" when credentials are missing or all fetches failed; calendar-service tracks discovered vs configured calendars; dashboard labels insert spaces in camelCase keys
+
 ### Security
 
 - **fix: Logs tab secret sanitization (browser-review Story 2)** — Added `sanitizeLogMessage()` with 7 regex patterns to redact Bearer tokens, API keys, passwords, connection strings, and secrets in LogTailViewer (fetchLogs, searchLogs, copyLog); 11 new tests

@@ -1,7 +1,7 @@
 # Service Health Checks Reference
 
-**Version:** 1.0
-**Last Updated:** 2026-02-24
+**Version:** 1.1
+**Last Updated:** 2026-02-28
 **Maintainer:** HomeIQ Platform Team
 
 ---
@@ -35,14 +35,14 @@ These services form the data backbone. If any are down, the entire platform is d
 | PostgreSQL | 5432 | `pg_isready` (Docker healthcheck) | homeiq-postgres | Nothing |
 | data-api | 8006 | `GET /health` | homeiq-data-api | InfluxDB, PostgreSQL |
 | websocket-ingestion | 8001 | `GET /health` | homeiq-websocket | data-api |
-| admin-api | 8004 | `GET /api/v1/health` | homeiq-admin | InfluxDB, websocket-ingestion, data-api |
+| admin-api | 8004 | `GET /health` | homeiq-admin | InfluxDB, websocket-ingestion, data-api |
 | health-dashboard | 3000 | `GET /` (HTTP 200) | homeiq-dashboard | admin-api |
 
 ### Expected Responses
 
 **InfluxDB:**
 ```json
-{"name":"influxdb","message":"ready for queries and writes","status":"pass","checks":[],"version":"2.7.12","commit":"..."}
+{"name":"influxdb","message":"ready for queries and writes","status":"pass","checks":[],"version":"2.8.0","commit":"..."}
 ```
 
 **data-api / websocket-ingestion / admin-api:**
@@ -88,9 +88,9 @@ docker exec homeiq-postgres psql -U homeiq -d homeiq -c "SELECT 1;"
 | smart-meter | 8014 | `GET /health` | homeiq-smart-meter | data-collectors |
 | sports-api | 8005 | `GET /health` | homeiq-sports-api | data-collectors |
 | energy-correlator | 8017 | `GET /health` | homeiq-energy-correlator | energy-analytics |
-| energy-forecasting | 8018 | `GET /health` | homeiq-energy-forecasting | energy-analytics |
-| proactive-agent | 8019 | `GET /health` | homeiq-proactive-agent | energy-analytics |
-| ha-setup-service | 8038 | `GET /health` | homeiq-ha-setup | device-management |
+| energy-forecasting | 8042 | `GET /api/v1/health` | homeiq-energy-forecasting | energy-analytics |
+| proactive-agent | 8031 | `GET /health` | homeiq-proactive-agent-service | energy-analytics |
+| ha-setup-service | 8024 | `GET /health` | homeiq-setup-service | device-management |
 
 ---
 
@@ -98,16 +98,17 @@ docker exec homeiq-postgres psql -U homeiq -d homeiq -c "SELECT 1;"
 
 | Service | Port | Health Endpoint | Container Name | Domain Group |
 |---------|------|----------------|----------------|-------------|
-| ai-core-service | 8033 | `GET /health` | homeiq-ai-core | ml-engine |
+| ai-core-service | 8018 | `GET /health` | homeiq-ai-core-service | ml-engine |
 | device-intelligence | 8028 | `GET /health` | homeiq-device-intelligence | ml-engine |
-| openvino-service | 8029 | `GET /health` | homeiq-openvino | ml-engine |
-| ml-service | 8026 | `GET /health` | homeiq-ml-service | ml-engine |
+| openvino-service | 8026 | `GET /health` | homeiq-openvino-service | ml-engine |
+| ml-service | 8025 | `GET /health` | homeiq-ml-service | ml-engine |
 | rag-service | 8027 | `GET /health` | homeiq-rag-service | ml-engine |
-| ai-training-service | 8032 | `GET /health` | homeiq-ai-training | ml-engine |
-| openai-service | 8031 | `GET /health` | homeiq-openai-service | ml-engine |
-| nlp-fine-tuning | 8035 | `GET /health` | homeiq-nlp-fine-tuning | ml-engine |
-| ner-service | 8037 | `GET /health` | homeiq-ner-service | ml-engine |
+| ai-training-service | 8033 | `GET /health` | homeiq-ai-training-service | ml-engine |
+| openai-service | 8020 | `GET /health` | homeiq-openai-service | ml-engine |
+| ner-service | N/A | `GET /health` (internal :8031) | homeiq-ner-service | ml-engine |
 | model-prep | N/A | Job container | homeiq-model-prep | ml-engine |
+
+> **Note:** `ner-service` has no published host port (`expose: 8031` only). It is accessible to other ml-engine services on the Docker network at port 8031. `nlp-fine-tuning` and `model-prep` are offline training tools, not deployed services.
 
 ---
 
@@ -115,13 +116,15 @@ docker exec homeiq-postgres psql -U homeiq -d homeiq -c "SELECT 1;"
 
 | Service | Port | Health Endpoint | Container Name | Domain Group |
 |---------|------|----------------|----------------|-------------|
-| ha-ai-agent-service | 8030 | `GET /health` | homeiq-ha-ai-agent | automation-core |
-| ai-automation-service-new | 8025 | `GET /health` | homeiq-ai-automation-new | automation-core |
-| ai-query-service | 8024 | `GET /health` | homeiq-ai-query | automation-core |
-| automation-linter | 8036 | `GET /health` | homeiq-automation-linter | automation-core |
-| yaml-validation-service | 8039 | `GET /health` | homeiq-yaml-validation | automation-core |
-| ai-code-executor | 8040 | `GET /health` | homeiq-ai-code-executor | automation-core |
-| automation-trace-service | 8042 | `GET /health` | homeiq-automation-trace | automation-core |
+| ha-ai-agent-service | 8030 | `GET /health` | homeiq-ha-ai-agent-service | automation-core |
+| ai-automation-service-new | 8036 | `GET /health` | homeiq-ai-automation-service-new | automation-core |
+| ai-query-service | 8035 | `GET /health` | homeiq-ai-query-service | automation-core |
+| automation-linter | 8016 | `GET /health` | homeiq-automation-linter | automation-core |
+| yaml-validation-service | 8037 | `GET /health` | homeiq-yaml-validation-service | automation-core |
+| ai-code-executor | N/A | `GET /health` (internal :8030) | homeiq-ai-code-executor | automation-core |
+| automation-trace-service | 8044 | `GET /health` | homeiq-automation-trace-service | automation-core |
+
+> **Note:** `ai-code-executor` has no published host port (`expose: 8030` only). It is accessible within the Docker network.
 
 ---
 
@@ -129,11 +132,11 @@ docker exec homeiq-postgres psql -U homeiq -d homeiq -c "SELECT 1;"
 
 | Service | Port | Health Endpoint | Container Name | Domain Group |
 |---------|------|----------------|----------------|-------------|
-| blueprint-index | 8020 | `GET /health` | homeiq-blueprint-index | blueprints |
-| blueprint-suggestion | 8021 | `GET /health` | homeiq-blueprint-suggestion | blueprints |
-| rule-recommendation-ml | 8022 | `GET /health` | homeiq-rule-recommendation | blueprints |
-| automation-miner | 8023 | `GET /health` | homeiq-automation-miner | blueprints |
-| ai-pattern-service | 8034 | `GET /health` | homeiq-ai-pattern | pattern-analysis |
+| blueprint-index | 8038 | `GET /health` | homeiq-blueprint-index | blueprints |
+| blueprint-suggestion | 8039 | `GET /health` | homeiq-blueprint-suggestion | blueprints |
+| rule-recommendation-ml | 8040 | `GET /api/v1/health` | homeiq-rule-recommendation-ml | blueprints |
+| automation-miner | 8029 | `GET /health` | homeiq-automation-miner | blueprints |
+| ai-pattern-service | 8034 | `GET /health` | ai-pattern-service | pattern-analysis |
 | api-automation-edge | 8041 | `GET /health` | homeiq-api-automation-edge | pattern-analysis |
 
 ---
@@ -142,13 +145,13 @@ docker exec homeiq-postgres psql -U homeiq -d homeiq -c "SELECT 1;"
 
 | Service | Port | Health Endpoint | Container Name | Domain Group |
 |---------|------|----------------|----------------|-------------|
-| device-health-monitor | 8043 | `GET /health` | homeiq-device-health | device-management |
-| device-context-classifier | 8044 | `GET /health` | homeiq-device-classifier | device-management |
-| device-setup-assistant | 8045 | `GET /health` | homeiq-device-setup | device-management |
-| device-database-client | 8046 | `GET /health` | homeiq-device-db-client | device-management |
-| device-recommender | 8047 | `GET /health` | homeiq-device-recommender | device-management |
-| activity-recognition | 8048 | `GET /health` | homeiq-activity-recognition | device-management |
-| activity-writer | 8049 | `GET /health` | homeiq-activity-writer | device-management |
+| device-health-monitor | 8019 | `GET /health` | homeiq-device-health-monitor | device-management |
+| device-context-classifier | 8032 | `GET /health` | homeiq-device-context-classifier | device-management |
+| device-setup-assistant | 8021 | `GET /health` | homeiq-device-setup-assistant | device-management |
+| device-database-client | 8022 | `GET /health` | homeiq-device-database-client | device-management |
+| device-recommender | 8023 | `GET /health` | homeiq-device-recommender | device-management |
+| activity-recognition | 8043 | `GET /health` | homeiq-activity-recognition | device-management |
+| activity-writer | 8045 | `GET /health` | homeiq-activity-writer | device-management |
 
 ---
 
@@ -174,7 +177,6 @@ These services are typically in the `production` profile and may not run in deve
 | Grafana | 3002 | `GET /api/health` | homeiq-grafana | Dashboards |
 | Jaeger | 16686 | `GET /` | homeiq-jaeger | Distributed tracing |
 | postgres-exporter | 9187 | `GET /metrics` | homeiq-postgres-exporter | PG metrics for Prometheus |
-| backup-scheduler | N/A | Docker healthcheck | homeiq-backup-scheduler | Automated backups |
 
 ---
 
@@ -312,7 +314,7 @@ for url in \
     "http://localhost:8086/health" \
     "http://localhost:8006/health" \
     "http://localhost:8001/health" \
-    "http://localhost:8004/api/v1/health" \
+    "http://localhost:8004/health" \
     "http://localhost:3000"; do
     echo -n "$url: "
     curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$url" || echo "UNREACHABLE"
@@ -323,7 +325,7 @@ done
 ./scripts/check-service-health.sh --json --output health-report.json
 
 # Quick port scan to see what is running
-for port in 8086 5432 8006 8001 8004 3000 8080 8009 8014 8005 8017 8018 8019; do
+for port in 8086 5432 8006 8001 8004 3000 8080 8009 8014 8005 8017 8042 8031 8024; do
     echo -n "Port $port: "
     curl -s -o /dev/null -w "%{http_code}" --max-time 2 "http://localhost:$port/health" 2>/dev/null || echo "closed"
     echo ""
@@ -365,7 +367,7 @@ Most Python services follow this format:
   "message": "ready for queries and writes",
   "status": "pass",
   "checks": [],
-  "version": "2.7.12"
+  "version": "2.8.0"
 }
 ```
 
