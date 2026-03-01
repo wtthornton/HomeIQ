@@ -302,12 +302,14 @@ class AdminApiClient extends BaseApiClient {
 
         result[frontendName] = {
           status: normalizedStatus,
+          status_detail: serviceData.status_detail || undefined,
+          credentials_configured: serviceData.credentials_configured,
           service: serviceData.name || backendName,
-          uptime_seconds: 0, // Not provided by admin-api health check
-          last_successful_fetch: null, // Not provided by admin-api health check
-          total_fetches: 0, // Not provided by admin-api health check
-          failed_fetches: 0, // Not provided by admin-api health check
-          success_rate: 1.0, // Not provided by admin-api health check
+          uptime_seconds: 0,
+          last_successful_fetch: null,
+          total_fetches: 0,
+          failed_fetches: 0,
+          success_rate: serviceData.success_rate ?? 1.0,
           timestamp: serviceData.last_check || new Date().toISOString(),
           error_message: serviceData.error_message || null,
         };

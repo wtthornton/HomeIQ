@@ -18,6 +18,7 @@ class HealthCheckHandler:
         self.failed_fetches = 0
         self.ha_connected = False
         self.calendar_count = 0
+        self.calendars_discovered = 0
 
     async def handle(self, request):
         """Handle health check request"""
@@ -25,6 +26,13 @@ class HealthCheckHandler:
         uptime = (datetime.now(timezone.utc) - self.start_time).total_seconds()
 
         healthy = self.ha_connected
+        status_detail = None
+
+        # No calendars discovered means misconfiguration
+        if self.calendar_count > 0 and self.calendars_discovered == 0:
+            healthy = False
+            status_detail = "no_calendars_found"
+
         if self.last_successful_fetch:
             time_since_last = (datetime.now(timezone.utc) - self.last_successful_fetch).total_seconds()
             if time_since_last > 1800:  # 30 minutes
@@ -32,11 +40,13 @@ class HealthCheckHandler:
 
         status = {
             "status": "healthy" if healthy else "degraded",
+            "status_detail": status_detail,
             "service": "calendar-service",
             "integration_type": "home_assistant",
             "uptime_seconds": uptime,
             "ha_connected": self.ha_connected,
             "calendar_count": self.calendar_count,
+            "calendars_discovered": self.calendars_discovered,
             "last_successful_fetch": self.last_successful_fetch.isoformat() if self.last_successful_fetch else None,
             "total_fetches": self.total_fetches,
             "failed_fetches": self.failed_fetches,
@@ -45,4 +55,3 @@ class HealthCheckHandler:
         }
 
         return web.json_response(status, status=200 if healthy else 503)
-

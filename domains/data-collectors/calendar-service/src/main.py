@@ -101,6 +101,7 @@ class CalendarService:
                 logger.warning(f"Configured calendar '{calendar_id}' not found in Home Assistant")
 
         self.health_handler.calendar_count = len(self.calendar_entities)
+        self.health_handler.calendars_discovered = len(available_calendars)
 
         # Create InfluxDB client
         parsed_url = urlparse(self.influxdb_url)

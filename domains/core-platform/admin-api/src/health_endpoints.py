@@ -42,6 +42,9 @@ class ServiceHealth(BaseModel):
     last_check: str  # Changed to string for JSON serialization
     response_time_ms: float | None = None
     error_message: str | None = None
+    status_detail: str | None = None
+    credentials_configured: bool | None = None
+    success_rate: float | None = None
 
 
 class HealthEndpoints:
@@ -333,11 +336,29 @@ class HealthEndpoints:
 
                         if response.status == 200:
                             data = await response.json()
+                            # Detect false-positive "healthy" from services that aren't functional
+                            reported_status = data.get("status", "unknown")
+                            creds_configured = data.get("credentials_configured")
+                            svc_success_rate = data.get("success_rate")
+                            status_detail = data.get("status_detail")
+
+                            # Override "healthy" when service clearly isn't functional
+                            if reported_status == "healthy":
+                                if creds_configured is False:
+                                    reported_status = "degraded"
+                                    status_detail = status_detail or "credentials_missing"
+                                elif svc_success_rate is not None and svc_success_rate == 0 and data.get("total_fetches", 0) > 0:
+                                    reported_status = "degraded"
+                                    status_detail = status_detail or "all_fetches_failed"
+
                             services_health[service_name] = ServiceHealth(
                                 name=service_name,
-                                status=data.get("status", "unknown"),
+                                status=reported_status,
                                 last_check=datetime.now().isoformat(),  # Convert to ISO string
-                                response_time_ms=response_time
+                                response_time_ms=response_time,
+                                status_detail=status_detail,
+                                credentials_configured=creds_configured,
+                                success_rate=svc_success_rate,
                             )
                         else:
                             services_health[service_name] = ServiceHealth(
