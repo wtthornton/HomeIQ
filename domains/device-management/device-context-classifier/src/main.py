@@ -80,13 +80,13 @@ app = FastAPI(
 
 @app.get("/health")
 async def health_check() -> JSONResponse:
-    """Health check endpoint. Returns 503 if HA is not configured."""
+    """Health check endpoint. Returns 200 with degraded status if HA is not configured."""
     ha_url = os.getenv("HA_URL") or os.getenv("HA_HTTP_URL")
     ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
 
     if not ha_url or not ha_token:
         return JSONResponse(
-            status_code=503,
+            status_code=200,
             content={
                 "status": "degraded",
                 "service": "device-context-classifier",

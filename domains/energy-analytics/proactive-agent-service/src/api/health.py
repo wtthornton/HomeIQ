@@ -20,7 +20,13 @@ def set_scheduler_service_for_health(service: Any):
 
 @router.get("/health")
 async def health_check():
-    """Health check with group-level status and scheduler info."""
+    """Health check with group-level status and scheduler info.
+
+    Returns 200 for healthy and degraded states so Docker does not
+    mark the container unhealthy when optional cross-domain
+    dependencies (data-api, weather-api) are unavailable.
+    Only returns 503 when the service process itself is broken.
+    """
     from ..main import _group_health
 
     # Start from GroupHealthCheck if available
@@ -32,6 +38,12 @@ async def health_check():
             "service": "proactive-agent-service",
             "version": "1.0.0",
         }
+
+    # Cap "unhealthy" to "degraded" — cross-domain dependencies being
+    # unreachable is expected in dev/partial deployments and should not
+    # cause Docker to restart the container.
+    if response.get("status") == "unhealthy":
+        response["status"] = "degraded"
 
     # Add scheduler status
     if _scheduler_service is not None:

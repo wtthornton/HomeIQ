@@ -21,6 +21,7 @@ import {
   ChevronDown,
   ChevronRight,
   CircleDot,
+  CircleMinus,
   Clock,
   Cloud,
   CloudRain,
@@ -41,6 +42,7 @@ import {
   Loader2,
   Moon,
   Network,
+  Octagon,
   Pause,
   Play,
   Power,
@@ -122,16 +124,17 @@ export const TabIcons = {
   configuration: Settings,
 } as const;
 
-// Status icons
+// Status icons — 508 compliant: shape conveys meaning, not just color
+// Checkmark circle = healthy, Triangle = warning, Octagon = error (stop sign), Minus circle = offline
 export const StatusIcons = {
   healthy: CheckCircle,
   running: CheckCircle,
   warning: AlertTriangle,
   degraded: AlertTriangle,
-  critical: AlertCircle,
-  error: AlertCircle,
-  offline: WifiOff,
-  stopped: Square,
+  critical: Octagon,
+  error: Octagon,
+  offline: CircleMinus,
+  stopped: CircleMinus,
   connected: Wifi,
   disconnected: WifiOff,
   unknown: CircleDot,
@@ -191,12 +194,12 @@ interface StatusIndicatorProps {
 export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
   status,
   size = 'sm',
-  showDot = true,
+  showDot: _showDot = true,
   className,
 }) => {
   const StatusIcon = getStatusIcon(status);
-  
-  const colorClasses = {
+
+  const colorClasses: Record<string, string> = {
     healthy: 'text-status-healthy',
     running: 'text-status-healthy',
     warning: 'text-status-warning',
@@ -207,35 +210,29 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
     stopped: 'text-status-offline',
   };
 
-  if (showDot) {
-    const dotColorClasses = {
-      healthy: 'bg-status-healthy',
-      running: 'bg-status-healthy',
-      warning: 'bg-status-warning',
-      degraded: 'bg-status-warning',
-      critical: 'bg-status-critical',
-      error: 'bg-status-critical',
-      offline: 'bg-status-offline',
-      stopped: 'bg-status-offline',
-    };
+  // 508 Compliance: descriptive labels for screen readers
+  const statusLabels: Record<string, string> = {
+    healthy: 'Healthy',
+    running: 'Running',
+    warning: 'Warning',
+    degraded: 'Degraded',
+    critical: 'Critical',
+    error: 'Error',
+    offline: 'Offline',
+    stopped: 'Stopped',
+  };
 
-    return (
-      <span 
-        className={cn(
-          'inline-flex items-center justify-center rounded-full',
-          sizeClasses[size],
-          dotColorClasses[status],
-          className
-        )}
-        aria-label={status}
-      />
-    );
-  }
-
+  // 508 Compliance: Always render a distinct icon shape — never a color-only dot.
+  // Shape conveys meaning independently of color:
+  //   CheckCircle = healthy/running
+  //   AlertTriangle = warning/degraded
+  //   Octagon (stop sign) = critical/error
+  //   CircleMinus = offline/stopped
   return (
     <StatusIcon
       className={cn(sizeClasses[size], colorClasses[status], className)}
-      aria-label={status}
+      role="img"
+      aria-label={`Status: ${statusLabels[status] || status}`}
     />
   );
 };
@@ -289,6 +286,7 @@ export {
   ChevronDown,
   ChevronRight,
   CircleDot,
+  CircleMinus,
   Clock,
   Cloud,
   CloudRain,
@@ -309,6 +307,7 @@ export {
   Loader2,
   Moon,
   Network,
+  Octagon,
   Pause,
   Play,
   Power,

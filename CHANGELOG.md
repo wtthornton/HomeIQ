@@ -34,6 +34,7 @@
 
 ### Added
 
+- **508 accessibility compliance for health dashboard status indicators** — replaced color-only dots with distinct SVG icon shapes (CheckCircle, AlertTriangle, Octagon/stop-sign, CircleMinus), added ARIA roles/labels, replaced emoji indicators in ConnectionStatusIndicator with Lucide icons
 - **TAPPS quality gate fixes + browser review critical stories (6 stories, 52 files)** (c224571) - Bill Thornton
 - **complete SQLite removal — PostgreSQL is sole database (Epic 0)** (6c5480b) - Bill Thornton
 - **Phase 4.7 — cross-group service-to-service Bearer token auth** (b99aef7) - Bill Thornton
@@ -50,6 +51,9 @@
 
 ### Fixed
 
+- **health dashboard: 10 services showing false-positive RED** — changed health endpoints to return HTTP 200 with `"status": "degraded"` instead of HTTP 503 for expected conditions (missing HA config, unavailable DB, downstream services down). Affected: energy-correlator, energy-forecasting, proactive-agent-service, ai-pattern-service, api-automation-edge, ai-core-service, device-intelligence-service, device-context-classifier, device-setup-assistant
+- **health dashboard: 2 services showing false-positive GREEN** — air-quality-service now reports "degraded" when 0% fetch success rate; calendar-service no longer returns 503 for "no_calendars_found"
+- **health dashboard: weather-api and carbon-intensity-service incorrectly shown as stopped** — removed hardcoded STOPPED status in admin-api mock container data; added Compose label fallback for service name matching
 - **resolve 119 E2E test failures after frontend sidebar redesign** (c27e453) - Bill Thornton
 - **resolve 5 blocking security/quality findings + add deployment planning docs** (9d570d2) - Bill Thornton
 - **wire HealthEndpointManager into simple_main.py for /health/groups** (6991a46) - Bill Thornton

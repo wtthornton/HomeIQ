@@ -62,6 +62,7 @@ async def health_check() -> dict[str, Any]:
 
         except Exception as e:
             logger.warning(f"Error getting queue status: {e}")
+            status["status"] = "degraded"
             status["queue"] = {
                 "enabled": True,
                 "error": str(e),
@@ -69,6 +70,7 @@ async def health_check() -> dict[str, Any]:
             }
     elif settings.use_task_queue:
         # Task queue enabled but Huey not available
+        status["status"] = "degraded"
         status["queue"] = {
             "enabled": True,
             "available": False,

@@ -370,19 +370,34 @@ class SuggestionResponse(BaseModel):
 # API Endpoints
 @app.get("/health", tags=["health"])
 async def health_check(request: Request) -> JSONResponse:
-    """Health check endpoint reflecting downstream service health."""
+    """Health check endpoint reflecting downstream service health.
+
+    Always returns HTTP 200 so Docker marks the container as healthy.
+    The orchestrator process itself is running and can route requests
+    once downstream services recover.  Downstream availability is
+    reported via the ``status`` field ("healthy" / "degraded").
+    """
     manager = getattr(request.app.state, "service_manager", None)
     if not manager:
-        raise HTTPException(status_code=503, detail="Service not ready")
+        # Service manager not initialised yet — still starting up.
+        # Return 200 with "starting" so Docker doesn't kill the container
+        # during the start_period window.
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "starting",
+                "service": "ai-core-service",
+                "services": {},
+            },
+        )
 
     service_status = await manager.get_service_status()
     any_healthy = any(s.get("healthy") for s in service_status.values())
 
     status = "healthy" if any_healthy else "degraded"
-    status_code = 200 if any_healthy else 503
 
     return JSONResponse(
-        status_code=status_code,
+        status_code=200,
         content={
             "status": status,
             "service": "ai-core-service",

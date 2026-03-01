@@ -41,7 +41,8 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
     except Exception as e:
         logger.error("Database health check failed: %s", e, exc_info=True)
         result["database"] = "disconnected"
-        result["status"] = "unhealthy"
+        result["status"] = "degraded"
+        result["message"] = "Database unreachable; serving cached data"
 
     return result
 

@@ -57,6 +57,6 @@ class HealthCheckHandler:
             "success_rate": success_rate
         }
 
-        status_code = 200 if status in ("healthy", "starting") else 503
+        status_code = 200 if status in ("healthy", "starting", "degraded") else 503
         return web.json_response(health_data, status=status_code)
 

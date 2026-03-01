@@ -54,4 +54,8 @@ class HealthCheckHandler:
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
-        return web.json_response(status, status=200 if healthy else 503)
+        # Always return HTTP 200 — degraded states are informational, not failures.
+        # Returning 503 for degraded causes Docker healthcheck failures (e.g., 24
+        # consecutive failures for "no_calendars_found") even though the service
+        # itself is running correctly and will recover when calendars appear.
+        return web.json_response(status, status=200)

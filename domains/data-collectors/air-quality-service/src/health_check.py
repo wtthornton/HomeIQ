@@ -32,6 +32,10 @@ class HealthCheckHandler:
             if time_since_last > 7200:  # 2 hours
                 healthy = False
 
+        # If fetches have been attempted but none succeeded, report degraded
+        if self.total_fetches > 0 and self.total_fetches == self.failed_fetches:
+            healthy = False
+
         status = {
             "status": "healthy" if healthy else "degraded",
             "service": "air-quality-service",

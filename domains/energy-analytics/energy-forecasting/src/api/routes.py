@@ -188,12 +188,18 @@ def load_model(path: Path | str | None = None) -> bool:
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint (liveness)."""
+    """Health check endpoint (liveness).
+
+    Returns 200 for both healthy and degraded states so Docker
+    does not mark the container unhealthy when the model is simply
+    not loaded yet (expected in dev / partial deployments).
+    """
+    is_loaded = model_registry.is_loaded
     return HealthResponse(
-        status="healthy",
+        status="healthy" if is_loaded else "degraded",
         service="energy-forecasting",
         version=__version__,
-        model_loaded=model_registry.is_loaded,
+        model_loaded=is_loaded,
     )
 
 

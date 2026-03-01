@@ -1,11 +1,14 @@
 /**
  * ConnectionStatusIndicator Component
- * 
- * Displays WebSocket connection status with visual feedback
+ *
+ * Displays WebSocket connection status with visual feedback.
+ * 508 Compliant: Uses distinct icon shapes + visible text (not color alone).
  * Epic 15.1: Real-Time WebSocket Integration
  */
 
 import React from 'react';
+import { CheckCircle, Loader2, CircleMinus, Octagon, RefreshCw } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 interface ConnectionStatusIndicatorProps {
   connectionState: 'connecting' | 'connected' | 'disconnected' | 'error' | 'fallback';
@@ -18,52 +21,65 @@ export const ConnectionStatusIndicator: React.FC<ConnectionStatusIndicatorProps>
   darkMode = false,
   onReconnect
 }) => {
-  const getStatusConfig = () => {
+  const getStatusConfig = (): {
+    Icon: LucideIcon;
+    text: string;
+    bgColor: string;
+    textColor: string;
+    borderColor: string;
+    pulse: boolean;
+    iconClass: string;
+  } => {
     switch (connectionState) {
       case 'connected':
         return {
-          icon: '🟢',
+          Icon: CheckCircle,
           text: 'Live',
           bgColor: darkMode ? 'bg-green-900/30' : 'bg-green-100',
           textColor: darkMode ? 'text-green-400' : 'text-green-700',
           borderColor: darkMode ? 'border-green-500/50' : 'border-green-300',
-          pulse: true
+          pulse: true,
+          iconClass: ''
         };
       case 'connecting':
         return {
-          icon: '🟡',
+          Icon: Loader2,
           text: 'Connecting...',
           bgColor: darkMode ? 'bg-yellow-900/30' : 'bg-yellow-100',
           textColor: darkMode ? 'text-yellow-400' : 'text-yellow-700',
           borderColor: darkMode ? 'border-yellow-500/50' : 'border-yellow-300',
-          pulse: true
+          pulse: false,
+          iconClass: 'animate-spin'
         };
       case 'disconnected':
         return {
-          icon: '⚪',
+          Icon: CircleMinus,
           text: 'Disconnected',
           bgColor: darkMode ? 'bg-gray-700' : 'bg-gray-100',
           textColor: darkMode ? 'text-gray-400' : 'text-gray-600',
           borderColor: darkMode ? 'border-gray-600' : 'border-gray-300',
-          pulse: false
+          pulse: false,
+          iconClass: ''
         };
       case 'error':
         return {
-          icon: '🔴',
+          Icon: Octagon,
           text: 'Error',
           bgColor: darkMode ? 'bg-red-900/30' : 'bg-red-100',
           textColor: darkMode ? 'text-red-400' : 'text-red-700',
           borderColor: darkMode ? 'border-red-500/50' : 'border-red-300',
-          pulse: false
+          pulse: false,
+          iconClass: ''
         };
       case 'fallback':
         return {
-          icon: '🔄',
+          Icon: RefreshCw,
           text: 'Polling',
           bgColor: darkMode ? 'bg-blue-900/30' : 'bg-blue-100',
           textColor: darkMode ? 'text-blue-400' : 'text-blue-700',
           borderColor: darkMode ? 'border-blue-500/50' : 'border-blue-300',
-          pulse: false
+          pulse: false,
+          iconClass: ''
         };
     }
   };
@@ -71,26 +87,29 @@ export const ConnectionStatusIndicator: React.FC<ConnectionStatusIndicatorProps>
   const config = getStatusConfig();
 
   return (
-    <div 
+    <div
       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${config.bgColor} ${config.borderColor} ${config.textColor} transition-all duration-200`}
-      title={`Connection status: ${connectionState}`}
+      role="status"
+      aria-label={`WebSocket connection: ${config.text}`}
       data-testid="websocket-status"
       data-connected={connectionState === 'connected'}
     >
-      <span className={`text-sm ${config.pulse ? 'live-pulse-dot' : ''}`}>
-        {config.icon}
-      </span>
-      <span className="text-xs font-medium hidden sm:inline">
+      <config.Icon
+        className={`w-4 h-4 ${config.iconClass} ${config.pulse ? 'live-pulse-dot' : ''}`}
+        aria-hidden="true"
+      />
+      {/* 508: Always show text label — sr-only on mobile ensures screen readers see it */}
+      <span className="text-xs font-medium sm:inline">
         {config.text}
       </span>
-      
+
       {/* Reconnect button for disconnected/error states */}
       {(connectionState === 'disconnected' || connectionState === 'error' || connectionState === 'fallback') && onReconnect && (
         <button
           onClick={onReconnect}
           className={`ml-1 text-xs px-2 py-0.5 rounded transition-colors duration-200 ${
-            darkMode 
-              ? 'bg-gray-600 hover:bg-gray-500 text-white' 
+            darkMode
+              ? 'bg-gray-600 hover:bg-gray-500 text-white'
               : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
           }`}
           aria-label="Reconnect WebSocket"

@@ -124,8 +124,13 @@ class DockerService:
                 project_name = labels.get('com.docker.compose.project')
 
                 if project_name == 'homeiq':
-                    # Map container name to service name
-                    service_name = self._get_service_name_from_container(container.name)
+                    # Map container name to service name using container_mapping
+                    # (which aligns with health API keys). Fall back to the
+                    # Compose service label when no mapping entry exists.
+                    service_name = self._get_service_name_from_container(
+                        container.name,
+                        compose_service=labels.get('com.docker.compose.service'),
+                    )
 
                     # Get container status
                     status = self._get_container_status(container)
@@ -332,11 +337,21 @@ class DockerService:
         """Get Docker container name from service name"""
         return self.container_mapping.get(service_name)
 
-    def _get_service_name_from_container(self, container_name: str) -> str:
-        """Get service name from Docker container name"""
-        for service, container in self.container_mapping.items():
-            if container == container_name:
+    def _get_service_name_from_container(
+        self, container_name: str, compose_service: str | None = None,
+    ) -> str:
+        """Get service name from Docker container name.
+
+        Priority:
+        1. Reverse lookup in container_mapping (names aligned with health API).
+        2. Compose service label (``com.docker.compose.service``).
+        3. Raw container name (last resort).
+        """
+        for service, mapped_name in self.container_mapping.items():
+            if mapped_name == container_name:
                 return service
+        if compose_service:
+            return compose_service
         return container_name
 
     def _get_container_status(self, container) -> ContainerStatus:
@@ -418,13 +433,15 @@ class DockerService:
         # Create mock data for all known services
         for service_name, container_name in self.container_mapping.items():
             # Mock different statuses for variety
-            if service_name in ['influxdb', 'websocket-ingestion']:
+            if service_name == 'influxdb':
                 status = ContainerStatus.RUNNING
-                ports = {'8086/tcp': '8086'} if service_name == 'influxdb' else {'8001/tcp': '8001'} if service_name == 'websocket-ingestion' else {'8002/tcp': '8002'}
-            elif service_name in ['weather-api', 'carbon-intensity-service']:
-                status = ContainerStatus.STOPPED
-                ports = {}
+                ports = {'8086/tcp': '8086'}
+            elif service_name == 'websocket-ingestion':
+                status = ContainerStatus.RUNNING
+                ports = {'8001/tcp': '8001'}
             else:
+                # Default all services to RUNNING in mock mode;
+                # the health API provides the authoritative service status.
                 status = ContainerStatus.RUNNING
                 ports = {}
 

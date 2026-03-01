@@ -80,8 +80,14 @@ async def health_check(settings: Settings = Depends(lambda: Settings())) -> Heal
         "mqtt": "not_checked"
     }
 
+    # Report "degraded" when the database is unavailable, but always
+    # return HTTP 200 so Docker marks the container as healthy.  The
+    # service process itself is running and can serve cached/fallback
+    # responses; it will recover once the database reconnects.
+    overall_status = "healthy" if db_status == "connected" else "degraded"
+
     return HealthResponse(
-        status="healthy",
+        status=overall_status,
         timestamp=datetime.now(timezone.utc),
         service="Device Intelligence Service",
         version="1.0.0",
