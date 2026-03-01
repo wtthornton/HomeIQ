@@ -27,7 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from ..config import settings
-from ..miner.database import get_database
+from ..miner.database import get_database, init_db
 from .admin_routes import router as admin_router  # Story AI4.4
 from .device_routes import router as device_router  # Story AI4.3
 from .routes import router
@@ -133,17 +133,21 @@ async def _start_scheduler() -> object | None:
 async def _initialize_database() -> Any:
     """Initialize database connection and create tables."""
     db = get_database()
-    await db.create_tables()
-    # Migrate existing databases: add is_blueprint column if missing
-    async with db.engine.begin() as conn:
-        try:
-            await conn.execute(text(
-                "ALTER TABLE community_automations ADD COLUMN is_blueprint BOOLEAN NOT NULL DEFAULT 0"
-            ))
-            logger.info("Migration: added is_blueprint column")
-        except Exception:
-            pass  # Column already exists
-    logger.info("Database initialized")
+    success = await init_db()
+    if success and db.engine is not None:
+        # Migrate existing databases: add is_blueprint column if missing
+        async with db.engine.begin() as conn:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE community_automations ADD COLUMN is_blueprint BOOLEAN NOT NULL DEFAULT 0"
+                ))
+                logger.info("Migration: added is_blueprint column")
+            except Exception:
+                pass  # Column already exists
+    if not success:
+        logger.warning("Database unavailable — starting in degraded mode")
+    else:
+        logger.info("Database initialized")
     return db
 
 

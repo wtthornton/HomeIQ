@@ -7,6 +7,7 @@ import asyncio
 import logging
 import os
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from sqlalchemy import text
@@ -52,22 +53,32 @@ async def run_alembic_migrations():
             return False
 
         logger.info("Running Alembic migrations...")
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, _run_alembic_sync, str(alembic_ini_path))
-        logger.info("Alembic migrations completed")
-        return True
+        # Run in subprocess to isolate asyncpg driver issues from main process
+        proc = await asyncio.create_subprocess_exec(
+            "python", "-c",
+            f"from alembic.config import Config; from alembic import command; "
+            f"command.upgrade(Config('{alembic_ini_path}'), 'head')",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=10.0)
+        except TimeoutError:
+            proc.kill()
+            logger.warning("Alembic migrations timed out (10s), skipping")
+            return False
+
+        if proc.returncode == 0:
+            logger.info("Alembic migrations completed")
+            return True
+        else:
+            logger.warning("Alembic migrations failed (exit %d): %s",
+                           proc.returncode, stderr.decode()[:500])
+            return False
     except Exception as e:
         logger.error("Failed to run Alembic migrations: %s", e, exc_info=True)
         logger.warning("Will attempt manual schema sync as fallback")
         return False
-
-
-def _run_alembic_sync(alembic_ini_path: str) -> None:
-    """Run Alembic upgrade synchronously."""
-    from alembic import command
-    from alembic.config import Config
-    alembic_cfg = Config(alembic_ini_path)
-    command.upgrade(alembic_cfg, "head")
 
 
 async def _run_manual_migrations(conn):
@@ -112,16 +123,19 @@ async def init_db() -> bool:
     """
     global engine, async_session_maker
 
-    # Step 1: Try Alembic migrations first
-    alembic_success = await run_alembic_migrations()
-
-    # Step 2: Initialize via DatabaseManager (creates engine, tests connection, creates tables)
+    # Step 1: Initialize via DatabaseManager (creates engine, tests connection, creates tables)
     result = await db.initialize(base=Base)
     engine = db.engine
     async_session_maker = db.session_maker
 
+    if not result:
+        return False
+
+    # Step 2: Try Alembic migrations (non-blocking — failures are caught)
+    alembic_success = await run_alembic_migrations()
+
     # Step 3: Run manual migrations as fallback if Alembic failed
-    if result and not alembic_success and db.engine is not None:
+    if not alembic_success and db.engine is not None:
         try:
             async with db.engine.begin() as conn:
                 await _run_manual_migrations(conn)
@@ -142,6 +156,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+@asynccontextmanager
 async def get_db_context():
     """Context manager for database sessions."""
     async with db.get_db_context() as session:

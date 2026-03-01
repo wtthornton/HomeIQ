@@ -6,6 +6,7 @@ PostgreSQL via homeiq_data DatabaseManager (standardized lifecycle).
 import logging
 import os
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,6 +58,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+@asynccontextmanager
 async def get_db_context():
     """Context manager for database sessions."""
     async with db.get_db_context() as session:

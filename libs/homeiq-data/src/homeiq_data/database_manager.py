@@ -187,10 +187,12 @@ class DatabaseManager:
                 self._service_name,
             )
 
+    @asynccontextmanager
     async def get_db(self) -> AsyncGenerator[AsyncSession, None]:
         """
-        FastAPI Depends() compatible async session generator.
+        Async context manager for database sessions.
 
+        Compatible with both ``async with db.get_db()`` and FastAPI ``Depends()``.
         Raises RuntimeError if database is not available.
         """
         if not self._available or self._session_maker is None:
