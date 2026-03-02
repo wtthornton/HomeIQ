@@ -35,14 +35,7 @@ export const Deployed: React.FC = () => {
   const loadAutomations = async () => {
     try {
       setLoading(true);
-      console.log('[Deployed] Loading automations...');
       const result = await api.listDeployedAutomations();
-      console.log('[Deployed] API result:', result);
-      console.log('[Deployed] Result type:', typeof result);
-      console.log('[Deployed] Has automations key:', 'automations' in result);
-      console.log('[Deployed] Automations value:', result.automations);
-      console.log('[Deployed] Automations type:', typeof result.automations);
-      console.log('[Deployed] Is array:', Array.isArray(result.automations));
       
       // Validate response structure
       if (!result) {
@@ -53,9 +46,6 @@ export const Deployed: React.FC = () => {
       
       // Backend returns {automations: [...]}, not {data: [...]}
       const automations = result.automations || result.data || [];
-      console.log('[Deployed] Processed automations:', automations);
-      console.log('[Deployed] Processed count:', automations.length);
-      console.log('[Deployed] Is array:', Array.isArray(automations));
       
       // Ensure we have an array
       if (!Array.isArray(automations)) {
@@ -64,9 +54,7 @@ export const Deployed: React.FC = () => {
         return;
       }
       
-      console.log('[Deployed] Setting automations state with', automations.length, 'items...');
       setAutomations(automations);
-      console.log('[Deployed] State updated successfully');
     } catch (error) {
       console.error('[Deployed] Failed to load automations:', error);
       console.error('[Deployed] Error details:', {
@@ -78,7 +66,6 @@ export const Deployed: React.FC = () => {
       setAutomations([]); // Clear state on error
     } finally {
       setLoading(false);
-      console.log('[Deployed] Loading complete');
     }
   };
 
@@ -246,20 +233,9 @@ export const Deployed: React.FC = () => {
             duration: 5000 
           }
         );
-        console.log('Validation errors:', validationResult.errors);
-        console.log('Validation warnings:', validationResult.warnings);
       } else {
         toast.success('✅ YAML validation passed', { duration: 3000 });
       }
-      
-      // Log validation details
-      console.log('Validation result:', {
-        valid: validationResult.valid,
-        stages: validationResult.stages,
-        errors: validationResult.errors,
-        warnings: validationResult.warnings,
-        fixed_yaml: validationResult.fixed_yaml ? 'Available' : 'None'
-      });
       
       // Step 3: Run self-correction with validated/fixed YAML
       toast.loading('🔄 Reverse engineering and self-correcting YAML...', { id: `self-correct-${automationId}` });
@@ -285,7 +261,6 @@ export const Deployed: React.FC = () => {
       );
       
       // Show iteration history in console for debugging
-      console.log('Iteration History:', response.iteration_history);
       
       // Show warnings if similarity is low
       if (response.final_similarity < 0.80) {

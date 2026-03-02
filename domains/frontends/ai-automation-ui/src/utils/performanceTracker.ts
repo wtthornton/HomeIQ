@@ -88,15 +88,7 @@ class PerformanceTracker {
       this.reports.shift();
     }
 
-    // Log to console for debugging
-    console.log(`[Performance] ${operation}:`, {
-      totalDuration: `${totalDuration.toFixed(2)}ms`,
-      metrics: metrics.map((m) => ({
-        name: m.name,
-        duration: `${m.duration?.toFixed(2)}ms`,
-        metadata: m.metadata,
-      })),
-    });
+    // Performance report created (logging removed)
 
     return report;
   }

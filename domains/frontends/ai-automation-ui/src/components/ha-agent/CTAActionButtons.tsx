@@ -184,13 +184,6 @@ export const CTAActionButtons: React.FC<CTAActionButtonsProps> = ({
       return;
     }
 
-    // Log for debugging (remove in production if needed)
-    console.log('[CTAActionButtons] Creating automation with:', {
-      alias: alias.trim(),
-      userPrompt: userPrompt.trim(),
-      yamlLength: yamlToUse.trim().length,
-    });
-
     setIsCreating(true);
 
     try {

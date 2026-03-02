@@ -7,109 +7,11 @@
  */
 
 import { validateYAML as validateYAMLFromHaAgent } from './haAiAgentApi';
+import { fetchJSON, withAuthHeaders, APIError, API_CONFIG } from '../lib/api-client';
 
-// Use relative path - nginx will proxy to ai-automation-service
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+export { APIError } from '../lib/api-client';
 
-// SECURITY: Never hardcode API keys. Always use environment variables.
-// In production, VITE_API_KEY must be set via environment variables.
-// If not set, throw an error to prevent insecure fallback.
-const API_KEY = import.meta.env.VITE_API_KEY;
-if (!API_KEY) {
-  console.error('VITE_API_KEY environment variable is not set. API requests will fail.');
-  // In development, we can allow requests without key for local testing
-  // but log a warning. In production, this should be enforced.
-  if (import.meta.env.MODE === 'production') {
-    throw new Error('VITE_API_KEY is required in production mode. Please set the environment variable.');
-  }
-}
-
-export class APIError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-    this.name = 'APIError';
-  }
-}
-
-/**
- * Add authentication headers to request options
- */
-function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
-  // Only add auth headers if API_KEY is available
-  const authHeaders: Record<string, string> = {};
-  if (API_KEY) {
-    authHeaders['Authorization'] = `Bearer ${API_KEY}`;
-    authHeaders['X-HomeIQ-API-Key'] = API_KEY;
-  }
-
-  if (headers instanceof Headers) {
-    Object.entries(authHeaders).forEach(([key, value]) => {
-      headers.set(key, value);
-    });
-    return headers;
-  }
-
-  if (Array.isArray(headers)) {
-    const filtered = headers.filter(([key]) =>
-      key.toLowerCase() !== 'authorization' && key.toLowerCase() !== 'x-homeiq-api-key'
-    );
-    return [...filtered, ...Object.entries(authHeaders)];
-  }
-
-  return {
-    ...headers,
-    ...authHeaders,
-  };
-}
-
-async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
-  try {
-    const headers = withAuthHeaders({
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    });
-
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
-
-    if (!response.ok) {
-      let errorMessage = response.statusText;
-      try {
-        const errorBody = await response.json();
-        if (errorBody.detail) {
-          errorMessage = typeof errorBody.detail === 'string' 
-            ? errorBody.detail 
-            : JSON.stringify(errorBody.detail);
-        } else if (errorBody.message) {
-          errorMessage = errorBody.message;
-        }
-      } catch {
-        // If JSON parsing fails, use statusText
-      }
-      throw new APIError(response.status, errorMessage);
-    }
-
-    return await response.json();
-  } catch (error) {
-    // Enhanced error logging with more context
-    if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      console.error(`API request failed (network error): ${url}`, {
-        error: error.message,
-        url,
-        message: 'This usually indicates a network connectivity issue, CORS problem, or the server is unreachable.',
-        errorStack: error.stack
-      });
-      // Wrap in a more descriptive error
-      const networkError = new Error(`Network error: Unable to connect to ${url}. Please check your connection and ensure the server is running. If accessing from browser, this may be a CORS issue - check browser console for CORS errors.`);
-      (networkError as any).originalError = error;
-      throw networkError;
-    }
-    console.error(`API request failed: ${url}`, error);
-    throw error;
-  }
-}
+const API_BASE_URL = import.meta.env.VITE_API_URL || API_CONFIG.AI_AUTOMATION;
 
 // Type definitions matching backend models
 

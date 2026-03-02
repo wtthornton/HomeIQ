@@ -4,6 +4,7 @@
  */
 
 import type { SynergyOpportunity } from '../types';
+import { downloadFile } from './exportUtils';
 
 /**
  * Convert synergies to CSV format
@@ -75,21 +76,6 @@ export function synergiesToCSV(synergies: SynergyOpportunity[]): string {
  */
 export function synergiesToJSON(synergies: SynergyOpportunity[]): string {
   return JSON.stringify(synergies, null, 2);
-}
-
-/**
- * Download data as file
- */
-export function downloadFile(content: string, filename: string, mimeType: string): void {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 }
 
 /**

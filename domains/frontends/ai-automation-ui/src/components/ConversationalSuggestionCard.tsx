@@ -354,20 +354,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = memo(({
                                   previousConfidence > 0 && 
                                   confidenceDelta !== undefined && 
                                   confidenceDelta > 0;
-                if (shouldShow) {
-                  console.log('✅ Showing confidence improvement badge:', {
-                    previousConfidence,
-                    confidenceDelta,
-                    confidenceSummary
-                  });
-                } else {
-                  console.log('⚠️ NOT showing confidence improvement badge:', {
-                    previousConfidence,
-                    confidenceDelta,
-                    hasPrevious: previousConfidence !== undefined,
-                    hasDelta: confidenceDelta !== undefined
-                  });
-                }
+                // Confidence improvement detected
                 return shouldShow ? (
                   <span 
                     className="px-1.5 py-0.5 rounded-full text-xs font-medium"
@@ -390,14 +377,6 @@ export const ConversationalSuggestionCard: React.FC<Props> = memo(({
                   deployedAt={deployedAt}
                   status="active"
                   darkMode={darkMode}
-                  onEdit={() => {
-                    // TODO: Implement edit functionality
-                    toast('Edit functionality coming soon', { icon: 'ℹ️' });
-                  }}
-                  onDisable={() => {
-                    // TODO: Implement disable functionality
-                    toast('Disable functionality coming soon', { icon: 'ℹ️' });
-                  }}
                 />
               )}
               

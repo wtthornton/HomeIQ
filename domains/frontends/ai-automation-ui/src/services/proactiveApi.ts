@@ -1,7 +1,7 @@
 /**
  * Proactive Agent Service API Client
  * Epic AI-21: Context-aware automation suggestions
- * 
+ *
  * Endpoints:
  * - GET  /api/proactive/suggestions          - List suggestions
  * - GET  /api/proactive/suggestions/{id}     - Get by ID
@@ -19,107 +19,12 @@ import type {
   ProactiveSuggestionStatus,
   ProactiveTriggerResponse,
 } from '../types/proactive';
+import { fetchJSON } from '../lib/api-client';
 
 const PROACTIVE_API_BASE = '/api/proactive/suggestions';
 
-// Get API key from environment (same as main api.ts)
-const API_KEY = import.meta.env.VITE_API_KEY;
-
-export class ProactiveAPIError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-    public details?: unknown
-  ) {
-    super(message);
-    this.name = 'ProactiveAPIError';
-  }
-}
-
-/**
- * Add authentication headers to request
- */
-function getHeaders(): HeadersInit {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  if (API_KEY) {
-    headers['Authorization'] = `Bearer ${API_KEY}`;
-    headers['X-HomeIQ-API-Key'] = API_KEY;
-  }
-
-  return headers;
-}
-
-const DEFAULT_TIMEOUT_MS = 10000; // 10 seconds
-
-/**
- * Generic fetch wrapper with error handling and timeout
- */
-async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
-
-  if (options?.signal) {
-    options.signal.addEventListener('abort', () => controller.abort(), { once: true });
-  }
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: getHeaders(),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      let errorMessage = response.statusText;
-      let errorDetails: unknown = null;
-
-      try {
-        const errorBody = await response.json();
-        errorMessage = errorBody.detail || errorBody.message || errorMessage;
-        errorDetails = errorBody;
-      } catch {
-        // Ignore JSON parse errors
-      }
-
-      throw new ProactiveAPIError(response.status, errorMessage, errorDetails);
-    }
-
-    return await response.json();
-  } catch (error) {
-    if (error instanceof ProactiveAPIError) {
-      throw error;
-    }
-
-    // Handle abort/timeout
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new ProactiveAPIError(
-        0,
-        'Request timed out. The Proactive Agent Service may be slow or unavailable.',
-        { isTimeout: true }
-      );
-    }
-
-    // Network error or other fetch failure
-    if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new ProactiveAPIError(
-        0,
-        'Unable to connect to Proactive Agent Service. Please check if the service is running.',
-        { originalError: error.message }
-      );
-    }
-
-    throw new ProactiveAPIError(
-      500,
-      error instanceof Error ? error.message : 'Unknown error',
-      error
-    );
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
+/** @deprecated Use APIError from lib/api-client instead */
+export { APIError as ProactiveAPIError } from '../lib/api-client';
 
 export const proactiveApi = {
   /**

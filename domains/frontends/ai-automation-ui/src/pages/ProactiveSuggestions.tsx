@@ -54,7 +54,6 @@ export const ProactiveSuggestions: React.FC = () => {
 
       // Auto-retry for transient errors
       if (isRetryable && retryAttempt < maxRetries) {
-        console.log(`Proactive suggestions: retrying in ${retryDelay}ms (attempt ${retryAttempt + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
         return loadSuggestions(retryAttempt + 1);
       }

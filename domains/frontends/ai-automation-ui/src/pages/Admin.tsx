@@ -519,6 +519,7 @@ export const Admin: React.FC = () => {
                               ? 'bg-red-900/30 text-red-300 hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed'
                               : 'bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed'
                           }`}
+                          aria-label={`Delete training run ${run.runIdentifier ?? run.id}`}
                           title={run.status === 'running' ? 'Cannot delete running training job' : 'Delete this training run'}
                         >
                           🗑️

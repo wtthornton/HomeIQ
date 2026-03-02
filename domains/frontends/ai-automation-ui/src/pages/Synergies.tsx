@@ -272,13 +272,7 @@ export const Synergies: React.FC = () => {
             { duration: 5000 }
           );
           
-          // Log automation details for debugging
-          console.log('Automation generated:', {
-            automation_id: result.data.automation_id,
-            blueprint_id: result.data.blueprint_id,
-            deployment_status: result.data.deployment_status,
-            estimated_impact: result.data.estimated_impact
-          });
+          // Automation details logged at API level
         } else {
           toast.error('Failed to create automation: Unknown error');
         }
@@ -299,53 +293,6 @@ export const Synergies: React.FC = () => {
     }
   };
 
-  const handleTestAutomation = async (synergy: SynergyOpportunity) => {
-    try {
-      // Show test dialog
-      const confirmed = window.confirm(
-        `Test this automation?\n\n` +
-        `This will simulate the automation without actually creating it.\n` +
-        `You'll see what would happen when the trigger fires.`
-      );
-
-      if (!confirmed) return;
-
-      // TODO: Call API to test automation
-      toast.success('Testing automation... This feature will be available soon.');
-      console.log('Would test automation for synergy:', synergy.id);
-    } catch (error: any) {
-      toast.error(`Failed to test automation: ${error.message || 'Unknown error'}`);
-      console.error('Error testing automation:', error);
-    }
-  };
-
-  const handleScheduleAutomation = async (synergy: SynergyOpportunity) => {
-    try {
-      // Show schedule dialog
-      const scheduleTime = window.prompt(
-        `Schedule this automation?\n\n` +
-        `Enter time (HH:MM format, 24-hour):`,
-        '09:00'
-      );
-
-      if (!scheduleTime) return;
-
-      // Validate time format
-      const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
-      if (!timeRegex.test(scheduleTime)) {
-        toast.error('Invalid time format. Please use HH:MM (24-hour format).');
-        return;
-      }
-
-      // TODO: Call API to schedule automation
-      toast.success(`Automation scheduled for ${scheduleTime}! This feature will be available soon.`);
-      console.log('Would schedule automation for synergy:', synergy.id, 'at', scheduleTime);
-    } catch (error: any) {
-      toast.error(`Failed to schedule automation: ${error.message || 'Unknown error'}`);
-      console.error('Error scheduling automation:', error);
-    }
-  };
-  
   const handleSave = (synergyId: number) => {
     setSavedSynergies(prev => {
       const next = new Set(prev);
@@ -417,22 +364,6 @@ export const Synergies: React.FC = () => {
     }
   };
   
-  // Parse device IDs helper
-  const parseDeviceIdsForSearch = (deviceIds: string): string[] => {
-    try {
-      if (typeof deviceIds === 'string') {
-        const parsed = JSON.parse(deviceIds);
-        return Array.isArray(parsed) ? parsed : [deviceIds];
-      }
-      return Array.isArray(deviceIds) ? deviceIds : [];
-    } catch {
-      if (typeof deviceIds === 'string' && deviceIds.includes(',')) {
-        return deviceIds.split(',').map(id => id.trim());
-      }
-      return deviceIds ? [deviceIds] : [];
-    }
-  };
-
   // Filter and sort synergies with search support
   const filteredAndSortedSynergies = useMemo(() => {
     let filtered = [...synergies];
@@ -473,7 +404,7 @@ export const Synergies: React.FC = () => {
         const areaMatch = synergy.area?.toLowerCase().includes(query);
         
         // Search by device IDs
-        const deviceIds = parseDeviceIdsForSearch(synergy.device_ids);
+        const deviceIds = parseDeviceIds(synergy.device_ids);
         const deviceMatch = deviceIds.some(id => id.toLowerCase().includes(query));
         
         // Search by metadata
@@ -1311,6 +1242,8 @@ export const Synergies: React.FC = () => {
                         <button
                           key={type}
                           onClick={() => setFilterType(type)}
+                          aria-label={`Filter by ${type} synergies`}
+                          aria-pressed={filterType === type}
                           className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                             filterType === type
                               ? 'bg-blue-600 text-white'
@@ -1920,34 +1853,24 @@ export const Synergies: React.FC = () => {
                       🚀 Create Automation
                     </motion.button>
                     <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleTestAutomation(synergy);
-                      }}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      disabled
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-not-allowed opacity-50 ${
                         darkMode
-                          ? 'bg-green-700 hover:bg-green-600 text-white'
-                          : 'bg-green-500 hover:bg-green-600 text-white'
+                          ? 'bg-green-700 text-white'
+                          : 'bg-green-500 text-white'
                       }`}
-                      title="Test this automation before creating"
+                      title="Test automation (coming soon)"
                     >
                       🧪 Test
                     </motion.button>
                     <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleScheduleAutomation(synergy);
-                      }}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      disabled
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-not-allowed opacity-50 ${
                         darkMode
-                          ? 'bg-purple-700 hover:bg-purple-600 text-white'
-                          : 'bg-purple-500 hover:bg-purple-600 text-white'
+                          ? 'bg-purple-700 text-white'
+                          : 'bg-purple-500 text-white'
                       }`}
-                      title="Schedule this automation"
+                      title="Schedule automation (coming soon)"
                     >
                       📅 Schedule
                     </motion.button>

@@ -17,6 +17,7 @@ import {
 import { TeamTrackerSettings } from '../components/TeamTrackerSettings';
 import { ModelComparisonMetricsComponent } from '../components/ModelComparisonMetrics';
 import { PreferenceSettings } from '../components/PreferenceSettings';
+import { ModelSelector } from '../components/ModelSelector';
 
 export const Settings: React.FC = () => {
   const { darkMode } = useAppStore();
@@ -173,10 +174,11 @@ export const Settings: React.FC = () => {
           
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <label className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <label htmlFor="schedule-enabled" className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Enable Daily Analysis
               </label>
               <input
+                id="schedule-enabled"
                 type="checkbox"
                 checked={settings.scheduleEnabled}
                 onChange={(e) => setSettings({ ...settings, scheduleEnabled: e.target.checked })}
@@ -288,10 +290,11 @@ export const Settings: React.FC = () => {
           <div className="space-y-3">
             {Object.entries(settings.enabledCategories).map(([category, enabled]) => (
               <div key={category} className="flex items-center justify-between">
-                <label className={`font-medium capitalize ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <label htmlFor={`category-${category}`} className={`font-medium capitalize ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   {category}
                 </label>
                 <input
+                  id={`category-${category}`}
                   type="checkbox"
                   checked={enabled}
                   onChange={(e) => setSettings({
@@ -359,7 +362,7 @@ export const Settings: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <label className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <label htmlFor="parallel-testing" className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Enable Parallel Testing
                 </label>
                 <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -367,6 +370,7 @@ export const Settings: React.FC = () => {
                 </p>
               </div>
               <input
+                id="parallel-testing"
                 type="checkbox"
                 checked={settings.enableParallelModelTesting || false}
                 onChange={(e) => setSettings({ ...settings, enableParallelModelTesting: e.target.checked })}
@@ -381,10 +385,9 @@ export const Settings: React.FC = () => {
                     Suggestion Models
                   </label>
                   <div className="grid grid-cols-2 gap-2">
-                    <select
+                    <ModelSelector
                       value={settings.parallelTestingModels?.suggestion?.[0] || 'gpt-4o'}
-                      onChange={(e) => {
-                        const model1 = e.target.value;
+                      onChange={(model1) => {
                         const model2 = settings.parallelTestingModels?.suggestion?.[1] || 'gpt-4o-mini';
                         setSettings({
                           ...settings,
@@ -394,42 +397,12 @@ export const Settings: React.FC = () => {
                           }
                         });
                       }}
-                      className={`px-4 py-2 rounded-lg border ${
-                        darkMode
-                          ? 'bg-gray-700 border-gray-600 text-white'
-                          : 'bg-white border-gray-300 text-gray-900'
-                      } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                    >
-                      <optgroup label="Latest Models (2025)">
-                        <option value="gpt-5.1">GPT-5.1 (Latest)</option>
-                        <option value="gpt-5">GPT-5</option>
-                        <option value="gpt-4.1">GPT-4.1</option>
-                      </optgroup>
-                      <optgroup label="GPT-4o Series">
-                        <option value="gpt-4o">GPT-4o</option>
-                        <option value="gpt-4o-mini">GPT-4o-mini</option>
-                      </optgroup>
-                      <optgroup label="GPT-4 Series">
-                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                        <option value="gpt-4">GPT-4</option>
-                      </optgroup>
-                      <optgroup label="Reasoning Models (o-series)">
-                        <option value="o1">o1</option>
-                        <option value="o1-mini">o1-mini</option>
-                        <option value="o1-preview">o1-preview</option>
-                        <option value="o3">o3</option>
-                        <option value="o3-mini">o3-mini</option>
-                        <option value="o4-mini">o4-mini</option>
-                      </optgroup>
-                      <optgroup label="Legacy Models">
-                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                      </optgroup>
-                    </select>
-                    <select
+                      darkMode={darkMode}
+                    />
+                    <ModelSelector
                       value={settings.parallelTestingModels?.suggestion?.[1] || 'gpt-4o-mini'}
-                      onChange={(e) => {
+                      onChange={(model2) => {
                         const model1 = settings.parallelTestingModels?.suggestion?.[0] || 'gpt-4o';
-                        const model2 = e.target.value;
                         setSettings({
                           ...settings,
                           parallelTestingModels: {
@@ -438,37 +411,8 @@ export const Settings: React.FC = () => {
                           }
                         });
                       }}
-                      className={`px-4 py-2 rounded-lg border ${
-                        darkMode
-                          ? 'bg-gray-700 border-gray-600 text-white'
-                          : 'bg-white border-gray-300 text-gray-900'
-                      } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                    >
-                      <optgroup label="Latest Models (2025)">
-                        <option value="gpt-5.1">GPT-5.1 (Latest)</option>
-                        <option value="gpt-5">GPT-5</option>
-                        <option value="gpt-4.1">GPT-4.1</option>
-                      </optgroup>
-                      <optgroup label="GPT-4o Series">
-                        <option value="gpt-4o">GPT-4o</option>
-                        <option value="gpt-4o-mini">GPT-4o-mini</option>
-                      </optgroup>
-                      <optgroup label="GPT-4 Series">
-                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                        <option value="gpt-4">GPT-4</option>
-                      </optgroup>
-                      <optgroup label="Reasoning Models (o-series)">
-                        <option value="o1">o1</option>
-                        <option value="o1-mini">o1-mini</option>
-                        <option value="o1-preview">o1-preview</option>
-                        <option value="o3">o3</option>
-                        <option value="o3-mini">o3-mini</option>
-                        <option value="o4-mini">o4-mini</option>
-                      </optgroup>
-                      <optgroup label="Legacy Models">
-                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                      </optgroup>
-                    </select>
+                      darkMode={darkMode}
+                    />
                   </div>
                   <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     Compare Model 1 vs Model 2 for suggestion generation
@@ -479,10 +423,9 @@ export const Settings: React.FC = () => {
                     YAML Generation Models
                   </label>
                   <div className="grid grid-cols-2 gap-2">
-                    <select
+                    <ModelSelector
                       value={settings.parallelTestingModels?.yaml?.[0] || 'gpt-4o'}
-                      onChange={(e) => {
-                        const model1 = e.target.value;
+                      onChange={(model1) => {
                         const model2 = settings.parallelTestingModels?.yaml?.[1] || 'gpt-4o-mini';
                         setSettings({
                           ...settings,
@@ -492,42 +435,12 @@ export const Settings: React.FC = () => {
                           }
                         });
                       }}
-                      className={`px-4 py-2 rounded-lg border ${
-                        darkMode
-                          ? 'bg-gray-700 border-gray-600 text-white'
-                          : 'bg-white border-gray-300 text-gray-900'
-                      } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                    >
-                      <optgroup label="Latest Models (2025)">
-                        <option value="gpt-5.1">GPT-5.1 (Latest)</option>
-                        <option value="gpt-5">GPT-5</option>
-                        <option value="gpt-4.1">GPT-4.1</option>
-                      </optgroup>
-                      <optgroup label="GPT-4o Series">
-                        <option value="gpt-4o">GPT-4o</option>
-                        <option value="gpt-4o-mini">GPT-4o-mini</option>
-                      </optgroup>
-                      <optgroup label="GPT-4 Series">
-                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                        <option value="gpt-4">GPT-4</option>
-                      </optgroup>
-                      <optgroup label="Reasoning Models (o-series)">
-                        <option value="o1">o1</option>
-                        <option value="o1-mini">o1-mini</option>
-                        <option value="o1-preview">o1-preview</option>
-                        <option value="o3">o3</option>
-                        <option value="o3-mini">o3-mini</option>
-                        <option value="o4-mini">o4-mini</option>
-                      </optgroup>
-                      <optgroup label="Legacy Models">
-                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                      </optgroup>
-                    </select>
-                    <select
+                      darkMode={darkMode}
+                    />
+                    <ModelSelector
                       value={settings.parallelTestingModels?.yaml?.[1] || 'gpt-4o-mini'}
-                      onChange={(e) => {
+                      onChange={(model2) => {
                         const model1 = settings.parallelTestingModels?.yaml?.[0] || 'gpt-4o';
-                        const model2 = e.target.value;
                         setSettings({
                           ...settings,
                           parallelTestingModels: {
@@ -536,37 +449,8 @@ export const Settings: React.FC = () => {
                           }
                         });
                       }}
-                      className={`px-4 py-2 rounded-lg border ${
-                        darkMode
-                          ? 'bg-gray-700 border-gray-600 text-white'
-                          : 'bg-white border-gray-300 text-gray-900'
-                      } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                    >
-                      <optgroup label="Latest Models (2025)">
-                        <option value="gpt-5.1">GPT-5.1 (Latest)</option>
-                        <option value="gpt-5">GPT-5</option>
-                        <option value="gpt-4.1">GPT-4.1</option>
-                      </optgroup>
-                      <optgroup label="GPT-4o Series">
-                        <option value="gpt-4o">GPT-4o</option>
-                        <option value="gpt-4o-mini">GPT-4o-mini</option>
-                      </optgroup>
-                      <optgroup label="GPT-4 Series">
-                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                        <option value="gpt-4">GPT-4</option>
-                      </optgroup>
-                      <optgroup label="Reasoning Models (o-series)">
-                        <option value="o1">o1</option>
-                        <option value="o1-mini">o1-mini</option>
-                        <option value="o1-preview">o1-preview</option>
-                        <option value="o3">o3</option>
-                        <option value="o3-mini">o3-mini</option>
-                        <option value="o4-mini">o4-mini</option>
-                      </optgroup>
-                      <optgroup label="Legacy Models">
-                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                      </optgroup>
-                    </select>
+                      darkMode={darkMode}
+                    />
                   </div>
                   <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     Compare Model 1 vs Model 2 for YAML generation
@@ -595,10 +479,11 @@ export const Settings: React.FC = () => {
           
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <label className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <label htmlFor="notifications-enabled" className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Enable Notifications
               </label>
               <input
+                id="notifications-enabled"
                 type="checkbox"
                 checked={settings.notificationsEnabled}
                 onChange={(e) => setSettings({ ...settings, notificationsEnabled: e.target.checked })}
@@ -636,10 +521,11 @@ export const Settings: React.FC = () => {
           <div className="space-y-6">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <label htmlFor="soft-prompt-enabled" className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Enable Soft Prompt Fallback
                 </label>
                 <input
+                  id="soft-prompt-enabled"
                   type="checkbox"
                   checked={settings.softPromptEnabled}
                   onChange={(e) => setSettings({ ...settings, softPromptEnabled: e.target.checked })}
@@ -695,10 +581,11 @@ export const Settings: React.FC = () => {
 
             <div className="border-t border-dashed border-gray-200 dark:border-gray-700 pt-4">
               <div className="flex items-center justify-between">
-                <label className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <label htmlFor="guardrail-enabled" className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Enable Guardrail Checks
                 </label>
                 <input
+                  id="guardrail-enabled"
                   type="checkbox"
                   checked={settings.guardrailEnabled}
                   onChange={(e) => setSettings({ ...settings, guardrailEnabled: e.target.checked })}

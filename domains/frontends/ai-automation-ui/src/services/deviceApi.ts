@@ -1,21 +1,13 @@
 /**
  * Device API Service
- * 
+ *
  * Connects to data-api on port 8006 for device and entity data
  * Phase 1: Device-Based Automation Suggestions Feature
  */
 
-import { API_CONFIG } from '../config/api';
+import { fetchJSON, API_CONFIG } from '../lib/api-client';
 
 const BASE_URL = API_CONFIG.DATA;
-
-const API_KEY = import.meta.env.VITE_API_KEY;
-if (!API_KEY) {
-  console.error('VITE_API_KEY environment variable is not set. API requests will fail.');
-  if (import.meta.env.MODE === 'production') {
-    throw new Error('VITE_API_KEY is required in production mode.');
-  }
-}
 
 /**
  * Device response interface matching data-api DeviceResponse model
@@ -114,93 +106,8 @@ export interface EntitiesListResponse {
   limit: number;
 }
 
-/**
- * Device API error class
- */
-export class DeviceAPIError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-    this.name = 'DeviceAPIError';
-  }
-}
-
-/**
- * Add authentication headers to requests
- */
-function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
-  const authHeaders: Record<string, string> = {};
-  if (API_KEY) {
-    authHeaders['Authorization'] = `Bearer ${API_KEY}`;
-    authHeaders['X-HomeIQ-API-Key'] = API_KEY;
-  }
-
-  if (headers instanceof Headers) {
-    Object.entries(authHeaders).forEach(([key, value]) => {
-      headers.set(key, value);
-    });
-    return headers;
-  }
-
-  if (Array.isArray(headers)) {
-    const filtered = headers.filter(([key]) =>
-      key.toLowerCase() !== 'authorization' && key.toLowerCase() !== 'x-homeiq-api-key'
-    );
-    return [...filtered, ...Object.entries(authHeaders)];
-  }
-
-  return {
-    ...headers,
-    ...authHeaders,
-  };
-}
-
-/**
- * Fetch JSON with error handling
- */
-async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
-  const headers = withAuthHeaders({
-    'Content-Type': 'application/json',
-    ...options?.headers,
-  });
-
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    let errorDetail: string | undefined;
-    try {
-      const text = await response.text();
-      if (text && text.trim()) {
-        try {
-          const errorBody = JSON.parse(text);
-          errorDetail = errorBody.detail || errorBody.message || response.statusText;
-        } catch {
-          errorDetail = text || response.statusText;
-        }
-      } else {
-        errorDetail = response.statusText;
-      }
-    } catch (error) {
-      errorDetail = response.statusText || 'Unknown error';
-    }
-
-    throw new DeviceAPIError(response.status, `API Error: ${errorDetail}`);
-  }
-
-  const contentLength = response.headers.get('content-length');
-  if (contentLength === '0') {
-    return undefined as T;
-  }
-
-  try {
-    return await response.json();
-  } catch (error) {
-    console.error(`Failed to parse JSON response from ${url}:`, error);
-    throw error;
-  }
-}
+/** @deprecated Use APIError from lib/api-client instead */
+export { APIError as DeviceAPIError } from '../lib/api-client';
 
 /**
  * List devices with optional filters

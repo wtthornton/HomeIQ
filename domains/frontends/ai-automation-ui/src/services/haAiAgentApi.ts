@@ -1,26 +1,13 @@
 /**
  * HA AI Agent Service API Client
  * Epic AI-20 Story AI20.7: HA Agent Chat Page
- * 
+ *
  * Connects to ha-ai-agent-service on port 8030
  */
 
-import { API_CONFIG } from '../config/api';
+import { fetchJSON, API_CONFIG } from '../lib/api-client';
 
 const BASE_URL = API_CONFIG.HA_AI_AGENT;
-
-// SECURITY: Never hardcode API keys. Always use environment variables.
-// In production, VITE_API_KEY must be set via environment variables.
-// If not set, throw an error to prevent insecure fallback.
-const API_KEY = import.meta.env.VITE_API_KEY;
-if (!API_KEY) {
-  console.error('VITE_API_KEY environment variable is not set. API requests will fail.');
-  // In development, we can allow requests without key for local testing
-  // but log a warning. In production, this should be enforced.
-  if (import.meta.env.MODE === 'production') {
-    throw new Error('VITE_API_KEY is required in production mode. Please set the environment variable.');
-  }
-}
 
 export interface ChatRequest {
   message: string;
@@ -83,128 +70,8 @@ export interface ConversationListResponse {
   has_more?: boolean;
 }
 
-export class HAIAgentAPIError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-    public detail?: string
-  ) {
-    super(message);
-    this.name = 'HAIAgentAPIError';
-  }
-}
-
-/**
- * Add authentication headers to request options
- */
-function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
-  // Only add auth headers if API_KEY is available
-  const authHeaders: Record<string, string> = {};
-  if (API_KEY) {
-    authHeaders['Authorization'] = `Bearer ${API_KEY}`;
-    authHeaders['X-HomeIQ-API-Key'] = API_KEY;
-  }
-
-  if (headers instanceof Headers) {
-    Object.entries(authHeaders).forEach(([key, value]) => {
-      headers.set(key, value);
-    });
-    return headers;
-  }
-
-  if (Array.isArray(headers)) {
-    // Filter out existing auth headers and add new ones
-    const filtered = headers.filter(([key]) =>
-      key.toLowerCase() !== 'authorization' && key.toLowerCase() !== 'x-homeiq-api-key'
-    );
-    return [...filtered, ...Object.entries(authHeaders)];
-  }
-
-  return {
-    ...headers,
-    ...authHeaders,
-  };
-}
-
-/**
- * Fetch JSON with error handling
- * Handles 204 No Content responses (no body to parse)
- */
-async function fetchJSON<T>(
-  url: string,
-  options?: RequestInit
-): Promise<T> {
-  // Add authentication headers to all requests
-  const headers = withAuthHeaders({
-    'Content-Type': 'application/json',
-    ...options?.headers,
-  });
-
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
-
-  // Handle 204 No Content responses first (before checking response.ok)
-  // 204 is considered "ok" but has no body
-  if (response.status === 204) {
-    // Consume the response body to avoid potential issues
-    try {
-      await response.text();
-    } catch {
-      // Ignore errors when consuming empty body
-    }
-    return undefined as T;
-  }
-
-  if (!response.ok) {
-    let errorDetail: string | undefined;
-    try {
-      // Try to read the response body as text first
-      const text = await response.text();
-      if (text && text.trim()) {
-        try {
-          const errorBody = JSON.parse(text);
-          errorDetail = errorBody.detail || errorBody.message || response.statusText;
-        } catch {
-          // If JSON parsing fails, use the text as-is or status text
-          errorDetail = text || response.statusText;
-        }
-      } else {
-        errorDetail = response.statusText;
-      }
-    } catch (error) {
-      // If reading the body fails, use status text
-      errorDetail = response.statusText || 'Unknown error';
-    }
-
-    throw new HAIAgentAPIError(response.status, `API Error: ${errorDetail}`, errorDetail);
-  }
-
-  // Check content-length header - if 0, no body to parse
-  const contentLength = response.headers.get('content-length');
-  if (contentLength === '0') {
-    return undefined as T;
-  }
-
-  // Try to parse JSON, but handle empty responses gracefully
-  try {
-    const text = await response.text();
-    // If body is empty, return undefined
-    if (!text || text.trim() === '') {
-      return undefined as T;
-    }
-    return JSON.parse(text) as T;
-  } catch (error) {
-    // If parsing fails and we expected content, throw
-    // Otherwise, return undefined for empty responses
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      throw error;
-    }
-    return undefined as T;
-  }
-}
+/** @deprecated Use APIError from lib/api-client instead */
+export { APIError as HAIAgentAPIError } from '../lib/api-client';
 
 /**
  * Send a chat message to the HA AI Agent

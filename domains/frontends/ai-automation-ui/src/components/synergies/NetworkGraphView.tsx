@@ -9,17 +9,7 @@ import React, { useState, useMemo, useCallback, useRef, Component, ErrorInfo, Re
 import { motion, AnimatePresence } from 'framer-motion';
 import type { SynergyOpportunity } from '../../types';
 
-// Global AFRAME stub to prevent errors from react-force-graph
-// react-force-graph checks for AFRAME globally but we only use 2D graphs
-if (typeof window !== 'undefined' && !(window as any).AFRAME) {
-  (window as any).AFRAME = {
-    registerComponent: () => {},
-    registerSystem: () => {},
-    registerPrimitive: () => {},
-    scenes: [],
-    version: '1.0.0'
-  };
-}
+// AFRAME stub is defined once in main.tsx (global entry point)
 
 // Error Boundary Component for graph rendering errors
 class GraphErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean; error: Error | null }> {
@@ -58,21 +48,6 @@ const createTimeout = (ms: number): Promise<never> => {
   return new Promise((_, reject) => {
     setTimeout(() => reject(new Error(`Load timeout after ${ms}ms`)), ms);
   });
-};
-
-/**
- * Sets up AFRAME stub to prevent errors from react-force-graph
- */
-const setupAFRAMEStub = (): void => {
-  if (typeof window !== 'undefined' && !(window as any).AFRAME) {
-    (window as any).AFRAME = {
-      registerComponent: () => {},
-      registerSystem: () => {},
-      registerPrimitive: () => {},
-      scenes: [],
-      version: '1.0.0'
-    };
-  }
 };
 
 /**
@@ -128,8 +103,7 @@ const loadForceGraph = async (): Promise<any> => {
     return ForceGraph2DComponent;
   }
   
-  // Setup prerequisites
-  setupAFRAMEStub();
+  // Setup prerequisites (AFRAME stub in main.tsx)
   await setupTHREE();
   
   // If there's already a load in progress, return that promise
@@ -154,7 +128,6 @@ const loadForceGraph = async (): Promise<any> => {
     // Suppress AFRAME-related errors as we don't use 3D graphs
     if (errorMessage.includes('AFRAME')) {
       console.warn('[NetworkGraphView] AFRAME error suppressed (expected for 2D graphs):', errorMessage);
-      setupAFRAMEStub();
       // Retry if under max retries
       if (retryCount < MAX_RETRIES) {
         retryCount++;
@@ -236,7 +209,6 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
       if (containerRef.current) {
         const width = containerRef.current.offsetWidth || 800;
         setGraphWidth(Math.max(width - 20, 800)); // Subtract padding
-        console.log('[NetworkGraphView] Container width updated:', width);
       }
     };
     
@@ -249,15 +221,12 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
   useEffect(() => {
     let isMounted = true;
     const loadGraph = async () => {
-      console.log('[NetworkGraphView] Starting graph library load...');
-      console.log('[NetworkGraphView] Synergies received:', synergies.length);
       
       try {
         const GraphComponent = await loadForceGraph();
         
         // Only update state if component is still mounted
         if (isMounted) {
-          console.log('[NetworkGraphView] Graph library loaded successfully');
           setForceGraph2D(() => GraphComponent);
           setGraphLoaded(true);
           setLoadError(null);
@@ -284,7 +253,6 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
   
   // Transform synergies into graph format
   const { nodes, links } = useMemo(() => {
-    console.log('[NetworkGraphView] Transforming synergies to graph format. Synergies count:', synergies.length);
     const nodeMap = new Map<string, GraphNode>();
     const linkList: GraphLink[] = [];
     
@@ -343,7 +311,6 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
       nodes: Array.from(nodeMap.values()),
       links: linkList
     };
-    console.log('[NetworkGraphView] Graph transformation complete. Nodes:', result.nodes.length, 'Links:', result.links.length);
     return result;
   }, [synergies, filterArea, filterType]);
   

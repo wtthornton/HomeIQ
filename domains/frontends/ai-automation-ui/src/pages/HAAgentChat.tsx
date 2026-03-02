@@ -5,7 +5,7 @@
  * Chat interface for interacting with the HA AI Agent
  */
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -14,8 +14,6 @@ import {
   sendChatMessage,
   getConversation,
   deleteConversation,
-  type Conversation,
-  type Message,
   type ToolCall,
   HAIAgentAPIError,
 } from '../services/haAiAgentApi';
@@ -38,46 +36,42 @@ import { DeviceSuggestions, type DeviceSuggestion } from '../components/ha-agent
 import { startTracking, endTracking, createReport } from '../utils/performanceTracker';
 import { parseProposal } from '../utils/proposalParser';
 import { sanitizeMessageInput } from '../utils/inputSanitizer';
-
-interface ChatMessage extends Message {
-  isLoading?: boolean;
-  error?: string;
-  toolCalls?: ToolCall[];
-  responseTimeMs?: number;
-}
+import { useChatState, deduplicateMessages, type ChatMessage } from '../hooks/useChatState';
 
 export const HAAgentChat: React.FC = () => {
   const { darkMode } = useAppStore();
   const location = useLocation();
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [blueprintContext, setBlueprintContext] = useState<any>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true); // Open by default on desktop
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [clearChatModalOpen, setClearChatModalOpen] = useState(false);
-  const [automationPreviewOpen, setAutomationPreviewOpen] = useState(false);
-  const [previewAutomationYaml, setPreviewAutomationYaml] = useState<string>('');
-  const [previewAutomationAlias, setPreviewAutomationAlias] = useState<string | undefined>();
-  const [previewToolCall, setPreviewToolCall] = useState<ToolCall | undefined>(undefined);
-  const [originalPrompt, setOriginalPrompt] = useState<string>('');
-  const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0);
-  const [activeTab, setActiveTab] = useState<'chat' | 'debug'>('chat');
-  
+  const {
+    messages, setMessages,
+    inputValue, setInputValue,
+    isLoading, setIsLoading,
+    currentConversationId, setCurrentConversationId,
+    currentConversation, setCurrentConversation,
+    isInitializing, setIsInitializing,
+    blueprintContext, setBlueprintContext,
+    sidebarOpen, setSidebarOpen,
+    deleteModalOpen, setDeleteModalOpen,
+    deleteTargetId, setDeleteTargetId,
+    clearChatModalOpen, setClearChatModalOpen,
+    automationPreviewOpen, setAutomationPreviewOpen,
+    previewAutomationYaml, setPreviewAutomationYaml,
+    previewAutomationAlias, setPreviewAutomationAlias,
+    previewToolCall, setPreviewToolCall,
+    originalPrompt, setOriginalPrompt,
+    sidebarRefreshTrigger, setSidebarRefreshTrigger,
+    activeTab, setActiveTab,
+    selectedDeviceId, setSelectedDeviceId,
+    devicePickerOpen, setDevicePickerOpen,
+    messagesEndRef,
+    inputRef,
+  } = useChatState();
+
   // State persistence: Store originalPrompt in localStorage with conversation ID
   useEffect(() => {
     if (originalPrompt && currentConversationId) {
       try {
         localStorage.setItem(`originalPrompt:${currentConversationId}`, originalPrompt);
-        console.log('[HAAgentChat] Stored originalPrompt in localStorage:', {
-          conversationId: currentConversationId,
-          promptLength: originalPrompt.length,
-        });
       } catch (error) {
         console.warn('[HAAgentChat] Failed to store originalPrompt in localStorage:', error);
       }
@@ -91,73 +85,17 @@ export const HAAgentChat: React.FC = () => {
         const stored = localStorage.getItem(`originalPrompt:${currentConversationId}`);
         if (stored) {
           setOriginalPrompt(stored);
-          console.log('[HAAgentChat] Restored originalPrompt from localStorage:', {
-            conversationId: currentConversationId,
-            promptLength: stored.length,
-          });
         }
       } catch (error) {
         console.warn('[HAAgentChat] Failed to restore originalPrompt from localStorage:', error);
       }
     }
   }, [currentConversationId]);
-  // Phase 1: Device-Based Automation Suggestions
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
-  const [devicePickerOpen, setDevicePickerOpen] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // Helper function to deduplicate messages using a Set-based approach (2025 pattern)
-  // Deduplicates by message_id first (most reliable), then by content+role to catch API duplicates
-  const deduplicateMessages = (messages: ChatMessage[]): ChatMessage[] => {
-    const seenById = new Set<string>();
-    const seenByContent = new Set<string>();
-    const uniqueMessages: ChatMessage[] = [];
-    
-    for (const msg of messages) {
-      // Skip empty loading messages
-      if (!msg.content.trim() && msg.isLoading) {
-        continue;
-      }
-      
-      const normalizedContent = msg.content.trim();
-      const isTemp = msg.message_id.startsWith('temp-') || msg.message_id.startsWith('loading-');
-      
-      // For real messages (from API), check both message_id and content+role
-      if (!isTemp && msg.message_id) {
-        const idKey = `id:${msg.message_id}`;
-        const contentKey = `content:${msg.role}:${normalizedContent}`;
-        
-        // Skip if we've seen this message_id OR this exact content+role combination
-        if (seenById.has(idKey) || seenByContent.has(contentKey)) {
-          continue;
-        }
-        
-        seenById.add(idKey);
-        seenByContent.add(contentKey);
-        uniqueMessages.push(msg);
-      } else {
-        // For temp/loading messages, use content+role+timestamp to allow same content at different times
-        const timestamp = new Date(msg.created_at).getTime();
-        const contentKey = `content:${msg.role}:${normalizedContent}:${timestamp}`;
-        
-        if (!seenByContent.has(contentKey)) {
-          seenByContent.add(contentKey);
-          uniqueMessages.push(msg);
-        }
-      }
-    }
-    
-    // Sort by creation time to maintain chronological order
-    return uniqueMessages.sort((a, b) => 
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
-  };
 
   // Load conversation function
   const loadConversation = async () => {
@@ -174,7 +112,6 @@ export const HAAgentChat: React.FC = () => {
         // When loading a conversation, replace all messages (don't merge)
         // Deduplicate to prevent duplicates from API or previous state
         const deduplicated = deduplicateMessages(loadedMessages);
-        console.log(`[HAAgentChat] Loaded ${loadedMessages.length} messages, deduplicated to ${deduplicated.length}`);
         setMessages(deduplicated);
         
         // Fix for EnhancementButton: Ensure originalPrompt is set after reload
@@ -184,11 +121,6 @@ export const HAAgentChat: React.FC = () => {
           const latestUserMsg = deduplicated.slice().reverse().find(m => m.role === 'user');
           if (latestUserMsg) {
             setOriginalPrompt(latestUserMsg.content);
-            console.log('[HAAgentChat] Set originalPrompt from latest user message after reload', {
-              conversationId: currentConversationId,
-              messageId: latestUserMsg.message_id,
-              promptLength: latestUserMsg.content.length,
-            });
           } else {
             // Debug logging: Structured logging for diagnostics
             console.warn('[HAAgentChat] No user message found after reload:', {
@@ -248,11 +180,6 @@ export const HAAgentChat: React.FC = () => {
         const userMsg = messages.slice().reverse().find(m => m.role === 'user');
         if (userMsg) {
           setOriginalPrompt(userMsg.content);
-          console.log('[HAAgentChat] Set originalPrompt from latest user message when automation detected', {
-            conversationId: currentConversationId,
-            messageId: userMsg.message_id,
-            promptLength: userMsg.content.length,
-          });
         } else {
           // Debug logging: Structured logging for diagnostics
           console.warn('[HAAgentChat] Automation detected but no user message found:', {
@@ -444,7 +371,7 @@ export const HAAgentChat: React.FC = () => {
               message_id: `error-${Date.now()}`,
               role: 'assistant',
               content: error instanceof HAIAgentAPIError
-                ? `Error: ${error.detail || error.message}`
+                ? `Error: ${error.message}`
                 : 'Sorry, I encountered an error. Please try again.',
               created_at: new Date().toISOString(),
               isLoading: false,
@@ -457,7 +384,7 @@ export const HAAgentChat: React.FC = () => {
 
       toast.error(
         error instanceof HAIAgentAPIError
-          ? error.detail || error.message
+          ? error.message
           : 'Failed to send message. Please try again.'
       );
       
@@ -1013,7 +940,7 @@ Please provide an improved version with more details, better automation logic, a
                   toast.error('Message is too long. Maximum 10,000 characters.');
                 }
               }}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyPress}
               placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
               rows={1}
               className={`flex-1 resize-none rounded-lg px-4 py-2 border transition-colors ${

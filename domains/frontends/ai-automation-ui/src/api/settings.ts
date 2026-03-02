@@ -1,3 +1,5 @@
+import { fetchJSON } from '../lib/api-client';
+
 export interface SettingsPayload {
   scheduleEnabled: boolean;
   scheduleTime: string;
@@ -52,80 +54,25 @@ export const defaultSettings: SettingsPayload = {
   },
 };
 
-const API_BASE = '/api'; // Changed from /api/v1 to /api to match nginx proxy
-const API_KEY = import.meta.env.VITE_API_KEY || '';
-
-/**
- * Add authentication headers to request options
- */
-function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
-  const authHeaders: Record<string, string> = {
-    'Authorization': `Bearer ${API_KEY}`,
-    'X-HomeIQ-API-Key': API_KEY,
-  };
-
-  if (headers instanceof Headers) {
-    Object.entries(authHeaders).forEach(([key, value]) => {
-      headers.set(key, value);
-    });
-    return headers;
-  }
-
-  if (Array.isArray(headers)) {
-    // Filter out existing auth headers and add new ones
-    const filtered = headers.filter(([key]) =>
-      key.toLowerCase() !== 'authorization' && key.toLowerCase() !== 'x-homeiq-api-key'
-    );
-    return [...filtered, ...Object.entries(authHeaders)];
-  }
-
-  return {
-    ...headers,
-    ...authHeaders,
-  };
-}
-
-async function handleResponse(response: Response): Promise<SettingsPayload> {
-  if (response.ok) {
-    return response.json() as Promise<SettingsPayload>;
-  }
-
-  if (response.status === 404) {
-    return defaultSettings;
-  }
-
-  const message = await response.text();
-  throw new Error(message || `Request failed with status ${response.status}`);
-}
+const API_BASE = '/api';
 
 export async function getSettings(): Promise<SettingsPayload> {
-  const headers = withAuthHeaders({
-    Accept: 'application/json',
-  });
-
-  const response = await fetch(`${API_BASE}/settings`, {
-    method: 'GET',
-    headers,
-    credentials: 'include',
-  });
-
-  return handleResponse(response);
+  try {
+    return await fetchJSON<SettingsPayload>(`${API_BASE}/settings`);
+  } catch (error: unknown) {
+    const err = error as { status?: number };
+    if (err.status === 404) {
+      return defaultSettings;
+    }
+    throw error;
+  }
 }
 
 export async function updateSettings(payload: SettingsPayload): Promise<SettingsPayload> {
-  const headers = withAuthHeaders({
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  });
-
-  const response = await fetch(`${API_BASE}/settings`, {
+  return fetchJSON<SettingsPayload>(`${API_BASE}/settings`, {
     method: 'PUT',
-    headers,
-    credentials: 'include',
     body: JSON.stringify(payload),
   });
-
-  return handleResponse(response);
 }
 
 export interface ModelComparisonMetrics {
@@ -185,43 +132,12 @@ export async function getModelComparisonMetrics(
   taskType?: string,
   days: number = 7
 ): Promise<ModelComparisonMetrics> {
-  const headers = withAuthHeaders({
-    Accept: 'application/json',
-  });
-
   const params = new URLSearchParams();
   if (taskType) params.append('task_type', taskType);
   params.append('days', days.toString());
-
-  const response = await fetch(`${API_BASE}/ask-ai/model-comparison/metrics?${params}`, {
-    method: 'GET',
-    headers,
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Request failed with status ${response.status}`);
-  }
-
-  return response.json();
+  return fetchJSON<ModelComparisonMetrics>(`${API_BASE}/ask-ai/model-comparison/metrics?${params}`);
 }
 
 export async function getModelComparisonSummary(): Promise<ModelComparisonSummary> {
-  const headers = withAuthHeaders({
-    Accept: 'application/json',
-  });
-
-  const response = await fetch(`${API_BASE}/ask-ai/model-comparison/summary`, {
-    method: 'GET',
-    headers,
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Request failed with status ${response.status}`);
-  }
-
-  return response.json();
+  return fetchJSON<ModelComparisonSummary>(`${API_BASE}/ask-ai/model-comparison/summary`);
 }

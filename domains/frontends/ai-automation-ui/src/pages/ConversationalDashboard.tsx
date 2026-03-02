@@ -5,263 +5,79 @@
  * Users edit with natural language, approve to generate YAML.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+// React Query handles data fetching, caching, and polling (see useSuggestions hook)
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '../store';
 import { ConversationalSuggestionCard } from '../components/ConversationalSuggestionCard';
-import api, { APIError } from '../services/api';
+import api from '../services/api';
 import { ProcessLoader } from '../components/ask-ai/ReverseEngineeringLoader';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import type { Suggestion } from '../types';
+import { useSuggestions, useRefreshStatus, useAnalysisStatus } from '../hooks/useSuggestions';
 
 export const ConversationalDashboard: React.FC = () => {
   const { darkMode } = useAppStore();
-  
-  // Type safety: Use proper Suggestion type instead of any[]
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<{ message: string; code?: string; retryable?: boolean } | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
+  const queryClient = useQueryClient();
+
+  // React Query: suggestions, refresh status, analysis status
+  const {
+    data: suggestions = [],
+    isLoading: loading,
+    error: suggestionsError,
+    refetch: refetchSuggestions,
+  } = useSuggestions();
+  const {
+    data: refreshStatusData,
+    isLoading: refreshStatusLoading,
+  } = useRefreshStatus();
+  const {
+    data: analysisRun,
+    isLoading: analysisStatusLoading,
+  } = useAnalysisStatus();
+
+  const refreshAllowed = refreshStatusData?.allowed ?? true;
+  const nextRefreshAt = refreshStatusData?.nextAllowedAt ?? null;
+  const statusLoading = refreshStatusLoading || analysisStatusLoading;
+
+  // Local UI state (not fetched from API)
   const [selectedStatus, setSelectedStatus] = useState<'draft' | 'refining' | 'yaml_generated' | 'deployed'>('draft');
   const [processingRedeploy, setProcessingRedeploy] = useState<number | null>(null);
-  const [refreshAllowed, setRefreshAllowed] = useState(true);
-  const [nextRefreshAt, setNextRefreshAt] = useState<string | null>(null);
   const [refreshLoading, setRefreshLoading] = useState(false);
-  const [statusLoading, setStatusLoading] = useState(false); // Loading state for refresh/analysis status
-  const [analysisRun, setAnalysisRun] = useState<{
-    status: string;
-    started_at: string;
-    finished_at?: string | null;
-    duration_seconds?: number | null;
-  } | null>(null);
+  const [refreshError, setRefreshError] = useState<{ message: string; code?: string; retryable?: boolean } | null>(null);
 
-  const loadSuggestions = async (retryAttempt = 0): Promise<void> => {
-    const maxRetries = 3;
-    const retryDelay = Math.min(1000 * Math.pow(2, retryAttempt), 5000); // Exponential backoff, max 5s
-    
-    try {
-      setLoading(true);
-      setError(null);
-      console.log('🔄 Loading suggestions with device name mapping...');
-      // Load all suggestions, filter on frontend
-      const response = await api.getSuggestions();
-      // Map API response to component format
-      const suggestionsArray = response.data?.suggestions || [];
-      console.log(`Loaded ${suggestionsArray.length} suggestions from API`);
-      
-      if (suggestionsArray.length > 0) {
-        console.log('Raw API response (first suggestion):', suggestionsArray[0]);
-      }
-      
-      const mappedSuggestions = suggestionsArray.map(suggestion => {
-        // Extract device hash from title and replace with friendly name
-        const deviceHashMatch = suggestion.title.match(/AI Suggested: ([a-f0-9]{32})/);
-        let friendlyTitle = suggestion.title;
-        const originalDescription = suggestion.description_only || suggestion.description || '';
-        let friendlyDescription = originalDescription;
-        
-        if (deviceHashMatch) {
-          const deviceHash = deviceHashMatch[1];
-          console.log('Found device hash:', deviceHash);
-          
-          // Map known device hashes to friendly names
-          const deviceNameMap: Record<string, string> = {
-            '1ba44a8f25eab1397cb48dd7b743edcd': 'Sun',
-            '71d5add6cf1f844d6f9bb34a3b58a09d': 'Living Room Light',
-            'eca71f35d1ff44a1149dedc519f0d27a': 'Kitchen Light',
-            '61234ae84aba13edf830eb7c5a7e3ae8': 'Bedroom Light',
-            '603c07b7a7096b280ac6316c78dd1c1f': 'Office Light'
-          };
-          
-          const friendlyName = deviceNameMap[deviceHash] || `Device ${deviceHash.substring(0, 8)}...`;
-          console.log('Mapping device hash to friendly name:', deviceHash, '->', friendlyName);
-          
-          friendlyTitle = suggestion.title.replace(deviceHash, friendlyName);
-          friendlyDescription = suggestion.description.replace(deviceHash, friendlyName);
-          
-          console.log('Updated title:', friendlyTitle);
-          console.log('Updated description:', friendlyDescription);
-        } else {
-          console.log('No device hash match found in title:', suggestion.title);
-        }
-        
-        const deviceCapabilities = suggestion.device_capabilities || {};
-        const deviceInfoFromCapabilities = Array.isArray(deviceCapabilities?.devices)
-          ? deviceCapabilities.devices
-          : undefined;
+  // Derived error state: React Query fetch errors + refresh-specific errors
+  const error = refreshError ?? (suggestionsError ? {
+    message: (suggestionsError as Error).message || 'Failed to load suggestions',
+    retryable: true,
+  } : null);
 
-        const mapped = {
-          ...suggestion,
-          title: friendlyTitle,
-          description: friendlyDescription,
-          description_only: friendlyDescription,
-          status: suggestion.status || 'draft',
-          refinement_count: suggestion.refinement_count ?? 0,
-          conversation_history: Array.isArray(suggestion.conversation_history)
-            ? suggestion.conversation_history
-            : [],
-          device_capabilities: deviceCapabilities,
-          device_info: suggestion.device_info || deviceInfoFromCapabilities || [],
-          ha_automation_id: suggestion.ha_automation_id || null,
-          yaml_generated_at: suggestion.yaml_generated_at || null
-        };
-        console.log('Mapped suggestion:', mapped);
-        return mapped;
-      });
-      console.log('All mapped suggestions:', mappedSuggestions);
-      setSuggestions(mappedSuggestions);
-      setRetryCount(0); // Reset retry count on success
-    } catch (error: any) {
-      console.error('Failed to load suggestions:', error);
-
-      // Extract error details from API response
-      const errorDetail = error?.response?.data?.detail;
-      const errorCode = typeof errorDetail === 'object' ? errorDetail?.error_code : undefined;
-      const errorMessage = typeof errorDetail === 'object' ? errorDetail?.message : (typeof errorDetail === 'string' ? errorDetail : error?.message || 'Failed to load suggestions');
-
-      // Classify error type
-      const status = error?.status;
-      const isAuthError = status === 401 || status === 403;
-      const isTimeout = !!(error as any)?.isTimeout || errorMessage?.toLowerCase().includes('timeout');
-      const isRetryable = !isAuthError && (status >= 500 || status === 0 || !status || isTimeout);
-
-      // Auto-retry for retryable errors
-      if (isRetryable && retryAttempt < maxRetries) {
-        console.log(`Retrying in ${retryDelay}ms... (attempt ${retryAttempt + 1}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        return loadSuggestions(retryAttempt + 1);
-      }
-
-      // Build user-facing message with specific guidance
-      let userMessage = errorMessage;
-      if (isAuthError) {
-        userMessage = 'Authentication failed. Check your API key in Settings or contact your admin.';
-      } else if (isTimeout) {
-        userMessage = 'Request timed out. The suggestions service may be slow or unavailable.';
-      } else if (errorCode === 'SUGGESTIONS_LIST_ERROR') {
-        userMessage = 'Unable to load suggestions. Please try again.';
-      }
-
-      // Set error state for UI display (retryable is always true so users can manually retry)
-      setError({
-        message: userMessage,
-        code: isAuthError ? 'AUTH_ERROR' : errorCode,
-        retryable: !isAuthError
-      });
-      setRetryCount(retryAttempt);
-
-      toast.error(userMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
+  // React Query handles initial fetch, retries, and polling (refetchInterval: 30s)
   const handleRetry = () => {
-    setRetryCount(0);
-    loadSuggestions(0);
-  };
-
-  const loadRefreshStatus = async () => {
-    try {
-      setStatusLoading(true);
-      const status = await api.getRefreshStatus();
-      setRefreshAllowed(status.allowed);
-      setNextRefreshAt(status.next_allowed_at);
-    } catch (error: any) {
-      console.error('Failed to load refresh status', error);
-      // Non-critical error, don't show toast but log it
-      const errorDetail = error?.response?.data?.detail;
-      if (typeof errorDetail === 'object' && errorDetail?.error_code === 'REFRESH_STATUS_ERROR') {
-        console.warn('Refresh status unavailable, continuing without cooldown info');
-      }
-    } finally {
-      setStatusLoading(false);
-    }
-  };
-
-  const loadAnalysisStatus = async () => {
-    try {
-      setStatusLoading(true);
-      const status = await api.getAnalysisStatus();
-      setAnalysisRun(status.analysis_run ?? null);
-    } catch (error: any) {
-      console.error('Failed to load analysis status', error);
-      // Non-critical error, don't show toast but log it
-      const errorDetail = error?.response?.data?.detail;
-      if (typeof errorDetail === 'object' && errorDetail?.error_code === 'ANALYSIS_STATUS_ERROR') {
-        console.warn('Analysis status unavailable, continuing without run info');
-      }
-    } finally {
-      setStatusLoading(false);
-    }
+    refetchSuggestions();
   };
 
   const generateSampleSuggestion = async () => {
     try {
-      setLoading(true);
-      console.log('🔄 Generating sample suggestion...');
-      
       const response = await api.generateSuggestion(
-        undefined,  // No pattern_id for sample suggestions
+        undefined,
         'time_of_day',
         'light.living_room',
         { hour: 18, confidence: 0.85, occurrences: 20 }
       );
-      
-      console.log('Generate response:', response);
-      
-      // Convert API response to suggestion format
-      const suggestionId = response.suggestion_id;
-      const idMatch = suggestionId.match(/-(\d+)$/);
-      const id = idMatch ? parseInt(idMatch[1]) : Date.now();
-      
-      const suggestion: Suggestion = {
-        id: id,
-        title: `Automation: ${response.devices_involved?.[0]?.friendly_name || 'Living Room Light'}`,
-        description: response.description || '',
-        description_only: response.description || '',
-        confidence: response.confidence || 0.85,
-        status: (response.status || 'draft') as Suggestion['status'],
-        created_at: response.created_at || new Date().toISOString(),
-        conversation_history: [],
-        refinement_count: 0,
-        device_capabilities: {}
-      };
-      
-      // Add to existing suggestions instead of replacing
-      setSuggestions(prev => [...prev, suggestion]);
-      
-      // Switch to draft tab to show the new suggestion
+
+      void response; // API call triggers server-side creation
       setSelectedStatus('draft');
-      
-      toast.success('✅ Generated sample suggestion!');
-      
-      // Reload suggestions to get fresh data from API
-      await loadSuggestions();
+      toast.success('Generated sample suggestion!');
+      refetchSuggestions();
     } catch (error: any) {
       console.error('Failed to generate suggestion:', error);
       const errorMessage = error?.message || error?.toString() || 'Unknown error';
       toast.error(`Failed to generate suggestion: ${errorMessage}`);
-    } finally {
-      setLoading(false);
     }
   };
-
-  useEffect(() => {
-    const loadAll = async () => {
-      await Promise.all([loadSuggestions(), loadRefreshStatus(), loadAnalysisStatus()]);
-    };
-
-    loadAll();
-
-    const interval = setInterval(() => {
-      loadSuggestions();
-      loadRefreshStatus();
-      loadAnalysisStatus();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [selectedStatus]);
 
   const handleRefreshClick = async () => {
     try {
@@ -283,41 +99,22 @@ export const ConversationalDashboard: React.FC = () => {
         }
         
         toast.error(errorMessage);
-        setError({
+        setRefreshError({
           message: errorMessage,
           code: response.error_code,
           retryable: response.error_code !== 'VALIDATION_ERROR'
         });
       } else if (response.success) {
         toast.success(response.message || `Successfully generated ${response.count || 0} suggestions`);
-        // Reload suggestions to show new ones
-        await loadSuggestions();
-        await loadRefreshStatus();
+        refetchSuggestions();
+        queryClient.invalidateQueries({ queryKey: ['refreshStatus'] });
       } else {
-        // Fallback for unexpected response format
         toast(response.message || 'Refresh completed');
-        await loadRefreshStatus();
+        queryClient.invalidateQueries({ queryKey: ['refreshStatus'] });
       }
-    } catch (error) {
-      if (error instanceof APIError) {
-        toast.error(error.message);
-        setError({
-          message: error.message,
-          retryable: true
-        });
-      } else if (error instanceof Error) {
-        toast.error(error.message);
-        setError({
-          message: error.message,
-          retryable: true
-        });
-      } else {
-        toast.error('Failed to generate suggestions. Check service health and logs.');
-        setError({
-          message: 'Failed to generate suggestions. Check service health and logs.',
-          retryable: true
-        });
-      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to generate suggestions. Check service health and logs.';
+      toast.error(msg);
     } finally {
       setRefreshLoading(false);
     }
@@ -328,7 +125,7 @@ export const ConversationalDashboard: React.FC = () => {
       const result = await api.refineSuggestion(id, userInput);
       
       // Update local state
-      setSuggestions(prev =>
+      queryClient.setQueryData<Suggestion[]>(['suggestions'], (prev = []) =>
         prev.map(s =>
           s.id === id
             ? {
@@ -375,7 +172,7 @@ export const ConversationalDashboard: React.FC = () => {
       const result = await api.approveAndGenerateYAML(id);
       
       // Update local state
-      setSuggestions(prev =>
+      queryClient.setQueryData<Suggestion[]>(['suggestions'], (prev = []) =>
         prev.map(s =>
           s.id === id
             ? {
@@ -412,7 +209,7 @@ export const ConversationalDashboard: React.FC = () => {
       const categoryChanged = result.category && oldSuggestion && result.category !== oldSuggestion.category;
       
       // Update local state
-      setSuggestions(prev =>
+      queryClient.setQueryData<Suggestion[]>(['suggestions'], (prev = []) =>
         prev.map(s =>
           s.id === id
             ? {
@@ -447,7 +244,7 @@ export const ConversationalDashboard: React.FC = () => {
       toast.success(successMsg, { id: `redeploy-${id}`, duration: 6000 });
       
       // Reload suggestions to get fresh data
-      await loadSuggestions();
+      refetchSuggestions();
     } catch (error: any) {
       console.error('Failed to re-deploy:', error);
       toast.error(
@@ -464,7 +261,7 @@ export const ConversationalDashboard: React.FC = () => {
     const reason = prompt('Why are you rejecting this? (optional)');
     try {
       await api.rejectSuggestion(id, reason || undefined);
-      setSuggestions(prev => prev.filter(s => s.id !== id));
+      queryClient.setQueryData<Suggestion[]>(['suggestions'], (prev = []) => prev.filter(s => s.id !== id));
       toast.success('✅ Suggestion rejected');
     } catch (error) {
       toast.error('❌ Failed to reject suggestion');
@@ -631,7 +428,7 @@ export const ConversationalDashboard: React.FC = () => {
                       : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg shadow-red-400/30'
                   }`}
                 >
-                  Retry {retryCount > 0 && `(Attempt ${retryCount + 1})`}
+                  Retry
                 </motion.button>
               )}
             </div>
@@ -640,6 +437,7 @@ export const ConversationalDashboard: React.FC = () => {
       )}
 
       {/* Suggestions List */}
+      <div role="tabpanel" aria-label={`${selectedStatus} suggestions`}>
       <AnimatePresence mode="wait">
         {loading ? (
           <motion.div
@@ -873,6 +671,7 @@ export const ConversationalDashboard: React.FC = () => {
           );
         })()}
       </AnimatePresence>
+      </div>
 
       {/* Footer Info */}
       <div className={`rounded-lg p-6 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} border`}>
