@@ -316,29 +316,27 @@ See [OPEN-EPICS-INDEX.md](stories/OPEN-EPICS-INDEX.md) for the full backlog and 
 
 ## Contributing
 
-Contributions are welcome! Here's how to get started:
+Contributions are welcome! See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the full guide, including:
+
+- Development setup and guidelines
+- **Quality gate expectations** — every PR is automatically checked by the TAPPS quality pipeline
+- How to run quality checks locally before pushing
+- Pull request process
+
+### Quick Start
 
 ```bash
 # Fork the repo, then:
 git clone https://github.com/YOUR_USERNAME/HomeIQ.git
 cd HomeIQ
-
-# Create a feature branch
 git checkout -b feature/your-feature-name
 
-# Make your changes, then commit
+# Make changes, run quality checks, then push
+pip install tapps-mcp ruff
+tapps-mcp validate-changed --preset standard
 git commit -m "feat: add your feature description"
-
-# Push and open a Pull Request
 git push origin feature/your-feature-name
 ```
-
-### Development Guidelines
-
-- **Python**: Follow [ruff](https://docs.astral.sh/ruff/) formatting, type hints preferred
-- **Commits**: Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `chore:`)
-- **Tests**: Add tests for new features, run `pytest` before submitting
-- **Docker**: Test your changes build with `docker compose build <service-name>`
 
 ---
 
