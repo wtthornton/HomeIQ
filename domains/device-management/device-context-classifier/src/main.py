@@ -6,15 +6,13 @@ Analyzes entities to infer device types (fridge, car, 3D printer, etc.)
 """
 
 import os
-from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 
 import uvicorn
-from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from homeiq_observability.logging_config import setup_logging
 
+from homeiq_observability.logging_config import setup_logging
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from src.classifier import DeviceContextClassifier
 from src.patterns import DEVICE_PATTERNS, DOMAIN_TO_DEVICE_TYPE, get_device_category
 
@@ -43,83 +41,62 @@ class ClassifyResponse(BaseModel):
     matched_entities: int
 
 
-# --- Application lifecycle ---
+# --- Shared state ---
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Handle application lifecycle."""
-    logger.info("Device Context Classifier Service starting up...")
+_classifier: DeviceContextClassifier | None = None
 
-    # Validate HA configuration - fail fast if missing
+
+# --- Lifespan ---
+
+async def _startup() -> None:
+    global _classifier
     ha_url = os.getenv("HA_URL") or os.getenv("HA_HTTP_URL")
     if not ha_url:
         logger.warning("HA_URL not configured - classification will return empty results")
-
-    # Create classifier and store on app state
-    classifier = DeviceContextClassifier()
-    app.state.classifier = classifier
+    _classifier = DeviceContextClassifier()
     logger.info("DeviceContextClassifier initialized")
 
-    yield
 
-    # Shutdown: close classifier session
-    logger.info("Device Context Classifier Service shutting down...")
-    await classifier.close()
+async def _shutdown() -> None:
+    if _classifier:
+        await _classifier.close()
     logger.info("Classifier session closed")
 
 
-app = FastAPI(
+lifespan = ServiceLifespan("Device Context Classifier Service")
+lifespan.on_startup(_startup, name="classifier")
+lifespan.on_shutdown(_shutdown, name="classifier")
+
+
+# --- Health check ---
+
+async def _check_ha_config() -> bool:
+    ha_url = os.getenv("HA_URL") or os.getenv("HA_HTTP_URL")
+    ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
+    return bool(ha_url and ha_token)
+
+
+health = StandardHealthCheck(service_name="device-context-classifier", version="1.0.0")
+health.register_check("ha-config", _check_ha_config)
+
+
+# --- App ---
+
+app = create_app(
     title="Device Context Classifier Service",
     version="1.0.0",
     description="Device type classification based on entity patterns",
-    lifespan=lifespan
+    lifespan=lifespan.handler,
+    health_check=health,
 )
 
 
 # --- Endpoints ---
 
-@app.get("/health")
-async def health_check() -> JSONResponse:
-    """Health check endpoint. Returns 200 with degraded status if HA is not configured."""
-    ha_url = os.getenv("HA_URL") or os.getenv("HA_HTTP_URL")
-    ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
-
-    if not ha_url or not ha_token:
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "degraded",
-                "service": "device-context-classifier",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "reason": "HA_URL or HA_TOKEN not configured"
-            }
-        )
-
-    return JSONResponse(
-        status_code=200,
-        content={
-            "status": "healthy",
-            "service": "device-context-classifier",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-    )
-
-
-@app.get("/")
-async def root() -> dict[str, str]:
-    """Root endpoint."""
-    return {
-        "service": "device-context-classifier",
-        "version": "1.0.0",
-        "status": "running"
-    }
-
-
 @app.post("/api/v1/classify", response_model=ClassifyResponse)
 async def classify_device(request: ClassifyRequest) -> ClassifyResponse:
     """Classify a device based on its entity IDs."""
-    classifier: DeviceContextClassifier = app.state.classifier
-    result = await classifier.classify_device(request.device_id, request.entity_ids)
+    result = await _classifier.classify_device(request.device_id, request.entity_ids)
     return ClassifyResponse(**result)
 
 
@@ -132,9 +109,7 @@ async def get_patterns() -> dict:
 @app.get("/api/v1/categories")
 async def get_categories() -> dict:
     """Return device-type to category mapping."""
-    # Build the full category map by calling get_device_category for each known device type
     all_device_types = set(DOMAIN_TO_DEVICE_TYPE.values())
-    # Also include pattern-based device types
     all_device_types.update(DEVICE_PATTERNS.keys())
 
     category_map = {}

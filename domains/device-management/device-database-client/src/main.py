@@ -9,14 +9,13 @@ and falls back to local intelligence if Device Database unavailable.
 import contextlib
 import logging
 import os
-from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 from typing import Any
 
 import uvicorn
-from fastapi import FastAPI, Query
+from fastapi import Query
 from pydantic import BaseModel
 
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from src.cache import DeviceCache
 from src.db_client import DeviceDatabaseClient
 from src.sync_service import DeviceSyncService
@@ -61,75 +60,65 @@ class SyncStatusResponse(BaseModel):
     last_sync: str | None
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Handle application lifecycle"""
-    logger.info("Device Database Client Service starting up...")
+# --- Shared state ---
 
-    # Create DeviceDatabaseClient
-    db_client = DeviceDatabaseClient()
-    app.state.db_client = db_client
+_db_client: DeviceDatabaseClient | None = None
+_cache: DeviceCache | None = None
+_sync_service: DeviceSyncService | None = None
 
-    # Create DeviceCache
+
+# --- Lifespan ---
+
+async def _startup() -> None:
+    global _db_client, _cache, _sync_service
+    _db_client = DeviceDatabaseClient()
     cache_dir = os.getenv("DEVICE_CACHE_DIR", "data/device_cache")
-    cache = DeviceCache(cache_dir=cache_dir)
-    app.state.cache = cache
-
-    # Create and start DeviceSyncService
-    sync_service = DeviceSyncService(db_client=db_client, cache=cache)
-    app.state.sync_service = sync_service
-    await sync_service.start()
-
-    yield
-
-    # Shutdown
-    await sync_service.stop()
-    await db_client.close()
-    logger.info("Device Database Client Service shutting down...")
+    _cache = DeviceCache(cache_dir=cache_dir)
+    _sync_service = DeviceSyncService(db_client=_db_client, cache=_cache)
+    await _sync_service.start()
+    logger.info("Device Database Client components initialized")
 
 
-app = FastAPI(
+async def _shutdown() -> None:
+    if _sync_service:
+        await _sync_service.stop()
+    if _db_client:
+        await _db_client.close()
+    logger.info("Device Database Client shut down")
+
+
+lifespan = ServiceLifespan("Device Database Client Service")
+lifespan.on_startup(_startup, name="init-components")
+lifespan.on_shutdown(_shutdown, name="cleanup")
+
+
+# --- Health check ---
+
+async def _check_cache() -> bool:
+    if _cache is None:
+        return False
+    try:
+        return os.access(str(_cache.cache_dir), os.W_OK)
+    except OSError:
+        return False
+
+
+health = StandardHealthCheck(service_name="device-database-client", version="1.0.0")
+health.register_check("cache", _check_cache)
+
+
+# --- App ---
+
+app = create_app(
     title="Device Database Client Service",
     version="1.0.0",
     description="Client for external Device Database API with local caching",
-    lifespan=lifespan
+    lifespan=lifespan.handler,
+    health_check=health,
 )
 
 
-@app.get("/health")
-async def health_check() -> dict[str, Any]:
-    """Health check endpoint"""
-    cache: DeviceCache = app.state.cache
-    db_client: DeviceDatabaseClient = app.state.db_client
-
-    # Check if cache directory is writable
-    cache_writable = False
-    with contextlib.suppress(OSError):
-        cache_writable = os.access(str(cache.cache_dir), os.W_OK)
-
-    # Check if API is configured
-    api_configured = db_client.is_configured()
-
-    status = "healthy" if cache_writable else "degraded"
-
-    return {
-        "status": status,
-        "service": "device-database-client",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "cache_writable": cache_writable,
-        "api_configured": api_configured,
-    }
-
-
-@app.get("/")
-async def root() -> dict[str, str]:
-    """Root endpoint"""
-    return {
-        "service": "device-database-client",
-        "version": "1.0.0",
-        "status": "running"
-    }
-
+# --- Endpoints ---
 
 @app.get("/api/v1/devices/lookup", response_model=DeviceInfoResponse)
 async def lookup_device(
@@ -137,11 +126,8 @@ async def lookup_device(
     model: str = Query(..., description="Device model"),
 ) -> DeviceInfoResponse:
     """Look up device info, checking cache first, then API."""
-    cache: DeviceCache = app.state.cache
-    db_client: DeviceDatabaseClient = app.state.db_client
-
     # Check cache first
-    cached = cache.get(manufacturer, model)
+    cached = _cache.get(manufacturer, model)
     if cached is not None:
         return DeviceInfoResponse(
             manufacturer=manufacturer,
@@ -150,9 +136,9 @@ async def lookup_device(
         )
 
     # Query API
-    device_info = await db_client.get_device_info(manufacturer, model)
+    device_info = await _db_client.get_device_info(manufacturer, model)
     if device_info is not None:
-        cache.set(manufacturer, model, device_info)
+        _cache.set(manufacturer, model, device_info)
         return DeviceInfoResponse(
             manufacturer=manufacturer,
             model=model,
@@ -172,24 +158,20 @@ async def search_devices(
     device_type: str | None = Query(None, description="Device type filter"),
 ) -> list[dict[str, Any]]:
     """Search the device database."""
-    db_client: DeviceDatabaseClient = app.state.db_client
-    results = await db_client.search_devices(device_type=device_type)
-    return results
+    return await _db_client.search_devices(device_type=device_type)
 
 
 @app.get("/api/v1/cache/status", response_model=CacheStatusResponse)
 async def cache_status() -> CacheStatusResponse:
     """Return cache statistics."""
-    cache: DeviceCache = app.state.cache
-
     entries_count = 0
-    if cache.cache_dir.exists():
-        entries_count = len(list(cache.cache_dir.glob("*.json")))
+    if _cache.cache_dir.exists():
+        entries_count = len(list(_cache.cache_dir.glob("*.json")))
 
-    ttl_hours = int(cache.ttl.total_seconds() / 3600)
+    ttl_hours = int(_cache.ttl.total_seconds() / 3600)
 
     return CacheStatusResponse(
-        cache_dir=str(cache.cache_dir),
+        cache_dir=str(_cache.cache_dir),
         ttl_hours=ttl_hours,
         entries_count=entries_count,
     )
@@ -198,16 +180,14 @@ async def cache_status() -> CacheStatusResponse:
 @app.post("/api/v1/sync/trigger", response_model=SyncStatusResponse)
 async def trigger_sync() -> SyncStatusResponse:
     """Manually trigger a device sync."""
-    sync_service: DeviceSyncService = app.state.sync_service
-
-    await sync_service._sync_devices()
+    await _sync_service._sync_devices()
 
     last_sync = None
-    if sync_service.last_sync is not None:
-        last_sync = sync_service.last_sync.isoformat()
+    if _sync_service.last_sync is not None:
+        last_sync = _sync_service.last_sync.isoformat()
 
     return SyncStatusResponse(
-        running=sync_service._running,
+        running=_sync_service._running,
         last_sync=last_sync,
     )
 

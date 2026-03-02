@@ -1,14 +1,12 @@
 """Configuration settings for Blueprint Index Service."""
 
-from pydantic import ConfigDict
-from pydantic_settings import BaseSettings
+from homeiq_data import BaseServiceSettings
 
 
-class Settings(BaseSettings):
+class Settings(BaseServiceSettings):
     """Application settings loaded from environment variables."""
 
-    # Database
-    database_url: str = ""  # Set via POSTGRES_URL or DATABASE_URL env var
+    # Database (additional to base)
     database_pool_size: int = 10
     database_max_overflow: int = 5
 
@@ -38,19 +36,9 @@ class Settings(BaseSettings):
     index_batch_size: int = 100
     index_refresh_interval_hours: int = 24
 
-    # Logging
-    log_level: str = "INFO"
-
-    # Service Configuration
+    # Override base defaults
     service_port: int = 8031
     service_name: str = "blueprint-index"
-
-    model_config = ConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
-    )
 
 
 settings = Settings()

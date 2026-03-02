@@ -2,10 +2,8 @@
 
 import logging
 import sys
-from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from .api.routes import router
 from .config import settings
@@ -26,70 +24,48 @@ _configure_logging()
 logger = logging.getLogger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan handler for startup and shutdown."""
-    # Startup
-    logger.info(f"Starting {settings.service_name} on port {settings.service_port}")
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
+
+async def _startup_db() -> None:
     db_ok = await init_db()
     if db_ok:
-        logger.info("Blueprint Index Service started successfully")
+        logger.info("Blueprint Index Service database initialized")
     else:
-        logger.warning("Database unavailable — starting in degraded mode")
-
-    yield
-
-    # Shutdown
-    logger.info("Shutting down Blueprint Index Service...")
-    await close_db()
-    logger.info("Blueprint Index Service shutdown complete")
+        logger.warning("Database unavailable -- starting in degraded mode")
 
 
-# Create FastAPI application
-app = FastAPI(
-    title="Blueprint Index Service",
-    description="Indexes and searches Home Assistant community blueprints for HomeIQ",
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup_db, name="database")
+lifespan.on_shutdown(close_db, name="database")
+
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+health = StandardHealthCheck(
+    service_name=settings.service_name,
     version="1.0.0",
-    lifespan=lifespan,
 )
 
-def _get_cors_origins() -> list[str]:
-    """Get list of allowed CORS origins."""
-    # CRITICAL: In production, replace ["*"] with specific origins
-    # Using ["*"] with allow_credentials=True is a security vulnerability
-    cors_origins_env = settings.cors_origins if hasattr(settings, "cors_origins") else None
-    if cors_origins_env:
-        return [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
-    return ["*"]  # Development default
 
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_get_cors_origins(),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app = create_app(
+    title="Blueprint Index Service",
+    version="1.0.0",
+    description="Indexes and searches Home Assistant community blueprints for HomeIQ",
+    lifespan=lifespan.handler,
+    health_check=health,
+    cors_origins=settings.get_cors_origins_list() if hasattr(settings, "get_cors_origins_list") else None,
 )
 
 # Include API routes
 app.include_router(router)
-
-
-@app.get("/")
-async def root() -> dict[str, str]:
-    """Root endpoint."""
-    return {
-        "service": settings.service_name,
-        "version": "1.0.0",
-        "status": "running",
-    }
-
-
-@app.get("/health")
-async def health() -> dict[str, str]:
-    """Health check endpoint."""
-    return {"status": "healthy", "service": settings.service_name}
 
 
 if __name__ == "__main__":

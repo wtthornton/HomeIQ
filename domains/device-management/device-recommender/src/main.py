@@ -7,14 +7,13 @@ and provides device ratings from Device Database.
 """
 
 import os
-from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import HTTPException, Request
 from pydantic import BaseModel, Field
 
 from homeiq_observability.logging_config import setup_logging
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from src.comparison_engine import DeviceComparisonEngine
 from src.ha_client import HAClient
 from src.recommender import DeviceRecommender
@@ -49,34 +48,60 @@ class CompareResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Shared state
+# ---------------------------------------------------------------------------
+
+_ha_client: HAClient | None = None
+_recommender: DeviceRecommender | None = None
+_comparison_engine: DeviceComparisonEngine | None = None
+
+
+# ---------------------------------------------------------------------------
 # Lifespan
 # ---------------------------------------------------------------------------
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Handle application lifecycle"""
-    logger.info("Device Recommender Service starting up...")
-
-    # Create shared clients and engines
-    ha_client = HAClient()
-    recommender = DeviceRecommender()
-    comparison_engine = DeviceComparisonEngine()
-
-    app.state.ha_client = ha_client
-    app.state.recommender = recommender
-    app.state.comparison_engine = comparison_engine
-
-    yield
-
-    logger.info("Device Recommender Service shutting down...")
-    await ha_client.close()
+async def _startup() -> None:
+    global _ha_client, _recommender, _comparison_engine
+    _ha_client = HAClient()
+    _recommender = DeviceRecommender()
+    _comparison_engine = DeviceComparisonEngine()
+    logger.info("Device Recommender components initialized")
 
 
-app = FastAPI(
+async def _shutdown() -> None:
+    global _ha_client
+    if _ha_client:
+        await _ha_client.close()
+    logger.info("Device Recommender shut down")
+
+
+lifespan = ServiceLifespan("Device Recommender Service")
+lifespan.on_startup(_startup, name="init-components")
+lifespan.on_shutdown(_shutdown, name="close-ha-client")
+
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+async def _check_ha() -> bool:
+    return _ha_client is not None and bool(_ha_client.ha_url)
+
+
+health = StandardHealthCheck(service_name="device-recommender", version="1.0.0")
+health.register_check("ha-config", _check_ha)
+
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
+app = create_app(
     title="Device Recommender Service",
     version="1.0.0",
     description="Device recommendations and comparisons",
-    lifespan=lifespan,
+    lifespan=lifespan.handler,
+    health_check=health,
 )
 
 
@@ -84,37 +109,10 @@ app = FastAPI(
 # Endpoints
 # ---------------------------------------------------------------------------
 
-@app.get("/health")
-async def health_check(request: Request) -> dict:
-    """Health check endpoint"""
-    ha_client: HAClient = request.app.state.ha_client
-    if not ha_client.ha_url:
-        raise HTTPException(
-            status_code=503,
-            detail="Home Assistant URL not configured",
-        )
-    return {
-        "status": "healthy",
-        "service": "device-recommender",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
-
-
-@app.get("/")
-async def root() -> dict[str, str]:
-    """Root endpoint"""
-    return {
-        "service": "device-recommender",
-        "version": "1.0.0",
-        "status": "running",
-    }
-
-
 @app.post("/api/v1/recommend", response_model=RecommendResponse)
-async def recommend(request: Request, body: RecommendRequest) -> RecommendResponse:
+async def recommend(body: RecommendRequest) -> RecommendResponse:
     """Recommend devices based on requirements."""
-    recommender: DeviceRecommender = request.app.state.recommender
-    recommendations = await recommender.recommend_devices(
+    recommendations = await _recommender.recommend_devices(
         device_type=body.device_type,
         requirements=body.requirements,
         user_devices=body.user_devices,
@@ -126,15 +124,13 @@ async def recommend(request: Request, body: RecommendRequest) -> RecommendRespon
 
 
 @app.post("/api/v1/compare", response_model=CompareResponse)
-async def compare(request: Request, body: CompareRequest) -> CompareResponse:
+async def compare(body: CompareRequest) -> CompareResponse:
     """Compare multiple devices side-by-side."""
-    comparison_engine: DeviceComparisonEngine = request.app.state.comparison_engine
-
     if len(body.device_ids) < 2:
         raise HTTPException(status_code=400, detail="Need at least 2 devices to compare")
 
     try:
-        result = comparison_engine.compare_devices(
+        result = _comparison_engine.compare_devices(
             device_ids=body.device_ids,
             devices=body.devices,
         )
@@ -145,10 +141,9 @@ async def compare(request: Request, body: CompareRequest) -> CompareResponse:
 
 
 @app.get("/api/v1/devices")
-async def get_devices(request: Request) -> list[dict]:
+async def get_devices() -> list[dict]:
     """Get user's devices from Home Assistant."""
-    ha_client: HAClient = request.app.state.ha_client
-    return await ha_client.get_user_devices()
+    return await _ha_client.get_user_devices()
 
 
 # ---------------------------------------------------------------------------

@@ -7,6 +7,7 @@ from .alembic_helpers import (
     run_async_migrations,
     run_migrations_on_startup,
 )
+from .base_settings import BaseServiceSettings
 from .database_manager import DatabaseManager
 from .database_pool import (
     check_pg_connection,
@@ -20,9 +21,12 @@ from .database_pool import (
     get_shared_db_session,
     validate_database_url,
 )
+from .standard_data_api_client import StandardDataAPIClient
 
 __all__ = [
+    "BaseServiceSettings",
     "DatabaseManager",
+    "StandardDataAPIClient",
     "check_pg_connection",
     "close_all_engines",
     "close_all_engines_async",
