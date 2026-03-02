@@ -32,10 +32,14 @@ export const Insights: React.FC = () => {
       </div>
 
       {/* Sub-tab strip */}
-      <div className="flex gap-1 mb-6 border-b border-[var(--card-border)] pb-2">
+      <div className="flex gap-1 mb-6 border-b border-[var(--card-border)] pb-2" role="tablist" aria-label="Insight views">
         {views.map((v) => (
           <button
             key={v.id}
+            role="tab"
+            aria-selected={activeView === v.id}
+            aria-controls={`insight-tabpanel-${v.id}`}
+            id={`insight-tab-${v.id}`}
             onClick={() => setActiveView(v.id)}
             className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
               activeView === v.id
@@ -49,8 +53,10 @@ export const Insights: React.FC = () => {
       </div>
 
       {/* Content */}
-      {activeView === 'patterns' && <Patterns />}
-      {(activeView === 'connections' || activeView === 'rooms') && <Synergies />}
+      <div role="tabpanel" id={`insight-tabpanel-${activeView}`} aria-labelledby={`insight-tab-${activeView}`}>
+        {activeView === 'patterns' && <Patterns />}
+        {(activeView === 'connections' || activeView === 'rooms') && <Synergies />}
+      </div>
     </div>
   );
 };

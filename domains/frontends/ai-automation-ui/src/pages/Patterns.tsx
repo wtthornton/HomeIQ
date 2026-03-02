@@ -459,9 +459,9 @@ export const Patterns: React.FC = () => {
         <div className="flex justify-between items-center gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-1">
-              <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                📊 Detected Patterns
-              </h1>
+              <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Detected Patterns
+              </h2>
             </div>
             <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Usage patterns detected by machine learning analysis
@@ -1159,10 +1159,10 @@ export const Patterns: React.FC = () => {
           <div className={`text-center py-12 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
             <div className="text-6xl mb-4">📊</div>
             <div className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              No patterns detected yet
+              No patterns yet
             </div>
             <p className={`mt-2 mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Run an analysis to detect patterns in your smart home usage from the last 30 days
+              We need at least 30 days of events to detect usage patterns. Run an analysis to check your data.
             </p>
             <div className="flex flex-col items-center gap-4">
               <motion.button

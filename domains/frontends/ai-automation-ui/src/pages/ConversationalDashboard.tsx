@@ -549,10 +549,12 @@ export const ConversationalDashboard: React.FC = () => {
       </motion.div>
 
       {/* Status Tabs - Modern 2025 Design */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="flex gap-2 overflow-x-auto pb-2" role="tablist" aria-label="Suggestion status filters">
         {(['draft', 'refining', 'yaml_generated', 'deployed'] as const).map((status) => (
           <motion.button
             key={status}
+            role="tab"
+            aria-selected={selectedStatus === status}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setSelectedStatus(status)}

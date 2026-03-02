@@ -565,9 +565,9 @@ export const Synergies: React.FC = () => {
                 🔮
               </motion.div>
               <div className="flex-1 min-w-0">
-                <h1 className={`text-2xl font-bold mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                <h2 className={`text-2xl font-bold mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                   Device Synergies
-                </h1>
+                </h2>
                 <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   Discover automation opportunities between nearby devices
                 </p>

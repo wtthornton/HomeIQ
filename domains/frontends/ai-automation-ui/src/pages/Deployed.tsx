@@ -366,11 +366,14 @@ export const Deployed: React.FC = () => {
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h3 className={`text-lg font-bold mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                <div className="flex-1 min-w-0">
+                  <h3
+                    className={`text-lg font-bold mb-1 truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}
+                    title={automation.attributes.friendly_name || automation.entity_id}
+                  >
                     {automation.attributes.friendly_name || automation.entity_id}
                   </h3>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <p className={`text-sm truncate ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} title={automation.entity_id}>
                     {automation.entity_id}
                   </p>
                   {automation.attributes.last_triggered && (
@@ -382,12 +385,20 @@ export const Deployed: React.FC = () => {
                 
                 <div className="flex gap-3 items-center">
                   {/* Status Badge */}
-                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    automation.state === 'on'
-                      ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
-                  }`}>
-                    {automation.state === 'on' ? '✅ Enabled' : '⏸️ Disabled'}
+                  <div
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      automation.state === 'on'
+                        ? darkMode
+                          ? 'bg-green-900 text-green-200 border border-green-700'
+                          : 'bg-green-100 text-green-800 border border-green-300'
+                        : darkMode
+                        ? 'bg-gray-700 text-gray-300 border border-gray-600'
+                        : 'bg-gray-100 text-gray-600 border border-gray-300'
+                    }`}
+                    role="status"
+                    aria-label={automation.state === 'on' ? 'Automation enabled' : 'Automation disabled'}
+                  >
+                    {automation.state === 'on' ? 'Enabled' : 'Disabled'}
                   </div>
                   
                   {/* Toggle Button */}

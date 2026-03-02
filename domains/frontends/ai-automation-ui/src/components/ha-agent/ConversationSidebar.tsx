@@ -266,7 +266,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                     darkMode
                       ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  } focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]`}
                 />
 
                 {/* Filter buttons */}
@@ -298,8 +298,18 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
                   </div>
                 ) : filteredConversations.length === 0 ? (
-                  <div className={`p-4 text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {searchQuery ? 'No conversations found' : 'No conversations yet'}
+                  <div className={`p-6 text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {searchQuery ? (
+                      'No conversations found'
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="text-2xl">💬</div>
+                        <p className="font-medium">No conversations yet</p>
+                        <p className="text-xs">
+                          Start a new conversation to get AI-powered automation suggestions
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="p-2" role="listbox" aria-label="Conversations">

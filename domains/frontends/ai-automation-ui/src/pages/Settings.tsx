@@ -221,9 +221,12 @@ export const Settings: React.FC = () => {
           
           <div className="space-y-6">
             <div>
-              <label className={`block font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <label className={`block font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Minimum Confidence Threshold: {settings.minConfidence}%
               </label>
+              <p className={`text-xs mb-2 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                Only show suggestions with confidence at or above this level. Higher values mean fewer but more reliable suggestions.
+              </p>
               <input
                 type="range"
                 min="50"
@@ -240,15 +243,23 @@ export const Settings: React.FC = () => {
             </div>
 
             <div>
-              <label className={`block font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <label className={`block font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Maximum Suggestions Per Run
               </label>
+              <p className={`text-xs mb-2 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                Limit the number of automation suggestions generated per analysis run (1-50).
+              </p>
               <input
                 type="number"
                 min="1"
                 max="50"
                 value={settings.maxSuggestions}
-                onChange={(e) => setSettings({ ...settings, maxSuggestions: parseInt(e.target.value, 10) || 1 })}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val)) {
+                    setSettings({ ...settings, maxSuggestions: Math.min(50, Math.max(1, val)) });
+                  }
+                }}
                 className={`px-4 py-2 rounded-lg border w-full ${
                   darkMode
                     ? 'bg-gray-700 border-gray-600 text-white'

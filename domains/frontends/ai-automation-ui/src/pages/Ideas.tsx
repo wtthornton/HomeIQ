@@ -45,10 +45,14 @@ export const Ideas: React.FC = () => {
       </div>
 
       {/* Sub-tab strip */}
-      <div className="flex gap-1 mb-6 border-b border-[var(--card-border)] pb-2">
+      <div className="flex gap-1 mb-6 border-b border-[var(--card-border)] pb-2" role="tablist" aria-label="Idea sources">
         {sources.map((s) => (
           <button
             key={s.id}
+            role="tab"
+            aria-selected={activeSource === s.id}
+            aria-controls={`tabpanel-${s.id}`}
+            id={`tab-${s.id}`}
             onClick={() => handleSourceChange(s.id)}
             className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
               activeSource === s.id
@@ -62,9 +66,11 @@ export const Ideas: React.FC = () => {
       </div>
 
       {/* Content */}
-      {activeSource === 'data' && <ConversationalDashboard />}
-      {activeSource === 'context' && <ProactiveSuggestions />}
-      {activeSource === 'blueprints' && <BlueprintSuggestions />}
+      <div role="tabpanel" id={`tabpanel-${activeSource}`} aria-labelledby={`tab-${activeSource}`}>
+        {activeSource === 'data' && <ConversationalDashboard />}
+        {activeSource === 'context' && <ProactiveSuggestions />}
+        {activeSource === 'blueprints' && <BlueprintSuggestions />}
+      </div>
     </div>
   );
 };
