@@ -3,6 +3,7 @@ Jaeger Query API Client
 Client for querying traces from Jaeger
 """
 
+import asyncio
 import logging
 import os
 from datetime import datetime, timedelta
@@ -67,18 +68,24 @@ class JaegerClient:
             api_url: Jaeger Query API URL (default: from JAEGER_API_URL env var)
         """
         self.api_url = api_url or os.getenv("JAEGER_API_URL", "http://jaeger:16686/api")
-        self.client = httpx.AsyncClient(timeout=30.0)
+        self.client = httpx.AsyncClient(
+            timeout=30.0,
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+        )
         self._services_cache: list[Service] | None = None
         self._services_cache_time: datetime | None = None
         self._cache_ttl = timedelta(minutes=5)
 
-    async def close(self) -> None:
-        """
-        Close the HTTP client.
+    async def __aenter__(self) -> "JaegerClient":
+        return self
 
-        Should be called when client is no longer needed to free resources.
-        """
-        await self.client.aclose()
+    async def __aexit__(self, *exc: object) -> None:
+        await self.close()
+
+    async def close(self) -> None:
+        """Close the HTTP client."""
+        if not self.client.is_closed:
+            await self.client.aclose()
 
     async def get_traces(
         self,
@@ -201,12 +208,18 @@ class JaegerClient:
             response.raise_for_status()
 
             data = response.json()
+            service_names = data.get("data", [])
+
+            # Fetch operations for all services in parallel
+            operations_list = await asyncio.gather(
+                *[self._get_service_operations(name) for name in service_names],
+                return_exceptions=True,
+            )
+
             services = []
-            for service_name in data.get("data", []):
-                # Get operations for this service
-                operations = await self._get_service_operations(service_name)
-                service = Service(name=service_name, operations=operations)
-                services.append(service)
+            for name, ops in zip(service_names, operations_list):
+                operations = ops if isinstance(ops, list) else []
+                services.append(Service(name=name, operations=operations))
 
             # Update cache
             self._services_cache = services

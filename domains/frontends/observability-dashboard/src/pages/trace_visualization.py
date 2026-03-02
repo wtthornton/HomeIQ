@@ -16,6 +16,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from services.jaeger_client import JaegerClient, Service, Trace
 from utils.async_helpers import run_async_safe
+from utils.trace_helpers import has_errors
 
 # Initialize Jaeger client in session state
 if "jaeger_client" not in st.session_state:
@@ -87,7 +88,6 @@ def show() -> None:
 
         # Search
         trace_id_search = st.text_input("Search Trace ID")
-        st.text_input("Search Correlation ID")
 
     # Query traces
     if st.button("🔍 Query Traces", type="primary"):
@@ -132,7 +132,7 @@ def show() -> None:
             ) / len(traces) if traces else 0
             st.metric("Avg Duration (μs)", f"{avg_duration:,.0f}")
         with col4:
-            error_traces = sum(1 for trace in traces if _has_errors(trace))
+            error_traces = sum(1 for trace in traces if has_errors(trace))
             st.metric("Error Traces", error_traces)
 
         # Trace timeline visualization
@@ -257,15 +257,6 @@ async def _query_traces(
         )
 
 
-def _has_errors(trace: Trace) -> bool:
-    """Check if trace has errors."""
-    for span in trace.spans:
-        for tag in span.tags:
-            if tag.get("key") == "error" and tag.get("value"):
-                return True
-    return False
-
-
 def _create_timeline_chart(traces: list[Trace]) -> go.Figure:
     """Create timeline visualization of traces."""
     data = []
@@ -282,7 +273,7 @@ def _create_timeline_chart(traces: list[Trace]) -> go.Figure:
                     "Operation": span.operationName,
                     "Start (ms)": start_ms,
                     "Duration (ms)": duration_ms,
-                    "Has Error": _has_errors(trace),
+                    "Has Error": has_errors(trace),
                 }
             )
 
@@ -402,7 +393,7 @@ def _create_trace_dataframe(traces: list[Trace]) -> pd.DataFrame:
                 "Services": ", ".join(unique_services),
                 "Span Count": len(trace.spans),
                 "Total Duration (μs)": total_duration,
-                "Has Error": _has_errors(trace),
+                "Has Error": has_errors(trace),
             }
         )
 

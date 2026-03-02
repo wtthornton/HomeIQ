@@ -136,6 +136,7 @@ reports/
 .mypy_cache/
 .prospector/
 .radon/
+.ruff_cache/
 
 # ESLint cache
 .eslintcache

@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     data_api_url: str = "http://homeiq-data-api:8006"
 
     # Admin API configuration
-    admin_api_url: str = "http://homeiq-admin-api:8003"
+    admin_api_url: str = "http://homeiq-admin-api:8004"
 
     # Health check intervals (seconds)
     health_check_interval: int = 60

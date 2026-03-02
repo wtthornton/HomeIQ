@@ -24,7 +24,7 @@ class StatsEndpoints:
         self.router = FastAPI()
         self.service_urls: dict[str, str] = {
             "websocket-ingestion": "http://localhost:8001",
-            "admin-api": "http://localhost:8003",
+            "admin-api": "http://localhost:8004",
             "data-api": "http://localhost:8006",
             "health-dashboard": "http://localhost:3000",
             "device-intelligence-service": "http://localhost:8028",

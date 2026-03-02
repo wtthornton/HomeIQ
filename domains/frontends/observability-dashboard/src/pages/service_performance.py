@@ -3,6 +3,7 @@ Service Performance Monitoring Dashboard Page
 Monitor service health and performance metrics
 """
 
+import asyncio
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -65,23 +66,14 @@ def show() -> None:
         selected_services = st.multiselect("Services", service_names, default=service_names[:10] if service_names else [])
 
     # Query performance data
-    if st.button("📊 Load Performance Data", type="primary"):
+    if st.button("Load Performance Data", type="primary"):
         with st.spinner("Loading performance data..."):
             try:
-                # Get traces for all services
-                all_traces = []
                 services_to_query = selected_services if selected_services else service_names
-                for service in services_to_query:
-                    traces = run_async_safe(
-                        st.session_state.jaeger_client.get_traces(
-                            service=service,
-                            start_time=start_time,
-                            end_time=end_time,
-                            limit=100,
-                        ),
-                        timeout=60.0,
-                    )
-                    all_traces.extend(traces)
+                all_traces = run_async_safe(
+                    _query_all_services(services_to_query, start_time, end_time),
+                    timeout=60.0,
+                )
 
                 if all_traces:
                     st.session_state.performance_traces = all_traces
@@ -165,14 +157,28 @@ def show() -> None:
 
 
 async def _get_services() -> list[Service]:
-    """
-    Get list of services from Jaeger.
-
-    Returns:
-        List of Service objects
-    """
+    """Get list of services from Jaeger."""
     client: JaegerClient = st.session_state.jaeger_client
     return await client.get_services()
+
+
+async def _query_all_services(
+    services: list[str], start_time: datetime, end_time: datetime
+) -> list[Trace]:
+    """Query traces for all services in parallel using asyncio.gather."""
+    client: JaegerClient = st.session_state.jaeger_client
+    results = await asyncio.gather(
+        *[
+            client.get_traces(service=s, start_time=start_time, end_time=end_time, limit=100)
+            for s in services
+        ],
+        return_exceptions=True,
+    )
+    all_traces: list[Trace] = []
+    for result in results:
+        if isinstance(result, list):
+            all_traces.extend(result)
+    return all_traces
 
 
 def _calculate_service_metrics(traces: list[Trace]) -> dict[str, dict]:

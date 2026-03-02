@@ -16,6 +16,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from services.jaeger_client import JaegerClient, Trace
 from utils.async_helpers import run_async_safe
+from utils.trace_helpers import has_errors, trace_wall_clock_ms
 
 # Initialize Jaeger client in session state
 if "jaeger_client" not in st.session_state:
@@ -152,17 +153,6 @@ async def _query_automation_traces(
     """Query automation traces from Jaeger."""
     client = st.session_state.jaeger_client
 
-    # Search for traces with automation-related tags
-    query_params = {
-        "limit": 100,
-    }
-
-    if start_time:
-        query_params["start"] = int(start_time.timestamp() * 1000000)
-    if end_time:
-        query_params["end"] = int(end_time.timestamp() * 1000000)
-
-    # Query traces from ai-automation-service
     traces = await client.get_traces(
         service="ai-automation-service",
         start_time=start_time,
@@ -170,36 +160,40 @@ async def _query_automation_traces(
         limit=100,
     )
 
+    # If no filters provided, return all traces
+    if not automation_id and not home_id and not correlation_id:
+        return traces
+
     # Filter by automation ID, home ID, or correlation ID
     filtered_traces = []
     for trace in traces:
-        # Check tags for automation identifiers
+        matched = False
         for span in trace.spans:
             for tag in span.tags:
                 tag_key = tag.get("key", "")
                 tag_value = tag.get("value", "")
 
-                if automation_id and tag_key == "automation_id" and tag_value == automation_id or home_id and tag_key == "home_id" and tag_value == home_id or correlation_id and tag_key == "correlation_id" and tag_value == correlation_id:
-                    filtered_traces.append(trace)
+                if (
+                    (automation_id and tag_key == "automation_id" and tag_value == automation_id)
+                    or (home_id and tag_key == "home_id" and tag_value == home_id)
+                    or (correlation_id and tag_key == "correlation_id" and tag_value == correlation_id)
+                ):
+                    matched = True
                     break
+            if matched:
+                break
+        if matched:
+            filtered_traces.append(trace)
 
     return filtered_traces
 
 
 def _is_automation_success(trace: Trace) -> bool:
-    """
-    Check if automation execution was successful.
-
-    Args:
-        trace: Trace object to check
-
-    Returns:
-        True if automation succeeded, False otherwise
-    """
+    """Check if automation execution was successful."""
+    if has_errors(trace):
+        return False
     for span in trace.spans:
         for tag in span.tags:
-            if tag.get("key") == "error" and tag.get("value"):
-                return False
             if tag.get("key") == "status" and tag.get("value") == "success":
                 return True
     return True  # Assume success if no error tags
@@ -239,12 +233,12 @@ def _show_automation_flow(trace: Trace) -> None:
         steps_df = pd.DataFrame(steps)
         st.dataframe(steps_df, use_container_width=True)
 
-        # Flow chart
-        fig = px.timeline(
+        # Horizontal bar chart for step durations
+        fig = px.bar(
             steps_df,
-            x_start=0,
-            x_end="Duration (ms)",
+            x="Duration (ms)",
             y="Step",
+            orientation="h",
             title="Automation Execution Timeline",
         )
         st.plotly_chart(fig, use_container_width=True)
@@ -258,7 +252,7 @@ def _create_performance_dataframe(traces: list[Trace]) -> pd.DataFrame:
     """Create performance metrics DataFrame."""
     data = []
     for i, trace in enumerate(traces):
-        total_duration = sum(span.duration for span in trace.spans) / 1000  # Convert to ms
+        total_duration = trace_wall_clock_ms(trace)
         status = "Success" if _is_automation_success(trace) else "Failed"
 
         data.append(

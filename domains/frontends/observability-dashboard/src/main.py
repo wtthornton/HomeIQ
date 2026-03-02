@@ -24,8 +24,6 @@ st.set_page_config(
 # Environment variables
 JAEGER_URL = os.getenv("JAEGER_URL", "http://jaeger:16686")
 JAEGER_API_URL = os.getenv("JAEGER_API_URL", "http://jaeger:16686/api")
-OTLP_ENDPOINT = os.getenv("OTLP_ENDPOINT", "http://jaeger:4317")
-INFLUXDB_URL = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
 DATA_API_URL = os.getenv("DATA_API_URL", "http://data-api:8006")
 ADMIN_API_URL = os.getenv("ADMIN_API_URL", "http://admin-api:8004")
 
@@ -34,8 +32,6 @@ if "config" not in st.session_state:
     st.session_state.config = {
         "jaeger_url": JAEGER_URL,
         "jaeger_api_url": JAEGER_API_URL,
-        "otlp_endpoint": OTLP_ENDPOINT,
-        "influxdb_url": INFLUXDB_URL,
         "data_api_url": DATA_API_URL,
         "admin_api_url": ADMIN_API_URL,
     }

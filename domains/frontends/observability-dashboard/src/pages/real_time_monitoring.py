@@ -16,6 +16,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from services.jaeger_client import JaegerClient, Trace
 from utils.async_helpers import run_async_safe
+from utils.trace_helpers import has_errors
 
 # Initialize Jaeger client in session state
 if "jaeger_client" not in st.session_state:
@@ -26,6 +27,9 @@ if "real_time_traces" not in st.session_state:
     st.session_state.real_time_traces = []
 if "auto_refresh" not in st.session_state:
     st.session_state.auto_refresh = False
+
+# Map refresh interval options to timedelta for st.fragment
+_REFRESH_OPTIONS = [5, 10, 30, 60]
 
 
 def show() -> None:
@@ -44,45 +48,16 @@ def show() -> None:
         st.session_state.auto_refresh = auto_refresh
 
     with col2:
-        refresh_interval = st.selectbox("Refresh Interval", [5, 10, 30, 60], index=1, format_func=lambda x: f"{x}s")
+        refresh_interval = st.selectbox("Refresh Interval", _REFRESH_OPTIONS, index=1, format_func=lambda x: f"{x}s")
 
     with col3:
         if st.button("🛑 Stop Monitoring"):
             st.session_state.auto_refresh = False
             st.session_state.real_time_traces = []
 
-    # Auto-refresh logic
+    # Auto-refresh using st.fragment with run_every (non-blocking)
     if auto_refresh:
-        # Query latest traces
-        with st.spinner("Loading latest traces..."):
-            try:
-                traces = run_async_safe(
-                    _get_latest_traces(
-                        limit=50,
-                        lookback_minutes=5,
-                    ),
-                    timeout=30.0,
-                )
-            except Exception as e:
-                st.error(f"Failed to load traces: {e}")
-                traces = []
-
-            if traces:
-                # Add new traces to state
-                existing_ids = {t.traceID for t in st.session_state.real_time_traces}
-                new_traces = [t for t in traces if t.traceID not in existing_ids]
-                st.session_state.real_time_traces = (new_traces + st.session_state.real_time_traces)[:100]
-
-                if new_traces:
-                    st.success(f"📥 Received {len(new_traces)} new traces")
-
-        # Auto-refresh using streamlit's rerun
-        # Note: Streamlit will automatically refresh based on the interval
-        # We use st.rerun() to trigger refresh, but avoid blocking with sleep
-        if auto_refresh:
-            import time
-            time.sleep(refresh_interval)
-            st.rerun()
+        _auto_refresh_fragment(refresh_interval)
 
     # Display real-time metrics
     if st.session_state.real_time_traces:
@@ -94,7 +69,7 @@ def show() -> None:
         with col1:
             st.metric("Active Traces", len(traces))
         with col2:
-            error_traces = sum(1 for trace in traces if _has_errors(trace))
+            error_traces = sum(1 for trace in traces if has_errors(trace))
             st.metric("Error Traces", error_traces, delta=f"{error_traces/len(traces)*100:.1f}%" if traces else "0%")
         with col3:
             avg_latency = (
@@ -141,17 +116,33 @@ def show() -> None:
         st.info("👆 Enable auto-refresh to start monitoring")
 
 
+def _auto_refresh_fragment(refresh_interval: int) -> None:
+    """Non-blocking auto-refresh using st.fragment with run_every."""
+
+    @st.fragment(run_every=timedelta(seconds=refresh_interval))
+    def _poll_traces() -> None:
+        try:
+            traces = run_async_safe(
+                _get_latest_traces(limit=50, lookback_minutes=5),
+                timeout=30.0,
+            )
+        except Exception as e:
+            st.error(f"Failed to load traces: {e}")
+            return
+
+        if traces:
+            existing_ids = {t.traceID for t in st.session_state.real_time_traces}
+            new_traces = [t for t in traces if t.traceID not in existing_ids]
+            st.session_state.real_time_traces = (new_traces + st.session_state.real_time_traces)[:100]
+
+            if new_traces:
+                st.success(f"Received {len(new_traces)} new traces")
+
+    _poll_traces()
+
+
 async def _get_latest_traces(limit: int = 50, lookback_minutes: int = 5) -> list[Trace]:
-    """
-    Get latest traces from Jaeger.
-
-    Args:
-        limit: Maximum number of traces to return
-        lookback_minutes: Minutes to look back for traces
-
-    Returns:
-        List of Trace objects
-    """
+    """Get latest traces from Jaeger."""
     client: JaegerClient = st.session_state.jaeger_client
 
     end_time = datetime.utcnow()
@@ -164,32 +155,14 @@ async def _get_latest_traces(limit: int = 50, lookback_minutes: int = 5) -> list
     )
 
 
-def _has_errors(trace: Trace) -> bool:
-    """Check if trace has errors."""
-    for span in trace.spans:
-        for tag in span.tags:
-            if tag.get("key") == "error" and tag.get("value"):
-                return True
-    return False
-
-
 def _detect_anomalies(traces: list[Trace]) -> list[dict[str, str]]:
-    """
-    Detect anomalies in traces (high latency, errors).
-
-    Args:
-        traces: List of traces to analyze
-
-    Returns:
-        List of anomaly dictionaries
-    """
+    """Detect anomalies in traces (high latency, errors). One entry per trace per type."""
     anomalies = []
 
     for trace in traces:
+        # High latency: report per-span (each slow span is a distinct anomaly)
         for span in trace.spans:
             duration_ms = span.duration / 1000
-
-            # High latency anomaly (> 1 second)
             if duration_ms > 1000:
                 anomalies.append(
                     {
@@ -201,38 +174,42 @@ def _detect_anomalies(traces: list[Trace]) -> list[dict[str, str]]:
                     }
                 )
 
-            # Error anomaly
-            if _has_errors(trace):
-                anomalies.append(
-                    {
-                        "Type": "Error",
-                        "Trace ID": trace.traceID[:16] + "...",
-                        "Service": trace.processes.get(span.processID, {}).get("serviceName", "unknown"),
-                        "Operation": span.operationName,
-                        "Latency (ms)": f"{duration_ms:.2f}",
-                    }
-                )
+        # Error: one entry per trace (de-duplicated, not per-span)
+        if has_errors(trace):
+            trace_duration = _trace_wall_clock_ms(trace)
+            anomalies.append(
+                {
+                    "Type": "Error",
+                    "Trace ID": trace.traceID[:16] + "...",
+                    "Service": ", ".join(
+                        {trace.processes.get(s.processID, {}).get("serviceName", "unknown") for s in trace.spans}
+                    ),
+                    "Operation": trace.spans[0].operationName if trace.spans else "unknown",
+                    "Latency (ms)": f"{trace_duration:.2f}",
+                }
+            )
 
     return anomalies
 
 
+def _trace_wall_clock_ms(trace: Trace) -> float:
+    """Calculate wall-clock duration of a trace: max(start+duration) - min(start)."""
+    if not trace.spans:
+        return 0.0
+    start = min(span.startTime for span in trace.spans)
+    end = max(span.startTime + span.duration for span in trace.spans)
+    return (end - start) / 1000  # microseconds to ms
+
+
 def _create_realtime_dataframe(traces: list[Trace]) -> pd.DataFrame:
-    """
-    Create real-time trace DataFrame.
-
-    Args:
-        traces: List of traces to convert to DataFrame
-
-    Returns:
-        DataFrame with trace information
-    """
+    """Create real-time trace DataFrame."""
     data = []
     for trace in traces:
         service_names = [
             trace.processes.get(span.processID, {}).get("serviceName", "unknown") for span in trace.spans
         ]
         unique_services = list(set(service_names))
-        total_duration = sum(span.duration for span in trace.spans) / 1000  # Convert to ms
+        total_duration = _trace_wall_clock_ms(trace)
 
         data.append(
             {
@@ -240,7 +217,7 @@ def _create_realtime_dataframe(traces: list[Trace]) -> pd.DataFrame:
                 "Trace ID": trace.traceID[:16] + "...",
                 "Services": ", ".join(unique_services),
                 "Duration (ms)": f"{total_duration:.2f}",
-                "Status": "🔴 Error" if _has_errors(trace) else "🟢 OK",
+                "Status": "Error" if has_errors(trace) else "OK",
             }
         )
 
@@ -248,18 +225,11 @@ def _create_realtime_dataframe(traces: list[Trace]) -> pd.DataFrame:
 
 
 def _calculate_service_health(traces: list[Trace]) -> list[dict[str, float]]:
-    """
-    Calculate real-time service health scores.
-
-    Args:
-        traces: List of traces to analyze
-
-    Returns:
-        List of service health dictionaries
-    """
-    service_metrics = {}
+    """Calculate real-time service health scores."""
+    service_metrics: dict[str, dict] = {}
 
     for trace in traces:
+        trace_has_error = has_errors(trace)
         for span in trace.spans:
             service_name = trace.processes.get(span.processID, {}).get("serviceName", "unknown")
 
@@ -269,7 +239,7 @@ def _calculate_service_health(traces: list[Trace]) -> list[dict[str, float]]:
             service_metrics[service_name]["total"] += 1
             service_metrics[service_name]["latencies"].append(span.duration / 1000)
 
-            if _has_errors(trace):
+            if trace_has_error:
                 service_metrics[service_name]["errors"] += 1
 
     # Calculate health scores (0-100)

@@ -47,11 +47,6 @@ services:
     environment:
       - JAEGER_URL=http://jaeger:16686
       - JAEGER_API_URL=http://jaeger:16686/api
-      - OTLP_ENDPOINT=http://jaeger:4317
-      - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - DATA_API_URL=http://data-api:8006
       - ADMIN_API_URL=http://admin-api:8004
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
