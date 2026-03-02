@@ -65,15 +65,10 @@ export class HAClient {
    */
   async getSensorsByPattern(pattern: string): Promise<HASensor[]> {
     const states = await this.getAllStates();
-    try {
-      // Escape special regex characters if pattern contains them unexpectedly
-      const regex = new RegExp(pattern);
-      return states.filter(sensor => regex.test(sensor.entity_id));
-    } catch (e) {
-      // If pattern is invalid regex, fall back to string includes
-      console.warn(`Invalid regex pattern "${pattern}", falling back to string match`);
-      return states.filter(sensor => sensor.entity_id.includes(pattern));
-    }
+    // Escape user input to prevent ReDoS attacks
+    const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(escaped);
+    return states.filter(sensor => regex.test(sensor.entity_id));
   }
 
   /**

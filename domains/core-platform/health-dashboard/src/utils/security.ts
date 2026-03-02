@@ -44,8 +44,7 @@ const writeCookie = (name: string, value: string): void => {
 
 const generateToken = (): string => {
   if (!isBrowser || !window.crypto?.getRandomValues) {
-    // Fallback: pseudo-random (only used in unsupported environments)
-    return Math.random().toString(36).substring(2, 18);
+    throw new Error('CSRF token generation requires crypto.getRandomValues (all modern browsers support this)');
   }
 
   const buffer = new Uint8Array(TOKEN_BYTES);

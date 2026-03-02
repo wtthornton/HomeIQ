@@ -19,7 +19,6 @@ WORKDIR /app
 
 # Accept build arguments for Vite environment variables
 ARG VITE_API_BASE_URL
-ARG VITE_API_KEY
 ARG VITE_DATA_API_URL
 ARG VITE_WS_URL
 ARG VITE_ENVIRONMENT=production
@@ -34,7 +33,6 @@ COPY . .
 ENV NODE_ENV=production
 ENV VITE_ENVIRONMENT=${VITE_ENVIRONMENT}
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
-ENV VITE_API_KEY=${VITE_API_KEY}
 ENV VITE_DATA_API_URL=${VITE_DATA_API_URL}
 ENV VITE_WS_URL=${VITE_WS_URL}
 
@@ -53,12 +51,14 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Create non-root user for file ownership
+# Create non-root user and set permissions for nginx
 RUN addgroup -g 1001 -S appgroup && \
-    adduser -S appuser -u 1001 -G appgroup
-
-# Set ownership of web files to non-root user
-RUN chown -R appuser:appgroup /usr/share/nginx/html
+    adduser -S appuser -u 1001 -G appgroup && \
+    chown -R appuser:appgroup /usr/share/nginx/html && \
+    chown -R appuser:appgroup /var/cache/nginx && \
+    chown -R appuser:appgroup /var/log/nginx && \
+    touch /var/run/nginx.pid && \
+    chown appuser:appgroup /var/run/nginx.pid
 
 # Set timezone
 ENV TZ=America/Los_Angeles

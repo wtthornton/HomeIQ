@@ -400,14 +400,16 @@ class AdminApiClient extends BaseApiClient {
   }
 
   async getContainerLogs(serviceName: string, tail: number = 100): Promise<{ logs: string }> {
+    const validName = this.validateServiceName(serviceName);
     return this.fetchWithErrorHandling<{ logs: string }>(
-      this.buildUrl(`/api/v1/docker/containers/${serviceName}/logs?tail=${tail}`)
+      this.buildUrl(`/api/v1/docker/containers/${validName}/logs?tail=${tail}`)
     );
   }
 
   async getContainerStats(serviceName: string): Promise<ContainerStats> {
+    const validName = this.validateServiceName(serviceName);
     return this.fetchWithErrorHandling<ContainerStats>(
-      this.buildUrl(`/api/v1/docker/containers/${serviceName}/stats`)
+      this.buildUrl(`/api/v1/docker/containers/${validName}/stats`)
     );
   }
 

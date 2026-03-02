@@ -14,7 +14,7 @@ COPY postcss.config.js ./
 
 # Install dependencies
 RUN --mount=type=cache,target=/root/.npm \
-    npm install --prefer-offline --no-audit
+    npm ci --prefer-offline
 
 # Stage 2: Builder
 FROM deps AS builder
@@ -22,11 +22,9 @@ WORKDIR /app
 
 # Build arguments for environment variables
 ARG VITE_API_URL
-ARG VITE_API_KEY
 
 # Set environment variables for build
 ENV VITE_API_URL=${VITE_API_URL}
-ENV VITE_API_KEY=${VITE_API_KEY}
 
 # Copy dependencies from previous stage
 COPY --from=deps /app/node_modules ./node_modules
@@ -54,6 +52,15 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Create non-root user and set permissions
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -S appuser -u 1001 -G appgroup && \
+    chown -R appuser:appgroup /usr/share/nginx/html && \
+    chown -R appuser:appgroup /var/cache/nginx && \
+    chown -R appuser:appgroup /var/log/nginx && \
+    touch /var/run/nginx.pid && \
+    chown appuser:appgroup /var/run/nginx.pid
+
 # Set timezone to Los Angeles (PST/PDT)
 RUN ln -snf /usr/share/zoneinfo/America/Los_Angeles /etc/localtime && \
     echo "America/Los_Angeles" > /etc/timezone
@@ -63,7 +70,7 @@ EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost/ || exit 1
+  CMD curl -f http://localhost/health || exit 1
 
 # Start nginx (nginx handles user permissions internally)
 CMD ["nginx", "-g", "daemon off;"]

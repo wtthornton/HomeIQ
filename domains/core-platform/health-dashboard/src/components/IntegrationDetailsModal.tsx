@@ -120,17 +120,14 @@ export const IntegrationDetailsModal: React.FC<IntegrationDetailsModalProps> = (
         setLoading(true);
         setError(null);
         
-        // Fetch analytics - use authenticated API client
-        // Security: No hardcoded API key fallback
-        const API_KEY = import.meta.env.VITE_API_KEY || '';
-        if (!API_KEY && import.meta.env.MODE !== 'production') {
-          console.warn('⚠️ VITE_API_KEY not set. API requests may fail authentication.');
+        // Fetch analytics - use session-based auth or nginx proxy auth
+        const headers: Record<string, string> = {};
+        const sessionKey = sessionStorage.getItem('api_key');
+        if (sessionKey) {
+          headers['Authorization'] = `Bearer ${sessionKey}`;
         }
         const analyticsResponse = await fetch(`/api/integrations/${platform}/analytics`, {
-          headers: {
-            'Authorization': `Bearer ${API_KEY}`,
-            'X-HomeIQ-API-Key': API_KEY,
-          },
+          headers,
         });
         if (!analyticsResponse.ok) {
           // If API endpoint doesn't exist or fails, create a default response
@@ -159,10 +156,7 @@ export const IntegrationDetailsModal: React.FC<IntegrationDetailsModalProps> = (
         
         // Fetch performance metrics
         const performanceResponse = await fetch(`/api/integrations/${platform}/performance?period=${performancePeriod}`, {
-          headers: {
-            'Authorization': `Bearer ${API_KEY}`,
-            'X-HomeIQ-API-Key': API_KEY,
-          },
+          headers,
         });
         if (performanceResponse.ok) {
           const performanceData = await performanceResponse.json();

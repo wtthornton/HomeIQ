@@ -5,6 +5,18 @@ import { LoadingSpinner } from './LoadingSpinner';
 import * as Tabs from './tabs';
 import { TabIcons, ThemeIcons, Icon, RefreshCw, Pause } from './ui/icons';
 
+/** Only allow http/https URLs to prevent javascript: or data: injection */
+function sanitizeUrl(url: string | undefined, fallback: string): string {
+  const value = url || fallback;
+  try {
+    const parsed = new URL(value, window.location.origin);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.href;
+    }
+  } catch { /* invalid URL */ }
+  return fallback;
+}
+
 // Grouped navigation structure (FR-3.1, FR-3.3, FR-3.4)
 const NAV_GROUPS = [
   {
@@ -404,7 +416,7 @@ export const Dashboard: React.FC = () => {
           {/* Cross-app switcher */}
           <div className="flex gap-1 mt-2">
             <a
-              href={import.meta.env.VITE_AI_AUTOMATION_UI_URL || 'http://localhost:3001'}
+              href={sanitizeUrl(import.meta.env.VITE_AI_AUTOMATION_UI_URL, 'http://localhost:3001')}
               className="px-2 py-1 text-xs font-medium rounded text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
             >
               HomeIQ
@@ -413,7 +425,7 @@ export const Dashboard: React.FC = () => {
               Health
             </span>
             <a
-              href={import.meta.env.VITE_OBSERVABILITY_URL || 'http://localhost:8501'}
+              href={sanitizeUrl(import.meta.env.VITE_OBSERVABILITY_URL, 'http://localhost:8501')}
               className="px-2 py-1 text-xs font-medium rounded text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
             >
               Ops

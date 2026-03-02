@@ -53,7 +53,7 @@ export const defaultSettings: SettingsPayload = {
 };
 
 const API_BASE = '/api'; // Changed from /api/v1 to /api to match nginx proxy
-const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
+const API_KEY = import.meta.env.VITE_API_KEY || '';
 
 /**
  * Add authentication headers to request options

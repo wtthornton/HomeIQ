@@ -31,6 +31,13 @@ RUN pip install --no-cache-dir \
 # Copy application code
 COPY domains/frontends/observability-dashboard/src/ ./src/
 
+# Create non-root user
+RUN groupadd -g 1001 appgroup && \
+    useradd -u 1001 -g appgroup -s /bin/bash appuser && \
+    chown -R appuser:appgroup /app
+
+USER appuser
+
 # Expose Streamlit port
 EXPOSE 8501
 
