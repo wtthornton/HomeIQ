@@ -146,7 +146,7 @@ class HomeIQToAutomationSpecConverter:
 
         # Map trigger config to YAML fields
         yaml_fields = self._map_trigger_config_to_yaml(
-            platform=trigger.platform,
+            _platform=trigger.platform,
             config=trigger.config
         )
         trigger_data.setdefault("extra", {}).update(yaml_fields)

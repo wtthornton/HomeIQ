@@ -6,16 +6,15 @@ Queries external Device Database API (when available), caches device information
 and falls back to local intelligence if Device Database unavailable.
 """
 
-import contextlib
 import logging
 import os
 from typing import Any
 
 import uvicorn
 from fastapi import Query
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from pydantic import BaseModel
 
-from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from src.cache import DeviceCache
 from src.db_client import DeviceDatabaseClient
 from src.sync_service import DeviceSyncService

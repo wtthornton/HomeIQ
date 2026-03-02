@@ -4,7 +4,7 @@ Statistics endpoints for the admin API (lightweight test implementation).
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
@@ -52,7 +52,7 @@ class StatsEndpoints:
                 threshold=70.0,
                 condition=">",
                 status=AlertStatus.ACTIVE,
-                created_at=datetime.now(timezone.utc).isoformat(),
+                created_at=datetime.now(UTC).isoformat(),
             )
 
     def _register_routes(self) -> None:
@@ -102,7 +102,7 @@ class StatsEndpoints:
         alerts = self._get_alerts(limit=5)
 
         return {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "period": period,
             "metrics": metrics,
             "trends": trends,
@@ -148,7 +148,7 @@ class StatsEndpoints:
                     "metric_name": "events_per_minute",
                     "service": svc,
                     "value": 60.0,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
             )
             metrics_list.append(
@@ -156,7 +156,7 @@ class StatsEndpoints:
                     "metric_name": "error_rate_percent",
                     "service": svc,
                     "value": 1.0,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
             )
 
@@ -189,7 +189,7 @@ class StatsEndpoints:
                     threshold=70.0,
                     condition=">",
                     status=AlertStatus.ACTIVE,
-                    created_at=datetime.now(timezone.utc).isoformat(),
+                    created_at=datetime.now(UTC).isoformat(),
                 )
                 for index in range(1, 3)
             ]
@@ -197,7 +197,7 @@ class StatsEndpoints:
 
     def _build_trends(self, *, period: str) -> list[dict[str, Any]]:
         window = 5
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         trends: list[dict[str, Any]] = []
         for i in range(window):
             trends.append(

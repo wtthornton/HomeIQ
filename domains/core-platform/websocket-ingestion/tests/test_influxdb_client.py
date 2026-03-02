@@ -6,7 +6,6 @@ import asyncio
 from unittest.mock import Mock, patch
 
 import pytest
-
 from src.influxdb_wrapper import InfluxDBConnectionManager
 
 

@@ -8,11 +8,10 @@ Analyzes entities to infer device types (fridge, car, 3D printer, etc.)
 import os
 
 import uvicorn
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
-
 from homeiq_observability.logging_config import setup_logging
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
+from pydantic import BaseModel, Field
+
 from src.classifier import DeviceContextClassifier
 from src.patterns import DEVICE_PATTERNS, DOMAIN_TO_DEVICE_TYPE, get_device_category
 

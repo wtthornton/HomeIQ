@@ -11,8 +11,6 @@ Covers:
 from __future__ import annotations
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
 from homeiq_resilience.http_client import ManagedHTTPClient
 
 

@@ -13,7 +13,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from homeiq_resilience.task_manager import TaskManager
 
 

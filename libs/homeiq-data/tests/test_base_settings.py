@@ -9,8 +9,6 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
-
 from homeiq_data.base_settings import BaseServiceSettings
 
 

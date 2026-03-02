@@ -2,11 +2,11 @@
 Tests for ai_automation_validation_strategy.py
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from src.services.validation.ai_automation_validation_strategy import AIAutomationValidationStrategy
+import pytest
 from src.clients.ai_automation_client import AIAutomationClient
+from src.services.validation.ai_automation_validation_strategy import AIAutomationValidationStrategy
 
 
 @pytest.fixture
@@ -38,10 +38,10 @@ class TestAIAutomationValidationStrategy:
     async def test_validate_success(self, mock_ai_automation_client):
         """Test validate with successful validation."""
         strategy = AIAutomationValidationStrategy(mock_ai_automation_client)
-        
+
         yaml_str = "alias: test\ntrigger:\n  - platform: state"
         result = await strategy.validate(yaml_str)
-        
+
         assert result.valid is True
         assert len(result.errors) == 0
 
@@ -53,10 +53,10 @@ class TestAIAutomationValidationStrategy:
             "errors": [{"message": "Missing required field: trigger"}],
             "warnings": []
         }
-        
+
         strategy = AIAutomationValidationStrategy(mock_ai_automation_client)
         result = await strategy.validate("alias: test")
-        
+
         assert result.valid is False
         assert len(result.errors) == 1
         assert "Missing required field" in result.errors[0]

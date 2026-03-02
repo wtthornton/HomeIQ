@@ -8,8 +8,9 @@ _st_mock = MagicMock()
 _st_mock.fragment = lambda run_every=None: (lambda f: f)  # passthrough decorator
 sys.modules["streamlit"] = _st_mock
 
-from conftest import make_span, make_trace
 from pages.real_time_monitoring import _detect_anomalies, _trace_wall_clock_ms
+
+from conftest import make_span, make_trace
 
 
 class TestDetectAnomalies:

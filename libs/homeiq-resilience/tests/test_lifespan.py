@@ -10,10 +10,10 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock
-from fastapi import FastAPI
 
+import pytest
+from fastapi import FastAPI
 from homeiq_resilience.lifespan import ServiceLifespan
 
 

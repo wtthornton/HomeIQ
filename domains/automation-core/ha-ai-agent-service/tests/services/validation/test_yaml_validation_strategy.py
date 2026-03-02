@@ -2,11 +2,11 @@
 Tests for yaml_validation_strategy.py
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from src.services.validation.yaml_validation_strategy import YAMLValidationStrategy
+import pytest
 from src.clients.yaml_validation_client import YAMLValidationClient
+from src.services.validation.yaml_validation_strategy import YAMLValidationStrategy
 
 
 @pytest.fixture
@@ -39,10 +39,10 @@ class TestYAMLValidationStrategy:
     async def test_validate_success(self, mock_yaml_validation_client):
         """Test validate with successful validation."""
         strategy = YAMLValidationStrategy(mock_yaml_validation_client)
-        
+
         yaml_str = "alias: test\ntrigger:\n  - platform: state"
         result = await strategy.validate(yaml_str)
-        
+
         assert result.valid is True
         assert len(result.errors) == 0
         assert result.score == 100.0
@@ -56,10 +56,10 @@ class TestYAMLValidationStrategy:
             "warnings": [],
             "score": 50.0
         }
-        
+
         strategy = YAMLValidationStrategy(mock_yaml_validation_client)
         result = await strategy.validate("alias: test")
-        
+
         assert result.valid is False
         assert len(result.errors) == 1
         assert result.score == 50.0
@@ -75,10 +75,10 @@ class TestYAMLValidationStrategy:
             "fixed_yaml": "alias: test\ntrigger:\n  - platform: state",
             "fixes_applied": ["Added missing trigger field"]
         }
-        
+
         strategy = YAMLValidationStrategy(mock_yaml_validation_client)
         result = await strategy.validate("alias: test")
-        
+
         assert result.valid is True
         assert result.fixed_yaml is not None
         assert result.fixes_applied is not None

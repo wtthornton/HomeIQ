@@ -3,11 +3,7 @@ Tests for filters.py — EventFilter pure functions
 """
 
 import pandas as pd
-import pytest
-
 from src.pattern_analyzer.filters import (
-    ACTIONABLE_DOMAINS,
-    EXCLUDED_DOMAINS,
     EventFilter,
 )
 

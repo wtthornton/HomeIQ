@@ -6,13 +6,10 @@ Analyzes device response times, battery levels, power consumption, and generates
 """
 
 import os
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import uvicorn
 from fastapi import HTTPException
-from pydantic import BaseModel, Field
-
 from homeiq_observability.logging_config import setup_logging
 from homeiq_resilience import (
     GroupHealthCheck,
@@ -21,6 +18,8 @@ from homeiq_resilience import (
     create_app,
     wait_for_dependency,
 )
+from pydantic import BaseModel, Field
+
 from src.clients.data_api_client import DataAPIClient
 from src.clients.device_intelligence_client import DeviceIntelligenceClient
 from src.ha_client import HAClient
@@ -34,8 +33,8 @@ class AnalyzeRequest(BaseModel):
     device_id: str = Field(description="Device identifier")
     device_name: str = Field(description="Device display name")
     entity_ids: list[str] = Field(description="List of HA entity IDs for this device")
-    power_spec_w: Optional[float] = Field(default=None, description="Expected power consumption in watts")
-    actual_power_w: Optional[float] = Field(default=None, description="Actual power consumption in watts")
+    power_spec_w: float | None = Field(default=None, description="Expected power consumption in watts")
+    actual_power_w: float | None = Field(default=None, description="Actual power consumption in watts")
 
 
 # --- Shared state ---
@@ -136,7 +135,7 @@ async def analyze_device_health(request: AnalyzeRequest) -> dict:
         return report
     except Exception as e:
         logger.error("Error analyzing device health for %s: %s", request.device_id, e)
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {e}") from e
 
 
 @app.get("/api/v1/health/summary")
@@ -146,7 +145,7 @@ async def health_summary() -> dict:
         "status": "healthy" if _ha_configured else "degraded",
         "service": "device-health-monitor",
         "ha_configured": _ha_configured,
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(UTC).isoformat()
     }
 
 

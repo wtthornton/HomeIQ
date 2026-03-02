@@ -1,7 +1,8 @@
 """Tests for shared trace helper utilities."""
 
-from conftest import make_span, make_trace
 from utils.trace_helpers import has_errors, span_has_error, trace_wall_clock_ms
+
+from conftest import make_span, make_trace
 
 
 class TestHasErrors:

@@ -13,7 +13,6 @@ import re
 from typing import Any
 
 import httpx
-
 from homeiq_resilience import CircuitBreaker, CircuitOpenError, CrossGroupClient
 
 from ...config import settings

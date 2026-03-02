@@ -9,11 +9,11 @@ and provides device ratings from Device Database.
 import os
 
 import uvicorn
-from fastapi import HTTPException, Request
-from pydantic import BaseModel, Field
-
+from fastapi import HTTPException
 from homeiq_observability.logging_config import setup_logging
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
+from pydantic import BaseModel, Field
+
 from src.comparison_engine import DeviceComparisonEngine
 from src.ha_client import HAClient
 from src.recommender import DeviceRecommender
@@ -135,7 +135,7 @@ async def compare(body: CompareRequest) -> CompareResponse:
             devices=body.devices,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return CompareResponse(**result)
 

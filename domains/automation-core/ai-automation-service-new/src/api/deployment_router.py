@@ -9,7 +9,7 @@ Handles deployment of automations to Home Assistant.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -18,9 +18,7 @@ from sqlalchemy import select
 from ..api.dependencies import DatabaseSession, get_deployment_service
 from ..api.error_handlers import handle_route_errors
 from ..database.models import CompiledArtifact, Deployment
-
-if TYPE_CHECKING:
-    from ..services.deployment_service import DeploymentService
+from ..services.deployment_service import DeploymentService
 
 logger = logging.getLogger(__name__)
 

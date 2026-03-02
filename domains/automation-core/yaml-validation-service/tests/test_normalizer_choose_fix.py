@@ -4,7 +4,6 @@ Tests for normalizer.py — YAMLNormalizer
 
 import pytest
 import yaml
-
 from src.yaml_validation_service.normalizer import YAMLNormalizer
 
 

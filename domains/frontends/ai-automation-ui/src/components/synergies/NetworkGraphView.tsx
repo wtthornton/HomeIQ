@@ -199,7 +199,7 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [graphLoaded, setGraphLoaded] = useState(false);
   const [ForceGraph2D, setForceGraph2D] = useState<any>(null);
-  const graphRef = useRef<any>();
+  const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [graphWidth, setGraphWidth] = useState(800);
 

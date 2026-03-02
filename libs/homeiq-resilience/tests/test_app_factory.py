@@ -14,11 +14,10 @@ Covers:
 from __future__ import annotations
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 from fastapi import FastAPI
-
 from homeiq_resilience.app_factory import create_app
 from homeiq_resilience.health_check import StandardHealthCheck
+from httpx import ASGITransport, AsyncClient
 
 
 @pytest.fixture
