@@ -1,0 +1,153 @@
+# .github/workflows/quality-gate.yml
+# TAPPS Quality Gate — runs on every PR that touches Python files.
+# Posts a summary comment on the PR with pass/fail results.
+name: Quality Gate
+
+on:
+  pull_request:
+    paths:
+      - "**/*.py"
+  workflow_dispatch:
+    inputs:
+      preset:
+        description: "Quality preset (standard, strict, framework)"
+        required: false
+        default: "standard"
+        type: choice
+        options:
+          - standard
+          - strict
+          - framework
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: quality-gate-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gate:
+    name: TAPPS Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install TappsMCP and checkers
+        run: |
+          pip install tapps-mcp
+          pip install ruff mypy bandit radon vulture
+
+      - name: Run quality gate
+        id: quality
+        env:
+          TAPPS_MCP_PROJECT_ROOT: ${{ github.workspace }}
+        run: |
+          set +e
+          OUTPUT=$(tapps-mcp validate-changed \
+            --preset ${{ inputs.preset || 'standard' }} 2>&1)
+          EXIT_CODE=$?
+          set -e
+
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+          # Save output for comment step (handle multiline)
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "output<<$EOF" >> $GITHUB_OUTPUT
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
+
+          # Also write to step summary
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "## Quality Gate: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Quality Gate: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          echo "$OUTPUT"
+          exit $EXIT_CODE
+
+      - name: Post PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const exitCode = '${{ steps.quality.outputs.exit_code }}';
+            const passed = exitCode === '0';
+            const icon = passed ? ':white_check_mark:' : ':warning:';
+            const status = passed ? 'PASSED' : 'FAILED';
+            const preset = '${{ inputs.preset || 'standard' }}';
+            const output = `${{ steps.quality.outputs.output }}`.trim();
+
+            const body = [
+              `## ${icon} Quality Gate: ${status}`,
+              '',
+              `**Preset:** \`${preset}\``,
+              `**Commit:** \`${context.sha.substring(0, 8)}\``,
+              '',
+              '<details>',
+              '<summary>Full output</summary>',
+              '',
+              '```',
+              output || 'No output captured',
+              '```',
+              '',
+              '</details>',
+              '',
+              '---',
+              '*Powered by [TappsMCP](https://github.com/your-org/tapps-mcp) quality pipeline*',
+            ].join('\n');
+
+            // Find existing comment to update (avoid spam)
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const marker = '## :white_check_mark: Quality Gate:';
+            const markerFail = '## :warning: Quality Gate:';
+            const existing = comments.find(c =>
+              c.body.startsWith(marker) || c.body.startsWith(markerFail)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Upload quality report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tapps-quality-report
+          path: .tapps-mcp/reports/
+          retention-days: 30
+          if-no-files-found: ignore
