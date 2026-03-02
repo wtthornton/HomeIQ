@@ -3,6 +3,10 @@ Tests for Main Application
 Epic 31, Story 31.1
 """
 
+import pytest
+
+pytest.importorskip("influxdb_client_3", reason="influxdb_client_3 required by src.main")
+
 from fastapi.testclient import TestClient
 from src.main import SERVICE_NAME, SERVICE_VERSION, app
 

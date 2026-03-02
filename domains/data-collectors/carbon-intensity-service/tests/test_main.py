@@ -9,6 +9,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+pytest.importorskip("influxdb_client_3", reason="influxdb_client_3 required by main")
+
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
 

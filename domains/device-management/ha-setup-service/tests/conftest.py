@@ -6,8 +6,7 @@ import os
 
 import pytest
 
-if not os.getenv("HA_SETUP_TESTS"):
-    pytest.skip(
-        "ha-setup tests require full Home Assistant environment; skipping in alpha environment",
-        allow_module_level=True,
-    )
+requires_ha_environment = pytest.mark.skipif(
+    not os.getenv("HA_SETUP_TESTS"),
+    reason="HA_SETUP_TESTS env var not set; skipping tests requiring live HA",
+)

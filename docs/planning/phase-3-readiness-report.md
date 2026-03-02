@@ -118,9 +118,9 @@ river>=0.21.0,<1.0.0
 | Python 3.12 on all ML services | ✓ DONE | Verified Feb 25 across all 4 services | — |
 | numpy upper bounds widened to <3.0.0 | ✓ DONE | All 4 ML services confirmed (lines 13, 23, 51 in requirements) | — |
 | ha-ai-agent-service openai pin >=2.21.0 | ✓ DONE | Currently pinned to `>=2.21.0,<3.0.0` (line 27) | — |
-| device-intelligence-service pandas <4.0.0 | ⏳ PENDING | Currently `<3.0.0`; must change to `<4.0.0` during Phase 3 upgrade | During Phase 3 |
+| device-intelligence-service pandas <4.0.0 | ✓ DONE | Updated to `<4.0.0` (Mar 2, 2026 — Epic 6 Story 1) | Done |
 
-**Overall:** 5 of 8 prerequisites met; 3 pending (all achievable before Mar 11)
+**Overall:** 6 of 8 prerequisites met; 2 pending (stability validation + testing env)
 
 ---
 
@@ -229,9 +229,9 @@ From `c:\cursor\HomeIQ\docs\planning\phase-3-plan-ml-ai-upgrades.md`:
 | Python 3.12 on all ML services | [x] | DONE | Verified Feb 25 |
 | numpy upper bounds <3.0.0 | [x] | DONE | All 4 services confirmed |
 | ha-ai-agent-service openai >=2.21.0 | [x] | DONE | Currently pinned |
-| device-intelligence-service pandas <4.0.0 | [ ] | NOT DONE | Currently <3.0.0 |
+| device-intelligence-service pandas <4.0.0 | [x] | DONE | Updated to <4.0.0 (Mar 2, 2026) |
 
-**Summary:** 5 of 8 met; 3 pending
+**Summary:** 6 of 8 met; 2 pending (stability validation + testing env)
 
 ---
 

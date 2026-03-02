@@ -6,8 +6,9 @@ import importlib.util
 
 import pytest
 
-if importlib.util.find_spec("influxdb_client_3") is None:
-    pytest.skip(
-        "influxdb_client_3 dependency not installed; skipping weather-api tests",
-        allow_module_level=True,
-    )
+_has_influxdb = importlib.util.find_spec("influxdb_client_3") is not None
+
+requires_influxdb = pytest.mark.skipif(
+    not _has_influxdb,
+    reason="influxdb_client_3 dependency not installed",
+)

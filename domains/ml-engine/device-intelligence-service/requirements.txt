@@ -45,9 +45,9 @@ mypy>=1.7.1,<2.0.0  # Unpinned for patch updates
 types-psutil>=6.1.0.20241022  # Unpinned for patch updates (types packages use date versions)
 
 # Machine Learning and Analytics (use pre-compiled wheels)
-scikit-learn>=1.5.0,<2.0.0  # Latest stable (2025) - NUC CPU-only compatible
-pandas>=2.2.0,<3.0.0  # Stable pandas 2.x (2025)
-numpy>=1.26.0,<3.0.0  # Phase 3: allow 1.x and 2.x migration path (Feb 2026 upgrade)
+scikit-learn>=1.5.0,<2.0.0  # Phase 3: upgraded (Mar 2026). TODO: regenerate 36 .pkl model files after upgrade via POST /api/v1/predictions/train
+pandas>=2.2.0,<4.0.0  # Phase 3: allow 2.x and 3.x (Mar 2026 upgrade)
+numpy>=2.0.0,<3.0.0  # Phase 3: numpy 2.x baseline (Mar 2026 upgrade)
 joblib==1.4.2
 lightgbm>=4.0.0,<5.0.0  # LightGBM for faster training (2-5x speedup, 2025 improvement)
 tabpfn>=2.2.0,<7.0.0  # TabPFN for instant predictions (5-10x faster, 2025 improvement)

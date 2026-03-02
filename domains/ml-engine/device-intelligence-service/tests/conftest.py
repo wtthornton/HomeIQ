@@ -25,18 +25,19 @@ add_service_src(__file__)
 
 import pytest
 
-if importlib.util.find_spec("src.core") is None:
-    pytest.skip(
-        "device-intelligence core modules not available; skipping tests in alpha environment",
-        allow_module_level=True,
-    )
+_has_core = importlib.util.find_spec("src.core") is not None
 
-from fastapi.testclient import TestClient
-from src.main import app
+requires_device_core = pytest.mark.skipif(
+    not _has_core,
+    reason="device-intelligence core modules not available",
+)
 
+if _has_core:
+    from fastapi.testclient import TestClient
+    from src.main import app
 
-@pytest.fixture()
-def client() -> TestClient:
-    """Provide a FastAPI TestClient for endpoint tests."""
-    with TestClient(app) as c:
-        yield c
+    @pytest.fixture()
+    def client() -> TestClient:
+        """Provide a FastAPI TestClient for endpoint tests."""
+        with TestClient(app) as c:
+            yield c

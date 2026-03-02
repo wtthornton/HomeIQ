@@ -1,18 +1,13 @@
 """
-Tests for InfluxDB Client
+Tests for InfluxDB Client (influxdb_wrapper.InfluxDBConnectionManager)
 """
-
-import pytest
-
-pytest.skip(
-    "Legacy websocket-ingestion InfluxDB client tests require removed module",
-    allow_module_level=True,
-)
 
 import asyncio
 from unittest.mock import Mock, patch
 
-from src.influxdb_client import InfluxDBConnectionManager
+import pytest
+
+from src.influxdb_wrapper import InfluxDBConnectionManager
 
 
 class TestInfluxDBConnectionManager:

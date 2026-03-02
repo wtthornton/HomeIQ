@@ -3,6 +3,10 @@ Tests for Weather Service
 Epic 31, Stories 31.2-31.3
 """
 
+import pytest
+
+pytest.importorskip("influxdb_client_3", reason="influxdb_client_3 required by src.main")
+
 from fastapi.testclient import TestClient
 from src.main import app
 

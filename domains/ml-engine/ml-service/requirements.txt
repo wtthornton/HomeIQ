@@ -9,8 +9,8 @@ uvicorn[standard]>=0.30.0,<1.0.0  # Phase 1: aligned
 pydantic>=2.9.0,<3.0.0  # Phase 1: aligned
 
 # Machine Learning
-scikit-learn>=1.5.0,<2.0.0  # Phase 3: allow 1.5+ (Feb 2026 upgrade)
-numpy>=1.26.0,<3.0.0  # Phase 3: allow 1.x and 2.x (Feb 2026 upgrade)
+scikit-learn>=1.5.0,<2.0.0  # Phase 3: upgraded (Mar 2026). TODO: regenerate .pkl model files after upgrade
+numpy>=2.0.0,<3.0.0  # Phase 3: numpy 2.x baseline (Mar 2026 upgrade)
 
 # Data Processing
-scipy>=1.13.0,<2.0.0  # Phase 3: allow 1.13+ (Feb 2026 upgrade)
+scipy>=1.14.0,<2.0.0  # Phase 3: scipy 1.14+ for numpy 2.x compat (Mar 2026 upgrade)

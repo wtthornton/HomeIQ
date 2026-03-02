@@ -65,10 +65,6 @@ class TestAIAutomationValidationStrategy:
     async def test_validate_no_client(self):
         """Test validate without client raises error."""
         strategy = AIAutomationValidationStrategy(None)
-        
+
         with pytest.raises(ValueError, match="AI Automation Service client not available"):
             await strategy.validate("alias: test")
-    def test_name(self):
-        """Test name method."""
-        # TODO: Implement test
-        pass

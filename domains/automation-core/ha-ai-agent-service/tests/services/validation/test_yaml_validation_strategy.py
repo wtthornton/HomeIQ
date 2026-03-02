@@ -87,10 +87,6 @@ class TestYAMLValidationStrategy:
     async def test_validate_no_client(self):
         """Test validate without client raises error."""
         strategy = YAMLValidationStrategy(None)
-        
+
         with pytest.raises(ValueError, match="YAML Validation Service client not available"):
             await strategy.validate("alias: test")
-    def test_name(self):
-        """Test name method."""
-        # TODO: Implement test
-        pass
