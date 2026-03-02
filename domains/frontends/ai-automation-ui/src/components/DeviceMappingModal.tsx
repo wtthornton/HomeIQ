@@ -115,8 +115,8 @@ export const DeviceMappingModal: React.FC<DeviceMappingModalProps> = ({
           exit={{ scale: 0.9, opacity: 0 }}
           className={`w-full max-w-2xl max-h-[80vh] rounded-xl border overflow-hidden backdrop-blur-sm ${
             darkMode 
-              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-2xl shadow-blue-900/20' 
-              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-xl shadow-blue-100/50'
+              ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border-teal-500/20 shadow-2xl shadow-teal-900/20' 
+              : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border-teal-200/50 shadow-xl shadow-teal-100/50'
           }`}
           onClick={(e) => e.stopPropagation()}
         >
@@ -206,8 +206,8 @@ export const DeviceMappingModal: React.FC<DeviceMappingModalProps> = ({
                       className={`w-full text-left p-3 rounded-xl border transition-all backdrop-blur-sm ${
                         isSelected
                           ? darkMode
-                            ? 'bg-gradient-to-r from-blue-600/30 to-purple-600/30 border-blue-500/50'
-                            : 'bg-gradient-to-r from-blue-50 to-purple-50 border-blue-400/50'
+                            ? 'bg-gradient-to-r from-blue-600/30 to-cyan-600/30 border-blue-500/50'
+                            : 'bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-400/50'
                           : darkMode
                             ? 'bg-slate-800/60 border-gray-700/50 hover:bg-slate-700/60'
                             : 'bg-white/80 border-gray-200/50 hover:bg-white'
@@ -357,8 +357,8 @@ export const DeviceMappingModal: React.FC<DeviceMappingModalProps> = ({
                     ? 'bg-slate-800/60 text-gray-500 cursor-not-allowed border border-slate-700/50'
                     : 'bg-white/80 text-gray-400 cursor-not-allowed border border-gray-200'
                   : darkMode
-                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
-                  : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
+                  ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-lg shadow-teal-500/30'
+                  : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-lg shadow-teal-400/30'
               }`}
             >
               Save Mapping

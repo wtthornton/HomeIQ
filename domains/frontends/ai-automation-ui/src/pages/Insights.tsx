@@ -4,14 +4,12 @@
  */
 
 import React, { useState } from 'react';
-import { useAppStore } from '../store';
 import { Patterns } from './Patterns';
 import { Synergies } from './Synergies';
 
 type InsightView = 'patterns' | 'connections' | 'rooms';
 
 export const Insights: React.FC = () => {
-  const { darkMode } = useAppStore();
   const [activeView, setActiveView] = useState<InsightView>('patterns');
 
   const views: { id: InsightView; label: string }[] = [
@@ -23,10 +21,10 @@ export const Insights: React.FC = () => {
   return (
     <div>
       <div className="mb-6">
-        <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">
           Insights
         </h1>
-        <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        <p className="text-sm mt-1 text-[var(--text-tertiary)]">
           ML-detected patterns and cross-device opportunities
         </p>
       </div>

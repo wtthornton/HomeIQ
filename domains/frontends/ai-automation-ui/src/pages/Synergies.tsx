@@ -468,14 +468,14 @@ export const Synergies: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className={`rounded-2xl overflow-hidden transition-all duration-300 ${
           darkMode 
-            ? 'bg-gradient-to-br from-slate-900/95 via-purple-900/20 to-pink-900/20 border border-purple-500/20 shadow-2xl shadow-purple-900/20' 
-            : 'bg-gradient-to-br from-white via-purple-50/50 to-pink-50/50 border border-purple-200/50 shadow-xl shadow-purple-100/50'
+            ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border border-teal-500/20 shadow-2xl shadow-teal-900/20'
+            : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border border-teal-200/50 shadow-xl shadow-teal-100/50'
         } backdrop-blur-sm`}
       >
         {/* Header - Always Visible */}
         <motion.div
           className={`p-5 ${showHelpInfo ? 'border-b' : ''} ${
-            darkMode ? 'border-purple-500/20' : 'border-purple-200/50'
+            darkMode ? 'border-teal-500/20' : 'border-teal-200/50'
           }`}
         >
           <div className="flex items-center justify-between gap-4">
@@ -513,8 +513,8 @@ export const Synergies: React.FC = () => {
               className={`group relative flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 ${
                 showHelpInfo
                   ? darkMode
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30'
-                    : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-400/30'
+                    ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg shadow-teal-500/30'
+                    : 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-400/30'
                   : darkMode
                   ? 'bg-slate-800/60 hover:bg-slate-700/60 text-gray-300 hover:text-white border border-slate-700/50'
                   : 'bg-white/80 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 shadow-sm hover:shadow-md'
@@ -552,9 +552,9 @@ export const Synergies: React.FC = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1 }}
                   className={`p-5 rounded-xl ${
-                    darkMode 
-                      ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/20 border border-purple-500/30' 
-                      : 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200/50'
+                    darkMode
+                      ? 'bg-gradient-to-br from-teal-900/30 to-cyan-900/20 border border-teal-500/30'
+                      : 'bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-200/50'
                   } shadow-lg`}
                 >
                   <div className="flex items-start gap-3">
@@ -564,7 +564,7 @@ export const Synergies: React.FC = () => {
                         What Are Synergies?
                       </h3>
                       <p className={`text-sm leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        Automation opportunities where devices <strong className={darkMode ? 'text-purple-300' : 'text-purple-700'}>in the same room or area</strong> could work together intelligently but currently don't. Our AI analyzes devices that are <strong className={darkMode ? 'text-purple-300' : 'text-purple-700'}>physically close to each other</strong> (same area/room) and identifies compatible relationships that would create useful automations.
+                        Automation opportunities where devices <strong className={darkMode ? 'text-teal-300' : 'text-teal-700'}>in the same room or area</strong> could work together intelligently but currently don't. Our AI analyzes devices that are <strong className={darkMode ? 'text-teal-300' : 'text-teal-700'}>physically close to each other</strong> (same area/room) and identifies compatible relationships that would create useful automations.
                       </p>
                     </div>
                   </div>
@@ -627,8 +627,8 @@ export const Synergies: React.FC = () => {
                   onClick={() => setShowSynergyGuide(!showSynergyGuide)}
                   className={`w-full p-4 rounded-xl font-medium text-sm transition-all duration-200 ${
                     darkMode 
-                      ? 'bg-slate-800/60 hover:bg-slate-700/60 text-gray-200 hover:text-white border border-slate-700/50 hover:border-purple-500/50' 
-                      : 'bg-white/80 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 hover:border-purple-300 shadow-sm hover:shadow-md'
+                      ? 'bg-slate-800/60 hover:bg-slate-700/60 text-gray-200 hover:text-white border border-slate-700/50 hover:border-teal-500/50' 
+                      : 'bg-white/80 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 hover:border-teal-300 shadow-sm hover:shadow-md'
                   }`}
                 >
                   <span className="flex items-center justify-between">
@@ -644,8 +644,8 @@ export const Synergies: React.FC = () => {
                     </span>
                     <span className={`text-xs px-2 py-1 rounded-full ${
                       darkMode 
-                        ? 'bg-purple-900/40 text-purple-300' 
-                        : 'bg-purple-100 text-purple-700'
+                        ? 'bg-teal-900/40 text-teal-300'
+                        : 'bg-teal-100 text-teal-700'
                     }`}>
                       {showSynergyGuide ? 'Hide Details' : 'Show All Types'}
                     </span>
@@ -675,10 +675,10 @@ export const Synergies: React.FC = () => {
                             const info = getSynergyTypeInfo(type);
                             const colorClasses = [
                               { 
-                                bg: darkMode ? 'bg-gradient-to-br from-purple-600/20 to-pink-600/10' : 'bg-gradient-to-br from-purple-600/10 to-pink-600/5',
-                                border: darkMode ? 'border-purple-500/30 hover:border-purple-500/50' : 'border-purple-200/50 hover:border-purple-300/70',
-                                highlight: darkMode ? 'bg-gradient-to-r from-purple-600/30 to-pink-600/20 border-purple-500/20' : 'bg-gradient-to-r from-purple-600/10 to-pink-600/5 border-purple-200/30',
-                                text: darkMode ? 'text-purple-300' : 'text-purple-700'
+                                bg: darkMode ? 'bg-gradient-to-br from-teal-600/20 to-cyan-600/10' : 'bg-gradient-to-br from-teal-600/10 to-cyan-600/5',
+                                border: darkMode ? 'border-teal-500/30 hover:border-teal-500/50' : 'border-teal-200/50 hover:border-teal-300/70',
+                                highlight: darkMode ? 'bg-gradient-to-r from-teal-600/30 to-cyan-600/20 border-teal-500/20' : 'bg-gradient-to-r from-teal-600/10 to-cyan-600/5 border-teal-200/30',
+                                text: darkMode ? 'text-teal-300' : 'text-teal-700'
                               },
                               { 
                                 bg: darkMode ? 'bg-gradient-to-br from-blue-600/20 to-cyan-600/10' : 'bg-gradient-to-br from-blue-600/10 to-cyan-600/5',
@@ -761,8 +761,8 @@ export const Synergies: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className={`rounded-2xl overflow-hidden transition-all duration-300 ${
             darkMode 
-              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20' 
-              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+              ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border border-teal-500/20 shadow-2xl shadow-teal-900/20' 
+              : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border border-teal-200/50 shadow-xl shadow-teal-100/50'
           } backdrop-blur-sm`}
         >
           {/* Stats Header - Collapsible */}
@@ -785,8 +785,8 @@ export const Synergies: React.FC = () => {
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 ${
                   showStatsAndFilters
                     ? darkMode
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30'
-                      : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-400/30'
+                      ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg shadow-teal-500/30'
+                      : 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-400/30'
                     : darkMode
                     ? 'bg-slate-800/60 hover:bg-slate-700/60 text-gray-300 hover:text-white border border-slate-700/50'
                     : 'bg-white/80 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 shadow-sm hover:shadow-md'
@@ -823,7 +823,7 @@ export const Synergies: React.FC = () => {
                       animate={{ opacity: 1, y: 0 }}
                       className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
                     >
-                      <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                      <div className="text-3xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
                         {(filterType !== null || filterValidated !== null || minConfidence > 0 || searchQuery.trim())
                           ? filteredAndSortedSynergies.length
                           : (stats?.total_synergies || 0)}
@@ -874,7 +874,7 @@ export const Synergies: React.FC = () => {
                       transition={{ delay: 0.3 }}
                       className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
                     >
-                      <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                      <div className="text-3xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
                         {(stats.by_complexity?.low || 0) + (stats.by_complexity?.medium || 0)}
                       </div>
                       <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -1482,7 +1482,7 @@ export const Synergies: React.FC = () => {
                   compareMode && selectedForCompare.has(synergy.id)
                     ? 'ring-2 ring-blue-500'
                     : batchMode && selectedSynergyIds.has(synergy.id)
-                    ? 'ring-2 ring-purple-500'
+                    ? 'ring-2 ring-teal-500'
                     : ''
                 }`}
                 onClick={(e) => {
@@ -1509,7 +1509,7 @@ export const Synergies: React.FC = () => {
                         checked={selectedSynergyIds.has(synergy.id)}
                         onChange={() => handleBatchToggle(synergy.id)}
                         onClick={(e) => e.stopPropagation()}
-                        className={`w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer ${
+                        className={`w-5 h-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer ${
                           darkMode ? 'border-gray-600' : ''
                         }`}
                         title="Select for batch operations"
@@ -1544,8 +1544,8 @@ export const Synergies: React.FC = () => {
                     </span>
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                       darkMode 
-                        ? 'bg-purple-900/30 text-purple-300 border border-purple-700/50' 
-                        : 'bg-purple-100 text-purple-800 border border-purple-200'
+                        ? 'bg-teal-900/30 text-teal-300 border border-teal-700/50'
+                        : 'bg-teal-100 text-teal-800 border border-teal-200'
                     }`}>
                       {getSynergyTypeInfo(synergy.synergy_type).name}
                     </span>
@@ -1677,11 +1677,11 @@ export const Synergies: React.FC = () => {
                     return (
                       <div className={`p-4 rounded-lg mb-4 border-l-4 ${
                         darkMode 
-                          ? 'bg-purple-900/20 border-purple-500' 
-                          : 'bg-purple-50 border-purple-400'
+                          ? 'bg-teal-900/20 border-teal-500'
+                          : 'bg-teal-50 border-teal-400'
                       }`}>
                         <div className={`text-xs font-semibold mb-2 ${
-                          darkMode ? 'text-purple-300' : 'text-purple-700'
+                          darkMode ? 'text-teal-300' : 'text-teal-700'
                         }`}>
                           💡 Why This Synergy Was Detected
                         </div>
@@ -1690,7 +1690,7 @@ export const Synergies: React.FC = () => {
                         }`}>
                           {suggestedAction} for {actionName} when {eventContext} occurs. This automation would enhance your entertainment experience during scheduled events.
                         </div>
-                        <div className={`p-2 rounded text-xs ${darkMode ? 'bg-purple-900/30 text-purple-200' : 'bg-purple-100 text-purple-800'}`}>
+                        <div className={`p-2 rounded text-xs ${darkMode ? 'bg-teal-900/30 text-teal-200' : 'bg-teal-100 text-teal-800'}`}>
                           <p className="font-semibold mb-0.5">💡 Why this matters:</p>
                           <p>{getSynergyTypeInfo(synergy.synergy_type).importance}</p>
                         </div>
@@ -1702,11 +1702,11 @@ export const Synergies: React.FC = () => {
                     return (
                       <div className={`p-4 rounded-lg mb-4 border-l-4 ${
                         darkMode 
-                          ? 'bg-purple-900/20 border-purple-500' 
-                          : 'bg-purple-50 border-purple-400'
+                          ? 'bg-teal-900/20 border-teal-500'
+                          : 'bg-teal-50 border-teal-400'
                       }`}>
                         <div className={`text-xs font-semibold mb-2 ${
-                          darkMode ? 'text-purple-300' : 'text-purple-700'
+                          darkMode ? 'text-teal-300' : 'text-teal-700'
                         }`}>
                           💡 Why This Synergy Was Detected
                         </div>
@@ -1715,7 +1715,7 @@ export const Synergies: React.FC = () => {
                         }`}>
                           {rationale}
                         </div>
-                        <div className={`p-2 rounded text-xs ${darkMode ? 'bg-purple-900/30 text-purple-200' : 'bg-purple-100 text-purple-800'}`}>
+                        <div className={`p-2 rounded text-xs ${darkMode ? 'bg-teal-900/30 text-teal-200' : 'bg-teal-100 text-teal-800'}`}>
                           <p className="font-semibold mb-0.5">💡 Why this matters:</p>
                           <p>{getSynergyTypeInfo(synergy.synergy_type).importance}</p>
                         </div>
@@ -1727,11 +1727,11 @@ export const Synergies: React.FC = () => {
                   return (
                     <div className={`p-4 rounded-lg mb-4 border-l-4 ${
                       darkMode 
-                        ? 'bg-purple-900/20 border-purple-500' 
-                        : 'bg-purple-50 border-purple-400'
+                        ? 'bg-teal-900/20 border-teal-500'
+                        : 'bg-teal-50 border-teal-400'
                     }`}>
                       <div className={`text-xs font-semibold mb-2 ${
-                        darkMode ? 'text-purple-300' : 'text-purple-700'
+                        darkMode ? 'text-teal-300' : 'text-teal-700'
                       }`}>
                         💡 Why This Synergy Matters
                       </div>
@@ -1845,8 +1845,8 @@ export const Synergies: React.FC = () => {
                       }}
                       className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                         darkMode
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg'
-                          : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-md'
+                          ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-lg'
+                          : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-md'
                       }`}
                       title="Create automation from this synergy"
                     >
@@ -1867,8 +1867,8 @@ export const Synergies: React.FC = () => {
                       disabled
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-not-allowed opacity-50 ${
                         darkMode
-                          ? 'bg-purple-700 text-white'
-                          : 'bg-purple-500 text-white'
+                          ? 'bg-teal-700 text-white'
+                          : 'bg-teal-500 text-white'
                       }`}
                       title="Schedule automation (coming soon)"
                     >

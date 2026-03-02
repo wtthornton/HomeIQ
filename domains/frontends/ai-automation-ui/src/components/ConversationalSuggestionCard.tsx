@@ -164,7 +164,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = memo(({
       energy: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
       comfort: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
       security: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      convenience: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+      convenience: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
     };
     return colors[suggestion.category as keyof typeof colors] || colors.convenience;
   }, [suggestion.category]);
@@ -183,7 +183,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = memo(({
     const sourceType = suggestion.source_type || 'pattern';
     const badges = {
       pattern: { icon: '🔍', label: 'Pattern', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
-      predictive: { icon: '🔮', label: 'Predictive', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
+      predictive: { icon: '🔮', label: 'Predictive', color: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200' },
       cascade: { icon: '⚡', label: 'Cascade', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
       feature: { icon: '💎', label: 'Feature', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
       synergy: { icon: '🔗', label: 'Synergy', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200' },
@@ -288,8 +288,8 @@ export const ConversationalSuggestionCard: React.FC<Props> = memo(({
             ? 'bg-gradient-to-br from-green-900/40 to-emerald-900/40 border-green-500/50 shadow-2xl shadow-green-900/20'
             : 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-400/50 shadow-xl shadow-green-100/50'
           : darkMode
-          ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-2xl shadow-blue-900/20'
-          : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-xl shadow-blue-100/50'
+          ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border-teal-500/20 shadow-2xl shadow-teal-900/20'
+          : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border-teal-200/50 shadow-xl shadow-teal-100/50'
       }`}
     >
       {/* Header - Glassmorphism */}
@@ -1131,7 +1131,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = memo(({
             className={`w-full px-3 py-0.5 font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-md text-xs ${
               disabled
                 ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                : 'bg-purple-600 hover:bg-purple-700 text-white hover:shadow-lg'
+                : 'bg-teal-600 hover:bg-teal-700 text-white hover:shadow-lg'
             }`}
           >
             {disabled ? (

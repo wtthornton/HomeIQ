@@ -39,7 +39,7 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
       energy: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-300 dark:border-green-700',
       comfort: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-300 dark:border-blue-700',
       security: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-red-300 dark:border-red-700',
-      convenience: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-300 dark:border-purple-700',
+      convenience: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200 border-teal-300 dark:border-teal-700',
     };
     return colors[suggestion.category || 'convenience'];
   };
@@ -65,15 +65,15 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
       className={`border overflow-hidden transition-all rounded-xl ${
         isSelected
           ? darkMode
-            ? 'bg-gradient-to-br from-blue-900/60 to-purple-900/60 border-blue-500/50 ring-1 ring-blue-500/50 shadow-2xl shadow-blue-900/20 backdrop-blur-sm'
-            : 'bg-gradient-to-br from-blue-50 to-purple-50 border-blue-400/50 ring-1 ring-blue-400/50 shadow-xl shadow-blue-100/50'
+            ? 'bg-gradient-to-br from-blue-900/60 to-cyan-900/60 border-blue-500/50 ring-1 ring-blue-500/50 shadow-2xl shadow-blue-900/20 backdrop-blur-sm'
+            : 'bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-400/50 ring-1 ring-blue-400/50 shadow-xl shadow-blue-100/50'
           : darkMode
-          ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm'
-          : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-xl shadow-blue-100/50'
+          ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border-teal-500/20 shadow-2xl shadow-teal-900/20 backdrop-blur-sm'
+          : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border-teal-200/50 shadow-xl shadow-teal-100/50'
       }`}
     >
       {/* Header with Category Badge - Glassmorphism */}
-      <div className={`p-4 ${darkMode ? 'bg-slate-800/60 backdrop-blur-sm' : 'bg-gradient-to-r from-blue-50/80 to-purple-50/80 backdrop-blur-sm'}`}>
+      <div className={`p-4 ${darkMode ? 'bg-slate-800/60 backdrop-blur-sm' : 'bg-gradient-to-r from-blue-50/80 to-cyan-50/80 backdrop-blur-sm'}`}>
         <div className="flex justify-between items-start mb-2">
           <div className="flex-1">
             <h3 className={`text-lg font-bold mb-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -219,7 +219,7 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
           <button
             data-testid={`deploy-${suggestion.id}`}
             onClick={() => onDeploy(suggestion.id)}
-            className="w-full px-3 py-1.5 rounded-xl text-white text-xs font-medium transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/30"
+            className="w-full px-3 py-1.5 rounded-xl text-white text-xs font-medium transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 shadow-lg shadow-teal-500/30"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -233,8 +233,8 @@ export const SuggestionCard: React.FC<SuggestionCardProps> = ({
           <div className={`text-center py-2 rounded-xl font-medium text-sm ${
             suggestion.status === 'deployed' 
               ? darkMode
-                ? 'bg-gradient-to-r from-blue-600/30 to-purple-600/30 text-blue-200 border border-blue-500/50 backdrop-blur-sm'
-                : 'bg-gradient-to-r from-blue-50 to-purple-50 text-blue-800 border border-blue-200/50'
+                ? 'bg-gradient-to-r from-blue-600/30 to-cyan-600/30 text-blue-200 border border-blue-500/50 backdrop-blur-sm'
+                : 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-800 border border-blue-200/50'
               : darkMode
               ? 'bg-slate-800/60 text-gray-200 border border-slate-700/50 backdrop-blur-sm'
               : 'bg-white/80 text-gray-800 border border-gray-200/50'

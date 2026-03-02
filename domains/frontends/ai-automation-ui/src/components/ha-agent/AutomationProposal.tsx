@@ -24,7 +24,7 @@ export const AutomationProposal: React.FC<AutomationProposalProps> = ({
         case 'what':
           return 'bg-blue-900/30 border-blue-700';
         case 'when':
-          return 'bg-purple-900/30 border-purple-700';
+          return 'bg-teal-900/30 border-teal-700';
         case 'affected':
           return 'bg-pink-900/30 border-pink-700';
         case 'how':
@@ -37,7 +37,7 @@ export const AutomationProposal: React.FC<AutomationProposalProps> = ({
         case 'what':
           return 'bg-blue-50 border-blue-200';
         case 'when':
-          return 'bg-purple-50 border-purple-200';
+          return 'bg-teal-50 border-teal-200';
         case 'affected':
           return 'bg-pink-50 border-pink-200';
         case 'how':

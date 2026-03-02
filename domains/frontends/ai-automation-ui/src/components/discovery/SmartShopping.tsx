@@ -128,8 +128,8 @@ export const SmartShopping: React.FC<SmartShoppingProps> = ({ userDevices }) => 
       {/* ROI Chart */}
       <div className={`border rounded-xl p-4 backdrop-blur-sm ${
         darkMode
-          ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-xl shadow-blue-900/20'
-          : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-md shadow-blue-100/50'
+          ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border-blue-500/20 shadow-xl shadow-blue-900/20'
+          : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border-blue-200/50 shadow-md shadow-blue-100/50'
       }`}>
         <h3 className="text-lg font-semibold mb-4">ROI Comparison</h3>
         <div className="space-y-2">
@@ -171,11 +171,11 @@ export const SmartShopping: React.FC<SmartShoppingProps> = ({ userDevices }) => 
               border rounded-xl p-4 cursor-pointer transition-all duration-200 backdrop-blur-sm
               ${selectedDevice === rec.device_type 
                 ? darkMode
-                  ? 'ring-2 ring-blue-500/50 shadow-2xl shadow-blue-900/20 bg-gradient-to-br from-blue-900/40 to-purple-900/40'
-                  : 'ring-2 ring-blue-500/50 shadow-xl shadow-blue-100/50 bg-gradient-to-br from-blue-50 to-purple-50'
+                  ? 'ring-2 ring-blue-500/50 shadow-2xl shadow-blue-900/20 bg-gradient-to-br from-blue-900/40 to-cyan-900/40'
+                  : 'ring-2 ring-blue-500/50 shadow-xl shadow-blue-100/50 bg-gradient-to-br from-blue-50 to-cyan-50'
                 : darkMode
-                ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-xl shadow-blue-900/20'
-                : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-md shadow-blue-100/50'
+                ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border-blue-500/20 shadow-xl shadow-blue-900/20'
+                : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border-blue-200/50 shadow-md shadow-blue-100/50'
               }
             `}
             onClick={() => setSelectedDevice(

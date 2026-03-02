@@ -165,8 +165,8 @@ export const NameEnhancementDashboard: React.FC = () => {
                 batchEnhancing
                   ? 'bg-gray-400 cursor-not-allowed text-white'
                   : darkMode
-                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
-                  : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
+                  ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-lg shadow-teal-500/30'
+                  : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-lg shadow-teal-400/30'
               }`}
             >
               {batchEnhancing ? (
@@ -191,8 +191,8 @@ export const NameEnhancementDashboard: React.FC = () => {
                 batchEnhancing
                   ? 'bg-gray-400 cursor-not-allowed text-white'
                   : darkMode
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/30'
-                  : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-400/30'
+                  ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-lg shadow-teal-500/30'
+                  : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-lg shadow-teal-400/30'
               }`}
             >
               {batchEnhancing ? (
@@ -217,7 +217,7 @@ export const NameEnhancementDashboard: React.FC = () => {
         {!statsLoading && stats && (
           <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-6`}>
             <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-white'} shadow-lg`}>
-              <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <div className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
                 {stats.total_suggestions || 0}
               </div>
               <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -241,7 +241,7 @@ export const NameEnhancementDashboard: React.FC = () => {
               </div>
             </div>
             <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-white'} shadow-lg`}>
-              <div className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <div className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
                 {stats.by_confidence.low || 0}
               </div>
               <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -264,8 +264,8 @@ export const NameEnhancementDashboard: React.FC = () => {
           <NameEnhancementSkeleton count={3} darkMode={darkMode} />
         ) : devices.length === 0 ? (
           <div className={`${darkMode 
-            ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
-            : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+            ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border border-teal-500/20 shadow-2xl shadow-teal-900/20 backdrop-blur-sm' 
+            : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border border-teal-200/50 shadow-xl shadow-teal-100/50'
           } rounded-xl p-8 text-center ${textColor}`}>
             <div className="text-6xl mb-4">✨</div>
             <h3 className={`text-xl font-bold mb-2 ${textColor}`}>
@@ -284,8 +284,8 @@ export const NameEnhancementDashboard: React.FC = () => {
                     onClick={() => handleBatchEnhanceClick(false)}
                     className={`px-5 py-2.5 rounded-xl font-medium transition-all flex items-center gap-2 ${
                       darkMode
-                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
-                        : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
+                        ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-lg shadow-teal-500/30'
+                        : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-lg shadow-teal-400/30'
                     }`}
                   >
                     <span>🔍</span>
@@ -295,8 +295,8 @@ export const NameEnhancementDashboard: React.FC = () => {
                     onClick={() => handleBatchEnhanceClick(true)}
                     className={`px-5 py-2.5 rounded-xl font-medium transition-all flex items-center gap-2 ${
                       darkMode
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/30'
-                        : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-400/30'
+                        ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-lg shadow-teal-500/30'
+                        : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-lg shadow-teal-400/30'
                     }`}
                   >
                     <span>🤖</span>

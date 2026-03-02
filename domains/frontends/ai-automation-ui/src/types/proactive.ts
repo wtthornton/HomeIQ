@@ -74,8 +74,8 @@ export const CONTEXT_TYPE_CONFIG: Record<ProactiveContextType, {
   historical: {
     icon: '📊',
     label: 'Historical',
-    color: 'text-purple-400',
-    bgColor: 'bg-purple-500/20',
+    color: 'text-teal-400',
+    bgColor: 'bg-teal-500/20',
   },
 };
 

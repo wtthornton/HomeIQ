@@ -239,7 +239,7 @@ export const DebugTab: React.FC<DebugTabProps> = ({ conversationId, darkMode }) 
                   <div className="flex items-center gap-2 mb-2">
                     <span className={`text-xs font-semibold px-2 py-1 rounded ${
                       msg.role === 'system'
-                        ? darkMode ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
+                        ? darkMode ? 'bg-teal-600 text-white' : 'bg-teal-500 text-white'
                         : msg.role === 'user'
                         ? darkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
                         : msg.role === 'assistant'

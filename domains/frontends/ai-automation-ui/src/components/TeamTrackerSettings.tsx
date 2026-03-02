@@ -427,8 +427,8 @@ export const TeamTrackerSettings: React.FC = () => {
                 onClick={() => setShowAddForm(true)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   darkMode
-                    ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                    : 'bg-purple-500 hover:bg-purple-600 text-white'
+                    ? 'bg-teal-600 hover:bg-teal-700 text-white'
+                    : 'bg-teal-500 hover:bg-teal-600 text-white'
                 }`}
               >
                 + Add Team
@@ -610,8 +610,8 @@ export const TeamTrackerSettings: React.FC = () => {
                         disabled={addMutation.isPending}
                         className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
                           darkMode
-                            ? 'bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-700'
-                            : 'bg-purple-500 hover:bg-purple-600 text-white disabled:bg-gray-300'
+                            ? 'bg-teal-600 hover:bg-teal-700 text-white disabled:bg-gray-700'
+                            : 'bg-teal-500 hover:bg-teal-600 text-white disabled:bg-gray-300'
                         }`}
                       >
                         {addMutation.isPending ? 'Adding...' : 'Add Team'}

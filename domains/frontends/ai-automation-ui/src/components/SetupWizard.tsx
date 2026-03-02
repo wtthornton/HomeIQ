@@ -83,7 +83,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, darkMode =
             </div>
           </div>
 
-          <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-purple-50'}`}>
+          <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-teal-50'}`}>
             <div className="text-sm font-semibold mb-2">Cost 💰</div>
             <div className="space-y-1 text-sm">
               <div>• ~$0.0025 per analysis run</div>
@@ -100,7 +100,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, darkMode =
       description: 'Generate your first automation suggestions',
       content: (
         <div className="space-y-6">
-          <div className={`text-center p-8 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gradient-to-br from-blue-50 to-purple-50'}`}>
+          <div className={`text-center p-8 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gradient-to-br from-blue-50 to-cyan-50'}`}>
             <div className="text-6xl mb-4">🤖</div>
             <div className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               Ready to discover automations?
@@ -125,7 +125,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, darkMode =
                 }
               }}
               disabled={running}
-              className="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white text-lg font-bold rounded-xl shadow-2xl transition-all disabled:opacity-50"
+              className="px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white text-lg font-bold rounded-xl shadow-2xl transition-all disabled:opacity-50"
             >
               {running ? '⏳ Analyzing...' : '🚀 Run First Analysis'}
             </motion.button>
@@ -137,7 +137,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, darkMode =
                 </div>
                 <div className="mt-3 w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 overflow-hidden">
                   <motion.div
-                    className="h-full bg-gradient-to-r from-blue-500 to-purple-600"
+                    className="h-full bg-gradient-to-r from-blue-500 to-cyan-600"
                     initial={{ width: "0%" }}
                     animate={{ width: "100%" }}
                     transition={{ duration: 90, ease: "linear" }}
@@ -207,7 +207,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, darkMode =
         {/* Progress Bar */}
         <div className={`h-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
           <motion.div
-            className="h-full bg-gradient-to-r from-blue-500 to-purple-600"
+            className="h-full bg-gradient-to-r from-blue-500 to-cyan-600"
             initial={{ width: "0%" }}
             animate={{ width: `${((step + 1) / steps.length) * 100}%` }}
             transition={{ duration: 0.3 }}
@@ -273,7 +273,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, darkMode =
               {step < steps.length - 1 && (
                 <button
                   onClick={() => setStep(step + 1)}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg font-medium"
+                  className="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white rounded-lg font-medium"
                 >
                   Next →
                 </button>

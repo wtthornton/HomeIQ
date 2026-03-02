@@ -279,7 +279,7 @@ export const ConversationalDashboard: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200'} shadow-lg`}
+        className={`p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-teal-900/30 to-cyan-900/30 border border-teal-700/50' : 'bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-200'} shadow-lg`}
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -306,8 +306,8 @@ export const ConversationalDashboard: React.FC = () => {
                       ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                       : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                     : darkMode
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
-                    : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
+                    ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-lg shadow-teal-500/30'
+                    : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-lg shadow-teal-400/30'
                 }`}
               >
                 {refreshLoading ? (
@@ -358,8 +358,8 @@ export const ConversationalDashboard: React.FC = () => {
             className={`px-3 py-1.5 text-xs font-medium rounded-xl transition-all whitespace-nowrap ${
               selectedStatus === status
                 ? darkMode
-                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30'
-                  : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-400/30'
+                  ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg shadow-teal-500/30'
+                  : 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-400/30'
                 : darkMode
                 ? 'bg-gray-700/60 hover:bg-gray-600/60 text-gray-300 border border-gray-600/50'
                 : 'bg-white/80 hover:bg-white text-gray-700 border border-gray-200 shadow-sm hover:shadow-md'
@@ -481,8 +481,8 @@ export const ConversationalDashboard: React.FC = () => {
                   onClick={handleRetry}
                   className={`px-4 py-2 text-sm rounded-xl font-medium transition-all ${
                     darkMode
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
-                      : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
+                      ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-lg shadow-teal-500/30'
+                      : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-lg shadow-teal-400/30'
                   }`}
                 >
                   🔄 Retry Loading
@@ -546,8 +546,8 @@ export const ConversationalDashboard: React.FC = () => {
                       disabled={loading}
                       className={`px-4 py-2 text-sm rounded-xl font-medium transition-all flex items-center gap-2 ${
                         darkMode
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30 disabled:bg-gray-700 disabled:text-gray-400 disabled:shadow-none'
-                          : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30 disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none'
+                          ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-lg shadow-teal-500/30 disabled:bg-gray-700 disabled:text-gray-400 disabled:shadow-none'
+                          : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-lg shadow-teal-400/30 disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none'
                       }`}
                     >
                       {loading ? (

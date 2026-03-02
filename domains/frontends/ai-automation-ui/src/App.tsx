@@ -52,8 +52,10 @@ export const App: React.FC = () => {
     if (typeof document !== 'undefined') {
       if (darkMode) {
         document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
       } else {
         document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
       }
     }
   }, [darkMode]);
@@ -142,20 +144,20 @@ export const App: React.FC = () => {
             </main>
 
             {/* Footer */}
-            <footer className={`mt-16 py-8 border-t ${darkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+            <footer className="mt-16 py-8 border-t border-[var(--card-border)] bg-[var(--bg-secondary)]">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className={`text-center text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <div className="text-center text-sm text-[var(--text-tertiary)]">
                   <div className="mb-2">
-                    <strong>HomeIQ</strong> - AI-Powered Smart Home Intelligence
+                    <strong className="text-[var(--text-primary)]">HomeIQ</strong> - AI-Powered Smart Home Intelligence
                   </div>
-                  <div className="text-xs">
+                  <div className="text-xs text-[var(--text-muted)]">
                     Powered by OpenAI GPT-4o-mini and Machine Learning Pattern Detection
                   </div>
                   <div className="mt-4 flex justify-center gap-4">
-                    <a href="/api/docs" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">
+                    <a href="/api/docs" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--accent-primary)] transition-colors">
                       API Docs
                     </a>
-                    <a href="https://github.com/wtthornton/HomeIQ" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">
+                    <a href="https://github.com/wtthornton/HomeIQ" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--accent-primary)] transition-colors">
                       Documentation
                     </a>
                   </div>

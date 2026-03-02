@@ -118,7 +118,7 @@ export const AnalysisStatusButton: React.FC<AnalysisStatusProps> = ({
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.3 }}
-              className="h-full bg-gradient-to-r from-blue-500 to-purple-600"
+              className="h-full bg-gradient-to-r from-blue-500 to-cyan-600"
             />
           </div>
           {estimatedTime && (

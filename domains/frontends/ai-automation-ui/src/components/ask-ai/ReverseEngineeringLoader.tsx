@@ -44,7 +44,7 @@ const TECH_MESSAGES = [
   {
     text: "Optimizing automation efficiency... because slow is the new broken",
     icon: "⚙️",
-    color: "from-indigo-600 to-purple-600"
+    color: "from-indigo-600 to-cyan-600"
   },
   {
     text: "Validating entity mappings... finding your smart home's soul",
@@ -84,7 +84,7 @@ const TECH_MESSAGES = [
   {
     text: "Teaching robots to understand your intentions... we're basically AI therapists now",
     icon: "🧠",
-    color: "from-purple-600 to-pink-600"
+    color: "from-teal-600 to-cyan-600"
   },
   {
     text: "Compiling your wishes into YAML... it's like poetry, but with indentation",
@@ -114,7 +114,7 @@ const TECH_MESSAGES = [
   {
     text: "Running pattern recognition algorithms... finding order in chaos",
     icon: "🌀",
-    color: "from-violet-600 to-purple-700"
+    color: "from-violet-600 to-cyan-700"
   },
   {
     text: "Optimizing trigger conditions... because timing is everything",
@@ -129,7 +129,7 @@ const TECH_MESSAGES = [
   {
     text: "Applying machine learning magic... abracadabra meets algorithm",
     icon: "✨",
-    color: "from-indigo-600 to-purple-700"
+    color: "from-indigo-600 to-cyan-700"
   },
   {
     text: "Calibrating automation precision... hitting the target every single time",
@@ -154,7 +154,7 @@ const TECH_MESSAGES = [
   {
     text: "Executing predictive modeling... seeing into the automation future",
     icon: "🔮",
-    color: "from-purple-700 to-indigo-800"
+    color: "from-teal-700 to-cyan-800"
   },
   {
     text: "Fine-tuning automation parameters... precision engineering at work",
@@ -164,7 +164,7 @@ const TECH_MESSAGES = [
   {
     text: "Optimizing resource allocation... maximum efficiency, zero waste",
     icon: "💎",
-    color: "from-indigo-800 to-purple-900"
+    color: "from-indigo-800 to-cyan-900"
   },
   {
     text: "Establishing execution protocols... setting the automation standard",
@@ -199,7 +199,7 @@ const TECH_MESSAGES = [
   {
     text: "Mastering automation orchestration... conducting the smart home symphony",
     icon: "🎼",
-    color: "from-purple-800 to-violet-900"
+    color: "from-teal-800 to-cyan-900"
   },
   {
     text: "Elevating automation intelligence... leveling up your home's IQ",
@@ -209,7 +209,7 @@ const TECH_MESSAGES = [
   {
     text: "Polishing automation edges... smooth operator in the making",
     icon: "💎",
-    color: "from-indigo-900 to-purple-950"
+    color: "from-cyan-900 to-teal-950"
   },
   {
     text: "Crafting execution strategies... tactical automation deployment",
@@ -316,7 +316,7 @@ const PROCESS_CONFIGS: Record<ProcessType, {
     defaultSubtitle: "Understanding your request and finding the best automations...",
     messages: [
       { text: "Analyzing your natural language query...", icon: "🧠", color: "from-blue-500 to-cyan-500" },
-      { text: "Extracting device entities and intents...", icon: "🔍", color: "from-purple-500 to-pink-500" },
+      { text: "Extracting device entities and intents...", icon: "🔍", color: "from-teal-500 to-cyan-500" },
       { text: "Searching automation patterns...", icon: "🔎", color: "from-indigo-500 to-blue-500" },
       { text: "Matching your request to existing automations...", icon: "🎯", color: "from-cyan-500 to-teal-500" },
       { text: "Generating intelligent suggestions...", icon: "✨", color: "from-yellow-500 to-orange-500" },
@@ -340,7 +340,7 @@ const PROCESS_CONFIGS: Record<ProcessType, {
     defaultSubtitle: "Processing 30 days of Home Assistant events...",
     messages: [
       { text: "Fetching 30 days of event history...", icon: "📊", color: "from-blue-500 to-indigo-500" },
-      { text: "Detecting device usage patterns...", icon: "🔍", color: "from-purple-500 to-pink-500" },
+      { text: "Detecting device usage patterns...", icon: "🔍", color: "from-teal-500 to-cyan-500" },
       { text: "Identifying automation opportunities...", icon: "💡", color: "from-yellow-500 to-orange-500" },
       { text: "Running machine learning algorithms...", icon: "🤖", color: "from-cyan-500 to-blue-500" },
       { text: "Generating automation suggestions...", icon: "✨", color: "from-green-500 to-emerald-500" },
@@ -363,7 +363,7 @@ const PROCESS_CONFIGS: Record<ProcessType, {
     defaultSubtitle: "Processing multiple actions in batch...",
     messages: [
       { text: "Preparing batch operations...", icon: "⚙️", color: "from-blue-500 to-indigo-500" },
-      { text: "Validating all changes...", icon: "🔍", color: "from-purple-500 to-pink-500" },
+      { text: "Validating all changes...", icon: "🔍", color: "from-teal-500 to-cyan-500" },
       { text: "Applying updates...", icon: "🔄", color: "from-cyan-500 to-teal-500" },
       { text: "Processing automations...", icon: "🤖", color: "from-green-500 to-emerald-500" },
       { text: "Finalizing changes...", icon: "✅", color: "from-yellow-500 to-orange-500" }
@@ -383,7 +383,7 @@ const PROCESS_CONFIGS: Record<ProcessType, {
     defaultSubtitle: "Creating and deploying automation...",
     messages: [
       { text: "Validating automation configuration...", icon: "🔍", color: "from-blue-500 to-indigo-500" },
-      { text: "Checking safety constraints...", icon: "🛡️", color: "from-purple-500 to-pink-500" },
+      { text: "Checking safety constraints...", icon: "🛡️", color: "from-teal-500 to-cyan-500" },
       { text: "Deploying to Home Assistant...", icon: "🚀", color: "from-cyan-500 to-teal-500" },
       { text: "Enabling automation...", icon: "✅", color: "from-green-500 to-emerald-500" }
     ],
@@ -402,7 +402,7 @@ const PROCESS_CONFIGS: Record<ProcessType, {
     defaultSubtitle: "Running your first analysis...",
     messages: [
       { text: "Connecting to Home Assistant...", icon: "🔌", color: "from-blue-500 to-indigo-500" },
-      { text: "Fetching event history...", icon: "📊", color: "from-purple-500 to-pink-500" },
+      { text: "Fetching event history...", icon: "📊", color: "from-teal-500 to-cyan-500" },
       { text: "Starting pattern analysis...", icon: "🔍", color: "from-cyan-500 to-teal-500" },
       { text: "Generating first suggestions...", icon: "✨", color: "from-yellow-500 to-orange-500" }
     ],
@@ -421,7 +421,7 @@ const PROCESS_CONFIGS: Record<ProcessType, {
     defaultSubtitle: "Processing your request...",
     messages: [
       { text: "Processing your request...", icon: "⚙️", color: "from-blue-500 to-cyan-500" },
-      { text: "This may take a moment...", icon: "⏳", color: "from-purple-500 to-pink-500" }
+      { text: "This may take a moment...", icon: "⏳", color: "from-teal-500 to-cyan-500" }
     ],
     tips: [
       "💡 Please wait while we process your request"

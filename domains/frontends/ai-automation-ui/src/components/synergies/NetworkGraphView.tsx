@@ -561,8 +561,8 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
                     onClick={() => window.location.reload()}
                     className={`px-4 py-2 rounded-xl text-sm font-medium ${
                       darkMode
-                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
-                        : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
+                        ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-lg shadow-teal-500/30'
+                        : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-lg shadow-teal-400/30'
                     }`}
                   >
                     Refresh Page

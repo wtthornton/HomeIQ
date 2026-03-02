@@ -180,7 +180,7 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
       case 'medium':
         return darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600';
       case 'large':
-        return darkMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-purple-500 hover:bg-purple-600';
+        return darkMode ? 'bg-teal-600 hover:bg-teal-700' : 'bg-teal-500 hover:bg-teal-600';
       case 'advanced':
         return darkMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600';
       case 'fun':
@@ -217,7 +217,7 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
     }
     if (source === 'synergy' && synergyId) {
       return (
-        <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+        <span className="text-xs px-2 py-1 rounded bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200">
           🔗 Synergy
         </span>
       );
@@ -266,8 +266,8 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
                 ? 'bg-gray-700 text-gray-500 cursor-not-allowed border-2 border-yellow-600'
                 : 'bg-gray-200 text-gray-400 cursor-not-allowed border-2 border-yellow-500'
               : darkMode
-              ? 'bg-purple-600 text-white hover:bg-purple-700'
-              : 'bg-purple-500 text-white hover:bg-purple-600'
+              ? 'bg-teal-600 text-white hover:bg-teal-700'
+              : 'bg-teal-500 text-white hover:bg-teal-600'
           }`}
           aria-label={
             hasPrerequisites
@@ -402,7 +402,7 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
               <div className="p-6">
                 {isLoading ? (
                   <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500"></div>
                     <span className={`ml-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                       Generating enhancements...
                     </span>
@@ -417,8 +417,8 @@ export const EnhancementButton: React.FC<EnhancementButtonProps> = ({
                         transition={{ delay: index * 0.1 }}
                         className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
                           darkMode
-                            ? 'border-gray-700 bg-gray-700 hover:border-purple-500'
-                            : 'border-gray-200 bg-gray-50 hover:border-purple-500'
+                            ? 'border-gray-700 bg-gray-700 hover:border-teal-500'
+                            : 'border-gray-200 bg-gray-50 hover:border-teal-500'
                         }`}
                         onClick={() => handleSelectEnhancement(enhancement)}
                       >

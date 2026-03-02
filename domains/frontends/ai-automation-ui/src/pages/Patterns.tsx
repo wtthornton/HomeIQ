@@ -60,7 +60,7 @@ export const Patterns: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200'} shadow-lg`}
+        className={`p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-teal-900/30 to-cyan-900/30 border border-teal-700/50' : 'bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-200'} shadow-lg`}
       >
         <div className="flex justify-between items-center gap-4">
           <div className="flex-1 min-w-0">
@@ -233,7 +233,7 @@ export const Patterns: React.FC = () => {
           className={`px-4 py-1.5 text-xs rounded-lg font-medium transition-all ${
             analysisRunning
               ? 'bg-blue-400 cursor-not-allowed'
-              : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'
+              : 'bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700'
           } text-white disabled:opacity-50`}
         >
           {analysisRunning ? (
@@ -262,21 +262,21 @@ export const Patterns: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-4 p-4 rounded-xl border-l-4 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 border-purple-500 shadow-lg"
+              className="mt-4 p-4 rounded-xl border-l-4 bg-gradient-to-r from-teal-50 to-cyan-100 dark:from-teal-900/30 dark:to-teal-800/30 border-teal-500 shadow-lg"
             >
               <div className="flex items-start gap-4">
                 <div className="text-2xl flex-shrink-0">🔧</div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold mb-1 text-purple-900 dark:text-purple-200">
+                  <h3 className="font-semibold mb-1 text-teal-900 dark:text-teal-200">
                     Database Corruption Detected
                   </h3>
-                  <p className="text-sm text-purple-800 dark:text-purple-300 mb-3">
+                  <p className="text-sm text-teal-800 dark:text-teal-300 mb-3">
                     The database appears to be corrupted. You can attempt to repair it automatically.
                   </p>
                   <button
                     onClick={handleRepairDatabase}
                     disabled={repairing}
-                    className="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {repairing ? '🔄 Repairing...' : '🔧 Repair Database'}
                   </button>
@@ -314,8 +314,8 @@ export const Patterns: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className={`rounded-2xl overflow-hidden transition-all duration-300 ${
             darkMode 
-              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20' 
-              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+              ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border border-teal-500/20 shadow-2xl shadow-teal-900/20' 
+              : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border border-teal-200/50 shadow-xl shadow-teal-100/50'
           } backdrop-blur-sm`}
         >
           {/* Stats Header - Collapsible */}
@@ -338,8 +338,8 @@ export const Patterns: React.FC = () => {
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 ${
                   showStatsAndCharts
                     ? darkMode
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30'
-                      : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-400/30'
+                      ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg shadow-teal-500/30'
+                      : 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-400/30'
                     : darkMode
                     ? 'bg-slate-800/60 hover:bg-slate-700/60 text-gray-300 hover:text-white border border-slate-700/50'
                     : 'bg-white/80 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 shadow-sm hover:shadow-md'
@@ -376,7 +376,7 @@ export const Patterns: React.FC = () => {
                       animate={{ opacity: 1, y: 0 }}
                       className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
                     >
-            <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <div className="text-3xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
               {stats.total_patterns || 0}
             </div>
                       <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -418,7 +418,7 @@ export const Patterns: React.FC = () => {
                       transition={{ delay: 0.3 }}
                       className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
                     >
-            <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            <div className="text-3xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
               {Object.keys(stats.by_type || {}).length}
             </div>
                       <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -498,7 +498,7 @@ export const Patterns: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className={`p-6 rounded-xl ${darkMode ? 'bg-gradient-to-br from-purple-900/30 to-blue-900/30 border border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200'} shadow-xl`}
+          className={`p-6 rounded-xl ${darkMode ? 'bg-gradient-to-br from-teal-900/30 to-blue-900/30 border border-teal-700/50' : 'bg-gradient-to-br from-teal-50 to-blue-50 border border-teal-200'} shadow-xl`}
         >
           <div className="flex items-center gap-3 mb-4">
             <span className="text-4xl">🎯</span>
@@ -528,8 +528,8 @@ export const Patterns: React.FC = () => {
                     transition={{ delay: 0.5 + idx * 0.1 }}
                     className={`p-4 rounded-lg border-2 ${
                       darkMode 
-                        ? 'bg-gray-800/50 border-purple-700/50 hover:border-purple-500/70' 
-                        : 'bg-white border-purple-200 hover:border-purple-300'
+                        ? 'bg-gray-800/50 border-teal-700/50 hover:border-teal-500/70' 
+                        : 'bg-white border-teal-200 hover:border-teal-300'
                     } transition-all hover:shadow-lg`}
                   >
                     <div className="flex items-start gap-3">
@@ -541,7 +541,7 @@ export const Patterns: React.FC = () => {
                           </h3>
                         </div>
                         <div className="flex items-center gap-2 mb-2">
-                          <span className={`text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent`}>
+                          <span className={`text-2xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent`}>
                             {count as number}
                           </span>
                           <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -551,7 +551,7 @@ export const Patterns: React.FC = () => {
                         <p className={`text-xs mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'} line-clamp-2`}>
                           {info.description}
                         </p>
-                        <div className={`mt-2 p-2 rounded text-xs ${darkMode ? 'bg-purple-900/30 text-purple-200' : 'bg-purple-50 text-purple-800'}`}>
+                        <div className={`mt-2 p-2 rounded text-xs ${darkMode ? 'bg-teal-900/30 text-teal-200' : 'bg-teal-50 text-teal-800'}`}>
                           <p className="font-semibold">💡 {info.importance}</p>
                         </div>
                       </div>
@@ -772,7 +772,7 @@ export const Patterns: React.FC = () => {
                 className={`px-8 py-3 rounded-lg font-semibold text-lg transition-all ${
                   analysisRunning
                     ? 'bg-blue-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'
+                    : 'bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700'
                 } text-white disabled:opacity-50 shadow-lg`}
               >
                 {analysisRunning ? (
@@ -788,7 +788,7 @@ export const Patterns: React.FC = () => {
                 <div className="mt-4 w-full max-w-md">
                   <div className={`h-2 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
                     <motion.div
-                      className="h-full bg-gradient-to-r from-blue-500 to-purple-600"
+                      className="h-full bg-gradient-to-r from-blue-500 to-cyan-600"
                       initial={{ width: "0%" }}
                       animate={{ width: "100%" }}
                       transition={{ duration: 90, ease: "linear", repeat: Infinity }}
@@ -975,7 +975,7 @@ export const Patterns: React.FC = () => {
                         )}
                       </div>
                       
-                      <div className={`mt-2 p-2 rounded text-xs ${darkMode ? 'bg-purple-900/20 text-purple-200 border border-purple-700/30' : 'bg-purple-50 text-purple-800 border border-purple-200'}`}>
+                      <div className={`mt-2 p-2 rounded text-xs ${darkMode ? 'bg-teal-900/20 text-teal-200 border border-teal-700/30' : 'bg-teal-50 text-teal-800 border border-teal-200'}`}>
                         <p className="font-semibold mb-0.5">💡 Why this matters:</p>
                         <p>{patternInfo.importance}</p>
                       </div>

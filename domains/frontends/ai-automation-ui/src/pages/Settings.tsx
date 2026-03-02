@@ -133,7 +133,7 @@ export const Settings: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200'} shadow-lg`}
+        className={`p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-teal-900/30 to-cyan-900/30 border border-teal-700/50' : 'bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-200'} shadow-lg`}
       >
         <div className="flex items-center gap-3 mb-1">
           <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -164,8 +164,8 @@ export const Settings: React.FC = () => {
           transition={{ delay: 0.1 }}
           className={`rounded-xl p-6 shadow-lg ${
             darkMode 
-              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
-              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+              ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border border-teal-500/20 shadow-2xl shadow-teal-900/20 backdrop-blur-sm' 
+              : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border border-teal-200/50 shadow-xl shadow-teal-100/50'
           }`}
         >
           <h2 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -213,8 +213,8 @@ export const Settings: React.FC = () => {
           transition={{ delay: 0.2 }}
           className={`rounded-xl p-6 shadow-lg ${
             darkMode 
-              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
-              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+              ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border border-teal-500/20 shadow-2xl shadow-teal-900/20 backdrop-blur-sm' 
+              : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border border-teal-200/50 shadow-xl shadow-teal-100/50'
           }`}
         >
           <h2 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -279,8 +279,8 @@ export const Settings: React.FC = () => {
           transition={{ delay: 0.3 }}
           className={`rounded-xl p-6 shadow-lg ${
             darkMode 
-              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
-              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+              ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border border-teal-500/20 shadow-2xl shadow-teal-900/20 backdrop-blur-sm' 
+              : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border border-teal-200/50 shadow-xl shadow-teal-100/50'
           }`}
         >
           <h2 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -666,8 +666,8 @@ export const Settings: React.FC = () => {
             disabled={isSaving}
             className={`flex-1 px-4 py-2 text-xs rounded-xl font-bold shadow-lg transition-all ${
               darkMode
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30'
-                : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-400/30'
+                ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-lg shadow-teal-500/30'
+                : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-lg shadow-teal-400/30'
             } disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none`}
           >
             {isSaving ? '💾 Saving...' : '💾 Save Settings'}

@@ -4,7 +4,6 @@
  */
 
 import React, { useState } from 'react';
-import { useAppStore } from '../store';
 import { ConversationalDashboard } from './ConversationalDashboard';
 import { ProactiveSuggestions } from './ProactiveSuggestions';
 import { BlueprintSuggestions } from './BlueprintSuggestions';
@@ -12,7 +11,6 @@ import { BlueprintSuggestions } from './BlueprintSuggestions';
 type IdeasSource = 'data' | 'context' | 'blueprints';
 
 export const Ideas: React.FC = () => {
-  const { darkMode } = useAppStore();
   const [activeSource, setActiveSource] = useState<IdeasSource>(() => {
     const params = new URLSearchParams(window.location.search);
     const source = params.get('source');
@@ -36,10 +34,10 @@ export const Ideas: React.FC = () => {
   return (
     <div>
       <div className="mb-6">
-        <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">
           Ideas
         </h1>
-        <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        <p className="text-sm mt-1 text-[var(--text-tertiary)]">
           AI-generated automation ideas from multiple sources
         </p>
       </div>

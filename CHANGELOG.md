@@ -2,6 +2,10 @@
 
 ## [Unreleased] - 2026-03-02
 
+### Fixed
+
+- **ai-automation-ui: fix light mode, branding, and design system alignment** — Fix CSS variable switching so light mode actually works; update stale "HA AutomateAI" branding to "HomeIQ" in index.html; align font size to design system 14px spec; replace 130+ purple/pink gradient classes with teal/cyan palette across 35 files; migrate page headers and footer to CSS variables; remove dead Navigation component; fix `catch(error: any)` typing in Deployed.tsx; remove duplicate AFRAME stub; remove empty Discovery props interface
+
 ### Added
 
 - **standardize Docker builds, migrate JSON to JSONB, and add CI/docs tooling** (fe69c9f) - Bill Thornton

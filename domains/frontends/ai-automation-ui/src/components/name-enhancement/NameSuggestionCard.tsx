@@ -71,8 +71,8 @@ export const NameSuggestionCard: React.FC<NameSuggestionCardProps> = ({
       animate={{ opacity: 1, y: 0 }}
       className={`${borderColor} border rounded-xl p-4 mb-4 shadow-lg backdrop-blur-sm ${
         darkMode
-          ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border-blue-500/20 shadow-2xl shadow-blue-900/20'
-          : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border-blue-200/50 shadow-xl shadow-blue-100/50'
+          ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border-teal-500/20 shadow-2xl shadow-teal-900/20'
+          : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border-teal-200/50 shadow-xl shadow-teal-100/50'
       }`}
     >
       <div className="flex items-center justify-between mb-3">

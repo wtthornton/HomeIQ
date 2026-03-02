@@ -141,8 +141,8 @@ export const PreferenceSettings: React.FC<PreferenceSettingsProps> = ({ darkMode
       transition={{ delay: 0.4 }}
       className={`rounded-xl p-6 shadow-lg ${
         darkMode 
-          ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
-          : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+          ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border border-teal-500/20 shadow-2xl shadow-teal-900/20 backdrop-blur-sm' 
+          : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border border-teal-200/50 shadow-xl shadow-teal-100/50'
       }`}
       data-testid="preference-settings-section"
     >

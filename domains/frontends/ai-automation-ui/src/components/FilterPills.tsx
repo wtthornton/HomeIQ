@@ -79,20 +79,20 @@ export const FilterPills: React.FC<FilterPillsProps> = ({
           if (value === 'energy') return 'bg-green-500 text-white border-green-500';
           if (value === 'comfort') return 'bg-blue-500 text-white border-blue-500';
           if (value === 'security') return 'bg-red-500 text-white border-red-500';
-          if (value === 'convenience') return 'bg-purple-500 text-white border-purple-500';
+          if (value === 'convenience') return 'bg-teal-500 text-white border-teal-500';
           break;
         case 'tags':
           // Tag-specific colors
           if (value === 'energy') return 'bg-green-500 text-white border-green-500';
           if (value === 'security') return 'bg-red-500 text-white border-red-500';
           if (value === 'comfort') return 'bg-blue-500 text-white border-blue-500';
-          if (value === 'convenience') return 'bg-purple-500 text-white border-purple-500';
+          if (value === 'convenience') return 'bg-teal-500 text-white border-teal-500';
           if (value === 'lighting') return 'bg-yellow-500 text-white border-yellow-500';
           if (value === 'climate') return 'bg-cyan-500 text-white border-cyan-500';
           if (value === 'presence') return 'bg-orange-500 text-white border-orange-500';
           if (value === 'notification') return 'bg-blue-500 text-white border-blue-500';
           if (value === 'media') return 'bg-pink-500 text-white border-pink-500';
-          if (value === 'ai-generated') return 'bg-purple-500 text-white border-purple-500';
+          if (value === 'ai-generated') return 'bg-teal-500 text-white border-teal-500';
           break;
         default:
           return darkMode 

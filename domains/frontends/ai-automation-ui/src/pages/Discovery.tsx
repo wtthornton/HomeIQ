@@ -15,11 +15,7 @@ import { SmartShopping } from '../components/discovery/SmartShopping';
 
 const DEMO_DEVICES = ['light', 'switch', 'sensor'];
 
-interface DiscoveryPageProps {
-  // Discovery page component props (currently none)
-}
-
-export const DiscoveryPage: React.FC<DiscoveryPageProps> = () => {
+export const DiscoveryPage: React.FC = () => {
   const { darkMode } = useAppStore();
   const [userDevices, setUserDevices] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +87,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`mb-8 p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200'} shadow-lg`}
+        className={`mb-8 p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-teal-900/30 to-cyan-900/30 border border-teal-700/50' : 'bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-200'} shadow-lg`}
       >
         <div className="flex items-center gap-3 mb-1">
           <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -167,8 +163,8 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = () => {
             transition={{ delay: 0.1 }}
             className={`rounded-xl shadow-lg p-6 ${
               darkMode
-                ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm'
-                : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+                ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border border-teal-500/20 shadow-2xl shadow-teal-900/20 backdrop-blur-sm'
+                : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border border-teal-200/50 shadow-xl shadow-teal-100/50'
             }`}
           >
             <h2 className={`text-2xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -187,8 +183,8 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = () => {
             transition={{ delay: 0.2 }}
             className={`rounded-xl shadow-lg p-6 ${
               darkMode
-                ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm'
-                : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+                ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border border-teal-500/20 shadow-2xl shadow-teal-900/20 backdrop-blur-sm'
+                : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border border-teal-200/50 shadow-xl shadow-teal-100/50'
             }`}
           >
             <h2 className={`text-2xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>

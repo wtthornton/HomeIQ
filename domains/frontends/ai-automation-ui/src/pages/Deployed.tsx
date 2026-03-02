@@ -145,10 +145,10 @@ export const Deployed: React.FC = () => {
       
       // Refresh the list
       await loadAutomations();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to re-deploy:', error);
       toast.error(
-        `❌ Re-deploy failed: ${error?.message || 'Unknown error'}`,
+        `❌ Re-deploy failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         { id: `redeploy-${automationId}`, duration: 5000 }
       );
     } finally {
@@ -177,8 +177,8 @@ export const Deployed: React.FC = () => {
             toast.error('YAML not found for this automation');
             newExpanded.delete(automationId);
           }
-        } catch (error: any) {
-          toast.error(`Failed to load YAML: ${error.message}`);
+        } catch (error: unknown) {
+          toast.error(`Failed to load YAML: ${error instanceof Error ? error.message : 'Unknown error'}`);
           newExpanded.delete(automationId);
         }
       }
@@ -270,9 +270,9 @@ export const Deployed: React.FC = () => {
         );
       }
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.dismiss(`self-correct-${automationId}`);
-      toast.error(`Self-correction failed: ${error.message}`);
+      toast.error(`Self-correction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setProcessingOperation(null);
     }
@@ -289,7 +289,7 @@ export const Deployed: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-700/50' : 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200'} shadow-lg`}
+        className={`p-4 rounded-xl ${darkMode ? 'bg-gradient-to-br from-teal-900/30 to-cyan-900/30 border border-teal-700/50' : 'bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-200'} shadow-lg`}
       >
         <div className="flex items-center gap-3 mb-1">
           <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -312,8 +312,8 @@ export const Deployed: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className={`rounded-2xl shadow-xl p-8 text-center ${
             darkMode 
-              ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
-              : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+              ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border border-teal-500/20 shadow-2xl shadow-teal-900/20 backdrop-blur-sm' 
+              : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border border-teal-200/50 shadow-xl shadow-teal-100/50'
           }`}
         >
           <div className="text-6xl mb-4">🚀</div>
@@ -336,8 +336,8 @@ export const Deployed: React.FC = () => {
               transition={{ delay: index * 0.05 }}
               className={`rounded-xl shadow-lg p-6 ${
                 darkMode 
-                  ? 'bg-gradient-to-br from-slate-900/95 via-blue-900/20 to-purple-900/20 border border-blue-500/20 shadow-2xl shadow-blue-900/20 backdrop-blur-sm' 
-                  : 'bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 border border-blue-200/50 shadow-xl shadow-blue-100/50'
+                  ? 'bg-gradient-to-br from-slate-900/95 via-teal-900/20 to-cyan-900/20 border border-teal-500/20 shadow-2xl shadow-teal-900/20 backdrop-blur-sm' 
+                  : 'bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/50 border border-teal-200/50 shadow-xl shadow-teal-100/50'
               }`}
             >
               <div className="flex items-center justify-between">
@@ -415,8 +415,8 @@ export const Deployed: React.FC = () => {
                     onClick={() => handleRedeploy(automation.entity_id)}
                     className={`px-3 py-2 text-xs rounded-lg font-medium transition-colors ${
                       darkMode
-                        ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                        : 'bg-purple-500 hover:bg-purple-600 text-white'
+                        ? 'bg-teal-600 hover:bg-teal-700 text-white'
+                        : 'bg-teal-500 hover:bg-teal-600 text-white'
                     }`}
                     title="Re-generate YAML with latest improvements and re-deploy"
                   >

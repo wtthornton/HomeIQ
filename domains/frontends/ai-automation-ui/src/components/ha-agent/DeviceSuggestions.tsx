@@ -247,7 +247,7 @@ export const DeviceSuggestions: React.FC<DeviceSuggestionsProps> = ({
                     {suggestion.data_sources.blueprints && suggestion.data_sources.blueprints.length > 0 && (
                       <span
                         className={`px-2 py-1 rounded text-xs ${
-                          darkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700'
+                          darkMode ? 'bg-teal-500/20 text-teal-300' : 'bg-teal-100 text-teal-700'
                         }`}
                         title="Based on Home Assistant blueprint"
                       >

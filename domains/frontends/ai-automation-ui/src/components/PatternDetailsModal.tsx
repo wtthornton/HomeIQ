@@ -244,7 +244,7 @@ export const PatternDetailsModal: React.FC<PatternDetailsModalProps> = ({
                                 transition={{ delay: idx * 0.02, duration: 0.5 }}
                                 className={`h-full ${
                                   item.count > 0
-                                    ? 'bg-gradient-to-r from-blue-500 to-purple-600'
+                                    ? 'bg-gradient-to-r from-blue-500 to-cyan-600'
                                     : darkMode ? 'bg-gray-700' : 'bg-gray-200'
                                 }`}
                               />
@@ -280,11 +280,11 @@ export const PatternDetailsModal: React.FC<PatternDetailsModalProps> = ({
                   )}
 
                   {/* Importance */}
-                  <div className={`p-4 rounded-xl ${darkMode ? 'bg-purple-900/20 border border-purple-700/30' : 'bg-purple-50 border border-purple-200'}`}>
-                    <h3 className={`font-semibold mb-2 ${darkMode ? 'text-purple-300' : 'text-purple-900'}`}>
+                  <div className={`p-4 rounded-xl ${darkMode ? 'bg-teal-900/20 border border-teal-700/30' : 'bg-teal-50 border border-teal-200'}`}>
+                    <h3 className={`font-semibold mb-2 ${darkMode ? 'text-teal-300' : 'text-teal-900'}`}>
                       💡 Why This Matters
                     </h3>
-                    <p className={`${darkMode ? 'text-purple-200' : 'text-purple-800'}`}>
+                    <p className={`${darkMode ? 'text-teal-200' : 'text-teal-800'}`}>
                       {patternInfo.importance}
                     </p>
                   </div>
@@ -310,8 +310,8 @@ export const PatternDetailsModal: React.FC<PatternDetailsModalProps> = ({
                   }}
                   className={`px-6 py-2 rounded-lg font-medium transition-colors ${
                     darkMode
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
-                      : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'
+                      ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white'
+                      : 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white'
                   }`}
                 >
                   Export Pattern
