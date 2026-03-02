@@ -10,7 +10,7 @@ from fastapi import APIRouter
 from sqlalchemy import text
 
 from ..api.middlewares import get_error_counts, get_performance_metrics
-from ..database import engine
+from ..database import db
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ async def health_check():
 
     try:
         # Test database connection
-        async with engine.begin() as conn:
+        async with db.engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
         result["database"] = "connected"
 

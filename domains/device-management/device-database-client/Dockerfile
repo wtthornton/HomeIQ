@@ -43,6 +43,9 @@ COPY --from=builder /root/.local /home/appuser/.local
 # Copy source code
 COPY domains/device-management/device-database-client/src/ ./src/
 
+# Create data directory for cache
+RUN mkdir -p /app/data/device_cache
+
 # Set ownership of all files to appuser
 RUN chown -R appuser:appgroup /app /home/appuser/.local
 

@@ -6,26 +6,26 @@ Initialize Huey with in-memory backend for task queue.
 
 import logging
 
-from huey import Huey
+from huey import MemoryHuey
 
 from ..config import settings
 
 logger = logging.getLogger(__name__)
 
 
-def get_huey_instance() -> Huey:
+def get_huey_instance() -> MemoryHuey:
     """
     Get or create Huey instance with in-memory backend.
 
     Returns:
-        Huey instance configured for automation queue
+        MemoryHuey instance configured for automation queue
     """
     logger.info("Initializing Huey with in-memory backend")
 
-    huey = Huey(
+    huey = MemoryHuey(
         'automation-queue',
         results=True,
-        result_ttl=settings.huey_result_ttl,
+        immediate=False,
     )
 
     return huey

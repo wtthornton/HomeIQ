@@ -34,14 +34,15 @@ capability_graph: CapabilityGraph = None
 
 
 def _start_huey_consumer() -> None:
-    """Start Huey consumer in background thread."""
+    """Initialize Huey in-memory task queue.
+
+    MemoryHuey stores tasks in-process — no external consumer needed.
+    """
     try:
-        from .task_queue.huey_config import huey
-        logger.info("Starting Huey consumer...")
-        huey.start()
-        logger.info("Huey consumer started")
+        from .task_queue.huey_config import huey  # noqa: F811
+        logger.info("Huey in-memory backend ready (no external consumer needed)")
     except Exception as e:
-        logger.error(f"Failed to start Huey consumer: {e}", exc_info=True)
+        logger.error(f"Failed to initialize Huey: {e}", exc_info=True)
 
 
 @asynccontextmanager
@@ -89,11 +90,11 @@ async def lifespan(app: FastAPI):
 
     if settings.use_task_queue:
         try:
-            from .task_queue.huey_config import huey
-            huey.stop()
-            logger.info("Huey consumer stopped")
+            from .task_queue.huey_config import huey  # noqa: F811
+            huey.flush()
+            logger.info("Huey in-memory queue flushed")
         except Exception as e:
-            logger.warning(f"Error stopping Huey consumer: {e}")
+            logger.warning(f"Error cleaning up Huey queue: {e}")
 
     if capability_graph:
         await capability_graph.stop()
