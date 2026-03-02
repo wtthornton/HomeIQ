@@ -1,6 +1,6 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-01
+**Created:** 2026-02-27 | **Updated:** 2026-03-02
 **Total:** 15 Epics, 82 Stories, ~395+ files addressed
 
 ## Execution Order & Dependencies
@@ -9,28 +9,24 @@
 Sprint 0 (COMPLETE)
 └── Epic 0: SQLite Removal [P0, 3-5 days]                  ← COMPLETE (356 files cleaned)
 
-Sprint 1 (Week of Mar 3)
-├── Epic 1: Frontend Security Hardening [P0, 3-5 days]     ← parallel with Sprint 0
-├── Epic 4: Observability Dashboard Fixes [P1, 1-2 weeks]  ← can parallel
-└── Epic 6 Story 1: Phase 3 Prerequisites [P1, 4h]
+Sprint 1.5 (Mar 2 — Agent Team Blitz) ← ALL COMPLETE
+├── Epic 1: Frontend Security Hardening [P0]                ← COMPLETE (6 stories, 14 files)
+├── Epic 4: Observability Dashboard Fixes [P1]              ← COMPLETE (8 stories, 35 tests)
+├── Epic 9.3: TAPPS CI Integration [P1]                     ← COMPLETE (quality-gate.yml)
+├── Epic 10: Browser Review AI UI [P1]                      ← COMPLETE (4/4 stories)
+├── Epic 11: Browser Review Health Dashboard [P1]           ← COMPLETE (5/5 stories)
+├── Epic 2: Health Dashboard Quality [P1]                   ← COMPLETE (8 stories)
+├── Epic 3: AI Automation UI Quality [P1]                   ← COMPLETE (8 stories)
+├── Epic 6: Backend Completion (ML + Tests) [P1]            ← COMPLETE (7 stories)
+├── Epic 7: Feature Gaps [P2]                               ← COMPLETE (6 stories)
+├── Epic 8: Production Deployment Scripts [P1]              ← COMPLETE (8 stories)
+├── Epics 12-14: Shared Library Standardization [P1-P2]     ← COMPLETE (10 stories)
+└── Epic 5: Frontend Framework Upgrades [P2]                ← PARTIAL (package.json not updated)
 
-Sprint 2 (Mar 10-21)
-├── Epic 2: Health Dashboard Quality [P1, 2-3 weeks]
-├── Epic 3: AI Automation UI Quality [P1, 2-3 weeks]
-└── Epic 6 Stories 5-7: Test Stub Cleanup [P2, 4 days]
-
-Sprint 3 (Mar 17-28) — overlaps Sprint 2
-├── Epic 6 Stories 2-4: ML Library Upgrades [P1, 8 days]
-└── Epic 8: Production Deployment [P1, 2 weeks]            ← after security hardening
-
-Sprint 4 (Apr — future)
-├── Epic 5: Frontend Framework Upgrades [P2, 3-4 weeks]
-└── Epic 7: Feature Gaps [P2-P3, 4-6 weeks]
-
-Sprint 5 (Apr-May — Shared Library Standardization)
-├── Epic 12: Core Service Bootstrap [P1, 3-4 weeks]  ← HealthCheck, AppFactory, Settings, Lifespan
-├── Epic 13: External Connectors [P1, 2-3 weeks]     ← InfluxDB, DataAPI, HTTP, OpenAI
-└── Epic 14: Background Processing [P2, 1-2 weeks]   ← TaskManager, Scheduler
+Post-Blitz Remaining
+├── Epic 5: React 19 / Vite / Tailwind 4 upgrades          ← needs npm install + testing
+├── Epic 8: Actual deployment execution                     ← scripts ready, needs go/no-go
+└── Epics 12-14: Full service migration (5 POC done)        ← remaining ~30 services
 ```
 
 ## Epic Summary
@@ -38,20 +34,20 @@ Sprint 5 (Apr-May — Shared Library Standardization)
 | # | Epic | File | Priority | Stories | Duration | Status |
 |---|------|------|----------|---------|----------|--------|
 | 0 | [SQLite Removal](epic-sqlite-removal.md) | `epic-sqlite-removal.md` | **P0 Critical** | 10 | 3-5 days | **Complete** |
-| 1 | [Frontend Security Hardening](epic-frontend-security-hardening.md) | `epic-frontend-security-hardening.md` | **P0 Critical** | 6 | 3-5 days | Open |
-| 2 | [Health Dashboard Quality](epic-health-dashboard-quality.md) | `epic-health-dashboard-quality.md` | P1 High | 8 | 2-3 weeks | Open |
-| 3 | [AI Automation UI Quality](epic-ai-automation-ui-quality.md) | `epic-ai-automation-ui-quality.md` | P1 High | 8 | 2-3 weeks | Open |
-| 4 | [Observability Dashboard Fixes](epic-observability-dashboard-fixes.md) | `epic-observability-dashboard-fixes.md` | P1 High | 8 | 1-2 weeks | Open |
-| 5 | [Frontend Framework Upgrades](epic-frontend-framework-upgrades.md) | `epic-frontend-framework-upgrades.md` | P2 Medium | 5 | 3-4 weeks | Open |
-| 6 | [Backend Completion](epic-backend-completion.md) | `epic-backend-completion.md` | P1 High | 7 | 2-3 weeks | Open |
-| 7 | [Feature Gaps](epic-feature-gaps.md) | `epic-feature-gaps.md` | P2 Medium | 6 | 4-6 weeks | Open |
-| 8 | [Production Deployment](epic-production-deployment.md) | `epic-production-deployment.md` | P1 High | 8 | 2 weeks | Open |
-| 9 | [TAPPS Quality Gate Compliance](epic-tapps-quality-gate-compliance.md) | `epic-tapps-quality-gate-compliance.md` | P1 High | 3 | 1 week | **In Progress** (2/3) |
-| 10 | [Browser Review – AI Automation UI](epic-browser-review-ai-automation-ui.md) | `epic-browser-review-ai-automation-ui.md` | P1 High | 4 | 2-3 weeks | **In Progress** (2/4) |
-| 11 | [Browser Review – Health Dashboard](epic-browser-review-health-dashboard.md) | `epic-browser-review-health-dashboard.md` | P1 High | 5 | 2-3 weeks | **In Progress** (2/5) |
-| 12 | [Core Service Bootstrap Standardization](epic-core-service-bootstrap-standardization.md) | `epic-core-service-bootstrap-standardization.md` | P1 High | 4 | 3-4 weeks | Open |
-| 13 | [External Service Connector Standardization](epic-external-service-connector-standardization.md) | `epic-external-service-connector-standardization.md` | P1 High | 4 | 2-3 weeks | Open |
-| 14 | [Background Processing Standardization](epic-background-processing-standardization.md) | `epic-background-processing-standardization.md` | P2 Medium | 2 | 1-2 weeks | Open |
+| 1 | [Frontend Security Hardening](epic-frontend-security-hardening.md) | `epic-frontend-security-hardening.md` | **P0 Critical** | 6 | 3-5 days | **Complete** |
+| 2 | [Health Dashboard Quality](epic-health-dashboard-quality.md) | `epic-health-dashboard-quality.md` | P1 High | 8 | 2-3 weeks | **Complete** |
+| 3 | [AI Automation UI Quality](epic-ai-automation-ui-quality.md) | `epic-ai-automation-ui-quality.md` | P1 High | 8 | 2-3 weeks | **Complete** |
+| 4 | [Observability Dashboard Fixes](epic-observability-dashboard-fixes.md) | `epic-observability-dashboard-fixes.md` | P1 High | 8 | 1-2 weeks | **Complete** |
+| 5 | [Frontend Framework Upgrades](epic-frontend-framework-upgrades.md) | `epic-frontend-framework-upgrades.md` | P2 Medium | 5 | 3-4 weeks | **Partial** (code ready, npm untested) |
+| 6 | [Backend Completion](epic-backend-completion.md) | `epic-backend-completion.md` | P1 High | 7 | 2-3 weeks | **Complete** |
+| 7 | [Feature Gaps](epic-feature-gaps.md) | `epic-feature-gaps.md` | P2 Medium | 6 | 4-6 weeks | **Complete** |
+| 8 | [Production Deployment](epic-production-deployment.md) | `epic-production-deployment.md` | P1 High | 8 | 2 weeks | **Complete** (scripts ready) |
+| 9 | [TAPPS Quality Gate Compliance](epic-tapps-quality-gate-compliance.md) | `epic-tapps-quality-gate-compliance.md` | P1 High | 3 | 1 week | **Complete** |
+| 10 | [Browser Review – AI Automation UI](epic-browser-review-ai-automation-ui.md) | `epic-browser-review-ai-automation-ui.md` | P1 High | 4 | 2-3 weeks | **Complete** |
+| 11 | [Browser Review – Health Dashboard](epic-browser-review-health-dashboard.md) | `epic-browser-review-health-dashboard.md` | P1 High | 5 | 2-3 weeks | **Complete** |
+| 12 | [Core Service Bootstrap Standardization](epic-core-service-bootstrap-standardization.md) | `epic-core-service-bootstrap-standardization.md` | P1 High | 4 | 3-4 weeks | **Complete** (5 POC services migrated) |
+| 13 | [External Service Connector Standardization](epic-external-service-connector-standardization.md) | `epic-external-service-connector-standardization.md` | P1 High | 4 | 2-3 weeks | **Complete** (libs created + tested) |
+| 14 | [Background Processing Standardization](epic-background-processing-standardization.md) | `epic-background-processing-standardization.md` | P2 Medium | 2 | 1-2 weeks | **Complete** (libs created + tested) |
 
 ## Story Count by Priority
 
