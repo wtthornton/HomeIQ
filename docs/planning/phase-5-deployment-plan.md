@@ -92,27 +92,27 @@ Phase 5 Deployment Window: March 5-9, 2026 (off-peak hours)
 | ai-training-service | 8033 | /health | ml-engine |
 | automation-linter | 8016 | /health | automation-core |
 | ha-ai-agent-service | 8030 | /health | automation-core |
-| automation-trace-service | 8031 | /health | automation-core |
-| ai-code-executor | 8032 | /health | automation-core |
+| automation-trace-service | 8044 | /health | automation-core |
+| ai-code-executor | (internal only) | /health | automation-core |
 | blueprint-suggestion-service | 8039 | /health | blueprints |
 | blueprint-index | 8038 | /health | blueprints |
 | automation-miner | 8029 | /health | blueprints |
 | energy-correlator | 8017 | /health | energy-analytics |
-| energy-forecasting | 8024 | /health | energy-analytics |
+| energy-forecasting | 8042 | /api/v1/health | energy-analytics |
 | device-health-monitor | 8019 | /health | device-management |
 | device-database-client | 8022 | /health | device-management |
 | device-recommender | 8023 | /health | device-management |
 | device-setup-assistant | 8021 | /health | device-management |
 | device-context-classifier | 8032 | /health | device-management |
-| activity-writer | 8033 | /health | device-management |
-| ha-setup-service | 8034 | /health | device-management |
+| activity-writer | 8045 | /health | device-management |
+| ha-setup-service | 8024 | /health | device-management |
 
 **Pre-Deployment Health Check Script:**
 
 ```bash
 #!/bin/bash
 # Run before Phase 5 deployment
-# Location: scripts/pre-deployment-health-check.sh
+# Location: scripts/pre-deployment-check.sh
 
 SERVICES=(
   "websocket-ingestion:8001"
@@ -1090,7 +1090,51 @@ Post-Deployment:
 
 ---
 
+## Deployment Scripts Reference
+
+All deployment automation scripts are located in `scripts/`:
+
+| Script | Purpose |
+|---|---|
+| `scripts/pre-deployment-check.sh` | Pre-deployment validation gate (health, tests, Docker, databases) |
+| `scripts/deploy-tier1.sh` | Tier 1: Core infrastructure (InfluxDB, PostgreSQL, websocket, data-api, admin-api) |
+| `scripts/deploy-tier2.sh` | Tier 2: Essential services (health-dashboard, data-retention, data-collectors) |
+| `scripts/deploy-tier3.sh` | Tier 3: ML/AI services (extended timeout for model loading) |
+| `scripts/deploy-tiers4-8.sh` | Tiers 4-8: Domain services (automation, blueprints, energy, devices, patterns) |
+| `scripts/deploy-tier9.sh` | Tier 9: Frontends & observability (Jaeger, dashboards, UI) |
+| `scripts/post-deployment-monitor.sh` | Phase 6: 48-hour continuous monitoring with alerts |
+| `scripts/deployment/common.sh` | Shared functions (logging, health checks, gate checks, rollback) |
+
+### Port Corrections (March 2, 2026)
+
+The following ports were corrected from the original plan to match actual `compose.yml` mappings:
+
+- `automation-trace-service`: 8031 -> **8044** (external port mapping: 8044:8020)
+- `energy-forecasting`: 8024 -> **8042** (external port mapping: 8042:8037, health: `/api/v1/health`)
+- `activity-writer`: 8033 -> **8045** (external port mapping: 8045:8035)
+- `ha-setup-service`: 8034 -> **8024** (external port mapping: 8024:8020)
+- `ai-code-executor`: 8032 -> **internal only** (uses `expose`, no published port)
+
+### Additional Services Not in Original Plan
+
+These services have health endpoints but were not listed in the original 33:
+
+- `rag-service` (port 8027, ml-engine)
+- `openai-service` (port 8020, ml-engine)
+- `ai-automation-service-new` (port 8036, automation-core)
+- `ai-query-service` (port 8035, automation-core)
+- `yaml-validation-service` (port 8037, automation-core)
+- `rule-recommendation-ml` (port 8040, blueprints — health: `/api/v1/health`)
+- `proactive-agent-service` (port 8031, energy-analytics)
+- `activity-recognition` (port 8043, device-management)
+- `ai-pattern-service` (port 8034, pattern-analysis)
+- `api-automation-edge` (port 8041, pattern-analysis)
+
+Total services with health endpoints: **42+** (not 33 as originally estimated).
+
+---
+
 **Status:** READY FOR EXECUTION
 **Approved By:** [To be signed]
-**Last Updated:** February 27, 2026
+**Last Updated:** March 2, 2026
 **Next Review:** March 5, 2026
