@@ -6,10 +6,29 @@ on:
   pull_request:
     paths:
       - "**.py"
+  workflow_dispatch:
+    inputs:
+      preset:
+        description: "Quality preset (standard, strict, framework)"
+        required: false
+        default: "staging"
+        type: choice
+        options:
+          - standard
+          - strict
+          - framework
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tapps-quality-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,12 +40,23 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install TappsMCP
-        run: pip install tapps-mcp
+      - name: Install TappsMCP and checkers
+        run: |
+          pip install tapps-mcp
+          pip install ruff mypy bandit radon vulture
 
       - name: Run TappsMCP quality gate
         env:
           TAPPS_MCP_PROJECT_ROOT: ${{ github.workspace }}
         run: |
           tapps-mcp validate-changed \
-            --preset staging
+            --preset ${{ inputs.preset || 'staging' }}
+
+      - name: Upload quality report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tapps-quality-report
+          path: .tapps-mcp/reports/
+          retention-days: 30
+          if-no-files-found: ignore

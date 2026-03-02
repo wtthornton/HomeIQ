@@ -46,8 +46,8 @@ services:
 
   energy-forecasting:
     build:
-      context: energy-forecasting
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: domains/energy-analytics/energy-forecasting/Dockerfile
     container_name: homeiq-energy-forecasting
     restart: unless-stopped
     ports:

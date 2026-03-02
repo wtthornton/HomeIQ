@@ -71,8 +71,8 @@ services:
 
   ner-service:
     build:
-      context: ../archive/2025-q4/ai-automation-service
-      dockerfile: docker/ner-service.Dockerfile
+      context: ../..
+      dockerfile: domains/ml-engine/ner-service/Dockerfile
     container_name: homeiq-ner-service
     restart: unless-stopped
     expose:
@@ -102,8 +102,8 @@ services:
 
   openai-service:
     build:
-      context: ../archive/2025-q4/ai-automation-service
-      dockerfile: docker/openai-service.Dockerfile
+      context: ../..
+      dockerfile: domains/ml-engine/openai-service/Dockerfile
     container_name: homeiq-openai-service
     restart: unless-stopped
     ports:
@@ -250,7 +250,7 @@ services:
     volumes:
       - ai_automation_data:/app/data
       - ai_automation_models:/app/models
-      - ../archive/2025-q4/ai-automation-service/scripts:/app/scripts:ro
+      - ./ai-training-service/scripts:/app/scripts:ro
     networks:
       - homeiq-network
     deploy:

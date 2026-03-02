@@ -9,8 +9,8 @@
 services:
   blueprint-index:
     build:
-      context: blueprint-index
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: domains/blueprints/blueprint-index/Dockerfile
     container_name: homeiq-blueprint-index
     restart: unless-stopped
     ports:
@@ -96,8 +96,8 @@ services:
 
   rule-recommendation-ml:
     build:
-      context: rule-recommendation-ml
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: domains/blueprints/rule-recommendation-ml/Dockerfile
     container_name: homeiq-rule-recommendation-ml
     restart: unless-stopped
     ports:

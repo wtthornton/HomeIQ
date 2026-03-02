@@ -6,7 +6,8 @@ Phase 1.1: Enhanced with device intelligence fields
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, String, Text
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from ..database import Base
@@ -33,7 +34,7 @@ class Device(Base):
     suggested_area = Column(String)  # Suggested area for device
 
     # Device Registry 2025 Attributes (Phase 2-3 Implementation)
-    labels = Column(JSON)  # Array of label IDs for organizational filtering
+    labels = Column(JSONB)  # Array of label IDs for organizational filtering
     serial_number = Column(String, nullable=True)  # Optional serial number (if available from integration)
     model_id = Column(String, nullable=True)  # Optional model ID (manufacturer identifier, may differ from model)
 

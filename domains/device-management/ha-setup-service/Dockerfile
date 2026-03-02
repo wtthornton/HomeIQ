@@ -9,12 +9,7 @@ RUN apk add --no-cache gcc musl-dev libffi-dev
 
 WORKDIR /app
 
-# Copy requirements and install dependencies with cache mount
-COPY requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --user -r requirements.txt
-
-# Install shared libs
+# Install shared libs first
 COPY libs/ /tmp/libs/
 RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-patterns/ \
@@ -22,6 +17,11 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-observability/ \
     /tmp/libs/homeiq-data/ \
     /tmp/libs/homeiq-ha/
+
+# Copy requirements and install dependencies with cache mount
+COPY domains/device-management/ha-setup-service/requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -r requirements.txt
 
 # Production stage
 FROM python:3.12-alpine
@@ -34,9 +34,13 @@ WORKDIR /app
 
 # Copy dependencies from builder
 COPY --from=builder /root/.local /home/appuser/.local
-COPY --chown=appuser:appuser . .
 
-# Create data directory for SQLite database
+# Copy application code
+COPY --chown=appuser:appuser domains/device-management/ha-setup-service/src/ ./src/
+COPY --chown=appuser:appuser domains/device-management/ha-setup-service/alembic/ ./alembic/
+COPY --chown=appuser:appuser domains/device-management/ha-setup-service/alembic.ini ./alembic.ini
+
+# Create data directory
 RUN mkdir -p /app/data && chown -R appuser:appuser /app/data
 
 # Set environment variables

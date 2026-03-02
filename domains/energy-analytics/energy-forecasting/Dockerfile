@@ -12,11 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install CPU-only PyTorch first to reduce image size (~1.5GB savings)
 RUN pip install --no-cache-dir --user torch --index-url https://download.pytorch.org/whl/cpu
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-# Install shared libs
+# Install shared libs first
 COPY libs/ /tmp/libs/
 RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-patterns/ \
@@ -25,6 +21,9 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-data/ \
     /tmp/libs/homeiq-ha/
 
+# Install Python dependencies
+COPY domains/energy-analytics/energy-forecasting/requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
 
 FROM python:3.12-slim as runtime
 
@@ -38,7 +37,7 @@ COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
 # Copy application code
-COPY src/ ./src/
+COPY domains/energy-analytics/energy-forecasting/src/ ./src/
 
 # Create models directory (models are mounted at runtime via volume)
 RUN mkdir -p /app/models

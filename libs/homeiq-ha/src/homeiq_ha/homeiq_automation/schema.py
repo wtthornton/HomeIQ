@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from shared.yaml_validation_service.schema import AutomationMode, MaxExceeded
+from homeiq_ha.yaml_validation_service.schema import AutomationMode, MaxExceeded
 
 
 class TimeConstraints(BaseModel):

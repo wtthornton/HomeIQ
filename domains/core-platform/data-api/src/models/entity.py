@@ -6,7 +6,8 @@ Epic 2025: Enhanced with Entity Registry name fields and capabilities
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from ..database import Base
@@ -40,8 +41,8 @@ class Entity(Base):
 
     # Entity Capabilities (2025 HA API)
     supported_features = Column(Integer)  # Bitmask of supported features (from attributes.supported_features)
-    capabilities = Column(JSON)  # Parsed capabilities list (brightness, color, effect, etc.)
-    available_services = Column(JSON)  # List of available service calls for this entity (e.g., ["light.turn_on", "light.turn_off", "light.toggle"])
+    capabilities = Column(JSONB)  # Parsed capabilities list (brightness, color, effect, etc.)
+    available_services = Column(JSONB)  # List of available service calls for this entity (e.g., ["light.turn_on", "light.turn_off", "light.toggle"])
 
     # Entity Attributes
     icon = Column(String)  # Current icon (from Entity Registry, may be user-customized)
@@ -50,9 +51,9 @@ class Entity(Base):
     unit_of_measurement = Column(String)  # Unit of measurement for sensors
 
     # Entity Registry 2025 Attributes (Phase 1-2 Implementation)
-    aliases = Column(JSON)  # Array of alternative names for entity resolution
-    labels = Column(JSON)  # Array of label IDs for organizational filtering
-    options = Column(JSON)  # Entity-specific options/config (e.g., default brightness, preferred colors)
+    aliases = Column(JSONB)  # Array of alternative names for entity resolution
+    labels = Column(JSONB)  # Array of label IDs for organizational filtering
+    options = Column(JSONB)  # Entity-specific options/config (e.g., default brightness, preferred colors)
 
     # Source tracking
     config_entry_id = Column(String, index=True)  # Config entry ID (source tracking)

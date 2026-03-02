@@ -10,11 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-# Install shared libs
+# Install shared libs first
 COPY libs/ /tmp/libs/
 RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-patterns/ \
@@ -22,6 +18,10 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-observability/ \
     /tmp/libs/homeiq-data/ \
     /tmp/libs/homeiq-ha/
+
+# Install Python dependencies
+COPY domains/device-management/activity-recognition/requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
 
 
 FROM python:3.12-slim as runtime
@@ -36,8 +36,8 @@ RUN groupadd -g 1001 appgroup && \
 COPY --from=builder /root/.local /home/appuser/.local
 
 # Copy application code and health check script
-COPY src/ ./src/
-COPY healthcheck.py ./healthcheck.py
+COPY domains/device-management/activity-recognition/src/ ./src/
+COPY domains/device-management/activity-recognition/healthcheck.py ./healthcheck.py
 
 # Create models directory
 RUN mkdir -p /app/models

@@ -10,11 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-# Install shared libs
+# Install shared libs first
 COPY libs/ /tmp/libs/
 RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-patterns/ \
@@ -22,6 +18,10 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-observability/ \
     /tmp/libs/homeiq-data/ \
     /tmp/libs/homeiq-ha/
+
+# Install Python dependencies
+COPY domains/blueprints/rule-recommendation-ml/requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
 
 
 FROM python:3.12-slim AS runtime
@@ -36,7 +36,7 @@ ENV PATH=/root/.local/bin:$PATH
 RUN mkdir -p /app/models
 
 # Copy application code
-COPY src/ ./src/
+COPY domains/blueprints/rule-recommendation-ml/src/ ./src/
 
 # Copy models if they exist (optional - models can be trained in container)
 # Models directory will be mounted as a volume in production

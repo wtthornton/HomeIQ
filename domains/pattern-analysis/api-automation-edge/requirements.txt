@@ -11,6 +11,7 @@ websockets>=12.0,<13.0.0
 sqlalchemy>=2.0.36,<2.1.0  # Phase 1: aligned
 alembic>=1.13.0,<2.0.0  # Phase 1: aligned
 asyncpg>=0.30.0  # Phase 1C: PostgreSQL migration
+psycopg2-binary>=2.9.0  # Sync PostgreSQL driver
 
 # Validation
 jsonschema>=4.20.0,<5.0.0
@@ -28,6 +29,7 @@ influxdb-client>=1.49.0,<2.0.0
 
 # Task Queue
 huey>=2.6.0,<3.0.0
+redis>=5.0.0,<6.0.0
 
 # Utilities
 python-dotenv>=1.0.0,<2.0.0  # Phase 2: standardized

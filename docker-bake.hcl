@@ -149,7 +149,7 @@ group "data-collectors" {
 
 # ──────────────────────────────────────────────
 # Group 3: ml-engine
-# ner-service and openai-service build from archive Dockerfiles
+# ner-service and openai-service now have proper Dockerfiles
 # ──────────────────────────────────────────────
 
 target "openvino-service" {
@@ -168,14 +168,14 @@ target "ml-service" {
 
 target "ner-service" {
   context    = "."
-  dockerfile = "domains/archive/2025-q4/ai-automation-service/docker/ner-service.Dockerfile"
+  dockerfile = "domains/ml-engine/ner-service/Dockerfile"
   tags       = ["homeiq/ner-service:latest"]
   labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
 }
 
 target "openai-service" {
   context    = "."
-  dockerfile = "domains/archive/2025-q4/ai-automation-service/docker/openai-service.Dockerfile"
+  dockerfile = "domains/ml-engine/openai-service/Dockerfile"
   tags       = ["homeiq/openai-service:latest"]
   labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
 }

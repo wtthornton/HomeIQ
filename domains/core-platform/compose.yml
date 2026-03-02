@@ -109,7 +109,8 @@ services:
       - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-production}
       - OTLP_ENDPOINT=http://jaeger:4317
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
-    volumes:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - DATABASE_SCHEMA=core
     depends_on:
       influxdb:
         condition: service_healthy

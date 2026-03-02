@@ -14,13 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for layer caching
-COPY requirements.txt .
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Install shared libs
+# Install shared libs first
 COPY libs/ /tmp/libs/
 RUN pip install --no-cache-dir \
     /tmp/libs/homeiq-patterns/ \
@@ -29,8 +23,12 @@ RUN pip install --no-cache-dir \
     /tmp/libs/homeiq-data/ \
     /tmp/libs/homeiq-ha/
 
+# Copy requirements and install
+COPY domains/blueprints/blueprint-index/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 # Copy application code
-COPY src/ ./src/
+COPY domains/blueprints/blueprint-index/src/ ./src/
 
 # Create data directory
 RUN mkdir -p /app/data

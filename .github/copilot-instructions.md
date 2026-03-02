@@ -1,34 +1,38 @@
-# TappsMCP Quality Tools
+# Copilot Instructions
 
-This project uses TappsMCP for code quality analysis. When TappsMCP is
-available as an MCP server (configured in `.vscode/mcp.json`), use the
-following tools to maintain code quality throughout development.
+This project uses **TappsMCP** (Code Quality MCP Server) for automated
+quality analysis. When TappsMCP is available as an MCP server, follow
+the pipeline below.
 
-## Key Tools
+## TappsMCP Quality Pipeline
 
-- `tapps_session_start` — Initialize a TappsMCP session at the start of
-  each work session. Call this first.
-- `tapps_quick_check` — Run a quick quality check on a single file after
-  editing. Returns score and top issues.
-- `tapps_quality_gate` — Run a pass/fail quality gate against a configurable
-  preset (development, staging, or production).
-- `tapps_validate_changed` — Validate all changed files against the quality
-  gate. Call this before declaring work complete.
-- `tapps_consult_expert` — Consult a domain expert (security, performance,
-  architecture, testing, and more) for guidance.
-- `tapps_score_file` — Get a detailed 7-category quality score for any file.
+### Stage 1: Discover
+- Run `tapps_session_start` at the beginning of each session
+- Use `tapps_project_profile` to understand the tech stack
 
-## Workflow
+### Stage 2: Research
+- Use `tapps_lookup_docs` to verify library API signatures
+- Use `tapps_consult_expert` for architecture/security decisions
+- Use `tapps_impact_analysis` before refactoring
 
-1. Start a session: call `tapps_session_start`
-2. After editing Python files: call `tapps_quick_check` on changed files
-3. Before creating a PR or declaring work complete: call
-   `tapps_validate_changed`
-4. For domain-specific guidance: call `tapps_consult_expert` with the
-   relevant domain
+### Stage 3: Develop
+- After editing Python files, run `tapps_quick_check`
+- If quick check flags issues, run `tapps_score_file` for details
+- Fix issues before moving to the next file
 
-## Quality Scoring Categories
+### Stage 4: Validate
+- Run `tapps_validate_changed` before declaring work complete
+- Run `tapps_security_scan` on security-sensitive files
+- Ensure overall score >= 70 and no HIGH security findings
 
-TappsMCP scores code across 7 categories (0-100 each):
-correctness, security, maintainability, performance, documentation,
-testing, and style.
+### Stage 5: Verify
+- Run `tapps_quality_gate` for pass/fail verdict
+- Run `tapps_checklist` to confirm all steps were completed
+
+## Code Standards
+
+- Python 3.12+ with `from __future__ import annotations`
+- Type annotations on all functions (`mypy --strict`)
+- `structlog` for logging, `pathlib.Path` for file paths
+- `ruff` for linting and formatting (line length: 100)
+- All file operations through the path validator

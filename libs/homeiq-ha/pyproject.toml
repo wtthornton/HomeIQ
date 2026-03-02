@@ -15,3 +15,7 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"homeiq_ha.homeiq_automation" = ["*.json"]
+"homeiq_ha.yaml_validation_service" = ["*.json"]

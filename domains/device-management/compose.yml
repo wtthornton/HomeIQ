@@ -211,8 +211,8 @@ services:
 
   activity-recognition:
     build:
-      context: activity-recognition
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: domains/device-management/activity-recognition/Dockerfile
     container_name: homeiq-activity-recognition
     restart: unless-stopped
     ports:
@@ -302,8 +302,8 @@ services:
 
   ha-setup-service:
     build:
-      context: ha-setup-service
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: domains/device-management/ha-setup-service/Dockerfile
     container_name: homeiq-setup-service
     restart: unless-stopped
     ports:
