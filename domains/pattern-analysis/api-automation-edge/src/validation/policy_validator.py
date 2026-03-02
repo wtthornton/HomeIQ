@@ -2,11 +2,12 @@
 Policy Gates
 
 Epic D3: Risk levels, quiet hours, manual overrides
+Epic 7, Story 5b: Area-scoped override filtering via entity->area lookup
 
 This module provides policy validation for automation specs, including:
 - Risk level checks (low/medium/high)
 - Quiet hours enforcement (time-based constraints)
-- Manual override TTL checks
+- Manual override TTL checks with area-scoped filtering
 - Confirmation workflow hooks for high-risk automations
 
 Performance optimizations:
@@ -65,17 +66,24 @@ class PolicyValidator:
         >>> assert is_allowed is True
     """
 
-    def __init__(self):
+    def __init__(self, entity_area_map: dict[str, str] | None = None):
         """
         Initialize policy validator.
 
         Creates a new validator instance with empty manual override tracking.
         Manual overrides are tracked per-entity and automatically expire
         based on their TTL.
+
+        Args:
+            entity_area_map: Optional mapping of entity_id -> area_id for
+                area-scoped override filtering. When provided, area-based
+                overrides correctly filter to entities in the specified area.
         """
         # Manual override tracking (entity_id -> override_until timestamp)
         # Timestamps are Unix epoch seconds
         self.manual_overrides: dict[str, float] = {}
+        # Entity-to-area mapping for area-scoped overrides (Story 5b)
+        self._entity_area_map: dict[str, str] = entity_area_map or {}
 
     def validate_risk_level(
         self,
@@ -285,11 +293,19 @@ class PolicyValidator:
 
         return True, None
 
+    def update_entity_area_map(self, entity_area_map: dict[str, str]) -> None:
+        """Update the entity-to-area mapping.
+
+        Args:
+            entity_area_map: Mapping of entity_id -> area_id.
+        """
+        self._entity_area_map = entity_area_map
+
     def _check_override_scope(
         self,
         scope: str,
         entity_ids: list[str],
-        current_timestamp: float
+        current_timestamp: float,
     ) -> tuple[str, float] | None:
         """
         Check manual override for entities based on scope.
@@ -302,10 +318,13 @@ class PolicyValidator:
         Returns:
             Tuple of (entity_id, remaining_seconds) if override found, None otherwise
         """
-        if "area:" in scope:
-            # TODO: Implement area-based filtering when area mapping is available
-            # For now, check all entities (conservative approach)
+        if scope.startswith("area:"):
+            # Area-scoped override: only check entities in the specified area
+            target_area = scope[5:].strip().lower()
             for entity_id in entity_ids:
+                entity_area = self._entity_area_map.get(entity_id, "").lower()
+                if entity_area != target_area:
+                    continue
                 override_until = self.manual_overrides.get(entity_id, 0)
                 if current_timestamp < override_until:
                     remaining = override_until - current_timestamp

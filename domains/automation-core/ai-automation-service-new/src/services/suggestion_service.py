@@ -2,6 +2,7 @@
 Suggestion Service
 
 Epic 39, Story 39.10: Automation Service Foundation
+Epic 7, Story 1: Pattern Detection Integration (Story 39.13)
 Core service for generating and managing automation suggestions.
 """
 
@@ -14,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.data_api_client import DataAPIClient
 from ..clients.openai_client import OpenAIClient
+from ..clients.pattern_service_client import PatternServiceClient
 from ..database.models import Suggestion
 
 logger = logging.getLogger(__name__)
@@ -24,14 +26,19 @@ class SuggestionService:
     Service for generating and managing automation suggestions.
 
     Features:
-    - Generate suggestions from patterns
+    - Generate suggestions from detected patterns (Story 39.13)
+    - Fall back to raw events when pattern service unavailable
     - List and filter suggestions
     - Store suggestions in database
     - Track usage statistics
     """
 
     def __init__(
-        self, db: AsyncSession, data_api_client: DataAPIClient, openai_client: OpenAIClient
+        self,
+        db: AsyncSession,
+        data_api_client: DataAPIClient,
+        openai_client: OpenAIClient,
+        pattern_client: PatternServiceClient | None = None,
     ):
         """
         Initialize suggestion service.
@@ -40,10 +47,12 @@ class SuggestionService:
             db: Database session
             data_api_client: Client for fetching data from Data API
             openai_client: Client for generating suggestions via OpenAI
+            pattern_client: Optional client for fetching detected patterns
         """
         self.db = db
         self.data_api_client = data_api_client
         self.openai_client = openai_client
+        self.pattern_client = pattern_client or PatternServiceClient()
 
     async def generate_suggestions(
         self, pattern_ids: list[str] | None = None, days: int = 30, limit: int = 10
@@ -89,49 +98,77 @@ class SuggestionService:
                 )
                 return []
 
-            # TODO: Epic 39, Story 39.13 - Integrate with pattern detection service
-            # Current: Generate suggestions directly from events
-            # Future: Use detected patterns from pattern-detection-service for better suggestions
+            # Story 39.13: Fetch detected patterns from ai-pattern-service
+            patterns: list[dict[str, Any]] = []
+            try:
+                patterns = await self.pattern_client.fetch_patterns(
+                    min_confidence=0.5, limit=limit,
+                )
+                if patterns:
+                    logger.info(f"Using {len(patterns)} detected patterns for suggestion generation")
+            except Exception as e:
+                logger.warning(f"AI FALLBACK: Pattern service unavailable ({e}), using raw events")
 
             suggestions = []
 
-            # Calculate how many suggestions we can generate (1 per 100 events)
-            max_suggestions = len(events) // 100
-            actual_limit = min(limit, max_suggestions)
-            logger.info(
-                f"Can generate up to {max_suggestions} suggestions, requested {limit}, will generate {actual_limit}"
-            )
+            if patterns:
+                # Pattern-enriched path: generate suggestions from detected patterns
+                actual_limit = min(limit, len(patterns))
+                logger.info(f"Generating {actual_limit} suggestions from {len(patterns)} patterns")
 
-            if actual_limit == 0:
-                logger.warning(
-                    f"Insufficient events for suggestion generation: {len(events)} events available, need at least 100 (can generate {max_suggestions} suggestions)"
+                for i in range(actual_limit):
+                    try:
+                        pattern = patterns[i]
+                        description = await self.openai_client.generate_suggestion_description(
+                            pattern_data={
+                                "pattern": pattern,
+                                "pattern_type": pattern.get("pattern_type", "unknown"),
+                                "confidence": pattern.get("confidence", 0.0),
+                                "metadata": pattern.get("metadata", {}),
+                                "device_id": pattern.get("device_id"),
+                            }
+                        )
+                        suggestion = {
+                            "title": f"Automation Suggestion {i + 1}",
+                            "description": description,
+                            "status": "draft",
+                        }
+                        suggestions.append(suggestion)
+                        logger.debug(f"Generated pattern-based suggestion {i + 1}/{actual_limit}")
+                    except Exception as e:
+                        logger.error(f"Failed to generate suggestion {i + 1} from pattern: {e}")
+                        continue
+            else:
+                # Fallback path: generate suggestions from raw events
+                max_suggestions = len(events) // 100
+                actual_limit = min(limit, max_suggestions)
+                logger.info(
+                    f"Fallback: generating up to {actual_limit} suggestions from {len(events)} events"
                 )
-                return []
 
-            # Generate suggestions using OpenAI
-            for i in range(actual_limit):
-                try:
-                    # Get batch of events for this suggestion
-                    event_batch = events[i * 100 : (i + 1) * 100]
-
-                    # Generate description using OpenAI
-                    description = await self.openai_client.generate_suggestion_description(
-                        pattern_data={"events": event_batch}
+                if actual_limit == 0:
+                    logger.warning(
+                        f"Insufficient events for suggestion generation: {len(events)} events "
+                        f"available, need at least 100"
                     )
+                    return []
 
-                    # Create suggestion dictionary (matches Suggestion model fields)
-                    suggestion = {
-                        "title": f"Automation Suggestion {i + 1}",
-                        "description": description,
-                        "status": "draft",
-                    }
-                    suggestions.append(suggestion)
-
-                    logger.debug(f"Generated suggestion {i + 1}/{actual_limit}")
-
-                except Exception as e:
-                    logger.error(f"Failed to generate suggestion {i + 1}: {e}")
-                    continue
+                for i in range(actual_limit):
+                    try:
+                        event_batch = events[i * 100 : (i + 1) * 100]
+                        description = await self.openai_client.generate_suggestion_description(
+                            pattern_data={"events": event_batch}
+                        )
+                        suggestion = {
+                            "title": f"Automation Suggestion {i + 1}",
+                            "description": description,
+                            "status": "draft",
+                        }
+                        suggestions.append(suggestion)
+                        logger.debug(f"Generated event-based suggestion {i + 1}/{actual_limit}")
+                    except Exception as e:
+                        logger.error(f"Failed to generate suggestion {i + 1}: {e}")
+                        continue
 
             # Store suggestions in database
             stored_suggestions = []

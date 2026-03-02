@@ -63,7 +63,7 @@ All implementation work is tracked across 5 epics:
 ### Completion Timeline
 
 - **Epics 1-5:** Completed February 2026 (all 12 Epic 5 stories done — 47/49 services healthy, 704 tests passing, 70 Python files validated)
-- **Phase 3 CI/CD:** 6/7 steps complete (steps 3.1-3.6 implemented, step 3.5 done 2026-02-27). Remaining: step 3.7 (deprecate monolithic `test.yml`)
+- **Phase 3 CI/CD:** 7/7 steps complete (steps 3.1-3.7 all done). `test.yml` refactored 2026-02-25: python-tests matrix removed, E2E + integration jobs retained
 - **Phase 4 Resilience:** 7/7 steps complete (4.1-4.4 done Feb 2026, 4.5-4.7 done 2026-02-27)
 
 ---
@@ -480,7 +480,7 @@ from homeiq_patterns import RAGContextService, UnifiedValidationRouter, PostActi
 
 **Goal:** Each group gets its own CI pipeline. Changes to Group 2 don't trigger Group 3 builds. Shared library changes cascade to all dependent groups.
 
-> **Status Note (Feb 2026):** Steps 3.1-3.6 are implemented. 9 domain CI workflows + reusable template + shared lib cascade + cross-group integration tests all exist in `.github/workflows/`. Remaining: step 3.7 (deprecate monolithic `test.yml`).
+> **Status Note (Feb 2026):** All 7 steps (3.1-3.7) are complete. 9 domain CI workflows + reusable template + shared lib cascade + cross-group integration tests all exist in `.github/workflows/`. Step 3.7 done 2026-02-25: `test.yml` refactored (python-tests matrix removed, E2E + integration jobs retained).
 
 > **Best Practice Note:** Use reusable workflows to avoid duplication, concurrency groups to cancel superseded runs, and `workflow_dispatch` for cascade rebuilds. See [GitHub Actions Monorepo Guide](https://oneuptime.com/blog/post/2026-02-02-github-actions-monorepos/view) and [Monorepo Path Filters](https://oneuptime.com/blog/post/2025-12-20-monorepo-path-filters-github-actions/view).
 

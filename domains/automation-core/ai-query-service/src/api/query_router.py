@@ -22,6 +22,7 @@ from ..config import settings
 from ..database import get_db
 from ..database.models import AskAIQuery
 from ..services.clarification.service import ClarificationService
+from ..services.query.entity_extractor import EntityExtractor
 from ..services.query.processor import QueryProcessor
 from ..services.suggestion.generator import SuggestionGenerator
 
@@ -50,8 +51,10 @@ def _build_processor() -> QueryProcessor:
 
     clarification_service = ClarificationService()
     suggestion_generator = SuggestionGenerator(openai_client=openai_client)
+    entity_extractor = EntityExtractor()
 
     return QueryProcessor(
+        entity_extractor=entity_extractor,
         clarification_service=clarification_service,
         suggestion_generator=suggestion_generator,
     )

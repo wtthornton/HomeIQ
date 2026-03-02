@@ -2,14 +2,42 @@
 Target Resolution
 
 Epic D1: Resolve area/device_class selectors to concrete entities
+Epic 7, Story 5c: User target selector interface (blocked on user management)
 """
 
 import logging
-from typing import Any
+from typing import Any, Protocol
 
 from ..capability.capability_graph import CapabilityGraph
 
 logger = logging.getLogger(__name__)
+
+
+class UserEntityResolver(Protocol):
+    """Interface for resolving user identifiers to entity IDs.
+
+    Blocked: This requires a user management service that maps users to their
+    preferred/owned devices. Implement this protocol and pass an instance to
+    TargetResolver when user management is available.
+
+    Example implementation::
+
+        class HAUserEntityResolver:
+            async def resolve(self, user_id: str) -> list[str]:
+                # Query user management service for user's devices
+                return await user_mgmt_client.get_user_entities(user_id)
+    """
+
+    def resolve(self, user_id: str) -> list[str]:
+        """Resolve a user identifier to a list of entity IDs.
+
+        Args:
+            user_id: User identifier (username, email, or HA user ID).
+
+        Returns:
+            List of entity IDs associated with the user.
+        """
+        ...
 
 
 class TargetResolver:
@@ -36,12 +64,18 @@ class TargetResolver:
         >>> # Returns: ["light.living_room", "switch.living_room", ...]
     """
 
-    def __init__(self, capability_graph: CapabilityGraph):
+    def __init__(
+        self,
+        capability_graph: CapabilityGraph,
+        user_entity_resolver: UserEntityResolver | None = None,
+    ):
         """
         Initialize target resolver.
 
         Args:
             capability_graph: CapabilityGraph instance for entity lookups
+            user_entity_resolver: Optional resolver for user->entity mapping.
+                When None, user selectors return empty lists.
 
         Raises:
             TypeError: If capability_graph is not a CapabilityGraph instance
@@ -52,6 +86,7 @@ class TargetResolver:
                 f"got {type(capability_graph).__name__}"
             )
         self.capability_graph = capability_graph
+        self._user_resolver = user_entity_resolver
 
     def resolve_target(self, target: dict[str, Any]) -> list[str]:
         """
@@ -128,12 +163,19 @@ class TargetResolver:
                 logger.error(f"Failed to resolve device_class '{device_class}': {e}")
                 raise
 
-        # User selector (not yet implemented)
+        # User selector -- interface defined, blocked on user management system
+        # See Epic 7, Story 5c: This requires a user management service that maps
+        # users to their preferred/owned devices. When that service is available,
+        # implement UserEntityResolver and inject it into TargetResolver.__init__.
         elif "user" in target:
             user = target["user"]
-            logger.warning(f"User selector '{user}' not yet implemented - returning empty list")
-            # TODO: Implement user->entity mapping when user management is added
-            return []
+            entity_ids = self._resolve_user_entities(user)
+            if not entity_ids:
+                logger.warning(
+                    "User selector '%s' returned no entities -- user management "
+                    "integration not yet available", user,
+                )
+            return entity_ids
 
         else:
             logger.warning(f"Unknown target type: {list(target.keys())}")
@@ -141,6 +183,24 @@ class TargetResolver:
 
         # Remove duplicates while preserving order
         return self._deduplicate_entity_ids(entity_ids)
+
+    def _resolve_user_entities(self, user_id: str) -> list[str]:
+        """Resolve a user identifier to entity IDs via the user entity resolver.
+
+        Args:
+            user_id: User identifier string.
+
+        Returns:
+            List of entity IDs. Empty if no resolver is configured.
+        """
+        if self._user_resolver is None:
+            return []
+
+        try:
+            return self._user_resolver.resolve(user_id)
+        except Exception as e:
+            logger.error("Failed to resolve user '%s' to entities: %s", user_id, e)
+            return []
 
     def _deduplicate_entity_ids(self, entity_ids: list[str]) -> list[str]:
         """
