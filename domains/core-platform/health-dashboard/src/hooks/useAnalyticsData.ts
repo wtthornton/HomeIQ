@@ -67,14 +67,39 @@ export function useAnalyticsData(
     }
   }, [timeRange]);
 
-  // Initial fetch and auto-refresh
+  // Initial fetch and auto-refresh with visibility check
   useEffect(() => {
-    fetchAnalytics();
+    let interval: ReturnType<typeof setInterval> | null = null;
 
-    if (autoRefresh) {
-      const interval = setInterval(fetchAnalytics, refreshInterval);
-      return () => clearInterval(interval);
-    }
+    const startPolling = () => {
+      fetchAnalytics();
+      if (autoRefresh) {
+        interval = setInterval(fetchAnalytics, refreshInterval);
+      }
+    };
+
+    const stopPolling = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [fetchAnalytics, autoRefresh, refreshInterval]);
 
   return {

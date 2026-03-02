@@ -99,9 +99,20 @@ export default defineConfig(({ command, mode }) => {
           main: resolve(__dirname, 'index.html'),
         },
         output: {
-          // Code splitting
+          // Code splitting — heavy libraries get their own chunks
           manualChunks: {
             vendor: ['react', 'react-dom'],
+            charts: ['recharts', 'chart.js', 'react-chartjs-2'],
+            icons: ['lucide-react'],
+            ui: [
+              '@radix-ui/react-accordion',
+              '@radix-ui/react-dialog',
+              '@radix-ui/react-dropdown-menu',
+              '@radix-ui/react-popover',
+              '@radix-ui/react-select',
+              '@radix-ui/react-tabs',
+              '@radix-ui/react-tooltip',
+            ],
           },
           // Asset naming
           chunkFileNames: 'assets/js/[name]-[hash].js',

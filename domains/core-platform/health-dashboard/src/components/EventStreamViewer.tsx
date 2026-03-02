@@ -109,9 +109,9 @@ export const EventStreamViewer: React.FC<EventStreamViewerProps> = ({ darkMode }
           
           setLastFetchTime(new Date());
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!ignore) {
-          setError(err.message || 'Failed to fetch events');
+          setError(err instanceof Error ? err.message : 'Failed to fetch events');
           console.error('Event fetch error:', err);
         }
       } finally {
@@ -189,7 +189,7 @@ export const EventStreamViewer: React.FC<EventStreamViewerProps> = ({ darkMode }
         ...prev,
         [eventId]: { status: 'loaded', data: detail }
       }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Extract better error message
       let message = 'Failed to load event details';
       if (err?.message) {

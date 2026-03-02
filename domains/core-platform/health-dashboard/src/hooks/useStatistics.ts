@@ -56,17 +56,40 @@ export const useStatistics = (period: string = '1h', refreshInterval: number = 6
 
   useEffect(() => {
     mountedRef.current = true;
+    let interval: ReturnType<typeof setInterval> | null = null;
 
-    fetchStatistics();
-    const interval = setInterval(fetchStatistics, refreshInterval);
+    const startPolling = () => {
+      fetchStatistics();
+      interval = setInterval(fetchStatistics, refreshInterval);
+    };
+
+    const stopPolling = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       mountedRef.current = false;
-      clearInterval(interval);
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [period, refreshInterval, fetchStatistics]);
 
   const refresh = useCallback(async () => {
+    if (!mountedRef.current) return;
     setLoading(true);
     await fetchStatistics();
   }, [fetchStatistics]);

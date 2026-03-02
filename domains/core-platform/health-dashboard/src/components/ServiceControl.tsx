@@ -44,8 +44,8 @@ export const ServiceControl: React.FC = () => {
       });
       setServices(mapped);
       setError('');
-    } catch (err: any) {
-      setError(err.message || 'Failed to load services');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load services');
     }
   };
 
@@ -57,8 +57,8 @@ export const ServiceControl: React.FC = () => {
       // Use admin API container restart
       await adminApi.restartContainer(service);
       await loadServices();
-    } catch (err: any) {
-      alert(err.message || 'Failed to restart service');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to restart service');
     } finally {
       setRestarting({ ...restarting, [service]: false });
     }
@@ -79,8 +79,8 @@ export const ServiceControl: React.FC = () => {
       }
       alert('All services restart triggered.');
       await loadServices();
-    } catch (err: any) {
-      alert(err.message || 'Failed to restart all services');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to restart all services');
     } finally {
       setLoading(false);
     }

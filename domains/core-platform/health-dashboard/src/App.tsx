@@ -1,7 +1,12 @@
 import { Dashboard } from './components/Dashboard';
+import { ThemeProvider } from './components/ThemeContext';
 
 function App(): JSX.Element {
-  return <Dashboard />;
+  return (
+    <ThemeProvider>
+      <Dashboard />
+    </ThemeProvider>
+  );
 }
 
 export default App;

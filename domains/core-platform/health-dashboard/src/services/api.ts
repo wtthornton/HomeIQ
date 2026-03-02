@@ -391,10 +391,10 @@ class AdminApiClient extends BaseApiClient {
         message: `${serviceName} is healthy`,
         data: response,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        message: `${serviceName} health check failed: ${error.message || 'Unknown error occurred'}`,
+        message: `${serviceName} health check failed: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
       };
     }
   }

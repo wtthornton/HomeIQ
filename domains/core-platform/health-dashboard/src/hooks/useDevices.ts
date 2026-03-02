@@ -94,9 +94,9 @@ export function useDevices() {
       });
       
       setDevices(response.devices || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching devices:', err);
-      const errorMessage = err.message || 'Failed to fetch devices';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch devices';
       setError(errorMessage);
       // Keep existing devices on error - don't clear them
       // This allows UI to show cached data even if refresh fails
@@ -118,12 +118,10 @@ export function useDevices() {
       });
       
       setEntities(response.entities || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching entities:', err);
-      // Keep existing entities on error - don't clear them
-      // This allows UI to show cached data even if refresh fails
-      // Only set error if we don't already have one from devices fetch
-      setError(prev => prev || err.message || 'Failed to fetch entities');
+      const msg = err instanceof Error ? err.message : 'Failed to fetch entities';
+      setError(prev => prev || msg);
     }
   }, []);
 
@@ -132,7 +130,7 @@ export function useDevices() {
       // Epic 13 Story 13.2: Use dataApi.getIntegrations()
       const response = await dataApi.getIntegrations(100);
       setIntegrations(response.integrations || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching integrations:', err);
       setIntegrations([]);
     }
@@ -148,8 +146,8 @@ export function useDevices() {
         fetchEntities(),
         fetchIntegrations()
       ]);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch data');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
       setLoading(false);
     }

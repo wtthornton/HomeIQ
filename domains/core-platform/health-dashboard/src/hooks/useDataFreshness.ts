@@ -5,7 +5,7 @@
  * Prevents showing false/default values until real data has loaded at least once.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export interface DataFreshnessState<T> {
   data: T | null;
@@ -94,19 +94,56 @@ export function useDataFreshness<T>(
     fetchData();
   }, [fetchData]);
 
-  // Auto-refresh if interval is set
+  // Auto-refresh with visibility check
   useEffect(() => {
-    if (refreshInterval > 0) {
-      const interval = setInterval(fetchData, refreshInterval);
-      return () => clearInterval(interval);
-    }
+    if (refreshInterval <= 0) return;
+
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      interval = setInterval(fetchData, refreshInterval);
+    };
+
+    const stopPolling = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        fetchData();
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [fetchData, refreshInterval]);
 
-  // Calculate if data is stale
-  const isStale = useMemo(() => {
-    if (!lastUpdate) return true; // No data = stale
-    const age = Date.now() - lastUpdate.getTime();
-    return age > staleThresholdMs;
+  // Track staleness reactively with a periodic check
+  const [isStale, setIsStale] = useState(true);
+
+  useEffect(() => {
+    const check = () => {
+      if (!lastUpdate) {
+        setIsStale(true);
+      } else {
+        setIsStale(Date.now() - lastUpdate.getTime() > staleThresholdMs);
+      }
+    };
+
+    check();
+    const timer = setInterval(check, Math.min(staleThresholdMs, 10000));
+    return () => clearInterval(timer);
   }, [lastUpdate, staleThresholdMs]);
 
   return {

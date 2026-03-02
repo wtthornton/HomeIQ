@@ -1,9 +1,28 @@
-import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
 import { AlertBanner } from './AlertBanner';
 import { ErrorBoundary } from './ErrorBoundary';
-import { LoadingSpinner } from './LoadingSpinner';
-import * as Tabs from './tabs';
+import { LoadingSkeleton } from './LoadingSkeleton';
+import type { TabProps } from './tabs/types';
+import { useTheme } from './ThemeContext';
 import { TabIcons, ThemeIcons, Icon, RefreshCw, Pause } from './ui/icons';
+
+// Lazy-loaded tab components for code splitting
+const LazyOverviewTab = lazy(() => import('./tabs/OverviewTab').then(m => ({ default: m.OverviewTab })));
+const LazyServicesTab = lazy(() => import('./tabs/ServicesTab').then(m => ({ default: m.ServicesTab })));
+const LazyGroupsTab = lazy(() => import('./tabs/GroupsTab').then(m => ({ default: m.GroupsTab })));
+const LazyDependenciesTab = lazy(() => import('./tabs/DependenciesTab').then(m => ({ default: m.DependenciesTab })));
+const LazyDevicesTab = lazy(() => import('./tabs/DevicesTab').then(m => ({ default: m.DevicesTab })));
+const LazyEventsTab = lazy(() => import('./tabs/EventsTab').then(m => ({ default: m.EventsTab })));
+const LazyLogsTab = lazy(() => import('./tabs/LogsTab').then(m => ({ default: m.LogsTab })));
+const LazySportsTab = lazy(() => import('./tabs/SportsTab').then(m => ({ default: m.SportsTab })));
+const LazyDataSourcesTab = lazy(() => import('./tabs/DataSourcesTab').then(m => ({ default: m.DataSourcesTab })));
+const LazyEnergyTab = lazy(() => import('./tabs/EnergyTab').then(m => ({ default: m.EnergyTab })));
+const LazyAnalyticsTab = lazy(() => import('./tabs/AnalyticsTab').then(m => ({ default: m.AnalyticsTab })));
+const LazyAlertsTab = lazy(() => import('./tabs/AlertsTab').then(m => ({ default: m.AlertsTab })));
+const LazyHygieneTab = lazy(() => import('./tabs/HygieneTab').then(m => ({ default: m.HygieneTab })));
+const LazyValidationTab = lazy(() => import('./tabs/ValidationTab').then(m => ({ default: m.ValidationTab })));
+const LazyEvaluationTab = lazy(() => import('./tabs/EvaluationTab').then(m => ({ default: m.EvaluationTab })));
+const LazyConfigurationTab = lazy(() => import('./tabs/ConfigurationTab').then(m => ({ default: m.ConfigurationTab })));
 
 /** Only allow http/https URLs to prevent javascript: or data: injection */
 function sanitizeUrl(url: string | undefined, fallback: string): string {
@@ -73,24 +92,24 @@ const NAV_GROUPS = [
 // All valid tab IDs for URL hash validation
 const ALL_TAB_IDS: string[] = NAV_GROUPS.flatMap(g => g.tabs.map(t => t.id));
 
-// Tab components — synergies and setup removed from routing (FR-3.3, FR-3.2)
-const TAB_COMPONENTS: Record<string, React.FC<Tabs.TabProps>> = {
-  overview: Tabs.OverviewTab,
-  services: Tabs.ServicesTab,
-  groups: Tabs.GroupsTab,
-  dependencies: Tabs.DependenciesTab,
-  devices: Tabs.DevicesTab,
-  events: Tabs.EventsTab,
-  logs: Tabs.LogsTab,
-  sports: Tabs.SportsTab,
-  'data-sources': Tabs.DataSourcesTab,
-  energy: Tabs.EnergyTab,
-  analytics: Tabs.AnalyticsTab,
-  alerts: Tabs.AlertsTab,
-  hygiene: Tabs.HygieneTab,
-  validation: Tabs.ValidationTab,
-  evaluation: Tabs.EvaluationTab,
-  configuration: Tabs.ConfigurationTab,
+// Tab components — lazy-loaded for code splitting (FR-3.3, FR-3.2)
+const TAB_COMPONENTS: Record<string, React.FC<TabProps>> = {
+  overview: LazyOverviewTab,
+  services: LazyServicesTab,
+  groups: LazyGroupsTab,
+  dependencies: LazyDependenciesTab,
+  devices: LazyDevicesTab,
+  events: LazyEventsTab,
+  logs: LazyLogsTab,
+  sports: LazySportsTab,
+  'data-sources': LazyDataSourcesTab,
+  energy: LazyEnergyTab,
+  analytics: LazyAnalyticsTab,
+  alerts: LazyAlertsTab,
+  hygiene: LazyHygieneTab,
+  validation: LazyValidationTab,
+  evaluation: LazyEvaluationTab,
+  configuration: LazyConfigurationTab,
 };
 
 /** Find the group that contains a given tab ID */
@@ -100,20 +119,9 @@ function findGroupForTab(tabId: string): string | undefined {
 
 export const Dashboard: React.FC = () => {
   const automationUiUrl = import.meta.env.VITE_AI_AUTOMATION_UI_URL;
+  const { darkMode, toggleDarkMode } = useTheme();
 
   // State management
-  const [darkMode, setDarkMode] = useState(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('darkMode');
-        if (saved !== null) return saved === 'true';
-        return window.matchMedia('(prefers-color-scheme: dark)').matches;
-      }
-    } catch (error) {
-      console.warn('Failed to read darkMode from localStorage:', error);
-    }
-    return false;
-  });
   const [selectedTimeRange, setSelectedTimeRange] = useState('1h');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [selectedTab, setSelectedTab] = useState(() => {
@@ -141,26 +149,6 @@ export const Dashboard: React.FC = () => {
     });
   }, []);
 
-  // Apply theme to document and persist preference
-  useEffect(() => {
-    try {
-      if (darkMode) {
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('darkMode', 'true');
-      } else {
-        document.documentElement.classList.remove('dark');
-        localStorage.setItem('darkMode', 'false');
-      }
-    } catch (error) {
-      console.warn('Failed to save darkMode to localStorage:', error);
-      if (darkMode) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    }
-  }, [darkMode]);
-
   // Update URL hash when tab changes
   useEffect(() => {
     if (selectedTab && selectedTab !== 'overview') {
@@ -169,24 +157,6 @@ export const Dashboard: React.FC = () => {
       window.history.replaceState(null, '', window.location.pathname);
     }
   }, [selectedTab]);
-
-  // Listen for system theme changes
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      try {
-        const saved = localStorage.getItem('darkMode');
-        if (saved === null) {
-          setDarkMode(e.matches);
-        }
-      } catch (error) {
-        console.warn('Failed to read darkMode from localStorage:', error);
-        setDarkMode(e.matches);
-      }
-    };
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
 
   // Handle custom navigation events from modals
   useEffect(() => {
@@ -209,9 +179,6 @@ export const Dashboard: React.FC = () => {
         const oldLayout = localStorage.getItem('dashboard-layout');
         if (oldLayout) {
           localStorage.removeItem('dashboard-layout');
-          if (import.meta.env.MODE !== 'production') {
-            console.log('Cleaned up deprecated Custom tab layout from localStorage');
-          }
         }
         localStorage.setItem(cleanupKey, 'true');
       }
@@ -222,7 +189,7 @@ export const Dashboard: React.FC = () => {
 
   // Memoize tab component
   const TabComponent = useMemo(() => {
-    return TAB_COMPONENTS[selectedTab] || Tabs.OverviewTab;
+    return TAB_COMPONENTS[selectedTab] || LazyOverviewTab;
   }, [selectedTab]);
 
   // Tab change handler — auto-expands the parent group
@@ -335,7 +302,7 @@ export const Dashboard: React.FC = () => {
         {/* Theme Toggle */}
         <button
           data-testid="theme-toggle"
-          onClick={() => setDarkMode(!darkMode)}
+          onClick={toggleDarkMode}
           className={`p-2 rounded min-w-[36px] min-h-[36px] flex items-center justify-center bg-secondary hover:bg-secondary/80 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2`}
           title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           aria-label={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
@@ -491,7 +458,7 @@ export const Dashboard: React.FC = () => {
           <h1 className="text-base font-bold text-foreground">HomeIQ Health</h1>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={toggleDarkMode}
               className="p-2 rounded bg-secondary hover:bg-secondary/80"
               aria-label={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
@@ -515,8 +482,10 @@ export const Dashboard: React.FC = () => {
           {/* Tab Content */}
           <ErrorBoundary
             onError={(error, errorInfo) => {
-              console.error('Tab rendering error:', error);
-              console.error('Stack:', errorInfo.componentStack);
+              if (import.meta.env.DEV) {
+                console.error('Tab rendering error:', error);
+                console.error('Stack:', errorInfo.componentStack);
+              }
             }}
           >
             <div
@@ -526,7 +495,7 @@ export const Dashboard: React.FC = () => {
               className="focus:outline-none"
               tabIndex={0}
             >
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={<LoadingSkeleton />}>
                 <TabComponent darkMode={darkMode} />
               </Suspense>
             </div>

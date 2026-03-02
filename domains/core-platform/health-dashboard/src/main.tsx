@@ -20,8 +20,6 @@ function registerServiceWorker(): void {
     navigator.serviceWorker
       .register('/sw.js')
       .then((registration: ServiceWorkerRegistration) => {
-        console.log('Service Worker registered:', registration.scope);
-        
         // Check for updates
         registration.addEventListener('updatefound', () => {
           const newWorker: ServiceWorker | null = registration.installing;
@@ -31,15 +29,14 @@ function registerServiceWorker(): void {
                 newWorker.state === 'installed' &&
                 navigator.serviceWorker.controller
               ) {
-                // New service worker available
-                console.log('New service worker available');
+                // New service worker available — handled by controllerchange listener
               }
             });
           }
         });
       })
-      .catch((error: Error) => {
-        console.error('Service Worker registration failed:', error);
+      .catch(() => {
+        // Service Worker registration failed — non-critical
       });
   });
   

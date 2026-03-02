@@ -90,8 +90,8 @@ export const DataSourceConfigModal: React.FC<DataSourceConfigModalProps> = ({
           setError(null);
         }, 3000);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to save configuration');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save configuration');
     } finally {
       setLoading(false);
     }

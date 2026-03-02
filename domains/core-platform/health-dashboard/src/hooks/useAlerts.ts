@@ -165,31 +165,47 @@ export const useAlerts = ({
     }
   }, [fetchAlerts]);
 
-  // Initial fetch and auto-refresh setup
+  // Initial fetch and auto-refresh with visibility check
   useEffect(() => {
     let mounted = true;
-    let intervalId: NodeJS.Timeout | null = null;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
 
-    const performFetch = async () => {
+    const startPolling = () => {
       if (!mounted) return;
-      await fetchAlerts();
-      
-      if (autoRefresh && mounted) {
-        intervalId = setInterval(async () => {
-          if (mounted) {
-            await fetchAlerts();
+      fetchAlerts();
+      if (autoRefresh) {
+        intervalId = setInterval(() => {
+          if (mounted && !document.hidden) {
+            fetchAlerts();
           }
         }, pollInterval);
       }
     };
 
-    performFetch();
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       mounted = false;
-      if (intervalId) clearInterval(intervalId);
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [filters.severity, filters.service, filters.status, autoRefresh, pollInterval]);
+  }, [filters.severity, filters.service, filters.status, autoRefresh, pollInterval, fetchAlerts]);
 
   return {
     alerts,

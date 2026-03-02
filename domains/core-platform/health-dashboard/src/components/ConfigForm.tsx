@@ -44,8 +44,8 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({ service, onSave }) => {
       const data: ServiceConfig = await response.json();
       setConfig(data.settings);
       setTemplate(data.template);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load configuration');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load configuration');
     } finally {
       setLoading(false);
     }
@@ -72,8 +72,8 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({ service, onSave }) => {
       if (onSave) onSave();
       
       setTimeout(() => setSaved(false), 3000);
-    } catch (err: any) {
-      setError(err.message || 'Failed to save configuration');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save configuration');
     } finally {
       setSaving(false);
     }
@@ -96,8 +96,8 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({ service, onSave }) => {
       if (!response.ok) throw new Error('Failed to restart service');
       
       alert(`${service} restarted successfully!`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to restart service');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to restart service');
     } finally {
       setLoading(false);
     }

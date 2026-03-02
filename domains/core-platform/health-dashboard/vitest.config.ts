@@ -16,12 +16,21 @@ export default defineConfig(({ mode }) => ({
     css: false,
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html'],
+      reporter: ['text', 'html', 'lcov'],
+      thresholds: {
+        statements: 40,
+        branches: 35,
+        functions: 35,
+        lines: 40,
+      },
       exclude: [
         'node_modules/',
         'src/tests/',
+        'src/mocks/',
         '**/*.test.ts',
         '**/*.test.tsx',
+        '**/*.d.ts',
+        'src/vite-env.d.ts',
       ],
     },
   },

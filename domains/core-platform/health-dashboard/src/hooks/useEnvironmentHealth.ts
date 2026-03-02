@@ -23,11 +23,12 @@ export function useEnvironmentHealth(): UseEnvironmentHealthReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchHealth = useCallback(async () => {
+  const fetchHealth = useCallback(async (signal?: AbortSignal) => {
     try {
       setError(null);
       setLoading(true);
       const response = await fetch(`${SETUP_SERVICE_URL}/api/health/environment`, {
+        signal,
         headers: {
           'Content-Type': 'application/json',
           ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
@@ -124,19 +125,39 @@ export function useEnvironmentHealth(): UseEnvironmentHealthReturn {
     }
   }, []);
 
-  // Initial fetch on mount
+  // Initial fetch and polling with visibility check
   useEffect(() => {
-    fetchHealth();
-  }, [fetchHealth]);
+    const controller = new AbortController();
+    let interval: ReturnType<typeof setInterval> | null = null;
 
-  // Set up 30-second polling (Context7 best practice)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchHealth();
-    }, POLL_INTERVAL);
+    const startPolling = () => {
+      fetchHealth(controller.signal);
+      interval = setInterval(() => fetchHealth(controller.signal), POLL_INTERVAL);
+    };
 
-    // Cleanup on unmount (Context7 requirement)
-    return () => clearInterval(interval);
+    const stopPolling = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      controller.abort();
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [fetchHealth]);
 
   return {
