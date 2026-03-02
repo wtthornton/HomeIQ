@@ -23,6 +23,8 @@ export interface SystemStatusHeroProps {
   onRetry?: () => void; // Callback to retry fetching KPIs
   staleData?: boolean; // True when showing cached data after a failed refresh
   lastUpdated?: Date | null; // Timestamp of last successful data fetch
+  degradedServices?: string[]; // Names of services causing degraded status
+  onKpiClick?: (metric: 'throughput' | 'latency' | 'errorRate') => void; // Callback when a KPI is clicked
   trends?: {
     throughput?: number; // previous value for trend calculation
     latency?: number;
@@ -135,6 +137,8 @@ export const SystemStatusHero: React.FC<SystemStatusHeroProps> = ({
   onRetry,
   staleData = false,
   lastUpdated = null,
+  degradedServices = [],
+  onKpiClick,
   trends
 }) => {
   const statusConfig = getStatusConfig(overallStatus);
@@ -169,13 +173,14 @@ export const SystemStatusHero: React.FC<SystemStatusHeroProps> = ({
                 <h2 className={`text-3xl font-bold ${statusConfig.textClass}`}>
                   {statusConfig.label}
                 </h2>
+                {overallStatus === 'degraded' && degradedServices.length > 0 && (
+                  <p className={`text-sm mt-1 ${darkMode ? 'text-yellow-300' : 'text-yellow-700'}`}>
+                    Affected: {degradedServices.slice(0, 5).join(', ')}
+                    {degradedServices.length > 5 && ` +${degradedServices.length - 5} more`}
+                  </p>
+                )}
                 <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Last updated: {lastUpdate.toLocaleTimeString('en-US', {
-                    hour12: true,
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                  })}
+                  Updated {formatTimeAgo(lastUpdate)}
                 </p>
               </div>
             </div>
@@ -223,7 +228,14 @@ export const SystemStatusHero: React.FC<SystemStatusHeroProps> = ({
               </div>
 
               {/* Throughput */}
-              <div className="flex justify-between items-center">
+              <div
+                className={`flex justify-between items-center ${onKpiClick ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 -mx-2 px-2 py-1 rounded transition-colors' : ''}`}
+                onClick={() => onKpiClick?.('throughput')}
+                role={onKpiClick ? 'button' : undefined}
+                tabIndex={onKpiClick ? 0 : undefined}
+                onKeyDown={(e) => { if (onKpiClick && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onKpiClick('throughput'); } }}
+                aria-label={onKpiClick ? 'View throughput details' : undefined}
+              >
                 <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   Throughput
                 </span>
@@ -243,7 +255,14 @@ export const SystemStatusHero: React.FC<SystemStatusHeroProps> = ({
               </div>
 
               {/* Latency */}
-              <div className="flex justify-between items-center">
+              <div
+                className={`flex justify-between items-center ${onKpiClick ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 -mx-2 px-2 py-1 rounded transition-colors' : ''}`}
+                onClick={() => onKpiClick?.('latency')}
+                role={onKpiClick ? 'button' : undefined}
+                tabIndex={onKpiClick ? 0 : undefined}
+                onKeyDown={(e) => { if (onKpiClick && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onKpiClick('latency'); } }}
+                aria-label={onKpiClick ? 'View latency details' : undefined}
+              >
                 <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   Latency
                 </span>
@@ -269,7 +288,14 @@ export const SystemStatusHero: React.FC<SystemStatusHeroProps> = ({
               </div>
 
               {/* Error Rate */}
-              <div className="flex justify-between items-center">
+              <div
+                className={`flex justify-between items-center ${onKpiClick ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 -mx-2 px-2 py-1 rounded transition-colors' : ''}`}
+                onClick={() => onKpiClick?.('errorRate')}
+                role={onKpiClick ? 'button' : undefined}
+                tabIndex={onKpiClick ? 0 : undefined}
+                onKeyDown={(e) => { if (onKpiClick && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onKpiClick('errorRate'); } }}
+                aria-label={onKpiClick ? 'View error rate details' : undefined}
+              >
                 <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   Error Rate
                 </span>

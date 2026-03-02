@@ -28,6 +28,9 @@ interface LogTailViewerProps {
   darkMode: boolean;
 }
 
+const DEFAULT_LOG_LIMIT = 100;
+const LOAD_MORE_INCREMENT = 100;
+
 export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isPaused, setIsPaused] = useState(false);
@@ -35,7 +38,10 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
   const [selectedService, setSelectedService] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const [logLimit, setLogLimit] = useState(DEFAULT_LOG_LIMIT);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const logsEndRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -48,8 +54,8 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
         const params = new URLSearchParams();
         if (selectedService !== 'all') params.append('service', selectedService);
         if (selectedLevel !== 'all') params.append('level', selectedLevel);
-        params.append('limit', '100');
-        
+        params.append('limit', String(logLimit));
+
         const response = await fetch(`/log-aggregator/api/v1/logs?${params}`, {
           headers: {
             'Content-Type': 'application/json',
@@ -63,6 +69,8 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
             message: sanitizeLogMessage(log.message),
           }));
           setLogs(sanitized);
+          // If we got fewer logs than requested, there are no more to load
+          setHasMore(sanitized.length >= logLimit);
         } else {
           console.error('Failed to fetch logs:', response.statusText);
         }
@@ -84,7 +92,7 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
         clearInterval(intervalId);
       }
     };
-  }, [isPaused, selectedService, selectedLevel]);
+  }, [isPaused, selectedService, selectedLevel, logLimit]);
 
   // Auto-scroll
   useEffect(() => {
@@ -140,6 +148,40 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
   // Clear logs
   const clearLogs = () => {
     setLogs([]);
+    setLogLimit(DEFAULT_LOG_LIMIT);
+  };
+
+  // Load more logs by increasing the limit
+  const loadMore = async () => {
+    setLoadingMore(true);
+    const newLimit = logLimit + LOAD_MORE_INCREMENT;
+    try {
+      const params = new URLSearchParams();
+      if (selectedService !== 'all') params.append('service', selectedService);
+      if (selectedLevel !== 'all') params.append('level', selectedLevel);
+      params.append('limit', String(newLimit));
+
+      const response = await fetch(`/log-aggregator/api/v1/logs?${params}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const sanitized = (data.logs || []).map((log: LogEntry) => ({
+          ...log,
+          message: sanitizeLogMessage(log.message),
+        }));
+        setLogs(sanitized);
+        setLogLimit(newLimit);
+        setHasMore(sanitized.length >= newLimit);
+      }
+    } catch (error) {
+      console.error('Error loading more logs:', error);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   // Copy log to clipboard
@@ -253,10 +295,7 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
         
         <div className="flex gap-4 mt-3 text-sm">
           <span className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Total: <span className="font-semibold">{logs.length}</span>
-          </span>
-          <span className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Filtered: <span className="font-semibold">{filteredLogs.length}</span>
+            Showing: <span className="font-semibold">{filteredLogs.length}</span> of {logs.length} (limit: {logLimit})
           </span>
           <span className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             Status: <span className="font-semibold">{isPaused ? 'Paused' : 'Live'}</span>
@@ -297,6 +336,23 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
               </div>
             ))}
             <div ref={logsEndRef} />
+          </div>
+        )}
+
+        {/* Load More button */}
+        {hasMore && filteredLogs.length > 0 && (
+          <div className="text-center pt-3 border-t border-gray-200 dark:border-gray-700">
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                darkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-50'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-50'
+              }`}
+            >
+              {loadingMore ? 'Loading...' : `Load ${LOAD_MORE_INCREMENT} more`}
+            </button>
           </div>
         )}
       </div>

@@ -69,13 +69,59 @@ export const DependenciesTab: React.FC<TabProps> = ({ darkMode }) => {
   };
 
   return (
-    <AnimatedDependencyGraph 
-      services={services}
-      darkMode={darkMode}
-      realTimeData={realTimeData}
-      loading={loading}
-      error={error}
-    />
+    <div className="space-y-4">
+      {/* Legend */}
+      <div className={`flex flex-wrap items-center gap-4 px-4 py-3 rounded-lg text-sm ${
+        darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+      }`}>
+        <span className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Legend:</span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-green-500" />
+          <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Healthy</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-yellow-500" />
+          <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Degraded</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-red-500" />
+          <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Error / Down</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-gray-400" />
+          <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Unknown / Stopped</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-6 border-t-2 border-dashed border-red-400" />
+          <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Broken dependency</span>
+        </span>
+      </div>
+
+      {/* Error State */}
+      {error && (
+        <div className={`p-4 rounded-lg border ${
+          darkMode ? 'bg-red-900/20 border-red-700' : 'bg-red-50 border-red-200'
+        }`} role="alert">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">⚠️</span>
+            <div className="flex-1">
+              <p className={`font-semibold ${darkMode ? 'text-red-300' : 'text-red-800'}`}>
+                Error loading dependency data
+              </p>
+              <p className={`text-sm ${darkMode ? 'text-red-400' : 'text-red-600'}`}>{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <AnimatedDependencyGraph
+        services={services}
+        darkMode={darkMode}
+        realTimeData={realTimeData}
+        loading={loading}
+        error={error}
+      />
+    </div>
   );
 };
 

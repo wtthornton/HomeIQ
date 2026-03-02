@@ -212,7 +212,21 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   const criticalAlerts = alerts.filter(a => a.severity === 'critical' && a.status === 'active');
   const totalCritical = summary?.critical || criticalAlerts.length;
 
-  // Calculate overall system status
+  /**
+   * Derive overall system status using a worst-component strategy:
+   *
+   * 1. Critical alerts  -> 'error'  (any active critical alert)
+   * 2. RAG status       -> 'error'  if red, 'degraded' if amber
+   * 3. Core dependencies (InfluxDB, WebSocket Ingestion) -> 'degraded' if any unhealthy
+   * 4. Health endpoint  -> 'degraded' if not 'healthy'
+   * 5. Critical data sources (weather, carbon, electricity, air quality, smart meter)
+   *                      -> 'degraded' if any unhealthy/error
+   * 6. Otherwise        -> 'operational'
+   *
+   * The ServicesTab uses the same per-service status normalization
+   * (running/degraded/error/stopped) via the admin-api health endpoint
+   * combined with container status.
+   */
   const calculateOverallStatus = (): 'operational' | 'degraded' | 'error' => {
     // Critical alerts = immediate error state
     if (totalCritical > 0) return 'error';

@@ -239,14 +239,64 @@ export const DevicesTab: React.FC<TabProps> = ({ darkMode }) => {
 
       {/* Error State */}
       {error && (
-        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-red-900/20 border-red-700 text-red-400' : 'bg-red-50 border-red-200 text-red-800'}`}>
-          <p className="font-medium">Error loading devices</p>
+        <div className={`p-6 rounded-lg border ${darkMode ? 'bg-red-900/20 border-red-700 text-red-400' : 'bg-red-50 border-red-200 text-red-800'}`}>
+          <p className="font-semibold text-lg">Error loading devices</p>
           <p className="text-sm mt-1">{error}</p>
+          <button
+            onClick={refresh}
+            className={`mt-4 px-4 py-2 rounded-lg font-medium transition-colors ${
+              darkMode
+                ? 'bg-red-700 hover:bg-red-600 text-white'
+                : 'bg-red-100 hover:bg-red-200 text-red-800'
+            }`}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && !error && devices.length === 0 && (
+        <div className={`text-center py-16 rounded-lg border ${
+          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
+          <div className="text-6xl mb-4">📦</div>
+          <h3 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            No Devices Found
+          </h3>
+          <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            No devices are registered with Home Assistant yet, or the data API is unavailable.
+          </p>
+          <button
+            onClick={refresh}
+            className={`mt-4 px-4 py-2 rounded-lg font-medium transition-colors ${
+              darkMode
+                ? 'bg-teal-600 hover:bg-teal-700 text-white'
+                : 'bg-teal-500 hover:bg-teal-600 text-white'
+            }`}
+          >
+            Refresh
+          </button>
+        </div>
+      )}
+
+      {/* No Filter Results */}
+      {!loading && !error && devices.length > 0 && filteredDevices.length === 0 && (
+        <div className={`text-center py-12 rounded-lg border ${
+          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
+          <div className="text-6xl mb-4">🔍</div>
+          <h3 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            No Matching Devices
+          </h3>
+          <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            No devices match your current filters. Try adjusting your search or filter criteria.
+          </p>
         </div>
       )}
 
       {/* Devices Grid */}
-      {!loading && !error && (
+      {!loading && !error && filteredDevices.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredDevices.map(device => (
             <button

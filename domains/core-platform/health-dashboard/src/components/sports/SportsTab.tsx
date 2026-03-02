@@ -422,23 +422,43 @@ export const SportsTab: React.FC<SportsTabProps> = ({ darkMode = false }) => {
         )}
 
         {/* No Games State (no filters applied) */}
-        {!gamesLoading && !gamesError && 
+        {!gamesLoading && !gamesError &&
          liveGames.length === 0 && upcomingGames.length === 0 && completedGames.length === 0 && (
-          <div 
+          <div
             className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl p-12 shadow-md text-center`}
             role="status"
             aria-live="polite"
           >
-            <div className="text-6xl mb-4" aria-hidden="true">😴</div>
+            <div className="text-6xl mb-4" aria-hidden="true">🏟️</div>
             <h2 className={`text-2xl font-bold ${textPrimary} mb-2`}>
-              No Games Right Now
+              No Live Games
             </h2>
             <p className={textSecondary}>
-              No scheduled games for your teams at this time.
+              There are no live, upcoming, or recently completed games for your teams.
             </p>
-            <p className={`text-sm ${textSecondary} mt-4`}>
-              We'll automatically refresh when games are scheduled.
+            <p className={`text-sm ${textSecondary} mt-2`}>
+              This is normal during the off-season or between game days.
             </p>
+            <div className="flex gap-3 justify-center mt-6">
+              <button
+                onClick={refresh}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
+                } ${textPrimary} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+                aria-label="Check for new games"
+              >
+                Check Again
+              </button>
+              <button
+                onClick={() => setShowManagement(true)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+                } text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+                aria-label="Manage your tracked teams"
+              >
+                Manage Teams
+              </button>
+            </div>
           </div>
         )}
       </div>

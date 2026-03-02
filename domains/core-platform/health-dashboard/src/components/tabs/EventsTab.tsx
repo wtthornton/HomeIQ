@@ -19,16 +19,19 @@ export const EventsTab: React.FC<TabProps> = ({ darkMode }) => {
   const [historicalEvents, setHistoricalEvents] = useState<any[]>([]);
   const [stats, setStats] = useState<EventStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showHistorical, setShowHistorical] = useState(false);
 
   // Fetch historical events - wrapped in useCallback for proper dependency tracking
   const fetchHistoricalEvents = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const events = await dataApi.getEvents({ limit: 100 });
       setHistoricalEvents(events || []);
-    } catch (error) {
-      console.error('Error fetching historical events:', error);
+    } catch (err) {
+      console.error('Error fetching historical events:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load events');
       setHistoricalEvents([]);
     } finally {
       setLoading(false);
@@ -40,8 +43,8 @@ export const EventsTab: React.FC<TabProps> = ({ darkMode }) => {
     try {
       const statsData = await dataApi.getEventsStats(timeRange);
       setStats(statsData);
-    } catch (error) {
-      console.error('Error fetching event stats:', error);
+    } catch (err) {
+      console.error('Error fetching event stats:', err);
     }
   }, [timeRange]); // Depends on timeRange
 
@@ -124,8 +127,33 @@ export const EventsTab: React.FC<TabProps> = ({ darkMode }) => {
       {/* Real-Time Stream View */}
       {!showHistorical && <EventStreamViewer darkMode={darkMode} />}
 
+      {/* Error State */}
+      {showHistorical && error && !loading && (
+        <div className={`p-6 rounded-lg border ${
+          darkMode ? 'bg-red-900/20 border-red-700' : 'bg-red-50 border-red-200'
+        }`} role="alert">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">⚠️</span>
+            <div className="flex-1">
+              <p className={`font-semibold ${darkMode ? 'text-red-300' : 'text-red-800'}`}>
+                Error loading events
+              </p>
+              <p className={`text-sm mt-1 ${darkMode ? 'text-red-400' : 'text-red-600'}`}>
+                {error}
+              </p>
+            </div>
+            <button
+              onClick={fetchHistoricalEvents}
+              className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Historical Events View */}
-      {showHistorical && (
+      {showHistorical && !error && (
         <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             Historical Events

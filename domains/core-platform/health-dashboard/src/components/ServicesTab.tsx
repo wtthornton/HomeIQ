@@ -12,6 +12,15 @@ interface ServicesTabProps {
   darkMode: boolean;
 }
 
+function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ago`;
+}
+
 // Service definitions with metadata
 export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
   // Core Services
@@ -79,6 +88,7 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [selectedService, setSelectedService] = useState<{ service: ServiceStatus; icon: string } | null>(null);
   const [operatingServices, setOperatingServices] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [aiStats, setAiStats] = useState<AIStatsData | null>(null);
   const [modelComparison, setModelComparison] = useState<any | null>(null);
 
@@ -159,8 +169,8 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
       setError('');
       setLastUpdate(new Date());
       setLoading(false);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load services');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load services');
       setLoading(false);
     }
   };
@@ -259,8 +269,8 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
       } else {
         alert(`Failed to ${operation} container: ${response.message}`);
       }
-    } catch (err: any) {
-      alert(`Error ${operation}ing container: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Error ${operation}ing container: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setOperatingServices(prev => {
         const newSet = new Set(prev);
@@ -275,13 +285,42 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
     return container?.status || 'unknown';
   };
 
+  // Apply status filter
+  const filterByStatus = (s: ServiceStatus) => {
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'healthy') return s.status === 'running';
+    if (statusFilter === 'degraded') return s.status === 'degraded';
+    if (statusFilter === 'unhealthy') return s.status === 'error' || s.status === 'stopped';
+    return true;
+  };
+
   const coreServices = services
     .map(s => ({ ...s, def: getServiceDefinition(s.service) }))
-    .filter(s => s.def.type === 'core');
-  
+    .filter(s => s.def.type === 'core' && filterByStatus(s));
+
   const externalServices = services
     .map(s => ({ ...s, def: getServiceDefinition(s.service) }))
-    .filter(s => s.def.type === 'external');
+    .filter(s => s.def.type === 'external' && filterByStatus(s));
+
+  /**
+   * Derive aggregate service status using worst-component strategy
+   * (consistent with OverviewTab.calculateOverallStatus):
+   *  - Any service in 'error' state -> 'degraded'
+   *  - Any service in 'degraded' state -> 'degraded'
+   *  - All services running -> 'operational'
+   *  - No services at all -> 'operational' (nothing to be wrong)
+   */
+  const deriveAggregateStatus = (): 'operational' | 'degraded' | 'error' => {
+    const hasError = services.some(s => s.status === 'error');
+    const hasDegraded = services.some(s => s.status === 'degraded');
+    if (hasError) return 'degraded';
+    if (hasDegraded) return 'degraded';
+    return 'operational';
+  };
+  const aggregateStatus = deriveAggregateStatus();
+  const runningCount = services.filter(s => s.status === 'running' || s.status === 'degraded').length;
+  const degradedCount = services.filter(s => s.status === 'degraded').length;
+  const errorCount = services.filter(s => s.status === 'error').length;
 
   if (loading) {
     return (
@@ -399,6 +438,23 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
             </div>
           
             <div className="flex items-center space-x-4">
+              {/* Status Filter */}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className={`px-3 py-2 rounded-md text-sm font-medium border transition-colors ${
+                  darkMode
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-700'
+                }`}
+                aria-label="Filter services by status"
+              >
+                <option value="all">All Statuses</option>
+                <option value="healthy">Healthy</option>
+                <option value="degraded">Degraded</option>
+                <option value="unhealthy">Unhealthy / Stopped</option>
+              </select>
+
               {/* Auto-refresh Toggle */}
               <button
                 onClick={() => setAutoRefresh(!autoRefresh)}
@@ -430,14 +486,31 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
             </div>
           </div>
         
+          {/* Status Summary */}
+          {services.length > 0 && (
+            <div className={`mt-4 flex items-center gap-4 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                aggregateStatus === 'operational'
+                  ? darkMode ? 'bg-green-900/40 text-green-200' : 'bg-green-100 text-green-800'
+                  : aggregateStatus === 'degraded'
+                    ? darkMode ? 'bg-yellow-900/40 text-yellow-200' : 'bg-yellow-100 text-yellow-800'
+                    : darkMode ? 'bg-red-900/40 text-red-200' : 'bg-red-100 text-red-800'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  aggregateStatus === 'operational' ? 'bg-green-500'
+                    : aggregateStatus === 'degraded' ? 'bg-yellow-500' : 'bg-red-500'
+                }`} />
+                {aggregateStatus === 'operational' ? 'All Operational' : aggregateStatus === 'degraded' ? 'Degraded' : 'Error'}
+              </span>
+              <span>{runningCount}/{services.length} running</span>
+              {degradedCount > 0 && <span className="text-yellow-500">{degradedCount} degraded</span>}
+              {errorCount > 0 && <span className="text-red-500">{errorCount} error</span>}
+            </div>
+          )}
+
           {/* Last Update Time */}
-          <div className={`text-xs mt-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-          Last updated: {lastUpdate.toLocaleTimeString('en-US', {
-              hour12: true,
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit'
-            })}
+          <div className={`text-xs mt-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            Updated {formatTimeAgo(lastUpdate)}
           </div>
         </div>
 

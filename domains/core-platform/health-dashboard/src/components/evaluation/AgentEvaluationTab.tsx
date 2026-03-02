@@ -126,6 +126,22 @@ export const AgentEvaluationTab: React.FC<AgentEvaluationTabProps> = ({ darkMode
     );
   }
 
+  if (!loading && agents.length === 0) {
+    return (
+      <div className={`rounded-lg border p-12 text-center ${
+        darkMode ? 'border-gray-700 bg-gray-800/30' : 'border-gray-200 bg-white'
+      }`}>
+        <div className="text-6xl mb-4">🔍</div>
+        <h3 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          No Agent Evaluations
+        </h3>
+        <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          No agents have been evaluated yet. Agent evaluations will appear here once the evaluation scheduler runs.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header with agent selector */}

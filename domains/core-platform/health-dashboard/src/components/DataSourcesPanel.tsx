@@ -173,11 +173,11 @@ export const DataSourcesPanel: React.FC<DataSourcesPanelProps> = ({ darkMode }) 
           refetch();
         }, 1000);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setTestResult({
         service: serviceId,
         success: false,
-        message: err.message || 'Test failed with unknown error',
+        message: err instanceof Error ? err.message : 'Test failed with unknown error',
       });
     } finally {
       setTestingService(null);
@@ -403,6 +403,14 @@ export const DataSourcesPanel: React.FC<DataSourcesPanelProps> = ({ darkMode }) 
                     <span>Last Check:</span>
                     <span className="font-medium">{formatTimestamp(source?.timestamp)}</span>
                   </div>
+                  {source?.last_successful_fetch && (
+                    <div className={`flex justify-between ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      <span>Last Successful:</span>
+                      <span className={`font-medium ${status !== 'healthy' ? (darkMode ? 'text-yellow-400' : 'text-yellow-600') : ''}`}>
+                        {formatTimestamp(source.last_successful_fetch)}
+                      </span>
+                    </div>
+                  )}
                   {source?.uptime_seconds !== undefined && source.uptime_seconds > 0 && (
                     <div className={`flex justify-between ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       <span>Uptime:</span>

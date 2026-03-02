@@ -48,6 +48,15 @@ const glass = {
   elevatedDark: 'backdrop-blur-xl bg-gray-900/80 border border-white/15 shadow-xl shadow-black/30',
 };
 
+function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ago`;
+}
+
 export const GroupsTab: React.FC<GroupsTabProps> = ({ darkMode }) => {
   const [services, setServices] = useState<ServiceStatus[]>([]);
   const [groupHealth, setGroupHealth] = useState<GroupHealthResponse | null>(null);
@@ -122,8 +131,8 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ darkMode }) => {
       setError('');
       setLastUpdate(new Date());
       setLoading(false);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load services');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load services');
       setLoading(false);
     }
   };
@@ -389,9 +398,31 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ darkMode }) => {
 
         {/* Timestamp */}
         <div className={`text-xs mt-3 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-          Updated {lastUpdate.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          Updated {formatTimeAgo(lastUpdate)}
         </div>
       </div>
+
+      {/* Empty State */}
+      {groups.filter(g => g.totalCount > 0).length === 0 && (
+        <div className={`rounded-xl p-12 text-center ${darkMode ? glass.cardDark : glass.card}`}>
+          <div className="text-6xl mb-4">📦</div>
+          <h3 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            No Domain Groups Found
+          </h3>
+          <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            No services are registered in any domain group. Check service configuration.
+          </p>
+          <button
+            onClick={loadServices}
+            className="mt-4 px-4 py-2 rounded-lg font-medium text-white transition-colors"
+            style={{ backgroundColor: TEAL[600] }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = TEAL[700])}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = TEAL[600])}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Group Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">

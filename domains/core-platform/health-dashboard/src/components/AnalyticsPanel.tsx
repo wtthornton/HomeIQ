@@ -47,7 +47,25 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ darkMode }): JSX
 
   // Handle no data
   if (!analytics) {
-    return null;
+    return (
+      <div className={`rounded-lg shadow-md p-12 text-center ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+        <div className="text-6xl mb-4">📊</div>
+        <h3 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          No Analytics Data
+        </h3>
+        <p className={`text-sm mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          No performance data is available for the selected time range. This may indicate the system has recently started or data collection is not yet active.
+        </p>
+        <button
+          onClick={refetch}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
+          }`}
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   return (
