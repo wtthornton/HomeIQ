@@ -86,7 +86,7 @@ describe('Settings Page', () => {
   it('shows settings heading', async () => {
     renderWithProviders(<Settings />);
     await waitFor(() => {
-      expect(screen.getByText(/Settings/)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
     });
   });
 

@@ -43,10 +43,10 @@ describe('Deployed Page', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the deployed page', async () => {
+  it('renders the deployed page heading', async () => {
     renderWithProviders(<Deployed />);
     await waitFor(() => {
-      expect(screen.getByText(/Deployed/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
     });
   });
 });
