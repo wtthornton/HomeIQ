@@ -142,17 +142,28 @@ class StandardOpenAIClient:
             reraise=True,
         )
         async def _do_request() -> Any:
+            # Extract system message as instructions
+            instructions = ""
+            input_items: list[dict[str, Any]] = []
+            for msg in messages:
+                if msg.get("role") == "system":
+                    instructions = msg.get("content", "")
+                else:
+                    input_items.append({"type": "message", "role": msg.get("role", "user"), "content": msg.get("content", "")})
+
             kwargs: dict[str, Any] = {
                 "model": use_model,
-                "messages": messages,
+                "instructions": instructions,
+                "input": input_items,
                 "temperature": temperature,
+                "store": False,
             }
             if max_tokens is not None:
-                kwargs["max_tokens"] = max_tokens
+                kwargs["max_output_tokens"] = max_tokens
             if response_format is not None:
-                kwargs["response_format"] = response_format
+                kwargs["text"] = {"format": response_format}
 
-            return await self._client.chat.completions.create(**kwargs)
+            return await self._client.responses.create(**kwargs)
 
         try:
             response = await _do_request()
@@ -160,19 +171,18 @@ class StandardOpenAIClient:
 
             # Track token usage
             if response.usage:
-                self.total_prompt_tokens += response.usage.prompt_tokens
-                self.total_completion_tokens += response.usage.completion_tokens
+                self.total_prompt_tokens += getattr(response.usage, "input_tokens", 0)
+                self.total_completion_tokens += getattr(response.usage, "output_tokens", 0)
 
-            choice = response.choices[0] if response.choices else None
             return {
-                "content": choice.message.content if choice else "",
+                "content": response.output_text or "",
                 "model": response.model,
                 "usage": {
-                    "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
-                    "completion_tokens": response.usage.completion_tokens if response.usage else 0,
-                    "total_tokens": response.usage.total_tokens if response.usage else 0,
+                    "prompt_tokens": getattr(response.usage, "input_tokens", 0) if response.usage else 0,
+                    "completion_tokens": getattr(response.usage, "output_tokens", 0) if response.usage else 0,
+                    "total_tokens": (getattr(response.usage, "input_tokens", 0) + getattr(response.usage, "output_tokens", 0)) if response.usage else 0,
                 },
-                "finish_reason": choice.finish_reason if choice else None,
+                "finish_reason": getattr(response, "stop_reason", None),
             }
         except Exception:
             logger.warning("OpenAI chat completion failed (model=%s)", use_model)

@@ -132,10 +132,17 @@ async def _process_tool_result(
 ) -> None:
     """
     Process a single tool call result: handle preview/create workflow,
-    format the result for OpenAI, and append to tracking lists.
+    format the result for OpenAI Responses API, and append to tracking lists.
+
+    Supports Responses API function_call items (with .name, .arguments, .call_id)
     """
+    # Extract tool call attributes (Responses API format)
+    tc_name = tool_call.name
+    tc_arguments = tool_call.arguments
+    tc_call_id = tool_call.call_id
+
     # Handle preview tool: store pending preview (Preview-and-Approval Workflow)
-    if tool_call.function.name == "preview_automation_from_prompt" and tool_result.get("result", {}).get("success") and tool_result.get("result", {}).get("preview"):
+    if tc_name == "preview_automation_from_prompt" and tool_result.get("result", {}).get("success") and tool_result.get("result", {}).get("preview"):
         preview_data = tool_result.get("result", {})
         await conversation_service.set_pending_preview(conversation_id, preview_data)
         logger.info(
@@ -144,28 +151,29 @@ async def _process_tool_result(
         )
 
     # Handle create tool: clear pending preview after execution (Preview-and-Approval Workflow)
-    if tool_call.function.name == "create_automation_from_prompt" and tool_result.get("result", {}).get("success"):
+    if tc_name == "create_automation_from_prompt" and tool_result.get("result", {}).get("success"):
         await conversation_service.clear_pending_preview(conversation_id)
         logger.info(
             f"[Execution] Conversation {conversation_id}: "
             f"Cleared pending preview after successful automation creation"
         )
 
-    # Format tool result for OpenAI
+    # Format tool result for OpenAI Responses API (function_call_output)
     tool_result_str = str(tool_result.get("result", ""))
 
-    # Store tool result for next OpenAI call
+    # Store tool result for next OpenAI call (Responses API format)
     tool_results.append({
-        "tool_call_id": tool_call.id,
-        "content": tool_result_str
+        "type": "function_call_output",
+        "call_id": tc_call_id,
+        "output": tool_result_str,
     })
 
     # Format tool call for response
-    parsed_arguments = _safe_parse_tool_arguments(tool_call.function.arguments)
+    parsed_arguments = _safe_parse_tool_arguments(tc_arguments)
     tool_calls.append(
         ToolCall(
-            id=tool_call.id,
-            name=tool_call.function.name,
+            id=tc_call_id,
+            name=tc_name,
             arguments=parsed_arguments,
         )
     )
@@ -176,7 +184,7 @@ async def _process_tool_result(
         ctx = get_tracer_context()
         if ctx is not None:
             ctx.record_tool_call(
-                tool_name=tool_call.function.name,
+                tool_name=tc_name,
                 parameters=parsed_arguments,
                 result=tool_result.get("result"),
             )
@@ -343,16 +351,15 @@ async def chat(
             f"Using model={settings.openai_model}"
         )
 
-        # Loop to handle multiple rounds of tool calls
-        # OpenAI function calling requires looping until agent stops making tool calls
-        # 2025 Pattern: Rebuild messages array each iteration with base history + tool context
+        # Loop to handle multiple rounds of tool calls (Responses API pattern)
+        # Build cumulative input list, appending function_call + function_call_output items
         max_iterations = 10  # Safety limit to prevent infinite loops
         iteration = 0
         tool_calls = []
         total_tokens = 0
         assistant_content = ""
-        tool_results = []  # Store tool results in memory for this conversation round
-        previous_assistant_message = None  # Store assistant message with tool_calls from previous iteration
+        tool_results = []  # Store tool results (function_call_output items)
+        previous_function_calls = []  # Store function_call items from previous response
         base_messages = None  # Store base conversation history (system + user messages)
 
         # Track OpenAI API calls
@@ -366,21 +373,18 @@ async def chat(
                 f"Iteration {iteration}/{max_iterations}"
             )
 
-            # Build messages array following 2025 OpenAI tool calling pattern
+            # Build messages array for the OpenAI client
             if iteration == 1:
                 # First iteration: get base messages from conversation history
-                # Skip adding message since it was already added in the first assemble_messages call above
                 base_messages = await prompt_assembly_service.assemble_messages(
                     conversation_id, request.message, refresh_context=False, skip_add_message=True
                 )
-                messages = base_messages.copy()  # Start with base conversation history
+                messages = base_messages.copy()
             else:
-                # Subsequent iterations: rebuild messages from base + tool context
-                # 2025 Pattern: Always include full conversation history
+                # Subsequent iterations: rebuild messages with tool context
                 messages = base_messages.copy() if base_messages else []
 
-                # Remove last assistant message if present (we'll add it with tool_calls)
-                # This prevents duplication if assistant message was persisted with content
+                # Remove last assistant message if present (we'll add tool context)
                 while messages and messages[-1].get("role") == "assistant":
                     removed = messages.pop()
                     logger.debug(
@@ -389,34 +393,20 @@ async def chat(
                         f"{removed.get('content', '')[:50]}..."
                     )
 
-                # Add assistant message with tool_calls from previous iteration
-                if previous_assistant_message:
-                    assistant_msg_dict = {
-                        "role": "assistant",
-                        "content": previous_assistant_message.content or "",
-                    }
-                    # Add tool_calls if present (OpenAI format)
-                    if previous_assistant_message.tool_calls:
-                        assistant_msg_dict["tool_calls"] = [
-                            {
-                                "id": tc.id,
-                                "type": "function",
-                                "function": {
-                                    "name": tc.function.name,
-                                    "arguments": tc.function.arguments if isinstance(tc.function.arguments, str) else json.dumps(tc.function.arguments)
-                                }
-                            }
-                            for tc in previous_assistant_message.tool_calls
-                        ]
-                    messages.append(assistant_msg_dict)
+                # Append function_call items from previous response output
+                for fc_item in previous_function_calls:
+                    messages.append({
+                        "role": "tool_call",
+                        "_function_call": fc_item,
+                    })
 
-                    # Add tool results immediately after assistant message with tool_calls
-                    for tool_result in tool_results:
-                        messages.append({
-                            "role": "tool",
-                            "content": tool_result["content"],
-                            "tool_call_id": tool_result["tool_call_id"]
-                        })
+                # Append function_call_output items (tool results)
+                for tr_item in tool_results:
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tr_item.get("call_id", ""),
+                        "content": tr_item.get("output", ""),
+                    })
 
                 logger.debug(
                     f"[Chat Loop] Conversation {conversation_id}: "
@@ -426,7 +416,7 @@ async def chat(
                     f"Tool results: {len(tool_results)}"
                 )
 
-            # Call OpenAI API
+            # Call OpenAI API (via Responses API internally)
             openai_call_id = start_tracking("openai_api_call", {
                 "iteration": iteration,
                 "message_count": len(messages),
@@ -434,7 +424,7 @@ async def chat(
             })
             openai_call_ids.append(openai_call_id)
             try:
-                completion = await openai_client.chat_completion(
+                response = await openai_client.chat_completion(
                     messages=messages,
                     tools=tools,
                     tool_choice="auto",
@@ -458,75 +448,86 @@ async def chat(
                     detail="OpenAI API error. Please try again later.",
                 ) from e
 
-            # Extract assistant message
-            assistant_message = completion.choices[0].message
-            assistant_content = assistant_message.content or ""
-            tokens_used = completion.usage.total_tokens if completion.usage else 0
+            # Extract response content and function calls from Responses API output
+            assistant_content = response.output_text or ""
+            function_call_items = [
+                item for item in response.output
+                if getattr(item, "type", None) == "function_call"
+            ]
+
+            # Token tracking
+            input_tokens = getattr(response.usage, "input_tokens", 0) if response.usage else 0
+            output_tokens = getattr(response.usage, "output_tokens", 0) if response.usage else 0
+            tokens_used = input_tokens + output_tokens
             total_tokens += tokens_used
 
             end_tracking(openai_call_id, {
                 "tokens_used": tokens_used,
-                "prompt_tokens": completion.usage.prompt_tokens if completion.usage else 0,
-                "completion_tokens": completion.usage.completion_tokens if completion.usage else 0,
-                "has_tool_calls": bool(assistant_message.tool_calls),
-                "tool_calls_count": len(assistant_message.tool_calls) if assistant_message.tool_calls else 0
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "has_tool_calls": bool(function_call_items),
+                "tool_calls_count": len(function_call_items)
             })
 
-            # Store assistant message for next iteration (needed for tool_calls)
-            previous_assistant_message = assistant_message
+            # Store function call items for next iteration input
+            previous_function_calls = function_call_items
 
             # Validate response - check if it's a generic welcome message
             if is_generic_welcome_message(assistant_content):
                 logger.warning(
                     f"[Response Validation] Conversation {conversation_id}: "
-                    f"⚠️ GENERIC WELCOME MESSAGE DETECTED in response! "
+                    f"GENERIC WELCOME MESSAGE DETECTED in response! "
                     f"This indicates the prompt fixes may not be working. "
                     f"User message: {request.message[:100]}... "
                     f"Response: {assistant_content[:200]}... "
-                    f"Tool calls: {len(assistant_message.tool_calls) if assistant_message.tool_calls else 0}"
+                    f"Tool calls: {len(function_call_items)}"
                 )
 
             # Add assistant message to conversation (only if there's content or it's the final response)
-            if assistant_content or not assistant_message.tool_calls:
+            if assistant_content or not function_call_items:
                 await conversation_service.add_message(
                     conversation_id, "assistant", assistant_content or "[Processing...]"
                 )
 
             # Process tool calls if any
-            if assistant_message.tool_calls:
+            if function_call_items:
                 logger.info(
                     f"[Tool Calls] Conversation {conversation_id}: "
-                    f"Iteration {iteration}: Processing {len(assistant_message.tool_calls)} tool call(s). "
-                    f"Tools: {[tc.function.name for tc in assistant_message.tool_calls]}"
+                    f"Iteration {iteration}: Processing {len(function_call_items)} tool call(s). "
+                    f"Tools: {[item.name for item in function_call_items]}"
                 )
 
                 # Clear tool results from previous iteration
                 tool_results = []
 
-                # P2: 2025 Optimization - Execute independent tool calls in parallel
-                # Tools are typically independent (e.g., preview_automation, suggest_enhancements)
-                # Use asyncio.gather() for parallel execution when multiple tool calls exist
-                if len(assistant_message.tool_calls) > 1:
-                    # Execute all tool calls in parallel
+                # Execute independent tool calls in parallel
+                if len(function_call_items) > 1:
                     logger.debug(
                         f"[Tool Calls] Conversation {conversation_id}: "
-                        f"Executing {len(assistant_message.tool_calls)} tool calls in parallel"
+                        f"Executing {len(function_call_items)} tool calls in parallel"
                     )
 
-                    async def execute_single_tool(tc, _iteration=iteration):
+                    async def execute_single_tool(fc_item, _iteration=iteration):
                         """Execute a single tool call with tracking"""
                         tool_exec_id = start_tracking("tool_execution", {
-                            "tool_name": tc.function.name,
+                            "tool_name": fc_item.name,
                             "iteration": _iteration
                         })
                         tool_execution_ids.append(tool_exec_id)
                         try:
-                            result = await tool_service.execute_tool_call(tc.model_dump())
+                            # Convert Responses API function_call to dict for tool_service
+                            tc_dict = {
+                                "type": "function_call",
+                                "name": fc_item.name,
+                                "arguments": fc_item.arguments,
+                                "call_id": fc_item.call_id,
+                            }
+                            result = await tool_service.execute_tool_call(tc_dict)
                             end_tracking(tool_exec_id, {
                                 "success": result.get("success", False),
                                 "result_length": len(str(result.get("result", "")))
                             })
-                            return tc, result
+                            return fc_item, result
                         except Exception as e:
                             end_tracking(tool_exec_id, {
                                 "success": False,
@@ -535,7 +536,7 @@ async def chat(
                             raise
 
                     parallel_results = await asyncio.gather(
-                        *[execute_single_tool(tc) for tc in assistant_message.tool_calls],
+                        *[execute_single_tool(fc) for fc in function_call_items],
                         return_exceptions=True
                     )
 
@@ -543,36 +544,43 @@ async def chat(
                         if isinstance(result, Exception):
                             logger.error(f"Tool execution failed: {result}", exc_info=True)
                             tool_results.append({
-                                "tool_call_id": "error",
-                                "content": f"Tool execution failed: {str(result)}"
+                                "type": "function_call_output",
+                                "call_id": "error",
+                                "output": f"Tool execution failed: {str(result)}",
                             })
                         else:
-                            tc, tr = result
+                            fc_item, tr = result
                             await _process_tool_result(
-                                tc, tr, conversation_id,
+                                fc_item, tr, conversation_id,
                                 conversation_service, tool_calls, tool_results,
                             )
                 else:
                     # Single tool call - execute sequentially
-                    tool_call = assistant_message.tool_calls[0]
+                    fc_item = function_call_items[0]
                     logger.debug(
                         f"[Tool Call] Conversation {conversation_id}: "
-                        f"Executing {tool_call.function.name} with args: {tool_call.function.arguments}"
+                        f"Executing {fc_item.name} with args: {fc_item.arguments}"
                     )
 
                     tool_exec_id = start_tracking("tool_execution", {
-                        "tool_name": tool_call.function.name,
+                        "tool_name": fc_item.name,
                         "iteration": iteration
                     })
                     tool_execution_ids.append(tool_exec_id)
-                    tool_result = await tool_service.execute_tool_call(tool_call.model_dump())
+                    tc_dict = {
+                        "type": "function_call",
+                        "name": fc_item.name,
+                        "arguments": fc_item.arguments,
+                        "call_id": fc_item.call_id,
+                    }
+                    tool_result = await tool_service.execute_tool_call(tc_dict)
                     end_tracking(tool_exec_id, {
                         "success": tool_result.get("success", False),
                         "result_length": len(str(tool_result.get("result", "")))
                     })
 
                     await _process_tool_result(
-                        tool_call, tool_result, conversation_id,
+                        fc_item, tool_result, conversation_id,
                         conversation_service, tool_calls, tool_results,
                     )
 

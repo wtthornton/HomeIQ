@@ -93,56 +93,59 @@ class AINameSuggester:
         prompt = self._build_prompt(device, entity, context)
 
         try:
-            response = await self.openai_client.chat.completions.create(
+            response = await self.openai_client.responses.create(
                 model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": self._get_system_prompt()  # This will be cached (90% discount)
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
+                instructions=self._get_system_prompt(),
+                input=prompt,
                 temperature=0.7,
-                max_tokens=200,
-                n=3  # Generate 3 suggestions
+                max_output_tokens=200,
+                store=False,
             )
 
             suggestions = []
-            for choice in response.choices:
-                try:
-                    # Parse JSON response
-                    content = choice.message.content.strip()
-                    # Remove markdown code blocks if present
-                    if content.startswith("```"):
-                        content = content.split("```")[1]
-                        if content.startswith("json"):
-                            content = content[4:]
-                    content = content.strip()
+            content = response.output_text or ""
+            content = content.strip()
+            # Remove markdown code blocks if present
+            if content.startswith("```"):
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+            content = content.strip()
 
-                    suggestion_data = json.loads(content)
-                    suggestions.append(
-                        NameSuggestion(
-                            name=suggestion_data.get("name", ""),
-                            confidence=float(suggestion_data.get("confidence", 0.8)),
-                            source="ai",
-                            reasoning=suggestion_data.get("reasoning", "")
-                        )
-                    )
-                except (json.JSONDecodeError, KeyError, ValueError) as e:
-                    logger.warning(f"Failed to parse AI suggestion: {e}, content: {content[:100]}")
-                    # Fallback: use raw content as name
-                    if choice.message.content:
+            try:
+                parsed = json.loads(content)
+                # The response may be a single object or an array of suggestions
+                if isinstance(parsed, list):
+                    for suggestion_data in parsed[:3]:
                         suggestions.append(
                             NameSuggestion(
-                                name=choice.message.content.strip()[:50],  # Limit length
-                                confidence=0.7,
+                                name=suggestion_data.get("name", ""),
+                                confidence=float(suggestion_data.get("confidence", 0.8)),
                                 source="ai",
-                                reasoning="AI-generated name"
+                                reasoning=suggestion_data.get("reasoning", "")
                             )
                         )
+                elif isinstance(parsed, dict):
+                    suggestions.append(
+                        NameSuggestion(
+                            name=parsed.get("name", ""),
+                            confidence=float(parsed.get("confidence", 0.8)),
+                            source="ai",
+                            reasoning=parsed.get("reasoning", "")
+                        )
+                    )
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                logger.warning(f"Failed to parse AI suggestion: {e}, content: {content[:100]}")
+                # Fallback: use raw content as name
+                if content:
+                    suggestions.append(
+                        NameSuggestion(
+                            name=content[:50],  # Limit length
+                            confidence=0.7,
+                            source="ai",
+                            reasoning="AI-generated name"
+                        )
+                    )
 
             return suggestions[:3]  # Return up to 3 suggestions
 

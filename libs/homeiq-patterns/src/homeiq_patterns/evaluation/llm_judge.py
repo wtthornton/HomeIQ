@@ -97,12 +97,13 @@ class OpenAIProvider(LLMProvider):
         import openai  # lazy import
 
         client = openai.AsyncOpenAI(api_key=self.api_key)
-        response = await client.chat.completions.create(
+        response = await client.responses.create(
             model=self.model,
-            messages=[{"role": "user", "content": prompt}],
+            input=prompt,
             temperature=0.0,
+            store=False,
         )
-        return response.choices[0].message.content or ""
+        return response.output_text or ""
 
 
 class AnthropicProvider(LLMProvider):

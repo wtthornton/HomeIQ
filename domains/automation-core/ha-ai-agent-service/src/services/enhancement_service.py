@@ -362,17 +362,16 @@ Return your response as a JSON object with this structure:
 
 Ensure enhanced prompts are more comprehensive and specific than the original."""
 
-            response = await self.openai_client.chat.completions.create(
+            response = await self.openai_client.responses.create(
                 model=self.settings.openai_model,
-                messages=[
-                    {"role": "system", "content": "You are an expert at enhancing Home Assistant automation prompts. Always return valid JSON."},
-                    {"role": "user", "content": prompt}
-                ],
+                instructions="You are an expert at enhancing Home Assistant automation prompts. Always return valid JSON.",
+                input=prompt,
                 temperature=1.0,  # Reasoning models (GPT-5.2-Codex) only support temperature=1.0
-                response_format={"type": "json_object"}
+                text={"format": {"type": "json_object"}},
+                store=False
             )
 
-            content = response.choices[0].message.content
+            content = response.output_text
             if not content:
                 raise ValueError("Empty response from OpenAI")
 
@@ -516,17 +515,16 @@ Return your response as a JSON object with this structure:
 
 Ensure all YAML is valid and maintains the original automation's intent."""
 
-            response = await self.openai_client.chat.completions.create(
+            response = await self.openai_client.responses.create(
                 model=self.settings.openai_model,
-                messages=[
-                    {"role": "system", "content": "You are an expert at enhancing Home Assistant automations. Always return valid JSON."},
-                    {"role": "user", "content": prompt}
-                ],
+                instructions="You are an expert at enhancing Home Assistant automations. Always return valid JSON.",
+                input=prompt,
                 temperature=1.0,  # Reasoning models (GPT-5.2-Codex) only support temperature=1.0
-                response_format={"type": "json_object"}
+                text={"format": {"type": "json_object"}},
+                store=False
             )
 
-            content = response.choices[0].message.content
+            content = response.output_text
             if not content:
                 raise ValueError("Empty response from OpenAI")
 
@@ -739,16 +737,15 @@ Enhance the automation to leverage this pattern. For example:
 
 Return ONLY the enhanced YAML, no explanations."""
 
-            response = await self.openai_client.chat.completions.create(
+            response = await self.openai_client.responses.create(
                 model=self.settings.openai_model,
-                messages=[
-                    {"role": "system", "content": "You are an expert at enhancing Home Assistant automations with patterns. Return only valid YAML."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=1.0  # Reasoning models only support 1.0
+                instructions="You are an expert at enhancing Home Assistant automations with patterns. Return only valid YAML.",
+                input=prompt,
+                temperature=1.0,  # Reasoning models only support 1.0
+                store=False
             )
 
-            enhanced_yaml = response.choices[0].message.content or automation_yaml
+            enhanced_yaml = response.output_text or automation_yaml
             # Clean up markdown code blocks if present
             enhanced_yaml = re.sub(r'```yaml\n?', '', enhanced_yaml)
             return re.sub(r'```\n?', '', enhanced_yaml).strip()
@@ -785,16 +782,15 @@ Enhance the automation to coordinate with these devices in a creative, fun way. 
 
 Return ONLY the enhanced YAML, no explanations."""
 
-            response = await self.openai_client.chat.completions.create(
+            response = await self.openai_client.responses.create(
                 model=self.settings.openai_model,
-                messages=[
-                    {"role": "system", "content": "You are an expert at creating fun, creative Home Assistant automations with synergies. Return only valid YAML."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=1.0  # Reasoning models only support 1.0
+                instructions="You are an expert at creating fun, creative Home Assistant automations with synergies. Return only valid YAML.",
+                input=prompt,
+                temperature=1.0,  # Reasoning models only support 1.0
+                store=False
             )
 
-            enhanced_yaml = response.choices[0].message.content or automation_yaml
+            enhanced_yaml = response.output_text or automation_yaml
             # Clean up markdown code blocks if present
             enhanced_yaml = re.sub(r'```yaml\n?', '', enhanced_yaml)
             return re.sub(r'```\n?', '', enhanced_yaml).strip()
@@ -821,18 +817,17 @@ Add smart features like:
 
 Return JSON with: title, description, enhanced_yaml, changes (array)"""
 
-            response = await self.openai_client.chat.completions.create(
+            response = await self.openai_client.responses.create(
                 model=self.settings.openai_model,
-                messages=[
-                    {"role": "system", "content": "You are an expert at creating advanced Home Assistant automations. Return valid JSON."},
-                    {"role": "user", "content": prompt}
-                ],
+                instructions="You are an expert at creating advanced Home Assistant automations. Return valid JSON.",
+                input=prompt,
                 temperature=1.0,  # Reasoning models only support 1.0
-                response_format={"type": "json_object"}
+                text={"format": {"type": "json_object"}},
+                store=False
             )
 
             import json
-            data = json.loads(response.choices[0].message.content or "{}")
+            data = json.loads(response.output_text or "{}")
 
             return Enhancement(
                 level="advanced",
@@ -863,18 +858,17 @@ Make it creative and fun with:
 
 Return JSON with: title, description, enhanced_yaml, changes (array)"""
 
-            response = await self.openai_client.chat.completions.create(
+            response = await self.openai_client.responses.create(
                 model=self.settings.openai_model,
-                messages=[
-                    {"role": "system", "content": "You are an expert at creating fun, creative Home Assistant automations. Return valid JSON."},
-                    {"role": "user", "content": prompt}
-                ],
+                instructions="You are an expert at creating fun, creative Home Assistant automations. Return valid JSON.",
+                input=prompt,
                 temperature=1.0,  # Reasoning models only support 1.0
-                response_format={"type": "json_object"}
+                text={"format": {"type": "json_object"}},
+                store=False
             )
 
             import json
-            data = json.loads(response.choices[0].message.content or "{}")
+            data = json.loads(response.output_text or "{}")
 
             return Enhancement(
                 level="fun",
@@ -939,17 +933,16 @@ Return JSON with:
 - enhanced_prompt: Complete enhanced prompt text
 - changes: List of 2-3 key additions related to the pattern"""
 
-            response = await self.openai_client.chat.completions.create(
+            response = await self.openai_client.responses.create(
                 model=self.settings.openai_model,
-                messages=[
-                    {"role": "system", "content": "You are an expert at enhancing Home Assistant automation prompts with patterns. Always return valid JSON."},
-                    {"role": "user", "content": prompt}
-                ],
+                instructions="You are an expert at enhancing Home Assistant automation prompts with patterns. Always return valid JSON.",
+                input=prompt,
                 temperature=1.0,  # Reasoning models only support 1.0
-                response_format={"type": "json_object"}
+                text={"format": {"type": "json_object"}},
+                store=False
             )
 
-            content = response.choices[0].message.content
+            content = response.output_text
             if not content:
                 raise ValueError("Empty response from OpenAI")
 
@@ -998,17 +991,16 @@ Return JSON with:
 - enhanced_prompt: Complete enhanced prompt text
 - changes: List of 2-3 key additions related to the synergy"""
 
-            response = await self.openai_client.chat.completions.create(
+            response = await self.openai_client.responses.create(
                 model=self.settings.openai_model,
-                messages=[
-                    {"role": "system", "content": "You are an expert at creating fun, creative Home Assistant automation prompts with synergies. Always return valid JSON."},
-                    {"role": "user", "content": prompt}
-                ],
+                instructions="You are an expert at creating fun, creative Home Assistant automation prompts with synergies. Always return valid JSON.",
+                input=prompt,
                 temperature=1.0,  # Reasoning models only support 1.0
-                response_format={"type": "json_object"}
+                text={"format": {"type": "json_object"}},
+                store=False
             )
 
-            content = response.choices[0].message.content
+            content = response.output_text
             if not content:
                 raise ValueError("Empty response from OpenAI")
 

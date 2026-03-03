@@ -104,27 +104,25 @@ async def test_client(
 
 
 def create_fast_mock_completion(content: str):
-    """Create mock OpenAI completion response (fast)"""
-    from openai.types.chat import ChatCompletion, ChatCompletionMessage
-    from openai.types.chat.chat_completion import Choice
-    from openai.types.completion_usage import CompletionUsage
+    """Create mock OpenAI Responses API response (fast)"""
+    from types import SimpleNamespace
 
-    message = ChatCompletionMessage(
-        role="assistant",
-        content=content,
-        tool_calls=None,
-    )
-
-    return ChatCompletion(
-        id="chatcmpl-perf",
-        choices=[Choice(finish_reason="stop", index=0, message=message)],
-        created=1234567890,
+    return SimpleNamespace(
+        id="resp-perf",
+        output_text=content,
+        output=[
+            SimpleNamespace(
+                type="message",
+                role="assistant",
+                content=content,
+            )
+        ],
         model="gpt-4o-mini",
-        object="chat.completion",
-        usage=CompletionUsage(
-            completion_tokens=len(content.split()),
-            prompt_tokens=100,
-            total_tokens=100 + len(content.split()),
+        stop_reason="stop",
+        usage=SimpleNamespace(
+            input_tokens=100,
+            output_tokens=len(content.split()),
+            output_tokens_details=None,
         ),
     )
 

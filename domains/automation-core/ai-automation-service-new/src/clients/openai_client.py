@@ -168,28 +168,30 @@ class OpenAIClient:
         try:
             kwargs: dict[str, Any] = {
                 "model": self.model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
+                "instructions": system_prompt,
+                "input": prompt,
+                "store": False,
             }
-            # Reasoning models use max_completion_tokens, others use max_tokens
+            # Reasoning models use max_output_tokens, others use max_tokens
             if self.is_reasoning_model:
-                kwargs["max_completion_tokens"] = max_tokens
+                kwargs["max_output_tokens"] = max_tokens
                 if self.reasoning_effort:
-                    kwargs["reasoning_effort"] = self.reasoning_effort
+                    kwargs["reasoning"] = {"effort": self.reasoning_effort}
             else:
                 kwargs["max_tokens"] = max_tokens
             if self.supports_temperature:
                 kwargs["temperature"] = temperature
-            response = await self.client.chat.completions.create(**kwargs)
+            response = await self.client.responses.create(**kwargs)
 
             # Track usage
             if response.usage:
-                self.total_tokens_used += response.usage.total_tokens
+                self.total_tokens_used += (
+                    getattr(response.usage, "input_tokens", 0)
+                    + getattr(response.usage, "output_tokens", 0)
+                )
 
             # Extract YAML from response
-            yaml_content = response.choices[0].message.content or ""
+            yaml_content = response.output_text or ""
 
             # Clean up YAML (remove markdown code blocks if present)
             if yaml_content.startswith("```"):
@@ -273,30 +275,32 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
         try:
             kwargs: dict[str, Any] = {
                 "model": self.model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
+                "instructions": system_prompt,
+                "input": prompt,
+                "store": False,
             }
-            # Reasoning models use max_completion_tokens, others use max_tokens
+            # Reasoning models use max_output_tokens, others use max_tokens
             if self.is_reasoning_model:
-                kwargs["max_completion_tokens"] = max_tokens
+                kwargs["max_output_tokens"] = max_tokens
                 if self.reasoning_effort:
-                    kwargs["reasoning_effort"] = self.reasoning_effort
-                # Note: reasoning models may not support response_format
+                    kwargs["reasoning"] = {"effort": self.reasoning_effort}
+                # Note: reasoning models may not support text format
             else:
                 kwargs["max_tokens"] = max_tokens
-                kwargs["response_format"] = {"type": "json_object"}
+                kwargs["text"] = {"format": {"type": "json_object"}}
             if self.supports_temperature:
                 kwargs["temperature"] = temperature
-            response = await self.client.chat.completions.create(**kwargs)
+            response = await self.client.responses.create(**kwargs)
 
             # Track usage
             if response.usage:
-                self.total_tokens_used += response.usage.total_tokens
+                self.total_tokens_used += (
+                    getattr(response.usage, "input_tokens", 0)
+                    + getattr(response.usage, "output_tokens", 0)
+                )
 
             # Extract JSON from response
-            json_content = response.choices[0].message.content or "{}"
+            json_content = response.output_text or "{}"
 
             # Clean up JSON (remove markdown code blocks if present from reasoning models)
             if json_content.startswith("```"):
@@ -412,30 +416,32 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
         try:
             kwargs: dict[str, Any] = {
                 "model": self.model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
+                "instructions": system_prompt,
+                "input": prompt,
+                "store": False,
             }
-            # Reasoning models use max_completion_tokens, others use max_tokens
+            # Reasoning models use max_output_tokens, others use max_tokens
             if self.is_reasoning_model:
-                kwargs["max_completion_tokens"] = max_tokens
+                kwargs["max_output_tokens"] = max_tokens
                 if self.reasoning_effort:
-                    kwargs["reasoning_effort"] = self.reasoning_effort
-                # Note: reasoning models may not support response_format
+                    kwargs["reasoning"] = {"effort": self.reasoning_effort}
+                # Note: reasoning models may not support text format
             else:
                 kwargs["max_tokens"] = max_tokens
-                kwargs["response_format"] = {"type": "json_object"}
+                kwargs["text"] = {"format": {"type": "json_object"}}
             if self.supports_temperature:
                 kwargs["temperature"] = temperature
-            response = await self.client.chat.completions.create(**kwargs)
+            response = await self.client.responses.create(**kwargs)
 
             # Track usage
             if response.usage:
-                self.total_tokens_used += response.usage.total_tokens
+                self.total_tokens_used += (
+                    getattr(response.usage, "input_tokens", 0)
+                    + getattr(response.usage, "output_tokens", 0)
+                )
 
             # Extract JSON from response
-            json_content = response.choices[0].message.content or "{}"
+            json_content = response.output_text or "{}"
 
             # Clean up JSON (remove markdown code blocks if present from reasoning models)
             if json_content.startswith("```"):
@@ -483,30 +489,29 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
         try:
             kwargs: dict[str, Any] = {
                 "model": self.model,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are a helpful assistant that creates clear, concise automation descriptions.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
+                "instructions": "You are a helpful assistant that creates clear, concise automation descriptions.",
+                "input": prompt,
+                "store": False,
             }
-            # Reasoning models use max_completion_tokens, others use max_tokens
+            # Reasoning models use max_output_tokens, others use max_tokens
             if self.is_reasoning_model:
-                kwargs["max_completion_tokens"] = max_tokens
+                kwargs["max_output_tokens"] = max_tokens
                 if self.reasoning_effort:
-                    kwargs["reasoning_effort"] = self.reasoning_effort
+                    kwargs["reasoning"] = {"effort": self.reasoning_effort}
             else:
                 kwargs["max_tokens"] = max_tokens
             if self.supports_temperature:
                 kwargs["temperature"] = temperature
-            response = await self.client.chat.completions.create(**kwargs)
+            response = await self.client.responses.create(**kwargs)
 
             # Track usage
             if response.usage:
-                self.total_tokens_used += response.usage.total_tokens
+                self.total_tokens_used += (
+                    getattr(response.usage, "input_tokens", 0)
+                    + getattr(response.usage, "output_tokens", 0)
+                )
 
-            description = response.choices[0].message.content or ""
+            description = response.output_text or ""
             return description.strip()
 
         except APIError as e:

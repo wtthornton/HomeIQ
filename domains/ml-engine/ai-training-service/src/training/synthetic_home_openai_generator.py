@@ -224,59 +224,34 @@ Requirements:
 
 Return the home data as JSON matching the schema."""
 
-            # Build messages
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ]
-
-            # Build API parameters
+            # Build Responses API parameters
             api_params = {
                 "model": self.model,
-                "messages": messages,
+                "instructions": system_prompt,
+                "input": user_prompt,
                 "temperature": self.temperature,
-                "max_completion_tokens": 2000,
-                "response_format": {"type": "json_object"}  # JSON mode
+                "max_output_tokens": 2000,
+                "text": {"format": {"type": "json_object"}},
+                "store": False,
             }
 
-            # Add GPT-5.1 parameters if applicable
-            # Note: These imports will need to be adjusted based on training service structure
-            try:
-                # from ..utils.gpt51_params import (
-                #     is_gpt51_model,
-                #     get_gpt51_params_for_use_case,
-                #     merge_gpt51_params,
-                #     remove_unsupported_gpt51_params
-                # )
-                # from ..config import settings
-                # 
-                # if is_gpt51_model(self.model):
-                #     gpt51_params = get_gpt51_params_for_use_case(
-                #         model=self.model,
-                #         use_case="structured",  # Structured outputs
-                #         enable_prompt_caching=getattr(settings, 'enable_prompt_caching', True)
-                #     )
-                #     api_params = merge_gpt51_params(api_params, gpt51_params)
-                #     api_params = remove_unsupported_gpt51_params(api_params)
-                pass  # GPT-5.1 params not available in training service yet
-            except ImportError:
-                logger.debug("GPT-5.1 params not available, using standard parameters")
-
-            # Make API call
-            # Note: This assumes openai_client has a client attribute with chat.completions.create
-            response = await self.openai_client.client.chat.completions.create(**api_params)
+            # Make API call (Responses API)
+            response = await self.openai_client.client.responses.create(**api_params)
 
             # Track token usage
             usage = response.usage
-            if hasattr(self.openai_client, 'total_input_tokens'):
-                self.openai_client.total_input_tokens += usage.prompt_tokens
-            if hasattr(self.openai_client, 'total_output_tokens'):
-                self.openai_client.total_output_tokens += usage.completion_tokens
-            if hasattr(self.openai_client, 'total_tokens_used'):
-                self.openai_client.total_tokens_used += usage.total_tokens
+            if usage:
+                input_tokens = getattr(usage, 'input_tokens', 0)
+                output_tokens = getattr(usage, 'output_tokens', 0)
+                if hasattr(self.openai_client, 'total_input_tokens'):
+                    self.openai_client.total_input_tokens += input_tokens
+                if hasattr(self.openai_client, 'total_output_tokens'):
+                    self.openai_client.total_output_tokens += output_tokens
+                if hasattr(self.openai_client, 'total_tokens_used'):
+                    self.openai_client.total_tokens_used += input_tokens + output_tokens
 
             # Parse response
-            content = response.choices[0].message.content
+            content = response.output_text
             if not content:
                 raise ValueError("Empty response from OpenAI API")
 
@@ -372,37 +347,31 @@ Check for:
 
 Return validation results as JSON matching the schema."""
 
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ]
-
             api_params = {
                 "model": self.model,
-                "messages": messages,
+                "instructions": system_prompt,
+                "input": user_prompt,
                 "temperature": 0.2,  # Lower temperature for validation
-                "max_completion_tokens": 1000,
-                "response_format": {"type": "json_object"}
+                "max_output_tokens": 1000,
+                "text": {"format": {"type": "json_object"}},
+                "store": False,
             }
 
-            # Add GPT-5.1 parameters if applicable (commented out for now)
-            # try:
-            #     from ..utils.gpt51_params import ...
-            # except ImportError:
-            #     pass
-
-            response = await self.openai_client.client.chat.completions.create(**api_params)
+            response = await self.openai_client.client.responses.create(**api_params)
 
             # Track token usage
             usage = response.usage
-            if hasattr(self.openai_client, 'total_input_tokens'):
-                self.openai_client.total_input_tokens += usage.prompt_tokens
-            if hasattr(self.openai_client, 'total_output_tokens'):
-                self.openai_client.total_output_tokens += usage.completion_tokens
-            if hasattr(self.openai_client, 'total_tokens_used'):
-                self.openai_client.total_tokens_used += usage.total_tokens
+            if usage:
+                input_tokens = getattr(usage, 'input_tokens', 0)
+                output_tokens = getattr(usage, 'output_tokens', 0)
+                if hasattr(self.openai_client, 'total_input_tokens'):
+                    self.openai_client.total_input_tokens += input_tokens
+                if hasattr(self.openai_client, 'total_output_tokens'):
+                    self.openai_client.total_output_tokens += output_tokens
+                if hasattr(self.openai_client, 'total_tokens_used'):
+                    self.openai_client.total_tokens_used += input_tokens + output_tokens
 
-            content = response.choices[0].message.content
+            content = response.output_text
             if not content:
                 raise ValueError("Empty validation response from OpenAI API")
 
@@ -475,37 +444,31 @@ Create a template that includes:
 
 Return the template as JSON matching the schema."""
 
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ]
-
             api_params = {
                 "model": self.model,
-                "messages": messages,
+                "instructions": system_prompt,
+                "input": user_prompt,
                 "temperature": 0.4,  # Slightly higher for template creativity
-                "max_completion_tokens": 1500,
-                "response_format": {"type": "json_object"}
+                "max_output_tokens": 1500,
+                "text": {"format": {"type": "json_object"}},
+                "store": False,
             }
 
-            # Add GPT-5.1 parameters if applicable (commented out for now)
-            # try:
-            #     from ..utils.gpt51_params import ...
-            # except ImportError:
-            #     pass
-
-            response = await self.openai_client.client.chat.completions.create(**api_params)
+            response = await self.openai_client.client.responses.create(**api_params)
 
             # Track token usage
             usage = response.usage
-            if hasattr(self.openai_client, 'total_input_tokens'):
-                self.openai_client.total_input_tokens += usage.prompt_tokens
-            if hasattr(self.openai_client, 'total_output_tokens'):
-                self.openai_client.total_output_tokens += usage.completion_tokens
-            if hasattr(self.openai_client, 'total_tokens_used'):
-                self.openai_client.total_tokens_used += usage.total_tokens
+            if usage:
+                input_tokens = getattr(usage, 'input_tokens', 0)
+                output_tokens = getattr(usage, 'output_tokens', 0)
+                if hasattr(self.openai_client, 'total_input_tokens'):
+                    self.openai_client.total_input_tokens += input_tokens
+                if hasattr(self.openai_client, 'total_output_tokens'):
+                    self.openai_client.total_output_tokens += output_tokens
+                if hasattr(self.openai_client, 'total_tokens_used'):
+                    self.openai_client.total_tokens_used += input_tokens + output_tokens
 
-            content = response.choices[0].message.content
+            content = response.output_text
             if not content:
                 raise ValueError("Empty template response from OpenAI API")
 

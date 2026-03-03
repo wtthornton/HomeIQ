@@ -137,21 +137,12 @@ class TestOpenAIClient:
         mock_settings.openai_api_key = "sk-test-key"
         mock_settings.openai_model = "gpt-4o-mini"
 
-        mock_usage = MagicMock()
-        mock_usage.total_tokens = 100
-
-        mock_message = MagicMock()
-        mock_message.content = "alias: Test\ntrigger:\n  - platform: state"
-
-        mock_choice = MagicMock()
-        mock_choice.message = mock_message
-
         mock_response = MagicMock()
-        mock_response.usage = mock_usage
-        mock_response.choices = [mock_choice]
+        mock_response.output_text = "alias: Test\ntrigger:\n  - platform: state"
+        mock_response.usage = MagicMock(input_tokens=70, output_tokens=30)
 
         mock_async_openai = MagicMock()
-        mock_async_openai.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_async_openai.responses.create = AsyncMock(return_value=mock_response)
 
         with patch("src.clients.openai_client.AsyncOpenAI", return_value=mock_async_openai):
             from src.clients.openai_client import OpenAIClient
@@ -171,21 +162,12 @@ class TestOpenAIClient:
         mock_settings.openai_api_key = "sk-test-key"
         mock_settings.openai_model = "gpt-4o-mini"
 
-        mock_usage = MagicMock()
-        mock_usage.total_tokens = 50
-
-        mock_message = MagicMock()
-        mock_message.content = "```yaml\nalias: Test\ntrigger:\n  - platform: state\n```"
-
-        mock_choice = MagicMock()
-        mock_choice.message = mock_message
-
         mock_response = MagicMock()
-        mock_response.usage = mock_usage
-        mock_response.choices = [mock_choice]
+        mock_response.output_text = "```yaml\nalias: Test\ntrigger:\n  - platform: state\n```"
+        mock_response.usage = MagicMock(input_tokens=30, output_tokens=20)
 
         mock_async_openai = MagicMock()
-        mock_async_openai.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_async_openai.responses.create = AsyncMock(return_value=mock_response)
 
         with patch("src.clients.openai_client.AsyncOpenAI", return_value=mock_async_openai):
             from src.clients.openai_client import OpenAIClient

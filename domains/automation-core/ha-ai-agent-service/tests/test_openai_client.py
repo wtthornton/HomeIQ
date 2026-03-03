@@ -3,9 +3,9 @@ Unit tests for OpenAI Client Service
 Epic AI-20 Story AI20.1
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.config import Settings
 from src.services.openai_client import (
     OpenAIClient,
@@ -57,25 +57,20 @@ def test_client_initialization_missing_api_key():
 @pytest.mark.asyncio
 async def test_chat_completion_success(openai_client):
     """Test successful chat completion"""
-    # Mock OpenAI API response
+    # Mock OpenAI Responses API response
     mock_response = MagicMock()
-    mock_response.choices = [
-        MagicMock(
-            message=MagicMock(
-                content="Test response",
-                role="assistant",
-                tool_calls=None,
-            )
-        )
+    mock_response.output_text = "Test response"
+    mock_response.output = [
+        MagicMock(type="message", content=[MagicMock(text="Test response")])
     ]
+    mock_response.model = "gpt-4o-mini"
     mock_response.usage = MagicMock(
-        total_tokens=100,
-        prompt_tokens=50,
-        completion_tokens=50,
+        input_tokens=50,
+        output_tokens=50,
     )
 
     with patch.object(
-        openai_client.client.chat.completions, "create", new_callable=AsyncMock
+        openai_client.client.responses, "create", new_callable=AsyncMock
     ) as mock_create:
         mock_create.return_value = mock_response
 
@@ -86,7 +81,7 @@ async def test_chat_completion_success(openai_client):
 
         response = await openai_client.chat_completion(messages)
 
-        assert response.choices[0].message.content == "Test response"
+        assert response.output_text == "Test response"
         assert openai_client.total_tokens_used == 100
         assert openai_client.total_requests == 1
         assert openai_client.total_errors == 0
@@ -95,45 +90,41 @@ async def test_chat_completion_success(openai_client):
         mock_create.assert_called_once()
         call_args = mock_create.call_args[1]
         assert call_args["model"] == "gpt-4o-mini"
-        assert call_args["messages"] == messages
+        assert call_args["instructions"] == "You are a helpful assistant"
+        assert call_args["input"] == [
+            {"type": "message", "role": "user", "content": "Hello"}
+        ]
         assert call_args["temperature"] == 0.7
-        assert call_args["max_tokens"] == 4096
+        assert call_args["max_output_tokens"] == 4096
 
 
 @pytest.mark.asyncio
 async def test_chat_completion_with_tools(openai_client):
     """Test chat completion with function calling tools"""
+    mock_tool_call = MagicMock(
+        type="function_call",
+        name="get_entity_state",
+        arguments='{"entity_id": "light.kitchen"}',
+        call_id="call_123",
+    )
     mock_response = MagicMock()
-    mock_response.choices = [
-        MagicMock(
-            message=MagicMock(
-                content=None,
-                role="assistant",
-                tool_calls=[
-                    MagicMock(
-                        id="call_123",
-                        type="function",
-                        function=MagicMock(
-                            name="get_entity_state",
-                            arguments='{"entity_id": "light.kitchen"}',
-                        ),
-                    )
-                ],
-            )
-        )
-    ]
+    mock_response.output_text = None
+    mock_response.output = [mock_tool_call]
+    mock_response.model = "gpt-4o-mini"
     mock_response.usage = MagicMock(
-        total_tokens=150,
-        prompt_tokens=100,
-        completion_tokens=50,
+        input_tokens=100,
+        output_tokens=50,
     )
 
     with patch.object(
-        openai_client.client.chat.completions, "create", new_callable=AsyncMock
+        openai_client.client.responses, "create", new_callable=AsyncMock
     ) as mock_create:
         mock_create.return_value = mock_response
 
-        messages = [{"role": "user", "content": "Turn on the kitchen light"}]
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant"},
+            {"role": "user", "content": "Turn on the kitchen light"},
+        ]
         tools = [
             {
                 "type": "function",
@@ -152,8 +143,12 @@ async def test_chat_completion_with_tools(openai_client):
 
         response = await openai_client.chat_completion(messages, tools=tools)
 
-        assert response.choices[0].message.tool_calls is not None
-        assert len(response.choices[0].message.tool_calls) == 1
+        # Verify function_call output items are present
+        function_calls = [
+            item for item in response.output if item.type == "function_call"
+        ]
+        assert len(function_calls) == 1
+        assert function_calls[0].name == "get_entity_state"
         assert openai_client.total_tokens_used == 150
 
         # Verify tools were passed to API
@@ -166,23 +161,18 @@ async def test_chat_completion_with_tools(openai_client):
 async def test_chat_completion_simple(openai_client):
     """Test simple chat completion helper"""
     mock_response = MagicMock()
-    mock_response.choices = [
-        MagicMock(
-            message=MagicMock(
-                content="Hello! How can I help you?",
-                role="assistant",
-                tool_calls=None,
-            )
-        )
+    mock_response.output_text = "Hello! How can I help you?"
+    mock_response.output = [
+        MagicMock(type="message", content=[MagicMock(text="Hello! How can I help you?")])
     ]
+    mock_response.model = "gpt-4o-mini"
     mock_response.usage = MagicMock(
-        total_tokens=50,
-        prompt_tokens=30,
-        completion_tokens=20,
+        input_tokens=30,
+        output_tokens=20,
     )
 
     with patch.object(
-        openai_client.client.chat.completions, "create", new_callable=AsyncMock
+        openai_client.client.responses, "create", new_callable=AsyncMock
     ) as mock_create:
         mock_create.return_value = mock_response
 
@@ -200,7 +190,7 @@ async def test_chat_completion_rate_limit_error(openai_client):
     from openai import RateLimitError
 
     with patch.object(
-        openai_client.client.chat.completions, "create", new_callable=AsyncMock
+        openai_client.client.responses, "create", new_callable=AsyncMock
     ) as mock_create:
         mock_create.side_effect = RateLimitError(
             message="Rate limit exceeded",
@@ -208,7 +198,10 @@ async def test_chat_completion_rate_limit_error(openai_client):
             body=None,
         )
 
-        messages = [{"role": "user", "content": "Hello"}]
+        messages = [
+            {"role": "system", "content": "You are a helper"},
+            {"role": "user", "content": "Hello"},
+        ]
 
         with pytest.raises(OpenAIRateLimitError):
             await openai_client.chat_completion(messages)
@@ -231,11 +224,14 @@ async def test_chat_completion_token_budget_error(openai_client):
     )
 
     with patch.object(
-        openai_client.client.chat.completions, "create", new_callable=AsyncMock
+        openai_client.client.responses, "create", new_callable=AsyncMock
     ) as mock_create:
         mock_create.side_effect = error
 
-        messages = [{"role": "user", "content": "Hello"}]
+        messages = [
+            {"role": "system", "content": "You are a helper"},
+            {"role": "user", "content": "Hello"},
+        ]
 
         with pytest.raises(OpenAITokenBudgetExceededError):
             await openai_client.chat_completion(messages)
@@ -247,11 +243,14 @@ async def test_chat_completion_token_budget_error(openai_client):
 async def test_chat_completion_generic_error(openai_client):
     """Test handling of generic API errors"""
     with patch.object(
-        openai_client.client.chat.completions, "create", new_callable=AsyncMock
+        openai_client.client.responses, "create", new_callable=AsyncMock
     ) as mock_create:
         mock_create.side_effect = Exception("Network error")
 
-        messages = [{"role": "user", "content": "Hello"}]
+        messages = [
+            {"role": "system", "content": "You are a helper"},
+            {"role": "user", "content": "Hello"},
+        ]
 
         with pytest.raises(OpenAIError):
             await openai_client.chat_completion(messages)
@@ -292,21 +291,31 @@ def test_reset_stats(openai_client):
 async def test_custom_max_tokens_and_temperature(openai_client):
     """Test custom max_tokens and temperature parameters"""
     mock_response = MagicMock()
-    mock_response.choices = [MagicMock(message=MagicMock(content="Test"))]
-    mock_response.usage = MagicMock(total_tokens=100)
+    mock_response.output_text = "Test"
+    mock_response.output = [
+        MagicMock(type="message", content=[MagicMock(text="Test")])
+    ]
+    mock_response.model = "gpt-4o-mini"
+    mock_response.usage = MagicMock(
+        input_tokens=50,
+        output_tokens=50,
+    )
 
     with patch.object(
-        openai_client.client.chat.completions, "create", new_callable=AsyncMock
+        openai_client.client.responses, "create", new_callable=AsyncMock
     ) as mock_create:
         mock_create.return_value = mock_response
 
-        messages = [{"role": "user", "content": "Hello"}]
+        messages = [
+            {"role": "system", "content": "You are a helper"},
+            {"role": "user", "content": "Hello"},
+        ]
 
         await openai_client.chat_completion(
             messages, max_tokens=2000, temperature=0.9
         )
 
         call_args = mock_create.call_args[1]
-        assert call_args["max_tokens"] == 2000
+        assert call_args["max_output_tokens"] == 2000
         assert call_args["temperature"] == 0.9
 

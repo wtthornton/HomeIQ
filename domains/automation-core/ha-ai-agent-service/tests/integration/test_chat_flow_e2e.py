@@ -102,42 +102,50 @@ async def test_client(
 
 
 def create_mock_completion(content: str, tool_calls=None):
-    """Create mock OpenAI completion response"""
-    from openai.types.chat import ChatCompletion, ChatCompletionMessage
-    from openai.types.chat.chat_completion import Choice
-    from openai.types.completion_usage import CompletionUsage
+    """Create mock OpenAI Responses API response"""
+    from types import SimpleNamespace
 
-    message = ChatCompletionMessage(
-        role="assistant",
-        content=content,
-        tool_calls=tool_calls if tool_calls else None,
-    )
+    output_items = []
 
-    return ChatCompletion(
-        id="chatcmpl-test",
-        choices=[Choice(finish_reason="stop", index=0, message=message)],
-        created=1234567890,
+    # Add function call items if provided
+    if tool_calls:
+        for tc in tool_calls:
+            output_items.append(tc)
+
+    # Add text message if content provided
+    if content:
+        output_items.append(
+            SimpleNamespace(
+                type="message",
+                role="assistant",
+                content=content,
+            )
+        )
+
+    return SimpleNamespace(
+        id="resp-test",
+        output_text=content,
+        output=output_items,
         model="gpt-4o-mini",
-        object="chat.completion",
-        usage=CompletionUsage(
-            completion_tokens=len(content.split()),
-            prompt_tokens=100,
-            total_tokens=100 + len(content.split()),
+        stop_reason="stop",
+        usage=SimpleNamespace(
+            input_tokens=100,
+            output_tokens=len(content.split()) if content else 0,
+            output_tokens_details=None,
         ),
     )
 
 
 def create_mock_tool_call(call_id: str, name: str, arguments: Dict[str, Any]):
-    """Create mock tool call"""
-    from openai.types.chat.chat_completion_message_tool_call import (
-        ChatCompletionMessageToolCall,
-        Function,
-    )
+    """Create mock Responses API function_call item"""
+    from types import SimpleNamespace
+    import json
 
-    return ChatCompletionMessageToolCall(
-        id=call_id,
-        type="function",
-        function=Function(name=name, arguments=str(arguments).replace("'", '"')),
+    return SimpleNamespace(
+        type="function_call",
+        name=name,
+        arguments=json.dumps(arguments),
+        call_id=call_id,
     )
 
 

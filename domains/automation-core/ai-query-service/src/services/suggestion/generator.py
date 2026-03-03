@@ -181,18 +181,17 @@ class SuggestionGenerator:
             f"{area_clause}"
         )
 
-        # Delegate to the injected client (expected to expose a chat completions interface)
-        response = await self.openai_client.chat.completions.create(
+        # Delegate to the injected client (expected to expose a responses interface)
+        response = await self.openai_client.responses.create(
             model=settings.openai_model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            max_tokens=1500,
-            response_format={"type": "json_object"},
+            instructions=system_prompt,
+            input=user_prompt,
+            max_output_tokens=1500,
+            text={"format": {"type": "json_object"}},
+            store=False,
         )
 
-        raw_text = response.choices[0].message.content or "[]"
+        raw_text = response.output_text or "[]"
         # Strip optional markdown fence
         if raw_text.startswith("```"):
             lines = raw_text.split("\n")

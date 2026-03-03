@@ -7,13 +7,18 @@ Provides async OpenAI API client with:
 - Rate limiting handling (429 errors)
 - Token counting and budget management
 - Error handling for API failures
+
+Migrated to Responses API (Feb 2026):
+- client.responses.create() replaces client.chat.completions.create()
+- System messages passed as `instructions` parameter
+- User/assistant messages passed as `input` items
+- Response parsed from `output` items instead of `choices[0].message`
 """
 
 import logging
 from typing import Any
 
 from openai import AsyncOpenAI
-from openai.types.chat import ChatCompletion
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -49,7 +54,7 @@ class OpenAIClient:
     OpenAI API client with async support.
 
     Features:
-    - Async operations
+    - Async operations via Responses API
     - Retry logic with exponential backoff
     - Rate limiting handling
     - Token counting and budget management
@@ -90,30 +95,33 @@ class OpenAIClient:
         tool_choice: str | None = None,
         max_tokens: int | None = None,
         temperature: float | None = None,
-    ) -> ChatCompletion:
+    ) -> Any:
         """
-        Create a chat completion with OpenAI API.
+        Create a response using the OpenAI Responses API.
+
+        Accepts the same message-based interface for backward compatibility,
+        internally converts to Responses API format.
 
         Args:
             messages: List of message dicts with 'role' and 'content' keys
             tools: Optional list of tool schemas for function calling
-            tool_choice: Optional tool choice mode ('auto', 'none', or tool name)
+            tool_choice: Ignored (Responses API auto-detects tool usage)
             max_tokens: Optional max tokens (overrides config default)
             temperature: Optional temperature (overrides config default)
 
         Returns:
-            ChatCompletion response from OpenAI
+            Response object from OpenAI Responses API
         """
         # Verify messages before sending
         if not messages:
-            logger.error("❌ CRITICAL: No messages provided to OpenAI API!")
+            logger.error("CRITICAL: No messages provided to OpenAI API!")
             raise ValueError("Messages list is empty")
 
         # Verify system message is first
         system_msg = messages[0] if messages else None
         if not system_msg or system_msg.get("role") != "system":
             logger.error(
-                f"❌ CRITICAL: System message missing or not first! "
+                f"CRITICAL: System message missing or not first! "
                 f"First message: {system_msg}, Total messages: {len(messages)}"
             )
             raise ValueError("System message must be first message")
@@ -148,60 +156,66 @@ class OpenAIClient:
             req_temperature: float = effective_temperature,
         ):
             """Internal function to make API request with retry logic"""
-            # Prepare request parameters
+            # Extract system message as instructions, rest as input
+            instructions = system_content
+            input_items = _messages_to_input(messages[1:])
+
+            # Prepare request parameters for Responses API
             request_params: dict[str, Any] = {
                 "model": model,
-                "messages": messages,
+                "instructions": instructions,
+                "input": input_items,
+                "store": False,  # Privacy: don't store responses
             }
 
-            # GPT-5.x models use max_completion_tokens (includes reasoning tokens)
-            # Reasoning models (gpt-5-mini, gpt-5.2+) do NOT support temperature
+            # GPT-5.x reasoning models: use max_output_tokens and reasoning config
             if model.startswith("gpt-5"):
-                request_params["max_completion_tokens"] = req_max_tokens
+                request_params["max_output_tokens"] = req_max_tokens
                 is_reasoning_model = "mini" in model or model >= "gpt-5.2"
                 if is_reasoning_model:
                     # Reasoning models don't support temperature (only default 1)
                     if reasoning_effort and not model.startswith("gpt-5.1"):
-                        request_params["reasoning_effort"] = reasoning_effort
+                        request_params["reasoning"] = {"effort": reasoning_effort}
                 else:
                     # Non-reasoning GPT-5.x models support temperature
                     request_params["temperature"] = req_temperature
             else:
-                request_params["max_tokens"] = req_max_tokens
+                request_params["max_output_tokens"] = req_max_tokens
                 request_params["temperature"] = req_temperature
 
             # Add tools if provided
             if tools:
                 request_params["tools"] = tools
-                if tool_choice:
-                    request_params["tool_choice"] = tool_choice
 
             logger.debug(
                 f"OpenAI API request: model={model}, "
                 f"reasoning_effort={reasoning_effort}, "
-                f"messages={len(messages)}, tools={len(tools) if tools else 0}"
+                f"input_items={len(input_items)}, tools={len(tools) if tools else 0}"
             )
 
             try:
-                # Make API call
-                response = await self.client.chat.completions.create(**request_params)
+                # Make Responses API call
+                response = await self.client.responses.create(**request_params)
 
-                # Track token usage (including reasoning tokens for GPT-5.2)
+                # Track token usage
                 if response.usage:
-                    self.total_tokens_used += response.usage.total_tokens
-                    reasoning_tokens = getattr(
-                        response.usage, "completion_tokens_details", None
-                    )
+                    input_tokens = getattr(response.usage, "input_tokens", 0)
+                    output_tokens = getattr(response.usage, "output_tokens", 0)
+                    total = input_tokens + output_tokens
+                    self.total_tokens_used += total
+
+                    # Track reasoning tokens if available
+                    output_details = getattr(response.usage, "output_tokens_details", None)
                     reasoning_count = (
-                        getattr(reasoning_tokens, "reasoning_tokens", 0)
-                        if reasoning_tokens else 0
+                        getattr(output_details, "reasoning_tokens", 0)
+                        if output_details else 0
                     )
                     if reasoning_count:
                         self.total_reasoning_tokens += reasoning_count
                     logger.info(
-                        f"OpenAI API response: {response.usage.total_tokens} tokens "
-                        f"(prompt: {response.usage.prompt_tokens}, "
-                        f"completion: {response.usage.completion_tokens}"
+                        f"OpenAI API response: {total} tokens "
+                        f"(input: {input_tokens}, "
+                        f"output: {output_tokens}"
                         f"{f', reasoning: {reasoning_count}' if reasoning_count else ''})"
                     )
 
@@ -235,7 +249,7 @@ class OpenAIClient:
         self, system_prompt: str, user_message: str
     ) -> str:
         """
-        Simple chat completion helper (no function calling).
+        Simple completion helper (no function calling).
 
         Args:
             system_prompt: System prompt message
@@ -250,7 +264,7 @@ class OpenAIClient:
         ]
 
         response = await self.chat_completion(messages)
-        return response.choices[0].message.content or ""
+        return response.output_text or ""
 
     def get_token_stats(self) -> dict[str, Any]:
         """
@@ -279,3 +293,61 @@ class OpenAIClient:
         self.total_errors = 0
         logger.info("OpenAI client statistics reset")
 
+
+def _messages_to_input(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Convert Chat Completions message format to Responses API input items.
+
+    Args:
+        messages: List of message dicts (excluding system message).
+
+    Returns:
+        List of input items for the Responses API.
+    """
+    input_items: list[dict[str, Any]] = []
+    for msg in messages:
+        role = msg.get("role", "user")
+        content = msg.get("content", "")
+
+        if role == "user":
+            input_items.append({
+                "type": "message",
+                "role": "user",
+                "content": content,
+            })
+        elif role == "assistant":
+            # Assistant messages with tool calls need special handling
+            tool_calls = msg.get("tool_calls")
+            if content:
+                input_items.append({
+                    "type": "message",
+                    "role": "assistant",
+                    "content": content,
+                })
+            if tool_calls:
+                for tc in tool_calls:
+                    func = tc.get("function", tc)
+                    input_items.append({
+                        "type": "function_call",
+                        "name": func.get("name", ""),
+                        "arguments": func.get("arguments", "{}"),
+                        "call_id": tc.get("id", ""),
+                    })
+        elif role == "tool_call":
+            # Responses API function_call item passed through from chat loop
+            fc = msg.get("_function_call")
+            if fc:
+                input_items.append({
+                    "type": "function_call",
+                    "name": getattr(fc, "name", ""),
+                    "arguments": getattr(fc, "arguments", "{}"),
+                    "call_id": getattr(fc, "call_id", ""),
+                })
+        elif role == "tool":
+            # Tool result messages
+            input_items.append({
+                "type": "function_call_output",
+                "call_id": msg.get("tool_call_id", ""),
+                "output": content if isinstance(content, str) else str(content),
+            })
+
+    return input_items

@@ -229,19 +229,18 @@ IMPORTANT: When selecting a template, verify the target area has the required se
             if not self.openai_client.client:
                 raise ValueError("OpenAI client not initialized")
 
-            plan_kwargs = {
+            plan_kwargs: dict[str, Any] = {
                 "model": self.openai_client.model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                "response_format": {"type": "json_object"},
+                "instructions": system_prompt,
+                "input": user_prompt,
+                "text": {"format": {"type": "json_object"}},
+                "store": False,
             }
             if self.openai_client.supports_temperature:
                 plan_kwargs["temperature"] = 0.3
-            response = await self.openai_client.client.chat.completions.create(**plan_kwargs)
+            response = await self.openai_client.client.responses.create(**plan_kwargs)
 
-            plan_data = json.loads(response.choices[0].message.content)
+            plan_data = json.loads(response.output_text)
 
             # Validate template exists
             template = self.template_library.get_template(

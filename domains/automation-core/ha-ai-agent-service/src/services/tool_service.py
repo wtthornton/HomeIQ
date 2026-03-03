@@ -117,18 +117,17 @@ class ToolService:
         tool_call: dict[str, Any]
     ) -> dict[str, Any]:
         """
-        Execute a tool call from OpenAI format.
+        Execute a tool call from OpenAI Responses API format.
 
         Args:
-            tool_call: OpenAI tool call format:
+            tool_call: Responses API function_call format:
                 {
-                    "id": "call_...",
-                    "type": "function",
-                    "function": {
-                        "name": "tool_name",
-                        "arguments": "{\"key\": \"value\"}"
-                    }
+                    "type": "function_call",
+                    "name": "tool_name",
+                    "arguments": "{\"key\": \"value\"}",
+                    "call_id": "call_..."
                 }
+                Also supports legacy Chat Completions format for compatibility.
 
         Returns:
             Dictionary with tool execution result
@@ -136,10 +135,18 @@ class ToolService:
         import json
 
         try:
-            # Extract tool name and arguments
-            function = tool_call.get("function", {})
-            tool_name = function.get("name")
-            arguments_str = function.get("arguments", "{}")
+            # Extract tool name and arguments (support both formats)
+            if "function" in tool_call:
+                # Legacy Chat Completions format
+                function = tool_call.get("function", {})
+                tool_name = function.get("name")
+                arguments_str = function.get("arguments", "{}")
+                call_id = tool_call.get("id")
+            else:
+                # Responses API format
+                tool_name = tool_call.get("name")
+                arguments_str = tool_call.get("arguments", "{}")
+                call_id = tool_call.get("call_id")
 
             if not tool_name:
                 return {
@@ -160,7 +167,7 @@ class ToolService:
             result = await self.execute_tool(tool_name, arguments)
 
             # Add tool call ID for OpenAI response format
-            result["tool_call_id"] = tool_call.get("id")
+            result["tool_call_id"] = call_id
 
             return result
 

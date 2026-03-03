@@ -58,10 +58,9 @@ class TestYAMLGeneration:
 
     @pytest.fixture
     def mock_openai_response(self):
-        """Mock OpenAI API response."""
+        """Mock OpenAI Responses API response."""
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = """id: 'test-123'
+        mock_response.output_text = """id: 'test-123'
 alias: Test Automation
 trigger:
   - platform: time
@@ -72,7 +71,8 @@ action:
       entity_id: light.office_lamp
 """
         mock_response.usage = MagicMock()
-        mock_response.usage.total_tokens = 150
+        mock_response.usage.input_tokens = 100
+        mock_response.usage.output_tokens = 50
         return mock_response
 
     @pytest.fixture
@@ -86,7 +86,7 @@ action:
     async def test_generate_yaml_success(self, openai_client: OpenAIClient, mock_openai_response):
         """Test successful YAML generation."""
         # Setup
-        openai_client.client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
+        openai_client.client.responses.create = AsyncMock(return_value=mock_openai_response)
 
         # Execute
         prompt = "Turn on lights at 7 AM"
@@ -96,23 +96,23 @@ action:
         assert "id: 'test-123'" in result
         assert "alias: Test Automation" in result
         assert openai_client.total_tokens_used == 150
-        openai_client.client.chat.completions.create.assert_called_once()
+        openai_client.client.responses.create.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_yaml_removes_markdown_code_blocks(self, openai_client: OpenAIClient):
         """Test that YAML generation removes markdown code blocks."""
         # Setup: Response with markdown code blocks
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = """```yaml
+        mock_response.output_text = """```yaml
 id: 'test-123'
 alias: Test Automation
 ```
 """
         mock_response.usage = MagicMock()
-        mock_response.usage.total_tokens = 50
+        mock_response.usage.input_tokens = 30
+        mock_response.usage.output_tokens = 20
 
-        openai_client.client.chat.completions.create = AsyncMock(return_value=mock_response)
+        openai_client.client.responses.create = AsyncMock(return_value=mock_response)
 
         # Execute
         result = await openai_client.generate_yaml("Test prompt")
@@ -140,7 +140,7 @@ alias: Test Automation
     ):
         """Test that token usage is tracked correctly."""
         # Setup
-        openai_client.client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
+        openai_client.client.responses.create = AsyncMock(return_value=mock_openai_response)
 
         # Execute multiple calls
         await openai_client.generate_yaml("Prompt 1")
@@ -165,7 +165,7 @@ class TestErrorHandling:
     async def test_api_error_raises_exception(self, openai_client: OpenAIClient):
         """Test that APIError is raised and not caught."""
         # Setup: Mock API error
-        openai_client.client.chat.completions.create = AsyncMock(
+        openai_client.client.responses.create = AsyncMock(
             side_effect=APIError(message="API error", request=None, body=None)
         )
 
@@ -178,17 +178,17 @@ class TestErrorHandling:
         """Test that RateLimitError triggers retry logic."""
         # Setup: First call fails with rate limit, second succeeds
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "id: 'test'"
+        mock_response.output_text = "id: 'test'"
         mock_response.usage = MagicMock()
-        mock_response.usage.total_tokens = 50
+        mock_response.usage.input_tokens = 30
+        mock_response.usage.output_tokens = 20
 
         # Create a proper RateLimitError
         rate_limit_error = RateLimitError(
             message="Rate limit exceeded", response=MagicMock(), body=None
         )
 
-        openai_client.client.chat.completions.create = AsyncMock(
+        openai_client.client.responses.create = AsyncMock(
             side_effect=[
                 rate_limit_error,
                 mock_response,  # Second call succeeds
@@ -200,7 +200,7 @@ class TestErrorHandling:
 
         # Assert: Retried and succeeded
         assert "id: 'test'" in result
-        assert openai_client.client.chat.completions.create.call_count == 2
+        assert openai_client.client.responses.create.call_count == 2
 
     @pytest.mark.asyncio
     async def test_rate_limit_error_fails_after_max_retries(self, openai_client: OpenAIClient):
@@ -209,20 +209,20 @@ class TestErrorHandling:
         rate_limit_error = RateLimitError(
             message="Rate limit exceeded", response=MagicMock(), body=None
         )
-        openai_client.client.chat.completions.create = AsyncMock(side_effect=rate_limit_error)
+        openai_client.client.responses.create = AsyncMock(side_effect=rate_limit_error)
 
         # Execute & Assert: Should fail after 3 attempts
         with pytest.raises(RateLimitError):
             await openai_client.generate_yaml("Test prompt")
 
         # Assert: Retried 3 times (max attempts)
-        assert openai_client.client.chat.completions.create.call_count == 3
+        assert openai_client.client.responses.create.call_count == 3
 
     @pytest.mark.asyncio
     async def test_unexpected_error_raises_exception(self, openai_client: OpenAIClient):
         """Test that unexpected errors are raised."""
         # Setup: Unexpected error
-        openai_client.client.chat.completions.create = AsyncMock(
+        openai_client.client.responses.create = AsyncMock(
             side_effect=ValueError("Unexpected error")
         )
 
@@ -247,12 +247,12 @@ class TestSuggestionDescriptionGeneration:
         """Test successful suggestion description generation."""
         # Setup
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Turn on office lights at 7 AM every weekday"
+        mock_response.output_text = "Turn on office lights at 7 AM every weekday"
         mock_response.usage = MagicMock()
-        mock_response.usage.total_tokens = 75
+        mock_response.usage.input_tokens = 50
+        mock_response.usage.output_tokens = 25
 
-        openai_client.client.chat.completions.create = AsyncMock(return_value=mock_response)
+        openai_client.client.responses.create = AsyncMock(return_value=mock_response)
 
         # Execute
         pattern_data = {
@@ -266,7 +266,7 @@ class TestSuggestionDescriptionGeneration:
         # Assert
         assert "Turn on office lights" in result
         assert openai_client.total_tokens_used == 75
-        openai_client.client.chat.completions.create.assert_called_once()
+        openai_client.client.responses.create.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_suggestion_description_without_api_key(self):
@@ -297,12 +297,12 @@ class TestUsageStats:
         """Test getting usage statistics."""
         # Setup: Make some API calls
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "test"
+        mock_response.output_text = "test"
         mock_response.usage = MagicMock()
-        mock_response.usage.total_tokens = 100
+        mock_response.usage.input_tokens = 60
+        mock_response.usage.output_tokens = 40
 
-        openai_client.client.chat.completions.create = AsyncMock(return_value=mock_response)
+        openai_client.client.responses.create = AsyncMock(return_value=mock_response)
 
         await openai_client.generate_yaml("Test")
 
@@ -319,12 +319,12 @@ class TestUsageStats:
         """Test resetting usage statistics."""
         # Setup: Make some API calls
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "test"
+        mock_response.output_text = "test"
         mock_response.usage = MagicMock()
-        mock_response.usage.total_tokens = 100
+        mock_response.usage.input_tokens = 60
+        mock_response.usage.output_tokens = 40
 
-        openai_client.client.chat.completions.create = AsyncMock(return_value=mock_response)
+        openai_client.client.responses.create = AsyncMock(return_value=mock_response)
 
         await openai_client.generate_yaml("Test")
         assert openai_client.total_tokens_used == 100

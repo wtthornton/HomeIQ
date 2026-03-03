@@ -119,32 +119,25 @@ def setup_services(
 
 @pytest.fixture
 def mock_chat_completion():
-    """Create mock OpenAI chat completion response"""
-    from openai.types.chat import ChatCompletion, ChatCompletionMessage
-    from openai.types.chat.chat_completion import Choice
-    from openai.types.completion_usage import CompletionUsage
+    """Create mock OpenAI Responses API response"""
+    from types import SimpleNamespace
 
-    message = ChatCompletionMessage(
-        role="assistant",
-        content="I've turned on the kitchen lights.",
-    )
-
-    return ChatCompletion(
-        id="chatcmpl-123",
-        choices=[
-            Choice(
-                finish_reason="stop",
-                index=0,
-                message=message,
+    return SimpleNamespace(
+        id="resp-123",
+        output_text="I've turned on the kitchen lights.",
+        output=[
+            SimpleNamespace(
+                type="message",
+                role="assistant",
+                content="I've turned on the kitchen lights.",
             )
         ],
-        created=1234567890,
         model="gpt-4o-mini",
-        object="chat.completion",
-        usage=CompletionUsage(
-            completion_tokens=20,
-            prompt_tokens=100,
-            total_tokens=120,
+        stop_reason="stop",
+        usage=SimpleNamespace(
+            input_tokens=100,
+            output_tokens=20,
+            output_tokens_details=None,
         ),
     )
 
@@ -230,7 +223,7 @@ async def test_chat_endpoint_logic_new_conversation(
         completion = await mock_openai_client.chat_completion(messages=messages, tools=[])
 
         # Add assistant message
-        assistant_content = completion.choices[0].message.content or ""
+        assistant_content = completion.output_text or ""
         await conversation_service.add_message(conversation_id, "assistant", assistant_content)
 
         # Verify
