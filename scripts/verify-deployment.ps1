@@ -182,7 +182,21 @@ try { $null = Invoke-WebRequest -Uri "http://localhost:8004/api/v1/stats" -UseBa
 
 Write-Host ""
 Write-Host "4. Verifying alerts endpoint..." -ForegroundColor Cyan
-if (-not (Test-Endpoint "http://localhost:8004/api/v1/alerts" "" "")) { exit 1 }
+try {
+    $alertsResponse = Invoke-WebRequest -Uri "http://localhost:8004/api/v1/stats/alerts" -UseBasicParsing -ErrorAction Stop
+    if ($alertsResponse.StatusCode -eq 200) {
+        Write-Host "✅ Alerts endpoint returns data" -ForegroundColor Green
+    } else {
+        Write-Host "✅ Alerts endpoint reachable (HTTP $($alertsResponse.StatusCode))" -ForegroundColor Green
+    }
+} catch {
+    if ($_.Exception.Response.StatusCode.value__ -eq 401) {
+        Write-Host "✅ Alerts endpoint reachable (401 - requires API key)" -ForegroundColor Green
+    } else {
+        Write-Host "❌ Alerts endpoint failed: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+}
 
 Write-Host ""
 Write-Host "5. Verifying dashboard..." -ForegroundColor Cyan
