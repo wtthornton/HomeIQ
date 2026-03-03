@@ -94,13 +94,15 @@ password = getpass.getpass("Password: ")
 
 ---
 
-### CRITICAL-06: InfluxDB Client `host` Parameter May Receive Full URL
+### CRITICAL-06: InfluxDB Client `host` Parameter May Receive Full URL — RESOLVED
 
 **File:** `src/main.py` lines 132-137
 
-`host=self.influxdb_url` where value is `"http://influxdb:8086"`. Depending on library version, may cause double-protocol URLs. This is a codebase-wide concern across HomeIQ services.
-
-**Fix:** Parse URL and pass hostname only, or verify `influxdb3-python==0.3.0` behavior and add startup validation.
+**Resolution (Mar 3, 2026):** Verified that `influxdb3-python>=0.18.0` `InfluxDBClient3` internally
+parses the `host` param with `urllib.parse.urlparse()` — a bare hostname defaults to `https:443`.
+Passing the full URL (`http://influxdb:8086`) is the correct approach; the library extracts
+scheme/host/port. Added bare-hostname safety net (prepends `http://` and `:8086`).
+Also fixed compose defaults: `INFLUXDB_TOKEN` and `INFLUXDB_ORG` now match InfluxDB instance.
 
 ---
 
