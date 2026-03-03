@@ -22,6 +22,49 @@
 
 ### Fixed
 
+- **fix(scripts): verify-deployment use correct alerts URL and allow 401** (168e345) - Bill Thornton
+- **fix(calendar-service): pass full URL to InfluxDBClient3 host param** (7465a72) - Bill Thornton
+- **fix(carbon-intensity): align compose InfluxDB defaults with actual instance** (c01270f) - Bill Thornton
+- **fix(carbon-intensity): pass full URL to InfluxDBClient3 (fixes HTTPS/443 default)** (214c5f3) - Bill Thornton
+- **fix(carbon-intensity): fix 6 bugs, clean dead fields, upgrade tests to WattTime v3** (74cb87b) - Bill Thornton
+- **fix(infrastructure): correct 10 health check ports, 3 live service port bugs, and update 7 stale docs** (55b1eee) - Bill Thornton
+- **fix(tests): verification scripts and smoke tests without false-positive fallbacks** (2c15e58) - Bill Thornton
+- **fix(health-dashboard): Vite process.env, crawl spec, smoke test resilience** (a9a9be4) - Bill Thornton
+- **fix(ai-automation-ui): E2E chat tests - add data-testid, fix selectors, doc** (bb578b2) - Bill Thornton
+- **fix(ai-automation-ui): fix light mode, rebrand to HomeIQ, align teal design system** (27ce940) - Bill Thornton
+- **resolve 3 degraded service health checks post-deployment** (1883ffd) - Bill Thornton
+- **post-blitz stabilization — React 19, pytest fixes, ruff cleanup, converter bug** (6830bfa) - Bill Thornton
+- **fix(ai-automation-ui): add missing api-client module and fix test assertions** (7ad7687) - Bill Thornton
+- **resolve observability dashboard critical bugs and add test coverage (Epic 4)** (8eb4a14) - Bill Thornton
+- **resolve 3 deployment issues in DatabaseManager rollout** (e7ec2a2) - Bill Thornton
+- **update E2E test to accept degraded status from api-automation-edge** (a525412) - Bill Thornton
+- **508-compliant status indicators + resolve 12 false health statuses** (3b40295) - Bill Thornton
+
+### Security
+
+- **security: harden all 3 frontends (Epic 1, Stories 1-6)** (e5364de) - Bill Thornton
+
+
+### Added
+
+- **feat(data-api,device-intelligence,ai-automation-ui): devices endpoints, team tracker API, and UI updates** (24e3821) - Bill Thornton
+- **feat(ai-automation-ui): Epic 3 — quality, architecture, and test improvements (8 stories)** (3889209) - Bill Thornton
+- **shared library standardization — Epics 12, 13, 14 (10 stories)** (9316602) - Bill Thornton
+- **feat(health-dashboard): Epic 2 — quality, performance, and test coverage improvements** (d7240b9) - Bill Thornton
+- **implement Epic 7 feature gaps across 4 services (6 stories)** (162ce8b) - Bill Thornton
+- **feat(health-dashboard): Epic 11 browser review — status consistency, log pagination, UX improvements** (f406bfc) - Bill Thornton
+- **feat(epic-6): ML library upgrades, fix skipped tests, implement test stubs** (0f0bbcf) - Bill Thornton
+- **add Epic 8 production deployment scripts and documentation** (2bd9da9) - Bill Thornton
+- **feat(ai-automation-ui): Epic 10 Stories 3-4 UX and accessibility improvements** (1030a80) - Bill Thornton
+- **standardize Docker builds, migrate JSON to JSONB, and add CI/docs tooling** (fe69c9f) - Bill Thornton
+- **standardize PostgreSQL initialization with DatabaseManager across all 13 services** (d93bcac) - Bill Thornton
+
+### Changed
+
+- **refactor(openai): migrate from chat.completions to responses API** (8bc7fd5) - Bill Thornton
+
+### Fixed
+
 - **fix(calendar-service): pass full URL to InfluxDBClient3 host param** (7465a72) - Bill Thornton
 - **fix(carbon-intensity): align compose InfluxDB defaults with actual instance** (c01270f) - Bill Thornton
 - **fix(carbon-intensity): pass full URL to InfluxDBClient3 (fixes HTTPS/443 default)** (214c5f3) - Bill Thornton
