@@ -50,17 +50,15 @@ class CarbonIntensityService:
         self.region = grid_region
         self.base_url = "https://api.watttime.org"
 
-        # InfluxDB configuration — parse URL to extract host
-        # InfluxDBClient3 expects a hostname, not a full URL
-        raw_influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
-        parsed_influx = urlparse(raw_influxdb_url)
-        if parsed_influx.hostname:
-            self.influxdb_host = parsed_influx.hostname
-            self.influxdb_port = parsed_influx.port
-        else:
-            # Assume bare hostname (no scheme)
-            self.influxdb_host = raw_influxdb_url
-            self.influxdb_port = None
+        # InfluxDB configuration
+        # InfluxDBClient3 accepts a full URL as the `host` param and internally
+        # parses scheme/hostname/port.  A bare hostname defaults to https:443,
+        # so always include scheme + port (e.g. http://influxdb:8086).
+        self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
+        parsed_influx = urlparse(self.influxdb_url)
+        if not parsed_influx.scheme:
+            # Bare hostname — assume http on default port
+            self.influxdb_url = f"http://{self.influxdb_url}:8086"
         self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
         self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
         self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
@@ -142,19 +140,14 @@ class CarbonIntensityService:
         else:
             logger.warning("No WattTime credentials - service running in standby mode")
 
-        # Create InfluxDB client — pass hostname (not URL)
-        influx_kwargs = {
-            "host": self.influxdb_host,
-            "token": self.influxdb_token,
-            "database": self.influxdb_bucket,
-            "org": self.influxdb_org,
-        }
-        log_host = self.influxdb_host
-        if self.influxdb_port:
-            influx_kwargs["port"] = self.influxdb_port
-            log_host = f"{self.influxdb_host}:{self.influxdb_port}"
-        logger.info(f"Connecting to InfluxDB at {log_host}")
-        self.influxdb_client = InfluxDBClient3(**influx_kwargs)
+        # Create InfluxDB client — pass full URL (library parses scheme/host/port)
+        logger.info(f"Connecting to InfluxDB at {self.influxdb_url}")
+        self.influxdb_client = InfluxDBClient3(
+            host=self.influxdb_url,
+            token=self.influxdb_token,
+            database=self.influxdb_bucket,
+            org=self.influxdb_org,
+        )
 
         # Validate InfluxDB connection at startup
         try:

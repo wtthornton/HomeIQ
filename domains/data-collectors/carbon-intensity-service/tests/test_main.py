@@ -67,22 +67,20 @@ async def test_service_initialization(mock_env):
 
 
 @pytest.mark.asyncio
-async def test_influxdb_url_parsed_to_host(mock_env):
-    """Test InfluxDB URL is parsed to extract hostname"""
+async def test_influxdb_url_preserved(mock_env):
+    """Test full InfluxDB URL is passed through to client"""
     svc = CarbonIntensityService()
-    assert svc.influxdb_host == "localhost"
-    assert svc.influxdb_port == 8086
+    assert svc.influxdb_url == "http://localhost:8086"
 
 
 @pytest.mark.asyncio
-async def test_influxdb_bare_hostname(monkeypatch):
-    """Test bare hostname (no scheme) is handled"""
+async def test_influxdb_bare_hostname_gets_scheme(monkeypatch):
+    """Test bare hostname gets http:// scheme and default port"""
     monkeypatch.setenv('WATTTIME_API_TOKEN', 'test_token')
     monkeypatch.setenv('INFLUXDB_TOKEN', 'test_influx_token')
     monkeypatch.setenv('INFLUXDB_URL', 'influxdb')
     svc = CarbonIntensityService()
-    assert svc.influxdb_host == "influxdb"
-    assert svc.influxdb_port is None
+    assert svc.influxdb_url == "http://influxdb:8086"
 
 
 @pytest.mark.asyncio
