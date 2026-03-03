@@ -1,6 +1,8 @@
 # HomeIQ Documentation
 
-**Last Updated:** February 27, 2026
+**Last Updated:** March 2, 2026
+
+This is the **single index** for project documentation. Use it for correct paths; avoid creating duplicate guides at root.
 
 ---
 
@@ -99,8 +101,6 @@
 
 ## Path Corrections
 
-These paths are referenced in older docs but **do not exist**:
-
 | Invalid Path | Use Instead |
 |-------------|-------------|
 | `docs/DEPLOYMENT_GUIDE.md` | [docs/deployment/DEPLOYMENT_RUNBOOK.md](deployment/DEPLOYMENT_RUNBOOK.md) |
@@ -108,5 +108,6 @@ These paths are referenced in older docs but **do not exist**:
 | `docs/QUICK_START.md` | [docs/deployment/DEPLOYMENT_RUNBOOK.md](deployment/DEPLOYMENT_RUNBOOK.md) |
 | `docs/USER_MANUAL.md` | [README.md](../README.md) |
 | `docs/TROUBLESHOOTING_GUIDE.md` | [tools/cli/docs/TROUBLESHOOTING.md](../tools/cli/docs/TROUBLESHOOTING.md) |
-| `docs/prd/` | [docs/planning/](planning/) |
-| `CONTRIBUTING.md` | See [Contributing](../README.md#contributing) section in README |
+| `docs/prd/` | [docs/planning/](planning/) or root [stories/](../stories/) |
+| `docs/DOCUMENTATION_INDEX.md` | This file: [docs/README.md](README.md) |
+| `CONTRIBUTING.md` | [Contributing](../README.md#contributing) in README |

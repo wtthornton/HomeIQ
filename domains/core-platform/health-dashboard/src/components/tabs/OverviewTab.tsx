@@ -230,34 +230,37 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
   const calculateOverallStatus = (): 'operational' | 'degraded' | 'error' => {
     // Critical alerts = immediate error state
     if (totalCritical > 0) return 'error';
-    
+
     // RAG status check - if red = error, amber = degraded
     if (ragStatus) {
       if (ragStatus.overall === 'red') return 'error';
       if (ragStatus.overall === 'amber') return 'degraded';
     }
-    
+
+    // API connection/auth errors = degraded (system may be healthy but dashboard can't verify)
+    if (enhancedHealthError || statsError || healthError) return 'degraded';
+
     // Check if any core dependencies are unhealthy
     const influxdb = enhancedHealth?.dependencies?.find(d => d.name === 'InfluxDB');
     const websocket = enhancedHealth?.dependencies?.find(d => d.name === 'WebSocket Ingestion');
-    
+
     const unhealthyDeps = [influxdb, websocket].filter(d => d?.status !== 'healthy').length;
-    
+
     if (unhealthyDeps > 0) return 'degraded';
     if (health?.status !== 'healthy') return 'degraded';
-    
+
     // Check data source health - if any are unhealthy = degraded
     // Exclude non-critical data sources (like Calendar) from affecting overall health
     const criticalDataSources = ['weather', 'carbonIntensity', 'electricityPricing', 'airQuality', 'smartMeter'];
     const unhealthyDataSources = Object.entries(dataSources || {})
-      .filter(([key, ds]) => 
-        criticalDataSources.includes(key) && 
+      .filter(([key, ds]) =>
+        criticalDataSources.includes(key) &&
         (ds?.status === 'error' || ds?.status === 'unhealthy')
       ).length;
-    
+
     // Only degrade if critical data sources are unhealthy
     if (unhealthyDataSources > 0) return 'degraded';
-    
+
     return 'operational';
   };
 
@@ -410,7 +413,7 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
           {/* Additional error details */}
           {(enhancedHealthError || statsError || healthError) && (
             <div className={`mt-2 text-sm ${darkMode ? 'text-red-300' : 'text-red-700'}`}>
-              <p className="font-medium">API Connection Issues:</p>
+              <p className="font-medium">Backend unavailable — check services</p>
               <ul className="list-disc list-inside mt-1 space-y-1">
                 {enhancedHealthError && <li>Enhanced Health: {enhancedHealthError}</li>}
                 {statsError && <li>Statistics: {statsError}</li>}
@@ -419,6 +422,14 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
               <p className="mt-2 text-xs opacity-75">
                 Showing cached data. Refresh will be attempted automatically.
               </p>
+              <button
+                onClick={() => { refreshHealth(); refreshStats(); }}
+                className={`mt-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  darkMode ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-red-100 hover:bg-red-200 text-red-800'
+                }`}
+              >
+                Retry
+              </button>
             </div>
           )}
         </div>
@@ -491,6 +502,11 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
           onRetry={() => { refreshHealth(); refreshStats(); }}
           staleData={!!(enhancedHealthError || statsError || healthError) && !!(enhancedHealth || statistics)}
           lastUpdated={statsLastUpdated || healthLastUpdated || null}
+          degradedServices={[
+            ...(enhancedHealthError ? ['API Authentication'] : []),
+            ...(statsError ? ['Statistics API'] : []),
+            ...(healthError ? ['Health API'] : []),
+          ]}
           trends={throughputStats ? {
             throughput: throughputStats.previous,
             latency: metrics.latency ?? 0,

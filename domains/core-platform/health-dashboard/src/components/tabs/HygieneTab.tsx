@@ -171,7 +171,7 @@ export const HygieneTab: React.FC<TabProps> = ({ darkMode }) => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="hygiene-metrics">
       <section>
         <h2 className="text-xl font-semibold mb-2">Device Hygiene Suggestions</h2>
         <p className="text-sm text-gray-600 dark:text-gray-300">

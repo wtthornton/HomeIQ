@@ -9,23 +9,25 @@ description: Project structure and file organization guidelines
 ## Core Structure
 
 - **`.cursor/rules/`** - Cursor IDE rules for AI agent guidance
-- **`docs/`** - Project documentation (architecture, PRD, stories)
-- **`services/`** - Microservices (30+ services)
+- **`docs/`** - Project documentation (index: **docs/README.md**)
+- **`domains/`** - Microservices by domain group (9 groups, 50 services)
 - **`implementation/`** - Implementation notes and status reports
 
 ## Key Directories
 
-### Services (`services/`)
-Each microservice follows this structure:
+### Services (`domains/<group>/`)
+Services are grouped by domain; each domain has a `compose.yml` and one or more service directories:
 ```
-services/{service-name}/
-├── src/
-│   └── main.py          # Service entry point
-├── tests/               # Service tests
-├── Dockerfile           # Container definition
-├── requirements.txt     # Python dependencies
-└── README.md            # Service documentation
+domains/{domain-group}/
+├── compose.yml          # Domain-specific Docker Compose
+├── {service-name}/      # e.g. data-api, health-dashboard
+│   ├── src/
+│   │   └── main.py or main.tsx
+│   ├── tests/
+│   ├── Dockerfile
+│   └── requirements.txt or package.json
 ```
+See [README.md](../../README.md) Domain Groups and [docs/architecture/service-groups.md](../../docs/architecture/service-groups.md).
 
 ### Documentation (`docs/`)
 - **`docs/README.md`** - **Documentation index** – lists existing paths; use for correct references.

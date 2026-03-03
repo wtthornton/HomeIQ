@@ -120,6 +120,22 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
+      - name: Run Playwright smoke tests (AI Automation UI)
+        if: steps.check-e2e.outputs.has_tests == 'true'
+        working-directory: tests/e2e
+        env:
+          TEST_BASE_URL: http://localhost:3001
+        run: |
+          npx playwright test ai-automation-ui --config ai-automation-ui/playwright.config.ts --project=chromium --grep "@smoke|@integration" --reporter=list
+
+      - name: Run Playwright smoke tests (Health Dashboard)
+        if: steps.check-e2e.outputs.has_tests == 'true'
+        working-directory: tests/e2e
+        env:
+          TEST_BASE_URL: http://localhost:3000
+        run: |
+          npx playwright test health-dashboard --config health-dashboard/playwright.config.ts --project=chromium --grep "@smoke" --reporter=list
+
       - name: Run Playwright tests
         if: steps.check-e2e.outputs.has_tests == 'true'
         working-directory: tests/e2e

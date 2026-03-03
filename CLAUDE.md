@@ -1,6 +1,6 @@
-
-
 # TAPPS Quality Pipeline - MANDATORY
+
+**HomeIQ.** Full AI assistant guide: [.cursor/CLAUDE.md](.cursor/CLAUDE.md). Doc index: [docs/README.md](docs/README.md).
 
 This project uses the TAPPS MCP server for automated code quality enforcement.
 Every tool response includes `next_steps` - follow them.
@@ -27,13 +27,6 @@ You MUST call `tapps_quick_check(file_path)` at minimum after editing any Python
 This runs scoring + quality gate + security scan in a single call.
 Alternatively, call `tapps_score_file`, `tapps_quality_gate`, and `tapps_security_scan` individually.
 Skipping this means quality issues and vulnerabilities go undetected.
-
-### Before Declaring Work Complete (BLOCKING)
-
-For multi-file changes: You MUST call `tapps_validate_changed()` to batch-validate all changed files.
-The quality gate MUST pass. Work is NOT done until the gate passes or the user explicitly accepts the risk.
-You MUST call `tapps_checklist(task_type)` as the FINAL step to verify no required tools were skipped.
-NEVER declare work complete without running the checklist.
 
 ### Domain Decisions (REQUIRED)
 

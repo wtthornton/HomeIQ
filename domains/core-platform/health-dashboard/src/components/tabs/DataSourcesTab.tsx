@@ -3,6 +3,10 @@ import { DataSourcesPanel } from '../DataSourcesPanel';
 import { TabProps } from './types';
 
 export const DataSourcesTab: React.FC<TabProps> = ({ darkMode }) => {
-  return <DataSourcesPanel darkMode={darkMode} />;
+  return (
+    <div data-testid="data-source">
+      <DataSourcesPanel darkMode={darkMode} />
+    </div>
+  );
 };
 

@@ -57,7 +57,7 @@ export const EventsTab: React.FC<TabProps> = ({ darkMode }) => {
   }, [timeRange, showHistorical, fetchHistoricalEvents, fetchEventStats]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="event-stream">
       {/* View Toggle */}
       <div className="flex justify-between items-center">
         <div className="flex gap-2">

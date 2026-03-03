@@ -1,4 +1,4 @@
-# Quick Reference - HA Ingestor
+# Quick Reference - HomeIQ
 
 **For AI Agents:** Fast lookup guide for common tasks
 
@@ -8,10 +8,12 @@
 
 | What | Where | Why |
 |------|-------|-----|
-| **Docker Rules** | `docs/DOCKER_STRUCTURE_GUIDE.md` | Read BEFORE modifying Dockerfiles |
-| **Shared Logging** | `shared/logging_config.py` | Use for ALL Python services |
-| **Code Standards** | `docs/architecture/coding-standards.md` | Naming & patterns |
-| **Agent Guide** | `.cursor/AGENT_DEVELOPMENT_GUIDE.md` | Complete reference |
+| **Doc index** | [docs/README.md](../docs/README.md) | Single source for all doc paths |
+| **Deployment** | `docs/deployment/DEPLOYMENT_RUNBOOK.md` | Runbook and Docker |
+| **Shared libs** | `libs/` (e.g. homeiq-observability) | Logging, resilience, patterns |
+| **Code standards** | `docs/architecture/coding-standards.md` | Naming & patterns |
+| **Agent guide** | `.cursor/AGENT_DEVELOPMENT_GUIDE.md` | Full reference |
+| **Tapps init/upgrade** | Run `tapps_init` in new projects, `tapps_upgrade` after TappsMCP updates | See AGENTS.md § Propagating to other projects |
 
 ---
 
@@ -27,11 +29,13 @@
 | **health-dashboard** | 3000 | React/nginx | `src/main.tsx` |
 | **influxdb** | 8086 | InfluxDB 2.7 | N/A |
 
-> ⚠️ **Note:** `enrichment-pipeline` was **DEPRECATED** in Epic 31. Events flow directly from websocket-ingestion → InfluxDB.
+> ⚠️ **Epic 31:** `enrichment-pipeline` is **deprecated**. Events flow: HA → websocket-ingestion → InfluxDB (direct). See `.cursor/rules/epic-31-architecture.mdc`.
 
 ---
 
 ## 🎨 Frontend Structure
+
+**Health Dashboard:** `domains/core-platform/health-dashboard/src/`
 
 ```
 health-dashboard/src/

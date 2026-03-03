@@ -1,7 +1,7 @@
 <!-- tapps-agents-version: 0.4.1 -->
 # TappsMCP - instructions for AI assistants
 
-When the **TappsMCP** MCP server is configured in your host (Claude Code, Cursor, VS Code Copilot, Claude Desktop, etc.), you have access to tools that provide **deterministic code quality checks, doc lookup, and domain expert advice**. TappsMCP is a quality toolset designed to help your project and LLM produce the best possible code - use it to avoid hallucinated APIs, missed quality steps, and inconsistent output.
+**This project (HomeIQ)** uses TappsMCP for quality gates, doc lookup, and expert advice. When the **TappsMCP** MCP server is configured in your host (Claude Code, Cursor, VS Code Copilot, Claude Desktop, etc.), you have access to tools that provide **deterministic code quality checks, doc lookup, and domain expert advice**. Use them to avoid hallucinated APIs, missed quality steps, and inconsistent output.
 
 ---
 
@@ -189,6 +189,16 @@ security requirements, style rules, testing requirements, and scoring thresholds
 
 `.github/workflows/tapps-quality.yml` - GitHub Actions workflow that validates
 changed Python files on every pull request using TappsMCP quality gates.
+
+### Propagating to other projects
+
+To give **other projects** the same advantages (rules, skills, hooks, agents):
+
+1. **Bootstrap:** In the other project's root, run `tapps_init` (once). This creates or updates AGENTS.md, TECH_STACK.md, platform-specific rules, and optionally `.cursor/` and `.claude/` hooks, agents, and skills.
+2. **Upgrade:** After a TappsMCP version update, run `tapps_upgrade` in each project to refresh AGENTS.md, rules, hooks, agents, and skills while preserving custom paths. Use `dry_run: true` to preview.
+3. **Session start:** In every session, call `tapps_session_start` first so tools have project context.
+
+Ensure the other project has TappsMCP configured in the host (MCP config, `tapps-mcp doctor`).
 
 ### MCP Elicitation
 

@@ -1,7 +1,7 @@
-# Agent Development Guide - HA Ingestor
+# Agent Development Guide - HomeIQ
 
-**Last Updated:** October 13, 2025  
-**Project:** Home Assistant Ingestor  
+**Last Updated:** March 2, 2026  
+**Project:** HomeIQ — AI-powered Home Assistant intelligence platform  
 **Purpose:** Complete reference for AI agents working on this codebase
 
 ---
@@ -9,55 +9,42 @@
 ## 🎯 Quick Reference
 
 ### Project Type
-- **Architecture:** Microservices (12 services)
-- **Tech Stack:** Python 3.11, React 18.2, FastAPI, TypeScript 5.2
-- **Database:** InfluxDB 2.7 (Time-series)
-- **Deployment:** Docker Compose (Alpine-based images)
-- **Testing:** Vitest 3.2 (frontend), pytest 7.4+ (backend), Playwright 1.56 (E2E)
+- **Architecture:** 50 microservices in 9 domain groups (`domains/<group>/`)
+- **Tech Stack:** Python 3.12+, React 18, FastAPI, TypeScript 5.x
+- **Databases:** InfluxDB 2.7 (time-series), PostgreSQL 17 (metadata)
+- **Deployment:** Docker Compose; domain-specific compose files under `domains/<group>/compose.yml`
+- **Testing:** Playwright E2E, pytest, Vitest
 
 ### Critical Rules
-1. **NEVER modify Dockerfiles without reading** `docs/DOCKER_STRUCTURE_GUIDE.md`
-2. **ALWAYS use shared logging** from `shared/logging_config.py` with correlation IDs
-3. **NEVER commit secrets** - use `.env` files (gitignored)
-4. **ALWAYS validate with existing tests** before making changes
-5. **FOLLOW Python/TS conventions** defined in `docs/architecture/coding-standards.md`
+1. **Documentation:** Use [docs/README.md](../docs/README.md) as the single doc index.
+2. **Architecture:** Epic 31 — no enrichment-pipeline; events flow websocket-ingestion → InfluxDB (direct). See `.cursor/rules/epic-31-architecture.mdc`.
+3. **Shared libs:** Use `libs/` (e.g. homeiq-observability for logging); follow patterns in existing services.
+4. **NEVER commit secrets** — use `infrastructure/.env` (gitignored).
+5. **FOLLOW conventions** in `docs/architecture/coding-standards.md` and `.cursor/rules/`.
 
 ---
 
-## 📁 Project Structure (Actual Implementation)
+## 📁 Project Structure
 
 ```
-ha-ingestor/
-├── services/                      # 12 microservices
-│   ├── websocket-ingestion/      # Port 8001 - HA WebSocket client
-│   ├── enrichment-pipeline/      # Port 8002 - Data processing & validation
-│   ├── admin-api/                # Port 8003 (container 8004) - REST API
-│   ├── data-retention/           # Port 8080 - Lifecycle management
-│   ├── health-dashboard/         # Port 3000 - React frontend
-│   ├── sports-data/              # Port 8005 - ESPN API (FREE)
-│   ├── sports-api/               # ARCHIVED - API-SPORTS.io (paid)
-│   ├── weather-api/              # Internal - Weather enrichment
-│   ├── carbon-intensity-service/ # Port 8010 - Carbon data
-│   ├── electricity-pricing-service/ # Port 8011 - Pricing data
-│   ├── air-quality-service/      # Port 8012 - Air quality
-│   ├── calendar-service/         # Port 8013 - Calendar integration
-│   ├── smart-meter-service/      # Port 8014 - Smart meter
-│   ├── log-aggregator/           # Port 8015 - Log aggregation
-│   └── ha-simulator/             # Test simulator for HA events
-├── shared/                        # Shared Python utilities
-│   ├── logging_config.py         # ⭐ Structured logging with correlation IDs
-│   ├── correlation_middleware.py # Request tracking
-│   ├── metrics_collector.py      # Metrics framework
-│   ├── alert_manager.py          # Alert management
-│   └── types/                    # Shared type definitions
-├── infrastructure/                # Environment and config
-│   ├── .env.websocket            # WebSocket config
-│   ├── .env.weather              # Weather API config
-│   ├── .env.influxdb             # InfluxDB config
-│   └── env.example               # Template
-├── tests/                        # Integration & E2E tests
-├── tools/cli/                    # CLI utilities
-└── docs/                         # Comprehensive documentation
+HomeIQ/
+├── domains/                       # 9 domain groups, 50 services
+│   ├── core-platform/             # data-api, admin-api, websocket-ingestion, health-dashboard
+│   ├── data-collectors/           # weather, sports, carbon, air-quality, calendar, smart-meter
+│   ├── ml-engine/                 # OpenVINO, NER, RAG, device-intelligence
+│   ├── automation-core/           # ai-automation-service, NL→YAML, validation
+│   ├── blueprints/                # Blueprint index, ML recommendations
+│   ├── energy-analytics/          # Correlator, forecasting
+│   ├── device-management/        # Device health, setup, classification
+│   ├── pattern-analysis/          # Behavioral patterns, synergy
+│   └── frontends/                 # AI Automation UI, observability
+├── libs/                          # Shared libraries (homeiq-patterns, homeiq-resilience, etc.)
+├── infrastructure/                # Docker, env configs (e.g. infrastructure/.env)
+├── docs/                          # Index: docs/README.md
+├── implementation/                # Status reports, session notes (not reference docs)
+├── tests/                         # E2E (Playwright), pytest
+├── scripts/                       # Deployment & verification
+└── docker-compose.yml             # Full stack
 ```
 
 ---

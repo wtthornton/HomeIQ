@@ -214,7 +214,7 @@ export const ValidationTab: React.FC<TabProps> = ({ darkMode }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="validation-results">
       {/* Header */}
       <div className={`p-4 rounded-lg border ${
         darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'

@@ -14,7 +14,7 @@ Transform your Home Assistant into an intelligent automation powerhouse with con
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
 [![PostgreSQL](https://img.shields.io/badge/postgresql-17-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 
-[Features](#features) · [Quick Start](#quick-start) · [Architecture](#architecture) · [Documentation](#documentation) · [Tech Stack](TECH_STACK.md) · [Changelog](CHANGELOG.md)
+[Features](#features) · [Quick Start](#quick-start) · [Architecture](#architecture) · [Documentation](#documentation) · [Tech Stack](TECH_STACK.md) · [Changelog](CHANGELOG.md) · [Docs Index](docs/README.md)
 
 </div>
 
@@ -258,8 +258,10 @@ Each domain group has its own `compose.yml` under `domains/<group>/` and can be 
 | Document | Description |
 |----------|-------------|
 | [Open Epics Index](stories/OPEN-EPICS-INDEX.md) | All open epics and stories with priorities |
-| [Rebuild Status](REBUILD_STATUS.md) | Phase completion status |
+| [Rebuild Status](REBUILD_STATUS.md) | Phase completion tracker |
 | [Phase 5 Deployment](docs/planning/phase-5-deployment-plan.md) | Production deployment plan |
+
+> **Documentation index:** All doc paths and correct references → [docs/README.md](docs/README.md)
 
 ---
 

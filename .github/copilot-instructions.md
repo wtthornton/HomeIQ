@@ -1,5 +1,7 @@
 # Copilot Instructions
 
+**HomeIQ.** Documentation index: [docs/README.md](docs/README.md).
+
 This project uses **TappsMCP** (Code Quality MCP Server) for automated
 quality analysis. When TappsMCP is available as an MCP server, follow
 the pipeline below.

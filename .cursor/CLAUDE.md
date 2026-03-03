@@ -1,19 +1,19 @@
 # CLAUDE.md - HomeIQ AI Assistant Guide
 
-**Last Updated:** January 21, 2026
-**Version:** 5.0.0
+**Last Updated:** March 2, 2026
+**Version:** 5.1.0
 **Purpose:** Comprehensive guide for AI assistants working on HomeIQ
 
 ---
 
 ## 🎯 Quick Reference
 
-**What is HomeIQ?** AI-powered Home Assistant intelligence platform with 24 active microservices (plus InfluxDB infrastructure)
-**Deployment:** Single NUC (Intel NUC or similar), Docker Compose, local network
-**Architecture:** Hybrid database (InfluxDB + PostgreSQL 17), distributed AI services, microservices
-**Languages:** Python 3.11+ (backend), TypeScript/React 18 (frontend)
-**Home Assistant:** External instance (typically `192.168.1.86:8123`), WebSocket connection
-**Documentation:** See [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md)
+**What is HomeIQ?** AI-powered Home Assistant intelligence platform — **50 microservices** in **9 domain groups** (plus InfluxDB/PostgreSQL).
+**Deployment:** Single NUC, Docker Compose, local network. Services live under `domains/<group>/`.
+**Architecture:** Hybrid DB (InfluxDB time-series + PostgreSQL 17 metadata), Epic 31 direct writes (no enrichment-pipeline).
+**Languages:** Python 3.12+ (backend), TypeScript/React 18 (frontend)
+**Home Assistant:** External (e.g. `192.168.1.86:8123`), WebSocket connection
+**Documentation:** [docs/README.md](docs/README.md) — single index; use it for all doc paths.
 
 ---
 
@@ -23,7 +23,6 @@ This project uses TAPPS for automated code quality enforcement. When TappsMCP is
 
 - Call `tapps_session_start()` at the start of every session
 - Call `tapps_quick_check(file_path)` after editing any Python file
-- Call `tapps_validate_changed()` before declaring work complete
 - Call `tapps_checklist(task_type)` as the final step
 - Call `tapps_lookup_docs(library)` before using external library APIs
 - Call `tapps_consult_expert(question)` for domain-specific decisions
@@ -37,36 +36,29 @@ See AGENTS.md for the full tool reference.
 
 ```
 HomeIQ/
-├── services/              # 24 microservices
-│   ├── ai-automation-service/    # AI pattern detection (Port 8024→8018)
-│   ├── ai-automation-ui/         # React conversational UI (Port 3001)
-│   ├── ai-core-service/          # AI orchestrator (Port 8018)
-│   ├── admin-api/                # System control API (Port 8003→8004)
-│   ├── automation-miner/         # Community automation mining (Port 8029)
-│   ├── data-api/                 # Historical data queries (Port 8006)
-│   ├── device-intelligence-service/  # Device capabilities (Port 8028)
-│   ├── health-dashboard/         # System monitoring UI (Port 3000)
-│   ├── ml-service/               # Clustering & ML (Port 8025→8020)
-│   ├── openvino-service/         # Embeddings & NER (Port 8026→8019)
-│   ├── websocket-ingestion/      # HA event capture (Port 8001)
-│   ├── weather-api/              # Weather service (Port 8009)
-│   └── [15 more services...]
-├── shared/                # Shared Python libraries
-│   ├── ha_connection_manager.py  # HA WebSocket/HTTP client
-│   ├── metrics_collector.py      # Telemetry & metrics
-│   ├── logging_config.py         # Centralized logging
-│   └── [11 modules, 3,947 lines]
-├── docs/                  # Documentation (~560 files)
-│   ├── api/                      # API_REFERENCE.md (single source of truth)
-│   ├── architecture/             # 27 architecture docs
-│   ├── prd/                      # Product requirements (52 shards)
-│   ├── stories/                  # 222 user stories
-│   ├── current/                  # Active reference docs
-│   └── archive/                  # Historical docs (IGNORE for active dev)
+├── domains/               # 9 domain groups, 50 microservices
+│   ├── core-platform/     # data-api, admin-api, websocket-ingestion, health-dashboard, etc.
+│   ├── data-collectors/   # weather, sports, carbon, air-quality, calendar, smart-meter, etc.
+│   ├── ml-engine/         # OpenVINO, NER, OpenAI, RAG, device-intelligence, etc.
+│   ├── automation-core/   # ai-automation-service, NL→YAML, validation, deployment
+│   ├── blueprints/        # Blueprint index, ML recommendations
+│   ├── energy-analytics/  # Correlator, forecasting, proactive agent
+│   ├── device-management/ # Device health, setup, classification
+│   ├── pattern-analysis/  # Behavioral patterns, synergy
+│   └── frontends/         # AI Automation UI (:3001), observability, health-dashboard (:3000)
+├── libs/                  # Shared libraries (homeiq-patterns, homeiq-resilience, etc.)
+├── docs/                  # Documentation — index: docs/README.md
+│   ├── api/               # API_REFERENCE.md
+│   ├── architecture/       # Service groups, event flow, database schema
+│   ├── deployment/        # Runbook, pipeline, nginx
+│   ├── planning/          # Phase plans, rebuild guides
+│   ├── current/           # Active reference (prefer this)
+│   └── archive/           # Historical (ignore unless researching history)
+├── implementation/       # Status reports, session notes, plans (not reference docs)
 ├── infrastructure/        # Docker, env configs
-├── scripts/               # Deployment & utility scripts
-├── tests/                 # Test suites (being rebuilt)
-└── docker-compose.yml     # Production deployment (24 services + InfluxDB)
+├── scripts/               # Deployment & verification scripts
+├── tests/                 # E2E (Playwright), pytest
+└── docker-compose.yml    # Full stack (domain compose files under domains/<group>/)
 ```
 
 ---
@@ -449,11 +441,6 @@ git push origin feature/amazing-feature
 - **USE:** [docs/api/API_REFERENCE.md](docs/api/API_REFERENCE.md) - All 65 endpoints
 - **IGNORE:** All other API_*.md files (marked with redirect notices)
 
-**Port Mapping:**
-- **USE:** [docs/PORT_MAPPING_REFERENCE.md](docs/PORT_MAPPING_REFERENCE.md) - All service port mappings (internal vs external)
-- **KEY INFO:** Docker port conflicts resolved via external:internal mapping (e.g., 8024:8018)
-- **CRITICAL:** Always use external ports for production access, internal ports for local dev
-
 **Architecture:**
 - **USE:** [docs/architecture/](docs/architecture/) - 27 current docs
 - **KEY FILES:**
@@ -470,14 +457,13 @@ git push origin feature/amazing-feature
 
 | Need | Location |
 |------|----------|
+| **Doc index (use first)** | [docs/README.md](docs/README.md) |
 | API endpoints | docs/api/API_REFERENCE.md |
-| Port mappings | docs/PORT_MAPPING_REFERENCE.md |
 | Architecture | docs/architecture/ |
-| Deployment | docs/DEPLOYMENT_GUIDE.md |
-| Quick start | docs/QUICK_START.md |
-| User manual | docs/USER_MANUAL.md |
-| Troubleshooting | docs/TROUBLESHOOTING_GUIDE.md |
-| Contributing | CONTRIBUTING.md |
+| Deployment | docs/deployment/DEPLOYMENT_RUNBOOK.md |
+| Quick start | README.md#quick-start, deployment runbook |
+| Contributing | README.md#contributing, CONTRIBUTING.md |
+| Troubleshooting | tools/cli/docs/TROUBLESHOOTING.md |
 
 ---
 
@@ -819,12 +805,11 @@ docker compose logs websocket-ingestion
 ## 📖 Additional Resources
 
 **Essential Documentation:**
+- [Docs Index](docs/README.md)
 - [API Reference](docs/api/API_REFERENCE.md)
-- [Architecture Overview](docs/architecture/index.md)
-- [Database Schema](docs/architecture/database-schema.md)
-- [Performance Patterns](docs/architecture/performance-patterns.md)
-- [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
-- [Contributing Guide](CONTRIBUTING.md)
+- [Architecture](docs/architecture/) — service groups, database schema, event flow
+- [Deployment Runbook](docs/deployment/DEPLOYMENT_RUNBOOK.md)
+- [Contributing](README.md#contributing), [CONTRIBUTING.md](CONTRIBUTING.md)
 
 **External Resources:**
 - [Home Assistant API](https://developers.home-assistant.io/docs/api/rest/)
@@ -858,13 +843,12 @@ docker compose logs websocket-ingestion
 
 **Document Metadata:**
 - **Created:** October 23, 2025
-- **Last Updated:** January 21, 2026
-- **Version:** 5.0.1 (Added PORT_MAPPING_REFERENCE.md documentation)
-- **Previous Version:** 5.0.0 (Comprehensive guide - includes structure, workflows, patterns)
+- **Last Updated:** March 2, 2026
+- **Version:** 5.1.0
 - **Next Review:** Quarterly or after major architectural changes
 - **Maintainer:** HomeIQ Development Team
 
-**Change Log v5.0.1:**
-- Added PORT_MAPPING_REFERENCE.md to documentation structure
-- Clarified external vs internal port usage for Docker services
-- Updated "Finding Documentation" table with port mapping reference
+**Change Log v5.1.0:**
+- Documentation index: use docs/README.md (removed reference to nonexistent DOCUMENTATION_INDEX / PORT_MAPPING_REFERENCE)
+- Repository structure updated to domains/ layout (9 groups, 50 services)
+- Finding Documentation table aligned with docs/README.md and deployment runbook paths

@@ -196,7 +196,12 @@ class BaseApiClient {
           console.error(`API Authentication Error for ${url}:`, errorMessage);
           throw new Error(errorMessage);
         }
-        
+        // Handle backend unavailable (404/502/503)
+        if (response.status === 404 || response.status === 502 || response.status === 503) {
+          const errorMessage = 'Backend unavailable. Check that admin-api and data-api services are running.';
+          console.error(`API Error for ${url}:`, errorMessage);
+          throw new Error(errorMessage);
+        }
         // Try to extract detailed error message from response body
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         try {
@@ -215,6 +220,12 @@ class BaseApiClient {
       }
       return await response.json();
     } catch (error) {
+      // Handle network failures (fetch throws TypeError when backend unreachable)
+      if (error instanceof TypeError && (error.message === 'Failed to fetch' || error.message.includes('NetworkError'))) {
+        const userMessage = 'Unable to reach backend. Check that admin-api and data-api services are running.';
+        console.error(`API Error for ${url}:`, error);
+        throw new Error(userMessage);
+      }
       console.error(`API Error for ${url}:`, error);
       throw error;
     }
