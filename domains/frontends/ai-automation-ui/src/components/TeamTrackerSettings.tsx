@@ -90,12 +90,13 @@ function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
 }
 
 // API Functions
-const fetchStatus = async (): Promise<TeamTrackerStatus> => {
+const fetchStatus = async (check = false): Promise<TeamTrackerStatus> => {
   const headers = withAuthHeaders({
     Accept: 'application/json',
   });
+  const params = check ? '?check=true' : '';
 
-  const response = await fetch(`${DEVICE_INTELLIGENCE_API}/status`, {
+  const response = await fetch(`${DEVICE_INTELLIGENCE_API}/status${params}`, {
     headers,
   });
   if (!response.ok) throw new Error('Failed to fetch Team Tracker status');
@@ -198,10 +199,10 @@ export const TeamTrackerSettings: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
 
-  // Queries
+  // Queries - use check=true on load to run detection when status is "not installed"
   const { data: status, isLoading: statusLoading } = useQuery({
     queryKey: ['teamTrackerStatus'],
-    queryFn: fetchStatus,
+    queryFn: () => fetchStatus(true),
     refetchInterval: 30000, // Refresh every 30s
   });
 

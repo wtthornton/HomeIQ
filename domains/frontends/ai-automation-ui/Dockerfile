@@ -21,9 +21,11 @@ FROM deps AS builder
 WORKDIR /app
 
 # Build arguments for environment variables
+ARG VITE_API_KEY
 ARG VITE_API_URL
 
 # Set environment variables for build
+ENV VITE_API_KEY=${VITE_API_KEY}
 ENV VITE_API_URL=${VITE_API_URL}
 
 # Copy dependencies from previous stage

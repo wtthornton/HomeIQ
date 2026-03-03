@@ -383,6 +383,10 @@ class ActivityWriterService:
         for k in sorted(buckets.keys()):
             b = buckets[k]
             temp_avg = sum(b["temps"]) / len(b["temps"]) if b["temps"] else 20.0
+            # HA may report in Fahrenheit - convert to Celsius if above 56°C (133°F)
+            # threshold: any reading >56°C is almost certainly Fahrenheit
+            if temp_avg > 56:
+                temp_avg = (temp_avg - 32) * 5 / 9
             hum_avg = sum(b["humidities"]) / len(b["humidities"]) if b["humidities"] else 50.0
             power_sum = sum(b["powers"])
             readings.append(
@@ -396,6 +400,9 @@ class ActivityWriterService:
             )
         return readings
 
+    # Activity-recognition ONNX model expects exactly 30 timesteps
+    MAX_READINGS = 30
+
     @retry(
         retry=retry_if_exception_type((aiohttp.ClientError, asyncio.TimeoutError, ConnectionError)),
         stop=stop_after_attempt(3),
@@ -406,6 +413,9 @@ class ActivityWriterService:
         """POST to activity-recognition predict with tenacity retry."""
         if not self._session:
             raise RuntimeError("HTTP session not initialized")
+        # Truncate to most recent MAX_READINGS (model window limit)
+        if len(readings) > self.MAX_READINGS:
+            readings = readings[-self.MAX_READINGS:]
         url = f"{self.activity_recognition_url.rstrip('/')}/api/v1/predict"
         payload = {
             "readings": [

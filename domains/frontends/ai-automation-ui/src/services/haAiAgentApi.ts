@@ -73,6 +73,9 @@ export interface ConversationListResponse {
 /** @deprecated Use APIError from lib/api-client instead */
 export { APIError as HAIAgentAPIError } from '../lib/api-client';
 
+/** Chat request timeout: HA AI Agent can take 60–120s for complex prompts (context assembly, multiple LLM rounds, tool execution) */
+const CHAT_TIMEOUT_MS = 120_000;
+
 /**
  * Send a chat message to the HA AI Agent
  */
@@ -82,6 +85,7 @@ export async function sendChatMessage(
   return fetchJSON<ChatResponse>(`${BASE_URL}/v1/chat`, {
     method: 'POST',
     body: JSON.stringify(request),
+    timeoutMs: CHAT_TIMEOUT_MS,
   });
 }
 

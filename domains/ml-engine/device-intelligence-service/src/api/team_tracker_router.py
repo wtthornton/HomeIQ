@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,12 +88,14 @@ class DetectedTeamSensor(BaseModel):
 
 @router.get("/status", response_model=TeamTrackerStatus)
 async def get_team_tracker_status(
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
+    check: bool = Query(default=False, description="Run detection before returning when status is not installed"),
 ) -> TeamTrackerStatus:
     """
     Get Team Tracker integration status.
 
     Returns installation status, configured teams count, and last check time.
+    When check=true and is_installed is False, runs detection to refresh status.
     """
     logger.info("Fetching Team Tracker integration status")
 
@@ -102,6 +104,16 @@ async def get_team_tracker_status(
         select(TeamTrackerIntegration).limit(1)
     )
     integration = result.scalar_one_or_none()
+
+    # When check=true and (no record or not installed), run detection to refresh status
+    if check and (not integration or not integration.is_installed):
+        try:
+            detection_result = await detect_team_tracker_entities(session=session)
+            if detection_result.get("detected_count", 0) > 0:
+                result = await session.execute(select(TeamTrackerIntegration).limit(1))
+                integration = result.scalar_one_or_none()
+        except Exception as e:
+            logger.warning(f"Status check detection failed: {e}")
 
     if not integration:
         # Create default status
@@ -253,7 +265,7 @@ async def detect_team_tracker_entities(
 
         # Log details of detected entities for debugging
         if not team_sensors:
-            logger.warning("No Team Tracker entities found.")
+            logger.warning("No Team Tracker entities found in data-api.")
             if data_api_error:
                 logger.warning(f"Data-api query failed: {data_api_error}")
             # Try to get debug info from data-api
@@ -268,6 +280,46 @@ async def detect_team_tracker_entities(
                 await debug_client.close()
             except Exception as e:
                 logger.warning(f"Could not get platform debug info: {e}")
+
+        # FALLBACK: Query Home Assistant /api/states when data-api has no Team Tracker entities.
+        # Team Tracker is installed in HA but entities may not yet be synced to data-api.
+        if not team_sensors and settings.HA_TOKEN:
+            try:
+                logger.info("Trying HA REST API fallback for Team Tracker entities...")
+                ha_base_url = settings.HA_URL
+                headers = {
+                    "Authorization": f"Bearer {settings.HA_TOKEN}",
+                    "Content-Type": "application/json",
+                }
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    resp = await client.get(
+                        f"{ha_base_url}/api/states",
+                        headers=headers,
+                    )
+                    resp.raise_for_status()
+                    states = resp.json()
+
+                # Team Tracker sensors have attributes: team_name, league, team_abbreviation
+                for state in states:
+                    entity_id = state.get("entity_id", "")
+                    if not entity_id.startswith("sensor."):
+                        continue
+                    attrs = state.get("attributes", {})
+                    if attrs.get("team_name") or attrs.get("league") or attrs.get("team_abbreviation"):
+                        team_sensors.append({
+                            "entity_id": entity_id,
+                            "platform": "teamtracker",
+                            "domain": "sensor",
+                            "name": attrs.get("friendly_name") or attrs.get("team_name") or entity_id,
+                            "friendly_name": attrs.get("friendly_name") or attrs.get("team_name") or entity_id,
+                            "unique_id": attrs.get("unique_id") or entity_id.split(".")[-1],
+                        })
+                        logger.info(f"Team Tracker entity detected via HA fallback: {entity_id}")
+
+                if team_sensors:
+                    logger.info(f"Found {len(team_sensors)} Team Tracker sensors from HA REST API fallback")
+            except Exception as e:
+                logger.warning(f"HA REST API fallback failed: {e}")
 
         # Update integration status
         integration_result = await session.execute(

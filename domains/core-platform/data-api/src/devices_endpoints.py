@@ -7,17 +7,14 @@ Story 22.2: Updated to use database storage
 import logging
 import os
 from datetime import datetime
-
 from typing import Any
 
-from pydantic import BaseModel, Field
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from homeiq_data.influxdb_query_client import InfluxDBQueryClient
+from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
-
-from homeiq_data.influxdb_query_client import InfluxDBQueryClient
 
 from .cache import cache
 
@@ -231,15 +228,17 @@ async def list_devices(
 
         if platform:
             # Join with entities to filter by platform
+            # GROUP BY primary key only - PostgreSQL functional dependency allows
+            # selecting other columns from the same table without listing them
             query = select(*device_columns, func.count(Entity.entity_id).label('entity_count'))\
                 .join(Entity, Device.device_id == Entity.device_id)\
                 .where(Entity.platform == platform)\
-                .group_by(*device_columns)
+                .group_by(Device.device_id)
         else:
             # Standard query without platform filter
             query = select(*device_columns, func.count(Entity.entity_id).label('entity_count'))\
                 .outerjoin(Entity, Device.device_id == Entity.device_id)\
-                .group_by(*device_columns)
+                .group_by(Device.device_id)
 
         # Apply additional filters (simple WHERE clauses)
         if manufacturer:
@@ -429,7 +428,7 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
         query = select(*device_columns, func.count(Entity.entity_id).label('entity_count'))\
             .outerjoin(Entity, Device.device_id == Entity.device_id)\
             .where(Device.device_id == device_id)\
-            .group_by(*device_columns)
+            .group_by(Device.device_id)
 
         result = await db.execute(query)
         row = result.first()
@@ -1286,6 +1285,17 @@ async def bulk_upsert_devices(
     try:
         upserted_count = 0
 
+        # Sort devices: parents (no via_device_id) first, then children.
+        # This prevents FK violations on the self-referential via_device column.
+        devices.sort(key=lambda d: 0 if not d.get('via_device_id') else 1)
+
+        # Collect all device_ids in this batch for via_device validation
+        batch_device_ids = set()
+        for d in devices:
+            did = d.get('id') or d.get('device_id')
+            if did:
+                batch_device_ids.add(did)
+
         for device_data in devices:
             # Extract device_id (HA uses 'id', we use 'device_id')
             device_id = device_data.get('id') or device_data.get('device_id')
@@ -1298,6 +1308,19 @@ async def bulk_upsert_devices(
                 select(Device).where(Device.device_id == device_id)
             )
             existing_device = result.scalar_one_or_none()
+
+            # Validate via_device reference exists in batch or DB
+            via_device_id = device_data.get('via_device_id')
+            if via_device_id and via_device_id not in batch_device_ids:
+                # Check if it exists in the database already
+                via_check = await db.execute(
+                    select(Device.device_id).where(Device.device_id == via_device_id)
+                )
+                if not via_check.scalar_one_or_none():
+                    logger.warning(
+                        f"Device {device_id}: via_device {via_device_id} not found, setting to NULL"
+                    )
+                    via_device_id = None
 
             # Prepare device data
             device_values = {
@@ -1318,7 +1341,7 @@ async def bulk_upsert_devices(
                 'model_id': device_data.get('model_id'),
                 # Source tracking
                 'config_entry_id': device_data.get('config_entry_id'),
-                'via_device': device_data.get('via_device_id'),  # HA uses 'via_device_id'
+                'via_device': via_device_id,
                 'last_seen': datetime.now()
             }
 
@@ -1350,6 +1373,8 @@ async def bulk_upsert_devices(
 
             upserted_count += 1
 
+        # Flush parent devices before children reference them
+        await db.flush()
         await db.commit()
 
         logger.info(f"Bulk upserted {upserted_count} devices from HA discovery")
@@ -1384,6 +1409,10 @@ async def bulk_upsert_entities(
     try:
         upserted_count = 0
 
+        # Pre-fetch all existing device_ids to validate entity FK references
+        existing_devices_result = await db.execute(select(Device.device_id))
+        valid_device_ids = {row[0] for row in existing_devices_result.fetchall()}
+
         for entity_data in entities:
             entity_id = entity_data.get('entity_id')
             if not entity_id:
@@ -1392,6 +1421,14 @@ async def bulk_upsert_entities(
 
             # Extract domain from entity_id (e.g., "light.kitchen" -> "light")
             domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+
+            # Validate device_id FK reference - set to NULL if device doesn't exist
+            device_id = entity_data.get('device_id')
+            if device_id and device_id not in valid_device_ids:
+                logger.debug(
+                    f"Entity {entity_id}: device_id {device_id} not in devices table, setting to NULL"
+                )
+                device_id = None
 
             # Extract name fields from entity registry data
             name = entity_data.get('name')  # Primary name (what shows in HA UI)
@@ -1421,7 +1458,7 @@ async def bulk_upsert_entities(
             # Create entity instance
             entity = Entity(
                 entity_id=entity_id,
-                device_id=entity_data.get('device_id'),
+                device_id=device_id,
                 domain=domain,
                 platform=entity_data.get('platform', 'unknown'),
                 unique_id=entity_data.get('unique_id'),
