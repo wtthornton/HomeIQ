@@ -25,7 +25,7 @@ export const DiscoveryPage: React.FC = () => {
     setLoading(true);
     setDemoMode(false);
     try {
-      const API_KEY = import.meta.env.VITE_API_KEY || '';
+      const API_KEY = import.meta.env.VITE_API_KEY ?? '';
 
       // Fetch entities to get unique domains (device types)
       // Note: using proxied API endpoint - data-api has /api/entities, not /api/data/entities

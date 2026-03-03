@@ -626,6 +626,8 @@ test.describe('Suggestions Flow @full', () => {
 });
 ```
 
+**Chat page (HAAgentChat):** Use `data-testid="message-input"`, `data-testid="send-button"`, `data-testid="chat-message"` for message bubbles, and `data-testid="chat-loading"` for loading/thinking state. See `tests/e2e/ai-automation-ui/` for chat and conversation-flow specs.
+
 ### vitest Configuration
 
 **vitest.config.ts:**

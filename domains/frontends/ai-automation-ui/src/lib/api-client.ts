@@ -7,9 +7,11 @@
 import { API_CONFIG } from '../config/api';
 
 // SECURITY: Never hardcode API keys. Always use environment variables.
-const API_KEY = import.meta.env.VITE_API_KEY;
+const API_KEY = import.meta.env.VITE_API_KEY ?? '';
 if (!API_KEY && import.meta.env.MODE === 'production') {
-  throw new Error('VITE_API_KEY is required in production mode. Please set the environment variable.');
+  console.error(
+    '[api-client] VITE_API_KEY is not set. API requests may fail with 401. Set VITE_API_KEY at build time for production.',
+  );
 }
 
 const DEFAULT_TIMEOUT_MS = 10_000;

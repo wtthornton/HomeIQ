@@ -381,6 +381,8 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleToggle(automation.entity_id, automation.state)}
+                    title={automation.state === 'on' ? 'Currently enabled - click to disable' : 'Currently disabled - click to enable'}
+                    aria-label={automation.state === 'on' ? 'Disable automation' : 'Enable automation'}
                     className={`px-3 py-2 text-xs rounded-lg font-medium transition-colors ${
                       automation.state === 'on'
                         ? darkMode
@@ -443,12 +445,13 @@ export const Deployed: React.FC = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleSelfCorrect(automation.entity_id)}
+                    title="Reverse engineer and self-correct YAML to better match your original prompt"
+                    aria-label="Self-correct automation YAML"
                     className={`px-3 py-2 text-xs rounded-lg font-medium transition-colors ${
                       darkMode
                         ? 'bg-green-600 hover:bg-green-700 text-white'
                         : 'bg-green-500 hover:bg-green-600 text-white'
                     }`}
-                    title="Reverse engineer and self-correct YAML to match original prompt"
                   >
                     🔄 Self-Correct
                   </motion.button>

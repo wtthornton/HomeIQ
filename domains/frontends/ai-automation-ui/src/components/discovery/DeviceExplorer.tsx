@@ -40,7 +40,7 @@ export const DeviceExplorer: React.FC<DeviceExplorerProps> = ({ devices, demoMod
     setLoading(true);
     
     try {
-      const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
+      const API_KEY = import.meta.env.VITE_API_KEY ?? '';
       const userDevicesParam = devices.join(',');
       // Note: using proxied API endpoint for automation-miner
       const response = await fetch(
@@ -90,6 +90,11 @@ export const DeviceExplorer: React.FC<DeviceExplorerProps> = ({ devices, demoMod
             </span>
           )}
         </label>
+        {demoMode && (
+          <p className={`text-xs mb-2 ${darkMode ? 'text-amber-200/90' : 'text-amber-700'}`}>
+            Using demo devices. Connect Home Assistant in Settings to see your real devices.
+          </p>
+        )}
         <div className="relative w-full md:w-1/2">
           <select
             value={selectedDevice}

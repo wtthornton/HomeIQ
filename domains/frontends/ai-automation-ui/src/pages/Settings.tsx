@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -143,6 +144,14 @@ export const Settings: React.FC = () => {
         <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
           Configure your AI automation preferences
         </p>
+        <div className="mt-3">
+          <Link
+            to="/name-enhancement"
+            className={`text-sm font-medium hover:underline ${darkMode ? 'text-teal-300 hover:text-teal-200' : 'text-teal-600 hover:text-teal-700'}`}
+          >
+            → Device Name Enhancement
+          </Link>
+        </div>
       </motion.div>
 
       {showLoadingState && (
@@ -189,7 +198,7 @@ export const Settings: React.FC = () => {
             {settings.scheduleEnabled && (
               <div>
                 <label className={`block font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Run Time (24-hour format)
+                  Run Time (24-hour format, local timezone)
                 </label>
                 <input
                   type="time"
@@ -223,7 +232,10 @@ export const Settings: React.FC = () => {
           
           <div className="space-y-6">
             <div>
-              <label className={`block font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <label
+                id="min-confidence-label"
+                className={`block font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}
+              >
                 Minimum Confidence Threshold: {settings.minConfidence}%
               </label>
               <p className={`text-xs mb-2 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
@@ -237,6 +249,11 @@ export const Settings: React.FC = () => {
                 value={settings.minConfidence}
                 onChange={(e) => setSettings({ ...settings, minConfidence: parseInt(e.target.value, 10) })}
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                aria-labelledby="min-confidence-label"
+                aria-valuemin={50}
+                aria-valuemax={95}
+                aria-valuenow={settings.minConfidence}
+                aria-valuetext={`${settings.minConfidence} percent`}
               />
               <div className="flex justify-between text-sm text-gray-500 mt-1">
                 <span>50%</span>

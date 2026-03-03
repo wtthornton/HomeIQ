@@ -38,6 +38,8 @@ interface SendButtonProps {
   iconOnly?: boolean;
   /** Optional retry handler for error state */
   onRetry?: () => void;
+  /** Optional data-testid for E2E tests */
+  'data-testid'?: string;
 }
 
 export const SendButton: React.FC<SendButtonProps> = ({
@@ -51,6 +53,7 @@ export const SendButton: React.FC<SendButtonProps> = ({
   size = 'md',
   iconOnly = false,
   onRetry,
+  'data-testid': dataTestId,
 }) => {
   const shouldReduceMotion = useReducedMotion();
 
@@ -252,6 +255,7 @@ export const SendButton: React.FC<SendButtonProps> = ({
   return (
     <motion.button
       type="button"
+      data-testid={dataTestId}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       disabled={isDisabled && !hasError}

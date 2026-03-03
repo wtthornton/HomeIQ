@@ -57,7 +57,7 @@ interface TeamFormData {
 }
 
 // API Key for authentication
-const API_KEY = import.meta.env.VITE_API_KEY || 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR';
+const API_KEY = import.meta.env.VITE_API_KEY ?? '';
 
 /**
  * Add authentication headers to request options

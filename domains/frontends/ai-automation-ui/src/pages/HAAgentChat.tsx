@@ -764,6 +764,9 @@ Please provide an improved version with more details, better automation logic, a
                   I can help you control your Home Assistant devices and create automations through natural conversation.
                   Try asking me to turn on lights, adjust temperatures, or create automations!
                 </p>
+                <p className={`text-sm mb-4 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Start by typing below or try a suggested question.
+                </p>
                 <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
                   <p className={`text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Example questions:
@@ -789,6 +792,8 @@ Please provide an improved version with more details, better automation logic, a
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
+                      data-testid={message.isLoading ? 'chat-loading' : 'chat-message'}
+                      data-role={message.role}
                       className={`max-w-[80%] rounded-lg px-4 py-2 ${
                         message.role === 'user'
                           ? darkMode
@@ -800,7 +805,7 @@ Please provide an improved version with more details, better automation logic, a
                       } ${message.error ? 'border border-red-500' : ''}`}
                     >
                       {message.isLoading ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2" data-testid="chat-loading-inner">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                           <span>Thinking...</span>
                         </div>
@@ -929,6 +934,7 @@ Please provide an improved version with more details, better automation logic, a
             >
           <div className="flex gap-3 items-end">
             <textarea
+              data-testid="message-input"
               ref={inputRef}
               value={inputValue}
               onChange={(e) => {
@@ -1003,6 +1009,7 @@ Please provide an improved version with more details, better automation logic, a
               );
             })()}
             <SendButton
+              data-testid="send-button"
               onClick={handleSend}
               disabled={!inputValue.trim()}
               isLoading={isLoading}
