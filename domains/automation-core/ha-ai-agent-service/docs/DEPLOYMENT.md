@@ -97,7 +97,7 @@ ha-ai-agent-service:
     - DATA_API_KEY=${API_KEY:-}
     - AI_AUTOMATION_SERVICE_URL=http://ai-automation-service-new:8036
     - YAML_VALIDATION_SERVICE_URL=http://yaml-validation-service:8037
-    - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8028
+    - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
     - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     - LOG_LEVEL=${LOG_LEVEL:-INFO}
   depends_on:
@@ -230,7 +230,7 @@ Internal service URLs:
 - `http://data-api:8006` (Bearer auth required)
 - `http://ai-automation-service-new:8036`
 - `http://yaml-validation-service:8037`
-- `http://device-intelligence-service:8028`
+- `http://device-intelligence-service:8019`
 - `http://homeassistant:8123` (external or via network)
 
 ## Database Setup

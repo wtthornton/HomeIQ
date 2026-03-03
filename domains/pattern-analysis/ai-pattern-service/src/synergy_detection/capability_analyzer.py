@@ -40,7 +40,7 @@ class DeviceCapabilityAnalyzer:
 
     def __init__(
         self,
-        base_url: str = "http://device-intelligence-service:8028",
+        base_url: str = "http://device-intelligence-service:8019",
         enabled: bool = True,
         timeout: float = 5.0
     ):

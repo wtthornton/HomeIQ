@@ -72,22 +72,22 @@ class HealthEndpoints:
             "blueprint-index": os.getenv("BLUEPRINT_INDEX_URL", "http://blueprint-index:8031"),
             "rule-recommendation-ml": os.getenv("RULE_RECOMMENDATION_URL", "http://rule-recommendation-ml:8035"),
             # Energy Analytics
-            "energy-correlator": os.getenv("ENERGY_CORRELATOR_URL", "http://energy-correlator:8015"),
-            "energy-forecasting": os.getenv("ENERGY_FORECASTING_URL", "http://energy-forecasting:8016"),
-            "proactive-agent-service": os.getenv("PROACTIVE_AGENT_URL", "http://proactive-agent-service:8017"),
+            "energy-correlator": os.getenv("ENERGY_CORRELATOR_URL", "http://energy-correlator:8017"),
+            "energy-forecasting": os.getenv("ENERGY_FORECASTING_URL", "http://energy-forecasting:8037"),
+            "proactive-agent-service": os.getenv("PROACTIVE_AGENT_URL", "http://proactive-agent-service:8031"),
             # Blueprint services
             "blueprint-suggestion-service": os.getenv("BLUEPRINT_SUGGESTION_URL", "http://blueprint-suggestion-service:8032"),
             # Pattern Analysis
-            "ai-pattern-service": os.getenv("AI_PATTERN_URL", "http://ai-pattern-service:8033"),
-            "api-automation-edge": os.getenv("AUTOMATION_EDGE_URL", "http://api-automation-edge:8034"),
+            "ai-pattern-service": os.getenv("AI_PATTERN_URL", "http://ai-pattern-service:8020"),
+            "api-automation-edge": os.getenv("AUTOMATION_EDGE_URL", "http://api-automation-edge:8025"),
             # ML Engine
-            "ai-core-service": os.getenv("AI_CORE_URL", "http://ai-core-service:8019"),
-            "device-intelligence-service": os.getenv("DEVICE_INTELLIGENCE_URL", "http://device-intelligence-service:8021"),
+            "ai-core-service": os.getenv("AI_CORE_URL", "http://ai-core-service:8018"),
+            "device-intelligence-service": os.getenv("DEVICE_INTELLIGENCE_URL", "http://device-intelligence-service:8019"),
             "rag-service": os.getenv("RAG_SERVICE_URL", "http://rag-service:8027"),
             # Device Management
-            "device-health-monitor": os.getenv("DEVICE_HEALTH_URL", "http://device-health-monitor:8040"),
-            "device-context-classifier": os.getenv("DEVICE_CLASSIFIER_URL", "http://device-context-classifier:8041"),
-            "device-setup-assistant": os.getenv("DEVICE_SETUP_URL", "http://device-setup-assistant:8042"),
+            "device-health-monitor": os.getenv("DEVICE_HEALTH_URL", "http://device-health-monitor:8019"),
+            "device-context-classifier": os.getenv("DEVICE_CLASSIFIER_URL", "http://device-context-classifier:8020"),
+            "device-setup-assistant": os.getenv("DEVICE_SETUP_URL", "http://device-setup-assistant:8021"),
         }
 
         # Step 4.6: Domain group mappings for aggregated health
@@ -317,6 +317,7 @@ class HealthEndpoints:
         # Custom health paths for services that don't use /health
         custom_health_paths = {
             "rule-recommendation-ml": "/api/v1/health",
+            "energy-forecasting": "/api/v1/health",
         }
 
         logger.debug("Checking %d services: %s", len(self.service_urls), list(self.service_urls.keys()))

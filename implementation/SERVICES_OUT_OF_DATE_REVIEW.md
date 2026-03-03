@@ -31,14 +31,22 @@
 
 ## 3. Configuration errors (wrong service URLs/ports)
 
-These make the affected services “wrong” relative to the rest of the stack:
+**Status: RESOLVED (March 2, 2026)**
 
-| Service | Variable | Current value | Correct value | Reason |
-|---------|----------|----------------|---------------|--------|
-| **ai-query-service** | `DEVICE_INTELLIGENCE_URL` | `http://device-intelligence-service:8023` | `http://device-intelligence-service:8019` | device-intelligence-service exposes internal port **8019**; 8023 is device-recommender. |
-| **blueprint-suggestion-service** | `AI_PATTERN_SERVICE_URL` | `http://ai-pattern-service:8029` | `http://ai-pattern-service:8020` | ai-pattern-service exposes internal port **8020**; 8029 is automation-miner. |
+All port mismatches have been fixed across source code, config defaults, and documentation:
 
-Fixing these will align the deployed services with the intended architecture.
+| Service | Variable | Was | Fixed to | Commit |
+|---------|----------|-----|----------|--------|
+| **admin-api** | `health_endpoints.py` | 10 wrong container ports | All 10 corrected | Mar 2, 2026 |
+| **ai-query-service** | `DEVICE_INTELLIGENCE_URL` | `:8023` | `:8019` | Mar 2, 2026 |
+| **ai-automation-service-new** | `device_intelligence_url` | `:8023` | `:8019` | Mar 2, 2026 |
+| **ai-pattern-service** | `device_intelligence_url` | `:8028` | `:8019` | Mar 2, 2026 |
+| **capability_analyzer.py** | `base_url` default | `:8028` | `:8019` | Mar 2, 2026 |
+| **service_client.py** | 3 service defaults | wrong ports/names | corrected | Mar 2, 2026 |
+| **blueprint-suggestion-service** | `AI_PATTERN_SERVICE_URL` | `:8029` | `:8020` | README fixed (compose override was already correct) |
+| **7 documentation files** | Various | wrong ports | corrected | Mar 2, 2026 |
+
+All services verified healthy after deployment (24/24 services, 6/8 groups healthy).
 
 ---
 
@@ -50,9 +58,12 @@ Fixing these will align the deployed services with the intended architecture.
    - **influxdb** (main + dev + minimal): move to `influxdb:2.8.0` (or at least pin 2.7.x to `2.7.12` in dev/minimal).  
    - **jaeger**: move to Jaeger 2.x (e.g. `jaegertracing/all-in-one:2.15.0`); validate OTLP and UI after upgrade.
 
-2. **Config fixes (docker-compose.yml)**  
-   - **ai-query-service**: set `DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019`.  
-   - **blueprint-suggestion-service**: set `AI_PATTERN_SERVICE_URL=http://ai-pattern-service:8020`.
+2. **Config fixes (docker-compose.yml)** ✅ **DONE**
+   - **ai-query-service**: `DEVICE_INTELLIGENCE_URL` fixed to `:8019` (code default + docs).
+   - **ai-automation-service-new**: `device_intelligence_url` fixed to `:8019` (live bug — no compose override).
+   - **ai-pattern-service**: `device_intelligence_url` + `capability_analyzer.py` fixed to `:8019` (live bug).
+   - **admin-api health_endpoints.py**: 10 container ports corrected.
+   - **blueprint-suggestion-service**: README fixed to `:8020` (compose override was already correct).
 
 3. **Built services (source)**  
    - All services in `docker-compose.yml` have a matching `Dockerfile` under `services/`.  

@@ -75,7 +75,7 @@
 ### 4. **NGINX Proxy Configuration** ✅
 - **Updated:** `nginx.conf`
 - **Added proxy routes:**
-  1. `/api/device-intelligence/*` → `device-intelligence-service:8028`
+  1. `/api/device-intelligence/*` → `device-intelligence-service:8019`
   2. `/api/automation-miner/*` → `automation-miner:8029`
   3. `/api/data/*` → `data-api:8006`
   4. `/api/*` → `ai-automation-service:8018` (catch-all)
@@ -105,7 +105,7 @@ React App (localhost:3001 / Port 80 in Docker)
     ↓ (all via /api/*)
 NGINX Reverse Proxy
     ↓ (intelligent routing)
-├── /api/device-intelligence/* → device-intelligence-service:8028
+├── /api/device-intelligence/* → device-intelligence-service:8019
 ├── /api/automation-miner/* → automation-miner:8029
 ├── /api/data/* → data-api:8006
 └── /api/* → ai-automation-service:8018

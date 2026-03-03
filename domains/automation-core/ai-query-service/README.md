@@ -173,7 +173,7 @@ Refine query results based on user feedback.
 | `DATABASE_POOL_SIZE` | `10` | Database connection pool size (optimized for query service) |
 | `DATABASE_MAX_OVERFLOW` | `5` | Max overflow connections |
 | `DATA_API_URL` | `http://data-api:8006` | Data API service URL |
-| `DEVICE_INTELLIGENCE_URL` | `http://device-intelligence-service:8023` | Device intelligence service URL |
+| `DEVICE_INTELLIGENCE_URL` | `http://device-intelligence-service:8019` | Device intelligence service URL |
 | `SERVICE_PORT` | `8018` | Internal service port |
 | `SERVICE_NAME` | `ai-query-service` | Service name for logging/tracing |
 | `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |

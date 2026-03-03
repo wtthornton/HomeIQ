@@ -105,10 +105,10 @@ health = await client.health_check()
 
 **Pre-configured Services:**
 - `data-api`: http://data-api:8006
-- `ai-query-service`: http://ai-query-service:8035
-- `ai-automation-service-new`: http://ai-automation-service-new:8036
-- `ai-training-service`: http://ai-training-service:8033
-- `ai-pattern-service`: http://ai-pattern-service:8034
+- `ai-query-service`: http://ai-query-service:8018
+- `ai-automation-service-new`: http://ai-automation-service-new:8025
+- `ai-training-service`: http://ai-training-service:8022
+- `ai-pattern-service`: http://ai-pattern-service:8020
 
 ## Shared Infrastructure Configuration
 
@@ -128,10 +128,10 @@ POSTGRES_SCHEMA=automation
 
 # Service URLs (for inter-service communication)
 DATA_API_URL=http://data-api:8006
-AI_QUERY_SERVICE_URL=http://ai-query-service:8035
-AI_AUTOMATION_SERVICE_URL=http://ai-automation-service-new:8036
-AI_TRAINING_SERVICE_URL=http://ai-training-service:8033
-AI_PATTERN_SERVICE_URL=http://ai-pattern-service:8034
+AI_QUERY_SERVICE_URL=http://ai-query-service:8018
+AI_AUTOMATION_SERVICE_URL=http://ai-automation-service-new:8025
+AI_TRAINING_SERVICE_URL=http://ai-training-service:8022
+AI_PATTERN_SERVICE_URL=http://ai-pattern-service:8020
 ```
 
 ## Performance Targets

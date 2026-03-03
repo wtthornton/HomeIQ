@@ -23,7 +23,7 @@ Matches Home Assistant Blueprints from the database against available devices, s
 Environment variables:
 - `BLUEPRINT_INDEX_URL` - URL of blueprint-index service (default: http://blueprint-index:8031)
 - `DATA_API_URL` - URL of data-api service (default: http://data-api:8006)
-- `AI_PATTERN_SERVICE_URL` - URL of ai-pattern-service (default: http://ai-pattern-service:8029)
+- `AI_PATTERN_SERVICE_URL` - URL of ai-pattern-service (default: http://ai-pattern-service:8020)
 - `DATABASE_URL` - Database connection string (default: postgresql+asyncpg://homeiq:homeiq@postgres:5432/homeiq)
 
 ## Running

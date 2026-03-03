@@ -112,9 +112,9 @@ The service uses Pydantic Settings to load configuration from environment variab
 
 ### `DEVICE_INTELLIGENCE_URL`
 - **Type:** String (URL)
-- **Default:** `http://device-intelligence-service:8028`
+- **Default:** `http://device-intelligence-service:8019`
 - **Description:** Device Intelligence Service URL for capability patterns
-- **Example:** `http://device-intelligence-service:8028` (Docker network)
+- **Example:** `http://device-intelligence-service:8019` (Docker network)
 - **Required:** No (service can operate without it)
 
 ### `DEVICE_INTELLIGENCE_ENABLED`
@@ -291,7 +291,7 @@ services:
       - DATA_API_KEY=${API_KEY:-}
       - AI_AUTOMATION_SERVICE_URL=http://ai-automation-service-new:8036
       - YAML_VALIDATION_SERVICE_URL=http://yaml-validation-service:8037
-      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8028
+      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
       - LOG_LEVEL=INFO
       - DATABASE_URL=postgresql+asyncpg:///./data/ha_ai_agent.db
 ```

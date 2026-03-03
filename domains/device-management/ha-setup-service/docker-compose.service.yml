@@ -17,8 +17,8 @@
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - HA_URL=${HA_HTTP_URL:-http://192.168.1.86:8123}
       # HA_TOKEN loaded from infrastructure/.env.websocket
-      - DATA_API_URL=http://homeiq-data-api:8006
-      - ADMIN_API_URL=http://homeiq-admin-api:8003
+      - DATA_API_URL=http://data-api:8006
+      - ADMIN_API_URL=http://admin-api:8004
       - HEALTH_CHECK_INTERVAL=60
       - INTEGRATION_CHECK_INTERVAL=300
       - ENABLE_PERFORMANCE_MONITORING=true

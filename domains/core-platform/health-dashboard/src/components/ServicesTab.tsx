@@ -43,9 +43,9 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
   { id: 'smart-meter-service', name: 'Smart Meter', icon: '📈', type: 'external', description: 'Energy consumption tracking', group: 'data-collectors' },
 
   // Energy Analytics
-  { id: 'energy-correlator', name: 'Energy Correlator', icon: '🔋', type: 'core', port: 8015, description: 'Energy pattern correlation', group: 'energy-analytics' },
-  { id: 'energy-forecasting', name: 'Energy Forecasting', icon: '📉', type: 'core', port: 8016, description: 'Energy demand forecasting', group: 'energy-analytics' },
-  { id: 'proactive-agent-service', name: 'Proactive Agent', icon: '🧠', type: 'core', port: 8017, description: 'Proactive automation suggestions', group: 'energy-analytics' },
+  { id: 'energy-correlator', name: 'Energy Correlator', icon: '🔋', type: 'core', port: 8017, description: 'Energy pattern correlation', group: 'energy-analytics' },
+  { id: 'energy-forecasting', name: 'Energy Forecasting', icon: '📉', type: 'core', port: 8042, description: 'Energy demand forecasting', group: 'energy-analytics' },
+  { id: 'proactive-agent-service', name: 'Proactive Agent', icon: '🧠', type: 'core', port: 8031, description: 'Proactive automation suggestions', group: 'energy-analytics' },
 
   // Blueprints
   { id: 'blueprint-index', name: 'Blueprint Index', icon: '📋', type: 'core', port: 8031, description: 'Blueprint catalog and search', group: 'blueprints' },
@@ -53,17 +53,17 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
   { id: 'rule-recommendation-ml', name: 'Rule Recommendation', icon: '🎯', type: 'core', port: 8035, description: 'ML-based rule suggestions', group: 'blueprints' },
 
   // Pattern Analysis
-  { id: 'ai-pattern-service', name: 'AI Pattern Service', icon: '🔍', type: 'core', port: 8033, description: 'Pattern detection and synergy analysis', group: 'pattern-analysis' },
-  { id: 'api-automation-edge', name: 'Automation Edge', icon: '⚡', type: 'core', port: 8034, description: 'Edge automation processing', group: 'pattern-analysis' },
+  { id: 'ai-pattern-service', name: 'AI Pattern Service', icon: '🔍', type: 'core', port: 8034, description: 'Pattern detection and synergy analysis', group: 'pattern-analysis' },
+  { id: 'api-automation-edge', name: 'Automation Edge', icon: '⚡', type: 'core', port: 8041, description: 'Edge automation processing', group: 'pattern-analysis' },
 
   // Device Management
-  { id: 'device-health-monitor', name: 'Device Health Monitor', icon: '🏥', type: 'core', port: 8040, description: 'Device health tracking', group: 'device-management' },
-  { id: 'device-context-classifier', name: 'Context Classifier', icon: '🏷️', type: 'core', port: 8041, description: 'Device context classification', group: 'device-management' },
-  { id: 'device-setup-assistant', name: 'Setup Assistant', icon: '🔧', type: 'core', port: 8042, description: 'Device setup guidance', group: 'device-management' },
+  { id: 'device-health-monitor', name: 'Device Health Monitor', icon: '🏥', type: 'core', port: 8019, description: 'Device health tracking', group: 'device-management' },
+  { id: 'device-context-classifier', name: 'Context Classifier', icon: '🏷️', type: 'core', port: 8032, description: 'Device context classification', group: 'device-management' },
+  { id: 'device-setup-assistant', name: 'Setup Assistant', icon: '🔧', type: 'core', port: 8021, description: 'Device setup guidance', group: 'device-management' },
 
   // ML Engine
-  { id: 'ai-core-service', name: 'AI Core Service', icon: '🤖', type: 'core', port: 8019, description: 'Central AI orchestration', group: 'ml-engine' },
-  { id: 'device-intelligence-service', name: 'Device Intelligence', icon: '🧪', type: 'core', port: 8021, description: 'Device behavior analysis', group: 'ml-engine' },
+  { id: 'ai-core-service', name: 'AI Core Service', icon: '🤖', type: 'core', port: 8018, description: 'Central AI orchestration', group: 'ml-engine' },
+  { id: 'device-intelligence-service', name: 'Device Intelligence', icon: '🧪', type: 'core', port: 8028, description: 'Device behavior analysis', group: 'ml-engine' },
   { id: 'rag-service', name: 'RAG Service', icon: '📚', type: 'core', port: 8027, description: 'Retrieval-augmented generation', group: 'ml-engine' },
 ];
 

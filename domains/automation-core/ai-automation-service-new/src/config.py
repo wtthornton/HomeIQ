@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     openai_reasoning_effort: str = "high"  # Reasoning effort: low, medium, high, xhigh
 
     # Device Intelligence Service
-    device_intelligence_url: str = "http://device-intelligence-service:8023"
+    device_intelligence_url: str = "http://device-intelligence-service:8019"
 
     # Query Service (for entity extraction)
     query_service_url: str = "http://ai-query-service:8018"

@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     ha_token: str | None = None
 
     # Device Intelligence Service
-    device_intelligence_url: str = "http://device-intelligence-service:8023"
+    device_intelligence_url: str = "http://device-intelligence-service:8019"
 
     # OpenAI Configuration
     openai_api_key: str | None = None
