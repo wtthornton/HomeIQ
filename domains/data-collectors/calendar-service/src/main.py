@@ -103,10 +103,13 @@ class CalendarService:
         self.health_handler.calendar_count = len(self.calendar_entities)
         self.health_handler.calendars_discovered = len(available_calendars)
 
-        # Create InfluxDB client
-        parsed_url = urlparse(self.influxdb_url)
+        # Create InfluxDB client — pass full URL (library parses scheme/host/port internally)
+        influxdb_url = self.influxdb_url
+        parsed_url = urlparse(influxdb_url)
+        if not parsed_url.scheme:
+            influxdb_url = f"http://{influxdb_url}:8086"
         self.influxdb_client = InfluxDBClient3(
-            host=parsed_url.hostname,
+            host=influxdb_url,
             token=self.influxdb_token,
             database=self.influxdb_bucket,
             org=self.influxdb_org
