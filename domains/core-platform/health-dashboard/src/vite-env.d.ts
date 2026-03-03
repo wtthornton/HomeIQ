@@ -12,6 +12,7 @@ interface ImportMetaEnv {
   readonly VITE_LOG_LEVEL?: string
   readonly VITE_AI_AUTOMATION_UI_URL?: string
   readonly VITE_HA_URL?: string
+  readonly VITE_WEBSOCKET_INGESTION_URL?: string
 }
 
 interface ImportMeta {

@@ -182,7 +182,7 @@ export const ServiceDetailsModal: React.FC<ServiceDetailsModalProps> = ({
           {/* Body */}
           <div className="px-6 py-5">
             {/* Debug: Show service ID */}
-            {process.env.NODE_ENV === 'development' && (
+            {import.meta.env.DEV && (
               <div className="mb-2 text-xs text-gray-500">
                 DEBUG: Service ID = "{service}"
               </div>

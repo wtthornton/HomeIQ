@@ -628,6 +628,8 @@ test.describe('Suggestions Flow @full', () => {
 
 **Chat page (HAAgentChat):** Use `data-testid="message-input"`, `data-testid="send-button"`, `data-testid="chat-message"` for message bubbles, and `data-testid="chat-loading"` for loading/thinking state. See `tests/e2e/ai-automation-ui/` for chat and conversation-flow specs.
 
+**Health Dashboard (port 3000):** Use `TEST_BASE_URL=http://localhost:3000` for Docker testing. Routes use hash (#overview, #services, etc.). Key testids: `dashboard-root`, `dashboard-content`, `tab-{id}`, `health-card`, `service-list`. Smoke tests accept `dashboard-content` as fallback when backend is unavailable.
+
 ### vitest Configuration
 
 **vitest.config.ts:**

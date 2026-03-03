@@ -8,7 +8,7 @@
 
 import type { WebSocketIngestionMetrics } from '../../types/serviceMetrics';
 
-const WEBSOCKET_INGESTION_URL = process.env.REACT_APP_WEBSOCKET_INGESTION_URL || 'http://localhost:8001';
+const WEBSOCKET_INGESTION_URL = import.meta.env.VITE_WEBSOCKET_INGESTION_URL || 'http://localhost:8001';
 const FETCH_TIMEOUT = 5000; // 5 seconds
 
 /**
