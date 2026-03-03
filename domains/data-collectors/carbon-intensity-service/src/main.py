@@ -8,16 +8,20 @@ import contextlib
 import os
 import re
 import signal
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
+from urllib.parse import urlparse
 
 import aiohttp
 from aiohttp import web
 from dotenv import load_dotenv
 from health_check import HealthCheckHandler
+from homeiq_observability.logging_config import (
+    log_error_with_context,
+    log_with_context,
+    setup_logging,
+)
 from influxdb_client_3 import InfluxDBClient3, Point
-
-from homeiq_observability.logging_config import log_error_with_context, log_with_context, setup_logging
 
 # Load environment variables
 load_dotenv()
@@ -44,10 +48,19 @@ class CarbonIntensityService:
         if not re.match(r'^[A-Za-z0-9_]+$', grid_region):
             raise ValueError(f"Invalid GRID_REGION '{grid_region}': must be alphanumeric and underscores only")
         self.region = grid_region
-        self.base_url = "https://api.watttime.org/v3"
+        self.base_url = "https://api.watttime.org"
 
-        # InfluxDB configuration
-        self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
+        # InfluxDB configuration — parse URL to extract host
+        # InfluxDBClient3 expects a hostname, not a full URL
+        raw_influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
+        parsed_influx = urlparse(raw_influxdb_url)
+        if parsed_influx.hostname:
+            self.influxdb_host = parsed_influx.hostname
+            self.influxdb_port = parsed_influx.port
+        else:
+            # Assume bare hostname (no scheme)
+            self.influxdb_host = raw_influxdb_url
+            self.influxdb_port = None
         self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
         self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
         self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
@@ -129,13 +142,19 @@ class CarbonIntensityService:
         else:
             logger.warning("No WattTime credentials - service running in standby mode")
 
-        # Create InfluxDB client
-        self.influxdb_client = InfluxDBClient3(
-            host=self.influxdb_url,
-            token=self.influxdb_token,
-            database=self.influxdb_bucket,
-            org=self.influxdb_org
-        )
+        # Create InfluxDB client — pass hostname (not URL)
+        influx_kwargs = {
+            "host": self.influxdb_host,
+            "token": self.influxdb_token,
+            "database": self.influxdb_bucket,
+            "org": self.influxdb_org,
+        }
+        log_host = self.influxdb_host
+        if self.influxdb_port:
+            influx_kwargs["port"] = self.influxdb_port
+            log_host = f"{self.influxdb_host}:{self.influxdb_port}"
+        logger.info(f"Connecting to InfluxDB at {log_host}")
+        self.influxdb_client = InfluxDBClient3(**influx_kwargs)
 
         # Validate InfluxDB connection at startup
         try:
@@ -204,10 +223,10 @@ class CarbonIntensityService:
                     self.api_token = data.get('token')
 
                     # WattTime tokens expire in 30 minutes
-                    self.token_expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+                    self.token_expires_at = datetime.now(UTC) + timedelta(minutes=30)
 
                     # Update health check
-                    self.health_handler.last_token_refresh = datetime.now(timezone.utc)
+                    self.health_handler.last_token_refresh = datetime.now(UTC)
                     self.health_handler.token_refresh_count += 1
 
                     logger.info(f"Token refreshed successfully, expires at {self.token_expires_at.isoformat()}")
@@ -288,7 +307,7 @@ class CarbonIntensityService:
 
         # If token expires soon (within buffer time), refresh now
         if self.token_expires_at:
-            time_until_expiry = (self.token_expires_at - datetime.now(timezone.utc)).total_seconds()
+            time_until_expiry = (self.token_expires_at - datetime.now(UTC)).total_seconds()
             if time_until_expiry < self.token_refresh_buffer:
                 logger.info(f"Token expires in {time_until_expiry:.0f}s, refreshing...")
                 return await self.refresh_token()
@@ -299,32 +318,40 @@ class CarbonIntensityService:
         return True  # Token still valid
 
     def _parse_watttime_response(self, raw_data: dict[str, Any]) -> dict[str, Any]:
-        """Parse WattTime API response into standardized format."""
-        carbon_intensity = raw_data.get('moer') or 0
-        renewable_pct = raw_data.get('renewable_pct') or 0
-        data = {
-            'carbon_intensity': float(carbon_intensity),
-            'renewable_percentage': float(renewable_pct),
-            'fossil_percentage': 100.0 - float(renewable_pct),
-            'timestamp': datetime.now(timezone.utc)
+        """Parse WattTime v3 API response into standardized format.
+
+        v3 format: {data: [{point_time, value}, ...], meta: {signal_type, units, ...}}
+        The 'value' field is MOER in lbs CO2/MWh. Data points are 5-min intervals.
+        """
+        entries = raw_data.get('data', [])
+        # Current MOER value is the first entry
+        current_moer = float(entries[0]['value']) if entries else 0.0
+        # Convert lbs/MWh to gCO2/kWh: 1 lb/MWh = 0.4536 g/kWh
+        carbon_intensity = current_moer * 0.4536
+
+        data: dict[str, Any] = {
+            'carbon_intensity': carbon_intensity,
+            'carbon_intensity_raw_moer': current_moer,
+            'timestamp': datetime.now(UTC),
         }
 
-        # Extract forecasts if available
-        forecast = raw_data.get('forecast', [])
-        if forecast:
-            data['forecast_1h'] = forecast[0].get('value', 0) if len(forecast) > 0 else 0
-            data['forecast_24h'] = forecast[23].get('value', 0) if len(forecast) > 23 else 0
+        # Extract forecast points (5-min intervals: 12 per hour)
+        if len(entries) > 12:
+            data['forecast_1h'] = float(entries[12]['value']) * 0.4536
         else:
-            data['forecast_1h'] = 0
-            data['forecast_24h'] = 0
+            data['forecast_1h'] = 0.0
+        if len(entries) > 288:
+            data['forecast_24h'] = float(entries[288]['value']) * 0.4536
+        else:
+            data['forecast_24h'] = float(entries[-1]['value']) * 0.4536 if entries else 0.0
 
         return data
 
     def _update_cache_and_health(self, data: dict[str, Any]) -> None:
         """Update cache and health check metrics."""
         self.cached_data = data
-        self.last_fetch_time = datetime.now(timezone.utc)
-        self.health_handler.last_successful_fetch = datetime.now(timezone.utc)
+        self.last_fetch_time = datetime.now(UTC)
+        self.health_handler.last_successful_fetch = datetime.now(UTC)
         self.health_handler.total_fetches += 1
 
     async def _handle_auth_retry(self, url: str, params: dict[str, str]) -> dict[str, Any] | None:
@@ -384,7 +411,7 @@ class CarbonIntensityService:
 
         # Return cached data if still within TTL
         if self.cached_data and self.last_fetch_time:
-            cache_age = datetime.now(timezone.utc) - self.last_fetch_time
+            cache_age = datetime.now(UTC) - self.last_fetch_time
             if cache_age < self.cache_duration:
                 return self.cached_data
 
@@ -399,9 +426,9 @@ class CarbonIntensityService:
                 self.health_handler.failed_fetches += 1
                 return self.cached_data
 
-            url = f"{self.base_url}/forecast"
+            url = f"{self.base_url}/v3/forecast"
             headers = {"Authorization": f"Bearer {self.api_token}"}
-            params = {"region": self.region}
+            params = {"region": self.region, "signal_type": "co2_moer"}
 
             log_with_context(
                 logger, "INFO",
@@ -446,8 +473,8 @@ class CarbonIntensityService:
                 data = self._parse_watttime_response(raw_data)
                 self._update_cache_and_health(data)
                 logger.info(
-                    f"Carbon intensity: {data['carbon_intensity']:.1f} gCO2/kWh, "
-                    f"Renewable: {data['renewable_percentage']:.1f}%"
+                    f"Carbon intensity: {data['carbon_intensity']:.1f} gCO2/kWh "
+                    f"(MOER: {data['carbon_intensity_raw_moer']:.1f} lbs/MWh)"
                 )
                 return data
 
@@ -459,6 +486,19 @@ class CarbonIntensityService:
                     logger, "Authentication failed (401), attempting token refresh", error, service="carbon-intensity-service"
                 )
                 return await self._handle_auth_retry(url, params)
+
+            if response.status == 403:
+                log_error_with_context(
+                    logger,
+                    f"WattTime API returned 403 Forbidden for region '{self.region}'. "
+                    "This endpoint may require a paid subscription. "
+                    "Free tier access is limited to CAISO_NORTH preview only.",
+                    aiohttp.ClientResponseError(
+                        request_info=response.request_info, history=response.history, status=403
+                    ),
+                    service="carbon-intensity-service",
+                )
+                return None
 
             if response.status in (429, 500, 502, 503):
                 return await self._handle_transient_retry(url, headers, params, response.status)
@@ -487,10 +527,8 @@ class CarbonIntensityService:
         try:
             point = Point("carbon_intensity") \
                 .tag("region", self.region) \
-                .tag("grid_operator", self.region.split('_')[0]) \
                 .field("carbon_intensity_gco2_kwh", float(data['carbon_intensity'])) \
-                .field("renewable_percentage", float(data['renewable_percentage'])) \
-                .field("fossil_percentage", float(data['fossil_percentage'])) \
+                .field("moer_lbs_mwh", float(data.get('carbon_intensity_raw_moer', 0))) \
                 .field("forecast_1h", float(data['forecast_1h'])) \
                 .field("forecast_24h", float(data['forecast_24h'])) \
                 .time(data['timestamp'])
@@ -500,9 +538,9 @@ class CarbonIntensityService:
             await asyncio.wait_for(asyncio.to_thread(self.influxdb_client.write, point), timeout=15.0)
 
             logger.info("Carbon intensity data written to InfluxDB")
-            self.health_handler.last_successful_write = datetime.now(timezone.utc)
+            self.health_handler.last_successful_write = datetime.now(UTC)
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.health_handler.influxdb_write_failures += 1
             log_error_with_context(
                 logger,

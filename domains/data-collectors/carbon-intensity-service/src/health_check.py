@@ -45,7 +45,12 @@ class HealthCheckHandler:
             if time_since_last > 1800:  # 30 minutes without successful fetch
                 healthy = False
                 status_label = "degraded"
-                status_detail = "degraded"
+                status_detail = "stale_data"
+        elif self.total_fetches > 0:
+            # Fetches attempted but none succeeded
+            healthy = False
+            status_label = "degraded"
+            status_detail = "all_fetches_failed"
         elif self.total_fetches == 0:
             # No fetches attempted yet (startup)
             status_detail = "starting"
