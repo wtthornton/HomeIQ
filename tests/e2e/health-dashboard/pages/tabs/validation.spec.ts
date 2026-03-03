@@ -10,11 +10,8 @@ test.describe('Health Dashboard - Validation Tab', () => {
   });
 
   test('@smoke Validation results display', async ({ page }) => {
-    const results = page.locator('[data-testid="validation-results"], [class*="results"]').first();
-    const fallback = page.locator('[data-testid="dashboard-content"]');
-    const hasData = await results.isVisible({ timeout: 6000 }).catch(() => false);
-    const hasFallback = await fallback.isVisible({ timeout: 5000 }).catch(() => false);
-    expect(hasData || hasFallback).toBe(true);
+    // Require tab root only — no fallback (avoids false positive when tab fails to render).
+    await expect(page.locator('[data-testid="validation-results"]')).toBeVisible({ timeout: 15000 });
   });
 
   test('Validation runs trigger', async ({ page }) => {

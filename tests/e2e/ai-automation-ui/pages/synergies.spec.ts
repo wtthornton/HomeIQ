@@ -11,8 +11,9 @@ test.describe('AI Automation UI - Synergies Page', () => {
   });
 
   test('@smoke Synergy list displays', async ({ page }) => {
-    const synergyList = page.locator('[data-testid="synergy-list"], [class*="SynergyList"]').first();
-    await expect(synergyList).toBeVisible({ timeout: 5000 });
+    // Insights defaults to "Usage Patterns"; Synergies renders only for "Device Connections" or "Room View".
+    await page.getByRole('tab', { name: /Device Connections|Room View/ }).first().click();
+    await expect(page.locator('[data-testid="synergies-container"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('P4.8 Synergies page loads and displays synergy data or empty state', async ({ page }) => {

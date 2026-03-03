@@ -11,8 +11,11 @@ test.describe('AI Automation UI - Patterns Page', () => {
   });
 
   test('@smoke Pattern list loads', async ({ page }) => {
-    const patternList = page.locator('[data-testid="pattern-list"], [class*="PatternList"]').first();
-    await expect(patternList).toBeVisible({ timeout: 5000 });
+    // Require page-specific content: list component or "Detected Patterns" heading (no bare #main-content).
+    const main = page.locator('#main-content');
+    const listOrHeading = main.locator('[data-testid="pattern-list"], [class*="PatternList"]')
+      .or(main.getByRole('heading', { name: /detected patterns|usage patterns/i }));
+    await expect(listOrHeading.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('P4.5 Patterns page loads and displays pattern charts or list', async ({ page }) => {

@@ -10,11 +10,8 @@ test.describe('Health Dashboard - Hygiene Tab', () => {
   });
 
   test('@smoke Device hygiene metrics', async ({ page }) => {
-    const metrics = page.locator('[data-testid="hygiene-metrics"], [class*="metrics"]').first();
-    const fallback = page.locator('[data-testid="dashboard-content"]');
-    const hasData = await metrics.isVisible({ timeout: 6000 }).catch(() => false);
-    const hasFallback = await fallback.isVisible({ timeout: 5000 }).catch(() => false);
-    expect(hasData || hasFallback).toBe(true);
+    // Require tab root only — no fallback (avoids false positive when tab fails to render).
+    await expect(page.locator('[data-testid="hygiene-metrics"]')).toBeVisible({ timeout: 15000 });
   });
 
   test('Recommendations display', async ({ page }) => {

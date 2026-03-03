@@ -12,7 +12,7 @@ test.describe('AI Automation UI - Blueprint Suggestions Page', () => {
   });
 
   test('@smoke Blueprint page loads', async ({ page }) => {
-    await expect(page.locator('main, body')).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('#main-content')).toBeVisible({ timeout: 8000 });
   });
 
   test('Blueprint content displays', async ({ page }) => {

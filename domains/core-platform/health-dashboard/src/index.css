@@ -350,7 +350,7 @@
     display: none;  /* Chrome, Safari, Opera */
   }
   
-  /* Modern CSS Features for 2025 */
+  /* Modern CSS Features for 2026 */
   
   /* Container Queries Support */
   @container (min-width: 768px) {
@@ -360,7 +360,7 @@
     }
   }
   
-  /* View Transitions API (2025) */
+  /* View Transitions API (2026) */
   @supports (view-transition-name: none) {
     ::view-transition-old(root),
     ::view-transition-new(root) {

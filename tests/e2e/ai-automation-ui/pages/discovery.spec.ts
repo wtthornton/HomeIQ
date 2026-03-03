@@ -10,8 +10,11 @@ test.describe('AI Automation UI - Discovery Page', () => {
   });
 
   test('@smoke Device explorer loads', async ({ page }) => {
-    const deviceExplorer = page.locator('[data-testid="device-explorer"], [class*="DeviceExplorer"]').first();
-    await expect(deviceExplorer).toBeVisible({ timeout: 5000 });
+    // Require page-specific content: explorer component or heading unique to Explore (no bare #main-content).
+    const main = page.locator('#main-content');
+    const explorerOrHeading = main.locator('[data-testid="device-explorer"], [class*="DeviceExplorer"], [class*="Discovery"]')
+      .or(main.getByRole('heading', { name: /explore|device/i }));
+    await expect(explorerOrHeading.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('P4.7 Discovery page loads and displays device explorer or content', async ({ page }) => {

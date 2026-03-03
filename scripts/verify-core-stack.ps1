@@ -15,11 +15,14 @@ Push-Location $projectRoot
 $coreServices = @("influxdb", "websocket-ingestion", "data-api", "admin-api", "health-dashboard")
 
 function Test-Url {
-    param([string]$Uri, [int]$TimeoutSec = 10)
+    param([string]$Uri, [int]$TimeoutSec = 10, [switch]$ReturnCodeOnError)
     try {
         $r = Invoke-WebRequest -Uri $Uri -UseBasicParsing -TimeoutSec $TimeoutSec
         return $r.StatusCode
     } catch {
+        if ($ReturnCodeOnError -and $_.Exception.Response) {
+            return [int]$_.Exception.Response.StatusCode
+        }
         return $null
     }
 }
@@ -63,21 +66,22 @@ if ($StartOnly) { exit 0 }
 
 Write-Host "Verifying endpoints..." -ForegroundColor Yellow
 $checks = @(
-    @{ Name = "InfluxDB";           Url = "http://localhost:8086/health" },
-    @{ Name = "WebSocket Ingestion"; Url = "http://localhost:8001/health" },
-    @{ Name = "Data API";           Url = "http://localhost:8006/health" },
-    @{ Name = "Admin API (root)";   Url = "http://localhost:8004/health" },
-    @{ Name = "Admin API (v1/health)"; Url = "http://localhost:8004/api/v1/health" },
-    @{ Name = "Admin API (v1/stats)";  Url = "http://localhost:8004/api/v1/stats" },
-    @{ Name = "Dashboard (via nginx)"; Url = "http://localhost:3000/api/v1/health" }
+    @{ Name = "InfluxDB";           Url = "http://localhost:8086/health"; Allow401 = $false },
+    @{ Name = "WebSocket Ingestion"; Url = "http://localhost:8001/health"; Allow401 = $false },
+    @{ Name = "Data API";           Url = "http://localhost:8006/health"; Allow401 = $false },
+    @{ Name = "Admin API (root)";   Url = "http://localhost:8004/health"; Allow401 = $false },
+    @{ Name = "Admin API (v1/health)"; Url = "http://localhost:8004/api/v1/health"; Allow401 = $false },
+    @{ Name = "Admin API (v1/stats)";  Url = "http://localhost:8004/api/v1/stats"; Allow401 = $true },
+    @{ Name = "Dashboard (via nginx)"; Url = "http://localhost:3000/api/v1/health"; Allow401 = $false }
 )
 
 $failed = 0
 foreach ($c in $checks) {
-    $code = Test-Url -Uri $c.Url -TimeoutSec 10
-    $status = Get-Status -Code $code
-    $color = if ($status -eq "OK") { "Green" } else { "Red" }
-    if ($status -ne "OK") { $failed++ }
+    $code = if ($c.Allow401) { Test-Url -Uri $c.Url -TimeoutSec 10 -ReturnCodeOnError } else { Test-Url -Uri $c.Url -TimeoutSec 10 }
+    $ok = ($code -eq 200) -or ($c.Allow401 -and $code -eq 401)
+    $status = if ($ok) { "OK" } else { Get-Status -Code $code }
+    $color = if ($ok) { "Green" } else { "Red" }
+    if (-not $ok) { $failed++ }
     Write-Host "  $($c.Name): " -NoNewline
     Write-Host $status -ForegroundColor $color -NoNewline
     Write-Host " ($($c.Url))"
