@@ -1,6 +1,45 @@
 # Changelog
 
-## [Unreleased] - 2026-03-02
+## [Unreleased] - 2026-03-03
+
+### Added
+
+- **feat(ai-automation-ui): Epic 3 — quality, architecture, and test improvements (8 stories)** (3889209) - Bill Thornton
+- **shared library standardization — Epics 12, 13, 14 (10 stories)** (9316602) - Bill Thornton
+- **feat(health-dashboard): Epic 2 — quality, performance, and test coverage improvements** (d7240b9) - Bill Thornton
+- **implement Epic 7 feature gaps across 4 services (6 stories)** (162ce8b) - Bill Thornton
+- **feat(health-dashboard): Epic 11 browser review — status consistency, log pagination, UX improvements** (f406bfc) - Bill Thornton
+- **feat(epic-6): ML library upgrades, fix skipped tests, implement test stubs** (0f0bbcf) - Bill Thornton
+- **add Epic 8 production deployment scripts and documentation** (2bd9da9) - Bill Thornton
+- **feat(ai-automation-ui): Epic 10 Stories 3-4 UX and accessibility improvements** (1030a80) - Bill Thornton
+- **standardize Docker builds, migrate JSON to JSONB, and add CI/docs tooling** (fe69c9f) - Bill Thornton
+- **standardize PostgreSQL initialization with DatabaseManager across all 13 services** (d93bcac) - Bill Thornton
+- **TAPPS quality gate fixes + browser review critical stories (6 stories, 52 files)** (c224571) - Bill Thornton
+- **complete SQLite removal — PostgreSQL is sole database (Epic 0)** (6c5480b) - Bill Thornton
+- **Phase 4.7 — cross-group service-to-service Bearer token auth** (b99aef7) - Bill Thornton
+- **Phase 4.6 — group-level health dashboard with color-coded aggregation** (2af65d4) - Bill Thornton
+- **Phase 4.5 — AI fallback with CircuitBreaker for ml-engine degradation** (d885f05) - Bill Thornton
+
+### Fixed
+
+- **fix(ai-automation-ui): E2E chat tests - add data-testid, fix selectors, doc** (bb578b2) - Bill Thornton
+- **fix(ai-automation-ui): fix light mode, rebrand to HomeIQ, align teal design system** (27ce940) - Bill Thornton
+- **resolve 3 degraded service health checks post-deployment** (1883ffd) - Bill Thornton
+- **post-blitz stabilization — React 19, pytest fixes, ruff cleanup, converter bug** (6830bfa) - Bill Thornton
+- **fix(ai-automation-ui): add missing api-client module and fix test assertions** (7ad7687) - Bill Thornton
+- **resolve observability dashboard critical bugs and add test coverage (Epic 4)** (8eb4a14) - Bill Thornton
+- **resolve 3 deployment issues in DatabaseManager rollout** (e7ec2a2) - Bill Thornton
+- **update E2E test to accept degraded status from api-automation-edge** (a525412) - Bill Thornton
+- **508-compliant status indicators + resolve 12 false health statuses** (3b40295) - Bill Thornton
+- **eliminate false-positive health status for data sources** (e5d3cb6) - Bill Thornton
+- **resolve 119 E2E test failures after frontend sidebar redesign** (c27e453) - Bill Thornton
+- **resolve 5 blocking security/quality findings + add deployment planning docs** (9d570d2) - Bill Thornton
+- **wire HealthEndpointManager into simple_main.py for /health/groups** (6991a46) - Bill Thornton
+
+### Security
+
+- **security: harden all 3 frontends (Epic 1, Stories 1-6)** (e5364de) - Bill Thornton
+
 
 ### Fixed
 
