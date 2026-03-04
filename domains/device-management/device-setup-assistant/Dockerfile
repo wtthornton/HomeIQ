@@ -56,5 +56,9 @@ USER appuser
 # Expose port
 EXPOSE 8021
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8021/health')"
+
 # Run service
 CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8021"]

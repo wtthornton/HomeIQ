@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-04 (Sprint 2 COMPLETE + Epics 21-24 Docker breakout)
-**Total:** 25 Epics, 146 Stories, ~395+ files addressed
+**Created:** 2026-02-27 | **Updated:** 2026-03-04 (Sprint 3 COMPLETE — Docker breakout, Epics 21-24)
+**Total:** 25 Epics, 146 Stories, ~430+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -31,11 +31,11 @@ Sprint 2 — Quality Baseline Remediation ← ALL COMPLETE (Agent Teams, Mar 4)
 ├── Epic 19: Low-Score Service Remediation [P1]             ← COMPLETE (8/8 pass 70+, activity-writer 51.9→81.9)
 └── Epic 20: Shared Library Strict Compliance [P1]          ← COMPLETE (5/5 pass strict 80+, via lint fixes)
 
-Sprint 3 — Docker Breakout (NEW)
-├── Epic 21: Per-Domain Docker Isolation [P1]               ← START HERE — enables Docker Desktop groups
-├── Epic 23: Dockerfile Hardening [P1]                      ← parallel with 21 (no cross-deps)
-├── Epic 22: Volume Decoupling [P1]                         ← depends on Epic 21 Story 21.1
-└── Epic 24: Deployment Tooling [P1]                        ← depends on Epic 21 Stories 21.1 + 21.3
+Sprint 3 — Docker Breakout ← ALL COMPLETE (Agent Teams, Mar 4)
+├── Epic 21: Per-Domain Docker Isolation [P1]               ← COMPLETE (9 compose files + 2 scripts + 2 build contexts)
+├── Epic 23: Dockerfile Hardening [P1]                      ← COMPLETE (13 Dockerfiles: root-user, healthcheck, UID, multi-stage)
+├── Epic 22: Volume Decoupling [P1]                         ← COMPLETE (3 volumes decoupled, external refs + docs)
+└── Epic 24: Deployment Tooling [P1]                        ← COMPLETE (domain.sh, start-stack.sh, deploy.sh archived)
 
 Post-Blitz Remaining
 ├── Epic 5: React 19 / Vite / Tailwind 4 upgrades          ← needs npm install + testing
@@ -68,10 +68,10 @@ Post-Blitz Remaining
 | 18 | [Data Collectors Remediation](epic-data-collectors-remediation.md) | `epic-data-collectors-remediation.md` | P1 High | 7 | 2-3 weeks | **Complete** (8/8 pass 70+) |
 | 19 | [Low-Score Service Remediation](epic-low-score-remediation.md) | `epic-low-score-remediation.md` | P1 High | 7 | 2-3 weeks | **Complete** (8/8 pass 70+) |
 | 20 | [Shared Library Strict Compliance](epic-shared-library-strict-compliance.md) | `epic-shared-library-strict-compliance.md` | P1 High | 6 | 1-2 weeks | **Complete** (5/5 strict 80+) |
-| 21 | [Per-Domain Docker Desktop Isolation](epic-per-domain-docker-isolation.md) | `epic-per-domain-docker-isolation.md` | P1 High | 5 | 1 week | **Open** |
-| 22 | [Cross-Domain Shared Resource Decoupling](epic-cross-domain-volume-decoupling.md) | `epic-cross-domain-volume-decoupling.md` | P1 High | 3 | 1 week | **Open** |
-| 23 | [Dockerfile Security & Consistency Hardening](epic-dockerfile-hardening.md) | `epic-dockerfile-hardening.md` | P1 High | 8 | 1 week | **Open** |
-| 24 | [Domain Deployment Tooling](epic-domain-deployment-tooling.md) | `epic-domain-deployment-tooling.md` | P1 High | 5 | 1 week | **Open** |
+| 21 | [Per-Domain Docker Desktop Isolation](epic-per-domain-docker-isolation.md) | `epic-per-domain-docker-isolation.md` | P1 High | 5 | 1 week | **Complete** |
+| 22 | [Cross-Domain Shared Resource Decoupling](epic-cross-domain-volume-decoupling.md) | `epic-cross-domain-volume-decoupling.md` | P1 High | 3 | 1 week | **Complete** |
+| 23 | [Dockerfile Security & Consistency Hardening](epic-dockerfile-hardening.md) | `epic-dockerfile-hardening.md` | P1 High | 8 | 1 week | **Complete** |
+| 24 | [Domain Deployment Tooling](epic-domain-deployment-tooling.md) | `epic-domain-deployment-tooling.md` | P1 High | 5 | 1 week | **Complete** |
 
 ## Story Count by Priority
 
@@ -109,6 +109,28 @@ Actual Outcome:
   Low-score services: 0/8 → 8/8 (activity-writer biggest jump: +30 points)
 ```
 
+## Sprint 3 Results (COMPLETE — Mar 4, Agent Teams)
+
+**Executed via 2-wave agent teams in a single session:**
+
+```
+Wave 1 (parallel):
+├── docker-isolation:     Epic 21 (Stories 21.1-21.5) — 9 compose name directives, 2 prefix fixes, ensure-network scripts, 2 build context alignments
+└── dockerfile-hardener:  Epic 23 (Stories 23.1-23.8) — 2 root-user fixes, 4 healthchecks, 3 UID fixes, 3 multi-stage conversions, 3 install order fixes, 2 httpx→urllib, 1 EXPOSE, CRLF + .gitattributes
+
+Wave 2 (parallel, after Wave 1):
+├── volume-decoupler:     Epic 22 (Stories 22.1-22.3) — homeiq_logs + ai_automation_data + ai_automation_models decoupled, docs written
+└── deployment-tooling:   Epic 24 (Stories 24.1-24.5) — deploy.sh archived, domain.sh + start-stack.sh created, deploy-phase-5 updated
+
+Actual Outcome:
+  Files changed: 29 modified + 9 new = 38 total
+  Insertions: 195, Deletions: 557
+  Security: 2 root-user Dockerfiles fixed, 4 missing healthchecks added
+  Consistency: 3 UIDs standardized, 3 single-stage→multi-stage, 2 CRLF fixed
+  Infrastructure: 9 compose files isolated, 3 shared volumes decoupled
+  Tooling: domain.sh, start-stack.sh, ensure-network.sh (+ PowerShell equivalents)
+```
+
 ## Key Dates
 
 | Date | Milestone |
@@ -116,7 +138,7 @@ Actual Outcome:
 | Feb 27 | Sprint 0 complete — SQLite fully removed, PostgreSQL is sole database |
 | Mar 3 | Sprint 1.5 complete — 15 epics done, TAPPS baseline captured |
 | Mar 4 | Sprint 2 complete — 5 epics (16-20) done via 2-wave agent teams, pass rate 45%→90%+ |
-| Mar 4 | Sprint 3 starts — Docker breakout (Epics 21-24) |
+| Mar 4 | Sprint 3 complete — 4 epics (21-24) done via 2-wave agent teams, Docker breakout complete |
 | ~Mar 17 | Production deployment eligible (DB migration done, security hardened, quality gated) |
 | Apr | Frontend framework upgrades + feature gap work begins |
 

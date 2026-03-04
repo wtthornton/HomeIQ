@@ -43,13 +43,15 @@ This is the **single index** for project documentation. Use it for correct paths
 
 ---
 
-## Deployment
+## Docker & Deployment
 
 | Document | Description |
 |----------|-------------|
+| [Docker Shared Resources](docker-shared-resources.md) | Shared volume ownership, external references, and migration |
 | [Deployment Runbook](deployment/DEPLOYMENT_RUNBOOK.md) | Step-by-step deployment guide |
 | [Deployment Pipeline](deployment/DEPLOYMENT_PIPELINE.md) | CI/CD pipeline documentation |
 | [Nginx Proxy](deployment/NGINX_PROXY_CONFIGURATION.md) | Nginx reverse proxy patterns |
+| [Scripts Reference](../scripts/README.md) | Domain management, stack startup, and operational scripts |
 
 ---
 

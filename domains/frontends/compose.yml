@@ -1,3 +1,4 @@
+name: homeiq-frontends
 # domains/frontends/compose.yml — User-facing UIs and observability tooling
 
 services:
@@ -79,12 +80,12 @@ services:
 
   ai-automation-ui:
     build:
-      context: ai-automation-ui
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: domains/frontends/ai-automation-ui/Dockerfile
       args:
         - VITE_API_URL=
         - VITE_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
-    container_name: ai-automation-ui
+    container_name: homeiq-ai-automation-ui
     restart: unless-stopped
     ports:
       - "3001:80"

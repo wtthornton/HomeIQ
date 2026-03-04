@@ -1,3 +1,4 @@
+name: homeiq-data-collectors
 # domains/data-collectors/compose.yml — Group 2: data-collectors
 # Stateless data fetchers. Each polls an external API and writes to InfluxDB.
 # Deploy cadence: Medium — per-API contract change
@@ -372,10 +373,11 @@ services:
       retries: 3
       start_period: 30s
 
-# Shared volumes — declared here for standalone usage.
-# When run via root include, merges with core.yml definition.
+# Shared volumes — homeiq_logs owned by core-platform
 volumes:
   homeiq_logs:
+    external: true
+    name: ${HOMEIQ_LOGS_VOLUME:-homeiq-core-platform_homeiq_logs}
 
 networks:
   homeiq-network:

@@ -27,8 +27,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 FROM python:3.12-alpine
 
 # Add non-root user for security
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -S appuser -u 1001 -G appgroup
 
 WORKDIR /app
 
@@ -36,12 +36,12 @@ WORKDIR /app
 COPY --from=builder /root/.local /home/appuser/.local
 
 # Copy application code
-COPY --chown=appuser:appuser domains/device-management/ha-setup-service/src/ ./src/
-COPY --chown=appuser:appuser domains/device-management/ha-setup-service/alembic/ ./alembic/
-COPY --chown=appuser:appuser domains/device-management/ha-setup-service/alembic.ini ./alembic.ini
+COPY --chown=appuser:appgroup domains/device-management/ha-setup-service/src/ ./src/
+COPY --chown=appuser:appgroup domains/device-management/ha-setup-service/alembic/ ./alembic/
+COPY --chown=appuser:appgroup domains/device-management/ha-setup-service/alembic.ini ./alembic.ini
 
 # Create data directory
-RUN mkdir -p /app/data && chown -R appuser:appuser /app/data
+RUN mkdir -p /app/data && chown -R appuser:appgroup /app/data
 
 # Set environment variables
 ENV PATH=/home/appuser/.local/bin:$PATH \

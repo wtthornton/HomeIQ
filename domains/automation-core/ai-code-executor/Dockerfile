@@ -11,12 +11,7 @@ RUN pip install --upgrade pip==25.2
 # Install build dependencies
 RUN apk add --no-cache gcc musl-dev linux-headers
 
-# Copy requirements and install Python dependencies
-COPY domains/automation-core/ai-code-executor/requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --user -r requirements.txt
-
-# Install shared libs from libs/
+# Install shared libs first (before requirements.txt)
 COPY libs/ /tmp/libs/
 RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-patterns/ \
@@ -24,6 +19,11 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-observability/ \
     /tmp/libs/homeiq-data/ \
     /tmp/libs/homeiq-ha/
+
+# Copy requirements and install Python dependencies
+COPY domains/automation-core/ai-code-executor/requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -r requirements.txt
 
 # Production stage
 FROM python:3.12-alpine AS production
@@ -59,7 +59,7 @@ EXPOSE 8030
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8030/health', timeout=5.0)"
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8030/health')"
 
 # Run service
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8030"]

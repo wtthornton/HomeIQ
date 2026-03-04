@@ -3,11 +3,11 @@ FROM node:20.20.0-alpine AS deps
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
-COPY tsconfig*.json ./
-COPY vite.config.ts ./
-COPY tailwind.config.js ./
-COPY postcss.config.js ./
+COPY domains/core-platform/health-dashboard/package*.json ./
+COPY domains/core-platform/health-dashboard/tsconfig*.json ./
+COPY domains/core-platform/health-dashboard/vite.config.ts ./
+COPY domains/core-platform/health-dashboard/tailwind.config.js ./
+COPY domains/core-platform/health-dashboard/postcss.config.js ./
 
 # Install dependencies with cache mount and prefer offline
 RUN --mount=type=cache,target=/root/.npm \
@@ -28,7 +28,7 @@ ARG VITE_ENVIRONMENT=production
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy source code
-COPY . .
+COPY domains/core-platform/health-dashboard/ .
 
 # Set build environment with Vite variables
 ENV NODE_ENV=production
@@ -51,7 +51,7 @@ RUN apk add --no-cache curl tzdata
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY domains/core-platform/health-dashboard/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Create non-root user and set permissions for nginx
 RUN addgroup -g 1001 -S appgroup && \

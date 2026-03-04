@@ -103,6 +103,11 @@ deploy_tier_1() {
   log_info "TIER 1: Critical Infrastructure"
   log_info "========================================="
 
+  # Ensure shared Docker network exists before any compose up
+  log_info "Ensuring homeiq-network exists..."
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  "$SCRIPT_DIR/ensure-network.sh"
+
   log_info "Creating deployment marker and git tag..."
   echo "$TIMESTAMP" > "$DEPLOYMENT_MARKER"
   git tag -a "deployment-phase5-tier1-${TIMESTAMP}" -m "Phase 5 Tier 1 deployment"
@@ -112,6 +117,11 @@ deploy_tier_1() {
 
   log_info "Waiting 10 seconds for services to initialize..."
   sleep 10
+
+  # Health gate: influxdb and data-api must be healthy before proceeding to tier 2
+  log_info "Health gate: waiting for influxdb and data-api..."
+  check_service_health 8086 "influxdb"
+  check_service_health 8006 "data-api"
 
   # Check Tier 1 services
   local tier1_services=(

@@ -6,11 +6,11 @@ FROM node:20.20.0-alpine AS deps
 WORKDIR /app
 
 # Copy dependency files
-COPY package*.json ./
-COPY tsconfig*.json ./
-COPY vite.config.ts ./
-COPY tailwind.config.js ./
-COPY postcss.config.js ./
+COPY domains/frontends/ai-automation-ui/package*.json ./
+COPY domains/frontends/ai-automation-ui/tsconfig*.json ./
+COPY domains/frontends/ai-automation-ui/vite.config.ts ./
+COPY domains/frontends/ai-automation-ui/tailwind.config.js ./
+COPY domains/frontends/ai-automation-ui/postcss.config.js ./
 
 # Install dependencies
 RUN --mount=type=cache,target=/root/.npm \
@@ -32,7 +32,7 @@ ENV VITE_API_URL=${VITE_API_URL}
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy source code
-COPY . .
+COPY domains/frontends/ai-automation-ui/ .
 
 # Clean any existing build artifacts and cache
 RUN rm -rf dist node_modules/.cache .vite 2>/dev/null || true
@@ -52,7 +52,7 @@ RUN apk add --no-cache curl tzdata
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY domains/frontends/ai-automation-ui/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Create non-root user and set permissions
 RUN addgroup -g 1001 -S appgroup && \

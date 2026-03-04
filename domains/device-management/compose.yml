@@ -1,3 +1,4 @@
+name: homeiq-device-management
 # domains/device-management/compose.yml — Device lifecycle, health, onboarding, and activity
 
 services:
@@ -358,6 +359,8 @@ volumes:
   device_cache_data:
   activity_recognition_models:
   homeiq_logs:
+    external: true
+    name: ${HOMEIQ_LOGS_VOLUME:-homeiq-core-platform_homeiq_logs}
 
 networks:
   homeiq-network:

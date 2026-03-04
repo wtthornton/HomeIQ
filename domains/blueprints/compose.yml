@@ -1,3 +1,4 @@
+name: homeiq-blueprints
 # domains/blueprints/compose.yml — Blueprint generation, indexing, and recommendation
 # Deploy cadence: Moderate — blueprint catalog updates, recommendation model retraining
 #

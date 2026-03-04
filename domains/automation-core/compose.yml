@@ -1,3 +1,4 @@
+name: homeiq-automation-core
 # domains/automation-core/compose.yml — Core automation generation, validation, and deployment
 # Deploy cadence: High — most active feature development
 #
@@ -337,10 +338,14 @@ services:
         max-file: "3"
         labels: "service=automation-trace-service,group=automation-core,environment=production"
 
-# Automation-core volumes
+# Automation-core volumes — ai_automation_data and ai_automation_models owned by ml-engine
 volumes:
-  ai_automation_data:  # Shared with ml-engine (ai-training-service)
-  ai_automation_models:  # Shared with ml-engine
+  ai_automation_data:
+    external: true
+    name: ${AI_AUTOMATION_DATA_VOLUME:-homeiq-ml-engine_ai_automation_data}
+  ai_automation_models:
+    external: true
+    name: ${AI_AUTOMATION_MODELS_VOLUME:-homeiq-ml-engine_ai_automation_models}
   ha_ai_agent_data:
 
 networks:

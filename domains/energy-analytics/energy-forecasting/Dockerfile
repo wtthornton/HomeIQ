@@ -32,15 +32,18 @@ WORKDIR /app
 # Install curl for healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user
+RUN groupadd -g 1001 appgroup && useradd -u 1001 -g appgroup -s /bin/false appuser
+
 # Copy installed packages from builder
-COPY --from=builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH
+COPY --from=builder /root/.local /home/appuser/.local
+ENV PATH=/home/appuser/.local/bin:$PATH
 
 # Copy application code
 COPY domains/energy-analytics/energy-forecasting/src/ ./src/
 
 # Create models directory (models are mounted at runtime via volume)
-RUN mkdir -p /app/models
+RUN mkdir -p /app/models && chown -R appuser:appgroup /app
 
 # Environment variables
 ENV PORT=8037
@@ -54,5 +57,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8037/api/v1/health || exit 1
 
 EXPOSE 8037
+
+USER appuser
 
 CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8037"]

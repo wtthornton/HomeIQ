@@ -1,3 +1,4 @@
+name: homeiq-pattern-analysis
 # domains/pattern-analysis/compose.yml — Pattern detection and automation edge analysis
 
 services:
@@ -5,7 +6,7 @@ services:
     build:
       context: ../..
       dockerfile: domains/pattern-analysis/ai-pattern-service/Dockerfile
-    container_name: ai-pattern-service
+    container_name: homeiq-ai-pattern-service
     restart: unless-stopped
     ports:
       - "8034:8020"
@@ -102,8 +103,11 @@ services:
         max-file: "3"
         labels: "service=api-automation-edge,group=pattern-analysis,environment=production"
 
+# ai_automation_data owned by ml-engine
 volumes:
   ai_automation_data:
+    external: true
+    name: ${AI_AUTOMATION_DATA_VOLUME:-homeiq-ml-engine_ai_automation_data}
   api_automation_edge_data:
 
 networks:

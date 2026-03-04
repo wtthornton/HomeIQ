@@ -1,3 +1,4 @@
+name: homeiq-ml-engine
 # domains/ml-engine/compose.yml — ML model inference, embedding generation, and training
 # Deploy cadence: Frequent — model updates, library upgrades
 #

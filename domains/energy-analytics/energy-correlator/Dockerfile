@@ -51,6 +51,9 @@ USER appuser
 ENV PATH=/home/appuser/.local/bin:$PATH
 ENV PYTHONUNBUFFERED=1
 
+# Expose port
+EXPOSE 8017
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8017/health || exit 1

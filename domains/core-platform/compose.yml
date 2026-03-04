@@ -1,3 +1,4 @@
+name: homeiq-core-platform
 # domains/core-platform/compose.yml — Group 1: core-platform
 # The data backbone. If this is down, everything is down.
 # Deploy cadence: Low — changes require staging + canary
@@ -284,8 +285,8 @@ services:
 
   health-dashboard:
     build:
-      context: health-dashboard
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: domains/core-platform/health-dashboard/Dockerfile
       args:
         - VITE_API_BASE_URL=
         - VITE_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
@@ -574,8 +575,8 @@ services:
 
   websocket-ingestion-test:
     build:
-      context: websocket-ingestion
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: domains/core-platform/websocket-ingestion/Dockerfile
     container_name: homeiq-websocket-test
     restart: unless-stopped
     ports:

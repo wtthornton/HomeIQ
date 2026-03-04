@@ -1,3 +1,4 @@
+name: homeiq-energy-analytics
 # domains/energy-analytics/compose.yml — Energy monitoring, correlation, and forecasting
 
 services:
