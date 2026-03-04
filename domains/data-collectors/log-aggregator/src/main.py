@@ -353,7 +353,7 @@ async def main() -> None:
     runner = web.AppRunner(app)
     await runner.setup()
 
-    site = web.TCPSite(runner, '0.0.0.0', port)
+    site = web.TCPSite(runner, '0.0.0.0', port)  # noqa: S104
     await site.start()
 
     logger.info(f"Log aggregation service started on port {port}")

@@ -143,7 +143,7 @@ class HASimulatorWebSocketServer:
         await self.runner.setup()
 
         port = self.config["simulator"]["port"]
-        self.site = web.TCPSite(self.runner, '0.0.0.0', port)
+        self.site = web.TCPSite(self.runner, '0.0.0.0', port)  # noqa: S104
         await self.site.start()
 
         logger.info(f"HA Simulator WebSocket server started on port {port}")

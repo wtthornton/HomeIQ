@@ -114,7 +114,7 @@ class AdminAPIService:
     def __init__(self):
         """Initialize Admin API service"""
         # Configuration
-        self.api_host = os.getenv('API_HOST', '0.0.0.0')  # nosec B104
+        self.api_host = os.getenv('API_HOST', '0.0.0.0')  # noqa: S104
         self.api_port = int(os.getenv('API_PORT', '8000'))
         self.api_title = os.getenv('API_TITLE', 'Home Assistant Ingestor Admin API')
         self.api_version = os.getenv('API_VERSION', '1.0.0')

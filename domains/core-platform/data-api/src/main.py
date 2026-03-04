@@ -126,7 +126,7 @@ class DataAPIService:
     def __init__(self):
         """Initialize Data API service"""
         # Configuration - Configurable via environment variables
-        self.api_host = os.getenv('DATA_API_HOST', '0.0.0.0')  # nosec B104 — intentional; host is env-configurable
+        self.api_host = os.getenv('DATA_API_HOST', '0.0.0.0')  # noqa: S104
         self.api_port = int(os.getenv('DATA_API_PORT', '8006'))
         self.request_timeout = int(os.getenv('REQUEST_TIMEOUT', '30'))  # seconds
         self.db_query_timeout = int(os.getenv('DB_QUERY_TIMEOUT', '10'))  # seconds

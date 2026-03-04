@@ -386,7 +386,7 @@ async def main() -> None:
     await runner.setup()
 
     port = settings.service_port
-    site = web.TCPSite(runner, '0.0.0.0', port)
+    site = web.TCPSite(runner, '0.0.0.0', port)  # noqa: S104
     await site.start()
 
     logger.info(f"API endpoints available on port {port}")

@@ -520,7 +520,7 @@ def main():
     import uvicorn
 
     port = int(os.getenv('WEBSOCKET_INGESTION_PORT', '8000'))
-    host = os.getenv('WEBSOCKET_INGESTION_HOST', '0.0.0.0')
+    host = os.getenv('WEBSOCKET_INGESTION_HOST', '0.0.0.0')  # noqa: S104
 
     logger.info(f"Starting WebSocket Ingestion Service on {host}:{port}...")
 
