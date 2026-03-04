@@ -1,29 +1,26 @@
-"""Health Check Handler for Air Quality Service"""
+"""Health Check Handler for Air Quality Service."""
 
 import logging
 from datetime import UTC, datetime
-
-from aiohttp import web
 
 logger = logging.getLogger(__name__)
 
 
 class HealthCheckHandler:
-    """Health check endpoint handler"""
+    """Health check state tracker for air quality service."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.start_time = datetime.now(UTC)
-        self.last_successful_fetch = None
-        self.total_fetches = 0
-        self.failed_fetches = 0
-        self.total_writes = 0
-        self.failed_writes = 0
-        self.last_api_success = False
-        self.last_influxdb_success = False
+        self.last_successful_fetch: datetime | None = None
+        self.total_fetches: int = 0
+        self.failed_fetches: int = 0
+        self.total_writes: int = 0
+        self.failed_writes: int = 0
+        self.last_api_success: bool = False
+        self.last_influxdb_success: bool = False
 
-    async def handle(self, _request):
-        """Handle health check request"""
-
+    def get_status(self) -> dict:
+        """Return health status dictionary."""
         uptime = (datetime.now(UTC) - self.start_time).total_seconds()
 
         healthy = True
@@ -36,22 +33,25 @@ class HealthCheckHandler:
         if self.total_fetches > 0 and self.total_fetches == self.failed_fetches:
             healthy = False
 
-        status = {
+        return {
             "status": "healthy" if healthy else "degraded",
             "service": "air-quality-service",
             "uptime_seconds": uptime,
-            "last_successful_fetch": self.last_successful_fetch.isoformat() if self.last_successful_fetch else None,
+            "last_successful_fetch": (
+                self.last_successful_fetch.isoformat() if self.last_successful_fetch else None
+            ),
             "total_fetches": self.total_fetches,
             "failed_fetches": self.failed_fetches,
             "total_writes": self.total_writes,
             "failed_writes": self.failed_writes,
-            "success_rate": (self.total_fetches - self.failed_fetches) / self.total_fetches if self.total_fetches > 0 else 0,
+            "success_rate": (
+                (self.total_fetches - self.failed_fetches) / self.total_fetches
+                if self.total_fetches > 0
+                else 0
+            ),
             "components": {
                 "openweather_api": "connected" if self.last_api_success else "disconnected",
-                "influxdb": "connected" if self.last_influxdb_success else "disconnected"
+                "influxdb": "connected" if self.last_influxdb_success else "disconnected",
             },
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat(),
         }
-
-        return web.json_response(status, status=200 if healthy else 503)
-

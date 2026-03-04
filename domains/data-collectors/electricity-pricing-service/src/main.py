@@ -1,113 +1,111 @@
-"""
-Electricity Pricing Service Main Entry Point
-Fetches real-time electricity pricing from utility APIs
+"""Electricity Pricing Service Main Entry Point.
+
+Fetches real-time electricity pricing from utility APIs.
+Migrated from aiohttp to FastAPI with shared library pattern.
 """
 
 import asyncio
-import os
 from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
-from aiohttp import web
-from dotenv import load_dotenv
+from config import settings
+from fastapi import Query, Request
 from health_check import HealthCheckHandler
 from homeiq_observability.logging_config import (
     log_error_with_context,
     log_with_context,
     setup_logging,
 )
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from influxdb_client_3 import InfluxDBClient3, Point
 from providers import AwattarProvider
 from security import require_internal_network, validate_hours_parameter
 
-# Load environment variables
-load_dotenv()
-
-# Configure logging
 logger = setup_logging("electricity-pricing-service")
 
 
 class ElectricityPricingService:
-    """Fetch and store electricity pricing data"""
+    """Fetch and store electricity pricing data."""
 
     def __init__(self) -> None:
         """Initialize the electricity pricing service with provider and InfluxDB config."""
-        self.provider_name = os.getenv('PRICING_PROVIDER', 'awattar')
+        self.provider_name = settings.pricing_provider
 
         # InfluxDB configuration
-        self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
-        self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
-        self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
-        self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
+        self.influxdb_url = settings.influxdb_url
+        self.influxdb_token = (
+            settings.influxdb_token.get_secret_value() if settings.influxdb_token else None
+        )
+        self.influxdb_org = settings.influxdb_org
+        self.influxdb_bucket = settings.influxdb_bucket
 
         # Service configuration
-        self.fetch_interval = int(os.getenv('FETCH_INTERVAL', '3600'))  # seconds
-        self.cache_duration = int(os.getenv('CACHE_DURATION', '60'))  # minutes
+        self.fetch_interval = settings.fetch_interval
+        self.cache_duration = settings.cache_duration
 
-        # Epic 49 Story 49.1: Security configuration
-        self.allowed_networks = os.getenv('ALLOWED_NETWORKS', '').split(',') if os.getenv('ALLOWED_NETWORKS') else None
-        if self.allowed_networks:
-            # Filter out empty strings
-            self.allowed_networks = [net.strip() for net in self.allowed_networks if net.strip()]
+        # Security configuration
+        self.allowed_networks: list[str] | None = None
+        if settings.allowed_networks:
+            self.allowed_networks = [
+                net.strip() for net in settings.allowed_networks.split(",") if net.strip()
+            ]
 
         # Cache
         self.cached_data: dict[str, Any] | None = None
         self.last_fetch_time: datetime | None = None
 
-        # HTTP session
+        # Components
         self.session: aiohttp.ClientSession | None = None
-
-        # InfluxDB client
         self.influxdb_client: InfluxDBClient3 | None = None
-
-        # Health check handler
         self.health_handler = HealthCheckHandler()
-
-        # Provider
         self.provider = self._get_provider()
+        self._background_task: asyncio.Task | None = None
 
-        # Validate configuration
         if not self.influxdb_token:
             raise ValueError("INFLUXDB_TOKEN environment variable is required")
 
     def _get_provider(self) -> AwattarProvider:
-        """Get pricing provider instance based on PRICING_PROVIDER configuration."""
-
-        providers = {
-            'awattar': AwattarProvider()
-        }
-
+        """Get pricing provider instance based on configuration."""
+        providers = {"awattar": AwattarProvider()}
         provider = providers.get(self.provider_name.lower())
 
         if not provider:
-            logger.warning(f"Unknown provider {self.provider_name}, using Awattar")
+            logger.warning("Unknown provider %s, using Awattar", self.provider_name)
             return AwattarProvider()
 
         return provider
 
     async def startup(self) -> None:
-        """Initialize HTTP session and InfluxDB client for data collection."""
-        logger.info(f"Initializing Electricity Pricing Service (Provider: {self.provider_name})...")
-
-        # Create HTTP session
-        self.session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=10)
+        """Initialize HTTP session and InfluxDB client."""
+        logger.info(
+            "Initializing Electricity Pricing Service (Provider: %s)...", self.provider_name
         )
 
-        # Create InfluxDB client
+        self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10))
+
         self.influxdb_client = InfluxDBClient3(
             host=self.influxdb_url,
             token=self.influxdb_token,
             database=self.influxdb_bucket,
-            org=self.influxdb_org
+            org=self.influxdb_org,
         )
+
+        # Start background collection
+        self._background_task = asyncio.create_task(self.run_continuous())
 
         logger.info("Electricity Pricing Service initialized successfully")
 
     async def shutdown(self) -> None:
-        """Cleanup HTTP session and InfluxDB client on shutdown."""
+        """Cleanup HTTP session and InfluxDB client."""
         logger.info("Shutting down Electricity Pricing Service...")
+
+        if self._background_task and not self._background_task.done():
+            self._background_task.cancel()
+            try:
+                await self._background_task
+            except asyncio.CancelledError:
+                pass
 
         if self.session:
             await self.session.close()
@@ -118,18 +116,14 @@ class ElectricityPricingService:
         logger.info("Electricity Pricing Service shut down successfully")
 
     async def fetch_pricing(self) -> dict[str, Any] | None:
-        """Fetch electricity pricing from configured provider, updating cache on success.
-
-        Returns:
-            Pricing data dictionary with current_price, forecast, etc., or cached data on failure.
-        """
-
+        """Fetch electricity pricing from configured provider."""
         try:
             log_with_context(
-                logger, "INFO",
-                f"Fetching electricity pricing from {self.provider_name}",
+                logger,
+                "INFO",
+                "Fetching electricity pricing from %s" % self.provider_name,
                 service="electricity-pricing-service",
-                provider=self.provider_name
+                provider=self.provider_name,
             )
 
             data = await self.provider.fetch_pricing(self.session)
@@ -138,20 +132,16 @@ class ElectricityPricingService:
                 logger.warning("Provider returned no data")
                 return self.cached_data
 
-            # Add timestamp
-            data['timestamp'] = datetime.now(UTC)
-            data['provider'] = self.provider_name
+            data["timestamp"] = datetime.now(UTC)
+            data["provider"] = self.provider_name
 
-            # Update cache
             self.cached_data = data
             self.last_fetch_time = datetime.now(UTC)
-
-            # Update health check
             self.health_handler.last_successful_fetch = datetime.now(UTC)
             self.health_handler.total_fetches += 1
 
-            logger.info(f"Current price: {data['current_price']:.3f} {data['currency']}/kWh")
-            logger.info(f"Cheapest hours: {data['cheapest_hours']}")
+            logger.info("Current price: %.3f %s/kWh", data["current_price"], data["currency"])
+            logger.info("Cheapest hours: %s", data["cheapest_hours"])
 
             return data
 
@@ -160,29 +150,21 @@ class ElectricityPricingService:
                 logger,
                 f"Error fetching pricing: {e}",
                 service="electricity-pricing-service",
-                error=str(e)
+                error=str(e),
             )
             self.health_handler.failed_fetches += 1
 
-            # Return cached data if available and not expired
             if self.cached_data and self.last_fetch_time:
                 age_min = (datetime.now(UTC) - self.last_fetch_time).total_seconds() / 60
                 if age_min < self.cache_duration:
                     logger.warning("Using cached pricing data")
                     return self.cached_data
-                logger.error(f"Cache expired ({age_min:.0f}m > {self.cache_duration}m)")
+                logger.error("Cache expired (%.0fm > %dm)", age_min, self.cache_duration)
 
             return None
 
     async def store_in_influxdb(self, data: dict[str, Any]) -> None:
-        """Store pricing data in InfluxDB using batch writes for performance.
-
-        Writes current price and 24h forecast points in a single batch operation.
-
-        Args:
-            data: Pricing data dictionary containing current_price, forecast_24h, etc.
-        """
-
+        """Store pricing data in InfluxDB using batch writes."""
         if not self.influxdb_client:
             logger.error("InfluxDB client not initialized, skipping write")
             return
@@ -192,161 +174,150 @@ class ElectricityPricingService:
             return
 
         try:
-            # Validate required fields before building Points
-            required = ['provider', 'currency', 'current_price', 'peak_period', 'timestamp']
+            required = ["provider", "currency", "current_price", "peak_period", "timestamp"]
             missing = [f for f in required if f not in data]
             if missing:
-                logger.error(f"Missing required fields for InfluxDB write: {missing}")
+                logger.error("Missing required fields for InfluxDB write: %s", missing)
                 return
 
-            # Epic 49 Story 49.2: Collect all points for batch write
             points = []
 
-            # Store current pricing
-            current_point = Point("electricity_pricing") \
-                .tag("provider", data['provider']) \
-                .tag("currency", data['currency']) \
-                .field("current_price", float(data['current_price'])) \
-                .field("peak_period", bool(data['peak_period'])) \
-                .time(data['timestamp'])
-
+            current_point = (
+                Point("electricity_pricing")
+                .tag("provider", data["provider"])
+                .tag("currency", data["currency"])
+                .field("current_price", float(data["current_price"]))
+                .field("peak_period", bool(data["peak_period"]))
+                .time(data["timestamp"])
+            )
             points.append(current_point)
 
-            # Store forecast (collect all forecast points)
-            for forecast in data.get('forecast_24h', []):
-                forecast_point = Point("electricity_pricing_forecast") \
-                    .tag("provider", data['provider']) \
-                    .field("price", float(forecast['price'])) \
-                    .field("hour_offset", int(forecast['hour'])) \
-                    .time(forecast['timestamp'])
-
+            for forecast in data.get("forecast_24h", []):
+                forecast_point = (
+                    Point("electricity_pricing_forecast")
+                    .tag("provider", data["provider"])
+                    .field("price", float(forecast["price"]))
+                    .field("hour_offset", int(forecast["hour"]))
+                    .time(forecast["timestamp"])
+                )
                 points.append(forecast_point)
 
-            # Epic 49 Story 49.2: Batch write all points in async context
             if points:
-                # Wrap synchronous write in async context
                 await asyncio.to_thread(self.influxdb_client.write, points)
 
-            logger.info(f"Electricity pricing data written to InfluxDB ({len(points)} points)")
+            logger.info(
+                "Electricity pricing data written to InfluxDB (%d points)", len(points)
+            )
 
         except Exception as e:
             log_error_with_context(
                 logger,
                 f"Error writing to InfluxDB: {e}",
                 service="electricity-pricing-service",
-                error=str(e)
+                error=str(e),
             )
-
-    async def get_cheapest_hours(self, request: web.Request) -> web.Response:
-        """API endpoint returning the cheapest electricity hours with input validation.
-
-        Args:
-            request: aiohttp request with optional 'hours' query parameter.
-
-        Returns:
-            JSON response with cheapest hours data or error.
-        """
-        # Epic 49 Story 49.1: Validate hours parameter
-        try:
-            hours_needed = validate_hours_parameter(
-                request.query.get('hours'),
-                default=4
-            )
-        except ValueError as e:
-            return web.json_response({
-                'error': str(e)
-            }, status=400)
-
-        # Epic 49 Story 49.1: Require internal network access (if configured)
-        try:
-            await require_internal_network(request, self.allowed_networks)
-        except web.HTTPForbidden:
-            raise  # Re-raise to return 403 response
-
-        if self.cached_data and 'cheapest_hours' in self.cached_data:
-            cheapest = self.cached_data['cheapest_hours'][:hours_needed]
-            return web.json_response({
-                'cheapest_hours': cheapest,
-                'provider': self.provider_name,
-                'timestamp': self.last_fetch_time.isoformat() if self.last_fetch_time else None
-            })
-        else:
-            return web.json_response({
-                'error': 'No pricing data available'
-            }, status=503)
 
     async def run_continuous(self) -> None:
         """Run the continuous pricing data collection and storage loop."""
-
-        logger.info(f"Starting continuous pricing monitoring (every {self.fetch_interval}s)")
+        logger.info(
+            "Starting continuous pricing monitoring (every %ds)", self.fetch_interval
+        )
 
         while True:
             try:
-                # Fetch data
                 data = await self.fetch_pricing()
-
-                # Store in InfluxDB
                 if data:
                     await self.store_in_influxdb(data)
-
-                # Wait for next interval
                 await asyncio.sleep(self.fetch_interval)
-
+            except asyncio.CancelledError:
+                logger.info("Continuous pricing loop cancelled")
+                raise
             except Exception as e:
                 log_error_with_context(
                     logger,
                     f"Error in continuous loop: {e}",
                     service="electricity-pricing-service",
-                    error=str(e)
+                    error=str(e),
                 )
-                # Wait before retrying
-                await asyncio.sleep(300)  # 5 minutes
+                await asyncio.sleep(300)
 
 
-async def create_app(service: ElectricityPricingService) -> web.Application:
-    """Create the aiohttp web application with health and pricing endpoints."""
-    app = web.Application()
+# --- Global service instance ---
+service: ElectricityPricingService | None = None
 
-    # Add endpoints
-    app.router.add_get('/health', service.health_handler.handle)
-    app.router.add_get('/cheapest-hours', service.get_cheapest_hours)
-
-    return app
+# --- Lifespan ---
+lifespan = ServiceLifespan(service_name="electricity-pricing-service")
 
 
-async def main() -> None:
-    """Main entry point: starts the pricing service and continuous collection loop."""
-    logger.info("Starting Electricity Pricing Service...")
-
-    # Create service
+async def _startup() -> None:
+    global service
     service = ElectricityPricingService()
     await service.startup()
 
-    # Create web application
-    app = await create_app(service)
-    runner = web.AppRunner(app)
-    await runner.setup()
 
-    # Start health check server
-    port = int(os.getenv('SERVICE_PORT', '8011'))
-    bind_host = os.getenv("BIND_HOST", "0.0.0.0")  # noqa: S104 — Docker container requires binding to all interfaces
-    site = web.TCPSite(runner, bind_host, port)
-    await site.start()
-
-    logger.info(f"API endpoints available on port {port}")
-
-    try:
-        # Run continuous data collection
-        await service.run_continuous()
-
-    except KeyboardInterrupt:
-        logger.info("Received shutdown signal")
-
-    finally:
+async def _shutdown() -> None:
+    if service:
         await service.shutdown()
-        await runner.cleanup()
+
+
+lifespan.on_startup(_startup, name="electricity-pricing-init")
+lifespan.on_shutdown(_shutdown, name="electricity-pricing-cleanup")
+
+# --- Health check ---
+health = StandardHealthCheck(service_name="electricity-pricing-service", version="1.0.0")
+
+# --- App ---
+app = create_app(
+    title="Electricity Pricing Service",
+    version="1.0.0",
+    description="Real-time electricity pricing from utility APIs",
+    lifespan=lifespan.handler,
+    health_check=health,
+)
+
+
+@app.get("/cheapest-hours")
+async def get_cheapest_hours(
+    request: Request,
+    hours: str | None = Query(default=None, description="Number of cheapest hours (1-24)"),
+) -> dict:
+    """API endpoint returning the cheapest electricity hours."""
+    if not service:
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(content={"error": "Service not initialized"}, status_code=503)
+
+    # Validate hours parameter
+    try:
+        hours_needed = validate_hours_parameter(hours, default=4)
+    except ValueError as e:
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(content={"error": str(e)}, status_code=400)
+
+    # Require internal network access (if configured)
+    require_internal_network(request, service.allowed_networks)
+
+    if service.cached_data and "cheapest_hours" in service.cached_data:
+        cheapest = service.cached_data["cheapest_hours"][:hours_needed]
+        return {
+            "cheapest_hours": cheapest,
+            "provider": service.provider_name,
+            "timestamp": (
+                service.last_fetch_time.isoformat() if service.last_fetch_time else None
+            ),
+        }
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(content={"error": "No pricing data available"}, status_code=503)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import uvicorn
 
+    uvicorn.run(
+        app,
+        host="0.0.0.0",  # noqa: S104 — Docker requires binding all interfaces
+        port=settings.service_port,
+        log_level="info",
+    )

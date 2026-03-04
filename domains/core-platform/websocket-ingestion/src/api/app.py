@@ -1,77 +1,84 @@
-"""
-FastAPI application setup for websocket-ingestion service.
+"""FastAPI application setup for websocket-ingestion service.
+
+Uses the shared ``create_app`` factory, ``ServiceLifespan``, and
+``StandardHealthCheck`` from homeiq-resilience while preserving
+all existing routers and WebSocket handling.
 """
 
 import logging
-import os
-from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from homeiq_observability.correlation_middleware import CorrelationMiddleware
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
+from ..config import settings
 from .routers import discovery, event_rate, filter, health, websocket
 
 logger = logging.getLogger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Lifespan context manager for FastAPI app."""
+# -- lifecycle hooks --------------------------------------------------------
+
+async def _startup_service() -> None:
+    """Start the WebSocketIngestionService and store on app state."""
     # Lazy import to avoid circular dependency
     from ..main import WebSocketIngestionService
 
-    # Startup
-    logger.info("Starting WebSocket Ingestion Service...")
     service = WebSocketIngestionService()
-    app.state.service = service
+    _startup_service._service = service  # type: ignore[attr-defined]
     await service.start()
     logger.info("WebSocket Ingestion Service started")
 
-    yield
 
-    # Shutdown
-    logger.info("Shutting down WebSocket Ingestion Service...")
-    if hasattr(app.state, 'service') and app.state.service:
-        await app.state.service.stop()
+async def _shutdown_service() -> None:
+    """Shut down the WebSocketIngestionService."""
+    service = getattr(_startup_service, "_service", None)
+    if service:
+        await service.stop()
     logger.info("WebSocket Ingestion Service stopped")
 
 
-# Create FastAPI app
-app = FastAPI(
+# -- ServiceLifespan --------------------------------------------------------
+
+_lifespan = ServiceLifespan(settings.service_name)
+_lifespan.on_startup(_startup_service, name="ws-ingestion")
+_lifespan.on_shutdown(_shutdown_service, name="ws-ingestion")
+
+# -- StandardHealthCheck ----------------------------------------------------
+
+_health = StandardHealthCheck(
+    service_name=settings.service_name,
+    version="1.0.0",
+)
+
+# -- App creation -----------------------------------------------------------
+
+app = create_app(
     title="WebSocket Ingestion Service",
     description="Service for ingesting Home Assistant WebSocket events",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=_lifespan.handler,
+    health_check=_health,
+    cors_origins=settings.get_cors_origins_list(),
 )
 
-# Add correlation middleware (must be first)
-app.add_middleware(CorrelationMiddleware)
 
-# Add CORS middleware
-allowed_origins = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST"],
-    allow_headers=["Authorization", "Content-Type"],
-)
+# Store service reference on app state after startup
+_orig_lifespan = app.router.lifespan_context
 
-# Include routers
+
+async def _wire_state_lifespan(app_instance):
+    """Wrap lifespan to wire service onto app.state after startup."""
+    async with _orig_lifespan(app_instance) as state:
+        service = getattr(_startup_service, "_service", None)
+        if service:
+            app_instance.state.service = service
+        yield state
+
+
+app.router.lifespan_context = _wire_state_lifespan
+
+# Include existing routers (health router provides /health/detailed)
 app.include_router(health.router)
 app.include_router(event_rate.router)
 app.include_router(discovery.router)
 app.include_router(filter.router)
 app.include_router(websocket.router)
-
-
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    return {
-        "service": "websocket-ingestion",
-        "version": "1.0.0",
-        "status": "operational"
-    }
-

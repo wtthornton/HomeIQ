@@ -6,15 +6,15 @@ from fastapi import APIRouter, Request
 
 from ...api.models import HealthResponse
 
-router = APIRouter(prefix="/health", tags=["health"])
+router = APIRouter(tags=["health"])
 
 
-@router.get("", response_model=HealthResponse)
-async def health_check(request: Request):
-    """
-    Health check endpoint.
+@router.get("/health/detailed", response_model=HealthResponse)
+async def health_check_detailed(request: Request):
+    """Detailed health check with connection and subscription information.
 
-    Returns service health status including connection and subscription information.
+    The standard ``/health`` endpoint is provided by ``StandardHealthCheck``
+    from homeiq-resilience.  This endpoint adds rich WebSocket-specific data.
     """
     service = request.app.state.service
     # Access the health handler from the service

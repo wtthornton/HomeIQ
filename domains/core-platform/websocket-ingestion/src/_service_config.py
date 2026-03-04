@@ -1,60 +1,62 @@
-"""Environment-based configuration for the WebSocket Ingestion Service."""
+"""Environment-based configuration for the WebSocket Ingestion Service.
+
+Thin backward-compatible wrapper around ``config.Settings``
+(BaseServiceSettings subclass). Existing code that uses
+``ServiceConfig`` continues to work without changes.
+"""
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass, field
 
-
-def _env(key: str, default: str | None = None) -> str | None:
-    """Read an environment variable with an optional default."""
-    return os.getenv(key, default)
-
-
-def _env_int(key: str, default: str) -> int:
-    return int(os.getenv(key, default))
-
-
-def _env_float(key: str, default: str) -> float:
-    return float(os.getenv(key, default))
+from .config import settings
 
 
 @dataclass(slots=True)
 class ServiceConfig:
-    """All tunables read from environment variables at service init time."""
+    """All tunables — delegates to the shared ``settings`` instance.
 
-    # Home Assistant connection (supports old + new variable names)
+    Fields are initialised from the pydantic ``Settings`` model so that
+    any environment variables, ``.env`` files, or defaults defined in
+    ``config.py`` are respected.
+    """
+
+    # Home Assistant connection
     home_assistant_url: str | None = field(
-        default_factory=lambda: _env('HA_HTTP_URL') or _env('HOME_ASSISTANT_URL')
+        default_factory=lambda: settings.resolved_ha_http_url
     )
     home_assistant_ws_url: str | None = field(
-        default_factory=lambda: _env('HA_WS_URL') or _env('HA_URL')
+        default_factory=lambda: settings.resolved_ha_ws_url
     )
     home_assistant_token: str | None = field(
-        default_factory=lambda: _env('HA_TOKEN') or _env('HOME_ASSISTANT_TOKEN')
+        default_factory=lambda: settings.resolved_ha_token
     )
 
     # Nabu Casa fallback
-    nabu_casa_url: str | None = field(default_factory=lambda: _env('NABU_CASA_URL'))
-    nabu_casa_token: str | None = field(default_factory=lambda: _env('NABU_CASA_TOKEN'))
+    nabu_casa_url: str | None = field(default_factory=lambda: settings.nabu_casa_url)
+    nabu_casa_token: str | None = field(default_factory=lambda: settings.nabu_casa_token)
 
     home_assistant_enabled: bool = field(
-        default_factory=lambda: (_env('ENABLE_HOME_ASSISTANT', 'true') or '').lower() == 'true'
+        default_factory=lambda: settings.enable_home_assistant
     )
 
     # High-volume processing
-    max_workers: int = field(default_factory=lambda: _env_int('MAX_WORKERS', '10'))
-    processing_rate_limit: int = field(default_factory=lambda: _env_int('PROCESSING_RATE_LIMIT', '1000'))
-    batch_size: int = field(default_factory=lambda: _env_int('BATCH_SIZE', '100'))
-    batch_timeout: float = field(default_factory=lambda: _env_float('BATCH_TIMEOUT', '5.0'))
-    max_memory_mb: int = field(default_factory=lambda: _env_int('MAX_MEMORY_MB', '1024'))
+    max_workers: int = field(default_factory=lambda: settings.max_workers)
+    processing_rate_limit: int = field(default_factory=lambda: settings.processing_rate_limit)
+    batch_size: int = field(default_factory=lambda: settings.batch_size)
+    batch_timeout: float = field(default_factory=lambda: settings.batch_timeout)
+    max_memory_mb: int = field(default_factory=lambda: settings.max_memory_mb)
 
     # InfluxDB
-    influxdb_url: str = field(default_factory=lambda: _env('INFLUXDB_URL', 'http://influxdb:8086') or '')
-    influxdb_token: str | None = field(default_factory=lambda: _env('INFLUXDB_TOKEN'))
-    influxdb_org: str = field(default_factory=lambda: _env('INFLUXDB_ORG', 'homeassistant') or '')
-    influxdb_bucket: str = field(default_factory=lambda: _env('INFLUXDB_BUCKET', 'home_assistant_events') or '')
-    influxdb_max_pending_points: int = field(default_factory=lambda: _env_int('INFLUXDB_MAX_PENDING_POINTS', '20000'))
+    influxdb_url: str = field(default_factory=lambda: settings.influxdb_url)
+    influxdb_token: str | None = field(
+        default_factory=lambda: settings.influxdb_token.get_secret_value() if settings.influxdb_token else None
+    )
+    influxdb_org: str = field(default_factory=lambda: settings.influxdb_org)
+    influxdb_bucket: str = field(default_factory=lambda: settings.influxdb_bucket)
+    influxdb_max_pending_points: int = field(
+        default_factory=lambda: settings.influxdb_max_pending_points
+    )
     influxdb_overflow_strategy: str = field(
-        default_factory=lambda: (_env('INFLUXDB_OVERFLOW_STRATEGY', 'drop_oldest') or '').lower()
+        default_factory=lambda: settings.influxdb_overflow_strategy
     )

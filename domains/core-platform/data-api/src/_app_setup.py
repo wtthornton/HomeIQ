@@ -36,7 +36,7 @@ from .sports_endpoints import router as sports_router
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
-    from .main import DataAPIService
+    from ._service import DataAPIService
 
 logger = setup_logging("data-api")
 

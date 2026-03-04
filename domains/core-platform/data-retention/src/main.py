@@ -1,12 +1,12 @@
 """Main data retention service."""
 
 import asyncio
-import os
 
-from dotenv import load_dotenv
+import uvicorn
 from homeiq_observability.logging_config import setup_logging
 
 from .backup_restore import BackupRestoreService
+from .config import settings
 from .data_cleanup import DataCleanupService
 from .data_compression import DataCompressionService
 from .materialized_views import MaterializedViewManager
@@ -18,16 +18,14 @@ from .storage_analytics import StorageAnalytics
 from .storage_monitor import StorageMonitor
 from .tiered_retention import TieredRetentionManager
 
-# Load environment variables
-load_dotenv()
-
 # Configure enhanced logging
 logger = setup_logging("data-retention")
+
 
 class DataRetentionService:
     """Main data retention and storage management service."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize data retention service."""
         self.policy_manager = RetentionPolicyManager()
         self.cleanup_service: DataCleanupService | None = None
@@ -45,12 +43,12 @@ class DataRetentionService:
         # Epic 45.3: Statistics aggregator
         self.statistics_aggregator: StatisticsAggregator | None = None
 
-        # Configuration
-        self.cleanup_interval_hours = int(os.getenv('CLEANUP_INTERVAL_HOURS', '24'))
-        self.monitoring_interval_minutes = int(os.getenv('MONITORING_INTERVAL_MINUTES', '5'))
-        self.compression_interval_hours = int(os.getenv('COMPRESSION_INTERVAL_HOURS', '24'))
-        self.backup_interval_hours = int(os.getenv('BACKUP_INTERVAL_HOURS', '24'))
-        self.backup_dir = os.getenv('BACKUP_DIR', '/backups')
+        # Configuration from settings
+        self.cleanup_interval_hours = settings.cleanup_interval_hours
+        self.monitoring_interval_minutes = settings.monitoring_interval_minutes
+        self.compression_interval_hours = settings.compression_interval_hours
+        self.backup_interval_hours = settings.backup_interval_hours
+        self.backup_dir = settings.backup_dir
 
         logger.info("Data retention service initialized")
 
@@ -138,7 +136,7 @@ class DataRetentionService:
             "storage_monitor": self.storage_monitor is not None,
             "compression_service": self.compression_service is not None,
             "backup_service": self.backup_service is not None,
-            "policy_count": len(self.policy_manager.get_all_policies())
+            "policy_count": len(self.policy_manager.get_all_policies()),
         }
 
     def get_retention_policies(self) -> list:
@@ -152,7 +150,7 @@ class DataRetentionService:
             description=policy_data.get("description", ""),
             retention_period=policy_data["retention_period"],
             retention_unit=RetentionPeriod(policy_data["retention_unit"]),
-            enabled=policy_data.get("enabled", True)
+            enabled=policy_data.get("enabled", True),
         )
 
         self.policy_manager.add_policy(policy)
@@ -164,7 +162,7 @@ class DataRetentionService:
             description=policy_data.get("description", ""),
             retention_period=policy_data["retention_period"],
             retention_unit=RetentionPeriod(policy_data["retention_unit"]),
-            enabled=policy_data.get("enabled", True)
+            enabled=policy_data.get("enabled", True),
         )
 
         self.policy_manager.update_policy(policy)
@@ -202,10 +200,13 @@ class DataRetentionService:
 
         return self.compression_service.get_compression_statistics()
 
-    async def create_backup(self, backup_type: str = "full",
-                          include_data: bool = True,
-                          include_config: bool = True,
-                          include_logs: bool = False) -> dict:
+    async def create_backup(
+        self,
+        backup_type: str = "full",
+        include_data: bool = True,
+        include_config: bool = True,
+        include_logs: bool = False,
+    ) -> dict:
         """Create a backup."""
         if not self.backup_service:
             raise RuntimeError("Backup service not initialized")
@@ -214,13 +215,18 @@ class DataRetentionService:
             backup_type=backup_type,
             include_data=include_data,
             include_config=include_config,
-            include_logs=include_logs
+            include_logs=include_logs,
         )
 
         return backup_info.to_dict()
 
-    async def restore_backup(self, backup_id: str, restore_data: bool = True,
-                           restore_config: bool = True, restore_logs: bool = False) -> bool:
+    async def restore_backup(
+        self,
+        backup_id: str,
+        restore_data: bool = True,
+        restore_config: bool = True,
+        restore_logs: bool = False,
+    ) -> bool:
         """Restore from a backup."""
         if not self.backup_service:
             raise RuntimeError("Backup service not initialized")
@@ -229,7 +235,7 @@ class DataRetentionService:
             backup_id=backup_id,
             restore_data=restore_data,
             restore_config=restore_config,
-            restore_logs=restore_logs
+            restore_logs=restore_logs,
         )
 
     def get_backup_history(self, limit: int = 100) -> list:
@@ -257,7 +263,7 @@ class DataRetentionService:
         """Get comprehensive service statistics."""
         stats = {
             "service_status": self.get_service_status(),
-            "policy_statistics": self.policy_manager.get_policy_statistics()
+            "policy_statistics": self.policy_manager.get_policy_statistics(),
         }
 
         if self.cleanup_service:
@@ -274,25 +280,23 @@ class DataRetentionService:
 
         return stats
 
+
 # Import FastAPI app from api module
 from .api.app import app  # noqa: E402
 
 
-def main():
-    """Main entry point - uses uvicorn to run FastAPI app"""
-    import uvicorn
+def main() -> None:
+    """Main entry point - uses uvicorn to run FastAPI app."""
+    logger.info(
+        "Starting Data Retention Service on 0.0.0.0:%d...",
+        settings.service_port,
+    )
 
-    port = int(os.getenv('PORT', '8080'))
-    host = os.getenv('HOST', '0.0.0.0')  # noqa: S104
-
-    logger.info(f"Starting Data Retention Service on {host}:{port}...")
-
-    # Run with uvicorn
     uvicorn.run(
         app,
-        host=host,
-        port=port,
-        log_level="info"
+        host="0.0.0.0",  # noqa: S104
+        port=settings.service_port,
+        log_level=settings.log_level.lower(),
     )
 
 

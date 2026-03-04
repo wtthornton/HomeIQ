@@ -5,19 +5,15 @@ Provides health checks, configuration management, Docker management,
 real-time metrics, and monitoring endpoints on port 8004.
 """
 
-import asyncio
-import contextlib
 import os
 import time
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI
 from homeiq_observability.logging_config import setup_logging
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
-from .config import AdminAPIConfig
+from .config import Settings, settings
 from .endpoints import register_public_endpoints
 from .middleware import (
     register_logging_middleware,
@@ -57,9 +53,9 @@ _counters: list[int] = [0, 0]
 class AdminAPIService:
     """Main Admin API service managing FastAPI lifecycle."""
 
-    def __init__(self, cfg: AdminAPIConfig | None = None) -> None:
+    def __init__(self, cfg: Settings | None = None) -> None:
         """Initialize service from *cfg* (defaults to env-based config)."""
-        self.cfg: AdminAPIConfig = cfg or AdminAPIConfig()
+        self.cfg: Settings = cfg or settings
         c = self.cfg
         self.rate_limiter: RateLimiter = RateLimiter(
             rate=c.rate_limit_per_min, per=60, burst=c.rate_limit_burst,
@@ -76,60 +72,15 @@ class AdminAPIService:
         self.monitoring_endpoints: MonitoringEndpoints = MonitoringEndpoints(
             self.auth_manager
         )
-        self.app: FastAPI | None = None
-        self.server_task: asyncio.Task[None] | None = None
-        self.is_running: bool = False
 
-    async def start(self) -> None:
-        """Start the Admin API including monitoring and HTTP server."""
-        if self.is_running:
-            logger.warning("Admin API is already running")
-            return
-        if self.app is None:
-            self.app = self._create_app()
-        await self._start_monitoring()
-        await self._init_influxdb()
-        self.setup_app(self.app)
-        c = self.cfg
-        config = uvicorn.Config(
-            app=self.app, host=c.api_host, port=c.api_port,
-            log_level=os.getenv("LOG_LEVEL", "info").lower(),
-        )
-        self.server_task = asyncio.create_task(
-            uvicorn.Server(config).serve()
-        )
-        self.is_running = True
-        logger.info(f"Admin API started on {c.api_host}:{c.api_port}")
-
-    async def stop(self) -> None:
-        """Stop the service and release resources."""
-        if not self.is_running:
-            return
-        self.is_running = False
-        if self.server_task:
-            self.server_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self.server_task
-        try:
-            await self.stats_endpoints.close()
-        except Exception as e:
-            logger.error(f"Error closing InfluxDB: {e}")
-        await alerting_service.stop()
-        await metrics_service.stop()
-        await logging_service.stop()
-
-    def get_app(self) -> FastAPI | None:
-        """Return the FastAPI app instance."""
-        return self.app
-
-    def setup_app(self, app: FastAPI) -> None:
+    def setup_app(self, app):
         """Wire middleware, routes, and exception handlers onto *app*."""
         global _counters
         c = self.cfg
         setup_observability(app)
         setup_cors(
-            app, origins=c.cors_origins,
-            methods=c.cors_methods, headers=c.cors_headers,
+            app, origins=c.get_cors_origins_list(),
+            methods=c.get_cors_methods_list(), headers=c.get_cors_headers_list(),
         )
         register_rate_limit_middleware(app, self.rate_limiter)
         _counters = register_logging_middleware(app)
@@ -158,36 +109,8 @@ class AdminAPIService:
         )
         _add_exception_handlers(app)
 
-    def _create_app(self) -> FastAPI:
-        """Create a new FastAPI application instance."""
-        c = self.cfg
-        return FastAPI(
-            title=c.api_title, version=c.api_version,
-            description=c.api_description,
-            docs_url="/docs" if c.docs_enabled else None,
-            redoc_url="/redoc" if c.docs_enabled else None,
-            openapi_url=(
-                "/openapi.json"
-                if (c.docs_enabled or c.openapi_enabled) else None
-            ),
-        )
 
-    @staticmethod
-    async def _start_monitoring() -> None:
-        """Start background monitoring services."""
-        await logging_service.start()
-        await metrics_service.start()
-        await alerting_service.start()
-
-    async def _init_influxdb(self) -> None:
-        """Initialize InfluxDB connection for stats."""
-        try:
-            await self.stats_endpoints.initialize()
-        except Exception as e:
-            logger.warning(f"Failed to initialize InfluxDB: {e}")
-
-
-def _add_exception_handlers(app: FastAPI) -> None:
+def _add_exception_handlers(app) -> None:
     """Register exception handlers on the FastAPI app."""
     if register_error_handlers:
         register_error_handlers(app)
@@ -214,7 +137,7 @@ def _add_exception_handlers(app: FastAPI) -> None:
         request: Request, exc: Exception,
     ) -> JSONResponse:
         """Handle uncaught exceptions."""
-        logger.error(f"Unhandled exception: {exc}", exc_info=True)
+        logger.error("Unhandled exception: %s", exc, exc_info=True)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=ErrorResponse(
@@ -230,44 +153,64 @@ def _add_exception_handlers(app: FastAPI) -> None:
 # ---------------------------------------------------------------------------
 
 admin_api_service = AdminAPIService()
+c = admin_api_service.cfg
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:  # noqa: ARG001
-    """Manage application startup and shutdown lifecycle."""
-    logger.info("Starting Admin API service...")
-    await AdminAPIService._start_monitoring()
-    await admin_api_service._init_influxdb()
-    logger.info("Admin API started on 0.0.0.0:8004")
-    yield
-    logger.info("Shutting down Admin API service...")
+async def _start_monitoring() -> None:
+    """Start background monitoring services."""
+    await logging_service.start()
+    await metrics_service.start()
+    await alerting_service.start()
+
+
+async def _init_influxdb() -> None:
+    """Initialize InfluxDB connection for stats."""
+    try:
+        await admin_api_service.stats_endpoints.initialize()
+    except Exception as e:
+        logger.warning("Failed to initialize InfluxDB: %s", e)
+
+
+async def _stop_monitoring() -> None:
+    """Stop monitoring and close InfluxDB."""
     try:
         await admin_api_service.stats_endpoints.close()
     except Exception as e:
-        logger.error(f"Error closing InfluxDB: {e}")
+        logger.error("Error closing InfluxDB: %s", e)
     await alerting_service.stop()
     await metrics_service.stop()
     await logging_service.stop()
 
 
-c = admin_api_service.cfg
-app = FastAPI(
-    title=c.api_title, version=c.api_version,
+# -- ServiceLifespan (replaces manual asynccontextmanager lifespan) ---------
+
+_lifespan = ServiceLifespan(c.service_name)
+_lifespan.on_startup(_start_monitoring, name="monitoring")
+_lifespan.on_startup(_init_influxdb, name="influxdb")
+_lifespan.on_shutdown(_stop_monitoring, name="monitoring")
+
+# -- StandardHealthCheck (provides consistent /health) ----------------------
+
+_health = StandardHealthCheck(service_name=c.service_name, version=c.api_version)
+
+# -- App creation -----------------------------------------------------------
+
+app = create_app(
+    title=c.api_title,
+    version=c.api_version,
     description=c.api_description,
-    docs_url="/docs" if c.docs_enabled else None,
-    redoc_url="/redoc" if c.docs_enabled else None,
-    openapi_url=(
-        "/openapi.json"
-        if (c.docs_enabled or c.openapi_enabled) else None
-    ),
-    lifespan=lifespan,
+    lifespan=_lifespan.handler,
+    health_check=_health,
+    cors_origins=c.get_cors_origins_list(),
 )
-admin_api_service.app = app
+
+# Wire all admin-api specific middleware, routes, and exception handlers
 admin_api_service.setup_app(app)
 
 if __name__ == "__main__":
     uvicorn.run(
-        "src.main:app", host=c.api_host, port=c.api_port,
+        "src.main:app", host="0.0.0.0",  # noqa: S104
+        port=c.service_port,
         reload=os.getenv("RELOAD", "false").lower() == "true",
-        log_level=os.getenv("LOG_LEVEL", "info").lower(),
+        log_level=c.log_level.lower(),
     )

@@ -1,85 +1,64 @@
 """Configuration for the Admin API service.
 
-Loads all settings from environment variables with sensible defaults.
-Handles API key validation and anonymous-mode fallback.
+Inherits common fields from BaseServiceSettings and adds
+admin-specific settings for auth, rate limiting, and docs.
 """
 
-import os
 import secrets
-from dataclasses import dataclass, field
 
+from homeiq_data import BaseServiceSettings
 from homeiq_observability.logging_config import setup_logging
+from pydantic import Field, model_validator
 
 logger = setup_logging("admin-api.config")
 
 
-def _bool_env(key: str, default: str = "false") -> bool:
-    """Read an env var as a boolean ('true'/'false')."""
-    return os.getenv(key, default).lower() == "true"
+class Settings(BaseServiceSettings):
+    """Admin API settings loaded from environment variables.
 
-
-@dataclass
-class AdminAPIConfig:
-    """Immutable configuration for the Admin API service.
-
-    All values are resolved from environment variables at instantiation time.
-    The ``api_key`` field is validated: if it is unset and anonymous mode
-    is disabled, a ``RuntimeError`` is raised.
+    Inherits common fields (service_name, service_port, log_level,
+    data_api_url, influxdb_*, postgres_*, cors_origins) from
+    BaseServiceSettings.
     """
 
-    api_host: str = field(default_factory=lambda: os.getenv("API_HOST", "0.0.0.0"))  # noqa: S104
-    api_port: int = field(default_factory=lambda: int(os.getenv("API_PORT", "8000")))
-    api_title: str = field(
-        default_factory=lambda: os.getenv(
-            "API_TITLE", "Home Assistant Ingestor Admin API"
-        )
+    # Override base defaults
+    service_port: int = 8004
+    service_name: str = "admin-api"
+
+    # API metadata
+    api_title: str = Field(
+        default="Home Assistant Ingestor Admin API",
+        alias="API_TITLE",
     )
-    api_version: str = field(
-        default_factory=lambda: os.getenv("API_VERSION", "1.0.0")
-    )
-    api_description: str = field(
-        default_factory=lambda: os.getenv(
-            "API_DESCRIPTION", "Admin API for Home Assistant Ingestor"
-        )
+    api_version: str = Field(default="1.0.0", alias="API_VERSION")
+    api_description: str = Field(
+        default="Admin API for Home Assistant Ingestor",
+        alias="API_DESCRIPTION",
     )
 
-    allow_anonymous: bool = field(
-        default_factory=lambda: _bool_env("ADMIN_API_ALLOW_ANONYMOUS")
-    )
-    docs_enabled: bool = field(
-        default_factory=lambda: _bool_env("ADMIN_API_ENABLE_DOCS")
-    )
-    openapi_enabled: bool = field(
-        default_factory=lambda: _bool_env("ADMIN_API_ENABLE_OPENAPI")
-    )
-    rate_limit_per_min: int = field(
-        default_factory=lambda: int(os.getenv("ADMIN_API_RATE_LIMIT_PER_MIN", "60"))
-    )
-    rate_limit_burst: int = field(
-        default_factory=lambda: int(os.getenv("ADMIN_API_RATE_LIMIT_BURST", "20"))
-    )
+    # Authentication
+    admin_api_api_key: str | None = Field(default=None)
+    api_key: str | None = Field(default=None)
+    allow_anonymous: bool = Field(default=False, alias="ADMIN_API_ALLOW_ANONYMOUS")
 
-    cors_origins: list[str] = field(
-        default_factory=lambda: os.getenv(
-            "CORS_ORIGINS", "http://localhost:3000"
-        ).split(",")
-    )
-    cors_methods: list[str] = field(
-        default_factory=lambda: os.getenv(
-            "CORS_METHODS", "GET,POST,PUT,DELETE"
-        ).split(",")
-    )
-    cors_headers: list[str] = field(
-        default_factory=lambda: os.getenv("CORS_HEADERS", "*").split(",")
-    )
+    # Docs
+    docs_enabled: bool = Field(default=False, alias="ADMIN_API_ENABLE_DOCS")
+    openapi_enabled: bool = Field(default=False, alias="ADMIN_API_ENABLE_OPENAPI")
 
-    api_key: str = field(default="")
+    # Rate limiting
+    rate_limit_per_min: int = Field(default=60, alias="ADMIN_API_RATE_LIMIT_PER_MIN")
+    rate_limit_burst: int = Field(default=20, alias="ADMIN_API_RATE_LIMIT_BURST")
 
-    def __post_init__(self) -> None:
-        """Resolve and validate the API key after dataclass init."""
-        raw_key = os.getenv("ADMIN_API_API_KEY") or os.getenv("API_KEY") or ""
-        if raw_key:
-            self.api_key = raw_key
+    # CORS (extended)
+    cors_methods: str = Field(default="GET,POST,PUT,DELETE", alias="CORS_METHODS")
+    cors_headers: str = Field(default="*", alias="CORS_HEADERS")
+
+    @model_validator(mode="after")
+    def _resolve_api_key(self) -> "Settings":
+        """Resolve and validate the API key after init."""
+        resolved = self.admin_api_api_key or self.api_key
+        if resolved:
+            self.api_key = resolved
         elif self.allow_anonymous:
             self.api_key = secrets.token_urlsafe(48)
             logger.warning(
@@ -87,7 +66,19 @@ class AdminAPIConfig:
                 "Set ADMIN_API_API_KEY to enforce authentication."
             )
         else:
-            raise RuntimeError(
+            raise ValueError(
                 "API_KEY (or ADMIN_API_API_KEY) must be set "
                 "before starting admin-api"
             )
+        return self
+
+    def get_cors_methods_list(self) -> list[str]:
+        """Parse cors_methods string into a list."""
+        return [m.strip() for m in self.cors_methods.split(",") if m.strip()]
+
+    def get_cors_headers_list(self) -> list[str]:
+        """Parse cors_headers string into a list."""
+        return [h.strip() for h in self.cors_headers.split(",") if h.strip()]
+
+
+settings = Settings()

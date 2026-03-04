@@ -4,8 +4,7 @@ Organizes public endpoints, authenticated sub-routers,
 and root-level endpoints into separate registration functions.
 """
 
-from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from fastapi import Depends
 
@@ -87,9 +86,12 @@ def register_root_endpoints(
     allow_anonymous: bool,
     docs_enabled: bool,
     rate_limiter: "RateLimiter",
-    health_endpoints: HealthEndpoints,
+    health_endpoints: HealthEndpoints,  # noqa: ARG001
 ) -> None:
-    """Register root-level endpoints (Docker health, root info, API info).
+    """Register root-level endpoints (API info).
+
+    Note: ``/health`` and ``/`` are provided by ``create_app`` and
+    ``StandardHealthCheck`` from homeiq-resilience.
 
     Args:
         app: The FastAPI application instance.
@@ -101,35 +103,6 @@ def register_root_endpoints(
         rate_limiter: Rate limiter instance for stats.
         health_endpoints: Health endpoints for uptime tracking.
     """
-
-    @app.get("/health")
-    async def root_health() -> dict[str, Any]:
-        """Return minimal health for Docker HEALTHCHECK and monitoring probes."""
-        uptime = 0.0
-        if health_endpoints is not None:
-            uptime = (
-                datetime.now(UTC) - health_endpoints.start_time
-            ).total_seconds()
-        return {
-            "status": "healthy",
-            "timestamp": datetime.now(UTC).isoformat(),
-            "service": "admin-api",
-            "uptime_seconds": uptime,
-        }
-
-    @app.get("/", response_model=APIResponse)
-    async def root() -> APIResponse:
-        """Return service identity and running status."""
-        return APIResponse(
-            success=True,
-            data={
-                "service": api_title,
-                "version": api_version,
-                "status": "running",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-            message="Admin API is running",
-        )
 
     @app.get("/api/info", response_model=APIResponse)
     async def api_info() -> APIResponse:

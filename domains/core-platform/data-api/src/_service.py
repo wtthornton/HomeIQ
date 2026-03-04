@@ -1,12 +1,11 @@
-"""DataAPIService — configuration, auth, InfluxDB client, and metrics.
+"""DataAPIService — auth, InfluxDB client, rate limiter, and metrics.
 
 Extracted from main.py for maintainability index compliance.
+Configuration is loaded from ``config.Settings`` (BaseServiceSettings).
 """
 
 from __future__ import annotations
 
-import os
-import secrets
 from datetime import datetime
 
 from homeiq_data.auth import AuthManager
@@ -15,6 +14,7 @@ from homeiq_data.rate_limiter import RateLimiter
 from homeiq_observability.logging_config import setup_logging
 from homeiq_observability.monitoring import alerting_service, metrics_service
 
+from .config import settings
 from .ha_automation_endpoints import start_webhook_detector, stop_webhook_detector
 from .sports_influxdb_writer import get_sports_writer
 
@@ -22,35 +22,31 @@ logger = setup_logging("data-api")
 
 
 class DataAPIService:
-    """Configuration, auth, InfluxDB client, and runtime metrics."""
+    """Auth, InfluxDB client, rate limiter, and runtime metrics."""
 
     def __init__(self) -> None:
-        """Read configuration from environment and initialise components."""
-        self.api_host = os.getenv("DATA_API_HOST", "0.0.0.0")  # noqa: S104  # nosec B104
-        self.api_port = int(os.getenv("DATA_API_PORT", "8006"))
-        self.request_timeout = int(os.getenv("REQUEST_TIMEOUT", "30"))
-        self.db_query_timeout = int(os.getenv("DB_QUERY_TIMEOUT", "10"))
-        self.api_title = "Data API - Feature Data Hub"
-        self.api_version = "1.0.0"
-        self.api_description = "Feature data access (events, devices, sports, analytics)"
+        """Initialize from shared settings and create components."""
+        # Config proxies for backward compatibility
+        self.api_host = "0.0.0.0"  # noqa: S104  # nosec B104
+        self.api_port = settings.service_port
+        self.request_timeout = settings.request_timeout
+        self.db_query_timeout = settings.db_query_timeout
+        self.api_title = settings.api_title
+        self.api_version = settings.api_version
+        self.api_description = settings.api_description
+        self.allow_anonymous = settings.allow_anonymous
+        self.cors_origins = settings.get_cors_origins_list()
 
-        # Authentication
-        self.api_key = (
-            os.getenv("DATA_API_API_KEY") or os.getenv("DATA_API_KEY") or os.getenv("API_KEY")
-        )
-        self.allow_anonymous = os.getenv("DATA_API_ALLOW_ANONYMOUS", "false").lower() == "true"
-        if not self.api_key:
-            if not self.allow_anonymous:
-                raise RuntimeError("DATA_API_API_KEY must be set")
-            self.api_key = secrets.token_urlsafe(48)
-
-        self.cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+        # Components
         self.rate_limiter = RateLimiter(
-            rate=int(os.getenv("DATA_API_RATE_LIMIT_PER_MIN", "100")),
+            rate=settings.rate_limit_per_min,
             per=60,
-            burst=int(os.getenv("DATA_API_RATE_LIMIT_BURST", "20")),
+            burst=settings.rate_limit_burst,
         )
-        self.auth_manager = AuthManager(api_key=self.api_key, allow_anonymous=self.allow_anonymous)
+        self.auth_manager = AuthManager(
+            api_key=settings.api_key,
+            allow_anonymous=settings.allow_anonymous,
+        )
         self.influxdb_client = InfluxDBQueryClient()
 
         # Runtime state

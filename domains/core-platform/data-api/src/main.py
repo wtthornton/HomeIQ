@@ -1,31 +1,33 @@
-"""Data API Service — Tier-1 feature data hub.
+"""Data API Service -- Tier-1 feature data hub.
 
 Provides HA event queries (InfluxDB), device/entity browsing,
 integration management, sports data, analytics, and HA automation.
 All sensitive routes require Bearer authentication via AuthManager.
 
 Modules:
-    _service.py   — DataAPIService class (config, auth, lifecycle)
-    _app_setup.py — middleware and router registration
-    _models.py    — Pydantic response models
+    _service.py   -- DataAPIService class (auth, lifecycle)
+    _app_setup.py -- middleware and router registration
+    _models.py    -- Pydantic response models
+    config.py     -- Settings (BaseServiceSettings)
 """
 
 from __future__ import annotations
 
 import os
 import pathlib
-from contextlib import asynccontextmanager
 from datetime import datetime
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, status
+from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 from homeiq_observability.logging_config import setup_logging
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from ._models import APIResponse, ErrorResponse
 from ._service import DataAPIService
 from .cache import cache
+from .config import settings
 from .database import check_db_health, init_db
 
 try:
@@ -36,14 +38,16 @@ except ImportError:
 load_dotenv()
 logger = setup_logging("data-api")
 
-# -- app factory --------------------------------------------------------------
+# -- service instance -------------------------------------------------------
 
 data_api_service = DataAPIService()
+SERVICE_START_TIME = data_api_service.start_time  # backward compat for health/analytics endpoints
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    """Application lifecycle: DB init, service start/stop."""
+# -- lifecycle hooks --------------------------------------------------------
+
+async def _startup() -> None:
+    """DB init and service start."""
     try:
         from homeiq_ha.deployment_validation import log_deployment_info
         log_deployment_info("data-api")
@@ -52,36 +56,71 @@ async def lifespan(_app: FastAPI):
     pathlib.Path("./data").mkdir(exist_ok=True)
     await init_db()
     await data_api_service.startup()
-    yield
+
+
+async def _shutdown() -> None:
+    """Service shutdown."""
     await data_api_service.shutdown()
 
 
-app = FastAPI(
-    title=data_api_service.api_title, version=data_api_service.api_version,
-    description=data_api_service.api_description, lifespan=lifespan,
-    docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json",
+# -- ServiceLifespan --------------------------------------------------------
+
+_lifespan = ServiceLifespan(settings.service_name)
+_lifespan.on_startup(_startup, name="data-api-init")
+_lifespan.on_shutdown(_shutdown, name="data-api-cleanup")
+
+# -- StandardHealthCheck ----------------------------------------------------
+
+_health = StandardHealthCheck(
+    service_name=settings.service_name,
+    version=settings.api_version,
 )
 
+
+async def _check_db_healthy() -> bool:
+    """Dependency check for PostgreSQL."""
+    try:
+        result = await check_db_health()
+        return result.get("status") == "connected"
+    except Exception:
+        return False
+
+
+async def _check_influxdb_healthy() -> bool:
+    """Dependency check for InfluxDB."""
+    try:
+        conn = data_api_service.influxdb_client.get_connection_status()
+        return conn.get("is_connected", False)
+    except Exception:
+        return False
+
+
+_health.register_check("database", _check_db_healthy)
+_health.register_check("influxdb", _check_influxdb_healthy)
+
+# -- App creation -----------------------------------------------------------
+
+app = create_app(
+    title=settings.api_title,
+    version=settings.api_version,
+    description=settings.api_description,
+    lifespan=_lifespan.handler,
+    health_check=_health,
+    cors_origins=settings.get_cors_origins_list(),
+)
+
+# Wire data-api-specific middleware and routers
 from ._app_setup import configure_middleware, register_routers  # noqa: E402
 
 configure_middleware(app, data_api_service)
 register_routers(app, data_api_service)
 
 
-# -- endpoints ----------------------------------------------------------------
+# -- custom endpoints (preserved from original) -----------------------------
 
-@app.get("/", response_model=APIResponse)
-async def root() -> APIResponse:
-    """Root endpoint."""
-    svc = data_api_service
-    return APIResponse(success=True, message="Data API is running", data={
-        "service": svc.api_title, "version": svc.api_version,
-        "status": "running", "timestamp": datetime.now().isoformat()})
-
-
-@app.get("/health")
-async def health_check() -> dict:
-    """Health check with dependencies and error-rate metrics."""
+@app.get("/health/detailed")
+async def health_check_detailed() -> dict:
+    """Detailed health check with dependencies and error-rate metrics."""
     svc = data_api_service
     influx = svc.influxdb_client.get_connection_status()
     err = round(svc.failed_requests / svc.total_requests * 100, 2) if svc.total_requests else 0.0
@@ -115,7 +154,7 @@ async def api_info() -> APIResponse:
         "authentication": {"api_key_required": not svc.allow_anonymous}})
 
 
-# -- error handlers -----------------------------------------------------------
+# -- error handlers ---------------------------------------------------------
 
 if register_error_handlers:
     register_error_handlers(app)
@@ -134,7 +173,7 @@ else:
                                                   error_code="INTERNAL_ERROR").model_dump())
 
 if __name__ == "__main__":
-    uvicorn.run("src.main:app", host=data_api_service.api_host,
-                port=data_api_service.api_port,
+    uvicorn.run("src.main:app", host="0.0.0.0",  # noqa: S104
+                port=settings.service_port,
                 reload=os.getenv("RELOAD", "false").lower() == "true",
-                log_level=os.getenv("LOG_LEVEL", "info").lower())
+                log_level=settings.log_level.lower())
