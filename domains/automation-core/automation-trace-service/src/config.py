@@ -1,34 +1,65 @@
-"""Service configuration via environment variables"""
+"""Service configuration for automation-trace-service.
 
-import os
+Uses BaseServiceSettings for common fields while exposing module-level
+constants for backward compatibility with ha_client, influxdb_writer,
+and trace_poller modules that import ``config.CONSTANT_NAME``.
+"""
 
-from dotenv import load_dotenv
+from homeiq_data import BaseServiceSettings
+from pydantic import Field
 
-load_dotenv()
+
+class Settings(BaseServiceSettings):
+    """Application settings loaded from environment variables."""
+
+    # Override base defaults
+    service_port: int = 8020
+    service_name: str = "automation-trace-service"
+
+    # Home Assistant connection
+    ha_ws_url: str = Field(default="ws://homeassistant:8123", description="HA WebSocket URL")
+    ha_http_url: str = Field(default="http://homeassistant:8123", description="HA HTTP URL")
+    ha_token: str = Field(default="", description="HA long-lived access token")
+
+    # InfluxDB write retries
+    influxdb_write_retries: int = Field(default=3, description="InfluxDB write retry count")
+
+    # Polling intervals
+    trace_poll_interval_seconds: int = Field(default=120, description="Trace poll interval in seconds")
+    logbook_poll_interval_seconds: int = Field(default=300, description="Logbook poll interval in seconds")
+    logbook_lookback_minutes: int = Field(default=10, description="Logbook lookback window in minutes")
+
+    # Data API key (service-specific env var name)
+    data_api_api_key: str = Field(default="", description="Data API bearer token")
 
 
-# Home Assistant connection
-HA_WS_URL = os.getenv("HA_WS_URL", "ws://homeassistant:8123")
-HA_HTTP_URL = os.getenv("HA_HTTP_URL", "http://homeassistant:8123")
-HA_TOKEN = os.getenv("HA_TOKEN", "")
+settings = Settings()
 
-# InfluxDB
-INFLUXDB_URL = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
-INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN", "")
-INFLUXDB_ORG = os.getenv("INFLUXDB_ORG", "homeiq")
-INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
-INFLUXDB_WRITE_RETRIES = int(os.getenv("INFLUXDB_WRITE_RETRIES", "3"))
+# ---------------------------------------------------------------------------
+# Module-level constants for backward compatibility
+# ---------------------------------------------------------------------------
+# ha_client.py, influxdb_writer.py, trace_poller.py import these as
+# ``from . import config`` then ``config.HA_WS_URL``, etc.
 
-# data-api
-DATA_API_URL = os.getenv("DATA_API_URL", "http://data-api:8006")
-DATA_API_API_KEY = os.getenv("DATA_API_API_KEY", "")
+HA_WS_URL = settings.ha_ws_url
+HA_HTTP_URL = settings.ha_http_url
+HA_TOKEN = settings.ha_token
 
-# Polling intervals
-TRACE_POLL_INTERVAL_SECONDS = int(os.getenv("TRACE_POLL_INTERVAL_SECONDS", "120"))
-LOGBOOK_POLL_INTERVAL_SECONDS = int(os.getenv("LOGBOOK_POLL_INTERVAL_SECONDS", "300"))
-LOGBOOK_LOOKBACK_MINUTES = int(os.getenv("LOGBOOK_LOOKBACK_MINUTES", "10"))
+INFLUXDB_URL = settings.influxdb_url
+INFLUXDB_TOKEN = settings.influxdb_token.get_secret_value() if settings.influxdb_token else ""
+INFLUXDB_ORG = settings.influxdb_org
+INFLUXDB_BUCKET = settings.influxdb_bucket
+INFLUXDB_WRITE_RETRIES = settings.influxdb_write_retries
 
-# Service
-SERVICE_PORT = int(os.getenv("SERVICE_PORT", "8020"))
-SERVICE_NAME = "automation-trace-service"
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+DATA_API_URL = settings.data_api_url
+DATA_API_API_KEY = settings.data_api_api_key or (
+    settings.data_api_key.get_secret_value() if settings.data_api_key else ""
+)
+
+TRACE_POLL_INTERVAL_SECONDS = settings.trace_poll_interval_seconds
+LOGBOOK_POLL_INTERVAL_SECONDS = settings.logbook_poll_interval_seconds
+LOGBOOK_LOOKBACK_MINUTES = settings.logbook_lookback_minutes
+
+SERVICE_PORT = settings.service_port
+SERVICE_NAME = settings.service_name
+LOG_LEVEL = settings.log_level

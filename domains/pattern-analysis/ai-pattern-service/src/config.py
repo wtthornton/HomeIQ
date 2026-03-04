@@ -1,29 +1,15 @@
-"""Configuration management for AI Pattern Service"""
+"""Configuration management for AI Pattern Service."""
 
-from pydantic import ConfigDict
-from pydantic_settings import BaseSettings
+from homeiq_data import BaseServiceSettings
 
 
-class Settings(BaseSettings):
-    """Application settings loaded from environment"""
+class Settings(BaseServiceSettings):
+    """Application settings loaded from environment."""
 
-    # Database
+    # Database (additional to base)
     database_path: str = "/app/data/ai_automation.db"
-    database_url: str = ""  # Set via POSTGRES_URL or DATABASE_URL env var
     database_pool_size: int = 10  # Connection pool size (max 20 per service)
     database_max_overflow: int = 5  # Max overflow connections
-
-    # PostgreSQL
-    postgres_url: str = ""  # Set via POSTGRES_URL env var
-    database_schema: str = "automation"  # Set via DATABASE_SCHEMA env var
-
-    @property
-    def effective_database_url(self) -> str:
-        """Return the PostgreSQL database URL."""
-        return self.postgres_url or self.database_url
-
-    # Data API Configuration
-    data_api_url: str = "http://data-api:8006"
 
     # Pattern Detection Configuration
     time_of_day_occurrence_overrides: dict = {}
@@ -34,13 +20,6 @@ class Settings(BaseSettings):
     # Synergy Detection Configuration
     synergy_min_confidence: float = 0.5
     synergy_min_impact_score: float = 0.3
-
-    # Logging
-    log_level: str = "INFO"
-
-    # Service Configuration
-    service_port: int = 8020
-    service_name: str = "ai-pattern-service"
 
     # MQTT Configuration (for scheduler - Story 39.6)
     mqtt_broker: str | None = None
@@ -66,12 +45,10 @@ class Settings(BaseSettings):
     # Device Intelligence Service Configuration (Phase 1.3 - Capability Integration)
     device_intelligence_url: str = "http://device-intelligence-service:8019"
 
-    model_config = ConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
-    )
+    # Override base defaults
+    service_port: int = 8020
+    service_name: str = "ai-pattern-service"
+    database_schema: str = "automation"
 
 
 settings = Settings()

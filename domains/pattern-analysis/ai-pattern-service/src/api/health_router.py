@@ -2,13 +2,16 @@
 Health check router for Pattern Service
 
 Epic 39, Story 39.5: Pattern Service Foundation
+
+NOTE: The /health endpoint is now provided by StandardHealthCheck via
+create_app (homeiq_resilience). This router provides supplementary
+endpoints: /ready, /live, /database/integrity, /database/repair.
 """
 
 import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
@@ -20,31 +23,6 @@ from ..database.integrity import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-@router.get("/health", status_code=status.HTTP_200_OK)
-async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
-    """Structured health check with dependency status and database check."""
-    # Import the module-level group health from main
-    from ..main import _group_health
-
-    # Build base response from GroupHealthCheck
-    if _group_health is not None:
-        result = await _group_health.to_dict()
-    else:
-        result = {"status": "starting", "service": "ai-pattern-service"}
-
-    # Enrich with local database check
-    try:
-        await db.execute(text("SELECT 1"))
-        result["database"] = "connected"
-    except Exception as e:
-        logger.error("Database health check failed: %s", e, exc_info=True)
-        result["database"] = "disconnected"
-        result["status"] = "degraded"
-        result["message"] = "Database unreachable; serving cached data"
-
-    return result
 
 
 @router.get("/ready", status_code=status.HTTP_200_OK)

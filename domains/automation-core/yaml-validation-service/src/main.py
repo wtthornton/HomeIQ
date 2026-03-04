@@ -1,5 +1,4 @@
-"""
-YAML Validation Service - Main FastAPI Application
+"""YAML Validation Service - Main FastAPI Application.
 
 Epic 51, Story 51.4: Create Unified Validation Service
 
@@ -8,96 +7,86 @@ for Home Assistant automations.
 """
 
 import logging
-import os
-from contextlib import asynccontextmanager
+import sys
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
-# Setup logging
-try:
-    from homeiq_observability.logging_config import setup_logging
-    logger = setup_logging("yaml-validation-service")
-except ImportError:
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger("yaml-validation-service")
-
-# Import shared error handler
-try:
-    from homeiq_data.error_handler import register_error_handlers
-except ImportError:
-    logger.warning("Shared error handler not available, using default error handling")
-    register_error_handlers = None
-
-from .api.health_router import router as health_router
 from .api.validation_router import router as validation_router
 from .config import settings
 
 
-# Lifespan context manager
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    """Initialize service on startup and cleanup on shutdown."""
-    logger.info("=" * 60)
-    logger.info("YAML Validation Service Starting Up")
-    logger.info("=" * 60)
-    logger.info(f"Service Port: {settings.service_port}")
-    logger.info(f"Validation Level: {settings.validation_level}")
-    logger.info(f"Data API: {settings.data_api_url}")
-    logger.info("=" * 60)
-    logger.info("✅ YAML Validation Service startup complete")
-    logger.info("=" * 60)
+def _configure_logging() -> None:
+    """Configure logging for the service."""
+    try:
+        from homeiq_observability.logging_config import setup_logging
 
-    yield
+        setup_logging(settings.service_name)
+    except ImportError:
+        logging.basicConfig(
+            level=getattr(logging, settings.log_level.upper()),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=[logging.StreamHandler(sys.stdout)],
+        )
 
-    # Shutdown
-    logger.info("=" * 60)
-    logger.info("YAML Validation Service Shutting Down")
-    logger.info("=" * 60)
 
-# Create FastAPI app
-app = FastAPI(
-    title="YAML Validation Service",
-    description="Comprehensive YAML validation, normalization, and rendering for Home Assistant automations",
+_configure_logging()
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
+
+async def _startup_log() -> None:
+    logger.info("Service Port: %s", settings.service_port)
+    logger.info("Validation Level: %s", settings.validation_level)
+    logger.info("Data API: %s", settings.data_api_url)
+
+
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup_log, name="config_log")
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+health = StandardHealthCheck(
+    service_name=settings.service_name,
     version="1.0.0",
-    lifespan=lifespan
 )
 
-# CORS middleware
-allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-HomeIQ-API-Key"],
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
+app = create_app(
+    title="YAML Validation Service",
+    version="1.0.0",
+    description="Comprehensive YAML validation, normalization, and rendering for Home Assistant automations",
+    lifespan=lifespan.handler,
+    health_check=health,
+    cors_origins=settings.get_cors_origins_list(),
 )
 
-# Register error handlers
-if register_error_handlers:
+# Register shared error handlers if available
+try:
+    from homeiq_data.error_handler import register_error_handlers
+
     register_error_handlers(app)
+except ImportError:
+    logger.debug("Shared error handler not available, using default error handling")
 
 # Include routers
-app.include_router(health_router)
 app.include_router(validation_router)
 
-@app.get("/")
-async def root() -> dict[str, str]:
-    """Root endpoint providing service information."""
-    return {
-        "service": "yaml-validation-service",
-        "version": "1.0.0",
-        "status": "operational",
-        "epic": "Epic 51: YAML Automation Quality Enhancement & Validation Pipeline"
-    }
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
-        "main:app",
+        "src.main:app",
         host="0.0.0.0",  # noqa: S104
         port=settings.service_port,
         reload=True,
-        log_level=settings.log_level.lower()
+        log_level=settings.log_level.lower(),
     )
-

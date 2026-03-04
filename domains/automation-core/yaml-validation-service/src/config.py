@@ -1,20 +1,17 @@
-"""Configuration management for YAML Validation Service"""
+"""Configuration management for YAML Validation Service."""
 
-from pydantic import ConfigDict
-from pydantic_settings import BaseSettings
+from homeiq_data import BaseServiceSettings
 
 
-class Settings(BaseSettings):
-    """Application settings loaded from environment"""
+class Settings(BaseServiceSettings):
+    """Application settings loaded from environment variables."""
 
-    # Service Configuration
+    # Override base defaults
     service_port: int = 8037
     service_name: str = "yaml-validation-service"
 
-    # Data API Configuration
-    data_api_url: str = "http://data-api:8006"
-    data_api_key: str | None = None
-    api_key: str | None = None  # Fallback: shared API_KEY from .env
+    # Fallback API key (shared API_KEY from .env)
+    api_key: str | None = None
 
     # Home Assistant Configuration (optional, for service validation)
     ha_url: str | None = None
@@ -26,16 +23,5 @@ class Settings(BaseSettings):
     enable_entity_validation: bool = True
     enable_service_validation: bool = False  # Requires HA client
 
-    # Logging
-    log_level: str = "INFO"
-
-    model_config = ConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
-    )
-
 
 settings = Settings()
-

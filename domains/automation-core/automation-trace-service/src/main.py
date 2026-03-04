@@ -1,5 +1,4 @@
-"""
-Automation Trace Service — main entry point.
+"""Automation Trace Service -- main entry point.
 
 FastAPI app that connects to Home Assistant via WebSocket, polls
 automation traces every 2 minutes, and stores them in InfluxDB +
@@ -10,30 +9,39 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
+import sys
 from contextlib import suppress
 
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import HTTPException
 from fastapi.responses import JSONResponse
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
-from . import __version__, config
+from . import __version__
+from .config import settings
 from .dedup_tracker import DedupTracker
 from .ha_client import HATraceClient
 from .health_check import HealthCheckHandler
 from .influxdb_writer import InfluxDBTraceWriter
 from .trace_poller import TracePoller
 
-load_dotenv()
 
-# Logging
-try:
-    from homeiq_observability.logging_config import setup_logging
-    logger = setup_logging(config.SERVICE_NAME)
-except ImportError:
-    logging.basicConfig(level=config.LOG_LEVEL)
-    logger = logging.getLogger(config.SERVICE_NAME)
+def _configure_logging() -> None:
+    """Configure logging for the service."""
+    try:
+        from homeiq_observability.logging_config import setup_logging
+
+        setup_logging(settings.service_name)
+    except ImportError:
+        logging.basicConfig(
+            level=getattr(logging, settings.log_level.upper()),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=[logging.StreamHandler(sys.stdout)],
+        )
+
+
+_configure_logging()
+logger = logging.getLogger(__name__)
+
 
 # ---------------------------------------------------------------------------
 # Global service components
@@ -46,17 +54,17 @@ health_handler = HealthCheckHandler()
 _poller_task: asyncio.Task | None = None
 
 
-async def startup():
+async def _startup() -> None:
     """Initialize all service components and start background poller."""
-    global ha_client, influxdb_writer, trace_poller, dedup, _poller_task
+    global ha_client, influxdb_writer, trace_poller, dedup, _poller_task  # noqa: PLW0603
 
-    logger.info("Starting %s v%s", config.SERVICE_NAME, __version__)
+    logger.info("Starting %s v%s", settings.service_name, __version__)
 
     # HA WebSocket
     ha_client = HATraceClient()
     connected = await ha_client.connect()
     if not connected:
-        logger.warning("Could not connect to HA — will retry in poller loop")
+        logger.warning("Could not connect to HA -- will retry in poller loop")
 
     # InfluxDB
     influxdb_writer = InfluxDBTraceWriter()
@@ -69,7 +77,8 @@ async def startup():
     trace_poller = TracePoller(ha_client, influxdb_writer, dedup)
 
     # Start background polling task
-    async def _run_poller():
+    async def _run_poller() -> None:
+        assert ha_client is not None  # noqa: S101
         # If initial connection failed, keep retrying
         while not ha_client.is_connected:
             logger.info("Waiting for HA connection...")
@@ -79,6 +88,7 @@ async def startup():
                 await asyncio.sleep(30)
 
         try:
+            assert trace_poller is not None  # noqa: S101
             await trace_poller.run_continuous()
         except asyncio.CancelledError:
             raise
@@ -86,14 +96,17 @@ async def startup():
             logger.exception("Trace poller background task crashed")
 
     _poller_task = asyncio.create_task(_run_poller(), name="trace-poller-loop")
-    logger.info("Background trace poller started (interval=%ds)", config.TRACE_POLL_INTERVAL_SECONDS)
+    logger.info(
+        "Background trace poller started (interval=%ds)",
+        settings.trace_poll_interval_seconds,
+    )
 
 
-async def shutdown():
+async def _shutdown() -> None:
     """Graceful shutdown."""
-    global _poller_task
+    global _poller_task  # noqa: PLW0603
 
-    logger.info("Shutting down %s", config.SERVICE_NAME)
+    logger.info("Shutting down %s", settings.service_name)
 
     if _poller_task and not _poller_task.done():
         _poller_task.cancel()
@@ -110,39 +123,44 @@ async def shutdown():
 
 
 # ---------------------------------------------------------------------------
-# FastAPI app
+# Lifespan
 # ---------------------------------------------------------------------------
-app = FastAPI(
-    title="Automation Trace Service",
-    description="Ingests HA automation traces and stores to InfluxDB + data-api",
+
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup, name="trace_components")
+lifespan.on_shutdown(_shutdown, name="trace_components")
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+health = StandardHealthCheck(
+    service_name=settings.service_name,
     version=__version__,
 )
 
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[o.strip() for o in cors_origins.split(",")],
-    allow_credentials=True,
-    allow_methods=["GET", "OPTIONS"],
-    allow_headers=["*"],
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
+app = create_app(
+    title="Automation Trace Service",
+    version=__version__,
+    description="Ingests HA automation traces and stores to InfluxDB + data-api",
+    lifespan=lifespan.handler,
+    health_check=health,
+    cors_origins=settings.get_cors_origins_list(),
 )
 
-app.add_event_handler("startup", startup)
-app.add_event_handler("shutdown", shutdown)
+
+# ---------------------------------------------------------------------------
+# Custom health endpoint (preserves detailed component status)
+# ---------------------------------------------------------------------------
 
 
-@app.get("/")
-async def root():
-    return {
-        "service": config.SERVICE_NAME,
-        "version": __version__,
-        "status": "running",
-        "endpoints": ["/health", "/metrics"],
-    }
-
-
-@app.get("/health")
-async def health():
+@app.get("/health/details")
+async def health_details():
+    """Detailed health check with component-level status."""
     if not trace_poller:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
@@ -168,6 +186,7 @@ async def health():
 
 @app.get("/metrics")
 async def metrics():
+    """Service metrics endpoint."""
     if not trace_poller or not influxdb_writer:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
@@ -185,4 +204,10 @@ async def metrics():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=config.SERVICE_PORT, log_level="info")  # noqa: S104
+
+    uvicorn.run(
+        "src.main:app",
+        host="0.0.0.0",  # noqa: S104
+        port=settings.service_port,
+        log_level="info",
+    )

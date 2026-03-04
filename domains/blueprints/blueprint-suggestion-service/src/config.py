@@ -1,21 +1,17 @@
 """Configuration settings for Blueprint Suggestion Service."""
 
-
-from pydantic import ConfigDict
-from pydantic_settings import BaseSettings
+from homeiq_data import BaseServiceSettings
 
 
-class Settings(BaseSettings):
+class Settings(BaseServiceSettings):
     """Application settings loaded from environment variables."""
 
-    # Database
-    database_url: str = ""  # Set via POSTGRES_URL or DATABASE_URL env var
+    # Database (additional to base)
     database_pool_size: int = 10
     database_max_overflow: int = 5
 
     # Service URLs
     blueprint_index_url: str = "http://blueprint-index:8031"
-    data_api_url: str = "http://data-api:8006"
     ai_pattern_service_url: str = "http://ai-pattern-service:8020"
 
     # HTTP Settings
@@ -50,25 +46,12 @@ class Settings(BaseSettings):
     user_profile_weight: float = 0.10
     complexity_bonus_weight: float = 0.05
 
-    # CORS
-    cors_origins: str | None = None  # Comma-separated origins, e.g. "http://localhost:3000,http://myapp.com"
-
     # Auth
     admin_api_key: str | None = None  # Required for destructive endpoints like DELETE /delete-all
 
-    # Logging
-    log_level: str = "INFO"
-
-    # Service Configuration
+    # Override base defaults
     service_port: int = 8032
     service_name: str = "blueprint-suggestion-service"
-
-    model_config = ConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
-    )
 
 
 settings = Settings()

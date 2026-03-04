@@ -21,12 +21,16 @@ from .database_pool import (
     get_shared_db_session,
     validate_database_url,
 )
+from .influxdb_manager import InfluxDBManager
+from .openai_client import StandardOpenAIClient
 from .standard_data_api_client import StandardDataAPIClient
 
 __all__ = [
     "BaseServiceSettings",
     "DatabaseManager",
+    "InfluxDBManager",
     "StandardDataAPIClient",
+    "StandardOpenAIClient",
     "check_pg_connection",
     "close_all_engines",
     "close_all_engines_async",

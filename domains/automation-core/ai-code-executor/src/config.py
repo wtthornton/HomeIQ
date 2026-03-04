@@ -3,119 +3,96 @@ Configuration for AI Code Executor Service.
 Simplified - optimized for single-home NUC deployment with strict security controls.
 """
 
+from __future__ import annotations
+
+import os
+import warnings
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings
+
+from homeiq_data import BaseServiceSettings
 
 
-class Settings(BaseSettings):
-    """Service configuration - MCP Code Execution always enabled"""
+class Settings(BaseServiceSettings):
+    """Service configuration - MCP Code Execution always enabled.
 
-    # Service basics
+    Inherits common fields (service_name, service_port, log_level,
+    database_url, cors_origins, etc.) from BaseServiceSettings.
+    """
+
+    # Override base defaults
     service_name: str = "ai-code-executor"
     service_port: int = 8030
 
     # Sandbox limits (NUC-optimized)
     execution_timeout: int = Field(
         default=30,
-        env="EXECUTION_TIMEOUT",
         description="Maximum code execution time in seconds",
     )
 
     max_memory_mb: int = Field(
         default=128,
-        env="MAX_MEMORY_MB",
         description="Maximum memory per execution (MB)",
     )
 
     max_cpu_percent: float = Field(
         default=50.0,
-        env="MAX_CPU_PERCENT",
         description="Maximum CPU usage percentage",
     )
 
     max_concurrent_executions: int = Field(
         default=2,
-        env="MAX_CONCURRENT_EXECUTIONS",
         description="Maximum concurrent code executions",
     )
 
     max_code_bytes: int = Field(
         default=10_000,
-        env="MAX_CODE_BYTES",
         description="Maximum size of submitted code payload (bytes)",
     )
 
     max_ast_nodes: int = Field(
         default=5_000,
-        env="MAX_AST_NODES",
         description="Maximum number of AST nodes allowed in submitted code",
     )
 
     enable_mcp_network_tools: bool = Field(
         default=False,
-        env="ENABLE_MCP_NETWORK_TOOLS",
         description="Allow sandboxed code to access HomeIQ services via MCP tools",
     )
 
     # MCP workspace
     mcp_workspace_dir: str = Field(
-        default="/tmp/mcp_workspace",
-        env="MCP_WORKSPACE_DIR",
+        default="/tmp/mcp_workspace",  # noqa: S108
         description="Directory for MCP tool filesystem",
     )
 
     # API surface security
-    allowed_origins: list[str] = Field(
-        default_factory=lambda: ["http://localhost:8030"],
-        env="ALLOWED_ORIGINS",
-        description="Comma-separated list of allowed origins for CORS",
-    )
-
     api_token: str = Field(
-        default="",  # Empty default - must be set via environment variable
-        env="EXECUTOR_API_TOKEN",
-        description="Shared secret required via X-Executor-Token header (REQUIRED - set via EXECUTOR_API_TOKEN environment variable)",
+        default="",
+        alias="EXECUTOR_API_TOKEN",
+        description="Shared secret required via X-Executor-Token header",
     )
 
     @field_validator("api_token")
     @classmethod
     def validate_api_token(cls, value: str) -> str:
         """Validate that API token is set and not a default value."""
-        import os
-        # In production, require explicit token
+        weak_tokens = ("", "local-dev-token", "change-me", "test-token")
         if os.getenv("ENVIRONMENT", "").lower() in ("production", "prod"):
-            if not value or value in ("", "local-dev-token", "change-me", "test-token"):
-                raise ValueError(
+            if not value or value in weak_tokens:
+                msg = (
                     "EXECUTOR_API_TOKEN must be set to a secure value in production. "
                     "Set EXECUTOR_API_TOKEN environment variable."
                 )
-        # In development, warn if using default
-        elif value in ("", "local-dev-token", "change-me", "test-token"):
-            import warnings
+                raise ValueError(msg)
+        elif value in weak_tokens:
             warnings.warn(
-                "Using default or weak API token. Set EXECUTOR_API_TOKEN environment variable for security.",
+                "Using default or weak API token. "
+                "Set EXECUTOR_API_TOKEN environment variable for security.",
                 UserWarning,
                 stacklevel=2,
             )
         return value
-
-    # Logging
-    log_level: str = Field(
-        default="INFO",
-        env="LOG_LEVEL",
-    )
-
-    @field_validator("allowed_origins", mode="before")
-    @classmethod
-    def parse_origins(cls, value):
-        if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
-        return value
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
 
 
 settings = Settings()

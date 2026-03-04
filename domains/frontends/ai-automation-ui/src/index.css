@@ -1,8 +1,40 @@
 @import './styles/design-system.css';
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@theme {
+  --color-brand: var(--accent-primary);
+  --color-brand-secondary: var(--accent-secondary);
+  --color-surface: var(--bg-primary);
+  --color-surface-secondary: var(--bg-secondary);
+  --color-surface-tertiary: var(--bg-tertiary);
+
+  --animate-fade-in: fadeIn 0.3s ease-in;
+  --animate-fade-up: fadeUp var(--motion-normal) var(--ease-enter);
+  --animate-slide-up: slideUp 0.4s ease-out;
+  --animate-bounce-slow: bounce 3s infinite;
+
+  --ease-enter: var(--ease-enter);
+  --ease-exit: var(--ease-exit);
+
+  --duration-fast: var(--motion-fast);
+  --duration-normal: var(--motion-normal);
+  --duration-slow: var(--motion-slow);
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes fadeUp {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  0% { transform: translateY(20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
 
 * {
   box-sizing: border-box;

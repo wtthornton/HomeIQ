@@ -1,17 +1,13 @@
-"""
-Main FastAPI Application Entry Point
-"""
+"""Main FastAPI application for API Automation Edge Service."""
 
 import logging
+import sys
 import threading
 import time
-from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from .api.execution_router import router as execution_router
-from .api.health_router import router as health_router
 from .api.observability_router import router as observability_router
 from .api.spec_router import router as spec_router
 from .capability.capability_graph import CapabilityGraph
@@ -19,43 +15,44 @@ from .clients.ha_rest_client import HARestClient
 from .clients.ha_websocket_client import HAWebSocketClient
 from .config import settings
 
-# Configure logging
-logging.basicConfig(
-    level=getattr(logging, settings.log_level),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
 
+def _configure_logging() -> None:
+    """Configure logging for the service."""
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level.upper()),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
+
+
+_configure_logging()
 logger = logging.getLogger(__name__)
 
-# Global components
-rest_client: HARestClient = None
-websocket_client: HAWebSocketClient = None
-capability_graph: CapabilityGraph = None
 
+# Global components
+rest_client: HARestClient | None = None
+websocket_client: HAWebSocketClient | None = None
+capability_graph: CapabilityGraph | None = None
+
+
+# ---------------------------------------------------------------------------
+# Startup / Shutdown helpers
+# ---------------------------------------------------------------------------
 
 def _start_huey_consumer() -> None:
-    """Initialize Huey in-memory task queue.
-
-    MemoryHuey stores tasks in-process — no external consumer needed.
-    """
+    """Initialize Huey in-memory task queue."""
     try:
         logger.info("Huey in-memory backend ready (no external consumer needed)")
-    except Exception as e:
-        logger.error(f"Failed to initialize Huey: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Failed to initialize Huey")
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    """Application lifespan: startup and shutdown logic."""
-    global rest_client, websocket_client, capability_graph
+async def _startup_service() -> None:
+    """Initialize HA clients and capability graph."""
+    global rest_client, websocket_client, capability_graph  # noqa: PLW0603
 
-    # --- Startup ---
-    logger.info("Starting API Automation Edge Service")
-
-    # Initialize REST client
     rest_client = HARestClient()
 
-    # Initialize WebSocket client and capability graph with graceful degradation
     try:
         websocket_client = HAWebSocketClient()
         await websocket_client.connect()
@@ -63,37 +60,41 @@ async def lifespan(_app: FastAPI):
         capability_graph = CapabilityGraph(rest_client, websocket_client)
         await capability_graph.initialize()
         await capability_graph.start(websocket_client)
-    except Exception as e:
-        logger.warning(f"HA unavailable at startup — running in degraded mode: {e}")
-        logger.info("Service will start without live HA data; endpoints requiring HA will return 503")
+    except Exception:
+        logger.warning(
+            "HA unavailable at startup -- running in degraded mode",
+            exc_info=True,
+        )
+        logger.info(
+            "Service will start without live HA data; "
+            "endpoints requiring HA will return 503"
+        )
 
-    # Start Huey consumer if enabled
     if settings.use_task_queue:
         try:
-            consumer_thread = threading.Thread(target=_start_huey_consumer, daemon=True)
+            consumer_thread = threading.Thread(
+                target=_start_huey_consumer, daemon=True
+            )
             consumer_thread.start()
             time.sleep(0.1)
             logger.info("Huey task queue consumer thread started")
         except ImportError:
             logger.warning("Huey not available - task queue disabled")
-        except Exception as e:
-            logger.error(f"Failed to start Huey consumer: {e}", exc_info=True)
+        except Exception:
+            logger.exception("Failed to start Huey consumer")
             logger.warning("Service will continue without task queue")
 
-    logger.info("API Automation Edge Service started")
 
-    yield
-
-    # --- Shutdown ---
-    logger.info("Shutting down API Automation Edge Service")
-
+async def _shutdown_service() -> None:
+    """Gracefully shut down HA clients and task queue."""
     if settings.use_task_queue:
         try:
             from .task_queue.huey_config import huey  # noqa: F811
+
             huey.flush()
             logger.info("Huey in-memory queue flushed")
-        except Exception as e:
-            logger.warning(f"Error cleaning up Huey queue: {e}")
+        except Exception:
+            logger.warning("Error cleaning up Huey queue", exc_info=True)
 
     if capability_graph:
         await capability_graph.stop()
@@ -104,25 +105,39 @@ async def lifespan(_app: FastAPI):
     logger.info("API Automation Edge Service stopped")
 
 
-# Create FastAPI app with lifespan
-app = FastAPI(
-    title="HomeIQ API Automation Edge Service",
-    description="API-driven automation engine for HomeIQ",
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
+
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup_service, name="ha-clients")
+lifespan.on_shutdown(_shutdown_service, name="ha-clients")
+
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+health = StandardHealthCheck(
+    service_name=settings.service_name,
     version="1.0.0",
-    lifespan=lifespan,
 )
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
+app = create_app(
+    title="HomeIQ API Automation Edge Service",
+    version="1.0.0",
+    description="API-driven automation engine for HomeIQ",
+    lifespan=lifespan.handler,
+    health_check=health,
+    cors_origins=settings.get_cors_origins_list(),
 )
 
 # Include routers
-app.include_router(health_router)
 app.include_router(spec_router)
 app.include_router(execution_router)
 app.include_router(observability_router)
@@ -131,15 +146,18 @@ app.include_router(observability_router)
 try:
     from .api.schedule_router import router as schedule_router
     from .api.task_router import router as task_router
-    from .task_queue.huey_config import huey
+
     app.include_router(task_router)
     app.include_router(schedule_router)
-    HUEY_AVAILABLE = True
 except ImportError:
-    HUEY_AVAILABLE = False
-    huey = None
+    pass
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=settings.service_port)  # noqa: S104
+
+    uvicorn.run(
+        "src.main:app",
+        host="0.0.0.0",  # noqa: S104
+        port=settings.service_port,
+    )

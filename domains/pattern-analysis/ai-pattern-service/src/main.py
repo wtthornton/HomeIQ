@@ -25,11 +25,8 @@ Key Features:
 """
 
 import logging
-import os
-from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 # Setup logging (use shared logging config)
 try:
@@ -39,9 +36,6 @@ except ImportError:
     # Fallback if shared logging not available
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger("ai-pattern-service")
-
-# Import resilience utilities
-from homeiq_resilience import GroupHealthCheck, wait_for_dependency
 
 # Import shared error handler
 try:
@@ -72,53 +66,64 @@ from .scheduler import PatternAnalysisScheduler
 pattern_scheduler: PatternAnalysisScheduler | None = None
 mqtt_client: MQTTNotificationClient | None = None
 
-# Module-level health checker, initialised during lifespan.
-_group_health: GroupHealthCheck | None = None
+
+# ---------------------------------------------------------------------------
+# Startup / shutdown hooks
+# ---------------------------------------------------------------------------
+
+async def _startup_db() -> None:
+    """Initialize database."""
+    db_ok = await init_db()
+    if db_ok:
+        logger.info("Database initialized")
+    else:
+        logger.warning("Database unavailable -- starting in degraded mode")
 
 
-async def _initialize_mqtt_client() -> MQTTNotificationClient | None:
-    """Initialize and connect MQTT client for notifications."""
-    if not settings.mqtt_broker:
-        logger.info("ℹ️ MQTT broker not configured, notifications disabled")
-        return None
-
-    try:
-        client = MQTTNotificationClient(
-            broker=settings.mqtt_broker,
-            port=settings.mqtt_port,
-            username=settings.mqtt_username,
-            password=settings.mqtt_password,
-            enabled=True
-        )
-        if client.connect():
-            logger.info(f"✅ MQTT client connected to {client.broker}:{client.port}")
-            return client
-        else:
-            logger.warning(f"⚠️ MQTT client connection failed to {client.broker}:{client.port}")
-            return None
-    except Exception as e:
-        logger.warning(f"⚠️ MQTT client initialization failed: {e}")
-        return None
+async def _startup_observability() -> None:
+    """Setup observability if available."""
+    if OBSERVABILITY_AVAILABLE:
+        setup_tracing("ai-pattern-service")
+        logger.info("Observability initialized")
 
 
-async def _initialize_scheduler(client: MQTTNotificationClient | None) -> PatternAnalysisScheduler | None:
-    """Initialize and start pattern analysis scheduler."""
+async def _startup_mqtt_and_scheduler() -> None:
+    """Initialize MQTT client and pattern analysis scheduler."""
+    global pattern_scheduler, mqtt_client
+
+    # Initialize MQTT client (Epic 39, Story 39.6)
+    if settings.mqtt_broker:
+        try:
+            client = MQTTNotificationClient(
+                broker=settings.mqtt_broker,
+                port=settings.mqtt_port,
+                username=settings.mqtt_username,
+                password=settings.mqtt_password,
+                enabled=True,
+            )
+            if client.connect():
+                mqtt_client = client
+                logger.info("MQTT client connected to %s:%s", client.broker, client.port)
+            else:
+                logger.warning("MQTT client connection failed to %s:%s", client.broker, client.port)
+        except Exception as e:
+            logger.warning("MQTT client initialization failed: %s", e)
+    else:
+        logger.info("MQTT broker not configured, notifications disabled")
+
+    # Initialize and start scheduler (Epic 39, Story 39.6)
     try:
         scheduler = PatternAnalysisScheduler(
             cron_schedule=settings.analysis_schedule,
-            enable_incremental=settings.enable_incremental
+            enable_incremental=settings.enable_incremental,
         )
-
-        if client:
-            scheduler.set_mqtt_client(client)
-
+        if mqtt_client:
+            scheduler.set_mqtt_client(mqtt_client)
         scheduler.start()
-        logger.info(f"✅ Pattern analysis scheduler started (schedule: {settings.analysis_schedule})")
-        return scheduler
+        pattern_scheduler = scheduler
+        logger.info("Pattern analysis scheduler started (schedule: %s)", settings.analysis_schedule)
     except Exception as e:
-        logger.error(f"❌ Scheduler initialization failed: {e}", exc_info=True)
-        # Don't fail startup if scheduler fails - service can still handle API requests
-        return None
+        logger.error("Scheduler initialization failed: %s", e, exc_info=True)
 
 
 async def _shutdown_scheduler() -> None:
@@ -127,120 +132,51 @@ async def _shutdown_scheduler() -> None:
     if pattern_scheduler:
         try:
             pattern_scheduler.stop()
-            logger.info("✅ Pattern analysis scheduler stopped")
+            logger.info("Pattern analysis scheduler stopped")
         except Exception as e:
-            logger.warning(f"⚠️ Error stopping scheduler: {e}")
+            logger.warning("Error stopping scheduler: %s", e)
 
 
-async def _shutdown_mqtt_client() -> None:
+async def _shutdown_mqtt() -> None:
     """Disconnect MQTT client."""
     global mqtt_client
     if mqtt_client:
         try:
             mqtt_client.disconnect()
-            logger.info("✅ MQTT client disconnected")
+            logger.info("MQTT client disconnected")
         except Exception as e:
-            logger.warning(f"⚠️ Error disconnecting MQTT client: {e}")
+            logger.warning("Error disconnecting MQTT client: %s", e)
 
 
-# Lifespan context manager for startup and shutdown events
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    """
-    Initialize service on startup and cleanup on shutdown.
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup_db, name="database")
+lifespan.on_startup(_startup_observability, name="observability")
+lifespan.on_startup(_startup_mqtt_and_scheduler, name="mqtt-and-scheduler")
+lifespan.on_shutdown(_shutdown_scheduler, name="scheduler")
+lifespan.on_shutdown(_shutdown_mqtt, name="mqtt")
 
-    This lifespan context manager handles:
-    - Database initialization
-    - Observability setup (if available)
-    - MQTT client initialization and connection
-    - Pattern analysis scheduler startup
-    - Graceful shutdown of scheduler and MQTT client
 
-    Args:
-        app: FastAPI application instance
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
 
-    Yields:
-        None: Control is yielded to the application runtime
+health = StandardHealthCheck(
+    service_name=settings.service_name,
+    version="1.0.0",
+)
 
-    Raises:
-        Exception: If database initialization fails (prevents service startup)
-    """
-    global pattern_scheduler, mqtt_client, _group_health
 
-    logger.info("=" * 60)
-    logger.info("AI Pattern Service Starting Up")
-    logger.info("=" * 60)
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
 
-    # Initialize database
-    db_ok = await init_db()
-    if db_ok:
-        logger.info("Database initialized")
-    else:
-        logger.warning("Database unavailable — starting in degraded mode")
-
-    # Probe cross-group dependencies (non-fatal)
-    data_api_available = await wait_for_dependency(
-        url=settings.data_api_url, name="data-api", max_retries=10,
-    )
-
-    # Structured group health
-    _group_health = GroupHealthCheck(
-        group_name="automation-intelligence", version="1.0.0",
-    )
-    _group_health.register_dependency("data-api", settings.data_api_url)
-    if not data_api_available:
-        _group_health.add_degraded_feature(
-            "pattern-detection (data-api unreachable at startup)"
-        )
-
-    # Setup observability if available
-    if OBSERVABILITY_AVAILABLE:
-        try:
-            setup_tracing("ai-pattern-service")
-            logger.info("✅ Observability initialized")
-        except Exception as e:
-            logger.warning(f"Observability setup failed: {e}")
-
-    # Initialize MQTT client (Epic 39, Story 39.6)
-    mqtt_client = await _initialize_mqtt_client()
-
-    # Initialize and start scheduler (Epic 39, Story 39.6)
-    pattern_scheduler = await _initialize_scheduler(mqtt_client)
-
-    logger.info("✅ AI Pattern Service startup complete")
-    logger.info("=" * 60)
-
-    yield
-
-    # Shutdown
-    logger.info("=" * 60)
-    logger.info("AI Pattern Service Shutting Down")
-    logger.info("=" * 60)
-
-    # Stop scheduler (Epic 39, Story 39.6)
-    await _shutdown_scheduler()
-
-    # Disconnect MQTT client
-    await _shutdown_mqtt_client()
-
-# Create FastAPI app
-app = FastAPI(
+app = create_app(
     title="AI Pattern Service",
     description="Pattern detection, synergy analysis, and community patterns service",
     version="1.0.0",
-    lifespan=lifespan
-)
-
-# CORS middleware
-# CRITICAL FIX: Restrict CORS origins for security
-# In production, set CORS_ORIGINS environment variable to specific allowed origins
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,  # Restricted to configured origins
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    lifespan=lifespan.handler,
+    health_check=health,
+    cors_origins=settings.get_cors_origins_list(),
 )
 
 # Register error handlers
@@ -253,12 +189,15 @@ if OBSERVABILITY_AVAILABLE:
         instrument_fastapi(app, "ai-pattern-service")
         app.add_middleware(CorrelationMiddleware)
     except Exception as e:
-        logger.warning(f"Failed to instrument FastAPI: {e}")
+        logger.warning("Failed to instrument FastAPI: %s", e)
 
-def _register_core_routers(app: FastAPI) -> None:
+
+def _register_core_routers() -> None:
     """Register core routers for the application."""
     from .api import analysis_router
 
+    # NOTE: health_router's /health is superseded by StandardHealthCheck;
+    # health_router still provides /ready, /live, /database/integrity, /database/repair
     app.include_router(health_router.router, tags=["health"])
     app.include_router(pattern_router.router, tags=["patterns"])
     # CRITICAL: Include specific_router FIRST to ensure /stats and /list are matched before /{synergy_id}
@@ -266,72 +205,58 @@ def _register_core_routers(app: FastAPI) -> None:
     try:
         if hasattr(synergy_router, 'specific_router'):
             app.include_router(synergy_router.specific_router, tags=["synergies"])
-            logger.info("✅ Included specific_router with /stats and /list routes")
+            logger.info("Included specific_router with /stats and /list routes")
         else:
-            logger.error("❌ specific_router not found in synergy_router module!")
+            logger.error("specific_router not found in synergy_router module!")
     except Exception as e:
-        logger.error(f"❌ Failed to include specific_router: {e}", exc_info=True)
+        logger.error("Failed to include specific_router: %s", e, exc_info=True)
     app.include_router(synergy_router.router, tags=["synergies"])
     app.include_router(community_pattern_router.router, tags=["community-patterns"])
     app.include_router(analysis_router.router, tags=["analysis"])
 
 
-def _register_blueprint_routers(app: FastAPI) -> None:
+def _register_blueprint_routers() -> None:
     """Register blueprint-related routers."""
     # Include Blueprint Opportunity Router (Phase 2 - Blueprint-First Architecture)
     try:
         if hasattr(synergy_router, 'blueprint_router'):
             app.include_router(synergy_router.blueprint_router, tags=["blueprint-opportunities"])
-            logger.info("✅ Included blueprint_router for Blueprint Opportunity Engine")
+            logger.info("Included blueprint_router for Blueprint Opportunity Engine")
         else:
-            logger.warning("⚠️ blueprint_router not found in synergy_router module")
+            logger.warning("blueprint_router not found in synergy_router module")
     except Exception as e:
-        logger.warning(f"⚠️ Failed to include blueprint_router: {e}")
+        logger.warning("Failed to include blueprint_router: %s", e)
 
 
-def _register_enhancement_routers(app: FastAPI) -> None:
+def _register_enhancement_routers() -> None:
     """Register analytics, rating, and tracking routers."""
     # Include Analytics, Rating, and Tracking Routers (Patterns & Synergies Enhancement)
     try:
         from .analytics.routes import router as analytics_router
         app.include_router(analytics_router, prefix="/api/v1", tags=["analytics"])
-        logger.info("✅ Included analytics_router for Blueprint Analytics")
+        logger.info("Included analytics_router for Blueprint Analytics")
     except ImportError as e:
-        logger.warning(f"⚠️ Analytics router not available: {e}")
+        logger.warning("Analytics router not available: %s", e)
 
     try:
         from .rating.routes import router as rating_router
         app.include_router(rating_router, prefix="/api/v1", tags=["ratings"])
-        logger.info("✅ Included rating_router for Blueprint Rating System")
+        logger.info("Included rating_router for Blueprint Rating System")
     except ImportError as e:
-        logger.warning(f"⚠️ Rating router not available: {e}")
+        logger.warning("Rating router not available: %s", e)
 
     try:
         from .tracking.routes import router as tracking_router
         app.include_router(tracking_router, prefix="/api/v1", tags=["tracking"])
-        logger.info("✅ Included tracking_router for Execution Tracking")
+        logger.info("Included tracking_router for Execution Tracking")
     except ImportError as e:
-        logger.warning(f"⚠️ Tracking router not available: {e}")
+        logger.warning("Tracking router not available: %s", e)
 
 
 # Include routers
-_register_core_routers(app)
-_register_blueprint_routers(app)
-_register_enhancement_routers(app)
-
-@app.get("/")
-async def root() -> dict[str, str]:
-    """
-    Root endpoint providing service information.
-
-    Returns:
-        dict: Service metadata including name, version, and status
-    """
-    return {
-        "service": "ai-pattern-service",
-        "version": "1.0.0",
-        "status": "operational"
-    }
+_register_core_routers()
+_register_blueprint_routers()
+_register_enhancement_routers()
 
 if __name__ == "__main__":
     import uvicorn
@@ -340,6 +265,5 @@ if __name__ == "__main__":
         host="0.0.0.0",  # noqa: S104
         port=settings.service_port,
         reload=True,
-        log_level=settings.log_level.lower()
+        log_level=settings.log_level.lower(),
     )
-

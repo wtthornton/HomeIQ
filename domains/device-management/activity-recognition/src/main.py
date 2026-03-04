@@ -1,120 +1,85 @@
-"""
-Activity Recognition Service - Main Application
+"""Main FastAPI application for Activity Recognition Service."""
 
-FastAPI service that provides activity recognition from sensor data.
-
-Port: 8036
-"""
-
-import os
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+import logging
+import sys
 from pathlib import Path
 
-import structlog
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from .api.routes import load_model, router
-
-# Configure structured logging
-structlog.configure(
-    processors=[
-        structlog.stdlib.filter_by_level,
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.PositionalArgumentsFormatter(),
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.processors.UnicodeDecoder(),
-        (
-            structlog.dev.ConsoleRenderer()
-            if os.getenv("DEBUG")
-            else structlog.processors.JSONRenderer()
-        ),
-    ],
-    context_class=dict,
-    logger_factory=structlog.stdlib.LoggerFactory(),
-    wrapper_class=structlog.stdlib.BoundLogger,
-    cache_logger_on_first_use=True,
-)
-
-logger = structlog.get_logger(__name__)
+from .config import settings
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan handler."""
-    # Startup
-    logger.info("Starting Activity Recognition Service...")
+def _configure_logging() -> None:
+    """Configure logging for the service."""
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level.upper()),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
 
-    # Load ONNX model
-    model_path = Path(os.getenv("MODEL_PATH", "./models/activity_lstm.onnx"))
+
+_configure_logging()
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
+
+async def _startup_model() -> None:
+    """Load ONNX model on startup."""
+    model_path = Path(settings.model_path)
     if model_path.exists():
         success = load_model(model_path)
         if success:
-            logger.info("ONNX model loaded successfully", path=str(model_path))
+            logger.info("ONNX model loaded successfully, path=%s", model_path)
         else:
-            logger.warning("Failed to load ONNX model", path=str(model_path))
+            logger.warning("Failed to load ONNX model, path=%s", model_path)
     else:
-        logger.info("No ONNX model found. Train a model and export to ONNX.", path=str(model_path))
-
-    yield
-
-    # Shutdown
-    logger.info("Shutting down Activity Recognition Service...")
+        logger.info(
+            "No ONNX model found. Train a model and export to ONNX. path=%s",
+            model_path,
+        )
 
 
-# Create FastAPI app
-app = FastAPI(
-    title="Activity Recognition Service",
-    description="ML-powered activity recognition from smart home sensors",
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup_model, name="model")
+
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+health = StandardHealthCheck(
+    service_name=settings.service_name,
     version="1.0.0",
-    lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
 )
 
-# Add CORS middleware only if explicit origins are configured
-cors_origins = os.getenv("CORS_ORIGINS", "").split(",")
-cors_origins = [o.strip() for o in cors_origins if o.strip()]
 
-if cors_origins:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
 
-# Include routers
+app = create_app(
+    title="Activity Recognition Service",
+    version="1.0.0",
+    description="ML-powered activity recognition from smart home sensors",
+    lifespan=lifespan.handler,
+    health_check=health,
+    cors_origins=settings.get_cors_origins_list(),
+)
+
+# Include API routes
 app.include_router(router)
-
-
-@app.get("/")
-async def root() -> dict[str, str]:
-    """Root endpoint."""
-    return {
-        "service": "activity-recognition",
-        "version": "1.0.0",
-        "docs": "/docs",
-    }
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    try:
-        port = int(os.getenv("PORT", "8036"))
-    except (TypeError, ValueError):
-        port = 8036
-    # B104/S104: 0.0.0.0 intentional for containerized deployment (Docker).
-    host = os.getenv("HOST", "0.0.0.0")  # noqa: S104,B104
     uvicorn.run(
         "src.main:app",
-        host=host,
-        port=port,
-        reload=os.getenv("DEBUG", "false").lower() == "true",
+        host="0.0.0.0",  # noqa: S104
+        port=settings.service_port,
+        reload=settings.debug,
     )
