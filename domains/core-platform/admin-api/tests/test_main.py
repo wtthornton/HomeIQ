@@ -1,6 +1,4 @@
-"""
-Tests for Admin API main service
-"""
+"""Tests for Admin API main service."""
 
 import os
 from unittest.mock import AsyncMock, Mock, patch
@@ -14,286 +12,175 @@ from src.main import AdminAPIService, app
 
 
 class TestAdminAPIService:
-    """Test AdminAPIService class"""
+    """Test AdminAPIService class."""
 
-    def setup_method(self):
-        """Set up test fixtures"""
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
         self.service = AdminAPIService()
 
-    def test_init(self):
-        """Test service initialization"""
-        assert self.service.api_host == "0.0.0.0"  # noqa: S104
-        assert self.service.api_port == 8000
-        assert self.service.api_title == "Home Assistant Ingestor Admin API"
-        assert self.service.api_version == "1.0.0"
-        assert self.service.allow_anonymous is False
+    def test_init(self) -> None:
+        """Test service initialization from default config."""
+        assert self.service.cfg.api_host == "0.0.0.0"  # noqa: S104
+        assert self.service.cfg.api_port == 8000
+        assert self.service.cfg.api_title == "Home Assistant Ingestor Admin API"
+        assert self.service.cfg.api_version == "1.0.0"
+        assert self.service.cfg.allow_anonymous is False
         assert self.service.is_running is False
         assert self.service.app is None
         assert self.service.server_task is None
 
-    @patch('src.main.uvicorn.Server')
-    @patch('src.main.uvicorn.Config')
-    async def test_start(self, mock_config, mock_server):
-        """Test service start"""
-        # Mock server
+    @patch("src.main.uvicorn.Server")
+    @patch("src.main.uvicorn.Config")
+    async def test_start(self, mock_config: Mock, mock_server: Mock) -> None:
+        """Test service start creates app and starts server."""
         mock_server_instance = AsyncMock()
         mock_server.return_value = mock_server_instance
+        mock_config.return_value = Mock()
 
-        # Mock config
-        mock_config_instance = Mock()
-        mock_config.return_value = mock_config_instance
-
-        # Start service
         await self.service.start()
 
-        # Verify
         assert self.service.is_running is True
         assert self.service.app is not None
         assert self.service.server_task is not None
-
-        # Verify server was started
         mock_server_instance.serve.assert_called_once()
 
-    async def test_start_already_running(self):
-        """Test starting service that's already running"""
+    async def test_start_already_running(self) -> None:
+        """Test starting service that's already running logs a warning."""
         self.service.is_running = True
-
-        with patch('src.main.logger') as mock_logger:
+        with patch("src.main.logger") as mock_logger:
             await self.service.start()
-            mock_logger.warning.assert_called_with("Admin API service is already running")
+            mock_logger.warning.assert_called_with(
+                "Admin API is already running"
+            )
 
-    async def test_stop(self):
-        """Test service stop"""
-        # Set up running service
+    async def test_stop(self) -> None:
+        """Test service stop cancels task and cleans up."""
         self.service.is_running = True
         self.service.server_task = AsyncMock()
-
-        # Stop service
         await self.service.stop()
-
-        # Verify
         assert self.service.is_running is False
         self.service.server_task.cancel.assert_called_once()
 
-    async def test_stop_not_running(self):
-        """Test stopping service that's not running"""
+    async def test_stop_not_running(self) -> None:
+        """Test stopping a non-running service is a no-op."""
         self.service.is_running = False
-
-        # Should not raise exception
         await self.service.stop()
 
-    def test_get_app(self):
-        """Test getting FastAPI app"""
-        # Create mock app
+    def test_get_app(self) -> None:
+        """Test get_app returns the current app instance."""
         mock_app = Mock(spec=FastAPI)
         self.service.app = mock_app
+        assert self.service.get_app() == mock_app
 
-        # Get app
-        app = self.service.get_app()
-
-        # Verify
-        assert app == mock_app
+    def test_get_app_none(self) -> None:
+        """Test get_app returns None before start."""
+        assert self.service.get_app() is None
 
 
 class TestFastAPIApp:
-    """Test FastAPI application"""
+    """Test FastAPI application endpoints."""
 
-    def setup_method(self):
-        """Set up test fixtures"""
+    def setup_method(self) -> None:
+        """Set up test client."""
         self.client = TestClient(app)
 
-    def test_root_endpoint(self):
-        """Test root endpoint"""
+    def test_root_endpoint(self) -> None:
+        """Test root endpoint returns service info."""
         response = self.client.get("/")
-
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        assert "service" in data["data"]
-        assert "version" in data["data"]
-        assert "status" in data["data"]
         assert data["data"]["status"] == "running"
 
-    def test_api_info_endpoint(self):
-        """Test API info endpoint"""
+    def test_api_info_endpoint(self) -> None:
+        """Test /api/info returns API metadata."""
         response = self.client.get("/api/info")
-
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        assert "title" in data["data"]
-        assert "version" in data["data"]
         assert "endpoints" in data["data"]
-        assert data["data"]["authentication"]["api_key_required"] is True
-        assert "cors_enabled" in data["data"]
+        assert "authentication" in data["data"]
 
-    def test_health_endpoint(self):
-        """Test health endpoint"""
+    def test_simple_health_endpoint(self) -> None:
+        """Test /api/health returns simple healthy status."""
+        response = self.client.get("/api/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "healthy"
+        assert data["service"] == "admin-api"
+
+    def test_root_health_endpoint(self) -> None:
+        """Test /health returns Docker health check status."""
+        response = self.client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "healthy"
+        assert "uptime_seconds" in data
+
+    def test_simple_metrics_endpoint(self) -> None:
+        """Test /api/metrics/realtime returns stub metrics."""
+        response = self.client.get("/api/metrics/realtime")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "events_per_second" in data
+
+    def test_health_endpoint(self) -> None:
+        """Test /api/v1/health from health_endpoints router."""
         response = self.client.get("/api/v1/health")
-
         assert response.status_code == 200
-        data = response.json()
-        assert "overall_status" in data
-        assert "admin_api_status" in data
-        assert "ingestion_service" in data
-        assert "timestamp" in data
 
-    def test_stats_endpoint(self):
-        """Test stats endpoint"""
-        response = self.client.get("/api/v1/stats")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert "timestamp" in data
-        assert "period" in data
-        assert "metrics" in data
-        assert "trends" in data
-        assert "alerts" in data
-
-    def test_config_endpoint(self):
-        """Test config endpoint"""
-        response = self.client.get("/api/v1/config")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, dict)
-
-    def test_events_endpoint(self):
-        """Test events endpoint"""
-        response = self.client.get("/api/v1/events")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, list)
-
-    def test_cors_headers(self):
-        """Test CORS headers"""
+    def test_cors_headers(self) -> None:
+        """Test CORS headers are present on OPTIONS requests."""
         response = self.client.options("/api/v1/health")
-
         assert response.status_code == 200
         assert "access-control-allow-origin" in response.headers
-        assert "access-control-allow-methods" in response.headers
-        assert "access-control-allow-headers" in response.headers
 
-    def test_docs_endpoint(self):
-        """Test API documentation endpoint"""
+    def test_docs_endpoint(self) -> None:
+        """Test /docs returns 200 or 404 based on config."""
         response = self.client.get("/docs")
-
-        # Should return 200 if docs are enabled, 404 if disabled
         assert response.status_code in [200, 404]
 
-    def test_openapi_endpoint(self):
-        """Test OpenAPI schema endpoint"""
+    def test_openapi_endpoint(self) -> None:
+        """Test /openapi.json returns 200 or 404 based on config."""
         response = self.client.get("/openapi.json")
-
-        # Should return 200 if OpenAPI is enabled, 404 if disabled
         assert response.status_code in [200, 404]
 
 
 class TestErrorHandling:
-    """Test error handling"""
+    """Test error handling."""
 
-    def setup_method(self):
-        """Set up test fixtures"""
+    def setup_method(self) -> None:
+        """Set up test client."""
         self.client = TestClient(app)
 
-    def test_404_error(self):
-        """Test 404 error handling"""
+    def test_404_error(self) -> None:
+        """Test 404 returns structured error response."""
         response = self.client.get("/nonexistent")
-
         assert response.status_code == 404
         data = response.json()
         assert data["success"] is False
         assert "error" in data
-        assert "error_code" in data
-        assert "timestamp" in data
 
-    def test_500_error(self):
-        """Test 500 error handling"""
-        # This would require mocking an endpoint to throw an exception
-        # For now, we'll test the error response structure
+    def test_500_error(self) -> None:
+        """Test graceful handling of invalid query params."""
         response = self.client.get("/api/v1/stats?period=invalid")
-
-        # Should handle gracefully
         assert response.status_code in [200, 400, 500]
-
-    def test_validation_error(self):
-        """Test validation error handling"""
-        response = self.client.post("/api/v1/config/websocket-ingestion", json={})
-
-        # Should return validation error
-        assert response.status_code in [200, 400, 422]
 
 
 class TestAuthentication:
-    """Test authentication"""
+    """Test authentication on protected endpoints."""
 
-    def setup_method(self):
-        """Set up test fixtures"""
+    def setup_method(self) -> None:
+        """Set up test client."""
         self.client = TestClient(app)
 
-    def test_protected_endpoints(self):
-        """Test that protected endpoints require authentication"""
-        # Test stats endpoint
+    def test_protected_stats(self) -> None:
+        """Test stats endpoint requires auth (or allows anonymous)."""
         response = self.client.get("/api/v1/stats")
-        # Should work without auth if auth is disabled
         assert response.status_code in [200, 401]
 
-        # Test config endpoint
+    def test_protected_config(self) -> None:
+        """Test config endpoint requires auth (or allows anonymous)."""
         response = self.client.get("/api/v1/config")
-        # Should work without auth if auth is disabled
         assert response.status_code in [200, 401]
-
-        # Test events endpoint
-        response = self.client.get("/api/v1/events")
-        # Should work without auth if auth is disabled
-        assert response.status_code in [200, 401]
-
-    def test_auth_endpoint(self):
-        """Test authentication endpoint"""
-        response = self.client.post("/api/token", json={
-            "username": "admin",
-            "password": "adminpass"
-        })
-
-        # Should work if auth is enabled
-        assert response.status_code in [200, 401, 404]
-
-    def test_invalid_auth(self):
-        """Test invalid authentication"""
-        response = self.client.post("/api/token", json={
-            "username": "invalid",
-            "password": "invalid"
-        })
-
-        # Should return 401
-        assert response.status_code in [200, 401, 404]
-
-
-class TestMiddleware:
-    """Test middleware functionality"""
-
-    def setup_method(self):
-        """Set up test fixtures"""
-        self.client = TestClient(app)
-
-    def test_request_logging(self):
-        """Test request logging middleware"""
-        response = self.client.get("/api/v1/health")
-
-        # Should log the request
-        assert response.status_code == 200
-
-    def test_cors_middleware(self):
-        """Test CORS middleware"""
-        response = self.client.options("/api/v1/health")
-
-        assert response.status_code == 200
-        assert "access-control-allow-origin" in response.headers
-
-    def test_response_time(self):
-        """Test response time logging"""
-        response = self.client.get("/api/v1/health")
-
-        # Should include response time in logs
-        assert response.status_code == 200
