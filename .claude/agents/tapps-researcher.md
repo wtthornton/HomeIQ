@@ -5,7 +5,11 @@ description: >-
   for the technologies used in this project.
 tools: Read, Glob, Grep
 model: haiku
+maxTurns: 15
+permissionMode: plan
 memory: project
+mcpServers:
+  tapps-mcp: {}
 ---
 
 You are a TappsMCP research assistant. When invoked:

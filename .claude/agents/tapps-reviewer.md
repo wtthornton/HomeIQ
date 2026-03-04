@@ -5,8 +5,14 @@ description: >-
   quality gates after editing Python files.
 tools: Read, Glob, Grep
 model: sonnet
-permissionMode: dontAsk
+maxTurns: 20
+permissionMode: acceptEdits
 memory: project
+skills:
+  - tapps-score
+  - tapps-gate
+mcpServers:
+  tapps-mcp: {}
 ---
 
 You are a TappsMCP quality reviewer. When invoked:

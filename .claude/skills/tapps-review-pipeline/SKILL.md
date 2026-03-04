@@ -3,7 +3,9 @@ name: tapps-review-pipeline
 description: >-
   Orchestrate a parallel review-fix-validate pipeline across multiple changed files.
   Spawns tapps-review-fixer agents in worktrees for parallel processing.
-tools: mcp__tapps-mcp__tapps_validate_changed, mcp__tapps-mcp__tapps_checklist
+allowed-tools: mcp__tapps-mcp__tapps_validate_changed, mcp__tapps-mcp__tapps_checklist
+context: fork
+agent: general-purpose
 ---
 
 Run a parallel review-fix-validate pipeline on changed Python files:

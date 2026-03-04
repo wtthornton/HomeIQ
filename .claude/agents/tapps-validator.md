@@ -4,9 +4,12 @@ description: >-
   Run pre-completion validation on all changed files to confirm they meet
   quality thresholds before declaring work complete.
 tools: Read, Glob, Grep
-model: sonnet
-permissionMode: dontAsk
+model: haiku
+maxTurns: 10
+permissionMode: plan
 memory: project
+mcpServers:
+  tapps-mcp: {}
 ---
 
 You are a TappsMCP validation agent. When invoked:

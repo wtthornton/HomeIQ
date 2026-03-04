@@ -36,6 +36,26 @@
             "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-post-edit.ps1"
           }
         ]
+      },
+      {
+        "matcher": "mcp__tapps-mcp__tapps_validate_changed",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-post-validate.ps1",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__tapps-mcp__tapps_report",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-post-report.ps1",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "Stop": [
@@ -74,6 +94,16 @@
           {
             "type": "command",
             "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-subagent-start.ps1"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-subagent-stop.ps1"
           }
         ]
       }

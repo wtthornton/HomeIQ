@@ -1,7 +1,8 @@
 ---
 name: tapps-score
 description: Score a Python file across 7 quality categories and display a structured report.
-tools: mcp__tapps-mcp__tapps_score_file, mcp__tapps-mcp__tapps_quick_check
+allowed-tools: mcp__tapps-mcp__tapps_score_file, mcp__tapps-mcp__tapps_quick_check
+argument-hint: "[file-path]"
 ---
 
 Score the specified Python file using TappsMCP:

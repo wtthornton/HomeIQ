@@ -9,11 +9,6 @@
       {
         "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/tapps-after-edit.ps1"
       }
-    ],
-    "stop": [
-      {
-        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/tapps-stop.ps1"
-      }
     ]
   },
   "version": 1

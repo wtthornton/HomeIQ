@@ -1,7 +1,9 @@
 ---
 name: tapps-gate
 description: Run a quality gate check and report pass/fail with blocking issues.
-tools: mcp__tapps-mcp__tapps_quality_gate
+allowed-tools: mcp__tapps-mcp__tapps_quality_gate
+argument-hint: "[file-path]"
+disable-model-invocation: true
 ---
 
 Run a quality gate check using TappsMCP:

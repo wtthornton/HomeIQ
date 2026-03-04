@@ -6,8 +6,16 @@ description: >-
   parallel multi-file review pipelines.
 tools: Read, Glob, Grep, Write, Edit, Bash
 model: sonnet
-permissionMode: dontAsk
+maxTurns: 25
+permissionMode: acceptEdits
 memory: project
+isolation: worktree
+skills:
+  - tapps-score
+  - tapps-gate
+  - tapps-validate
+mcpServers:
+  tapps-mcp: {}
 ---
 
 You are a TappsMCP review-fixer agent. For each file assigned to you:

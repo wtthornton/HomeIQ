@@ -1,7 +1,8 @@
 ---
 name: tapps-validate
 description: Validate all changed files meet quality thresholds before declaring work complete.
-tools: mcp__tapps-mcp__tapps_validate_changed
+allowed-tools: mcp__tapps-mcp__tapps_validate_changed
+disable-model-invocation: true
 ---
 
 Validate all changed files using TappsMCP:
