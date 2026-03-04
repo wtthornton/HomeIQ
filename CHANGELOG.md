@@ -2,6 +2,14 @@
 
 ## [Unreleased] - 2026-03-04
 
+### Sprint 3: Docker Breakout (Epics 21-24) — COMPLETE
+
+- **refactor(infra): Sprint 3 Docker breakout — Epics 21-24 complete** (294b1f1) — 38 files, 21 stories
+  - Epic 21: Per-domain Docker isolation — `name:` directives on 9 compose files, container prefix fixes, ensure-network scripts, build context alignment
+  - Epic 22: Volume decoupling — `homeiq_logs`, `ai_automation_data`, `ai_automation_models` given single owners with external refs
+  - Epic 23: Dockerfile hardening — 2 root-user fixes, 4 healthchecks, 3 UID standardization, 3 multi-stage conversions, install order fixes, CRLF + .gitattributes
+  - Epic 24: Deployment tooling — `domain.sh`, `start-stack.sh`, `ensure-network.sh` (+ PowerShell), `deploy.sh` archived
+
 ### Added
 
 - **feat(data-api,device-intelligence,ai-automation-ui): devices endpoints, team tracker API, and UI updates** (24e3821) - Bill Thornton
@@ -42,7 +50,6 @@
 - **post-blitz stabilization — React 19, pytest fixes, ruff cleanup, converter bug** (6830bfa) - Bill Thornton
 - **fix(ai-automation-ui): add missing api-client module and fix test assertions** (7ad7687) - Bill Thornton
 - **resolve observability dashboard critical bugs and add test coverage (Epic 4)** (8eb4a14) - Bill Thornton
-
 
 ### Sprint 2: Quality Baseline Remediation (Epics 16-20) — COMPLETE
 

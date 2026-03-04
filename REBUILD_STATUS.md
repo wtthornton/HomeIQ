@@ -1,8 +1,8 @@
 # HomeIQ Rebuild Status
 
 **Last Updated:** March 4, 2026
-**Current Phase:** Phases 0–4b complete; Sprint 2 quality complete; Phase 3 ML deferred; Phase 5–6 pending
-**Overall Progress:** 83.3% complete (5/6 phases) + Sprint 2 quality remediation done
+**Current Phase:** Phases 0–4b complete; Sprints 2–3 complete; Phase 3 ML deferred; Phase 5–6 pending
+**Overall Progress:** 83.3% complete (5/6 phases) + Sprint 2 quality + Sprint 3 Docker breakout done
 
 ---
 
@@ -94,6 +94,22 @@ Executed via 2-wave agent teams. 5 epics (16-20), 31 stories, 870+ files changed
 | 20: Shared Libraries | 5 libs under libs/ | 0/5 → 5/5 pass strict 80+ (all 81.6+) |
 
 **Quality metrics:** Pass rate 45% → ~90%, Mean score 69.4 → ~77+
+
+---
+
+## Sprint 3: Docker Breakout (Mar 4) — COMPLETE
+
+Executed via 2-wave agent teams. 4 epics (21-24), 21 stories, 38 files changed.
+
+| Epic | Scope | Result |
+|------|-------|--------|
+| 21: Docker Isolation | 9 domain compose files | `name:` directives, container prefixes, ensure-network scripts, build context alignment |
+| 22: Volume Decoupling | 3 shared volumes across 6 compose files | Ownership designated, external refs, env-var overrides, contract docs |
+| 23: Dockerfile Hardening | 13 Dockerfiles across 6 domains | 2 root-user fixes, 4 healthchecks, 3 UID→1001, 3 multi-stage, 3 install-order, CRLF |
+| 24: Deployment Tooling | scripts/ directory | domain.sh, start-stack.sh, ensure-network.sh (+ PowerShell), deploy.sh archived |
+
+**Security fixes:** 2 services no longer run as root, 4 missing healthchecks added, 3 fragile install orders corrected
+
 | Browser Review – Health (3000) | 2/5 | KPI "Unavailable" vs "Loading…" + retry, Logs secret sanitization (7 patterns) |
 
 ### E2E Test Fixes (Feb 28) — COMPLETE
@@ -116,12 +132,11 @@ Eliminated false-positive "healthy" status for data sources: admin-api now overr
 
 | Item | Target Date | Duration | Blocker |
 |------|------------|----------|---------|
-| Epic 1: Frontend Security | Mar 3 | 3–5 days | None |
-| Epic 9: TAPPS CI Integration (Story 3) | Mar 3 | 2h | None |
-| Epic 10: AI UI Stories 3-4 (UX + a11y) | Mar 10 | 1 week | None |
-| Epic 11: Health Dashboard Stories 3-5 | Mar 10 | 1.5 weeks | None |
+| Epic 5: Frontend Framework Upgrades | Apr | 3–4 weeks | npm install + testing |
+| Epic 8: Production Deployment Execution | Mar 17 | 5 days | Go/no-go decision |
+| Epics 12-14: Full Service Migration | Apr+ | 3–4 weeks | 5 POC done, ~30 remaining |
 | Phase 3: ML/AI upgrades | Mar 11 | 2–3 weeks | 2-week stability window |
-| Phase 5: Deployment | Mar 5–12 | 5 days | None — can proceed now |
+| Phase 5: Deployment | Mar 5–17 | 5 days | None — can proceed now |
 | Phase 6: Validation | After Phase 5 | 3 days | Phase 5 |
 
 ---
@@ -141,4 +156,4 @@ Eliminated false-positive "healthy" status for data sources: admin-api now overr
 
 ---
 
-**Project Health:** GREEN | **Blockers:** 0 | **Quality Score:** 8.0/10 (TAPPS gate + browser review fixes applied)
+**Project Health:** GREEN | **Blockers:** 0 | **Quality Score:** 8.5/10 (TAPPS gate + Docker hardening + quality remediation)
