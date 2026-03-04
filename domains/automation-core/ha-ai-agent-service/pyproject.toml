@@ -1,0 +1,17 @@
+[project]
+name = "ha-ai-agent-service"
+version = "1.0.0"
+description = "HA AI Agent Service - Conversational AI agent with context injection"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "S", "B", "SIM", "UP"]
+ignore = ["S104"]

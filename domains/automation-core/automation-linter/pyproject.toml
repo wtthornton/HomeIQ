@@ -1,0 +1,17 @@
+[project]
+name = "automation-linter"
+version = "1.0.0"
+description = "HomeIQ Automation Linter - Lint and auto-fix Home Assistant automation YAML"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "S", "B", "SIM", "UP"]
+ignore = ["S104"]

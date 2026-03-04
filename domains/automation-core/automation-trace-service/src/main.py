@@ -73,10 +73,8 @@ async def startup():
         # If initial connection failed, keep retrying
         while not ha_client.is_connected:
             logger.info("Waiting for HA connection...")
-            try:
+            with suppress(Exception):
                 await ha_client.connect()
-            except Exception:
-                pass
             if not ha_client.is_connected:
                 await asyncio.sleep(30)
 

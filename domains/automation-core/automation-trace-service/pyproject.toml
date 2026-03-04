@@ -1,0 +1,17 @@
+[project]
+name = "automation-trace-service"
+version = "1.0.0"
+description = "Automation Trace Service - Ingests HA automation traces to InfluxDB"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "S", "B", "SIM", "UP"]
+ignore = ["S104"]

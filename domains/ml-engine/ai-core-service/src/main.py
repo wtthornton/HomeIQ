@@ -25,11 +25,18 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
-from pydantic import BaseModel, Field, field_validator
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 
+from .models import (
+    AnalysisRequest,
+    AnalysisResponse,
+    PatternDetectionRequest,
+    PatternDetectionResponse,
+    SuggestionRequest,
+    SuggestionResponse,
+)
 from .orchestrator.service_manager import ServiceManager
 
 # Agent Evaluation Framework: SessionTracer wiring (E3.S7)
@@ -39,6 +46,17 @@ try:
     _TRACING_AVAILABLE = True
 except ImportError:
     _TRACING_AVAILABLE = False
+
+
+def _trace_decorator():
+    """Return the trace_session decorator if available, otherwise a no-op."""
+    if _TRACING_AVAILABLE:
+        return trace_session(
+            agent_name="ai-core-service",
+            sink=_eval_sink,
+            model="orchestrator",
+        )
+    return lambda f: f
 
 # Configure structured logging
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -245,128 +263,6 @@ def _get_service_manager(request: Request) -> ServiceManager:
     return manager
 
 
-# Pydantic models
-class AnalysisRequest(BaseModel):
-    data: list[dict[str, Any]] = Field(
-        ..., description="Data to analyze", min_length=1, max_length=1000
-    )
-    analysis_type: str = Field(
-        ..., description="Type of analysis to perform", min_length=1, max_length=100
-    )
-    options: dict[str, Any] = Field(
-        default_factory=dict, description="Analysis options", max_length=50
-    )
-
-    @field_validator("data")
-    @classmethod
-    def validate_data_size(cls, v: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Validate data size and content."""
-        if not v:
-            raise ValueError("Data list cannot be empty")
-        if len(v) > 1000:
-            raise ValueError("Data list cannot exceed 1000 items")
-        # Validate each item is a dict and not too large
-        for item in v:
-            if not isinstance(item, dict):
-                raise ValueError("All data items must be dictionaries")
-            # Limit individual item size (prevent DoS)
-            if len(str(item)) > 10000:
-                raise ValueError("Individual data items cannot exceed 10KB")
-        return v
-
-    @field_validator("analysis_type")
-    @classmethod
-    def validate_analysis_type(cls, v: str) -> str:
-        """Validate analysis type."""
-        allowed_types = {"pattern_detection", "clustering", "anomaly_detection", "basic"}
-        if v not in allowed_types:
-            raise ValueError(f"Analysis type must be one of: {', '.join(sorted(allowed_types))}")
-        return v
-
-
-class AnalysisResponse(BaseModel):
-    results: dict[str, Any] = Field(..., description="Analysis results")
-    services_used: list[str] = Field(..., description="Services used in analysis")
-    processing_time: float = Field(..., description="Total processing time in seconds")
-
-
-class PatternDetectionRequest(BaseModel):
-    patterns: list[dict[str, Any]] = Field(
-        ..., description="Patterns to detect", min_length=1, max_length=500
-    )
-    detection_type: str = Field(
-        "full", description="Type of pattern detection", max_length=50
-    )
-
-    @field_validator("patterns")
-    @classmethod
-    def validate_patterns(cls, v: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Validate patterns list."""
-        if not v:
-            raise ValueError("Patterns list cannot be empty")
-        if len(v) > 500:
-            raise ValueError("Patterns list cannot exceed 500 items")
-        for pattern in v:
-            if not isinstance(pattern, dict):
-                raise ValueError("All patterns must be dictionaries")
-            if len(str(pattern)) > 5000:
-                raise ValueError("Individual patterns cannot exceed 5KB")
-        return v
-
-    @field_validator("detection_type")
-    @classmethod
-    def validate_detection_type(cls, v: str) -> str:
-        """Validate detection type."""
-        allowed_types = {"full", "basic", "quick"}
-        if v not in allowed_types:
-            raise ValueError(f"Detection type must be one of: {', '.join(sorted(allowed_types))}")
-        return v
-
-
-class PatternDetectionResponse(BaseModel):
-    detected_patterns: list[dict[str, Any]] = Field(..., description="Detected patterns")
-    services_used: list[str] = Field(..., description="Services used")
-    processing_time: float = Field(..., description="Processing time in seconds")
-
-
-class SuggestionRequest(BaseModel):
-    context: dict[str, Any] = Field(..., description="Context for suggestions")
-    suggestion_type: str = Field(
-        ..., description="Type of suggestions to generate", min_length=1, max_length=100
-    )
-
-    @field_validator("context")
-    @classmethod
-    def validate_context(cls, v: dict[str, Any]) -> dict[str, Any]:
-        """Validate context size."""
-        if not v:
-            raise ValueError("Context cannot be empty")
-        if len(str(v)) > 5000:
-            raise ValueError("Context cannot exceed 5KB")
-        return v
-
-    @field_validator("suggestion_type")
-    @classmethod
-    def validate_suggestion_type(cls, v: str) -> str:
-        """Validate suggestion type."""
-        allowed_types = {
-            "automation_improvements",
-            "energy_optimization",
-            "comfort",
-            "security",
-            "convenience",
-        }
-        if v not in allowed_types:
-            raise ValueError(f"Suggestion type must be one of: {', '.join(sorted(allowed_types))}")
-        return v
-
-
-class SuggestionResponse(BaseModel):
-    suggestions: list[dict[str, Any]] = Field(..., description="Generated suggestions")
-    services_used: list[str] = Field(..., description="Services used")
-    processing_time: float = Field(..., description="Processing time in seconds")
-
-
 # API Endpoints
 @app.get("/health", tags=["health"])
 async def health_check(request: Request) -> JSONResponse:
@@ -417,7 +313,7 @@ async def get_service_status(
 
 
 @app.post("/analyze", response_model=AnalysisResponse, tags=["analysis"])
-@(trace_session(agent_name="ai-core-service", sink=_eval_sink, model="orchestrator") if _TRACING_AVAILABLE else lambda f: f)
+@_trace_decorator()
 async def analyze_data(
     request: Request,
     body: AnalysisRequest,
@@ -451,7 +347,7 @@ async def analyze_data(
 
 
 @app.post("/patterns", response_model=PatternDetectionResponse, tags=["patterns"])
-@(trace_session(agent_name="ai-core-service", sink=_eval_sink, model="orchestrator") if _TRACING_AVAILABLE else lambda f: f)
+@_trace_decorator()
 async def detect_patterns(
     request: Request,
     body: PatternDetectionRequest,
