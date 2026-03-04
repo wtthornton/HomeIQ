@@ -6,6 +6,7 @@ all existing routers and WebSocket handling.
 """
 
 import logging
+from contextlib import asynccontextmanager
 
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
@@ -65,6 +66,7 @@ app = create_app(
 _orig_lifespan = app.router.lifespan_context
 
 
+@asynccontextmanager
 async def _wire_state_lifespan(app_instance):
     """Wrap lifespan to wire service onto app.state after startup."""
     async with _orig_lifespan(app_instance) as state:

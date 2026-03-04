@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-04 (Sprint 4 COMPLETE — Frontend upgrades + full service migration)
-**Total:** 25 Epics, 146 Stories, ~545+ files addressed
+**Created:** 2026-02-27 | **Updated:** 2026-03-04 (Epic 8 COMPLETE — Phase 5 production deployment, 52/53 services healthy)
+**Total:** 29 Epics, 168 Stories, ~545+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -41,8 +41,20 @@ Sprint 4 — Frontend Upgrades + Service Migration ← ALL COMPLETE (Agent Teams
 ├── Epic 5: Vite 7 + Tailwind 4 Migration [P2]              ← COMPLETE (2 apps, builds pass)
 └── Epics 12-14: Full Service Migration [P1]                 ← COMPLETE (38/38 services + InfluxDBManager)
 
-Post-Sprint Remaining
-└── Epic 8: Actual deployment execution                     ← scripts ready, needs go/no-go
+Epic 8: Phase 5 Production Deployment ← COMPLETE (Mar 4)
+├── Pre-deployment: 9/9 checks passed (42/42 health endpoints, PG 8/8 schemas, InfluxDB OK)
+├── Docker fixes: .dockerignore **/node_modules, Dockerfile COPY reorder, psutil dep, uvicorn deps
+├── Compose fixes: network external:true, blueprint health checks curl→python
+├── Code fixes: ws-ingestion InvalidStateTransition re-export, asynccontextmanager, ha-ai-agent openai_api_key
+└── Result: 52/53 healthy (ai-core-service needs AI_CORE_API_KEY env var)
+
+Sprint 5 (Planned) — Sapphire-Inspired HA Enhancements
+├── Epic 25: Direct Device Control Service [P1]             ← PENDING (7 stories, new service port 8040)
+└── Epic 28: Enhanced Event Bus + Real-Time Status [P2]     ← PENDING (4 stories, aggregation + push)
+
+Sprint 6 (Planned) — Voice + Scheduled Tasks
+├── Epic 26: Voice Gateway Service [P1]                     ← PENDING (6 stories, new service port 8041)
+└── Epic 27: Scheduled AI Tasks (Continuity) [P2]           ← PENDING (5 stories, enhances proactive-agent)
 ```
 
 ## Epic Summary
@@ -74,6 +86,10 @@ Post-Sprint Remaining
 | 22 | [Cross-Domain Shared Resource Decoupling](epic-cross-domain-volume-decoupling.md) | `epic-cross-domain-volume-decoupling.md` | P1 High | 3 | 1 week | **Complete** |
 | 23 | [Dockerfile Security & Consistency Hardening](epic-dockerfile-hardening.md) | `epic-dockerfile-hardening.md` | P1 High | 8 | 1 week | **Complete** |
 | 24 | [Domain Deployment Tooling](epic-domain-deployment-tooling.md) | `epic-domain-deployment-tooling.md` | P1 High | 5 | 1 week | **Complete** |
+| 25 | [Direct Device Control](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P1 High | 7 | 2 weeks | Pending |
+| 26 | [Voice Gateway Service](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P1 High | 6 | 2-3 weeks | Pending |
+| 27 | [Scheduled AI Tasks](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P2 Medium | 5 | 1-2 weeks | Pending |
+| 28 | [Enhanced Event Bus](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P2 Medium | 4 | 1 week | Pending |
 
 ## Story Count by Priority
 

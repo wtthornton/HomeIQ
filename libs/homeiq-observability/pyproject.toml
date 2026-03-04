@@ -9,6 +9,7 @@ description = "HomeIQ observability: metrics, logging, monitoring, alerting, tra
 requires-python = ">=3.11"
 dependencies = [
     "structlog>=23.0",
+    "psutil>=5.9.0",
 ]
 
 [project.optional-dependencies]

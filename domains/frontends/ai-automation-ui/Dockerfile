@@ -12,8 +12,7 @@ COPY domains/frontends/ai-automation-ui/vite.config.ts ./
 COPY domains/frontends/ai-automation-ui/postcss.config.js ./
 
 # Install dependencies
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --prefer-offline
+RUN npm ci
 
 # Stage 2: Builder
 FROM deps AS builder
@@ -27,14 +26,11 @@ ARG VITE_API_URL
 ENV VITE_API_KEY=${VITE_API_KEY}
 ENV VITE_API_URL=${VITE_API_URL}
 
-# Copy dependencies from previous stage
-COPY --from=deps /app/node_modules ./node_modules
-
-# Copy source code
+# Copy source code first
 COPY domains/frontends/ai-automation-ui/ .
 
-# Clean any existing build artifacts and cache
-RUN rm -rf dist node_modules/.cache .vite 2>/dev/null || true
+# Copy dependencies AFTER source (overrides any stale local node_modules)
+COPY --from=deps /app/node_modules ./node_modules
 
 # Build production bundle
 RUN npm run build

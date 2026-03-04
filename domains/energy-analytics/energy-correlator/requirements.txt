@@ -1,9 +1,12 @@
 # Energy Correlator Service Dependencies
 # Updated to latest stable 2025 versions
 
-aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
+fastapi>=0.115.0
+uvicorn>=0.32.0
 influxdb-client>=1.49.0,<2.0.0  # Latest stable (2025 - Epic 41)
 python-dotenv>=1.0.0,<2.0.0  # Phase 2: standardized
 
 # HomeIQ shared libraries (installed from libs/ in Docker)
 homeiq-observability>=1.0.0
+homeiq-resilience>=1.0.0
+homeiq-data>=1.0.0

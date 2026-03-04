@@ -44,7 +44,8 @@ async def health_check() -> dict:
                 result["status"] = "degraded"
 
         # OpenAI config check
-        if settings.openai_api_key and settings.openai_api_key.get_secret_value():
+        openai_key = getattr(settings, "openai_api_key", None)
+        if openai_key and openai_key.get_secret_value():
             result["dependencies"]["openai"] = {"status": "configured"}
         else:
             result["dependencies"]["openai"] = {"status": "not-configured"}

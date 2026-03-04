@@ -11,7 +11,10 @@ Uses shared state machine base class from shared/state_machine.py
 import logging
 from enum import Enum
 
-from homeiq_data.state_machine import StateMachine
+from homeiq_data.state_machine import InvalidStateTransition, StateMachine
+
+# Re-export for backward compatibility
+__all__ = ["InvalidStateTransition", "ConnectionState", "ConnectionStateMachine", "ProcessingState", "ProcessingStateMachine"]
 
 logger = logging.getLogger(__name__)
 

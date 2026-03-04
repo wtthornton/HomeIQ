@@ -648,8 +648,7 @@ volumes:
   ha_test_config:
   ha_test_data:
 
-# Core-platform defines the shared network
+# Network created by scripts/ensure-network.sh
 networks:
   homeiq-network:
-    name: homeiq-network
-    driver: bridge
+    external: true

@@ -8,9 +8,8 @@ COPY domains/core-platform/health-dashboard/tsconfig*.json ./
 COPY domains/core-platform/health-dashboard/vite.config.ts ./
 COPY domains/core-platform/health-dashboard/postcss.config.js ./
 
-# Install dependencies with cache mount and prefer offline
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --prefer-offline
+# Install dependencies
+RUN npm ci
 
 # Build stage
 FROM node:20.20.0-alpine AS builder
@@ -23,11 +22,11 @@ ARG VITE_DATA_API_URL
 ARG VITE_WS_URL
 ARG VITE_ENVIRONMENT=production
 
-# Copy dependencies
-COPY --from=deps /app/node_modules ./node_modules
-
-# Copy source code
+# Copy source code first
 COPY domains/core-platform/health-dashboard/ .
+
+# Copy dependencies AFTER source (overrides any stale local node_modules)
+COPY --from=deps /app/node_modules ./node_modules
 
 # Set build environment with Vite variables
 ENV NODE_ENV=production

@@ -1,6 +1,8 @@
-aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
+fastapi>=0.115.0
+uvicorn>=0.32.0
 docker==7.1.0
-aiohttp-cors==0.7.0
 
 # HomeIQ shared libraries (installed from libs/ in Docker)
 homeiq-observability>=1.0.0
+homeiq-resilience>=1.0.0
+homeiq-data>=1.0.0

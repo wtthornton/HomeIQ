@@ -1,0 +1,187 @@
+# Root .dockerignore - Excludes large directories when building with context: .
+# This dramatically reduces build context size and speeds up builds
+
+# Node.js
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.yarn-integrity
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Models and data
+# Exclude models/data directories globally, but allow service-specific ones
+# IMPORTANT: Order matters - exceptions must come AFTER general exclusions
+models/
+!services/**/models/  # Allow service-specific models directories
+data/
+!services/**/data/  # Allow service-specific data directories (e.g., ha-simulator)
+# Database files (exclude everywhere except service data directories)
+*.db
+!services/**/data/**/*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Test artifacts
+test-results/
+test_output.txt
+test_result.json
+coverage_html/
+coverage.xml
+.pytest_cache/
+
+# Documentation (large and not needed in images)
+docs/
+implementation/
+*.md
+!README.md
+CHANGELOG.md
+CONTRIBUTING.md
+DEPLOY_YAML_VALIDATION.md
+CLAUDE.md
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Git
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+*.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+Jenkinsfile
+
+# Build artifacts
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Simulation and test results
+simulation/
+simulation_results/
+simulation_results_comprehensive/
+simulation_results_fresh/
+simulation_results_gnn/
+test-results/
+
+# Infrastructure config (may contain secrets, exclude from images)
+infrastructure/env.*
+infrastructure/.env*
+!infrastructure/env.example
+!infrastructure/env.template*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+nul
+
+# Debug and analysis files
+debug_prompt*.json
+conversation-analysis.json
+enhanced-prompt.md
+
+# Reports
+reports/
+
+# TappsCodingAgents (framework development files, not needed in service images)
+TappsCodingAgents/
+.tapps-agents/
+
+# CDK infrastructure code
+cdk/
+
+# Issues and planning
+issues/
+
+# Scripts (usually not needed in runtime images)
+scripts/
+tools/
+
+# Simulation code
+simulation/
+
+# Workspace config
+*.code-workspace
+homeiq.code-workspace
+
+# Package files (not needed in images)
+package.json
+package-lock.json
+pyproject.toml
+requirements*.txt
+!services/**/requirements*.txt
+!services/**/package*.json
+
+# Root-level test files
+conftest.py
+pytest-unit.ini
+run-unit-tests.*
+run_embedding_test.sh
+
+# Various utility scripts at root
+populate_*.py
+store_*.py
+get_validation_errors.py
+direct_store_docs.py
+verify_*.py
+test_*.py
+
