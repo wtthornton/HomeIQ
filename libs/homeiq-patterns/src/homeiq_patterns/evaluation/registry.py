@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
 from .base_evaluator import BaseEvaluator
 from .config import AgentEvalConfig, ConfigLoader
@@ -221,8 +220,8 @@ class EvaluationRegistry:
             )
 
         # Story 3.4: HA-specific deterministic evaluators (always included)
-        from .evaluators.l3_yaml_completeness import YAMLCompletenessEvaluator
         from .evaluators.l3_entity_resolution import EntityResolutionEvaluator
+        from .evaluators.l3_yaml_completeness import YAMLCompletenessEvaluator
 
         evals.append(YAMLCompletenessEvaluator())
         evals.append(EntityResolutionEvaluator())

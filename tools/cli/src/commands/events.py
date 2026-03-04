@@ -1,12 +1,13 @@
 """Events management CLI commands."""
 
-import typer
-from typing import Optional
 from datetime import datetime, timedelta
+from typing import Optional
+
+import typer
 from rich.console import Console
 
-from ..utils.config import load_config
 from ..utils.api_client import APIClient
+from ..utils.config import load_config
 from ..utils.output import OutputFormatter
 
 app = typer.Typer(name="events", help="Events management commands")
@@ -201,8 +202,9 @@ def monitor_events(
                 formatter.print_info(f"Monitoring events (updating every {interval} seconds). Press Ctrl+C to stop.")
                 
                 import asyncio
-                from rich.live import Live
+
                 from rich.layout import Layout
+                from rich.live import Live
                 
                 layout = Layout()
                 layout.split_column(

@@ -7,17 +7,16 @@ Verifies all implemented features are working correctly:
 - Phase 3: Prioritization, filtering
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Any
 
-from src.services.devices_summary_service import DevicesSummaryService
-from src.services.device_state_context_service import DeviceStateContextService
-from src.services.automation_patterns_service import AutomationPatternsService
-from src.services.context_prioritization_service import ContextPrioritizationService
-from src.services.context_filtering_service import ContextFilteringService
-from src.services.context_builder import ContextBuilder
+import pytest
 from src.config import Settings
+from src.services.automation_patterns_service import AutomationPatternsService
+from src.services.context_builder import ContextBuilder
+from src.services.context_filtering_service import ContextFilteringService
+from src.services.context_prioritization_service import ContextPrioritizationService
+from src.services.device_state_context_service import DeviceStateContextService
+from src.services.devices_summary_service import DevicesSummaryService
 
 
 class TestPhase1Features:

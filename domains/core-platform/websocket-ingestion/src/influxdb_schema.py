@@ -27,7 +27,7 @@ Last Updated: October 2025 (Epic 31 - enrichment-pipeline removed)
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 try:
@@ -126,9 +126,9 @@ class InfluxDBSchema:
                         dt = timestamp
                 except Exception:
                     logger.warning(f"Invalid timestamp format: {timestamp}, using current time")
-                    dt = datetime.now(timezone.utc)
+                    dt = datetime.now(UTC)
             else:
-                dt = datetime.now(timezone.utc)
+                dt = datetime.now(UTC)
 
             # Create point
             point = Point(self.MEASUREMENT_EVENTS) \
@@ -171,9 +171,9 @@ class InfluxDBSchema:
                     else:
                         dt = timestamp
                 except Exception:
-                    dt = datetime.now(timezone.utc)
+                    dt = datetime.now(UTC)
             else:
-                dt = datetime.now(timezone.utc)
+                dt = datetime.now(UTC)
 
             # Create point
             point = Point(self.MEASUREMENT_WEATHER) \

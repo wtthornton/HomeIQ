@@ -20,6 +20,7 @@ Key Features:
 """
 import logging
 from contextlib import asynccontextmanager
+from datetime import UTC
 from typing import Any
 
 from fastapi import FastAPI
@@ -44,7 +45,7 @@ async def _check_and_initialize_corpus(app_instance: FastAPI, db) -> None:
     """Check corpus status and initialize if needed."""
     try:
         import asyncio
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from ..jobs.weekly_refresh import WeeklyRefreshJob
         from ..miner.repository import CorpusRepository
@@ -65,8 +66,8 @@ async def _check_and_initialize_corpus(app_instance: FastAPI, db) -> None:
             elif last_crawl:
                 # Ensure timezone-aware comparison
                 if last_crawl.tzinfo is None:
-                    last_crawl = last_crawl.replace(tzinfo=timezone.utc)
-                days_since = (datetime.now(timezone.utc) - last_crawl).days
+                    last_crawl = last_crawl.replace(tzinfo=UTC)
+                days_since = (datetime.now(UTC) - last_crawl).days
                 if days_since > 7:
                     should_initialize = True
                     reason = f"stale corpus ({days_since} days old)"

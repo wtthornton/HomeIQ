@@ -5,10 +5,8 @@ Target: 80% test coverage for main.py
 Following data-api test patterns and best practices
 """
 
-import os
 import sys
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
@@ -56,7 +54,7 @@ class TestWebSocketIngestionService:
     """Test WebSocketIngestionService class"""
 
     @pytest.fixture
-    def service(self, mock_env_vars, mock_shared_modules):
+    def service(self, _mock_env_vars, _mock_shared_modules):
         """Create service instance with mocked dependencies"""
         from src.main import WebSocketIngestionService
         
@@ -635,7 +633,6 @@ class TestMainFunction:
         
         with patch.dict('sys.modules', {'uvicorn': mock_uvicorn}):
             with patch('src.main.app'):
-                from src.main import main
                 # Note: main() will block, so we can't easily test it in unit tests
                 # This is more of an integration test scenario
                 pass  # Placeholder for main() testing

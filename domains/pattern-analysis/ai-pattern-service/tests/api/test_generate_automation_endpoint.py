@@ -4,16 +4,15 @@ Integration tests for the automation generation endpoint.
 Endpoint: POST /api/v1/synergies/{synergy_id}/generate-automation
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from sqlalchemy.ext.asyncio import AsyncSession
+import httpx
+import pytest
 from sqlalchemy import text
-
+from sqlalchemy.ext.asyncio import AsyncSession
 from src.config import settings
 from src.database import get_db
 from src.main import app
-import httpx
 
 
 @pytest.mark.integration
@@ -107,7 +106,7 @@ class TestGenerateAutomationEndpoint:
             mock_client_instance.post = AsyncMock(return_value=mock_response)
             
             # Mock GET endpoints used by validator (must be async)
-            async def mock_get(url, *args, **kwargs):
+            async def mock_get(url, *_args, **_kwargs):
                 resp = MagicMock()
                 resp.status_code = 200
                 resp.raise_for_status.return_value = None
@@ -148,7 +147,7 @@ class TestGenerateAutomationEndpoint:
     async def test_generate_automation_missing_synergy_404(
         self,
         api_client: httpx.AsyncClient,
-        test_db: AsyncSession,
+        _test_db: AsyncSession,
         monkeypatch: pytest.MonkeyPatch,
     ):
         # Arrange: ensure HA config is present

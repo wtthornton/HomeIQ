@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -156,7 +156,7 @@ async def _execute_training_run(
         success = process.returncode == 0
         updates = {
             "status": "completed" if success else "failed",
-            "finished_at": datetime.now(timezone.utc),  # CRITICAL: Use timezone-aware datetime
+            "finished_at": datetime.now(UTC),  # CRITICAL: Use timezone-aware datetime
             "metadata_path": str(metadata_path) if metadata_path.exists() else None,
             "dataset_size": metadata.get("samples_used"),
             "base_model": metadata.get("base_model"),
@@ -198,7 +198,7 @@ async def _execute_training_run(
             run_id,
             {
                 "status": "failed",
-                "finished_at": datetime.now(timezone.utc),  # CRITICAL: Use timezone-aware datetime
+                "finished_at": datetime.now(UTC),  # CRITICAL: Use timezone-aware datetime
                 "error_message": str(exc),
             },
         )
@@ -283,7 +283,7 @@ async def trigger_training_run(
                 detail=f"A {training_type} training job is already running",
             )
 
-        run_identifier = datetime.now(timezone.utc).strftime(f"{training_type}_run_%Y%m%d_%H%M%S")
+        run_identifier = datetime.now(UTC).strftime(f"{training_type}_run_%Y%m%d_%H%M%S")
         run_directory = base_output_dir / run_identifier
 
         run_record = await create_training_run(
@@ -291,7 +291,7 @@ async def trigger_training_run(
             {
                 "training_type": training_type,
                 "status": "queued",
-                "started_at": datetime.now(timezone.utc),  # CRITICAL: Use timezone-aware datetime
+                "started_at": datetime.now(UTC),  # CRITICAL: Use timezone-aware datetime
                 "output_dir": str(run_directory),
                 "run_identifier": run_identifier,
                 "triggered_by": "admin",

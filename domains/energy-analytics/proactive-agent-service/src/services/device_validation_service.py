@@ -18,7 +18,6 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import httpx
-
 from homeiq_resilience import CircuitBreaker
 
 logger = logging.getLogger(__name__)

@@ -4,11 +4,8 @@ Performance and latency tests for Query Service
 Epic 39, Story 39.12: Query & Automation Service Testing
 """
 
+
 import pytest
-import time
-import asyncio
-from statistics import mean, median
-from typing import List
 
 
 class TestQueryServicePerformance:
@@ -18,7 +15,7 @@ class TestQueryServicePerformance:
     @pytest.mark.latency
     @pytest.mark.slow
     @pytest.mark.asyncio
-    async def test_query_latency_p95_target(self, client):
+    async def test_query_latency_p95_target(self, _client):
         """
         Test that query endpoint meets <500ms P95 latency target.
         
@@ -49,7 +46,7 @@ class TestQueryServicePerformance:
     
     @pytest.mark.performance
     @pytest.mark.asyncio
-    async def test_concurrent_queries(self, client):
+    async def test_concurrent_queries(self, _client):
         """Test service handles concurrent queries (when implemented)."""
         pytest.skip("Endpoint not yet implemented - concurrency test will be added after implementation")
     

@@ -16,8 +16,7 @@ Usage::
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 from .config import AgentEvalConfig
 from .models import BatchReport, EvalAlert, EvalLevel
@@ -103,7 +102,7 @@ class AlertEngine:
                 alert.status = "acknowledged"
                 alert.acknowledged_by = by
                 alert.note = note
-                alert.updated_at = datetime.now(timezone.utc)
+                alert.updated_at = datetime.now(UTC)
                 logger.info(
                     "Alert %s acknowledged by %s", alert_id, by
                 )
@@ -117,7 +116,7 @@ class AlertEngine:
         for alert in self._alerts.values():
             if alert.alert_id == alert_id:
                 alert.status = "resolved"
-                alert.updated_at = datetime.now(timezone.utc)
+                alert.updated_at = datetime.now(UTC)
                 return alert
         return None
 
@@ -168,7 +167,7 @@ class AlertEngine:
         if existing is not None and existing.status != "resolved":
             # Update existing alert with latest score
             existing.actual_score = actual
-            existing.updated_at = datetime.now(timezone.utc)
+            existing.updated_at = datetime.now(UTC)
             return existing
 
         # Determine level from report results
@@ -202,7 +201,7 @@ class AlertEngine:
         alert = self._alerts[key]
         alert.status = "resolved"
         alert.actual_score = recovered_score
-        alert.updated_at = datetime.now(timezone.utc)
+        alert.updated_at = datetime.now(UTC)
         alert.note = f"Auto-resolved: score recovered to {recovered_score:.4f}"
         logger.info(
             "Alert auto-resolved: %s (score: %.4f)",

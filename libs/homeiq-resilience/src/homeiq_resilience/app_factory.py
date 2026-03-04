@@ -113,7 +113,7 @@ def create_app(
 
     # --- Standard exception handler ---
     @app.exception_handler(Exception)
-    async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    async def _unhandled_exception_handler(request: Request, _exc: Exception) -> JSONResponse:
         request_id = getattr(request.state, "request_id", "unknown")
         logger.exception("Unhandled exception [request_id=%s]", request_id)
         return JSONResponse(

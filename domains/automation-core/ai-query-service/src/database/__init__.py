@@ -7,9 +7,8 @@ PostgreSQL connection pooling via homeiq_data DatabaseManager.
 
 import logging
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from homeiq_data import DatabaseManager
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
 

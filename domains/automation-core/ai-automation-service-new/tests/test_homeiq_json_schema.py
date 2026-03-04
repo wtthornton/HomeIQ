@@ -3,7 +3,6 @@ Tests for HomeIQ JSON Automation Schema
 """
 
 import pytest
-
 from homeiq_ha.homeiq_automation.schema import (
     DeviceContext,
     HomeIQAction,

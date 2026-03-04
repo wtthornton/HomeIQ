@@ -8,10 +8,9 @@ import logging
 import os
 from collections.abc import AsyncGenerator
 
+from homeiq_data import DatabaseManager
 from sqlalchemy import MetaData, text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from homeiq_data import DatabaseManager
 
 logger = logging.getLogger(__name__)
 

@@ -2,11 +2,9 @@
 Tests for metrics endpoints.
 """
 
-import pytest
 from fastapi.testclient import TestClient
-
 from src.main import app
-from src.utils.metrics import get_metrics, RAGMetrics
+from src.utils.metrics import get_metrics
 
 client = TestClient(app)
 

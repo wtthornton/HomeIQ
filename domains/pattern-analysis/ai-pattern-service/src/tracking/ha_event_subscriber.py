@@ -10,7 +10,7 @@ import json
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -137,7 +137,7 @@ class HAEventSubscriber:
                 try:
                     message = await asyncio.wait_for(ws.recv(), timeout=30.0)
                     await self._handle_message(json.loads(message))
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # Send ping to keep connection alive
                     self._message_id += 1
                     await ws.send(json.dumps({
@@ -215,7 +215,7 @@ class HAEventSubscriber:
         # Store start time for this automation execution
         self._pending_automations[context_id] = {
             "automation_id": automation_id,
-            "started_at": datetime.now(timezone.utc),
+            "started_at": datetime.now(UTC),
             "trigger": data.get("trigger", {}),
             "context": context,
         }
@@ -263,7 +263,7 @@ class HAEventSubscriber:
             if pending["automation_id"] == entity_id:
                 # Calculate execution time
                 started_at = pending["started_at"]
-                completed_at = datetime.now(timezone.utc)
+                completed_at = datetime.now(UTC)
                 execution_time_ms = int((completed_at - started_at).total_seconds() * 1000)
 
                 # Determine success (no error state)
@@ -315,7 +315,7 @@ class HAEventSubscriber:
         Returns:
             Number of stale entries removed
         """
-        cutoff = datetime.now(timezone.utc)
+        cutoff = datetime.now(UTC)
         stale = []
 
         for context_id, pending in self._pending_automations.items():

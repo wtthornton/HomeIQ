@@ -7,7 +7,7 @@ to generate a 0-100 health score for each device.
 
 import logging
 import statistics
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -91,7 +91,7 @@ class DeviceHealthScorer:
                 "trend_adjustment": round(trend_adjustment, 1),
                 "health_status": self._get_health_status(final_score),
                 "recommendations": recommendations,
-                "calculated_at": datetime.now(timezone.utc).isoformat(),
+                "calculated_at": datetime.now(UTC).isoformat(),
                 "metrics_used": {
                     "current": metrics,
                     "historical_count": len(historical_metrics)
@@ -104,7 +104,7 @@ class DeviceHealthScorer:
                 "device_id": device_id,
                 "overall_score": 0,
                 "error": str(e),
-                "calculated_at": datetime.now(timezone.utc).isoformat()
+                "calculated_at": datetime.now(UTC).isoformat()
             }
 
     async def _calculate_response_time_score(self, metrics: dict[str, Any], historical: list[dict[str, Any]]) -> float:
@@ -282,7 +282,7 @@ class DeviceHealthScorer:
         else:
             return "critical"
 
-    async def _generate_recommendations(self, device_id: str, metrics: dict[str, Any], score: float) -> list[str]:
+    async def _generate_recommendations(self, _device_id: str, metrics: dict[str, Any], score: float) -> list[str]:
         """Generate recommendations based on health score and metrics."""
         recommendations = []
 

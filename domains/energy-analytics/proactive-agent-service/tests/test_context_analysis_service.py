@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-import pytest
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
-from src.services.context_analysis_service import ContextAnalysisService
-from src.clients.weather_api_client import WeatherAPIClient
-from src.clients.sports_data_client import SportsDataClient
+import pytest
 from src.clients.carbon_intensity_client import CarbonIntensityClient
 from src.clients.data_api_client import DataAPIClient
+from src.clients.sports_data_client import SportsDataClient
+from src.clients.weather_api_client import WeatherAPIClient
+from src.services.context_analysis_service import ContextAnalysisService
 
 
 @pytest.fixture
@@ -219,8 +219,7 @@ async def test_analyze_energy_unavailable(context_service, mock_carbon_client):
 @pytest.mark.asyncio
 async def test_analyze_historical_patterns_success(context_service, mock_data_api_client):
     """Test successful historical pattern analysis"""
-    from datetime import timezone
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # Need at least 3 events for the same entity to trigger "frequent_entities" pattern
     events = [
         {
@@ -339,8 +338,7 @@ async def test_detect_patterns(context_service):
 @pytest.mark.asyncio
 async def test_detect_time_patterns(context_service):
     """Test time-based pattern detection"""
-    from datetime import timezone
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     events = [
         {"entity_id": "light.living_room", "timestamp": now.isoformat()},
         {"entity_id": "light.kitchen", "timestamp": now.isoformat()},

@@ -31,10 +31,12 @@ except ImportError:
     GroupHealthCheck = None  # type: ignore[assignment,misc]
     wait_for_dependency = None  # type: ignore[assignment]
 
+from .api.health import router as health_router
+from .api.health import set_scheduler_service_for_health
+from .api.suggestions import router as suggestions_router
+from .api.suggestions import set_scheduler_service
 from .config import Settings
-from .api.health import router as health_router, set_scheduler_service_for_health
-from .api.suggestions import router as suggestions_router, set_scheduler_service
-from .database import init_database, close_database
+from .database import close_database, init_database
 from .services.scheduler_service import SchedulerService
 from .services.suggestion_pipeline_service import SuggestionPipelineService
 
@@ -156,5 +158,5 @@ app.include_router(suggestions_router)
 if __name__ == "__main__":
     import uvicorn
     _settings = Settings()
-    uvicorn.run(app, host="0.0.0.0", port=_settings.service_port)
+    uvicorn.run(app, host="0.0.0.0", port=_settings.service_port)  # noqa: S104
 

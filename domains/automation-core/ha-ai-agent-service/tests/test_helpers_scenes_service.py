@@ -1,11 +1,11 @@
 """Tests for Helpers & Scenes Service"""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.services.helpers_scenes_service import HelpersScenesService
+import pytest
 from src.config import Settings
 from src.services.context_builder import ContextBuilder
+from src.services.helpers_scenes_service import HelpersScenesService
 
 
 @pytest.fixture

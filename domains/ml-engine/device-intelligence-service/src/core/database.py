@@ -9,9 +9,8 @@ import logging
 import os
 from collections.abc import AsyncGenerator
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from homeiq_data import DatabaseManager
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import Settings
 from ..models.database import Base
@@ -33,7 +32,7 @@ engine = None
 _session_factory = None
 
 
-async def initialize_database(settings: Settings) -> bool:
+async def initialize_database(_settings: Settings) -> bool:
     """
     Initialize database connection and create tables.
 

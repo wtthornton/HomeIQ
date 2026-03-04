@@ -7,7 +7,7 @@ with optional InfluxDB queries for time-series aggregation.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -140,7 +140,7 @@ async def stats_inactive(
     db: AsyncSession = Depends(get_db),
 ):
     """Automations that haven't run in N days."""
-    threshold = datetime.utcnow() - timedelta(days=days)
+    threshold = datetime.now(UTC) - timedelta(days=days)
     result = await db.execute(
         select(Automation)
         .where(

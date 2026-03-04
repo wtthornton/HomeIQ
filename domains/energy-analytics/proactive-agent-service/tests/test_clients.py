@@ -1,12 +1,11 @@
 """Tests for HTTP clients"""
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
-from src.clients.weather_api_client import WeatherAPIClient
-from src.clients.sports_data_client import SportsDataClient
-from src.clients.carbon_intensity_client import CarbonIntensityClient
+import pytest
 from src.clients.data_api_client import DataAPIClient
+from src.clients.sports_data_client import SportsDataClient
+from src.clients.weather_api_client import WeatherAPIClient
 
 
 @pytest.mark.asyncio

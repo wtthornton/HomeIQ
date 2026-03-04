@@ -20,8 +20,7 @@ import argparse
 import asyncio
 import json
 import logging
-import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -242,7 +241,7 @@ def _write_report(
     output_dir: Path,
 ) -> Path:
     """Write a BatchReport to disk."""
-    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    date_str = datetime.now(UTC).strftime("%Y-%m-%d")
     agent_slug = config.agent_name.replace(" ", "_")
 
     if fmt == "json":
@@ -269,7 +268,7 @@ def _render_baseline_markdown(
     # Header
     lines.append(f"# Baseline Evaluation Report — {config.agent_name}")
     lines.append("")
-    lines.append(f"**Date:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
+    lines.append(f"**Date:** {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}")
     lines.append(f"**Sessions Evaluated:** {report.sessions_evaluated}")
     lines.append(f"**Total Evaluations:** {report.total_evaluations}")
     lines.append("")

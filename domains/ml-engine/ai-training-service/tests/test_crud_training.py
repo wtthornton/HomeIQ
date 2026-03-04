@@ -4,19 +4,18 @@ Unit tests for Training CRUD operations
 Epic 39, Story 39.4: Training Service Testing & Validation
 """
 
-import pytest
-from datetime import datetime, timedelta
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import UTC, datetime, timedelta
 
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 from src.crud.training import (
-    get_active_training_run,
     create_training_run,
-    update_training_run,
-    list_training_runs,
-    delete_training_run,
     delete_old_training_runs,
+    delete_training_run,
+    get_active_training_run,
+    list_training_runs,
+    update_training_run,
 )
-from src.database.models import TrainingRun
 
 
 class TestTrainingCRUD:
@@ -88,7 +87,7 @@ class TestTrainingCRUD:
         # Update it
         updates = {
             "status": "running",
-            "finished_at": datetime.utcnow(),
+            "finished_at": datetime.now(UTC),
         }
         updated = await update_training_run(test_db, run.id, updates)
         
@@ -186,7 +185,7 @@ class TestTrainingCRUD:
         """Test deleting old training runs."""
         # Create old run (30+ days ago)
         old_data = sample_training_run_data.copy()
-        old_data["started_at"] = datetime.utcnow() - timedelta(days=35)
+        old_data["started_at"] = datetime.now(UTC) - timedelta(days=35)
         old_data["run_identifier"] = "old_run"
         await create_training_run(test_db, old_data)
         

@@ -1,14 +1,15 @@
 """Monitoring dashboard API endpoints."""
 
-from fastapi import APIRouter, HTTPException, Query, Depends
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from homeiq_data.auth import AuthManager
 from pydantic import BaseModel, Field
 
+from .alerting_service import alerting_service
 from .logging_service import logging_service
 from .metrics_service import metrics_service
-from .alerting_service import alerting_service
-from homeiq_data.auth import AuthManager
 
 
 # Request/Response models
@@ -67,7 +68,7 @@ class MonitoringEndpoints:
             level: Optional[str] = Query(default=None),
             service: Optional[str] = Query(default=None),
             component: Optional[str] = Query(default=None),
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Get recent log entries."""
             try:
@@ -144,7 +145,7 @@ class MonitoringEndpoints:
         
         @self.router.get("/logs/statistics", response_model=Dict[str, Any])
         async def get_log_statistics(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Get log statistics."""
             try:
@@ -161,7 +162,7 @@ class MonitoringEndpoints:
         
         @self.router.post("/logs/compress", response_model=Dict[str, Any])
         async def compress_logs(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Compress old log files."""
             try:
@@ -182,7 +183,7 @@ class MonitoringEndpoints:
         @self.router.delete("/logs/cleanup", response_model=Dict[str, Any])
         async def cleanup_old_logs(
             days_to_keep: int = Query(default=30, ge=1, le=365),
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Cleanup old compressed log files."""
             try:
@@ -205,7 +206,7 @@ class MonitoringEndpoints:
         @self.router.get("/metrics", response_model=Dict[str, Any])
         async def get_metrics(
             metric_names: Optional[List[str]] = Query(default=None),
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Get metrics."""
             try:
@@ -226,7 +227,7 @@ class MonitoringEndpoints:
         
         @self.router.get("/metrics/current", response_model=Dict[str, Any])
         async def get_current_metrics(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Get current metric values."""
             try:
@@ -243,7 +244,7 @@ class MonitoringEndpoints:
         
         @self.router.get("/metrics/summary", response_model=Dict[str, Any])
         async def get_metrics_summary(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Get metrics summary."""
             try:
@@ -264,14 +265,14 @@ class MonitoringEndpoints:
             limit: int = Query(default=100, ge=1, le=1000),
             status: Optional[str] = Query(default=None),
             severity: Optional[str] = Query(default=None),
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Get alerts."""
             try:
                 alert_manager = alerting_service.get_alert_manager()
                 
                 # Convert string parameters to enums if provided
-                from .alerting_service import AlertStatus, AlertSeverity
+                from .alerting_service import AlertSeverity, AlertStatus
                 status_enum = None
                 severity_enum = None
                 
@@ -315,7 +316,7 @@ class MonitoringEndpoints:
         
         @self.router.get("/alerts/active", response_model=Dict[str, Any])
         async def get_active_alerts(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Get active alerts."""
             try:
@@ -336,7 +337,7 @@ class MonitoringEndpoints:
         
         @self.router.get("/alerts/statistics", response_model=Dict[str, Any])
         async def get_alert_statistics(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Get alert statistics."""
             try:
@@ -407,7 +408,7 @@ class MonitoringEndpoints:
         # Dashboard endpoints
         @self.router.get("/dashboard/overview", response_model=Dict[str, Any])
         async def get_dashboard_overview(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Get dashboard overview data."""
             try:
@@ -450,7 +451,7 @@ class MonitoringEndpoints:
         
         @self.router.get("/dashboard/health", response_model=Dict[str, Any])
         async def get_dashboard_health(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Get dashboard health status."""
             try:
@@ -490,7 +491,7 @@ class MonitoringEndpoints:
         # Configuration endpoints
         @self.router.get("/config/alert-rules", response_model=Dict[str, Any])
         async def get_alert_rules(
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Get alert rules configuration."""
             try:
@@ -513,7 +514,7 @@ class MonitoringEndpoints:
         @self.router.post("/config/alert-rules", response_model=Dict[str, Any])
         async def create_alert_rule(
             rule_data: Dict[str, Any],
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Create a new alert rule."""
             try:
@@ -549,7 +550,7 @@ class MonitoringEndpoints:
         async def update_alert_rule(
             rule_name: str,
             rule_data: Dict[str, Any],
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Update an alert rule."""
             try:
@@ -584,7 +585,7 @@ class MonitoringEndpoints:
         @self.router.delete("/config/alert-rules/{rule_name}", response_model=Dict[str, Any])
         async def delete_alert_rule(
             rule_name: str,
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Delete an alert rule."""
             try:
@@ -603,7 +604,7 @@ class MonitoringEndpoints:
         @self.router.post("/config/notification-channels", response_model=Dict[str, Any])
         async def create_notification_channel(
             channel_data: Dict[str, Any],
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Create a notification channel."""
             try:
@@ -627,7 +628,7 @@ class MonitoringEndpoints:
         async def export_logs(
             format: str = Query(default="json", regex="^(json|csv)$"),
             limit: int = Query(default=1000, ge=1, le=10000),
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Export logs in specified format."""
             try:
@@ -672,7 +673,7 @@ class MonitoringEndpoints:
         async def export_metrics(
             format: str = Query(default="json", regex="^(json|csv)$"),
             metric_names: Optional[List[str]] = Query(default=None),
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Export metrics in specified format."""
             try:
@@ -731,7 +732,7 @@ class MonitoringEndpoints:
         async def export_alerts(
             format: str = Query(default="json", regex="^(json|csv)$"),
             limit: int = Query(default=1000, ge=1, le=10000),
-            current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
+            _current_user: Dict[str, Any] = Depends(self.auth_manager.get_current_user)
         ):
             """Export alerts in specified format."""
             try:

@@ -1,7 +1,9 @@
 """Setup script for HA Ingestor CLI tools."""
 
-from setuptools import setup, find_packages
 import os
+
+from setuptools import find_packages, setup
+
 
 # Read the README file
 def read_readme():

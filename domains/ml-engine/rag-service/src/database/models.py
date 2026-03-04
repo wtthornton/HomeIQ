@@ -7,7 +7,7 @@ Following 2025 patterns: SQLAlchemy async with type hints.
 
 from typing import Any
 
-from sqlalchemy import Column, DateTime, Float, Index, Integer, JSON, String, Text
+from sqlalchemy import JSON, Column, DateTime, Float, Index, Integer, String, Text
 from sqlalchemy.sql import func
 
 from .session import Base

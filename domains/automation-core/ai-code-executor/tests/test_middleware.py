@@ -6,9 +6,8 @@ Tests request/response logging, metrics collection, and edge cases.
 
 import pytest
 from fastapi import Request
-from starlette.responses import Response
-
 from src.middleware import LoggingMiddleware, get_metrics, record_execution, record_request
+from starlette.responses import Response
 
 
 @pytest.fixture
@@ -103,7 +102,7 @@ class TestLoggingMiddleware:
         )
         
         # Mock call_next
-        async def call_next(request):
+        async def call_next(_request):
             return Response(status_code=200)
         
         # Process request
@@ -126,7 +125,7 @@ class TestLoggingMiddleware:
             }
         )
         
-        async def call_next(request):
+        async def call_next(_request):
             return Response(status_code=200)
         
         await middleware.dispatch(request, call_next)

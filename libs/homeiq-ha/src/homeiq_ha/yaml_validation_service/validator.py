@@ -302,8 +302,8 @@ class ValidationPipeline:
     def _validate_entity_states(
         self, 
         data: dict[str, Any], 
-        entity_ids: list[str], 
-        entity_states: dict[str, str]
+        _entity_ids: list[str], 
+        _entity_states: dict[str, str]
     ) -> dict[str, list[str]]:
         """
         Validate state values against known entity states (Epic 51.7).
@@ -541,7 +541,7 @@ class ValidationPipeline:
     def _detect_risky_patterns(
         self, 
         data: dict[str, Any], 
-        entity_ids: list[str], 
+        _entity_ids: list[str], 
         services: list[str]
     ) -> list[str]:
         """

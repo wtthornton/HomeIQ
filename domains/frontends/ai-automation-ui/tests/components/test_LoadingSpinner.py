@@ -2,8 +2,6 @@
 Tests for LoadingSpinner.tsx
 """
 
-import pytest
-
 from domains.frontends.ai_automation_ui.src.components.LoadingSpinner import *
 
 

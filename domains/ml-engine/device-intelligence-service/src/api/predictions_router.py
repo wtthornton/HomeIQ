@@ -6,7 +6,7 @@ including failure predictions, maintenance recommendations, and model management
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -65,7 +65,7 @@ class IncrementalUpdateRequest(BaseModel):
 
 @router.get("/failures")
 async def get_failure_predictions(
-    skip: int = 0,
+    _skip: int = 0,
     limit: int = 100,
     min_probability: float = 0.0,
     max_probability: float = 1.0,
@@ -232,7 +232,7 @@ async def trigger_model_training(
                 "status": "training",
                 "force_retrain": request.force_retrain,
                 "days_back": request.days_back,
-                "started_at": datetime.now(timezone.utc).isoformat()
+                "started_at": datetime.now(UTC).isoformat()
             }
         else:
             return {
@@ -240,7 +240,7 @@ async def trigger_model_training(
                 "status": "trained",
                 "force_retrain": request.force_retrain,
                 "current_version": analytics_engine.model_metadata.get("version", "unknown"),
-                "started_at": datetime.now(timezone.utc).isoformat()
+                "started_at": datetime.now(UTC).isoformat()
             }
 
     except Exception as e:
@@ -418,7 +418,7 @@ async def incremental_update(
             "message": "Incremental update started",
             "status": "updating",
             "samples": len(request.new_data),
-            "started_at": datetime.now(timezone.utc).isoformat()
+            "started_at": datetime.now(UTC).isoformat()
         }
 
     except HTTPException:
@@ -439,7 +439,7 @@ async def get_predictions_health():
             "status": "operational",
             "models_trained": analytics_engine.is_trained,
             "feature_count": len(analytics_engine.feature_columns),
-            "last_updated": datetime.now(timezone.utc).isoformat()
+            "last_updated": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -448,7 +448,7 @@ async def get_predictions_health():
             "service": "Predictive Analytics",
             "status": "error",
             "error": str(e),
-            "last_updated": datetime.now(timezone.utc).isoformat()
+            "last_updated": datetime.now(UTC).isoformat()
         }
 
 
@@ -551,7 +551,7 @@ async def get_model_version(
             "training_data_stats": metadata.get("training_data_stats", {}),
             "model_type": metadata.get("model_type", "unknown"),
             "scikit_learn_version": metadata.get("scikit_learn_version"),
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
     except HTTPException:
         raise
@@ -618,12 +618,12 @@ async def get_model_health(
             "model_version": metadata.get("version", "unknown"),
             "training_date": metadata.get("training_date"),
             "model_performance": engine.model_performance if engine.is_trained else {},
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
     except Exception as e:
         logger.error(f"Error in model health check: {e}")
         return {
             "status": "error",
             "error": str(e),
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }

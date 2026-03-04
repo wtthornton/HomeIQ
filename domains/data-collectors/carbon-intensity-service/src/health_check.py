@@ -3,7 +3,7 @@ Health Check Handler for Carbon Intensity Service
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from aiohttp import web
 
@@ -14,7 +14,7 @@ class HealthCheckHandler:
     """Health check endpoint handler"""
 
     def __init__(self):
-        self.start_time = datetime.now(timezone.utc)
+        self.start_time = datetime.now(UTC)
         self.last_successful_fetch = None
         self.last_token_refresh = None
         self.total_fetches = 0
@@ -27,7 +27,7 @@ class HealthCheckHandler:
     async def handle(self, _request: web.Request) -> web.Response:
         """Handle health check request"""
 
-        uptime = (datetime.now(timezone.utc) - self.start_time).total_seconds()
+        uptime = (datetime.now(UTC) - self.start_time).total_seconds()
 
         # Determine health status
         healthy = True
@@ -41,7 +41,7 @@ class HealthCheckHandler:
             status_label = "unconfigured"
             status_detail = "credentials_missing"
         elif self.last_successful_fetch:
-            time_since_last = (datetime.now(timezone.utc) - self.last_successful_fetch).total_seconds()
+            time_since_last = (datetime.now(UTC) - self.last_successful_fetch).total_seconds()
             if time_since_last > 1800:  # 30 minutes without successful fetch
                 healthy = False
                 status_label = "degraded"
@@ -69,7 +69,7 @@ class HealthCheckHandler:
             "credentials_configured": not self.credentials_missing,
             "influxdb_write_failures": self.influxdb_write_failures,
             "last_successful_write": self.last_successful_write.isoformat() if self.last_successful_write else None,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
         return web.json_response(status, status=200 if healthy else 503)

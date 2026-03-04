@@ -1,10 +1,10 @@
 """Tests for Areas Service"""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.services.areas_service import AreasService
+import pytest
 from src.config import Settings
+from src.services.areas_service import AreasService
 from src.services.context_builder import ContextBuilder
 
 
@@ -60,7 +60,7 @@ async def test_get_areas_list_with_areas(areas_service, mock_context_builder):
 
 
 @pytest.mark.asyncio
-async def test_get_areas_list_empty(areas_service, mock_context_builder):
+async def test_get_areas_list_empty(areas_service, _mock_context_builder):
     """Test getting areas list with no areas"""
     # Mock data_api_client.get_areas() returning empty, then fallback to entity extraction
     with patch.object(

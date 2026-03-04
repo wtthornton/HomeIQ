@@ -6,7 +6,7 @@ Trains reward model based on user feedback to improve pattern/synergy detection.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ class PatternRLHF:
             'pattern': pattern,
             'user_action': user_action,
             'reward': reward,
-            'timestamp': datetime.now(timezone.utc)
+            'timestamp': datetime.now(UTC)
         })
 
         # Update statistics

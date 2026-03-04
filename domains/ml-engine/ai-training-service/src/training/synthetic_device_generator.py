@@ -110,8 +110,8 @@ class SyntheticDeviceGenerator:
         self,
         device_categories: dict[str, Any],
         areas: list[dict[str, Any]],
-        home_type: str,
-        size_category: str
+        _home_type: str,
+        _size_category: str
     ) -> list[dict[str, Any]]:
         """
         Generate devices from category specifications using templates.
@@ -184,7 +184,7 @@ class SyntheticDeviceGenerator:
 
     def _generate_from_template(
         self,
-        home_type: str,
+        _home_type: str,
         areas: list[dict[str, Any]],
         size_category: str
     ) -> list[dict[str, Any]]:

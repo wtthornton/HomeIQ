@@ -116,7 +116,7 @@ class HASimulatorWebSocketServer:
             self.clients.remove(client)
             self.subscription_manager.remove_client(client)
 
-    async def health_check(self, request):
+    async def health_check(self, _request):
         """Health check endpoint"""
         return web.json_response({
             "status": "healthy",

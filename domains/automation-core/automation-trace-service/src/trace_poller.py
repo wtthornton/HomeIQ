@@ -10,7 +10,7 @@ Every TRACE_POLL_INTERVAL_SECONDS:
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
@@ -110,7 +110,7 @@ class TracePoller:
 
         self.traces_captured += new_count
         self.poll_count += 1
-        self.last_poll = datetime.now(timezone.utc)
+        self.last_poll = datetime.now(UTC)
 
         if new_count > 0:
             logger.info("Captured %d new traces (poll #%d)", new_count, self.poll_count)

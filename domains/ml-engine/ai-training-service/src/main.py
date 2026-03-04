@@ -30,7 +30,11 @@ except ImportError:
 
 # Import observability modules
 try:
-    from homeiq_observability.observability import CorrelationMiddleware, instrument_fastapi, setup_tracing
+    from homeiq_observability.observability import (
+        CorrelationMiddleware,
+        instrument_fastapi,
+        setup_tracing,
+    )
     OBSERVABILITY_AVAILABLE = True
 except ImportError:
     logger.warning("Observability modules not available")
@@ -62,7 +66,7 @@ async def _setup_observability() -> None:
 
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Initialize service on startup and cleanup on shutdown"""
     logger.info("=" * 60)
     logger.info("AI Training Service Starting Up")

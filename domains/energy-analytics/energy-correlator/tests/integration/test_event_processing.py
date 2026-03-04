@@ -7,8 +7,8 @@ Tests for complete event processing flow from InfluxDB query to correlation.
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -55,7 +55,7 @@ async def correlator_with_mock(mock_influxdb_client):
 @pytest.mark.asyncio
 async def test_process_recent_events_full_flow(correlator_with_mock, mock_influxdb_client):
     """Test complete event processing flow"""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     
     # Mock event query results
     mock_events = [
@@ -119,7 +119,7 @@ async def test_process_recent_events_no_correlation(correlator_with_mock, mock_i
     # Mock events with no power change (below threshold)
     mock_events = [
         {
-            'time': datetime.now(timezone.utc) - timedelta(seconds=30),
+            'time': datetime.now(UTC) - timedelta(seconds=30),
             'entity_id': 'switch.lamp',
             '_value': 'on',
             '_measurement': 'home_assistant_events'
@@ -129,12 +129,12 @@ async def test_process_recent_events_no_correlation(correlator_with_mock, mock_i
     # Mock power data with small change (below min_power_delta)
     mock_power = [
         {
-            'time': datetime.now(timezone.utc) - timedelta(seconds=25),
+            'time': datetime.now(UTC) - timedelta(seconds=25),
             '_value': 2450.0,
             '_measurement': 'smart_meter'
         },
         {
-            'time': datetime.now(timezone.utc) - timedelta(seconds=35),
+            'time': datetime.now(UTC) - timedelta(seconds=35),
             '_value': 2455.0,  # Only 5W change (below 10W threshold)
             '_measurement': 'smart_meter'
         }
@@ -190,7 +190,7 @@ async def test_process_recent_events_empty_results(correlator_with_mock, mock_in
 @pytest.mark.asyncio
 async def test_correlation_window_logic(correlator_with_mock, mock_influxdb_client):
     """Test that correlation window is applied correctly"""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     
     # Create events within and outside correlation window
     mock_events = [

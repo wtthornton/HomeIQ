@@ -3,15 +3,11 @@
 from __future__ import annotations
 
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
-
 from src.services.suggestion_storage_service import SuggestionStorageService
-from src.models import Suggestion
 
 
 @pytest.fixture
-async def storage_service(mock_db_session):
+async def storage_service(_mock_db_session):
     """Create SuggestionStorageService instance with mock DB"""
     service = SuggestionStorageService()
     return service
@@ -127,11 +123,12 @@ async def test_get_suggestion_stats(storage_service, mock_db_session):
 @pytest.mark.asyncio
 async def test_create_suggestion_raises_error_when_db_not_initialized():
     """Test that create_suggestion raises DatabaseNotInitializedError when DB not initialized"""
-    from src.services.suggestion_storage_service import (
-        SuggestionStorageService,
-        DatabaseNotInitializedError,
-    )
     from unittest.mock import patch
+
+    from src.services.suggestion_storage_service import (
+        DatabaseNotInitializedError,
+        SuggestionStorageService,
+    )
     
     service = SuggestionStorageService()
     

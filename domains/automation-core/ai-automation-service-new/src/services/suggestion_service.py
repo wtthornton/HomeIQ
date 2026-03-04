@@ -7,7 +7,7 @@ Core service for generating and managing automation suggestions.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -55,7 +55,7 @@ class SuggestionService:
         self.pattern_client = pattern_client or PatternServiceClient()
 
     async def generate_suggestions(
-        self, pattern_ids: list[str] | None = None, days: int = 30, limit: int = 10
+        self, _pattern_ids: list[str] | None = None, days: int = 30, limit: int = 10
     ) -> list[dict[str, Any]]:
         """
         Generate automation suggestions from detected patterns.
@@ -338,7 +338,7 @@ class SuggestionService:
                 return False
 
             suggestion.status = status
-            suggestion.updated_at = datetime.now(timezone.utc)
+            suggestion.updated_at = datetime.now(UTC)
 
             await self.db.commit()
             return True

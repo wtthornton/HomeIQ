@@ -3,13 +3,14 @@ System Resource Metrics Collection
 """
 
 import asyncio
-import psutil
 import time
-from datetime import datetime
-from typing import Dict, Any, Optional
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any, Dict, Optional
 
-from .metrics_collector import MetricsCollector, MetricPoint
+import psutil
+
+from .metrics_collector import MetricPoint, MetricsCollector
 
 
 @dataclass
@@ -159,7 +160,7 @@ class SystemMetricsCollector:
                         "load_avg_5min": load_avg[1] if load_avg else 0,
                         "load_avg_15min": load_avg[2] if load_avg else 0
                     },
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(UTC),
                     service="system"
                 )
                 
@@ -207,7 +208,7 @@ class SystemMetricsCollector:
                         "num_fds": num_fds or 0,
                         "create_time": create_time
                     },
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(UTC),
                     service="process"
                 )
                 
@@ -233,7 +234,7 @@ class SystemMetricsCollector:
             network = psutil.net_io_counters()
             
             return {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "cpu": {
                     "percent": cpu_percent,
                     "count": cpu_count
@@ -353,7 +354,7 @@ class ContainerMetricsCollector:
                         "memory_vms": memory_info.vms,
                         "memory_percent": memory_percent
                     },
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(UTC),
                     service="container"
                 )
                 

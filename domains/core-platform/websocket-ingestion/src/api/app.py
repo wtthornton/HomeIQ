@@ -8,7 +8,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from homeiq_observability.correlation_middleware import CorrelationMiddleware
 
 from .routers import discovery, event_rate, filter, health, websocket

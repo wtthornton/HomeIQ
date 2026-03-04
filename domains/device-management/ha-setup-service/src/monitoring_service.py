@@ -9,7 +9,7 @@ Context7 Best Practices Applied:
 import asyncio
 import contextlib
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -82,7 +82,7 @@ class ContinuousHealthMonitor:
 
         while self.running:
             try:
-                current_time = datetime.now(timezone.utc)
+                current_time = datetime.now(UTC)
 
                 # Check if health check is due
                 if self._is_health_check_due(current_time):
@@ -212,7 +212,7 @@ class ContinuousHealthMonitor:
             Trend data including average score, score changes, issue frequency
         """
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+            cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
 
             # Get health metrics from database
             stmt = select(EnvironmentHealth).where(

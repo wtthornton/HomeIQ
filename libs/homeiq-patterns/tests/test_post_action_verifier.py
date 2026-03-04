@@ -1,16 +1,16 @@
 """Tests for PostActionVerifier and related models."""
 
-import pytest
-from typing import Any
-
 import sys
 from pathlib import Path
+from typing import Any
+
+import pytest
+
 _project_root = str(Path(__file__).resolve().parents[3])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 from homeiq_patterns import PostActionVerifier, VerificationResult, VerificationWarning
-
 
 # --- Test fixtures ---
 
@@ -20,7 +20,7 @@ class MockDeployVerifier(PostActionVerifier):
     def __init__(self, state_data: dict[str, Any] | None):
         self._state_data = state_data
 
-    async def verify(self, action_result: dict[str, Any]) -> VerificationResult:
+    async def verify(self, _action_result: dict[str, Any]) -> VerificationResult:
         if not self._state_data:
             return VerificationResult(success=True, state=None)
 

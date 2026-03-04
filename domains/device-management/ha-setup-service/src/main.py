@@ -10,7 +10,7 @@ Context7 Best Practices Applied:
 import logging
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Security, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -164,7 +164,7 @@ async def health_check():
     return HealthCheckResponse(
         status="healthy",
         service=settings.service_name,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         version="1.0.0"
     )
 
@@ -206,7 +206,7 @@ async def get_environment_health(
                 integrations=[],
                 performance=PerformanceMetrics(response_time_ms=0.0),
                 issues_detected=["Health monitoring service not initialized. Service may still be starting up."],
-                timestamp=datetime.now(timezone.utc)
+                timestamp=datetime.now(UTC)
             )
 
         response = await health_service.check_environment_health(db)
@@ -315,7 +315,7 @@ async def get_integrations_health(
 
         # Return results
         return {
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
             "total_integrations": len(check_results),
             "healthy_count": sum(1 for r in check_results if r.status == IntegrationStatus.HEALTHY),
             "warning_count": sum(1 for r in check_results if r.status == IntegrationStatus.WARNING),
@@ -402,7 +402,7 @@ async def start_setup_wizard(request: Request, integration_type: str):
             "session_id": session_id,
             "integration_type": integration_type,
             "status": "started",
-            "timestamp": datetime.now(timezone.utc)
+            "timestamp": datetime.now(UTC)
         }
     except HTTPException:
         raise
@@ -520,7 +520,7 @@ async def get_optimization_recommendations(request: Request):
         recommendations = await rec_engine.generate_recommendations(analysis)
 
         return {
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
             "total_recommendations": len(recommendations),
             "recommendations": [r.model_dump() for r in recommendations]
         }
@@ -587,7 +587,7 @@ async def attempt_bridge_recovery(request: Request, force: bool = False):
         return {
             "success": success,
             "message": message,
-            "timestamp": datetime.now(timezone.utc)
+            "timestamp": datetime.now(UTC)
         }
 
     except HTTPException:
@@ -609,7 +609,7 @@ async def restart_bridge(request: Request):
         return {
             "success": success,
             "message": message,
-            "timestamp": datetime.now(timezone.utc)
+            "timestamp": datetime.now(UTC)
         }
 
     except HTTPException:
@@ -630,7 +630,7 @@ async def get_bridge_health(request: Request):
                 "state": "uninitialized",
                 "health_score": 0,
                 "error": "Bridge manager not initialized",
-                "last_check": datetime.now(timezone.utc)
+                "last_check": datetime.now(UTC)
             }
         health_status = await bridge_manager.get_bridge_health_status()
 
@@ -648,7 +648,7 @@ async def get_bridge_health(request: Request):
             "state": "error",
             "health_score": 0,
             "error": str(e),
-            "last_check": datetime.now(timezone.utc)
+            "last_check": datetime.now(UTC)
         }
 
 

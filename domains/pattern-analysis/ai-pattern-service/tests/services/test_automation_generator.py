@@ -4,13 +4,11 @@ Unit tests for AutomationGenerator service
 Tests automation generation from synergies, validation, and deployment.
 """
 
-import pytest
-import yaml
-from unittest.mock import AsyncMock, MagicMock, patch
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
-
+import pytest
 from src.services.automation_generator import AutomationGenerator
 
 

@@ -3,7 +3,7 @@ Tests for Validation Pipeline (Epic 51, Story 51.2, 51.7, 51.10)
 """
 
 import pytest
-from yaml_validation_service.validator import ValidationPipeline, ValidationResult
+from yaml_validation_service.validator import ValidationPipeline
 
 
 class TestValidationPipeline:

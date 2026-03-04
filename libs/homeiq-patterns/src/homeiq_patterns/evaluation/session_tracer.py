@@ -15,8 +15,7 @@ import logging
 import os
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import Any
 
 from .models import AgentResponse, SessionTrace, ToolCall, UserMessage
@@ -98,7 +97,7 @@ class PersistentSink(TraceSink):
         "CREATE INDEX IF NOT EXISTS idx_trace_timestamp ON trace_records(timestamp)",
     ]
 
-    def __init__(self, db_url: str | None = None, store_path: str | None = None) -> None:
+    def __init__(self, db_url: str | None = None, _store_path: str | None = None) -> None:
         self._db_url = (
             db_url
             or os.environ.get("EVAL_STORE_URL")
@@ -204,7 +203,7 @@ class SessionTracerContext:
     def __init__(self, agent_name: str) -> None:
         self.trace = SessionTrace(
             agent_name=agent_name,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         self._tool_sequence: int = 0
         self._turn: int = 0
@@ -214,7 +213,7 @@ class SessionTracerContext:
         self.trace.user_messages.append(
             UserMessage(
                 content=content,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 turn_index=self._turn,
             )
         )
@@ -228,7 +227,7 @@ class SessionTracerContext:
         self.trace.agent_responses.append(
             AgentResponse(
                 content=content,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 turn_index=self._turn,
                 tool_calls_in_turn=tool_calls_in_turn or [],
             )
@@ -340,7 +339,7 @@ def trace_session(
 
 def _capture_user_input(
     ctx: SessionTracerContext,
-    args: tuple,
+    _args: tuple,
     kwargs: dict[str, Any],
 ) -> None:
     """Best-effort extraction of user message from request args."""

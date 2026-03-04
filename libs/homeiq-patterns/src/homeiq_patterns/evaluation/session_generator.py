@@ -12,11 +12,10 @@ from __future__ import annotations
 
 import random
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .config import AgentEvalConfig, ParamDef, PathRule, ToolDef
 from .models import AgentResponse, SessionTrace, ToolCall, UserMessage
-
 
 # ---------------------------------------------------------------------------
 # Scenario templates
@@ -145,7 +144,7 @@ class SyntheticSessionGenerator:
         return sessions
 
     def _build_session(
-        self, scenario: str, rng: random.Random, index: int
+        self, scenario: str, rng: random.Random, _index: int
     ) -> SessionTrace:
         """Build a single session for the given scenario."""
         agent = self.config.agent_name
@@ -165,7 +164,7 @@ class SyntheticSessionGenerator:
         return SessionTrace(
             session_id=str(uuid.UUID(int=rng.getrandbits(128), version=4)),
             agent_name=agent,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             model=self.config.model,
             temperature=0.7,
             user_messages=[UserMessage(content=user_prompt, turn_index=0)],

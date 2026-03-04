@@ -3,7 +3,7 @@
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
 
@@ -30,9 +30,9 @@ class RetentionPolicy:
 
     def __post_init__(self):
         if self.created_at is None:
-            self.created_at = datetime.now(timezone.utc)
+            self.created_at = datetime.now(UTC)
         if self.updated_at is None:
-            self.updated_at = datetime.now(timezone.utc)
+            self.updated_at = datetime.now(UTC)
 
     def get_expiration_date(self, from_date: datetime | None = None) -> datetime:
         """
@@ -45,7 +45,7 @@ class RetentionPolicy:
             datetime: Expiration date
         """
         if from_date is None:
-            from_date = datetime.now(timezone.utc)
+            from_date = datetime.now(UTC)
 
         if self.retention_unit == RetentionPeriod.DAYS:
             return from_date - timedelta(days=self.retention_period)
@@ -132,7 +132,7 @@ class RetentionPolicyManager:
         if policy.name not in self.policies:
             raise ValueError(f"Policy '{policy.name}' does not exist")
 
-        policy.updated_at = datetime.now(timezone.utc)
+        policy.updated_at = datetime.now(UTC)
         self.policies[policy.name] = policy
         logger.info(f"Updated retention policy: {policy.name}")
 
@@ -217,7 +217,7 @@ class RetentionPolicyManager:
         """
         policies_data = {
             "policies": [policy.to_dict() for policy in self.policies.values()],
-            "exported_at": datetime.now(timezone.utc).isoformat()
+            "exported_at": datetime.now(UTC).isoformat()
         }
         return json.dumps(policies_data, indent=2)
 

@@ -280,7 +280,7 @@ class HAWebSocketClient:
                         timeout=1.0
                     )
                     await self._handle_message(message)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     continue
                 except websockets.exceptions.ConnectionClosed:
                     logger.warning("WebSocket connection closed")

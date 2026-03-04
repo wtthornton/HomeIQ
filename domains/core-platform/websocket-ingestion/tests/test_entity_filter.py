@@ -2,7 +2,6 @@
 Unit tests for Entity Filter (Epic 45.2)
 """
 
-import pytest
 from src.entity_filter import EntityFilter
 
 

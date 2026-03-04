@@ -12,16 +12,14 @@ Epic 39, Story 39.8: Pattern Service Testing & Validation
 Phase 6.1: Integration testing
 """
 
-import pytest
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
+from unittest.mock import AsyncMock
 
-from src.synergy_detection.synergy_detector import DeviceSynergyDetector
-from src.api.synergy_router import router
-from src.crud.synergies import store_synergy_opportunities, get_synergy_opportunities
-from fastapi.testclient import TestClient
+import pytest
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from src.api.synergy_router import router
+from src.crud.synergies import get_synergy_opportunities, store_synergy_opportunities
+from src.synergy_detection.synergy_detector import DeviceSynergyDetector
 
 
 @pytest.fixture
@@ -109,7 +107,7 @@ class TestIntegrationSynergyImprovements:
     @pytest.mark.asyncio
     @pytest.mark.integration
     async def test_end_to_end_synergy_detection_with_improvements(
-        self, synergy_detector, test_db, mock_data_api_client
+        self, synergy_detector, _test_db, _mock_data_api_client
     ):
         """Test end-to-end synergy detection with all improvements enabled."""
         # Test that synergy detection works with multi-modal context, XAI, and RL
@@ -208,7 +206,7 @@ class TestIntegrationSynergyImprovements:
     @pytest.mark.asyncio
     @pytest.mark.integration
     async def test_rl_feedback_loop(
-        self, synergy_detector, test_db
+        self, synergy_detector, _test_db
     ):
         """Test that RL optimizer learns from feedback."""
         if not synergy_detector.rl_optimizer:
@@ -305,7 +303,7 @@ class TestIntegrationSynergyImprovements:
     @pytest.mark.asyncio
     @pytest.mark.integration
     async def test_api_endpoints_with_xai(
-        self, client, test_db, mock_data_api_client, synergy_detector
+        self, client, test_db, _mock_data_api_client, synergy_detector
     ):
         """Test API endpoints return XAI explanations."""
         # First, detect synergies and store them
@@ -353,7 +351,7 @@ class TestIntegrationSynergyImprovements:
     @pytest.mark.asyncio
     @pytest.mark.integration
     async def test_rl_feedback_endpoint(
-        self, client, test_db, synergy_detector, mock_data_api_client
+        self, client, test_db, synergy_detector, _mock_data_api_client
     ):
         """Test RL feedback endpoint."""
         if not synergy_detector.rl_optimizer:
@@ -399,7 +397,7 @@ class TestIntegrationSynergyImprovements:
     @pytest.mark.asyncio
     @pytest.mark.integration
     async def test_error_handling_edge_cases(
-        self, synergy_detector, mock_data_api_client
+        self, synergy_detector, _mock_data_api_client
     ):
         """Test error handling and edge cases."""
         # Test with empty device list

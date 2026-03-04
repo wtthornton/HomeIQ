@@ -2,7 +2,7 @@
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient
@@ -27,7 +27,7 @@ def test_environment_health_includes_check_details() -> None:
             "is_connected": True,
             "error_message": None,
             "check_details": {"broker": "mqtt.local", "port": 1883},
-            "last_check": datetime.now(timezone.utc),
+            "last_check": datetime.now(UTC),
             "extra_field": "ignored",
         }
     ]

@@ -5,17 +5,13 @@ Epic 39, Story 39.8: Pattern Service Testing & Validation
 Target: 80%+ test coverage (currently 0.5%)
 """
 
-import pytest
 import sys
-import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from typing import Any, Dict, List
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import List, Dict, Any
 
-from src.synergy_detection.synergy_detector import (
-    DeviceSynergyDetector,
-    COMPATIBLE_RELATIONSHIPS
-)
+import pytest
+from src.synergy_detection.synergy_detector import COMPATIBLE_RELATIONSHIPS, DeviceSynergyDetector
 
 
 class TestDeviceSynergyDetector:
@@ -171,7 +167,7 @@ class TestDeviceSynergyDetector:
         """Test _get_devices uses cache when valid."""
         # Set cache
         detector._device_cache = sample_devices
-        detector._device_cache_timestamp = datetime.now(timezone.utc)
+        detector._device_cache_timestamp = datetime.now(UTC)
         
         devices = await detector._get_devices()
         
@@ -184,7 +180,7 @@ class TestDeviceSynergyDetector:
         """Test _get_devices refetches when cache is expired."""
         # Set expired cache
         detector._device_cache = sample_devices
-        detector._device_cache_timestamp = datetime.now(timezone.utc) - timedelta(hours=7)
+        detector._device_cache_timestamp = datetime.now(UTC) - timedelta(hours=7)
         
         new_devices = [{"device_id": "new_device"}]
         detector.data_api.fetch_devices = AsyncMock(return_value=new_devices)
@@ -222,7 +218,7 @@ class TestDeviceSynergyDetector:
     async def test_get_entities_uses_cache(self, detector, sample_entities):
         """Test _get_entities uses cache when valid."""
         detector._entity_cache = sample_entities
-        detector._entity_cache_timestamp = datetime.now(timezone.utc)
+        detector._entity_cache_timestamp = datetime.now(UTC)
         
         entities = await detector._get_entities()
         
@@ -233,7 +229,7 @@ class TestDeviceSynergyDetector:
     
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_find_device_pairs_by_area_same_area(self, detector, sample_entities):
+    async def test_find_device_pairs_by_area_same_area(self, detector, _sample_entities):
         """Test finding device pairs in the same area."""
         # Two entities in same area
         entities = [

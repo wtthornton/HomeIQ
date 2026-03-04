@@ -6,6 +6,7 @@ Extracted from ai-automation-service for independent scaling.
 """
 
 import logging
+from datetime import UTC
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -107,7 +108,7 @@ async def refresh_suggestions(
             "error_code": "<error_code>" (if failed)
         }
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     _refresh_state["status"] = "running"
     _refresh_state["error"] = None
@@ -118,7 +119,7 @@ async def refresh_suggestions(
         suggestions = await suggestion_svc.generate_suggestions(limit=10, days=30)
 
         _refresh_state["status"] = "idle"
-        _refresh_state["last_refresh"] = datetime.now(timezone.utc).isoformat()
+        _refresh_state["last_refresh"] = datetime.now(UTC).isoformat()
         _refresh_state["items_refreshed"] = len(suggestions)
 
         if len(suggestions) == 0:

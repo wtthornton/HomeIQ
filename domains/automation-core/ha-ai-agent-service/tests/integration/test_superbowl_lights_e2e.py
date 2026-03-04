@@ -11,9 +11,10 @@ when the user requests sports/score lights automation. This validates that:
 3. The assembled prompt contains score-increase pattern guidance
 """
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add project root to path (match test_chat_flow_e2e)
 project_root = Path(__file__).parent.parent.parent
@@ -21,7 +22,6 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from src.services.automation_rag_service import AutomationRAGService
-
 
 SUPER_BOWL_PROMPT = "Super Bowl lights when Seahawks score"
 

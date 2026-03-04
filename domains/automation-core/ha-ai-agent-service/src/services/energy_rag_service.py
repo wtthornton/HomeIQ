@@ -6,8 +6,8 @@ Extends RAGContextService to inject energy automation patterns when
 user prompts mention energy-related keywords (TOU, solar, battery, etc.).
 """
 
-from pathlib import Path
 import logging
+from pathlib import Path
 
 from homeiq_patterns import RAGContextService
 

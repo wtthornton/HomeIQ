@@ -7,18 +7,17 @@ Tests cover:
 - Error handling when store/query fails
 """
 
-import pytest
 import json
-from typing import Any
-from datetime import datetime, timezone
 import sys
 from pathlib import Path
+
+import pytest
 
 _project_root = str(Path(__file__).resolve().parents[3])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from homeiq_patterns import VerificationResult, VerificationWarning, VerificationResultStore
+from homeiq_patterns import VerificationResult, VerificationResultStore, VerificationWarning
 
 # Import InfluxDB store directly
 _store_path = (
@@ -28,6 +27,7 @@ _store_path = (
 sys.path.insert(0, str(_store_path.parent.parent))
 
 import importlib.util
+
 _spec = importlib.util.spec_from_file_location(
     "verification_store",
     _store_path / "verification_store.py",
@@ -52,10 +52,10 @@ class TestVerificationResultStoreInterface:
             async def store(self, result, context=None):
                 pass
 
-            async def query_failures(self, entity_id, lookback_hours=24):
+            async def query_failures(self, _entity_id, _lookback_hours=24):
                 return []
 
-            async def query_successes(self, entity_ids, lookback_hours=168):
+            async def query_successes(self, _entity_ids, _lookback_hours=168):
                 return []
 
         store = MemoryStore()
@@ -87,7 +87,7 @@ class TestInfluxDBVerificationStore:
                 "timestamp": timestamp,
             })
 
-        async def mock_query(query):
+        async def mock_query(_query):
             return query_results
 
         return InfluxDBVerificationStore(mock_write, mock_query)
@@ -178,10 +178,10 @@ class TestInfluxDBVerificationStore:
     async def test_store_handles_write_error(self, stored_points):
         """Store gracefully handles write failures."""
 
-        async def failing_write(measurement, tags, fields, timestamp):
+        async def failing_write(_measurement, _tags, _fields, _timestamp):
             raise ConnectionError("InfluxDB unavailable")
 
-        async def mock_query(query):
+        async def mock_query(_query):
             return []
 
         store = InfluxDBVerificationStore(failing_write, mock_query)
@@ -207,7 +207,7 @@ class TestInfluxDBVerificationStore:
         async def mock_write(m, t, f, ts):
             pass
 
-        async def failing_query(query):
+        async def failing_query(_query):
             raise ConnectionError("InfluxDB unavailable")
 
         store = InfluxDBVerificationStore(mock_write, failing_query)

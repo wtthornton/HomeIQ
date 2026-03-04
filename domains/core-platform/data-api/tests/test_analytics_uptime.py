@@ -5,7 +5,7 @@ Story 24.1: Fix Hardcoded Monitoring Metrics
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -19,7 +19,7 @@ from src.analytics_endpoints import calculate_service_uptime
 def test_calculate_service_uptime_returns_100():
     """Test that uptime calculation returns 100% for running service"""
     # Mock SERVICE_START_TIME to be 1 hour ago
-    start_time = datetime.utcnow() - timedelta(hours=1)
+    start_time = datetime.now(UTC) - timedelta(hours=1)
 
     with patch('src.main.SERVICE_START_TIME', start_time):
         uptime = calculate_service_uptime()
@@ -30,7 +30,7 @@ def test_calculate_service_uptime_returns_100():
 
 def test_calculate_service_uptime_handles_errors():
     """Test that uptime calculation handles errors gracefully"""
-    # SERVICE_START_TIME=None causes TypeError on (datetime.utcnow() - None), caught and returns None
+    # SERVICE_START_TIME=None causes TypeError on (datetime.now(UTC) - None), caught and returns None
     with patch('src.main.SERVICE_START_TIME', None):
         uptime = calculate_service_uptime()
 
@@ -41,7 +41,7 @@ def test_calculate_service_uptime_handles_errors():
 def test_calculate_service_uptime_recent_start():
     """Test uptime calculation for recently started service"""
     # Mock SERVICE_START_TIME to be 30 seconds ago
-    start_time = datetime.utcnow() - timedelta(seconds=30)
+    start_time = datetime.now(UTC) - timedelta(seconds=30)
 
     with patch('src.main.SERVICE_START_TIME', start_time):
         uptime = calculate_service_uptime()
@@ -52,7 +52,7 @@ def test_calculate_service_uptime_recent_start():
 
 def test_calculate_service_uptime_not_hardcoded():
     """Regression test: Ensure uptime is NOT hardcoded to 99.9"""
-    start_time = datetime.utcnow() - timedelta(hours=1)
+    start_time = datetime.now(UTC) - timedelta(hours=1)
 
     with patch('src.main.SERVICE_START_TIME', start_time):
         uptime = calculate_service_uptime()

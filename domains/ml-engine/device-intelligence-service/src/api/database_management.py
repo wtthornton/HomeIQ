@@ -5,8 +5,7 @@ API endpoints for database management and schema updates.
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -161,7 +160,7 @@ async def cleanup_database(
     try:
         logger.info("Starting database cleanup (keeping %d days)", days_to_keep)
 
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days_to_keep)
         records_deleted = 0
 
         # Clean up old predictions

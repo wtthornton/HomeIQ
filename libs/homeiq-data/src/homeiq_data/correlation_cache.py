@@ -11,11 +11,9 @@ Single-home NUC optimized:
 - Thread-safe for async usage
 """
 
-import logging
-import os
-from typing import Optional
-from datetime import datetime, timedelta
 from collections import OrderedDict
+from datetime import datetime, timedelta
+from typing import Optional
 
 from .logging_config import get_logger
 
@@ -228,7 +226,7 @@ class CorrelationCache:
         if len(self.memory_cache) > self.max_memory_size:
             self.memory_cache.popitem(last=False)  # Remove oldest
 
-    def _is_valid(self, cached: dict, ttl_seconds: int) -> bool:
+    def _is_valid(self, cached: dict, _ttl_seconds: int) -> bool:
         """Check if cached value is still valid"""
         expires_at = cached.get('expires_at')
         if expires_at is None:

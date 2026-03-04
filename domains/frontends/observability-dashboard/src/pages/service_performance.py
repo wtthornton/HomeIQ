@@ -5,7 +5,7 @@ Monitor service health and performance metrics
 
 import asyncio
 import sys
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -45,10 +45,10 @@ def show() -> None:
         )
 
         if time_range == "Custom":
-            start_time = st.datetime_input("Start Time", value=datetime.utcnow() - timedelta(hours=1))
-            end_time = st.datetime_input("End Time", value=datetime.utcnow())
+            start_time = st.datetime_input("Start Time", value=datetime.now(UTC) - timedelta(hours=1))
+            end_time = st.datetime_input("End Time", value=datetime.now(UTC))
         else:
-            end_time = datetime.utcnow()
+            end_time = datetime.now(UTC)
             if time_range == "Last hour":
                 start_time = end_time - timedelta(hours=1)
             elif time_range == "Last 6 hours":

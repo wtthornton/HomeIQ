@@ -7,7 +7,7 @@ Integrates with InfluxDB for time-series storage.
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
@@ -98,7 +98,7 @@ class MetricsCollector:
                 "has_blueprint": 1 if blueprint_id else 0,
                 "from_synergy": 1 if synergy_id else 0,
             },
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
         )
 
         await self._write_point(point)
@@ -132,7 +132,7 @@ class MetricsCollector:
                 "failure": 0 if success else 1,
                 "execution_time_ms": execution_time_ms or 0,
             },
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
         )
 
         await self._write_point(point)
@@ -161,7 +161,7 @@ class MetricsCollector:
                 "rating": rating,
                 "count": 1,
             },
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
         )
 
         await self._write_point(point)
@@ -187,7 +187,7 @@ class MetricsCollector:
             fields={
                 "count": 1,
             },
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
         )
 
         await self._write_point(point)
@@ -225,7 +225,7 @@ class MetricsCollector:
             }
         else:
             # Calculate from in-memory metrics
-            cutoff = datetime.utcnow() - timedelta(days=days)
+            cutoff = datetime.now(UTC) - timedelta(days=days)
             period_metrics = [m for m in self._in_memory_metrics if m.timestamp >= cutoff]
 
             synergy_views = len([m for m in period_metrics if m.measurement == "synergy_view"])
@@ -272,7 +272,7 @@ class MetricsCollector:
                 "target": 85.0,
             }
         else:
-            cutoff = datetime.utcnow() - timedelta(days=days)
+            cutoff = datetime.now(UTC) - timedelta(days=days)
             period_metrics = [
                 m for m in self._in_memory_metrics
                 if m.measurement == "automation_execution" and m.timestamp >= cutoff
@@ -320,7 +320,7 @@ class MetricsCollector:
                 "target": 4.0,
             }
         else:
-            cutoff = datetime.utcnow() - timedelta(days=days)
+            cutoff = datetime.now(UTC) - timedelta(days=days)
             period_metrics = [
                 m for m in self._in_memory_metrics
                 if m.measurement == "automation_rating" and m.timestamp >= cutoff
@@ -362,7 +362,7 @@ class MetricsCollector:
         Returns:
             Number of metrics removed
         """
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         original_count = len(self._in_memory_metrics)
 
         self._in_memory_metrics = [

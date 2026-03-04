@@ -138,7 +138,7 @@ class TestEventSubscriptionManager:
 
         # Register a handler
         handler_called = False
-        async def test_handler(event_data):
+        async def test_handler(_event_data):
             nonlocal handler_called
             handler_called = True
 

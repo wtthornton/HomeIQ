@@ -9,7 +9,7 @@ Epic 46, Story 46.2: Built-in Nightly Training Scheduler
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -128,7 +128,7 @@ class TrainingScheduler:
             return
 
         self.is_running = True
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             # Use mode override if set, otherwise use settings (MED-7)
@@ -156,7 +156,7 @@ class TrainingScheduler:
                 await self._run_full_training()
 
             # Update status
-            end_time = datetime.now(timezone.utc)
+            end_time = datetime.now(UTC)
             duration = (end_time - start_time).total_seconds()
             self._last_training_time = end_time
             self._last_training_status = "success"
@@ -169,7 +169,7 @@ class TrainingScheduler:
 
         except Exception as e:
             # Update error status
-            end_time = datetime.now(timezone.utc)
+            end_time = datetime.now(UTC)
             duration = (end_time - start_time).total_seconds()
             self._last_training_time = end_time
             self._last_training_status = "failed"

@@ -5,7 +5,7 @@ Manages statistics metadata tracking and entity eligibility detection.
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional
 
 from sqlalchemy import select
@@ -128,7 +128,7 @@ class StatisticsMetadataService:
             existing.unit_of_measurement = unit_of_measurement
             existing.has_mean = has_mean
             existing.has_sum = has_sum
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(UTC)
             await session.commit()
             logger.debug(f"Updated statistics metadata for {entity.entity_id}")
             return existing

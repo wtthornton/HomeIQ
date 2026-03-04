@@ -1,8 +1,7 @@
 """Tests for blueprint ranking algorithms."""
 
-import pytest
-from src.search.ranking import BlueprintRanker
 from src.models import IndexedBlueprint
+from src.search.ranking import BlueprintRanker
 
 
 class TestBlueprintRanker:

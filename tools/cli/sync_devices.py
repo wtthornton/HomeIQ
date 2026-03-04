@@ -10,12 +10,10 @@ import asyncio
 import logging
 import os
 import sys
-from datetime import datetime
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 import aiohttp
 from influxdb_client import InfluxDBClient
-from influxdb_client.client.query_api import QueryApi
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

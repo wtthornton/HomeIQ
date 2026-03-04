@@ -6,7 +6,7 @@ Manual job triggers and management endpoints.
 Epic AI-4, Story AI4.4
 """
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,7 +35,7 @@ async def trigger_manual_refresh(background_tasks: BackgroundTasks):
     return {
         "status": "triggered",
         "message": "Weekly refresh job started in background",
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(UTC).isoformat()
     }
 
 
@@ -54,11 +54,11 @@ async def get_refresh_status(db: AsyncSession = Depends(get_db_session)):
         stats = await repo.get_stats()
 
         # Calculate next refresh time (Sunday 2 AM)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if last_crawl:
             # Ensure timezone-aware comparison
             if last_crawl.tzinfo is None:
-                last_crawl = last_crawl.replace(tzinfo=timezone.utc)
+                last_crawl = last_crawl.replace(tzinfo=UTC)
             days_since = (now - last_crawl).days
         else:
             days_since = None

@@ -8,11 +8,11 @@ Epic 39, Story 39.8: Pattern Service Testing & Validation
 Phase 6.2: E2E testing for deployed verification
 """
 
-import pytest
-import httpx
-import os
 import logging
-from typing import Dict, Any, Optional
+import os
+
+import httpx
+import pytest
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +142,7 @@ class TestE2ESynergyEndpoints:
                 assert "by_type" in stats
                 assert isinstance(stats["total_synergies"], int)
     
-            async def test_list_synergies_endpoint(self, client: httpx.AsyncClient):
+            async def test_list_synergies_endpoint(self, client: httpx.AsyncClient):  # noqa: ARG001
                 """Test GET /api/v1/synergies endpoint (if exists)."""
                 # Note: Check if this endpoint exists - may be /api/v1/synergies with query params
                 response = await client.get("/api/v1/synergies?limit=10")
@@ -170,7 +170,7 @@ class TestE2EDatabaseConnectivity:
         if "database" in data:
             assert data["database"] in ["connected", "disconnected", "healthy", "unhealthy"]
     
-            async def test_database_integrity_check(self, client: httpx.AsyncClient):
+            async def test_database_integrity_check(self, client: httpx.AsyncClient):  # noqa: ARG001
                 """Test database integrity check endpoint."""
                 response = await client.get("/database/integrity")
                 assert response.status_code == 200

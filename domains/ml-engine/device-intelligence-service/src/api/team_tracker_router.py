@@ -6,7 +6,7 @@ team configuration, and entity detection.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -120,7 +120,7 @@ async def get_team_tracker_status(
         integration = TeamTrackerIntegration(
             is_installed=False,
             installation_status="not_installed",
-            last_checked=datetime.now(timezone.utc)
+            last_checked=datetime.now(UTC)
         )
         session.add(integration)
         await session.commit()
@@ -333,7 +333,7 @@ async def detect_team_tracker_entities(
 
         integration.is_installed = len(team_sensors) > 0
         integration.installation_status = "detected" if len(team_sensors) > 0 else "not_installed"
-        integration.last_checked = datetime.now(timezone.utc)
+        integration.last_checked = datetime.now(UTC)
 
         detected_teams = []
 
@@ -354,7 +354,7 @@ async def detect_team_tracker_entities(
                 if existing_team:
                     # Update existing team
                     existing_team.configured_in_ha = True
-                    existing_team.last_detected = datetime.now(timezone.utc)
+                    existing_team.last_detected = datetime.now(UTC)
                     logger.info(f"Updated existing team: {entity_id}")
                 else:
                     # Create new team entry (with minimal info from entity)
@@ -366,7 +366,7 @@ async def detect_team_tracker_entities(
                         entity_id=entity_id,
                         sensor_name=sensor_name,
                         configured_in_ha=True,
-                        last_detected=datetime.now(timezone.utc),
+                        last_detected=datetime.now(UTC),
                         is_active=True
                     )
                     session.add(new_team)
@@ -651,7 +651,7 @@ async def sync_teams_from_ha(
                 if league_logo:
                     existing_team.league_logo = league_logo
                 existing_team.configured_in_ha = True
-                existing_team.last_detected = datetime.now(timezone.utc)
+                existing_team.last_detected = datetime.now(UTC)
                 logger.info(f"Updated team from HA state: {entity_id}")
             else:
                 # Create new entry from HA state
@@ -666,7 +666,7 @@ async def sync_teams_from_ha(
                     team_logo=team_logo,
                     league_logo=league_logo,
                     configured_in_ha=True,
-                    last_detected=datetime.now(timezone.utc),
+                    last_detected=datetime.now(UTC),
                     is_active=True,
                 )
                 session.add(new_team)
@@ -706,7 +706,7 @@ async def get_diagnostics(
     logger.info("Generating Team Tracker diagnostics")
 
     diagnostics: dict[str, Any] = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "integration_status": None,
         "entity_detection": {
             "candidates_found": 0,

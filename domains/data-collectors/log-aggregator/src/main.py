@@ -4,13 +4,12 @@ import asyncio
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import aiohttp_cors
 import docker
 from aiohttp import web
-
 from homeiq_observability.logging_config import setup_logging
 
 # Configure logging
@@ -94,7 +93,7 @@ class LogAggregator:
                     stream=False
                 ).decode('utf-8', errors='ignore')
 
-            self._last_seen[container.short_id] = datetime.now(timezone.utc)
+            self._last_seen[container.short_id] = datetime.now(UTC)
 
             for line in container_logs.split('\n'):
                 log_entry = self._parse_log_line(line, container.name, container.short_id)
@@ -170,7 +169,7 @@ class LogAggregator:
 # Global log aggregator instance
 log_aggregator = LogAggregator()
 
-async def health_check(request: web.Request) -> web.Response:
+async def health_check(_request: web.Request) -> web.Response:
     """Health check endpoint"""
     is_healthy = log_aggregator.docker_client is not None
     status = "healthy" if is_healthy else "degraded"
@@ -178,7 +177,7 @@ async def health_check(request: web.Request) -> web.Response:
     return web.json_response({
         "status": status,
         "service": "log-aggregator",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "logs_collected": len(log_aggregator.aggregated_logs)
     }, status=status_code)
 
@@ -254,7 +253,7 @@ async def collect_logs_endpoint(request: web.Request) -> web.Response:
 
 def _count_recent_logs(logs: list[dict], hours: int = 1) -> int:
     """Count logs from the last N hours."""
-    cutoff = datetime.now(timezone.utc).timestamp() - (hours * 3600)
+    cutoff = datetime.now(UTC).timestamp() - (hours * 3600)
     count = 0
     for log in logs:
         try:
@@ -276,7 +275,7 @@ def _count_by_field(logs: list[dict], field: str) -> dict[str, int]:
     return counts
 
 
-async def get_log_stats(request: web.Request) -> web.Response:
+async def get_log_stats(_request: web.Request) -> web.Response:
     """Get log statistics"""
     logs = log_aggregator.aggregated_logs
     stats = {

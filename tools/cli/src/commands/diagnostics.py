@@ -1,18 +1,17 @@
 """System diagnostics CLI commands."""
 
-import typer
 import asyncio
 import socket
 import time
-from typing import Optional, Dict, Any
-from datetime import datetime
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from typing import Any, Dict
 
-from ..utils.config import load_config
+import typer
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.table import Table
+
 from ..utils.api_client import APIClient
+from ..utils.config import load_config
 from ..utils.output import OutputFormatter
 
 app = typer.Typer(name="diagnostics", help="System diagnostics commands")

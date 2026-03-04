@@ -6,7 +6,6 @@ to 'sequence' keys in choose actions, fixing the Home Assistant API error:
 "extra keys not allowed @ data['actions'][1]['then']"
 """
 
-import pytest
 import yaml
 from yaml_validation_service.normalizer import YAMLNormalizer
 

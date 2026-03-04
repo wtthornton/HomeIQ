@@ -4,7 +4,7 @@ Phase 1.2: Query HA API for device states and history
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
@@ -92,7 +92,7 @@ class HAClient:
             session = await self._get_session()
 
             if end_time is None:
-                end_time = datetime.now(timezone.utc)
+                end_time = datetime.now(UTC)
 
             # Format times for HA API
             start_str = start_time.isoformat()

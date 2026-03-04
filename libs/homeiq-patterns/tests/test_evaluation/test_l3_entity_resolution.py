@@ -6,7 +6,6 @@ resolved_context, unresolved_placeholders, and yaml_valid metadata.
 """
 
 import pytest
-
 from homeiq_patterns.evaluation.evaluators.l3_entity_resolution import (
     EntityResolutionEvaluator,
 )

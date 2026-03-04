@@ -385,7 +385,7 @@ class SyntheticCalendarGenerator:
 
     def correlate_with_devices(
         self,
-        calendar_events: list[dict[str, Any]],
+        _calendar_events: list[dict[str, Any]],
         presence_states: list[dict[str, Any]],
         device_events: list[dict[str, Any]],
         devices: list[dict[str, Any]] | None = None

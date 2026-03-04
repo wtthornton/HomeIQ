@@ -11,10 +11,8 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
-import aiohttp
 from aiohttp import ClientSession, ClientWebSocketResponse
 
 # Configure logging
@@ -173,7 +171,7 @@ class DiscoveryTrigger:
             while True:
                 elapsed = asyncio.get_event_loop().time() - start_time
                 if elapsed > timeout:
-                    raise asyncio.TimeoutError(f"Timeout waiting for message {message_id}")
+                    raise TimeoutError(f"Timeout waiting for message {message_id}")
                 
                 remaining_timeout = timeout - elapsed
                 msg = await asyncio.wait_for(websocket.receive(), timeout=remaining_timeout)
@@ -190,7 +188,7 @@ class DiscoveryTrigger:
                     logger.warning(f"Received non-text message type: {msg.type}")
                     continue
                     
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise
         except Exception as e:
             logger.error(f"Error waiting for response: {e}")

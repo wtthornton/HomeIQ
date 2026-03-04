@@ -4,14 +4,14 @@ Tests for Complex Motion-Based Automation Validation
 Tests 90-minute occupancy detection, group entity handling, and complex automation structures.
 """
 
-import pytest
-import yaml
 from unittest.mock import AsyncMock, MagicMock
 
-from src.tools.ha_tools import HAToolHandler
-from src.clients.ha_client import HomeAssistantClient
+import pytest
+import yaml
 from src.clients.data_api_client import DataAPIClient
+from src.clients.ha_client import HomeAssistantClient
 from src.clients.yaml_validation_client import YAMLValidationClient
+from src.tools.ha_tools import HAToolHandler
 
 
 @pytest.fixture

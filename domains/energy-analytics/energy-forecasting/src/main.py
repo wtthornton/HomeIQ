@@ -64,7 +64,7 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
                 call_next(request),
                 timeout=self.timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return JSONResponse(
                 status_code=504,
                 content={"detail": "Request timed out"},

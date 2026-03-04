@@ -6,8 +6,8 @@ Extends RAGContextService to inject device-specific capability patterns
 when suggesting features for specific device types (WLED, Hue, Sonoff, etc.).
 """
 
-from pathlib import Path
 import logging
+from pathlib import Path
 
 from homeiq_patterns import RAGContextService
 

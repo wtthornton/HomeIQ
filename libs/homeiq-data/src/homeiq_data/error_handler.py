@@ -5,22 +5,23 @@ Provides consistent error handling and response formatting for FastAPI applicati
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from fastapi import HTTPException, Request, status
-from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from .exceptions import (
-    HomeIQError,
-    ServiceError,
-    ValidationError,
-    NetworkError,
     AuthenticationError,
     ConfigurationError,
-    StateMachineError,
+    ConflictError,
     DatabaseError,
+    HomeIQError,
+    NetworkError,
     NotFoundError,
-    ConflictError
+    ServiceError,
+    StateMachineError,
+    ValidationError,
 )
 
 logger = logging.getLogger(__name__)

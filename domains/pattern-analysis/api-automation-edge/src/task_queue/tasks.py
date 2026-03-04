@@ -76,7 +76,7 @@ def execute_automation_task(
     trigger_data: dict | None,
     home_id: str,
     correlation_id: str,
-    spec: dict[str, Any] | None = None
+    _spec: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """
     Execute automation as Huey task.

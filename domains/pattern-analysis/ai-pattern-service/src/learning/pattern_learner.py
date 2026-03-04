@@ -10,7 +10,7 @@ addressed in future stories (shared service or API call).
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -115,7 +115,7 @@ class PatternLearner:
                             'user_satisfaction': user_satisfaction,
                             'days_active': days_active,
                             'qa_count': len(qa_pairs),
-                            'created_at': datetime.now(timezone.utc).isoformat()
+                            'created_at': datetime.now(UTC).isoformat()
                         },
                         success_score=success_score
                     )
@@ -290,7 +290,7 @@ class PatternLearner:
                 logger.warning("QAOutcome/ClarificationSessionDB models not available")
                 return {}
 
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+            cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
             # Get successful automations
             query = select(QAOutcome, ClarificationSessionDB).join(

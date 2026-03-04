@@ -4,11 +4,9 @@ Unit tests for Settings configuration.
 Tests configuration loading, validation, and edge cases.
 """
 
-import os
 import warnings
 
 import pytest
-
 from src.config import Settings
 
 

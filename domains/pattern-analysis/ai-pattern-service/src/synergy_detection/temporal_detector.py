@@ -10,7 +10,7 @@ synergy scoring with temporal context.
 import logging
 import uuid
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -153,7 +153,7 @@ class TemporalSynergyDetector:
     async def suggest_time_based_synergies(
         self,
         time_patterns: list[dict[str, Any]],
-        entities: list[dict[str, Any]]
+        _entities: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         """
         Suggest time-based synergies (e.g., lights at sunset, climate at bedtime).
@@ -272,7 +272,7 @@ class TemporalSynergyDetector:
             Seasonal adjustment factor (0.9-1.1)
         """
         if current_date is None:
-            current_date = datetime.now(timezone.utc)
+            current_date = datetime.now(UTC)
 
         month = current_date.month
 

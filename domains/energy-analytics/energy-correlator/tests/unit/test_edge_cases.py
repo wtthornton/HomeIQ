@@ -7,7 +7,7 @@ Tests for boundary conditions, edge cases, and configuration limits.
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -16,7 +16,6 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from src.correlator import EnergyEventCorrelator
-from src.main import EnergyCorrelatorService
 
 
 class TestBoundaryConditions:
@@ -62,7 +61,7 @@ class TestBoundaryConditions:
         correlator, mock_client = correlator_with_mock
         
         # Test None power value
-        power = await correlator._get_power_at_time(datetime.now(timezone.utc))
+        power = await correlator._get_power_at_time(datetime.now(UTC))
         assert power is None or isinstance(power, float)
     
     @pytest.mark.asyncio
@@ -73,7 +72,7 @@ class TestBoundaryConditions:
         # Mock power data with zero delta
         mock_client.query = AsyncMock(return_value=[
             {
-                'time': datetime.now(timezone.utc),
+                'time': datetime.now(UTC),
                 '_value': 2450.0,
                 '_measurement': 'smart_meter',
                 '_field': 'total_power_w'
@@ -83,7 +82,7 @@ class TestBoundaryConditions:
         # Build cache with same power before and after
         events = [
             {
-                'time': datetime.now(timezone.utc) - timedelta(seconds=30),
+                'time': datetime.now(UTC) - timedelta(seconds=30),
                 'entity_id': 'switch.lamp',
                 'domain': 'switch',
                 'state': 'on'
@@ -95,7 +94,7 @@ class TestBoundaryConditions:
         
         # Correlate event (should not correlate due to zero delta)
         event = {
-            'time': datetime.now(timezone.utc) - timedelta(seconds=30),
+            'time': datetime.now(UTC) - timedelta(seconds=30),
             'entity_id': 'switch.lamp',
             'domain': 'switch',
             'state': 'on',
@@ -115,13 +114,13 @@ class TestBoundaryConditions:
         # Mock power data showing decrease
         mock_client.query = AsyncMock(return_value=[
             {
-                'time': datetime.now(timezone.utc) - timedelta(seconds=35),
+                'time': datetime.now(UTC) - timedelta(seconds=35),
                 '_value': 2500.0,
                 '_measurement': 'smart_meter',
                 '_field': 'total_power_w'
             },
             {
-                'time': datetime.now(timezone.utc) - timedelta(seconds=25),
+                'time': datetime.now(UTC) - timedelta(seconds=25),
                 '_value': 2400.0,  # 100W decrease
                 '_measurement': 'smart_meter',
                 '_field': 'total_power_w'
@@ -130,7 +129,7 @@ class TestBoundaryConditions:
         
         events = [
             {
-                'time': datetime.now(timezone.utc) - timedelta(seconds=30),
+                'time': datetime.now(UTC) - timedelta(seconds=30),
                 'entity_id': 'switch.lamp',
                 'domain': 'switch',
                 'state': 'off'
@@ -141,7 +140,7 @@ class TestBoundaryConditions:
         correlator._power_cache = cache
         
         event = {
-            'time': datetime.now(timezone.utc) - timedelta(seconds=30),
+            'time': datetime.now(UTC) - timedelta(seconds=30),
             'entity_id': 'switch.lamp',
             'domain': 'switch',
             'state': 'off',
@@ -292,7 +291,7 @@ class TestTimezoneHandling:
         correlator, mock_client = correlator_with_mock
         
         # Use UTC datetime
-        utc_time = datetime.now(timezone.utc)
+        utc_time = datetime.now(UTC)
         
         mock_client.query.return_value = [
             {
@@ -311,12 +310,11 @@ class TestTimezoneHandling:
     @pytest.mark.asyncio
     async def test_timezone_aware_timestamps(self, correlator_with_mock):
         """Test handling of timezone-aware timestamps"""
-        from datetime import timezone
         
         correlator, mock_client = correlator_with_mock
         
         # Use timezone-aware datetime
-        aware_time = datetime.now(timezone.utc)
+        aware_time = datetime.now(UTC)
         
         mock_client.query.return_value = [
             {
@@ -367,7 +365,7 @@ class TestMemoryLimits:
         # Mock many events
         many_events = [
             {
-                'time': datetime.now(timezone.utc) - timedelta(seconds=i),
+                'time': datetime.now(UTC) - timedelta(seconds=i),
                 'entity_id': f'switch.lamp_{i}',
                 '_value': 'on',
                 '_measurement': 'home_assistant_events',

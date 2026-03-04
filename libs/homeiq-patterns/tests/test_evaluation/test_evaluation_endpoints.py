@@ -7,11 +7,8 @@ TestClient with the router mounted on a test app.
 
 from __future__ import annotations
 
-import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
@@ -42,7 +39,6 @@ from homeiq_patterns.evaluation import (
     EvaluationResult,
     EvaluationStore,
 )
-
 
 # ---------------------------------------------------------------------------
 # Store tests (query methods used by endpoints)

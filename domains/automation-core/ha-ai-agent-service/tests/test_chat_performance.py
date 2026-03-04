@@ -8,23 +8,21 @@ Tests performance requirements:
 - Load testing (sustained load over time)
 """
 
-import pytest
 import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
 from typing import List
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from httpx import AsyncClient
-from fastapi import FastAPI
-
+from src.api.dependencies import set_services
 from src.config import Settings
-from src.services.conversation_service import ConversationService
+from src.main import app
 from src.services.context_builder import ContextBuilder
+from src.services.conversation_service import ConversationService
 from src.services.openai_client import OpenAIClient
 from src.services.prompt_assembly_service import PromptAssemblyService
 from src.services.tool_service import ToolService
-from src.main import app
-from src.api.dependencies import set_services
 
 
 @pytest.fixture
@@ -83,7 +81,7 @@ async def prompt_assembly_service(settings, mock_context_builder, conversation_s
 @pytest.fixture
 async def test_client(
     settings,
-    mock_context_builder,
+    _mock_context_builder,
     conversation_service,
     prompt_assembly_service,
     mock_openai_client,
@@ -131,7 +129,7 @@ def create_fast_mock_completion(content: str):
 async def test_chat_response_time_performance(test_client, mock_openai_client):
     """Test that chat endpoint responds within 3 seconds"""
     # Mock fast OpenAI response (simulate 100ms latency)
-    async def fast_completion(*args, **kwargs):
+    async def fast_completion(*_args, **_kwargs):
         await asyncio.sleep(0.1)  # Simulate network latency
         return create_fast_mock_completion("Test response")
 
@@ -159,7 +157,7 @@ async def test_chat_concurrent_users(test_client, mock_openai_client):
     num_concurrent = 10
 
     # Mock fast OpenAI responses
-    async def fast_completion(*args, **kwargs):
+    async def fast_completion(*_args, **_kwargs):
         await asyncio.sleep(0.1)  # Simulate network latency
         return create_fast_mock_completion(f"Response for request")
 
@@ -205,7 +203,7 @@ async def test_chat_sustained_load(test_client, mock_openai_client):
     requests_per_second = num_requests / duration_seconds
 
     # Mock fast OpenAI responses
-    async def fast_completion(*args, **kwargs):
+    async def fast_completion(*_args, **_kwargs):
         await asyncio.sleep(0.05)  # Simulate network latency
         return create_fast_mock_completion("Sustained load response")
 
@@ -252,7 +250,7 @@ async def test_chat_error_recovery_performance(test_client, mock_openai_client):
 
     call_count = 0
 
-    async def completion_with_error(*args, **kwargs):
+    async def completion_with_error(*_args, **_kwargs):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -282,15 +280,16 @@ async def test_chat_error_recovery_performance(test_client, mock_openai_client):
 @pytest.mark.asyncio
 async def test_chat_memory_usage_stability(test_client, mock_openai_client):
     """Test that memory usage remains stable under load"""
-    import psutil
     import os
+
+    import psutil
 
     # Get initial memory usage
     process = psutil.Process(os.getpid())
     initial_memory = process.memory_info().rss / 1024 / 1024  # MB
 
     # Mock fast OpenAI responses
-    async def fast_completion(*args, **kwargs):
+    async def fast_completion(*_args, **_kwargs):
         await asyncio.sleep(0.05)
         return create_fast_mock_completion("Memory test response")
 
@@ -326,7 +325,7 @@ async def test_chat_context_refresh_performance(test_client, mock_openai_client,
     )
 
     # Mock fast OpenAI response
-    async def fast_completion(*args, **kwargs):
+    async def fast_completion(*_args, **_kwargs):
         await asyncio.sleep(0.1)
         return create_fast_mock_completion("Response with refreshed context")
 

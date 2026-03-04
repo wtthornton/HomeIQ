@@ -1,22 +1,20 @@
 """Output formatting utilities for CLI tools."""
 
+import json
+from datetime import datetime
 from typing import Any, Dict, List, Optional
+
+import yaml
+from rich import box
 from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
-from rich.text import Text
-from rich.align import Align
-from rich.columns import Columns
 from rich.layout import Layout
-from rich.live import Live
+from rich.panel import Panel
 from rich.status import Status
 from rich.syntax import Syntax
+from rich.table import Table
+from rich.text import Text
 from rich.tree import Tree
-from rich import box
-import json
-import yaml
-from datetime import datetime
+
 
 class OutputFormatter:
     """Output formatter for CLI tools."""

@@ -1,14 +1,13 @@
 """Get prompt context by debug_id"""
 import asyncio
-import json
 import sys
 
 sys.path.insert(0, '/app/src')
 
-from services.context_builder import ContextBuilder
-from services.conversation_persistence import get_conversation_by_debug_id
-from database import get_session
 from config import Settings
+from database import get_session
+from services.conversation_persistence import get_conversation_by_debug_id
+
 
 async def get_prompt(debug_id):
     settings = Settings()

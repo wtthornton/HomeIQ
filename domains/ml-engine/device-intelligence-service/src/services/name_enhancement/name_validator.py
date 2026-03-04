@@ -212,8 +212,8 @@ class NameUniquenessValidator:
     async def _generate_alternatives(
         self,
         base_name: str,
-        conflicts: list[dict[str, Any]],
-        db_session: AsyncSession
+        _conflicts: list[dict[str, Any]],
+        _db_session: AsyncSession
     ) -> list[str]:
         """Generate alternative name suggestions"""
         suggestions = []

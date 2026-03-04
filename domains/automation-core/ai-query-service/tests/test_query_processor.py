@@ -4,9 +4,9 @@ Unit tests for Query Processor Service
 Epic 39, Story 39.12: Query & Automation Service Testing
 """
 
-import pytest
 from unittest.mock import AsyncMock
 
+import pytest
 from src.services.query.processor import QueryProcessor
 
 

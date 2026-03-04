@@ -5,16 +5,16 @@ Phase 2.3: Provide setup guides and detect setup issues for new devices
 
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from homeiq_observability.logging_config import setup_logging
 from pydantic import BaseModel, field_validator
 
-from homeiq_observability.logging_config import setup_logging
 from src.ha_client import HAClient
 from src.issue_detector import SetupIssueDetector
 from src.setup_guide_generator import SetupGuideGenerator
@@ -126,7 +126,7 @@ async def health_check() -> JSONResponse:
                 "status": "degraded",
                 "service": "device-setup-assistant",
                 "reason": "Home Assistant not configured",
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
         )
     return JSONResponse(
@@ -134,7 +134,7 @@ async def health_check() -> JSONResponse:
         content={
             "status": "healthy",
             "service": "device-setup-assistant",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
     )
 
@@ -218,7 +218,7 @@ if __name__ == "__main__":
     port = int(os.getenv("DEVICE_SETUP_ASSISTANT_PORT", "8021"))
     uvicorn.run(
         "src.main:app",
-        host="0.0.0.0",
+        host="0.0.0.0",  # noqa: S104
         port=port,
         reload=os.getenv("RELOAD", "false").lower() == "true",
         log_level=os.getenv("LOG_LEVEL", "info").lower()

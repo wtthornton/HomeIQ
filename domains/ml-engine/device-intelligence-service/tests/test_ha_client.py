@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -40,15 +40,15 @@ async def test_get_device_registry_parses_devices(monkeypatch):
     assert kitchen.id == "abcd1234"
     assert kitchen.name_by_user == "Ceiling"
     assert kitchen.integration == "hue"
-    assert kitchen.created_at == datetime(2025, 1, 5, 18, 22, 11, 421235, tzinfo=timezone.utc)
-    assert kitchen.updated_at == datetime(2025, 4, 12, 9, 10, 22, tzinfo=timezone.utc)
+    assert kitchen.created_at == datetime(2025, 1, 5, 18, 22, 11, 421235, tzinfo=UTC)
+    assert kitchen.updated_at == datetime(2025, 4, 12, 9, 10, 22, tzinfo=UTC)
 
     garage = devices[1]
     assert garage.suggested_area == "garage"
     assert garage.via_device_id == "coordinator-1"
     # Float timestamps should be normalised to UTC datetimes
     assert garage.created_at.year == 2024
-    assert garage.created_at.tzinfo == timezone.utc
+    assert garage.created_at.tzinfo == UTC
 
 
 @pytest.mark.asyncio
@@ -73,7 +73,7 @@ async def test_get_entity_registry_parses_entities(monkeypatch):
     assert kitchen.entity_id == "light.kitchen_ceiling_lights"
     assert kitchen.original_icon == "mdi:ceiling-light"
     assert kitchen.has_entity_name is True
-    assert kitchen.created_at == datetime(2025, 1, 5, 18, 22, 15, tzinfo=timezone.utc)
+    assert kitchen.created_at == datetime(2025, 1, 5, 18, 22, 15, tzinfo=UTC)
 
     garage = entities[1]
     assert garage.domain == "binary_sensor"

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import OrderedDict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 
@@ -181,6 +181,6 @@ class WeatherCache:
     @staticmethod
     def _utcnow() -> datetime:
         """Return timezone-aware UTC now."""
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
 

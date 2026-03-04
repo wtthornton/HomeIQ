@@ -6,22 +6,19 @@ Tests the complete chat flow from user message to agent response,
 including tool calls, conversation persistence, and error scenarios.
 """
 
+from typing import Any, Dict
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Dict, Any
-
 from httpx import AsyncClient
-from fastapi import FastAPI
-
+from src.api.dependencies import set_services
 from src.config import Settings
-from src.services.conversation_service import ConversationService
+from src.main import app
 from src.services.context_builder import ContextBuilder
+from src.services.conversation_service import ConversationService
 from src.services.openai_client import OpenAIClient
 from src.services.prompt_assembly_service import PromptAssemblyService
 from src.services.tool_service import ToolService
-from src.main import app
-from src.api.dependencies import set_services
 
 
 @pytest.fixture
@@ -81,7 +78,7 @@ async def prompt_assembly_service(settings, mock_context_builder, conversation_s
 @pytest.fixture
 async def test_client(
     settings,
-    mock_context_builder,
+    _mock_context_builder,
     conversation_service,
     prompt_assembly_service,
     mock_openai_client,
@@ -138,8 +135,8 @@ def create_mock_completion(content: str, tool_calls=None):
 
 def create_mock_tool_call(call_id: str, name: str, arguments: Dict[str, Any]):
     """Create mock Responses API function_call item"""
-    from types import SimpleNamespace
     import json
+    from types import SimpleNamespace
 
     return SimpleNamespace(
         type="function_call",

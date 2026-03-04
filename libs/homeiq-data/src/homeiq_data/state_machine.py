@@ -8,9 +8,9 @@ This is the shared base class that all services should use for state management.
 """
 
 import logging
+from datetime import datetime
 from enum import Enum
 from typing import Dict, List
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 

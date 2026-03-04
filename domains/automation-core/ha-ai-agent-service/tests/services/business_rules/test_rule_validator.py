@@ -2,9 +2,9 @@
 Tests for rule_validator.py
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.services.business_rules.rule_validator import BusinessRuleValidator
 from src.services.entity_resolution.entity_resolution_service import EntityResolutionService
 

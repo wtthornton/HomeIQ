@@ -1,19 +1,19 @@
 """Configurable alerting system for monitoring and notifications."""
 
 import asyncio
-import json
-import smtplib
-import requests
-from typing import Dict, Any, Optional, List, Callable
-from datetime import datetime, timezone, timedelta
-from dataclasses import dataclass, asdict
-from enum import Enum
 import logging
 import os
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import smtplib
 import threading
 from collections import defaultdict
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime, timedelta
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
+import requests
 
 
 class AlertSeverity(Enum):
@@ -179,7 +179,7 @@ class WebhookNotificationChannel(NotificationChannel):
         try:
             payload = {
                 "alert": alert.to_dict(),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "source": "homeiq-monitoring"
             }
             
@@ -412,11 +412,11 @@ class AlertManager:
             return False
         
         cooldown_duration = timedelta(minutes=rule.cooldown_minutes)
-        return datetime.now(timezone.utc) - cooldown_time < cooldown_duration
+        return datetime.now(UTC) - cooldown_time < cooldown_duration
     
     def _set_cooldown(self, rule_name: str):
         """Set cooldown timer for rule."""
-        self.cooldown_timers[rule_name] = datetime.now(timezone.utc)
+        self.cooldown_timers[rule_name] = datetime.now(UTC)
     
     async def evaluate_alert(self, rule_name: str, metric_value: float) -> Optional[Alert]:
         """Evaluate a single alert rule."""
@@ -434,7 +434,7 @@ class AlertManager:
             if rule_name in self.active_alerts:
                 alert = self.active_alerts[rule_name]
                 alert.status = AlertStatus.RESOLVED
-                alert.resolved_at = datetime.now(timezone.utc).isoformat()
+                alert.resolved_at = datetime.now(UTC).isoformat()
                 del self.active_alerts[rule_name]
             return None
         
@@ -454,7 +454,7 @@ class AlertManager:
             threshold=rule.threshold,
             condition=rule.condition,
             status=AlertStatus.ACTIVE,
-            created_at=datetime.now(timezone.utc).isoformat()
+            created_at=datetime.now(UTC).isoformat()
         )
         
         with self.alert_lock:
@@ -539,7 +539,7 @@ class AlertManager:
             for alert in self.active_alerts.values():
                 if alert.alert_id == alert_id:
                     alert.status = AlertStatus.ACKNOWLEDGED
-                    alert.acknowledged_at = datetime.now(timezone.utc).isoformat()
+                    alert.acknowledged_at = datetime.now(UTC).isoformat()
                     alert.acknowledged_by = acknowledged_by
                     return True
             
@@ -547,7 +547,7 @@ class AlertManager:
             for alert in self.alert_history:
                 if alert.alert_id == alert_id:
                     alert.status = AlertStatus.ACKNOWLEDGED
-                    alert.acknowledged_at = datetime.now(timezone.utc).isoformat()
+                    alert.acknowledged_at = datetime.now(UTC).isoformat()
                     alert.acknowledged_by = acknowledged_by
                     return True
         
@@ -560,7 +560,7 @@ class AlertManager:
             for rule_name, alert in list(self.active_alerts.items()):
                 if alert.alert_id == alert_id:
                     alert.status = AlertStatus.RESOLVED
-                    alert.resolved_at = datetime.now(timezone.utc).isoformat()
+                    alert.resolved_at = datetime.now(UTC).isoformat()
                     alert.resolved_by = resolved_by
                     del self.active_alerts[rule_name]
                     return True
@@ -569,7 +569,7 @@ class AlertManager:
             for alert in self.alert_history:
                 if alert.alert_id == alert_id:
                     alert.status = AlertStatus.RESOLVED
-                    alert.resolved_at = datetime.now(timezone.utc).isoformat()
+                    alert.resolved_at = datetime.now(UTC).isoformat()
                     alert.resolved_by = resolved_by
                     return True
         

@@ -8,12 +8,11 @@ for the entire evaluation pipeline.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -47,7 +46,7 @@ class UserMessage(BaseModel):
     """A single user message within a session."""
 
     content: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     turn_index: int = 0
 
 
@@ -66,7 +65,7 @@ class AgentResponse(BaseModel):
     """A single agent response within a session."""
 
     content: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     turn_index: int = 0
     tool_calls_in_turn: list[ToolCall] = Field(default_factory=list)
 
@@ -86,7 +85,7 @@ class SessionTrace(BaseModel):
 
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     agent_name: str = ""
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     model: str = ""
     temperature: float | None = None
 
@@ -174,8 +173,8 @@ class EvalAlert(BaseModel):
     actual_score: float = 0.0
     priority: str = "warning"  # "critical" | "warning"
     status: str = "active"  # "active" | "acknowledged" | "resolved"
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     acknowledged_by: str | None = None
     note: str | None = None
 
@@ -185,7 +184,7 @@ class EvaluationReport(BaseModel):
 
     session_id: str = ""
     agent_name: str = ""
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     results: list[EvaluationResult] = Field(default_factory=list)
     summary_matrix: SummaryMatrix = Field(default_factory=SummaryMatrix)
 
@@ -220,7 +219,7 @@ class BatchReport(BaseModel):
     """Evaluation report for a batch of sessions."""
 
     agent_name: str = ""
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     sessions_evaluated: int = 0
     total_evaluations: int = 0
     reports: list[EvaluationReport] = Field(default_factory=list)

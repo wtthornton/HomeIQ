@@ -13,7 +13,6 @@ from alembic import context
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from src.config import settings  # noqa: E402
 from src.models.database import Base  # noqa: E402
 
 # --- Service-specific configuration ---

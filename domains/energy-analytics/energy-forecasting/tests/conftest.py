@@ -1,10 +1,7 @@
 """Shared test fixtures for energy forecasting service."""
 
-import json
-import pickle
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -60,7 +57,6 @@ def trained_forecaster(sample_series):
 def test_client(trained_forecaster):
     """Create a test client with a loaded model."""
     from fastapi.testclient import TestClient
-
     from src.api.routes import model_registry
     from src.main import app
 
@@ -75,7 +71,6 @@ def test_client(trained_forecaster):
 def test_client_no_model():
     """Create a test client without a loaded model."""
     from fastapi.testclient import TestClient
-
     from src.api.routes import model_registry
     from src.main import app
 

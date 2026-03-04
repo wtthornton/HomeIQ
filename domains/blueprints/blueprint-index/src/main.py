@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "src.main:app",
-        host="0.0.0.0",
+        host="0.0.0.0",  # noqa: S104
         port=settings.service_port,
         reload=True,
     )

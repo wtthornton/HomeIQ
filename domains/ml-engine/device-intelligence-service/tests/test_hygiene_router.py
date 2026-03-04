@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -42,7 +42,7 @@ async def setup_database(tmp_path_factory):
     await initialize_database(settings)
 
     # Seed sample data
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     async for session in get_db_session():
         device = Device(
             id="device-1",

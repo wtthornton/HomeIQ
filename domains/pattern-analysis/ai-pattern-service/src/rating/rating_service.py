@@ -8,7 +8,7 @@ Integrates with RL optimizer to improve recommendations based on feedback.
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
 
@@ -311,7 +311,7 @@ class RatingService:
         Returns:
             Dictionary with satisfaction metrics
         """
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
 
         # Collect all ratings in period
         period_ratings = []

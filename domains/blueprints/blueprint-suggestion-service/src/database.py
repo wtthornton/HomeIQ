@@ -10,10 +10,9 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from homeiq_data import DatabaseManager
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from homeiq_data import DatabaseManager
 
 from .config import settings
 from .models import Base

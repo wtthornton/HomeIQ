@@ -96,7 +96,7 @@ class ServiceValidator:
 
     def validate_supported_features(
         self,
-        capability: str,
+        _capability: str,
         entity_id: str,
         feature_required: str | None = None
     ) -> tuple[bool, str | None]:

@@ -8,17 +8,16 @@ Tests for end-to-end event processing pipeline from Home Assistant to InfluxDB.
 import asyncio
 import os
 import sys
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from src.connection_manager import ConnectionManager
-from src.batch_processor import BatchProcessor
 from src.async_event_processor import AsyncEventProcessor
+from src.batch_processor import BatchProcessor
 
 
 @pytest.fixture
@@ -26,7 +25,7 @@ def sample_ha_event():
     """Sample Home Assistant event"""
     return {
         'event_type': 'state_changed',
-        'time_fired': datetime.now(timezone.utc).isoformat(),
+        'time_fired': datetime.now(UTC).isoformat(),
         'data': {
             'entity_id': 'switch.living_room_lamp',
             'old_state': {'state': 'off'},

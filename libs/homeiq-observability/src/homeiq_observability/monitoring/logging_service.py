@@ -1,20 +1,20 @@
 """Structured logging service for comprehensive logging and monitoring."""
 
-import logging
-import json
-import os
-import sys
 import asyncio
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timezone
-from dataclasses import dataclass, asdict
-from enum import Enum
-from pathlib import Path
-import threading
-from queue import Queue, Empty
 import gzip
+import json
+import logging
+import os
 import shutil
+import sys
+import threading
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from enum import Enum
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
+from pathlib import Path
+from queue import Empty, Queue
+from typing import Any, Dict, List, Optional
 
 
 class LogLevel(Enum):
@@ -84,7 +84,7 @@ class StructuredLogger:
                          metadata: Optional[Dict[str, Any]] = None) -> LogEntry:
         """Create a structured log entry."""
         return LogEntry(
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             level=level,
             service=self.service_name,
             component=self.component,
@@ -250,7 +250,7 @@ class LogAggregator:
     async def _cleanup_old_entries(self):
         """Cleanup old log entries based on retention policy."""
         retention_hours = int(os.getenv('LOG_RETENTION_HOURS', '168'))  # 7 days default
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=retention_hours)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=retention_hours)
         
         with self.log_lock:
             self.log_entries = [

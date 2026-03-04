@@ -14,9 +14,7 @@ pass the yaml-validation-service pipeline. Uses minimal samples to verify:
 """
 
 import pytest
-
 from yaml_validation_service.validator import ValidationPipeline, ValidationResult
-
 
 # Minimal kickoff automation - structure from Super Bowl guide (reduced entity lists)
 KICKOFF_YAML = """

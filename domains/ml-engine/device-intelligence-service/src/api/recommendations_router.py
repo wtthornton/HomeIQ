@@ -5,7 +5,7 @@ API endpoints for optimization recommendations and impact analysis.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -162,7 +162,7 @@ async def get_all_recommendations(
                 "priority": priority,
                 "min_confidence": min_confidence
             },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -288,7 +288,7 @@ async def get_device_recommendations(
                 "priority": priority,
                 "min_confidence": min_confidence
             },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except HTTPException:
@@ -369,7 +369,7 @@ async def get_recommendation_impact_analysis(
         return {
             "impact_analysis": impact_analysis,
             "total_recommendations": len(recommendations),
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -490,7 +490,7 @@ async def apply_recommendation(
             "implementation_steps": matched.implementation_steps,
             "prerequisites": matched.prerequisites,
             "status": matched.status,
-            "applied_at": datetime.now(timezone.utc).isoformat(),
+            "applied_at": datetime.now(UTC).isoformat(),
         }
 
     except HTTPException:

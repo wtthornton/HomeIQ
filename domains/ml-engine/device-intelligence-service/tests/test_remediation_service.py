@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -48,8 +48,8 @@ async def db_setup(tmp_path_factory):
 
 
 @pytest_asyncio.fixture
-async def fresh_issue(db_setup):
-    now = datetime.now(timezone.utc)
+async def fresh_issue(_db_setup):
+    now = datetime.now(UTC)
     async for session in get_db_session():
         issue = DeviceHygieneIssue(
             issue_key="duplicate_name:test",

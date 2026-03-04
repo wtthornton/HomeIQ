@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
+
 from src.config import settings
 from src.database.models import AutomationVersion, Base, Suggestion
 

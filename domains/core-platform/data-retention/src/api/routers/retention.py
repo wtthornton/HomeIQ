@@ -6,7 +6,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Request
 
-from ..models import RetentionStatsResponse, RetentionOperationResponse
+from ..models import RetentionOperationResponse, RetentionStatsResponse
 
 logger = logging.getLogger(__name__)
 

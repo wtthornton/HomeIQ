@@ -9,9 +9,8 @@ Phase 1-3: Add missing Home Assistant 2025 API attributes to Entity and Device m
 - Device: labels, serial_number, model_id
 """
 
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import sqlite
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '008'

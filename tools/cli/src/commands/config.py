@@ -1,13 +1,14 @@
 """Configuration management CLI commands."""
 
-import typer
 import json
-from typing import Optional
 from pathlib import Path
+from typing import Optional
+
+import typer
 from rich.console import Console
 
-from ..utils.config import load_config, save_config, get_default_config_path
 from ..utils.api_client import APIClient
+from ..utils.config import get_default_config_path, load_config, save_config
 from ..utils.output import OutputFormatter
 
 app = typer.Typer(name="config", help="Configuration management commands")

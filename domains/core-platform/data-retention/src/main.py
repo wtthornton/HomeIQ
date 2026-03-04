@@ -4,7 +4,6 @@ import asyncio
 import os
 
 from dotenv import load_dotenv
-
 from homeiq_observability.logging_config import setup_logging
 
 from .backup_restore import BackupRestoreService

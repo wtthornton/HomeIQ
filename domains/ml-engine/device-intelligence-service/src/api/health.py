@@ -5,7 +5,7 @@ Health check and service status endpoints.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -43,7 +43,7 @@ class ServiceStatus(BaseModel):
 
 
 @router.get("/", response_model=HealthResponse)
-async def health_check(settings: Settings = Depends(lambda: Settings())) -> HealthResponse:
+async def health_check(_settings: Settings = Depends(lambda: Settings())) -> HealthResponse:
     """
     Basic health check endpoint.
 
@@ -88,7 +88,7 @@ async def health_check(settings: Settings = Depends(lambda: Settings())) -> Heal
 
     return HealthResponse(
         status=overall_status,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         service="Device Intelligence Service",
         version="1.0.0",
         uptime=uptime_str,
@@ -158,7 +158,7 @@ async def readiness_check() -> dict[str, Any]:
 
     return {
         "status": overall,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "checks": {
             "database": db_status,
             "cache": cache_status,
@@ -177,6 +177,6 @@ async def liveness_check() -> dict[str, Any]:
     """
     return {
         "status": "alive",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "service": "Device Intelligence Service"
     }

@@ -4,9 +4,9 @@ Unit tests for Device Mapping Library (Epic AI-24).
 Tests for base handler interface, registry, and configuration loader.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from src.device_mappings.base import DeviceHandler, DeviceType
 from src.device_mappings.config_loader import ConfigLoader
 from src.device_mappings.registry import DeviceMappingRegistry
@@ -22,18 +22,18 @@ class MockHandler(DeviceHandler):
         self.get_relationships_called = False
         self.enrich_context_called = False
     
-    def can_handle(self, device: dict) -> bool:
+    def can_handle(self, _device: dict) -> bool:
         return self.can_handle_result
     
-    def identify_type(self, device: dict, entity: dict) -> DeviceType:
+    def identify_type(self, _device: dict, _entity: dict) -> DeviceType:
         self.identify_type_called = True
         return DeviceType.INDIVIDUAL
     
-    def get_relationships(self, device: dict, entities: list) -> dict:
+    def get_relationships(self, _device: dict, _entities: list) -> dict:
         self.get_relationships_called = True
         return {}
     
-    def enrich_context(self, device: dict, entity: dict) -> dict:
+    def enrich_context(self, _device: dict, _entity: dict) -> dict:
         self.enrich_context_called = True
         return {}
 
@@ -187,7 +187,7 @@ class TestConfigLoader:
     @patch("src.device_mappings.config_loader.Path.exists")
     @patch("builtins.open", create=True)
     @patch("src.device_mappings.config_loader.yaml")
-    def test_load_config_success(self, mock_yaml, mock_open, mock_exists):
+    def test_load_config_success(self, mock_yaml, _mock_open, mock_exists):
         """Test loading a configuration file."""
         mock_exists.return_value = True
         mock_yaml.safe_load.return_value = {"device_type": "hue", "manufacturer": "signify"}
@@ -210,7 +210,7 @@ class TestConfigLoader:
     @patch("src.device_mappings.config_loader.Path.exists")
     @patch("builtins.open", create=True)
     @patch("src.device_mappings.config_loader.yaml")
-    def test_load_config_yaml_none(self, mock_yaml, mock_open, mock_exists):
+    def test_load_config_yaml_none(self, mock_yaml, _mock_open, mock_exists):
         """Test loading a configuration file that returns None."""
         mock_exists.return_value = True
         mock_yaml.safe_load.return_value = None

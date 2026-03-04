@@ -6,7 +6,7 @@ Simplified pattern storage operations (full history tracking in later stories).
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 async def store_patterns(
     db: AsyncSession,
     patterns: list[dict],
-    time_window_days: int = 30,
+    _time_window_days: int = 30,
     automation_validator: Any | None = None
 ) -> int:
     """
@@ -51,7 +51,7 @@ async def store_patterns(
             return await _store_patterns_raw_sql(db, patterns)
 
         stored_count = 0
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Validate external data patterns against automations if validator provided
         if automation_validator:
@@ -129,7 +129,7 @@ async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int
     from sqlalchemy import text
 
     stored_count = 0
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     for pattern_data in patterns:
         try:

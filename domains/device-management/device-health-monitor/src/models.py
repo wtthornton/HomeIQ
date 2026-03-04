@@ -3,7 +3,6 @@ Health Report Models
 Phase 1.2: Data models for device health reports
 """
 
-from datetime import datetime
 from enum import Enum
 from typing import Any
 

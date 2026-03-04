@@ -4,15 +4,13 @@ Tests for Home Assistant Tool Handlers
 Tests individual tool implementations.
 """
 
-import pytest
-import yaml
 from unittest.mock import AsyncMock, MagicMock
 
-from src.tools.ha_tools import HAToolHandler
-from src.clients.ha_client import HomeAssistantClient
-from src.clients.data_api_client import DataAPIClient
+import pytest
 from src.clients.ai_automation_client import AIAutomationClient
-from src.models.automation_models import ValidationResult
+from src.clients.data_api_client import DataAPIClient
+from src.clients.ha_client import HomeAssistantClient
+from src.tools.ha_tools import HAToolHandler
 
 
 @pytest.fixture
@@ -166,7 +164,7 @@ action:
 
 
 @pytest.mark.asyncio
-async def test_preview_automation_with_consolidated_validation(tool_handler_with_validation, mock_ai_automation_client):
+async def test_preview_automation_with_consolidated_validation(tool_handler_with_validation, _mock_ai_automation_client):
     """Test preview automation using consolidated validation endpoint"""
     valid_yaml = """
 alias: Test Automation

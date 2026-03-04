@@ -10,6 +10,7 @@ based on training service structure.
 
 import json
 import logging
+from datetime import UTC
 from typing import Any
 
 try:
@@ -265,8 +266,8 @@ Return the home data as JSON matching the schema."""
             self._validate_home_schema(home_data)
 
             # Add generated_at timestamp
-            from datetime import datetime, timezone
-            home_data['generated_at'] = datetime.now(timezone.utc).isoformat()
+            from datetime import datetime
+            home_data['generated_at'] = datetime.now(UTC).isoformat()
             home_data['home_index'] = home_index
 
             self.success_count += 1

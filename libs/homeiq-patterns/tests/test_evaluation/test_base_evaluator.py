@@ -3,7 +3,6 @@ Tests for E1.S3: BaseEvaluator + Level Classes (shared/patterns/evaluation/base_
 """
 
 import pytest
-
 from homeiq_patterns.evaluation.base_evaluator import (
     BaseEvaluator,
     DetailsEvaluator,
@@ -20,7 +19,6 @@ from homeiq_patterns.evaluation.models import (
     UserMessage,
 )
 
-
 # ---------------------------------------------------------------------------
 # Concrete test implementations
 # ---------------------------------------------------------------------------
@@ -29,14 +27,14 @@ from homeiq_patterns.evaluation.models import (
 class AlwaysPassOutcomeEvaluator(OutcomeEvaluator):
     name = "always_pass_outcome"
 
-    async def evaluate(self, session: SessionTrace) -> EvaluationResult:
+    async def evaluate(self, _session: SessionTrace) -> EvaluationResult:
         return self._result(score=1.0, label="Yes", explanation="Always passes")
 
 
 class AlwaysFailPathEvaluator(PathEvaluator):
     name = "always_fail_path"
 
-    async def evaluate(self, session: SessionTrace) -> EvaluationResult:
+    async def evaluate(self, _session: SessionTrace) -> EvaluationResult:
         return self._result(score=0.0, label="Wrong", explanation="Always fails")
 
 
@@ -54,14 +52,14 @@ class SimpleDetailsEvaluator(DetailsEvaluator):
 class SimpleQualityEvaluator(QualityEvaluator):
     name = "simple_quality"
 
-    async def evaluate(self, session: SessionTrace) -> EvaluationResult:
+    async def evaluate(self, _session: SessionTrace) -> EvaluationResult:
         return self._result(score=0.75, label="Good")
 
 
 class SimpleSafetyEvaluator(SafetyEvaluator):
     name = "simple_safety"
 
-    async def evaluate(self, session: SessionTrace) -> EvaluationResult:
+    async def evaluate(self, _session: SessionTrace) -> EvaluationResult:
         return self._result(score=1.0, label="Safe", passed=True)
 
 

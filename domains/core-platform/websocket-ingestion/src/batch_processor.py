@@ -7,7 +7,7 @@ import contextlib
 import logging
 from collections import deque
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .state_machine import InvalidStateTransition, ProcessingState, ProcessingStateMachine
@@ -74,7 +74,7 @@ class BatchProcessor:
         self.total_batches_processed = 0
         self.total_events_processed = 0
         self.total_events_failed = 0
-        self.processing_start_time = datetime.now(timezone.utc)
+        self.processing_start_time = datetime.now(UTC)
 
         # Performance monitoring
         self.batch_processing_times: deque = deque(maxlen=100)
@@ -105,7 +105,7 @@ class BatchProcessor:
             if current_state == ProcessingState.STOPPED or current_state == ProcessingState.ERROR:
                 self.state_machine.transition(ProcessingState.STARTING)
 
-            self.processing_start_time = datetime.now(timezone.utc)
+            self.processing_start_time = datetime.now(UTC)
 
             # Start processing task
             self.processing_task = asyncio.create_task(self._processing_loop())
@@ -169,7 +169,7 @@ class BatchProcessor:
 
             # Set batch start time if this is the first event
             elif self.batch_start_time is None:
-                self.batch_start_time = datetime.now(timezone.utc)
+                self.batch_start_time = datetime.now(UTC)
 
         if batch_to_process:
             await self._process_batch_with_metrics(batch_to_process)
@@ -223,9 +223,9 @@ class BatchProcessor:
             return
 
         # Process the batch
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
         success = await self._process_batch(batch_to_process)
-        processing_time = (datetime.now(timezone.utc) - start_time).total_seconds()
+        processing_time = (datetime.now(UTC) - start_time).total_seconds()
 
         # Update statistics
         self.batch_processing_times.append(processing_time)
@@ -314,7 +314,7 @@ class BatchProcessor:
 
     def get_processing_statistics(self) -> dict[str, Any]:
         """Get processing statistics"""
-        uptime = (datetime.now(timezone.utc) - self.processing_start_time).total_seconds()
+        uptime = (datetime.now(UTC) - self.processing_start_time).total_seconds()
 
         # Calculate average batch size
         avg_batch_size = 0
@@ -365,7 +365,7 @@ class BatchProcessor:
         self.total_batches_processed = 0
         self.total_events_processed = 0
         self.total_events_failed = 0
-        self.processing_start_time = datetime.now(timezone.utc)
+        self.processing_start_time = datetime.now(UTC)
         self.batch_processing_times.clear()
         self.batch_sizes.clear()
         self.processing_rates.clear()

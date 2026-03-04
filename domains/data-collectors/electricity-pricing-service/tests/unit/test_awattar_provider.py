@@ -4,11 +4,10 @@ Tests API response parsing, price calculations, forecast building, and edge case
 Epic 49 Story 49.6: Provider-Specific Testing
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from src.providers.awattar import AwattarProvider
 
 
@@ -21,7 +20,7 @@ def awattar_provider():
 @pytest.fixture
 def mock_awattar_response():
     """Mock Awattar API response with valid data"""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     base_timestamp = int(now.timestamp() * 1000)
     
     # Create 24 hours of market data
@@ -121,8 +120,8 @@ class TestPriceCalculation:
         # Market price: 2850 centi-euro = 0.285 €/kWh
         mock_data = {
             'data': [{
-                'start_timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
-                'end_timestamp': int(datetime.now(timezone.utc).timestamp() * 1000) + 3600000,
+                'start_timestamp': int(datetime.now(UTC).timestamp() * 1000),
+                'end_timestamp': int(datetime.now(UTC).timestamp() * 1000) + 3600000,
                 'marketprice': 2850
             }]
         }
@@ -141,8 +140,8 @@ class TestPriceCalculation:
         # Market price: 5000 centi-euro = 0.50 €/kWh
         mock_data = {
             'data': [{
-                'start_timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
-                'end_timestamp': int(datetime.now(timezone.utc).timestamp() * 1000) + 3600000,
+                'start_timestamp': int(datetime.now(UTC).timestamp() * 1000),
+                'end_timestamp': int(datetime.now(UTC).timestamp() * 1000) + 3600000,
                 'marketprice': 5000
             }]
         }
@@ -161,8 +160,8 @@ class TestPriceCalculation:
         # Market price: 1000 centi-euro = 0.10 €/kWh
         mock_data = {
             'data': [{
-                'start_timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
-                'end_timestamp': int(datetime.now(timezone.utc).timestamp() * 1000) + 3600000,
+                'start_timestamp': int(datetime.now(UTC).timestamp() * 1000),
+                'end_timestamp': int(datetime.now(UTC).timestamp() * 1000) + 3600000,
                 'marketprice': 1000
             }]
         }
@@ -190,7 +189,7 @@ class TestForecastBuilding:
             assert 'price' in hour_data
             assert 'timestamp' in hour_data
             assert isinstance(hour_data['timestamp'], datetime)
-            assert hour_data['timestamp'].tzinfo == timezone.utc
+            assert hour_data['timestamp'].tzinfo == UTC
     
     @pytest.mark.asyncio
     async def test_forecast_less_than_24_hours(self, awattar_provider):
@@ -200,7 +199,7 @@ class TestForecastBuilding:
         THEN: Should only include available hours
         """
         # Only 12 hours of data
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         base_timestamp = int(now.timestamp() * 1000)
         
         market_data = []
@@ -224,7 +223,7 @@ class TestForecastBuilding:
         THEN: Should only include first 24 hours
         """
         # 36 hours of data
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         base_timestamp = int(now.timestamp() * 1000)
         
         market_data = []
@@ -304,7 +303,7 @@ class TestPeakPeriodDetection:
         THEN: Should return True
         """
         # Create data where current price (first entry) is high
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         base_timestamp = int(now.timestamp() * 1000)
         
         market_data = [
@@ -327,7 +326,7 @@ class TestPeakPeriodDetection:
         THEN: Should return False
         """
         # Create data where current price (first entry) is low
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         base_timestamp = int(now.timestamp() * 1000)
         
         market_data = [
@@ -408,7 +407,7 @@ class TestEdgeCases:
         WHEN: Parse response
         THEN: Should handle gracefully (KeyError expected)
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         base_timestamp = int(now.timestamp() * 1000)
         
         market_data = [{
@@ -448,7 +447,7 @@ class TestEdgeCases:
         WHEN: Calculate price
         THEN: Should return 0.0
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         base_timestamp = int(now.timestamp() * 1000)
         
         market_data = [{
@@ -469,7 +468,7 @@ class TestEdgeCases:
         WHEN: Calculate price
         THEN: Should return negative price
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         base_timestamp = int(now.timestamp() * 1000)
         
         market_data = [{

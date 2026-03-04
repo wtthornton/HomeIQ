@@ -6,7 +6,7 @@ API endpoints for device health scoring and monitoring.
 
 import logging
 import statistics
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -125,7 +125,7 @@ async def get_all_health_scores(
                 "max_score": max_score,
                 "health_status": health_status
             },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -184,7 +184,7 @@ async def get_device_health_trends(
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
 
         # Get historical metrics for the specified period
-        cutoff_time = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff_time = datetime.now(UTC) - timedelta(days=days)
         historical_metrics = device_state_tracker.get_device_metrics(device_id, limit=1000)
 
         # Filter by time range
@@ -202,7 +202,7 @@ async def get_device_health_trends(
                     "time_range": f"{days} days",
                     "message": "No data available for the specified time range"
                 },
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
 
         # Calculate health scores for each data point
@@ -251,7 +251,7 @@ async def get_device_health_trends(
                 "max_score": max_score,
                 "trend_direction": trend_direction
             },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except HTTPException:
@@ -281,7 +281,7 @@ async def compare_device_health_scores(
                     "total_devices": 0,
                     "message": "No devices found for comparison"
                 },
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
 
         # Calculate health scores for each device
@@ -351,7 +351,7 @@ async def compare_device_health_scores(
                 "top_performers": top_performers,
                 "bottom_performers": bottom_performers
             },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -372,7 +372,7 @@ async def get_health_summary():
                     "total_devices": 0,
                     "message": "No devices found"
                 },
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
 
         # Calculate health scores for all devices
@@ -406,7 +406,7 @@ async def get_health_summary():
 
         return {
             "summary": summary,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -424,7 +424,7 @@ async def calculate_device_health_score(device_id: str, metrics: dict[str, Any])
         return {
             "status": "success",
             "health_score": health_score,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:

@@ -10,8 +10,7 @@ Responsibilities:
 
 import logging
 import os
-from contextlib import asynccontextmanager, suppress
-from pathlib import Path
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware

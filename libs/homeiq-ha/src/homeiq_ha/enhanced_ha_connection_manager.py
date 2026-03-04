@@ -24,17 +24,15 @@ Usage:
             pass
 """
 
-import asyncio
 import logging
 import os
 import time
-from typing import Optional, Dict, Any, List, Tuple
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
 import aiohttp
-import websockets
-from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +131,7 @@ class CircuitBreaker:
                 self.failures = 0
                 logger.info(f"Circuit breaker {self.name} transitioning to CLOSED after {self.successes} successes")
     
-    def record_failure(self, error: Exception):
+    def record_failure(self, _error: Exception):
         """Record a failed operation"""
         self.failures += 1
         self.last_failure_time = datetime.now()
@@ -437,7 +435,7 @@ class EnhancedHAConnectionManager:
                 f"Client error - {str(e)}"
             )
             return False
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 f"❌ Connection test timed out for {config.name} ({http_url or config.url}) "
                 f"after {config.timeout}s"

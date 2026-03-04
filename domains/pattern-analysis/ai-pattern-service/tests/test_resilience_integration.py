@@ -6,8 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pandas as pd
 import pytest
-
-from homeiq_resilience import CircuitBreaker, CircuitOpenError, CrossGroupClient
+from homeiq_resilience import CircuitOpenError, CrossGroupClient
 
 
 def _make_client():

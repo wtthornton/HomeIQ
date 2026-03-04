@@ -4,10 +4,10 @@ Tests for AI Automation Service Client
 Tests the HTTP client for calling the consolidated YAML validation endpoint.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
-import httpx
+from unittest.mock import MagicMock, patch
 
+import httpx
+import pytest
 from src.clients.ai_automation_client import AIAutomationClient
 
 

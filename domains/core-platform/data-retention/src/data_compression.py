@@ -9,7 +9,7 @@ import logging
 import lzma
 import zlib
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from functools import partial
 from typing import Any
@@ -37,7 +37,7 @@ class CompressionResult:
 
     def __post_init__(self):
         if self.compression_timestamp is None:
-            self.compression_timestamp = datetime.now(timezone.utc)
+            self.compression_timestamp = datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert result to dictionary."""
@@ -114,7 +114,7 @@ class DataCompressionService:
         Returns:
             CompressionResult: Result of compression operation
         """
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
         original_size = len(data)
 
         try:
@@ -136,7 +136,7 @@ class DataCompressionService:
 
             compressed_size = len(compressed_data)
             compression_ratio = compressed_size / original_size if original_size > 0 else 1.0
-            compression_duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            compression_duration = (datetime.now(UTC) - start_time).total_seconds()
 
             result = CompressionResult(
                 algorithm=algorithm,
@@ -157,7 +157,7 @@ class DataCompressionService:
             return result
 
         except Exception as e:
-            compression_duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            compression_duration = (datetime.now(UTC) - start_time).total_seconds()
             result = CompressionResult(
                 algorithm=algorithm,
                 original_size_bytes=original_size,
@@ -254,7 +254,7 @@ class DataCompressionService:
             ]
 
         try:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_old)
+            cutoff_date = datetime.now(UTC) - timedelta(days=days_old)
 
             # Query InfluxDB for old data
             query = f"""

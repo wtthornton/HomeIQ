@@ -3,7 +3,7 @@ Tests for Health Check Handler
 Epic 31, Story 31.1
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -11,7 +11,7 @@ from src.health_check import HealthCheckHandler
 
 
 def _healthy_service_stub():
-    now = datetime.utcnow().replace(tzinfo=timezone.utc)
+    now = datetime.now(UTC).replace(tzinfo=UTC)
     task = SimpleNamespace(
         done=lambda: False,
         cancelled=lambda: False
@@ -79,7 +79,7 @@ async def test_health_check_tracks_uptime():
 def test_get_uptime_seconds():
     """Test uptime calculation"""
     handler = HealthCheckHandler(service_name="weather-api", version="test")
-    handler.start_time = datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(seconds=100)
+    handler.start_time = datetime.now(UTC).replace(tzinfo=UTC) - timedelta(seconds=100)
 
     uptime = handler.get_uptime_seconds()
 

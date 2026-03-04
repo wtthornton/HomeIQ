@@ -9,12 +9,11 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
 import pandas as pd
-
 from homeiq_resilience import CircuitBreaker, CircuitOpenError, CrossGroupClient
 
 logger = logging.getLogger(__name__)
@@ -70,9 +69,9 @@ class DataAPIClient:
         """Fetch historical events from Data API."""
         try:
             if start_time is None:
-                start_time = datetime.now(timezone.utc) - timedelta(days=7)
+                start_time = datetime.now(UTC) - timedelta(days=7)
             if end_time is None:
-                end_time = datetime.now(timezone.utc)
+                end_time = datetime.now(UTC)
 
             params: dict[str, Any] = {
                 "start_time": start_time.isoformat(),
@@ -118,7 +117,7 @@ class DataAPIClient:
                     timestamp = pd.to_datetime(timestamp_str)
                 else:
                     timestamp = pd.to_datetime(
-                        event.get("_time", datetime.now(timezone.utc))
+                        event.get("_time", datetime.now(UTC))
                     )
 
                 entity_id_val = event.get("entity_id", "")

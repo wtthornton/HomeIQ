@@ -11,19 +11,18 @@ This test validates:
 4. State restoration pattern is used
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 # Add src to path for imports
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from services.context_builder import ContextBuilder
-from services.prompt_assembly_service import PromptAssemblyService
 from config import Settings
+from services.context_builder import ContextBuilder
 
 
 @pytest.fixture

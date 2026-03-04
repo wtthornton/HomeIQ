@@ -7,10 +7,8 @@ Tests for WebSocket message validation, rate limiting, and SSL configuration.
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
-
-import pytest
+from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
@@ -200,7 +198,7 @@ class TestRateLimiter:
         # Wait for window to expire (mock time)
         with patch('src.security.datetime') as mock_datetime:
             # Set current time to 2 seconds in the future
-            future_time = datetime.now(timezone.utc) + timedelta(seconds=2)
+            future_time = datetime.now(UTC) + timedelta(seconds=2)
             mock_datetime.now.return_value = future_time
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw) if args else future_time
             

@@ -15,9 +15,8 @@ from typing import Any
 
 import aiohttp
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, HttpUrl
-
 from homeiq_data.influxdb_query_client import InfluxDBQueryClient
+from pydantic import BaseModel, HttpUrl
 
 from .flux_utils import sanitize_flux_value
 

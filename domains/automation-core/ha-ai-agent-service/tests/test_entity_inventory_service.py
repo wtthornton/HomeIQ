@@ -1,11 +1,11 @@
 """Tests for Entity Inventory Service"""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.services.entity_inventory_service import EntityInventoryService
+import pytest
 from src.config import Settings
 from src.services.context_builder import ContextBuilder
+from src.services.entity_inventory_service import EntityInventoryService
 
 
 @pytest.fixture

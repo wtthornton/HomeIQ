@@ -1,10 +1,11 @@
 """SQLAlchemy models for Blueprint Index Service."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Column,
     DateTime,
@@ -12,7 +13,6 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
-    JSON,
     String,
     Text,
 )
@@ -84,9 +84,9 @@ class IndexedBlueprint(Base):
     blueprint_version = Column(String(20))
 
     # Timestamps
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    indexed_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    indexed_at = Column(DateTime, default=lambda: datetime.now(UTC))
     last_checked_at = Column(DateTime)
 
     # Full YAML content
@@ -194,7 +194,7 @@ class IndexingJob(Base):
     # Timestamps
     started_at = Column(DateTime)
     completed_at = Column(DateTime)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     # Error info
     error_message = Column(Text)

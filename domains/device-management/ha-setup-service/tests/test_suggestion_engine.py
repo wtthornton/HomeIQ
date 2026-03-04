@@ -143,7 +143,7 @@ async def test_keyword_extraction(suggestion_engine):
 
 
 @pytest.mark.asyncio
-async def test_confidence_calculation(suggestion_engine, mock_areas):
+async def test_confidence_calculation(suggestion_engine, _mock_areas):
     """Test confidence calculation logic"""
     confidence, reasoning = suggestion_engine._calculate_confidence(
         entity_id="light.office_desk",

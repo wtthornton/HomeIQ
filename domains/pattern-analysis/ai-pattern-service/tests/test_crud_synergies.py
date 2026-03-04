@@ -4,11 +4,10 @@ Unit tests for Synergy CRUD operations
 Epic 39, Story 39.8: Pattern Service Testing & Validation
 """
 
-import pytest
-from datetime import datetime, timezone
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.crud.synergies import store_synergy_opportunities, get_synergy_opportunities
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+from src.crud.synergies import get_synergy_opportunities, store_synergy_opportunities
 
 
 class TestSynergyCRUD:

@@ -5,13 +5,14 @@ Epic 17.3: Essential Performance Metrics
 Lightweight metrics collection for service monitoring without external dependencies.
 """
 
-import time
-import psutil
 import logging
-from typing import Dict, Any, Optional, Callable
-from datetime import datetime
-from functools import wraps
+import time
 from contextlib import contextmanager
+from datetime import UTC, datetime
+from functools import wraps
+from typing import Any, Callable, Dict, Optional
+
+import psutil
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +165,7 @@ class MetricsCollector:
             Dictionary of system metrics
         """
         metrics = {
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'timestamp': datetime.now(UTC).isoformat() + 'Z',
             'uptime_seconds': time.time() - self.start_time
         }
         
@@ -216,7 +217,7 @@ class MetricsCollector:
         
         return {
             'service': self.service_name,
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'timestamp': datetime.now(UTC).isoformat() + 'Z',
             'uptime_seconds': time.time() - self.start_time,
             'counters': dict(self.counters),
             'gauges': dict(self.gauges),

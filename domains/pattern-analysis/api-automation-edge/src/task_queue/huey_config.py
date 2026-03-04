@@ -8,8 +8,6 @@ import logging
 
 from huey import MemoryHuey
 
-from ..config import settings
-
 logger = logging.getLogger(__name__)
 
 

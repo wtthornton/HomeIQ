@@ -10,17 +10,17 @@ Tests cover:
 - get_context_for_domains() direct lookup
 """
 
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pytest
 
 _project_root = str(Path(__file__).resolve().parents[3])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from homeiq_patterns import RAGContextService, RAGContextRegistry
+from homeiq_patterns import RAGContextRegistry, RAGContextService
 from homeiq_patterns.rag_context_registry import DEFAULT_TOKEN_BUDGET
-
 
 # --- Test fixtures ---
 

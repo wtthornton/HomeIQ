@@ -14,7 +14,7 @@ Dependencies:
 import json
 import logging
 import random
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -666,7 +666,7 @@ if TORCH_AVAILABLE:
             # Save metadata
             metadata_path = save_path.parent / f"{save_path.stem}_metadata.json"
             metadata = {
-                'training_date': datetime.utcnow().isoformat(),
+                'training_date': datetime.now(UTC).isoformat(),
                 'hidden_dim': self.hidden_dim,
                 'num_layers': self.num_layers,
                 **self.metadata

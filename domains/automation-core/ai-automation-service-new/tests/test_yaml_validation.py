@@ -8,6 +8,7 @@ Tests for YAML validation, cleaning, and entity validation in YAML generation se
 from unittest.mock import AsyncMock
 
 import pytest
+
 from src.clients.data_api_client import DataAPIClient
 from src.clients.openai_client import OpenAIClient
 from src.database.models import Suggestion

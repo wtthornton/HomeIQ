@@ -33,7 +33,7 @@ class HueHandler(DeviceHandler):
         manufacturer = device.get("manufacturer", "").lower()
         return manufacturer in ["signify", "philips"]
 
-    def identify_type(self, device: dict[str, Any], entity: dict[str, Any]) -> DeviceType:
+    def identify_type(self, device: dict[str, Any], _entity: dict[str, Any]) -> DeviceType:
         """
         Identify the device type (group or individual).
 

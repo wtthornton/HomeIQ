@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import yaml
@@ -174,9 +174,9 @@ class BlueprintParser:
                 has_inputs=bool(inputs),
                 author=author,
                 ha_min_version=ha_min_version,
-                created_at=created_at or datetime.now(timezone.utc),
-                updated_at=updated_at or datetime.now(timezone.utc),
-                indexed_at=datetime.now(timezone.utc),
+                created_at=created_at or datetime.now(UTC),
+                updated_at=updated_at or datetime.now(UTC),
+                indexed_at=datetime.now(UTC),
                 yaml_content=yaml_content,
             )
 

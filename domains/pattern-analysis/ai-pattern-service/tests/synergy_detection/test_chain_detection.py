@@ -8,18 +8,18 @@ Tests the chain detection functionality including:
 - Cross-area chain validation
 """
 
-import pytest
+import sys
 import uuid
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
-import sys
-from pathlib import Path
+import pytest
 
 # Add src/synergy_detection to path directly (avoid __init__.py import issues)
 src_path = Path(__file__).parent.parent.parent / "src" / "synergy_detection"
 sys.path.insert(0, str(src_path))
 
-from chain_detection import ChainDetector, TOP_PAIRS_FOR_CHAINS
+from chain_detection import TOP_PAIRS_FOR_CHAINS, ChainDetector
 
 
 class TestChainDetector:

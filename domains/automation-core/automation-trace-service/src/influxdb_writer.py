@@ -8,7 +8,7 @@ them to the existing `home_assistant_events` bucket.
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from influxdb_client_3 import InfluxDBClient3, Point
@@ -42,7 +42,7 @@ class InfluxDBTraceWriter:
                 org=config.INFLUXDB_ORG,
             )
             # Verify with a write-path ping (InfluxDB 2.x doesn't support Arrow Flight queries)
-            test_point = Point("automation_traces").tag("automation_id", "_healthcheck").field("run_id", "test").time(datetime.now(timezone.utc))
+            test_point = Point("automation_traces").tag("automation_id", "_healthcheck").field("run_id", "test").time(datetime.now(UTC))
             await asyncio.to_thread(self.client.write, test_point)
             logger.info("InfluxDB connection verified at %s", config.INFLUXDB_URL)
             return True
@@ -128,7 +128,7 @@ class InfluxDBTraceWriter:
             try:
                 await asyncio.to_thread(self.client.write, point)
                 self.write_success_count += 1
-                self.last_write = datetime.now(timezone.utc)
+                self.last_write = datetime.now(UTC)
                 self.last_write_error = None
                 return
             except Exception as e:

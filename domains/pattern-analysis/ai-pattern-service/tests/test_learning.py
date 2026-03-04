@@ -4,13 +4,12 @@ Unit tests for Learning modules
 Epic 39, Story 39.8: Pattern Service Testing & Validation
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 
-from src.learning.pattern_rlhf import PatternRLHF
-from src.learning.pattern_quality_scorer import PatternQualityScorer
+import pytest
 from src.learning.ensemble_quality_scorer import EnsembleQualityScorer
 from src.learning.fbvl_quality_scorer import FBVLQualityScorer
+from src.learning.pattern_quality_scorer import PatternQualityScorer
+from src.learning.pattern_rlhf import PatternRLHF
 
 
 class TestPatternRLHF:

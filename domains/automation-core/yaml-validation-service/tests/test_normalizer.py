@@ -2,7 +2,6 @@
 Tests for YAML Normalizer (Epic 51, Story 51.3)
 """
 
-import pytest
 from yaml_validation_service.normalizer import YAMLNormalizer
 
 

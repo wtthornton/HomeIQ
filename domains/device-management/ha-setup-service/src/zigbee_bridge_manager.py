@@ -15,7 +15,7 @@ import asyncio
 import logging
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 
 import aiohttp
@@ -114,7 +114,7 @@ class ZigbeeBridgeManager:
             return BridgeHealthStatus(
                 bridge_state=bridge_state,
                 is_connected=integration_result.is_connected,
-                last_check=datetime.now(timezone.utc),
+                last_check=datetime.now(UTC),
                 metrics=metrics,
                 recovery_attempts=list(self.recovery_history)[-5:],  # Last 5 attempts
                 consecutive_failures=self._count_consecutive_failures(),
@@ -127,7 +127,7 @@ class ZigbeeBridgeManager:
             return BridgeHealthStatus(
                 bridge_state=BridgeState.ERROR,
                 is_connected=False,
-                last_check=datetime.now(timezone.utc),
+                last_check=datetime.now(UTC),
                 metrics=BridgeMetrics(response_time_ms=0, device_count=0),
                 consecutive_failures=self._count_consecutive_failures(),
                 health_score=0,
@@ -137,7 +137,7 @@ class ZigbeeBridgeManager:
     async def _get_bridge_metrics(self) -> BridgeMetrics:
         """Get detailed bridge performance metrics"""
         try:
-            start_time = datetime.now(timezone.utc)
+            start_time = datetime.now(UTC)
 
             session = await get_http_session()
             headers = {
@@ -152,7 +152,7 @@ class ZigbeeBridgeManager:
                 timeout=aiohttp.ClientTimeout(total=10)
             ) as response:
                 # Calculate response time
-                response_time = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+                response_time = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
                 if response.status == 200:
                     _bridge_state = await response.json()
@@ -230,7 +230,7 @@ class ZigbeeBridgeManager:
 
     def _count_recently_seen_devices(self, states: list[dict]) -> int:
         """Count devices seen in the last hour"""
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=1)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=1)
         recent_devices = 0
 
         for state in states:
@@ -399,13 +399,13 @@ class ZigbeeBridgeManager:
         # Check cooldown period
         if not force and self.recovery_history:
             last_attempt = self.recovery_history[-1]
-            if datetime.now(timezone.utc) - last_attempt.timestamp < timedelta(seconds=self.recovery_cooldown):
-                return False, f"Recovery cooldown active. Next attempt available in {self.recovery_cooldown - (datetime.now(timezone.utc) - last_attempt.timestamp).total_seconds():.0f} seconds"
+            if datetime.now(UTC) - last_attempt.timestamp < timedelta(seconds=self.recovery_cooldown):
+                return False, f"Recovery cooldown active. Next attempt available in {self.recovery_cooldown - (datetime.now(UTC) - last_attempt.timestamp).total_seconds():.0f} seconds"
 
         # Check max attempts
         recent_attempts = [
             attempt for attempt in self.recovery_history
-            if datetime.now(timezone.utc) - attempt.timestamp < timedelta(hours=1)
+            if datetime.now(UTC) - attempt.timestamp < timedelta(hours=1)
         ]
         if len(recent_attempts) >= self.max_recovery_attempts:
             return False, f"Maximum recovery attempts ({self.max_recovery_attempts}) reached in the last hour"
@@ -414,10 +414,10 @@ class ZigbeeBridgeManager:
         recovery_action = self._determine_recovery_action()
 
         # Execute recovery
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
         try:
             success, message = await self._execute_recovery_action(recovery_action)
-            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            duration = (datetime.now(UTC) - start_time).total_seconds()
 
             # Record attempt
             attempt = RecoveryAttempt(
@@ -432,7 +432,7 @@ class ZigbeeBridgeManager:
             return success, message
 
         except Exception as e:
-            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            duration = (datetime.now(UTC) - start_time).total_seconds()
             attempt = RecoveryAttempt(
                 timestamp=start_time,
                 action=recovery_action,

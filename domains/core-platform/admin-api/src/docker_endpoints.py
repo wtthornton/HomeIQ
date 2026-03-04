@@ -7,9 +7,8 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
-from pydantic import BaseModel
-
 from homeiq_data.auth import AuthManager, User
+from pydantic import BaseModel
 
 from .api_key_service import APIKeyService
 from .docker_service import DockerService

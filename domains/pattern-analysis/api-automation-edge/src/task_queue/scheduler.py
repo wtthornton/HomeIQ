@@ -8,7 +8,7 @@ import logging
 import time
 from typing import Any
 
-from huey import crontab, Huey
+from huey import Huey, crontab
 
 from ..config import settings
 from ..registry.spec_registry import SpecRegistry

@@ -4,7 +4,7 @@ Unit tests for Calendar Event Parser
 
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
@@ -17,7 +17,7 @@ class TestParseDatetime:
 
     def test_parse_datetime_object(self):
         """Test parsing datetime object"""
-        dt = datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc)
+        dt = datetime(2025, 10, 16, 14, 0, 0, tzinfo=UTC)
         result = CalendarEventParser.parse_datetime(dt)
 
         assert result == dt
@@ -315,18 +315,18 @@ class TestFilterEventsByTime:
 
     def test_filter_by_start_time(self):
         """Test filtering by start time"""
-        now = datetime(2025, 10, 16, 12, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2025, 10, 16, 12, 0, 0, tzinfo=UTC)
 
         events = [
             {
                 "summary": "Past Event",
-                "start": datetime(2025, 10, 16, 9, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 9, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=UTC)
             },
             {
                 "summary": "Future Event",
-                "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=UTC)
             }
         ]
 
@@ -337,18 +337,18 @@ class TestFilterEventsByTime:
 
     def test_filter_by_end_time(self):
         """Test filtering by end time"""
-        cutoff = datetime(2025, 10, 16, 13, 0, 0, tzinfo=timezone.utc)
+        cutoff = datetime(2025, 10, 16, 13, 0, 0, tzinfo=UTC)
 
         events = [
             {
                 "summary": "Morning Event",
-                "start": datetime(2025, 10, 16, 9, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 9, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=UTC)
             },
             {
                 "summary": "Afternoon Event",
-                "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=UTC)
             }
         ]
 
@@ -363,23 +363,23 @@ class TestGetCurrentEvents:
 
     def test_get_current_events(self):
         """Test getting currently active events"""
-        now = datetime(2025, 10, 16, 14, 30, 0, tzinfo=timezone.utc)
+        now = datetime(2025, 10, 16, 14, 30, 0, tzinfo=UTC)
 
         events = [
             {
                 "summary": "Current Event",
-                "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=UTC)
             },
             {
                 "summary": "Past Event",
-                "start": datetime(2025, 10, 16, 9, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 9, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=UTC)
             },
             {
                 "summary": "Future Event",
-                "start": datetime(2025, 10, 16, 16, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 17, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 16, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 17, 0, 0, tzinfo=UTC)
             }
         ]
 
@@ -390,13 +390,13 @@ class TestGetCurrentEvents:
 
     def test_get_current_events_none(self):
         """Test when no events are current"""
-        now = datetime(2025, 10, 16, 12, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2025, 10, 16, 12, 0, 0, tzinfo=UTC)
 
         events = [
             {
                 "summary": "Future Event",
-                "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=UTC)
             }
         ]
 
@@ -410,23 +410,23 @@ class TestGetUpcomingEvents:
 
     def test_get_upcoming_events(self):
         """Test getting upcoming events"""
-        now = datetime(2025, 10, 16, 12, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2025, 10, 16, 12, 0, 0, tzinfo=UTC)
 
         events = [
             {
                 "summary": "Past Event",
-                "start": datetime(2025, 10, 16, 9, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 9, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 10, 0, 0, tzinfo=UTC)
             },
             {
                 "summary": "First Upcoming",
-                "start": datetime(2025, 10, 16, 13, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 13, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 14, 0, 0, tzinfo=UTC)
             },
             {
                 "summary": "Second Upcoming",
-                "start": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 16, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 15, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 16, 0, 0, tzinfo=UTC)
             }
         ]
 
@@ -438,23 +438,23 @@ class TestGetUpcomingEvents:
 
     def test_get_upcoming_events_with_limit(self):
         """Test getting upcoming events with limit"""
-        now = datetime(2025, 10, 16, 12, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2025, 10, 16, 12, 0, 0, tzinfo=UTC)
 
         events = [
             {
                 "summary": "Event 1",
-                "start": datetime(2025, 10, 16, 13, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 13, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 14, 0, 0, tzinfo=UTC)
             },
             {
                 "summary": "Event 2",
-                "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 14, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 15, 0, 0, tzinfo=UTC)
             },
             {
                 "summary": "Event 3",
-                "start": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 16, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 15, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 16, 0, 0, tzinfo=UTC)
             }
         ]
 
@@ -466,19 +466,19 @@ class TestGetUpcomingEvents:
 
     def test_get_upcoming_events_sorted(self):
         """Test that upcoming events are sorted by start time"""
-        now = datetime(2025, 10, 16, 12, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2025, 10, 16, 12, 0, 0, tzinfo=UTC)
 
         # Events in random order
         events = [
             {
                 "summary": "Later Event",
-                "start": datetime(2025, 10, 16, 15, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 16, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 15, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 16, 0, 0, tzinfo=UTC)
             },
             {
                 "summary": "Earlier Event",
-                "start": datetime(2025, 10, 16, 13, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 10, 16, 14, 0, 0, tzinfo=timezone.utc)
+                "start": datetime(2025, 10, 16, 13, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 10, 16, 14, 0, 0, tzinfo=UTC)
             }
         ]
 

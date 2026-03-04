@@ -1,12 +1,12 @@
 """Tests for main application"""
 
-import pytest
 from datetime import datetime
-from unittest.mock import MagicMock, patch
-from fastapi.testclient import TestClient
+from unittest.mock import MagicMock
 
-from src.main import app
+import pytest
+from fastapi.testclient import TestClient
 from src.api.health import set_scheduler_service_for_health
+from src.main import app
 
 
 @pytest.fixture

@@ -5,28 +5,21 @@ Tests for main.py application initialization, validation functions, and API endp
 Covers: NaN/Inf validation, DBSCAN, batch processing, timeout paths, edge cases.
 """
 
-import math
+from unittest.mock import MagicMock, patch
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from httpx import AsyncClient, ASGITransport
 from fastapi import HTTPException
-
+from httpx import ASGITransport, AsyncClient
 from src.main import (
-    app,
-    _parse_allowed_origins,
-    _estimate_payload_bytes,
-    _validate_data_matrix,
-    _validate_contamination,
-    _run_cpu_bound,
     _check_rate_limit,
+    _estimate_payload_bytes,
+    _parse_allowed_origins,
     _rate_limit_store,
-    BatchClusterOperation,
-    BatchAnomalyOperation,
-    ClusteringRequest,
-    AnomalyRequest,
+    _run_cpu_bound,
+    _validate_contamination,
+    _validate_data_matrix,
+    app,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helper function tests

@@ -7,8 +7,8 @@ Tests for InfluxDB write operations including batch writes.
 
 import os
 import sys
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -57,18 +57,17 @@ async def service_with_mock(mock_influxdb_client):
 @pytest.mark.asyncio
 async def test_batch_write_current_pricing(service_with_mock, mock_influxdb_client):
     """Test batch write of current pricing data"""
-    from influxdb_client_3 import Point
     
     # Create test data
     test_data = {
         'current_price': 0.25,
         'currency': 'EUR',
-        'timestamp': datetime.now(timezone.utc),
+        'timestamp': datetime.now(UTC),
         'forecast_24h': [
             {
                 'hour': i,
                 'price': 0.20 + (i * 0.01),
-                'timestamp': datetime.now(timezone.utc)
+                'timestamp': datetime.now(UTC)
             }
             for i in range(24)
         ]
@@ -85,18 +84,17 @@ async def test_batch_write_current_pricing(service_with_mock, mock_influxdb_clie
 @pytest.mark.asyncio
 async def test_batch_write_forecast_data(service_with_mock, mock_influxdb_client):
     """Test batch write includes forecast data"""
-    from influxdb_client_3 import Point
     
     # Create test data with forecast
     test_data = {
         'current_price': 0.25,
         'currency': 'EUR',
-        'timestamp': datetime.now(timezone.utc),
+        'timestamp': datetime.now(UTC),
         'forecast_24h': [
             {
                 'hour': i,
                 'price': 0.20 + (i * 0.01),
-                'timestamp': datetime.now(timezone.utc)
+                'timestamp': datetime.now(UTC)
             }
             for i in range(24)
         ]
@@ -123,7 +121,7 @@ async def test_write_error_handling(service_with_mock, mock_influxdb_client):
     test_data = {
         'current_price': 0.25,
         'currency': 'EUR',
-        'timestamp': datetime.now(timezone.utc),
+        'timestamp': datetime.now(UTC),
         'forecast_24h': []
     }
     
@@ -139,13 +137,13 @@ async def test_write_error_handling(service_with_mock, mock_influxdb_client):
 
 
 @pytest.mark.asyncio
-async def test_write_empty_data(service_with_mock, mock_influxdb_client):
+async def test_write_empty_data(service_with_mock, _mock_influxdb_client):
     """Test handling of empty data"""
     # Empty data should not cause errors
     test_data = {
         'current_price': None,
         'currency': 'EUR',
-        'timestamp': datetime.now(timezone.utc),
+        'timestamp': datetime.now(UTC),
         'forecast_24h': []
     }
     
@@ -161,7 +159,7 @@ async def test_write_with_missing_fields(service_with_mock, mock_influxdb_client
     """Test write with missing optional fields"""
     test_data = {
         'current_price': 0.25,
-        'timestamp': datetime.now(timezone.utc),
+        'timestamp': datetime.now(UTC),
         'forecast_24h': []
     }
     

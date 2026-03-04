@@ -3,7 +3,7 @@
 import asyncio
 import json
 import tempfile
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -19,7 +19,7 @@ class TestBackupInfo:
         backup_info = BackupInfo(
             backup_id="test_backup",
             backup_type="full",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
             size_bytes=1024,
             file_path="/backups/test_backup.tar.gz",
             metadata={"test": "data"}
@@ -33,7 +33,7 @@ class TestBackupInfo:
 
     def test_backup_info_to_dict(self):
         """Test converting BackupInfo to dictionary."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         backup_info = BackupInfo(
             backup_id="test_backup",
             backup_type="full",
@@ -158,7 +158,7 @@ class TestBackupRestoreService:
         # Mock InfluxDB client
         mock_client = Mock()
         mock_record = Mock()
-        mock_record.get_time.return_value = datetime.utcnow()
+        mock_record.get_time.return_value = datetime.now(UTC)
         mock_record.get_measurement.return_value = "home_assistant_event"
         mock_record.get_field.return_value = "temperature"
         mock_record.get_value.return_value = 20.5
@@ -376,9 +376,9 @@ class TestBackupRestoreService:
         """Test getting backup history."""
         # Add some mock backup history
         service.backup_history = [
-            BackupInfo("backup1", "full", datetime.utcnow(), 1000, "/path1", {}),
-            BackupInfo("backup2", "config", datetime.utcnow(), 500, "/path2", {}),
-            BackupInfo("backup3", "full", datetime.utcnow(), 1500, "/path3", {})
+            BackupInfo("backup1", "full", datetime.now(UTC), 1000, "/path1", {}),
+            BackupInfo("backup2", "config", datetime.now(UTC), 500, "/path2", {}),
+            BackupInfo("backup3", "full", datetime.now(UTC), 1500, "/path3", {})
         ]
 
         history = service.get_backup_history(limit=2)
@@ -390,9 +390,9 @@ class TestBackupRestoreService:
         """Test getting backup statistics."""
         # Add mock backup history
         service.backup_history = [
-            BackupInfo("backup1", "full", datetime.utcnow(), 1000, "/path1", {}, True),
-            BackupInfo("backup2", "config", datetime.utcnow(), 500, "/path2", {}, True),
-            BackupInfo("backup3", "full", datetime.utcnow(), 1500, "/path3", {}, False, "Error")
+            BackupInfo("backup1", "full", datetime.now(UTC), 1000, "/path1", {}, True),
+            BackupInfo("backup2", "config", datetime.now(UTC), 500, "/path2", {}, True),
+            BackupInfo("backup3", "full", datetime.now(UTC), 1500, "/path3", {}, False, "Error")
         ]
 
         stats = service.get_backup_statistics()
@@ -431,8 +431,8 @@ class TestBackupRestoreService:
         recent_backup.write_bytes(b"test")
 
         # Mock file modification time
-        old_time = (datetime.utcnow() - timedelta(days=35)).timestamp()
-        recent_time = (datetime.utcnow() - timedelta(days=5)).timestamp()
+        old_time = (datetime.now(UTC) - timedelta(days=35)).timestamp()
+        recent_time = (datetime.now(UTC) - timedelta(days=5)).timestamp()
 
         # Mock the Path.stat method
         with patch('pathlib.Path.stat') as mock_stat:

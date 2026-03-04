@@ -5,7 +5,7 @@ Detects Home Assistant version and capabilities for version-aware YAML generatio
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -99,7 +99,7 @@ class HAVersionService:
             use_cache
             and self._version_cache
             and self._cache_expiry
-            and datetime.now(timezone.utc) < self._cache_expiry
+            and datetime.now(UTC) < self._cache_expiry
         ):
             return self._version_cache.get("version")
 
@@ -123,7 +123,7 @@ class HAVersionService:
 
                 # Update cache
                 self._version_cache = {"version": version, "config": config}
-                self._cache_expiry = datetime.now(timezone.utc) + self._cache_ttl
+                self._cache_expiry = datetime.now(UTC) + self._cache_ttl
 
                 logger.info(f"Detected Home Assistant version: {version}")
                 return version

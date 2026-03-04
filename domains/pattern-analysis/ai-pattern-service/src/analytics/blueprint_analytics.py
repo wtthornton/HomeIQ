@@ -11,7 +11,7 @@ Tracks blueprint and automation metrics to measure progress toward target goals:
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ class BlueprintAnalytics:
             blueprint_id=blueprint_id,
             synergy_id=synergy_id,
             automation_id=automation_id,
-            deployed_at=datetime.utcnow(),
+            deployed_at=datetime.now(UTC),
             deployed_by=deployed_by,
             source=source,
         )
@@ -158,7 +158,7 @@ class BlueprintAnalytics:
                 metric.failure_count += 1
             metric.success = success
             metric.error_message = error_message
-            metric.last_executed_at = datetime.utcnow()
+            metric.last_executed_at = datetime.now(UTC)
 
             logger.debug(
                 f"Recorded execution: automation={automation_id}, "
@@ -183,7 +183,7 @@ class BlueprintAnalytics:
         if metric:
             metric.user_rating = rating
             metric.user_feedback = feedback
-            metric.rated_at = datetime.utcnow()
+            metric.rated_at = datetime.now(UTC)
 
             logger.info(
                 f"Recorded rating: automation={automation_id}, rating={rating}"
@@ -218,7 +218,7 @@ class BlueprintAnalytics:
         Returns:
             AnalyticsSummary with calculated metrics
         """
-        period_end = datetime.utcnow()
+        period_end = datetime.now(UTC)
         period_start = period_end - timedelta(days=days)
 
         # Filter deployments within period
@@ -388,7 +388,7 @@ class BlueprintAnalytics:
         Returns:
             Number of metrics removed
         """
-        cutoff = datetime.utcnow() - timedelta(days=self.retention_days)
+        cutoff = datetime.now(UTC) - timedelta(days=self.retention_days)
         original_count = len(self._deployments)
 
         self._deployments = [

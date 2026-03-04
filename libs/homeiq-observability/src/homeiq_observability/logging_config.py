@@ -9,11 +9,10 @@ import os
 import sys
 import time
 import uuid
-from datetime import datetime
-from typing import Any, Dict, Optional
 from contextvars import ContextVar
+from datetime import UTC, datetime
 from functools import wraps
-
+from typing import Optional
 
 # Context variable for correlation ID
 correlation_id: ContextVar[Optional[str]] = ContextVar('correlation_id', default=None)
@@ -34,7 +33,7 @@ class StructuredFormatter(logging.Formatter):
 
         # Build structured log entry
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(UTC).isoformat() + "Z",
             "level": record.levelname,
             "service": self.service_name,
             "group": self.group_name,

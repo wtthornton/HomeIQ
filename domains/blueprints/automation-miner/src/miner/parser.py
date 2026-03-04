@@ -11,7 +11,7 @@ Extracts structured metadata from Home Assistant automations with:
 """
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import yaml
@@ -549,16 +549,16 @@ class AutomationParser:
 
         # Calculate quality score
         votes = post_data.get('likes', 0)
-        created_at_str = post_data.get('created_at', datetime.now(timezone.utc).isoformat())
+        created_at_str = post_data.get('created_at', datetime.now(UTC).isoformat())
         if created_at_str.endswith('Z'):
             created_at_str = created_at_str.replace('Z', '+00:00')
         created_at = datetime.fromisoformat(created_at_str)
 
         # Ensure timezone-aware
         if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
+            created_at = created_at.replace(tzinfo=UTC)
 
-        age_days = (datetime.now(timezone.utc) - created_at).days
+        age_days = (datetime.now(UTC) - created_at).days
 
         quality_score = self.calculate_quality_score(
             votes=votes,

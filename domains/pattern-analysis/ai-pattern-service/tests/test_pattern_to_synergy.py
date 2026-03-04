@@ -4,10 +4,10 @@ Unit tests for pattern-to-synergy conversion functionality
 Tests the detect_synergies_from_patterns method in DeviceSynergyDetector.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.synergy_detection.synergy_detector import DeviceSynergyDetector
 
 

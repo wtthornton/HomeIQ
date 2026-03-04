@@ -10,7 +10,6 @@ This script tests the area registry functionality to verify:
 
 import asyncio
 import sys
-import os
 from pathlib import Path
 
 # Add parent directory to path for imports

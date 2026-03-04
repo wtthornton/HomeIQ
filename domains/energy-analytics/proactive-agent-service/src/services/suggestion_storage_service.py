@@ -7,7 +7,7 @@ CRUD operations for managing proactive automation suggestions.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import delete, func, select
@@ -177,7 +177,7 @@ class SuggestionStorageService:
         Returns:
             Existing Suggestion if duplicate found, None otherwise
         """
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=window_hours)
 
         # If trigger_type provided, use smarter duplicate detection
         # This prevents duplicates like "44°F" and "45°F" both generating pre-heat suggestions
@@ -330,7 +330,7 @@ class SuggestionStorageService:
 
                     # Set sent_at timestamp if status is "sent"
                     if status == "sent" and not suggestion.sent_at:
-                        suggestion.sent_at = datetime.now(timezone.utc)
+                        suggestion.sent_at = datetime.now(UTC)
 
                     await session.commit()
                     await session.refresh(suggestion)
@@ -358,7 +358,7 @@ class SuggestionStorageService:
 
                 # Set sent_at timestamp if status is "sent"
                 if status == "sent" and not suggestion.sent_at:
-                    suggestion.sent_at = datetime.now(timezone.utc)
+                    suggestion.sent_at = datetime.now(UTC)
 
                 await db.commit()
                 await db.refresh(suggestion)
@@ -435,7 +435,7 @@ class SuggestionStorageService:
         if db is None:
             async with _get_session_maker()() as session:
                 try:
-                    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_old)
+                    cutoff_date = datetime.now(UTC) - timedelta(days=days_old)
 
                     query = delete(Suggestion).where(Suggestion.created_at < cutoff_date)
 
@@ -454,7 +454,7 @@ class SuggestionStorageService:
                     return 0
         else:
             try:
-                cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_old)
+                cutoff_date = datetime.now(UTC) - timedelta(days=days_old)
 
                 query = delete(Suggestion).where(Suggestion.created_at < cutoff_date)
 

@@ -9,7 +9,6 @@ from fastapi.testclient import TestClient
 # Mock influxdb_client before importing
 with patch('src.devices_endpoints.AdminAPIInfluxDBClient'):
     from fastapi import FastAPI
-
     from src.devices_endpoints import _build_devices_query, _build_entities_query, router
 
 app = FastAPI()

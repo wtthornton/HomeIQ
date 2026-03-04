@@ -14,7 +14,6 @@ import copy
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from homeiq_ha.homeiq_automation.converter import HomeIQToAutomationSpecConverter
 from homeiq_ha.homeiq_automation.schema import HomeIQAutomation
 from homeiq_ha.homeiq_automation.validator import HomeIQAutomationValidator

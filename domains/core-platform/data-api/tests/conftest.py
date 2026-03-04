@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import importlib.util
 import os
-import sys
 from pathlib import Path
 
 import pytest
@@ -37,7 +36,7 @@ Shared pytest fixtures for Data API service tests
 Following Context7 KB best practices from /pytest-dev/pytest
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 from httpx import ASGITransport, AsyncClient
@@ -92,10 +91,9 @@ async def fresh_db():
     Create a fresh PostgreSQL database for each test.
     Ensures tests don't interfere with each other and use latest schema.
     """
-    from src.database import Base, async_engine
-
     # Register all models with Base before create_all (else entities, devices, etc. missing)
     import src.models  # noqa: F401
+    from src.database import Base, async_engine
 
     # Drop all tables first, then create fresh schema
     async with async_engine.begin() as conn:
@@ -120,7 +118,7 @@ async def sample_event_data():
     return {
         'entity_id': 'light.living_room',
         'state': 'on',
-        'timestamp': datetime.utcnow(),
+        'timestamp': datetime.now(UTC),
         'attributes': {
             'brightness': 255,
             'color_temp': 370

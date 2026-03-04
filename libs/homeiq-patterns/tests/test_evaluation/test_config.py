@@ -3,7 +3,6 @@ Tests for E1.S6: AgentEvalConfig YAML Schema & Loader
 """
 
 import pytest
-
 from homeiq_patterns.evaluation.config import (
     AgentEvalConfig,
     ConfigLoader,
@@ -13,7 +12,6 @@ from homeiq_patterns.evaluation.config import (
     PromptRule,
     ToolDef,
 )
-
 
 # ---------------------------------------------------------------------------
 # Tests: AgentEvalConfig model

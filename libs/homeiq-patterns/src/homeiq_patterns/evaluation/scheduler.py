@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timezone
 from typing import Any, Protocol, runtime_checkable
 
 from .config import AgentEvalConfig
@@ -269,7 +268,7 @@ class EvaluationScheduler:
         self,
         agent_name: str,
         entry: _ScheduledAgent,
-        now: float,
+        _now: float,
     ) -> BatchReport | None:
         """Run evaluation for a single agent."""
         start = time.monotonic()

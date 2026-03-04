@@ -6,8 +6,9 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from sqlalchemy import select, text
 from database import ConversationModel, get_session
+from sqlalchemy import select
+
 
 async def query():
     debug_id = "753229c4-38db-47e5-be6e-337fd33cf467"

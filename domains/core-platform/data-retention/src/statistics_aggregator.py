@@ -6,7 +6,7 @@ Aggregates raw events into short-term (5-minute) and long-term (hourly) statisti
 
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 try:
@@ -100,7 +100,7 @@ class StatisticsAggregator:
         """
         try:
             logger.info("Starting short-term statistics aggregation (5-minute)...")
-            start_time = datetime.now(timezone.utc)
+            start_time = datetime.now(UTC)
 
             # Get InfluxDB client
             self._get_influxdb_client()
@@ -117,9 +117,9 @@ class StatisticsAggregator:
             if self.last_short_term_run:
                 range_start = self.last_short_term_run
             else:
-                range_start = datetime.now(timezone.utc) - timedelta(minutes=5)
+                range_start = datetime.now(UTC) - timedelta(minutes=5)
 
-            range_end = datetime.now(timezone.utc)
+            range_end = datetime.now(UTC)
 
             # Aggregate entities in batches to avoid N+1 query problem
             aggregated_points = []
@@ -227,7 +227,7 @@ class StatisticsAggregator:
             self.last_short_term_run = range_end
             self.short_term_aggregations += 1
 
-            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            duration = (datetime.now(UTC) - start_time).total_seconds()
 
             return {
                 "success": True,
@@ -250,7 +250,7 @@ class StatisticsAggregator:
         """
         try:
             logger.info("Starting long-term statistics aggregation (hourly)...")
-            start_time = datetime.now(timezone.utc)
+            start_time = datetime.now(UTC)
 
             # Get InfluxDB client
             self._get_influxdb_client()
@@ -265,9 +265,9 @@ class StatisticsAggregator:
             if self.last_long_term_run:
                 range_start = self.last_long_term_run
             else:
-                range_start = datetime.now(timezone.utc) - timedelta(hours=1)
+                range_start = datetime.now(UTC) - timedelta(hours=1)
 
-            range_end = datetime.now(timezone.utc)
+            range_end = datetime.now(UTC)
 
             # Aggregate entities from short-term statistics in batches
             aggregated_points = []
@@ -342,7 +342,7 @@ class StatisticsAggregator:
             self.last_long_term_run = range_end
             self.long_term_aggregations += 1
 
-            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            duration = (datetime.now(UTC) - start_time).total_seconds()
 
             return {
                 "success": True,

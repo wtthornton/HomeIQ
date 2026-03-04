@@ -53,7 +53,11 @@ except ImportError:
 
 # Import observability modules
 try:
-    from homeiq_observability.observability import CorrelationMiddleware, instrument_fastapi, setup_tracing
+    from homeiq_observability.observability import (
+        CorrelationMiddleware,
+        instrument_fastapi,
+        setup_tracing,
+    )
 
     OBSERVABILITY_AVAILABLE = True
 except ImportError:

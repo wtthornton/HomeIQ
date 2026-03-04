@@ -89,7 +89,7 @@ async def _setup_observability() -> None:
 
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """
     Initialize service on startup and cleanup on shutdown.
 
@@ -216,7 +216,7 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
+        host="0.0.0.0",  # noqa: S104
         port=8018,
         reload=True,
         log_level=settings.log_level.lower()

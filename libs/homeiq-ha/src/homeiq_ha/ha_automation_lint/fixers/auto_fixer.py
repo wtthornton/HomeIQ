@@ -2,15 +2,15 @@
 Auto-fix engine for applying safe, deterministic fixes.
 """
 
-from typing import List, Tuple
 import sys
 from pathlib import Path
+from typing import List, Tuple
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from models import Finding, PatchOperation, AutomationIR
 from constants import FixMode
+from models import AutomationIR, Finding, PatchOperation
 
 
 class AutoFixer:
@@ -99,7 +99,7 @@ class AutoFixer:
 
         return False
 
-    def _apply_patch(self, automations: List[AutomationIR], patch: PatchOperation) -> bool:
+    def _apply_patch(self, _automations: List[AutomationIR], _patch: PatchOperation) -> bool:
         """
         Apply a single patch operation.
 

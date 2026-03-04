@@ -195,7 +195,7 @@ if __name__ == "__main__":
     port = int(os.getenv("DEVICE_DATABASE_CLIENT_PORT", "8022"))
     uvicorn.run(
         "src.main:app",
-        host="0.0.0.0",
+        host="0.0.0.0",  # noqa: S104
         port=port,
         reload=os.getenv("RELOAD", "false").lower() == "true",
         log_level=os.getenv("LOG_LEVEL", "info").lower()

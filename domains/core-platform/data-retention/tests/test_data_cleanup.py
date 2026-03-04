@@ -1,7 +1,7 @@
 """Tests for data cleanup service."""
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from src.data_cleanup import CleanupResult, DataCleanupService
@@ -124,7 +124,7 @@ class TestDataCleanupService:
     @pytest.mark.asyncio
     async def test_get_expired_records(self, cleanup_service):
         """Test getting expired records."""
-        expiration_date = datetime.utcnow() - timedelta(days=30)
+        expiration_date = datetime.now(UTC) - timedelta(days=30)
         records = await cleanup_service._get_expired_records(expiration_date)
 
         # Should return mock records for testing

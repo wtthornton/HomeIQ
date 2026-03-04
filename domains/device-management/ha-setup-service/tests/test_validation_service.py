@@ -2,9 +2,10 @@
 Unit tests for Validation Service
 Epic 32: Home Assistant Configuration Validation & Suggestions
 """
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from src.validation_service import ValidationService, ValidationIssue
+from src.validation_service import ValidationIssue, ValidationService
 
 
 @pytest.fixture
@@ -61,7 +62,7 @@ async def test_detect_missing_area_assignments(validation_service, mock_entities
 
 
 @pytest.mark.asyncio
-async def test_detect_incorrect_area_assignments(validation_service, mock_entities, mock_areas):
+async def test_detect_incorrect_area_assignments(validation_service, _mock_entities, mock_areas):
     """Test detection of incorrect area assignments"""
     # Create entity with incorrect area
     entities_with_incorrect = [

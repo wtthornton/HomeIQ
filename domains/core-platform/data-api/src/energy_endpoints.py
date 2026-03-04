@@ -5,7 +5,7 @@ Provides access to energy-event correlation data and smart meter readings
 
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query, status
 from influxdb_client import InfluxDBClient
@@ -109,7 +109,7 @@ async def get_energy_correlations(
         query_api = client.query_api()
 
         # Build Flux query
-        start_time = datetime.utcnow() - timedelta(hours=hours)
+        start_time = datetime.now(UTC) - timedelta(hours=hours)
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
 
         # Build filters
@@ -194,7 +194,7 @@ async def get_current_power():
 
         power_w = 0.0
         daily_kwh = 0.0
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(UTC)
 
         for table in tables:
             for record in table.records:
@@ -234,7 +234,7 @@ async def get_circuit_power(
         query_api = client.query_api()
 
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
-        start_time = datetime.utcnow() - timedelta(hours=hours)
+        start_time = datetime.now(UTC) - timedelta(hours=hours)
 
         flux_query = f'''
         from(bucket: "{bucket}")
@@ -294,7 +294,7 @@ async def get_device_energy_impact(
             )
 
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
-        start_time = datetime.utcnow() - timedelta(days=days)
+        start_time = datetime.now(UTC) - timedelta(days=days)
 
         # Query ON transitions
         flux_on = f'''
@@ -392,7 +392,7 @@ async def get_energy_statistics(
         query_api = client.query_api()
 
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
-        start_time = datetime.utcnow() - timedelta(hours=hours)
+        start_time = datetime.now(UTC) - timedelta(hours=hours)
 
         # Current power
         flux_current = f'''
@@ -503,7 +503,7 @@ async def get_top_energy_consumers(
         query_api = client.query_api()
 
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
-        start_time = datetime.utcnow() - timedelta(days=days)
+        start_time = datetime.now(UTC) - timedelta(days=days)
 
         # Get average power delta by entity (ON transitions only)
         flux_query = f'''
@@ -647,7 +647,7 @@ async def get_carbon_intensity_trends():
         query_api = client.query_api()
 
         carbon_bucket = os.getenv("INFLUXDB_CARBON_BUCKET", "carbon_data")
-        start_time = datetime.utcnow() - timedelta(hours=24)
+        start_time = datetime.now(UTC) - timedelta(hours=24)
 
         # Query for last 24 hours of data
         flux_query = f'''
@@ -731,7 +731,7 @@ async def get_carbon_intensity_trends():
         # Forecast (use current data's forecast fields)
         forecast = [
             CarbonIntensityResponse(
-                timestamp=datetime.utcnow() + timedelta(hours=1),
+                timestamp=datetime.now(UTC) + timedelta(hours=1),
                 intensity=current_data.forecast_1h,
                 renewable_percentage=0,  # Not in forecast
                 fossil_percentage=0,

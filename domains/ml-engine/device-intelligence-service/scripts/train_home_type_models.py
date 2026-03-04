@@ -20,9 +20,9 @@ src_path = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
 # Import with proper path handling
+from src.config import Settings
 from src.core.database import initialize_database
 from src.core.predictive_analytics import PredictiveAnalyticsEngine
-from src.config import Settings
 
 logging.basicConfig(
     level=logging.INFO,

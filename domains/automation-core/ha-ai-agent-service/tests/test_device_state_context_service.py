@@ -1,11 +1,11 @@
 """Tests for Device State Context Service"""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.services.device_state_context_service import DeviceStateContextService
+import pytest
 from src.config import Settings
 from src.services.context_builder import ContextBuilder
+from src.services.device_state_context_service import DeviceStateContextService
 
 
 @pytest.fixture
@@ -119,7 +119,7 @@ async def test_get_state_context_cached(device_state_context_service, mock_conte
 
 
 @pytest.mark.asyncio
-async def test_get_state_context_api_error(device_state_context_service, mock_context_builder):
+async def test_get_state_context_api_error(device_state_context_service, _mock_context_builder):
     """Test handling API errors gracefully"""
     with patch.object(
         device_state_context_service.ha_client,
@@ -135,7 +135,7 @@ async def test_get_state_context_api_error(device_state_context_service, mock_co
 
 
 @pytest.mark.asyncio
-async def test_get_state_context_missing_entities(device_state_context_service, mock_context_builder):
+async def test_get_state_context_missing_entities(device_state_context_service, _mock_context_builder):
     """Test handling missing entities gracefully"""
     # Mock states with different entities than requested
     mock_states = [

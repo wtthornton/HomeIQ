@@ -6,7 +6,7 @@ Client for querying traces from Jaeger
 import asyncio
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -125,7 +125,7 @@ class JaegerClient:
 
             # Default to last hour if no time range specified
             if not start_time and not end_time:
-                end_time = datetime.utcnow()
+                end_time = datetime.now(UTC)
                 start_time = end_time - timedelta(hours=1)
                 params["start"] = int(start_time.timestamp() * 1000000)
                 params["end"] = int(end_time.timestamp() * 1000000)
@@ -199,7 +199,7 @@ class JaegerClient:
             not force_refresh
             and self._services_cache is not None
             and self._services_cache_time is not None
-            and datetime.utcnow() - self._services_cache_time < self._cache_ttl
+            and datetime.now(UTC) - self._services_cache_time < self._cache_ttl
         ):
             return self._services_cache
 
@@ -223,7 +223,7 @@ class JaegerClient:
 
             # Update cache
             self._services_cache = services
-            self._services_cache_time = datetime.utcnow()
+            self._services_cache_time = datetime.now(UTC)
 
             return services
 

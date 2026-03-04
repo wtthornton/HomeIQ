@@ -3,7 +3,6 @@
 Generate proper PWA icons from SVG.
 Creates icon-192.png and icon-512.png for the PWA manifest.
 """
-import sys
 from pathlib import Path
 
 try:
@@ -13,7 +12,7 @@ except ImportError:
     HAS_PIL = False
     print("Warning: PIL/Pillow not available. Creating simple colored icons instead.")
 
-def create_icon_from_svg(size, output_path, svg_path=None):
+def create_icon_from_svg(size, output_path, _svg_path=None):
     """Create a PNG icon at the specified size."""
     if HAS_PIL:
         # Create a proper icon with HomeIQ branding colors

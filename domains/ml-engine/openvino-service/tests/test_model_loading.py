@@ -19,7 +19,7 @@ class _StubSentenceTransformer:
         self.model_name = model_name
         self.cache_folder = cache_folder
 
-    def encode(self, texts, convert_to_numpy=True):
+    def encode(self, texts, _convert_to_numpy=True):
         vectors = np.ones((len(texts), 384))
         return vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
 

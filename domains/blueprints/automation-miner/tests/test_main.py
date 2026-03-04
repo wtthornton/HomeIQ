@@ -4,9 +4,11 @@ Unit tests for Automation Miner Main Application
 Tests for main.py application initialization, lifespan, and configuration.
 """
 
+from datetime import UTC
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, Mock
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 
 class TestMainApplication:
@@ -33,8 +35,6 @@ class TestMainApplication:
     async def test_health_check_endpoint(self):
         """Test health check endpoint."""
         from src.api.main import app
-        from src.miner.database import get_db_session
-        from src.miner.repository import CorpusRepository
         
         mock_db = AsyncMock()
         mock_repo = AsyncMock()
@@ -63,7 +63,7 @@ class TestMainApplication:
     @patch('src.api.main.settings')
     async def test_lifespan_startup_success(self, mock_settings, mock_get_database):
         """Test lifespan startup with successful initialization."""
-        from src.api.main import lifespan, app
+        from src.api.main import app, lifespan
         
         mock_settings.enable_automation_miner = False
         mock_db = AsyncMock()
@@ -79,7 +79,7 @@ class TestMainApplication:
     @patch('src.api.main.settings')
     async def test_lifespan_startup_database_failure(self, mock_settings, mock_get_database):
         """Test lifespan startup handles database initialization failure."""
-        from src.api.main import lifespan, app
+        from src.api.main import app, lifespan
         
         mock_settings.enable_automation_miner = False
         mock_db = AsyncMock()
@@ -100,7 +100,7 @@ class TestMainApplication:
         self, mock_repo_class, mock_job_class, mock_settings, mock_get_database
     ):
         """Test lifespan startup initializes corpus when empty."""
-        from src.api.main import lifespan, app
+        from src.api.main import app, lifespan
         
         mock_settings.enable_automation_miner = True
         mock_db = AsyncMock()
@@ -137,7 +137,7 @@ class TestMainApplication:
         self, mock_scheduler_class, mock_setup_job, mock_settings, mock_get_database
     ):
         """Test lifespan startup with successful scheduler initialization."""
-        from src.api.main import lifespan, app
+        from src.api.main import app, lifespan
         
         mock_settings.enable_automation_miner = True
         mock_db = AsyncMock()
@@ -165,7 +165,7 @@ class TestMainApplication:
         self, mock_settings, mock_get_database
     ):
         """Test lifespan shutdown closes database."""
-        from src.api.main import lifespan, app
+        from src.api.main import app, lifespan
         
         mock_settings.enable_automation_miner = False
         mock_db = AsyncMock()
@@ -187,7 +187,7 @@ class TestMainApplication:
         self, mock_scheduler_class, mock_settings, mock_get_database
     ):
         """Test lifespan shutdown stops scheduler."""
-        from src.api.main import lifespan, app
+        from src.api.main import app, lifespan
         
         mock_settings.enable_automation_miner = True
         mock_db = AsyncMock()
@@ -252,7 +252,6 @@ class TestMainApplication:
     async def test_health_check_error_handling(self):
         """Test health check endpoint handles errors gracefully."""
         from src.api.main import app
-        from src.miner.repository import CorpusRepository
         
         async def mock_session_error():
             mock_db = AsyncMock()
@@ -282,8 +281,9 @@ class TestMainApplication:
         self, mock_repo_class, mock_job_class, mock_settings, mock_get_database
     ):
         """Test lifespan startup initializes corpus when stale."""
-        from src.api.main import lifespan, app
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta
+
+        from src.api.main import app, lifespan
         
         mock_settings.enable_automation_miner = True
         mock_db = AsyncMock()
@@ -300,7 +300,7 @@ class TestMainApplication:
         mock_repo = AsyncMock()
         mock_repo.get_stats.return_value = {'total': 100}
         # Last crawl was 10 days ago (stale)
-        stale_timestamp = datetime.now(timezone.utc) - timedelta(days=10)
+        stale_timestamp = datetime.now(UTC) - timedelta(days=10)
         mock_repo.get_last_crawl_timestamp.return_value = stale_timestamp
         mock_repo_class.return_value = mock_repo
         
@@ -319,10 +319,10 @@ class TestMainApplication:
     @patch('src.jobs.weekly_refresh.setup_weekly_refresh_job')
     @patch('apscheduler.schedulers.asyncio.AsyncIOScheduler')
     async def test_lifespan_startup_scheduler_failure(
-        self, mock_scheduler_class, mock_setup_job, mock_settings, mock_get_database
+        self, _mock_scheduler_class, mock_setup_job, mock_settings, mock_get_database
     ):
         """Test lifespan startup handles scheduler initialization failure."""
-        from src.api.main import lifespan, app
+        from src.api.main import app, lifespan
         
         mock_settings.enable_automation_miner = True
         mock_db = AsyncMock()
@@ -345,7 +345,7 @@ class TestMainApplication:
         self, mock_repo_class, mock_job_class, mock_settings, mock_get_database
     ):
         """Test lifespan startup initializes corpus when no last crawl timestamp."""
-        from src.api.main import lifespan, app
+        from src.api.main import app, lifespan
         
         mock_settings.enable_automation_miner = True
         mock_db = AsyncMock()
@@ -382,8 +382,9 @@ class TestMainApplication:
         self, mock_repo_class, mock_job_class, mock_settings, mock_get_database
     ):
         """Test lifespan startup skips initialization when corpus is fresh."""
-        from src.api.main import lifespan, app
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta
+
+        from src.api.main import app, lifespan
         
         mock_settings.enable_automation_miner = True
         mock_db = AsyncMock()
@@ -400,7 +401,7 @@ class TestMainApplication:
         mock_repo = AsyncMock()
         mock_repo.get_stats.return_value = {'total': 100}
         # Last crawl was 3 days ago (fresh, less than 7 days)
-        fresh_timestamp = datetime.now(timezone.utc) - timedelta(days=3)
+        fresh_timestamp = datetime.now(UTC) - timedelta(days=3)
         mock_repo.get_last_crawl_timestamp.return_value = fresh_timestamp
         mock_repo_class.return_value = mock_repo
         

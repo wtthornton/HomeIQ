@@ -14,7 +14,7 @@ from typing import Any
 from ..base_evaluator import DetailsEvaluator
 from ..config import AgentEvalConfig, ParamRule, ToolDef
 from ..llm_judge import JudgeRubric, LLMJudge
-from ..models import EvaluationResult, SessionTrace, ToolCall
+from ..models import EvaluationResult, SessionTrace
 
 _RUBRICS_DIR = Path(__file__).resolve().parent.parent / "rubrics"
 

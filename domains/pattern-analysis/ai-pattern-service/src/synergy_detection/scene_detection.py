@@ -296,7 +296,7 @@ class SceneDetector:
     def _detect_activity_based_scenes(
         self,
         entities: list[dict[str, Any]],
-        synergies: list[dict[str, Any]]
+        _synergies: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         """
         Detect activity-based scene synergies (movie mode, sleep mode, etc.).

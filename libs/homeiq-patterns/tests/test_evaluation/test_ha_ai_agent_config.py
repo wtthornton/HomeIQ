@@ -3,7 +3,6 @@ Tests for E3.S1: HA AI Agent — Tool & Path Configuration
 """
 
 import pytest
-
 from homeiq_patterns.evaluation.config import ConfigLoader
 from homeiq_patterns.evaluation.llm_judge import LLMJudge, LLMProvider
 from homeiq_patterns.evaluation.models import (
@@ -20,7 +19,7 @@ class MockProvider(LLMProvider):
     def __init__(self, response: str = ""):
         self._response = response
 
-    async def complete(self, prompt: str) -> str:
+    async def complete(self, _prompt: str) -> str:
         return self._response
 
 

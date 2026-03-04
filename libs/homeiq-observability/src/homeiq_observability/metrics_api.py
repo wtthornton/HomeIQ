@@ -2,11 +2,9 @@
 Metrics API for accessing performance metrics data
 """
 
-import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
-import json
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import Any, Dict, List, Optional
 
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.query_api import QueryApi
@@ -71,7 +69,7 @@ class MetricsAPI:
                 data=data,
                 total_count=len(data),
                 query_time_ms=query_time_ms,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(UTC)
             )
             
         except Exception as e:
@@ -82,7 +80,7 @@ class MetricsAPI:
         # Base query
         flux_query = f'''
         from(bucket: "{self.bucket}")
-        |> range(start: {self._format_time(query.start_time or datetime.utcnow() - timedelta(hours=1))})
+        |> range(start: {self._format_time(query.start_time or datetime.now(UTC) - timedelta(hours=1))})
         |> filter(fn: (r) => r._measurement == "{query.measurement}")
         '''
         
@@ -101,7 +99,7 @@ class MetricsAPI:
         
         # Add time range filter
         if query.end_time:
-            flux_query += f'|> range(start: {self._format_time(query.start_time or datetime.utcnow() - timedelta(hours=1))}, stop: {self._format_time(query.end_time)})'
+            flux_query += f'|> range(start: {self._format_time(query.start_time or datetime.now(UTC) - timedelta(hours=1))}, stop: {self._format_time(query.end_time)})'
         
         # Add limit
         if query.limit:
@@ -121,7 +119,7 @@ class MetricsAPI:
         query = MetricsQuery(
             measurement="performance",
             service=service,
-            start_time=datetime.utcnow() - timedelta(hours=hours)
+            start_time=datetime.now(UTC) - timedelta(hours=hours)
         )
         
         response = await self.query_metrics(query)
@@ -168,7 +166,7 @@ class MetricsAPI:
         """Get system resource metrics"""
         query = MetricsQuery(
             measurement="system_resources",
-            start_time=datetime.utcnow() - timedelta(hours=hours)
+            start_time=datetime.now(UTC) - timedelta(hours=hours)
         )
         
         response = await self.query_metrics(query)
@@ -222,26 +220,26 @@ class MetricsAPI:
         # Get performance metrics summary
         perf_query = MetricsQuery(
             measurement="performance",
-            start_time=datetime.utcnow() - timedelta(hours=24)
+            start_time=datetime.now(UTC) - timedelta(hours=24)
         )
         perf_response = await self.query_metrics(perf_query)
         
         # Get system metrics summary
         sys_query = MetricsQuery(
             measurement="system_resources",
-            start_time=datetime.utcnow() - timedelta(hours=1)
+            start_time=datetime.now(UTC) - timedelta(hours=1)
         )
         sys_response = await self.query_metrics(sys_query)
         
         # Get counter metrics summary
         counter_query = MetricsQuery(
             measurement="counters",
-            start_time=datetime.utcnow() - timedelta(hours=24)
+            start_time=datetime.now(UTC) - timedelta(hours=24)
         )
         counter_response = await self.query_metrics(counter_query)
         
         return {
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'performance_metrics': {
                 'total_operations': perf_response.total_count,
                 'query_time_ms': perf_response.query_time_ms
@@ -267,7 +265,7 @@ class MetricsHealthChecker:
         """Check metrics system health"""
         health_status = {
             'status': 'healthy',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'checks': {}
         }
         
@@ -275,7 +273,7 @@ class MetricsHealthChecker:
             # Check if we can query recent metrics
             recent_query = MetricsQuery(
                 measurement="performance",
-                start_time=datetime.utcnow() - timedelta(minutes=5)
+                start_time=datetime.now(UTC) - timedelta(minutes=5)
             )
             
             response = await self.metrics_api.query_metrics(recent_query)
@@ -289,7 +287,7 @@ class MetricsHealthChecker:
             # Check system metrics
             sys_query = MetricsQuery(
                 measurement="system_resources",
-                start_time=datetime.utcnow() - timedelta(minutes=5)
+                start_time=datetime.now(UTC) - timedelta(minutes=5)
             )
             
             sys_response = await self.metrics_api.query_metrics(sys_query)

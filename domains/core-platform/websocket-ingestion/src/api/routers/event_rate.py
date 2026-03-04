@@ -2,7 +2,7 @@
 Event rate router for websocket-ingestion service.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -47,7 +47,7 @@ async def get_event_rate(request: Request):
         events_per_hour = events_per_second * 3600
 
         # Get uptime
-        uptime_seconds = (datetime.now(timezone.utc) - service.start_time).total_seconds()
+        uptime_seconds = (datetime.now(UTC) - service.start_time).total_seconds()
 
         # Build response
         response_data = {
@@ -58,7 +58,7 @@ async def get_event_rate(request: Request):
             "uptime_seconds": round(uptime_seconds, 2),
             "processing_stats": processing_stats,
             "connection_stats": connection_stats,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
         return response_data
@@ -72,7 +72,7 @@ async def get_event_rate(request: Request):
                 "error": str(e),
                 "events_per_second": 0,
                 "events_per_hour": 0,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
         ) from e
 

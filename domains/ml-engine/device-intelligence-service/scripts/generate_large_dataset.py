@@ -12,7 +12,7 @@ import json
 import logging
 import random
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 # Add src to path for imports
@@ -89,7 +89,7 @@ def generate_large_dataset(
             remaining -= count
     
     # Generate samples for each home type
-    reference_date = datetime.now(timezone.utc) if use_temporal_patterns else None
+    reference_date = datetime.now(UTC) if use_temporal_patterns else None
     
     for home_type, count in samples_per_type.items():
         if count == 0:

@@ -4,12 +4,12 @@ Tests for Suggestion Pipeline Service
 
 from __future__ import annotations
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.services.suggestion_pipeline_service import (
     SuggestionPipelineService,
-    PipelineInitializationError,
 )
 
 
@@ -53,8 +53,9 @@ def mock_agent_client():
 @pytest.fixture
 def mock_storage_service():
     """Create mock storage service"""
+    from datetime import datetime
+
     from src.models import Suggestion
-    from datetime import datetime, timezone
     
     service = MagicMock()
     suggestion = Suggestion(
@@ -63,7 +64,7 @@ def mock_storage_service():
         context_type="weather",
         status="pending",
         quality_score=0.8,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     service.create_suggestion = AsyncMock(return_value=suggestion)
     service.update_suggestion_status = AsyncMock(return_value=suggestion)

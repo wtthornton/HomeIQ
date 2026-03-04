@@ -8,7 +8,7 @@ Target: 85% automation success rate (from RECOMMENDATIONS_FEASIBILITY_ANALYSIS.m
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
 
@@ -159,7 +159,7 @@ class ExecutionTracker:
         record = ExecutionRecord(
             automation_id=automation_id,
             execution_id=execution_id,
-            triggered_at=triggered_at or datetime.utcnow(),
+            triggered_at=triggered_at or datetime.now(UTC),
             completed_at=completed_at,
             status=status,
             error_message=error_message,
@@ -219,7 +219,7 @@ class ExecutionTracker:
         Returns:
             Dictionary with success metrics
         """
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         period_executions = [e for e in self._executions if e.triggered_at >= cutoff]
 
         if not period_executions:
@@ -261,7 +261,7 @@ class ExecutionTracker:
         Returns:
             Dictionary with error breakdown
         """
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         failed_executions = [
             e for e in self._executions
             if e.triggered_at >= cutoff and e.status == ExecutionStatus.FAILURE
@@ -293,7 +293,7 @@ class ExecutionTracker:
         Returns:
             Dictionary with performance metrics
         """
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         period_executions = [
             e for e in self._executions
             if e.triggered_at >= cutoff and e.execution_time_ms is not None
@@ -367,7 +367,7 @@ class ExecutionTracker:
         Returns:
             Number of records removed
         """
-        cutoff = datetime.utcnow() - timedelta(days=self.retention_days)
+        cutoff = datetime.now(UTC) - timedelta(days=self.retention_days)
         original_count = len(self._executions)
 
         self._executions = [e for e in self._executions if e.triggered_at >= cutoff]

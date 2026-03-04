@@ -11,7 +11,7 @@ from src.models import Device, Entity
 
 
 @pytest.mark.asyncio
-async def test_device_creation(fresh_db):
+async def test_device_creation(_fresh_db):
     """Test creating a device"""
 
     async with AsyncSessionLocal() as session:
@@ -37,7 +37,7 @@ async def test_device_creation(fresh_db):
 
 
 @pytest.mark.asyncio
-async def test_entity_with_foreign_key(fresh_db):
+async def test_entity_with_foreign_key(_fresh_db):
     """Test entity with foreign key to device"""
 
     async with AsyncSessionLocal() as session:
@@ -74,7 +74,7 @@ async def test_entity_with_foreign_key(fresh_db):
 
 
 @pytest.mark.asyncio
-async def test_device_cascade_delete(fresh_db):
+async def test_device_cascade_delete(_fresh_db):
     """Test that deleting device cascades to entities"""
 
     async with AsyncSessionLocal() as session:
@@ -97,7 +97,7 @@ async def test_device_cascade_delete(fresh_db):
 
 
 @pytest.mark.asyncio
-async def test_device_query_by_area(fresh_db):
+async def test_device_query_by_area(_fresh_db):
     """Test filtering devices by area"""
 
     async with AsyncSessionLocal() as session:

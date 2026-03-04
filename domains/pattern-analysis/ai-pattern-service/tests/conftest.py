@@ -4,22 +4,19 @@ Pytest configuration and fixtures for AI Pattern Service
 Epic 39, Story 39.8: Pattern Service Testing & Validation
 """
 
-import pytest
-from pathlib import Path
-from datetime import datetime, timezone
-from typing import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock
-
 import os
+from datetime import UTC
+from typing import AsyncGenerator
+from unittest.mock import AsyncMock
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy import text
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # Note: Pattern and SynergyOpportunity models are in shared database
 # For testing, we'll use mock models or raw SQL
 from src.database import get_db
-from src.config import settings
 from src.main import app
 
 # Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
@@ -162,12 +159,13 @@ def mock_data_api_client():
     client = AsyncMock()
     
     # Mock fetch_events
-    async def mock_fetch_events(*args, **kwargs):
+    async def mock_fetch_events(*_args, **_kwargs):
+        from datetime import datetime, timedelta
+
         import pandas as pd
-        from datetime import datetime, timezone, timedelta
         
         # Return sample events DataFrame
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         events = []
         for i in range(10):
             events.append({
@@ -186,7 +184,7 @@ def mock_data_api_client():
     client.fetch_events = mock_fetch_events
     
     # Mock fetch_devices
-    async def mock_fetch_devices(*args, **kwargs):
+    async def mock_fetch_devices(*_args, **_kwargs):
         return [
             {
                 "device_id": "light.office_lamp",
@@ -198,7 +196,7 @@ def mock_data_api_client():
     client.fetch_devices = mock_fetch_devices
     
     # Mock fetch_entities
-    async def mock_fetch_entities(*args, **kwargs):
+    async def mock_fetch_entities(*_args, **_kwargs):
         return [
             {
                 "entity_id": "light.office_lamp",

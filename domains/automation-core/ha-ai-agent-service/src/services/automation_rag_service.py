@@ -8,8 +8,8 @@ Retrieves automation patterns from corpus (Super Bowl guide, etc.) when user
 prompt matches sports/team tracker keywords.
 """
 
-from pathlib import Path
 import logging
+from pathlib import Path
 
 from homeiq_patterns import RAGContextService
 

@@ -3,16 +3,17 @@ YAML parser and normalizer for Home Assistant automations.
 Converts raw YAML to internal representation (IR).
 """
 
-import yaml
-from typing import List, Dict, Any, Tuple, Optional
 import sys
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+import yaml
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from models import AutomationIR, TriggerIR, ConditionIR, ActionIR, Finding
-from constants import Severity, RuleCategory
+from constants import Severity
+from models import ActionIR, AutomationIR, ConditionIR, Finding, TriggerIR
 
 
 class YAMLParseError(Exception):

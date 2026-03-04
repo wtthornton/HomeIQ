@@ -6,7 +6,6 @@ required keys, list formats, and unresolved placeholder detection.
 """
 
 import pytest
-
 from homeiq_patterns.evaluation.evaluators.l3_yaml_completeness import (
     YAMLCompletenessEvaluator,
 )

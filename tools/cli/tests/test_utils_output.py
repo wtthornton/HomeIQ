@@ -1,11 +1,10 @@
 """Tests for output formatting utilities."""
 
-import pytest
-from unittest.mock import MagicMock
-from datetime import datetime
-from rich.console import Console
 
+import pytest
+from rich.console import Console
 from src.utils.output import OutputFormatter
+
 
 class TestOutputFormatter:
     """Test OutputFormatter class."""

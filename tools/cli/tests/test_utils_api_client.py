@@ -1,12 +1,12 @@
 """Tests for API client utilities."""
 
-import pytest
-import json
-from unittest.mock import patch, AsyncMock, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.utils.api_client import APIClient
 from src.utils.config import CLIConfig
+
 
 class TestAPIClient:
     """Test APIClient class."""

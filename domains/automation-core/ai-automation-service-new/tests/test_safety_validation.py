@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.clients.ha_client import HomeAssistantClient
 from src.database.models import Suggestion
 from src.services.deployment_service import (

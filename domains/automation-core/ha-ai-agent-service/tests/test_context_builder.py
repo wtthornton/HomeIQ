@@ -1,12 +1,10 @@
 """Tests for Context Builder Service"""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
 
-from src.services.context_builder import ContextBuilder
+import pytest
 from src.config import Settings
-from src.database import ContextCache
+from src.services.context_builder import ContextBuilder
 
 
 @pytest.fixture

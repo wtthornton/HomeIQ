@@ -187,7 +187,7 @@ async def _run_cpu_bound(func: Any, *args: Any, **kwargs: Any) -> Any:
             loop.run_in_executor(None, partial),
             timeout=ALGORITHM_TIMEOUT_SECONDS,
         )
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         logger.error("Operation timed out: %s", getattr(func, "__name__", "unknown"))
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,

@@ -9,7 +9,7 @@ import asyncio
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -365,7 +365,7 @@ class TestPerformanceCollector:
         await performance_collector.collect_device_metrics(device_id, sample_metrics)
 
         # Simulate old metrics by modifying timestamp
-        old_time = datetime.now(timezone.utc).replace(year=2020)
+        old_time = datetime.now(UTC).replace(year=2020)
         performance_collector.metrics_history[device_id][0]["timestamp"] = old_time
 
         # Trigger cleanup

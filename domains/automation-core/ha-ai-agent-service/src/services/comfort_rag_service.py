@@ -6,8 +6,8 @@ Extends RAGContextService to inject comfort/climate automation patterns when
 user prompts mention HVAC, thermostat, or comfort keywords.
 """
 
-from pathlib import Path
 import logging
+from pathlib import Path
 
 from homeiq_patterns import RAGContextService
 

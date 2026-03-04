@@ -11,7 +11,7 @@ import asyncio
 import base64
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -376,8 +376,8 @@ class GitHubClient:
                 "description": description or f"Blueprint from {owner}/{repo}",
                 "yaml_blocks": [blueprint_file["content"]],
                 "author": owner,
-                "created_at": repo_data.get("created_at", datetime.now(timezone.utc).isoformat()),
-                "updated_at": repo_data.get("updated_at", repo_data.get("pushed_at", datetime.now(timezone.utc).isoformat())),
+                "created_at": repo_data.get("created_at", datetime.now(UTC).isoformat()),
+                "updated_at": repo_data.get("updated_at", repo_data.get("pushed_at", datetime.now(UTC).isoformat())),
                 "likes": stars,  # Use stars as likes for quality scoring
                 "tags": repo_data.get("topics", []),
                 "category_id": None,

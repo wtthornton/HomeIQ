@@ -43,7 +43,7 @@ def wired_manager(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_health_endpoint_reports_ready(wired_manager):
+async def test_health_endpoint_reports_ready(_wired_manager):
     result = await health_check()
     assert result["service"] == "openvino-service"
     assert "models_loaded" in result
@@ -51,7 +51,7 @@ async def test_health_endpoint_reports_ready(wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_model_status_endpoint(wired_manager):
+async def test_model_status_endpoint(_wired_manager):
     status = await get_model_status()
     # MED-1: Fixed model name assertion to match actual EMBEDDING_MODEL_NAME
     assert status["embedding_model"] == "BAAI/bge-large-en-v1.5"
@@ -60,7 +60,7 @@ async def test_model_status_endpoint(wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_embeddings_endpoint(wired_manager):
+async def test_embeddings_endpoint(_wired_manager):
     request = EmbeddingRequest(texts=["Turn on the hallway lights"], normalize=True)
     response = await generate_embeddings(request)
     assert len(response.embeddings) == 1
@@ -70,7 +70,7 @@ async def test_embeddings_endpoint(wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_rerank_endpoint(wired_manager):
+async def test_rerank_endpoint(_wired_manager):
     request = RerankRequest(
         query="Turn on hallway lights",
         candidates=[
@@ -94,7 +94,7 @@ async def test_rerank_endpoint(wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_classification_endpoint(wired_manager):
+async def test_classification_endpoint(_wired_manager):
     request = ClassifyRequest(pattern_description="Lock the front door when motion is detected")
     response = await classify_pattern(request)
     assert response.category in {"energy", "comfort", "security", "convenience"}
@@ -136,7 +136,7 @@ async def test_health_endpoint_partial_initialization(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_warmup_endpoint(wired_manager):
+async def test_warmup_endpoint(_wired_manager):
     """ENH-2: Test the model warmup endpoint."""
     result = await warmup_models()
     assert result["status"] == "all_models_loaded"
@@ -144,7 +144,7 @@ async def test_warmup_endpoint(wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_embedding_empty_texts_rejected(wired_manager):
+async def test_embedding_empty_texts_rejected(_wired_manager):
     """Boundary test: empty text list should be rejected."""
     request = EmbeddingRequest(texts=[], normalize=True)
     with pytest.raises(HTTPException) as exc_info:
@@ -153,7 +153,7 @@ async def test_embedding_empty_texts_rejected(wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_embedding_whitespace_only_rejected(wired_manager):
+async def test_embedding_whitespace_only_rejected(_wired_manager):
     """Boundary test: whitespace-only text should be rejected."""
     request = EmbeddingRequest(texts=["   "], normalize=True)
     with pytest.raises(HTTPException) as exc_info:
@@ -162,7 +162,7 @@ async def test_embedding_whitespace_only_rejected(wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_classify_empty_description_rejected(wired_manager):
+async def test_classify_empty_description_rejected(_wired_manager):
     """Boundary test: empty pattern description should be rejected."""
     request = ClassifyRequest(pattern_description="")
     with pytest.raises(HTTPException) as exc_info:
@@ -171,7 +171,7 @@ async def test_classify_empty_description_rejected(wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_rerank_empty_query_rejected(wired_manager):
+async def test_rerank_empty_query_rejected(_wired_manager):
     """Boundary test: empty query should be rejected."""
     request = RerankRequest(
         query="",
@@ -184,7 +184,7 @@ async def test_rerank_empty_query_rejected(wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_rerank_empty_candidates_rejected(wired_manager):
+async def test_rerank_empty_candidates_rejected(_wired_manager):
     """Boundary test: empty candidates list should be rejected."""
     request = RerankRequest(
         query="test query",
@@ -197,7 +197,7 @@ async def test_rerank_empty_candidates_rejected(wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_embedding_unicode_input(wired_manager):
+async def test_embedding_unicode_input(_wired_manager):
     """Boundary test: unicode text should work correctly."""
     request = EmbeddingRequest(
         texts=["Schalte das Licht ein", "Allume la lumiere"],

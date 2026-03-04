@@ -6,8 +6,8 @@ Extends RAGContextService to inject device setup guides when user prompts
 mention device configuration keywords (Zigbee, Hue, Z-Wave, MQTT, etc.).
 """
 
-from pathlib import Path
 import logging
+from pathlib import Path
 
 from homeiq_patterns import RAGContextService
 

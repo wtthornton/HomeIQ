@@ -7,19 +7,17 @@ import asyncio
 import contextlib
 import os
 import signal
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
-from aiohttp import web
-from dotenv import load_dotenv
-from influxdb_client_3 import InfluxDBClient3, Point
-
 from adapters.base import MeterAdapter
 from adapters.home_assistant import HomeAssistantAdapter
+from aiohttp import web
+from dotenv import load_dotenv
 from health_check import HealthCheckHandler
-
 from homeiq_observability.logging_config import log_error_with_context, setup_logging
+from influxdb_client_3 import InfluxDBClient3, Point
 
 load_dotenv()
 
@@ -131,7 +129,7 @@ class SmartMeterService:
 
                 # Add timestamp if not present
                 if 'timestamp' not in data:
-                    data['timestamp'] = datetime.now(timezone.utc)
+                    data['timestamp'] = datetime.now(UTC)
 
                 # Ensure percentages are calculated
                 for circuit in data.get('circuits', []):
@@ -144,7 +142,7 @@ class SmartMeterService:
                         )
 
                 # Detect phantom loads (high 3am baseline)
-                current_hour = datetime.now(timezone.utc).hour
+                current_hour = datetime.now(UTC).hour
                 if current_hour == 3:
                     self.baseline_3am = data['total_power_w']
                     if self.baseline_3am > 200:
@@ -156,8 +154,8 @@ class SmartMeterService:
 
                 # Update cache and stats
                 self.cached_data = data
-                self.last_fetch_time = datetime.now(timezone.utc)
-                self.health_handler.last_successful_fetch = datetime.now(timezone.utc)
+                self.last_fetch_time = datetime.now(UTC)
+                self.health_handler.last_successful_fetch = datetime.now(UTC)
                 self.health_handler.total_fetches += 1
 
                 logger.info(
@@ -179,7 +177,7 @@ class SmartMeterService:
 
                 # Return cached data if available and not too old
                 if self.cached_data and self.last_fetch_time:
-                    cache_age = (datetime.now(timezone.utc) - self.last_fetch_time).total_seconds()
+                    cache_age = (datetime.now(UTC) - self.last_fetch_time).total_seconds()
                     if cache_age < self.CACHE_MAX_AGE_SECONDS:
                         logger.warning(
                             f"Using cached data (age: {cache_age:.0f}s) after adapter failure"
@@ -211,13 +209,13 @@ class SmartMeterService:
                 {'name': 'Bedrooms', 'power_w': 150.0, 'percentage': 6.1},
                 {'name': 'Other', 'power_w': 100.0, 'percentage': 4.1}
             ],
-            'timestamp': datetime.now(timezone.utc)
+            'timestamp': datetime.now(UTC)
         }
 
         # Update stats
         self.cached_data = data
-        self.last_fetch_time = datetime.now(timezone.utc)
-        self.health_handler.last_successful_fetch = datetime.now(timezone.utc)
+        self.last_fetch_time = datetime.now(UTC)
+        self.health_handler.last_successful_fetch = datetime.now(UTC)
         self.health_handler.total_fetches += 1
 
         logger.debug("Using mock data")

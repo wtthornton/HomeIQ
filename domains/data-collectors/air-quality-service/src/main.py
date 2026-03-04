@@ -6,16 +6,19 @@ Fetches AQI data from OpenWeather API
 import asyncio
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
 from aiohttp import web
 from dotenv import load_dotenv
 from health_check import HealthCheckHandler
+from homeiq_observability.logging_config import (
+    log_error_with_context,
+    log_with_context,
+    setup_logging,
+)
 from influxdb_client_3 import InfluxDBClient3, Point
-
-from homeiq_observability.logging_config import log_error_with_context, log_with_context, setup_logging
 
 load_dotenv()
 
@@ -219,7 +222,7 @@ class AirQualityService:
                         category = category_map.get(ow_aqi, 'Unknown')
 
                         # Parse timestamp
-                        timestamp = datetime.fromtimestamp(pollution_data.get('dt', datetime.now(timezone.utc).timestamp()), tz=timezone.utc)
+                        timestamp = datetime.fromtimestamp(pollution_data.get('dt', datetime.now(UTC).timestamp()), tz=UTC)
 
                         # Parse response
                         data = {
@@ -241,9 +244,9 @@ class AirQualityService:
 
                         self.last_category = data['category']
                         self.cached_data = data
-                        self.last_fetch_time = datetime.now(timezone.utc)
+                        self.last_fetch_time = datetime.now(UTC)
 
-                        self.health_handler.last_successful_fetch = datetime.now(timezone.utc)
+                        self.health_handler.last_successful_fetch = datetime.now(UTC)
                         self.health_handler.total_fetches += 1
                         self.health_handler.last_api_success = True
 
@@ -321,7 +324,7 @@ class AirQualityService:
     def _is_cache_valid(self) -> bool:
         if not self.cached_data or not self.last_fetch_time:
             return False
-        age_minutes = (datetime.now(timezone.utc) - self.last_fetch_time).total_seconds() / 60
+        age_minutes = (datetime.now(UTC) - self.last_fetch_time).total_seconds() / 60
         return age_minutes < self.cache_duration
 
     def _check_rate_limit(self) -> bool:
@@ -370,7 +373,7 @@ class AirQualityService:
                     try:
                         await asyncio.wait_for(stop_event.wait(), timeout=self.fetch_interval)
                         break
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         pass
                 else:
                     await asyncio.sleep(self.fetch_interval)
@@ -389,7 +392,7 @@ class AirQualityService:
                     try:
                         await asyncio.wait_for(stop_event.wait(), timeout=300)
                         break
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         pass
                 else:
                     await asyncio.sleep(300)

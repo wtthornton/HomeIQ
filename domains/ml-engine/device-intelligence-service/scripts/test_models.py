@@ -70,7 +70,6 @@ async def test_production_model():
             # Check if we can make a prediction (the method might be different)
             # For now, just verify the model is loaded and can process features
             import pandas as pd
-            import numpy as np
             
             # Create feature vector
             features = pd.DataFrame([test_sample])

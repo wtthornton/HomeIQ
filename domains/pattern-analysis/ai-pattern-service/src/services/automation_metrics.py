@@ -17,7 +17,7 @@ Features:
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
 
@@ -275,8 +275,8 @@ class AutomationMetricsCollector:
             trigger_entity=trigger_entity,
             action_count=action_count,
             actions_succeeded=actions_succeeded,
-            started_at=datetime.utcnow() - timedelta(milliseconds=execution_time_ms),
-            completed_at=datetime.utcnow(),
+            started_at=datetime.now(UTC) - timedelta(milliseconds=execution_time_ms),
+            completed_at=datetime.now(UTC),
         )
 
         # Write to InfluxDB if available
@@ -313,7 +313,7 @@ class AutomationMetricsCollector:
                     "action_count": record.action_count,
                     "actions_succeeded": record.actions_succeeded,
                 },
-                "time": record.completed_at or datetime.utcnow(),
+                "time": record.completed_at or datetime.now(UTC),
             }
 
             if record.error_message:
@@ -352,7 +352,7 @@ class AutomationMetricsCollector:
         Returns:
             AutomationMetrics with aggregated data
         """
-        cutoff = datetime.utcnow() - timedelta(hours=lookback_hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=lookback_hours)
 
         # Filter records
         records = [
@@ -377,7 +377,7 @@ class AutomationMetricsCollector:
         Returns:
             Dictionary mapping automation_id to success rate
         """
-        cutoff = datetime.utcnow() - timedelta(hours=lookback_hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=lookback_hours)
 
         # Filter records
         if automation_id:
@@ -415,7 +415,7 @@ class AutomationMetricsCollector:
         Returns:
             OverallMetrics summary
         """
-        cutoff = datetime.utcnow() - timedelta(hours=lookback_hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=lookback_hours)
         records = [r for r in self._in_memory_records if r.started_at >= cutoff]
 
         if not records:
@@ -553,7 +553,7 @@ class AutomationMetricsCollector:
         Returns:
             List of AutomationMetrics for problem automations
         """
-        cutoff = datetime.utcnow() - timedelta(hours=lookback_hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=lookback_hours)
         records = [r for r in self._in_memory_records if r.started_at >= cutoff]
 
         # Group by automation
@@ -590,7 +590,7 @@ class AutomationMetricsCollector:
         Returns:
             Confidence adjustment (-0.2 to +0.2) or None if insufficient data
         """
-        cutoff = datetime.utcnow() - timedelta(hours=lookback_hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=lookback_hours)
         records = [
             r for r in self._in_memory_records
             if r.synergy_id == synergy_id and r.started_at >= cutoff

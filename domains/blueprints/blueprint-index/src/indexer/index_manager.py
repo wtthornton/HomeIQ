@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
 from sqlalchemy import select
@@ -57,7 +57,7 @@ class IndexManager:
         job = IndexingJob(
             job_type=job_type,
             status="running",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             config={"force_refresh": force_refresh},
         )
 
@@ -134,7 +134,7 @@ class IndexManager:
                             for key, value in blueprint.to_dict().items():
                                 if key != "id" and value is not None:
                                     setattr(existing, key, value)
-                            existing.indexed_at = datetime.now(timezone.utc)
+                            existing.indexed_at = datetime.now(UTC)
                         else:
                             # Add new
                             db.add(blueprint)
@@ -149,7 +149,7 @@ class IndexManager:
 
                 # Update job status
                 job.status = "completed"
-                job.completed_at = datetime.now(timezone.utc)
+                job.completed_at = datetime.now(UTC)
                 job.indexed_items = stored_count
                 job.failed_items = failed_count
                 job.total_items = len(all_blueprints)
@@ -176,7 +176,7 @@ class IndexManager:
 
                     if job:
                         job.status = "failed"
-                        job.completed_at = datetime.now(timezone.utc)
+                        job.completed_at = datetime.now(UTC)
                         job.error_message = str(e)
                         await db.commit()
 
@@ -207,7 +207,7 @@ class IndexManager:
             return False
 
         job.status = "cancelled"
-        job.completed_at = datetime.now(timezone.utc)
+        job.completed_at = datetime.now(UTC)
         await self.db.commit()
 
         return True

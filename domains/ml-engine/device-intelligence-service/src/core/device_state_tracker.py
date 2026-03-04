@@ -7,7 +7,7 @@ Tracks device states, metrics, and detects anomalies for real-time monitoring.
 import logging
 import statistics
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .websocket_manager import websocket_manager
@@ -32,7 +32,7 @@ class DeviceStateTracker:
 
     async def update_device_state(self, device_id: str, state_data: dict[str, Any]):
         """Update device state and track metrics."""
-        current_time = datetime.now(timezone.utc)
+        current_time = datetime.now(UTC)
 
         # Update device state
         self.device_states[device_id] = {
@@ -84,12 +84,12 @@ class DeviceStateTracker:
         """Mark device as offline."""
         if device_id in self.device_states:
             self.device_states[device_id]["online"] = False
-            self.device_states[device_id]["last_updated"] = datetime.now(timezone.utc)
+            self.device_states[device_id]["last_updated"] = datetime.now(UTC)
 
             # Broadcast offline status
             await websocket_manager.broadcast_device_update(device_id, {
                 "state": {"online": False},
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             })
 
             logger.info(f"Device {device_id} marked as offline")
@@ -147,7 +147,7 @@ class DeviceStateTracker:
             await websocket_manager.broadcast_health_alert(device_id, "anomalies_detected", {
                 "anomalies": anomalies_detected,
                 "device_id": device_id,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             })
 
             logger.warning(f"Anomalies detected for device {device_id}: {len(anomalies_detected)} issues")
@@ -199,7 +199,7 @@ class DeviceStateTracker:
 
         return (avg_second - avg_first) / avg_first
 
-    async def _calculate_basic_health_score(self, device_id: str, state_data: dict[str, Any]) -> float:
+    async def _calculate_basic_health_score(self, _device_id: str, state_data: dict[str, Any]) -> float:
         """Calculate basic health score (0-100)."""
         score = 100.0
 

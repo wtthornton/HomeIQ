@@ -3,7 +3,7 @@ Unit tests for PolicyValidator
 """
 
 import sys
-from datetime import datetime, time
+from datetime import time
 from pathlib import Path
 from unittest.mock import patch
 

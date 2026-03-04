@@ -8,6 +8,7 @@ Tests R1, R2, R3, R5 from REQUIREMENTS_ENTITY_VALIDATION_FIX.md
 from unittest.mock import AsyncMock
 
 import pytest
+
 from src.clients.data_api_client import DataAPIClient
 from src.clients.openai_client import OpenAIClient
 from src.clients.yaml_validation_client import YAMLValidationClient
@@ -149,7 +150,7 @@ class TestFetchEntityContext:
 class TestFormatEntityContextForPrompt:
     """Test R2: Entity Context Formatting for LLM Prompts."""
 
-    def test_format_entity_context_with_entities(self, yaml_service, sample_entities):
+    def test_format_entity_context_with_entities(self, yaml_service, _sample_entities):
         """Test formatting with entities."""
         entity_context = {
             "entities": {

@@ -7,11 +7,11 @@ network timeouts, and queue overflow scenarios.
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiohttp import ClientError, ClientTimeout
+from aiohttp import ClientError
 
 
 class TestWebSocketConnectionFailures:
@@ -133,7 +133,7 @@ class TestInfluxDBWriteFailures:
         )
         
         with patch.object(writer.client, 'write_api', new_callable=MagicMock) as mock_write:
-            mock_write.side_effect = asyncio.TimeoutError("Write timeout")
+            mock_write.side_effect = TimeoutError("Write timeout")
             
             with pytest.raises(asyncio.TimeoutError):
                 await writer.write_batch([])
@@ -206,7 +206,7 @@ class TestDiscoveryServiceFailures:
         
         # Pre-populate cache
         discovery._entity_cache = {"test.entity": {"entity_id": "test.entity"}}
-        discovery._cache_timestamp = datetime.now(timezone.utc)
+        discovery._cache_timestamp = datetime.now(UTC)
         
         # Mock failure
         with patch.object(http_client, 'get', new_callable=AsyncMock) as mock_get:
@@ -232,7 +232,7 @@ class TestNetworkTimeoutScenarios:
         client = SimpleHTTPClient(base_url="http://localhost:8123", token="token")
         
         with patch('aiohttp.ClientSession.get', new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = asyncio.TimeoutError("Request timeout")
+            mock_get.side_effect = TimeoutError("Request timeout")
             
             with pytest.raises(asyncio.TimeoutError):
                 await client.get("/api/states")
@@ -251,7 +251,7 @@ class TestNetworkTimeoutScenarios:
         client = HomeAssistantWebSocketClient("http://localhost:8123", "token")
         
         with patch.object(client, 'send_message', new_callable=AsyncMock) as mock_send:
-            mock_send.side_effect = asyncio.TimeoutError("WebSocket timeout")
+            mock_send.side_effect = TimeoutError("WebSocket timeout")
             
             with pytest.raises(asyncio.TimeoutError):
                 await mock_send({"type": "test"})
@@ -284,7 +284,7 @@ class TestQueueOverflowScenarios:
         # This test verifies the queue doesn't crash
         try:
             await asyncio.wait_for(queue.put({"event_id": 11}), timeout=0.1)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Queue is full and blocking - this is expected behavior
             pass
 
@@ -330,7 +330,7 @@ class TestQueueOverflowScenarios:
         for i in range(10):
             try:
                 await asyncio.wait_for(processor.add_event({"event_id": i}), timeout=0.01)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Expected if queue is full
                 pass
         

@@ -72,7 +72,7 @@ def _load_recommendation_model() -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Application lifespan handler."""
     # Startup
     logger.info("Starting Rule Recommendation ML Service...")

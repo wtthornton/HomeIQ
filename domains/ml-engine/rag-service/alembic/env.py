@@ -13,7 +13,6 @@ from alembic import context
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from src.config import settings  # noqa: E402
 from src.database.models import RAGKnowledge  # noqa: E402, F401
 from src.database.session import Base  # noqa: E402
 

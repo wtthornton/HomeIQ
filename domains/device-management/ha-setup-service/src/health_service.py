@@ -8,7 +8,7 @@ Context7 Best Practices Applied:
 """
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
@@ -184,7 +184,7 @@ class HealthMonitoringService:
             integrations=normalized_integrations,
             performance=PerformanceMetrics(**performance),
             issues_detected=issues,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
 
     async def _check_ha_core(self) -> dict:
@@ -280,7 +280,7 @@ class HealthMonitoringService:
                         "version": "unknown",
                         "error": f"HTTP {response.status}"
                     }
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             logger.warning(f"HA core check: Timeout - {e}")
             return {"status": "warning", "version": "unknown", "error": "Timeout"}
         except Exception as e:
@@ -309,7 +309,7 @@ class HealthMonitoringService:
                 "is_configured": False,
                 "is_connected": False,
                 "error_message": str(e),
-                "last_check": datetime.now(timezone.utc)
+                "last_check": datetime.now(UTC)
             })
 
         # Check HA Ingestor services (always include, even if check fails)
@@ -325,7 +325,7 @@ class HealthMonitoringService:
                 "is_configured": True,  # Service exists, just not reachable
                 "is_connected": False,
                 "error_message": str(e),
-                "last_check": datetime.now(timezone.utc)
+                "last_check": datetime.now(UTC)
             })
 
         return integrations
@@ -357,7 +357,7 @@ class HealthMonitoringService:
                                 "is_configured": True,
                                 "is_connected": True,
                                 "error_message": None,
-                                "last_check": datetime.now(timezone.utc)
+                                "last_check": datetime.now(UTC)
                             }
                         else:
                             return {
@@ -367,7 +367,7 @@ class HealthMonitoringService:
                                 "is_configured": False,
                                 "is_connected": False,
                                 "error_message": "MQTT integration not found",
-                                "last_check": datetime.now(timezone.utc)
+                                "last_check": datetime.now(UTC)
                             }
 
                     # Non-200 responses should produce a structured error result
@@ -378,7 +378,7 @@ class HealthMonitoringService:
                         "is_configured": False,
                         "is_connected": False,
                         "error_message": f"Failed to fetch config entries: HTTP {response.status}",
-                        "last_check": datetime.now(timezone.utc)
+                        "last_check": datetime.now(UTC)
                     }
         except Exception as e:
             return {
@@ -388,7 +388,7 @@ class HealthMonitoringService:
                 "is_configured": False,
                 "is_connected": False,
                 "error_message": str(e),
-                "last_check": datetime.now(timezone.utc)
+                "last_check": datetime.now(UTC)
             }
 
     async def _check_zigbee2mqtt_integration(self) -> dict:
@@ -424,7 +424,7 @@ class HealthMonitoringService:
                 "is_connected": False,
                 "error_message": f"HA API check failed: {str(e)}",
                 "check_details": {"error_type": type(e).__name__},
-                "last_check": datetime.now(timezone.utc)
+                "last_check": datetime.now(UTC)
             }
 
     async def _check_data_api(self) -> dict:
@@ -443,7 +443,7 @@ class HealthMonitoringService:
                         "is_configured": True,
                         "is_connected": True,
                         "error_message": None,
-                        "last_check": datetime.now(timezone.utc)
+                        "last_check": datetime.now(UTC)
                     }
                 # Surface non-200 responses as warning/error data instead of None
                 return {
@@ -453,7 +453,7 @@ class HealthMonitoringService:
                     "is_configured": True,
                     "is_connected": False,
                     "error_message": f"Health endpoint returned HTTP {response.status}",
-                    "last_check": datetime.now(timezone.utc)
+                    "last_check": datetime.now(UTC)
                 }
         except Exception as e:
             return {
@@ -463,7 +463,7 @@ class HealthMonitoringService:
                 "is_configured": True,
                 "is_connected": False,
                 "error_message": str(e),
-                "last_check": datetime.now(timezone.utc)
+                "last_check": datetime.now(UTC)
             }
 
     async def _check_performance(self) -> dict:

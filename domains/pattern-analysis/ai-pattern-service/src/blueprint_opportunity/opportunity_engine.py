@@ -3,7 +3,7 @@
 import logging
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -180,7 +180,7 @@ class BlueprintOpportunityEngine:
                 autofill_complete=autofill_complete,
                 one_click_deploy=one_click_deploy,
                 deployment_method="blueprint",
-                discovered_at=datetime.now(timezone.utc),
+                discovered_at=datetime.now(UTC),
                 reason=self._generate_reason(blueprint, fit_score, same_area),
             )
 

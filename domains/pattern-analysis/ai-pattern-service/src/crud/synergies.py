@@ -8,7 +8,7 @@ Simplified synergy storage operations.
 import contextlib
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import and_, case, func, or_, select
@@ -119,7 +119,7 @@ async def store_synergy_opportunities(
         stored_count = 0
         updated_count = 0
         skipped_count = 0
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for synergy_data in synergies:
             try:
@@ -266,7 +266,7 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
     from sqlalchemy import text
 
     stored_count = 0
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     for synergy_data in synergies:
         try:

@@ -9,7 +9,7 @@ import json
 import logging
 import os
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -85,7 +85,7 @@ class DeviceCache:
                 "manufacturer": manufacturer,
                 "model": model,
                 "device_info": device_info,
-                "cached_at": datetime.now(timezone.utc).isoformat()
+                "cached_at": datetime.now(UTC).isoformat()
             }
 
             # Atomic write: write to temp file then replace
@@ -121,5 +121,5 @@ class DeviceCache:
         cache_path = self._get_cache_path(manufacturer, model)
         if not cache_path.exists():
             return True
-        mtime = datetime.fromtimestamp(cache_path.stat().st_mtime, tz=timezone.utc)
-        return datetime.now(timezone.utc) - mtime > self.ttl
+        mtime = datetime.fromtimestamp(cache_path.stat().st_mtime, tz=UTC)
+        return datetime.now(UTC) - mtime > self.ttl

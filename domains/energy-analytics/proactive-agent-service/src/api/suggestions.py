@@ -14,13 +14,14 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func as sql_func
+from sqlalchemy import func as sql_func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database import get_db
-from ..services.suggestion_storage_service import SuggestionStorageService
 from ..clients.ha_agent_client import HAAgentClient
-from ..models import Suggestion, InvalidSuggestionReport
+from ..database import get_db
+from ..models import InvalidSuggestionReport, Suggestion
+from ..services.suggestion_storage_service import SuggestionStorageService
 
 # Agent Evaluation Framework: SessionTracer wiring (E3.S5)
 try:

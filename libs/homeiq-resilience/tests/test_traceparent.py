@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-
 from shared.resilience.cross_group_client import CrossGroupClient
 
 
@@ -104,7 +103,7 @@ async def test_no_traceparent_when_otel_unavailable(client):
     """When OTel unavailable, no traceparent header is injected."""
     captured_headers = {}
 
-    async def capture_request(self, method, url, *, headers=None, **kwargs):
+    async def capture_request(self, _method, _url, *, headers=None, **_kwargs):  # noqa: ARG001
         captured_headers.update(headers or {})
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
@@ -135,7 +134,7 @@ async def test_auth_header_preserved_with_otel():
 
     captured_headers = {}
 
-    async def capture_request(self, method, url, *, headers=None, **kwargs):
+    async def capture_request(self, _method, _url, *, headers=None, **_kwargs):  # noqa: ARG001
         captured_headers.update(headers or {})
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200

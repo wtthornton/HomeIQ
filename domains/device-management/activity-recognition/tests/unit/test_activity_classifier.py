@@ -5,7 +5,6 @@ import pytest
 
 pytest.importorskip("torch")
 import torch
-
 from src.models.activity_classifier import ACTIVITIES, ActivityLSTM
 
 

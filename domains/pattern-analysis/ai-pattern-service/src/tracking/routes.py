@@ -250,7 +250,7 @@ async def get_problematic_automations(
 
 @router.post("/cleanup")
 async def cleanup_old_records(
-    retention_days: int = Query(default=90, ge=30, le=365),
+    _retention_days: int = Query(default=90, ge=30, le=365),
 ) -> dict[str, Any]:
     """
     Clean up old execution records.

@@ -7,24 +7,22 @@ rather than specific test cases.
 Created: January 2026
 """
 
+# Import modules under test
+import sys
 from datetime import datetime, timedelta
-from typing import Any
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
-from hypothesis import given, settings, strategies as st, assume
-
-# Import modules under test
-import sys
-from pathlib import Path
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 # Add src directory to path
 src_dir = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_dir))
 
 from pattern_analyzer.time_of_day import TimeOfDayPatternDetector
-
 
 # ============================================================================
 # Custom Strategies
@@ -466,7 +464,7 @@ class TestPatternSummaryProperties:
     
     @given(events=event_dataframe_strategy())
     @settings(max_examples=30, deadline=5000)
-    def test_empty_patterns_summary(self, events):
+    def test_empty_patterns_summary(self, _events):
         """Property: Empty patterns produce valid summary."""
         detector = TimeOfDayPatternDetector()
         summary = detector.get_pattern_summary([])

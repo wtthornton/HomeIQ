@@ -209,7 +209,7 @@ class IncrementalFailurePredictor:
         """Get current model accuracy."""
         return self.metric.get()
 
-    def get_params(self, deep: bool = True) -> dict[str, Any]:
+    def get_params(self, _deep: bool = True) -> dict[str, Any]:
         """Get model parameters (for compatibility with scikit-learn interface)."""
         return {
             "model_type": "incremental_river",

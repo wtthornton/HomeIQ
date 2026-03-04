@@ -1,6 +1,6 @@
 """Unit tests for EnergyDataLoader."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 

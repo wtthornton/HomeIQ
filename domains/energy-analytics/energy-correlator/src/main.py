@@ -7,12 +7,15 @@ import asyncio
 import os
 import signal
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from aiohttp import web
 from dotenv import load_dotenv
-
-from homeiq_observability.logging_config import log_error_with_context, log_with_context, setup_logging
+from homeiq_observability.logging_config import (
+    log_error_with_context,
+    log_with_context,
+    setup_logging,
+)
 
 from .correlator import EnergyEventCorrelator
 from .health_check import HealthCheckHandler
@@ -157,7 +160,7 @@ class EnergyCorrelatorService:
                 )
 
                 # Update health check
-                self.health_handler.last_successful_fetch = datetime.now(timezone.utc)
+                self.health_handler.last_successful_fetch = datetime.now(UTC)
                 self.health_handler.total_fetches += 1
 
                 # Wait for next interval

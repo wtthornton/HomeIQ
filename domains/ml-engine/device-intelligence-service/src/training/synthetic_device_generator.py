@@ -9,7 +9,7 @@ Epic 46, Story 46.1: Synthetic Device Data Generator
 
 import logging
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
@@ -300,9 +300,9 @@ class SyntheticDeviceGenerator:
 
         # Use current date if not provided (2025: timezone-aware)
         if reference_date is None:
-            reference_date = datetime.now(timezone.utc)
+            reference_date = datetime.now(UTC)
         elif reference_date.tzinfo is None:
-            reference_date = reference_date.replace(tzinfo=timezone.utc)
+            reference_date = reference_date.replace(tzinfo=UTC)
 
         logger.info(f"Generating {count} synthetic device samples (template-based, {days} days, home_type={effective_home_type or 'default'}, reference_date={reference_date.date()})")
 
@@ -416,7 +416,7 @@ class SyntheticDeviceGenerator:
         device_type: str,
         days: int = 180,
         failure_scenario: str | None = None,
-        home_type: str | None = None,
+        _home_type: str | None = None,
         reference_date: datetime | None = None
     ) -> dict[str, Any]:
         """
@@ -595,10 +595,10 @@ class SyntheticDeviceGenerator:
 
         # Use current date if not provided (2025: timezone-aware)
         if reference_date is None:
-            reference_date = datetime.now(timezone.utc)
+            reference_date = datetime.now(UTC)
         elif reference_date.tzinfo is None:
             # Ensure timezone-aware (2025 best practice)
-            reference_date = reference_date.replace(tzinfo=timezone.utc)
+            reference_date = reference_date.replace(tzinfo=UTC)
 
         if pattern == 'stable':
             # Small random variation around base

@@ -2,15 +2,19 @@
 Correlation ID Middleware for Request Tracking Across Services
 """
 
-import time
-import uuid
 import logging
-from typing import Optional, Callable, Any
-from contextvars import ContextVar
+import time
 from functools import wraps
+from typing import Callable, Optional
+
 from aiohttp.web import middleware
 
-from .logging_config import correlation_id, generate_correlation_id, set_correlation_id, get_correlation_id
+from .logging_config import (
+    correlation_id,
+    generate_correlation_id,
+    get_correlation_id,
+    set_correlation_id,
+)
 
 logger = logging.getLogger(__name__)
 

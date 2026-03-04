@@ -119,7 +119,7 @@ class Explainer:
     def explain_why(
         self,
         correlation_id: str,
-        question: str = "why"
+        _question: str = "why"
     ) -> str:
         """
         Answer "Why did this happen?" query.

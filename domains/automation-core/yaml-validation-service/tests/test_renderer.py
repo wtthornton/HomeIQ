@@ -2,7 +2,6 @@
 Tests for YAML Renderer (Epic 51, Story 51.1)
 """
 
-import pytest
 import yaml
 from yaml_validation_service.renderer import AutomationRenderer
 from yaml_validation_service.schema import (

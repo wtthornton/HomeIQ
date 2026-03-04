@@ -1,6 +1,5 @@
 """Tests for health check endpoints."""
 
-import json
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -67,7 +66,7 @@ class TestHealthCheckEndpoints:
             app.state.service = mock_service
             yield TestClient(app)
 
-    def test_health_check_success(self, client, mock_service):
+    def test_health_check_success(self, client, _mock_service):
         """Test successful health check."""
         response = client.get("/health")
         
@@ -100,7 +99,7 @@ class TestHealthCheckEndpoints:
         data = response.json()
         assert "error" in data["detail"] or "error" in data
 
-    def test_get_statistics_success(self, client, mock_service):
+    def test_get_statistics_success(self, client, _mock_service):
         """Test successful statistics request."""
         response = client.get("/stats")
         
@@ -119,7 +118,7 @@ class TestHealthCheckEndpoints:
         data = response.json()
         assert "error" in data["detail"]
 
-    def test_get_policies_success(self, client, mock_service):
+    def test_get_policies_success(self, client, _mock_service):
         """Test successful policies request."""
         response = client.get("/policies")
         
@@ -183,7 +182,7 @@ class TestHealthCheckEndpoints:
         assert data["message"] == "Policy deleted successfully"
         mock_service.remove_retention_policy.assert_called_once_with("test_policy")
 
-    def test_run_cleanup_success(self, client, mock_service):
+    def test_run_cleanup_success(self, client, _mock_service):
         """Test successful cleanup run."""
         response = client.post("/cleanup?policy_name=test_policy")
         
@@ -203,7 +202,7 @@ class TestHealthCheckEndpoints:
         data = response.json()
         assert "error" in data["detail"]
 
-    def test_create_backup_success(self, client, mock_service):
+    def test_create_backup_success(self, client, _mock_service):
         """Test successful backup creation."""
         backup_data = {
             "backup_type": "full",
@@ -230,7 +229,7 @@ class TestHealthCheckEndpoints:
         data = response.json()
         assert "error" in data["detail"]
 
-    def test_restore_backup_success(self, client, mock_service):
+    def test_restore_backup_success(self, client, _mock_service):
         """Test successful backup restore."""
         restore_data = {
             "backup_id": "test_backup",
@@ -245,7 +244,7 @@ class TestHealthCheckEndpoints:
         data = response.json()
         assert data["message"] == "Backup restored successfully"
 
-    def test_restore_backup_missing_id(self, client, mock_service):
+    def test_restore_backup_missing_id(self, client, _mock_service):
         """Test backup restore with missing backup ID."""
         restore_data = {"restore_data": True}
         
@@ -265,7 +264,7 @@ class TestHealthCheckEndpoints:
         data = response.json()
         assert "error" in data["detail"]
 
-    def test_get_backup_history_success(self, client, mock_service):
+    def test_get_backup_history_success(self, client, _mock_service):
         """Test successful backup history request."""
         response = client.get("/backup/backups?limit=10")
         
@@ -275,7 +274,7 @@ class TestHealthCheckEndpoints:
         assert len(data["backups"]) == 1
         assert data["backups"][0]["backup_id"] == "test_backup"
 
-    def test_get_backup_statistics_success(self, client, mock_service):
+    def test_get_backup_statistics_success(self, client, _mock_service):
         """Test successful backup statistics request."""
         response = client.get("/backup/stats")
         

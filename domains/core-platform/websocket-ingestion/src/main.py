@@ -6,14 +6,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from dotenv import load_dotenv
-
 from homeiq_ha.enhanced_ha_connection_manager import ha_connection_manager
 from homeiq_observability.logging_config import (
     generate_correlation_id,
@@ -49,7 +47,7 @@ class WebSocketIngestionService:
     """Main service class for WebSocket ingestion"""
 
     def __init__(self):
-        self.start_time = datetime.now(timezone.utc)
+        self.start_time = datetime.now(UTC)
         self.connection_manager: ConnectionManager | None = None
         self.health_handler = HealthCheckHandler()
         # Pass self reference to health handler for weather statistics

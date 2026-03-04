@@ -15,7 +15,7 @@ import logging
 import os
 import sys
 import warnings
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import psycopg2
@@ -255,7 +255,7 @@ def main():
         logger.error("Dependency check failed: %s", e)
         sys.exit(1)
 
-    run_identifier = args.run_id or datetime.utcnow().strftime("run_%Y%m%d_%H%M%S")
+    run_identifier = args.run_id or datetime.now(UTC).strftime("run_%Y%m%d_%H%M%S")
 
     try:
         logger.info("Loading training examples from database...")
@@ -518,7 +518,7 @@ def main():
             "epochs": args.epochs,
             "learning_rate": args.learning_rate,
             "run_directory": str(run_dir),
-            "trained_at": datetime.utcnow().isoformat(),
+            "trained_at": datetime.now(UTC).isoformat(),
             "final_loss": train_result.training_loss,
             "run_id": run_identifier,
         }

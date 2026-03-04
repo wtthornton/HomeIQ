@@ -4,12 +4,12 @@ Unit tests for Pattern Analyzer modules
 Epic 39, Story 39.8: Pattern Service Testing & Validation
 """
 
-import pytest
-import pandas as pd
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
-from src.pattern_analyzer.time_of_day import TimeOfDayPatternDetector
+import pandas as pd
+import pytest
 from src.pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
+from src.pattern_analyzer.time_of_day import TimeOfDayPatternDetector
 
 
 class TestTimeOfDayPatternDetector:
@@ -34,7 +34,7 @@ class TestTimeOfDayPatternDetector:
         )
         
         # Create sample events at consistent times
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         events = []
         for i in range(5):
             # Same time each day (7 AM)
@@ -85,7 +85,7 @@ class TestCoOccurrencePatternDetector:
         )
         
         # Create sample events where two devices change together
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         events = []
         for i in range(5):
             base_time = now - timedelta(hours=i)

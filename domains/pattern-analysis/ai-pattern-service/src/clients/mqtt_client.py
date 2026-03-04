@@ -136,7 +136,7 @@ class MQTTNotificationClient:
 
         return False
 
-    def _on_connect(self, client: mqtt.Client, userdata: dict, flags: dict, rc: int) -> None:
+    def _on_connect(self, _client: mqtt.Client, _userdata: dict, _flags: dict, rc: int) -> None:
         """
         Callback for when client connects to broker.
 
@@ -162,7 +162,7 @@ class MQTTNotificationClient:
             logger.error(f"❌ MQTT connection failed with code {rc}: {error_msg}")
             self.is_connected = False
 
-    def _on_disconnect(self, client: mqtt.Client, userdata: dict, rc: int) -> None:
+    def _on_disconnect(self, _client: mqtt.Client, _userdata: dict, rc: int) -> None:
         """
         Callback for when client disconnects from broker.
 

@@ -11,7 +11,6 @@ pytest.importorskip("influxdb_client_3", reason="influxdb_client_3 required by m
 
 from main import CarbonIntensityService
 
-
 # --- Helpers ---
 
 def _make_v3_response(current_moer=500.0, forecast_1h_moer=400.0, num_entries=13):
@@ -43,7 +42,7 @@ def mock_env(monkeypatch):
 
 
 @pytest.fixture
-def service(mock_env):
+def service(_mock_env):
     """Create service instance with mocked external clients (no real connections)."""
     svc = CarbonIntensityService()
     # Replace real clients with mocks to prevent network calls in tests
@@ -56,7 +55,7 @@ def service(mock_env):
 # --- Initialization ---
 
 @pytest.mark.asyncio
-async def test_service_initialization(mock_env):
+async def test_service_initialization(_mock_env):
     """Test service initializes correctly"""
     svc = CarbonIntensityService()
 
@@ -67,7 +66,7 @@ async def test_service_initialization(mock_env):
 
 
 @pytest.mark.asyncio
-async def test_influxdb_url_preserved(mock_env):
+async def test_influxdb_url_preserved(_mock_env):
     """Test full InfluxDB URL is passed through to client"""
     svc = CarbonIntensityService()
     assert svc.influxdb_url == "http://localhost:8086"

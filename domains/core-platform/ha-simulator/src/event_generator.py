@@ -8,7 +8,7 @@ import asyncio
 import json
 import logging
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from aiohttp.web_ws import WebSocketResponse
@@ -61,7 +61,7 @@ class EventGenerator:
         """Initialize entity state"""
         self.entity_states[entity_id] = {
             "state": self._generate_initial_value(entity_config),
-            "last_updated": datetime.now(timezone.utc),
+            "last_updated": datetime.now(UTC),
             "attributes": self._generate_attributes(entity_config)
         }
 
@@ -110,7 +110,7 @@ class EventGenerator:
                 # Always send event for demonstration (in real HA, only on state change)
                 await self._send_state_changed_event(entity_id, old_state, new_state)
                 self.entity_states[entity_id]["state"] = new_state
-                self.entity_states[entity_id]["last_updated"] = datetime.now(timezone.utc)
+                self.entity_states[entity_id]["last_updated"] = datetime.now(UTC)
 
             except asyncio.CancelledError:
                 break
@@ -166,7 +166,7 @@ class EventGenerator:
 
     def _create_state_changed_event(self, entity_id: str, old_state: str, new_state: str) -> dict[str, Any] | None:
         """Create state_changed event"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         entity_config = self.patterns["entities"].get(entity_id)
 
         if not entity_config:

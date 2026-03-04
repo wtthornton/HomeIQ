@@ -6,7 +6,7 @@ Runs every Sunday at 2 AM to keep corpus fresh with new community automations.
 Epic AI-4, Story AI4.4
 """
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from ..config import settings
@@ -40,7 +40,7 @@ class WeeklyRefreshJob:
         logger.info(f"[{correlation_id}] ═══════════════════════════════════════")
         logger.info(f"[{correlation_id}] 🔄 Weekly Corpus Refresh Started")
         logger.info(f"[{correlation_id}] ═══════════════════════════════════════")
-        logger.info(f"[{correlation_id}] Timestamp: {datetime.now(timezone.utc).isoformat()}")
+        logger.info(f"[{correlation_id}] Timestamp: {datetime.now(UTC).isoformat()}")
 
         db = get_database()
 
@@ -52,7 +52,7 @@ class WeeklyRefreshJob:
                 last_crawl = await repo.get_last_crawl_timestamp()
                 if last_crawl and last_crawl.tzinfo is None:
                     # Make timezone-aware if naive
-                    last_crawl = last_crawl.replace(tzinfo=timezone.utc)
+                    last_crawl = last_crawl.replace(tzinfo=UTC)
                 logger.info(f"[{correlation_id}] Last crawl: {last_crawl}")
 
                 # Step 2: Fetch new/updated posts
@@ -132,7 +132,7 @@ class WeeklyRefreshJob:
                 logger.info(f"[{correlation_id}]   Pruned: {pruned_count} low-quality automations")
 
                 # Step 5: Update last crawl timestamp (use timezone-aware)
-                await repo.set_last_crawl_timestamp(datetime.now(timezone.utc))
+                await repo.set_last_crawl_timestamp(datetime.now(UTC))
 
                 # Step 6: Get final stats
                 stats = await repo.get_stats()
@@ -145,7 +145,7 @@ class WeeklyRefreshJob:
                 logger.info(f"[{correlation_id}]   Pruned: {pruned_count} stale entries")
                 logger.info(f"[{correlation_id}]   Total corpus: {stats['total']} automations")
                 logger.info(f"[{correlation_id}]   Avg quality: {stats['avg_quality']:.3f}")
-                logger.info(f"[{correlation_id}]   Last crawl: {datetime.now(timezone.utc).isoformat()}")
+                logger.info(f"[{correlation_id}]   Last crawl: {datetime.now(UTC).isoformat()}")
 
         except Exception as e:
             logger.error(f"[{correlation_id}] ❌ Weekly refresh failed: {e}", exc_info=True)

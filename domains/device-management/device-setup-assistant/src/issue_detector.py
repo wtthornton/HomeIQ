@@ -6,7 +6,7 @@ Phase 2.3: Detect common setup problems
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -148,7 +148,7 @@ class SetupIssueDetector:
                         if last_changed:
                             try:
                                 dt = datetime.fromisoformat(last_changed.replace("Z", "+00:00"))
-                                hours_ago = (datetime.now(timezone.utc) - dt).total_seconds() / 3600
+                                hours_ago = (datetime.now(UTC) - dt).total_seconds() / 3600
                                 max_hours_since = max(max_hours_since, hours_ago)
                                 if hours_ago < 24:
                                     any_active = True

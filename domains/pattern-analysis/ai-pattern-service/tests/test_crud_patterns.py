@@ -4,11 +4,10 @@ Unit tests for Pattern CRUD operations
 Epic 39, Story 39.8: Pattern Service Testing & Validation
 """
 
-import pytest
-from datetime import datetime, timezone
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.crud.patterns import store_patterns, get_patterns
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+from src.crud.patterns import get_patterns, store_patterns
 
 
 class TestPatternCRUD:

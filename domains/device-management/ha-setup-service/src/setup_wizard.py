@@ -10,7 +10,7 @@ Context7 Best Practices Applied:
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
@@ -86,7 +86,7 @@ class SetupWizardFramework:
             "current_step": 0,
             "configuration": initial_config or {},
             "status": SetupWizardStatus.IN_PROGRESS,
-            "started_at": datetime.now(timezone.utc),
+            "started_at": datetime.now(UTC),
             "completed_steps": [],
             "errors": []
         }
@@ -143,7 +143,7 @@ class SetupWizardFramework:
             session["errors"].append({
                 "step": step_number,
                 "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             })
 
             return {
@@ -186,7 +186,7 @@ class SetupWizardFramework:
                 logger.error(f"Error rolling back step {step_number}", exc_info=e)
 
         session["status"] = SetupWizardStatus.CANCELLED
-        session["completed_at"] = datetime.now(timezone.utc)
+        session["completed_at"] = datetime.now(UTC)
 
     async def _rollback_step(self, _session: dict, _step_number: int):
         """

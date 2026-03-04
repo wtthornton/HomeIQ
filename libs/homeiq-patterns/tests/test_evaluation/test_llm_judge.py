@@ -2,12 +2,9 @@
 Tests for E1.S4: LLM-as-Judge Engine (shared/patterns/evaluation/llm_judge.py)
 """
 
-import json
 
 import pytest
-
 from homeiq_patterns.evaluation.llm_judge import (
-    JudgeResult,
     JudgeRubric,
     LLMJudge,
     LLMProvider,
@@ -18,7 +15,6 @@ from homeiq_patterns.evaluation.models import (
     ToolCall,
     UserMessage,
 )
-
 
 # ---------------------------------------------------------------------------
 # Mock provider
@@ -46,7 +42,7 @@ class FailingProvider(LLMProvider):
         self._error = error or RuntimeError("API error")
         self.call_count = 0
 
-    async def complete(self, prompt: str) -> str:
+    async def complete(self, _prompt: str) -> str:
         self.call_count += 1
         raise self._error
 
@@ -59,7 +55,7 @@ class FailThenSucceedProvider(LLMProvider):
         self._success_response = success_response
         self.call_count = 0
 
-    async def complete(self, prompt: str) -> str:
+    async def complete(self, _prompt: str) -> str:
         self.call_count += 1
         if self.call_count <= self._fail_count:
             raise RuntimeError(f"Fail #{self.call_count}")

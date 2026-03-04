@@ -8,7 +8,6 @@ Provides optimized model inference for:
 - flan-t5-small - Classification
 """
 
-import asyncio
 import json
 import logging
 import os
@@ -327,7 +326,7 @@ async def generate_embeddings(request: EmbeddingRequest):
             processing_time=processing_time,
         )
 
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         timeout = manager.inference_timeout
         logger.warning("Embedding generation timed out after %.2fs", timeout)
         raise HTTPException(status_code=504, detail=f"Embedding generation timed out after {timeout} seconds") from exc
@@ -364,7 +363,7 @@ async def rerank_candidates(request: RerankRequest):
             processing_time=processing_time,
         )
 
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         timeout = manager.inference_timeout
         logger.warning("Re-ranking timed out after %.2fs", timeout)
         raise HTTPException(status_code=504, detail=f"Re-ranking timed out after {timeout} seconds") from exc
@@ -397,7 +396,7 @@ async def classify_pattern(request: ClassifyRequest):
             processing_time=processing_time,
         )
 
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         timeout = manager.inference_timeout
         logger.warning("Pattern classification timed out after %.2fs", timeout)
         raise HTTPException(status_code=504, detail=f"Classification timed out after {timeout} seconds") from exc
@@ -416,4 +415,4 @@ if __name__ == "__main__":
     import uvicorn
 
     port = int(os.getenv("PORT", "8019"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port)  # noqa: S104

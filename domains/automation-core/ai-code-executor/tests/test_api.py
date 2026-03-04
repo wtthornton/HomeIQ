@@ -4,11 +4,9 @@ Integration tests for FastAPI endpoints.
 Tests /health and /execute endpoints with proper authentication and error handling.
 """
 
-import os
 
 import pytest
 from fastapi.testclient import TestClient
-
 from src.config import Settings
 from src.executor.mcp_sandbox import MCPSandbox, SandboxConfig
 from src.main import app
@@ -42,10 +40,10 @@ def client(test_settings):
     )
     
     # Import here to get fresh instances
-    from src.main import code_validator, sandbox
-    
     # Initialize sandbox
     import asyncio
+
+    from src.main import code_validator, sandbox
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     

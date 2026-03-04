@@ -82,7 +82,7 @@ class ClarificationService:
         self,
         query: str,
         entities: list[dict[str, Any]],
-        db: AsyncSession | None = None,
+        _db: AsyncSession | None = None,
     ) -> dict[str, Any]:
         """Detect if clarification is needed for the query.
 

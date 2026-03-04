@@ -12,8 +12,8 @@ This service provides:
 """
 
 import logging
-from typing import Any
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,7 +36,11 @@ except ImportError:
 
 # Import observability modules
 try:
-    from homeiq_observability.observability import CorrelationMiddleware, instrument_fastapi, setup_tracing
+    from homeiq_observability.observability import (
+        CorrelationMiddleware,
+        instrument_fastapi,
+        setup_tracing,
+    )
     OBSERVABILITY_AVAILABLE = True
 except ImportError:
     logger.warning("Observability modules not available")

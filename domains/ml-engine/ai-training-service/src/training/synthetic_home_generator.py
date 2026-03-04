@@ -10,6 +10,7 @@ Template-based generation using predefined distributions and templates.
 import json
 import logging
 import random
+from datetime import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -295,7 +296,7 @@ class SyntheticHomeGenerator:
         self,
         home_type: str,
         home_index: int,
-        total_for_type: int
+        _total_for_type: int
     ) -> dict[str, Any]:
         """
         Generate a single synthetic home using template-based approach.
@@ -365,8 +366,8 @@ class SyntheticHomeGenerator:
 
     def _get_timestamp(self) -> str:
         """Get current timestamp as ISO string."""
-        from datetime import datetime, timezone
-        return datetime.now(timezone.utc).isoformat()
+        from datetime import datetime
+        return datetime.now(UTC).isoformat()
 
     def save_homes(
         self,
@@ -435,12 +436,12 @@ class SyntheticHomeGenerator:
         Returns:
             List of homes enriched with external_data section
         """
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         logger.info(f"Enriching {len(homes)} homes with external data (pricing: {enable_pricing}, calendar: {enable_calendar})...")
 
         enriched_homes = []
-        start_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        start_date = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 
         if enable_pricing:
             from .synthetic_electricity_pricing_generator import (

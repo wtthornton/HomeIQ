@@ -1,6 +1,6 @@
 """Health check handler for automation-trace-service."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from . import __version__
@@ -10,7 +10,7 @@ class HealthCheckHandler:
     """Build health status from service component states."""
 
     def __init__(self):
-        self.start_time = datetime.now(timezone.utc)
+        self.start_time = datetime.now(UTC)
 
     def build(
         self,
@@ -19,7 +19,7 @@ class HealthCheckHandler:
         poller_stats: dict[str, Any],
         dedup_stats: dict[str, Any],
     ) -> dict[str, Any]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         uptime = (now - self.start_time).total_seconds()
 
         components = {

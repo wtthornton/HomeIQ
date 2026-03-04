@@ -7,10 +7,10 @@ Simple, threshold-based alerting without over-engineering.
 
 import logging
 import time
-from typing import Dict, List, Optional, Callable, Any
-from datetime import datetime, timedelta
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from dataclasses import dataclass, asdict
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +136,7 @@ class AlertManager:
                     metric=rule.metric,
                     current_value=float(value) if isinstance(value, (int, float)) else None,
                     threshold_value=None,  # Can be set by caller
-                    created_at=datetime.utcnow().isoformat() + "Z",
+                    created_at=datetime.now(UTC).isoformat() + "Z",
                     metadata=metadata
                 )
                 
@@ -195,7 +195,7 @@ class AlertManager:
         
         alert = self.alerts[alert_id]
         alert.status = AlertStatus.ACKNOWLEDGED
-        alert.acknowledged_at = datetime.utcnow().isoformat() + "Z"
+        alert.acknowledged_at = datetime.now(UTC).isoformat() + "Z"
         
         logger.info(f"Alert acknowledged: {alert.name}")
         return True
@@ -215,7 +215,7 @@ class AlertManager:
         
         alert = self.alerts[alert_id]
         alert.status = AlertStatus.RESOLVED
-        alert.resolved_at = datetime.utcnow().isoformat() + "Z"
+        alert.resolved_at = datetime.now(UTC).isoformat() + "Z"
         
         logger.info(f"Alert resolved: {alert.name}")
         return True
@@ -227,7 +227,7 @@ class AlertManager:
         Args:
             older_than_hours: Hours threshold for cleanup
         """
-        cutoff_time = datetime.utcnow() - timedelta(hours=older_than_hours)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=older_than_hours)
         cutoff_str = cutoff_time.isoformat() + "Z"
         
         to_remove = []

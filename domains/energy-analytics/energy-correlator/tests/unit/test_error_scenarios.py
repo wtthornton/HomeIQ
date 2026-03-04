@@ -7,7 +7,7 @@ Tests for robust error handling and graceful degradation under failure condition
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,7 +16,6 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from src.correlator import EnergyEventCorrelator
-from src.main import EnergyCorrelatorService
 
 
 class TestConnectionFailures:
@@ -189,7 +188,7 @@ class TestDataValidation:
         # Mock response with missing fields
         mock_client.query = AsyncMock(return_value=[
             {
-                'time': datetime.now(timezone.utc),
+                'time': datetime.now(UTC),
                 # Missing entity_id, domain, state
             }
         ])
@@ -225,7 +224,7 @@ class TestDataValidation:
         
         # Test with mock returning empty (no data found)
         mock_client.query = AsyncMock(return_value=[])
-        power = await correlator._get_power_at_time(datetime.now(timezone.utc))
+        power = await correlator._get_power_at_time(datetime.now(UTC))
         assert power is None
     
     @pytest.mark.asyncio
@@ -238,7 +237,7 @@ class TestDataValidation:
         
         # Correlate event without power data
         event = {
-            'time': datetime.now(timezone.utc),
+            'time': datetime.now(UTC),
             'entity_id': 'switch.lamp',
             'domain': 'switch',
             'state': 'on',
@@ -289,7 +288,7 @@ class TestRetryQueueOverflow:
         retry_queue = []
         for i in range(correlator.max_retry_queue_size + 5):  # Add more than capacity
             event = {
-                'time': datetime.now(timezone.utc) - timedelta(seconds=i),
+                'time': datetime.now(UTC) - timedelta(seconds=i),
                 'entity_id': f'switch.lamp_{i}',
                 'domain': 'switch',
                 'state': 'on',
@@ -317,7 +316,7 @@ class TestRetryQueueOverflow:
         # Fill queue to capacity
         for i in range(correlator.max_retry_queue_size):
             event = {
-                'time': datetime.now(timezone.utc) - timedelta(seconds=i),
+                'time': datetime.now(UTC) - timedelta(seconds=i),
                 'entity_id': f'switch.lamp_{i}',
                 'domain': 'switch',
                 'state': 'on',
@@ -333,7 +332,7 @@ class TestRetryQueueOverflow:
         
         # Add one more event (should be dropped or oldest removed)
         event = {
-            'time': datetime.now(timezone.utc),
+            'time': datetime.now(UTC),
             'entity_id': 'switch.new_lamp',
             'domain': 'switch',
             'state': 'on',
@@ -385,7 +384,7 @@ class TestCacheFailures:
         # Query power at time (should query InfluxDB)
         mock_client.query = AsyncMock(return_value=[])
         
-        power = await correlator._get_power_at_time(datetime.now(timezone.utc))
+        power = await correlator._get_power_at_time(datetime.now(UTC))
         
         # Should return None when no data
         assert power is None
@@ -416,7 +415,7 @@ class TestCacheFailures:
         # Build cache
         events = [
             {
-                'time': datetime.now(timezone.utc) - timedelta(seconds=30),
+                'time': datetime.now(UTC) - timedelta(seconds=30),
                 'entity_id': 'switch.lamp',
                 'domain': 'switch',
                 'state': 'on'
@@ -427,7 +426,7 @@ class TestCacheFailures:
         
         # Lookup with timestamp far in future (should return None)
         power = correlator._lookup_power_in_cache(
-            datetime.now(timezone.utc) + timedelta(hours=1),
+            datetime.now(UTC) + timedelta(hours=1),
             cache
         )
         

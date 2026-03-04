@@ -3,10 +3,9 @@ Tests for E1.S1: SessionTrace Data Model (shared/patterns/evaluation/models.py)
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from homeiq_patterns.evaluation.models import (
     AgentResponse,
     Alert,
@@ -23,7 +22,6 @@ from homeiq_patterns.evaluation.models import (
     UserMessage,
 )
 
-
 # ---------------------------------------------------------------------------
 # UserMessage
 # ---------------------------------------------------------------------------
@@ -37,7 +35,7 @@ class TestUserMessage:
         assert isinstance(msg.timestamp, datetime)
 
     def test_create_with_all_fields(self):
-        ts = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        ts = datetime(2026, 1, 1, tzinfo=UTC)
         msg = UserMessage(content="test", timestamp=ts, turn_index=3)
         assert msg.timestamp == ts
         assert msg.turn_index == 3

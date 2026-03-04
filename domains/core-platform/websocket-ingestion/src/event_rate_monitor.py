@@ -5,7 +5,7 @@ Event Rate Monitor for tracking event capture rates
 import asyncio
 import logging
 from collections import deque
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class EventRateMonitor:
 
         # Statistics
         self.total_events = 0
-        self.start_time = datetime.now(timezone.utc)
+        self.start_time = datetime.now(UTC)
         self.last_event_time: datetime = None
 
     async def record_event(self, event_data: dict[str, Any]):
@@ -40,7 +40,7 @@ class EventRateMonitor:
         """
         try:
             async with self.lock:
-                current_time = datetime.now(timezone.utc)
+                current_time = datetime.now(UTC)
 
                 # Record timestamp
                 self.event_timestamps.append(current_time)
@@ -111,7 +111,7 @@ class EventRateMonitor:
         """
         try:
             async with self.lock:
-                cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+                cutoff_time = datetime.now(UTC) - timedelta(minutes=window_minutes)
                 recent_events = sum(1 for ts in self.event_timestamps if ts >= cutoff_time)
                 return recent_events / window_minutes
         except Exception as e:
@@ -136,7 +136,7 @@ class EventRateMonitor:
                     return sum(self.hour_rates) / len(self.hour_rates) / 60  # Convert to per minute
                 else:
                     # Calculate for custom window
-                    cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+                    cutoff_time = datetime.now(UTC) - timedelta(minutes=window_minutes)
                     recent_events = sum(1 for ts in self.event_timestamps if ts >= cutoff_time)
                     return recent_events / window_minutes
         except Exception as e:
@@ -152,7 +152,7 @@ class EventRateMonitor:
         """
         try:
             async with self.lock:
-                current_time = datetime.now(timezone.utc)
+                current_time = datetime.now(UTC)
                 uptime = current_time - self.start_time
 
                 # Calculate rates (call internal non-locking versions to avoid deadlock)
@@ -243,7 +243,7 @@ class EventRateMonitor:
                         "message": f"Event rate is {rate_ratio:.1f}x higher than average",
                         "current_rate": current_rate,
                         "average_rate": average_rate,
-                        "timestamp": datetime.now(timezone.utc).isoformat()
+                        "timestamp": datetime.now(UTC).isoformat()
                     })
                 elif rate_ratio < 0.1:  # 10x lower than average
                     alerts.append({
@@ -252,19 +252,19 @@ class EventRateMonitor:
                         "message": f"Event rate is {rate_ratio:.1f}x lower than average",
                         "current_rate": current_rate,
                         "average_rate": average_rate,
-                        "timestamp": datetime.now(timezone.utc).isoformat()
+                        "timestamp": datetime.now(UTC).isoformat()
                     })
 
             # Alert if no events received recently
             if self.last_event_time:
-                time_since_last_event = datetime.now(timezone.utc) - self.last_event_time
+                time_since_last_event = datetime.now(UTC) - self.last_event_time
                 if time_since_last_event > timedelta(minutes=5):
                     alerts.append({
                         "type": "no_events",
                         "severity": "warning",
                         "message": f"No events received for {time_since_last_event.total_seconds() / 60:.1f} minutes",
                         "last_event_time": self.last_event_time.isoformat(),
-                        "timestamp": datetime.now(timezone.utc).isoformat()
+                        "timestamp": datetime.now(UTC).isoformat()
                     })
 
         except Exception as e:
@@ -281,6 +281,6 @@ class EventRateMonitor:
             self.minute_rates.clear()
             self.hour_rates.clear()
             self.total_events = 0
-            self.start_time = datetime.now(timezone.utc)
+            self.start_time = datetime.now(UTC)
             self.last_event_time = None
             logger.info("Event rate statistics reset")

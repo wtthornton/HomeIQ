@@ -9,9 +9,8 @@ import asyncio
 import logging
 from pathlib import Path
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from homeiq_data import DatabaseManager
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
 
@@ -63,8 +62,9 @@ async def run_migrations():
 
 def _run_alembic_upgrade(alembic_ini_path: str) -> None:
     """Run Alembic upgrade synchronously (called from thread executor)."""
-    from alembic import command
     from alembic.config import Config
+
+    from alembic import command
 
     alembic_cfg = Config(alembic_ini_path)
     command.upgrade(alembic_cfg, "head")

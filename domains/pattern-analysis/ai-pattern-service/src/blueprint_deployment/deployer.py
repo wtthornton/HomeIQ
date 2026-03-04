@@ -20,7 +20,7 @@ Blueprint Import:
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -263,7 +263,7 @@ class BlueprintDeployer:
                     automation_id=f"automation.{automation_id}",
                     automation_yaml=automation_yaml,
                     blueprint_path=blueprint_path,
-                    deployed_at=datetime.utcnow(),
+                    deployed_at=datetime.now(UTC),
                     input_values_used=input_values,
                     auto_filled_inputs=auto_filled,
                     warnings=warnings,
@@ -485,7 +485,7 @@ class BlueprintDeployer:
 
     def _find_device_for_input(
         self,
-        input_def: dict[str, Any],
+        _input_def: dict[str, Any],
         selector: dict[str, Any],
         device_inventory: list[dict[str, Any]],
     ) -> dict[str, Any] | None:

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .base_evaluator import BaseEvaluator
 from .models import (
@@ -86,7 +86,7 @@ class ScoringEngine:
         return EvaluationReport(
             session_id=session.session_id,
             agent_name=session.agent_name,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             results=results,
             summary_matrix=matrix,
         )
@@ -110,7 +110,7 @@ class ScoringEngine:
 
         return BatchReport(
             agent_name=agent_name,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             sessions_evaluated=len(sessions),
             total_evaluations=total_evals,
             reports=reports,

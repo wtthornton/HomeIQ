@@ -9,6 +9,7 @@ Updated for PostgreSQL.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from src.database.models import Suggestion
 
 
@@ -136,7 +137,7 @@ class TestSchemaSync:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_required_columns_in_model(self, test_db):
+    async def test_required_columns_in_model(self, _test_db):
         """Test that all required columns exist in the Suggestion model."""
 
         # Get the model columns
@@ -154,7 +155,7 @@ class TestDatabaseConnection:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_get_db_yields_session(self, test_db):
+    async def test_get_db_yields_session(self, _test_db):
         """Test that get_db dependency yields a database session."""
         from src.database import get_db
 

@@ -6,7 +6,7 @@ Follows the pattern from devices_endpoints.py /internal/devices/bulk_upsert.
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -49,7 +49,7 @@ async def bulk_upsert_automations(
                     existing.description = data["description"]
                 if data.get("mode"):
                     existing.mode = data["mode"]
-                existing.updated_at = datetime.utcnow()
+                existing.updated_at = datetime.now(UTC)
             else:
                 new_automation = Automation(
                     automation_id=automation_id,
@@ -57,8 +57,8 @@ async def bulk_upsert_automations(
                     description=data.get("description"),
                     mode=data.get("mode"),
                     enabled=data.get("enabled", True),
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
+                    created_at=datetime.now(UTC),
+                    updated_at=datetime.now(UTC),
                 )
                 db.add(new_automation)
 
@@ -66,7 +66,7 @@ async def bulk_upsert_automations(
 
         await db.commit()
         logger.info("Bulk upserted %d automations", upserted)
-        return {"success": True, "upserted": upserted, "timestamp": datetime.utcnow().isoformat()}
+        return {"success": True, "upserted": upserted, "timestamp": datetime.now(UTC).isoformat()}
 
     except Exception as e:
         await db.rollback()
@@ -107,8 +107,8 @@ async def bulk_upsert_executions(
                 automation = Automation(
                     automation_id=automation_id,
                     alias=automation_id,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
+                    created_at=datetime.now(UTC),
+                    updated_at=datetime.now(UTC),
                 )
                 db.add(automation)
                 await db.flush()
@@ -120,7 +120,7 @@ async def bulk_upsert_executions(
                 try:
                     started_at = datetime.fromisoformat(data["started_at"])
                 except (ValueError, TypeError):
-                    started_at = datetime.utcnow()
+                    started_at = datetime.now(UTC)
             if data.get("finished_at"):
                 try:
                     finished_at = datetime.fromisoformat(data["finished_at"])
@@ -130,7 +130,7 @@ async def bulk_upsert_executions(
             execution = AutomationExecution(
                 automation_id=automation_id,
                 run_id=run_id,
-                started_at=started_at or datetime.utcnow(),
+                started_at=started_at or datetime.now(UTC),
                 finished_at=finished_at,
                 duration_seconds=data.get("duration_seconds", 0.0),
                 execution_result=data.get("execution_result", "unknown"),
@@ -168,13 +168,13 @@ async def bulk_upsert_executions(
             elif duration:
                 automation.avg_duration_seconds = round(duration, 3)
 
-            automation.updated_at = datetime.utcnow()
+            automation.updated_at = datetime.now(UTC)
             upserted += 1
 
         await db.commit()
         if upserted:
             logger.info("Bulk upserted %d automation executions", upserted)
-        return {"success": True, "upserted": upserted, "timestamp": datetime.utcnow().isoformat()}
+        return {"success": True, "upserted": upserted, "timestamp": datetime.now(UTC).isoformat()}
 
     except Exception as e:
         await db.rollback()

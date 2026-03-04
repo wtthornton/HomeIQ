@@ -6,19 +6,15 @@ Note: These are unit tests for the chat endpoint logic.
 Full integration tests require the service to be running.
 """
 
-import pytest
+# Import models directly to avoid namespace conflicts
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.config import Settings
 from src.services.conversation_service import Conversation, ConversationService
-from src.services.context_builder import ContextBuilder
-from src.services.openai_client import OpenAIClient
 from src.services.prompt_assembly_service import PromptAssemblyService
-from src.services.tool_service import ToolService
 
-# Import models directly to avoid namespace conflicts
-import sys
-from pathlib import Path
 api_models_path = Path(__file__).parent.parent / "src" / "api" / "models.py"
 if api_models_path.exists():
     import importlib.util
@@ -30,8 +26,9 @@ if api_models_path.exists():
     ToolCall = api_models.ToolCall
 else:
     # Fallback: define models inline for testing
-    from pydantic import BaseModel, Field
     from typing import Any, Dict, List, Optional
+
+    from pydantic import BaseModel
     
     class ChatRequest(BaseModel):
         message: str
@@ -143,7 +140,7 @@ def mock_chat_completion():
 
 
 @pytest.mark.asyncio
-async def test_chat_request_model(settings):
+async def test_chat_request_model(_settings):
     """Test ChatRequest model validation"""
     request = ChatRequest(
         message="Turn on the kitchen lights",
@@ -257,6 +254,7 @@ async def test_chat_endpoint_logic_invalid_conversation(
 async def test_safe_parse_tool_arguments():
     """Test that _safe_parse_tool_arguments correctly parses JSON string arguments"""
     import json
+
     from src.api.chat_endpoints import _safe_parse_tool_arguments
 
     # Test with dict (already parsed) - should return as-is

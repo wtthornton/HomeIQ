@@ -227,7 +227,6 @@ class TestModelRegistry:
     def test_registry_get_when_empty_raises(self):
         """Test getting forecaster when empty raises HTTPException."""
         from fastapi import HTTPException
-
         from src.api.routes import ModelRegistry
 
         registry = ModelRegistry()

@@ -17,7 +17,7 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import text
@@ -60,12 +60,12 @@ class CachedFeedback:
     @property
     def is_expired(self) -> bool:
         """Check if cache entry has expired."""
-        return datetime.utcnow() >= self.expires_at
+        return datetime.now(UTC) >= self.expires_at
 
     def touch(self) -> None:
         """Update access tracking for LRU eviction."""
         self.access_count += 1
-        self.last_accessed = datetime.utcnow()
+        self.last_accessed = datetime.now(UTC)
 
 
 @dataclass
@@ -288,7 +288,7 @@ class FeedbackClient:
             # Add new entry
             self._feedback_cache[device_id] = CachedFeedback(
                 data=data,
-                expires_at=datetime.utcnow() + self._cache_ttl
+                expires_at=datetime.now(UTC) + self._cache_ttl
             )
             self._stats.current_size = len(self._feedback_cache)
 

@@ -9,7 +9,7 @@ Implements async HTTP client for community.home-assistant.io with:
 """
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -183,10 +183,10 @@ class DiscourseClient:
                 since_aware = since
                 if since_aware.tzinfo is None:
                     # If since is naive, assume UTC (create new datetime to avoid modifying parameter)
-                    since_aware = since_aware.replace(tzinfo=timezone.utc)
+                    since_aware = since_aware.replace(tzinfo=UTC)
                 if updated_at.tzinfo is None:
                     # If updated_at is naive, assume UTC
-                    updated_at = updated_at.replace(tzinfo=timezone.utc)
+                    updated_at = updated_at.replace(tzinfo=UTC)
                 if updated_at < since_aware:
                     continue
 

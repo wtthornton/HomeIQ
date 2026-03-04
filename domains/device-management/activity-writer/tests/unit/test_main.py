@@ -1,10 +1,9 @@
 """Unit tests for activity-writer main module."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
-from src.main import ActivityWriterService, SERVICE_NAME, SERVICE_VERSION
+from src.main import SERVICE_NAME, SERVICE_VERSION, ActivityWriterService
 
 
 @pytest.fixture
@@ -105,7 +104,7 @@ def test_parse_event_timestamp_str_invalid(service: ActivityWriterService) -> No
 
 def test_parse_event_timestamp_datetime(service: ActivityWriterService) -> None:
     """Datetime object returns as-is."""
-    dt = datetime.now(timezone.utc)
+    dt = datetime.now(UTC)
     assert service._parse_event_timestamp(dt) is dt
 
 

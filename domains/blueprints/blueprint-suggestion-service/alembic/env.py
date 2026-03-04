@@ -14,8 +14,8 @@ from alembic import context
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 # Import Base and settings from our application
-from src.models import Base  # noqa: E402
 from src.config import settings  # noqa: E402
+from src.models import Base  # noqa: E402
 
 # --- Service-specific configuration ---
 SCHEMA_NAME = os.getenv("DATABASE_SCHEMA", "blueprints")

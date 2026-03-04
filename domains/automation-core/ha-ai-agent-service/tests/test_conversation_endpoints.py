@@ -5,15 +5,14 @@ Epic AI-20 Story AI20.5 & AI20.6
 Tests the ConversationService methods used by the API endpoints.
 """
 
-import pytest
-import pytest_asyncio
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+import pytest_asyncio
 from src.config import Settings
 from src.database import init_database
-from src.services.conversation_service import Conversation, ConversationService, ConversationState
-from src.services.context_builder import ContextBuilder
+from src.services.conversation_service import ConversationService, ConversationState
 
 
 @pytest_asyncio.fixture

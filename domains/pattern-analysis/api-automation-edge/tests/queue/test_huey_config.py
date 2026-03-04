@@ -4,7 +4,6 @@ Tests for Huey configuration
 
 import os
 import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -23,10 +22,9 @@ def temp_db():
 def test_huey_initialization(temp_db):
     """Test Huey initialization"""
     try:
-        from src.queue.huey_config import get_huey_instance
-        
         # Mock config to use temp database
         import src.config as config_module
+        from src.queue.huey_config import get_huey_instance
         original_path = config_module.settings.huey_database_path
         config_module.settings.huey_database_path = temp_db
         
@@ -44,9 +42,10 @@ def test_huey_initialization(temp_db):
 def test_huey_database_path_creation():
     """Test that database directory is created if it doesn't exist"""
     try:
-        from src.queue.huey_config import get_huey_instance
-        import tempfile
         import shutil
+        import tempfile
+
+        from src.queue.huey_config import get_huey_instance
         
         # Create temp directory
         temp_dir = tempfile.mkdtemp()

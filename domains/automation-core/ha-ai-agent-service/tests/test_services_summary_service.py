@@ -1,11 +1,11 @@
 """Tests for Services Summary Service"""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.services.services_summary_service import ServicesSummaryService
+import pytest
 from src.config import Settings
 from src.services.context_builder import ContextBuilder
+from src.services.services_summary_service import ServicesSummaryService
 
 
 @pytest.fixture

@@ -7,7 +7,7 @@ test coverage from 50% to 70% target.
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -24,7 +24,7 @@ class TestBoundaryConditions:
         THEN: Should return 1 hour
         """
         service_instance.cached_data = sample_pricing_data
-        service_instance.last_fetch_time = datetime.now(timezone.utc)
+        service_instance.last_fetch_time = datetime.now(UTC)
         
         request = MagicMock()
         request.query = {'hours': '1'}
@@ -42,7 +42,7 @@ class TestBoundaryConditions:
         THEN: Should return 24 hours
         """
         service_instance.cached_data = sample_pricing_data
-        service_instance.last_fetch_time = datetime.now(timezone.utc)
+        service_instance.last_fetch_time = datetime.now(UTC)
         
         request = MagicMock()
         request.query = {'hours': '24'}
@@ -118,7 +118,7 @@ class TestEmptyDataScenarios:
             'cheapest_hours': [],
             'most_expensive_hours': [],
             'forecast_24h': [],
-            'timestamp': datetime.now(timezone.utc),
+            'timestamp': datetime.now(UTC),
             'provider': 'awattar'
         }
         
@@ -161,7 +161,7 @@ class TestEmptyDataScenarios:
             'cheapest_hours': [],
             'current_price': 0.25
         }
-        service_instance.last_fetch_time = datetime.now(timezone.utc)
+        service_instance.last_fetch_time = datetime.now(UTC)
         
         request = MagicMock()
         request.query = {'hours': '4'}
@@ -183,6 +183,7 @@ class TestProviderEdgeCases:
         THEN: Should fallback to Awattar
         """
         import os
+
         from src.main import ElectricityPricingService
         
         os.environ['INFLUXDB_TOKEN'] = 'test-token'
@@ -224,6 +225,7 @@ class TestConfigurationEdgeCases:
         THEN: Should raise ValueError
         """
         import os
+
         from src.main import ElectricityPricingService
         
         # Remove token if set
@@ -241,6 +243,7 @@ class TestConfigurationEdgeCases:
         THEN: Should parse networks correctly
         """
         import os
+
         from src.main import ElectricityPricingService
         
         os.environ['INFLUXDB_TOKEN'] = 'test-token'
@@ -261,6 +264,7 @@ class TestConfigurationEdgeCases:
         THEN: Should set to None
         """
         import os
+
         from src.main import ElectricityPricingService
         
         os.environ['INFLUXDB_TOKEN'] = 'test-token'
@@ -284,7 +288,7 @@ class TestDataFormatEdgeCases:
         incomplete_data = {
             'current_price': 0.25,
             'currency': 'EUR',
-            'timestamp': datetime.now(timezone.utc),
+            'timestamp': datetime.now(UTC),
             'provider': 'awattar'
             # Missing: peak_period, cheapest_hours, forecast_24h
         }
@@ -312,7 +316,7 @@ class TestDataFormatEdgeCases:
             'peak_period': False,
             'cheapest_hours': [1, 2, 3, 4],
             'forecast_24h': [],
-            'timestamp': datetime.now(timezone.utc),
+            'timestamp': datetime.now(UTC),
             'provider': 'awattar',
             'extra_field': 'should be ignored'
         }

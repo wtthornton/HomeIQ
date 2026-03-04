@@ -5,7 +5,7 @@ Optimized data access layer using SQLAlchemy 2.0 async patterns and bulk operati
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import bindparam, func, insert, select, update
@@ -130,7 +130,7 @@ class DeviceRepository:
                 if hasattr(device, key):
                     setattr(device, key, value)
 
-            device.updated_at = datetime.now(timezone.utc)
+            device.updated_at = datetime.now(UTC)
             await session.commit()
             await session.refresh(device)
 

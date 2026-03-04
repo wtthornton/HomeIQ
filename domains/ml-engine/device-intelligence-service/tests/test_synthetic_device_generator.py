@@ -5,8 +5,6 @@ Tests template-based device data generation, failure scenarios, and data quality
 Epic 46, Story 46.1: Synthetic Device Data Generator
 """
 
-import pytest
-from datetime import datetime, timezone
 
 from src.training.synthetic_device_generator import SyntheticDeviceGenerator
 

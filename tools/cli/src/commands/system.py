@@ -1,13 +1,13 @@
 """System management CLI commands."""
 
+
 import typer
-from typing import Optional
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from ..utils.config import load_config
 from ..utils.api_client import APIClient
+from ..utils.config import load_config
 from ..utils.output import OutputFormatter
 
 app = typer.Typer(name="system", help="System management commands")

@@ -4,8 +4,6 @@ Unit tests for WLED Device Handler (Epic AI-24).
 Tests for WLED master/segment detection and relationship mapping.
 """
 
-import pytest
-
 from src.device_mappings.base import DeviceType
 from src.device_mappings.wled.handler import WLEDHandler
 

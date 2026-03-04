@@ -102,11 +102,11 @@ class SuggestionGenerator:
         self,
         query: str,
         entities: list[dict[str, Any]],
-        user_id: str | None = None,
-        clarification_context: dict[str, Any] | None = None,
-        query_id: str | None = None,
+        _user_id: str | None = None,
+        _clarification_context: dict[str, Any] | None = None,
+        _query_id: str | None = None,
         area_filter: str | None = None,
-        db: AsyncSession | None = None,
+        _db: AsyncSession | None = None,
     ) -> list[dict[str, Any]]:
         """Generate automation suggestions from query and entities.
 

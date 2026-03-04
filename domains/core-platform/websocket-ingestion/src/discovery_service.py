@@ -108,8 +108,9 @@ class DiscoveryService:
             List of device dictionaries
         """
         try:
-            import aiohttp
             import os
+
+            import aiohttp
 
             ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
             ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
@@ -501,7 +502,7 @@ class DiscoveryService:
 
             return config_entries
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("❌ Timeout waiting for config entries response")
             return []
         except Exception as e:
@@ -512,7 +513,7 @@ class DiscoveryService:
 
     async def _wait_for_response(
         self,
-        websocket: ClientWebSocketResponse | None,
+        _websocket: ClientWebSocketResponse | None,
         message_id: int,
         timeout: float = 10.0
     ) -> dict[str, Any] | None:
@@ -544,7 +545,7 @@ class DiscoveryService:
                 self.pending_responses.pop(message_id, None)
                 logger.debug(f"✅ Received response for message {message_id}")
                 return response
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(f"⚠️  Timeout waiting for message {message_id} (waited {extended_timeout}s) - message may arrive late")
                 # Don't remove Future immediately - message might arrive late
                 # Clean up after a delay to allow late messages (but don't block)
@@ -651,7 +652,7 @@ class DiscoveryService:
             "services": services_data
         }
 
-    async def discover_services(self, websocket: ClientWebSocketResponse) -> dict[str, dict[str, Any]]:
+    async def discover_services(self, _websocket: ClientWebSocketResponse) -> dict[str, dict[str, Any]]:
         """
         Discover available services from Home Assistant Services API.
 

@@ -1,6 +1,6 @@
 """Tests for JaegerClient with mocked HTTP responses."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import httpx
@@ -145,7 +145,7 @@ class TestGetServices:
         ]
         call_count = 0
 
-        async def mock_get(*args, **kwargs):
+        async def mock_get(*_args, **_kwargs):
             nonlocal call_count
             resp = responses[min(call_count, len(responses) - 1)]
             call_count += 1
@@ -167,7 +167,7 @@ class TestGetServices:
         ]
         call_count = 0
 
-        async def mock_get(*args, **kwargs):
+        async def mock_get(*_args, **_kwargs):
             nonlocal call_count
             resp = responses[min(call_count, len(responses) - 1)]
             call_count += 1
@@ -194,7 +194,7 @@ class TestGetDependencies:
         }
         _setup_client(client, AsyncMock(return_value=_ok_response(mock_data)))
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         deps = await client.get_dependencies(
             start_time=now - timedelta(hours=1),
             end_time=now,

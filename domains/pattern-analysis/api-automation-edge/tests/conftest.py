@@ -2,12 +2,13 @@
 Pytest configuration and fixtures
 """
 
-import pytest
+# Fix import path
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
-# Fix import path
-import sys
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.clients.ha_rest_client import HARestClient

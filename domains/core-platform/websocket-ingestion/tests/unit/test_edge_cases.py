@@ -7,7 +7,7 @@ test coverage from 70% to 80% target.
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -203,7 +203,7 @@ class TestTimestampEdgeCases:
         )
         
         # Add event with future timestamp
-        future_time = datetime.now(timezone.utc) + timedelta(days=1)
+        future_time = datetime.now(UTC) + timedelta(days=1)
         await processor.add_event({
             "event_id": 1,
             "time": future_time.isoformat()
@@ -227,7 +227,7 @@ class TestTimestampEdgeCases:
         )
         
         # Add event with very old timestamp
-        old_time = datetime.now(timezone.utc) - timedelta(days=365)
+        old_time = datetime.now(UTC) - timedelta(days=365)
         await processor.add_event({
             "event_id": 1,
             "time": old_time.isoformat()

@@ -1,5 +1,5 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 
 def _drop_foreign_src_modules(cli_src: Path) -> None:

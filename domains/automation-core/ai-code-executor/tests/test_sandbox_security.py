@@ -4,14 +4,10 @@ Security tests for AI Code Executor sandbox.
 Tests filesystem isolation, network isolation, resource limits, and import restrictions.
 """
 
-import asyncio
-import os
-import tempfile
 from pathlib import Path
 
 import pytest
-
-from src.executor.sandbox import PythonSandbox, SandboxConfig, ExecutionResult
+from src.executor.sandbox import PythonSandbox, SandboxConfig
 
 
 @pytest.fixture

@@ -9,7 +9,6 @@ import time
 from pathlib import Path
 
 import pytest
-
 from homeiq_patterns.evaluation.config import ConfigLoader
 from homeiq_patterns.evaluation.llm_judge import LLMJudge, LLMProvider
 from homeiq_patterns.evaluation.models import (
@@ -27,7 +26,7 @@ from homeiq_patterns.evaluation.scheduler import (
 
 
 class MockProvider(LLMProvider):
-    async def complete(self, prompt: str) -> str:
+    async def complete(self, _prompt: str) -> str:
         return '{"label": "Yes", "explanation": "OK."}'
 
 

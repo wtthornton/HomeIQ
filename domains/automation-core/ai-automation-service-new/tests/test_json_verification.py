@@ -3,7 +3,6 @@ Tests for JSON verification service
 """
 
 import pytest
-
 from homeiq_ha.homeiq_automation.schema import (
     DeviceContext,
     HomeIQAction,

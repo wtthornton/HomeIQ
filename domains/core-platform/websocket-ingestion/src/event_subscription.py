@@ -5,7 +5,7 @@ Event Subscription Manager for Home Assistant WebSocket
 import json
 import logging
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .message_id_manager import get_message_id_manager
@@ -96,13 +96,13 @@ class EventSubscriptionManager:
 
                     self.subscriptions[sub_id] = {
                         "event_type": event_type,
-                        "subscribed_at": datetime.now(timezone.utc),
+                        "subscribed_at": datetime.now(UTC),
                         "status": "pending"
                     }
 
                 if success:
                     self.is_subscribed = True
-                    self.subscription_start_time = datetime.now(timezone.utc)
+                    self.subscription_start_time = datetime.now(UTC)
                     logger.info(f"Successfully subscribed to {len(event_types)} event types")
 
                 return success
@@ -114,15 +114,15 @@ class EventSubscriptionManager:
                 if send_result:
                     self.subscriptions[subscription_id] = {
                         "event_type": event_types[0],
-                        "subscribed_at": datetime.now(timezone.utc),
+                        "subscribed_at": datetime.now(UTC),
                         "status": "pending"
                     }
                     self.is_subscribed = True
-                    self.subscription_start_time = datetime.now(timezone.utc)
+                    self.subscription_start_time = datetime.now(UTC)
                     logger.info("=" * 80)
                     logger.info(f"✅ SUBSCRIPTION SUCCESSFUL: {event_types[0]} events")
                     logger.info(f"🆔 Subscription ID: {subscription_id}")
-                    logger.info(f"⏰ Subscribed at: {datetime.now(timezone.utc).isoformat()}")
+                    logger.info(f"⏰ Subscribed at: {datetime.now(UTC).isoformat()}")
                     logger.info("=" * 80)
                     return True
                 else:
@@ -202,7 +202,7 @@ class EventSubscriptionManager:
                     # Update statistics
                     self.total_events_received += 1
                     self.events_by_type[event_type] = self.events_by_type.get(event_type, 0) + 1
-                    self.last_event_time = datetime.now(timezone.utc)
+                    self.last_event_time = datetime.now(UTC)
 
                     # Log basic event information (every 10th event to avoid spam)
                     if self.total_events_received % 10 == 1:

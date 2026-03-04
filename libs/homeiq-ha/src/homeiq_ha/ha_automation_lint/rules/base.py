@@ -2,10 +2,10 @@
 Base class for all lint rules.
 """
 
-from abc import ABC, abstractmethod
-from typing import List
 import sys
+from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import List
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))

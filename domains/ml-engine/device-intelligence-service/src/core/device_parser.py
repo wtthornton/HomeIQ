@@ -6,7 +6,7 @@ Device data parsing and normalization for multi-source device discovery.
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from ..clients.ha_client import HAArea, HADevice, HAEntity
@@ -60,9 +60,9 @@ class UnifiedDevice:
         if self.entities is None:
             object.__setattr__(self, 'entities', [])
         if self.created_at is None:
-            object.__setattr__(self, 'created_at', datetime.now(timezone.utc))
+            object.__setattr__(self, 'created_at', datetime.now(UTC))
         if self.updated_at is None:
-            object.__setattr__(self, 'updated_at', datetime.now(timezone.utc))
+            object.__setattr__(self, 'updated_at', datetime.now(UTC))
 
 
 class DeviceParser:
@@ -173,7 +173,7 @@ class DeviceParser:
             last_seen=zigbee_device.last_seen if zigbee_device else None,
             health_score=self._calculate_health_score(ha_device, zigbee_device, device_entities),
             created_at=ha_device.created_at,
-            updated_at=max(ha_device.updated_at, zigbee_device.last_seen if zigbee_device and zigbee_device.last_seen else datetime.min.replace(tzinfo=timezone.utc))
+            updated_at=max(ha_device.updated_at, zigbee_device.last_seen if zigbee_device and zigbee_device.last_seen else datetime.min.replace(tzinfo=UTC))
         )
 
         return unified_device
@@ -208,8 +208,8 @@ class DeviceParser:
             disabled_by=None,
             last_seen=zigbee_device.last_seen,
             health_score=self._calculate_health_score(None, zigbee_device, []),
-            created_at=zigbee_device.last_seen or datetime.now(timezone.utc),
-            updated_at=zigbee_device.last_seen or datetime.now(timezone.utc)
+            created_at=zigbee_device.last_seen or datetime.now(UTC),
+            updated_at=zigbee_device.last_seen or datetime.now(UTC)
         )
 
         return unified_device
@@ -299,7 +299,7 @@ class DeviceParser:
 
         return capabilities
 
-    def _infer_non_mqtt_capabilities(self, entities: list[HAEntity], device: HADevice) -> list[dict[str, Any]]:
+    def _infer_non_mqtt_capabilities(self, entities: list[HAEntity], _device: HADevice) -> list[dict[str, Any]]:
         """Infer capabilities for non-MQTT devices based on entities and device class."""
         capabilities = []
 
@@ -426,7 +426,7 @@ class DeviceParser:
 
         # Deduct for old last seen (Zigbee devices)
         if zigbee_device and zigbee_device.last_seen:
-            hours_since_seen = (datetime.now(timezone.utc) - zigbee_device.last_seen).total_seconds() / 3600
+            hours_since_seen = (datetime.now(UTC) - zigbee_device.last_seen).total_seconds() / 3600
             if hours_since_seen > 24:
                 score -= min(30, int(hours_since_seen / 24) * 5)
 

@@ -4,18 +4,14 @@ Pytest configuration and fixtures for AI Query Service
 Epic 39, Story 39.12: Query & Automation Service Testing
 """
 
-import pytest
-from typing import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock
-
 import os
+from typing import AsyncGenerator
+from unittest.mock import AsyncMock
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from fastapi.testclient import TestClient
+import pytest
 from sqlalchemy import text
-
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from src.database import get_db
-from src.config import settings
 from src.main import app
 
 # Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
@@ -91,7 +87,7 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
 @pytest.fixture
 async def client(test_db: AsyncSession):
     """Create test client with database dependency override."""
-    from httpx import AsyncClient, ASGITransport
+    from httpx import ASGITransport, AsyncClient
     
     async def override_get_db():
         return test_db
@@ -164,7 +160,7 @@ def mock_data_api_client():
     """Mock DataAPIClient for testing."""
     client = AsyncMock()
     
-    async def mock_fetch_entities(*args, **kwargs):
+    async def mock_fetch_entities(*_args, **_kwargs):
         return [
             {
                 "entity_id": "light.office_lamp",
@@ -182,7 +178,7 @@ def mock_data_api_client():
     
     client.fetch_entities = mock_fetch_entities
     
-    async def mock_fetch_devices(*args, **kwargs):
+    async def mock_fetch_devices(*_args, **_kwargs):
         return [
             {
                 "device_id": "office_lamp_device",

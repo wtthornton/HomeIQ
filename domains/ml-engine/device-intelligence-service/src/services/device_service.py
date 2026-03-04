@@ -5,7 +5,7 @@ Simple device service for database operations.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -47,7 +47,7 @@ class DeviceService:
                 for key, value in device_data.items():
                     if hasattr(existing_device, key):
                         setattr(existing_device, key, value)
-                existing_device.updated_at = datetime.now(timezone.utc)
+                existing_device.updated_at = datetime.now(UTC)
                 await self.session.commit()
                 logger.debug(f"Updated device: {device_data['id']}")
                 return existing_device

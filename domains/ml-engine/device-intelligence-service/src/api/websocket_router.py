@@ -6,7 +6,7 @@ WebSocket endpoints for real-time device monitoring.
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, WebSocket, WebSocketDisconnect
@@ -52,14 +52,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 await websocket_manager._send_to_client(websocket, {
                     "type": "error",
                     "message": "Invalid JSON format",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now(UTC).isoformat()
                 })
             except Exception as e:
                 logger.error(f"Error handling WebSocket message: {e}")
                 await websocket_manager._send_to_client(websocket, {
                     "type": "error",
                     "message": f"Internal error: {str(e)}",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now(UTC).isoformat()
                 })
 
     except WebSocketDisconnect:
@@ -241,7 +241,7 @@ async def get_websocket_stats():
         "websocket_manager": websocket_manager.get_connection_stats(),
         "device_state_tracker": device_state_tracker.get_stats(),
         "performance_collector": performance_collector.get_stats(),
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(UTC).isoformat()
     }
 
 
@@ -251,13 +251,13 @@ async def broadcast_test_message(message: dict[str, Any]):
     await websocket_manager.broadcast_to_all({
         "type": "test_message",
         "data": message,
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(UTC).isoformat()
     })
 
     return {
         "status": "success",
         "message": "Test message broadcasted",
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(UTC).isoformat()
     }
 
 
@@ -287,5 +287,5 @@ async def simulate_device_update(device_id: str, update_data: dict[str, Any] = N
         "message": f"Simulated update for device {device_id}",
         "device_id": device_id,
         "update_data": update_data,
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(UTC).isoformat()
     }

@@ -3,11 +3,11 @@ InfluxDB Query Client for API Services
 Shared InfluxDB client used by admin-api and data-api for querying time-series data
 """
 
-import os
-import logging
 import asyncio
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+import logging
+import os
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 try:
     from influxdb_client import InfluxDBClient

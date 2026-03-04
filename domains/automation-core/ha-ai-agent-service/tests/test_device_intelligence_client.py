@@ -1,9 +1,9 @@
 """Tests for Device Intelligence Client"""
 
-import pytest
 from unittest.mock import AsyncMock, Mock, patch
-import httpx
 
+import httpx
+import pytest
 from src.clients.device_intelligence_client import DeviceIntelligenceClient
 
 

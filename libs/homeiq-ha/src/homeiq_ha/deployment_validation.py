@@ -6,7 +6,6 @@ Validates deployment configuration and prevents misconfigurations.
 import logging
 import os
 import sys
-from typing import Literal
 
 logger = logging.getLogger(__name__)
 

@@ -9,10 +9,9 @@ from __future__ import annotations
 import logging
 import os
 
+from homeiq_data import DatabaseManager
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
-
-from homeiq_data import DatabaseManager
 
 from .config import Settings
 
@@ -44,7 +43,7 @@ def get_async_session_maker():
     return db.session_maker
 
 
-async def init_database(settings: Settings) -> bool:
+async def init_database(_settings: Settings) -> bool:
     """
     Initialize database connection and create tables.
 

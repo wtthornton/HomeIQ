@@ -4,7 +4,7 @@ Unit tests for Home Assistant Calendar Client
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
@@ -191,8 +191,8 @@ async def test_get_events(ha_client):
     ha_client.session = MagicMock()
     ha_client.session.get = MagicMock(return_value=mock_session)
 
-    start = datetime(2025, 10, 16, 0, 0, 0, tzinfo=timezone.utc)
-    end = datetime(2025, 10, 16, 23, 59, 59, tzinfo=timezone.utc)
+    start = datetime(2025, 10, 16, 0, 0, 0, tzinfo=UTC)
+    end = datetime(2025, 10, 16, 23, 59, 59, tzinfo=UTC)
 
     events = await ha_client.get_events("calendar.primary", start, end)
 
@@ -215,7 +215,7 @@ async def test_get_events_with_prefix(ha_client):
     ha_client.session = MagicMock()
     ha_client.session.get = MagicMock(return_value=mock_session)
 
-    start = datetime.now(timezone.utc)
+    start = datetime.now(UTC)
     end = start + timedelta(days=1)
 
     # Should work with or without prefix
@@ -236,7 +236,7 @@ async def test_get_events_not_found(ha_client):
     ha_client.session = MagicMock()
     ha_client.session.get = MagicMock(return_value=mock_session)
 
-    start = datetime.now(timezone.utc)
+    start = datetime.now(UTC)
     end = start + timedelta(days=1)
 
     events = await ha_client.get_events("nonexistent", start, end)
@@ -281,7 +281,7 @@ async def test_get_calendar_state(ha_client):
 async def test_get_events_from_multiple_calendars(ha_client):
     """Test getting events from multiple calendars concurrently"""
 
-    async def mock_get_events(calendar_id, start, end):
+    async def mock_get_events(calendar_id, _start, _end):
         if calendar_id == "calendar.primary":
             return [{"summary": "Event 1"}]
         elif calendar_id == "calendar.work":
@@ -290,7 +290,7 @@ async def test_get_events_from_multiple_calendars(ha_client):
 
     ha_client.get_events = mock_get_events
 
-    start = datetime.now(timezone.utc)
+    start = datetime.now(UTC)
     end = start + timedelta(days=1)
 
     results = await ha_client.get_events_from_multiple_calendars(
@@ -308,7 +308,7 @@ async def test_get_events_from_multiple_calendars(ha_client):
 async def test_get_events_from_multiple_calendars_with_error(ha_client):
     """Test getting events from multiple calendars with one failing"""
 
-    async def mock_get_events(calendar_id, start, end):
+    async def mock_get_events(calendar_id, _start, _end):
         if calendar_id == "calendar.primary":
             return [{"summary": "Event 1"}]
         elif calendar_id == "calendar.error":
@@ -317,7 +317,7 @@ async def test_get_events_from_multiple_calendars_with_error(ha_client):
 
     ha_client.get_events = mock_get_events
 
-    start = datetime.now(timezone.utc)
+    start = datetime.now(UTC)
     end = start + timedelta(days=1)
 
     results = await ha_client.get_events_from_multiple_calendars(

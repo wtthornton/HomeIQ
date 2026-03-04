@@ -5,7 +5,7 @@ Combines multiple HomeIQ JSON automations into a single automation.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from homeiq_ha.homeiq_automation.schema import (
@@ -128,7 +128,7 @@ class AutomationCombiner:
         # Create combined metadata
         combined_metadata = HomeIQMetadata(
             created_by="automation_combiner",
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             use_case=use_case,
             complexity=complexity,
         )

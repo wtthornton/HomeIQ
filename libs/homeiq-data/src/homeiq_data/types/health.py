@@ -3,10 +3,10 @@ Standardized Health Check Types and Response Schema
 Epic 17.2: Enhanced Service Health Monitoring
 """
 
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
-from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 
 class HealthStatus(str, Enum):
@@ -111,7 +111,7 @@ def create_health_response(
     response = ServiceHealthResponse(
         service=service,
         status=status,
-        timestamp=datetime.utcnow().isoformat() + "Z",
+        timestamp=datetime.now(UTC).isoformat() + "Z",
         uptime_seconds=uptime_seconds,
         version=version,
         dependencies=dependencies,
@@ -195,7 +195,7 @@ async def check_dependency_health(
                 message="Connection check failed"
             )
     
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return DependencyHealth(
             name=name,
             type=dependency_type,

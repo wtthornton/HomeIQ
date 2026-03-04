@@ -7,7 +7,7 @@ CRUD operations for suggestion storage and management.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
@@ -139,7 +139,7 @@ class SuggestionService:
         if agent_response:
             suggestion.agent_response = agent_response
         if status == "sent":
-            suggestion.sent_at = datetime.utcnow()
+            suggestion.sent_at = datetime.now(UTC)
 
         await self.db.commit()
         await self.db.refresh(suggestion)
@@ -198,7 +198,7 @@ class SuggestionService:
         Returns:
             Number of suggestions deleted
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
         result = await self.db.execute(
             select(Suggestion).where(Suggestion.created_at < cutoff_date)

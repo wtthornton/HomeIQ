@@ -11,6 +11,7 @@ import os
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from src.clients.ha_client import HomeAssistantClient
 
 # Default HA URL in tests (local dev port). Single literal in one place.

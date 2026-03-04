@@ -5,7 +5,7 @@ Epic F2: Collect and emit metrics to InfluxDB
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
@@ -98,7 +98,7 @@ class MetricsCollector:
                 .tag("success", str(success).lower()) \
                 .field("execution_time", execution_time) \
                 .field("success", 1 if success else 0) \
-                .time(datetime.now(timezone.utc))
+                .time(datetime.now(UTC))
 
             if correlation_id:
                 point = point.tag("correlation_id", correlation_id)
@@ -132,7 +132,7 @@ class MetricsCollector:
                 .tag("home_id", home_id) \
                 .tag("spec_id", spec_id) \
                 .field("latency", latency) \
-                .time(datetime.now(timezone.utc))
+                .time(datetime.now(UTC))
 
             if correlation_id:
                 point = point.tag("correlation_id", correlation_id)
@@ -166,7 +166,7 @@ class MetricsCollector:
                 .tag("home_id", home_id) \
                 .tag("metric_type", metric_type) \
                 .field("value", value) \
-                .time(datetime.now(timezone.utc))
+                .time(datetime.now(UTC))
 
             for key, val in tags.items():
                 point = point.tag(key, str(val))
@@ -190,7 +190,7 @@ class MetricsCollector:
                 .tag("home_id", home_id) \
                 .tag("breaker_id", breaker_id) \
                 .field("tripped", 1) \
-                .time(datetime.now(timezone.utc))
+                .time(datetime.now(UTC))
 
             self.write_api.write(bucket=self.influxdb_bucket, record=point)
 
@@ -221,7 +221,7 @@ class MetricsCollector:
                 .tag("home_id", home_id) \
                 .tag("metric_type", metric_type) \
                 .field("value", value) \
-                .time(datetime.now(timezone.utc))
+                .time(datetime.now(UTC))
 
             for key, val in tags.items():
                 point = point.tag(key, str(val))
@@ -265,7 +265,7 @@ class MetricsCollector:
                 .field("execution_time", execution_time) \
                 .field("success", 1 if success else 0) \
                 .field("retry_count", retry_count) \
-                .time(datetime.now(timezone.utc))
+                .time(datetime.now(UTC))
 
             if correlation_id:
                 point = point.tag("correlation_id", correlation_id)

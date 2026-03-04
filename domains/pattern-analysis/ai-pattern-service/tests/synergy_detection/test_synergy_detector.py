@@ -5,7 +5,6 @@ Tests the confidence floor for high-value synergy types
 (Pattern Intelligence epic, Story 1).
 """
 
-import pytest
 import sys
 from pathlib import Path
 

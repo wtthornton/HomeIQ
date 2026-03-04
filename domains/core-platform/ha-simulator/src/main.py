@@ -108,7 +108,7 @@ class HASimulatorService:
 
         logger.info("✅ HA Simulator Service stopped")
 
-    def _signal_handler(self, signum: int, frame: object) -> None:
+    def _signal_handler(self, signum: int, _frame: object) -> None:
         """Handle shutdown signals"""
         logger.info(f"📡 Received signal {signum}")
         asyncio.create_task(self.stop())

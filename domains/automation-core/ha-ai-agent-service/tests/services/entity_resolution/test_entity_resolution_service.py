@@ -2,11 +2,11 @@
 Tests for entity_resolution_service.py
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from src.services.entity_resolution.entity_resolution_service import EntityResolutionService
+import pytest
 from src.clients.data_api_client import DataAPIClient
+from src.services.entity_resolution.entity_resolution_service import EntityResolutionService
 
 
 @pytest.fixture

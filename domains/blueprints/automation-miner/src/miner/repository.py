@@ -5,7 +5,7 @@ Handles all database operations for the automation corpus.
 Uses SQLAlchemy async session management (Context7 pattern).
 """
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import and_, func, select
@@ -72,7 +72,7 @@ class CorpusRepository:
             existing.quality_score = metadata.quality_score
             existing.vote_count = metadata.vote_count
             existing.updated_at = metadata.updated_at
-            existing.last_crawled = datetime.now(timezone.utc)
+            existing.last_crawled = datetime.now(UTC)
             existing.extra_metadata = metadata.metadata
             existing.is_blueprint = is_blueprint
 
@@ -95,7 +95,7 @@ class CorpusRepository:
                 vote_count=metadata.vote_count,
                 created_at=metadata.created_at,
                 updated_at=metadata.updated_at,
-                last_crawled=datetime.now(timezone.utc),
+                last_crawled=datetime.now(UTC),
                 extra_metadata=metadata.metadata,
                 is_blueprint=is_blueprint
             )
@@ -421,9 +421,9 @@ class CorpusRepository:
 
         if state:
             state.value = value
-            state.updated_at = datetime.now(timezone.utc)
+            state.updated_at = datetime.now(UTC)
         else:
-            state = MinerState(key=key, value=value, updated_at=datetime.now(timezone.utc))
+            state = MinerState(key=key, value=value, updated_at=datetime.now(UTC))
             self.session.add(state)
 
         await self.session.commit()
@@ -483,7 +483,7 @@ class CorpusRepository:
         """
         from datetime import timedelta
 
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=age_days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=age_days)
 
         # Find automations to prune
         stmt = select(CommunityAutomation).where(

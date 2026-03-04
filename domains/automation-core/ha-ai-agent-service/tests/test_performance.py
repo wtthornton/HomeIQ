@@ -6,12 +6,12 @@ Tests verify that performance requirements are met:
 - Context building < 500ms without cache (first call)
 """
 
-import pytest
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-from src.services.context_builder import ContextBuilder
+import pytest
 from src.config import Settings
+from src.services.context_builder import ContextBuilder
 
 
 @pytest.fixture

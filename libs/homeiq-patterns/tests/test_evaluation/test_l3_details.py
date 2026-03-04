@@ -3,7 +3,6 @@ Tests for E2.S4: L3 ToolParameterAccuracy Evaluator
 """
 
 import pytest
-
 from homeiq_patterns.evaluation.config import (
     AgentEvalConfig,
     ParamDef,
@@ -27,7 +26,7 @@ class MockProvider(LLMProvider):
     def __init__(self, response: str = ""):
         self._response = response
 
-    async def complete(self, prompt: str) -> str:
+    async def complete(self, _prompt: str) -> str:
         return self._response
 
 

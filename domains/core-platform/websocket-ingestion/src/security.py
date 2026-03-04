@@ -9,7 +9,8 @@ import json
 import logging
 import os
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+
 logger = logging.getLogger(__name__)
 
 # Constants
@@ -37,11 +38,11 @@ class RateLimiter:
         # Track message timestamps per connection (identified by client IP or connection ID)
         self._message_timestamps: dict[str, list[datetime]] = defaultdict(list)
         self._cleanup_interval = timedelta(minutes=5)  # Clean up old entries every 5 minutes
-        self._last_cleanup = datetime.now(timezone.utc)
+        self._last_cleanup = datetime.now(UTC)
 
     def _cleanup_old_entries(self):
         """Remove old message timestamps outside the rate limit window"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if now - self._last_cleanup < self._cleanup_interval:
             return
 
@@ -73,7 +74,7 @@ class RateLimiter:
         """
         self._cleanup_old_entries()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         window_start = now - timedelta(seconds=self.window_seconds)
 
         # Get timestamps for this connection

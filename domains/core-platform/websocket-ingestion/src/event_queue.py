@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -44,7 +44,7 @@ class EventQueue:
 
         # Health monitoring
         self.health_check_interval = 60  # seconds
-        self.last_health_check = datetime.now(timezone.utc)
+        self.last_health_check = datetime.now(UTC)
 
         # Persistence
         if self.persistence_path:
@@ -72,8 +72,8 @@ class EventQueue:
         queue_item = {
             "data": event_data,
             "priority": priority,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "id": f"{self.total_events_received}_{datetime.now(timezone.utc).timestamp()}"
+            "timestamp": datetime.now(UTC).isoformat(),
+            "id": f"{self.total_events_received}_{datetime.now(UTC).timestamp()}"
         }
 
         try:
@@ -110,19 +110,19 @@ class EventQueue:
             # Try to get from main queue first
             queue_item = await asyncio.wait_for(self.queue.get(), timeout=0.1)
             self.total_events_processed += 1
-            self.last_processing_time = datetime.now(timezone.utc)
+            self.last_processing_time = datetime.now(UTC)
 
             # Update queue size history
             self.queue_size_history.append(self.queue.qsize())
 
             return queue_item
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Try to get from overflow queue
             if self.overflow_queue:
                 queue_item = self.overflow_queue.popleft()
                 self.total_events_processed += 1
-                self.last_processing_time = datetime.now(timezone.utc)
+                self.last_processing_time = datetime.now(UTC)
                 return queue_item
 
             return None
@@ -138,7 +138,7 @@ class EventQueue:
             # Try main queue first
             queue_item = self.queue.get_nowait()
             self.total_events_processed += 1
-            self.last_processing_time = datetime.now(timezone.utc)
+            self.last_processing_time = datetime.now(UTC)
 
             # Update queue size history
             self.queue_size_history.append(self.queue.qsize())
@@ -150,7 +150,7 @@ class EventQueue:
             if self.overflow_queue:
                 queue_item = self.overflow_queue.popleft()
                 self.total_events_processed += 1
-                self.last_processing_time = datetime.now(timezone.utc)
+                self.last_processing_time = datetime.now(UTC)
                 return queue_item
 
             return None
@@ -162,7 +162,7 @@ class EventQueue:
                 return
 
             # Create persistence file path
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             filename = f"overflow_events_{timestamp}.jsonl"
             filepath = Path(self.persistence_path) / filename
 

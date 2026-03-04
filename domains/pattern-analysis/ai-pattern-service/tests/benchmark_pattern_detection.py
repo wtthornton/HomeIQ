@@ -14,17 +14,17 @@ Targets:
 import gc
 import logging
 import statistics
+
+# Import modules under test
+import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
-
-# Import modules under test
-import sys
-from pathlib import Path
 
 # Add src directory to path
 src_dir = Path(__file__).parent.parent / "src"

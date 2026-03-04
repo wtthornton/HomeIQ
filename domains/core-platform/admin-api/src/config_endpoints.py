@@ -306,7 +306,7 @@ class ConfigEndpoints:
             warnings=warnings
         )
 
-    async def _apply_config_updates(self, service: str, updates: list[ConfigUpdate]) -> dict[str, Any]:
+    async def _apply_config_updates(self, _service: str, updates: list[ConfigUpdate]) -> dict[str, Any]:
         """Apply configuration updates to a service"""
         payload = [update.model_dump() for update in updates]
         return {

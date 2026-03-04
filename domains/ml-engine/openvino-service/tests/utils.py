@@ -79,7 +79,7 @@ class FakeSentenceTransformer:
         """Initialize with embedding dimension (1024 for BGE-large-en-v1.5)."""
         self.dimension = dimension
 
-    def encode(self, texts: Iterable[str], convert_to_numpy: bool = True) -> np.ndarray:
+    def encode(self, texts: Iterable[str], _convert_to_numpy: bool = True) -> np.ndarray:
         vectors = [deterministic_embedding(text, dimension=self.dimension) for text in texts]
         return np.stack(vectors)
 
@@ -169,7 +169,7 @@ class FakeClassifierTokenizer:
     def __call__(self, prompt: str, **_: Any) -> dict[str, str]:
         return {"prompt": prompt}
 
-    def decode(self, generated: str, skip_special_tokens: bool = True) -> str:
+    def decode(self, generated: str, _skip_special_tokens: bool = True) -> str:
         return generated
 
 
@@ -240,7 +240,7 @@ class TestOpenVINOManager(OpenVINOManager):
             self._classifier_model = FakeClassifierModel()
             self._classifier_tokenizer = FakeClassifierTokenizer()
 
-    async def _run_blocking(self, func, *args, timeout=None, **kwargs):
+    async def _run_blocking(self, func, *args, _timeout=None, **kwargs):
         """Bypass threadpool and semaphore to keep tests fast."""
         result = func(*args, **kwargs)
         if asyncio.iscoroutine(result):

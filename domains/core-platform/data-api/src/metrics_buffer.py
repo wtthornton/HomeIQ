@@ -13,7 +13,7 @@ import re
 import threading
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 
@@ -85,7 +85,7 @@ class MetricsBuffer:
     # -- Recording -----------------------------------------------------
 
     def _minute_boundary(self) -> datetime:
-        return datetime.now(timezone.utc).replace(second=0, microsecond=0)
+        return datetime.now(UTC).replace(second=0, microsecond=0)
 
     def _ensure_current(self) -> MinuteBucket:
         now = self._minute_boundary()

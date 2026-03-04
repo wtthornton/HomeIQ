@@ -16,10 +16,9 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
 
 from ..base_evaluator import QualityEvaluator
-from ..config import AgentEvalConfig, PromptRule
+from ..config import PromptRule
 from ..llm_judge import JudgeRubric, LLMJudge
 from ..models import EvaluationResult, SessionTrace
 

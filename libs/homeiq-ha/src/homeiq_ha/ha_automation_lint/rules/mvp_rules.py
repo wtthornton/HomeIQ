@@ -4,17 +4,21 @@ Implements the minimum 15 rules required for MVP.
 """
 
 import re
-from typing import List
 import sys
 from pathlib import Path
+from typing import List
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from constants import (
+    ENTITY_ID_PATTERN,
+    HIGH_FREQUENCY_TRIGGERS,
+    RuleCategory,
+    Severity,
+)
 from models import AutomationIR, Finding, SuggestedFix
-from constants import Severity, RuleCategory, VALID_MODES, HIGH_FREQUENCY_TRIGGERS, ENTITY_ID_PATTERN
 from rules.base import Rule
-
 
 # ============================================================================
 # SCHEMA RULES
@@ -102,7 +106,7 @@ class DuplicateIDRule(Rule):
 
     # This rule needs special handling in the engine to check across automations
     # For now, we'll mark it as a placeholder
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, _automation: AutomationIR) -> List[Finding]:
         # This check is performed at the engine level
         return []
 

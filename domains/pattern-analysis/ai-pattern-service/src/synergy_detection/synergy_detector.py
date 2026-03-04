@@ -11,7 +11,7 @@ Epic 39, Story 39.5: Extracted to ai-pattern-service.
 import json
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -1214,7 +1214,7 @@ class DeviceSynergyDetector:
         Returns:
             List of synergy opportunity dictionaries
         """
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
         logger.info("🔗 Starting synergy detection...")
         logger.info(f"   → Parameters: min_confidence={self.min_confidence}, same_area_required={self.same_area_required}")
 
@@ -1340,7 +1340,7 @@ class DeviceSynergyDetector:
                         # Continue without explanation rather than failing
 
             # Log results
-            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            duration = (datetime.now(UTC) - start_time).total_seconds()
             self._log_synergy_results(
                 pairwise_synergies, chains_3, chains_4, final_synergies, duration,
                 scene_synergies=scene_synergies, context_synergies=context_synergies
@@ -1407,14 +1407,14 @@ class DeviceSynergyDetector:
         # Check cache validity
         if (self._device_cache is not None and
             self._device_cache_timestamp is not None and
-            datetime.now(timezone.utc) - self._device_cache_timestamp < self._cache_ttl):
+            datetime.now(UTC) - self._device_cache_timestamp < self._cache_ttl):
             logger.info("✅ Using cached device data")
             return self._device_cache
 
         try:
             logger.info("📥 Loading device data from data-api...")
             self._device_cache = await self.data_api.fetch_devices()
-            self._device_cache_timestamp = datetime.now(timezone.utc)
+            self._device_cache_timestamp = datetime.now(UTC)
             logger.info(f"✅ Loaded {len(self._device_cache)} devices (cached for 6 hours)")
             return self._device_cache
         except Exception as e:
@@ -1474,14 +1474,14 @@ class DeviceSynergyDetector:
         # Check cache validity
         if (self._entity_cache is not None and
             self._entity_cache_timestamp is not None and
-            datetime.now(timezone.utc) - self._entity_cache_timestamp < self._cache_ttl):
+            datetime.now(UTC) - self._entity_cache_timestamp < self._cache_ttl):
             logger.info("✅ Using cached entity data")
             return self._entity_cache
 
         try:
             logger.info("📥 Loading entity data from data-api...")
             self._entity_cache = await self.data_api.fetch_entities()
-            self._entity_cache_timestamp = datetime.now(timezone.utc)
+            self._entity_cache_timestamp = datetime.now(UTC)
             # Rebuild sibling index on cache refresh
             self._sibling_index = self._build_sibling_index(self._entity_cache)
             logger.info(f"✅ Loaded {len(self._entity_cache)} entities (cached for 6 hours, {len(self._sibling_index)} with device links)")
@@ -2551,8 +2551,8 @@ class DeviceSynergyDetector:
         self,
         _device1: str,
         _device2: str,
-        device3: str,
-        entities: list[dict[str, Any]]
+        _device3: str,
+        _entities: list[dict[str, Any]]
     ) -> bool:
         """
         Check if cross-area chain makes sense (simple heuristic).
@@ -2688,7 +2688,7 @@ class DeviceSynergyDetector:
 
     async def _detect_context_aware_synergies(
         self,
-        pairwise_synergies: list[dict[str, Any]],
+        _pairwise_synergies: list[dict[str, Any]],
         entities: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         """

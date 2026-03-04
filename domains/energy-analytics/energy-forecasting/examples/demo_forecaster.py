@@ -10,8 +10,8 @@ def main():
     logging.basicConfig(level=logging.INFO)
 
     try:
-        from darts import TimeSeries
         import pandas as pd
+        from darts import TimeSeries
     except ImportError:
         print("Darts not installed. Install with: pip install darts>=0.30.0")
         return

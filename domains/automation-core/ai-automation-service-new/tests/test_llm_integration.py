@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from openai import APIError, RateLimitError
+
 from src.clients.openai_client import OpenAIClient
 
 

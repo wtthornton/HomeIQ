@@ -6,7 +6,7 @@ import logging
 import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -185,7 +185,7 @@ class DeviceHygieneAnalyzer:
         ha_devices: Sequence[HADevice],
         entity_lookup: dict[str, list[HAEntity]],
     ) -> list[HygieneFinding]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         findings: list[HygieneFinding] = []
         for device in ha_devices:
             age = now - device.created_at
@@ -248,7 +248,7 @@ class DeviceHygieneAnalyzer:
         existing = {issue.issue_key: issue for issue in existing_result.scalars()}
 
         current_keys = {finding.issue_key for finding in finding_list}
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for issue_key, issue in existing.items():
             if issue_key in current_keys:

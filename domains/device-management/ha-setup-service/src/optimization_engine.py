@@ -7,7 +7,7 @@ Context7 Best Practices Applied:
 - Automated optimization execution
 """
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
 import aiohttp
@@ -85,7 +85,7 @@ class PerformanceAnalysisEngine:
         )
 
         return {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "response_time": response_time_analysis if not isinstance(response_time_analysis, Exception) else {},
             "resource_usage": resource_analysis if not isinstance(resource_analysis, Exception) else {},
             "configuration": config_analysis if not isinstance(config_analysis, Exception) else {},
@@ -102,13 +102,13 @@ class PerformanceAnalysisEngine:
             }
 
             # Test multiple endpoints and measure response time
-            start_time = datetime.now(timezone.utc)
+            start_time = datetime.now(UTC)
             async with session.get(
                 f"{self.ha_url}/api/states",
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=10)
                 ) as response:
-                    elapsed = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+                    elapsed = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
                     if response.status == 200:
                         states = await response.json()

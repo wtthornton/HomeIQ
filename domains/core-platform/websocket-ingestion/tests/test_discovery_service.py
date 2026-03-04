@@ -125,7 +125,7 @@ class TestDiscoveryService:
     async def test_discover_devices_timeout(self):
         """Test device discovery timeout"""
         mock_ws = AsyncMock()
-        mock_ws.receive.side_effect = asyncio.TimeoutError()
+        mock_ws.receive.side_effect = TimeoutError()
 
         devices = await self.service.discover_devices(mock_ws)
 
@@ -281,7 +281,7 @@ class TestDiscoveryService:
             )
         ]
 
-        mock_ws.receive.side_effect = responses + [asyncio.TimeoutError()] * 2
+        mock_ws.receive.side_effect = responses + [TimeoutError()] * 2
 
         result = await self.service.discover_all(mock_ws)
 
@@ -319,7 +319,7 @@ class TestDiscoveryService:
     async def test_wait_for_response_timeout(self):
         """Test waiting for response with timeout"""
         mock_ws = AsyncMock()
-        mock_ws.receive.side_effect = asyncio.TimeoutError()
+        mock_ws.receive.side_effect = TimeoutError()
 
         with pytest.raises(asyncio.TimeoutError):
             await self.service._wait_for_response(mock_ws, 100, timeout=0.1)

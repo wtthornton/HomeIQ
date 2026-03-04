@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -79,7 +79,7 @@ class DeviceHygieneRemediationService:
         return await self._mark_resolved(issue, {"config_flow": integration})
 
     async def _mark_resolved(self, issue: DeviceHygieneIssue, metadata_update: dict) -> bool:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         issue.status = "resolved"
         issue.updated_at = now
         issue.resolved_at = now

@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-
 from src.main import DataAPIService, app, data_api_service
 
 _transport = ASGITransport(app=app)

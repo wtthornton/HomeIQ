@@ -7,7 +7,7 @@ Tests for all API endpoints including health checks and cheapest hours.
 
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -50,7 +50,7 @@ class TestAPIEndpoints(AioHTTPTestCase):
                 {'hour': 5, 'price': 0.18}
             ]
         }
-        service.last_fetch_time = datetime.now(timezone.utc)
+        service.last_fetch_time = datetime.now(UTC)
         
         return await create_app(service)
     

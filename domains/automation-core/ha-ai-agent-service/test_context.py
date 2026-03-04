@@ -1,8 +1,9 @@
 """Test script to check context building"""
 import asyncio
-import sys
-from src.services.context_builder import ContextBuilder
+
 from src.config import Settings
+from src.services.context_builder import ContextBuilder
+
 
 async def test():
     s = Settings()

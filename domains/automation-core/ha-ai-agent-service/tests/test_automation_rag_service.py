@@ -1,8 +1,7 @@
 """Tests for Automation RAG Service (Story 9: Comprehensive Sports Keyword Coverage)"""
 
 import pytest
-
-from src.services.automation_rag_service import AutomationRAGService, SPORTS_KEYWORDS
+from src.services.automation_rag_service import SPORTS_KEYWORDS, AutomationRAGService
 
 
 @pytest.fixture

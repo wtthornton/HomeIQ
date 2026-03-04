@@ -4,13 +4,10 @@ Unit tests for AutomationPreDeploymentValidator service
 Tests automation validation before deployment, including entity and service validation.
 """
 
-import pytest
-import yaml
 from unittest.mock import AsyncMock, MagicMock
-from typing import Any
 
 import httpx
-
+import pytest
 from src.services.automation_pre_deployment_validator import AutomationPreDeploymentValidator
 
 

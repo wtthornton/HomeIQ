@@ -1,16 +1,15 @@
 """Tests for RAGContextService and RAGContextRegistry."""
 
-import pytest
-from pathlib import Path
-from unittest.mock import patch
-
 import sys
+from pathlib import Path
+
+import pytest
+
 _project_root = str(Path(__file__).resolve().parents[3])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from homeiq_patterns import RAGContextService, RAGContextRegistry
-
+from homeiq_patterns import RAGContextRegistry, RAGContextService
 
 # --- Test fixtures: concrete RAGContextService implementations ---
 
@@ -206,7 +205,7 @@ class TestRAGContextRegistry:
             name = "failing"
             keywords = ("fail_trigger",)
 
-            async def get_context(self, prompt: str) -> str:
+            async def get_context(self, _prompt: str) -> str:
                 raise RuntimeError("Corpus loading failed")
 
         registry = RAGContextRegistry()

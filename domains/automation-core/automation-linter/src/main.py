@@ -10,17 +10,16 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
-
 from homeiq_ha.ha_automation_lint.constants import (
     ENGINE_VERSION,
-    FixMode,
     MAX_YAML_SIZE_BYTES,
     RULESET_VERSION,
+    FixMode,
 )
 from homeiq_ha.ha_automation_lint.engine import LintEngine
 from homeiq_ha.ha_automation_lint.fixers.auto_fixer import AutoFixer
 from homeiq_ha.ha_automation_lint.renderers.yaml_renderer import YAMLRenderer
+from pydantic import BaseModel, Field
 
 # Configure logging
 logging.basicConfig(

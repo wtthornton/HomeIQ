@@ -12,11 +12,11 @@ Tests cover all phases of pattern analysis including:
 - Error handling
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, call
-from datetime import datetime, timedelta, timezone
-import pandas as pd
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pandas as pd
+import pytest
 from src.scheduler.pattern_analysis import PatternAnalysisScheduler
 
 
@@ -123,7 +123,7 @@ class TestEventFetching:
         events_df = pd.DataFrame({
             'entity_id': ['light.office', 'light.kitchen'],
             'state': ['on', 'off'],
-            'timestamp': [datetime.now(timezone.utc), datetime.now(timezone.utc)]
+            'timestamp': [datetime.now(UTC), datetime.now(UTC)]
         })
         mock_client.fetch_events = AsyncMock(return_value=events_df)
         
@@ -178,7 +178,7 @@ class TestPatternDetection:
         events_df = pd.DataFrame({
             'entity_id': ['light.office'],
             'state': ['on'],
-            'timestamp': [datetime.now(timezone.utc)]
+            'timestamp': [datetime.now(UTC)]
         })
         job_result = {"errors": []}
         
@@ -218,7 +218,7 @@ class TestPatternDetection:
         events_df = pd.DataFrame({
             'entity_id': ['light.office', 'light.kitchen'],
             'state': ['on', 'on'],
-            'timestamp': [datetime.now(timezone.utc), datetime.now(timezone.utc)]
+            'timestamp': [datetime.now(UTC), datetime.now(UTC)]
         })
         job_result = {"errors": []}
         
@@ -458,7 +458,7 @@ class TestFullAnalysisFlow:
         events_df = pd.DataFrame({
             'entity_id': ['light.office'],
             'state': ['on'],
-            'timestamp': [datetime.now(timezone.utc)]
+            'timestamp': [datetime.now(UTC)]
         })
         
         mock_client = AsyncMock()
@@ -510,7 +510,7 @@ class TestFullAnalysisFlow:
         mock_mqtt = AsyncMock()
         scheduler.set_mqtt_client(mock_mqtt)
         
-        start_time = datetime.now(timezone.utc) - timedelta(seconds=10)
+        start_time = datetime.now(UTC) - timedelta(seconds=10)
         job_result = {
             "status": "running",
             "patterns_detected": 3,

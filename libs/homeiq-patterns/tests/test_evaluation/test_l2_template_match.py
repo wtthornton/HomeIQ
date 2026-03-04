@@ -6,7 +6,6 @@ and LLM fallback for unrecognised intents.
 """
 
 import pytest
-
 from homeiq_patterns.evaluation.evaluators.l2_template_match import (
     TemplateAppropriatenessEvaluator,
 )
@@ -24,7 +23,7 @@ class MockProvider(LLMProvider):
         self._response = response
         self.call_count = 0
 
-    async def complete(self, prompt: str) -> str:
+    async def complete(self, _prompt: str) -> str:
         self.call_count += 1
         return self._response
 

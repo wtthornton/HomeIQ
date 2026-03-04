@@ -6,7 +6,7 @@ Uses validation data for both evaluation and real-time feedback to guide weight 
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ class FBVLQualityScorer:
             'base_quality': base_quality,
             'adjusted_quality': adjusted_quality,
             'validation_feedback': validation_feedback,
-            'timestamp': datetime.now(timezone.utc)
+            'timestamp': datetime.now(UTC)
         })
 
         return result

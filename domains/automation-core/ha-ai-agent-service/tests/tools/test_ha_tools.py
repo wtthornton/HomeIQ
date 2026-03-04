@@ -2,15 +2,14 @@
 Tests for ha_tools.py
 """
 
-import pytest
-import yaml
 from unittest.mock import AsyncMock, MagicMock
 
-from src.tools.ha_tools import HAToolHandler
-from src.clients.ha_client import HomeAssistantClient
+import pytest
 from src.clients.data_api_client import DataAPIClient
+from src.clients.ha_client import HomeAssistantClient
 from src.clients.yaml_validation_client import YAMLValidationClient
-from src.models.automation_models import AutomationPreviewRequest, ValidationResult
+from src.models.automation_models import AutomationPreviewRequest
+from src.tools.ha_tools import HAToolHandler
 
 
 @pytest.fixture

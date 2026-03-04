@@ -3,17 +3,14 @@ Tests for E1.S2: SessionTracer Middleware (shared/patterns/evaluation/session_tr
 """
 
 import pytest
-
 from homeiq_patterns.evaluation.models import SessionTrace, ToolCall
 from homeiq_patterns.evaluation.session_tracer import (
     CallbackSink,
     InMemorySink,
     SessionTracerContext,
-    TraceSink,
     get_tracer_context,
     trace_session,
 )
-
 
 # ---------------------------------------------------------------------------
 # Tests: SessionTracerContext
@@ -159,7 +156,7 @@ class TestTraceSessionDecorator:
         sink = InMemorySink()
 
         @trace_session(agent_name="input-test", sink=sink)
-        async def handler(request=None):
+        async def handler(_request=None):
             return {"response": "ok"}
 
         await handler(request={"message": "hello world"})

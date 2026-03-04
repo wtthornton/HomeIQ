@@ -3,7 +3,6 @@ Tests for E2.S2-S3: L2 Path Evaluators (ToolSelectionAccuracy, ToolSequenceValid
 """
 
 import pytest
-
 from homeiq_patterns.evaluation.config import AgentEvalConfig, PathRule, ToolDef
 from homeiq_patterns.evaluation.evaluators.l2_path import (
     ToolSelectionAccuracyEvaluator,
@@ -11,7 +10,6 @@ from homeiq_patterns.evaluation.evaluators.l2_path import (
 )
 from homeiq_patterns.evaluation.llm_judge import LLMJudge, LLMProvider
 from homeiq_patterns.evaluation.models import (
-    AgentResponse,
     EvalLevel,
     EvalScope,
     SessionTrace,
@@ -24,7 +22,7 @@ class MockProvider(LLMProvider):
     def __init__(self, response: str = ""):
         self._response = response
 
-    async def complete(self, prompt: str) -> str:
+    async def complete(self, _prompt: str) -> str:
         return self._response
 
 

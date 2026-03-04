@@ -49,9 +49,8 @@ class TestQueryRouter:
     @pytest.mark.performance
     @pytest.mark.latency
     @pytest.mark.asyncio
-    async def test_query_latency_target(self, client: AsyncClient, sample_query_request):
+    async def test_query_latency_target(self, _client: AsyncClient, _sample_query_request):
         """Test query endpoint meets <500ms P95 latency target (when implemented)."""
-        import time
         
         # Skip for now since endpoint is not fully implemented
         pytest.skip("Endpoint not yet fully implemented - latency test will be added after implementation")

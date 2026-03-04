@@ -4,13 +4,17 @@ Epic 17.4: Critical Alerting System
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
+from homeiq_observability.alert_manager import (
+    AlertManager,
+    AlertSeverity,
+    AlertStatus,
+    get_alert_manager,
+)
 from pydantic import BaseModel
-
-from homeiq_observability.alert_manager import AlertManager, AlertSeverity, AlertStatus, get_alert_manager
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +217,7 @@ class AlertEndpoints:
                 return {
                     "status": "success",
                     "message": f"Alert acknowledged: {alert_id}",
-                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                    "timestamp": datetime.now(UTC).isoformat() + "Z"
                 }
             except HTTPException:
                 raise
@@ -246,7 +250,7 @@ class AlertEndpoints:
                 return {
                     "status": "success",
                     "message": f"Alert resolved: {alert_id}",
-                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                    "timestamp": datetime.now(UTC).isoformat() + "Z"
                 }
             except HTTPException:
                 raise
@@ -275,7 +279,7 @@ class AlertEndpoints:
                 return {
                     "status": "success",
                     "message": f"Cleaned up resolved alerts older than {older_than_hours} hours",
-                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                    "timestamp": datetime.now(UTC).isoformat() + "Z"
                 }
             except Exception as e:
                 logger.error(f"Error cleaning up alerts: {e}")

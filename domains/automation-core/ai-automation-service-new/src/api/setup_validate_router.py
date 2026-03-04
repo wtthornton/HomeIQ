@@ -10,17 +10,16 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
-
-from ..api.dependencies import get_ha_client
-from ..api.error_handlers import handle_route_errors
-from ..clients.ha_client import HomeAssistantClient
-
 from homeiq_patterns import (
     UnifiedValidationRouter,
     ValidationRequest,
     ValidationResponse,
 )
+from pydantic import BaseModel, Field
+
+from ..api.dependencies import get_ha_client
+from ..api.error_handlers import handle_route_errors
+from ..clients.ha_client import HomeAssistantClient
 
 logger = logging.getLogger(__name__)
 

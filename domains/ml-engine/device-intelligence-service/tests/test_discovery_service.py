@@ -3,7 +3,7 @@ Device Intelligence Service - Discovery Service Tests
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -44,8 +44,8 @@ def mock_ha_device():
         hw_version="1.0",
         via_device_id=None,
         disabled_by=None,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC)
     )
 
 
@@ -64,7 +64,7 @@ def mock_zigbee_device():
         hardware_version="1.0",
         software_build_id="1.0.0",
         date_code="20240101",
-        last_seen=datetime.now(timezone.utc),
+        last_seen=datetime.now(UTC),
         definition={
             "exposes": [
                 {
@@ -93,8 +93,8 @@ def mock_ha_area():
         name="Living Room",
         normalized_name="living_room",
         aliases=[],
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC)
     )
 
 
@@ -174,7 +174,7 @@ async def test_get_status(mock_settings):
     """Test getting discovery service status."""
     service = DiscoveryService(mock_settings)
     service.running = True
-    service.last_discovery = datetime.now(timezone.utc)
+    service.last_discovery = datetime.now(UTC)
     service.unified_devices = {"device1": MagicMock()}
     service.ha_areas = [MagicMock()]
 

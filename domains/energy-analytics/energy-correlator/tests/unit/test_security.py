@@ -5,9 +5,9 @@ Epic 48 Story 48.1: Security Hardening & Input Validation
 Tests for bucket name validation and internal request validation.
 """
 
-import pytest
 from unittest.mock import Mock
 
+import pytest
 from src.security import validate_bucket_name, validate_internal_request
 
 

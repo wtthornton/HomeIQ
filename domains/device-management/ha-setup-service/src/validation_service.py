@@ -6,7 +6,7 @@ Epic 32: Home Assistant Configuration Validation & Suggestions
 """
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import aiohttp
@@ -35,7 +35,7 @@ class ValidationSummary(BaseModel):
     """Summary of validation results"""
     total_issues: int = 0
     by_category: dict[str, int] = Field(default_factory=dict)
-    scan_timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    scan_timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     ha_version: str | None = None
 
 
@@ -90,7 +90,7 @@ class ValidationService:
                 async with self._cache_lock:
                     if cache_key in self._cache:
                         cached_time, cached_result = self._cache[cache_key]
-                        if datetime.now(timezone.utc) - cached_time < self._cache_ttl:
+                        if datetime.now(UTC) - cached_time < self._cache_ttl:
                             logger.debug("Returning cached validation results")
                             return cached_result
                         else:
@@ -137,9 +137,9 @@ class ValidationService:
             # Cache result (only if no filters applied)
             if use_cache and not category and min_confidence == 0:
                 async with self._cache_lock:
-                    self._cache[cache_key] = (datetime.now(timezone.utc), result)
+                    self._cache[cache_key] = (datetime.now(UTC), result)
                     # Clean up old cache entries
-                    now = datetime.now(timezone.utc)
+                    now = datetime.now(UTC)
                     expired_keys = [
                         k for k, (t, _) in self._cache.items()
                         if now - t >= self._cache_ttl
@@ -299,7 +299,7 @@ class ValidationService:
         return ValidationSummary(
             total_issues=len(issues),
             by_category=by_category,
-            scan_timestamp=datetime.now(timezone.utc),
+            scan_timestamp=datetime.now(UTC),
             ha_version=ha_version
         )
 
@@ -339,7 +339,7 @@ class ValidationService:
                             "success": True,
                             "entity_id": entity_id,
                             "area_id": area_id,
-                            "applied_at": datetime.now(timezone.utc).isoformat(),
+                            "applied_at": datetime.now(UTC).isoformat(),
                             "result": result
                         }
                     else:

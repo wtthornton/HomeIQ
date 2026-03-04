@@ -11,7 +11,6 @@ Tests cover:
 - Unknown errors return empty list
 """
 
-import pytest
 import sys
 from pathlib import Path
 

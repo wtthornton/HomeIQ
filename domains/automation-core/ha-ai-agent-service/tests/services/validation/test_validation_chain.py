@@ -2,12 +2,11 @@
 Tests for validation_chain.py
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+from src.models.automation_models import ValidationResult
 from src.services.validation.validation_chain import ValidationChain
 from src.services.validation.validation_strategy import ValidationStrategy
-from src.models.automation_models import ValidationResult
 
 
 class MockValidationStrategy(ValidationStrategy):
@@ -22,7 +21,7 @@ class MockValidationStrategy(ValidationStrategy):
     def name(self) -> str:
         return self._name
 
-    async def validate(self, automation_yaml: str) -> ValidationResult:
+    async def validate(self, _automation_yaml: str) -> ValidationResult:
         if self._should_raise:
             raise Exception(f"Strategy {self._name} failed")
         if self._should_succeed:

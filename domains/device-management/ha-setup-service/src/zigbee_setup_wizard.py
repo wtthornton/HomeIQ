@@ -14,7 +14,7 @@ Context7 Best Practices Applied:
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
 import aiohttp
@@ -135,7 +135,7 @@ class Zigbee2MQTTSetupWizard:
             "request": request,
             "current_step": SetupStep.PREREQUISITES,
             "status": SetupStatus.IN_PROGRESS,
-            "start_time": datetime.now(timezone.utc),
+            "start_time": datetime.now(UTC),
             "steps_completed": [],
             "steps_failed": [],
             "step_results": {}
@@ -176,7 +176,7 @@ class Zigbee2MQTTSetupWizard:
     async def _execute_step(self, wizard_id: str, step: SetupStep) -> None:
         """Execute a specific setup step"""
         wizard_state = self.active_wizards[wizard_id]
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         try:
             logger.info(f"Executing step {step} for wizard {wizard_id}")
@@ -211,7 +211,7 @@ class Zigbee2MQTTSetupWizard:
                 )
 
             # Calculate duration
-            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            duration = (datetime.now(UTC) - start_time).total_seconds()
             result.duration_seconds = duration
 
             # Store result
@@ -227,7 +227,7 @@ class Zigbee2MQTTSetupWizard:
             logger.info(f"Step {step} completed with status {result.status}")
 
         except Exception as e:
-            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            duration = (datetime.now(UTC) - start_time).total_seconds()
             result = SetupStepResult(
                 step=step,
                 status=SetupStatus.FAILED,
@@ -702,7 +702,7 @@ class Zigbee2MQTTSetupWizard:
         progress = (completed_steps / total_steps) * 100
 
         # Calculate estimated time remaining
-        elapsed_time = datetime.now(timezone.utc) - wizard_state["start_time"]
+        elapsed_time = datetime.now(UTC) - wizard_state["start_time"]
         if completed_steps > 0:
             avg_time_per_step = elapsed_time.total_seconds() / completed_steps
             remaining_steps = total_steps - completed_steps

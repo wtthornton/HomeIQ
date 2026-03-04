@@ -7,22 +7,21 @@ Tests the scene detection functionality including:
 - Existing scene detection
 """
 
-import pytest
-import uuid
-
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add src/synergy_detection to path directly (avoid __init__.py import issues)
 src_path = Path(__file__).parent.parent.parent / "src" / "synergy_detection"
 sys.path.insert(0, str(src_path))
 
 from scene_detection import (
-    SceneDetector,
     ACTIONABLE_DOMAINS,
     MAX_SCENE_SYNERGIES,
     MIN_DEVICES_FOR_AREA_SCENE,
     MIN_DEVICES_FOR_DOMAIN_SCENE,
+    SceneDetector,
 )
 
 

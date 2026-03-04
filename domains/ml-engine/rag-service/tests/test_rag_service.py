@@ -7,7 +7,6 @@ Note: These are placeholder tests. Full implementation would require:
 - Integration test setup
 """
 
-import pytest
 
 
 def test_rag_service_placeholder():

@@ -8,7 +8,7 @@ Tracks model performance metrics over time for monitoring and alerting.
 import json
 import logging
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -60,7 +60,7 @@ class MLMetricsTracker:
             sample_count: Number of training samples
         """
         metric_entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "event_type": "training",
             "model_type": model_type,
             "model_version": model_version,
@@ -90,7 +90,7 @@ class MLMetricsTracker:
             accuracy: Current model accuracy
         """
         metric_entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "event_type": "incremental_update",
             "samples": samples,
             "update_time_seconds": update_time,
@@ -115,7 +115,7 @@ class MLMetricsTracker:
             batch_size: Number of predictions made
         """
         metric_entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "event_type": "inference",
             "inference_time_seconds": inference_time,
             "batch_size": batch_size,
@@ -135,7 +135,7 @@ class MLMetricsTracker:
         Returns:
             List of metric entries
         """
-        cutoff = datetime.now(timezone.utc).timestamp() - (hours * 3600)
+        cutoff = datetime.now(UTC).timestamp() - (hours * 3600)
         return [
             m for m in self.metrics_history
             if datetime.fromisoformat(m["timestamp"].replace('Z', '+00:00')).timestamp() > cutoff

@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 
 
@@ -63,7 +63,7 @@ class Alert:
     threshold: float
     condition: str
     status: AlertStatus = AlertStatus.ACTIVE
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     acknowledged_at: str | None = None
     acknowledged_by: str | None = None
     resolved_at: str | None = None
@@ -170,10 +170,10 @@ class AlertManager:
         expires_at = self.cooldown_timers.get(rule_name)
         if not expires_at:
             return False
-        return expires_at > datetime.now(timezone.utc)
+        return expires_at > datetime.now(UTC)
 
     def _set_cooldown(self, rule_name: str, minutes: int = 5) -> None:
-        self.cooldown_timers[rule_name] = datetime.now(timezone.utc) + timedelta(minutes=minutes)
+        self.cooldown_timers[rule_name] = datetime.now(UTC) + timedelta(minutes=minutes)
 
     async def evaluate_alert(self, rule_name: str, metric_value: float) -> Alert | None:
         rule = self.rules.get(rule_name)
@@ -228,7 +228,7 @@ class AlertManager:
             if alert.alert_id == alert_id and alert.status == AlertStatus.ACTIVE:
                 alert.status = AlertStatus.ACKNOWLEDGED
                 alert.acknowledged_by = user
-                alert.acknowledged_at = datetime.now(timezone.utc).isoformat()
+                alert.acknowledged_at = datetime.now(UTC).isoformat()
                 return True
         return False
 
@@ -237,7 +237,7 @@ class AlertManager:
             if alert.alert_id == alert_id:
                 alert.status = AlertStatus.RESOLVED
                 alert.resolved_by = user
-                alert.resolved_at = datetime.now(timezone.utc).isoformat()
+                alert.resolved_at = datetime.now(UTC).isoformat()
                 self.active_alerts.pop(rule_name, None)
                 return True
         return False

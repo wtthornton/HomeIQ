@@ -14,9 +14,9 @@ import asyncio
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 # Add project root and service src to path
 project_root = Path(__file__).parent.parent.parent.parent
@@ -149,7 +149,7 @@ async def backfill_quality_scores(db_url: str, dry_run: bool = False, batch_size
                         """, (
                             quality_score,
                             quality_tier,
-                            datetime.now(timezone.utc).isoformat(),
+                            datetime.now(UTC).isoformat(),
                             row['synergy_id']
                         ))
 

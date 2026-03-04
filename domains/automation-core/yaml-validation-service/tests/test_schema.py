@@ -2,7 +2,6 @@
 Tests for AutomationSpec schema (Epic 51, Story 51.1)
 """
 
-import pytest
 from yaml_validation_service.schema import (
     ActionSpec,
     AutomationMode,

@@ -65,8 +65,8 @@ async def test_incremental_learning(samples: int = 500):
         logger.info(f"✅ Collected {len(historical_data)} initial samples")
         
         # Prepare data
-        import pandas as pd
         import numpy as np
+        import pandas as pd
         df = pd.DataFrame(historical_data)
         X, y_failure, y_anomaly = engine._prepare_training_data(df)
         

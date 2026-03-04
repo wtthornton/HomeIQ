@@ -11,12 +11,11 @@ from pathlib import Path
 _service_root = Path(__file__).resolve().parent.parent
 if str(_service_root) not in sys.path:
     sys.path.insert(0, str(_service_root))
+import os
 from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock
 
 import pytest
-import os
-
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
@@ -159,6 +158,7 @@ def auth_headers():
 async def client(test_db: AsyncSession):
     """Create test client with database dependency override."""
     from httpx import ASGITransport, AsyncClient
+
     from src.database import get_db
     from src.main import app
 

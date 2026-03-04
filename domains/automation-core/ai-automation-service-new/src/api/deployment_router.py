@@ -9,6 +9,7 @@ Handles deployment of automations to Home Assistant.
 from __future__ import annotations
 
 import logging
+from datetime import UTC
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -232,7 +233,7 @@ async def deploy_compiled_automation(
     template + area, it updates instead of creating a duplicate.
     """
     import uuid
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     compiled_id = payload.compiled_id
 
@@ -340,12 +341,12 @@ async def deploy_compiled_automation(
             version=version,
             approved_by=payload.approved_by,
             ui_source=payload.ui_source or "api",
-            deployed_at=datetime.now(timezone.utc),
+            deployed_at=datetime.now(UTC),
             audit_data=payload.audit_data
             or {
                 "compiled_id": compiled_id,
                 "plan_id": compiled_artifact.plan_id,
-                "deployed_at": datetime.now(timezone.utc).isoformat(),
+                "deployed_at": datetime.now(UTC).isoformat(),
                 "is_update": existing_deployment is not None,
                 "previous_deployment_id": existing_deployment.deployment_id
                 if existing_deployment

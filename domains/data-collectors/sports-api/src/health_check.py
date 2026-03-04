@@ -6,7 +6,7 @@ Epic 31 Architecture Pattern
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -22,7 +22,7 @@ class HealthCheckHandler:
         """Initialize health check handler"""
         self.service_name = service_name
         self.version = version
-        self.start_time = datetime.now(timezone.utc)
+        self.start_time = datetime.now(UTC)
         self.last_check_time: datetime | None = None
 
     async def handle(self, service: SportsService | None) -> dict[str, Any]:
@@ -33,7 +33,7 @@ class HealthCheckHandler:
             Dict with service health status
         """
         try:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             self.last_check_time = now
             uptime = now - self.start_time
 
@@ -57,12 +57,12 @@ class HealthCheckHandler:
                 "service": self.service_name,
                 "version": self.version,
                 "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
 
     def get_uptime_seconds(self) -> int:
         """Get service uptime in seconds"""
-        uptime = datetime.now(timezone.utc) - self.start_time
+        uptime = datetime.now(UTC) - self.start_time
         return int(uptime.total_seconds())
 
     def _resolve_status(self, service: SportsService | None) -> str:
@@ -100,7 +100,7 @@ class HealthCheckHandler:
             influx_state = "degraded"  # Client exists but writes are failing
         elif service.last_influx_write:
             # Check if last write was recent (within last 30 minutes)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             write_age = (now - service.last_influx_write).total_seconds()
             influx_state = "degraded" if write_age > 1800 else "healthy"
         else:

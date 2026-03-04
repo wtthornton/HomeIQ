@@ -96,7 +96,7 @@ class TabPFNFailurePredictor:
 
         return self.model.predict_proba(X)
 
-    def get_params(self, deep: bool = True) -> dict[str, Any]:
+    def get_params(self, _deep: bool = True) -> dict[str, Any]:
         """Get model parameters (for compatibility with scikit-learn interface)."""
         return {
             "model_type": "tabpfn",
@@ -105,7 +105,7 @@ class TabPFNFailurePredictor:
             "feature_names": self.feature_names
         }
 
-    def set_params(self, **params) -> "TabPFNFailurePredictor":
+    def set_params(self, **_params) -> "TabPFNFailurePredictor":
         """Set model parameters (for compatibility with scikit-learn interface)."""
         # TabPFN doesn't have hyperparameters to set
         return self

@@ -1,10 +1,9 @@
 """Tests for Home Assistant Client"""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-import aiohttp
 import json
+from unittest.mock import AsyncMock, patch
 
+import pytest
 from src.clients.ha_client import HomeAssistantClient
 
 

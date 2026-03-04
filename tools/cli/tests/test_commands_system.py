@@ -1,11 +1,9 @@
 """Tests for system management commands."""
 
-import pytest
-import typer
-from typer.testing import CliRunner
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from src.commands.system import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

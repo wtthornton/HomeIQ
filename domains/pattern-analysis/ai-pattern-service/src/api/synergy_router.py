@@ -818,9 +818,9 @@ class BlueprintDeployRequest(BaseModel):
 async def list_blueprint_opportunities(
     limit: int = Query(default=20, ge=1, le=100, description="Maximum opportunities to return"),
     min_fit_score: float = Query(default=0.5, ge=0.0, le=1.0, description="Minimum fit score threshold"),
-    domain: str | None = Query(default=None, description="Filter by domain (e.g., 'light', 'climate')"),
+    _domain: str | None = Query(default=None, description="Filter by domain (e.g., 'light', 'climate')"),
     use_case: str | None = Query(default=None, description="Filter by use case (e.g., 'motion', 'presence')"),
-    db: AsyncSession = Depends(get_db)
+    _db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
     """
     Discover blueprint opportunities based on device inventory.
@@ -892,7 +892,7 @@ async def list_blueprint_opportunities(
 @blueprint_router.post("/discover")
 async def discover_blueprint_opportunities(
     request: BlueprintOpportunityRequest,
-    db: AsyncSession = Depends(get_db)
+    _db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
     """
     Discover blueprint opportunities with custom device inventory.
@@ -965,7 +965,7 @@ async def discover_blueprint_opportunities(
 @blueprint_router.get("/{blueprint_id}")
 async def get_blueprint_opportunity_details(
     blueprint_id: str,
-    db: AsyncSession = Depends(get_db)
+    _db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
     """
     Get detailed information about a specific blueprint opportunity.
@@ -1036,7 +1036,7 @@ async def get_blueprint_opportunity_details(
 async def preview_blueprint_deployment(
     blueprint_id: str,
     request: BlueprintDeployRequest,
-    db: AsyncSession = Depends(get_db)
+    _db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
     """
     Preview what a blueprint deployment would look like.

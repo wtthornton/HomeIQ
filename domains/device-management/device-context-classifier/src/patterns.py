@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 # Device patterns: required and optional entity types/attributes
 DEVICE_PATTERNS: dict[str, dict[str, Any]] = {
     "fridge": {

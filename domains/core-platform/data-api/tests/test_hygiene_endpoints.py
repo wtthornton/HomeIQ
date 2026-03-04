@@ -19,7 +19,7 @@ async def client():
 
 @pytest.mark.asyncio
 async def test_list_hygiene_issues(monkeypatch, client):
-    async def fake_request(method, path, params=None, payload=None):
+    async def fake_request(method, path, _params=None, _payload=None):
         assert method == "GET"
         assert path == "/api/hygiene/issues"
         return {
@@ -49,7 +49,7 @@ async def test_list_hygiene_issues(monkeypatch, client):
 
 @pytest.mark.asyncio
 async def test_update_hygiene_issue_status(monkeypatch, client):
-    async def fake_request(method, path, params=None, payload=None):
+    async def fake_request(method, path, _params=None, payload=None):
         assert method == "POST"
         assert path.endswith("/status")
         return {
@@ -77,7 +77,7 @@ async def test_update_hygiene_issue_status(monkeypatch, client):
 
 @pytest.mark.asyncio
 async def test_apply_issue_action(monkeypatch, client):
-    async def fake_request(method, path, params=None, payload=None):
+    async def fake_request(method, path, _params=None, payload=None):
         assert method == "POST"
         assert path.endswith("/actions/apply")
         return {

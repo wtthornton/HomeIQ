@@ -11,11 +11,12 @@ Context7/pytest best practices:
 """
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+
 from src.clients.data_api_client import DataAPIClient
 
 # Default base URL for Data API in tests (local dev port). Single literal in one place.
@@ -112,8 +113,8 @@ class TestDataAPIClient:
         """Test event fetching with custom time range."""
         client = DataAPIClient(base_url=data_api_base_url)
 
-        start_time = datetime(2025, 1, 1, tzinfo=timezone.utc)
-        end_time = datetime(2025, 1, 2, tzinfo=timezone.utc)
+        start_time = datetime(2025, 1, 1, tzinfo=UTC)
+        end_time = datetime(2025, 1, 2, tzinfo=UTC)
 
         mock_response = MagicMock()
         mock_response.status_code = 200

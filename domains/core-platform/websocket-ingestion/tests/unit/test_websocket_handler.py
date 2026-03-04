@@ -7,8 +7,7 @@ subscription handling, and error scenarios.
 """
 
 import asyncio
-import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -49,7 +48,7 @@ class TestWebSocketConnection:
             try:
                 # Use asyncio.wait_for to prevent infinite loop
                 await asyncio.wait_for(websocket_endpoint(mock_websocket), timeout=0.1)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Expected - handler runs in loop
                 pass
             
@@ -63,7 +62,6 @@ class TestWebSocketConnection:
         WHEN: Check correlation ID
         THEN: Should have unique correlation ID per connection
         """
-        from src.api.routers.websocket import websocket_endpoint
         from homeiq_observability.logging_config import generate_correlation_id
         
         # Generate two correlation IDs
@@ -131,7 +129,7 @@ class TestPingPongMessages:
             
             try:
                 await asyncio.wait_for(websocket_endpoint(mock_websocket), timeout=0.1)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
             
             # Verify pong was sent
@@ -152,7 +150,7 @@ class TestPingPongMessages:
         THEN: Pong should contain valid timestamp
         """
         # Test timestamp generation directly
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
         assert "T" in timestamp  # ISO format contains T
         assert "+" in timestamp or "Z" in timestamp or timestamp.endswith("+00:00")  # Timezone indicator
 
@@ -187,7 +185,7 @@ class TestSubscriptionMessages:
             
             try:
                 await asyncio.wait_for(websocket_endpoint(mock_websocket), timeout=0.1)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
             
             # Verify subscription message was sent
@@ -310,7 +308,7 @@ class TestMessageValidation:
         WHEN: Valid message received
         THEN: Should process without errors
         """
-        from src.security import validate_message_size, validate_message_json
+        from src.security import validate_message_json, validate_message_size
         
         # Test valid message validation
         valid_message = '{"type": "ping"}'

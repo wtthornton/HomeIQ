@@ -9,12 +9,10 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from homeiq_patterns.evaluation.config import ConfigLoader
 from homeiq_patterns.evaluation.models import (
     AgentResponse,
     BatchReport,
-    EvalLevel,
     SessionTrace,
     ToolCall,
     UserMessage,

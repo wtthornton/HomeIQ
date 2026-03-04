@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from src.services.prompt_generation_service import PromptGenerationService, celsius_to_fahrenheit
 
 

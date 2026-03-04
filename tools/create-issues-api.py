@@ -2,10 +2,10 @@
 """
 Create GitHub issues from markdown templates using GitHub REST API
 """
-import os
 import json
-import urllib.request
+import os
 import urllib.error
+import urllib.request
 from pathlib import Path
 
 # Configuration

@@ -7,9 +7,8 @@ Epic 39, Story 39.8: Pattern Service Testing & Validation
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.main import app
 from src.database import get_db
+from src.main import app
 
 
 @pytest.fixture

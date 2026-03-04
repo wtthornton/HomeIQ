@@ -6,7 +6,7 @@ Batch process name enhancements using APScheduler (resource-efficient).
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -216,7 +216,7 @@ class NameEnhancementBatchProcessor:
                 if auto_accept and suggestion.confidence >= 0.9:
                     device.name_by_user = suggestion.name
                     name_suggestion.status = "accepted"
-                    name_suggestion.reviewed_at = datetime.now(timezone.utc)
+                    name_suggestion.reviewed_at = datetime.now(UTC)
                     logger.info(f"Auto-accepted high-confidence suggestion: {suggestion.name}")
 
         if suggestions_created:

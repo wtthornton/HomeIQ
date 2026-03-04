@@ -10,7 +10,6 @@ import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiohttp import web
 from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
 
 # Add parent directory to path for imports

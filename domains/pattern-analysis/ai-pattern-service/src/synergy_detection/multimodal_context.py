@@ -13,7 +13,7 @@ Epic 39: Migrated from archived ai-automation-service
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -190,7 +190,7 @@ class MultiModalContextEnhancer:
         - Graceful degradation (returns defaults on failure)
         """
         # Check cache first
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if self._context_cache and self._cache_timestamp:
             age = now - self._cache_timestamp
             if age < self._cache_ttl:
@@ -274,7 +274,7 @@ class MultiModalContextEnhancer:
                     logger.info(f"Successfully fetched {context_type} context on attempt {attempt + 1}")
                 return data
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 if attempt < SynergyScoringConfig.MAX_RETRIES:
                     delay = SynergyScoringConfig.RETRY_DELAY * (2 ** attempt)
                     logger.warning(
@@ -312,7 +312,7 @@ class MultiModalContextEnhancer:
 
     def _get_time_of_day(self) -> str:
         """Get current time of day category."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         hour = now.hour
 
         if 6 <= hour < 12:
@@ -326,11 +326,11 @@ class MultiModalContextEnhancer:
 
     def _get_day_of_week(self) -> str:
         """Get current day of week."""
-        return datetime.now(timezone.utc).strftime('%A').lower()
+        return datetime.now(UTC).strftime('%A').lower()
 
     def _get_season(self) -> str:
         """Get current season."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         month = now.month
 
         if month in [12, 1, 2]:

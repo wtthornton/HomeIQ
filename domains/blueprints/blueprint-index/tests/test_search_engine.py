@@ -2,12 +2,9 @@
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select
-
-from src.indexer.blueprint_parser import BlueprintParser
-from src.models import IndexedBlueprint
-from src.search.search_engine import BlueprintSearchEngine
 from src.api.schemas import BlueprintSearchRequest, PatternMatchRequest
+from src.indexer.blueprint_parser import BlueprintParser
+from src.search.search_engine import BlueprintSearchEngine
 
 
 class TestBlueprintSearchEngine:
@@ -53,7 +50,7 @@ class TestBlueprintSearchEngine:
         return db_session
     
     @pytest.mark.asyncio
-    async def test_search_all(self, search_engine, populated_db):
+    async def test_search_all(self, search_engine, _populated_db):
         """Test searching all blueprints."""
         request = BlueprintSearchRequest(
             min_quality_score=0.0,
@@ -67,7 +64,7 @@ class TestBlueprintSearchEngine:
         assert len(result.blueprints) == 2
     
     @pytest.mark.asyncio
-    async def test_search_by_domain(self, search_engine, populated_db):
+    async def test_search_by_domain(self, search_engine, _populated_db):
         """Test searching by required domain."""
         request = BlueprintSearchRequest(
             domains=["light"],
@@ -82,7 +79,7 @@ class TestBlueprintSearchEngine:
             assert "light" in bp.required_domains
     
     @pytest.mark.asyncio
-    async def test_search_by_device_class(self, search_engine, populated_db):
+    async def test_search_by_device_class(self, search_engine, _populated_db):
         """Test searching by device class."""
         request = BlueprintSearchRequest(
             device_classes=["motion"],
@@ -97,7 +94,7 @@ class TestBlueprintSearchEngine:
             assert "motion" in bp.required_device_classes
     
     @pytest.mark.asyncio
-    async def test_search_by_use_case(self, search_engine, populated_db):
+    async def test_search_by_use_case(self, search_engine, _populated_db):
         """Test searching by use case."""
         request = BlueprintSearchRequest(
             use_case="security",
@@ -111,7 +108,7 @@ class TestBlueprintSearchEngine:
             assert bp.use_case == "security"
     
     @pytest.mark.asyncio
-    async def test_search_with_quality_filter(self, search_engine, populated_db):
+    async def test_search_with_quality_filter(self, search_engine, _populated_db):
         """Test quality score filtering."""
         request = BlueprintSearchRequest(
             min_quality_score=0.75,
@@ -124,7 +121,7 @@ class TestBlueprintSearchEngine:
             assert bp.quality_score >= 0.75
     
     @pytest.mark.asyncio
-    async def test_search_by_text_query(self, search_engine, populated_db):
+    async def test_search_by_text_query(self, search_engine, _populated_db):
         """Test text search in name and description."""
         request = BlueprintSearchRequest(
             query="motion",
@@ -137,7 +134,7 @@ class TestBlueprintSearchEngine:
         assert result.total >= 1
     
     @pytest.mark.asyncio
-    async def test_search_pagination(self, search_engine, populated_db):
+    async def test_search_pagination(self, search_engine, _populated_db):
         """Test pagination."""
         request = BlueprintSearchRequest(
             min_quality_score=0.0,
@@ -153,7 +150,7 @@ class TestBlueprintSearchEngine:
         assert result.has_more is True
     
     @pytest.mark.asyncio
-    async def test_search_sorting(self, search_engine, populated_db):
+    async def test_search_sorting(self, search_engine, _populated_db):
         """Test sorting by quality score."""
         request = BlueprintSearchRequest(
             min_quality_score=0.0,
@@ -168,7 +165,7 @@ class TestBlueprintSearchEngine:
             assert result.blueprints[0].quality_score >= result.blueprints[1].quality_score
     
     @pytest.mark.asyncio
-    async def test_find_by_pattern(self, search_engine, populated_db):
+    async def test_find_by_pattern(self, search_engine, _populated_db):
         """Test pattern-based search."""
         request = PatternMatchRequest(
             trigger_domain="binary_sensor",
@@ -181,7 +178,7 @@ class TestBlueprintSearchEngine:
         assert result.match_count >= 1
     
     @pytest.mark.asyncio
-    async def test_find_by_pattern_with_device_class(self, search_engine, populated_db):
+    async def test_find_by_pattern_with_device_class(self, search_engine, _populated_db):
         """Test pattern-based search with device class."""
         request = PatternMatchRequest(
             trigger_domain="binary_sensor",
@@ -195,7 +192,7 @@ class TestBlueprintSearchEngine:
         assert result.match_count >= 1
     
     @pytest.mark.asyncio
-    async def test_get_by_id(self, search_engine, populated_db):
+    async def test_get_by_id(self, search_engine, _populated_db):
         """Test getting blueprint by ID."""
         # First get a blueprint to know its ID
         request = BlueprintSearchRequest(
@@ -213,14 +210,14 @@ class TestBlueprintSearchEngine:
             assert result.id == blueprint_id
     
     @pytest.mark.asyncio
-    async def test_get_by_id_not_found(self, search_engine, populated_db):
+    async def test_get_by_id_not_found(self, search_engine, _populated_db):
         """Test getting non-existent blueprint."""
         result = await search_engine.get_by_id("non-existent-id")
         
         assert result is None
     
     @pytest.mark.asyncio
-    async def test_get_indexing_status(self, search_engine, populated_db):
+    async def test_get_indexing_status(self, search_engine, _populated_db):
         """Test getting indexing status."""
         status = await search_engine.get_indexing_status()
         

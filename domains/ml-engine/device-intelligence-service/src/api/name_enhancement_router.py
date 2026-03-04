@@ -9,7 +9,7 @@ Provides endpoints for:
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -200,7 +200,7 @@ async def accept_suggested_name(
 
         # Update device name_by_user
         device.name_by_user = request.suggested_name
-        device.updated_at = datetime.now(timezone.utc)
+        device.updated_at = datetime.now(UTC)
 
         # Mark suggestion as accepted
         result = await session.execute(
@@ -213,7 +213,7 @@ async def accept_suggested_name(
         suggestion = result.scalar_one_or_none()
         if suggestion:
             suggestion.status = "accepted"
-            suggestion.reviewed_at = datetime.now(timezone.utc)
+            suggestion.reviewed_at = datetime.now(UTC)
 
             # Learn from this customization
             try:
@@ -248,7 +248,7 @@ async def accept_suggested_name(
         )
         for other_suggestion in result.scalars().all():
             other_suggestion.status = "rejected"
-            other_suggestion.reviewed_at = datetime.now(timezone.utc)
+            other_suggestion.reviewed_at = datetime.now(UTC)
 
         await session.commit()
 
@@ -298,7 +298,7 @@ async def reject_suggested_name(
             )
 
         suggestion.status = "rejected"
-        suggestion.reviewed_at = datetime.now(timezone.utc)
+        suggestion.reviewed_at = datetime.now(UTC)
         if reason:
             suggestion.user_feedback = reason
 
@@ -319,7 +319,7 @@ async def reject_suggested_name(
 @router.post("/batch-enhance", response_model=BatchEnhanceResponse)
 async def batch_enhance_names(
     request: BatchEnhanceRequest,
-    session: AsyncSession = Depends(get_db_session)
+    _session: AsyncSession = Depends(get_db_session)
 ):
     """
     Trigger batch name enhancement (background job).
@@ -373,8 +373,8 @@ async def batch_enhance_names(
 
 @router.get("/status")
 async def get_enhancement_status(
-    status_filter: str | None = Query(default=None, description="Filter by status"),
-    min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
+    _status_filter: str | None = Query(default=None, description="Filter by status"),
+    _min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
     session: AsyncSession = Depends(get_db_session)
 ):
     """Get name enhancement status statistics"""

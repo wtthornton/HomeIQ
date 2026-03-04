@@ -7,7 +7,7 @@ Lightweight preference learning from user customizations (no heavy ML).
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -191,7 +191,7 @@ class PreferenceLearner:
 
     def _extract_position_mapping(
         self,
-        original_name: str,
+        _original_name: str,
         customized_name: str,
         entity_id: str
     ) -> dict[str, str] | None:
@@ -218,7 +218,7 @@ class PreferenceLearner:
 
         return None
 
-    def _extract_area_pattern(self, name: str) -> str:
+    def _extract_area_pattern(self, _name: str) -> str:
         """Extract naming pattern for area"""
         # Simple pattern: location + device type
         # Could be enhanced to detect more patterns
@@ -294,7 +294,7 @@ class PreferenceLearner:
                 # Update existing pattern
                 matching.learned_from_count += 1
                 matching.confidence = min(1.0, matching.confidence + 0.1)
-                matching.last_updated = datetime.now(timezone.utc)
+                matching.last_updated = datetime.now(UTC)
             else:
                 # Create new pattern
                 new_pattern = NamePreference(

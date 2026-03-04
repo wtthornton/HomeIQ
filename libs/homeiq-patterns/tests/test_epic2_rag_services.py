@@ -4,9 +4,10 @@ Tests for Epic 2: High-Value Domain Extensions — RAG Services
 Tests for EnergyRAGService, BlueprintRAGService, DeviceSetupRAGService.
 """
 
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pytest
 
 _project_root = str(Path(__file__).resolve().parents[3])
 if _project_root not in sys.path:
@@ -19,8 +20,7 @@ _agent_service_root = str(
 if _agent_service_root not in sys.path:
     sys.path.insert(0, _agent_service_root)
 
-from homeiq_patterns import RAGContextService, RAGContextRegistry
-
+from homeiq_patterns import RAGContextRegistry, RAGContextService
 
 # ------------------------------------------------------------------ #
 # Inline test implementations (avoid importing full service modules

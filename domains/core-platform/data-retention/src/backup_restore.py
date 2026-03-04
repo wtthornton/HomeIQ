@@ -10,7 +10,7 @@ import shutil
 import tarfile
 import tempfile
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -115,7 +115,7 @@ class BackupRestoreService:
         Returns:
             BackupInfo: Information about the created backup
         """
-        backup_id = f"{backup_type}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+        backup_id = f"{backup_type}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
         backup_file = self.backup_dir / f"{backup_id}.tar.gz"
 
         try:
@@ -128,7 +128,7 @@ class BackupRestoreService:
                 # Collect backup contents
                 metadata = {
                     "backup_type": backup_type,
-                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "created_at": datetime.now(UTC).isoformat(),
                     "include_data": include_data,
                     "include_config": include_config,
                     "include_logs": include_logs
@@ -161,7 +161,7 @@ class BackupRestoreService:
             backup_info = BackupInfo(
                 backup_id=backup_id,
                 backup_type=backup_type,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 size_bytes=backup_size,
                 file_path=str(backup_file),
                 metadata=metadata,
@@ -179,7 +179,7 @@ class BackupRestoreService:
             backup_info = BackupInfo(
                 backup_id=backup_id,
                 backup_type=backup_type,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 size_bytes=0,
                 file_path=str(backup_file),
                 metadata={},
@@ -566,7 +566,7 @@ class BackupRestoreService:
         Returns:
             Number of backup files deleted
         """
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days_to_keep)
         deleted_count = 0
 
         try:

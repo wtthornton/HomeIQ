@@ -5,7 +5,6 @@ Integration test to verify the fix for Home Assistant API error:
 This test simulates the exact error scenario from the automation preview modal.
 """
 
-import pytest
 import yaml
 from yaml_validation_service.normalizer import YAMLNormalizer
 

@@ -4,17 +4,13 @@ Pytest configuration and fixtures for AI Training Service
 Epic 39, Story 39.4: Training Service Testing & Validation
 """
 
-import pytest
-from pathlib import Path
-from datetime import datetime
+import os
+from datetime import UTC, datetime
 from typing import AsyncGenerator
 
-import os
-
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-
-from src.database.models import Base, TrainingRun
-from src.config import settings
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from src.database.models import Base
 
 # Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
 
@@ -64,7 +60,7 @@ def sample_training_run_data():
     return {
         "training_type": "soft_prompt",
         "status": "queued",
-        "started_at": datetime.utcnow(),
+        "started_at": datetime.now(UTC),
         "output_dir": "/tmp/test_output",
         "run_identifier": "test_run_20250101_120000",
         "triggered_by": "test_user",
@@ -77,8 +73,8 @@ def sample_training_run_completed_data():
     return {
         "training_type": "soft_prompt",
         "status": "completed",
-        "started_at": datetime.utcnow(),
-        "finished_at": datetime.utcnow(),
+        "started_at": datetime.now(UTC),
+        "finished_at": datetime.now(UTC),
         "output_dir": "/tmp/test_output",
         "run_identifier": "test_run_20250101_120000",
         "triggered_by": "test_user",

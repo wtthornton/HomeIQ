@@ -10,7 +10,7 @@ Migrated from ai-automation-service.
 
 import logging
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -104,7 +104,7 @@ class SyntheticEventGenerator:
         logger.info(f"Generating events for {len(devices)} devices over {days} days...")
 
         events = []
-        start_time = datetime.now(timezone.utc) - timedelta(days=days)
+        start_time = datetime.now(UTC) - timedelta(days=days)
 
         for device in devices:
             device_type = device.get('device_type', 'sensor')

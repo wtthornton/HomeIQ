@@ -4,10 +4,10 @@ Unit tests for Device Mappings API endpoints (Epic AI-24).
 Tests for type, relationships, and context endpoints with caching.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
-from fastapi.testclient import TestClient
 
+import pytest
+from fastapi.testclient import TestClient
 from src.device_mappings.base import DeviceType
 from src.device_mappings.cache import clear_cache, get_cache
 from src.main import app

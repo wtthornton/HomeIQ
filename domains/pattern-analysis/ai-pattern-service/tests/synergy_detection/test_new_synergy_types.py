@@ -4,9 +4,9 @@ Epic: Synergy Enhancement
 Story: Add scene_based and context_aware synergy detection
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
+
+import pytest
 
 # Test the synergy detection methods
 
@@ -43,7 +43,7 @@ class TestSceneBasedSynergyDetection:
             {"entity_id": "switch.switch_5", "area_id": None, "domain": "switch"},
         ]
 
-    def test_scene_synergy_structure(self, mock_entities_with_areas):
+    def test_scene_synergy_structure(self, _mock_entities_with_areas):
         """Test that scene-based synergies have correct structure."""
         # This tests the expected structure of scene_based synergies
         expected_fields = [
@@ -91,7 +91,7 @@ class TestSceneBasedSynergyDetection:
         assert sample_synergy["complexity"] == "low"
         assert "scene_type" in sample_synergy["context_metadata"]
 
-    def test_domain_based_scene_structure(self, mock_entities_without_areas):
+    def test_domain_based_scene_structure(self, _mock_entities_without_areas):
         """Test domain-based scene synergy structure."""
         sample_synergy = {
             "synergy_id": str(uuid.uuid4()),

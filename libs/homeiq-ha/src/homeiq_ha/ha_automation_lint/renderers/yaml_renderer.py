@@ -2,10 +2,11 @@
 Render IR back to stable, formatted YAML.
 """
 
-import yaml
-from typing import List, Dict, Any
 import sys
 from pathlib import Path
+from typing import Any, Dict, List
+
+import yaml
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))

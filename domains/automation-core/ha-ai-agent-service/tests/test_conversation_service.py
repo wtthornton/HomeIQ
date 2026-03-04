@@ -3,15 +3,13 @@ Unit tests for Conversation Service
 Epic AI-20 Story AI20.2
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.config import Settings
 from src.services.conversation_service import (
-    Conversation,
     ConversationService,
     ConversationState,
-    Message,
     is_generic_welcome_message,
 )
 

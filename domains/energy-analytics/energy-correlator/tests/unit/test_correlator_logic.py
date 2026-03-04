@@ -3,7 +3,7 @@ Unit tests for energy-event correlation logic
 Tests core correlation algorithms and power delta calculations
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -13,7 +13,7 @@ class TestPowerDeltaCalculation:
     """Test power delta calculation logic"""
 
     @pytest.mark.asyncio
-    async def test_power_delta_calculation(self, correlator_instance, sample_power_data):
+    async def test_power_delta_calculation(self, _correlator_instance, sample_power_data):
         """
         GIVEN: Power before (2450W) and after (2510W)
         WHEN: Calculate delta
@@ -30,7 +30,7 @@ class TestPowerDeltaCalculation:
         assert power_delta == 60.0
 
     @pytest.mark.asyncio
-    async def test_power_delta_percentage(self, correlator_instance, sample_large_power_change):
+    async def test_power_delta_percentage(self, _correlator_instance, sample_large_power_change):
         """
         GIVEN: Power before (1850W) and after (4350W)
         WHEN: Calculate percentage change
@@ -48,7 +48,7 @@ class TestPowerDeltaCalculation:
         assert abs(power_delta_pct - expected_delta_pct) < 0.1  # Allow small floating point difference
 
     @pytest.mark.asyncio
-    async def test_negative_power_delta(self, correlator_instance, sample_negative_power_change):
+    async def test_negative_power_delta(self, _correlator_instance, sample_negative_power_change):
         """
         GIVEN: Light turning off (2150W → 2030W)
         WHEN: Calculate delta
@@ -116,7 +116,7 @@ class TestCorrelationEdgeCases:
     """Test edge cases in correlation logic"""
 
     @pytest.mark.asyncio
-    async def test_zero_power_before(self, correlator_instance):
+    async def test_zero_power_before(self, _correlator_instance):
         """
         GIVEN: Power before is 0W
         WHEN: Calculate percentage change
@@ -142,7 +142,7 @@ class TestCorrelationEdgeCases:
         assert correlator_instance.correlation_window_seconds == 10
 
     @pytest.mark.asyncio
-    async def test_power_lookup_window(self, correlator_instance):
+    async def test_power_lookup_window(self, _correlator_instance):
         """
         GIVEN: Power lookup for specific time
         WHEN: Check lookup window
@@ -150,7 +150,7 @@ class TestCorrelationEdgeCases:
         """
         # This is validated by the query logic in _get_power_at_time
         # The window is 30 seconds before and after target time
-        target_time = datetime.now(timezone.utc)
+        target_time = datetime.now(UTC)
         expected_start = target_time - timedelta(seconds=30)
         expected_end = target_time + timedelta(seconds=30)
 
@@ -174,7 +174,7 @@ class TestEventCorrelationFlow:
             mock_get_power.return_value = None
 
             event = {
-                'time': datetime.now(timezone.utc),
+                'time': datetime.now(UTC),
                 'entity_id': 'switch.test',
                 'domain': 'switch',
                 'state': 'on',
@@ -200,7 +200,7 @@ class TestEventCorrelationFlow:
             mock_get_power.side_effect = [2450.0, None]  # before exists, after is None
 
             event = {
-                'time': datetime.now(timezone.utc),
+                'time': datetime.now(UTC),
                 'entity_id': 'switch.test',
                 'domain': 'switch',
                 'state': 'on',
@@ -226,7 +226,7 @@ class TestEventCorrelationFlow:
             mock_get_power.side_effect = [2450.0, 2455.0]  # 5W delta
 
             event = {
-                'time': datetime.now(timezone.utc),
+                'time': datetime.now(UTC),
                 'entity_id': 'switch.test',
                 'domain': 'switch',
                 'state': 'on',
@@ -252,7 +252,7 @@ class TestEventCorrelationFlow:
             mock_get_power.side_effect = [2450.0, 2510.0]  # 60W delta
 
             event = {
-                'time': datetime.now(timezone.utc),
+                'time': datetime.now(UTC),
                 'entity_id': 'switch.living_room_lamp',
                 'domain': 'switch',
                 'state': 'on',
@@ -281,7 +281,7 @@ class TestEventCorrelationFlow:
             mock_get_power.side_effect = [2150.0, 2030.0]  # -120W delta
 
             event = {
-                'time': datetime.now(timezone.utc),
+                'time': datetime.now(UTC),
                 'entity_id': 'light.bedroom',
                 'domain': 'light',
                 'state': 'off',

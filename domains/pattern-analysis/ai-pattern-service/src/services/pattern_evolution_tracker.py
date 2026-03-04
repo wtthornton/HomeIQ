@@ -17,7 +17,7 @@ Features:
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -300,8 +300,8 @@ class PatternEvolutionTracker:
             current_time=f"{hour:02d}:{minute:02d}",
             current_confidence=pattern.get('confidence', 0.0),
             current_occurrences=pattern.get('occurrences', 0),
-            first_seen=datetime.utcnow(),
-            last_seen=datetime.utcnow(),
+            first_seen=datetime.now(UTC),
+            last_seen=datetime.now(UTC),
             days_tracked=0,
             automation_update_recommended=False,
             update_reason="New pattern detected - consider creating automation",
@@ -325,7 +325,7 @@ class PatternEvolutionTracker:
 
         days_since = 0
         if detected_at:
-            days_since = (datetime.utcnow() - detected_at.replace(tzinfo=None)).days
+            days_since = (datetime.now(UTC) - detected_at.replace(tzinfo=None)).days
 
         return PatternEvolution(
             pattern_id=pattern.get('pattern_id', ''),
@@ -432,7 +432,7 @@ class PatternEvolutionTracker:
 
         days_tracked = 0
         if first_seen:
-            days_tracked = (datetime.utcnow() - first_seen.replace(tzinfo=None)).days
+            days_tracked = (datetime.now(UTC) - first_seen.replace(tzinfo=None)).days
 
         # Format times
         original_hour = int(avg_historical_time)
@@ -453,7 +453,7 @@ class PatternEvolutionTracker:
             original_occurrences=int(avg_historical_occurrences),
             current_occurrences=current_occurrences,
             first_seen=first_seen,
-            last_seen=datetime.utcnow(),
+            last_seen=datetime.now(UTC),
             days_tracked=days_tracked,
             automation_update_recommended=update_recommended,
             update_reason=update_reason,
@@ -494,7 +494,7 @@ class PatternEvolutionTracker:
         self,
         evolution_type: EvolutionType,
         time_drift_minutes: float,
-        confidence_trend: float,
+        _confidence_trend: float,
         current_confidence: float,
     ) -> tuple[bool, str | None]:
         """Determine if automation update is recommended."""

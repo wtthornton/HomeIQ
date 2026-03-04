@@ -7,7 +7,7 @@ import asyncio
 import contextlib
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger("device-database-client")
@@ -109,5 +109,5 @@ class DeviceSyncService:
                     logger.warning(f"Failed to sync cache entry {cache_file.name}: {e}")
                     failed += 1
 
-        self.last_sync = datetime.now(timezone.utc)
+        self.last_sync = datetime.now(UTC)
         logger.info(f"Device sync completed: {synced} updated, {failed} failed")

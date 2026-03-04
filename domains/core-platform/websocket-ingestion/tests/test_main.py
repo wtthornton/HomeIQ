@@ -5,7 +5,6 @@ Import fixed to use project path_setup.
 For full main.py coverage, see test_main_service.py.
 """
 
-import pytest
 
 from tests.path_setup import add_service_src
 

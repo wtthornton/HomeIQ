@@ -4,7 +4,7 @@ Awattar Electricity Pricing Provider
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
@@ -23,7 +23,7 @@ class AwattarProvider:
         """Fetch pricing from Awattar API with retry logic"""
 
         params = {
-            "start": int(datetime.now(timezone.utc).timestamp() * 1000)
+            "start": int(datetime.now(UTC).timestamp() * 1000)
         }
 
         last_exception = None
@@ -70,7 +70,7 @@ class AwattarProvider:
             forecast_24h.append({
                 'hour': i,
                 'price': entry['marketprice'] / 10000,
-                'timestamp': datetime.fromtimestamp(entry['start_timestamp'] / 1000, tz=timezone.utc)
+                'timestamp': datetime.fromtimestamp(entry['start_timestamp'] / 1000, tz=UTC)
             })
 
         # Find cheapest and most expensive hours

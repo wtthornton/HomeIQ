@@ -6,7 +6,6 @@ import asyncio
 from datetime import datetime
 
 import pytest
-
 from src.weather_cache import WeatherCache
 
 

@@ -6,10 +6,9 @@ PostgreSQL via homeiq_data DatabaseManager (standardized lifecycle).
 import os
 from collections.abc import AsyncGenerator
 
+from homeiq_data import DatabaseManager
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
-
-from homeiq_data import DatabaseManager
 
 from .config import get_settings
 

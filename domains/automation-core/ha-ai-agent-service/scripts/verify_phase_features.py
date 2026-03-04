@@ -5,9 +5,8 @@ Verification Script for Phase 1, 2 & 3 Features
 Quick verification that all features are implemented and accessible.
 """
 
-import sys
 import os
-import importlib.util
+import sys
 from pathlib import Path
 
 # Fix Windows encoding issues

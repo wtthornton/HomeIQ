@@ -13,8 +13,6 @@ Priority: HIGH
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.database import get_db
 from src.models.device import Device
 from src.models.entity import Entity
 
@@ -147,7 +145,7 @@ class TestSchemaMigrations:
 
     async def test_migration_columns_exist(self, test_db: AsyncSession):
         """Test that migration-added columns exist"""
-        from sqlalchemy import inspect, text
+        from sqlalchemy import inspect
         
         inspector = inspect(test_db.bind)
         

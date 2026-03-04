@@ -8,12 +8,10 @@ import logging
 import os
 from typing import Optional
 
+from ..logging_config import StructuredFormatter
+
 # Import existing logging config
-from ..logging_config import (
-    setup_logging as _setup_logging,
-    StructuredFormatter,
-    get_logger as _get_logger
-)
+from ..logging_config import setup_logging as _setup_logging
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ Core service for deploying automations to Home Assistant.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -164,15 +164,15 @@ class DeploymentService:
                 version_number=version_number,
                 automation_yaml=suggestion.automation_yaml,
                 safety_score=safety_score,
-                deployed_at=datetime.now(timezone.utc),
+                deployed_at=datetime.now(UTC),
             )
             self.db.add(version)
 
             # Update suggestion status
             suggestion.status = "deployed"
             suggestion.automation_id = automation_id
-            suggestion.deployed_at = datetime.now(timezone.utc)
-            suggestion.updated_at = datetime.now(timezone.utc)
+            suggestion.deployed_at = datetime.now(UTC)
+            suggestion.updated_at = datetime.now(UTC)
 
             await self.db.commit()
 
@@ -310,7 +310,7 @@ class DeploymentService:
                 version_number=new_version_number,
                 automation_yaml=previous_version.automation_yaml,
                 safety_score=previous_version.safety_score,
-                deployed_at=datetime.now(timezone.utc),
+                deployed_at=datetime.now(UTC),
             )
             self.db.add(new_version)
             await self.db.commit()

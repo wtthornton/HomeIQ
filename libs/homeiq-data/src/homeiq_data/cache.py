@@ -6,13 +6,12 @@ All service caches should inherit from this base class for consistency.
 """
 
 import asyncio
-import time
-from typing import Dict, Optional, Any
-from dataclasses import dataclass
-from collections import OrderedDict
-from abc import ABC, abstractmethod
-
 import logging
+import time
+from abc import ABC
+from collections import OrderedDict
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

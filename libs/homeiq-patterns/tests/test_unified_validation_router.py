@@ -1,10 +1,11 @@
 """Tests for UnifiedValidationRouter and related models."""
 
-import pytest
-from typing import Any
-
 import sys
 from pathlib import Path
+from typing import Any
+
+import pytest
+
 _project_root = str(Path(__file__).resolve().parents[3])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
@@ -18,7 +19,6 @@ from homeiq_patterns import (
     categorize_errors,
 )
 
-
 # --- Test fixtures ---
 
 class MockValidationBackend(ValidationBackend):
@@ -27,7 +27,7 @@ class MockValidationBackend(ValidationBackend):
     def __init__(self, result: dict):
         self._result = result
 
-    async def validate(self, content: str, **kwargs) -> dict[str, Any]:
+    async def validate(self, _content: str, **_kwargs) -> dict[str, Any]:
         return self._result
 
 
@@ -41,7 +41,7 @@ class MockValidationRouter(UnifiedValidationRouter):
     def __init__(self, backend_result: dict):
         self._backend_result = backend_result
 
-    async def run_validation(self, request: ValidationRequest, **kwargs) -> ValidationResponse:
+    async def run_validation(self, request: ValidationRequest, **_kwargs) -> ValidationResponse:
         return self.build_response(self._backend_result, request)
 
 

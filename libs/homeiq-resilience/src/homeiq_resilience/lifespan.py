@@ -80,7 +80,7 @@ class ServiceLifespan:
         self._shutdown_hooks.append((label, fn))
 
     @asynccontextmanager
-    async def handler(self, app: FastAPI) -> AsyncGenerator[None, None]:
+    async def handler(self, _app: FastAPI) -> AsyncGenerator[None, None]:
         """Async context manager compatible with FastAPI's ``lifespan`` param."""
         logger.info("%s starting up...", self.service_name)
         start = time.monotonic()

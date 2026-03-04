@@ -4,10 +4,9 @@ Unit tests for Pattern Analysis Scheduler
 Epic 39, Story 39.8: Pattern Service Testing & Validation
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
+from unittest.mock import AsyncMock
 
+import pytest
 from src.scheduler.pattern_analysis import PatternAnalysisScheduler
 
 
@@ -40,7 +39,7 @@ class TestPatternAnalysisScheduler:
     @pytest.mark.integration
     @pytest.mark.scheduler
     async def test_run_pattern_analysis_empty_events(
-        self, test_db, mock_data_api_client, mock_mqtt_client
+        self, _test_db, mock_data_api_client, mock_mqtt_client
     ):
         """Test pattern analysis with empty events."""
         scheduler = PatternAnalysisScheduler()
@@ -61,7 +60,7 @@ class TestPatternAnalysisScheduler:
     @pytest.mark.scheduler
     @pytest.mark.slow
     async def test_run_pattern_analysis_with_events(
-        self, test_db, mock_data_api_client, mock_mqtt_client
+        self, _test_db, _mock_data_api_client, mock_mqtt_client
     ):
         """Test pattern analysis with sample events."""
         scheduler = PatternAnalysisScheduler()

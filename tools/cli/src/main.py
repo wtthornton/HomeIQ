@@ -5,25 +5,25 @@ HA Ingestor CLI - Main entry point
 Command-line interface for managing and monitoring the Home Assistant Ingestor system.
 """
 
+import os
+import sys
+from typing import Optional
+
 import typer
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
-from rich.text import Text
-from typing import Optional
-import sys
-import os
+from rich.table import Table
 
 # Add src to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from src.commands.system import app as system_app
-from src.commands.events import app as events_app
 from src.commands.config import app as config_app
-from src.commands.export import app as export_app
 from src.commands.diagnostics import app as diagnostics_app
-from src.utils.config import load_config
+from src.commands.events import app as events_app
+from src.commands.export import app as export_app
+from src.commands.system import app as system_app
 from src.utils.api_client import APIClient
+from src.utils.config import load_config
 
 # Initialize Typer app
 app = typer.Typer(

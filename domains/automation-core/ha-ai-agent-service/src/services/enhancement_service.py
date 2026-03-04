@@ -169,7 +169,7 @@ class AutomationEnhancementService:
                 timeout=45.0  # 45 second timeout for 3 enhancements (LLM can be slow)
             )
             enhancements.extend(llm_enhancements)
-        except (asyncio.TimeoutError, APITimeoutError) as e:
+        except (TimeoutError, APITimeoutError) as e:
             logger.warning(f"LLM enhancements timed out: {e}. Using fallbacks.")
             enhancements.extend([
                 self._create_fallback_enhancement(automation_yaml, 1),
@@ -192,7 +192,7 @@ class AutomationEnhancementService:
                 timeout=30.0  # Increased timeout for pattern + LLM enhancement
             )
             enhancements.append(pattern_enhancement)
-        except (asyncio.TimeoutError, APITimeoutError) as e:
+        except (TimeoutError, APITimeoutError) as e:
             logger.warning(f"Pattern enhancement timed out: {e}. Using fallback.")
             enhancements.append(await self._generate_fallback_advanced(automation_yaml))
         except Exception as e:
@@ -207,7 +207,7 @@ class AutomationEnhancementService:
                 timeout=30.0  # Increased timeout for synergy + LLM enhancement
             )
             enhancements.append(synergy_enhancement)
-        except (asyncio.TimeoutError, APITimeoutError) as e:
+        except (TimeoutError, APITimeoutError) as e:
             logger.warning(f"Synergy enhancement timed out: {e}. Using fallback.")
             enhancements.append(self._create_fallback_enhancement(automation_yaml, 5))
         except Exception as e:

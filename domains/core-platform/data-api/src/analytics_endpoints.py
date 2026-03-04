@@ -11,7 +11,7 @@ Provides aggregated analytics data for dashboard visualization.
 
 import logging
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -97,7 +97,7 @@ def calculate_trend(data: list[float], window: int = 5) -> str:
 
 def get_time_range_params(time_range: str) -> tuple:
     """Return (start_time_iso, interval_str, num_points) for *time_range*."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if time_range == '1h':
         start = now - timedelta(hours=1)
@@ -134,7 +134,7 @@ def calculate_service_uptime() -> float:
     """Return service uptime as percentage (always 100 while running)."""
     try:
         from .main import SERVICE_START_TIME
-        uptime_seconds = (datetime.utcnow() - SERVICE_START_TIME).total_seconds()
+        uptime_seconds = (datetime.now(UTC) - SERVICE_START_TIME).total_seconds()
         # Service is running → 100 %.
         # A more advanced version would track restart windows.
         return 100.0 if uptime_seconds > 0 else 0.0
@@ -228,7 +228,7 @@ async def get_analytics(
         '1h',
         description="Time range: 1h, 6h, 24h, 7d"
     ),
-    metrics: str | None = Query(None, description="Comma-separated list of metrics to include"),
+    _metrics: str | None = Query(None, description="Comma-separated list of metrics to include"),
 ):
     """Get analytics data for the specified time range."""
     try:
@@ -269,7 +269,7 @@ async def get_analytics(
                 uptime=calculate_service_uptime(),
             ),
             timeRange=range,
-            lastUpdate=datetime.now(timezone.utc).isoformat() + 'Z',
+            lastUpdate=datetime.now(UTC).isoformat() + 'Z',
         )
 
     except Exception as e:

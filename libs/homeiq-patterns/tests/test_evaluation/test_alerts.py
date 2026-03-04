@@ -5,13 +5,10 @@ Tests the AlertEngine lifecycle: creation, deduplication, acknowledgement,
 auto-resolve, and priority calculation.
 """
 
-import pytest
-
 from homeiq_patterns.evaluation.alerts import AlertEngine
 from homeiq_patterns.evaluation.config import AgentEvalConfig
 from homeiq_patterns.evaluation.models import (
     BatchReport,
-    EvalAlert,
     EvalLevel,
     EvaluationReport,
     EvaluationResult,

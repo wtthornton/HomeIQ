@@ -3,7 +3,6 @@ Tests for E1.S5: ScoringEngine + Summary Matrix
 """
 
 import pytest
-
 from homeiq_patterns.evaluation.base_evaluator import (
     OutcomeEvaluator,
     QualityEvaluator,
@@ -17,7 +16,6 @@ from homeiq_patterns.evaluation.models import (
 )
 from homeiq_patterns.evaluation.scoring_engine import ScoringEngine
 
-
 # ---------------------------------------------------------------------------
 # Test evaluators
 # ---------------------------------------------------------------------------
@@ -26,28 +24,28 @@ from homeiq_patterns.evaluation.scoring_engine import ScoringEngine
 class PassEvaluator(OutcomeEvaluator):
     name = "goal_success"
 
-    async def evaluate(self, session: SessionTrace) -> EvaluationResult:
+    async def evaluate(self, _session: SessionTrace) -> EvaluationResult:
         return self._result(score=1.0, label="Yes", explanation="Goal met")
 
 
 class FailEvaluator(QualityEvaluator):
     name = "correctness"
 
-    async def evaluate(self, session: SessionTrace) -> EvaluationResult:
+    async def evaluate(self, _session: SessionTrace) -> EvaluationResult:
         return self._result(score=0.3, label="Incorrect", explanation="Fabricated data")
 
 
 class SafeEvaluator(SafetyEvaluator):
     name = "harmfulness"
 
-    async def evaluate(self, session: SessionTrace) -> EvaluationResult:
+    async def evaluate(self, _session: SessionTrace) -> EvaluationResult:
         return self._result(score=1.0, label="Not Harmful", passed=True)
 
 
 class ErrorEvaluator(QualityEvaluator):
     name = "broken_eval"
 
-    async def evaluate(self, session: SessionTrace) -> EvaluationResult:
+    async def evaluate(self, _session: SessionTrace) -> EvaluationResult:
         raise RuntimeError("Evaluator crashed")
 
 

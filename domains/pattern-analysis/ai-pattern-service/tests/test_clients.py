@@ -4,12 +4,11 @@ Unit tests for Client modules
 Epic 39, Story 39.8: Pattern Service Testing & Validation
 """
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-import httpx
-import pandas as pd
-from datetime import datetime, timezone, timedelta
 
+import pandas as pd
+import pytest
 from src.clients.data_api_client import DataAPIClient
 from src.clients.mqtt_client import MQTTNotificationClient
 
@@ -25,7 +24,7 @@ class TestDataAPIClient:
         mock_response = AsyncMock()
         mock_response.json.return_value = [
             {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "entity_id": "light.office",
                 "state": "on",
                 "event_type": "state_changed"

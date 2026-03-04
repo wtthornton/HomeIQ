@@ -128,7 +128,7 @@ class HomeAssistantClient:
                     return data.get("result", [])
                 raise Exception(f"Unexpected WebSocket response format: {data}")
 
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             raise Exception("WebSocket connection or response timeout") from e
         except websockets.exceptions.InvalidStatusCode as e:
             raise Exception(f"WebSocket connection failed: {e}") from e

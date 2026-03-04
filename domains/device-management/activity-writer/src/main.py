@@ -12,7 +12,7 @@ import asyncio
 import os
 import re
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from homeiq_observability.logging_config import setup_logging
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 from pydantic import BaseModel
@@ -29,8 +30,6 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
-
-from homeiq_observability.logging_config import setup_logging
 
 from . import __version__
 
@@ -167,13 +166,13 @@ class ActivityWriterService:
         # 3. POST to activity-recognition
         try:
             prediction = await self._call_activity_recognition(readings)
-        except (asyncio.TimeoutError, aiohttp.ClientError) as e:
+        except (TimeoutError, aiohttp.ClientError) as e:
             logger.warning("Activity-recognition timeout/unavailable: %s - skipping cycle", e)
             return
 
         # 4. Write to InfluxDB
         await self._write_to_influxdb(prediction)
-        self.last_successful_run = datetime.now(timezone.utc)
+        self.last_successful_run = datetime.now(UTC)
         self.last_error = None
         self.cycles_succeeded += 1
         logger.info(
@@ -456,7 +455,7 @@ class ActivityWriterService:
             .field("activity", prediction.activity)
             .field("activity_id", prediction.activity_id)
             .field("confidence", prediction.confidence)
-            .time(datetime.now(timezone.utc), WritePrecision.NS)
+            .time(datetime.now(UTC), WritePrecision.NS)
         )
         write_api = self._influx_client.write_api(write_options=SYNCHRONOUS)
         await asyncio.to_thread(

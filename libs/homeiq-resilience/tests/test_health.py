@@ -14,7 +14,6 @@ from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
-
 from shared.resilience.health import DependencyStatus, GroupHealthCheck
 
 

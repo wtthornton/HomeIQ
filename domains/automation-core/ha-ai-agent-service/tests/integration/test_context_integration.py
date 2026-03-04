@@ -5,11 +5,11 @@ These tests require external services to be running or mocked.
 For CI/CD, use mocked services. For local testing, can use real services.
 """
 
-import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
-from src.services.context_builder import ContextBuilder
+import pytest
 from src.config import Settings
+from src.services.context_builder import ContextBuilder
 
 
 @pytest.fixture

@@ -5,15 +5,13 @@ Epic 17.3: Essential Performance Metrics
 
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
-
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
-
 from homeiq_observability.metrics_collector import MetricsCollector, get_metrics_collector
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +127,7 @@ class MetricsEndpoints:
 
                 # Aggregate summary
                 summary = {
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "timestamp": datetime.now(UTC).isoformat() + "Z",
                     "services_count": len(all_metrics),
                     "services": list(all_metrics.keys()),
                     "aggregate": {
@@ -190,7 +188,7 @@ class MetricsEndpoints:
                 return {
                     "status": "success",
                     "message": "Metrics reset successfully",
-                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                    "timestamp": datetime.now(UTC).isoformat() + "Z"
                 }
             except Exception as e:
                 logger.error(f"Error resetting metrics: {e}")

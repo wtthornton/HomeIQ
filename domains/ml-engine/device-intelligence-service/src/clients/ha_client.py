@@ -9,7 +9,7 @@ import json
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
@@ -219,7 +219,7 @@ class HomeAssistantClient:
             response = await asyncio.wait_for(future, timeout=self.receive_timeout)
             return response
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(f"Timeout waiting for response to message {current_message_id}")
             raise
         except Exception as e:
@@ -238,7 +238,7 @@ class HomeAssistantClient:
                     message = await asyncio.wait_for(
                         self.websocket.recv(), timeout=self.receive_timeout
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     logger.debug("⏳ No WebSocket message within timeout window; pruning pending messages")
                     self._prune_pending_messages()
                     continue
@@ -318,7 +318,7 @@ class HomeAssistantClient:
             future = self.pending_messages.pop(message_id, None)
             self._pending_message_timestamps.pop(message_id, None)
             if future and not future.done():
-                future.set_exception(asyncio.TimeoutError("Home Assistant response timed out"))
+                future.set_exception(TimeoutError("Home Assistant response timed out"))
 
     def _cancel_all_pending_messages(self, exc: Exception | None = None):
         """Cancel or fail all pending message futures."""
@@ -334,12 +334,12 @@ class HomeAssistantClient:
     def _parse_timestamp(self, timestamp) -> datetime:
         """Parse timestamp from Home Assistant (handles both float and string formats)."""
         if timestamp is None:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
 
         try:
             # Handle float timestamps (Unix timestamp)
             if isinstance(timestamp, (int, float)):
-                return datetime.fromtimestamp(timestamp, tz=timezone.utc)
+                return datetime.fromtimestamp(timestamp, tz=UTC)
 
             # Handle string timestamps (ISO format)
             if isinstance(timestamp, str):
@@ -349,11 +349,11 @@ class HomeAssistantClient:
                 return datetime.fromisoformat(timestamp)
 
             # Fallback to current time
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
 
         except Exception as e:
             logger.warning(f"Failed to parse timestamp {timestamp}: {e}")
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
 
     async def get_device_registry(self) -> list[HADevice]:
         """Get all devices from Home Assistant device registry."""

@@ -39,14 +39,13 @@ def _start_huey_consumer() -> None:
     MemoryHuey stores tasks in-process — no external consumer needed.
     """
     try:
-        from .task_queue.huey_config import huey  # noqa: F811
         logger.info("Huey in-memory backend ready (no external consumer needed)")
     except Exception as e:
         logger.error(f"Failed to initialize Huey: {e}", exc_info=True)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Application lifespan: startup and shutdown logic."""
     global rest_client, websocket_client, capability_graph
 
@@ -143,4 +142,4 @@ except ImportError:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=settings.service_port)
+    uvicorn.run(app, host="0.0.0.0", port=settings.service_port)  # noqa: S104

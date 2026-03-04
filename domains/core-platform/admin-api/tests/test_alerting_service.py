@@ -1,6 +1,6 @@
 """Tests for alerting service."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from src.alerting_service import (
@@ -383,7 +383,7 @@ class TestAlertManager:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at=datetime.now(timezone.utc).isoformat()
+            created_at=datetime.now(UTC).isoformat()
         )
 
         manager.active_alerts["test_rule"] = alert
@@ -411,7 +411,7 @@ class TestAlertManager:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at=datetime.now(timezone.utc).isoformat()
+            created_at=datetime.now(UTC).isoformat()
         )
 
         manager.active_alerts["test_rule"] = alert
@@ -440,7 +440,7 @@ class TestAlertManager:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at=datetime.now(timezone.utc).isoformat()
+            created_at=datetime.now(UTC).isoformat()
         )
 
         manager.active_alerts["test_rule"] = alert
@@ -521,7 +521,7 @@ class TestAlertManager:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at=datetime.now(timezone.utc).isoformat()
+            created_at=datetime.now(UTC).isoformat()
         )
 
         manager.active_alerts["test_rule"] = alert
@@ -603,7 +603,7 @@ class TestAlertingService:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at=datetime.now(timezone.utc).isoformat()
+            created_at=datetime.now(UTC).isoformat()
         )
 
         service.alert_manager.active_alerts["test_rule"] = alert

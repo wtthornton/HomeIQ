@@ -12,7 +12,6 @@ import os
 from typing import Any
 
 import httpx
-
 from homeiq_resilience import CircuitOpenError, CrossGroupClient
 
 from .breakers import data_collectors_breaker

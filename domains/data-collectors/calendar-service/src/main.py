@@ -4,22 +4,19 @@ Integrates with Home Assistant Calendar for occupancy prediction
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
-from aiohttp import web
-from aiohttp import ClientError
-from influxdb_client_3 import InfluxDBClient3, Point
-
+from aiohttp import ClientError, web
 from config import settings
 from event_parser import CalendarEventParser
 from ha_client import HomeAssistantCalendarClient
 from health_check import HealthCheckHandler
-
 from homeiq_ha.enhanced_ha_connection_manager import ha_connection_manager
 from homeiq_observability.logging_config import log_error_with_context, setup_logging
+from influxdb_client_3 import InfluxDBClient3, Point
 
 logger = setup_logging("calendar-service")
 
@@ -133,7 +130,7 @@ class CalendarService:
         try:
             # Define time range (today in local timezone)
             local_tz = ZoneInfo(settings.timezone)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             now_local = datetime.now(local_tz)
             end_of_day = now_local.replace(hour=23, minute=59, second=59, microsecond=999999)
 
@@ -160,7 +157,7 @@ class CalendarService:
             # Sort by start time
             parsed_events.sort(key=lambda e: e['start'] if e.get('start') else now)
 
-            self.health_handler.last_successful_fetch = datetime.now(timezone.utc)
+            self.health_handler.last_successful_fetch = datetime.now(UTC)
             self.health_handler.total_fetches += 1
 
             return parsed_events
@@ -191,7 +188,7 @@ class CalendarService:
 
         try:
             events = await self.get_today_events()
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
             if not events:
                 logger.info("No calendar events found, assuming default status")
@@ -202,7 +199,7 @@ class CalendarService:
                     'prepare_time': None,
                     'hours_until_arrival': None,
                     'confidence': 0.5,  # Low confidence with no data
-                    'timestamp': datetime.now(timezone.utc),
+                    'timestamp': datetime.now(UTC),
                     'event_count': 0
                 }
 
@@ -249,7 +246,7 @@ class CalendarService:
                 'prepare_time': prepare_time,
                 'hours_until_arrival': hours_until_arrival,
                 'confidence': confidence,
-                'timestamp': datetime.now(timezone.utc),
+                'timestamp': datetime.now(UTC),
                 'event_count': len(events),
                 'current_event_count': len(current_events),
                 'upcoming_event_count': len(future_events)

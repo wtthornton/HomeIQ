@@ -1,11 +1,13 @@
 """Configuration management for CLI tools."""
 
 import os
-import yaml
 from pathlib import Path
-from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+from typing import Optional
+
+import yaml
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+
 
 class CLIConfig(BaseModel):
     """CLI configuration model."""

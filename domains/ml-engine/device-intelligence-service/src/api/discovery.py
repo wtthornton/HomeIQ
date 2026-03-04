@@ -5,7 +5,7 @@ API endpoints for device discovery management and status.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -174,13 +174,13 @@ async def refresh_discovery(
                 "status": "success",
                 "message": "Discovery refresh completed",
                 "devices_discovered": status.devices_count,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
         else:
             return {
                 "status": "error",
                 "message": "Discovery refresh failed",
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
 
     except Exception as e:
@@ -221,7 +221,7 @@ async def get_devices_summary(
             devices_by_integration=devices_by_integration,
             devices_by_area=devices_by_area,
             devices_with_capabilities=devices_with_capabilities,
-            last_updated=datetime.now(timezone.utc).isoformat()
+            last_updated=datetime.now(UTC).isoformat()
         )
 
     except Exception as e:

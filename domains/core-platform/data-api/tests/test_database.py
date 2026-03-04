@@ -5,9 +5,7 @@ Story 22.1
 
 import pytest
 from sqlalchemy import text
-
 from src.database import (
-    DATABASE_URL,
     AsyncSessionLocal,
     async_engine,
     check_db_health,

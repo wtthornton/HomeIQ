@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -118,7 +118,7 @@ async def update_issue_status(
 
     issue.status = payload.status
     if payload.status == "resolved":
-        issue.resolved_at = datetime.now(timezone.utc)
+        issue.resolved_at = datetime.now(UTC)
     elif payload.status == "open":
         issue.resolved_at = None
 

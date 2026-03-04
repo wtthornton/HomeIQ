@@ -6,7 +6,6 @@ and forbidden name detection.
 """
 
 import pytest
-
 from src.security.code_validator import (
     CodeValidationError,
     CodeValidator,

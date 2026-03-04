@@ -31,7 +31,7 @@ def mock_env_vars(monkeypatch):
 
 
 @pytest.fixture
-def sports_service(mock_env_vars):
+def sports_service(_mock_env_vars):
     """Create SportsService instance"""
     return SportsService()
 
@@ -176,7 +176,7 @@ async def test_get_current_sports_data(sports_service):
             await sports_service.shutdown()
 
 
-def test_sports_service_initialization(mock_env_vars):
+def test_sports_service_initialization(_mock_env_vars):
     """Test SportsService initialization"""
     service = SportsService()
     

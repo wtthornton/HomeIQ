@@ -4,15 +4,14 @@ Statistics and Metrics Endpoints
 
 import asyncio
 import logging
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
-import aiohttp
 import os
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, status, Query
-from pydantic import BaseModel
-
+import aiohttp
+from fastapi import APIRouter, HTTPException, Query, status
 from homeiq_data.influxdb_query_client import InfluxDBQueryClient as AdminAPIInfluxDBClient
+from pydantic import BaseModel
 
 # Optional metrics_tracker import (only used in admin-api)
 try:
@@ -363,7 +362,7 @@ class StatsEndpoints:
                                 return self._transform_health_to_stats(data, service_name, period)
                         else:
                             raise Exception(f"HTTP {response.status}")
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     logger.warning(f"Timeout getting stats for {service_name}")
                     raise Exception(f"Timeout after {timeout}s")
         except Exception as e:
@@ -374,7 +373,7 @@ class StatsEndpoints:
                 "alerts": [{"service": service_name, "level": "error", "message": str(e)}]
             }
     
-    async def _transform_websocket_health_to_stats(self, health_data: Dict[str, Any], period: str) -> Dict[str, Any]:
+    async def _transform_websocket_health_to_stats(self, health_data: Dict[str, Any], _period: str) -> Dict[str, Any]:
         """Transform websocket-ingestion health data to stats format"""
         try:
             # Check if health_data has an error
@@ -666,7 +665,7 @@ class StatsEndpoints:
                 asyncio.gather(*tasks, return_exceptions=True),
                 timeout=15  # Overall timeout of 15 seconds
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("Overall timeout reached while fetching API metrics")
             # Create fallback results for any incomplete tasks
             results = []
@@ -906,14 +905,14 @@ class StatsEndpoints:
                     else:
                         logger.warning(f"Failed to get metrics from {service_name}: {resp.status}")
                         return self._create_fallback_metric(service_name, "inactive", f"HTTP {resp.status}")
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(f"Timeout getting metrics from {service_name} after {timeout}s")
             return self._create_fallback_metric(service_name, "timeout", f"Timeout after {timeout}s")
         except Exception as e:
             logger.error(f"Error getting metrics from {service_name}: {e}")
             return self._create_fallback_metric(service_name, "error", str(e))
     
-    def _transform_health_to_stats(self, health_data: Dict[str, Any], service_name: str, period: str) -> Dict[str, Any]:
+    def _transform_health_to_stats(self, health_data: Dict[str, Any], service_name: str, _period: str) -> Dict[str, Any]:
         """Transform health data to stats format for services without dedicated stats endpoints"""
         try:
             # Extract basic metrics from health data

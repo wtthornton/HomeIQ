@@ -6,7 +6,7 @@ Story 22.2: Updated to use database storage
 
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -169,7 +169,7 @@ def compute_device_status(last_seen: datetime | None, inactive_days: int = 30) -
         return "inactive"
 
     # Calculate days since last seen
-    days_ago = (datetime.utcnow() - last_seen.replace(tzinfo=None)).days
+    days_ago = (datetime.now(UTC) - last_seen.replace(tzinfo=None)).days
 
     # Device is active if seen within inactive_days
     return "active" if days_ago <= inactive_days else "inactive"

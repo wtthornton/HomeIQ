@@ -6,7 +6,6 @@ CRUD endpoints for automation specs
 
 
 from fastapi import APIRouter, Body, HTTPException
-
 from homeiq_ha.homeiq_automation.spec_validator import SpecValidator
 
 from ..config import settings

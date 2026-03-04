@@ -6,11 +6,12 @@ Provides correlation ID middleware that integrates with OpenTelemetry trace cont
 
 import logging
 from typing import Optional
-from fastapi import Request, Response
+
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from ..logging_config import generate_correlation_id, set_correlation_id, get_correlation_id
+from ..logging_config import generate_correlation_id, get_correlation_id, set_correlation_id
 
 logger = logging.getLogger(__name__)
 

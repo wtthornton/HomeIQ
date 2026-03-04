@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import delete, select
@@ -13,7 +13,7 @@ from src.services.hygiene_analyzer import DeviceHygieneAnalyzer
 
 
 def _area(area_id: str, name: str) -> HAArea:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return HAArea(
         area_id=area_id,
         name=name,
@@ -36,7 +36,7 @@ def _device(
     created_at: datetime | None = None,
     disabled_by: str | None = None,
 ) -> HADevice:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return HADevice(
         id=device_id,
         name=name,
@@ -67,7 +67,7 @@ def _entity(
     disabled_by: str | None = None,
     entity_category: str | None = None,
 ) -> HAEntity:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return HAEntity(
         entity_id=entity_id,
         name=None,
@@ -89,11 +89,11 @@ def _entity(
 
 
 @pytest.mark.asyncio
-async def test_analyzer_generates_and_persists_findings(initialized_app):
+async def test_analyzer_generates_and_persists_findings(_initialized_app):
     """Analyzer should flag duplicates, placeholders, missing areas, stale devices, and disabled entities."""
 
     living_room = _area("living_room", "Living Room")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     devices = [
         _device("dev-1", "Lamp", name_by_user="Hallway Light", area_id="living_room"),
@@ -136,7 +136,7 @@ async def test_analyzer_generates_and_persists_findings(initialized_app):
 
 
 @pytest.mark.asyncio
-async def test_analyzer_marks_resolved_when_issue_disappears(initialized_app):
+async def test_analyzer_marks_resolved_when_issue_disappears(_initialized_app):
     living_room = _area("living_room", "Living Room")
     devices_initial = [
         _device("dev-1", "Lamp", name_by_user="Hallway Light", area_id="living_room"),

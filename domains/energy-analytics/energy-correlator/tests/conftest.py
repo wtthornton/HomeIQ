@@ -4,7 +4,7 @@ Shared test fixtures for energy-correlator service
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -28,7 +28,7 @@ def mock_influxdb_client():
 @pytest.fixture
 def sample_events() -> list[dict]:
     """Sample HA events for testing"""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     return [
         {
@@ -158,7 +158,7 @@ async def service_instance():
 @pytest.fixture
 def mock_influx_query_results():
     """Mock InfluxDB query results in Flux format"""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     return [
         {
@@ -190,6 +190,6 @@ def mock_power_query_result():
             '_measurement': 'smart_meter',
             '_field': 'total_power_w',
             '_value': 2450.0,
-            'time': datetime.now(timezone.utc)
+            'time': datetime.now(UTC)
         }
     ]

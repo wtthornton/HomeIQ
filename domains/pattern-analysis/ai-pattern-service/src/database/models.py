@@ -11,7 +11,7 @@ but the actual tables are managed by ai-automation-service.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase
@@ -44,7 +44,7 @@ class SynergyOpportunity(Base):
     complexity = Column(String(20), nullable=False)  # 'low', 'medium', 'high'
     confidence = Column(Float, nullable=False)
     area = Column(String(100))  # Area/room where devices are located
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
 
     # Phase 2: Pattern validation fields
     pattern_support_score = Column(Float, default=0.0, nullable=False)
@@ -89,7 +89,7 @@ class SynergyFeedback(Base):
     synergy_id = Column(String(36), ForeignKey('synergy_opportunities.synergy_id'), nullable=False, index=True)
     feedback_type = Column(String(20), nullable=False, index=True)  # 'accept', 'reject', 'deploy', 'rate'
     feedback_data = Column(JSON, nullable=False)  # Feedback details (rating, comment, accepted, deployed, etc.)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False, index=True)
 
     def __repr__(self) -> str:
         return f"<SynergyFeedback(id={self.id}, synergy_id={self.synergy_id}, type={self.feedback_type})>"
@@ -117,8 +117,8 @@ class CommunityPattern(Base):
     rating_avg = Column(Float, default=0.0, nullable=False)
     rating_count = Column(Integer, default=0, nullable=False)
     download_count = Column(Integer, default=0, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC), nullable=True)
 
     def __repr__(self) -> str:
         return (
@@ -143,7 +143,7 @@ class PatternRating(Base):
     user_id = Column(String(255), nullable=True)  # Anonymous if not provided
     rating = Column(Integer, nullable=False)  # 1-5
     comment = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
 
     def __repr__(self) -> str:
         return f"<PatternRating(id={self.id}, pattern_id={self.pattern_id}, rating={self.rating})>"

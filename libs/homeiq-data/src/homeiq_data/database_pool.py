@@ -243,7 +243,7 @@ def create_pg_engine(
     return engine
 
 
-def get_database_url(service_name: str = "") -> str:
+def get_database_url(_service_name: str = "") -> str:
     """
     Build DATABASE_URL from environment variables with fallback.
 

@@ -6,7 +6,7 @@ based on device health scores, usage patterns, and performance metrics.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -56,7 +56,7 @@ class OptimizationRecommendation:
         self.estimated_impact = estimated_impact
         self.implementation_steps = implementation_steps
         self.prerequisites = prerequisites or []
-        self.created_at = datetime.now(timezone.utc)
+        self.created_at = datetime.now(UTC)
         self.expires_at = expires_at
         self.status = "pending"
 

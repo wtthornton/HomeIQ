@@ -4,7 +4,7 @@ Shared Exception Hierarchy for HomeIQ
 Standardized exception classes for consistent error handling across all services.
 """
 
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class HomeIQError(Exception):

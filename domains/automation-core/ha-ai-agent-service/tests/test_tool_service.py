@@ -4,12 +4,12 @@ Tests for Tool Service
 Tests tool execution, routing, and error handling.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from src.services.tool_service import ToolService
-from src.clients.ha_client import HomeAssistantClient
+import pytest
 from src.clients.data_api_client import DataAPIClient
+from src.clients.ha_client import HomeAssistantClient
+from src.services.tool_service import ToolService
 
 
 @pytest.fixture

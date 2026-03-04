@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.clients.data_api_client import DataAPIClient
 from src.clients.ha_client import HomeAssistantClient
 from src.clients.openai_client import OpenAIClient
@@ -304,7 +305,7 @@ class TestDeploymentService:
         """Mock HomeAssistantClient."""
         client = AsyncMock(spec=HomeAssistantClient)
 
-        async def mock_deploy_automation(yaml_content):
+        async def mock_deploy_automation(_yaml_content):
             return {
                 "automation_id": "automation.test_automation_123",
                 "status": "deployed",
@@ -345,10 +346,10 @@ action:
 """
         )
 
-        async def mock_validate_yaml(yaml_content):
+        async def mock_validate_yaml(_yaml_content):
             return (True, None)
 
-        async def mock_validate_entities(yaml_content):
+        async def mock_validate_entities(_yaml_content):
             return (True, [])
 
         service.validate_yaml = AsyncMock(side_effect=mock_validate_yaml)

@@ -8,7 +8,7 @@ Based on recommendations from DEVICE_ACTIVITY_FILTERING_RECOMMENDATIONS.md
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from ..clients.data_api_client import DataAPIClient
 
@@ -112,7 +112,7 @@ class DeviceActivityService:
             return set()
 
         # Check cache
-        cache_key = (window_days, datetime.now(timezone.utc).date())
+        cache_key = (window_days, datetime.now(UTC).date())
         if cache_key in self._active_devices_cache:
             logger.debug(f"Using cached active devices for {window_days}-day window")
             return self._active_devices_cache[cache_key]
@@ -120,7 +120,7 @@ class DeviceActivityService:
         logger.info(f"Identifying active devices (last {window_days} days)...")
 
         try:
-            end_time = datetime.now(timezone.utc)
+            end_time = datetime.now(UTC)
             start_time = end_time - timedelta(days=window_days)
 
             # Fetch events from Data API

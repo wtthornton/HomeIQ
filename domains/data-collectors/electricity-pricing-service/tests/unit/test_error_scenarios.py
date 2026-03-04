@@ -7,10 +7,9 @@ and cache expiration scenarios.
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import aiohttp
 import pytest
 from aiohttp import web
 
@@ -46,7 +45,7 @@ class TestProviderAPIFailures:
         service_instance.session = AsyncMock()
         
         with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
-            mock_fetch.side_effect = asyncio.TimeoutError("Request timeout")
+            mock_fetch.side_effect = TimeoutError("Request timeout")
             
             result = await service_instance.fetch_pricing()
             assert result is None
@@ -92,7 +91,7 @@ class TestProviderAPIFailures:
         """
         # Set up cached data
         service_instance.cached_data = sample_pricing_data.copy()
-        service_instance.last_fetch_time = datetime.now(timezone.utc)
+        service_instance.last_fetch_time = datetime.now(UTC)
         service_instance.session = AsyncMock()
         
         with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
@@ -179,7 +178,7 @@ class TestNetworkTimeouts:
         service_instance.session = AsyncMock()
         
         with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
-            mock_fetch.side_effect = asyncio.TimeoutError("Request timeout")
+            mock_fetch.side_effect = TimeoutError("Request timeout")
             
             result = await service_instance.fetch_pricing()
             assert result is None
@@ -212,7 +211,7 @@ class TestCacheExpiration:
         """
         # Set up expired cache (older than cache_duration)
         service_instance.cached_data = sample_pricing_data.copy()
-        service_instance.last_fetch_time = datetime.now(timezone.utc) - timedelta(minutes=61)
+        service_instance.last_fetch_time = datetime.now(UTC) - timedelta(minutes=61)
         service_instance.session = AsyncMock()
         
         with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
@@ -347,7 +346,7 @@ class TestContinuousLoopErrors:
                 
                 # Mock sleep to allow one iteration then cancel
                 call_count = 0
-                async def mock_sleep(delay):
+                async def mock_sleep(_delay):
                     nonlocal call_count
                     call_count += 1
                     if call_count > 1:  # Allow one iteration

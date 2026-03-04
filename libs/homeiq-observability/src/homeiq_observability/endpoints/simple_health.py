@@ -3,13 +3,12 @@ Simplified Health Endpoint for Dashboard Integration
 Shared simple health service for admin-api and data-api.
 """
 
-import asyncio
 import logging
-from datetime import datetime
-from typing import Dict, Any
-import aiohttp
 import os
+from datetime import datetime
+from typing import Any, Dict
 
+import aiohttp
 from fastapi import APIRouter, HTTPException, status
 
 logger = logging.getLogger(__name__)

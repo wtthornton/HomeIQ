@@ -83,7 +83,7 @@ class TestLifespanManagement:
     @pytest.mark.unit
     @patch("src.main.init_db")
     @patch("src.main.start_rate_limit_cleanup")
-    async def test_lifespan_startup_database_failure(self, mock_start_cleanup, mock_init_db):
+    async def test_lifespan_startup_database_failure(self, _mock_start_cleanup, mock_init_db):
         """Test lifespan startup handles database initialization failure."""
         from src.main import app, lifespan
 
@@ -191,7 +191,7 @@ class TestConfiguration:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_app_metadata(self, client: AsyncClient):
+    async def test_app_metadata(self, _client: AsyncClient):
         """Test application metadata is correctly configured."""
         from src.main import app
 

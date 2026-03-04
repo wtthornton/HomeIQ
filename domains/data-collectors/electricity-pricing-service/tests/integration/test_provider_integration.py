@@ -7,11 +7,11 @@ Tests for provider API integration including Awattar provider.
 
 import os
 import sys
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, patch
 
-import pytest
 import aiohttp
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
@@ -28,7 +28,7 @@ def awattar_provider():
 @pytest.fixture
 def mock_awattar_response():
     """Mock Awattar API response"""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     base_timestamp = int(now.timestamp() * 1000)
     
     return {
@@ -172,5 +172,5 @@ async def test_awattar_timestamp_handling(awattar_provider, mock_awattar_respons
         timestamp = forecast['timestamp']
         assert isinstance(timestamp, datetime)
         assert timestamp.tzinfo is not None  # Should be timezone-aware
-        assert timestamp.tzinfo == timezone.utc
+        assert timestamp.tzinfo == UTC
 

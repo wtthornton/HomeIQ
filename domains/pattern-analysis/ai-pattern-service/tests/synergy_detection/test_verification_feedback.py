@@ -12,8 +12,9 @@ Tests cover:
 - Store errors handled gracefully
 """
 
-import pytest
 from typing import Any
+
+import pytest
 
 
 def _make_synergy(
@@ -46,12 +47,12 @@ class MockVerificationStore:
         self._failures = failures or []
 
     async def query_successes(
-        self, entity_ids: list[str], lookback_hours: int = 168
+        self, _entity_ids: list[str], _lookback_hours: int = 168
     ) -> list[dict]:
         return self._successes
 
     async def query_failures(
-        self, entity_id: str, lookback_hours: int = 24
+        self, _entity_id: str, _lookback_hours: int = 24
     ) -> list[dict]:
         return self._failures
 
@@ -59,10 +60,10 @@ class MockVerificationStore:
 class FailingStore:
     """Store that always raises errors."""
 
-    async def query_successes(self, entity_ids, lookback_hours=168):
+    async def query_successes(self, _entity_ids, _lookback_hours=168):
         raise ConnectionError("InfluxDB down")
 
-    async def query_failures(self, entity_id, lookback_hours=24):
+    async def query_failures(self, _entity_id, _lookback_hours=24):
         raise ConnectionError("InfluxDB down")
 
 

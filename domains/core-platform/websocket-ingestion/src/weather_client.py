@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
@@ -33,7 +33,7 @@ class WeatherData:
     """Normalized weather data from OpenWeatherMap responses."""
 
     api_response: dict[str, Any]
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     source: str = "openweathermap"
 
     def __post_init__(self) -> None:
@@ -176,7 +176,7 @@ class OpenWeatherMapClient:
                     self.last_error = error_text or f"Request failed with status {response.status}"
                     return None
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self.failed_requests += 1
                 self.last_error = "Request timeout"
                 return None

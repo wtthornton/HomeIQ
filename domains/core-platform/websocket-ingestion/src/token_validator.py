@@ -4,7 +4,7 @@ Token Validation System for Home Assistant Authentication
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -99,5 +99,5 @@ class TokenValidator:
             "error_message": error_msg if not is_valid else None,
             "length": len(token) if token else 0,
             "masked_token": self.mask_token(token) if token else "****",
-            "validation_timestamp": datetime.now(timezone.utc).isoformat()
+            "validation_timestamp": datetime.now(UTC).isoformat()
         }

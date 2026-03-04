@@ -9,7 +9,7 @@ Uses ensemble approach with Isolation Forest and ECOD for robust detection.
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import numpy as np
@@ -174,7 +174,7 @@ class DeviceAnomalyDetector:
                 "models": models,
                 "feature_names": feature_names or [f"feature_{i}" for i in range(normal_patterns.shape[1])],
                 "training_samples": len(normal_patterns),
-                "trained_at": datetime.utcnow(),
+                "trained_at": datetime.now(UTC),
             }
             self.is_fitted[device_id] = True
 
@@ -474,7 +474,7 @@ class AnomalyAlertManager:
 
     def clear_old_alerts(self, hours: int = 24) -> int:
         """Clear alerts older than specified hours."""
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
         original_count = len(self.alerts)
         self.alerts = [a for a in self.alerts if a.detected_at > cutoff]
         return original_count - len(self.alerts)

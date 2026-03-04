@@ -5,9 +5,10 @@ Epic 39, Story 39.5: Pattern Service Foundation
 Tests for main.py application initialization, lifespan, and configuration.
 """
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, Mock
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 
 class TestMainApplication:
@@ -35,7 +36,7 @@ class TestMainApplication:
     @patch('src.main.settings')
     async def test_lifespan_startup_success(self, mock_settings, mock_init_db):
         """Test lifespan startup with successful initialization."""
-        from src.main import lifespan, app
+        from src.main import app, lifespan
         
         mock_settings.mqtt_broker = None
         mock_settings.analysis_schedule = "0 2 * * *"
@@ -53,7 +54,7 @@ class TestMainApplication:
     @patch('src.main.settings')
     async def test_lifespan_startup_database_failure(self, mock_settings, mock_init_db):
         """Test lifespan startup handles database initialization failure."""
-        from src.main import lifespan, app
+        from src.main import app, lifespan
         
         mock_settings.mqtt_broker = None
         mock_settings.analysis_schedule = "0 2 * * *"
@@ -74,7 +75,7 @@ class TestMainApplication:
         self, mock_settings, mock_setup_tracing, mock_init_db
     ):
         """Test lifespan startup with observability enabled."""
-        from src.main import lifespan, app
+        from src.main import app, lifespan
         
         mock_settings.mqtt_broker = None
         mock_settings.analysis_schedule = "0 2 * * *"
@@ -95,7 +96,7 @@ class TestMainApplication:
         self, mock_settings, mock_mqtt_client_class, mock_init_db
     ):
         """Test lifespan startup with successful MQTT connection."""
-        from src.main import lifespan, app
+        from src.main import app, lifespan
         
         mock_settings.mqtt_broker = "mqtt://localhost"
         mock_settings.mqtt_port = 1883
@@ -125,7 +126,7 @@ class TestMainApplication:
         self, mock_settings, mock_mqtt_client_class, mock_init_db
     ):
         """Test lifespan startup handles MQTT connection failure gracefully."""
-        from src.main import lifespan, app
+        from src.main import app, lifespan
         
         mock_settings.mqtt_broker = "mqtt://localhost"
         mock_settings.mqtt_port = 1883
@@ -156,7 +157,7 @@ class TestMainApplication:
         self, mock_settings, mock_scheduler_class, mock_init_db
     ):
         """Test lifespan startup with successful scheduler initialization."""
-        from src.main import lifespan, app
+        from src.main import app, lifespan
         
         mock_settings.mqtt_broker = None
         mock_settings.analysis_schedule = "0 2 * * *"
@@ -183,7 +184,7 @@ class TestMainApplication:
         self, mock_settings, mock_scheduler_class, mock_init_db
     ):
         """Test lifespan startup handles scheduler failure gracefully."""
-        from src.main import lifespan, app
+        from src.main import app, lifespan
         
         mock_settings.mqtt_broker = None
         mock_settings.analysis_schedule = "0 2 * * *"
@@ -206,7 +207,7 @@ class TestMainApplication:
         self, mock_settings, mock_scheduler_class, mock_init_db
     ):
         """Test lifespan shutdown stops scheduler."""
-        from src.main import lifespan, app
+        from src.main import app, lifespan
         
         mock_settings.mqtt_broker = None
         mock_settings.analysis_schedule = "0 2 * * *"
@@ -231,7 +232,7 @@ class TestMainApplication:
         self, mock_settings, mock_mqtt_client_class, mock_init_db
     ):
         """Test lifespan shutdown disconnects MQTT client."""
-        from src.main import lifespan, app
+        from src.main import app, lifespan
         
         mock_settings.mqtt_broker = "mqtt://localhost"
         mock_settings.mqtt_port = 1883
@@ -260,7 +261,7 @@ class TestMainApplication:
         self, mock_settings, mock_scheduler_class, mock_init_db
     ):
         """Test lifespan shutdown handles scheduler stop error gracefully."""
-        from src.main import lifespan, app
+        from src.main import app, lifespan
         
         mock_settings.mqtt_broker = None
         mock_settings.analysis_schedule = "0 2 * * *"
@@ -287,7 +288,7 @@ class TestMainApplication:
         self, mock_settings, mock_mqtt_client_class, mock_init_db
     ):
         """Test lifespan shutdown handles MQTT disconnect error gracefully."""
-        from src.main import lifespan, app
+        from src.main import app, lifespan
         
         mock_settings.mqtt_broker = "mqtt://localhost"
         mock_settings.mqtt_port = 1883
@@ -319,7 +320,7 @@ class TestMainApplication:
         self, mock_settings, mock_init_db, mock_mqtt_client_class, mock_scheduler_class
     ):
         """Test scheduler receives MQTT client when available."""
-        from src.main import lifespan, app
+        from src.main import app, lifespan
         
         mock_settings.mqtt_broker = "mqtt://localhost"
         mock_settings.mqtt_port = 1883

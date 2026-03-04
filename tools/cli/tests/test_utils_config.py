@@ -1,12 +1,12 @@
 """Tests for configuration utilities."""
 
-import pytest
-import tempfile
 import os
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from src.utils.config import CLIConfig, load_config, save_config, get_default_config_path
+from src.utils.config import CLIConfig, get_default_config_path, load_config, save_config
+
 
 class TestCLIConfig:
     """Test CLIConfig class."""

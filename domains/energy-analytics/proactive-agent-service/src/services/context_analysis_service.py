@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from ..clients.carbon_intensity_client import CarbonIntensityClient
@@ -113,7 +113,7 @@ class ContextAnalysisService:
             "historical_patterns": historical_analysis,
             "activity": activity_analysis,
             "summary": summary,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         logger.info("Context analysis complete")
@@ -337,7 +337,7 @@ class ContextAnalysisService:
 
         try:
             # Calculate time range
-            end_time = datetime.now(timezone.utc)
+            end_time = datetime.now(UTC)
             start_time = end_time - timedelta(days=days_back)
 
             # Fetch recent events

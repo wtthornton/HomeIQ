@@ -10,7 +10,7 @@ import asyncio
 import os
 import re
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 import aiohttp
@@ -18,10 +18,9 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from homeiq_observability.logging_config import setup_logging
 from influxdb_client_3 import InfluxDBClient3, Point
 from pydantic import BaseModel
-
-from homeiq_observability.logging_config import setup_logging
 
 from . import __version__
 from .health_check import HealthCheckHandler
@@ -216,7 +215,7 @@ class WeatherService:
                 if response.status == 200:
                     data = await response.json()
 
-                    timestamp = datetime.now(timezone.utc).isoformat()
+                    timestamp = datetime.now(UTC).isoformat()
                     weather = {
                         'temperature': data.get("main", {}).get("temp", 0),
                         'feels_like': data.get("main", {}).get("feels_like", 0),
@@ -248,7 +247,7 @@ class WeatherService:
     async def get_current_weather(self) -> dict[str, Any] | None:
         """Get current weather (cache-first)"""
         # Check cache first (no lock needed for reads)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if self.cached_weather and self.cache_time:
             age = (now - self.cache_time).total_seconds()
             if age < self.cache_ttl:
@@ -259,7 +258,7 @@ class WeatherService:
         async with self._fetch_lock:
             # Double-check cache after acquiring lock
             if self.cached_weather and self.cache_time:
-                age = (datetime.now(timezone.utc) - self.cache_time).total_seconds()
+                age = (datetime.now(UTC) - self.cache_time).total_seconds()
                 if age < self.cache_ttl:
                     self.cache_hits += 1
                     return self.cached_weather
@@ -270,7 +269,7 @@ class WeatherService:
 
             if weather:
                 self.cached_weather = weather
-                self.cache_time = datetime.now(timezone.utc)
+                self.cache_time = datetime.now(UTC)
                 self.last_successful_fetch = self.cache_time
 
                 # Write to InfluxDB
@@ -307,7 +306,7 @@ class WeatherService:
         for attempt in range(1, self.max_influx_retries + 1):
             try:
                 await asyncio.to_thread(self.influxdb_client.write, point)
-                self.last_influx_write = datetime.now(timezone.utc)
+                self.last_influx_write = datetime.now(UTC)
                 self.last_influx_write_error = None
                 self.influx_write_success_count += 1
                 logger.info("Weather data written to InfluxDB")

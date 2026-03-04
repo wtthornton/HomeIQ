@@ -3,9 +3,8 @@ Tests for E2.S1: L1 GoalSuccessRate Evaluator
 """
 
 import pytest
-
 from homeiq_patterns.evaluation.evaluators.l1_outcome import GoalSuccessRateEvaluator
-from homeiq_patterns.evaluation.llm_judge import JudgeRubric, LLMJudge, LLMProvider
+from homeiq_patterns.evaluation.llm_judge import LLMJudge, LLMProvider
 from homeiq_patterns.evaluation.models import (
     AgentResponse,
     EvalLevel,
@@ -19,7 +18,7 @@ class MockProvider(LLMProvider):
     def __init__(self, response: str = ""):
         self._response = response
 
-    async def complete(self, prompt: str) -> str:
+    async def complete(self, _prompt: str) -> str:
         return self._response
 
 

@@ -5,9 +5,9 @@ Provides generic dependency injection container with singleton pattern and lazy 
 Services can extend this base class to add their own specific services.
 """
 
-from typing import Optional, Dict, Any, Callable
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
+from typing import Any, Callable, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

@@ -7,11 +7,9 @@ are properly integrated into the service's HTTP clients and health endpoint.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
+from homeiq_resilience import CircuitBreaker, CircuitOpenError, GroupHealthCheck
 from src.clients.ai_automation_client import AIAutomationClient
 from src.clients.data_api_client import DataAPIClient
-
-from homeiq_resilience import CircuitBreaker, CircuitOpenError, GroupHealthCheck
 
 # ---------------------------------------------------------------------------
 # DataAPIClient + CrossGroupClient

@@ -16,7 +16,7 @@ Usage:
 
 import logging
 import re
-from abc import ABC, abstractmethod
+from abc import ABC
 from pathlib import Path
 from typing import Sequence
 

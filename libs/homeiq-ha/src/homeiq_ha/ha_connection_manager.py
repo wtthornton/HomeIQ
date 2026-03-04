@@ -20,16 +20,17 @@ Usage:
 """
 
 import asyncio
+import json
 import logging
 import os
-import json
 import ssl
-from typing import Optional, Dict, Any, List, Tuple
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
 import aiohttp
 import websockets
-from contextlib import asynccontextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -251,7 +252,7 @@ class HAConnectionManager:
                         error=error_msg
                     )
         
-        except asyncio.TimeoutError:
+        except TimeoutError:
             error_msg = f"Connection timeout after {config.timeout}s"
             logger.warning(f"❌ Connection timeout for {config.name}: {error_msg}")
             return ConnectionResult(
@@ -260,7 +261,7 @@ class HAConnectionManager:
                 error=error_msg
             )
         
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             error_msg = f"Connection timeout after {config.timeout}s: {str(e)}"
             logger.warning(f"❌ Connection timeout for {config.name}: {error_msg}")
             return ConnectionResult(

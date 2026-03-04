@@ -5,12 +5,11 @@ Tests for database initialization and session management
 from __future__ import annotations
 
 import os
+from unittest.mock import patch
 
 import pytest
-from unittest.mock import patch, MagicMock
-
-from src.database import get_async_session_maker, init_database
 from src.config import Settings
+from src.database import get_async_session_maker, init_database
 
 
 def test_get_async_session_maker_returns_none_before_init():

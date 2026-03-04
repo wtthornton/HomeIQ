@@ -21,7 +21,7 @@ ner_pipeline = None
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """
     Lifespan context manager for service initialization and cleanup
     """

@@ -4,14 +4,11 @@ Unit tests for AutomationTracker service
 Tests automation execution tracking and confidence adjustment.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from typing import Any
-from datetime import datetime, timezone
 
-from sqlalchemy.ext.asyncio import AsyncSession
+import pytest
 from sqlalchemy import text
-
+from sqlalchemy.ext.asyncio import AsyncSession
 from src.services.automation_tracker import AutomationTracker
 
 
@@ -22,7 +19,8 @@ class TestAutomationTracker:
     async def test_db(self) -> AsyncSession:
         """Create test database session using PostgreSQL."""
         import os
-        from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+
+        from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
         test_url = os.environ.get(
             "TEST_DATABASE_URL",

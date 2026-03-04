@@ -15,7 +15,11 @@ from aiohttp import web
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from src.security import require_internal_network, validate_hours_parameter, validate_internal_request
+from src.security import (
+    require_internal_network,
+    validate_hours_parameter,
+    validate_internal_request,
+)
 
 
 class TestHoursParameterValidation:

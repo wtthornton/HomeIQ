@@ -1,17 +1,18 @@
 """API client for CLI tools."""
 
-import httpx
 import json
-from typing import Optional, Dict, Any, List
+from datetime import datetime
+from typing import Any, Dict, Optional
+
+import httpx
 from rich.console import Console
-from rich.table import Table
 from rich.json import JSON
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
-import asyncio
-from datetime import datetime
+from rich.table import Table
 
 from .config import CLIConfig
+
 
 class APIClient:
     """API client for communicating with the Admin REST API."""

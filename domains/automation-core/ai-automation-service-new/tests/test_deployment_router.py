@@ -16,7 +16,7 @@ def client_with_mock_deployment_service(client):
     from src.api.dependencies import get_deployment_service
     from src.main import app
 
-    async def mock_deploy_suggestion(suggestion_id: int, **kwargs):
+    async def mock_deploy_suggestion(suggestion_id: int, **_kwargs):
         return {
             "success": True,
             "message": "Automation deployed successfully",

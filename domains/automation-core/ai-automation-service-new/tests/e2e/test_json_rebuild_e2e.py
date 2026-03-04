@@ -12,7 +12,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from homeiq_ha.homeiq_automation.converter import HomeIQToAutomationSpecConverter
 from homeiq_ha.homeiq_automation.schema import HomeIQAutomation
 from homeiq_ha.yaml_validation_service.version_aware_renderer import VersionAwareRenderer

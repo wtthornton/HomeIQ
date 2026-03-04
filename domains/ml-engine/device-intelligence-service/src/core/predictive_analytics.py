@@ -12,9 +12,8 @@ and maintenance scheduling using machine learning models.
 
 import json
 import logging
-import os
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -133,7 +132,7 @@ class PredictiveAnalyticsEngine:
 
     async def train_models(self, historical_data: list[dict[str, Any]] = None, days_back: int = 180):
         """Train machine learning models."""
-        training_start_time = datetime.now(timezone.utc)
+        training_start_time = datetime.now(UTC)
         data_source = "database"
 
         if not historical_data:
@@ -298,7 +297,7 @@ class PredictiveAnalyticsEngine:
                 "feature_columns": self.feature_columns.copy(),
                 "training_parameters": training_params,
                 "data_source": data_source,
-                "training_duration_seconds": (datetime.now(timezone.utc) - training_start_time).total_seconds(),
+                "training_duration_seconds": (datetime.now(UTC) - training_start_time).total_seconds(),
                 "validation": validation_result
             }
 
@@ -374,7 +373,7 @@ class PredictiveAnalyticsEngine:
                 "is_anomaly": bool(is_anomaly),
                 "confidence": self._calculate_confidence(failure_probability, anomaly_score),
                 "recommendations": recommendations,
-                "predicted_at": datetime.now(timezone.utc).isoformat(),
+                "predicted_at": datetime.now(UTC).isoformat(),
                 "model_version": "1.0"
             }
 
@@ -398,7 +397,7 @@ class PredictiveAnalyticsEngine:
                     "failure_probability": 0.0,
                     "risk_level": "unknown",
                     "error": str(e),
-                    "predicted_at": datetime.now(timezone.utc).isoformat()
+                    "predicted_at": datetime.now(UTC).isoformat()
                 })
 
         return predictions
@@ -451,7 +450,7 @@ class PredictiveAnalyticsEngine:
         try:
             # Get database session
             async for session in get_db_session():
-                cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
+                cutoff_date = datetime.now(UTC) - timedelta(days=days_back)
 
                 # Query device health metrics from the last N days
                 stmt = select(DeviceHealthMetric).where(
@@ -554,7 +553,7 @@ class PredictiveAnalyticsEngine:
                 if device.health_score is not None:
                     sample["health_score"] = float(device.health_score)
                 if device.last_seen:
-                    hours_since_seen = (datetime.now(timezone.utc) - device.last_seen).total_seconds() / 3600
+                    hours_since_seen = (datetime.now(UTC) - device.last_seen).total_seconds() / 3600
                     sample["hours_since_last_seen"] = hours_since_seen
 
             training_samples.append(sample)
@@ -658,7 +657,7 @@ class PredictiveAnalyticsEngine:
             "recommendations": await self._generate_maintenance_recommendations(
                 device_id, metrics, failure_score / 100, 0.0
             ),
-            "predicted_at": datetime.now(timezone.utc).isoformat(),
+            "predicted_at": datetime.now(UTC).isoformat(),
             "model_version": "rule-based"
         }
 
@@ -743,7 +742,7 @@ class PredictiveAnalyticsEngine:
                 "precision": float(precision),
                 "recall": float(recall),
                 "f1_score": float(f1),
-                "evaluated_at": datetime.now(timezone.utc).isoformat()
+                "evaluated_at": datetime.now(UTC).isoformat()
             }
 
             logger.info(f"Model performance: Accuracy={accuracy:.3f}, Precision={precision:.3f}, Recall={recall:.3f}, F1={f1:.3f}")
@@ -752,7 +751,7 @@ class PredictiveAnalyticsEngine:
             logger.error(f"Error evaluating models: {e}")
             self.model_performance = {
                 "error": str(e),
-                "evaluated_at": datetime.now(timezone.utc).isoformat()
+                "evaluated_at": datetime.now(UTC).isoformat()
             }
 
     async def _validate_models(self, X_test: np.ndarray, _y_test: np.ndarray, _use_scaled: bool = True) -> dict[str, Any]:
@@ -934,7 +933,7 @@ class PredictiveAnalyticsEngine:
             metadata_path = models_dir / "model_metadata.json"
 
             # Backup existing models if they exist
-            backup_suffix = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            backup_suffix = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             if failure_model_path.exists():
                 backup_path = f"{failure_model_path}.backup_{backup_suffix}"
                 try:
@@ -988,7 +987,7 @@ class PredictiveAnalyticsEngine:
             "model_performance": self.model_performance,
             "feature_columns": self.feature_columns,
             "model_metadata": self.model_metadata,
-            "last_updated": datetime.now(timezone.utc).isoformat()
+            "last_updated": datetime.now(UTC).isoformat()
         }
 
     async def incremental_update(self, new_data: list[dict[str, Any]]):
@@ -1035,7 +1034,7 @@ class PredictiveAnalyticsEngine:
             logger.info(f"Incremental update complete in {update_time:.3f}s. Current accuracy: {accuracy:.3f}")
 
             # Update metadata
-            self.model_metadata["last_incremental_update"] = datetime.now(timezone.utc).isoformat()
+            self.model_metadata["last_incremental_update"] = datetime.now(UTC).isoformat()
             self.model_metadata["incremental_update_count"] = self.model_metadata.get("incremental_update_count", 0) + 1
 
             # Record incremental update metrics

@@ -8,12 +8,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from homeiq_resilience import GroupHealthCheck, wait_for_dependency
 
 from .api.routes import init_schema_cache, router
 from .config import settings
 from .database import close_db, get_db_context, init_db
-
-from homeiq_resilience import GroupHealthCheck, wait_for_dependency
 
 
 def _configure_logging() -> None:
@@ -34,7 +33,7 @@ _group_health: GroupHealthCheck | None = None
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Application lifespan handler for startup and shutdown."""
     global _group_health
 

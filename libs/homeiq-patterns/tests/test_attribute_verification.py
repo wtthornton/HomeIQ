@@ -12,24 +12,22 @@ Tests cover:
 - Integration with TaskExecutionVerifier
 """
 
-import pytest
-from typing import Any
 import sys
 from pathlib import Path
+from typing import Any
 
 _project_root = str(Path(__file__).resolve().parents[3])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from homeiq_patterns import PostActionVerifier, VerificationResult, VerificationWarning
-
+from homeiq_patterns import PostActionVerifier, VerificationResult
 
 # --- Test fixtures ---
 
 class SimpleVerifier(PostActionVerifier):
     """Minimal verifier for testing base class methods."""
 
-    async def verify(self, action_result: dict[str, Any]) -> VerificationResult:
+    async def verify(self, _action_result: dict[str, Any]) -> VerificationResult:
         return VerificationResult(success=True, state="on")
 
 

@@ -162,7 +162,7 @@ class IntegrationHealthChecker:
                             check_details={"http_status": response.status}
                         )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return CheckResult(
                 integration_name="HA Authentication",
                 integration_type="auth",
@@ -298,7 +298,7 @@ class IntegrationHealthChecker:
             writer.close()
             await writer.wait_closed()
             return True
-        except (OSError, asyncio.TimeoutError, ConnectionRefusedError) as e:
+        except (TimeoutError, OSError, ConnectionRefusedError) as e:
             logger.debug(f"MQTT broker connectivity check failed: {e}")
             return False
 

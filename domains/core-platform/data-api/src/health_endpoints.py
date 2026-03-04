@@ -3,18 +3,13 @@ Health Monitoring Endpoints
 Epic 17.2: Enhanced Service Health Monitoring
 """
 
-import asyncio
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
-
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
-
-from homeiq_observability.alert_manager import get_alert_manager
 from homeiq_data.types.health import (
     DependencyType,
     check_dependency_health,
@@ -22,6 +17,8 @@ from homeiq_data.types.health import (
     determine_overall_status,
 )
 from homeiq_data.types.health import HealthStatus as HealthStatusEnum
+from homeiq_observability.alert_manager import get_alert_manager
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +178,7 @@ class HealthEndpoints:
                 # Story 24.1: Calculate uptime from service start time
                 try:
                     from .main import SERVICE_START_TIME
-                    uptime_seconds = (datetime.utcnow() - SERVICE_START_TIME).total_seconds()
+                    uptime_seconds = (datetime.now(UTC) - SERVICE_START_TIME).total_seconds()
                 except Exception as e:
                     logger.warning(f"Could not get SERVICE_START_TIME: {e}")
                     uptime_seconds = 3600  # Fallback estimate
@@ -277,7 +274,7 @@ class HealthEndpoints:
                                 error_message=f"HTTP {response.status}"
                             )
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 services_health[service_name] = ServiceHealth(
                     name=service_name,
                     status="unhealthy",

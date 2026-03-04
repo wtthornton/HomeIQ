@@ -4,8 +4,6 @@ Unit tests for Hue Device Handler (Epic AI-24).
 Tests for Hue Room/Zone group detection and individual light identification.
 """
 
-import pytest
-
 from src.device_mappings.base import DeviceType
 from src.device_mappings.hue.handler import HueHandler
 
@@ -168,8 +166,8 @@ class TestHueHandlerIntegration:
     
     def test_handler_registration(self):
         """Test that Hue handler can be registered."""
-        from src.device_mappings.registry import DeviceMappingRegistry
         from src.device_mappings.hue.handler import HueHandler
+        from src.device_mappings.registry import DeviceMappingRegistry
         
         registry = DeviceMappingRegistry()
         handler = HueHandler()

@@ -4,15 +4,13 @@ Unit tests for Training Router
 Epic 39, Story 39.4: Training Service Testing & Validation
 """
 
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime
-
-from src.main import app
-from src.database import get_db
-from src.database.models import TrainingRun
 from src.crud.training import create_training_run
+from src.database import get_db
+from src.main import app
 
 
 @pytest.fixture
@@ -30,7 +28,7 @@ class TestTrainingRouter:
     """Test suite for training endpoints."""
     
     @pytest.mark.asyncio
-    async def test_list_training_runs_empty(self, client: TestClient, test_db: AsyncSession):
+    async def test_list_training_runs_empty(self, client: TestClient, _test_db: AsyncSession):
         """Test listing training runs when none exist."""
         response = client.get("/api/v1/training/runs")
         assert response.status_code == 200

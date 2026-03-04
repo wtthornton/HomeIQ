@@ -6,14 +6,13 @@ Epic 11 Story 11.5: Team Persistence Implementation
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from homeiq_data.influxdb_query_client import InfluxDBQueryClient
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from homeiq_data.influxdb_query_client import InfluxDBQueryClient
 
 from .database import get_db
 from .flux_utils import sanitize_flux_value
@@ -762,7 +761,7 @@ async def save_user_teams(
             # Update existing preferences
             existing.nfl_teams = teams.nfl_teams
             existing.nhl_teams = teams.nhl_teams
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(UTC)
             await db.commit()
             await db.refresh(existing)
             logger.info(f"Updated team preferences for user {user_id}: NFL={len(teams.nfl_teams)}, NHL={len(teams.nhl_teams)}")

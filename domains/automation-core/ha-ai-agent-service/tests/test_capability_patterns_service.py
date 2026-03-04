@@ -1,10 +1,10 @@
 """Tests for Capability Patterns Service"""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.services.capability_patterns_service import CapabilityPatternsService
+import pytest
 from src.config import Settings
+from src.services.capability_patterns_service import CapabilityPatternsService
 from src.services.context_builder import ContextBuilder
 
 
@@ -137,7 +137,7 @@ async def test_get_patterns_api_error(capability_patterns_service, mock_context_
 
 
 @pytest.mark.asyncio
-async def test_get_patterns_device_capability_error(capability_patterns_service, mock_context_builder):
+async def test_get_patterns_device_capability_error(capability_patterns_service, _mock_context_builder):
     """Test handling errors when fetching individual device capabilities"""
     mock_devices = [
         {"device_id": "device1", "manufacturer": "Philips", "model": "Hue"},

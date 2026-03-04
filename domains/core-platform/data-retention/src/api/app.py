@@ -9,10 +9,9 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
-
 from homeiq_observability.correlation_middleware import CorrelationMiddleware
 
-from .routers import health, policies, cleanup, backup, retention
+from .routers import backup, cleanup, health, policies, retention
 
 logger = logging.getLogger(__name__)
 

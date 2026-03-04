@@ -6,7 +6,7 @@ Provides manual crawl triggers and management commands.
 import asyncio
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import click
@@ -164,7 +164,7 @@ async def run_initial_crawl(
 
         # Update last crawl timestamp
         if not dry_run:
-            await repo.set_last_crawl_timestamp(datetime.now(timezone.utc))
+            await repo.set_last_crawl_timestamp(datetime.now(UTC))
 
         # Final stats
         logger.info(f"[{correlation_id}] ✅ Initial crawl complete!")

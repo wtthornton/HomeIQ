@@ -5,6 +5,7 @@ Epic 39, Story 39.9: Query Service Foundation
 """
 
 import logging
+
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import text

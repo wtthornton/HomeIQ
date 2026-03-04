@@ -8,7 +8,7 @@ Simplified scheduler focused on pattern detection and synergy detection.
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pandas as pd
@@ -132,7 +132,7 @@ class PatternAnalysisScheduler:
         3. Store results
         4. Publish MQTT notifications
         """
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
         self._log_analysis_start()
 
         job_result: dict[str, Any] = {
@@ -258,7 +258,7 @@ class PatternAnalysisScheduler:
             DataFrame containing events from the last 7 days
         """
         logger.info("Phase 1: Fetching events from Data API...")
-        end_time = datetime.now(timezone.utc)
+        end_time = datetime.now(UTC)
         start_time_events = end_time - timedelta(days=7)
 
         events_df = await data_client.fetch_events(
@@ -281,7 +281,7 @@ class PatternAnalysisScheduler:
         """
         logger.warning("⚠️ No events found for pattern analysis")
         job_result["status"] = "completed"
-        job_result["end_time"] = datetime.now(timezone.utc).isoformat()
+        job_result["end_time"] = datetime.now(UTC).isoformat()
         await self._publish_notification(job_result)
 
     async def _detect_patterns(
@@ -803,7 +803,7 @@ class PatternAnalysisScheduler:
             start_time: Analysis start time
             job_result: Job result dictionary to finalize
         """
-        end_time = datetime.now(timezone.utc)
+        end_time = datetime.now(UTC)
         job_result["status"] = "completed" if job_result["status"] == "running" else job_result["status"]
         job_result["end_time"] = end_time.isoformat()
         job_result["duration_seconds"] = (end_time - start_time).total_seconds()
@@ -848,7 +848,7 @@ class PatternAnalysisScheduler:
             topic = "homeiq/ai-automation/analysis/pattern/complete"
             payload: dict[str, Any] = {
                 "service": "ai-pattern-service",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "status": job_result["status"],
                 "patterns_detected": job_result["patterns_detected"],
                 "synergies_detected": job_result["synergies_detected"],

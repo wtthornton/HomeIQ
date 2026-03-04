@@ -9,7 +9,7 @@ import contextlib
 import logging
 import os
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -219,7 +219,7 @@ class ConnectionManager:
             success = await self.client.connect()
             if success:
                 self.successful_connections += 1
-                self.last_connection_time = datetime.now(timezone.utc)
+                self.last_connection_time = datetime.now(UTC)
                 self.last_error = None
                 logger.info("Connection successful")
                 # Transition to connected will happen in start() method
@@ -720,5 +720,5 @@ class ConnectionManager:
             "event_processing": self.event_processor.get_processing_statistics(),
             "event_rates": await self.event_rate_monitor.get_rate_statistics(),
             "error_statistics": self.error_handler.get_error_statistics(),
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }

@@ -4,7 +4,7 @@ Parse and enrich Home Assistant calendar events
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ class CalendarEventParser:
         if isinstance(dt_value, datetime):
             # Ensure timezone-aware
             if dt_value.tzinfo is None:
-                dt_value = dt_value.replace(tzinfo=timezone.utc)
+                dt_value = dt_value.replace(tzinfo=UTC)
             return dt_value
 
         # String format
@@ -68,7 +68,7 @@ class CalendarEventParser:
                 dt_str = dt_value.replace('Z', '+00:00')
                 dt = datetime.fromisoformat(dt_str)
                 if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
+                    dt = dt.replace(tzinfo=UTC)
                 return dt
             except ValueError as e:
                 logger.error(f"Failed to parse datetime string '{dt_value}': {e}")
@@ -87,7 +87,7 @@ class CalendarEventParser:
                     dt = datetime.fromisoformat(date_str)
                     # Set to start/end of day
                     if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=timezone.utc)
+                        dt = dt.replace(tzinfo=UTC)
                     return dt
                 except ValueError as e:
                     logger.error(f"Failed to parse date '{dt_value['date']}': {e}")
@@ -311,7 +311,7 @@ class CalendarEventParser:
             List of events where start <= now < end
         """
         if now is None:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
         current = [
             event for event in events
@@ -341,7 +341,7 @@ class CalendarEventParser:
             List of upcoming events, sorted by start time
         """
         if now is None:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
         # Filter to future events
         upcoming = [

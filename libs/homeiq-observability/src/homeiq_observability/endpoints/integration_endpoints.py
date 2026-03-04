@@ -4,7 +4,8 @@ Shared integration endpoints for admin-api and data-api.
 """
 
 import logging
-from typing import Dict, List, Any
+from typing import Any, Dict
+
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 

@@ -18,14 +18,13 @@ from __future__ import annotations
 import json
 import logging
 import os
-import time
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol, runtime_checkable
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from .models import BatchReport, EvalLevel, EvaluationReport, EvaluationResult
+from .models import BatchReport
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +102,7 @@ class EvaluationStore:
         self,
         influxdb_writer: InfluxDBWriter | None = None,
         db_url: str | None = None,
-        db_path: str | None = None,
+        _db_path: str | None = None,
         influxdb_retention_days: int = _DEFAULT_INFLUXDB_RETENTION_DAYS,
         db_retention_days: int = _DEFAULT_DB_RETENTION_DAYS,
     ):
@@ -218,7 +217,7 @@ class EvaluationStore:
             return {}
 
         days = _parse_period(period)
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
 
         query = """
             SELECT er.evaluator_name, r.run_timestamp, AVG(er.score) as avg_score
@@ -298,7 +297,7 @@ class EvaluationStore:
             return 0
 
         cutoff = (
-            datetime.now(timezone.utc) - timedelta(days=self._db_retention)
+            datetime.now(UTC) - timedelta(days=self._db_retention)
         ).isoformat()
 
         async with self._session_maker() as session:

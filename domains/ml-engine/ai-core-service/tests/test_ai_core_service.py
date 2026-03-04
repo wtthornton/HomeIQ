@@ -6,7 +6,7 @@ Unit tests with mocking for the orchestrator service.
 import asyncio
 import json
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import HTTPException
@@ -256,7 +256,7 @@ class TestServiceManager:
         )
 
         # Mock _check_all_services to simulate partial availability
-        async def mock_check(fail_on_unhealthy=False):
+        async def mock_check(_fail_on_unhealthy=False):
             mgr.service_health["openvino"] = True
             mgr.service_health["ml"] = False
             mgr.service_health["ner"] = False
@@ -309,7 +309,7 @@ class TestServiceManager:
 
         call_log = []
 
-        async def mock_call_service(service_name, url, endpoint, data, timeout=None):
+        async def mock_call_service(service_name, _url, endpoint, _data, _timeout=None):
             call_log.append((service_name, endpoint))
             if endpoint == "/embeddings":
                 return {"embeddings": [[0.1, 0.2]]}
@@ -338,7 +338,7 @@ class TestServiceManager:
 
         call_log = []
 
-        async def mock_call_service(service_name, url, endpoint, data, timeout=None):
+        async def mock_call_service(service_name, _url, endpoint, _data, _timeout=None):
             call_log.append((service_name, endpoint))
             if endpoint == "/embeddings":
                 return {"embeddings": [[0.1, 0.2]]}
@@ -367,7 +367,7 @@ class TestServiceManager:
 
         call_count = 0
 
-        async def mock_call_service(service_name, url, endpoint, data, timeout=None):
+        async def mock_call_service(_service_name, _url, _endpoint, _data, _timeout=None):
             nonlocal call_count
             call_count += 1
             return {"category": "automation", "priority": "medium", "confidence": 0.9}

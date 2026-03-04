@@ -7,7 +7,7 @@ Main discovery service that orchestrates device discovery from multiple sources.
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -199,7 +199,7 @@ class DiscoveryService:
             await self._run_hygiene_analysis()
 
             # Update last discovery timestamp
-            self.last_discovery = datetime.now(timezone.utc)
+            self.last_discovery = datetime.now(UTC)
             logger.info("Discovery completed at %s: %d devices", self.last_discovery.isoformat(), len(self.unified_devices))
 
         except Exception as e:
@@ -450,15 +450,15 @@ class DiscoveryService:
                     # Zigbee2MQTT-specific fields
                     if device.zigbee_device.lqi is not None:
                         device_data["lqi"] = device.zigbee_device.lqi
-                        device_data["lqi_updated_at"] = datetime.now(timezone.utc)
+                        device_data["lqi_updated_at"] = datetime.now(UTC)
 
                     if device.zigbee_device.availability:
                         device_data["availability_status"] = device.zigbee_device.availability
-                        device_data["availability_updated_at"] = datetime.now(timezone.utc)
+                        device_data["availability_updated_at"] = datetime.now(UTC)
 
                     if device.zigbee_device.battery is not None:
                         device_data["battery_level"] = device.zigbee_device.battery
-                        device_data["battery_updated_at"] = datetime.now(timezone.utc)
+                        device_data["battery_updated_at"] = datetime.now(UTC)
 
                     if device.zigbee_device.battery_low is not None:
                         device_data["battery_low"] = device.zigbee_device.battery_low
@@ -487,7 +487,7 @@ class DiscoveryService:
                             "exposed": capability.get("exposed", True),
                             "configured": capability.get("configured", True),
                             "source": capability.get("source", "unknown"),
-                            "last_updated": datetime.now(timezone.utc)
+                            "last_updated": datetime.now(UTC)
                         }
                         capabilities_data.append(capability_data)
 
@@ -790,7 +790,7 @@ class DiscoveryService:
                     "definition_json": zigbee.definition,
                     "settings_json": zigbee.settings,
                     "last_seen_zigbee": zigbee.last_seen,
-                    "updated_at": datetime.now(timezone.utc)
+                    "updated_at": datetime.now(UTC)
                 }
 
                 if existing:
@@ -799,7 +799,7 @@ class DiscoveryService:
                         setattr(existing, key, value)
                 else:
                     # Create new metadata
-                    metadata_data["created_at"] = datetime.now(timezone.utc)
+                    metadata_data["created_at"] = datetime.now(UTC)
                     metadata = ZigbeeDeviceMetadata(**metadata_data)
                     session.add(metadata)
 

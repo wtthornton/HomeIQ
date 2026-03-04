@@ -4,11 +4,10 @@ Unit tests for AI Query Service Main Application
 Epic 39, Story 39.12: Query & Automation Service Testing
 """
 
-import os
-import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
-from httpx import AsyncClient, ASGITransport
+from unittest.mock import AsyncMock, patch
 
+import pytest
+from httpx import ASGITransport, AsyncClient
 from src.main import app, lifespan
 
 
@@ -35,7 +34,7 @@ class TestMainApplication:
     @patch('src.main.instrument_fastapi')
     @patch('src.main.CorrelationMiddleware')
     async def test_lifespan_startup_success(
-        self, mock_correlation, mock_instrument, mock_tracing, mock_init_db
+        self, _mock_correlation, _mock_instrument, _mock_tracing, mock_init_db
     ):
         """Test lifespan startup initializes database and observability successfully."""
         # Mock successful initialization
@@ -103,7 +102,7 @@ class TestMainApplication:
     @pytest.mark.asyncio
     @pytest.mark.unit
     @patch('src.main.register_error_handlers')
-    async def test_error_handlers_registered(self, mock_register):
+    async def test_error_handlers_registered(self, _mock_register):
         """Test error handlers are registered if available."""
         # Error handlers are registered at module level
         # This test verifies the pattern exists
@@ -114,7 +113,7 @@ class TestMainApplication:
     @patch('src.main.OBSERVABILITY_AVAILABLE', True)
     @patch('src.main.instrument_fastapi')
     @patch('src.main.CorrelationMiddleware')
-    async def test_observability_instrumentation(self, mock_correlation, mock_instrument):
+    async def test_observability_instrumentation(self, _mock_correlation, _mock_instrument):
         """Test observability instrumentation is applied when available."""
         # Observability is configured at module level
         # This test verifies the pattern exists

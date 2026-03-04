@@ -5,14 +5,11 @@ Pytest configuration and fixtures for Proactive Agent Service tests
 from __future__ import annotations
 
 import os
-
-import pytest
 from typing import AsyncGenerator
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from src.database import Base
-from src.models import Suggestion
 
 # Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
 

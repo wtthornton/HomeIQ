@@ -8,9 +8,8 @@ import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from homeiq_data import DatabaseManager
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import settings
 from .models import Base

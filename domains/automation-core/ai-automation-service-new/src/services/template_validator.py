@@ -55,7 +55,7 @@ class TemplateValidator:
         self.ha_client = ha_client
 
     async def validate_plan(
-        self, plan_id: str, template_id: str, template_version: int, parameters: dict[str, Any]
+        self, _plan_id: str, template_id: str, template_version: int, parameters: dict[str, Any]
     ) -> dict[str, Any]:
         """
         Validate automation plan.
@@ -376,7 +376,7 @@ class TemplateValidator:
         return resolved
 
     def _check_safety(
-        self, template: Template, parameters: dict[str, Any], resolved_context: dict[str, Any]
+        self, template: Template, _parameters: dict[str, Any], resolved_context: dict[str, Any]
     ) -> dict[str, Any]:
         """
         Perform safety checks.

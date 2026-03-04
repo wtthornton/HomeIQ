@@ -5,8 +5,7 @@ Tests SQL/Flux injection prevention and input validation.
 """
 
 import pytest
-
-from src.flux_utils import sanitize_flux_value, MAX_SANITIZED_LENGTH
+from src.flux_utils import MAX_SANITIZED_LENGTH, sanitize_flux_value
 
 
 class TestFluxSanitization:

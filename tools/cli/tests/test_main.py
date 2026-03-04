@@ -1,11 +1,9 @@
 """Tests for the main CLI application."""
 
-import pytest
-import typer
-from typer.testing import CliRunner
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch
 
 from src.main import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

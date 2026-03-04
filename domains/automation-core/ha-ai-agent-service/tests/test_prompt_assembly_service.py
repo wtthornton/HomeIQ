@@ -3,18 +3,15 @@ Unit tests for Prompt Assembly Service
 Epic AI-20 Story AI20.3
 """
 
-import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+import pytest_asyncio
 from src.config import Settings
 from src.database import init_database
 from src.services.conversation_service import (
-    Conversation,
     ConversationService,
-    is_generic_welcome_message,
 )
-from src.services.context_builder import ContextBuilder
 from src.services.prompt_assembly_service import PromptAssemblyService
 
 

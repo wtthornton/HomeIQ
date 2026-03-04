@@ -4,10 +4,11 @@ Shared service controller for admin-api and data-api.
 """
 
 import asyncio
-import aiohttp
 import logging
-from typing import Dict, List, Optional
 from datetime import datetime
+from typing import Dict, List
+
+import aiohttp
 
 logger = logging.getLogger(__name__)
 

@@ -152,7 +152,7 @@ class TestBatchProcessorEventHandling:
 
         release_handler = asyncio.Event()
 
-        async def slow_handler(batch):
+        async def slow_handler(_batch):
             await release_handler.wait()
 
         processor.add_batch_handler(slow_handler)
@@ -239,7 +239,7 @@ class TestBatchProcessorErrorHandling:
 
         attempt_count = []
 
-        async def failing_handler(batch):
+        async def failing_handler(_batch):
             attempt_count.append(1)
             raise Exception("Handler error")
 
@@ -261,7 +261,7 @@ class TestBatchProcessorErrorHandling:
 
         attempt_count = []
 
-        async def flaky_handler(batch):
+        async def flaky_handler(_batch):
             attempt_count.append(1)
             if len(attempt_count) < 2:
                 raise Exception("Temporary error")
@@ -406,7 +406,7 @@ class TestBatchProcessorStatistics:
 
         call_count = []
 
-        async def flaky_handler(batch):
+        async def flaky_handler(_batch):
             call_count.append(1)
             if len(call_count) == 1:
                 # First batch succeeds
@@ -463,7 +463,7 @@ class TestBatchProcessorPerformance:
         """Test that processing rates are tracked"""
         processor = BatchProcessor(batch_size=5)
 
-        async def mock_handler(batch):
+        async def mock_handler(_batch):
             await asyncio.sleep(0.01)  # Simulate some processing time
 
         processor.add_batch_handler(mock_handler)

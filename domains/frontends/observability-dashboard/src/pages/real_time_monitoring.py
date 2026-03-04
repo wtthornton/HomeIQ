@@ -4,7 +4,7 @@ Live trace streaming and real-time service health monitoring
 """
 
 import sys
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -81,7 +81,7 @@ def show() -> None:
             )
             st.metric("Avg Latency (ms)", f"{avg_latency:.2f}")
         with col4:
-            st.metric("Last Update", datetime.utcnow().strftime("%H:%M:%S"))
+            st.metric("Last Update", datetime.now(UTC).strftime("%H:%M:%S"))
 
         # Anomaly detection
         st.subheader("🚨 Anomaly Detection")
@@ -145,7 +145,7 @@ async def _get_latest_traces(limit: int = 50, lookback_minutes: int = 5) -> list
     """Get latest traces from Jaeger."""
     client: JaegerClient = st.session_state.jaeger_client
 
-    end_time = datetime.utcnow()
+    end_time = datetime.now(UTC)
     start_time = end_time - timedelta(minutes=lookback_minutes)
 
     return await client.get_traces(
@@ -213,7 +213,7 @@ def _create_realtime_dataframe(traces: list[Trace]) -> pd.DataFrame:
 
         data.append(
             {
-                "Time": datetime.utcnow().strftime("%H:%M:%S"),
+                "Time": datetime.now(UTC).strftime("%H:%M:%S"),
                 "Trace ID": trace.traceID[:16] + "...",
                 "Services": ", ".join(unique_services),
                 "Duration (ms)": f"{total_duration:.2f}",

@@ -5,7 +5,6 @@ Sprint 4: Helpfulness, Conciseness, ResponseRelevance, InstructionFollowing, Sys
 """
 
 import pytest
-
 from homeiq_patterns.evaluation.config import PromptRule
 from homeiq_patterns.evaluation.evaluators.l4_quality import (
     CoherenceEvaluator,
@@ -32,7 +31,7 @@ class MockProvider(LLMProvider):
     def __init__(self, response: str = ""):
         self._response = response
 
-    async def complete(self, prompt: str) -> str:
+    async def complete(self, _prompt: str) -> str:
         return self._response
 
 

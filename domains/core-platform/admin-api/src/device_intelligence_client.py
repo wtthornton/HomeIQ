@@ -11,7 +11,6 @@ import os
 from typing import Any
 
 import httpx
-
 from homeiq_resilience import CircuitBreaker, CircuitOpenError, CrossGroupClient
 
 logger = logging.getLogger(__name__)

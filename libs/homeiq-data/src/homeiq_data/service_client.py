@@ -5,9 +5,7 @@ Epic 39, Story 39.11: Shared Infrastructure Setup
 HTTP client utilities for inter-service communication.
 """
 
-import logging
-from typing import Optional, Any
-from datetime import datetime, timedelta
+from typing import Any, Optional
 
 import httpx
 from tenacity import (

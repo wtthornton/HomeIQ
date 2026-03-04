@@ -4,7 +4,7 @@ Integration Tests for API
 Tests FastAPI endpoints.
 """
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Add service src to path
@@ -16,7 +16,6 @@ if str(src_path) not in sys.path:
 import pytest
 from httpx import AsyncClient
 from src.api.main import app
-from src.miner.database import get_database
 from src.miner.models import AutomationMetadata
 from src.miner.repository import CorpusRepository
 
@@ -25,8 +24,9 @@ from src.miner.repository import CorpusRepository
 async def test_db():
     """Create test database using PostgreSQL"""
     import os
+
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
     from src.miner.database import Database
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
     test_url = os.environ.get(
         "TEST_DATABASE_URL",
@@ -64,8 +64,8 @@ async def sample_automation(test_db):
             vote_count=500,
             source="discourse",
             source_id="test123",
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC)
         )
 
         await repo.save_automation(metadata)
@@ -96,7 +96,7 @@ async def test_root_endpoint():
 
 
 @pytest.mark.asyncio
-async def test_search_endpoint(sample_automation):
+async def test_search_endpoint(_sample_automation):
     """Test search endpoint"""
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.get(
@@ -112,7 +112,7 @@ async def test_search_endpoint(sample_automation):
 
 
 @pytest.mark.asyncio
-async def test_stats_endpoint(sample_automation):
+async def test_stats_endpoint(_sample_automation):
     """Test stats endpoint"""
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.get("/api/automation-miner/corpus/stats")

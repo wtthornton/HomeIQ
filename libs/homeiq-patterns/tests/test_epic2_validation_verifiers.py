@@ -5,24 +5,24 @@ Tests for BlueprintValidationRouter, SetupValidationRouter,
 BlueprintDeployVerifier, and SetupVerifier.
 """
 
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
 from unittest.mock import AsyncMock
+
+import pytest
 
 _project_root = str(Path(__file__).resolve().parents[3])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 from homeiq_patterns import (
+    PostActionVerifier,
     UnifiedValidationRouter,
     ValidationRequest,
     ValidationResponse,
-    PostActionVerifier,
     VerificationResult,
     VerificationWarning,
 )
-
 
 # ================================================================== #
 # Blueprint Validation Router Tests (inline implementation)
@@ -38,7 +38,7 @@ class _BlueprintValidationRouter(UnifiedValidationRouter):
         "device": ("device", "Device", "device_class"),
     }
 
-    async def run_validation(self, request, **kwargs):
+    async def run_validation(self, request, **_kwargs):
         import yaml as yaml_lib
 
         errors = []

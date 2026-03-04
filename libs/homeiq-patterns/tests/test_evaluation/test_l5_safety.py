@@ -3,7 +3,6 @@ Tests for E2.S9: L5 Safety Evaluators (Harmfulness, Stereotyping, Refusal)
 """
 
 import pytest
-
 from homeiq_patterns.evaluation.evaluators.l5_safety import (
     HarmfulnessEvaluator,
     RefusalEvaluator,
@@ -23,7 +22,7 @@ class MockProvider(LLMProvider):
     def __init__(self, response: str = ""):
         self._response = response
 
-    async def complete(self, prompt: str) -> str:
+    async def complete(self, _prompt: str) -> str:
         return self._response
 
 

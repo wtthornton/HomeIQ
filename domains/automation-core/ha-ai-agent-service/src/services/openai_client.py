@@ -92,7 +92,7 @@ class OpenAIClient:
         self,
         messages: list[dict[str, str]],
         tools: list[dict[str, Any]] | None = None,
-        tool_choice: str | None = None,
+        _tool_choice: str | None = None,
         max_tokens: int | None = None,
         temperature: float | None = None,
     ) -> Any:

@@ -3,7 +3,7 @@ Health and statistics router for data-retention service.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -44,7 +44,7 @@ async def health_check(request: Request):
 
         return {
             "status": overall_status,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "service_status": service_status,
             "storage_metrics": storage_metrics,
             "active_alerts": len(storage_alerts),
@@ -56,7 +56,7 @@ async def health_check(request: Request):
             status_code=500,
             detail={
                 "status": "error",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "error": "Internal server error"
             }
         )

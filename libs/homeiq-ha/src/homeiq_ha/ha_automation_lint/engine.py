@@ -2,17 +2,17 @@
 Core lint engine that orchestrates parsing, rule checking, and fixing.
 """
 
-from typing import List, Dict, Optional
 import sys
 from pathlib import Path
+from typing import Dict, List, Optional
 
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
+from constants import ENGINE_VERSION, RULESET_VERSION, Severity
 from models import AutomationIR, Finding, LintReport
 from parsers.yaml_parser import AutomationParser
 from rules.mvp_rules import get_all_rules
-from constants import ENGINE_VERSION, RULESET_VERSION, Severity
 
 
 class LintEngine:

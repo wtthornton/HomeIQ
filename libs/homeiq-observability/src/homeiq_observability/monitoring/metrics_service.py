@@ -1,16 +1,16 @@
 """Performance metrics collection and monitoring service."""
 
 import asyncio
-import time
-import psutil
-import threading
-from typing import Dict, Any, Optional, List, Callable
-from datetime import datetime, timezone, timedelta
-from dataclasses import dataclass, asdict
-from collections import defaultdict, deque
-import json
 import os
+import threading
+import time
+from collections import defaultdict
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+import psutil
 
 
 class MetricType(Enum):
@@ -134,7 +134,7 @@ class MetricsCollector:
             
             metric = self.metrics[name]
             metric_value = MetricValue(
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
                 value=value,
                 labels=labels
             )

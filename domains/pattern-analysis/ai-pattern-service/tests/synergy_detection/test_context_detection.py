@@ -8,21 +8,20 @@ Tests the context-aware detection functionality including:
 - Weather + Light synergies
 """
 
-import pytest
-import uuid
-
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add src/synergy_detection to path directly (avoid __init__.py import issues)
 src_path = Path(__file__).parent.parent.parent / "src" / "synergy_detection"
 sys.path.insert(0, str(src_path))
 
 from context_detection import (
-    ContextAwareDetector,
+    HIGH_POWER_DOMAINS,
     MAX_CONTEXT_SYNERGIES,
     MAX_DEVICES_PER_CONTEXT_TYPE,
-    HIGH_POWER_DOMAINS,
+    ContextAwareDetector,
 )
 
 

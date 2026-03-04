@@ -195,7 +195,7 @@ class StatsEndpoints:
             ]
         return [alert.to_dict() for alert in alerts][:limit]
 
-    def _build_trends(self, *, period: str) -> list[dict[str, Any]]:
+    def _build_trends(self, *, _period: str) -> list[dict[str, Any]]:
         window = 5
         now = datetime.now(UTC)
         trends: list[dict[str, Any]] = []

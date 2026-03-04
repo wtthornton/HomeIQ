@@ -6,7 +6,7 @@ Tests for main.py application initialization, service lifecycle, and core functi
 
 import asyncio
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -48,7 +48,7 @@ class TestCalendarService:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_service_initialization(self, service, mock_settings):
+    async def test_service_initialization(self, service, _mock_settings):
         """Test service initializes correctly."""
         assert service.calendar_entities == ["calendar.personal", "calendar.work"]
         assert service.influxdb_url == "http://localhost:8086"
@@ -72,7 +72,7 @@ class TestCalendarService:
     @patch('main.InfluxDBClient3')
     async def test_startup_success(
         self,
-        mock_influxdb_client,
+        _mock_influxdb_client,
         mock_ha_manager,
         service
     ):
@@ -166,7 +166,7 @@ class TestCalendarService:
     async def test_get_today_events_success(self, mock_datetime, service):
         """Test successful event fetching."""
         # Mock current time
-        now = datetime(2025, 12, 23, 12, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
         mock_datetime.now.return_value = now
 
         # Mock HA client
@@ -190,7 +190,7 @@ class TestCalendarService:
             return_value=[
                 {
                     "summary": "Test Event",
-                    "start": datetime(2025, 12, 23, 14, 0, 0, tzinfo=timezone.utc),
+                    "start": datetime(2025, 12, 23, 14, 0, 0, tzinfo=UTC),
                     "calendar_source": "calendar.personal"
                 }
             ]
@@ -226,7 +226,7 @@ class TestCalendarService:
     @patch('main.datetime')
     async def test_predict_home_status_no_events(self, mock_datetime, service):
         """Test occupancy prediction with no events."""
-        now = datetime(2025, 12, 23, 12, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
         mock_datetime.now.return_value = now
 
         # Mock get_today_events to return empty list
@@ -245,15 +245,15 @@ class TestCalendarService:
     @patch('main.datetime')
     async def test_predict_home_status_with_events(self, mock_datetime, service):
         """Test occupancy prediction with events."""
-        now = datetime(2025, 12, 23, 12, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
         mock_datetime.now.return_value = now
 
         # Mock events
         mock_events = [
             {
                 "summary": "Work from Home",
-                "start": datetime(2025, 12, 23, 9, 0, 0, tzinfo=timezone.utc),
-                "end": datetime(2025, 12, 23, 17, 0, 0, tzinfo=timezone.utc),
+                "start": datetime(2025, 12, 23, 9, 0, 0, tzinfo=UTC),
+                "end": datetime(2025, 12, 23, 17, 0, 0, tzinfo=UTC),
                 "is_wfh": True,
                 "is_home": True
             }
@@ -297,7 +297,7 @@ class TestCalendarService:
             "wfh_today": False,
             "confidence": 0.85,
             "hours_until_arrival": 2.5,
-            "timestamp": datetime.now(timezone.utc)
+            "timestamp": datetime.now(UTC)
         }
 
         await service.store_in_influxdb(prediction)
@@ -333,7 +333,7 @@ class TestCalendarService:
 
         prediction = {
             "currently_home": True,
-            "timestamp": datetime.now(timezone.utc)
+            "timestamp": datetime.now(UTC)
         }
 
         with pytest.raises(RuntimeError, match="Failed to write occupancy prediction"):
@@ -372,7 +372,7 @@ class TestCalendarService:
     async def test_run_continuous_influxdb_error(self, mock_sleep, service):
         """Test continuous loop handles InfluxDB errors."""
         # Make sleep actually sleep briefly to allow loop to run
-        async def mock_sleep_impl(delay):
+        async def mock_sleep_impl(_delay):
             await asyncio.sleep(0.01)  # Brief sleep to allow task to run
         
         mock_sleep.side_effect = mock_sleep_impl

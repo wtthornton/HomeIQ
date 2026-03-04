@@ -192,7 +192,7 @@ class LoggingService:
         """Compress logs (no-op for in-memory implementation)."""
         return 0
 
-    def cleanup_old_compressed_logs(self, days_to_keep: int) -> int:
+    def cleanup_old_compressed_logs(self, _days_to_keep: int) -> int:
         """Cleanup compressed logs older than specified days (no-op)."""
         return 0
 

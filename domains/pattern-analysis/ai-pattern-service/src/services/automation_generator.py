@@ -16,8 +16,6 @@ from typing import Any
 
 import httpx
 import yaml
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from homeiq_ha.homeiq_automation.blueprints import BlueprintPatternLibrary
 from homeiq_ha.homeiq_automation.schema import (
     DeviceContext,
@@ -28,6 +26,7 @@ from homeiq_ha.homeiq_automation.schema import (
     SafetyChecks,
 )
 from homeiq_ha.homeiq_automation.yaml_transformer import YAMLTransformer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .automation_pre_deployment_validator import AutomationPreDeploymentValidator
 
@@ -100,7 +99,7 @@ class AutomationGenerator:
         self,
         synergy: dict[str, Any],
         ha_client: httpx.AsyncClient,
-        db: AsyncSession | None = None,
+        _db: AsyncSession | None = None,
         device_inventory: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """

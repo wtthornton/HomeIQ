@@ -4,7 +4,7 @@ Device Intelligence Service - Storage API Tests
 Tests for the storage API endpoints.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -23,9 +23,9 @@ def mock_device():
         area_id="living_room",
         integration="test_integration",
         health_score=85,
-        last_seen=datetime.now(timezone.utc),
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
+        last_seen=datetime.now(UTC),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC)
     )
 
 @pytest.fixture
@@ -39,7 +39,7 @@ def mock_capability():
         exposed=True,
         configured=True,
         source="ha",
-        last_updated=datetime.now(timezone.utc)
+        last_updated=datetime.now(UTC)
     )
 
 @pytest.fixture
@@ -51,7 +51,7 @@ def mock_health_metric():
         metric_value=150.5,
         metric_unit="ms",
         metadata_json={"source": "ping"},
-        timestamp=datetime.now(timezone.utc)
+        timestamp=datetime.now(UTC)
     )
 
 class TestStorageAPI:

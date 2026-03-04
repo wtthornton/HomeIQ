@@ -6,11 +6,10 @@ Migrated from admin-api as part of Epic 13 Story 13.2
 import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import aiohttp
-
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
@@ -430,7 +429,7 @@ class EventsEndpoints:
             # Synthetic identifier -> parse timestamp and entity_id
             try:
                 _, ts_part, entity_part = event_id.split("_", 2)
-                event_ts = datetime.fromtimestamp(float(ts_part), tz=timezone.utc)
+                event_ts = datetime.fromtimestamp(float(ts_part), tz=UTC)
                 timestamp_window = (
                     event_ts - timedelta(seconds=5),
                     event_ts + timedelta(seconds=5)
@@ -830,9 +829,9 @@ from(bucket: "{influxdb_bucket}")
     def _format_flux_time(self, value: datetime) -> str:
         """Format datetime for Flux queries in UTC."""
         if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
+            value = value.replace(tzinfo=UTC)
         else:
-            value = value.astimezone(timezone.utc)
+            value = value.astimezone(UTC)
         return value.isoformat().replace("+00:00", "Z")
 
     def _determine_data_source(self, event_filter: EventFilter) -> tuple[str, str]:
@@ -845,24 +844,24 @@ from(bucket: "{influxdb_bucket}")
             - 10-30 days: ("statistics_short_term", "mean")
             - Beyond 30 days: ("statistics", "mean")
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Determine time range
         if event_filter.start_time:
             start_dt = event_filter.start_time
             if start_dt.tzinfo is None:
-                start_dt = start_dt.replace(tzinfo=timezone.utc)
+                start_dt = start_dt.replace(tzinfo=UTC)
             else:
-                start_dt = start_dt.astimezone(timezone.utc)
+                start_dt = start_dt.astimezone(UTC)
         else:
             start_dt = now - timedelta(hours=24)  # Default: last 24 hours
 
         if event_filter.end_time:
             end_dt = event_filter.end_time
             if end_dt.tzinfo is None:
-                end_dt = end_dt.replace(tzinfo=timezone.utc)
+                end_dt = end_dt.replace(tzinfo=UTC)
             else:
-                end_dt = end_dt.astimezone(timezone.utc)
+                end_dt = end_dt.astimezone(UTC)
         else:
             end_dt = now
 
@@ -959,7 +958,7 @@ from(bucket: "{influxdb_bucket}")
             # analytics fetching the last 30 days), honor those values instead of defaulting to a
             # 24 hour window.
             if event_filter.start_time or event_filter.end_time:
-                start_dt = event_filter.start_time or (datetime.now(timezone.utc) - timedelta(hours=24))
+                start_dt = event_filter.start_time or (datetime.now(UTC) - timedelta(hours=24))
                 start_iso = self._format_flux_time(start_dt)
 
                 query = f'''

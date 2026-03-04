@@ -5,16 +5,16 @@ Epic 50 Story 50.2: Added security hardening (message validation, rate limiting)
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-
 from homeiq_observability.logging_config import (
     generate_correlation_id,
     log_error_with_context,
     log_with_context,
     set_correlation_id,
 )
+
 from src.security import (
     get_rate_limiter,
     validate_message_json,
@@ -127,7 +127,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 if message_data.get("type") == "ping":
                     await websocket.send_json({
                         "type": "pong",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                         "correlation_id": corr_id
                     })
                 elif message_data.get("type") == "subscribe":

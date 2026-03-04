@@ -8,7 +8,7 @@ Following Context7 KB best practices from /pytest-dev/pytest
 """
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from httpx import AsyncClient
@@ -45,7 +45,7 @@ async def test_db():
         "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq_test",
     )
     db = Database.__new__(Database)
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
     db.engine = create_async_engine(test_url, echo=False)
     db.async_session = async_sessionmaker(
         db.engine, class_=AsyncSession, expire_on_commit=False
@@ -87,8 +87,8 @@ def sample_automation_metadata():
         vote_count=500,
         source="discourse",
         source_id="test123",
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC)
     )
 
 

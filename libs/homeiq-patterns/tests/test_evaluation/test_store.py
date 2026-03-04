@@ -4,18 +4,16 @@ Tests for E4.S2: Evaluation History Storage
 Tests the EvaluationStore with PostgreSQL and mock InfluxDB writer.
 """
 
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
 import pytest_asyncio
-
 from homeiq_patterns.evaluation.models import (
     BatchReport,
     EvalLevel,
     EvaluationReport,
     EvaluationResult,
-    SummaryMatrix,
 )
 from homeiq_patterns.evaluation.store import (
     EvaluationStore,
@@ -39,7 +37,7 @@ class MockInfluxDBWriter:
 class FailingInfluxDBWriter:
     """Simulates InfluxDB write failures."""
 
-    def write_points(self, points: list[dict[str, Any]]) -> None:
+    def write_points(self, _points: list[dict[str, Any]]) -> None:
         raise ConnectionError("InfluxDB unavailable")
 
 
@@ -49,7 +47,7 @@ def _make_batch_report(
     timestamp: datetime | None = None,
 ) -> BatchReport:
     """Create a minimal BatchReport for testing."""
-    ts = timestamp or datetime.now(timezone.utc)
+    ts = timestamp or datetime.now(UTC)
     reports = []
     for i in range(num_sessions):
         reports.append(
@@ -182,12 +180,12 @@ class TestEvaluationStore:
 
     @pytest.mark.asyncio
     async def test_get_scores_filter_by_date_range(self, store):
-        old = datetime.now(timezone.utc) - timedelta(days=10)
-        new = datetime.now(timezone.utc)
+        old = datetime.now(UTC) - timedelta(days=10)
+        new = datetime.now(UTC)
         await store.store_batch_report(_make_batch_report(timestamp=old))
         await store.store_batch_report(_make_batch_report(timestamp=new))
 
-        cutoff = datetime.now(timezone.utc) - timedelta(days=5)
+        cutoff = datetime.now(UTC) - timedelta(days=5)
         scores = await store.get_scores("test-agent", start=cutoff)
         # Only scores from the newer report
         assert len(scores) == 4
@@ -208,7 +206,7 @@ class TestEvaluationStore:
     @pytest.mark.asyncio
     async def test_cleanup_expired(self, store):
         # Store an old report
-        old = datetime.now(timezone.utc) - timedelta(days=60)
+        old = datetime.now(UTC) - timedelta(days=60)
         await store.store_batch_report(_make_batch_report(timestamp=old))
         assert await store.get_run_count("test-agent") == 1
 

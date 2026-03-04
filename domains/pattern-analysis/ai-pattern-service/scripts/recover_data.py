@@ -6,9 +6,9 @@ This script attempts to extract pattern data from a backup and insert it into
 the current database.
 """
 
+import logging
 import os
 import sys
-import logging
 
 import psycopg2
 

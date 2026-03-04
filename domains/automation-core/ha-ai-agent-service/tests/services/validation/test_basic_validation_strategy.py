@@ -2,9 +2,9 @@
 Tests for basic_validation_strategy.py
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.services.validation.basic_validation_strategy import BasicValidationStrategy
 
 

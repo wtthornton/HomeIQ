@@ -5,7 +5,7 @@ Pulls energy data from HA's existing energy sensors
 
 import logging
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
@@ -85,7 +85,7 @@ class HomeAssistantAdapter(MeterAdapter):
                 'total_power_w': float(total_power),
                 'daily_kwh': float(daily_kwh),
                 'circuits': circuits,
-                'timestamp': datetime.now(timezone.utc)
+                'timestamp': datetime.now(UTC)
             }
 
         except Exception as e:
@@ -230,7 +230,7 @@ class HomeAssistantAdapter(MeterAdapter):
                         discovered.append(entity_id)
 
                 self._discovered_circuits = discovered
-                self._last_discovery = datetime.now(timezone.utc)
+                self._last_discovery = datetime.now(UTC)
                 logger.info(f"Discovered {len(discovered)} circuit power sensors")
 
         except Exception as e:
@@ -252,7 +252,7 @@ class HomeAssistantAdapter(MeterAdapter):
         # Re-discover circuits periodically
         if (self._discovered_circuits is None or
                 self._last_discovery is None or
-                (datetime.now(timezone.utc) - self._last_discovery).total_seconds() > self._discovery_interval):
+                (datetime.now(UTC) - self._last_discovery).total_seconds() > self._discovery_interval):
             await self._discover_circuits(session)
 
         circuits = []

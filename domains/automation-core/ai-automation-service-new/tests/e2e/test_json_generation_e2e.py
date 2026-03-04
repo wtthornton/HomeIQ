@@ -13,7 +13,6 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from homeiq_ha.homeiq_automation.converter import HomeIQToAutomationSpecConverter
 from homeiq_ha.homeiq_automation.schema import (
     HomeIQAutomation,

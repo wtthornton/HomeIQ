@@ -8,7 +8,7 @@ import asyncio
 import logging
 import statistics
 from collections import defaultdict, deque
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class PerformanceCollector:
             self._cleanup_task = None
 
     async def collect_device_metrics(self, device_id: str, metrics: dict[str, Any]):
-        current_time = datetime.now(timezone.utc)
+        current_time = datetime.now(UTC)
 
         # Add timestamp to metrics
         metric_entry = {
@@ -133,7 +133,7 @@ class PerformanceCollector:
                 "median": statistics.median(temperatures) if temperatures else 25,
                 "count": len(temperatures)
             },
-            "last_updated": datetime.now(timezone.utc).isoformat()
+            "last_updated": datetime.now(UTC).isoformat()
         }
 
     def _percentile(self, data: list[float], percentile: int) -> float:
@@ -155,7 +155,7 @@ class PerformanceCollector:
         if device_id not in self.metrics_history:
             return []
 
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
         metrics_list = list(self.metrics_history[device_id])
 
         # Filter by time range
@@ -265,7 +265,7 @@ class PerformanceCollector:
             try:
                 await asyncio.sleep(3600)  # Run every hour
 
-                cutoff_time = datetime.now(timezone.utc) - timedelta(hours=self.retention_hours)
+                cutoff_time = datetime.now(UTC) - timedelta(hours=self.retention_hours)
 
                 for device_id in list(self.metrics_history.keys()):
                     metrics = self.metrics_history[device_id]

@@ -11,7 +11,7 @@ Writes to measurement 'verification_results' with:
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from homeiq_patterns import (
@@ -79,7 +79,7 @@ class InfluxDBVerificationStore(VerificationResultStore):
                 MEASUREMENT,
                 tags,
                 fields,
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
             logger.debug(
                 f"Stored verification result: {entity_id} "

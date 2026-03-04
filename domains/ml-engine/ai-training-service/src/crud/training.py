@@ -6,7 +6,7 @@ Extracted from ai-automation-service database/crud.py
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -105,7 +105,7 @@ async def delete_old_training_runs(
     Returns:
         Number of runs deleted
     """
-    cutoff_date = datetime.now(timezone.utc) - timedelta(days=older_than_days)  # CRITICAL: Use timezone-aware datetime
+    cutoff_date = datetime.now(UTC) - timedelta(days=older_than_days)  # CRITICAL: Use timezone-aware datetime
 
     # Get IDs of runs to keep (most recent N)
     keep_query = select(TrainingRun.id)

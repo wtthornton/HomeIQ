@@ -42,7 +42,7 @@ class DeviceHealthService:
         device_id: str,
         device_name: str,
         entity_ids: list[str],
-        power_spec_w: float | None = None
+        _power_spec_w: float | None = None
     ) -> dict[str, Any]:
         """
         Get health report for a device.

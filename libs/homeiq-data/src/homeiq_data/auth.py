@@ -12,7 +12,7 @@ import json
 import logging
 import os
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -112,11 +112,11 @@ class AuthManager:
         token = credentials.credentials.strip()
         user = self.verify_token(token)
         if user:
-            user["last_login"] = datetime.utcnow()
+            user["last_login"] = datetime.now(UTC)
             return user
 
         if self._validate_api_key(token):
-            self.api_key_user.last_login = datetime.utcnow()
+            self.api_key_user.last_login = datetime.now(UTC)
             return self.api_key_user
 
         raise HTTPException(
@@ -196,7 +196,7 @@ class AuthManager:
     ) -> str:
         """Create a signed JWT access token."""
         to_encode = data.copy()
-        expire = datetime.utcnow() + (
+        expire = datetime.now(UTC) + (
             expires_delta or timedelta(minutes=self.access_token_expire_minutes)
         )
         to_encode.update({"exp": expire})
@@ -231,7 +231,7 @@ class AuthManager:
             "permissions": user.get("permissions", []),
             "full_name": user.get("full_name"),
             "email": user.get("email"),
-            "last_login": datetime.utcnow(),
+            "last_login": datetime.now(UTC),
         }
 
     # ----------------------------------------------------------------------

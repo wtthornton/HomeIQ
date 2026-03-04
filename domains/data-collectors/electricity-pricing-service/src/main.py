@@ -5,18 +5,21 @@ Fetches real-time electricity pricing from utility APIs
 
 import asyncio
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
 from aiohttp import web
 from dotenv import load_dotenv
 from health_check import HealthCheckHandler
+from homeiq_observability.logging_config import (
+    log_error_with_context,
+    log_with_context,
+    setup_logging,
+)
 from influxdb_client_3 import InfluxDBClient3, Point
 from providers import AwattarProvider
 from security import require_internal_network, validate_hours_parameter
-
-from homeiq_observability.logging_config import log_error_with_context, log_with_context, setup_logging
 
 # Load environment variables
 load_dotenv()
@@ -131,15 +134,15 @@ class ElectricityPricingService:
                 return self.cached_data
 
             # Add timestamp
-            data['timestamp'] = datetime.now(timezone.utc)
+            data['timestamp'] = datetime.now(UTC)
             data['provider'] = self.provider_name
 
             # Update cache
             self.cached_data = data
-            self.last_fetch_time = datetime.now(timezone.utc)
+            self.last_fetch_time = datetime.now(UTC)
 
             # Update health check
-            self.health_handler.last_successful_fetch = datetime.now(timezone.utc)
+            self.health_handler.last_successful_fetch = datetime.now(UTC)
             self.health_handler.total_fetches += 1
 
             logger.info(f"Current price: {data['current_price']:.3f} {data['currency']}/kWh")
@@ -158,7 +161,7 @@ class ElectricityPricingService:
 
             # Return cached data if available and not expired
             if self.cached_data and self.last_fetch_time:
-                age_min = (datetime.now(timezone.utc) - self.last_fetch_time).total_seconds() / 60
+                age_min = (datetime.now(UTC) - self.last_fetch_time).total_seconds() / 60
                 if age_min < self.cache_duration:
                     logger.warning("Using cached pricing data")
                     return self.cached_data

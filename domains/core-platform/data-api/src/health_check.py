@@ -16,7 +16,7 @@ class HealthCheckHandler:
     def __init__(self):
         self.start_time = datetime.now()
 
-    async def handle(self, request):
+    async def handle(self, _request):
         """Handle health check request"""
         try:
             # Basic health check - service is running

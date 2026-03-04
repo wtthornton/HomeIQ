@@ -5,7 +5,7 @@ Simple dataclasses for storing device, entity, and config entry information.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -20,7 +20,7 @@ class Device:
     sw_version: str | None = None
     area_id: str | None = None
     entity_count: int = 0
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def validate(self) -> bool:
         """Validate required fields"""
@@ -86,7 +86,7 @@ class Entity:
     unique_id: str | None = None
     area_id: str | None = None
     disabled: bool = False
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def validate(self) -> bool:
         """Validate required fields"""
@@ -151,7 +151,7 @@ class ConfigEntry:
     title: str
     state: str = "unknown"
     version: int = 1
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def validate(self) -> bool:
         """Validate required fields"""

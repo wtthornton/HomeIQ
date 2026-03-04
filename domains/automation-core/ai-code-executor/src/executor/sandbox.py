@@ -16,10 +16,10 @@ import queue
 import resource
 import sys
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
-from collections.abc import Callable
 from typing import Any
 
 import psutil

@@ -117,7 +117,7 @@ class ConfirmationWatcher:
                 await asyncio.wait_for(confirmed.wait(), timeout=timeout)
                 logger.info(f"Confirmation received for {entity_id}: {actual_state[0]}")
                 return True, None
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 error_msg = error_message[0] or f"Confirmation timeout after {timeout}s"
                 logger.warning(f"Confirmation timeout for {entity_id}: {error_msg}")
                 return False, error_msg

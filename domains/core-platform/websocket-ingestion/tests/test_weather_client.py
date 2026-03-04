@@ -6,7 +6,6 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from src.weather_client import OpenWeatherMapClient, WeatherData
 
 
@@ -164,7 +163,7 @@ class TestOpenWeatherMapClient:
     async def test_get_current_weather_timeout(self):
         """Test timeout handling"""
         with patch('aiohttp.ClientSession.get') as mock_get:
-            mock_get.side_effect = asyncio.TimeoutError()
+            mock_get.side_effect = TimeoutError()
 
             await self.client.start()
             weather_data = await self.client.get_current_weather("London")

@@ -1,6 +1,5 @@
 """Tests for blueprint parser."""
 
-import pytest
 from src.indexer.blueprint_parser import BlueprintParser
 
 

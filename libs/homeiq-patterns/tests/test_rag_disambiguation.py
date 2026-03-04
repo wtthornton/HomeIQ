@@ -6,9 +6,8 @@ Tests cover:
 - min_score thresholds per service
 """
 
-import pytest
-import sys
 import importlib.util
+import sys
 from pathlib import Path
 
 _project_root = str(Path(__file__).resolve().parents[3])

@@ -7,7 +7,7 @@ Tests for end-to-end WebSocket connection flow including authentication and reco
 
 import os
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -15,7 +15,6 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from src.connection_manager import ConnectionManager
-from src.state_machine import ConnectionStateMachine
 
 
 @pytest.fixture

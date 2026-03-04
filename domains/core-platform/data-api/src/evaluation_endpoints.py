@@ -18,7 +18,7 @@ Endpoints:
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -43,7 +43,7 @@ class AgentSummary(BaseModel):
 
 class AgentsListResponse(BaseModel):
     agents: list[AgentSummary]
-    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 class HistoryResponse(BaseModel):
@@ -182,7 +182,7 @@ async def evaluation_health():
         status="operational",
         registered_agents=scheduler.registered_agents,
         batch_size=scheduler.batch_size,
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )
 
 
@@ -366,7 +366,7 @@ async def submit_evaluation_results(
         EvaluationResult,
     )
 
-    ts_str = body.timestamp or datetime.now(timezone.utc).isoformat()
+    ts_str = body.timestamp or datetime.now(UTC).isoformat()
 
     # Reconstruct EvaluationResult objects from dicts
     eval_results: list[EvaluationResult] = []
@@ -423,7 +423,7 @@ async def submit_evaluation_results(
 
 @router.post("/evaluations/{agent_name}/alerts/{alert_id}/acknowledge")
 async def acknowledge_alert(
-    agent_name: str,
+    _agent_name: str,
     alert_id: str,
     body: AcknowledgeRequest,
 ):

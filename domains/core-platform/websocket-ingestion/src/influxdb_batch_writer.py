@@ -7,7 +7,7 @@ import contextlib
 import logging
 from collections import deque
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 try:
@@ -62,7 +62,7 @@ class InfluxDBBatchWriter:
         self.total_batches_written = 0
         self.total_points_written = 0
         self.total_points_failed = 0
-        self.processing_start_time = datetime.now(timezone.utc)
+        self.processing_start_time = datetime.now(UTC)
 
         # Performance monitoring
         self.batch_write_times: deque = deque(maxlen=100)
@@ -85,7 +85,7 @@ class InfluxDBBatchWriter:
             return
 
         self.is_running = True
-        self.processing_start_time = datetime.now(timezone.utc)
+        self.processing_start_time = datetime.now(UTC)
 
         # Start processing task
         self.processing_task = asyncio.create_task(self._processing_loop())
@@ -196,7 +196,7 @@ class InfluxDBBatchWriter:
             if len(self.current_batch) >= self.batch_size:
                 batch_to_process = self._drain_current_batch_locked()
             elif self.batch_start_time is None:
-                self.batch_start_time = datetime.now(timezone.utc)
+                self.batch_start_time = datetime.now(UTC)
 
         if batch_to_process:
             await self._process_batch_with_metrics(batch_to_process)
@@ -262,9 +262,9 @@ class InfluxDBBatchWriter:
         if not batch_to_process:
             return
 
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
         success = await self._write_batch(batch_to_process)
-        write_time = (datetime.now(timezone.utc) - start_time).total_seconds()
+        write_time = (datetime.now(UTC) - start_time).total_seconds()
 
         self.batch_write_times.append(write_time)
         self.batch_sizes.append(len(batch_to_process))
@@ -374,7 +374,7 @@ class InfluxDBBatchWriter:
 
     def get_writing_statistics(self) -> dict[str, Any]:
         """Get writing statistics"""
-        uptime = (datetime.now(timezone.utc) - self.processing_start_time).total_seconds()
+        uptime = (datetime.now(UTC) - self.processing_start_time).total_seconds()
 
         # Calculate average batch size
         avg_batch_size = 0
@@ -428,7 +428,7 @@ class InfluxDBBatchWriter:
         self.total_batches_written = 0
         self.total_points_written = 0
         self.total_points_failed = 0
-        self.processing_start_time = datetime.now(timezone.utc)
+        self.processing_start_time = datetime.now(UTC)
         self.batch_write_times.clear()
         self.batch_sizes.clear()
         self.write_rates.clear()
