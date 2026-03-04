@@ -1,6 +1,9 @@
-"""
-Carbon Intensity Service Main Entry Point
-Fetches grid carbon intensity from WattTime API
+"""Carbon Intensity Service for Grid Emissions Monitoring.
+
+Fetches real-time Marginal Operating Emissions Rate (MOER) data from the
+WattTime v3 API, converts to gCO2/kWh, and stores time-series data in InfluxDB.
+Supports automatic token refresh, transient error retry with exponential backoff,
+and configurable cache TTL for rate-limit compliance.
 """
 
 import asyncio
@@ -31,9 +34,15 @@ logger = setup_logging("carbon-intensity-service")
 
 
 class CarbonIntensityService:
-    """Fetch and store carbon intensity data from WattTime API"""
+    """Fetch and store grid carbon intensity data from the WattTime API.
 
-    def __init__(self):
+    Monitors MOER (Marginal Operating Emissions Rate) for a configurable grid region,
+    converts to gCO2/kWh, and stores time-series data in InfluxDB. Supports automatic
+    token refresh with WattTime username/password authentication.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the carbon intensity service with WattTime and InfluxDB config."""
         # WattTime authentication credentials
         self.username = os.getenv('WATTTIME_USERNAME')
         self.password = os.getenv('WATTTIME_PASSWORD')
@@ -90,7 +99,11 @@ class CarbonIntensityService:
             raise ValueError("INFLUXDB_TOKEN environment variable is required")
 
     def _validate_credentials(self) -> None:
-        """Validate WattTime credentials and configure service accordingly."""
+        """Validate WattTime credentials and configure service accordingly.
+
+        Checks for placeholder values, missing credentials, and static token fallback.
+        Sets credentials_configured flag and updates health handler status.
+        """
         # Check if credentials are placeholder values
         is_placeholder_username = self.username and self.username.lower() in ['your_watttime_username', 'your-username', '']
         is_placeholder_password = self.password and self.password.lower() in ['your_watttime_password', 'your-password', '']
@@ -120,8 +133,13 @@ class CarbonIntensityService:
             self.credentials_configured = True
             self.health_handler.credentials_missing = False
 
-    async def startup(self):
-        """Initialize service components"""
+    async def startup(self) -> None:
+        """Initialize HTTP session, obtain WattTime token, and connect to InfluxDB.
+
+        Creates an aiohttp session with 10-second timeout, obtains an initial WattTime
+        API token (or falls back to static token), and validates the InfluxDB connection
+        with a test write.
+        """
         logger.info("Initializing Carbon Intensity Service...")
 
         # Create HTTP session
@@ -159,8 +177,8 @@ class CarbonIntensityService:
 
         logger.info("Carbon Intensity Service initialized successfully")
 
-    async def shutdown(self):
-        """Cleanup service components"""
+    async def shutdown(self) -> None:
+        """Cleanup HTTP session and InfluxDB client on service shutdown."""
         logger.info("Shutting down Carbon Intensity Service...")
 
         if self.session:
@@ -172,11 +190,14 @@ class CarbonIntensityService:
         logger.info("Carbon Intensity Service shut down successfully")
 
     async def refresh_token(self) -> bool:
-        """
-        Refresh WattTime API token using username/password
+        """Refresh WattTime API token using username/password authentication.
+
+        Posts to the WattTime login endpoint with Basic Auth credentials. Handles
+        redirect detection, content-type validation, and 401/403 error reporting.
+        Tokens expire after 30 minutes; refresh is called proactively by ensure_valid_token.
 
         Returns:
-            bool: True if refresh successful, False otherwise
+            True if token refresh was successful, False otherwise.
         """
         if not self.username or not self.password:
             logger.error("Cannot refresh token: username/password not configured")
@@ -287,11 +308,13 @@ class CarbonIntensityService:
             return False
 
     async def ensure_valid_token(self) -> bool:
-        """
-        Ensure we have a valid token, refresh if needed
+        """Ensure we have a valid API token, refreshing if expired or near expiry.
+
+        Checks token expiration against the configured buffer time and triggers
+        a refresh when needed. Falls back to checking for a static token.
 
         Returns:
-            bool: True if we have a valid token, False otherwise
+            True if a valid token is available, False otherwise.
         """
         # If no expiration time set and we have username/password, refresh now
         if not self.token_expires_at and self.username and self.password:
@@ -311,10 +334,18 @@ class CarbonIntensityService:
         return True  # Token still valid
 
     def _parse_watttime_response(self, raw_data: dict[str, Any]) -> dict[str, Any]:
-        """Parse WattTime v3 API response into standardized format.
+        """Parse WattTime v3 API response into standardized carbon intensity format.
 
-        v3 format: {data: [{point_time, value}, ...], meta: {signal_type, units, ...}}
-        The 'value' field is MOER in lbs CO2/MWh. Data points are 5-min intervals.
+        Converts the v3 response format ({data: [{point_time, value}, ...], meta: ...})
+        into a normalized dictionary with current intensity, MOER value, and forecasts.
+        The 'value' field is MOER in lbs CO2/MWh; conversion factor: 1 lb/MWh = 0.4536 g/kWh.
+        Data points arrive at 5-minute intervals (12 per hour, 288 per day).
+
+        Args:
+            raw_data: Raw JSON response from WattTime v3 forecast endpoint.
+
+        Returns:
+            Dictionary with carbon_intensity (gCO2/kWh), raw MOER, and forecast values.
         """
         entries = raw_data.get('data', [])
         # Current MOER value is the first entry
@@ -341,7 +372,11 @@ class CarbonIntensityService:
         return data
 
     def _update_cache_and_health(self, data: dict[str, Any]) -> None:
-        """Update cache and health check metrics."""
+        """Update the in-memory cache and health check metrics after a successful fetch.
+
+        Args:
+            data: Parsed carbon intensity data dictionary.
+        """
         self.cached_data = data
         self.last_fetch_time = datetime.now(UTC)
         self.health_handler.last_successful_fetch = datetime.now(UTC)
@@ -396,17 +431,24 @@ class CarbonIntensityService:
         logger.error(f"WattTime API returned status {last_status} after {len(retry_delays)} retries")
         return None
 
+    def _is_cache_valid(self) -> bool:
+        """Check if cached carbon intensity data is still within the TTL window."""
+        if not self.cached_data or not self.last_fetch_time:
+            return False
+        cache_age = datetime.now(UTC) - self.last_fetch_time
+        return cache_age < self.cache_duration
+
     async def fetch_carbon_intensity(self) -> dict[str, Any] | None:
-        """Fetch carbon intensity from WattTime API."""
-        # If no credentials configured, skip fetch silently
+        """Fetch carbon intensity from WattTime API with caching and retry logic.
+
+        Returns:
+            Carbon intensity data dictionary, cached data on failure, or None.
+        """
         if not self.credentials_configured:
             return None
 
-        # Return cached data if still within TTL
-        if self.cached_data and self.last_fetch_time:
-            cache_age = datetime.now(UTC) - self.last_fetch_time
-            if cache_age < self.cache_duration:
-                return self.cached_data
+        if self._is_cache_valid():
+            return self.cached_data
 
         if not self.session:
             logger.error("HTTP session not initialized")
@@ -507,7 +549,11 @@ class CarbonIntensityService:
             return None
 
     async def store_in_influxdb(self, data: dict[str, Any]) -> None:
-        """Store carbon intensity data in InfluxDB"""
+        """Store carbon intensity data in InfluxDB as a time-series point.
+
+        Args:
+            data: Carbon intensity data with carbon_intensity, moer, and forecast values.
+        """
 
         if not data:
             logger.warning("No data to store in InfluxDB")
@@ -552,8 +598,12 @@ class CarbonIntensityService:
             # Don't re-raise - allow loop to continue with next fetch interval
             # InfluxDB write failures shouldn't stop data collection
 
-    async def run_continuous(self):
-        """Run continuous data collection loop"""
+    async def run_continuous(self) -> None:
+        """Run the continuous carbon intensity monitoring loop.
+
+        Fetches carbon intensity data and writes to InfluxDB on each interval.
+        On error, waits 60 seconds before retrying to avoid tight failure loops.
+        """
 
         logger.info(f"Starting continuous carbon intensity monitoring (every {self.fetch_interval}s)")
 
@@ -580,8 +630,8 @@ class CarbonIntensityService:
                 await asyncio.sleep(60)
 
 
-async def create_app(service: CarbonIntensityService):
-    """Create the web application"""
+async def create_app(service: CarbonIntensityService) -> web.Application:
+    """Create the aiohttp web application with health check endpoint."""
     app = web.Application()
 
     # Add health check endpoint
@@ -590,8 +640,12 @@ async def create_app(service: CarbonIntensityService):
     return app
 
 
-async def main():
-    """Main entry point"""
+async def main() -> None:
+    """Main entry point: starts the carbon intensity service with graceful signal handling.
+
+    Initializes the service, starts the health check web server, registers SIGTERM/SIGINT
+    handlers for clean Docker shutdown, and runs the continuous monitoring loop.
+    """
     logger.info("Starting Carbon Intensity Service...")
 
     # Create service

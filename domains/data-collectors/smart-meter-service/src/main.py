@@ -27,7 +27,8 @@ logger = setup_logging("smart-meter-service")
 class SmartMeterService:
     """Generic smart meter integration with adapter support"""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the smart meter service with adapter and InfluxDB configuration."""
         self.meter_type = os.getenv('METER_TYPE', 'home_assistant')
         self.api_token = os.getenv('METER_API_TOKEN', '')
         self.device_id = os.getenv('METER_DEVICE_ID', '')
@@ -115,44 +116,60 @@ class SmartMeterService:
         if self.influxdb_client:
             self.influxdb_client.close()
 
-    async def fetch_consumption(self) -> dict[str, Any] | None:
-        """Fetch power consumption from configured adapter or mock data"""
+    def _enrich_consumption_data(self, data: dict[str, Any]) -> None:
+        """Enrich consumption data with percentages, phantom load detection, and logging.
 
-        # Use adapter if configured
+        Args:
+            data: Raw consumption data dictionary to enrich in-place.
+        """
+        if 'timestamp' not in data:
+            data['timestamp'] = datetime.now(UTC)
+
+        for circuit in data.get('circuits', []):
+            if 'percentage' not in circuit:
+                total = data.get('total_power_w', 0)
+                power = circuit.get('power_w', 0)
+                circuit['percentage'] = (power / total) * 100 if total > 0 else 0
+
+        current_hour = datetime.now(UTC).hour
+        if current_hour == 3:
+            self.baseline_3am = data['total_power_w']
+            if self.baseline_3am > 200:
+                logger.warning(f"High phantom load detected: {self.baseline_3am:.0f}W at 3am")
+
+        if data['total_power_w'] > 10000:
+            logger.warning(f"High power consumption: {data['total_power_w']:.0f}W")
+
+    def _get_cached_or_none(self) -> dict[str, Any] | None:
+        """Return cached data if fresh enough, otherwise None.
+
+        Returns:
+            Cached consumption data if within CACHE_MAX_AGE_SECONDS, else None.
+        """
+        if self.cached_data and self.last_fetch_time:
+            cache_age = (datetime.now(UTC) - self.last_fetch_time).total_seconds()
+            if cache_age < self.CACHE_MAX_AGE_SECONDS:
+                logger.warning(f"Using cached data (age: {cache_age:.0f}s) after adapter failure")
+                return self.cached_data
+            logger.warning(
+                f"Cached data too old ({cache_age:.0f}s > {self.CACHE_MAX_AGE_SECONDS}s), "
+                "falling back to mock data"
+            )
+        return None
+
+    async def fetch_consumption(self) -> dict[str, Any] | None:
+        """Fetch power consumption from configured adapter, cache, or mock data.
+
+        Returns:
+            Consumption data dictionary with total_power_w, daily_kwh, circuits, etc.
+        """
         if self.adapter:
             try:
                 data = await self.adapter.fetch_consumption(
-                    self.session,
-                    self.api_token,
-                    self.device_id
+                    self.session, self.api_token, self.device_id
                 )
+                self._enrich_consumption_data(data)
 
-                # Add timestamp if not present
-                if 'timestamp' not in data:
-                    data['timestamp'] = datetime.now(UTC)
-
-                # Ensure percentages are calculated
-                for circuit in data.get('circuits', []):
-                    if 'percentage' not in circuit:
-                        total = data.get('total_power_w', 0)
-                        power = circuit.get('power_w', 0)
-                        circuit['percentage'] = (
-                            (power / total) * 100
-                            if total > 0 else 0
-                        )
-
-                # Detect phantom loads (high 3am baseline)
-                current_hour = datetime.now(UTC).hour
-                if current_hour == 3:
-                    self.baseline_3am = data['total_power_w']
-                    if self.baseline_3am > 200:
-                        logger.warning(f"High phantom load detected: {self.baseline_3am:.0f}W at 3am")
-
-                # Log high consumption
-                if data['total_power_w'] > 10000:
-                    logger.warning(f"High power consumption: {data['total_power_w']:.0f}W")
-
-                # Update cache and stats
                 self.cached_data = data
                 self.last_fetch_time = datetime.now(UTC)
                 self.health_handler.last_successful_fetch = datetime.now(UTC)
@@ -163,40 +180,27 @@ class SmartMeterService:
                     f"Daily: {data.get('daily_kwh', 0):.1f}kWh, "
                     f"Circuits: {len(data.get('circuits', []))}"
                 )
-
                 return data
 
             except Exception as e:
                 log_error_with_context(
-                    logger,
-                    f"Error fetching from adapter: {e}",
-                    error=e,
-                    service="smart-meter-service"
+                    logger, f"Error fetching from adapter: {e}",
+                    error=e, service="smart-meter-service"
                 )
                 self.health_handler.failed_fetches += 1
-
-                # Return cached data if available and not too old
-                if self.cached_data and self.last_fetch_time:
-                    cache_age = (datetime.now(UTC) - self.last_fetch_time).total_seconds()
-                    if cache_age < self.CACHE_MAX_AGE_SECONDS:
-                        logger.warning(
-                            f"Using cached data (age: {cache_age:.0f}s) after adapter failure"
-                        )
-                        return self.cached_data
-                    else:
-                        logger.warning(
-                            f"Cached data too old ({cache_age:.0f}s > {self.CACHE_MAX_AGE_SECONDS}s), "
-                            "falling back to mock data"
-                        )
-
-                # Fall through to mock data
+                cached = self._get_cached_or_none()
+                if cached:
+                    return cached
                 logger.warning("No cached data available, using mock data")
 
-        # Use mock data if no adapter or adapter failed
         return self._get_mock_data()
 
     def _get_mock_data(self) -> dict[str, Any]:
-        """Return mock data for testing when no adapter is configured"""
+        """Return mock consumption data for testing when no real adapter is configured.
+
+        Returns:
+            Dictionary with mock power consumption values and circuit breakdown.
+        """
 
         data = {
             'total_power_w': 2450.0,
@@ -223,7 +227,12 @@ class SmartMeterService:
         return data
 
     async def store_in_influxdb(self, data: dict[str, Any], max_retries: int = 3) -> None:
-        """Store consumption data in InfluxDB using batched writes with retry"""
+        """Store consumption data in InfluxDB using batched writes with exponential backoff retry.
+
+        Args:
+            data: Consumption data dictionary with total_power_w, circuits, etc.
+            max_retries: Maximum number of write retry attempts.
+        """
 
         if not data:
             return

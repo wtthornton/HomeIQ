@@ -1,6 +1,13 @@
-"""Log Aggregation Service for Centralized Log Collection"""
+"""Log Aggregation Service for Centralized Log Collection.
+
+Collects logs from Docker containers via the Docker API, stores them in memory,
+and exposes REST endpoints for querying and searching logs. Provides background
+periodic collection, manual trigger with rate limiting, and log statistics including
+per-service and per-level breakdowns.
+"""
 
 import asyncio
+import contextlib
 import json
 import os
 import time
@@ -16,9 +23,14 @@ from homeiq_observability.logging_config import setup_logging
 logger = setup_logging("log-aggregator")
 
 class LogAggregator:
-    """Simple log aggregation service for collecting logs from all services"""
+    """Centralized log aggregation service that collects logs from Docker containers.
+
+    Uses the Docker API to stream container logs, parse them into structured entries,
+    and store them in memory for REST API querying and searching.
+    """
 
     def __init__(self) -> None:
+        """Initialize the log aggregator with Docker client and in-memory log storage."""
         # Use app directory for local log storage
         self.log_directory = Path(os.getenv("LOG_DIRECTORY", "/app/logs"))
         self.log_directory.mkdir(exist_ok=True)
@@ -39,8 +51,9 @@ class LogAggregator:
             logger.debug("Check that /var/run/docker.sock is mounted and accessible")
             self.docker_client = None
 
-    _MAX_LINE_LENGTH = 64 * 1024  # 64KB
-    _MAX_MESSAGE_LENGTH = 8192
+    # Safety limits to prevent memory exhaustion from oversized log entries
+    _MAX_LINE_LENGTH = 64 * 1024  # Truncate individual log lines beyond 64KB
+    _MAX_MESSAGE_LENGTH = 8192  # Truncate parsed message field beyond 8KB
 
     def _parse_log_line(self, line: str, container_name: str, container_id: str) -> dict | None:
         """Parse a single log line into a log entry."""
@@ -105,7 +118,11 @@ class LogAggregator:
         return logs
 
     async def collect_logs(self) -> list[dict]:
-        """Collect logs from Docker containers using Docker API"""
+        """Collect logs from all running Docker containers via the Docker API.
+
+        Returns:
+            List of parsed log entry dictionaries from all containers.
+        """
         if not self.docker_client:
             logger.warning("Docker client not available, skipping log collection")
             return []
@@ -138,7 +155,16 @@ class LogAggregator:
     async def get_recent_logs(self, service: str | None = None,
                             level: str | None = None,
                             limit: int = 100) -> list[dict]:
-        """Get recent logs with optional filtering"""
+        """Get recent logs filtered by service name and/or log level.
+
+        Args:
+            service: Optional service name to filter by.
+            level: Optional log level to filter by (e.g. INFO, ERROR).
+            limit: Maximum number of log entries to return.
+
+        Returns:
+            List of matching log entries, sorted by timestamp descending.
+        """
         level_upper = level.upper() if level else None
 
         filtered = []
@@ -154,7 +180,15 @@ class LogAggregator:
         return filtered[:limit]
 
     async def search_logs(self, query: str, limit: int = 100) -> list[dict]:
-        """Search logs by message content"""
+        """Search logs by case-insensitive substring match on message content.
+
+        Args:
+            query: Search string to match against log messages.
+            limit: Maximum number of results to return.
+
+        Returns:
+            List of matching log entries, sorted by timestamp descending.
+        """
         query_lower = query.lower()
         logs = []
 
@@ -170,7 +204,7 @@ class LogAggregator:
 log_aggregator = LogAggregator()
 
 async def health_check(_request: web.Request) -> web.Response:
-    """Health check endpoint"""
+    """Health check endpoint returning Docker client connectivity status."""
     is_healthy = log_aggregator.docker_client is not None
     status = "healthy" if is_healthy else "degraded"
     status_code = 200 if is_healthy else 503
@@ -182,7 +216,7 @@ async def health_check(_request: web.Request) -> web.Response:
     }, status=status_code)
 
 async def get_logs(request: web.Request) -> web.Response:
-    """Get recent logs with optional filtering"""
+    """REST endpoint to get recent logs with optional service/level/limit filters."""
     service = request.query.get('service')
     level = request.query.get('level')
     try:
@@ -205,7 +239,7 @@ async def get_logs(request: web.Request) -> web.Response:
     })
 
 async def search_logs(request: web.Request) -> web.Response:
-    """Search logs by query"""
+    """REST endpoint to search logs by query string parameter 'q'."""
     query = request.query.get('q', '')
     try:
         limit = int(request.query.get('limit', 100))
@@ -229,7 +263,7 @@ async def search_logs(request: web.Request) -> web.Response:
     })
 
 async def collect_logs_endpoint(request: web.Request) -> web.Response:
-    """Manually trigger log collection"""
+    """REST endpoint to manually trigger log collection with rate limiting."""
     if log_aggregator._api_key:
         provided_key = request.headers.get('X-API-Key', '')
         if provided_key != log_aggregator._api_key:
@@ -252,7 +286,15 @@ async def collect_logs_endpoint(request: web.Request) -> web.Response:
     })
 
 def _count_recent_logs(logs: list[dict], hours: int = 1) -> int:
-    """Count logs from the last N hours."""
+    """Count log entries from the last N hours based on their timestamp.
+
+    Args:
+        logs: List of log entry dictionaries with 'timestamp' field.
+        hours: Time window in hours to count from (default: 1 hour).
+
+    Returns:
+        Number of log entries within the time window.
+    """
     cutoff = datetime.now(UTC).timestamp() - (hours * 3600)
     count = 0
     for log in logs:
@@ -267,7 +309,15 @@ def _count_recent_logs(logs: list[dict], hours: int = 1) -> int:
 
 
 def _count_by_field(logs: list[dict], field: str) -> dict[str, int]:
-    """Count logs by a specific field (e.g., service, level)."""
+    """Count log entries grouped by a specific field value.
+
+    Args:
+        logs: List of log entry dictionaries.
+        field: Field name to group by (e.g., 'service', 'level').
+
+    Returns:
+        Dictionary mapping field values to their occurrence counts.
+    """
     counts: dict[str, int] = {}
     for log in logs:
         value = str(log.get(field, 'unknown'))
@@ -276,7 +326,7 @@ def _count_by_field(logs: list[dict], field: str) -> dict[str, int]:
 
 
 async def get_log_stats(_request: web.Request) -> web.Response:
-    """Get log statistics"""
+    """REST endpoint returning log statistics: totals, by-service, by-level, and recent counts."""
     logs = log_aggregator.aggregated_logs
     stats = {
         "total_logs": len(logs),
@@ -288,7 +338,7 @@ async def get_log_stats(_request: web.Request) -> web.Response:
     return web.json_response(stats)
 
 async def background_log_collection() -> None:
-    """Background task to collect logs periodically"""
+    """Background task that periodically collects logs from Docker containers."""
     interval = log_aggregator.collection_interval
     while True:
         try:
@@ -303,7 +353,7 @@ async def background_log_collection() -> None:
 
 
 def _on_background_task_done(task: asyncio.Task) -> None:
-    """Callback for background task completion/failure."""
+    """Callback for background task completion/failure logging."""
     try:
         exc = task.exception()
         if exc:
@@ -313,7 +363,7 @@ def _on_background_task_done(task: asyncio.Task) -> None:
 
 
 async def main() -> None:
-    """Main application entry point"""
+    """Main entry point: starts the web server and background log collection task."""
     logger.info("Starting log aggregation service...")
 
     app = web.Application(client_max_size=64 * 1024)
@@ -366,10 +416,8 @@ async def main() -> None:
         logger.info("Received shutdown signal")
     finally:
         bg_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await bg_task
-        except asyncio.CancelledError:
-            pass
         await runner.cleanup()
 
 if __name__ == "__main__":

@@ -51,9 +51,15 @@ if _api_key:
 
 
 class AirQualityService:
-    """Fetch and store air quality data from OpenWeather API"""
+    """Fetch and store air quality data from OpenWeather API.
+
+    Integrates with OpenWeather Air Pollution API to monitor AQI, PM2.5, PM10,
+    ozone, and other pollutants. Supports Home Assistant location detection and
+    stores time-series data in InfluxDB.
+    """
 
     def __init__(self) -> None:
+        """Initialize the air quality service with API keys and InfluxDB config."""
         self.api_key = os.getenv('WEATHER_API_KEY')
         self.latitude = os.getenv('LATITUDE', '36.1699')  # Las Vegas default
         self.longitude = os.getenv('LONGITUDE', '-115.1398')
@@ -107,7 +113,11 @@ class AirQualityService:
             raise ValueError(f"{name} must be between {min_val} and {max_val}, got {num}")
 
     async def fetch_location_from_ha(self) -> dict[str, float] | None:
-        """Fetch location from Home Assistant configuration"""
+        """Fetch latitude/longitude from Home Assistant configuration API.
+
+        Returns:
+            Dictionary with latitude and longitude, or None if unavailable.
+        """
         if not self.ha_url or not self.ha_token:
             logger.warning("Home Assistant URL or token not configured, using environment variables for location")
             return None
@@ -137,7 +147,7 @@ class AirQualityService:
             return None
 
     async def startup(self) -> None:
-        """Initialize service"""
+        """Initialize HTTP session, fetch HA location, and connect to InfluxDB."""
         logger.info("Initializing Air Quality Service...")
 
         self.session = aiohttp.ClientSession(
@@ -163,7 +173,7 @@ class AirQualityService:
         logger.info("Air Quality Service initialized")
 
     async def shutdown(self) -> None:
-        """Cleanup"""
+        """Shutdown service, closing HTTP session and InfluxDB client."""
         logger.info("Shutting down Air Quality Service...")
 
         if self.session:
@@ -172,16 +182,68 @@ class AirQualityService:
         if self.influxdb_client:
             self.influxdb_client.close()
 
-    async def fetch_air_quality(self) -> dict[str, Any] | None:
-        """Fetch AQI from OpenWeather API"""
+    def _parse_pollution_response(self, raw_data: dict[str, Any]) -> dict[str, Any] | None:
+        """Parse OpenWeather air pollution API response into normalized format.
 
+        Args:
+            raw_data: Raw JSON response from OpenWeather API.
+
+        Returns:
+            Normalized AQI data dictionary, or None if response is empty.
+        """
+        if not raw_data or 'list' not in raw_data or not raw_data['list']:
+            logger.warning("OpenWeather API returned empty data")
+            return None
+
+        pollution_data = raw_data['list'][0]
+        main_data = pollution_data.get('main', {})
+        components = pollution_data.get('components', {})
+
+        ow_aqi = main_data.get('aqi', 1)
+        aqi_map = {1: 25, 2: 75, 3: 125, 4: 175, 5: 250}
+        category_map = {1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'Very Poor'}
+
+        timestamp = datetime.fromtimestamp(
+            pollution_data.get('dt', datetime.now(UTC).timestamp()), tz=UTC
+        )
+
+        return {
+            'aqi': aqi_map.get(ow_aqi, 25),
+            'category': category_map.get(ow_aqi, 'Unknown'),
+            'parameter': 'Combined',
+            'pm25': round(float(components.get('pm2_5', 0)), 2),
+            'pm10': round(float(components.get('pm10', 0)), 2),
+            'ozone': round(float(components.get('o3', 0)), 2),
+            'timestamp': timestamp,
+            'co': float(components.get('co', 0)),
+            'no2': float(components.get('no2', 0)),
+            'so2': float(components.get('so2', 0)),
+        }
+
+    def _update_aqi_cache(self, data: dict[str, Any]) -> None:
+        """Update cache and health metrics after a successful AQI fetch.
+
+        Args:
+            data: Parsed AQI data dictionary.
+        """
+        if self.last_category and self.last_category != data['category']:
+            logger.warning(f"AQI category changed: {self.last_category} → {data['category']}")
+        self.last_category = data['category']
+        self.cached_data = data
+        self.last_fetch_time = datetime.now(UTC)
+        self.health_handler.last_successful_fetch = datetime.now(UTC)
+        self.health_handler.total_fetches += 1
+        self.health_handler.last_api_success = True
+
+    async def fetch_air_quality(self) -> dict[str, Any] | None:
+        """Fetch AQI from OpenWeather API with retry logic.
+
+        Returns:
+            Air quality data dictionary, cached data on failure, or None.
+        """
         for attempt in range(len(self.retry_delays) + 1):
             try:
-                params = {
-                    "lat": self.latitude,
-                    "lon": self.longitude,
-                    "appid": self.api_key
-                }
+                params = {"lat": self.latitude, "lon": self.longitude, "appid": self.api_key}
 
                 log_with_context(
                     logger, "INFO",
@@ -192,77 +254,21 @@ class AirQualityService:
                 async with self.session.get(self.base_url, params=params) as response:
                     if response.status == 200:
                         raw_data = await response.json()
-
-                        if not raw_data or 'list' not in raw_data or not raw_data['list']:
-                            logger.warning("OpenWeather API returned empty data")
+                        data = self._parse_pollution_response(raw_data)
+                        if data is None:
                             return self.cached_data
-
-                        # OpenWeather returns data in a list
-                        pollution_data = raw_data['list'][0]
-                        main_data = pollution_data.get('main', {})
-                        components = pollution_data.get('components', {})
-
-                        # OpenWeather AQI is 1-5, convert to 0-500 scale
-                        # 1=Good (0-50), 2=Fair (51-100), 3=Moderate (101-150),
-                        # 4=Poor (151-200), 5=Very Poor (201-500)
-                        ow_aqi = main_data.get('aqi', 1)
-
-                        # Convert to 0-500 scale
-                        aqi_map = {1: 25, 2: 75, 3: 125, 4: 175, 5: 250}
-                        aqi_value = aqi_map.get(ow_aqi, 25)
-
-                        # Category names
-                        category_map = {
-                            1: 'Good',
-                            2: 'Fair',
-                            3: 'Moderate',
-                            4: 'Poor',
-                            5: 'Very Poor'
-                        }
-                        category = category_map.get(ow_aqi, 'Unknown')
-
-                        # Parse timestamp
-                        timestamp = datetime.fromtimestamp(pollution_data.get('dt', datetime.now(UTC).timestamp()), tz=UTC)
-
-                        # Parse response
-                        data = {
-                            'aqi': aqi_value,
-                            'category': category,
-                            'parameter': 'Combined',
-                            'pm25': round(float(components.get('pm2_5', 0)), 2),
-                            'pm10': round(float(components.get('pm10', 0)), 2),
-                            'ozone': round(float(components.get('o3', 0)), 2),
-                            'timestamp': timestamp,
-                            'co': float(components.get('co', 0)),
-                            'no2': float(components.get('no2', 0)),
-                            'so2': float(components.get('so2', 0))
-                        }
-
-                        # Log category changes
-                        if self.last_category and self.last_category != data['category']:
-                            logger.warning(f"AQI category changed: {self.last_category} → {data['category']}")
-
-                        self.last_category = data['category']
-                        self.cached_data = data
-                        self.last_fetch_time = datetime.now(UTC)
-
-                        self.health_handler.last_successful_fetch = datetime.now(UTC)
-                        self.health_handler.total_fetches += 1
-                        self.health_handler.last_api_success = True
-
+                        self._update_aqi_cache(data)
                         logger.info(f"AQI: {data['aqi']} ({data['category']})")
-
                         return data
 
-                    else:
-                        logger.error(f"OpenWeather API returned status {response.status}")
-                        if attempt < len(self.retry_delays):
-                            logger.info(f"Retrying in {self.retry_delays[attempt]}s (attempt {attempt + 1}/{len(self.retry_delays)})")
-                            await asyncio.sleep(self.retry_delays[attempt])
-                            continue
-                        self.health_handler.last_api_success = False
-                        self.health_handler.failed_fetches += 1
-                        return self.cached_data
+                    logger.error(f"OpenWeather API returned status {response.status}")
+                    if attempt < len(self.retry_delays):
+                        logger.info(f"Retrying in {self.retry_delays[attempt]}s (attempt {attempt + 1}/{len(self.retry_delays)})")
+                        await asyncio.sleep(self.retry_delays[attempt])
+                        continue
+                    self.health_handler.last_api_success = False
+                    self.health_handler.failed_fetches += 1
+                    return self.cached_data
 
             except Exception as e:
                 if attempt < len(self.retry_delays):
@@ -270,17 +276,16 @@ class AirQualityService:
                     await asyncio.sleep(self.retry_delays[attempt])
                     continue
                 self.health_handler.last_api_success = False
-                log_error_with_context(
-                    logger,
-                    f"Error fetching AQI: {e}",
-                    e,
-                    service="air-quality-service"
-                )
+                log_error_with_context(logger, f"Error fetching AQI: {e}", e, service="air-quality-service")
                 self.health_handler.failed_fetches += 1
                 return self.cached_data
 
     async def store_in_influxdb(self, data: dict[str, Any]) -> None:
-        """Store AQI data in InfluxDB"""
+        """Store AQI data in InfluxDB as a time-series data point.
+
+        Args:
+            data: Parsed AQI data dictionary with aqi, pm25, category, etc.
+        """
 
         if not data:
             return
@@ -322,12 +327,18 @@ class AirQualityService:
             self.health_handler.failed_writes += 1
 
     def _is_cache_valid(self) -> bool:
+        """Check if cached AQI data is still fresh within the cache duration window."""
         if not self.cached_data or not self.last_fetch_time:
             return False
         age_minutes = (datetime.now(UTC) - self.last_fetch_time).total_seconds() / 60
         return age_minutes < self.cache_duration
 
     def _check_rate_limit(self) -> bool:
+        """Check if the current request is within the rate limit window.
+
+        Returns:
+            True if the request is allowed, False if rate limited.
+        """
         import time
         now = time.monotonic()
         self._rate_limit_requests = [t for t in self._rate_limit_requests if now - t < self._rate_limit_window]
@@ -337,7 +348,7 @@ class AirQualityService:
         return True
 
     async def get_current_aqi(self, _request: web.Request) -> web.Response:
-        """API endpoint for current AQI"""
+        """API endpoint returning current AQI data with rate limiting."""
 
         if not self._check_rate_limit():
             return web.json_response({'error': 'Rate limit exceeded'}, status=429)
@@ -358,7 +369,11 @@ class AirQualityService:
             return web.json_response({'error': 'No data available'}, status=503)
 
     async def run_continuous(self, stop_event: asyncio.Event | None = None) -> None:
-        """Run continuous data collection loop"""
+        """Run the continuous AQI data collection and storage loop.
+
+        Args:
+            stop_event: Optional event to signal graceful shutdown.
+        """
 
         logger.info(f"Starting continuous AQI monitoring (every {self.fetch_interval}s)")
 
@@ -399,7 +414,7 @@ class AirQualityService:
 
 
 async def create_app(service: AirQualityService) -> web.Application:
-    """Create web application"""
+    """Create the aiohttp web application with health and AQI endpoints."""
     app = web.Application()
 
     app.router.add_get('/health', service.health_handler.handle)
@@ -409,7 +424,7 @@ async def create_app(service: AirQualityService) -> web.Application:
 
 
 async def main() -> None:
-    """Main entry point"""
+    """Main entry point: starts the air quality service with signal handling."""
     import signal
 
     logger.info("Starting Air Quality Service...")

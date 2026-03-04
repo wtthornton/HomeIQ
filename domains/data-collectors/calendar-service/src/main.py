@@ -1,6 +1,8 @@
-"""
-Calendar Service Main Entry Point
-Integrates with Home Assistant Calendar for occupancy prediction
+"""Calendar Service Main Entry Point.
+
+Integrates with Home Assistant Calendar for occupancy prediction. Fetches calendar
+events, predicts home occupancy status with confidence scoring, and stores
+predictions as time-series data in InfluxDB.
 """
 
 import asyncio
@@ -25,7 +27,7 @@ class CalendarService:
     """Home Assistant Calendar integration for occupancy prediction"""
 
     def __init__(self) -> None:
-        # CRITICAL FIX: Use config object instead of direct os.getenv (coding standards compliance)
+        """Initialize the calendar service with HA connection and InfluxDB settings."""
         # Calendar configuration
         self.calendar_entities = settings.calendar_entities.split(',')
 
@@ -53,7 +55,7 @@ class CalendarService:
         logger.info(f"Configured for {len(self.calendar_entities)} calendar(s): {self.calendar_entities}")
 
     async def startup(self) -> None:
-        """Initialize service"""
+        """Initialize the calendar service, connecting to Home Assistant and InfluxDB."""
         logger.info("Initializing Calendar Service (Home Assistant Integration)...")
 
         # Get HA connection using the enhanced connection manager with circuit breaker protection
@@ -115,7 +117,7 @@ class CalendarService:
         logger.info("Calendar Service initialized successfully")
 
     async def shutdown(self) -> None:
-        """Cleanup"""
+        """Shutdown service, closing HA and InfluxDB connections."""
         logger.info("Shutting down Calendar Service...")
 
         if self.ha_client:
@@ -125,7 +127,11 @@ class CalendarService:
             self.influxdb_client.close()
 
     async def get_today_events(self) -> list[dict[str, Any]]:
-        """Fetch today's calendar events from Home Assistant"""
+        """Fetch today's calendar events from all configured Home Assistant calendars.
+
+        Returns:
+            List of parsed and enriched calendar event dictionaries, sorted by start time.
+        """
 
         try:
             # Define time range (today in local timezone)
@@ -141,13 +147,12 @@ class CalendarService:
                 end=end_of_day
             )
 
-            # Combine events from all calendars
-            combined_events = []
-            for calendar_id, events in all_events_raw.items():
-                for event in events:
-                    # Add calendar source to event
-                    event['calendar_source'] = calendar_id
-                    combined_events.append(event)
+            # Combine events from all calendars with source tagging
+            combined_events = [
+                {**event, 'calendar_source': calendar_id}
+                for calendar_id, events in all_events_raw.items()
+                for event in events
+            ]
 
             logger.info(f"Fetched {len(combined_events)} events from {len(self.calendar_entities)} calendar(s)")
 
@@ -183,8 +188,61 @@ class CalendarService:
             logger.debug(f"Exception context: {type(e).__name__}: {e}", exc_info=True)
             return []
 
+    def _calculate_arrival_info(
+        self, next_home_event: dict[str, Any] | None, now: datetime, wfh_today: bool
+    ) -> tuple[datetime | None, datetime | None, float | None, float]:
+        """Calculate arrival time, prepare time, and confidence from the next home event.
+
+        Args:
+            next_home_event: The next calendar event marked as a home event, or None.
+            now: Current UTC datetime.
+            wfh_today: Whether today is a work-from-home day.
+
+        Returns:
+            Tuple of (arrival_time, prepare_time, hours_until_arrival, confidence).
+        """
+        if next_home_event:
+            arrival_time = next_home_event['start']
+            travel_time = timedelta(minutes=settings.default_travel_time_minutes)
+            prepare_time = arrival_time - travel_time
+            hours_until_arrival = (arrival_time - now).total_seconds() / 3600
+            confidence = next_home_event.get('confidence', 0.75)
+        else:
+            arrival_time = None
+            prepare_time = None
+            hours_until_arrival = None
+            confidence = 0.85 if wfh_today else 0.70
+        return arrival_time, prepare_time, hours_until_arrival, confidence
+
+    def _adjust_confidence(
+        self, confidence: float, wfh_today: bool, currently_home: bool, current_events: list[dict[str, Any]]
+    ) -> float:
+        """Adjust occupancy confidence based on multiple contextual factors.
+
+        Args:
+            confidence: Base confidence score.
+            wfh_today: Whether today is a work-from-home day.
+            currently_home: Whether the user is currently home.
+            current_events: List of events happening right now.
+
+        Returns:
+            Adjusted confidence score (0.0-1.0).
+        """
+        if wfh_today and currently_home:
+            confidence = max(confidence, 0.90)
+        elif currently_home and current_events:
+            confidence = max(confidence, 0.85)
+        return confidence
+
     async def predict_home_status(self) -> dict[str, Any] | None:
-        """Predict home occupancy based on calendar"""
+        """Predict home occupancy based on calendar events.
+
+        Analyzes today's calendar events to determine current occupancy status,
+        work-from-home status, and next expected arrival time with a confidence score.
+
+        Returns:
+            Prediction dictionary with occupancy data, or None on error.
+        """
 
         try:
             events = await self.get_today_events()
@@ -198,46 +256,21 @@ class CalendarService:
                     'next_arrival': None,
                     'prepare_time': None,
                     'hours_until_arrival': None,
-                    'confidence': 0.5,  # Low confidence with no data
+                    'confidence': 0.5,
                     'timestamp': datetime.now(UTC),
                     'event_count': 0
                 }
 
-            # Check if working from home today
             wfh_today = any(e.get('is_wfh', False) for e in events)
-
-            # Get current events using parser helper
             current_events = self.event_parser.get_current_events(events, now)
-
-            # Check if currently home based on current events
             currently_home = wfh_today or any(e.get('is_home', False) for e in current_events)
-
-            # Get upcoming events
             future_events = self.event_parser.get_upcoming_events(events, now)
-
-            # Find next home event
             next_home_event = next((e for e in future_events if e.get('is_home', False)), None)
 
-            # Calculate arrival time and confidence
-            if next_home_event:
-                arrival_time = next_home_event['start']
-                travel_time = timedelta(minutes=settings.default_travel_time_minutes)
-                prepare_time = arrival_time - travel_time
-                hours_until_arrival = (arrival_time - now).total_seconds() / 3600
-
-                # Use event's confidence if available
-                confidence = next_home_event.get('confidence', 0.75)
-            else:
-                arrival_time = None
-                prepare_time = None
-                hours_until_arrival = None
-                confidence = 0.85 if wfh_today else 0.70
-
-            # Adjust confidence based on multiple factors
-            if wfh_today and currently_home:
-                confidence = max(confidence, 0.90)  # High confidence if WFH today
-            elif currently_home and current_events:
-                confidence = max(confidence, 0.85)  # High confidence with current home events
+            arrival_time, prepare_time, hours_until_arrival, confidence = self._calculate_arrival_info(
+                next_home_event, now, wfh_today
+            )
+            confidence = self._adjust_confidence(confidence, wfh_today, currently_home, current_events)
 
             prediction = {
                 'currently_home': currently_home,
@@ -280,7 +313,14 @@ class CalendarService:
             return None
 
     async def store_in_influxdb(self, prediction: dict[str, Any]) -> None:
-        """Store occupancy prediction in InfluxDB"""
+        """Store occupancy prediction in InfluxDB as a time-series data point.
+
+        Args:
+            prediction: Occupancy prediction dictionary with currently_home, confidence, etc.
+
+        Raises:
+            RuntimeError: If the InfluxDB write fails after logging the error.
+        """
 
         if not prediction:
             return
@@ -323,7 +363,7 @@ class CalendarService:
             raise RuntimeError(f"Failed to write occupancy prediction to InfluxDB: {e}") from e
 
     async def run_continuous(self) -> None:
-        """Run continuous prediction loop"""
+        """Run the continuous occupancy prediction loop, fetching and storing predictions."""
 
         logger.info(f"Starting continuous occupancy prediction (every {self.fetch_interval}s)")
 
@@ -368,14 +408,14 @@ class CalendarService:
 
 
 async def create_app(service: CalendarService) -> web.Application:
-    """Create web application"""
+    """Create the aiohttp web application with health check endpoint."""
     app = web.Application()
     app.router.add_get('/health', service.health_handler.handle)
     return app
 
 
 async def main() -> None:
-    """Main entry point"""
+    """Main entry point: starts the calendar service and continuous prediction loop."""
     logger.info("Starting Calendar Service...")
 
     service = CalendarService()

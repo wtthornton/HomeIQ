@@ -31,7 +31,8 @@ logger = setup_logging("electricity-pricing-service")
 class ElectricityPricingService:
     """Fetch and store electricity pricing data"""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the electricity pricing service with provider and InfluxDB config."""
         self.provider_name = os.getenv('PRICING_PROVIDER', 'awattar')
 
         # InfluxDB configuration
@@ -70,8 +71,8 @@ class ElectricityPricingService:
         if not self.influxdb_token:
             raise ValueError("INFLUXDB_TOKEN environment variable is required")
 
-    def _get_provider(self):
-        """Get pricing provider based on configuration"""
+    def _get_provider(self) -> AwattarProvider:
+        """Get pricing provider instance based on PRICING_PROVIDER configuration."""
 
         providers = {
             'awattar': AwattarProvider()
@@ -85,8 +86,8 @@ class ElectricityPricingService:
 
         return provider
 
-    async def startup(self):
-        """Initialize service components"""
+    async def startup(self) -> None:
+        """Initialize HTTP session and InfluxDB client for data collection."""
         logger.info(f"Initializing Electricity Pricing Service (Provider: {self.provider_name})...")
 
         # Create HTTP session
@@ -104,8 +105,8 @@ class ElectricityPricingService:
 
         logger.info("Electricity Pricing Service initialized successfully")
 
-    async def shutdown(self):
-        """Cleanup service components"""
+    async def shutdown(self) -> None:
+        """Cleanup HTTP session and InfluxDB client on shutdown."""
         logger.info("Shutting down Electricity Pricing Service...")
 
         if self.session:
@@ -117,7 +118,11 @@ class ElectricityPricingService:
         logger.info("Electricity Pricing Service shut down successfully")
 
     async def fetch_pricing(self) -> dict[str, Any] | None:
-        """Fetch electricity pricing from configured provider"""
+        """Fetch electricity pricing from configured provider, updating cache on success.
+
+        Returns:
+            Pricing data dictionary with current_price, forecast, etc., or cached data on failure.
+        """
 
         try:
             log_with_context(
@@ -169,10 +174,13 @@ class ElectricityPricingService:
 
             return None
 
-    async def store_in_influxdb(self, data: dict[str, Any]):
-        """
-        Store pricing data in InfluxDB
-        Epic 49 Story 49.2: Batch writes for performance optimization
+    async def store_in_influxdb(self, data: dict[str, Any]) -> None:
+        """Store pricing data in InfluxDB using batch writes for performance.
+
+        Writes current price and 24h forecast points in a single batch operation.
+
+        Args:
+            data: Pricing data dictionary containing current_price, forecast_24h, etc.
         """
 
         if not self.influxdb_client:
@@ -229,10 +237,14 @@ class ElectricityPricingService:
                 error=str(e)
             )
 
-    async def get_cheapest_hours(self, request):
-        """
-        API endpoint to get cheapest hours
-        Epic 49 Story 49.1: Added input validation and security
+    async def get_cheapest_hours(self, request: web.Request) -> web.Response:
+        """API endpoint returning the cheapest electricity hours with input validation.
+
+        Args:
+            request: aiohttp request with optional 'hours' query parameter.
+
+        Returns:
+            JSON response with cheapest hours data or error.
         """
         # Epic 49 Story 49.1: Validate hours parameter
         try:
@@ -263,8 +275,8 @@ class ElectricityPricingService:
                 'error': 'No pricing data available'
             }, status=503)
 
-    async def run_continuous(self):
-        """Run continuous data collection loop"""
+    async def run_continuous(self) -> None:
+        """Run the continuous pricing data collection and storage loop."""
 
         logger.info(f"Starting continuous pricing monitoring (every {self.fetch_interval}s)")
 
@@ -291,8 +303,8 @@ class ElectricityPricingService:
                 await asyncio.sleep(300)  # 5 minutes
 
 
-async def create_app(service: ElectricityPricingService):
-    """Create the web application"""
+async def create_app(service: ElectricityPricingService) -> web.Application:
+    """Create the aiohttp web application with health and pricing endpoints."""
     app = web.Application()
 
     # Add endpoints
@@ -302,8 +314,8 @@ async def create_app(service: ElectricityPricingService):
     return app
 
 
-async def main():
-    """Main entry point"""
+async def main() -> None:
+    """Main entry point: starts the pricing service and continuous collection loop."""
     logger.info("Starting Electricity Pricing Service...")
 
     # Create service
