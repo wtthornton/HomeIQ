@@ -12,21 +12,18 @@ Responsibilities:
 from __future__ import annotations
 
 import logging
-import os
-from contextlib import asynccontextmanager
-
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+import sys
 
 try:
-    from homeiq_observability.logging_config import setup_logging  # noqa: E402
+    from homeiq_observability.logging_config import setup_logging
 except ImportError:
-    # Fallback if shared logging not available
     logging.basicConfig(level=logging.INFO)
     setup_logging = lambda name, **_kw: logging.getLogger(name)  # noqa: E731
 
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
+
 try:
-    from homeiq_resilience import GroupHealthCheck, wait_for_dependency  # noqa: E402
+    from homeiq_resilience import GroupHealthCheck, wait_for_dependency
 except ImportError:
     GroupHealthCheck = None  # type: ignore[assignment,misc]
     wait_for_dependency = None  # type: ignore[assignment]
@@ -44,110 +41,95 @@ from .services.suggestion_pipeline_service import SuggestionPipelineService
 logger = setup_logging("proactive-agent-service", group_name="automation-intelligence")
 
 # Global settings instance
-settings: Settings | None = None
+settings = Settings()
+
 # Global scheduler instance
 scheduler_service: SchedulerService | None = None
+
 # Global group health check
 _group_health: GroupHealthCheck | None = None
 
 
-def _parse_allowed_origins() -> list[str]:
-    """Parse comma-delimited allowed origins from environment."""
-    raw_origins = os.getenv("PROACTIVE_AGENT_ALLOWED_ORIGINS")
-    if raw_origins:
-        parsed = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
-        if parsed:
-            return parsed
-    return ["http://localhost:3000", "http://localhost:3001"]
+# ---------------------------------------------------------------------------
+# Startup / Shutdown helpers
+# ---------------------------------------------------------------------------
+
+async def _startup_dependencies() -> None:
+    """Probe cross-group dependencies (non-fatal)."""
+    if wait_for_dependency is not None:
+        await wait_for_dependency(url="http://data-api:8006", name="data-api", max_retries=10)
+        await wait_for_dependency(url="http://weather-api:8009", name="weather-api", max_retries=10)
+
+    global _group_health
+    if GroupHealthCheck is not None:
+        _group_health = GroupHealthCheck(
+            group_name="automation-intelligence", version="1.0.0",
+        )
+        _group_health.register_dependency("data-api", "http://data-api:8006")
+        _group_health.register_dependency("weather-api", "http://weather-api:8009")
 
 
-ALLOWED_ORIGINS = _parse_allowed_origins()
-
-
-async def _initialize_database(settings_instance: Settings) -> bool:
-    """Initialize database connection. Returns True if successful."""
-    success = await init_database(settings_instance)
+async def _startup_db() -> None:
+    """Initialize database connection."""
+    success = await init_database(settings)
     if success:
         logger.info("Database initialized")
     else:
-        logger.warning("Database unavailable — starting in degraded mode")
-    return success
+        logger.warning("Database unavailable -- starting in degraded mode")
 
 
-def _initialize_scheduler(settings_instance: Settings) -> SchedulerService:
-    """Initialize and start scheduler service."""
+async def _startup_scheduler() -> None:
+    """Initialize and start the scheduler service."""
+    global scheduler_service
     pipeline_service = SuggestionPipelineService()
-    scheduler = SchedulerService(settings_instance, pipeline_service=pipeline_service)
-    scheduler.start()
-    set_scheduler_service(scheduler)  # Set for suggestions API endpoints
-    set_scheduler_service_for_health(scheduler)  # Set for health endpoint
+    scheduler_service = SchedulerService(settings, pipeline_service=pipeline_service)
+    scheduler_service.start()
+    set_scheduler_service(scheduler_service)
+    set_scheduler_service_for_health(scheduler_service)
     logger.info("Scheduler initialized")
-    return scheduler
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    """Initialize services on startup, cleanup on shutdown"""
-    global settings, scheduler_service
-
-    global _group_health
-
-    logger.info("Starting Proactive Agent Service...")
-    try:
-        # Load settings
-        settings = Settings()
-        logger.info(f"Settings loaded (Port: {settings.service_port})")
-
-        # Probe cross-group dependencies (non-fatal)
-        if wait_for_dependency is not None:
-            await wait_for_dependency(url="http://data-api:8006", name="data-api", max_retries=10)
-            await wait_for_dependency(url="http://weather-api:8009", name="weather-api", max_retries=10)
-
-        # Initialize group health check
-        if GroupHealthCheck is not None:
-            _group_health = GroupHealthCheck(
-                group_name="automation-intelligence", version="1.0.0",
-            )
-            _group_health.register_dependency("data-api", "http://data-api:8006")
-            _group_health.register_dependency("weather-api", "http://weather-api:8009")
-
-        # Initialize database (Story AI21.8)
-        await _initialize_database(settings)
-
-        # Initialize scheduler (Story AI21.7)
-        scheduler_service = _initialize_scheduler(settings)
-
-        logger.info("Proactive Agent Service started successfully")
-    except Exception as e:
-        logger.error(f"Failed to start Proactive Agent Service: {e}", exc_info=True)
-        raise
-
-    yield
-
-    # Cleanup on shutdown
-    logger.info("Proactive Agent Service shutting down")
+async def _shutdown_scheduler() -> None:
+    """Stop scheduler on shutdown."""
+    global scheduler_service
     if scheduler_service:
         scheduler_service.stop()
         scheduler_service = None
-    await close_database()
-    settings = None
 
 
-# Create FastAPI app
-app = FastAPI(
-    title="Proactive Agent Service",
-    description="Context-aware proactive automation suggestions",
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
+
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup_dependencies, name="dependencies")
+lifespan.on_startup(_startup_db, name="database")
+lifespan.on_startup(_startup_scheduler, name="scheduler")
+lifespan.on_shutdown(_shutdown_scheduler, name="scheduler")
+lifespan.on_shutdown(close_database, name="database")
+
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+health = StandardHealthCheck(
+    service_name=settings.service_name,
     version="1.0.0",
-    lifespan=lifespan
 )
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
+app = create_app(
+    title="Proactive Agent Service",
+    version="1.0.0",
+    description="Context-aware proactive automation suggestions",
+    lifespan=lifespan.handler,
+    health_check=health,
+    cors_origins=settings.get_cors_origins_list(),
 )
 
 # Register routers
@@ -157,6 +139,10 @@ app.include_router(suggestions_router)
 
 if __name__ == "__main__":
     import uvicorn
-    _settings = Settings()
-    uvicorn.run(app, host="0.0.0.0", port=_settings.service_port)  # noqa: S104
 
+    uvicorn.run(
+        "src.main:app",
+        host="0.0.0.0",  # noqa: S104
+        port=settings.service_port,
+        reload=True,
+    )

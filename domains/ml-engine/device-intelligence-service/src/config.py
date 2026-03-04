@@ -1,7 +1,10 @@
-"""
-Device Intelligence Service - Configuration Management
+"""Device Intelligence Service - Configuration Management.
 
-Pydantic Settings for environment variable management and validation.
+Inherits common fields from BaseServiceSettings (service_name, service_port,
+log_level, cors_origins, postgres_url, database_url, database_schema, etc.).
+
+UPPERCASE aliases are kept for backward compatibility with existing code that
+references settings.DEVICE_INTELLIGENCE_PORT, settings.LOG_LEVEL, etc.
 """
 
 import json
@@ -9,7 +12,8 @@ import os
 from pathlib import Path
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings
+
+from homeiq_data import BaseServiceSettings
 
 CONFIG_FILE_ENV = "MQTT_ZIGBEE_CONFIG_PATH"
 
@@ -39,198 +43,177 @@ def _determine_default_path() -> Path:
 DEFAULT_CONFIG_PATH = _determine_default_path()
 
 
-class Settings(BaseSettings):
-    """Application settings loaded from environment variables."""
+class Settings(BaseServiceSettings):
+    """Application settings loaded from environment variables.
 
-    # Service Configuration
-    DEVICE_INTELLIGENCE_PORT: int = Field(default=8019, description="Service port")
-    DEVICE_INTELLIGENCE_HOST: str = Field(default="0.0.0.0", description="Service host")  # noqa: S104
-    LOG_LEVEL: str = Field(default="INFO", description="Logging level")
+    Inherits from BaseServiceSettings for standard fields (service_name,
+    service_port, log_level, cors_origins, postgres_url, etc.).
+    """
 
-    # Database Configuration
-    DATABASE_URL: str = Field(
-        default="",
-        description="Database URL (set POSTGRES_URL env var for PostgreSQL)"
-    )
-    REDIS_URL: str = Field(
-        default="redis://redis:6379/0",
-        description="Redis cache URL"
-    )
+    # Override base defaults
+    service_port: int = Field(default=8019, description="Service port")
+    service_name: str = "device-intelligence-service"
+
+    # Backward-compatible UPPERCASE aliases (properties)
+    @property
+    def DEVICE_INTELLIGENCE_PORT(self) -> int:
+        """Backward-compatible alias for service_port."""
+        return self.service_port
+
+    @property
+    def DEVICE_INTELLIGENCE_HOST(self) -> str:
+        """Backward-compatible alias for service host."""
+        return "0.0.0.0"  # noqa: S104
+
+    @property
+    def LOG_LEVEL(self) -> str:
+        """Backward-compatible alias for log_level."""
+        return self.log_level
+
+    @property
+    def DATABASE_URL(self) -> str:
+        """Backward-compatible alias for database_url."""
+        return self.database_url
 
     # Home Assistant Configuration
     HA_URL: str = Field(
         default="http://homeassistant:8123",
-        description="Home Assistant URL (primary)"
+        description="Home Assistant URL (primary)",
     )
     HA_WS_URL: str | None = Field(
         default=None,
-        description="Home Assistant WebSocket URL (primary)"
+        description="Home Assistant WebSocket URL (primary)",
     )
     HA_TOKEN: str | None = Field(
         default=None,
-        description="Home Assistant long-lived access token (primary)"
+        description="Home Assistant long-lived access token (primary)",
     )
 
     # Nabu Casa Fallback Configuration
     NABU_CASA_URL: str | None = Field(
         default=None,
-        description="Nabu Casa URL for remote access fallback"
+        description="Nabu Casa URL for remote access fallback",
     )
     NABU_CASA_TOKEN: str | None = Field(
         default=None,
-        description="Nabu Casa long-lived access token for fallback"
+        description="Nabu Casa long-lived access token for fallback",
+    )
+
+    # Redis
+    REDIS_URL: str = Field(
+        default="redis://redis:6379/0",
+        description="Redis cache URL",
     )
 
     # MQTT Configuration
-    # Defaults to Home Assistant's MQTT broker (same server as HA HTTP API)
     MQTT_BROKER: str = Field(
         default="mqtt://localhost:1883",
-        description="MQTT broker URL (defaults to localhost; set via environment variable)"
+        description="MQTT broker URL",
     )
-    MQTT_USERNAME: str | None = Field(
-        default=None,
-        description="MQTT username"
-    )
-    MQTT_PASSWORD: str | None = Field(
-        default=None,
-        description="MQTT password"
-    )
+    MQTT_USERNAME: str | None = Field(default=None, description="MQTT username")
+    MQTT_PASSWORD: str | None = Field(default=None, description="MQTT password")
 
     # Zigbee2MQTT Configuration
     ZIGBEE2MQTT_BASE_TOPIC: str = Field(
         default="zigbee2mqtt",
-        description="Zigbee2MQTT base topic"
+        description="Zigbee2MQTT base topic",
     )
 
     # Performance Configuration
-    MAX_WORKERS: int = Field(
-        default=4,
-        description="Maximum number of worker processes"
-    )
-    REQUEST_TIMEOUT: int = Field(
-        default=30,
-        description="Request timeout in seconds"
-    )
+    MAX_WORKERS: int = Field(default=4, description="Maximum number of worker processes")
+    REQUEST_TIMEOUT: int = Field(default=30, description="Request timeout in seconds")
 
     # Cache Configuration
-    CACHE_TTL: int = Field(
-        default=300,
-        description="Default cache TTL in seconds"
-    )
-    MAX_CACHE_SIZE: int = Field(
-        default=1000,
-        description="Maximum cache size"
-    )
+    CACHE_TTL: int = Field(default=300, description="Default cache TTL in seconds")
+    MAX_CACHE_SIZE: int = Field(default=1000, description="Maximum cache size")
 
     # Name Enhancement Configuration
     AUTO_GENERATE_NAME_SUGGESTIONS: bool = Field(
         default=False,
-        description="Automatically generate name suggestions during device discovery"
+        description="Automatically generate name suggestions during device discovery",
     )
     OPENAI_API_KEY: str | None = Field(
         default=None,
-        description="OpenAI API key for AI name generation (optional)"
+        description="OpenAI API key for AI name generation (optional)",
     )
     ENABLE_LOCAL_LLM: bool = Field(
         default=False,
-        description="Enable local LLM (Ollama) for name generation (optional)"
+        description="Enable local LLM (Ollama) for name generation (optional)",
     )
 
     # Authentication Configuration (CRIT-3)
     API_KEY: str | None = Field(
         default=None,
-        description="API key for non-health endpoints"
+        description="API key for non-health endpoints",
     )
     ADMIN_API_TOKEN: str | None = Field(
         default=None,
-        description="Admin token for destructive operations (recreate-tables, cleanup, optimize)"
+        description="Admin token for destructive operations",
     )
 
-    # HTTP Configuration
+    # CORS (UPPERCASE alias for backward compat)
     ALLOWED_ORIGINS: list[str] = Field(
         default_factory=lambda: [
             "http://localhost:3000",
             "http://localhost:3001",
             "http://127.0.0.1:3000",
         ],
-        description="Allowed CORS origins"
+        description="Allowed CORS origins",
     )
 
-    # ML Model Configuration (2025 improvements)
+    # ML Model Configuration
     ML_FAILURE_MODEL: str = Field(
         default="randomforest",
-        description="Failure prediction model: randomforest, lightgbm, or tabpfn"
+        description="Failure prediction model: randomforest, lightgbm, or tabpfn",
     )
     ML_USE_INCREMENTAL: bool = Field(
         default=False,
-        description="Use incremental learning for model updates"
+        description="Use incremental learning for model updates",
     )
     ML_INCREMENTAL_UPDATE_THRESHOLD: int = Field(
         default=100,
-        description="Number of samples before incremental update"
+        description="Number of samples before incremental update",
     )
     GNN_USE_COMPILE: bool = Field(
         default=True,
-        description="Use PyTorch compile for GNN training (1.5-2x speedup)"
+        description="Use PyTorch compile for GNN training",
     )
 
-    # Training Scheduler Configuration (Epic 46.2: Built-in Nightly Training Scheduler)
+    # Training Scheduler Configuration (Epic 46.2)
     ML_TRAINING_SCHEDULE: str = Field(
         default="0 2 * * *",
-        description="Cron expression for training schedule (default: 2 AM daily)"
+        description="Cron expression for training schedule (default: 2 AM daily)",
     )
     ML_TRAINING_ENABLED: bool = Field(
         default=True,
-        description="Enable automatic nightly training"
+        description="Enable automatic nightly training",
     )
     ML_TRAINING_MODE: str = Field(
         default="incremental",
-        description="Training mode: 'full' or 'incremental' (default: incremental for 10-50x faster updates)"
+        description="Training mode: 'full' or 'incremental'",
     )
-
-    model_config = {
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-        "case_sensitive": True,
-        "extra": "ignore",
-    }
-
-    @field_validator("LOG_LEVEL")
-    @classmethod
-    def validate_log_level(cls, v):
-        """Validate log level is a valid logging level."""
-        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-        if v.upper() not in valid_levels:
-            raise ValueError(f"LOG_LEVEL must be one of {valid_levels}")
-        return v.upper()
-
-    @field_validator("DEVICE_INTELLIGENCE_PORT")
-    @classmethod
-    def validate_port(cls, v):
-        """Validate port is in valid range."""
-        if not 1 <= v <= 65535:
-            raise ValueError("DEVICE_INTELLIGENCE_PORT must be between 1 and 65535")
-        return v
 
     @field_validator("HA_URL", mode="after")
     @classmethod
-    def validate_ha_url(cls, v):
+    def validate_ha_url(cls, v: str) -> str:
         """Validate Home Assistant URL format."""
         if not v.startswith(("http://", "https://")):
-            raise ValueError("HA_URL must start with http:// or https://")
+            msg = "HA_URL must start with http:// or https://"
+            raise ValueError(msg)
         return v.rstrip("/")
 
     @field_validator("MQTT_BROKER")
     @classmethod
-    def validate_mqtt_broker(cls, v):
+    def validate_mqtt_broker(cls, v: str) -> str:
         """Validate MQTT broker URL format."""
         if not v.startswith(("mqtt://", "mqtts://", "ws://", "wss://")):
-            raise ValueError("MQTT_BROKER must start with mqtt://, mqtts://, ws://, or wss://")
+            msg = "MQTT_BROKER must start with mqtt://, mqtts://, ws://, or wss://"
+            raise ValueError(msg)
         return v
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
-    def normalize_allowed_origins(cls, value):
+    def normalize_allowed_origins(cls, value: str | list[str]) -> list[str] | str:
         """Support comma-delimited strings for allowed origins."""
         if isinstance(value, str):
             stripped = value.strip()
@@ -240,21 +223,21 @@ class Settings(BaseSettings):
                     if isinstance(parsed, list):
                         return parsed
                 except json.JSONDecodeError as exc:
-                    raise ValueError(f"Invalid ALLOWED_ORIGINS JSON: {exc}") from exc
+                    msg = f"Invalid ALLOWED_ORIGINS JSON: {exc}"
+                    raise ValueError(msg) from exc
             return [origin.strip() for origin in stripped.split(",") if origin.strip()]
         return value
 
     def apply_overrides(self) -> None:
         """Apply runtime overrides from the shared MQTT/Zigbee configuration file."""
         config_path = DEFAULT_CONFIG_PATH
-        overrides = {}
+        overrides: dict[str, str] = {}
 
         try:
             if config_path.exists():
                 with config_path.open("r", encoding="utf-8") as config_file:
                     overrides = json.load(config_file) or {}
         except json.JSONDecodeError as exc:
-            # Invalid JSON should not prevent service startup; log and proceed with defaults
             import logging
 
             logging.getLogger(__name__).warning(
@@ -276,7 +259,7 @@ class Settings(BaseSettings):
 
     def get_database_url(self) -> str:
         """Get the database URL for SQLAlchemy."""
-        return self.DATABASE_URL
+        return self.database_url
 
     def get_redis_url(self) -> str:
         """Get the Redis URL for caching."""
@@ -284,20 +267,18 @@ class Settings(BaseSettings):
 
     def get_ha_url(self) -> str:
         """Get the effective Home Assistant URL with Nabu Casa fallback."""
-        # Try local HA first, fallback to Nabu Casa if local HA fails
         return self.HA_URL
 
     def get_ha_ws_url(self) -> str:
         """Get the WebSocket URL for Home Assistant."""
-        # Use HA_WS_URL if available, otherwise construct from HA_URL
-        if hasattr(self, 'HA_WS_URL') and self.HA_WS_URL:
+        if self.HA_WS_URL:
             return self.HA_WS_URL
-        return self.HA_URL.replace('http://', 'ws://').replace('https://', 'wss://') + '/api/websocket'
+        return self.HA_URL.replace("http://", "ws://").replace("https://", "wss://") + "/api/websocket"
 
     def get_nabu_casa_ws_url(self) -> str | None:
         """Get the WebSocket URL for Nabu Casa."""
         if self.NABU_CASA_URL:
-            return self.NABU_CASA_URL.replace('https://', 'wss://') + '/api/websocket'
+            return self.NABU_CASA_URL.replace("https://", "wss://") + "/api/websocket"
         return None
 
     def is_development(self) -> bool:
@@ -316,10 +297,11 @@ class Settings(BaseSettings):
             missing_fields.append("HA_TOKEN")
 
         if missing_fields:
-            raise ValueError(
+            msg = (
                 f"Missing required configuration values: {', '.join(missing_fields)}. "
                 "Set these environment variables before starting the service."
             )
+            raise ValueError(msg)
 
     def get_allowed_origins(self) -> list[str]:
         """Return the configured CORS origins."""

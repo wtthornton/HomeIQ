@@ -1,30 +1,17 @@
+"""Configuration Settings for RAG Service.
+
+Inherits common fields from BaseServiceSettings (service_name, service_port,
+log_level, cors_origins, postgres_url, influxdb_*, data_api_*).
 """
-Configuration Settings for RAG Service
 
-Using pydantic-settings for environment variable management.
-Following 2025 patterns: type-safe configuration.
-"""
-
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from homeiq_data import BaseServiceSettings
 
 
-class Settings(BaseSettings):
+class Settings(BaseServiceSettings):
+    """Application settings with environment variable support.
+
+    Service-specific fields only; common fields come from BaseServiceSettings.
     """
-    Application settings with environment variable support.
-
-    Environment variables are prefixed with 'RAG_' (e.g., RAG_SERVICE_PORT).
-    """
-
-    model_config = SettingsConfigDict(
-        env_prefix="RAG_",
-        case_sensitive=False,
-        env_file=".env",
-        env_file_encoding="utf-8",
-    )
-
-    # Service configuration
-    service_port: int = 8027
-    service_host: str = "0.0.0.0"  # noqa: S104
 
     # Database configuration
     database_path: str = "/app/data/rag_service.db"
@@ -38,16 +25,9 @@ class Settings(BaseSettings):
     default_top_k: int = 5
     default_min_similarity: float = 0.7
 
-    # Logging configuration
-    log_level: str = "INFO"
-
-    # CORS configuration
-    cors_origins: str = "http://localhost:3000,http://localhost:3001"
-
-    @property
-    def cors_origins_list(self) -> list[str]:
-        """Get CORS origins as list."""
-        return [origin.strip() for origin in self.cors_origins.split(",")]
+    # Override base defaults
+    service_port: int = 8027
+    service_name: str = "rag-service"
 
 
 # Global settings instance

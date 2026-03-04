@@ -1,34 +1,30 @@
-"""Configuration management for AI Training Service"""
+"""Configuration management for AI Training Service.
 
-from pydantic import ConfigDict
-from pydantic_settings import BaseSettings
+Inherits common fields from BaseServiceSettings (service_name, service_port,
+log_level, cors_origins, postgres_url, database_url, database_schema, etc.).
+"""
+
+from homeiq_data import BaseServiceSettings
 
 
-class Settings(BaseSettings):
-    """Application settings loaded from environment"""
+class Settings(BaseServiceSettings):
+    """Application settings loaded from environment.
 
-    # Database
+    Service-specific fields only; common fields come from BaseServiceSettings.
+    """
+
+    # Database (additional to base)
     database_path: str = "/app/data/ai_automation.db"
-    database_url: str = ""  # Set via POSTGRES_URL or DATABASE_URL env var
-    database_pool_size: int = 10  # Connection pool size (max 20 per service)
-    database_max_overflow: int = 5  # Max overflow connections
-
-    # PostgreSQL
-    postgres_url: str = ""  # Set via POSTGRES_URL env var
-    database_schema: str = "automation"  # Set via DATABASE_SCHEMA env var
-
-    @property
-    def effective_database_url(self) -> str:
-        """Return the PostgreSQL database URL."""
-        return self.postgres_url or self.database_url
+    database_pool_size: int = 10
+    database_max_overflow: int = 5
 
     # Training Configuration
-    training_script_path: str = "/app/scripts/train_soft_prompt.py"  # Soft prompt training script
+    training_script_path: str = "/app/scripts/train_soft_prompt.py"
     soft_prompt_model_dir: str = "/app/models/soft_prompts"
-    training_script_sha256: str | None = None  # Optional hash validation
+    training_script_sha256: str | None = None
 
     # GNN Training Configuration
-    gnn_training_script_path: str = "/app/scripts/train_gnn_synergy.py"  # GNN training script
+    gnn_training_script_path: str = "/app/scripts/train_gnn_synergy.py"
     gnn_model_path: str = "/app/models/gnn_synergy.pth"
     gnn_hidden_dim: int = 64
     gnn_num_layers: int = 2
@@ -44,23 +40,13 @@ class Settings(BaseSettings):
     # Model Storage
     model_storage_dir: str = "/app/models"
 
-    # Logging
-    log_level: str = "INFO"
-
-    # Service Configuration
-    service_port: int = 8022
-    service_name: str = "ai-training-service"
-
     # OpenAI (for synthetic data generation)
     openai_api_key: str | None = None
 
-    model_config = ConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
-    )
+    # Override base defaults
+    service_port: int = 8022
+    service_name: str = "ai-training-service"
+    database_schema: str = "automation"
 
 
 settings = Settings()
-

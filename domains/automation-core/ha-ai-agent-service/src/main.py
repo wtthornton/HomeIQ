@@ -9,18 +9,16 @@ Responsibilities:
 """
 
 import logging
-import os
-from contextlib import asynccontextmanager
+import sys
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from homeiq_resilience import ServiceLifespan, create_app
 
 from .api.chat_endpoints import router as chat_router
 from .api.conversation_endpoints import router as conversation_router
+from .api.core_endpoints import router as core_router
 from .api.dependencies import set_services
 from .api.device_suggestions_endpoints import router as device_suggestions_router
+from .api.health_endpoints import router as health_router
 from .clients.data_api_client import DataAPIClient
 from .clients.ha_client import HomeAssistantClient
 from .config import Settings
@@ -30,13 +28,22 @@ from .services.conversation_service import ConversationService
 from .services.openai_client import OpenAIClient
 from .services.prompt_assembly_service import PromptAssemblyService
 from .services.tool_service import ToolService
-from .tools.tool_schemas import get_tool_schemas
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+
+def _configure_logging() -> None:
+    """Configure logging for the service."""
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level.upper()),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Settings (module-level singleton)
+# ---------------------------------------------------------------------------
+settings = Settings()
+_configure_logging()
 logger = logging.getLogger(__name__)
 
 # Global instances populated during startup
@@ -45,162 +52,153 @@ tool_service: ToolService | None = None
 conversation_service: ConversationService | None = None
 prompt_assembly_service: PromptAssemblyService | None = None
 openai_client: OpenAIClient | None = None
-settings: Settings | None = None
-group_health = None  # GroupHealthCheck — initialized in lifespan
+group_health = None  # GroupHealthCheck -- initialized in lifespan
 
 
-def _parse_allowed_origins() -> list[str]:
-    """Parse comma-delimited allowed origins from environment."""
-    raw_origins = os.getenv("HA_AI_AGENT_ALLOWED_ORIGINS")
-    if raw_origins:
-        parsed = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
-        if parsed:
-            return parsed
-    return ["http://localhost:3000", "http://localhost:3001"]
+# ---------------------------------------------------------------------------
+# Startup / Shutdown helpers
+# ---------------------------------------------------------------------------
+
+def _get_secret(field: object) -> str | None:
+    """Extract secret value or return None."""
+    if field is None:
+        return None
+    return field.get_secret_value()
 
 
-ALLOWED_ORIGINS = _parse_allowed_origins()
-
-
-def _fix_database_permissions(settings: Settings) -> None:
-    """
-    Fix database directory permissions before initialization (Docker volume fix).
-
-    Args:
-        settings: Application settings containing database URL
-    """
-    # PostgreSQL connections don't need local file permission fixes
-    pass
-
-
-async def _initialize_services(app_settings: Settings) -> tuple:
-    """Initialize all service components during startup.
-
-    Args:
-        app_settings: Application settings instance.
-
-    Returns:
-        Tuple of (context_builder, tool_service, conversation_service,
-        prompt_assembly_service, openai_client_inst, group_health_inst).
-    """
+async def _init_group_health() -> object:
+    """Probe dependencies and build GroupHealthCheck."""
     from homeiq_resilience import GroupHealthCheck, wait_for_dependency
 
+    data_api_ok = await wait_for_dependency(
+        url=settings.data_api_url, name="data-api", max_retries=10,
+    )
+    device_intel_ok = await wait_for_dependency(
+        url=settings.device_intelligence_url,
+        name="device-intelligence-service",
+        max_retries=5,
+    )
+    if not data_api_ok:
+        logger.warning("data-api unavailable -- entity resolution will be degraded")
+    if not device_intel_ok:
+        logger.warning("device-intelligence unavailable -- device context limited")
+
+    gh = GroupHealthCheck(group_name="automation-intelligence", version="1.0.0")
+    gh.register_dependency("data-api", settings.data_api_url)
+    gh.register_dependency(
+        "device-intelligence-service", settings.device_intelligence_url,
+    )
+    gh.register_dependency("ai-automation-service", settings.ai_automation_service_url)
+    if not data_api_ok:
+        gh.add_degraded_feature("entity-resolution (data-api unreachable)")
+    if not device_intel_ok:
+        gh.add_degraded_feature("device-context (device-intelligence unreachable)")
+    return gh
+
+
+def _build_clients() -> tuple:
+    """Create all HTTP clients for external services."""
     from .clients.ai_automation_client import AIAutomationClient
     from .clients.hybrid_flow_client import HybridFlowClient
     from .clients.yaml_validation_client import YAMLValidationClient
 
-    # Fix database directory permissions before initialization (Docker volume fix)
-    _fix_database_permissions(app_settings)
+    ha_client = HomeAssistantClient(
+        ha_url=settings.ha_url,
+        access_token=settings.ha_token.get_secret_value(),
+        timeout=settings.ha_timeout,
+    )
+    data_api_client = DataAPIClient(
+        base_url=settings.data_api_url,
+        api_key=_get_secret(settings.data_api_key),
+    )
+    automation_key = _get_secret(settings.ai_automation_api_key)
+    ai_automation_client = AIAutomationClient(
+        base_url=settings.ai_automation_service_url, api_key=automation_key,
+    )
+    hybrid_flow_client = HybridFlowClient(
+        base_url=settings.ai_automation_service_url, api_key=automation_key,
+    )
+    yaml_validation_client = YAMLValidationClient(
+        base_url=settings.yaml_validation_service_url,
+        api_key=_get_secret(settings.yaml_validation_api_key),
+    )
+    return (
+        ha_client, data_api_client, ai_automation_client,
+        hybrid_flow_client, yaml_validation_client,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Startup / Shutdown hooks for ServiceLifespan
+# ---------------------------------------------------------------------------
+
+async def _startup_services() -> None:
+    """Initialize all service components during startup."""
+    global context_builder, tool_service, conversation_service
+    global prompt_assembly_service, openai_client, group_health
 
     # Initialize database
-    db_ok = await init_database(app_settings.database_url)
+    db_ok = await init_database(settings.database_url)
     if db_ok:
         logger.info("Database initialized")
     else:
-        logger.warning("Database unavailable — starting in degraded mode")
+        logger.warning("Database unavailable -- starting in degraded mode")
 
-    # Probe cross-group dependencies (non-fatal)
-    data_api_available = await wait_for_dependency(
-        url=app_settings.data_api_url, name="data-api", max_retries=10,
-    )
-    device_intel_available = await wait_for_dependency(
-        url=app_settings.device_intelligence_url, name="device-intelligence-service", max_retries=5,
-    )
-    if not data_api_available:
-        logger.warning("data-api unavailable — entity resolution will be degraded")
-    if not device_intel_available:
-        logger.warning("device-intelligence unavailable — device context will be limited")
-
-    # Initialize group health checker
-    gh = GroupHealthCheck(group_name="automation-intelligence", version="1.0.0")
-    gh.register_dependency("data-api", app_settings.data_api_url)
-    gh.register_dependency("device-intelligence-service", app_settings.device_intelligence_url)
-    gh.register_dependency("ai-automation-service", app_settings.ai_automation_service_url)
-    if not data_api_available:
-        gh.add_degraded_feature("entity-resolution (data-api unreachable at startup)")
-    if not device_intel_available:
-        gh.add_degraded_feature("device-context (device-intelligence unreachable at startup)")
+    group_health = await _init_group_health()
 
     # Initialize context builder
-    cb = ContextBuilder(app_settings)
+    cb = ContextBuilder(settings)
     await cb.initialize()
     logger.info("Context builder initialized")
+    context_builder = cb
 
     # Initialize clients
-    ha_client = HomeAssistantClient(
-        ha_url=app_settings.ha_url,
-        access_token=app_settings.ha_token.get_secret_value(),
-        timeout=app_settings.ha_timeout,
-    )
-    data_api_client = DataAPIClient(
-        base_url=app_settings.data_api_url,
-        api_key=app_settings.data_api_key.get_secret_value() if app_settings.data_api_key else None,
-    )
-    ai_automation_client = AIAutomationClient(
-        base_url=app_settings.ai_automation_service_url,
-        api_key=app_settings.ai_automation_api_key.get_secret_value() if app_settings.ai_automation_api_key else None,
-    )
-    hybrid_flow_client = HybridFlowClient(
-        base_url=app_settings.ai_automation_service_url,
-        api_key=app_settings.ai_automation_api_key.get_secret_value() if app_settings.ai_automation_api_key else None,
-    )
-    yaml_val_key = (
-        app_settings.yaml_validation_api_key.get_secret_value()
-        if app_settings.yaml_validation_api_key else None
-    )
-    yaml_validation_client = YAMLValidationClient(
-        base_url=app_settings.yaml_validation_service_url,
-        api_key=yaml_val_key,
-    )
+    ha_cl, dapi_cl, ai_auto_cl, hybrid_cl, yaml_cl = _build_clients()
 
-    # Initialize OpenAI client
-    oc = OpenAIClient(app_settings)
+    oc = OpenAIClient(settings)
     logger.info("OpenAI client initialized")
+    openai_client = oc
 
     ts = ToolService(
-        ha_client,
-        data_api_client,
-        ai_automation_client,
-        yaml_validation_client,
+        ha_cl, dapi_cl, ai_auto_cl, yaml_cl,
         oc.client if oc else None,
     )
     if hasattr(ts, "tool_handler"):
-        ts.tool_handler.hybrid_flow_client = hybrid_flow_client
-        ts.tool_handler.use_hybrid_flow = app_settings.use_hybrid_flow
+        ts.tool_handler.hybrid_flow_client = hybrid_cl
+        ts.tool_handler.use_hybrid_flow = settings.use_hybrid_flow
+    tool_service = ts
 
-    cs = ConversationService(app_settings, cb)
-    pas = PromptAssemblyService(app_settings, cb, cs)
+    cs = ConversationService(settings, cb)
+    pas = PromptAssemblyService(settings, cb, cs)
+    conversation_service = cs
+    prompt_assembly_service = pas
 
     set_services(
-        settings=app_settings,
-        conversation_service=cs,
-        prompt_assembly_service=pas,
-        openai_client=oc,
-        tool_service=ts,
+        settings=settings, conversation_service=cs,
+        prompt_assembly_service=pas, openai_client=oc, tool_service=ts,
     )
     logger.info("HA AI Agent Service started successfully")
-    return cb, ts, cs, pas, oc, gh
 
 
-async def _cleanup_services() -> None:
+async def _shutdown_services() -> None:
     """Run cleanup tasks on shutdown."""
     global context_builder, tool_service, conversation_service
-    global prompt_assembly_service, openai_client, settings, group_health
+    global prompt_assembly_service, openai_client, group_health
 
-    if conversation_service and settings:
+    if conversation_service:
         try:
             from .database import get_session
             from .services.conversation_persistence import cleanup_old_conversations
+
             async for session in get_session():
                 deleted = await cleanup_old_conversations(
-                    session, settings.conversation_ttl_days
+                    session, settings.conversation_ttl_days,
                 )
                 if deleted > 0:
-                    logger.info("Cleaned up %d old conversations on shutdown", deleted)
+                    logger.info("Cleaned up %d old conversations", deleted)
         except Exception as e:
             logger.warning("Error during conversation cleanup: %s", e)
 
-    logger.info("HA AI Agent Service shutting down")
     if context_builder:
         await context_builder.close()
     if tool_service:
@@ -214,288 +212,43 @@ async def _cleanup_services() -> None:
     conversation_service = None
     prompt_assembly_service = None
     openai_client = None
-    settings = None
     group_health = None
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    """Initialize services on startup, cleanup on shutdown."""
-    global context_builder, tool_service, conversation_service
-    global prompt_assembly_service, openai_client, settings, group_health
+# ---------------------------------------------------------------------------
+# Lifespan (ServiceLifespan)
+# ---------------------------------------------------------------------------
 
-    logger.info("Starting HA AI Agent Service...")
-    try:
-        settings = Settings()
-        logger.info("Settings loaded (HA URL: %s)", settings.ha_url)
-
-        cb, ts, cs, pas, oc, gh = await _initialize_services(settings)
-        context_builder = cb
-        tool_service = ts
-        conversation_service = cs
-        prompt_assembly_service = pas
-        openai_client = oc
-        group_health = gh
-    except Exception:
-        logger.exception("Failed to start HA AI Agent Service")
-        raise
-
-    yield
-
-    await _cleanup_services()
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup_services, name="services")
+lifespan.on_shutdown(_shutdown_services, name="services")
 
 
-# Create FastAPI app
-app = FastAPI(
+# ---------------------------------------------------------------------------
+# App (create_app factory -- CORS, request-id, timing, exception handler)
+# ---------------------------------------------------------------------------
+
+app = create_app(
     title="HA AI Agent Service",
-    description="Tier 1 Context Injection for Home Assistant AI Agent",
     version="1.0.0",
-    lifespan=lifespan
+    description="Tier 1 Context Injection for Home Assistant AI Agent",
+    lifespan=lifespan.handler,
+    cors_origins=settings.get_cors_origins_list(),
 )
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-HomeIQ-API-Key"],
-)
-
-
-# Register chat router (Epic AI-20 Story AI20.4)
+# Routers
+app.include_router(health_router)
+app.include_router(core_router)
 app.include_router(chat_router)
-
-# Register conversation management router (Epic AI-20 Story AI20.5)
 app.include_router(conversation_router)
-
-# Register device suggestions router (Phase 2: Device-Based Automation Suggestions)
 app.include_router(device_suggestions_router)
-
-
-# API Endpoints
-@app.get("/health")
-async def health_check() -> dict:
-    """
-    Group-aware health check endpoint.
-
-    Uses GroupHealthCheck to probe cross-group dependencies (data-api,
-    device-intelligence, ai-automation-service) and reports group status,
-    dependency latencies, and degraded features.  Also checks local
-    resources (database, OpenAI config).
-    """
-    if not group_health or not settings:
-        raise HTTPException(status_code=503, detail="Service not ready")
-
-    try:
-        result = await group_health.to_dict()
-
-        # Enrich with local checks (not remote HTTP deps)
-        from sqlalchemy import text
-
-        from .database import get_session
-
-        try:
-            async for session in get_session():
-                await session.execute(text("SELECT 1"))
-            result["dependencies"]["database"] = {"status": "healthy"}
-        except Exception:
-            result["dependencies"]["database"] = {"status": "unhealthy"}
-            if result["status"] == "healthy":
-                result["status"] = "degraded"
-
-        # OpenAI config check
-        if settings.openai_api_key and settings.openai_api_key.get_secret_value():
-            result["dependencies"]["openai"] = {"status": "configured"}
-        else:
-            result["dependencies"]["openai"] = {"status": "not-configured"}
-
-        status_code = 503 if result["status"] == "unhealthy" else 200
-        return JSONResponse(content=result, status_code=status_code)
-    except Exception as e:
-        logger.exception("Error during health check")
-        raise HTTPException(status_code=503, detail="Health check failed") from e
-
-
-@app.get("/api/v1/context")
-async def get_context() -> dict:
-    """Get Tier 1 context for OpenAI agent"""
-    if not context_builder:
-        raise HTTPException(status_code=503, detail="Service not ready")
-
-    try:
-        context = await context_builder.build_context()
-        return {
-            "context": context,
-            "token_count": len(context.split())  # Rough token estimate
-        }
-    except Exception as e:
-        logger.exception("Error building context")
-        raise HTTPException(status_code=500, detail="Failed to build context") from e
-
-
-@app.get("/api/v1/system-prompt")
-async def get_system_prompt() -> dict:
-    """Get the system prompt for the OpenAI agent"""
-    if not context_builder:
-        raise HTTPException(status_code=503, detail="Service not ready")
-
-    try:
-        system_prompt = context_builder.get_system_prompt()
-        return {
-            "system_prompt": system_prompt,
-            "token_count": len(system_prompt.split())  # Rough token estimate
-        }
-    except Exception as e:
-        logger.exception("Error getting system prompt")
-        raise HTTPException(status_code=500, detail="Failed to get system prompt") from e
-
-
-@app.get("/api/v1/complete-prompt")
-async def get_complete_prompt() -> dict:
-    """Get complete system prompt with context injection"""
-    if not context_builder:
-        raise HTTPException(status_code=503, detail="Service not ready")
-
-    try:
-        complete_prompt = await context_builder.build_complete_system_prompt()
-        return {
-            "system_prompt": complete_prompt,
-            "token_count": len(complete_prompt.split())  # Rough token estimate
-        }
-    except Exception as e:
-        logger.exception("Error building complete prompt")
-        raise HTTPException(status_code=500, detail="Failed to build complete prompt") from e
-
-
-class ValidationRequest(BaseModel):
-    """Request model for YAML validation."""
-    yaml_content: str
-    normalize: bool = True
-    validate_entities: bool = True
-    validate_services: bool = False
-
-
-@app.post("/api/v1/validation/validate")
-async def validate_yaml(request: ValidationRequest) -> dict:
-    """
-    Validate automation YAML using validation chain.
-
-    This endpoint uses the validation chain which tries multiple validation strategies
-    in order (YAML Validation Service, AI Automation Service, Basic Validation) until
-    one succeeds or all fail. This provides graceful fallback when validation services
-    are unavailable.
-
-    Args:
-        request: Request body containing:
-            - yaml_content: YAML string to validate
-            - normalize: Optional, whether to normalize YAML (default: True)
-            - validate_entities: Optional, whether to validate entities (default: True)
-            - validate_services: Optional, whether to validate services (default: False)
-
-    Returns:
-        Validation result with:
-            - valid: Whether validation passed
-            - errors: List of error messages
-            - warnings: List of warning messages
-            - score: Validation score (0-100)
-            - fixed_yaml: Normalized YAML if available
-            - fixes_applied: List of fixes applied
-            - strategy_used: Name of validation strategy that succeeded
-            - services_unavailable: List of services that were unavailable
-    """
-    if not tool_service:
-        raise HTTPException(status_code=503, detail="Service not ready")
-
-    try:
-        # Use validation chain (handles fallback automatically)
-        validation_result = await tool_service.tool_handler.validation_chain.validate(request.yaml_content)
-
-        # Convert to dict (includes strategy_name and services_unavailable if available)
-        return validation_result.to_dict()
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Error validating YAML")
-        raise HTTPException(status_code=500, detail="Failed to validate YAML") from e
-
-
-@app.get("/api/v1/tools")
-async def get_tools() -> dict:
-    """Get available tool schemas for OpenAI function calling"""
-    if not tool_service:
-        raise HTTPException(status_code=503, detail="Service not ready")
-
-    try:
-        tools = get_tool_schemas()
-        return {
-            "tools": tools,
-            "count": len(tools),
-            "tool_names": [tool["function"]["name"] for tool in tools]
-        }
-    except Exception as e:
-        logger.exception("Error getting tools")
-        raise HTTPException(status_code=500, detail="Failed to get tools") from e
-
-
-@app.post("/api/v1/tools/execute")
-async def execute_tool(request: dict) -> dict:
-    """
-    Execute a tool call.
-
-    Request body:
-    {
-        "tool_name": "get_entity_state",
-        "arguments": {
-            "entity_id": "light.kitchen"
-        }
-    }
-    """
-    if not tool_service:
-        raise HTTPException(status_code=503, detail="Service not ready")
-
-    try:
-        tool_name = request.get("tool_name")
-        arguments = request.get("arguments", {})
-
-        if not tool_name:
-            raise HTTPException(status_code=400, detail="tool_name is required")
-
-        return await tool_service.execute_tool(tool_name, arguments)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Error executing tool")
-        raise HTTPException(status_code=500, detail="Failed to execute tool") from e
-
-
-@app.post("/api/v1/tools/execute-openai")
-async def execute_tool_openai(request: dict) -> dict:
-    """
-    Execute a tool call in OpenAI format.
-
-    Request body (OpenAI tool call format):
-    {
-        "id": "call_...",
-        "type": "function",
-        "function": {
-            "name": "get_entity_state",
-            "arguments": "{\"entity_id\": \"light.kitchen\"}"
-        }
-    }
-    """
-    if not tool_service:
-        raise HTTPException(status_code=503, detail="Service not ready")
-
-    try:
-        return await tool_service.execute_tool_call(request)
-    except Exception as e:
-        logger.exception("Error executing tool call")
-        raise HTTPException(status_code=500, detail="Failed to execute tool call") from e
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8030)  # noqa: S104
 
+    uvicorn.run(
+        app,
+        host="0.0.0.0",  # noqa: S104
+        port=settings.service_port,
+    )

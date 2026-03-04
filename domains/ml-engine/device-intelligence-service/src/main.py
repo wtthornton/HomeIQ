@@ -1,19 +1,19 @@
-"""
-Device Intelligence Service - Main FastAPI Application
+"""Device Intelligence Service - Main FastAPI Application.
 
-This service provides centralized device discovery and intelligence processing
+Centralized device discovery and intelligence processing
 for the Home Assistant Ingestor system.
+Uses shared library pattern: create_app + ServiceLifespan + StandardHealthCheck.
 """
 
 import logging
-import time
-from contextlib import asynccontextmanager
+import sys
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from .api.database_management import router as database_management_router
 from .api.device_mappings_router import router as device_mappings_router
@@ -36,86 +36,111 @@ from .scheduler.training_scheduler import TrainingScheduler
 # Load settings first so log level is available
 settings = Settings()
 
-# Configure logging (MED-13: configurable log level instead of hardcoded DEBUG)
-logging.basicConfig(
-    level=getattr(logging, settings.LOG_LEVEL, logging.INFO),
-    format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","service":"device-intelligence"}'
-)
+
+def _configure_logging() -> None:
+    """Configure logging for the service."""
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level.upper(), logging.INFO),
+        format='{"timestamp":"%(asctime)s","level":"%(levelname)s",'
+        '"message":"%(message)s","service":"device-intelligence"}',
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
+
+
+_configure_logging()
 logger = logging.getLogger(__name__)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan manager for startup and shutdown events."""
-    analytics_engine: PredictiveAnalyticsEngine | None = None
-    training_scheduler: TrainingScheduler | None = None
-    logger.info("Device Intelligence Service starting up...")
-    logger.info("Service configuration loaded: Port %d", settings.DEVICE_INTELLIGENCE_PORT)
+# ---------------------------------------------------------------------------
+# Singleton resources (set during startup, cleaned up during shutdown)
+# ---------------------------------------------------------------------------
+_analytics_engine: PredictiveAnalyticsEngine | None = None
+_training_scheduler: TrainingScheduler | None = None
 
-    try:
-        settings.validate_required_runtime_fields()
-        db_ok = await initialize_database(settings)
-        if db_ok:
-            logger.info("Database initialized successfully")
-        else:
-            logger.warning("Database unavailable — starting in degraded mode")
 
-        analytics_engine = PredictiveAnalyticsEngine()
-        await analytics_engine.initialize_models()
-        app.state.analytics_engine = analytics_engine
-        logger.info("Predictive analytics engine initialized")
+async def _startup_db() -> None:
+    """Initialize database connection."""
+    db_ok = await initialize_database(settings)
+    if db_ok:
+        logger.info("Database initialized successfully")
+    else:
+        logger.warning("Database unavailable -- starting in degraded mode")
 
-        # Start training scheduler (Epic 46.2: Built-in Nightly Training Scheduler)
-        training_scheduler = TrainingScheduler(settings, analytics_engine)
-        training_scheduler.start()
-        app.state.training_scheduler = training_scheduler
-        logger.info("Training scheduler initialized")
 
-        yield
-    finally:
-        logger.info("Device Intelligence Service shutting down...")
+async def _startup_analytics() -> None:
+    """Initialize predictive analytics engine and training scheduler."""
+    global _analytics_engine, _training_scheduler  # noqa: PLW0603
 
-        # Stop training scheduler
-        if training_scheduler:
-            training_scheduler.stop()
+    settings.validate_required_runtime_fields()
 
-        await shutdown_discovery_service()
+    _analytics_engine = PredictiveAnalyticsEngine()
+    await _analytics_engine.initialize_models()
+    logger.info("Predictive analytics engine initialized")
 
-        if analytics_engine:
-            await analytics_engine.shutdown()
+    _training_scheduler = TrainingScheduler(settings, _analytics_engine)
+    _training_scheduler.start()
+    logger.info("Training scheduler initialized")
 
-        await close_database()
-        logger.info("Resources closed gracefully")
 
-# Create FastAPI application
-app = FastAPI(
-    title="Device Intelligence Service",
-    description="Centralized device discovery and intelligence processing for Home Assistant",
+async def _shutdown_resources() -> None:
+    """Stop training scheduler, discovery service, analytics engine, and database."""
+    if _training_scheduler:
+        _training_scheduler.stop()
+
+    await shutdown_discovery_service()
+
+    if _analytics_engine:
+        await _analytics_engine.shutdown()
+
+    await close_database()
+    logger.info("Resources closed gracefully")
+
+
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
+
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup_db, name="database")
+lifespan.on_startup(_startup_analytics, name="analytics-engine")
+lifespan.on_shutdown(_shutdown_resources, name="all-resources")
+
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+health = StandardHealthCheck(
+    service_name=settings.service_name,
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    lifespan=lifespan
 )
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.get_allowed_origins(),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
+app = create_app(
+    title="Device Intelligence Service",
+    version="1.0.0",
+    description="Centralized device discovery and intelligence processing for Home Assistant",
+    lifespan=lifespan.handler,
+    health_check=health,
+    cors_origins=settings.get_allowed_origins(),
 )
 
-# Add API key authentication middleware (CRIT-3)
+
+# ---------------------------------------------------------------------------
+# Custom middleware (service-specific, not in shared library)
+# ---------------------------------------------------------------------------
+
 @app.middleware("http")
-async def check_api_key(request: Request, call_next):
-    """Check API key for non-health endpoints."""
-    # Skip auth for health, docs, root, and openapi
+async def check_api_key(request: Request, call_next: Any) -> Any:
+    """Check API key for non-health endpoints (CRIT-3)."""
     skip_paths = ["/health", "/docs", "/redoc", "/openapi.json", "/"]
     path = request.url.path
     if any(path == p or path.startswith(p + "/") for p in skip_paths if p != "/") or path == "/":
         return await call_next(request)
 
-    # Skip auth if no API_KEY is configured (backward compatibility)
     if not settings.API_KEY:
         return await call_next(request)
 
@@ -126,27 +151,10 @@ async def check_api_key(request: Request, call_next):
     return await call_next(request)
 
 
-# Add request/response logging middleware
-@app.middleware("http")
-async def add_process_time_header(request: Request, call_next) -> Any:
-    """Add processing time header and log requests/responses."""
-    start_time = time.perf_counter()
+# ---------------------------------------------------------------------------
+# Custom exception handlers
+# ---------------------------------------------------------------------------
 
-    # Log request
-    logger.info("Request: %s %s", request.method, request.url)
-
-    response = await call_next(request)
-
-    # Calculate processing time
-    process_time = time.perf_counter() - start_time
-    response.headers["X-Process-Time"] = str(process_time)
-
-    # Log response
-    logger.info("Response: %d (%.3fs)", response.status_code, process_time)
-
-    return response
-
-# Add error handling middleware
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Handle request validation errors."""
@@ -156,24 +164,29 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={
             "error": "Validation Error",
             "detail": exc.errors(),
-            "path": str(request.url)
-        }
+            "path": str(request.url),
+        },
     )
 
-@app.exception_handler(Exception)
-async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Handle general exceptions."""
-    logger.error("Unhandled error: %s", exc, exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": "Internal Server Error",
-            "detail": "An unexpected error occurred",
-            "path": str(request.url)
-        }
-    )
 
-# Include API routers
+# ---------------------------------------------------------------------------
+# Inject analytics engine into app.state for route handlers
+# ---------------------------------------------------------------------------
+
+@app.middleware("http")
+async def _inject_state(request: Request, call_next: Any) -> Any:
+    """Expose analytics engine and training scheduler on app.state."""
+    if _analytics_engine is not None and not hasattr(request.app.state, "analytics_engine"):
+        request.app.state.analytics_engine = _analytics_engine
+    if _training_scheduler is not None and not hasattr(request.app.state, "training_scheduler"):
+        request.app.state.training_scheduler = _training_scheduler
+    return await call_next(request)
+
+
+# ---------------------------------------------------------------------------
+# Include API routers (health /health is auto-included by create_app)
+# ---------------------------------------------------------------------------
+
 app.include_router(health_router, tags=["Health"])
 app.include_router(discovery_router, prefix="/api", tags=["Discovery"])
 app.include_router(storage_router, prefix="/api", tags=["Storage"])
@@ -187,28 +200,16 @@ app.include_router(name_enhancement_router)
 app.include_router(team_tracker_router, tags=["Team Tracker"])
 # NOTE: devices_router (api/devices.py) is NOT included here because
 # storage_router already serves the identical /api/devices/* routes with
-# real DeviceService logic.  devices.py is kept as a well-typed alternative
-# that can replace storage_router's device endpoints if needed.
+# real DeviceService logic.
 app.include_router(device_mappings_router)  # Epic AI-24: Device Mapping Library
 
-# Root endpoint
-@app.get("/")
-async def root() -> dict[str, Any]:
-    """Root endpoint providing service information."""
-    return {
-        "service": "Device Intelligence Service",
-        "version": "1.0.0",
-        "status": "operational",
-        "port": settings.DEVICE_INTELLIGENCE_PORT,
-        "docs": "/docs",
-        "health": "/health/"
-    }
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "src.main:app",
-        host=settings.DEVICE_INTELLIGENCE_HOST,
-        port=settings.DEVICE_INTELLIGENCE_PORT,
-        reload=True
+        host="0.0.0.0",  # noqa: S104
+        port=settings.service_port,
+        reload=True,
     )

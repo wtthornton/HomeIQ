@@ -9,28 +9,22 @@ and exponential backoff on consecutive background fetch failures.
 from __future__ import annotations
 
 import asyncio
-import os
 import re
 from contextlib import suppress
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any
 
 import aiohttp
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi import HTTPException
 from homeiq_observability.logging_config import setup_logging
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from influxdb_client_3 import InfluxDBClient3, Point
 from pydantic import BaseModel
 
 from . import __version__
-from .health_check import HealthCheckHandler
+from .config import settings
 
-# Load environment variables
-load_dotenv()
-
-SERVICE_NAME = "weather-api"
+SERVICE_NAME = settings.service_name
 SERVICE_VERSION = __version__
 
 # Configure logging
@@ -72,16 +66,13 @@ class WeatherService:
 
     def _init_weather_config(self) -> None:
         """Initialize OpenWeatherMap API configuration."""
-        self.api_key = os.getenv('WEATHER_API_KEY')
-        location = os.getenv('WEATHER_LOCATION', 'Las Vegas')
+        self.api_key = settings.weather_api_key
+        location = settings.weather_location
         if not re.match(r'^[a-zA-Z\s,.\-]{1,100}$', location):
             raise ValueError(f"Invalid WEATHER_LOCATION: must be alphanumeric with spaces/commas, got '{location}'")
         self.location = location
         self.base_url = "https://api.openweathermap.org/data/2.5"
-        self.auth_mode: Literal["header", "query"] = os.getenv('WEATHER_API_AUTH_MODE', 'header').lower()  # 2025 default
-        if self.auth_mode not in ("header", "query"):
-            logger.warning("Invalid WEATHER_API_AUTH_MODE '%s', defaulting to 'header'", self.auth_mode)
-            self.auth_mode = "header"
+        self.auth_mode = settings.weather_api_auth_mode
         if self.auth_mode == "query":
             logger.warning(
                 "SECURITY: WEATHER_API_AUTH_MODE=query sends API key in URL parameters. "
@@ -91,7 +82,7 @@ class WeatherService:
 
     def _init_influxdb_config(self) -> None:
         """Initialize InfluxDB configuration with fallback hostname logic."""
-        influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
+        influxdb_url = settings.influxdb_url
         if '://' in influxdb_url:
             self.influxdb_host = influxdb_url.split('://')[1].split(':')[0]
             self.influxdb_port = influxdb_url.split(':')[-1] if ':' in influxdb_url.split('://')[1] else '8086'
@@ -99,8 +90,7 @@ class WeatherService:
             self.influxdb_host = influxdb_url.split(':')[0]
             self.influxdb_port = influxdb_url.split(':')[1] if ':' in influxdb_url else '8086'
 
-        fallback_hosts_env = os.getenv('INFLUXDB_FALLBACK_HOSTS', 'influxdb,homeiq-influxdb,localhost')
-        fallback_hosts = [h.strip() for h in fallback_hosts_env.split(',') if h.strip()]
+        fallback_hosts = [h.strip() for h in settings.influxdb_fallback_hosts.split(',') if h.strip()]
 
         self.influxdb_urls = [influxdb_url]
         for host in fallback_hosts:
@@ -109,17 +99,17 @@ class WeatherService:
 
         logger.info("InfluxDB fallback URLs configured: %d URLs (original + %d fallbacks)", len(self.influxdb_urls), len(fallback_hosts))
         self.influxdb_url = influxdb_url
-        self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
-        self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
-        self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'weather_data')
-        self.max_influx_retries = int(os.getenv('INFLUXDB_WRITE_RETRIES', '3'))
+        self.influxdb_token = settings.influxdb_token.get_secret_value() if settings.influxdb_token else None
+        self.influxdb_org = settings.influxdb_org
+        self.influxdb_bucket = settings.influxdb_bucket
+        self.max_influx_retries = settings.influxdb_write_retries
         self.working_influxdb_host = None
 
     def _init_cache_and_components(self) -> None:
         """Initialize cache, service components, and stats counters."""
         self.cached_weather: dict[str, Any] | None = None
         self.cache_time: datetime | None = None
-        self.cache_ttl = int(os.getenv('CACHE_TTL_SECONDS', '900'))
+        self.cache_ttl = settings.cache_ttl_seconds
 
         self.session: aiohttp.ClientSession | None = None
         self.influxdb_client: InfluxDBClient3 | None = None
@@ -130,7 +120,6 @@ class WeatherService:
         self.last_influx_write_error: str | None = None
         self.influx_write_failure_count = 0
         self.influx_write_success_count = 0
-        self.health_handler = HealthCheckHandler(service_name=SERVICE_NAME, version=SERVICE_VERSION)
         self._fetch_lock = asyncio.Lock()
         self.fetch_count = 0
         self.cache_hits = 0
@@ -440,39 +429,53 @@ class WeatherService:
 weather_service = None
 
 
-async def startup() -> None:
-    """Startup handler: initializes the global weather service and background task."""
+async def _startup_weather() -> None:
+    """Start weather service and background task."""
     global weather_service
     weather_service = WeatherService()
     await weather_service.startup()
     weather_service.start_background_task()
 
 
-async def shutdown() -> None:
-    """Shutdown handler: gracefully shuts down the weather service."""
+async def _shutdown_weather() -> None:
+    """Shut down weather service."""
+    global weather_service
     if weather_service:
         await weather_service.shutdown()
+        weather_service = None
 
 
-# FastAPI app
-app = FastAPI(
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
+
+_lifespan = ServiceLifespan(settings.service_name)
+_lifespan.on_startup(_startup_weather, name="weather")
+_lifespan.on_shutdown(_shutdown_weather, name="weather")
+
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+_health = StandardHealthCheck(
+    service_name=settings.service_name,
+    version=SERVICE_VERSION,
+)
+
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
+app = create_app(
     title="Weather API Service",
+    version=SERVICE_VERSION,
     description="Standalone weather data service",
-    version=SERVICE_VERSION
+    lifespan=_lifespan.handler,
+    health_check=_health,
+    cors_origins=settings.get_cors_origins_list(),
 )
-
-cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:3001')
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[origin.strip() for origin in cors_origins.split(',')],
-    allow_credentials=True,
-    allow_methods=["GET", "OPTIONS"],
-    allow_headers=["*"],
-)
-
-# Lifecycle
-app.add_event_handler("startup", startup)
-app.add_event_handler("shutdown", shutdown)
 
 
 @app.get("/")
@@ -484,17 +487,6 @@ async def root():
         "status": "running",
         "endpoints": ["/health", "/metrics", "/current-weather", "/cache/stats"]
     }
-
-
-@app.get("/health")
-async def health():
-    """Health check"""
-    if not weather_service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-
-    result = await weather_service.health_handler.handle(weather_service)
-    status_code = 200 if result.get("status") == "healthy" else 503
-    return JSONResponse(content=result, status_code=status_code)
 
 
 @app.get("/metrics")
@@ -547,6 +539,10 @@ async def cache_stats():
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv('SERVICE_PORT', '8009'))
-    host = os.getenv('SERVICE_HOST', '0.0.0.0')  # noqa: S104 — Docker requires binding all interfaces
-    uvicorn.run(app, host=host, port=port, log_level="info")
+
+    uvicorn.run(
+        "src.main:app",
+        host="0.0.0.0",  # noqa: S104
+        port=settings.service_port,
+        reload=True,
+    )

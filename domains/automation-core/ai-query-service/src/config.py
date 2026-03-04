@@ -1,29 +1,27 @@
-"""Configuration management for AI Query Service"""
+"""Configuration management for AI Query Service."""
 
-from pydantic import ConfigDict
-from pydantic_settings import BaseSettings
+from homeiq_data import BaseServiceSettings
 
 
-class Settings(BaseSettings):
-    """Application settings loaded from environment"""
+class Settings(BaseServiceSettings):
+    """Application settings loaded from environment.
 
-    # Database
+    Inherits from BaseServiceSettings which provides: service_name,
+    service_port, log_level, database_url, postgres_url, database_schema,
+    data_api_url, data_api_key, openai_api_key (SecretStr), cors_origins,
+    influxdb_url/token/org/bucket, effective_database_url property,
+    and get_cors_origins_list().
+    """
+
+    # Override base defaults
+    service_name: str = "ai-query-service"
+    service_port: int = 8018
+    database_schema: str = "automation"
+
+    # Legacy path (kept for backward compat with env vars)
     database_path: str = "/app/data/ai_automation.db"
-    database_url: str = ""  # Set via POSTGRES_URL or DATABASE_URL env var
     database_pool_size: int = 10  # Connection pool size (optimized for query service)
     database_max_overflow: int = 5  # Max overflow connections
-
-    # PostgreSQL
-    postgres_url: str = ""  # Set via POSTGRES_URL env var
-    database_schema: str = "automation"  # Set via DATABASE_SCHEMA env var
-
-    @property
-    def effective_database_url(self) -> str:
-        """Return the PostgreSQL database URL."""
-        return self.postgres_url or self.database_url
-
-    # Data API Configuration
-    data_api_url: str = "http://data-api:8006"
 
     # Home Assistant Configuration
     ha_url: str | None = None
@@ -32,9 +30,8 @@ class Settings(BaseSettings):
     # Device Intelligence Service
     device_intelligence_url: str = "http://device-intelligence-service:8019"
 
-    # OpenAI Configuration
-    openai_api_key: str | None = None
-    openai_model: str = "gpt-5-mini"  # Better entity extraction than gpt-4o-mini (see implementation/OPENAI_MODEL_RESEARCH_2026.md)
+    # OpenAI Configuration (openai_api_key inherited from base as SecretStr)
+    openai_model: str = "gpt-5-mini"  # Better entity extraction than gpt-4o-mini
     openai_timeout: float = 30.0  # Timeout for OpenAI API calls (seconds)
 
     # Query Service Performance Settings
@@ -57,20 +54,6 @@ class Settings(BaseSettings):
 
     # Rate Limiting
     rate_limit_enabled: bool = True
-
-    # Logging
-    log_level: str = "INFO"
-
-    # Service Configuration
-    service_port: int = 8018
-    service_name: str = "ai-query-service"
-
-    model_config = ConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
-    )
 
 
 settings = Settings()

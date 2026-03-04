@@ -1,147 +1,83 @@
-"""
-AI Training Service - Main FastAPI Application
+"""AI Training Service - Main FastAPI Application.
 
-Epic 39, Story 39.1: Training Service Foundation
-Extracted from ai-automation-service for independent scaling and maintainability.
+Epic 39, Story 39.1: Training Service Foundation.
+Uses shared library pattern: create_app + ServiceLifespan + StandardHealthCheck.
 """
 
 import logging
-import os
-from contextlib import asynccontextmanager
+import sys
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
-# Setup logging (use shared logging config)
-try:
-    from homeiq_observability.logging_config import setup_logging
-    logger = setup_logging("ai-training-service")
-except ImportError:
-    # Fallback if shared logging not available
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger("ai-training-service")
-
-# Import shared error handler
-try:
-    from homeiq_data.error_handler import register_error_handlers
-except ImportError:
-    logger.warning("Shared error handler not available, using default error handling")
-    register_error_handlers = None
-
-# Import observability modules
-try:
-    from homeiq_observability.observability import (
-        CorrelationMiddleware,
-        instrument_fastapi,
-        setup_tracing,
-    )
-    OBSERVABILITY_AVAILABLE = True
-except ImportError:
-    logger.warning("Observability modules not available")
-    OBSERVABILITY_AVAILABLE = False
-
-from .api import health_router, training_router
+from .api import training_router
 from .config import settings
 from .database import init_db
 
 
-async def _initialize_database() -> None:
+def _configure_logging() -> None:
+    """Configure logging for the service."""
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level.upper()),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
+
+
+# Configure logging
+_configure_logging()
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
+
+async def _startup_db() -> None:
     """Initialize database connection."""
     db_ok = await init_db()
     if db_ok:
-        logger.info("Database initialized")
+        logger.info("AI Training Service database initialized")
     else:
-        logger.warning("Database unavailable — starting in degraded mode")
+        logger.warning("Database unavailable -- starting in degraded mode")
 
 
-async def _setup_observability() -> None:
-    """Setup observability if available."""
-    if OBSERVABILITY_AVAILABLE:
-        try:
-            setup_tracing("ai-training-service")
-            logger.info("✅ Observability initialized")
-        except Exception as e:
-            logger.warning(f"Observability setup failed: {e}")
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup_db, name="database")
 
 
-# Lifespan context manager for startup and shutdown events
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    """Initialize service on startup and cleanup on shutdown"""
-    logger.info("=" * 60)
-    logger.info("AI Training Service Starting Up")
-    logger.info("=" * 60)
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
 
-    # Initialize database
-    await _initialize_database()
-
-    # Setup observability if available
-    await _setup_observability()
-
-    logger.info("✅ AI Training Service startup complete")
-    logger.info("=" * 60)
-
-    yield
-
-    # Shutdown
-    logger.info("=" * 60)
-    logger.info("AI Training Service Shutting Down")
-    logger.info("=" * 60)
-
-# Create FastAPI app
-app = FastAPI(
-    title="AI Training Service",
-    description="Training service for AI models, synthetic data generation, and model evaluation",
+health = StandardHealthCheck(
+    service_name=settings.service_name,
     version="1.0.0",
-    lifespan=lifespan
 )
 
-# CORS middleware
-# CRITICAL: Restrict origins in production - allow_origins=["*"] is a security risk
-cors_origins_env = os.getenv(
-    "CORS_ORIGINS", "http://localhost:3000,http://localhost:3001"
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
+app = create_app(
+    title="AI Training Service",
+    version="1.0.0",
+    description="Training service for AI models, synthetic data generation, and model evaluation",
+    lifespan=lifespan.handler,
+    health_check=health,
+    cors_origins=settings.get_cors_origins_list(),
 )
-allowed_origins = cors_origins_env.split(",")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,  # Restrict to known origins
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE"],  # Restrict to needed methods
-    allow_headers=["Content-Type", "Authorization"],  # Restrict headers
-)
 
-# Register error handlers
-if register_error_handlers:
-    register_error_handlers(app)
-
-# Instrument FastAPI for observability
-if OBSERVABILITY_AVAILABLE:
-    try:
-        instrument_fastapi(app, "ai-training-service")
-        app.add_middleware(CorrelationMiddleware)
-    except Exception as e:
-        logger.warning(f"Failed to instrument FastAPI: {e}")
-
-# Include routers
-app.include_router(health_router.router, prefix="/health", tags=["health"])
+# Include API routes (health is auto-included by create_app)
 app.include_router(training_router.router, prefix="/api/v1/training", tags=["training"])
 
-@app.get("/")
-async def root() -> dict[str, str]:
-    """Root endpoint"""
-    return {
-        "service": "ai-training-service",
-        "version": "1.0.0",
-        "status": "operational"
-    }
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",  # noqa: S104
-        port=8022,
-        reload=True,
-        log_level=settings.log_level.lower()
-    )
 
+    uvicorn.run(
+        "src.main:app",
+        host="0.0.0.0",  # noqa: S104
+        port=settings.service_port,
+        reload=True,
+    )

@@ -7,22 +7,26 @@ Port: 8037
 """
 
 import asyncio
-import os
-from contextlib import asynccontextmanager
+import logging
+import sys
 from pathlib import Path
 
 import structlog
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
+
 from . import __version__
 from .api.routes import load_model, router
+from .config import settings
 
 
 def _configure_logging() -> None:
     """Configure structured logging for the service."""
+    import os
+
     structlog.configure(
         processors=[
             structlog.stdlib.filter_by_level,
@@ -73,7 +77,7 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
 
 def _load_forecasting_model() -> None:
     """Load energy forecasting model if available."""
-    model_path = Path(os.getenv("MODEL_PATH", "./models/energy_forecaster"))
+    model_path = Path(settings.model_path)
 
     # Check for config in either format
     config_pkl = model_path.with_suffix(".config.pkl")
@@ -92,50 +96,48 @@ def _load_forecasting_model() -> None:
         )
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    """Application lifespan handler."""
-    # Startup
-    logger.info("Starting Energy Forecasting Service...")
+# ---------------------------------------------------------------------------
+# Startup / Shutdown
+# ---------------------------------------------------------------------------
 
-    # Load model
+async def _startup_model() -> None:
+    """Load the forecasting model on startup."""
     _load_forecasting_model()
 
-    yield
 
-    # Shutdown
-    logger.info("Shutting down Energy Forecasting Service...")
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
+
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup_model, name="model")
 
 
-# Create FastAPI app
-app = FastAPI(
-    title="Energy Forecasting Service",
-    description="ML-powered energy consumption forecasting for HomeIQ",
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+health = StandardHealthCheck(
+    service_name=settings.service_name,
     version=__version__,
-    lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+)
+
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
+app = create_app(
+    title="Energy Forecasting Service",
+    version=__version__,
+    description="ML-powered energy consumption forecasting for HomeIQ",
+    lifespan=lifespan.handler,
+    health_check=health,
+    cors_origins=settings.get_cors_origins_list(),
 )
 
 # Add timeout middleware
-request_timeout = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "30"))
-app.add_middleware(TimeoutMiddleware, timeout=request_timeout)
-
-# Add CORS middleware with restrictive defaults
-cors_origins = os.getenv("CORS_ORIGINS", "")
-if cors_origins:
-    origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
-else:
-    origins = ["http://localhost:3000", "http://localhost:8037"]
-    logger.warning("CORS_ORIGINS not set, using restrictive defaults")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["GET"],  # This service only serves GET requests
-    allow_headers=["*"],
-)
+app.add_middleware(TimeoutMiddleware, timeout=settings.request_timeout_seconds)
 
 # Include routers
 app.include_router(router)
@@ -145,7 +147,7 @@ app.include_router(router)
 async def root() -> dict[str, str]:
     """Root endpoint."""
     return {
-        "service": "energy-forecasting",
+        "service": settings.service_name,
         "version": __version__,
         "docs": "/docs",
     }
@@ -156,7 +158,7 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "src.main:app",
-        host=os.getenv("HOST", "0.0.0.0"),  # noqa: S104 - binding to all interfaces is intentional for Docker
-        port=int(os.getenv("PORT", "8037")),
-        reload=os.getenv("DEBUG", "false").lower() == "true",
+        host="0.0.0.0",  # noqa: S104
+        port=settings.service_port,
+        reload=True,
     )

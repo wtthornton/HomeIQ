@@ -1,143 +1,132 @@
-"""Configuration management for HA AI Agent Service"""
+"""Configuration management for HA AI Agent Service."""
 
+from homeiq_data import BaseServiceSettings
 from pydantic import Field, SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseSettings):
-    """Application settings loaded from environment"""
+class Settings(BaseServiceSettings):
+    """Application settings loaded from environment.
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+    Inherits from BaseServiceSettings which provides: service_name,
+    service_port, log_level, database_url, postgres_url, database_schema,
+    data_api_url, data_api_key, openai_api_key (SecretStr), cors_origins,
+    influxdb_url/token/org/bucket, and effective_database_url property.
+    """
 
-    # Service Configuration
+    # Override base defaults
     service_name: str = "ha-ai-agent-service"
     service_port: int = 8030
 
     # Home Assistant Configuration
     ha_url: str = Field(
         default="http://homeassistant:8123",
-        description="Home Assistant URL"
+        description="Home Assistant URL",
     )
     ha_token: SecretStr = Field(
         default="",
-        description="Home Assistant long-lived access token"
+        description="Home Assistant long-lived access token",
     )
     ha_timeout: int = 10  # Request timeout in seconds
     ha_max_retries: int = 3  # Maximum retry attempts
 
-    # Data API Configuration
-    data_api_url: str = Field(
-        default="http://data-api:8006",
-        description="Data API service URL"
-    )
-    data_api_key: SecretStr | None = Field(
-        default=None,
-        description="API key for Data API (Bearer auth)"
-    )
-
     # AI Automation Service Configuration
     ai_automation_service_url: str = Field(
         default="http://ai-automation-service-new:8025",
-        description="AI Automation Service URL (Hybrid Flow endpoints)"
+        description="AI Automation Service URL (Hybrid Flow endpoints)",
     )
     ai_automation_api_key: SecretStr | None = Field(
         default=None,
-        description="API key for AI Automation Service (required for patterns/synergies endpoints)"
+        description="API key for AI Automation Service (required for patterns/synergies endpoints)",
     )
 
     # Hybrid Flow Configuration
     use_hybrid_flow: bool = Field(
         default=True,
-        description="Use Hybrid Flow (template-based) for automation generation (preferred)"
+        description="Use Hybrid Flow (template-based) for automation generation (preferred)",
     )
 
     # YAML Validation Service Configuration (Epic 51)
     yaml_validation_service_url: str = Field(
         default="http://yaml-validation-service:8037",
-        description="YAML Validation Service URL for comprehensive YAML validation"
+        description="YAML Validation Service URL for comprehensive YAML validation",
     )
     yaml_validation_api_key: SecretStr | None = Field(
         default=None,
-        description="API key for YAML Validation Service (optional)"
+        description="API key for YAML Validation Service (optional)",
     )
 
     # Device Intelligence Service Configuration
     device_intelligence_url: str = Field(
         default="http://device-intelligence-service:8019",
-        description="Device Intelligence Service URL"
+        description="Device Intelligence Service URL",
     )
     device_intelligence_api_key: SecretStr | None = Field(
         default=None,
-        description="API key for Device Intelligence Service (X-API-Key auth)"
+        description="API key for Device Intelligence Service (X-API-Key auth)",
     )
     device_intelligence_enabled: bool = True
 
     # AI Pattern Service Configuration
     ai_pattern_service_url: str = Field(
         default="http://ai-pattern-service:8020",
-        description="AI Pattern Service URL for synergy data"
+        description="AI Pattern Service URL for synergy data",
     )
 
     # Blueprint Suggestion Service Configuration
     blueprint_suggestion_url: str = Field(
         default="http://blueprint-suggestion-service:8032",
-        description="Blueprint Suggestion Service URL"
+        description="Blueprint Suggestion Service URL",
     )
 
     # Sports API Configuration
     sports_api_url: str = Field(
         default="http://sports-api:8005",
-        description="Sports API Service URL for Team Tracker data"
+        description="Sports API Service URL for Team Tracker data",
     )
     sports_api_key: SecretStr | None = Field(
         default=None,
-        description="API key for Sports API (X-API-Key auth)"
+        description="API key for Sports API (X-API-Key auth)",
     )
 
     # Weather API Configuration
     weather_api_url: str = Field(
         default="http://weather-api:8009",
-        description="Weather API Service URL for weather data"
+        description="Weather API Service URL for weather data",
     )
 
-    # OpenAI Configuration
-    openai_api_key: SecretStr | None = Field(
-        default=None,
-        description="OpenAI API key"
-    )
+    # OpenAI Configuration (openai_api_key inherited from base as SecretStr)
     openai_model: str = Field(
         default="gpt-5.2-codex",
-        description="OpenAI model to use (gpt-5.2-codex for agentic chat + tool calling + YAML generation; see implementation/LLM_ML_MODELS_02222026.md)"
+        description="OpenAI model for agentic chat, tool calling, and YAML generation",
     )
     openai_max_tokens: int = Field(
         default=8192,
-        description="Maximum completion tokens"
+        description="Maximum completion tokens",
     )
     openai_temperature: float = Field(
         default=0.7,
-        description="Temperature for OpenAI responses"
+        description="Temperature for OpenAI responses",
     )
     openai_reasoning_effort: str | None = Field(
         default=None,
-        description="Reasoning effort for reasoning models (low, medium, high, xhigh). None for non-reasoning models."
+        description=(
+            "Reasoning effort for reasoning models (low, medium, high, xhigh)."
+            " None for non-reasoning models."
+        ),
     )
     openai_timeout: int = Field(
         default=60,
-        description="OpenAI API timeout in seconds"
+        description="OpenAI API timeout in seconds",
     )
     openai_max_retries: int = Field(
         default=3,
-        description="Maximum retry attempts for OpenAI API calls"
+        description="Maximum retry attempts for OpenAI API calls",
     )
 
-    # Database Configuration
-    database_url: str = Field(
-        default="",
-        description="Database URL (set POSTGRES_URL env var for PostgreSQL)"
-    )
+    # Database (database_url and postgres_url inherited from base)
     conversation_ttl_days: int = Field(
         default=30,
-        description="Time-to-live for conversations in days (default: 30)"
+        description="Time-to-live for conversations in days (default: 30)",
     )
 
     # Context Cache TTLs (in seconds)
@@ -149,7 +138,4 @@ class Settings(BaseSettings):
 
     # Token Budget (increased for richer entity context and better suggestions)
     max_context_tokens: int = 3000  # Maximum tokens for initial context (was 1500)
-
-    # Logging
-    log_level: str = Field(default="INFO", description="Logging level")
 

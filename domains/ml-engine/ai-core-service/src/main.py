@@ -1,5 +1,5 @@
-"""
-AI Core Service - Orchestrator
+"""AI Core Service - Orchestrator.
+
 Phase 1: Containerized AI Models
 
 Responsibilities:
@@ -12,23 +12,21 @@ Responsibilities:
 
 import asyncio
 import logging
-import os
 import secrets
 import sys
 import time
-import uuid
 from collections import deque
-from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Security
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends, HTTPException, Request, Security
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 
+from .config import settings
 from .models import (
     AnalysisRequest,
     AnalysisResponse,
@@ -42,6 +40,7 @@ from .orchestrator.service_manager import ServiceManager
 # Agent Evaluation Framework: SessionTracer wiring (E3.S7)
 try:
     from homeiq_patterns.evaluation.session_tracer import PersistentSink, trace_session
+
     _eval_sink = PersistentSink()  # Persists traces to database (EVAL_STORE_PATH env var)
     _TRACING_AVAILABLE = True
 except ImportError:
@@ -58,30 +57,19 @@ def _trace_decorator():
         )
     return lambda f: f
 
-# Configure structured logging
-log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 
+# Configure structured logging
 logging.basicConfig(
-    level=getattr(logging, log_level, logging.INFO),
+    level=getattr(logging, settings.log_level.upper(), logging.INFO),
     format='{"time":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","message":"%(message)s"}',
     stream=sys.stdout,
 )
 logger = logging.getLogger(__name__)
 
 
-def _parse_allowed_origins() -> list[str]:
-    """Parse comma-delimited allowed origins from environment."""
-    raw_origins = os.getenv("AI_CORE_ALLOWED_ORIGINS")
-    if raw_origins:
-        parsed = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
-        if parsed:
-            return parsed
-    return ["http://localhost:3000", "http://localhost:3001"]
-
-
-RATE_LIMIT_REQUESTS = int(os.getenv("AI_CORE_RATE_LIMIT", "60"))
-RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("AI_CORE_RATE_LIMIT_WINDOW", "60"))
-ALLOWED_ORIGINS = _parse_allowed_origins()
+# ---------------------------------------------------------------------------
+# Rate limiter & auth (service-specific)
+# ---------------------------------------------------------------------------
 
 
 class RateLimiter:
@@ -102,7 +90,8 @@ class RateLimiter:
             # Periodic cleanup: remove stale identifiers when dict grows large
             if len(self._requests) > 1000:
                 stale_keys = [
-                    k for k, v in self._requests.items()
+                    k
+                    for k, v in self._requests.items()
                     if not v or v[-1] < window_start
                 ]
                 for k in stale_keys:
@@ -119,7 +108,7 @@ class RateLimiter:
             entries.append(now)
 
 
-rate_limiter = RateLimiter(RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW_SECONDS)
+rate_limiter = RateLimiter(settings.ai_core_rate_limit, settings.ai_core_rate_limit_window)
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
@@ -171,90 +160,98 @@ async def enforce_rate_limit(
     await rate_limiter.check(identifier)
 
 
-# Lifespan context manager
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Initialize service manager on startup."""
-    logger.info("Starting AI Core Service...")
-    try:
-        api_key = os.getenv("AI_CORE_API_KEY")
-        if not api_key:
-            raise RuntimeError("AI_CORE_API_KEY environment variable must be set")
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
 
-        # Get service URLs from environment
-        openvino_url = os.getenv("OPENVINO_SERVICE_URL", "http://openvino-service:8019")
-        ml_url = os.getenv("ML_SERVICE_URL", "http://ml-service:8020")
-        ner_url = os.getenv("NER_SERVICE_URL", "http://ner-service:8031")
-        openai_url = os.getenv("OPENAI_SERVICE_URL", "http://openai-service:8020")
 
-        manager = ServiceManager(
-            openvino_url=openvino_url,
-            ml_url=ml_url,
-            ner_url=ner_url,
-            openai_url=openai_url,
-        )
+async def _startup_services() -> None:
+    """Initialize service manager and downstream connections."""
+    api_key = settings.ai_core_api_key
+    if not api_key:
+        raise RuntimeError("AI_CORE_API_KEY environment variable must be set")
 
-        await manager.initialize()
+    manager = ServiceManager(
+        openvino_url=settings.openvino_service_url,
+        ml_url=settings.ml_service_url,
+        ner_url=settings.ner_service_url,
+        openai_url=settings.openai_service_url,
+    )
+    await manager.initialize()
 
-        app.state.service_manager = manager
-        app.state.api_key_value = api_key
+    # Store on module level for access in lifespan/shutdown
+    _startup_services._manager = manager
+    _startup_services._api_key = api_key.get_secret_value()
 
-        logger.info("AI Core Service started successfully")
-    except Exception as e:
-        logger.error("Failed to start AI Core Service: %s", e)
-        raise
 
-    yield
-
-    # Cleanup on shutdown
-    logger.info("AI Core Service shutting down")
-    manager = getattr(app.state, "service_manager", None)
+async def _shutdown_services() -> None:
+    """Shutdown service manager."""
+    manager = getattr(_startup_services, "_manager", None)
     if manager:
         await manager.aclose()
-    app.state.service_manager = None
-    app.state.api_key_value = None
+    _startup_services._manager = None
+    _startup_services._api_key = None
 
 
-# Create FastAPI app with OpenAPI tags
-app = FastAPI(
-    title="AI Core Service",
-    description="Orchestrator for containerized AI models",
+lifespan = ServiceLifespan(settings.service_name, graceful=False)
+lifespan.on_startup(_startup_services, name="service-manager")
+lifespan.on_shutdown(_shutdown_services, name="service-manager")
+
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+
+async def _check_downstream_health() -> bool:
+    """Check if any downstream service is healthy."""
+    manager = getattr(_startup_services, "_manager", None)
+    if not manager:
+        return False
+    service_status = await manager.get_service_status()
+    return any(s.get("healthy") for s in service_status.values())
+
+
+health = StandardHealthCheck(
+    service_name=settings.service_name,
     version="1.0.0",
-    lifespan=lifespan,
-    openapi_tags=[
-        {"name": "health", "description": "Health and status endpoints"},
-        {"name": "analysis", "description": "Data analysis operations"},
-        {"name": "patterns", "description": "Pattern detection operations"},
-        {"name": "suggestions", "description": "AI suggestion generation"},
-    ],
 )
+health.register_check("downstream-services", _check_downstream_health)
 
 
-# Request ID tracing middleware
-@app.middleware("http")
-async def add_request_id(request: Request, call_next: Any) -> Any:
-    """Add a unique request ID to every request/response for distributed tracing."""
-    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
-    request.state.request_id = request_id
-    response = await call_next(request)
-    response.headers["X-Request-ID"] = request_id
-    return response
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
 
+app = create_app(
+    title="AI Core Service",
+    version="1.0.0",
+    description="Orchestrator for containerized AI models",
+    lifespan=lifespan.handler,
+    health_check=health,
+    cors_origins=settings.get_cors_origins_list(),
+)
 
 # Add request body size limit middleware (2MB)
-app.add_middleware(RequestSizeLimitMiddleware, max_content_length=2_097_152)
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-Request-ID"],
-)
+app.add_middleware(RequestSizeLimitMiddleware, max_content_length=settings.max_content_length)
 
 
+# Store references on app.state after startup via middleware
+@app.middleware("http")
+async def _inject_state(request: Request, call_next: Any) -> Any:
+    """Inject service manager and api key into app.state for dependency injection."""
+    manager = getattr(_startup_services, "_manager", None)
+    api_key = getattr(_startup_services, "_api_key", None)
+    request.app.state.service_manager = manager
+    request.app.state.api_key_value = api_key
+    return await call_next(request)
+
+
+# ---------------------------------------------------------------------------
 # Helper to get service_manager from app.state
+# ---------------------------------------------------------------------------
+
+
 def _get_service_manager(request: Request) -> ServiceManager:
     """Retrieve service manager from app state, raising 503 if not ready."""
     manager = getattr(request.app.state, "service_manager", None)
@@ -263,43 +260,9 @@ def _get_service_manager(request: Request) -> ServiceManager:
     return manager
 
 
+# ---------------------------------------------------------------------------
 # API Endpoints
-@app.get("/health", tags=["health"])
-async def health_check(request: Request) -> JSONResponse:
-    """Health check endpoint reflecting downstream service health.
-
-    Always returns HTTP 200 so Docker marks the container as healthy.
-    The orchestrator process itself is running and can route requests
-    once downstream services recover.  Downstream availability is
-    reported via the ``status`` field ("healthy" / "degraded").
-    """
-    manager = getattr(request.app.state, "service_manager", None)
-    if not manager:
-        # Service manager not initialised yet — still starting up.
-        # Return 200 with "starting" so Docker doesn't kill the container
-        # during the start_period window.
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "starting",
-                "service": "ai-core-service",
-                "services": {},
-            },
-        )
-
-    service_status = await manager.get_service_status()
-    any_healthy = any(s.get("healthy") for s in service_status.values())
-
-    status = "healthy" if any_healthy else "degraded"
-
-    return JSONResponse(
-        status_code=200,
-        content={
-            "status": status,
-            "service": "ai-core-service",
-            "services": service_status,
-        },
-    )
+# ---------------------------------------------------------------------------
 
 
 @app.get("/services/status", tags=["health"])
@@ -414,4 +377,4 @@ async def generate_suggestions(
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8018)  # noqa: S104
+    uvicorn.run("src.main:app", host="0.0.0.0", port=settings.service_port, reload=True)  # noqa: S104

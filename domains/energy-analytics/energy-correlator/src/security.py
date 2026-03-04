@@ -9,7 +9,7 @@ import ipaddress
 import logging
 import re
 
-from aiohttp import web
+from fastapi import Request
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +46,12 @@ def validate_bucket_name(bucket: str) -> str:
     return bucket
 
 
-def validate_internal_request(request: web.Request, allowed_networks: list[str] | None = None) -> bool:
+def validate_internal_request(request: Request, allowed_networks: list[str] | None = None) -> bool:
     """
     Validate if a request originates from an allowed internal network.
 
     Args:
-        request: The aiohttp request object
+        request: The FastAPI request object
         allowed_networks: List of allowed CIDR networks (e.g., ['172.16.0.0/12', '192.168.0.0/16'])
                          If provided, these networks are used. If None, defaults to internal ranges.
 
@@ -72,7 +72,7 @@ def validate_internal_request(request: web.Request, allowed_networks: list[str] 
         # Combine custom networks with defaults
         allowed_networks = list(set(allowed_networks + default_networks))
 
-    peername = request.remote
+    peername = request.client.host if request.client else None
     if not peername:
         return False
 
@@ -100,20 +100,3 @@ def validate_internal_request(request: web.Request, allowed_networks: list[str] 
         return False
     except ValueError:
         return False
-
-
-async def require_internal_network(request: web.Request, allowed_networks: list[str] | None = None) -> None:
-    """
-    Middleware function to require requests from internal networks.
-
-    Args:
-        request: The aiohttp request object
-        allowed_networks: List of allowed CIDR networks
-
-    Raises:
-        web.HTTPForbidden: If request is not from allowed network
-    """
-    if not validate_internal_request(request, allowed_networks):
-        raise web.HTTPForbidden(
-            text="Access denied. This endpoint is only accessible from internal networks."
-        )

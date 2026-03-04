@@ -1,39 +1,36 @@
-"""Configuration management for AI Automation Service"""
+"""Configuration management for AI Automation Service."""
 
-from pydantic import ConfigDict
-from pydantic_settings import BaseSettings
+from homeiq_data import BaseServiceSettings
 
 
-class Settings(BaseSettings):
-    """Application settings loaded from environment"""
+class Settings(BaseServiceSettings):
+    """Application settings loaded from environment.
 
-    # Database
+    Inherits from BaseServiceSettings which provides: service_name,
+    service_port, log_level, database_url, postgres_url, database_schema,
+    data_api_url, data_api_key, openai_api_key (SecretStr), cors_origins,
+    influxdb_url/token/org/bucket, effective_database_url property,
+    and get_cors_origins_list().
+    """
+
+    # Override base defaults
+    service_name: str = "ai-automation-service"
+    service_port: int = 8025  # Using 8025 since 8021 is taken by device-setup-assistant
+    database_schema: str = "automation"
+
+    # Legacy path (kept for backward compat with env vars)
     database_path: str = "/app/data/ai_automation.db"
-    database_url: str = ""  # Set via POSTGRES_URL or DATABASE_URL env var
     database_pool_size: int = 10  # Connection pool size (max 20 per service)
     database_max_overflow: int = 5  # Max overflow connections
-
-    # PostgreSQL
-    postgres_url: str = ""  # Set via POSTGRES_URL env var
-    database_schema: str = "automation"  # Set via DATABASE_SCHEMA env var
-
-    @property
-    def effective_database_url(self) -> str:
-        """Return the PostgreSQL database URL."""
-        return self.postgres_url or self.database_url
-
-    # Data API Configuration
-    data_api_url: str = "http://data-api:8006"
 
     # Home Assistant Configuration
     ha_url: str | None = None
     ha_token: str | None = None
 
-    # OpenAI Configuration
-    openai_api_key: str | None = None
+    # OpenAI Configuration (openai_api_key inherited from base as SecretStr)
     # Default model for plan/chat (v1/chat/completions). Must be a chat model.
     openai_model: str = "gpt-5-mini"
-    # Model for YAML and HomeIQ JSON generation (reasoning/codex). Use OPENAI_YAML_MODEL to override.
+    # Model for YAML and HomeIQ JSON generation (reasoning/codex).
     openai_yaml_model: str = "gpt-5.2-codex"
     openai_timeout: float = 90.0
     openai_reasoning_effort: str = "high"  # Reasoning effort: low, medium, high, xhigh
@@ -77,17 +74,6 @@ class Settings(BaseSettings):
 
     # API Key validation (comma-separated list; empty = allow any key for dev)
     api_keys: set[str] = set()
-
-    # Logging
-    log_level: str = "INFO"
-
-    # Service Configuration
-    service_port: int = 8025  # Using 8025 since 8021 is taken by device-setup-assistant
-    service_name: str = "ai-automation-service"
-
-    model_config = ConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
-    )
 
 
 settings = Settings()

@@ -9,27 +9,12 @@ It handles:
 - YAML generation for Home Assistant automations
 - Deployment of automations to Home Assistant
 - Automation lifecycle management (enable/disable/rollback)
-
-Architecture:
-- FastAPI application with async/await support
-- SQLAlchemy async database layer
-- Authentication middleware (mandatory)
-- Rate limiting middleware
-- CORS support for frontend integration
-- Observability integration (OpenTelemetry, if available)
-
-Dependencies:
-- shared.logging_config: Centralized logging
-- shared.error_handler: Error handling
-- shared.observability: Tracing and metrics (optional)
 """
 
 import logging
 import os
-from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from homeiq_resilience import ServiceLifespan, create_app
 
 # Setup logging (use shared logging config)
 try:
@@ -40,9 +25,6 @@ except ImportError:
     # Fallback if shared logging not available
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger("ai-automation-service")
-
-# Import resilience utilities
-from homeiq_resilience import GroupHealthCheck, wait_for_dependency
 
 # Import shared error handler
 try:
@@ -109,6 +91,8 @@ except ImportError:
 scheduler: AsyncIOScheduler | None = None
 
 # Module-level health checker, initialised during lifespan.
+from homeiq_resilience import GroupHealthCheck
+
 _group_health: GroupHealthCheck | None = None
 
 
@@ -116,22 +100,18 @@ def _parse_schedule_time() -> tuple[int, int]:
     """Parse scheduler_time (HH:MM) into (hour, minute). Raises ValueError if invalid."""
     schedule_time = settings.scheduler_time.split(":")
     if len(schedule_time) < 1 or len(schedule_time) > 2:
-        raise ValueError(
-            f"Invalid scheduler_time format: '{settings.scheduler_time}'. Expected 'HH:MM'."
-        )
+        msg = f"Invalid scheduler_time format: '{settings.scheduler_time}'. Expected 'HH:MM'."
+        raise ValueError(msg)
     hour = int(schedule_time[0])
     minute = int(schedule_time[1]) if len(schedule_time) > 1 else 0
     if not (0 <= hour <= 23) or not (0 <= minute <= 59):
-        raise ValueError(f"Invalid scheduler_time values: hour={hour}, minute={minute}")
+        msg = f"Invalid scheduler_time values: hour={hour}, minute={minute}"
+        raise ValueError(msg)
     return hour, minute
 
 
 def _start_scheduler() -> None:
-    """
-    Start the scheduler for automatic suggestion generation.
-
-    Parses schedule time and configures daily job execution.
-    """
+    """Start the scheduler for automatic suggestion generation."""
     global scheduler
     if scheduler is None:
         scheduler = AsyncIOScheduler()
@@ -156,7 +136,7 @@ def _start_scheduler() -> None:
         job = scheduler.get_job("daily_suggestion_generation")
         next_run = job.next_run_time if job else None
         logger.info(
-            "✅ Scheduler started: daily suggestions at %s (%s)",
+            "Scheduler started: daily suggestions at %s (%s)",
             settings.scheduler_time,
             settings.scheduler_timezone,
         )
@@ -168,125 +148,68 @@ def _start_scheduler() -> None:
 
 
 def _stop_scheduler() -> None:
-    """
-    Stop the scheduler gracefully.
-    """
+    """Stop the scheduler gracefully."""
     global scheduler
     if scheduler and scheduler.running:
         try:
             scheduler.shutdown(wait=True)
-            logger.info("✅ Scheduler stopped")
-        except Exception as e:
-            logger.warning(f"Scheduler shutdown failed: {e}")
+            logger.info("Scheduler stopped")
+        except Exception:
+            logger.warning("Scheduler shutdown failed", exc_info=True)
 
 
 async def generate_daily_suggestions() -> None:
-    """
-    Scheduled job to generate automation suggestions daily.
-
-    This function runs at the configured time (default: 2 AM) and generates
-    new automation suggestions from detected patterns.
-    """
+    """Scheduled job to generate automation suggestions daily."""
     logger.info("Starting scheduled daily suggestion generation")
 
     try:
-        # Create database session for this job
         async with async_session_maker() as db_session:
-            # Create clients and service
             data_api_client = DataAPIClient(base_url=settings.data_api_url)
             openai_client = OpenAIClient(
-                api_key=settings.openai_api_key, model=settings.openai_model
+                api_key=settings.openai_api_key, model=settings.openai_model,
             )
             suggestion_service = SuggestionService(
-                db=db_session, data_api_client=data_api_client, openai_client=openai_client
+                db=db_session, data_api_client=data_api_client, openai_client=openai_client,
             )
 
-            # Generate suggestions
             suggestions = await suggestion_service.generate_suggestions(
-                limit=settings.scheduler_suggestion_limit, days=30
+                limit=settings.scheduler_suggestion_limit, days=30,
             )
 
             logger.info(
-                f"Scheduled suggestion generation complete: "
-                f"Generated {len(suggestions)} suggestions"
+                "Scheduled suggestion generation complete: Generated %d suggestions",
+                len(suggestions),
             )
 
-            # Cleanup clients
             await data_api_client.close()
 
-    except Exception as e:
-        logger.error(f"Error in scheduled suggestion generation: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Error in scheduled suggestion generation")
 
 
-async def _initialize_database() -> None:
-    """Initialize database connection and tables."""
-    db_ok = await init_db()
-    if db_ok:
-        logger.info("Database initialized")
-    else:
-        logger.warning("Database unavailable — starting in degraded mode")
+# ---------------------------------------------------------------------------
+# Startup / Shutdown hooks for ServiceLifespan
+# ---------------------------------------------------------------------------
 
-
-async def _setup_observability() -> None:
-    """Setup observability if available."""
-    if OBSERVABILITY_AVAILABLE:
-        try:
-            setup_tracing("ai-automation-service")
-            logger.info("✅ Observability initialized")
-        except Exception as e:
-            logger.warning(f"Observability setup failed: {e}")
-
-
-async def _setup_rate_limiting() -> None:
-    """Setup rate limiting cleanup task."""
-    try:
-        await start_rate_limit_cleanup()
-        logger.info("✅ Rate limiting initialized")
-    except Exception as e:
-        logger.warning(f"Rate limit cleanup setup failed: {e}")
-
-
-def _log_startup_info() -> None:
-    """Log service startup information."""
-    logger.info("=" * 60)
-    logger.info("AI Automation Service Starting Up")
-    logger.info("=" * 60)
-    logger.info(f"Service Port: {settings.service_port}")
-    logger.info(f"Database: {settings.database_path}")
-    logger.info(f"Data API: {settings.data_api_url}")
-    logger.info("=" * 60)
-
-
-# Lifespan context manager for startup and shutdown events
-@asynccontextmanager
-async def lifespan(_app: FastAPI) -> None:
-    """
-    Initialize service on startup and cleanup on shutdown.
-
-    This lifespan context manager handles:
-    - Database initialization
-    - Observability setup (if available)
-    - Rate limiting cleanup task startup
-    - Graceful shutdown of background tasks
-
-    Args:
-        app: FastAPI application instance
-
-    Yields:
-        None: Control is yielded to the application runtime
-
-    Raises:
-        Exception: If database initialization fails (prevents service startup)
-    """
+async def _startup() -> None:
+    """Initialize all resources on startup."""
     global _group_health
 
-    _log_startup_info()
+    from homeiq_resilience import wait_for_dependency
+
+    logger.info("Service Port: %s", settings.service_port)
+    logger.info("Database: %s", settings.database_path)
+    logger.info("Data API: %s", settings.data_api_url)
 
     # Initialize singleton HTTP clients (C4 fix)
     init_clients()
 
     # Initialize database
-    await _initialize_database()
+    db_ok = await init_db()
+    if db_ok:
+        logger.info("Database initialized")
+    else:
+        logger.warning("Database unavailable -- starting in degraded mode")
 
     # Probe cross-group dependencies (non-fatal)
     data_api_available = await wait_for_dependency(
@@ -300,14 +223,23 @@ async def lifespan(_app: FastAPI) -> None:
     _group_health.register_dependency("data-api", settings.data_api_url)
     if not data_api_available:
         _group_health.add_degraded_feature(
-            "suggestion-generation (data-api unreachable at startup)"
+            "suggestion-generation (data-api unreachable at startup)",
         )
 
     # Setup observability if available
-    await _setup_observability()
+    if OBSERVABILITY_AVAILABLE:
+        try:
+            setup_tracing("ai-automation-service")
+            logger.info("Observability initialized")
+        except Exception:
+            logger.warning("Observability setup failed", exc_info=True)
 
     # Start rate limit cleanup task
-    await _setup_rate_limiting()
+    try:
+        await start_rate_limit_cleanup()
+        logger.info("Rate limiting initialized")
+    except Exception:
+        logger.warning("Rate limit cleanup setup failed", exc_info=True)
 
     # Start scheduler for automatic suggestion generation (if enabled)
     if settings.scheduler_enabled and APSCHEDULER_AVAILABLE:
@@ -315,53 +247,43 @@ async def lifespan(_app: FastAPI) -> None:
     elif not settings.scheduler_enabled:
         logger.info("Scheduler is disabled in settings")
 
-    logger.info("✅ AI Automation Service startup complete")
-    logger.info("=" * 60)
 
-    yield
-
-    # Shutdown
-    logger.info("=" * 60)
-    logger.info("AI Automation Service Shutting Down")
-    logger.info("=" * 60)
-
-    # Stop scheduler
+async def _shutdown() -> None:
+    """Cleanup all resources on shutdown."""
     _stop_scheduler()
 
-    # Stop rate limit cleanup
     try:
         await stop_rate_limit_cleanup()
-    except Exception as e:
-        logger.warning(f"Rate limit cleanup shutdown failed: {e}")
+    except Exception:
+        logger.warning("Rate limit cleanup shutdown failed", exc_info=True)
 
-    # Close singleton HTTP clients (C4 fix)
     try:
         await close_clients()
-    except Exception as e:
-        logger.warning(f"Client cleanup failed: {e}")
+    except Exception:
+        logger.warning("Client cleanup failed", exc_info=True)
 
 
-# Create FastAPI app
-app = FastAPI(
+# ---------------------------------------------------------------------------
+# Lifespan (ServiceLifespan)
+# ---------------------------------------------------------------------------
+
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup, name="services")
+lifespan.on_shutdown(_shutdown, name="services")
+
+
+# ---------------------------------------------------------------------------
+# App (create_app factory -- provides CORS, request-id, timing, exception handler)
+# ---------------------------------------------------------------------------
+
+app = create_app(
     title="AI Automation Service",
-    description=(
-        "Automation service for suggestion generation, YAML generation, "
-        "and deployment to Home Assistant"
-    ),
     version="1.0.0",
-    lifespan=lifespan,
-)
-
-# CORS middleware
-# CRITICAL: Restrict origins in production
-default_origins = "http://localhost:3000,http://localhost:3001"
-allowed_origins = os.getenv("CORS_ORIGINS", default_origins).split(",")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    description="Automation service for suggestion generation, YAML generation, and deployment to Home Assistant",
+    lifespan=lifespan.handler,
+    # No StandardHealthCheck -- this service has a custom health_router with metrics
+    cors_origins=settings.get_cors_origins_list(),
+    cors_allow_credentials=True,
 )
 
 # Register error handlers
@@ -373,8 +295,8 @@ if OBSERVABILITY_AVAILABLE:
     try:
         instrument_fastapi(app, "ai-automation-service")
         app.add_middleware(CorrelationMiddleware)
-    except Exception as e:
-        logger.warning(f"Failed to instrument FastAPI: {e}")
+    except Exception:
+        logger.warning("Failed to instrument FastAPI", exc_info=True)
 
 # Authentication middleware (MANDATORY - cannot be disabled)
 app.add_middleware(AuthenticationMiddleware)
@@ -390,7 +312,7 @@ app.include_router(pattern_router.router, tags=["patterns"])
 app.include_router(synergy_router.router, tags=["synergies"])
 app.include_router(analysis_router.router, tags=["analysis"])
 app.include_router(preference_router.router, tags=["preferences"])
-# Hybrid Flow routers: Intent → Plan → Validate → Compile → Lifecycle
+# Hybrid Flow routers: Intent -> Plan -> Validate -> Compile -> Lifecycle
 app.include_router(automation_plan_router.router, tags=["automation"])
 app.include_router(automation_validate_router.router, tags=["automation"])
 app.include_router(automation_yaml_validate_router.router, tags=["automation"])
@@ -402,22 +324,6 @@ app.include_router(blueprint_validate_router.router)
 app.include_router(setup_validate_router.router)
 app.include_router(scene_validate_router.router)
 app.include_router(script_validate_router.router)
-
-
-@app.get("/")
-async def root() -> dict[str, str]:
-    """
-    Root endpoint providing service information.
-
-    Returns:
-        dict: Service metadata including name, version, status, and implementation note
-    """
-    return {
-        "service": "ai-automation-service",
-        "version": "1.0.0",
-        "status": "operational",
-        "note": "Foundation service - full implementation in progress (Story 39.10)",
-    }
 
 
 if __name__ == "__main__":

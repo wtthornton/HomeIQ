@@ -1,124 +1,87 @@
 """
 Energy-Event Correlation Service
-Post-processes HA events and power data to find causality relationships
+Post-processes HA events and power data to find causality relationships.
+
+Converted from aiohttp to FastAPI with shared library pattern.
 """
 
 import asyncio
-import os
-import signal
+import logging
 import sys
 from datetime import UTC, datetime
 
-from aiohttp import web
-from dotenv import load_dotenv
+from fastapi import Request
+from fastapi.responses import JSONResponse
 from homeiq_observability.logging_config import (
     log_error_with_context,
     log_with_context,
     setup_logging,
 )
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
+from .config import settings
 from .correlator import EnergyEventCorrelator
-from .health_check import HealthCheckHandler
 from .security import validate_bucket_name, validate_internal_request
-
-load_dotenv()
 
 logger = setup_logging("energy-correlator")
 
 
-def _parse_int_env(name: str, default: int, min_val: int | None = None) -> int:
-    """Parse an integer environment variable with validation.
-
-    Args:
-        name: Environment variable name
-        default: Default value if not set
-        min_val: Minimum allowed value (inclusive)
-
-    Returns:
-        Parsed integer value
-
-    Raises:
-        ValueError: If value is not a valid integer or below min_val
-    """
-    raw = os.getenv(name, str(default))
-    try:
-        value = int(raw)
-    except (ValueError, TypeError) as err:
-        raise ValueError(
-            f"Invalid value for {name}: '{raw}'. Must be an integer."
-        ) from err
-    if min_val is not None and value < min_val:
-        raise ValueError(
-            f"Invalid value for {name}: {value}. Must be >= {min_val}."
-        )
-    return value
-
+# ---------------------------------------------------------------------------
+# Service class (retained for correlation logic)
+# ---------------------------------------------------------------------------
 
 class EnergyCorrelatorService:
-    """Main service for energy-event correlation"""
+    """Main service for energy-event correlation."""
 
-    def __init__(self):
-        # InfluxDB configuration
-        self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
-        self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
-        self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
-        self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'home_assistant_events')
+    def __init__(self) -> None:
+        # Validate bucket name on startup
+        influxdb_token = settings.influxdb_token.get_secret_value() if settings.influxdb_token else None
+        validate_bucket_name(settings.influxdb_bucket)
 
-        # Epic 48 Story 48.1: Validate bucket name on startup
-        try:
-            validate_bucket_name(self.influxdb_bucket)
-        except ValueError as e:
-            raise ValueError(f"Invalid InfluxDB bucket configuration: {e}") from e
-
-        # Service configuration (with validation)
-        self.processing_interval = _parse_int_env('PROCESSING_INTERVAL', 60, min_val=1)
-        self.lookback_minutes = _parse_int_env('LOOKBACK_MINUTES', 5, min_val=1)
-        self.max_events_per_interval = _parse_int_env('MAX_EVENTS_PER_INTERVAL', 500, min_val=1)
-        self.max_retry_queue_size = _parse_int_env('MAX_RETRY_QUEUE_SIZE', 250, min_val=1)
-        self.retry_window_minutes = int(os.getenv('RETRY_WINDOW_MINUTES', str(self.lookback_minutes)))
-        self.correlation_window_seconds = int(os.getenv('CORRELATION_WINDOW_SECONDS', '10'))
-        self.power_lookup_padding_seconds = int(os.getenv('POWER_LOOKUP_PADDING_SECONDS', '30'))
-        self.min_power_delta = float(os.getenv('MIN_POWER_DELTA', '10.0'))
-        # Epic 48 Story 48.5: Make error retry interval configurable
-        self.error_retry_interval = int(os.getenv('ERROR_RETRY_INTERVAL', '60'))  # Default 60 seconds
+        # Derive retry_window_minutes
+        retry_window = settings.retry_window_minutes or settings.lookback_minutes
 
         # Components
-        data_api_url = os.getenv("DATA_API_URL", "").strip() or None
+        data_api_url = settings.data_api_url.strip() or None
         self.correlator = EnergyEventCorrelator(
-            self.influxdb_url,
-            self.influxdb_token,
-            self.influxdb_org,
-            self.influxdb_bucket,
-            correlation_window_seconds=self.correlation_window_seconds,
-            min_power_delta=self.min_power_delta,
-            max_events_per_interval=self.max_events_per_interval,
-            power_lookup_padding_seconds=self.power_lookup_padding_seconds,
-            max_retry_queue_size=self.max_retry_queue_size,
-            retry_window_minutes=self.retry_window_minutes,
+            settings.influxdb_url,
+            influxdb_token,
+            settings.influxdb_org,
+            settings.influxdb_bucket,
+            correlation_window_seconds=settings.correlation_window_seconds,
+            min_power_delta=settings.min_power_delta,
+            max_events_per_interval=settings.max_events_per_interval,
+            power_lookup_padding_seconds=settings.power_lookup_padding_seconds,
+            max_retry_queue_size=settings.max_retry_queue_size,
+            retry_window_minutes=retry_window,
             data_api_url=data_api_url,
         )
 
-        self.health_handler = HealthCheckHandler()
-
-        # Validate configuration
-        if not self.influxdb_token:
+        # Validate required configuration
+        if not influxdb_token:
             raise ValueError("INFLUXDB_TOKEN environment variable is required")
 
-        # Epic 48 Story 48.1: Get allowed networks for internal request validation
-        allowed_networks_env = os.getenv('ALLOWED_NETWORKS', '')
-        self.allowed_networks = [
-            net.strip() for net in allowed_networks_env.split(',') if net.strip()
-        ] if allowed_networks_env else None
-
-        logger.info(
-            f"Service configured: interval={self.processing_interval}s, "
-            f"lookback={self.lookback_minutes}m"
+        # Parse allowed networks
+        raw_networks = settings.allowed_networks
+        self.allowed_networks: list[str] | None = (
+            [net.strip() for net in raw_networks.split(",") if net.strip()]
+            if raw_networks else None
         )
 
-    async def startup(self):
-        """Initialize service"""
-        logger.info("Initializing Energy Correlator Service...")
+        # Health tracking
+        self.last_successful_fetch: datetime | None = None
+        self.total_fetches: int = 0
+        self.failed_fetches: int = 0
 
+        logger.info(
+            "Service configured: interval=%ds, lookback=%dm",
+            settings.processing_interval,
+            settings.lookback_minutes,
+        )
+
+    async def startup(self) -> None:
+        """Initialize service."""
+        logger.info("Initializing Energy Correlator Service...")
         try:
             await self.correlator.startup()
             logger.info("Energy Correlator Service initialized successfully")
@@ -127,199 +90,163 @@ class EnergyCorrelatorService:
                 logger,
                 "Failed to initialize service",
                 service="energy-correlator",
-                error=str(e)
+                error=str(e),
             )
             raise
 
-    async def shutdown(self):
-        """Cleanup"""
+    async def shutdown(self) -> None:
+        """Cleanup."""
         logger.info("Shutting down Energy Correlator Service...")
-
         try:
             await self.correlator.shutdown()
             logger.info("Energy Correlator Service shut down successfully")
         except Exception as e:
-            logger.error(f"Error during shutdown: {e}")
+            logger.error("Error during shutdown: %s", e)
 
-    async def run_continuous(self):
-        """Run continuous correlation processing"""
-
+    async def run_continuous(self) -> None:
+        """Run continuous correlation processing."""
         log_with_context(
             logger, "INFO",
-            f"Starting correlation loop (every {self.processing_interval}s)",
+            f"Starting correlation loop (every {settings.processing_interval}s)",
             service="energy-correlator",
-            interval=self.processing_interval,
-            lookback_minutes=self.lookback_minutes
+            interval=settings.processing_interval,
+            lookback_minutes=settings.lookback_minutes,
         )
 
         while True:
             try:
-                # Process events from last N minutes
                 await self.correlator.process_recent_events(
-                    lookback_minutes=self.lookback_minutes
+                    lookback_minutes=settings.lookback_minutes,
                 )
-
-                # Update health check
-                self.health_handler.last_successful_fetch = datetime.now(UTC)
-                self.health_handler.total_fetches += 1
-
-                # Wait for next interval
-                await asyncio.sleep(self.processing_interval)
-
+                self.last_successful_fetch = datetime.now(UTC)
+                self.total_fetches += 1
+                await asyncio.sleep(settings.processing_interval)
             except Exception as e:
                 log_error_with_context(
                     logger,
                     "Error in correlation loop",
                     service="energy-correlator",
-                    error=str(e)
+                    error=str(e),
                 )
-                self.health_handler.failed_fetches += 1
-
-                # Epic 48 Story 48.5: Use configurable error retry interval
-                await asyncio.sleep(self.error_retry_interval)
+                self.failed_fetches += 1
+                await asyncio.sleep(settings.error_retry_interval)
 
 
-def _cors_middleware(allowed_origins: list[str]):
-    """Create a CORS middleware for aiohttp.
-
-    Args:
-        allowed_origins: List of allowed origin URLs
-    """
-    @web.middleware
-    async def middleware(request: web.Request, handler):
-        origin = request.headers.get('Origin', '')
-
-        # Handle preflight OPTIONS requests
-        if request.method == 'OPTIONS':
-            response = web.Response(status=204)
-        else:
-            response = await handler(request)
-
-        if origin in allowed_origins or '*' in allowed_origins:
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-            response.headers['Access-Control-Max-Age'] = '3600'
-
-        return response
-
-    return middleware
+# Global service instance
+_service: EnergyCorrelatorService | None = None
+_background_task: asyncio.Task | None = None
 
 
-async def create_app(service: EnergyCorrelatorService):
-    """Create web application"""
-    cors_origins_raw = os.getenv('CORS_ORIGINS', 'http://localhost:3000')
-    cors_origins = [o.strip() for o in cors_origins_raw.split(',') if o.strip()]
+# ---------------------------------------------------------------------------
+# Startup / Shutdown
+# ---------------------------------------------------------------------------
 
-    app = web.Application(middlewares=[_cors_middleware(cors_origins)])
+async def _startup_service() -> None:
+    """Create and start the correlator service + background loop."""
+    global _service, _background_task
+    _service = EnergyCorrelatorService()
+    await _service.startup()
+    _background_task = asyncio.create_task(
+        _service.run_continuous(), name="correlator-loop",
+    )
 
-    # Health check endpoint
-    app.router.add_get('/health', service.health_handler.handle)
 
-    # Statistics endpoint
-    async def get_statistics(_request):
-        """Get correlation statistics"""
+async def _shutdown_service() -> None:
+    """Stop background loop and shut down the correlator service."""
+    global _service, _background_task
+    if _background_task and not _background_task.done():
+        _background_task.cancel()
         try:
-            stats = service.correlator.get_statistics()
-            return web.json_response(stats)
-        except Exception as e:
-            logger.error(f"Error getting statistics: {e}")
-            return web.json_response(
-                {"error": "Failed to retrieve statistics"},
-                status=500
-            )
-
-    app.router.add_get('/statistics', get_statistics)
-
-    # Reset statistics endpoint (Epic 48 Story 48.1: Internal network validation)
-    async def reset_statistics(request):
-        """Reset correlation statistics (requires internal network access)"""
-        # Validate request is from internal network
-        if not validate_internal_request(request, service.allowed_networks):
-            logger.warning(
-                f"Unauthorized reset attempt from {request.remote}",
-                extra={"service": "energy-correlator", "endpoint": "/statistics/reset"}
-            )
-            return web.json_response(
-                {"error": "Forbidden: This endpoint is only accessible from internal networks"},
-                status=403
-            )
-
-        service.correlator.reset_statistics()
-        return web.json_response({"message": "Statistics reset"})
-
-    app.router.add_post('/statistics/reset', reset_statistics)
-
-    return app
+            await _background_task
+        except asyncio.CancelledError:
+            pass
+    _background_task = None
+    if _service:
+        await _service.shutdown()
+        _service = None
 
 
-async def main():
-    """Main entry point"""
-    logger.info("Starting Energy Correlator Service...")
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
 
-    service: EnergyCorrelatorService | None = None
-    runner: web.AppRunner | None = None
-    site: web.TCPSite | None = None
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup_service, name="correlator")
+lifespan.on_shutdown(_shutdown_service, name="correlator")
 
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+health = StandardHealthCheck(
+    service_name=settings.service_name,
+    version="1.0.0",
+)
+
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
+app = create_app(
+    title="Energy Correlator Service",
+    version="1.0.0",
+    description="Post-processes HA events and power data to find causality relationships",
+    lifespan=lifespan.handler,
+    health_check=health,
+    cors_origins=settings.get_cors_origins_list(),
+)
+
+
+# ---------------------------------------------------------------------------
+# Routes (migrated from aiohttp handlers)
+# ---------------------------------------------------------------------------
+
+@app.get("/statistics")
+async def get_statistics() -> dict:
+    """Get correlation statistics."""
+    if not _service:
+        return JSONResponse({"error": "Service not initialized"}, status_code=503)
     try:
-        # Create service
-        service = EnergyCorrelatorService()
-        await service.startup()
-
-        # Create web app
-        app = await create_app(service)
-        runner = web.AppRunner(app)
-        await runner.setup()
-
-        # Start HTTP server — bind host configurable for Docker networking
-        port = int(os.getenv('SERVICE_PORT', '8017'))
-        host = os.getenv('SERVICE_HOST', '0.0.0.0')  # noqa: S104  # nosec B104 — Docker
-        site = web.TCPSite(runner, host, port)
-        await site.start()
-
-        logger.info(f"Service running on port {port}")
-        logger.info("Endpoints: /health, /statistics, /statistics/reset")
-
-        # Register signal handlers for graceful shutdown (Linux/Docker)
-        loop = asyncio.get_event_loop()
-        stop_event = asyncio.Event()
-
-        def _signal_handler():
-            logger.info("Received shutdown signal")
-            stop_event.set()
-
-        if sys.platform != 'win32':
-            for sig in (signal.SIGINT, signal.SIGTERM):
-                loop.add_signal_handler(sig, _signal_handler)
-
-        # Run correlation loop (will be interrupted by signal)
-        await service.run_continuous()
-
-    except KeyboardInterrupt:
-        logger.info("Received shutdown signal")
+        stats = _service.correlator.get_statistics()
+        return stats
     except Exception as e:
-        log_error_with_context(
-            logger,
-            "Fatal error in main",
-            service="energy-correlator",
-            error=str(e)
+        logger.error("Error getting statistics: %s", e)
+        return JSONResponse(
+            {"error": "Failed to retrieve statistics"},
+            status_code=500,
         )
-        raise
-    finally:
-        if site:
-            await site.stop()
-        if runner:
-            await runner.cleanup()
-        if service:
-            await service.shutdown()
+
+
+@app.post("/statistics/reset")
+async def reset_statistics(request: Request) -> dict:
+    """Reset correlation statistics (requires internal network access)."""
+    if not _service:
+        return JSONResponse({"error": "Service not initialized"}, status_code=503)
+
+    if not validate_internal_request(request, _service.allowed_networks):
+        client_host = request.client.host if request.client else "unknown"
+        logger.warning(
+            "Unauthorized reset attempt from %s",
+            client_host,
+            extra={"service": "energy-correlator", "endpoint": "/statistics/reset"},
+        )
+        return JSONResponse(
+            {"error": "Forbidden: This endpoint is only accessible from internal networks"},
+            status_code=403,
+        )
+
+    _service.correlator.reset_statistics()
+    return {"message": "Statistics reset"}
 
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Service stopped by user")
-    except Exception as e:
-        logger.error(f"Service failed: {e}")
-        sys.exit(1)
+    import uvicorn
 
+    uvicorn.run(
+        "src.main:app",
+        host="0.0.0.0",  # noqa: S104
+        port=settings.service_port,
+        reload=True,
+    )

@@ -9,29 +9,16 @@ This service handles:
 - Entity extraction and clarification
 - Query suggestions and refinement
 - Low-latency query responses (<500ms P95 target)
-
-Architecture:
-- FastAPI application with async/await support
-- SQLAlchemy async database layer
-- Observability integration (optional)
-- CORS middleware for frontend access
-
-Key Features:
-- Database initialization on startup
-- Graceful error handling
-- Observability support (OpenTelemetry)
-- Health check endpoints
 """
 
 import logging
-from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from homeiq_resilience import ServiceLifespan, create_app
 
 # Setup logging (use shared logging config)
 try:
     from homeiq_observability.logging_config import setup_logging
+
     logger = setup_logging("ai-query-service")
 except ImportError:
     # Fallback if shared logging not available
@@ -52,6 +39,7 @@ try:
         instrument_fastapi,
         setup_tracing,
     )
+
     OBSERVABILITY_AVAILABLE = True
 except ImportError:
     logger.warning("Observability modules not available")
@@ -68,111 +56,64 @@ from .config import settings
 from .database import init_db
 
 
-async def _initialize_database() -> None:
-    """Initialize database connection."""
+# ---------------------------------------------------------------------------
+# Startup / Shutdown hooks for ServiceLifespan
+# ---------------------------------------------------------------------------
+
+async def _startup() -> None:
+    """Initialize all resources on startup."""
+    logger.info("Service Port: %s", settings.service_port)
+    logger.info("Data API: %s", settings.data_api_url)
+    logger.info("Query Timeout: %ss", settings.query_timeout)
+    logger.info("Cache Enabled: %s", settings.enable_caching)
+
+    # Initialize database
     db_ok = await init_db()
     if db_ok:
         logger.info("Database initialized")
     else:
-        logger.warning("Database unavailable — starting in degraded mode")
+        logger.warning("Database unavailable -- starting in degraded mode")
 
-
-async def _setup_observability() -> None:
-    """Setup observability if available."""
+    # Setup observability if available
     if OBSERVABILITY_AVAILABLE:
         try:
             setup_tracing("ai-query-service")
-            logger.info("✅ Observability initialized")
-        except Exception as e:
-            logger.warning(f"Observability setup failed: {e}")
-
-
-# Lifespan context manager for startup and shutdown events
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    """
-    Initialize service on startup and cleanup on shutdown.
-
-    This lifespan context manager handles:
-    - Database initialization
-    - Observability setup (if available)
-    - Graceful shutdown
-
-    Args:
-        app: FastAPI application instance
-
-    Yields:
-        None: Control is yielded to the application runtime
-
-    Raises:
-        Exception: If database initialization fails (prevents service startup)
-    """
-    logger.info("=" * 60)
-    logger.info("AI Query Service Starting Up")
-    logger.info("=" * 60)
-    logger.info(f"Service Port: {settings.service_port}")
-    logger.info(f"Data API: {settings.data_api_url}")
-    logger.info(f"Query Timeout: {settings.query_timeout}s")
-    logger.info(f"Cache Enabled: {settings.enable_caching}")
-    logger.info("=" * 60)
-
-    # Initialize database
-    await _initialize_database()
-
-    # Setup observability if available
-    await _setup_observability()
+            logger.info("Observability initialized")
+        except Exception:
+            logger.warning("Observability setup failed", exc_info=True)
 
     # Start rate limit cleanup background task
     if settings.rate_limit_enabled:
         await start_rate_limit_cleanup()
         logger.info("Rate limit cleanup task started")
 
-    logger.info("AI Query Service startup complete")
-    logger.info("=" * 60)
 
-    yield
-
-    # Shutdown
-    logger.info("=" * 60)
-    logger.info("AI Query Service Shutting Down")
-
-    # Stop rate limit cleanup
+async def _shutdown() -> None:
+    """Cleanup all resources on shutdown."""
     await stop_rate_limit_cleanup()
 
-    logger.info("AI Query Service shutdown complete")
-    logger.info("=" * 60)
 
-# Create FastAPI app
-app = FastAPI(
+# ---------------------------------------------------------------------------
+# Lifespan (ServiceLifespan)
+# ---------------------------------------------------------------------------
+
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup, name="services")
+lifespan.on_shutdown(_shutdown, name="services")
+
+
+# ---------------------------------------------------------------------------
+# App (create_app factory -- provides CORS, request-id, timing, exception handler)
+# ---------------------------------------------------------------------------
+
+app = create_app(
     title="AI Query Service",
-    description="Low-latency query service for natural language automation queries",
     version="1.0.0",
-    lifespan=lifespan
-)
-
-def _get_cors_origins() -> list[str]:
-    """Get list of allowed CORS origins."""
-    return [
-        "http://localhost:3000",  # Health dashboard
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",  # AI Automation standalone UI
-        "http://127.0.0.1:3001",
-        "http://ai-automation-ui",  # Container network
-        "http://ai-automation-ui:80",
-        "http://homeiq-dashboard",  # Health dashboard container
-        "http://homeiq-dashboard:80"
-    ]
-
-
-# CORS middleware
-# CRITICAL: Cannot use allow_origins=["*"] with allow_credentials=True (security vulnerability)
-# Use specific origins when credentials are needed, or remove allow_credentials if using wildcard
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_get_cors_origins(),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    description="Low-latency query service for natural language automation queries",
+    lifespan=lifespan.handler,
+    # No StandardHealthCheck -- this service has a custom health_router with /ready and /live
+    cors_origins=settings.get_cors_origins_list(),
+    cors_allow_credentials=True,
 )
 
 # Register error handlers
@@ -184,8 +125,8 @@ if OBSERVABILITY_AVAILABLE:
     try:
         instrument_fastapi(app, "ai-query-service")
         app.add_middleware(CorrelationMiddleware)
-    except Exception as e:
-        logger.warning(f"Failed to instrument FastAPI: {e}")
+    except Exception:
+        logger.warning("Failed to instrument FastAPI", exc_info=True)
 
 # Authentication middleware (validates API keys for external requests)
 app.add_middleware(AuthenticationMiddleware)
@@ -198,27 +139,15 @@ if settings.rate_limit_enabled:
 app.include_router(health_router.router, tags=["health"])
 app.include_router(query_router.router, tags=["query"])
 
-@app.get("/")
-async def root() -> dict[str, str]:
-    """
-    Root endpoint.
-
-    Returns:
-        dict: Service information including name, version, and status.
-    """
-    return {
-        "service": "ai-query-service",
-        "version": "1.0.0",
-        "status": "operational"
-    }
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",  # noqa: S104
-        port=8018,
+        port=settings.service_port,
         reload=True,
-        log_level=settings.log_level.lower()
+        log_level=settings.log_level.lower(),
     )
 

@@ -8,18 +8,16 @@ from __future__ import annotations
 
 import asyncio
 import functools
-import os
 import time
-import uuid
-from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import HTTPException, Request, status
+from homeiq_resilience import ServiceLifespan, create_app
 
 from .algorithms.anomaly_detection import AnomalyDetectionManager
 from .algorithms.clustering import ClusteringManager
 from .batch import process_single_operation
+from .config import settings
 from .logging_config import setup_ml_logging
 from .middleware import (
     RATE_LIMIT_MAX_REQUESTS,
@@ -55,12 +53,11 @@ __all__ = [
     "app",
 ]
 
-MAX_CLUSTERS = int(os.getenv("ML_MAX_CLUSTERS", "100"))
-MAX_BATCH_SIZE = int(os.getenv("ML_MAX_BATCH_SIZE", "100"))
-ALGORITHM_TIMEOUT_SECONDS = float(os.getenv("ML_ALGORITHM_TIMEOUT_SECONDS", "8"))
-
 logger = setup_ml_logging()
-ALLOWED_ORIGINS = _parse_allowed_origins(os.getenv("ML_ALLOWED_ORIGINS"))
+
+MAX_CLUSTERS = settings.ml_max_clusters
+MAX_BATCH_SIZE = settings.ml_max_batch_size
+ALGORITHM_TIMEOUT_SECONDS = settings.ml_algorithm_timeout_seconds
 
 
 async def _run_cpu_bound(func: Any, *args: Any, **kwargs: Any) -> Any:
@@ -88,50 +85,33 @@ clustering_manager: ClusteringManager | None = None
 anomaly_manager: AnomalyDetectionManager | None = None
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def _startup_ml() -> None:
     """Initialize ML managers on startup."""
     global clustering_manager, anomaly_manager
-    logger.info("Starting ML Service...")
-    try:
-        clustering_manager = ClusteringManager()
-        anomaly_manager = AnomalyDetectionManager()
-        logger.info("ML Service started successfully")
-    except Exception as e:
-        logger.error("Failed to start ML Service: %s", e)
-        raise
-    yield
-    logger.info("ML Service shutting down")
+    clustering_manager = ClusteringManager()
+    anomaly_manager = AnomalyDetectionManager()
 
 
-app = FastAPI(
+lifespan = ServiceLifespan(settings.service_name)
+lifespan.on_startup(_startup_ml, name="ml-managers")
+
+
+# ---------------------------------------------------------------------------
+# App (no StandardHealthCheck — custom /health preserves algorithms_available)
+# ---------------------------------------------------------------------------
+
+app = create_app(
     title="ML Service",
-    description="Classical machine learning algorithms for pattern detection",
     version="1.0.0",
-    lifespan=lifespan,
+    description="Classical machine learning algorithms for pattern detection",
+    lifespan=lifespan.handler,
+    cors_origins=settings.get_cors_origins_list(),
 )
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["POST", "GET", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
-)
-
-
-@app.middleware("http")
-async def add_request_id(request: Request, call_next):
-    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
-    request.state.request_id = request_id
-    response = await call_next(request)
-    response.headers["X-Request-ID"] = request_id
-    return response
 
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
-    if request.url.path in ("/health", "/ready", "/algorithms/status"):
+    if request.url.path in ("/health", "/ready", "/algorithms/status", "/"):
         return await call_next(request)
     client_ip = request.client.host if request.client else "unknown"
     if not _check_rate_limit(client_ip):
@@ -146,11 +126,13 @@ async def rate_limit_middleware(request: Request, call_next):
 # API Endpoints
 # ---------------------------------------------------------------------------
 
+
 @app.get("/health")
 async def health_check() -> dict[str, Any]:
     """Health check endpoint (liveness)."""
     return {
-        "status": "healthy", "service": "ml-service",
+        "status": "healthy",
+        "service": settings.service_name,
         "algorithms_available": {
             "clustering": ["kmeans", "dbscan"],
             "anomaly_detection": ["isolation_forest"],
@@ -196,20 +178,26 @@ async def cluster_data(request: ClusteringRequest) -> ClusteringResponse:
         if algorithm == "kmeans":
             _validate_kmeans_params(request.n_clusters, num_points)
             labels, n_clusters = await _run_cpu_bound(
-                clustering_manager.kmeans_cluster, request.data,
-                n_clusters=request.n_clusters, max_clusters=MAX_CLUSTERS,
+                clustering_manager.kmeans_cluster,
+                request.data,
+                n_clusters=request.n_clusters,
+                max_clusters=MAX_CLUSTERS,
             )
         elif algorithm == "dbscan":
             if request.eps is not None and request.eps <= 0:
                 raise HTTPException(status_code=400, detail="eps must be > 0.")
             labels, n_clusters = await _run_cpu_bound(
-                clustering_manager.dbscan_cluster, request.data, eps=request.eps,
+                clustering_manager.dbscan_cluster,
+                request.data,
+                eps=request.eps,
             )
         else:
             raise HTTPException(status_code=400, detail=f"Unknown algorithm: {request.algorithm}")
         return ClusteringResponse(
-            labels=labels, n_clusters=n_clusters,
-            algorithm=algorithm, processing_time=time.time() - start_time,
+            labels=labels,
+            n_clusters=n_clusters,
+            algorithm=algorithm,
+            processing_time=time.time() - start_time,
         )
     except HTTPException:
         raise
@@ -230,11 +218,13 @@ async def detect_anomalies(request: AnomalyRequest) -> AnomalyResponse:
         _validate_contamination(request.contamination)
         start_time = time.time()
         labels, scores = await _run_cpu_bound(
-            anomaly_manager.detect_anomalies, request.data,
+            anomaly_manager.detect_anomalies,
+            request.data,
             contamination=request.contamination,
         )
         return AnomalyResponse(
-            labels=labels, scores=scores,
+            labels=labels,
+            scores=scores,
             n_anomalies=sum(1 for label in labels if label == -1),
             processing_time=time.time() - start_time,
         )
@@ -264,10 +254,13 @@ async def batch_process(request: BatchProcessRequest) -> BatchProcessResponse:
     for i, result in enumerate(results):
         if isinstance(result, BaseException):
             logger.exception("Unhandled batch operation exception", exc_info=result)
-            final_results.append(BatchOperationResult(
-                type=request.operations[i].type, status="error",
-                error="Operation failed due to an internal error.",
-            ))
+            final_results.append(
+                BatchOperationResult(
+                    type=request.operations[i].type,
+                    status="error",
+                    error="Operation failed due to an internal error.",
+                )
+            )
         else:
             final_results.append(result)
     return BatchProcessResponse(results=final_results, processing_time=time.time() - start_time)
@@ -275,4 +268,5 @@ async def batch_process(request: BatchProcessRequest) -> BatchProcessResponse:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8020)  # noqa: S104
+
+    uvicorn.run("src.main:app", host="0.0.0.0", port=settings.service_port, reload=True)  # noqa: S104

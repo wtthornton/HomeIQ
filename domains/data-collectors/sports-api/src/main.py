@@ -13,31 +13,28 @@ import os
 import random
 import time
 from collections import defaultdict
-from contextlib import asynccontextmanager, suppress
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse
 
 import aiohttp
-from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends, Header, HTTPException
 from homeiq_observability.logging_config import setup_logging
+from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from influxdb_client_3 import InfluxDBClient3, Point
 from pydantic import BaseModel
 
+from .config import settings
 from .health_check import HealthCheckHandler
 
-# Load environment variables
-load_dotenv()
-
-SERVICE_NAME = "sports-api"
+SERVICE_NAME = settings.service_name
 SERVICE_VERSION = "1.0.0"
 
 # Configure logging
 logger = setup_logging(SERVICE_NAME)
 
-SPORTS_API_KEY = os.getenv('SPORTS_API_KEY', '')
+SPORTS_API_KEY = settings.sports_api_key
 
 
 async def verify_api_key(x_api_key: str = Header(...)) -> str:
@@ -763,36 +760,51 @@ class SportsService:
 sports_service = None
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    """FastAPI lifespan context manager for service startup and shutdown."""
+async def _startup_sports() -> None:
+    """Start sports service and background task."""
     global sports_service
     service = SportsService()
     await service.startup()
     service.start_background_task()
     sports_service = service
-    yield
+
+
+async def _shutdown_sports() -> None:
+    """Shut down sports service."""
+    global sports_service
     if sports_service:
         await sports_service.shutdown()
+        sports_service = None
 
 
-# FastAPI app
-app = FastAPI(
-    title="Sports API Service",
-    description="Home Assistant Team Tracker integration service",
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
+
+_lifespan = ServiceLifespan(settings.service_name)
+_lifespan.on_startup(_startup_sports, name="sports")
+_lifespan.on_shutdown(_shutdown_sports, name="sports")
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+_health = StandardHealthCheck(
+    service_name=settings.service_name,
     version=SERVICE_VERSION,
-    lifespan=lifespan,
 )
 
-_cors_origins_env = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:3001')
-_cors_origins = [o.strip() for o in _cors_origins_env.split(',') if o.strip()]
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "OPTIONS"],
-    allow_headers=["*"],
+app = create_app(
+    title="Sports API Service",
+    version=SERVICE_VERSION,
+    description="Home Assistant Team Tracker integration service",
+    lifespan=_lifespan.handler,
+    health_check=_health,
+    cors_origins=settings.get_cors_origins_list(),
 )
 
 
@@ -805,15 +817,6 @@ async def root() -> dict[str, Any]:
         "status": "running",
         "endpoints": ["/health", "/sports-data", "/stats"]
     }
-
-
-@app.get("/health")
-async def health() -> dict[str, Any]:
-    """Health check endpoint returning service status, HA connectivity, and InfluxDB state."""
-    if not sports_service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-
-    return await sports_service.health_handler.handle(sports_service)
 
 
 @app.get("/sports-data", response_model=SportsDataResponse)
@@ -858,7 +861,11 @@ async def stats(_api_key: str = Depends(verify_api_key)) -> dict[str, Any]:
 
 if __name__ == "__main__":
     import uvicorn
-    host = os.getenv('SERVICE_HOST', '0.0.0.0')  # noqa: S104
-    port = int(os.getenv('SERVICE_PORT', '8005'))
-    uvicorn.run(app, host=host, port=port, log_level="info")
+
+    uvicorn.run(
+        "src.main:app",
+        host="0.0.0.0",  # noqa: S104
+        port=settings.service_port,
+        reload=True,
+    )
 
