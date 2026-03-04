@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-04 (Sprint 3 COMPLETE — Docker breakout, Epics 21-24)
-**Total:** 25 Epics, 146 Stories, ~430+ files addressed
+**Created:** 2026-02-27 | **Updated:** 2026-03-04 (Sprint 4 COMPLETE — Frontend upgrades + full service migration)
+**Total:** 25 Epics, 146 Stories, ~545+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -37,10 +37,12 @@ Sprint 3 — Docker Breakout ← ALL COMPLETE (Agent Teams, Mar 4)
 ├── Epic 22: Volume Decoupling [P1]                         ← COMPLETE (3 volumes decoupled, external refs + docs)
 └── Epic 24: Deployment Tooling [P1]                        ← COMPLETE (domain.sh, start-stack.sh, deploy.sh archived)
 
-Post-Blitz Remaining
-├── Epic 5: React 19 / Vite / Tailwind 4 upgrades          ← needs npm install + testing
-├── Epic 8: Actual deployment execution                     ← scripts ready, needs go/no-go
-└── Epics 12-14: Full service migration (5 POC done)       ← remaining ~30 services
+Sprint 4 — Frontend Upgrades + Service Migration ← ALL COMPLETE (Agent Teams, Mar 4)
+├── Epic 5: Vite 7 + Tailwind 4 Migration [P2]              ← COMPLETE (2 apps, builds pass)
+└── Epics 12-14: Full Service Migration [P1]                 ← COMPLETE (38/38 services + InfluxDBManager)
+
+Post-Sprint Remaining
+└── Epic 8: Actual deployment execution                     ← scripts ready, needs go/no-go
 ```
 
 ## Epic Summary
@@ -52,7 +54,7 @@ Post-Blitz Remaining
 | 2 | [Health Dashboard Quality](epic-health-dashboard-quality.md) | `epic-health-dashboard-quality.md` | P1 High | 8 | 2-3 weeks | **Complete** |
 | 3 | [AI Automation UI Quality](epic-ai-automation-ui-quality.md) | `epic-ai-automation-ui-quality.md` | P1 High | 8 | 2-3 weeks | **Complete** |
 | 4 | [Observability Dashboard Fixes](epic-observability-dashboard-fixes.md) | `epic-observability-dashboard-fixes.md` | P1 High | 8 | 1-2 weeks | **Complete** |
-| 5 | [Frontend Framework Upgrades](epic-frontend-framework-upgrades.md) | `epic-frontend-framework-upgrades.md` | P2 Medium | 5 | 3-4 weeks | **Partial** (code ready, npm untested) |
+| 5 | [Frontend Framework Upgrades](epic-frontend-framework-upgrades.md) | `epic-frontend-framework-upgrades.md` | P2 Medium | 5 | 3-4 weeks | **Complete** (Vite 7 + Tailwind 4, builds pass) |
 | 6 | [Backend Completion](epic-backend-completion.md) | `epic-backend-completion.md` | P1 High | 7 | 2-3 weeks | **Complete** |
 | 7 | [Feature Gaps](epic-feature-gaps.md) | `epic-feature-gaps.md` | P2 Medium | 6 | 4-6 weeks | **Complete** |
 | 8 | [Production Deployment](epic-production-deployment.md) | `epic-production-deployment.md` | P1 High | 8 | 2 weeks | **Complete** (scripts ready) |
@@ -131,6 +133,43 @@ Actual Outcome:
   Tooling: domain.sh, start-stack.sh, ensure-network.sh (+ PowerShell equivalents)
 ```
 
+## Sprint 4 Results (COMPLETE — Mar 4, Agent Teams)
+
+**Executed via 4-wave agent teams in a single session:**
+
+```
+Wave 1 (parallel, 7 agents):
+├── lib-builder:     InfluxDBManager in homeiq-data (Story 13.1)
+├── frontend-1:      ai-automation-ui Vite 7 + Tailwind 4 (build passes)
+├── frontend-2:      health-dashboard Vite 7 + Tailwind 4 (build passes)
+├── migrate-1a:      automation-linter, yaml-validation, automation-trace
+├── migrate-1b:      ai-code-executor, ha-setup, device-setup-assistant
+├── migrate-1c:      activity-recognition, activity-writer, api-automation-edge
+└── migrate-1d:      blueprint-suggestion, rule-recommendation-ml, ai-pattern-service
+
+Wave 2 (parallel, 4 agents):
+├── migrate-2a:      ai-core-service, openvino-service, ml-service
+├── migrate-2b:      rag-service, ai-training-service, device-intelligence-service
+├── migrate-2c:      ha-ai-agent-service, ai-automation-service-new, ai-query-service
+└── migrate-2d:      proactive-agent, energy-forecasting, energy-correlator, sports-api, weather-api
+
+Wave 3 (parallel, 3 agents):
+├── migrate-3a:      smart-meter, air-quality, carbon-intensity, electricity-pricing (aiohttp→FastAPI)
+├── migrate-3b:      calendar-service, log-aggregator, data-retention
+└── migrate-3c:      admin-api, data-api, websocket-ingestion (Tier 1 critical)
+
+Wave 4 (1 agent):
+└── migrate-4a:      ha-simulator, observability-dashboard
+
+Actual Outcome:
+  Files changed: 115 (7810 insertions, 8467 deletions = -657 net lines)
+  Services migrated: 38/38 to shared library pattern (create_app + ServiceLifespan + BaseServiceSettings)
+  aiohttp→FastAPI: 7 services converted (smart-meter, air-quality, carbon-intensity, electricity-pricing, calendar, log-aggregator, energy-correlator)
+  Frontend: 2 apps upgraded (Vite 7.3.1 + Tailwind 4 CSS-native @theme)
+  New lib: InfluxDBManager in homeiq-data (consolidates 3 patterns)
+  4 commits on master: 9403372f, 14755a55, c06cd2fb, ca40d3ca
+```
+
 ## Key Dates
 
 | Date | Milestone |
@@ -139,6 +178,7 @@ Actual Outcome:
 | Mar 3 | Sprint 1.5 complete — 15 epics done, TAPPS baseline captured |
 | Mar 4 | Sprint 2 complete — 5 epics (16-20) done via 2-wave agent teams, pass rate 45%→90%+ |
 | Mar 4 | Sprint 3 complete — 4 epics (21-24) done via 2-wave agent teams, Docker breakout complete |
+| Mar 4 | Sprint 4 complete — Epic 5 + Epics 12-14 via 4-wave agent teams, 38 services + 2 frontends |
 | ~Mar 17 | Production deployment eligible (DB migration done, security hardened, quality gated) |
 | Apr | Frontend framework upgrades + feature gap work begins |
 
