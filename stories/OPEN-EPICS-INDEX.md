@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-02
-**Total:** 15 Epics, 82 Stories, ~395+ files addressed
+**Created:** 2026-02-27 | **Updated:** 2026-03-04 (Sprint 2 COMPLETE + Epics 21-24 Docker breakout)
+**Total:** 25 Epics, 146 Stories, ~395+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -21,12 +21,26 @@ Sprint 1.5 (Mar 2 — Agent Team Blitz) ← ALL COMPLETE
 ├── Epic 7: Feature Gaps [P2]                               ← COMPLETE (6 stories)
 ├── Epic 8: Production Deployment Scripts [P1]              ← COMPLETE (8 stories)
 ├── Epics 12-14: Shared Library Standardization [P1-P2]     ← COMPLETE (10 stories)
+├── Epic 15: TAPPS Tracking by Service [P1]                 ← COMPLETE (53 services scored)
 └── Epic 5: Frontend Framework Upgrades [P2]                ← PARTIAL (package.json not updated)
+
+Sprint 2 — Quality Baseline Remediation ← ALL COMPLETE (Agent Teams, Mar 4)
+├── Epic 16: Project-Wide Lint Cleanup [P1]                 ← COMPLETE (1571 violations fixed, 870+ files)
+├── Epic 17: Tier 1 Quality Hardening [P0]                  ← COMPLETE (3/3 strict 80+: admin 80.3, ws 84.9, data 84.9)
+├── Epic 18: Data Collectors Remediation [P1]               ← COMPLETE (8/8 pass 70+, was 0/8)
+├── Epic 19: Low-Score Service Remediation [P1]             ← COMPLETE (8/8 pass 70+, activity-writer 51.9→81.9)
+└── Epic 20: Shared Library Strict Compliance [P1]          ← COMPLETE (5/5 pass strict 80+, via lint fixes)
+
+Sprint 3 — Docker Breakout (NEW)
+├── Epic 21: Per-Domain Docker Isolation [P1]               ← START HERE — enables Docker Desktop groups
+├── Epic 23: Dockerfile Hardening [P1]                      ← parallel with 21 (no cross-deps)
+├── Epic 22: Volume Decoupling [P1]                         ← depends on Epic 21 Story 21.1
+└── Epic 24: Deployment Tooling [P1]                        ← depends on Epic 21 Stories 21.1 + 21.3
 
 Post-Blitz Remaining
 ├── Epic 5: React 19 / Vite / Tailwind 4 upgrades          ← needs npm install + testing
 ├── Epic 8: Actual deployment execution                     ← scripts ready, needs go/no-go
-└── Epics 12-14: Full service migration (5 POC done)        ← remaining ~30 services
+└── Epics 12-14: Full service migration (5 POC done)       ← remaining ~30 services
 ```
 
 ## Epic Summary
@@ -48,26 +62,62 @@ Post-Blitz Remaining
 | 12 | [Core Service Bootstrap Standardization](epic-core-service-bootstrap-standardization.md) | `epic-core-service-bootstrap-standardization.md` | P1 High | 4 | 3-4 weeks | **Complete** (5 POC services migrated) |
 | 13 | [External Service Connector Standardization](epic-external-service-connector-standardization.md) | `epic-external-service-connector-standardization.md` | P1 High | 4 | 2-3 weeks | **Complete** (libs created + tested) |
 | 14 | [Background Processing Standardization](epic-background-processing-standardization.md) | `epic-background-processing-standardization.md` | P2 Medium | 2 | 1-2 weeks | **Complete** (libs created + tested) |
+| 15 | [TAPPS Tracking by Service](epic-tapps-tracking-by-service.md) | `epic-tapps-tracking-by-service.md` | P1 High | 12 | 3-4 weeks | **Complete** (53 scored, 45% pass) |
+| 16 | [Project-Wide Lint Cleanup](epic-project-wide-lint-cleanup.md) | `epic-project-wide-lint-cleanup.md` | P1 High | 7 | 1-2 weeks | **Complete** (1571 violations, 870+ files) |
+| 17 | [Tier 1 Quality Hardening](epic-tier1-quality-hardening.md) | `epic-tier1-quality-hardening.md` | **P0 Critical** | 4 | 2-3 weeks | **Complete** (3/3 strict 80+) |
+| 18 | [Data Collectors Remediation](epic-data-collectors-remediation.md) | `epic-data-collectors-remediation.md` | P1 High | 7 | 2-3 weeks | **Complete** (8/8 pass 70+) |
+| 19 | [Low-Score Service Remediation](epic-low-score-remediation.md) | `epic-low-score-remediation.md` | P1 High | 7 | 2-3 weeks | **Complete** (8/8 pass 70+) |
+| 20 | [Shared Library Strict Compliance](epic-shared-library-strict-compliance.md) | `epic-shared-library-strict-compliance.md` | P1 High | 6 | 1-2 weeks | **Complete** (5/5 strict 80+) |
+| 21 | [Per-Domain Docker Desktop Isolation](epic-per-domain-docker-isolation.md) | `epic-per-domain-docker-isolation.md` | P1 High | 5 | 1 week | **Open** |
+| 22 | [Cross-Domain Shared Resource Decoupling](epic-cross-domain-volume-decoupling.md) | `epic-cross-domain-volume-decoupling.md` | P1 High | 3 | 1 week | **Open** |
+| 23 | [Dockerfile Security & Consistency Hardening](epic-dockerfile-hardening.md) | `epic-dockerfile-hardening.md` | P1 High | 8 | 1 week | **Open** |
+| 24 | [Domain Deployment Tooling](epic-domain-deployment-tooling.md) | `epic-domain-deployment-tooling.md` | P1 High | 5 | 1 week | **Open** |
 
 ## Story Count by Priority
 
 | Priority | Count | Description |
 |----------|-------|-------------|
-| P0 Critical | 16 | DB migration (10, complete) + Security hardening (6) |
-| P1 High | 40 | Quality, performance, testing, deployment, browser review |
-| P1 High | 8 | Shared library standardization (Epics 12-13) |
-| P2 Medium | 13 | Framework upgrades, feature integrations, background processing (Epic 14) |
+| P0 Critical | 20 | DB migration (10) + Security (6) + Tier 1 hardening (4) |
+| P1 High | 82 | Quality, testing, deployment, browser review, TAPPS tracking + remediation, Docker breakout |
+| P2 Medium | 19 | Framework upgrades, feature integrations, background processing, Dockerfile consistency |
 | P3 Low | 4 | ML model training, placeholder implementations |
-| P1 High (complete) | 6 | Browser review (4) + TAPPS (2) done in Sprint 1.5 |
-| **Total** | **82** | |
+| **Total** | **146** | (94 original + 31 from Epics 16-20 + 21 from Epics 21-24) |
+
+## Sprint 2 Results (COMPLETE — Mar 4, Agent Teams)
+
+**Executed via 2-wave agent teams in a single session:**
+
+```
+Wave 1 (parallel, ~10 min):
+├── lint-datetime:  Stories 16.1 + 16.4 — 215 files, UP017/UP041/DTZ003
+├── lint-imports:   Stories 16.2 + 16.5 + 16.6 — 653 files, I001/F401/ARG
+├── lint-security:  Story 16.3 — 6 files, S104 suppression
+└── lib-hardener:   Stories 20.1-20.5 — lint fixes alone pushed all libs to 81.6+
+
+Wave 2 (parallel, ~30 min):
+├── tier1-admin:    Story 17.1 — admin-api 67.2 → 80.34 (decomposed to 7 modules)
+├── tier1-ws-data:  Stories 17.2+17.3 — ws 70.9→84.94, data-api 72.1→84.9+
+├── collector-fixer: Stories 18.1-18.6 — all 8 data collectors pass 70+
+├── lowscore-fixer-1: Stories 19.1-19.3 — activity-writer 51.9→81.9, ha-setup 54.4→77.0, ml-service 57.1→74.9
+└── lowscore-fixer-2: Stories 19.4-19.7 — ai-core 71.7, openvino 71.4, ha-ai-agent 73.4, auto-linter 75.7, auto-trace 74.5
+
+Actual Outcome:
+  Pass rate: 45% → ~90%+ (24/53 → 48+/53)
+  Tier 1: 0/3 strict pass → 3/3 (admin 80.3, ws 84.9, data-api 84.9)
+  Libs: 0/5 strict pass → 5/5 (all 81.6+)
+  Data collectors: 0/8 → 8/8
+  Low-score services: 0/8 → 8/8 (activity-writer biggest jump: +30 points)
+```
 
 ## Key Dates
 
 | Date | Milestone |
 |------|-----------|
 | Feb 27 | Sprint 0 complete — SQLite fully removed, PostgreSQL is sole database |
-| Mar 3 | Sprint 1 starts — security hardening + observability fixes |
-| ~Mar 17 | Production deployment eligible (DB migration done, security next) |
+| Mar 3 | Sprint 1.5 complete — 15 epics done, TAPPS baseline captured |
+| Mar 4 | Sprint 2 complete — 5 epics (16-20) done via 2-wave agent teams, pass rate 45%→90%+ |
+| Mar 4 | Sprint 3 starts — Docker breakout (Epics 21-24) |
+| ~Mar 17 | Production deployment eligible (DB migration done, security hardened, quality gated) |
 | Apr | Frontend framework upgrades + feature gap work begins |
 
 ## Coverage of All Known Open Items
@@ -136,6 +186,7 @@ Post-Blitz Remaining
 | Phase 6 post-deployment validation | Epic 8, Stories 7-8 |
 | 6 npm vulnerabilities (react-force-graph) | Epic 5, Story 2 (reassessed during React 19) |
 | automation-linter future roadmap | Out of scope (product roadmap, not engineering debt) |
+| **TAPPS quality tracking by service (50 services + 5 libs)** | **Epic 15, Stories 0-11** |
 | **Shared library standardization (~7,400 dup lines)** | **Epics 12-14** |
 | Health check boilerplate (38 services, 8+ status variants) | Epic 12, Story 1 |
 | FastAPI app factory duplication (34 services) | Epic 12, Story 2 |
@@ -147,3 +198,12 @@ Post-Blitz Remaining
 | OpenAI client duplication (3 implementations) | Epic 13, Story 4 |
 | Background task management (10 services) | Epic 14, Story 1 |
 | APScheduler boilerplate (11 services) | Epic 14, Story 2 |
+| **Project-wide lint: UP017, I001, B104, UP041, F401** | **Epic 16, Stories 1-7** |
+| **Tier 1 quality: admin-api, data-api, websocket-ingestion** | **Epic 17, Stories 1-4** |
+| **Data collectors 0/8 pass rate** | **Epic 18, Stories 1-7** |
+| **7 services scoring <67** | **Epic 19, Stories 1-7** |
+| **5 libs failing strict (80+) gate** | **Epic 20, Stories 1-6** |
+| **Per-domain Docker Desktop isolation (9 compose files)** | **Epic 21, Stories 1-5** |
+| **Cross-domain volume conflicts (3 volumes, 6 compose files)** | **Epic 22, Stories 1-3** |
+| **Dockerfile security: root user, missing healthcheck, UID** | **Epic 23, Stories 1-8** |
+| **Deployment tooling gaps (no per-domain scripts)** | **Epic 24, Stories 1-5** |

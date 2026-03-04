@@ -1,8 +1,8 @@
 # HomeIQ Rebuild Status
 
-**Last Updated:** February 28, 2026
-**Current Phase:** Phases 0–4b complete; Phase 3 ML deferred; Phase 5–6 pending
-**Overall Progress:** 83.3% complete (5/6 phases)
+**Last Updated:** March 4, 2026
+**Current Phase:** Phases 0–4b complete; Sprint 2 quality complete; Phase 3 ML deferred; Phase 5–6 pending
+**Overall Progress:** 83.3% complete (5/6 phases) + Sprint 2 quality remediation done
 
 ---
 
@@ -70,7 +70,7 @@ PostgreSQL is now the **sole database**. All SQLite code, configs, dependencies,
 
 ---
 
-## Browser Review & Quality Fixes (Feb 28) — IN PROGRESS
+## Browser Review & Quality Fixes (Feb 28) — COMPLETE
 
 6 critical stories completed across 3 new epics (39 files changed, +1183 / -691 lines):
 
@@ -78,6 +78,22 @@ PostgreSQL is now the **sole database**. All SQLite code, configs, dependencies,
 |------|-------------|-------------|
 | TAPPS Quality Gate | 2/3 | Bandit findings fixed, converter.py MI 64→71, yaml_transformer.py MI 68→70 |
 | Browser Review – AI UI (3001) | 2/4 | Ideas page error/retry/empty state, Explore demo mode + mobile nav |
+
+---
+
+## Sprint 2: Quality Baseline Remediation (Mar 4) — COMPLETE
+
+Executed via 2-wave agent teams. 5 epics (16-20), 31 stories, 870+ files changed.
+
+| Epic | Scope | Result |
+|------|-------|--------|
+| 16: Lint Cleanup | 1571 violations across all services | UP017, UP041, I001, F401, ARG, S104 — all resolved |
+| 17: Tier 1 Hardening | admin-api, websocket-ingestion, data-api | 3/3 pass strict 80+ (80.3, 84.9, 84.9) |
+| 18: Data Collectors | 8 stateless data-fetching services | 0/8 → 8/8 pass standard 70+ |
+| 19: Low-Score Services | 8 services scoring <67 | 0/8 → 8/8 pass (activity-writer 51.9→81.9) |
+| 20: Shared Libraries | 5 libs under libs/ | 0/5 → 5/5 pass strict 80+ (all 81.6+) |
+
+**Quality metrics:** Pass rate 45% → ~90%, Mean score 69.4 → ~77+
 | Browser Review – Health (3000) | 2/5 | KPI "Unavailable" vs "Loading…" + retry, Logs secret sanitization (7 patterns) |
 
 ### E2E Test Fixes (Feb 28) — COMPLETE

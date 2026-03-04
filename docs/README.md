@@ -1,6 +1,6 @@
 # HomeIQ Documentation
 
-**Last Updated:** March 2, 2026
+**Last Updated:** March 4, 2026
 
 This is the **single index** for project documentation. Use it for correct paths; avoid creating duplicate guides at root.
 
@@ -11,6 +11,7 @@ This is the **single index** for project documentation. Use it for correct paths
 | Document | Description |
 |----------|-------------|
 | [README](../README.md) | Project overview, quick start, architecture |
+| [TAPPS Tool Priority](TAPPS_TOOL_PRIORITY.md) | TappsMCP tool order and rationale for HomeIQ |
 | [Tech Stack](../TECH_STACK.md) | Complete technology reference with versions |
 | [Rebuild Status](../REBUILD_STATUS.md) | Phase completion tracker |
 | [Changelog](../CHANGELOG.md) | Version history and release notes |
@@ -73,6 +74,7 @@ This is the **single index** for project documentation. Use it for correct paths
 | [Library Upgrade Plan](planning/library-upgrade-plan.md) | Dependency upgrade strategy and progress |
 | [Frontend Redesign](planning/frontend-redesign-plan.md) | Frontend architecture and design system |
 | [Quality Audit](planning/quality-audit-report.md) | Codebase quality assessment |
+| [TAPPS Quality Baseline](../reports/quality/TAPPS_BASELINE.md) | Per-service TAPPS scores, gates, and security baseline |
 | [Deployment Checklist](planning/deployment-checklist.md) | Pre-deployment verification checklist |
 
 ---

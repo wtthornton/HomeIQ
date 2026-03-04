@@ -1,6 +1,17 @@
 # Changelog
 
-## [Unreleased] - 2026-03-03
+## [Unreleased] - 2026-03-04
+
+### Sprint 2: Quality Baseline Remediation (Epics 16-20) — COMPLETE
+
+- **fix(lint): resolve I001, F401, ARG001/ARG002 across domains/ and libs/** (39b5762) — 653 files, 1571 violations fixed
+- **fix(lint): resolve UP017, UP041, DTZ003 across 215 Python files** (6b9b27f) — datetime.UTC modernization, TimeoutError alias
+- **fix(lint): suppress S104 bind-all warnings in remaining Docker services** (aa8ad41) — 35 intentional Docker binds suppressed
+- **fix(quality): remediate 5 services to pass TAPPS quality gate (Epic 19.4-19.7)** (881f27c) — ai-core, openvino, ha-ai-agent, automation-linter, automation-trace
+- **refactor(admin-api): decompose main.py into 7 modules for strict quality gate 80+** (adacd52) — 67.2 → 80.34
+- **refactor(core-platform): decompose websocket-ingestion & data-api for strict quality gate 80+** (01dfb8c) — ws 70.9→84.94, data-api 72.1→84.9
+- **refactor(data-collectors): Epic 18 quality remediation — all 8 services pass 70+ gate** (95c6bff) — 0/8 → 8/8 pass rate
+- **refactor(epic-19): remediate 3 lowest-scoring services to pass 70+ quality gate** (cc7aa29) — activity-writer 51.9→81.9, ha-setup 54.4→77.0, ml-service 57.1→74.9
 
 ### Added
 
