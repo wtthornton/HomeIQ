@@ -193,6 +193,7 @@ services:
     env_file:
       - ../../infrastructure/env.ai-automation
     environment:
+      - AI_CORE_API_KEY=${AI_CORE_API_KEY}
       - OPENVINO_SERVICE_URL=http://openvino-service:8019
       - ML_SERVICE_URL=http://ml-service:8020
       - NER_SERVICE_URL=http://ner-service:8031

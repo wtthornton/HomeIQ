@@ -1,5 +1,7 @@
 """Configuration management for AI Automation Service."""
 
+from pydantic import SecretStr
+
 from homeiq_data import BaseServiceSettings
 
 
@@ -8,7 +10,7 @@ class Settings(BaseServiceSettings):
 
     Inherits from BaseServiceSettings which provides: service_name,
     service_port, log_level, database_url, postgres_url, database_schema,
-    data_api_url, data_api_key, openai_api_key (SecretStr), cors_origins,
+    data_api_url, data_api_key, cors_origins,
     influxdb_url/token/org/bucket, effective_database_url property,
     and get_cors_origins_list().
     """
@@ -27,7 +29,8 @@ class Settings(BaseServiceSettings):
     ha_url: str | None = None
     ha_token: str | None = None
 
-    # OpenAI Configuration (openai_api_key inherited from base as SecretStr)
+    # OpenAI Configuration
+    openai_api_key: SecretStr | None = None
     # Default model for plan/chat (v1/chat/completions). Must be a chat model.
     openai_model: str = "gpt-5-mini"
     # Model for YAML and HomeIQ JSON generation (reasoning/codex).
