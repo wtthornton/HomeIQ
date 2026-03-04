@@ -82,6 +82,156 @@ HA_TOOLS = [
     }
 ]
 
+# -------------------------------------------------------------------------
+# Device Control Tools (Epic 25 — Direct HA device control via ha-device-control service)
+# -------------------------------------------------------------------------
+
+DEVICE_CONTROL_TOOLS = [
+    {
+        "type": "function",
+        "name": "control_light",
+        "description": "Control a specific light — turn on/off, set brightness (0-100), or set RGB color. Use this for IMMEDIATE light control when the user says things like 'turn off the kitchen light' or 'set bedroom to 50%'. Do NOT use this for automation rules (use preview_automation_from_prompt for those).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "entity_id_or_name": {
+                    "type": "string",
+                    "description": "Light entity ID (e.g., 'light.kitchen') or friendly name (e.g., 'Kitchen Light')"
+                },
+                "brightness": {
+                    "type": "integer",
+                    "description": "Brightness 0-100 (0 = off, 100 = full). Required."
+                },
+                "rgb": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "description": "Optional RGB color as [R, G, B] with values 0-255 (e.g., [255, 0, 0] for red)"
+                }
+            },
+            "required": ["entity_id_or_name", "brightness"]
+        }
+    },
+    {
+        "type": "function",
+        "name": "control_light_area",
+        "description": "Control ALL lights in an area/room — set brightness or color for every light at once. Use for requests like 'turn off all living room lights' or 'set bedroom lights to blue'.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "area": {
+                    "type": "string",
+                    "description": "Area/room name (e.g., 'Living Room', 'Bedroom', 'Kitchen')"
+                },
+                "brightness": {
+                    "type": "integer",
+                    "description": "Brightness 0-100 (0 = off)"
+                },
+                "rgb": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "description": "Optional RGB color as [R, G, B] with values 0-255"
+                }
+            },
+            "required": ["area", "brightness"]
+        }
+    },
+    {
+        "type": "function",
+        "name": "control_switch",
+        "description": "Turn a switch on or off. Use for requests like 'turn on the fan' or 'turn off the heater'.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "entity_id_or_name": {
+                    "type": "string",
+                    "description": "Switch entity ID or friendly name"
+                },
+                "state": {
+                    "type": "string",
+                    "enum": ["on", "off"],
+                    "description": "Desired state"
+                }
+            },
+            "required": ["entity_id_or_name", "state"]
+        }
+    },
+    {
+        "type": "function",
+        "name": "get_climate",
+        "description": "Get current thermostat/climate status for all zones. Shows current temperature, target temperature, and HVAC mode. Use when user asks about temperature or thermostat.",
+        "parameters": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
+        "type": "function",
+        "name": "set_climate",
+        "description": "Set thermostat temperature or HVAC mode. Use for requests like 'set temperature to 72' or 'turn on heating'.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "entity_id": {
+                    "type": "string",
+                    "description": "Climate entity ID (e.g., 'climate.living_room'). Use get_climate first to find available entities."
+                },
+                "temperature": {
+                    "type": "number",
+                    "description": "Target temperature in the entity's native unit"
+                },
+                "hvac_mode": {
+                    "type": "string",
+                    "description": "Optional HVAC mode: heat, cool, auto, off, fan_only, dry"
+                }
+            },
+            "required": ["entity_id", "temperature"]
+        }
+    },
+    {
+        "type": "function",
+        "name": "activate_scene",
+        "description": "Activate a Home Assistant scene or run a script by name. Use when user says 'activate movie night' or 'run bedtime routine'.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Scene or script name (e.g., 'movie_night', 'bedtime')"
+                }
+            },
+            "required": ["name"]
+        }
+    },
+    {
+        "type": "function",
+        "name": "house_status",
+        "description": "Get a comprehensive snapshot of the current home status: climate, presence, lights by area, doors/windows, motion sensors, active switches, and automations. Use when user asks 'what's the status of the house?' or 'are any lights on?'.",
+        "parameters": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
+        "type": "function",
+        "name": "send_notification",
+        "description": "Send a push notification to the user's phone via Home Assistant mobile app. Use when user says 'remind me' or 'send me a notification'.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "Notification message body"
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Optional notification title"
+                }
+            },
+            "required": ["message"]
+        }
+    }
+]
+
 
 def get_tool_schemas() -> list[dict]:
     """
@@ -90,7 +240,7 @@ def get_tool_schemas() -> list[dict]:
     Returns:
         List of tool schema dictionaries compatible with OpenAI Responses API
     """
-    return HA_TOOLS
+    return HA_TOOLS + DEVICE_CONTROL_TOOLS
 
 
 def get_tool_names() -> list[str]:

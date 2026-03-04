@@ -28,6 +28,7 @@ from .services.conversation_service import ConversationService
 from .services.openai_client import OpenAIClient
 from .services.prompt_assembly_service import PromptAssemblyService
 from .services.tool_service import ToolService
+from .tools.device_control_tools import DeviceControlToolHandler
 
 
 def _configure_logging() -> None:
@@ -155,6 +156,18 @@ async def _startup_services() -> None:
     # Initialize clients
     ha_cl, dapi_cl, ai_auto_cl, hybrid_cl, yaml_cl = _build_clients()
 
+    # Epic 25: Device control handler (non-fatal — degrades gracefully)
+    device_ctrl: DeviceControlToolHandler | None = None
+    try:
+        device_ctrl = DeviceControlToolHandler(
+            base_url=settings.ha_device_control_url,
+        )
+        await device_ctrl.startup()
+        logger.info("DeviceControlToolHandler initialized")
+    except Exception as e:
+        logger.warning("Device control handler unavailable: %s", e)
+        device_ctrl = None
+
     oc = OpenAIClient(settings)
     logger.info("OpenAI client initialized")
     openai_client = oc
@@ -162,6 +175,7 @@ async def _startup_services() -> None:
     ts = ToolService(
         ha_cl, dapi_cl, ai_auto_cl, yaml_cl,
         oc.client if oc else None,
+        device_control_handler=device_ctrl,
     )
     if hasattr(ts, "tool_handler"):
         ts.tool_handler.hybrid_flow_client = hybrid_cl
@@ -206,6 +220,8 @@ async def _shutdown_services() -> None:
             await tool_service.ha_client.close()
         if tool_service.data_api_client:
             await tool_service.data_api_client.close()
+        if tool_service.device_control_handler:
+            await tool_service.device_control_handler.shutdown()
 
     context_builder = None
     tool_service = None

@@ -19,6 +19,7 @@ from .batch_processor import BatchProcessor
 from .connection_manager import ConnectionManager
 from .event_queue import EventQueue
 from .historical_event_counter import HistoricalEventCounter
+from .house_status import HouseStatusAggregator, StatusWebSocketPublisher
 from .influxdb_wrapper import InfluxDBConnectionManager
 from .memory_manager import MemoryManager
 
@@ -56,6 +57,21 @@ async def start_processing_components(
     )
 
     svc.batch_processor.add_batch_handler(svc._process_batch)
+
+    # Epic 28: House status aggregation (optional layer — never blocks startup)
+    try:
+        svc.house_status_aggregator = HouseStatusAggregator()
+        svc.house_status_publisher = StatusWebSocketPublisher()
+        await svc.house_status_publisher.start()
+        log_with_context(
+            logger, "INFO", "House status aggregator + publisher started",
+            operation="house_status_startup",
+            correlation_id=corr_id,
+        )
+    except Exception as exc:
+        logger.warning("House status aggregation init failed (non-fatal): %s", exc)
+        svc.house_status_aggregator = None
+        svc.house_status_publisher = None
 
 
 async def start_influxdb_pipeline(
@@ -155,6 +171,12 @@ async def start_ha_connection(
             extra={"correlation_id": corr_id},
         )
         raise ConnectionError("Could not connect to Home Assistant")
+
+    # Epic 28: Wire discovery service into house status aggregator for area lookups.
+    if svc.house_status_aggregator and svc.connection_manager:
+        svc.house_status_aggregator._discovery = (
+            svc.connection_manager.discovery_service
+        )
 
     log_with_context(
         logger, "INFO", "Home Assistant connection manager started",

@@ -55,6 +55,12 @@ class Settings(BaseServiceSettings):
         description="API key for YAML Validation Service (optional)",
     )
 
+    # Device Control Service Configuration (Epic 25)
+    ha_device_control_url: str = Field(
+        default="http://ha-device-control:8040",
+        description="HA Device Control Service URL for direct device control",
+    )
+
     # Device Intelligence Service Configuration
     device_intelligence_url: str = Field(
         default="http://device-intelligence-service:8019",
@@ -76,6 +82,12 @@ class Settings(BaseServiceSettings):
     blueprint_suggestion_url: str = Field(
         default="http://blueprint-suggestion-service:8032",
         description="Blueprint Suggestion Service URL",
+    )
+
+    # WebSocket Ingestion Service (Epic 28 — house status aggregator)
+    websocket_ingestion_url: str = Field(
+        default="http://websocket-ingestion:8001",
+        description="WebSocket Ingestion Service URL for house status aggregator",
     )
 
     # Sports API Configuration

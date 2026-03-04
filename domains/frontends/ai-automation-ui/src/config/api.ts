@@ -25,6 +25,9 @@ export const API_CONFIG = {
 
   // Blueprint Suggestion Service
   BLUEPRINT_SUGGESTIONS: isProduction ? '/api/blueprint-suggestions' : 'http://localhost:8039/api/blueprint-suggestions',
+
+  // Proactive Agent Service (Scheduled Tasks - Epic 27)
+  PROACTIVE_AGENT: isProduction ? '/api/proactive' : 'http://localhost:8031/api',
 };
 
 // Team Tracker specific endpoints

@@ -116,6 +116,50 @@ services:
       retries: 3
       start_period: 10s
 
+  voice-gateway:
+    build:
+      context: ../..
+      dockerfile: domains/frontends/voice-gateway/Dockerfile
+    container_name: homeiq-voice-gateway
+    restart: unless-stopped
+    ports:
+      - "8041:8041"
+    env_file:
+      - ../../.env
+    environment:
+      - SERVICE_PORT=8041
+      - SERVICE_NAME=voice-gateway
+      - AGENT_SERVICE_URL=http://ha-ai-agent-service:8030
+      - STT_ENABLED=${VOICE_STT_ENABLED:-true}
+      - STT_MODEL_SIZE=${VOICE_STT_MODEL:-base}
+      - TTS_ENABLED=${VOICE_TTS_ENABLED:-true}
+      - TTS_VOICE=${VOICE_TTS_VOICE:-af_heart}
+      - WAKE_WORD_ENABLED=${VOICE_WAKE_WORD_ENABLED:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Cross-domain: depends on automation-core/ha-ai-agent-service
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8041/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=voice-gateway,group=frontends,environment=production"
+
 networks:
   homeiq-network:
     external: true

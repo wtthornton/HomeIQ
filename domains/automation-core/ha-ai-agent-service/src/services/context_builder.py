@@ -6,6 +6,7 @@ Orchestrates all Tier 1 context components for OpenAI agent
 import logging
 from datetime import datetime, timedelta
 
+import httpx
 from sqlalchemy import select
 
 from ..config import Settings
@@ -429,6 +430,33 @@ class ContextBuilder:
         )
 
         return complete_prompt
+
+    async def _get_house_status_from_aggregator(self) -> dict | None:
+        """Try to get house status from websocket-ingestion aggregator.
+
+        This avoids a direct HA REST round-trip by reading the
+        pre-aggregated state maintained by the websocket-ingestion
+        service (Epic 28).
+
+        Returns:
+            Parsed JSON dict on success, or ``None`` on any failure.
+        """
+        try:
+            url = f"{self.settings.websocket_ingestion_url}/api/status/house"
+            async with httpx.AsyncClient(timeout=5) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    return resp.json()
+                logger.debug(
+                    "House status aggregator returned %s", resp.status_code
+                )
+        except Exception as exc:
+            logger.warning(
+                "House status aggregator unavailable, "
+                "falling back to HA REST: %s",
+                exc,
+            )
+        return None
 
     async def _get_cached_value(self, cache_key: str) -> str | None:
         """

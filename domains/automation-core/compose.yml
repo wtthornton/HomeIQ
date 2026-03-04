@@ -4,7 +4,7 @@ name: homeiq-automation-core
 #
 # Services: ha-ai-agent-service, ai-automation-service-new, ai-query-service,
 #           yaml-validation-service, automation-linter, ai-code-executor,
-#           automation-trace-service
+#           automation-trace-service, ha-device-control
 # Depends on: core-platform (data-api), ml-engine (ai-core-service)
 # Depended on by: frontends (display automation results), blueprints
 
@@ -337,6 +337,48 @@ services:
         max-size: "10m"
         max-file: "3"
         labels: "service=automation-trace-service,group=automation-core,environment=production"
+
+  ha-device-control:
+    build:
+      context: ../..
+      dockerfile: domains/automation-core/ha-device-control/Dockerfile
+    container_name: homeiq-ha-device-control
+    restart: unless-stopped
+    ports:
+      - "8040:8040"
+    extra_hosts:
+      - "homeassistant:192.168.1.86"
+    env_file:
+      - ../../.env
+    environment:
+      - SERVICE_PORT=8040
+      - HA_URL=${HA_URL:-http://homeassistant:8123}
+      - HA_TOKEN=${HA_TOKEN}
+      - DEFAULT_NOTIFY_SERVICE=${DEFAULT_NOTIFY_SERVICE:-}
+      - BLACKLIST_PATTERNS=${DEVICE_BLACKLIST_PATTERNS:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8040/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=ha-device-control,group=automation-core,environment=production"
 
 # Automation-core volumes — ai_automation_data and ai_automation_models owned by ml-engine
 volumes:

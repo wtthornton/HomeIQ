@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-04 (Sprint 7 Memory Brain planned — 7 epics, 31 stories)
-**Total:** 36 Epics, 199 Stories, ~545+ files addressed
+**Created:** 2026-02-27 | **Updated:** 2026-03-04 (Sprints 5-6 complete, Sprint 7 Memory Brain planned)
+**Total:** 36 Epics, 199 Stories, ~615+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -48,13 +48,13 @@ Epic 8: Phase 5 Production Deployment ← COMPLETE (Mar 4)
 ├── Code fixes: ws-ingestion InvalidStateTransition re-export, asynccontextmanager, ha-ai-agent openai_api_key
 └── Result: 52/53 healthy (ai-core-service needs AI_CORE_API_KEY env var)
 
-Sprint 5 (Planned) — Sapphire-Inspired HA Enhancements
-├── Epic 25: Direct Device Control Service [P1]             ← PENDING (7 stories, new service port 8040)
-└── Epic 28: Enhanced Event Bus + Real-Time Status [P2]     ← PENDING (4 stories, aggregation + push)
+Sprint 5 (COMPLETE — Mar 4, Agent Teams) — Sapphire-Inspired HA Enhancements
+├── Epic 25: Direct Device Control Service [P1]             ← COMPLETE (7 stories, 24 files, new service port 8040)
+└── Epic 28: Enhanced Event Bus + Real-Time Status [P2]     ← COMPLETE (4 stories, 14 files, aggregation + push)
 
-Sprint 6 (Planned) — Voice + Scheduled Tasks
-├── Epic 26: Voice Gateway Service [P1]                     ← PENDING (6 stories, new service port 8041)
-└── Epic 27: Scheduled AI Tasks (Continuity) [P2]           ← PENDING (5 stories, enhances proactive-agent)
+Sprint 6 (COMPLETE — Mar 4, Agent Teams) — Voice + Scheduled Tasks
+├── Epic 26: Voice Gateway Service [P1]                     ← COMPLETE (6 stories, 17 files, new service port 8041)
+└── Epic 27: Scheduled AI Tasks (Continuity) [P2]           ← COMPLETE (5 stories, 15 files, enhances proactive-agent)
 
 Sprint 7 (Planned) — Memory Brain (Institutional Memory)
 ├── Epic 29: Memory Store Foundation [P0]                   ← PENDING (6 stories, homeiq-memory lib + pgvector)
@@ -95,10 +95,10 @@ Sprint 7 (Planned) — Memory Brain (Institutional Memory)
 | 22 | [Cross-Domain Shared Resource Decoupling](epic-cross-domain-volume-decoupling.md) | `epic-cross-domain-volume-decoupling.md` | P1 High | 3 | 1 week | **Complete** |
 | 23 | [Dockerfile Security & Consistency Hardening](epic-dockerfile-hardening.md) | `epic-dockerfile-hardening.md` | P1 High | 8 | 1 week | **Complete** |
 | 24 | [Domain Deployment Tooling](epic-domain-deployment-tooling.md) | `epic-domain-deployment-tooling.md` | P1 High | 5 | 1 week | **Complete** |
-| 25 | [Direct Device Control](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P1 High | 7 | 2 weeks | Pending |
-| 26 | [Voice Gateway Service](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P1 High | 6 | 2-3 weeks | Pending |
-| 27 | [Scheduled AI Tasks](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P2 Medium | 5 | 1-2 weeks | Pending |
-| 28 | [Enhanced Event Bus](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P2 Medium | 4 | 1 week | Pending |
+| 25 | [Direct Device Control](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P1 High | 7 | 2 weeks | **Complete** |
+| 26 | [Voice Gateway Service](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P1 High | 6 | 2-3 weeks | **Complete** |
+| 27 | [Scheduled AI Tasks](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P2 Medium | 5 | 1-2 weeks | **Complete** |
+| 28 | [Enhanced Event Bus](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P2 Medium | 4 | 1 week | **Complete** |
 | 29 | [Memory Store Foundation](epic-memory-brain.md) | `epic-memory-brain.md` | **P0 Critical** | 6 | 2 weeks | Pending |
 | 30 | [Explicit Memory Capture](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 4 | 1-2 weeks | Pending |
 | 31 | [Implicit Memory Capture](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 4 | 1-2 weeks | Pending |
@@ -202,6 +202,53 @@ Actual Outcome:
   4 commits on master: 9403372f, 14755a55, c06cd2fb, ca40d3ca
 ```
 
+## Sprint 5 Results (COMPLETE — Mar 4, Agent Teams)
+
+**Sapphire-inspired HA integration — parallel agent execution:**
+
+```
+Sprint 5 (parallel, 2 agents):
+├── device-control:    Epic 25 (Stories 25.1-25.7) — new ha-device-control service (port 8040)
+│   ├── 20 new files: scaffold, entity resolver, controllers, routers, Dockerfile
+│   └── 4 modified files: tool_schemas.py, tool_service.py, main.py, config.py (agent wiring)
+└── event-bus:         Epic 28 (Stories 28.1-28.4) — house status aggregation + push
+    ├── 10 new files: aggregator, WS publisher, status router, event bus client, HouseStatusCard
+    └── 4 modified files: ws-ingestion main/_startup/_event_handlers, context_builder
+
+Actual Outcome:
+  New service: ha-device-control (8 tool functions, entity resolution, blacklist, circuit breaker)
+  Agent wiring: 8 device control tools registered in ha-ai-agent-service (tool schemas + proxy handler)
+  House status: real-time aggregation from websocket-ingestion events, WS push to frontends
+  Context: agent reads house status from aggregator instead of polling HA REST
+  Files: 24 new + 8 modified = 32 total
+```
+
+## Sprint 6 Results (COMPLETE — Mar 4, Agent Teams)
+
+**Voice gateway + scheduled tasks — parallel agent execution:**
+
+```
+Sprint 6 (parallel, 2 agents):
+├── voice-gateway:     Epic 26 (Stories 26.1-26.6) — new voice-gateway service (port 8041)
+│   ├── 16 new files: STT (Faster Whisper), TTS (Kokoro), wake word (OpenWakeWord)
+│   │   pipeline orchestrator, hot-swap admin, voice WebSocket, VoiceControls.tsx
+│   └── 1 modified file: frontends/compose.yml
+└── scheduled-tasks:   Epic 27 (Stories 27.1-27.5) — cron scheduler in proactive-agent
+    ├── 10 new files: SQLAlchemy models, APScheduler, executor, templates, router
+    │   ScheduledTasks.tsx, taskApi.ts, scheduledTask.ts
+    └── 5 modified files: config.py, main.py, Sidebar.tsx, App.tsx, api.ts
+
+Actual Outcome:
+  New service: voice-gateway (STT/TTS/wake word with null-object fallback, GPU/CPU cascade)
+  Voice pipeline: wake → record → STT → agent API → TTS → play (with processing lock)
+  Hot-swap: runtime enable/disable of STT/TTS/wake word without restart
+  Scheduler: APScheduler with cron, cooldown, jitter, 4 built-in templates
+  Task executor: isolated LLM conversations via agent API, notification integration
+  Frontend: VoiceControls.tsx + ScheduledTasks.tsx + sidebar nav + routing
+  Files: 26 new + 6 modified = 32 total
+  Quality: all Python files pass quality gate (70+), security clean
+```
+
 ## Key Dates
 
 | Date | Milestone |
@@ -211,8 +258,9 @@ Actual Outcome:
 | Mar 4 | Sprint 2 complete — 5 epics (16-20) done via 2-wave agent teams, pass rate 45%→90%+ |
 | Mar 4 | Sprint 3 complete — 4 epics (21-24) done via 2-wave agent teams, Docker breakout complete |
 | Mar 4 | Sprint 4 complete — Epic 5 + Epics 12-14 via 4-wave agent teams, 38 services + 2 frontends |
+| Mar 4 | Sprint 5 complete — Epics 25+28 (device control + event bus), 32 files, 2 new services |
+| Mar 4 | Sprint 6 complete — Epics 26+27 (voice gateway + scheduled tasks), 32 files |
 | ~Mar 17 | Production deployment eligible (DB migration done, security hardened, quality gated) |
-| Apr | Frontend framework upgrades + feature gap work begins |
 | TBD | Sprint 7: Memory Brain — institutional memory layer (7 epics, 31 stories) |
 
 ## Coverage of All Known Open Items

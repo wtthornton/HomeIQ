@@ -16,6 +16,7 @@ import { Settings } from './pages/Settings';
 import { DiscoveryPage } from './pages/Discovery';
 import { NameEnhancementDashboard } from './components/name-enhancement';
 import { HAAgentChat } from './pages/HAAgentChat';
+import { ScheduledTasks } from './components/ScheduledTasks';
 import { useAppStore } from './store';
 
 /** Update document title based on current route */
@@ -29,6 +30,7 @@ const TitleUpdater: React.FC = () => {
       '/explore': 'Explore - HomeIQ',
       '/insights': 'Insights - HomeIQ',
       '/automations': 'Automations - HomeIQ',
+      '/scheduled': 'Scheduled Tasks - HomeIQ',
       '/settings': 'Settings - HomeIQ',
       '/name-enhancement': 'Name Enhancement - HomeIQ',
     };
@@ -111,6 +113,14 @@ export const App: React.FC = () => {
                   element={
                     <PageErrorBoundaryWrapper pageName="Automations">
                       <Deployed />
+                    </PageErrorBoundaryWrapper>
+                  }
+                />
+                <Route
+                  path="/scheduled"
+                  element={
+                    <PageErrorBoundaryWrapper pageName="Scheduled Tasks">
+                      <ScheduledTasks />
                     </PageErrorBoundaryWrapper>
                   }
                 />

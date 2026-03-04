@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from ..config import settings
-from .routers import discovery, event_rate, filter, health, websocket
+from .routers import discovery, event_rate, filter, health, status, websocket
 
 logger = logging.getLogger(__name__)
 
@@ -84,3 +84,4 @@ app.include_router(event_rate.router)
 app.include_router(discovery.router)
 app.include_router(filter.router)
 app.include_router(websocket.router)
+app.include_router(status.router)

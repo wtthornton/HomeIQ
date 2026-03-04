@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from pydantic import Field
-
 from homeiq_data import BaseServiceSettings
+from pydantic import Field
 
 
 class Settings(BaseServiceSettings):
@@ -42,6 +41,16 @@ class Settings(BaseServiceSettings):
     scheduler_enabled: bool = True
     scheduler_time: str = "03:00"
     scheduler_timezone: str = "America/Los_Angeles"
+
+    # Scheduled Tasks (Epic 27)
+    cron_scheduler_enabled: bool = Field(
+        default=True,
+        description="Enable the cron task scheduler for scheduled AI tasks",
+    )
+    ha_device_control_notify_url: str = Field(
+        default="http://ha-ai-agent-service:8030/api/notify",
+        description="Notification endpoint for task results (Story 27.5)",
+    )
 
     # OpenAI Configuration (for prompt generation)
     openai_api_key: str | None = Field(

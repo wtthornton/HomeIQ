@@ -42,6 +42,7 @@ from .entity_filter import EntityFilter
 from .event_queue import EventQueue  # noqa: F401, TC001
 from .health_check import HealthCheckHandler
 from .historical_event_counter import HistoricalEventCounter  # noqa: F401, TC001
+from .house_status import HouseStatusAggregator, StatusWebSocketPublisher  # noqa: TC001
 from .influxdb_wrapper import InfluxDBConnectionManager  # noqa: F401, TC001
 from .memory_manager import MemoryManager  # noqa: F401, TC001
 
@@ -94,6 +95,10 @@ class WebSocketIngestionService(EventHandlerMixin):
         self.influxdb_manager: InfluxDBConnectionManager | None = None
         self.historical_counter: HistoricalEventCounter | None = None
 
+        # House status aggregation (Epic 28 — optional layer)
+        self.house_status_aggregator: HouseStatusAggregator | None = None
+        self.house_status_publisher: StatusWebSocketPublisher | None = None
+
         # Proxied config for tests / health handler
         self.home_assistant_url = self.cfg.home_assistant_url
         self.home_assistant_ws_url = self.cfg.home_assistant_ws_url
@@ -144,6 +149,7 @@ class WebSocketIngestionService(EventHandlerMixin):
         """Stop all components; errors are logged, never re-raised."""
         logger.info("Stopping WebSocket Ingestion Service...")
         for name, comp in [
+            ("house_status_publisher", self.house_status_publisher),
             ("async_event_processor", self.async_event_processor),
             ("batch_processor", self.batch_processor),
             ("memory_manager", self.memory_manager),

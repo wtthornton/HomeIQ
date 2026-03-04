@@ -12,6 +12,7 @@ from ..clients.ai_automation_client import AIAutomationClient
 from ..clients.data_api_client import DataAPIClient
 from ..clients.ha_client import HomeAssistantClient
 from ..clients.yaml_validation_client import YAMLValidationClient
+from ..tools.device_control_tools import DeviceControlToolHandler
 from ..tools.ha_tools import HAToolHandler
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,8 @@ class ToolService:
         data_api_client: DataAPIClient,
         ai_automation_client: AIAutomationClient | None = None,
         yaml_validation_client: YAMLValidationClient | None = None,
-        openai_client: Any = None
+        openai_client: Any = None,
+        device_control_handler: DeviceControlToolHandler | None = None,
     ):
         """
         Initialize tool service.
@@ -41,20 +43,38 @@ class ToolService:
             ai_automation_client: AI Automation Service client (legacy, optional)
             yaml_validation_client: YAML Validation Service client for comprehensive validation (Epic 51, optional)
             openai_client: OpenAI client for enhancement generation (optional)
+            device_control_handler: Device control tool handler (Epic 25, optional)
         """
         self.ha_client = ha_client
         self.data_api_client = data_api_client
-        self.tool_handler = HAToolHandler(ha_client, data_api_client, ai_automation_client, yaml_validation_client, openai_client)
+        self.tool_handler = HAToolHandler(
+            ha_client, data_api_client, ai_automation_client,
+            yaml_validation_client, openai_client,
+        )
+        self.device_control_handler = device_control_handler
 
         # Map tool names to handler methods
         # 2025 Preview-and-Approval Workflow
-        self.tool_handlers = {
+        self.tool_handlers: dict[str, Any] = {
             "preview_automation_from_prompt": self.tool_handler.preview_automation_from_prompt,
             "create_automation_from_prompt": self.tool_handler.create_automation_from_prompt,
             "suggest_automation_enhancements": self.tool_handler.suggest_automation_enhancements,
         }
 
-        logger.info(f"ToolService initialized with {len(self.tool_handlers)} tool(s)")
+        # Epic 25: Device control tools (proxied to ha-device-control service)
+        if self.device_control_handler:
+            self.tool_handlers.update({
+                "control_light": self.device_control_handler.control_light,
+                "control_light_area": self.device_control_handler.control_light_area,
+                "control_switch": self.device_control_handler.control_switch,
+                "get_climate": self.device_control_handler.get_climate,
+                "set_climate": self.device_control_handler.set_climate,
+                "activate_scene": self.device_control_handler.activate_scene,
+                "house_status": self.device_control_handler.house_status,
+                "send_notification": self.device_control_handler.send_notification,
+            })
+
+        logger.info("ToolService initialized with %d tool(s)", len(self.tool_handlers))
 
     async def execute_tool(
         self,

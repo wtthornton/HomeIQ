@@ -34,6 +34,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { path: '/insights', label: 'Insights', icon: '\u{1F4CA}', ariaLabel: 'Navigate to Insights' },
       { path: '/automations', label: 'Automations', icon: '\u{26A1}', ariaLabel: 'Navigate to Automations' },
+      { path: '/scheduled', label: 'Scheduled', icon: '\u{23F0}', ariaLabel: 'Navigate to Scheduled Tasks' },
     ],
   },
   {

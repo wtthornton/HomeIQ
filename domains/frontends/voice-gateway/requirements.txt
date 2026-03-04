@@ -1,0 +1,22 @@
+# Voice Gateway Service Dependencies
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.30.0,<1.0.0
+python-dotenv>=1.0.0,<2.0.0
+pydantic>=2.9.0,<3.0.0
+pydantic-settings>=2.6.0,<3.0.0
+httpx>=0.27.0,<0.29.0
+numpy>=1.26.0,<3.0.0
+websockets>=12.0,<14.0.0
+
+# STT: Faster Whisper (Story 26.1)
+faster-whisper>=1.0.0,<2.0.0
+
+# TTS: Kokoro (Story 26.2)
+kokoro>=0.3.0,<1.0.0
+soundfile>=0.12.0,<1.0.0
+
+# Wake word: OpenWakeWord (Story 26.3)
+openwakeword>=0.6.0,<1.0.0
+
+# HomeIQ shared libraries (installed from libs/ in Docker)
+homeiq-observability>=1.0.0

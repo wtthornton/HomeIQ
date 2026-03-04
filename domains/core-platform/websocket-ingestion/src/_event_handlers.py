@@ -90,6 +90,9 @@ class EventHandlerMixin:
 
             if self.batch_processor:  # type: ignore[attr-defined]
                 await self.batch_processor.add_event(processed_event)  # type: ignore[attr-defined]
+
+            # Epic 28: Feed state_changed events into house status aggregator.
+            await self._feed_house_status(processed_event)
         except Exception as e:
             log_error_with_context(
                 logger, "Error processing Home Assistant event", e,
@@ -98,6 +101,27 @@ class EventHandlerMixin:
                 event_type=event_type,
                 entity_id=entity_id,
             )
+
+    async def _feed_house_status(self, processed_event: dict[str, Any]) -> None:
+        """Forward state_changed events to the house status aggregator."""
+        aggregator = getattr(self, "house_status_aggregator", None)  # type: ignore[attr-defined]
+        if aggregator is None:
+            return
+        if processed_event.get("event_type") != "state_changed":
+            return
+        entity_id = processed_event.get("entity_id")
+        new_state = processed_event.get("new_state")
+        if not entity_id or not isinstance(new_state, dict):
+            return
+        old_state = processed_event.get("old_state")
+        try:
+            delta = await aggregator.process_state_change(entity_id, new_state, old_state)
+            if delta is not None:
+                publisher = getattr(self, "house_status_publisher", None)  # type: ignore[attr-defined]
+                if publisher is not None:
+                    await publisher.broadcast(delta)
+        except Exception:
+            logger.debug("House status aggregation error", exc_info=True)
 
     async def _write_event_to_influxdb(self, event_data: dict[str, Any]) -> None:
         """Write a single event to InfluxDB via the batch writer."""

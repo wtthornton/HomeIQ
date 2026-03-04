@@ -12,7 +12,6 @@ Responsibilities:
 from __future__ import annotations
 
 import logging
-import sys
 
 try:
     from homeiq_observability.logging_config import setup_logging
@@ -32,10 +31,14 @@ from .api.health import router as health_router
 from .api.health import set_scheduler_service_for_health
 from .api.suggestions import router as suggestions_router
 from .api.suggestions import set_scheduler_service
+from .api.task_router import router as task_router
+from .api.task_router import set_cron_scheduler
 from .config import Settings
 from .database import close_database, init_database
 from .services.scheduler_service import SchedulerService
 from .services.suggestion_pipeline_service import SuggestionPipelineService
+from .services.task_executor import TaskExecutor
+from .services.task_scheduler import CronTaskScheduler
 
 # Configure structured logging
 logger = setup_logging("proactive-agent-service", group_name="automation-intelligence")
@@ -43,8 +46,11 @@ logger = setup_logging("proactive-agent-service", group_name="automation-intelli
 # Global settings instance
 settings = Settings()
 
-# Global scheduler instance
+# Global scheduler instance (existing suggestions scheduler)
 scheduler_service: SchedulerService | None = None
+
+# Global cron task scheduler (Epic 27)
+cron_task_scheduler: CronTaskScheduler | None = None
 
 # Global group health check
 _group_health: GroupHealthCheck | None = None
@@ -97,6 +103,27 @@ async def _shutdown_scheduler() -> None:
         scheduler_service = None
 
 
+async def _startup_cron_scheduler() -> None:
+    """Initialize and start the cron task scheduler (Epic 27)."""
+    global cron_task_scheduler  # noqa: PLW0603
+    if not settings.cron_scheduler_enabled:
+        logger.info("Cron task scheduler disabled in settings")
+        return
+    executor = TaskExecutor(settings)
+    cron_task_scheduler = CronTaskScheduler(settings, executor)
+    set_cron_scheduler(cron_task_scheduler)
+    await cron_task_scheduler.start()
+    logger.info("Cron task scheduler started")
+
+
+async def _shutdown_cron_scheduler() -> None:
+    """Stop the cron task scheduler."""
+    global cron_task_scheduler  # noqa: PLW0603
+    if cron_task_scheduler:
+        await cron_task_scheduler.stop()
+        cron_task_scheduler = None
+
+
 # ---------------------------------------------------------------------------
 # Lifespan
 # ---------------------------------------------------------------------------
@@ -105,6 +132,8 @@ lifespan = ServiceLifespan(settings.service_name)
 lifespan.on_startup(_startup_dependencies, name="dependencies")
 lifespan.on_startup(_startup_db, name="database")
 lifespan.on_startup(_startup_scheduler, name="scheduler")
+lifespan.on_startup(_startup_cron_scheduler, name="cron_scheduler")
+lifespan.on_shutdown(_shutdown_cron_scheduler, name="cron_scheduler")
 lifespan.on_shutdown(_shutdown_scheduler, name="scheduler")
 lifespan.on_shutdown(close_database, name="database")
 
@@ -135,6 +164,7 @@ app = create_app(
 # Register routers
 app.include_router(health_router)
 app.include_router(suggestions_router)
+app.include_router(task_router)
 
 
 if __name__ == "__main__":
