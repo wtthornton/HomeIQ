@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-04 (Epic 8 COMPLETE — Phase 5 production deployment, 52/53 services healthy)
-**Total:** 29 Epics, 168 Stories, ~545+ files addressed
+**Created:** 2026-02-27 | **Updated:** 2026-03-04 (Sprint 7 Memory Brain planned — 7 epics, 31 stories)
+**Total:** 36 Epics, 199 Stories, ~545+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -55,6 +55,15 @@ Sprint 5 (Planned) — Sapphire-Inspired HA Enhancements
 Sprint 6 (Planned) — Voice + Scheduled Tasks
 ├── Epic 26: Voice Gateway Service [P1]                     ← PENDING (6 stories, new service port 8041)
 └── Epic 27: Scheduled AI Tasks (Continuity) [P2]           ← PENDING (5 stories, enhances proactive-agent)
+
+Sprint 7 (Planned) — Memory Brain (Institutional Memory)
+├── Epic 29: Memory Store Foundation [P0]                   ← PENDING (6 stories, homeiq-memory lib + pgvector)
+├── Epic 30: Explicit Memory Capture [P1]                   ← PENDING (4 stories, chat + feedback → memory)
+├── Epic 31: Implicit Memory Capture [P1]                   ← PENDING (4 stories, overrides + behavior → memory)
+├── Epic 32: Synthesized Memory [P1]                        ← PENDING (5 stories, consolidation job)
+├── Epic 33: Memory Injection [P1]                          ← PENDING (5 stories, all AI services query memory)
+├── Epic 34: Trust Model & Adaptive UX [P2]                 ← PENDING (3 stories, per-domain trust)
+└── Epic 35: Memory Lifecycle & Observability [P2]          ← PENDING (4 stories, admin, dashboard, GC)
 ```
 
 ## Epic Summary
@@ -90,16 +99,23 @@ Sprint 6 (Planned) — Voice + Scheduled Tasks
 | 26 | [Voice Gateway Service](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P1 High | 6 | 2-3 weeks | Pending |
 | 27 | [Scheduled AI Tasks](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P2 Medium | 5 | 1-2 weeks | Pending |
 | 28 | [Enhanced Event Bus](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P2 Medium | 4 | 1 week | Pending |
+| 29 | [Memory Store Foundation](epic-memory-brain.md) | `epic-memory-brain.md` | **P0 Critical** | 6 | 2 weeks | Pending |
+| 30 | [Explicit Memory Capture](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 4 | 1-2 weeks | Pending |
+| 31 | [Implicit Memory Capture](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 4 | 1-2 weeks | Pending |
+| 32 | [Synthesized Memory](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 5 | 1-2 weeks | Pending |
+| 33 | [Memory Injection](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 5 | 1-2 weeks | Pending |
+| 34 | [Trust Model & Adaptive UX](epic-memory-brain.md) | `epic-memory-brain.md` | P2 Medium | 3 | 1 week | Pending |
+| 35 | [Memory Lifecycle & Observability](epic-memory-brain.md) | `epic-memory-brain.md` | P2 Medium | 4 | 1 week | Pending |
 
 ## Story Count by Priority
 
 | Priority | Count | Description |
 |----------|-------|-------------|
-| P0 Critical | 20 | DB migration (10) + Security (6) + Tier 1 hardening (4) |
-| P1 High | 82 | Quality, testing, deployment, browser review, TAPPS tracking + remediation, Docker breakout |
-| P2 Medium | 19 | Framework upgrades, feature integrations, background processing, Dockerfile consistency |
+| P0 Critical | 26 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) |
+| P1 High | 100 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory capture + injection (18) |
+| P2 Medium | 26 | Framework upgrades, feature integrations, background processing, Trust model + observability (7) |
 | P3 Low | 4 | ML model training, placeholder implementations |
-| **Total** | **146** | (94 original + 31 from Epics 16-20 + 21 from Epics 21-24) |
+| **Total** | **199** | (94 original + 31 Epics 16-20 + 21 Epics 21-24 + 22 Sprints 5-6 + 31 Memory Brain) |
 
 ## Sprint 2 Results (COMPLETE — Mar 4, Agent Teams)
 
@@ -197,6 +213,7 @@ Actual Outcome:
 | Mar 4 | Sprint 4 complete — Epic 5 + Epics 12-14 via 4-wave agent teams, 38 services + 2 frontends |
 | ~Mar 17 | Production deployment eligible (DB migration done, security hardened, quality gated) |
 | Apr | Frontend framework upgrades + feature gap work begins |
+| TBD | Sprint 7: Memory Brain — institutional memory layer (7 epics, 31 stories) |
 
 ## Coverage of All Known Open Items
 
