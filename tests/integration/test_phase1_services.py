@@ -3,10 +3,10 @@ Phase 1 Services Integration Tests
 Tests the complete containerized AI services architecture
 """
 
-import pytest
-import httpx
 import asyncio
-from typing import List, Dict, Any
+
+import httpx
+import pytest
 
 # Service URLs
 OPENVINO_URL = "http://localhost:8019"

@@ -15,11 +15,11 @@ Environment Variables:
     HA_TOKEN: Long-lived access token from Home Assistant
 """
 
+import asyncio
 import os
 import sys
-import asyncio
-from typing import Optional, Dict, List
 from datetime import datetime
+from typing import Dict
 
 # Fix Unicode support for Windows console
 if sys.platform == 'win32':

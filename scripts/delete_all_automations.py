@@ -11,8 +11,9 @@ Wrong:   DELETE /api/config/automation/config/{entity_id}
 import asyncio
 import os
 import sys
-from dotenv import load_dotenv
+
 import aiohttp
+from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()

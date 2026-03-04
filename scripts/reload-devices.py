@@ -4,10 +4,10 @@ Script to delete all devices/entities from database and trigger re-discovery
 """
 
 import asyncio
-import aiohttp
 import os
 import sys
-from datetime import datetime
+
+import aiohttp
 
 # Fix Windows console encoding
 if sys.platform == 'win32':

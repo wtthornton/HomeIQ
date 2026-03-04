@@ -5,14 +5,14 @@ Docker Compose Orchestration Tests
 Tests for validating Docker Compose deployment and orchestration functionality.
 """
 
-import pytest
-import time
 import json
-import requests
 import subprocess
-import os
+import time
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any, Dict
+
+import pytest
+import requests
 
 
 class DockerComposeTester:

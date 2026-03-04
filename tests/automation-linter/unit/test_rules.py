@@ -2,33 +2,30 @@
 Unit tests for all 15 MVP rules.
 """
 
-import pytest
 import sys
 from pathlib import Path
+
 
 # Add shared module to path
 shared_path = Path(__file__).parent.parent.parent.parent / "shared"
 sys.path.insert(0, str(shared_path))
 
+from ha_automation_lint.constants import Severity
+from ha_automation_lint.models import ActionIR, AutomationIR, TriggerIR
 from ha_automation_lint.rules.mvp_rules import (
-    MissingTriggerRule,
-    MissingActionRule,
-    UnknownTopLevelKeysRule,
-    DuplicateIDRule,
-    InvalidServiceFormatRule,
-    TriggerMissingPlatformRule,
+    ChooseWithoutDefaultRule,
     DelayWithSingleModeRule,
     HighFrequencyTriggerRule,
-    ChooseWithoutDefaultRule,
-    EmptyTriggerListRule,
-    EmptyActionListRule,
-    ServiceMissingTargetRule,
     InvalidEntityIDFormatRule,
-    MissingDescriptionRule,
+    InvalidServiceFormatRule,
+    MissingActionRule,
     MissingAliasRule,
+    MissingDescriptionRule,
+    MissingTriggerRule,
+    ServiceMissingTargetRule,
+    TriggerMissingPlatformRule,
+    UnknownTopLevelKeysRule,
 )
-from ha_automation_lint.models import AutomationIR, TriggerIR, ActionIR
-from ha_automation_lint.constants import Severity
 
 
 class TestSchemaRules:

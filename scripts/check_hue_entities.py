@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Check Hue entities in database"""
 import os
-import sys
 
 import psycopg2
 

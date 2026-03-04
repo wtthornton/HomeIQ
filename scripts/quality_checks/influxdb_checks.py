@@ -3,11 +3,9 @@ InfluxDB quality checks.
 Extracted from check_influxdb_quality.py for modularity.
 """
 from collections import defaultdict
-from datetime import datetime, timedelta
-from typing import List, Tuple, Dict, Set
+from typing import Dict, List, Set, Tuple
 
 from influxdb_client import InfluxDBClient
-from influxdb_client.client.exceptions import InfluxDBError
 
 
 def check_connection(client: InfluxDBClient) -> Tuple[bool, List[str]]:

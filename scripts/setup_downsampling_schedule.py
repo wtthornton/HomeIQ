@@ -6,6 +6,7 @@ This script verifies that downsampling is properly configured and scheduled.
 """
 import os
 import sys
+
 import requests
 
 # Configuration

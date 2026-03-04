@@ -487,5 +487,5 @@ async def execute_tool_openai(request: dict) -> dict:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8030)
+    uvicorn.run(app, host="0.0.0.0", port=8030)  # noqa: S104
 

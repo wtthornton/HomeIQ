@@ -4,9 +4,10 @@ Test Home Assistant API connection.
 Verifies token authentication and API access.
 """
 
-import requests
 import sys
 from pathlib import Path
+
+import requests
 
 # Load environment variables
 try:

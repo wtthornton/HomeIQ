@@ -10,9 +10,9 @@ report using LangChain templating, and writes the result to
 """
 
 import asyncio
-from datetime import datetime, timezone
-from pathlib import Path
 import sys
+from datetime import UTC, datetime
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SERVICE_PACKAGE = PROJECT_ROOT / "services" / "ai-automation-service"
@@ -21,7 +21,9 @@ SERVICE_SRC = SERVICE_PACKAGE / "src"
 sys.path.insert(0, str(SERVICE_PACKAGE))
 sys.path.insert(0, str(SERVICE_SRC))
 
-from src.database.models import get_db_session  # type: ignore  # pylint: disable=wrong-import-position
+from src.database.models import (
+    get_db_session,  # type: ignore  # pylint: disable=wrong-import-position
+)
 from src.langchain_integration.self_improvement import (  # type: ignore  # pylint: disable=wrong-import-position
     generate_prompt_tuning_report,
     write_report_to_markdown,
@@ -30,7 +32,7 @@ from src.langchain_integration.self_improvement import (  # type: ignore  # pyli
 
 async def main() -> None:
     report = await generate_prompt_tuning_report(get_db_session)
-    report["generated_at"] = datetime.now(timezone.utc).isoformat()
+    report["generated_at"] = datetime.now(UTC).isoformat()
 
     output_path = Path(__file__).resolve().parent.parent / "implementation" / "analysis" / "self_improvement_pilot_report.md"
     write_report_to_markdown(report, output_path)

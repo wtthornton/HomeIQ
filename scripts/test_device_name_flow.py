@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Test device name flow end-to-end"""
 import asyncio
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 async def test_enrichment_flow():

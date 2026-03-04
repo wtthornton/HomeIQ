@@ -3,7 +3,7 @@ Configuration constants for quality checks.
 """
 import os
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 # Project root
 PROJECT_ROOT = Path(__file__).parent.parent.parent

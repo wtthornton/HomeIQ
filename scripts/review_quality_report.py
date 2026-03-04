@@ -2,6 +2,7 @@
 import json
 import sys
 
+
 def main():
     try:
         with open('reports/quality/quality-report.json', 'r') as f:

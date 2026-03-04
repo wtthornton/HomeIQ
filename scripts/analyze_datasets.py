@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Analyze home-assistant-datasets repository"""
 
-import yaml
 from pathlib import Path
+
+import yaml
 
 base = Path("services/tests/datasets/home-assistant-datasets/datasets")
 

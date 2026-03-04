@@ -11,7 +11,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict
 
 import psycopg2
 import psycopg2.extras
@@ -20,7 +20,6 @@ import psycopg2.extras
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from scripts.quality_evaluation.database_accessor import DatabaseAccessor
 
 logging.basicConfig(
     level=logging.INFO,

@@ -2,16 +2,16 @@
 Unit tests for lint engine.
 """
 
-import pytest
 import sys
 from pathlib import Path
+
 
 # Add shared module to path
 shared_path = Path(__file__).parent.parent.parent.parent / "shared"
 sys.path.insert(0, str(shared_path))
 
+from ha_automation_lint.constants import ENGINE_VERSION, RULESET_VERSION, Severity
 from ha_automation_lint.engine import LintEngine
-from ha_automation_lint.constants import Severity, ENGINE_VERSION, RULESET_VERSION
 
 
 class TestLintEngine:

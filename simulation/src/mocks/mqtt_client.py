@@ -6,7 +6,7 @@ Maintains same interface as production MQTT client.
 """
 
 import logging
-from typing import Any, Callable
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 

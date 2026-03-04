@@ -5,7 +5,6 @@ Workflow-specific metrics for 3 AM and Ask AI flows.
 """
 
 import logging
-from datetime import datetime, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)

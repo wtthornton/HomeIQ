@@ -5,7 +5,6 @@ Tests context injection, prompt assembly, and system prompt enhancements.
 """
 
 import asyncio
-import json
 import sys
 from pathlib import Path
 
@@ -17,7 +16,6 @@ import httpx
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.text import Text
 
 console = Console()
 

@@ -7,7 +7,7 @@ Supports mock service factories and service registration.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Generic, TypeVar, cast
+from typing import Any, Generic, TypeVar
 
 logger = logging.getLogger(__name__)
 

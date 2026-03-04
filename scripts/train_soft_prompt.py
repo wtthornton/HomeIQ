@@ -11,11 +11,10 @@ import argparse
 import json
 import logging
 import os
-import sys
 import warnings
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List
 
 import psycopg2
 import psycopg2.extras
@@ -176,8 +175,8 @@ def load_training_examples(pg_url: str, limit: int) -> List[Dict[str, str]]:
 def ensure_dependencies():
     try:
         import torch  # noqa: F401
-        from transformers import AutoTokenizer  # noqa: F401
         from peft import LoraConfig  # noqa: F401
+        from transformers import AutoTokenizer  # noqa: F401
     except ImportError as exc:  # pragma: no cover - runtime dependency check
         raise RuntimeError(
             "Required dependencies missing. Install transformers[torch], torch (CPU wheel), and peft."
@@ -190,7 +189,6 @@ def prepare_dataset(
     max_source_tokens: int,
     max_target_tokens: int,
 ):
-    import torch
     from torch.utils.data import Dataset
 
     class PromptDataset(Dataset):
@@ -233,7 +231,7 @@ def main():
 
     ensure_dependencies()
 
-    run_identifier = args.run_id or datetime.utcnow().strftime("run_%Y%m%d_%H%M%S")
+    run_identifier = args.run_id or datetime.now(UTC).strftime("run_%Y%m%d_%H%M%S")
 
     examples = load_training_examples(args.pg_url, args.max_samples)
     if not examples:
@@ -242,8 +240,8 @@ def main():
 
     logger.info("Loaded %s training examples", len(examples))
 
-    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments
     from peft import LoraConfig, get_peft_model
+    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments
 
     # Use cached model if available (set via HF_HOME environment variable)
     # Note: TRANSFORMERS_CACHE is deprecated, use HF_HOME only
@@ -352,7 +350,7 @@ def main():
         "epochs": args.epochs,
         "learning_rate": args.learning_rate,
         "run_directory": str(run_dir),
-        "trained_at": datetime.utcnow().isoformat(),
+        "trained_at": datetime.now(UTC).isoformat(),
         "final_loss": train_result.training_loss,
         "run_id": run_identifier,
     }

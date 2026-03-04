@@ -11,22 +11,20 @@ Usage:
 
 import argparse
 import asyncio
-import json
 import logging
-import shutil
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from scripts.quality_evaluation.database_accessor import DatabaseAccessor
 from scripts.quality_evaluation.data_quality_analyzer import DataQualityAnalyzer
+from scripts.quality_evaluation.database_accessor import DatabaseAccessor
 from scripts.quality_evaluation.event_fetcher import EventFetcher
 from scripts.quality_evaluation.pattern_validator import PatternValidator
 from scripts.quality_evaluation.report_generator import ReportGenerator
@@ -187,7 +185,7 @@ async def main() -> None:
         
         # Fetch events
         logger.info(f"Fetching events from last {args.time_window} days...")
-        end_time = datetime.now(timezone.utc)
+        end_time = datetime.now(UTC)
         start_time = end_time - timedelta(days=args.time_window)
         
         events_df = await event_fetcher.fetch_events(
@@ -210,7 +208,7 @@ async def main() -> None:
         
         # Run evaluations
         results: Dict[str, Any] = {
-            'evaluation_date': datetime.now(timezone.utc).isoformat(),
+            'evaluation_date': datetime.now(UTC).isoformat(),
             'time_window_days': args.time_window,
             'total_patterns': len(patterns),
             'total_synergies': len(synergies),

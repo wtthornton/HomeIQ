@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Test real query to verify device names"""
 import asyncio
-import aiohttp
 import json
-import sys
 import os
+import sys
+
+import aiohttp
+
 
 async def test_real_query():
     """Test the actual API with a real query"""

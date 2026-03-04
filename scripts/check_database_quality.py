@@ -25,14 +25,13 @@ Usage:
     # Or with specific checks:
     python scripts/check_database_quality.py --all --checks tables,null_values
 """
+import argparse
 import asyncio
 import sys
-import argparse
-from pathlib import Path
 
 # Import from refactored package
 from quality_checks.config import DATABASE_CONFIGS
-from quality_checks.db_common import find_database_path, list_all_databases
+from quality_checks.db_common import find_database_path
 from quality_checks.runner import DatabaseCheckRunner
 
 

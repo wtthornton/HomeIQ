@@ -9,7 +9,6 @@ The health-dashboard aggregates /health from all groups, so schema
 consistency is critical for cross-group observability.
 """
 
-import ast
 import os
 from pathlib import Path
 

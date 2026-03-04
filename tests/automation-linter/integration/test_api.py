@@ -2,9 +2,10 @@
 Integration tests for FastAPI endpoints.
 """
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
 
 # Add paths
@@ -12,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "shared"))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "services" / "automation-linter" / "src"))
 
 from main import app
+
 
 @pytest.fixture
 def client():

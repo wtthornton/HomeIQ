@@ -4,15 +4,15 @@ Unit tests for Model Training Integration
 Tests for model loading and training integration.
 """
 
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch
-
 import sys
+from pathlib import Path
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from engine.model_training import ModelTrainingIntegration
 from engine.model_loader import ModelLoader
+from engine.model_training import ModelTrainingIntegration
 
 
 class TestModelTrainingIntegration:

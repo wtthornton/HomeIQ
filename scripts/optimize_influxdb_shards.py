@@ -7,8 +7,7 @@ This script analyzes query patterns and recommends optimal shard duration.
 """
 import os
 import sys
-import requests
-from datetime import datetime, timedelta
+
 from influxdb_client import InfluxDBClient
 
 # Configuration

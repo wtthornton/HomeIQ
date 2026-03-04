@@ -2,10 +2,13 @@
 """Test DataAPIClient fetch_events"""
 import asyncio
 import sys
+
 sys.path.insert(0, '/app/src')
 
+from datetime import UTC, datetime, timedelta
+
 from clients.data_api_client import DataAPIClient
-from datetime import datetime, timedelta, timezone
+
 
 async def test():
     print("=" * 70)
@@ -13,8 +16,8 @@ async def test():
     print("=" * 70)
     
     client = DataAPIClient()
-    start = datetime.now(timezone.utc) - timedelta(days=30)
-    end = datetime.now(timezone.utc)
+    start = datetime.now(UTC) - timedelta(days=30)
+    end = datetime.now(UTC)
     
     print(f"Fetching events from {start} to {end}...")
     

@@ -7,13 +7,14 @@ Connects to HA WebSocket and logs all incoming events to establish baseline even
 import asyncio
 import json
 import logging
+import os
 import signal
 import sys
 from datetime import datetime
-from typing import Dict, Any, Optional
-import aiohttp
-import os
 from pathlib import Path
+from typing import Any, Dict
+
+import aiohttp
 
 # Try to load .env file if python-dotenv is available
 try:
@@ -137,7 +138,7 @@ class HAEventLogger:
                     msg = await asyncio.wait_for(self.ws.receive_json(), timeout=1.0)
                     await self._process_message(msg)
                     
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # No message received, continue
                     continue
                 except Exception as e:

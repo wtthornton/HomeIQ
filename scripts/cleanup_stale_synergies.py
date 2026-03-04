@@ -16,7 +16,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
@@ -27,7 +27,6 @@ import psycopg2.extras
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from scripts.quality_evaluation.database_accessor import DatabaseAccessor
 
 logging.basicConfig(
     level=logging.INFO,
@@ -104,7 +103,6 @@ async def cleanup_stale_synergies(
         # Get active devices (if DataAPI available)
         active_devices: Optional[Set[str]] = None
         try:
-            import httpx
             sys.path.insert(0, str(project_root / "domains" / "pattern-analysis" / "ai-pattern-service" / "src"))
             from clients.data_api_client import DataAPIClient
             from services.device_activity import DeviceActivityService
@@ -122,7 +120,7 @@ async def cleanup_stale_synergies(
             logger.warning(f"Could not fetch active devices: {e}. Will skip device activity check.")
 
         # Calculate cutoff dates
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         max_age_cutoff = now - timedelta(days=max_age_days)
 
         # Analyze synergies

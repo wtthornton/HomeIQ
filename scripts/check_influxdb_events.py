@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Check if events exist in InfluxDB"""
 import os
+
 from influxdb_client import InfluxDBClient
-from datetime import datetime, timedelta, timezone
 
 try:
     url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')

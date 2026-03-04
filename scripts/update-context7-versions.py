@@ -9,13 +9,13 @@ This script:
 4. Updates index.yaml with correct version information
 """
 
-import os
-import re
 import json
-import yaml
+import re
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timezone
+from typing import Dict, Optional
+
+import yaml
 
 # Project root
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -216,17 +216,17 @@ def update_library_version_in_index(
     lib_data = index_data['libraries'][library]
     lib_data['version'] = version
     lib_data['context7_id'] = context7_id
-    lib_data['last_version_check'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    lib_data['last_version_check'] = datetime.now(UTC).isoformat().replace('+00:00', 'Z')
     
     # Update last_fetched if not present
     if 'last_fetched' not in lib_data:
-        lib_data['last_fetched'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+        lib_data['last_fetched'] = datetime.now(UTC).isoformat().replace('+00:00', 'Z')
 
 
 def main():
     """Main execution function."""
-    import sys
     import io
+    import sys
     
     # Fix encoding for Windows console
     if sys.platform == 'win32':
@@ -281,7 +281,7 @@ def main():
     if 'metadata' not in index_data:
         index_data['metadata'] = {}
     
-    index_data['metadata']['last_version_update'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    index_data['metadata']['last_version_update'] = datetime.now(UTC).isoformat().replace('+00:00', 'Z')
     index_data['metadata']['total_libraries_with_versions'] = len(updates)
     
     # Save updated index

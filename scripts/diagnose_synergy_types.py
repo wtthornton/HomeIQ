@@ -6,9 +6,8 @@ Analyzes why all synergies have synergy_type='event_context' instead of
 'device_pair' or 'device_chain'.
 """
 
-import os
 import json
-import sys
+import os
 
 import psycopg2
 import psycopg2.extras

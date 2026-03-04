@@ -6,25 +6,24 @@ Module: shared/correlation_middleware.py
 Coverage Target: >85%
 """
 
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
 
 # Import module under test
 from correlation_middleware import (
-    CorrelationMiddleware,
-    correlation_context,
-    with_correlation_id,
-    propagate_correlation_id,
-    extract_correlation_id,
-    FastAPICorrelationMiddleware,
     AioHTTPCorrelationMiddleware,
+    FastAPICorrelationMiddleware,
+    correlation_context,
     create_correlation_context,
-    update_correlation_context,
+    create_correlation_middleware,
+    extract_correlation_id,
     get_correlation_context,
-    create_correlation_middleware
+    propagate_correlation_id,
+    update_correlation_context,
+    with_correlation_id,
 )
-from logging_config import get_correlation_id, set_correlation_id, correlation_id
-
+from logging_config import correlation_id, get_correlation_id, set_correlation_id
 
 # ============================================================================
 # Correlation Context Tests

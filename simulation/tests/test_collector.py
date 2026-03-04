@@ -5,7 +5,6 @@ Unit tests for TrainingDataCollector.
 import pytest
 
 from src.training_data.collector import TrainingDataCollector
-from src.training_data.validators import DataQualityValidator
 
 
 @pytest.fixture

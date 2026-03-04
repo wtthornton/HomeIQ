@@ -9,6 +9,7 @@ sys.path.append('/app/src')
 
 from health_check import HealthCheckHandler
 
+
 def test_health_handler():
     """Test health handler configuration"""
     print("Testing Health Handler Configuration...")

@@ -17,8 +17,8 @@ Usage:
     OR with specific checks:
     python scripts/check_influxdb_quality.py --checks connection,buckets,data_volume
 """
-import sys
 import argparse
+import sys
 
 from quality_checks.influxdb_common import get_influxdb_config
 from quality_checks.runner import InfluxDBCheckRunner

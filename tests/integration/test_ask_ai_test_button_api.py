@@ -20,12 +20,12 @@ This verifies:
 """
 
 import asyncio
+import json
+import logging
+
 import httpx
 import pytest
 import pytest_asyncio
-import logging
-from typing import Dict, Any
-import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

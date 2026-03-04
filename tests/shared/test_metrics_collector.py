@@ -6,19 +6,16 @@ Module: shared/metrics_collector.py
 Coverage Target: >90%
 """
 
-import pytest
-import time
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from hypothesis import given, strategies as st, settings
+import time
+from unittest.mock import Mock, patch
+
+import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 # Import module under test
-from metrics_collector import (
-    MetricsCollector,
-    get_metrics_collector,
-    _metrics_collectors
-)
-
+from metrics_collector import MetricsCollector, _metrics_collectors, get_metrics_collector
 
 # ============================================================================
 # Metrics Collector Initialization Tests

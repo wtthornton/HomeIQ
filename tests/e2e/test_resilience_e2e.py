@@ -10,9 +10,10 @@ Requires: docker compose services running.
 Uses 127.0.0.1 instead of localhost to avoid IPv6 resolution issues on Windows.
 """
 
+from typing import Any
+
 import pytest
 import requests
-from typing import Any
 
 # Use 127.0.0.1 to avoid IPv6 resolution issues on Windows Docker
 SERVICES = {

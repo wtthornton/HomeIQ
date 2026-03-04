@@ -44,7 +44,7 @@ class Settings(BaseSettings):
 
     # Service Configuration
     DEVICE_INTELLIGENCE_PORT: int = Field(default=8019, description="Service port")
-    DEVICE_INTELLIGENCE_HOST: str = Field(default="0.0.0.0", description="Service host")
+    DEVICE_INTELLIGENCE_HOST: str = Field(default="0.0.0.0", description="Service host")  # noqa: S104
     LOG_LEVEL: str = Field(default="INFO", description="Logging level")
 
     # Database Configuration

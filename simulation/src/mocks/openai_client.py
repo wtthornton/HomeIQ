@@ -5,7 +5,6 @@ Deterministic YAML/suggestion generation without API calls.
 Maintains same interface as production OpenAIClient.
 """
 
-import json
 import logging
 import re
 from typing import Any

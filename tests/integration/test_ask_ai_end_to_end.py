@@ -16,14 +16,13 @@ Tests verify:
 - Test execution completes successfully
 """
 
-import asyncio
+import logging
+from typing import Any, Dict, List, Optional
+
 import httpx
 import pytest
 import pytest_asyncio
-import logging
-import json
 import yaml
-from typing import Dict, List, Any, Optional
 
 # Configure logging
 logging.basicConfig(
@@ -36,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 # Base URL for the API
 import os
+
 BASE_URL = os.environ.get("AI_AUTOMATION_API_URL", "http://localhost:8024/api/v1/ask-ai")
 
 

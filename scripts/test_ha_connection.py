@@ -11,10 +11,11 @@ This script tests:
 """
 
 import asyncio
-import aiohttp
 import os
 import sys
 from pathlib import Path
+
+import aiohttp
 from dotenv import load_dotenv
 
 # Fix Windows console encoding
@@ -80,7 +81,7 @@ async def test_connection():
             print(f"   [FAIL] Network unreachable: {e}")
             results["errors"].append(f"Network error: {e}")
             return results
-        except asyncio.TimeoutError:
+        except TimeoutError:
             print(f"   [FAIL] Connection timeout")
             results["errors"].append("Connection timeout")
             return results

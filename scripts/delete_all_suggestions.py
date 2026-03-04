@@ -14,8 +14,8 @@ Usage:
     docker exec homeiq-ai-automation-service-new python /app/scripts/delete_all_suggestions.py
 """
 import asyncio
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Set UTF-8 encoding for Windows console
@@ -38,8 +38,9 @@ else:
     sys.path.insert(0, "/app/src")
 
 # Use direct SQLAlchemy imports to avoid complex dependency chains
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 
 async def delete_all_suggestions():
     """Delete all suggestions from the database"""

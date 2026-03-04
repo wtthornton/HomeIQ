@@ -15,15 +15,15 @@ Usage:
     python tests/test_api_keys.py --env-file .env
 """
 
-import os
-import sys
-import asyncio
 import argparse
+import asyncio
 import json
 import logging
-from typing import Dict, Any, Optional, Tuple
+import os
+import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -112,7 +112,7 @@ class HomeAssistantAPITester:
                     else:
                         result.set_error(f"HTTP {response.status}: {await response.text()}")
         
-        except asyncio.TimeoutError:
+        except TimeoutError:
             result.set_error("Connection timeout - check if Home Assistant is running and accessible")
         except aiohttp.ClientError as e:
             result.set_error(f"Connection error: {str(e)}")
@@ -239,7 +239,7 @@ class WeatherAPITester:
                         error_text = await response.text()
                         result.set_error(f"HTTP {response.status}: {error_text}")
         
-        except asyncio.TimeoutError:
+        except TimeoutError:
             result.set_error("Request timeout - check internet connection")
         except aiohttp.ClientError as e:
             result.set_error(f"Network error: {str(e)}")

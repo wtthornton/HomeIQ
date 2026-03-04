@@ -126,7 +126,7 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "src.main:app",
-        host="0.0.0.0",  # nosec B104 — Docker container binds all interfaces
+        host="0.0.0.0",  # noqa: S104
         port=settings.service_port,
         reload=True,
     )

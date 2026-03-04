@@ -4,13 +4,12 @@ E2E Test for Ask AI - Hue Lights Flash Automation
 Tests the specific prompt about flashing Hue lights at the top of every hour.
 """
 
-import sys
-import os
-import requests
 import json
-import time
+import os
+import sys
 from datetime import datetime
-from typing import Dict, Any, Optional
+
+import requests
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))

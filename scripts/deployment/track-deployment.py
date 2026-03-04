@@ -10,12 +10,10 @@ Usage:
 """
 
 import argparse
-import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import Dict, List, Optional
 
 import psycopg2
@@ -107,7 +105,7 @@ class DeploymentTracker:
         conn = self._get_conn()
         cursor = conn.cursor()
 
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         cursor.execute("""
             INSERT INTO core.deployments
@@ -148,7 +146,7 @@ class DeploymentTracker:
         conn = self._get_conn()
         cursor = conn.cursor()
 
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         cursor.execute("""
             INSERT INTO core.deployment_metrics (deployment_id, metric_name, metric_value, timestamp)

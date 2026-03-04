@@ -8,10 +8,11 @@ This script uses the same API endpoints that the frontend uses to fetch suggesti
 import json
 import os
 import sys
-import requests
-from pathlib import Path
-from typing import Dict, Any, Optional
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+import requests
 
 # Add the services directory to the path so we can import from the service
 sys.path.insert(0, str(Path(__file__).parent.parent / "domains" / "automation-core" / "ai-automation-service-new" / "src"))
@@ -49,9 +50,10 @@ def fetch_json(url: str, method: str = "GET", body: Optional[Dict] = None) -> Di
 def find_suggestion_in_database(suggestion_id: str) -> Optional[tuple[str, Dict[str, Any]]]:
     """Search through database to find the suggestion with the given ID. Returns (query_id, suggestion)."""
     try:
+        import os
+
         from sqlalchemy import create_engine, text
         from sqlalchemy.orm import sessionmaker
-        import os
 
         # Get database URL from environment or use default PostgreSQL
         POSTGRES_URL = os.getenv("POSTGRES_URL", os.getenv("DATABASE_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq"))

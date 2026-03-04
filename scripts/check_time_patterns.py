@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Check time-of-day patterns in the database."""
 
-import os
 import json
+import os
 import sys
 
 import psycopg2

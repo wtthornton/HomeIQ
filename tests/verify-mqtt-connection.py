@@ -4,10 +4,11 @@ Test MQTT connection to Home Assistant broker.
 Verifies credentials and topic publishing work.
 """
 
-import paho.mqtt.client as mqtt
-import time
 import sys
+import time
 from pathlib import Path
+
+import paho.mqtt.client as mqtt
 
 # Load environment variables
 try:

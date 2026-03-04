@@ -11,7 +11,6 @@ import json
 import os
 import sys
 import time
-from typing import Any
 
 # Set UTF-8 encoding for Windows console
 if sys.platform == "win32":

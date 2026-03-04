@@ -5,12 +5,11 @@ Story AI5.10 - Performance Testing & Validation
 Tests performance characteristics of the incremental pattern processing system.
 """
 
-import pytest
 import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, Any
-import time
 import logging
+import time
+
+import pytest
 
 logger = logging.getLogger(__name__)
 

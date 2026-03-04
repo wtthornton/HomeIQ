@@ -2,10 +2,10 @@
 Pytest configuration and shared fixtures for automation-linter tests.
 """
 
-import pytest
 import sys
 from pathlib import Path
-from typing import Dict, Any
+
+import pytest
 
 # Add shared module to path
 shared_path = Path(__file__).parent.parent.parent / "shared"
@@ -18,20 +18,18 @@ def cleanup_after_test():
     yield
     # No async cleanup needed for synchronous tests
 
-from ha_automation_lint.models import (
-    AutomationIR,
-    TriggerIR,
-    ConditionIR,
-    ActionIR,
-    Finding,
-    LintReport,
-    SuggestedFix
-)
-from ha_automation_lint.constants import Severity, RuleCategory, ENGINE_VERSION, RULESET_VERSION
+from ha_automation_lint.constants import Severity
 from ha_automation_lint.engine import LintEngine
+from ha_automation_lint.fixers.auto_fixer import AutoFixer
+from ha_automation_lint.models import (
+    ActionIR,
+    AutomationIR,
+    Finding,
+    SuggestedFix,
+    TriggerIR,
+)
 from ha_automation_lint.parsers.yaml_parser import AutomationParser
 from ha_automation_lint.renderers.yaml_renderer import YAMLRenderer
-from ha_automation_lint.fixers.auto_fixer import AutoFixer
 
 
 @pytest.fixture

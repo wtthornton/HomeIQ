@@ -9,14 +9,12 @@ Usage:
     python scripts/simple-unit-tests.py --typescript-only
 """
 
-import os
-import sys
-import subprocess
-import time
 import json
 import re
-from pathlib import Path
+import subprocess
+import sys
 from datetime import datetime
+from pathlib import Path
 
 # Add project root to path
 project_root = Path(__file__).parent.parent

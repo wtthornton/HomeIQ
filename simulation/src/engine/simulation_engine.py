@@ -5,9 +5,7 @@ Main orchestrator for simulation framework with dependency injection and
 workflow orchestration.
 """
 
-import asyncio
 import logging
-from pathlib import Path
 from typing import Any
 
 from .config import SimulationConfig

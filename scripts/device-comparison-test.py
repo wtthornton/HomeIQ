@@ -7,13 +7,13 @@ It helps identify missing devices and synchronization issues.
 """
 
 import asyncio
-import aiohttp
 import json
 import os
-import sys
-from datetime import datetime
-from typing import Dict, List, Any, Set
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List
+
+import aiohttp
 
 # Configuration
 HA_URL = os.getenv('HA_HTTP_URL', 'http://192.168.1.86:8123')

@@ -8,9 +8,10 @@ import json
 import logging
 import os
 import sys
-import aiohttp
-import websockets
 from pathlib import Path
+
+import websockets
+
 
 def load_env_file(env_path: str = ".env"):
     """Load environment variables from .env file"""
@@ -128,7 +129,7 @@ async def test_nabu_casa_connection():
                                 event_type = event_data.get('event', {}).get('event_type', 'unknown')
                                 logger.info(f"📨 Event {event_count}: {event_type}")
                     
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         logger.info("⏰ Timeout waiting for events (this is normal)")
                     
                     logger.info(f"✅ Received {event_count} events")

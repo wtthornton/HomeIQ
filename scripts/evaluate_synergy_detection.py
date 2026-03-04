@@ -9,6 +9,7 @@ are not being detected. Only event_context synergies are found.
 import asyncio
 import logging
 import sys
+from datetime import UTC
 from pathlib import Path
 
 # Add project root to path
@@ -37,8 +38,9 @@ async def evaluate_synergy_detection():
             print(f"   [ERROR] Import failed: {import_err}")
             print(f"   Tried path: {services_path}")
             raise
+        from datetime import datetime, timedelta
+
         import pandas as pd
-        from datetime import datetime, timedelta, timezone
         
         print("\n1. Testing Data API Connection...")
         data_client = DataAPIClient(base_url="http://localhost:8006")
@@ -58,7 +60,7 @@ async def evaluate_synergy_detection():
         
         # Fetch recent events
         print("\n2. Fetching Recent Events...")
-        end_time = datetime.now(timezone.utc)
+        end_time = datetime.now(UTC)
         start_time = end_time - timedelta(days=7)
         
         events_df = await data_client.fetch_events(

@@ -8,16 +8,13 @@ This test suite validates:
 4. Error handling and logging coverage
 """
 
-import logging
 import re
-from pathlib import Path
-from typing import Any
-
-import pytest
 
 # Import the system prompt
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add services directory to path for imports
 project_root = Path(__file__).parent.parent

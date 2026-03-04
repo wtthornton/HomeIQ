@@ -2,8 +2,7 @@
 Pytest configuration for spec validator tests
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
+
 
 # Mock schema for testing
 MOCK_SCHEMA = {

@@ -10,14 +10,13 @@ This script:
 - Saves results incrementally
 """
 
-import os
-import sys
-import subprocess
 import json
+import subprocess
+import sys
 import time
-from pathlib import Path
-from typing import List, Dict, Tuple
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List
 
 # Add project root to path
 project_root = Path(__file__).parent.parent

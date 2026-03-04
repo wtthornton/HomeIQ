@@ -5,12 +5,11 @@ Creates a prioritized technical debt backlog.
 """
 
 import re
-import os
-from pathlib import Path
 from collections import defaultdict
-from typing import List, Dict, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List
 
 # Patterns to match TODO/FIXME comments
 TODO_PATTERNS = [

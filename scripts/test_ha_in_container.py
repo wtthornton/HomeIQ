@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Quick test to check HA API from container"""
 import asyncio
-import aiohttp
 import os
+
+import aiohttp
+
 
 async def test():
     ha_url = os.getenv("HA_URL", "http://192.168.1.86:8123").rstrip("/")

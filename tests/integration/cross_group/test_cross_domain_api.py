@@ -8,11 +8,9 @@ These are static/import-level tests — they do not require running services,
 only that the code can be loaded and schemas validated.
 """
 
-import importlib
 import os
 import sys
 
-import pytest
 
 
 def _add_service_src(domain: str, service: str):
@@ -40,8 +38,9 @@ class TestCrossDomainAPI:
         The DataAPIClient requires api_key for Bearer auth. Verify the
         client constructor accepts it.
         """
-        from homeiq_data import DataAPIClient
         import inspect
+
+        from homeiq_data import DataAPIClient
 
         sig = inspect.signature(DataAPIClient.__init__)
         params = list(sig.parameters.keys())

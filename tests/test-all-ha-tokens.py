@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Test all 3 HA tokens from .env to find which works best"""
 
-import requests
-import sys
-from pathlib import Path
-from dotenv import load_dotenv
 import os
+from pathlib import Path
+
+import requests
+from dotenv import load_dotenv
 
 # Load main .env
 env_path = Path(__file__).parent.parent / '.env'

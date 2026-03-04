@@ -6,24 +6,21 @@ Module: shared/ha_connection_manager.py
 Coverage Target: >90%
 """
 
-import pytest
-import asyncio
 import json
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from hypothesis import given, strategies as st, settings, assume
-from hypothesis.stateful import RuleBasedStateMachine, rule, invariant, initialize
+from unittest.mock import AsyncMock, patch
+
+import pytest
 import websockets
 
 # Import module under test
 from ha_connection_manager import (
-    HAConnectionManager,
-    HAConnectionConfig,
-    ConnectionType,
     ConnectionResult,
-    get_ha_connection,
-    get_ha_stats
+    ConnectionType,
+    HAConnectionConfig,
+    HAConnectionManager,
 )
-
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 # ============================================================================
 # Unit Tests - Basic Functionality
@@ -279,7 +276,7 @@ class TestHAConnectionTesting:
     async def test_connection_timeout(self, mock_connect):
         """Test connection timeout handling"""
         # Simulate timeout
-        mock_connect.side_effect = asyncio.TimeoutError("Connection timeout")
+        mock_connect.side_effect = TimeoutError("Connection timeout")
 
         config = HAConnectionConfig(
             name="Test",

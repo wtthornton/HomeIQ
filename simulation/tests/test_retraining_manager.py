@@ -8,7 +8,6 @@ from pathlib import Path
 import pytest
 
 from src.retraining.retraining_manager import RetrainingManager
-from src.retraining.data_sufficiency import DataSufficiencyChecker
 
 
 @pytest.fixture

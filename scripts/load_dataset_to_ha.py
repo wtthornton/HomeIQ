@@ -6,13 +6,11 @@ Creates entities, areas, and relationships from dataset YAML
 
 import argparse
 import asyncio
-import json
 import sys
 from pathlib import Path
 from typing import Any
 
 import httpx
-import yaml
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "domains" / "automation-core" / "ai-automation-service-new"))

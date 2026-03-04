@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Check HA API directly for device names"""
 import asyncio
-import aiohttp
 import os
+
+import aiohttp
 from dotenv import load_dotenv
 
 load_dotenv()

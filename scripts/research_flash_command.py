@@ -6,9 +6,11 @@ Tests different variations of flash commands to understand HA's interpretation.
 """
 
 import asyncio
-import aiohttp
 import json
 import os
+
+import aiohttp
+
 
 def load_env_file(filepath: str) -> dict:
     """Load environment variables from a file"""

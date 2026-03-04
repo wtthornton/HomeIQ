@@ -17,7 +17,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import aiohttp
 
@@ -104,7 +104,7 @@ async def check_service_health(service_name: str, config: Dict[str, any], use_do
                     return False, f"Health check returned status {response.status}"
     except aiohttp.ClientConnectorError:
         return False, f"Cannot connect to {url} - service may not be running"
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return False, f"Health check timed out after {timeout}s"
     except Exception as e:
         return False, f"Error checking health: {e}"

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Test full flow with clarification answers to verify device names"""
 import asyncio
-import aiohttp
-import json
-import sys
 import os
+import sys
+
+import aiohttp
+
 
 async def test_full_flow():
     """Test complete flow: query -> clarification -> suggestions"""

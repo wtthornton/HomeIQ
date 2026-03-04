@@ -8,22 +8,29 @@ import os
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch, MagicMock
-from datetime import datetime
+from unittest.mock import patch
 
 # Add shared directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../shared'))
 
-from shared.logging_config import (
-    setup_logging, get_logger, log_with_context, log_performance,
-    log_error_with_context, performance_monitor, generate_correlation_id,
-    set_correlation_id, get_correlation_id, StructuredFormatter
-)
 from shared.correlation_middleware import (
-    correlation_context, with_correlation_id, propagate_correlation_id,
-    extract_correlation_id
+    correlation_context,
+    extract_correlation_id,
+    propagate_correlation_id,
+    with_correlation_id,
 )
-from shared.log_validator import LogValidator, validate_log_format, validate_log_consistency
+from shared.log_validator import LogValidator, validate_log_consistency, validate_log_format
+from shared.logging_config import (
+    StructuredFormatter,
+    generate_correlation_id,
+    get_correlation_id,
+    log_error_with_context,
+    log_performance,
+    log_with_context,
+    performance_monitor,
+    set_correlation_id,
+    setup_logging,
+)
 
 
 class TestEnhancedLoggingFramework(unittest.TestCase):

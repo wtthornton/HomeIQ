@@ -4,7 +4,6 @@ Data generation step for production readiness pipeline.
 import logging
 import subprocess
 import sys
-from pathlib import Path
 
 from .config import AI_SERVICE_DIR
 

@@ -6,6 +6,7 @@ This uses the same method as EntityAttributeService to fetch entity registry.
 import asyncio
 import os
 import sys
+
 from dotenv import load_dotenv
 
 # Add paths for imports

@@ -4,14 +4,13 @@ End-to-End Device Verification Test
 Verifies that devices are correctly discovered, stored, and used throughout the system.
 """
 
-import sys
-import os
 import json
-import requests
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+import os
+import sys
+from datetime import datetime
 
 import psycopg2
+import requests
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))

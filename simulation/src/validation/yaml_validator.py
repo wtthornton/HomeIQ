@@ -5,8 +5,9 @@ Comprehensive YAML validation with ground truth comparison.
 """
 
 import logging
-import yaml
 from typing import Any
+
+import yaml
 
 logger = logging.getLogger(__name__)
 

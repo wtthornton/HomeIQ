@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Query Device Intelligence API to see what's in the database"""
-import requests
 import json
+
+import requests
 
 # Get devices from office area
 response = requests.get("http://localhost:8028/api/devices", params={"area_name": "office"})

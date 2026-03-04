@@ -7,8 +7,6 @@ required for external data sources (Carbon Intensity, Air Quality,
 Electricity Pricing, Calendar Service).
 """
 
-import os
-import re
 from pathlib import Path
 
 # Required environment variables for each service

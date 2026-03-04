@@ -16,7 +16,6 @@ import asyncio
 import json
 import os
 import sys
-import time
 from pathlib import Path
 from typing import Any, Dict
 
@@ -30,7 +29,7 @@ if sys.platform == "win32":
         pass
 
 import httpx
-from playwright.async_api import async_playwright, Page, Browser
+from playwright.async_api import Page, async_playwright
 
 # Service URLs
 PATTERN_SERVICE_URL = "http://localhost:8034"

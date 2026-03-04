@@ -2,8 +2,6 @@
 Tests for test_ha_tools.py
 """
 
-import pytest
-
 from domains.automation_core.ha_ai_agent_service.tests.tools.test_ha_tools import *
 
 # Test functions

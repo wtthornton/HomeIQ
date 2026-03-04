@@ -21,7 +21,9 @@ try:
 except ImportError:
     # Fallback: Try alternative import path
     try:
-        from domains.pattern_analysis.ai_pattern_service.src.clients.data_api_client import DataAPIClient
+        from domains.pattern_analysis.ai_pattern_service.src.clients.data_api_client import (
+            DataAPIClient,
+        )
     except ImportError:
         logger = logging.getLogger(__name__)
         logger.error("Could not import DataAPIClient - event validation will be skipped")

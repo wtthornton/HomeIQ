@@ -5,7 +5,6 @@ Complete 3 AM workflow simulation with mocked services.
 Integrates with production DailyAnalysisScheduler but uses mocked dependencies.
 """
 
-import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any

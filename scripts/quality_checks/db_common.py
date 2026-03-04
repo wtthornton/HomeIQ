@@ -1,7 +1,6 @@
 """
 Common utilities for PostgreSQL database operations.
 """
-import os
 from typing import Optional
 
 from .config import DATABASE_CONFIGS, POSTGRES_URL

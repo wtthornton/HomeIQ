@@ -6,28 +6,27 @@ Module: shared/logging_config.py
 Coverage Target: >85%
 """
 
-import pytest
-import logging
 import json
-from unittest.mock import Mock, patch
-from datetime import datetime
+import logging
+from unittest.mock import patch
+
+import pytest
 
 # Import module under test
 from logging_config import (
-    StructuredFormatter,
     PerformanceLogger,
-    performance_monitor,
+    StructuredFormatter,
+    correlation_id,
     generate_correlation_id,
-    set_correlation_id,
     get_correlation_id,
-    setup_logging,
     get_logger,
-    log_with_context,
-    log_performance,
     log_error_with_context,
-    correlation_id
+    log_performance,
+    log_with_context,
+    performance_monitor,
+    set_correlation_id,
+    setup_logging,
 )
-
 
 # ============================================================================
 # Structured Formatter Tests

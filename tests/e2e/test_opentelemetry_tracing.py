@@ -9,11 +9,12 @@ Tests the complete OpenTelemetry tracing setup:
 - Jaeger API integration
 """
 
-import pytest
 import time
+from typing import Any, Dict, List
+
+import pytest
 import requests
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+
 
 # Override async cleanup fixture for sync tests
 @pytest.fixture(autouse=True)

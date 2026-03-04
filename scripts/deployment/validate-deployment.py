@@ -17,7 +17,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 logging.basicConfig(
     level=logging.INFO,
@@ -195,8 +195,8 @@ class DeploymentValidator:
         """Verify synergies API endpoints are working correctly."""
         logger.info("Verifying synergies API endpoints...")
         try:
-            import urllib.request
             import json
+            import urllib.request
             
             # Test direct pattern service endpoint
             url = "http://localhost:8034/api/v1/synergies/stats"

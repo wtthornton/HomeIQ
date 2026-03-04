@@ -5,11 +5,10 @@ Investigate why queries don't generate suggestions.
 This script analyzes ask_ai_queries to identify patterns in queries that
 don't generate suggestions and provides root cause analysis.
 """
+import json
 import os
 import sys
-import json
-from collections import Counter, defaultdict
-from datetime import datetime, timedelta
+from collections import Counter
 
 import psycopg2
 

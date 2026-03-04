@@ -44,7 +44,7 @@ import re
 import sys
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, AsyncGenerator
 
@@ -65,7 +65,11 @@ try:
 
     from shared.patterns.evaluation import (
         AgentResponse as EvalAgentResponse,
+    )
+    from shared.patterns.evaluation import (
         ConfigLoader as EvalConfigLoader,
+    )
+    from shared.patterns.evaluation import (
         EvalLevel,
         EvaluationRegistry,
         EvaluationReport,
@@ -73,7 +77,11 @@ try:
         LLMJudge,
         OpenAIProvider,
         SessionTrace,
+    )
+    from shared.patterns.evaluation import (
         ToolCall as EvalToolCall,
+    )
+    from shared.patterns.evaluation import (
         UserMessage as EvalUserMessage,
     )
 
@@ -596,7 +604,7 @@ class AgentEvaluationRunner:
             "session_id": (
                 self._last_report.session_id if self._last_report else ""
             ),
-            "timestamp": timestamp or datetime.now(timezone.utc).isoformat(),
+            "timestamp": timestamp or datetime.now(UTC).isoformat(),
             "results": summary.results,
             "aggregate_scores": aggregate,
         }
@@ -804,7 +812,7 @@ class AskAITestHarness:
             debug=self._debug,
             summary=summary,
             duration_ms=round(duration_ms, 1),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
         # --- Optional: L1-L5 Agent Evaluation (Pattern D) ---

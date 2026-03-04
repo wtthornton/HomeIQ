@@ -8,9 +8,8 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
-from typing import Dict, Any, Optional, List
-import aiohttp
+from typing import Any, Dict
+
 import websockets
 
 # Configure logging

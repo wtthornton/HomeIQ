@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Quick check of InfluxDB measurements"""
 import os
+
 from influxdb_client import InfluxDBClient
 
 url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')

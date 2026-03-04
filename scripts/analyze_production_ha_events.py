@@ -7,15 +7,15 @@ Compares production HA event patterns with test dataset configuration.
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "domains" / "automation-core" / "ai-automation-service-new" / "src"))
 
-from clients.data_api_client import DataAPIClient
 import pandas as pd
+from clients.data_api_client import DataAPIClient
 
 
 async def analyze_production_events():
@@ -35,7 +35,7 @@ async def analyze_production_events():
     )
     
     # Analyze last 7 days (matches test configuration)
-    end_time = datetime.now(timezone.utc)
+    end_time = datetime.now(UTC)
     start_time = end_time - timedelta(days=7)
     
     print(f"📅 Analysis Period: {start_time.strftime('%Y-%m-%d')} to {end_time.strftime('%Y-%m-%d')}")

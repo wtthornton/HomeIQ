@@ -9,10 +9,10 @@ This script:
 """
 
 import asyncio
-import sys
 import os
+import sys
+from datetime import UTC, datetime
 from pathlib import Path
-from datetime import datetime, timezone
 
 # Set UTF-8 encoding for Windows console
 if sys.platform == "win32":
@@ -34,10 +34,10 @@ sys.path.insert(0, str(project_root / "domains" / "blueprints" / "blueprint-inde
 os.environ["DATABASE_URL"] = os.getenv("POSTGRES_URL", os.getenv("DATABASE_URL", "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq"))
 
 import httpx
-from src.indexer.blueprint_parser import BlueprintParser
-from src.database import get_db_context
-from src.models import IndexedBlueprint
 from sqlalchemy import select
+from src.database import get_db_context
+from src.indexer.blueprint_parser import BlueprintParser
+from src.models import IndexedBlueprint
 
 
 async def import_inovelli_blueprint():
@@ -67,8 +67,8 @@ async def import_inovelli_blueprint():
         source_id="jay-kub/inovelli-matter-switch-tap-sequences:inovelli-matter-switch-tap-sequences.yaml",
         stars=0,  # Will be updated from GitHub API if needed
         author="jay-kub",
-        created_at=datetime(2024, 9, 22, tzinfo=timezone.utc),  # From forum post
-        updated_at=datetime(2024, 11, 13, tzinfo=timezone.utc),  # Version 0.3.3 date
+        created_at=datetime(2024, 9, 22, tzinfo=UTC),  # From forum post
+        updated_at=datetime(2024, 11, 13, tzinfo=UTC),  # Version 0.3.3 date
     )
     
     if not blueprint:
@@ -111,8 +111,8 @@ async def import_inovelli_blueprint():
             if blueprint.updated_at:
                 existing.updated_at = blueprint.updated_at
             
-            existing.updated_at = datetime.now(timezone.utc)
-            existing.indexed_at = datetime.now(timezone.utc)
+            existing.updated_at = datetime.now(UTC)
+            existing.indexed_at = datetime.now(UTC)
             
             await session.commit()
             print(f"[OK] Updated blueprint in database")

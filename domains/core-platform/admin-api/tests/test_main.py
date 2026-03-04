@@ -22,7 +22,7 @@ class TestAdminAPIService:
 
     def test_init(self):
         """Test service initialization"""
-        assert self.service.api_host == "0.0.0.0"
+        assert self.service.api_host == "0.0.0.0"  # noqa: S104
         assert self.service.api_port == 8000
         assert self.service.api_title == "Home Assistant Ingestor Admin API"
         assert self.service.api_version == "1.0.0"

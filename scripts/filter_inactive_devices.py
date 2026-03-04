@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
@@ -93,7 +93,7 @@ class InactiveDeviceFilter:
         
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                end_time = datetime.now(timezone.utc)
+                end_time = datetime.now(UTC)
                 start_time = end_time - timedelta(days=window_days)
                 
                 params = {

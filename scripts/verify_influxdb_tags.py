@@ -7,9 +7,9 @@ and reports on tag completeness by time period.
 """
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+
 from influxdb_client import InfluxDBClient
-from influxdb_client.client.query_api import QueryApi
 
 # Configuration
 INFLUXDB_URL = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
@@ -19,7 +19,7 @@ PRIMARY_BUCKET = os.getenv('INFLUXDB_BUCKET', 'home_assistant_events')
 
 def check_tag_completeness(query_api, bucket, tag_name, time_range_hours=24):
     """Check completeness of a specific tag"""
-    end_time = datetime.utcnow()
+    end_time = datetime.now(UTC)
     start_time = end_time - timedelta(hours=time_range_hours)
     
     # Flux query to count total records and records with the tag
@@ -88,7 +88,7 @@ def check_tag_by_time_period(query_api, bucket, tag_name):
 
 def get_tag_value_distribution(query_api, bucket, tag_name, limit=20):
     """Get distribution of tag values"""
-    end_time = datetime.utcnow()
+    end_time = datetime.now(UTC)
     start_time = end_time - timedelta(hours=24)
     
     query = f'''

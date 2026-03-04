@@ -17,15 +17,14 @@ Usage:
     python scripts/run-unit-tests.py --typescript-only
 """
 
-import os
-import sys
-import subprocess
-import json
 import argparse
+import json
+import subprocess
+import sys
 import time
-from pathlib import Path
-from typing import Dict, List, Tuple, Optional
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 # Add project root to path
 project_root = Path(__file__).parent.parent

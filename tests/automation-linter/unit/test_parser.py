@@ -2,15 +2,14 @@
 Unit tests for YAML parser.
 """
 
-import pytest
 import sys
 from pathlib import Path
+
 
 # Add shared module to path
 shared_path = Path(__file__).parent.parent.parent.parent / "shared"
 sys.path.insert(0, str(shared_path))
 
-from ha_automation_lint.parsers.yaml_parser import AutomationParser
 from ha_automation_lint.constants import Severity
 
 

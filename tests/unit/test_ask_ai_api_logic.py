@@ -11,10 +11,8 @@ Tests:
 - Data structure validation
 """
 
+
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
-from typing import Dict, Any, List
-import json
 
 
 class TestAskAIQueryProcessing:

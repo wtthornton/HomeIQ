@@ -7,7 +7,6 @@ Maintains same interface as production InfluxDBEventClient.
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any
 
 import pandas as pd
 

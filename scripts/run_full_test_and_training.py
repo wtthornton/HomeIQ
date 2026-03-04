@@ -15,14 +15,14 @@ import logging
 import subprocess
 import sys
 import time
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Import progress indicator from same directory
 _scripts_dir = Path(__file__).parent
 if str(_scripts_dir) not in sys.path:
     sys.path.insert(0, str(_scripts_dir))
-from progress_indicator import Spinner, ProgressBar, StatusUpdater, print_step_header
+from progress_indicator import Spinner, StatusUpdater, print_step_header
 
 # Setup logging
 logging.basicConfig(

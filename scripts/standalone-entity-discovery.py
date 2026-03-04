@@ -4,9 +4,9 @@ Standalone entity discovery script that opens its own WebSocket connection.
 This bypasses concurrency issues by using a separate WebSocket connection.
 """
 import asyncio
-import aiohttp
 import os
-import sys
+
+import aiohttp
 from dotenv import load_dotenv
 
 load_dotenv()

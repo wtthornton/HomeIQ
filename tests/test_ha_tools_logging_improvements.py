@@ -5,13 +5,12 @@ Tests conversation_id tracking, enhanced error logging, debug statements,
 and improved warning messages.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
-import yaml
-
 # Import the module under test
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 # Add services directory to path
 project_root = Path(__file__).parent.parent
@@ -19,7 +18,6 @@ services_src = project_root / "services" / "ha-ai-agent-service" / "src"
 sys.path.insert(0, str(services_src))
 
 from tools.ha_tools import HAToolHandler
-from models.automation_models import AutomationPreviewRequest
 
 
 @pytest.fixture

@@ -14,9 +14,9 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from retraining.retraining_manager import RetrainingManager
-from retraining.data_sufficiency import DataSufficiencyChecker
 from reporting.summary_generator import SummaryGenerator
+from retraining.data_sufficiency import DataSufficiencyChecker
+from retraining.retraining_manager import RetrainingManager
 
 logging.basicConfig(
     level=logging.INFO,

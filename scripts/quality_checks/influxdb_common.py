@@ -2,7 +2,6 @@
 Common utilities for InfluxDB operations.
 """
 import os
-from typing import Optional
 
 from .config import INFLUXDB_DEFAULT_BUCKET, INFLUXDB_DEFAULT_ORG, INFLUXDB_DEFAULT_URL
 

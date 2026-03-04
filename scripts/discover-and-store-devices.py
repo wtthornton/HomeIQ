@@ -4,10 +4,11 @@ One-time script to discover devices/entities from HA and store in InfluxDB
 Run this to populate the device registry data
 """
 import asyncio
-import aiohttp
 import os
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
+
+import aiohttp
 from dotenv import load_dotenv
 
 # Add paths for imports
@@ -70,7 +71,7 @@ async def discover_and_store():
                     .field("name", device.get('name_by_user') or device.get('name', 'Unknown')) \
                     .field("sw_version", device.get('sw_version', '')) \
                     .field("area_id", device.get('area_id', '')) \
-                    .time(datetime.utcnow(), WritePrecision.NS)
+                    .time(datetime.now(UTC), WritePrecision.NS)
                 
                 device_points.append(point)
             
@@ -96,7 +97,7 @@ async def discover_and_store():
                     .field("device_id", entity.get('device_id', '')) \
                     .field("area_id", entity.get('area_id', '')) \
                     .field("disabled", entity.get('disabled_by') is not None) \
-                    .time(datetime.utcnow(), WritePrecision.NS)
+                    .time(datetime.now(UTC), WritePrecision.NS)
                 
                 entity_points.append(point)
             

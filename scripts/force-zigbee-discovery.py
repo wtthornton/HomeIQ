@@ -7,12 +7,11 @@ that are currently disabled.
 """
 
 import asyncio
-import aiohttp
-import json
 import os
-import sys
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
+import aiohttp
 
 # Configuration
 HA_URL = os.getenv('HA_HTTP_URL', 'http://192.168.1.86:8123')

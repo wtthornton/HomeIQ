@@ -3,11 +3,12 @@
 Test connection to local Home Assistant instance
 """
 
+import asyncio
 import os
 import sys
-import asyncio
-import aiohttp
 from urllib.parse import urljoin
+
+import aiohttp
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -62,7 +63,7 @@ async def test_local_ha_connection():
                     print(f"ERROR: API endpoint failed: {response.status}")
                     return False
                     
-    except asyncio.TimeoutError:
+    except TimeoutError:
         print("ERROR: Connection timeout - Home Assistant may not be reachable")
         return False
     except aiohttp.ClientError as e:

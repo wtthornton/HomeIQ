@@ -5,10 +5,10 @@ Provides visual feedback for long-running operations in terminal scripts.
 """
 
 import sys
-import time
 import threading
-from typing import Optional, Callable
+import time
 from contextlib import contextmanager
+from typing import Optional
 
 
 class Spinner:

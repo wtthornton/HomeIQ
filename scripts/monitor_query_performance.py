@@ -7,9 +7,6 @@ This script tracks query execution times and generates performance reports.
 import os
 import sys
 import time
-from pathlib import Path
-from datetime import datetime
-from collections import defaultdict
 
 import psycopg2
 from influxdb_client import InfluxDBClient

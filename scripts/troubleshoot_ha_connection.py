@@ -67,7 +67,7 @@ async def test_ha_http_connection(ha_url: str, ha_token: Optional[str]) -> dict:
                     
     except aiohttp.ClientConnectorError as e:
         result["error"] = f"Connection error: {e}"
-    except asyncio.TimeoutError:
+    except TimeoutError:
         result["error"] = "Connection timeout - Home Assistant may be unreachable"
     except Exception as e:
         result["error"] = f"Unexpected error: {e}"

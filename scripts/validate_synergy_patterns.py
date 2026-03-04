@@ -13,12 +13,9 @@ import argparse
 import asyncio
 import json
 import logging
-import shutil
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 # Add project root to path
 project_root = Path(__file__).parent.parent

@@ -6,9 +6,9 @@ with devices in the database and updates their integration field to "zigbee2mqtt
 """
 
 import asyncio
-import aiohttp
 import os
-from typing import Dict, List, Optional
+
+import aiohttp
 
 # Zigbee devices found in Zigbee2MQTT UI (from Playwright inspection)
 ZIGBEE_DEVICES = [

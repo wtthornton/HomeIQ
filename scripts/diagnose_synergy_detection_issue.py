@@ -7,10 +7,10 @@ Uses API calls instead of direct imports.
 """
 
 import asyncio
+from datetime import UTC, datetime, timedelta
+
 import httpx
-import json
-import sys
-from datetime import datetime, timedelta, timezone
+
 
 async def diagnose():
     """Diagnose synergy detection issue."""
@@ -139,7 +139,7 @@ async def diagnose():
         # Check recent events
         print("\n7. Checking Recent Events...")
         try:
-            end_time = datetime.now(timezone.utc)
+            end_time = datetime.now(UTC)
             start_time = end_time - timedelta(days=7)
             
             params = {

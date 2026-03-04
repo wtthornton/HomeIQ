@@ -73,7 +73,7 @@ if __name__ == "__main__":
     import uvicorn
 
     # Get configuration from environment
-    host = os.getenv("API_HOST", "0.0.0.0")
+    host = os.getenv("API_HOST", "0.0.0.0")  # noqa: S104
     port = int(os.getenv("API_PORT", "8004"))
 
     logger.info(f"Starting server on {host}:{port}")

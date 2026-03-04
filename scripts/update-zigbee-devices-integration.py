@@ -15,8 +15,8 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 import aiohttp
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 # Import data-api models
@@ -26,6 +26,7 @@ sys.path.insert(0, str(data_api_src.parent))
 
 # Set up imports
 import importlib.util
+
 spec = importlib.util.spec_from_file_location("database", data_api_src / "database.py")
 database_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(database_module)

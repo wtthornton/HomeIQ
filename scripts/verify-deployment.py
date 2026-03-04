@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Verify deployment status"""
 
-import requests
 import sys
+
+import requests
 
 if sys.platform == 'win32':
     import codecs

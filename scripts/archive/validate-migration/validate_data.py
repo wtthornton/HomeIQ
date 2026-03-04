@@ -28,7 +28,7 @@ import json
 import logging
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import aiosqlite
@@ -807,7 +807,7 @@ async def _run_all_schemas(
     Returns:
         Populated ValidationReport instance.
     """
-    report = ValidationReport(started_at=datetime.utcnow().isoformat())
+    report = ValidationReport(started_at=datetime.now(UTC).isoformat())
 
     for schema in schemas:
         entries = SCHEMA_MAP.get(schema)
@@ -823,7 +823,7 @@ async def _run_all_schemas(
         logger.info("Schema %s: %s", schema, status)
         logger.info("")
 
-    report.finished_at = datetime.utcnow().isoformat()
+    report.finished_at = datetime.now(UTC).isoformat()
     return report
 
 

@@ -4,6 +4,8 @@ Shared pytest fixtures for all E2E and integration tests
 Following Context7 KB best practices from /pytest-dev/pytest
 """
 
+from datetime import UTC
+
 import pytest
 
 collect_ignore = ["integration", "unit"]
@@ -45,7 +47,7 @@ def reset_environment_state():
 def sample_timestamp():
     """Shared fixture: Current UTC timestamp for test data"""
     from datetime import datetime
-    return datetime.utcnow()
+    return datetime.now(UTC)
 
 
 @pytest.fixture

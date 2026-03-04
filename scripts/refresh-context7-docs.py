@@ -11,12 +11,12 @@ This script:
 Note: Requires Context7 MCP server to be configured with valid API key.
 """
 
-import os
 import sys
-import yaml
+from datetime import UTC, datetime
 from pathlib import Path
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List
+
+import yaml
 
 # Project root
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -128,14 +128,14 @@ def update_refresh_timestamp(index_data: dict, library: str):
         return
     
     lib_data = index_data['libraries'][library]
-    lib_data['last_fetched'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-    lib_data['refresh_requested'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    lib_data['last_fetched'] = datetime.now(UTC).isoformat().replace('+00:00', 'Z')
+    lib_data['refresh_requested'] = datetime.now(UTC).isoformat().replace('+00:00', 'Z')
 
 
 def main():
     """Main execution function."""
-    import sys
     import io
+    import sys
     
     # Fix encoding for Windows console
     if sys.platform == 'win32':

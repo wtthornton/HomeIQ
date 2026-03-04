@@ -4,9 +4,9 @@ Pytest-compatible smoke tests for critical production paths.
 These tests verify that critical user-facing functionality works end-to-end.
 """
 
+
 import pytest
 import requests
-from typing import Dict, Any
 
 
 class TestCriticalPaths:

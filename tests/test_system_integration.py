@@ -3,11 +3,10 @@
 Integration test to verify the HA Ingestor system is working correctly
 """
 
-import os
-import sys
 import asyncio
+import sys
+
 import aiohttp
-import json
 from dotenv import load_dotenv
 
 # Load environment variables

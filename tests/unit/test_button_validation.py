@@ -7,8 +7,9 @@ This test validates that:
 3. Generated YAML contains proper entity IDs
 """
 
-import yaml
 import json
+
+import yaml
 
 
 def test_validated_entities_structure():

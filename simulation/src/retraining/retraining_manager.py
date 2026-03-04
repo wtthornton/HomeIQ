@@ -6,7 +6,6 @@ Model retraining manager with automatic triggers and orchestration.
 
 import asyncio
 import logging
-import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path

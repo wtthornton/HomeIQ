@@ -2,16 +2,16 @@
 Unit tests for auto-fixer.
 """
 
-import pytest
 import sys
 from pathlib import Path
+
 
 shared_path = Path(__file__).parent.parent.parent.parent / "shared"
 sys.path.insert(0, str(shared_path))
 
-from ha_automation_lint.fixers.auto_fixer import AutoFixer
-from ha_automation_lint.models import AutomationIR, TriggerIR, ActionIR, Finding, SuggestedFix
 from ha_automation_lint.constants import FixMode, Severity
+from ha_automation_lint.fixers.auto_fixer import AutoFixer
+from ha_automation_lint.models import ActionIR, AutomationIR, Finding, SuggestedFix, TriggerIR
 
 
 class TestAutoFixer:

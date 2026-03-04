@@ -8,14 +8,13 @@ Test endpoint:
 POST /api/v1/ask-ai/query/{query_id}/suggestions/{suggestion_id}/test
 """
 
-import asyncio
+import json
+import logging
+
 import httpx
 import pytest
 import pytest_asyncio
-import logging
-import json
 import yaml
-from textwrap import dedent
 
 # Configure logging with DEBUG level and visible format
 logging.basicConfig(
@@ -33,6 +32,7 @@ logging.getLogger("httpcore").setLevel(logging.DEBUG)
 # ai-automation-service is on port 8024 externally (Docker maps 8024:8018)
 # Try both ports in case running differently
 import os
+
 BASE_URL = os.environ.get("AI_AUTOMATION_API_URL", "http://localhost:8024/api/v1/ask-ai")
 
 # Specific IDs to test (fallback for testing existing queries)

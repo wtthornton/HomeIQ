@@ -7,22 +7,17 @@ Tests for:
 - Dependency injection framework
 """
 
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch
-
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add simulation/src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from engine.simulation_engine import SimulationEngine
 from engine.config import SimulationConfig
-from engine.dependency_injection import (
-    DependencyContainer,
-    ServiceFactory
-)
+from engine.dependency_injection import DependencyContainer, ServiceFactory
+from engine.simulation_engine import SimulationEngine
 
 
 class TestSimulationConfig:

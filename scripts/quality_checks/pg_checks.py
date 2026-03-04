@@ -2,10 +2,10 @@
 PostgreSQL-specific quality check functions.
 Used by runner.py for database quality validation.
 """
-from typing import List, Tuple, Set
+from typing import List, Tuple
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def get_all_tables(db: AsyncSession, schema: str = "public") -> List[str]:

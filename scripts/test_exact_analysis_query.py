@@ -2,10 +2,13 @@
 """Test the exact query the analysis uses"""
 import asyncio
 import sys
+
 sys.path.insert(0, '/app/src')
 
+from datetime import UTC, datetime, timedelta
+
 from clients.data_api_client import DataAPIClient
-from datetime import datetime, timedelta, timezone
+
 
 async def test():
     print("=" * 70)
@@ -15,8 +18,8 @@ async def test():
     client = DataAPIClient()
     
     # Use the exact same logic as daily_analysis.py
-    start_date = datetime.now(timezone.utc) - timedelta(days=30)
-    end_date = datetime.now(timezone.utc)
+    start_date = datetime.now(UTC) - timedelta(days=30)
+    end_date = datetime.now(UTC)
     
     print(f"Query: start={start_date.isoformat()}, end={end_date.isoformat()}, limit=100000")
     

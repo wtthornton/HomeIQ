@@ -7,12 +7,11 @@ It can trigger device discovery, check MQTT integration, and force device update
 """
 
 import asyncio
-import aiohttp
-import json
 import os
-import sys
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
+
+import aiohttp
 
 # Configuration
 HA_URL = os.getenv('HA_HTTP_URL', 'http://192.168.1.86:8123')

@@ -518,4 +518,4 @@ async def generate_suggestions(
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8018)
+    uvicorn.run(app, host="0.0.0.0", port=8018)  # noqa: S104

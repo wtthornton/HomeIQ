@@ -5,9 +5,9 @@ Training data collection infrastructure for simulation framework.
 """
 
 from .collector import TrainingDataCollector
-from .validators import DataQualityValidator
 from .exporters import TrainingDataExporter
 from .lineage_tracker import LineageTracker
+from .validators import DataQualityValidator
 
 __all__ = [
     "TrainingDataCollector",

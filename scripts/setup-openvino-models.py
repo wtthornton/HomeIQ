@@ -16,9 +16,9 @@ Usage:
     python scripts/setup-openvino-models.py
 """
 
-import os
 import sys
 from pathlib import Path
+
 
 def check_dependencies():
     """Check if required packages are installed"""

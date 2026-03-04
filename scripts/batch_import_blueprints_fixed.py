@@ -9,13 +9,12 @@ This script:
 """
 
 import asyncio
-import sys
 import os
 import re
-import uuid
+import sys
+from datetime import UTC, datetime
 from pathlib import Path
-from datetime import datetime, timezone
-from typing import List, Dict, Optional
+from typing import Dict, Optional
 
 # Set UTF-8 encoding for Windows console
 if sys.platform == "win32":
@@ -36,11 +35,10 @@ sys.path.insert(0, str(project_root / "domains" / "blueprints" / "blueprint-inde
 os.environ["DATABASE_URL"] = os.getenv("POSTGRES_URL", os.getenv("DATABASE_URL", "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq"))
 
 import httpx
-from src.indexer.blueprint_parser import BlueprintParser
-from src.database import init_db, get_db_context
-from src.models.blueprint import IndexedBlueprint, BlueprintInput
 from sqlalchemy import select
-
+from src.database import get_db_context, init_db
+from src.indexer.blueprint_parser import BlueprintParser
+from src.models.blueprint import BlueprintInput, IndexedBlueprint
 
 # Known blueprint sources for home improvement
 # URLs from hablueprints.directory and official Home Assistant core
@@ -101,8 +99,8 @@ async def import_blueprint(
             source_id = blueprint_url.split('/')[-1]
     
     # Parse dates from description if available
-    created_at = datetime.now(timezone.utc)
-    updated_at = datetime.now(timezone.utc)
+    created_at = datetime.now(UTC)
+    updated_at = datetime.now(UTC)
     
     # Use the parser's parse_blueprint method which returns IndexedBlueprint
     blueprint = parser.parse_blueprint(
@@ -141,7 +139,7 @@ async def import_blueprint(
             for key, value in blueprint.__dict__.items():
                 if key not in ['id', 'created_at', '_sa_instance_state']:
                     if key == 'updated_at' or key == 'indexed_at':
-                        setattr(existing_blueprint, key, datetime.now(timezone.utc))
+                        setattr(existing_blueprint, key, datetime.now(UTC))
                     else:
                         setattr(existing_blueprint, key, value)
             

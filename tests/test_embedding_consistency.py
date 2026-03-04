@@ -24,10 +24,10 @@ Date: November 15, 2025
 
 import argparse
 import json
-import numpy as np
-from pathlib import Path
-from typing import List, Dict, Any
 import sys
+from pathlib import Path
+
+import numpy as np
 
 # Test sentences covering various use cases in HomeIQ
 TEST_SENTENCES = [
@@ -91,8 +91,8 @@ TEST_SENTENCES = [
 def generate_embeddings(version: str, model_name: str = "all-MiniLM-L6-v2"):
     """Generate embeddings using current sentence-transformers version"""
     try:
-        from sentence_transformers import SentenceTransformer
         import sentence_transformers
+        from sentence_transformers import SentenceTransformer
 
         print(f"\n{'='*80}")
         print(f"Generating Embeddings - sentence-transformers {sentence_transformers.__version__}")

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Check entity name fields in PostgreSQL database"""
 import os
-import sys
 
 import psycopg2
 

@@ -3,14 +3,13 @@ Regression tests using test corpus.
 Ensures rule stability across versions.
 """
 
-import pytest
 import sys
 from pathlib import Path
+
 
 shared_path = Path(__file__).parent.parent.parent.parent / "shared"
 sys.path.insert(0, str(shared_path))
 
-from ha_automation_lint.engine import LintEngine
 
 
 class TestValidAutomations:

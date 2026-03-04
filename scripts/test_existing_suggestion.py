@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Check existing suggestions from database to verify device names"""
+import json
+import os
+import sys
+
 import psycopg2
 import psycopg2.extras
-import sys
-import os
-import json
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 

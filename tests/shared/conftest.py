@@ -3,13 +3,12 @@ Shared Test Fixtures for HomeIQ Shared Library Tests
 Modern 2025 patterns with pytest-asyncio 1.0+
 """
 
-import asyncio
 import os
-import pytest
 import sys
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, MagicMock
-from typing import AsyncGenerator, Generator
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 # Add shared directory to path
 shared_path = Path(__file__).parent.parent.parent / "shared"
@@ -68,7 +67,7 @@ def mock_websockets_connect(mock_websocket_connection):
 @pytest.fixture
 def ha_connection_config():
     """Sample HA connection configuration"""
-    from ha_connection_manager import HAConnectionConfig, ConnectionType
+    from ha_connection_manager import ConnectionType, HAConnectionConfig
 
     return HAConnectionConfig(
         name="Test HA",
@@ -161,7 +160,7 @@ def test_logger():
 @pytest.fixture
 def correlation_id_context():
     """Set up correlation ID context for testing"""
-    from logging_config import set_correlation_id, correlation_id
+    from logging_config import correlation_id, set_correlation_id
 
     test_corr_id = "test_corr_12345678"
     set_correlation_id(test_corr_id)
@@ -210,7 +209,7 @@ def anyio_backend():
 # Property-Based Testing Configuration
 # ============================================================================
 
-from hypothesis import settings, Verbosity
+from hypothesis import Verbosity, settings
 
 # Configure Hypothesis for testing
 settings.register_profile("default", max_examples=50, deadline=5000)

@@ -4,10 +4,10 @@ Refresh entity registry data from Home Assistant HTTP API and store in database.
 This bypasses WebSocket concurrency issues by using HTTP API directly.
 """
 import asyncio
-import aiohttp
 import os
 import sys
-from datetime import datetime
+
+import aiohttp
 from dotenv import load_dotenv
 
 # Add paths for imports

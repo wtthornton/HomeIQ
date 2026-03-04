@@ -2,7 +2,6 @@
 Unit tests for DataGenerationManager.
 """
 
-import asyncio
 import tempfile
 from pathlib import Path
 

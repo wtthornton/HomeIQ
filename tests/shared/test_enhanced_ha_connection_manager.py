@@ -6,24 +6,22 @@ Module: shared/enhanced_ha_connection_manager.py
 Coverage Target: >90%
 """
 
-import pytest
-import asyncio
-import time
-from unittest.mock import Mock, AsyncMock, patch
-from hypothesis import given, strategies as st, settings
-from hypothesis.stateful import RuleBasedStateMachine, rule, invariant, initialize
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 # Import module under test
 from enhanced_ha_connection_manager import (
-    EnhancedHAConnectionManager,
     CircuitBreaker,
     CircuitBreakerState,
-    HAConnectionConfig,
     ConnectionType,
-    ha_connection_manager
+    EnhancedHAConnectionManager,
+    HAConnectionConfig,
 )
-
+from hypothesis import given, settings
+from hypothesis import strategies as st
+from hypothesis.stateful import RuleBasedStateMachine, invariant, rule
 
 # ============================================================================
 # Circuit Breaker Unit Tests

@@ -5,9 +5,11 @@ Direct Weather API Test
 This script tests the weather API key directly to diagnose issues.
 """
 
-import requests
 import os
+
+import requests
 from dotenv import load_dotenv
+
 
 def test_weather_api():
     """Test the weather API key directly"""

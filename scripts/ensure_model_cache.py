@@ -10,6 +10,7 @@ import os
 import sys
 from pathlib import Path
 
+
 def ensure_model_cached():
     """Check if flan-t5-small model is cached, download if missing."""
     model_name = "google/flan-t5-small"
@@ -22,7 +23,7 @@ def ensure_model_cached():
         del os.environ['TRANSFORMERS_CACHE']
     
     try:
-        from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+        from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
         
         # Check if model.safetensors exists
         model_files = list(cache_dir.glob(f"**/models--google--flan-t5-small/**/model.safetensors"))

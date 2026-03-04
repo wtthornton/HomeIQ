@@ -297,4 +297,4 @@ else:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8020)  # nosec B104 - Docker container
+    uvicorn.run(app, host="0.0.0.0", port=8020)  # noqa: S104

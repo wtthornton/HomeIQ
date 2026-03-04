@@ -4,9 +4,10 @@ Test HTTP API discovery to verify it works correctly.
 This script tests the discovery functionality directly without requiring the service to be running.
 """
 import asyncio
-import aiohttp
 import os
 import sys
+
+import aiohttp
 from dotenv import load_dotenv
 
 # Add project root to path

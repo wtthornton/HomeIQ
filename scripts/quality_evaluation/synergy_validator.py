@@ -4,7 +4,6 @@ Synergy Validator for Quality Evaluation
 Validates synergies against actual events.
 """
 
-import asyncio
 import logging
 import sys
 from pathlib import Path

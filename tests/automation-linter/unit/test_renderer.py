@@ -2,16 +2,15 @@
 Unit tests for YAML renderer.
 """
 
-import pytest
 import sys
 from pathlib import Path
+
 import yaml
 
 shared_path = Path(__file__).parent.parent.parent.parent / "shared"
 sys.path.insert(0, str(shared_path))
 
-from ha_automation_lint.renderers.yaml_renderer import YAMLRenderer
-from ha_automation_lint.models import AutomationIR, TriggerIR, ActionIR
+from ha_automation_lint.models import ActionIR, AutomationIR, TriggerIR
 
 
 class TestYAMLRenderer:

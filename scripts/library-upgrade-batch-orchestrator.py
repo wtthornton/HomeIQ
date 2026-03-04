@@ -21,9 +21,9 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
-from typing import List, Dict, Optional, Set
 from enum import Enum
+from pathlib import Path
+from typing import Dict, List, Optional
 
 # Setup logging
 logging.basicConfig(

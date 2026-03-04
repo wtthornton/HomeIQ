@@ -10,9 +10,10 @@ Verifies:
 - System requirements met
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
+
 
 # Colors for terminal output
 class Colors:

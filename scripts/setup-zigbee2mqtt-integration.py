@@ -6,12 +6,9 @@ This script helps set up the Zigbee2MQTT integration properly in Home Assistant.
 """
 
 import asyncio
-import aiohttp
-import json
 import os
-import sys
-from datetime import datetime
-from typing import Dict, List, Any
+
+import aiohttp
 
 # Configuration
 HA_URL = os.getenv('HA_HTTP_URL', 'http://192.168.1.86:8123')

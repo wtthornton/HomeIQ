@@ -9,10 +9,10 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Dict, Any, Optional, List
-import aiohttp
-import websockets
 from pathlib import Path
+from typing import Any, Dict
+
+import websockets
 
 # Configure logging
 logging.basicConfig(
@@ -165,7 +165,7 @@ class EnhancedFallbackTest:
                                     event_type = event_data.get('event', {}).get('event_type', 'unknown')
                                     logger.info(f"📨 Event {event_count}: {event_type}")
                                     
-                            except asyncio.TimeoutError:
+                            except TimeoutError:
                                 continue
                     
                     except Exception as e:

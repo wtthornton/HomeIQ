@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Tuple
 
-from .config import PROJECT_ROOT, TEST_RESULTS_DIR
+from .config import PROJECT_ROOT
 from .helpers import check_docker_compose, get_docker_compose_cmd, run_command
 
 logger = logging.getLogger(__name__)

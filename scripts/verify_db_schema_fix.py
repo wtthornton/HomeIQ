@@ -28,8 +28,8 @@ sys.path.insert(0, str(service_dir))
 
 async def verify_schema():
     """Verify database schema is correct."""
-    from src.database import init_db, engine
     from sqlalchemy import text
+    from src.database import engine, init_db
     
     print("=" * 60)
     print("Database Schema Verification")

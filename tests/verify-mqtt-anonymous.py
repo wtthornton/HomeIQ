@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Test MQTT connection WITHOUT authentication (anonymous)"""
 
-import paho.mqtt.client as mqtt
-import time
-import sys
-from pathlib import Path
-from dotenv import load_dotenv
 import os
+import sys
+import time
+from pathlib import Path
+
+import paho.mqtt.client as mqtt
+from dotenv import load_dotenv
 
 env_path = Path(__file__).parent.parent / 'infrastructure' / 'env.ai-automation'
 load_dotenv(env_path)

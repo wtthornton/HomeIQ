@@ -5,15 +5,11 @@ Unit tests for SpecValidator
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
-
 from shared.homeiq_automation.spec_validator import (
-    SpecValidationError,
     SpecValidator,
     validate_semver,
-    validate_spec,
 )
 
 

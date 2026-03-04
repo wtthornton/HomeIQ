@@ -13,13 +13,13 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from engine.simulation_engine import SimulationEngine
-from engine.config import SimulationConfig
 from batch.batch_processor import BatchProcessor
-from reporting.results_aggregator import ResultsAggregator
-from reporting.report_generator import ReportGenerator
-from reporting.summary_generator import SummaryGenerator
+from engine.config import SimulationConfig
+from engine.simulation_engine import SimulationEngine
 from metrics.metrics_collector import MetricsCollector
+from reporting.report_generator import ReportGenerator
+from reporting.results_aggregator import ResultsAggregator
+from reporting.summary_generator import SummaryGenerator
 from training_data.collector import TrainingDataCollector
 from training_data.exporters import TrainingDataExporter
 from training_data.lineage_tracker import LineageTracker
@@ -92,13 +92,13 @@ async def run_simulation(
         await engine.initialize()
         
         # Register mock services (simplified - in real implementation would use factories)
-        from mocks.influxdb_client import MockInfluxDBClient
-        from mocks.openai_client import MockOpenAIClient
-        from mocks.mqtt_client import MockMQTTClient
         from mocks.data_api_client import MockDataAPIClient
         from mocks.device_intelligence_client import MockDeviceIntelligenceClient
-        from mocks.ha_conversation_api import MockHAConversationAPI
         from mocks.ha_client import MockHAClient
+        from mocks.ha_conversation_api import MockHAConversationAPI
+        from mocks.influxdb_client import MockInfluxDBClient
+        from mocks.mqtt_client import MockMQTTClient
+        from mocks.openai_client import MockOpenAIClient
         from mocks.safety_validator import MockSafetyValidator
         
         influxdb_client = MockInfluxDBClient()
@@ -115,10 +115,12 @@ async def run_simulation(
         
         # Generate synthetic homes with actual data
         logger.info(f"Generating {homes_count} synthetic homes...")
-        from data_generation.home_generator import HomeGenerator
-        import pandas as pd
-        from datetime import datetime, timezone
         import time
+        from datetime import timezone
+
+        import pandas as pd
+
+        from data_generation.home_generator import HomeGenerator
         
         data_creation_start = time.time()
         home_generator = HomeGenerator()
