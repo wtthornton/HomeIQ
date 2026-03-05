@@ -88,12 +88,17 @@ class HealthEndpoints:
             "device-health-monitor": os.getenv("DEVICE_HEALTH_URL", "http://device-health-monitor:8019"),
             "device-context-classifier": os.getenv("DEVICE_CLASSIFIER_URL", "http://device-context-classifier:8020"),
             "device-setup-assistant": os.getenv("DEVICE_SETUP_URL", "http://device-setup-assistant:8021"),
+            # Core Platform self-monitoring
+            "admin-api": os.getenv("ADMIN_API_URL", "http://admin-api:8004"),
+            "health-dashboard": os.getenv("HEALTH_DASHBOARD_URL", "http://health-dashboard:80"),
+            "data-api": os.getenv("DATA_API_URL", "http://data-api:8006"),
         }
 
         # Step 4.6: Domain group mappings for aggregated health
         self.group_mappings: dict[str, list[str]] = {
             "core-platform": [
                 "websocket-ingestion", "influxdb", "admin-api",
+                "health-dashboard", "data-api",
             ],
             "data-collectors": [
                 "weather-api", "sports-api", "carbon-intensity-service",
@@ -336,7 +341,11 @@ class HealthEndpoints:
                         response_time = (datetime.now() - start_time).total_seconds() * 1000
 
                         if response.status == 200:
-                            data = await response.json()
+                            try:
+                                data = await response.json()
+                            except (aiohttp.ContentTypeError, ValueError):
+                                # Non-JSON response (e.g. nginx plain text) — treat 200 as healthy
+                                data = {"status": "healthy"}
                             # Detect false-positive "healthy" from services that aren't functional
                             reported_status = data.get("status", "unknown")
                             creds_configured = data.get("credentials_configured")

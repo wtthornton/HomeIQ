@@ -1,15 +1,25 @@
 #!/bin/bash
 # domain.sh — Per-domain Docker Compose helper for HomeIQ.
-# Usage: ./scripts/domain.sh <command> <domain> [service]
+# Usage: ./scripts/domain.sh <command> <domain> [service] [--all-profiles]
 #
 # Commands:
-#   start    Start a domain's services
+#   start    Start a domain's services (default profile only)
 #   stop     Stop a domain's services
 #   restart  Restart a domain's services
 #   status   Show running containers for a domain
 #   logs     Tail service logs (optional: specific service name)
 #   build    Build domain images
 #   list     Print valid domain names
+#   verify   Check all running containers belong to correct Docker project group
+#
+# Flags:
+#   --all-profiles   Include services gated behind the 'production' profile
+#
+# IMPORTANT: Always use this script (or start-stack.sh) to manage domains.
+# Never run 'docker compose up' from the root docker-compose.yml with
+# --profile production — that assigns the root 'homeiq' project name
+# instead of the domain's 'homeiq-<domain>' name, causing containers
+# to appear in the wrong Docker Desktop group.
 
 set -euo pipefail
 
@@ -35,7 +45,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 usage() {
-  echo "Usage: $0 <command> <domain> [service]"
+  echo "Usage: $0 <command> <domain> [service] [--all-profiles]"
   echo ""
   echo "Commands:"
   echo "  start    Start a domain's services"
@@ -45,11 +55,20 @@ usage() {
   echo "  logs     Tail service logs (optional: specific service name)"
   echo "  build    Build domain images"
   echo "  list     Print valid domain names"
+  echo "  verify   Check all containers are in correct Docker project groups"
+  echo ""
+  echo "Flags:"
+  echo "  --all-profiles   Include 'production' profile services (air-quality,"
+  echo "                   carbon-intensity, electricity-pricing, calendar)"
   echo ""
   echo "Valid domains:"
   for d in "${VALID_DOMAINS[@]}"; do
     echo "  $d"
   done
+  echo ""
+  echo "IMPORTANT: Always use this script to manage domains. Never run"
+  echo "'docker compose up --profile production' from the project root —"
+  echo "it assigns the wrong project name to containers."
   exit 1
 }
 
@@ -69,9 +88,19 @@ validate_domain() {
   exit 1
 }
 
-COMMAND="${1:-}"
-DOMAIN="${2:-}"
-SERVICE="${3:-}"
+# Parse arguments — extract flags first
+ALL_PROFILES=false
+ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --all-profiles) ALL_PROFILES=true ;;
+    *) ARGS+=("$arg") ;;
+  esac
+done
+
+COMMAND="${ARGS[0]:-}"
+DOMAIN="${ARGS[1]:-}"
+SERVICE="${ARGS[2]:-}"
 
 if [[ -z "$COMMAND" ]]; then
   usage
@@ -82,6 +111,35 @@ if [[ "$COMMAND" == "list" ]]; then
   for d in "${VALID_DOMAINS[@]}"; do
     echo "$d"
   done
+  exit 0
+fi
+
+# Handle verify command (no domain required — checks all containers)
+if [[ "$COMMAND" == "verify" ]]; then
+  echo -e "${GREEN}[VERIFY]${NC} Checking Docker project group assignments..."
+  ERRORS=0
+  for d in "${VALID_DOMAINS[@]}"; do
+    EXPECTED_PROJECT="homeiq-$d"
+    # Find containers whose name starts with homeiq- and whose service belongs to this domain
+    while IFS=$'\t' read -r name project; do
+      if [[ -n "$name" && "$project" != "$EXPECTED_PROJECT" ]]; then
+        echo -e "${RED}[MISMATCH]${NC} $name is in project '$project' — expected '$EXPECTED_PROJECT'"
+        echo "  Fix: docker rm -f $name && ./scripts/domain.sh start $d --all-profiles"
+        ERRORS=$((ERRORS + 1))
+      fi
+    done < <(docker ps -a \
+      --filter "label=com.docker.compose.project.config_files=$(cd "$PROJECT_ROOT" && pwd)/domains/$d/compose.yml" \
+      --format "{{.Names}}\t{{.Label \"com.docker.compose.project\"}}" 2>/dev/null || true)
+  done
+  if [[ $ERRORS -eq 0 ]]; then
+    echo -e "${GREEN}[OK]${NC} All containers are in the correct Docker project groups."
+  else
+    echo ""
+    echo -e "${RED}[FAIL]${NC} $ERRORS container(s) in wrong project group."
+    echo "This usually happens when services are started via the root docker-compose.yml"
+    echo "with --profile production. Always use './scripts/domain.sh start <domain> --all-profiles' instead."
+    exit 1
+  fi
   exit 0
 fi
 
@@ -99,26 +157,32 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
   exit 1
 fi
 
+# Build profile flags
+PROFILE_FLAGS=()
+if [[ "$ALL_PROFILES" == "true" ]]; then
+  PROFILE_FLAGS+=(--profile production)
+fi
+
 case "$COMMAND" in
   start)
-    echo -e "${GREEN}[START]${NC} Starting $DOMAIN..."
+    echo -e "${GREEN}[START]${NC} Starting $DOMAIN${ALL_PROFILES:+ (all profiles)}..."
     "$SCRIPT_DIR/ensure-network.sh"
-    docker compose -f "$COMPOSE_FILE" up -d
+    docker compose -f "$COMPOSE_FILE" "${PROFILE_FLAGS[@]}" up -d ${SERVICE:+"$SERVICE"}
     echo -e "${GREEN}[OK]${NC} $DOMAIN started."
     ;;
   stop)
     echo -e "${YELLOW}[STOP]${NC} Stopping $DOMAIN..."
-    docker compose -f "$COMPOSE_FILE" down
+    docker compose -f "$COMPOSE_FILE" "${PROFILE_FLAGS[@]}" down
     echo -e "${GREEN}[OK]${NC} $DOMAIN stopped."
     ;;
   restart)
     echo -e "${YELLOW}[RESTART]${NC} Restarting $DOMAIN..."
     "$SCRIPT_DIR/ensure-network.sh"
-    docker compose -f "$COMPOSE_FILE" restart
+    docker compose -f "$COMPOSE_FILE" "${PROFILE_FLAGS[@]}" restart ${SERVICE:+"$SERVICE"}
     echo -e "${GREEN}[OK]${NC} $DOMAIN restarted."
     ;;
   status)
-    docker compose -f "$COMPOSE_FILE" ps
+    docker compose -f "$COMPOSE_FILE" "${PROFILE_FLAGS[@]}" ps
     ;;
   logs)
     if [[ -n "$SERVICE" ]]; then
@@ -129,7 +193,7 @@ case "$COMMAND" in
     ;;
   build)
     echo -e "${GREEN}[BUILD]${NC} Building $DOMAIN images..."
-    docker compose -f "$COMPOSE_FILE" build
+    docker compose -f "$COMPOSE_FILE" "${PROFILE_FLAGS[@]}" build ${SERVICE:+"$SERVICE"}
     echo -e "${GREEN}[OK]${NC} $DOMAIN images built."
     ;;
   *)

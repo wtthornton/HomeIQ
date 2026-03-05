@@ -46,6 +46,7 @@ Run the pre-deployment validation script:
 - [ ] Docker Compose config validates: `docker compose config --quiet`
 - [ ] All 53 images build: `docker buildx bake full` (estimated 25-30 min)
 - [ ] Image count verified: `docker images | grep homeiq | wc -l` (should be 53)
+- [ ] Project group verification: `./scripts/domain.sh verify` — all containers in correct `homeiq-<domain>` groups
 
 ### Databases
 
@@ -142,6 +143,37 @@ file backups/phase5-pre-deployment-*.sql | grep -q "ASCII text"
 | Single tier rollback | `./scripts/deploy-tierN.sh --rollback` | 2-5 min |
 | Domain rollback | `./scripts/deploy-tiers4-8.sh --rollback N` | 5-15 min |
 | Full system rollback | See `docs/planning/phase-5-deployment-plan.md` | 15-30 min |
+
+---
+
+## Troubleshooting: Container Grouping
+
+Containers must appear under their correct `homeiq-<domain>` group in Docker Desktop.
+If a container appears as a standalone (outside its group), it was started incorrectly.
+
+**Diagnosis:**
+```bash
+./scripts/domain.sh verify
+```
+
+**Common cause:** Running `docker compose up` from the project root or running a single
+service directly (e.g., `docker compose up ai-automation-ui`) outside its domain compose file.
+
+**Fix:**
+```bash
+# 1. Remove the orphaned container
+docker stop <container-name> && docker rm <container-name>
+
+# 2. Restart via domain.sh (ensures correct project name)
+./scripts/domain.sh start <domain> [service]
+
+# Example: fix orphaned ai-automation-ui
+docker stop homeiq-ai-automation-ui && docker rm homeiq-ai-automation-ui
+./scripts/domain.sh start frontends ai-automation-ui
+```
+
+**Prevention:** Always use `./scripts/domain.sh` or `./scripts/start-stack.sh` to manage
+services. Never run `docker compose up` directly from the project root with `--profile`.
 
 ---
 

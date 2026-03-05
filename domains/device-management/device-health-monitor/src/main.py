@@ -94,11 +94,17 @@ lifespan.on_shutdown(_shutdown, name="close-ha-client")
 
 # --- Health check ---
 
+async def _check_service() -> bool:
+    """Service is always running — baseline check ensures degraded (not unhealthy) when HA is absent."""
+    return True
+
+
 async def _check_ha() -> bool:
     return _ha_configured
 
 
 health = StandardHealthCheck(service_name="device-health-monitor", version="1.0.0")
+health.register_check("service", _check_service)
 health.register_check("ha-config", _check_ha)
 
 

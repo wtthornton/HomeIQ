@@ -29,8 +29,9 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
   // DEPRECATED: enrichment-pipeline (Port 8002) - Epic 31: Direct writes to InfluxDB
   // { id: 'enrichment-pipeline', name: 'Enrichment Pipeline', icon: '🔄', type: 'core', port: 8002, description: 'Multi-source data enrichment' },
   // { id: 'data-retention', name: 'Data Retention', icon: '💾', type: 'core', port: 8080, description: 'Storage optimization' }, // TODO: Enable when service is deployed
-  { id: 'admin-api', name: 'Admin API', icon: '🔌', type: 'core', port: 8003, description: 'REST API gateway', group: 'core-platform' },
+  { id: 'admin-api', name: 'Admin API', icon: '🔌', type: 'core', port: 8004, description: 'REST API gateway', group: 'core-platform' },
   { id: 'health-dashboard', name: 'Health Dashboard', icon: '📊', type: 'core', port: 3000, description: 'Web UI', group: 'core-platform' },
+  { id: 'data-api', name: 'Data API', icon: '🗃️', type: 'core', port: 8006, description: 'Data query and metadata API', group: 'core-platform' },
   { id: 'influxdb', name: 'InfluxDB', icon: '🗄️', type: 'core', port: 8086, description: 'Time-series database', group: 'core-platform' },
 
   // External Data Services

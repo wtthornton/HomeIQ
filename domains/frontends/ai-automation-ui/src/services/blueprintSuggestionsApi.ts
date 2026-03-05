@@ -1,7 +1,7 @@
 /**
  * Blueprint Suggestions Service API Client
  *
- * Connects to blueprint-suggestion-service on port 8032
+ * Connects to blueprint-suggestion-service on port 8039 (Docker maps 8039→8032 internally)
  */
 
 import { fetchJSON, API_CONFIG } from '../lib/api-client';

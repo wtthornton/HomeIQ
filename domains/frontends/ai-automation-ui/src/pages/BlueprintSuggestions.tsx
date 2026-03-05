@@ -446,12 +446,12 @@ export const BlueprintSuggestions: React.FC = () => {
             </p>
             {error.includes('timed out') && (
               <p className="text-xs text-[var(--text-tertiary)] mb-4">
-                The blueprint-suggestion-service (port 8032) may be starting up or overloaded.
+                The blueprint-suggestion-service (port 8039) may be starting up or overloaded.
               </p>
             )}
             {error.includes('connect') && (
               <p className="text-xs text-[var(--text-tertiary)] mb-4">
-                Ensure blueprint-suggestion-service is running on port 8032.
+                Ensure blueprint-suggestion-service is running on port 8039.
               </p>
             )}
             {!error.includes('Authentication') && (

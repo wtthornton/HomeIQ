@@ -40,7 +40,7 @@ test.describe('Blueprint Suggestions - Page Load and Navigation', () => {
   });
 
   test('Page URL is correct', async ({ page: playwrightPage }) => {
-    await expect(playwrightPage).toHaveURL(/.*blueprint-suggestions/);
+    await expect(playwrightPage).toHaveURL(/.*source=blueprints/);
   });
 
   test('Stats section is visible', async () => {
@@ -723,6 +723,147 @@ test.describe('Blueprint Suggestions - Accessibility', () => {
     
     const complexityLabel = page.page.locator('label:has-text("Complexity")');
     await expect(complexityLabel).toBeVisible();
+  });
+});
+
+test.describe('Blueprint Suggestions - Mocked Data in Table', () => {
+  const mockSuggestions = [
+    {
+      id: 'sug-001',
+      blueprint_id: 'bp-motion-light',
+      blueprint_name: 'Motion-Activated Lights',
+      blueprint_description: 'Turn on lights when motion is detected',
+      suggestion_score: 0.92,
+      matched_devices: [
+        { entity_id: 'binary_sensor.hallway_motion', domain: 'binary_sensor', friendly_name: 'Hallway Motion', area_name: 'Hallway' },
+        { entity_id: 'light.hallway_ceiling', domain: 'light', friendly_name: 'Hallway Ceiling Light', area_name: 'Hallway' },
+      ],
+      use_case: 'convenience',
+      status: 'pending',
+      created_at: '2026-03-01T10:00:00Z',
+      updated_at: '2026-03-01T10:00:00Z',
+    },
+    {
+      id: 'sug-002',
+      blueprint_id: 'bp-night-security',
+      blueprint_name: 'Night Security Lockdown',
+      blueprint_description: 'Lock doors and arm alarm at bedtime',
+      suggestion_score: 0.85,
+      matched_devices: [
+        { entity_id: 'lock.front_door', domain: 'lock', friendly_name: 'Front Door Lock', area_name: 'Entrance' },
+        { entity_id: 'alarm_control_panel.home', domain: 'alarm_control_panel', friendly_name: 'Home Alarm', area_name: 'Entrance' },
+      ],
+      use_case: 'security',
+      status: 'pending',
+      created_at: '2026-03-01T11:00:00Z',
+      updated_at: '2026-03-01T11:00:00Z',
+    },
+    {
+      id: 'sug-003',
+      blueprint_id: 'bp-energy-saver',
+      blueprint_name: 'Energy Saver Schedule',
+      blueprint_description: 'Reduce energy usage during off-peak hours',
+      suggestion_score: 0.78,
+      matched_devices: [
+        { entity_id: 'climate.living_room', domain: 'climate', friendly_name: 'Living Room Thermostat', area_name: 'Living Room' },
+      ],
+      use_case: 'energy',
+      status: 'pending',
+      created_at: '2026-03-01T12:00:00Z',
+      updated_at: '2026-03-01T12:00:00Z',
+    },
+  ];
+
+  const mockStats = {
+    total_suggestions: 3,
+    pending_count: 3,
+    accepted_count: 0,
+    declined_count: 0,
+    average_score: 0.85,
+    min_score: 0.78,
+    max_score: 0.92,
+  };
+
+  test.beforeEach(async ({ page }) => {
+    // Mock the suggestions API
+    await page.route('**/api/blueprint-suggestions/suggestions*', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ suggestions: mockSuggestions, total: mockSuggestions.length, limit: 50, offset: 0 }),
+      });
+    });
+
+    // Mock the stats API
+    await page.route('**/api/blueprint-suggestions/stats', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockStats),
+      });
+    });
+
+    await page.goto('http://localhost:3001/?source=blueprints');
+    await page.waitForLoadState('networkidle');
+  });
+
+  test('@smoke Blueprint suggestions render in the list', async ({ page }) => {
+    // All 3 suggestions should be visible as cards
+    const cards = page.locator('h3');
+    await expect(cards.filter({ hasText: 'Motion-Activated Lights' })).toBeVisible();
+    await expect(cards.filter({ hasText: 'Night Security Lockdown' })).toBeVisible();
+    await expect(cards.filter({ hasText: 'Energy Saver Schedule' })).toBeVisible();
+  });
+
+  test('Blueprint cards show correct scores', async ({ page }) => {
+    await expect(page.locator('text=Score:').first()).toBeVisible();
+    // 0.92 * 100 = 92%
+    await expect(page.getByText('92%').first()).toBeVisible();
+    await expect(page.getByText('85%').first()).toBeVisible();
+    await expect(page.getByText('78%').first()).toBeVisible();
+  });
+
+  test('Blueprint cards show matched devices', async ({ page }) => {
+    await expect(page.getByText('Hallway Motion')).toBeVisible();
+    await expect(page.getByText('Hallway Ceiling Light')).toBeVisible();
+    await expect(page.getByText('Front Door Lock')).toBeVisible();
+    await expect(page.getByText('Home Alarm')).toBeVisible();
+    await expect(page.getByText('Living Room Thermostat')).toBeVisible();
+  });
+
+  test('Blueprint cards show use case badges', async ({ page }) => {
+    await expect(page.getByText('convenience').first()).toBeVisible();
+    await expect(page.getByText('security').first()).toBeVisible();
+    await expect(page.getByText('energy').first()).toBeVisible();
+  });
+
+  test('Stats reflect mocked data', async ({ page }) => {
+    // Total = 3, Pending = 3, Accepted = 0, Avg Score = 85%
+    const totalCard = page.locator('text=Total').locator('..');
+    await expect(totalCard.getByText('3')).toBeVisible();
+
+    const pendingCard = page.locator('text=Pending').locator('..').first();
+    await expect(pendingCard.getByText('3')).toBeVisible();
+
+    await expect(page.getByText('85%').first()).toBeVisible();
+  });
+
+  test('Accept and Decline buttons are enabled for pending suggestions', async ({ page }) => {
+    const acceptButtons = page.getByRole('button', { name: 'Accept' });
+    const declineButtons = page.getByRole('button', { name: 'Decline' });
+
+    expect(await acceptButtons.count()).toBe(3);
+    expect(await declineButtons.count()).toBe(3);
+
+    // All should be enabled since status is pending
+    for (let i = 0; i < 3; i++) {
+      await expect(acceptButtons.nth(i)).toBeEnabled();
+      await expect(declineButtons.nth(i)).toBeEnabled();
+    }
+  });
+
+  test('Empty state is NOT shown when suggestions exist', async ({ page }) => {
+    await expect(page.getByText('No Blueprint Suggestions Yet')).not.toBeVisible();
   });
 });
 

@@ -3,8 +3,14 @@
 # Each domain launches as a separate Docker Desktop group (via compose name: directive).
 #
 # Usage:
-#   ./scripts/start-stack.sh              # Full startup with health polling
-#   ./scripts/start-stack.sh --skip-wait  # Skip health polling after core-platform
+#   ./scripts/start-stack.sh                         # Default profile services only
+#   ./scripts/start-stack.sh --all-profiles           # Include production-profile services
+#   ./scripts/start-stack.sh --skip-wait              # Skip health polling after core-platform
+#   ./scripts/start-stack.sh --all-profiles --skip-wait
+#
+# IMPORTANT: This script starts each domain via its own compose file to ensure
+# containers get the correct 'homeiq-<domain>' project name in Docker Desktop.
+# Never use the root docker-compose.yml with --profile production directly.
 
 set -euo pipefail
 
@@ -12,9 +18,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 SKIP_WAIT=false
-if [[ "${1:-}" == "--skip-wait" ]]; then
-  SKIP_WAIT=true
-fi
+ALL_PROFILES=false
+for arg in "$@"; do
+  case "$arg" in
+    --skip-wait) SKIP_WAIT=true ;;
+    --all-profiles) ALL_PROFILES=true ;;
+  esac
+done
 
 # Colors
 GREEN='\033[0;32m'
@@ -77,8 +87,13 @@ start_domain() {
     return 1
   fi
 
-  log_info "Starting $domain..."
-  docker compose -f "$compose_file" up -d
+  local profile_flags=()
+  if [[ "$ALL_PROFILES" == "true" ]]; then
+    profile_flags+=(--profile production)
+  fi
+
+  log_info "Starting $domain${ALL_PROFILES:+ (all profiles)}..."
+  docker compose -f "$compose_file" "${profile_flags[@]}" up -d
   log_ok "$domain started."
 }
 
@@ -99,6 +114,11 @@ for domain in "${DOMAINS[@]:1}"; do
   start_domain "$domain"
 done
 
+# --- Verify project groups ---
+echo ""
+log_info "Verifying Docker project group assignments..."
+"$SCRIPT_DIR/domain.sh" verify || log_timeout "Some containers in wrong project group — run './scripts/domain.sh verify' for details."
+
 # --- Summary ---
 echo ""
 echo "=========================================="
@@ -110,4 +130,5 @@ done
 echo ""
 echo "Use './scripts/domain.sh status <domain>' to check individual domains."
 echo "Use './scripts/domain.sh logs <domain> [service]' to view logs."
+echo "Use './scripts/domain.sh verify' to check project group assignments."
 echo "=========================================="

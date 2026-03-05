@@ -36,7 +36,7 @@ export class BlueprintSuggestionsPage {
     await Promise.race([
       this.page.waitForSelector('text=Total', { timeout: 5000 }).catch(() => null),
       this.page.waitForSelector('text=Loading suggestions...', { timeout: 5000 }).catch(() => null),
-      this.page.waitForSelector('text=No suggestions found', { timeout: 5000 }).catch(() => null),
+      this.page.waitForSelector('text=No Blueprint Suggestions Yet', { timeout: 5000 }).catch(() => null),
     ]);
     
     // Wait for loading to complete
@@ -296,7 +296,7 @@ export class BlueprintSuggestionsPage {
    * Get empty state message
    */
   getEmptyState(): Locator {
-    return this.page.locator('text=No suggestions found');
+    return this.page.locator('text=No Blueprint Suggestions Yet');
   }
 
   /**
