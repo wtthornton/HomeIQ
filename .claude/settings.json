@@ -3,7 +3,8 @@
     "allow": [
       "Bash(egrep:*)",
       "mcp__tapps-mcp__*",
-      "mcp__tapps-mcp"
+      "mcp__tapps-mcp",
+      "mcp__playwright__*"
     ]
   },
   "hooks": {

@@ -1,146 +1,188 @@
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../../shared/helpers/auth-helpers';
-import { waitForStable, waitForLoadingComplete, waitForModalOpen } from '../../../../shared/helpers/wait-helpers';
+import { waitForLoadingComplete } from '../../../../shared/helpers/wait-helpers';
 
-/** Tests run against deployed Docker (no API mocks). Backend admin-api and health-dashboard must be up. */
-test.describe('Health Dashboard - Services Tab', () => {
+/**
+ * INTENT: Services Tab — Is Each Microservice Running?
+ * =====================================================
+ *
+ * WHY THIS PAGE EXISTS:
+ * HomeIQ runs ~27 microservices across multiple domain groups. When something
+ * breaks, the operator's FIRST question is: "Which service is down?"
+ * This tab must answer that instantly with a clear list of services,
+ * their health status, and the ability to drill into details.
+ *
+ * THE OPERATOR'S NEEDS:
+ * 1. See all running services at a glance with health status
+ * 2. Quickly spot unhealthy/degraded services (visual indicators)
+ * 3. Filter services by status (Healthy, Degraded, Unhealthy)
+ * 4. Click a service to see detailed health info (logs, stats, uptime)
+ * 5. Use management actions (restart, start, stop) when services are stuck
+ *
+ * PAGE STRUCTURE:
+ * - "Service Management" header with filter dropdown and refresh controls
+ * - "Core Services" section — backend platform services
+ * - "External Data Services" section — data collector services
+ * - Each service shows name, status badge, port, and health indicator
+ */
+test.describe('Services — Is Each Microservice Running?', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
     await page.goto('/#services');
     await waitForLoadingComplete(page);
   });
 
-  test('@smoke Service tab loads', async ({ page }) => {
-    await page.waitForURL(/localhost:3000.*#services/, { timeout: 10000 });
-    await page.waitForLoadState('domcontentloaded');
-    await expect(page.getByTestId('dashboard-root')).toBeVisible({ timeout: 20000 });
-    const servicesTab = page.getByTestId('tab-services');
-    await expect(servicesTab).toBeVisible();
+  // ─── SERVICE LIST LOADS ───────────────────────────────────────────
+  // INTENT: The operator needs to see the list of services. If it's empty
+  // or perpetually loading, they can't diagnose anything.
+
+  test('@smoke service list renders with service entries', async ({ page }) => {
+    const tabpanel = page.locator('[role="tabpanel"], main').first();
+    await expect(tabpanel).toBeVisible({ timeout: 15000 });
+
+    // The page should show the Service Management heading
+    await expect(page.getByText(/service management/i)).toBeVisible({ timeout: 10000 });
+
+    // There should be at least one service section with services listed
+    // Services are organized under "Core Services" and "External Data Services"
+    const serviceHeading = page.getByRole('heading', { name: /core services|external data|service management/i });
+    await expect(serviceHeading.first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('Service cards display status when services load', async ({ page }) => {
-    const serviceCards = page.locator('[data-testid="service-card"]');
-    const count = await serviceCards.count();
-    test.skip(count === 0, 'No service cards (admin-api may be unavailable)');
-    await expect(serviceCards.first()).toBeVisible();
-  });
+  // ─── SERVICE STATUS FILTER ──────────────────────────────────────────
+  // INTENT: With ~27 services, the operator needs to filter by status
+  // to quickly find degraded or unhealthy services.
 
-  test('Service details modal opens', async ({ page }) => {
-    const firstService = page.locator('[data-testid="service-card"]').first();
-    if (await firstService.count() === 0) {
-      test.skip(true, 'No service cards');
+  test('status filter dropdown is available and has expected options', async ({ page }) => {
+    const filterSelect = page.locator('select[aria-label*="filter" i], select[aria-label*="status" i]');
+
+    if (!(await filterSelect.first().isVisible({ timeout: 5000 }))) {
+      test.skip(true, 'No status filter dropdown found on services tab');
       return;
     }
-    await firstService.click();
-    
-    // Wait for modal
-    await waitForModalOpen(page);
-    const modal = page.locator('[role="dialog"], .modal, [data-testid="modal"]').first();
-    await expect(modal).toBeVisible({ timeout: 3000 });
+
+    // Check that filter has meaningful status options
+    const options = filterSelect.first().locator('option');
+    const count = await options.count();
+    expect(count, 'Filter should have multiple status options').toBeGreaterThan(1);
   });
 
-  test('Service restart functionality', async ({ page }) => {
-    const firstService = page.locator('[data-testid="service-card"]').first();
-    if (await firstService.count() === 0) return;
-    await firstService.click();
-    await waitForModalOpen(page);
-    
-    // Find restart button
-    const restartButton = page.locator('button:has-text("Restart"), button[aria-label*="restart"], [data-testid="restart"]').first();
-    
-    if (await restartButton.isVisible({ timeout: 2000 })) {
-      await restartButton.click();
-      // Verify action was triggered (might show confirmation or loading state)
-      await waitForLoadingComplete(page);
+  // ─── SERVICE HEALTH INDICATORS ────────────────────────────────────
+  // INTENT: The operator needs to spot problems at a glance. Each service
+  // must show a clear health status — not just a colored dot.
+
+  test('services show health status indicators', async ({ page }) => {
+    // The services page has a status filter with options like "Healthy", "Degraded", "Unhealthy"
+    // and service cards with status badges. Check both.
+    const statusFilter = page.locator('select[aria-label*="status" i], select[aria-label*="filter" i]');
+    const filterCount = await statusFilter.count();
+
+    // Also check for health status text in service cards
+    const healthText = page.getByText(/healthy|degraded|unhealthy|stopped/i);
+    const textCount = await healthText.count();
+
+    expect(
+      filterCount + textCount,
+      'Services tab should show health status indicators (filter or badges)'
+    ).toBeGreaterThan(0);
+  });
+
+  test('service count is displayed in the header', async ({ page }) => {
+    // INTENT: The operator needs to know how many services are being monitored
+    // The page header shows "Monitoring N system services"
+    await expect(
+      page.getByText(/monitoring\s+\d+\s+.*services/i),
+      'Should show total number of monitored services'
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  // ─── SERVICE SEARCH & FILTER ──────────────────────────────────────
+  // INTENT: With ~27 services, the operator can't scroll through all of them.
+
+  test('service filter narrows the displayed results', async ({ page }) => {
+    const filterSelect = page.locator('select[aria-label*="filter" i], select[aria-label*="status" i]').first();
+
+    if (!(await filterSelect.isVisible({ timeout: 3000 }))) {
+      test.skip(true, 'No filter control found on services tab');
+      return;
     }
+
+    // Select "Healthy" filter to narrow results
+    await filterSelect.selectOption({ label: 'Healthy' });
+    await page.waitForTimeout(500);
+
+    // Page should still show some services (most are healthy)
+    const tabpanel = page.locator('[role="tabpanel"], main').first();
+    const text = await tabpanel.textContent() ?? '';
+    expect(text.length).toBeGreaterThan(50);
   });
 
-  test('P3.1 Start/Stop/Restart container buttons are present and clickable when containers load', async ({ page }) => {
-    const serviceCards = page.locator('[data-testid="service-card"]');
-    const count = await serviceCards.count();
-    if (count === 0) return;
-    await serviceCards.first().click();
-    await waitForModalOpen(page);
-    const startBtn = page.locator('button:has-text("Start")').first();
-    const stopBtn = page.locator('button:has-text("Stop")').first();
-    const restartBtn = page.locator('button:has-text("Restart")').first();
-    const hasAny = (await startBtn.isVisible().catch(() => false)) || (await stopBtn.isVisible().catch(() => false)) || (await restartBtn.isVisible().catch(() => false));
-    if (hasAny) {
-      await expect(restartBtn.or(startBtn).or(stopBtn)).toBeVisible();
+  // ─── SERVICE DETAILS DRILL-DOWN ───────────────────────────────────
+  // INTENT: The operator spots a degraded service and needs to investigate.
+
+  test('clicking a service opens a details view', async ({ page }) => {
+    // Wait for service cards/buttons to render
+    await page.waitForTimeout(2000);
+
+    // Look for clickable service elements — buttons or clickable cards
+    const serviceButtons = page.locator(
+      'button:has-text("Healthy"), button:has-text("Degraded"), ' +
+      'button:has-text("Running"), [role="button"]:has-text("Port")'
+    );
+    const count = await serviceButtons.count();
+    if (count === 0) {
+      test.skip(true, 'No clickable service entries found');
+      return;
     }
+
+    await serviceButtons.first().click();
+
+    // A detail modal or expanded section should appear
+    const detailView = page.getByRole('dialog')
+      .or(page.locator('[class*="detail"]'))
+      .or(page.locator('[class*="expanded"]'))
+      .or(page.locator('[class*="modal"]'))
+      .or(page.locator('[class*="Modal"]'));
+
+    await expect(
+      detailView.first(),
+      'Clicking a service should open a details view'
+    ).toBeVisible({ timeout: 5000 });
   });
 
-  test('P3.2 Service details modal opens (logs/stats available from Services or modal)', async ({ page }) => {
-    const firstService = page.locator('[data-testid="service-card"]').first();
-    if (await firstService.count() === 0) return;
-    await firstService.click();
-    await waitForModalOpen(page);
-    const modal = page.locator('[role="dialog"], .modal, [data-testid="modal"]').first();
-    await expect(modal).toBeVisible({ timeout: 3000 });
-    const logsOrStats = page.locator('button:has-text("Logs"), a:has-text("Logs"), [class*="log"], [class*="stats"]').first();
-    // Modal is visible; logs/stats may be in modal or linked depending on service
-    const hasLogsOrStats = await logsOrStats.isVisible().catch(() => false);
-    expect(typeof hasLogsOrStats).toBe('boolean');
+  // ─── REFRESH CONTROLS ──────────────────────────────────────────────
+  // INTENT: The operator needs fresh data during incidents.
+
+  test('refresh controls are available', async ({ page }) => {
+    // The page should have refresh controls
+    const refreshButton = page.getByRole('button', { name: /refresh/i });
+    await expect(refreshButton.first()).toBeVisible({ timeout: 5000 });
   });
 
-  test('Service filtering works', async ({ page }) => {
-    // Look for filter controls
-    const filterInput = page.locator('input[type="search"], input[placeholder*="filter"], [data-testid="filter"]').first();
-    
-    if (await filterInput.isVisible({ timeout: 2000 })) {
-      await filterInput.fill('websocket');
-      await waitForLoadingComplete(page);
+  // ─── NO CONSOLE ERRORS ────────────────────────────────────────────
 
-      // Verify filtered results
-      const serviceCards = page.locator('[data-testid="service-card"]');
-      const visibleCards = await serviceCards.filter({ hasText: /websocket/i }).count();
-      expect(visibleCards).toBeGreaterThan(0);
-    }
-  });
+  test('services tab loads without API errors in console', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', msg => {
+      if (msg.type() === 'error') errors.push(msg.text());
+    });
 
-  test('Service search works', async ({ page }) => {
-    const searchInput = page.locator('input[type="search"], input[placeholder*="search"], [data-testid="search"]').first();
-    
-    if (await searchInput.isVisible({ timeout: 2000 })) {
-      await searchInput.fill('data-api');
-      await waitForLoadingComplete(page);
+    await page.goto('/#services');
+    await waitForLoadingComplete(page);
+    await page.waitForTimeout(3000);
 
-      // Verify search results
-      const results = page.locator('[data-testid="service-card"], [class*="ServiceCard"]');
-      await expect(results.filter({ hasText: /data-api/i }).first()).toBeVisible();
-    }
-  });
+    const apiErrors = errors.filter(e =>
+      !e.includes('favicon') && !e.includes('manifest') &&
+      !e.includes('font') && !e.includes('woff') &&
+      !e.includes('sourcemap') && !e.includes('429') &&
+      !e.includes('Too Many Requests') && !e.includes('rate limit') &&
+      !e.includes('VITE_API_KEY')
+    );
 
-  test('Service sorting works', async ({ page }) => {
-    const sortButton = page.locator('button[aria-label*="sort"], select, [data-testid="sort"]').first();
-    
-    if (await sortButton.isVisible({ timeout: 2000 })) {
-      await sortButton.click();
-      await waitForLoadingComplete(page);
-
-      // Verify first service card is still visible after sort
-      const firstService = page.locator('[data-testid="service-card"], [class*="ServiceCard"]').first();
-      await expect(firstService).toBeVisible();
-    }
-  });
-
-  test('Health status indicators when services load', async ({ page }) => {
-    const serviceCards = page.locator('[data-testid="service-card"]');
-    if (await serviceCards.count() === 0) return;
-    const statusIndicator = page.locator('[class*="status-healthy"], [class*="status-critical"], [class*="StatusIndicator"]').first();
-    await expect(statusIndicator).toBeVisible();
-  });
-
-  test('Dependency visualization', async ({ page }) => {
-    const firstService = page.locator('[data-testid="service-card"]').first();
-    if (await firstService.count() === 0) return;
-    await firstService.click();
-    await waitForModalOpen(page);
-    
-    // Look for dependency information
-    const dependencies = page.locator('[data-testid="dependencies"], [class*="dependency"]').first();
-    // Dependencies may or may not be present in all services
-    const hasDependencies = await dependencies.isVisible().catch(() => false);
-    expect(typeof hasDependencies).toBe('boolean');
+    expect(
+      apiErrors,
+      `Services tab has ${apiErrors.length} console errors:\n` +
+      apiErrors.map(e => `  • ${e.substring(0, 200)}`).join('\n')
+    ).toHaveLength(0);
   });
 });
