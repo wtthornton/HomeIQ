@@ -61,6 +61,7 @@
 
 ### Fixed
 
+- **Epic 37 — Intent-based E2E test rewrite (55 files, 189 tests)** (b8fe047) - Bill Thornton
 - **blueprint port refs, health monitoring, schema init, Docker tooling** (1c0bb5f) - Bill Thornton
 - **create missing automation schema tables (suggestions, plans, deployments)** (793ca15) - Bill Thornton
 - **Epic 36 — E2E Playwright test remediation (36 failures → 0, 160/167 pass)** (d46ef41) - Bill Thornton

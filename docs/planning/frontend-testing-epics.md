@@ -2,8 +2,12 @@
 
 **Created:** 2026-03-02
 **Based on:** Automated agent review of all 3 frontend apps
-**Status:** Ready for execution
+**Status:** In Progress — Epic 37 (E2E intent-based rewrite) complete
 **Supersedes:** Frontend Epics Roadmap Epic 5 (generic testing framework) — this plan is detailed and actionable
+
+> **Epic 37 (Complete — 2026-03-05):** All 55 Playwright E2E test files rewritten with
+> intent-based methodology across Health Dashboard (30 files) and AI Automation UI (21 files).
+> 157/189 tests passing (83%), 20 skipped. Commit `b8fe047`.
 
 ---
 
