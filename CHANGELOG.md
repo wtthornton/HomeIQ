@@ -4,6 +4,45 @@
 
 ### Added
 
+- **Epic 37 — Intent-based E2E test rewrite (55 files, 189 tests)** (b8fe047) - Bill Thornton
+- **Sprints 5-6 — Sapphire-inspired HA enhancements (Epics 25-28, 22 stories)** (0cbb537) - Bill Thornton
+- **feat(data-api,device-intelligence,ai-automation-ui): devices endpoints, team tracker API, and UI updates** (24e3821) - Bill Thornton
+
+### Changed
+
+- **Sprint 4 Wave 4 — final 2 services migrated (ha-simulator + observability)** (ca40d3c) - Bill Thornton
+- **Sprint 4 Wave 3 — 10 service migrations (aiohttp conversions + Tier 1)** (c06cd2f) - Bill Thornton
+- **Sprint 4 Wave 2 — 14 service migrations (ML, automation, energy, collectors)** (14755a5) - Bill Thornton
+- **Sprint 4 Wave 1 — frontend upgrades + 12 service migrations** (9403372) - Bill Thornton
+- **refactor(infra): Sprint 3 Docker breakout — Epics 21-24 complete** (e99e356) - Bill Thornton
+- **refactor(epic-19): remediate 3 lowest-scoring services to pass 70+ quality gate** (7aa819b) - Bill Thornton
+- **refactor(data-collectors): Epic 18 quality remediation — all 8 services pass 70+ gate** (16e8e93) - Bill Thornton
+- **refactor(core-platform): decompose websocket-ingestion & data-api for quality gate 80+ (Stories 17.2, 17.3)** (c4ad4d2) - Bill Thornton
+- **refactor(admin-api): decompose main.py for quality gate 80+ (Story 17.1)** (367da52) - Bill Thornton
+- **refactor(openai): migrate from chat.completions to responses API** (8bc7fd5) - Bill Thornton
+
+### Fixed
+
+- **blueprint port refs, health monitoring, schema init, Docker tooling** (1c0bb5f) - Bill Thornton
+- **create missing automation schema tables (suggestions, plans, deployments)** (793ca15) - Bill Thornton
+- **Epic 36 — E2E Playwright test remediation (36 failures → 0, 160/167 pass)** (d46ef41) - Bill Thornton
+- **resolve 4 service failures — ai-core crash loop, ai-automation config, calendar deps, InfluxDB auth** (c090f11) - Bill Thornton
+- **fix(deploy): Epic 8 Phase 5 production deployment — 52/53 services healthy** (bfeed7e) - Bill Thornton
+- **fix(docker): remove tailwind.config.js COPY from frontend Dockerfiles** (c70ebe0) - Bill Thornton
+- **fix(quality): remediate 5 services to pass TAPPS quality gate (Epic 19.4-19.7)** (41f3d83) - Bill Thornton
+- **fix(lint): suppress S104 bind-all warnings in remaining Docker services** (c1b5e11) - Bill Thornton
+- **fix(lint): resolve UP017, UP041, DTZ003 across 215 Python files** (96f9125) - Bill Thornton
+- **fix(lint): resolve I001, F401, ARG001/ARG002 across domains/ and libs/** (398e074) - Bill Thornton
+- **fix(scripts): verify-deployment use correct alerts URL and allow 401** (168e345) - Bill Thornton
+- **fix(calendar-service): pass full URL to InfluxDBClient3 host param** (7465a72) - Bill Thornton
+- **fix(carbon-intensity): align compose InfluxDB defaults with actual instance** (c01270f) - Bill Thornton
+- **fix(carbon-intensity): pass full URL to InfluxDBClient3 (fixes HTTPS/443 default)** (214c5f3) - Bill Thornton
+- **fix(carbon-intensity): fix 6 bugs, clean dead fields, upgrade tests to WattTime v3** (74cb87b) - Bill Thornton
+- **fix(infrastructure): correct 10 health check ports, 3 live service port bugs, and update 7 stale docs** (55b1eee) - Bill Thornton
+
+
+### Added
+
 - **Sprints 5-6 — Sapphire-inspired HA enhancements (Epics 25-28, 22 stories)** (0cbb537) - Bill Thornton
 - **feat(data-api,device-intelligence,ai-automation-ui): devices endpoints, team tracker API, and UI updates** (24e3821) - Bill Thornton
 
