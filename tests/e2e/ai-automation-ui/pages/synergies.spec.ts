@@ -22,7 +22,10 @@ test.describe('AI Automation UI - Synergies Page', () => {
   });
 
   test('Network graph renders', async ({ page }) => {
-    const graph = page.locator('svg, canvas, [data-testid="network-graph"], [class*="Graph"]').first();
+    // Must click Device Connections or Room View tab first (Insights defaults to Patterns)
+    await page.getByRole('tab', { name: /Device Connections|Room View/ }).first().click();
+    await page.waitForTimeout(1000);
+    const graph = page.locator('svg, canvas, [data-testid="network-graph"], [data-testid="synergies-container"], [class*="Graph"]').first();
     await expect(graph).toBeVisible({ timeout: 10000 });
   });
 

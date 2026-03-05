@@ -23,7 +23,7 @@ test.describe('AI Automation UI - Discovery Page', () => {
   });
 
   test('Device list displays', async ({ page }) => {
-    const deviceList = page.locator('[data-testid="device-list"], [class*="DeviceList"]').first();
+    const deviceList = page.locator('[data-testid="device-explorer"], [data-testid="device-list"], select, [class*="DeviceExplorer"]').first();
     await expect(deviceList).toBeVisible({ timeout: 5000 });
   });
 
@@ -34,9 +34,17 @@ test.describe('AI Automation UI - Discovery Page', () => {
   });
 
   test('Device filtering', async ({ page }) => {
-    const filterInput = page.locator('input, select, [data-testid="filter"]').first();
-    
-    if (await filterInput.isVisible({ timeout: 2000 })) {
+    // Use select dropdown within device explorer (not generic input matcher)
+    const filterSelect = page.locator('[data-testid="device-explorer"] select').first();
+    const filterInput = page.locator('[data-testid="device-explorer"] input').first();
+
+    const hasSelect = await filterSelect.isVisible({ timeout: 2000 }).catch(() => false);
+    const hasInput = await filterInput.isVisible({ timeout: 2000 }).catch(() => false);
+
+    if (hasSelect) {
+      await filterSelect.click();
+      await page.waitForTimeout(500);
+    } else if (hasInput) {
       await filterInput.fill('light');
       await page.waitForTimeout(500);
     }

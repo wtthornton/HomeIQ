@@ -123,7 +123,7 @@ export class HouseStatusEventBus {
     if (msg.type === 'delta') {
       // Delta — update cached state and notify.
       if (this.currentStatus && msg.section) {
-        (this.currentStatus as Record<string, unknown>)[msg.section] = msg.data;
+        (this.currentStatus as unknown as Record<string, unknown>)[msg.section] = msg.data;
         this.currentStatus.timestamp = new Date().toISOString();
       }
       this._emit(msg.section, msg.data);

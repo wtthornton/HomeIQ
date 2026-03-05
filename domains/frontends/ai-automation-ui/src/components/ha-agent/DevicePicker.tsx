@@ -344,13 +344,14 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
                     )}
                   </div>
                 ) : (
-                  <div className="p-2" role="listbox" aria-label="Devices">
+                  <div className="p-2" role="listbox" aria-label="Devices" data-testid="device-list">
                     {filteredDevices.map((device) => {
                       const isSelected = device.device_id === selectedDeviceId;
                       
                       return (
                         <motion.div
                           key={device.device_id}
+                          data-testid="device-item"
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           role="option"

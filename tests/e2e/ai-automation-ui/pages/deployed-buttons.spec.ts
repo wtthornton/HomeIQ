@@ -172,12 +172,12 @@ test.describe('Deployed Automations - Button Functionality', () => {
     const firstAutomation = automations.first();
 
     // Check if automation is enabled (state = 'on')
-    const statusBadge = firstAutomation.locator('text=/✅ Enabled|⏸️ Disabled/');
+    const statusBadge = firstAutomation.locator('text=/Enabled|Disabled/');
     const isEnabled = (await statusBadge.textContent())?.includes('Enabled') || false;
 
     // Find the Enable/Disable button
-    const toggleButton = firstAutomation.getByRole('button', { 
-      name: isEnabled ? /Disable/i : /Enable/i 
+    const toggleButton = firstAutomation.getByRole('button', {
+      name: isEnabled ? /Disable/i : /Enable/i
     });
 
     await expect(toggleButton).toBeVisible();
@@ -185,8 +185,8 @@ test.describe('Deployed Automations - Button Functionality', () => {
     // Click the button
     await toggleButton.click();
 
-    // Wait for toast notification
-    const toast = page.locator('.react-hot-toast, [role="status"]');
+    // Wait for toast notification (use .last() to get the react-hot-toast, not status badges)
+    const toast = page.locator('[role="status"][aria-live="polite"]').first();
     await expect(toast).toBeVisible({ timeout: 5000 });
 
     // Verify toast message
@@ -427,7 +427,7 @@ test.describe('Deployed Automations - Button Functionality', () => {
     const firstAutomation = automations.first();
 
     // Check status badge
-    const statusBadge = firstAutomation.locator('text=/✅ Enabled|⏸️ Disabled/');
+    const statusBadge = firstAutomation.locator('text=/Enabled|Disabled/');
     await expect(statusBadge).toBeVisible();
 
     // Check Enable/Disable button text matches state

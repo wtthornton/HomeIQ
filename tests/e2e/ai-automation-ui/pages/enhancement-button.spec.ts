@@ -11,6 +11,10 @@ import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
  */
 
 test.describe('Enhancement Button After Automation Creation', () => {
+  // These tests require live AI services (OpenAI API key, ha-ai-agent-service)
+  // Skip when AI services are not available
+  test.skip(!process.env.AI_SERVICES_AVAILABLE, 'Requires live AI services (set AI_SERVICES_AVAILABLE=true to run)');
+
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
     await page.goto('/chat');

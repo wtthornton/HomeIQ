@@ -280,6 +280,7 @@ export const ConversationalSuggestionCard: React.FC<Props> = memo(({
   return (
     <>
     <motion.div
+      data-testid="suggestion-card"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className={`rounded-xl border overflow-hidden shadow-lg backdrop-blur-sm ${

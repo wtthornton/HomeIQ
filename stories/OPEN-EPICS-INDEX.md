@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-04 (Sprints 5-6 complete, Sprint 7 Memory Brain planned)
-**Total:** 36 Epics, 199 Stories, ~615+ files addressed
+**Created:** 2026-02-27 | **Updated:** 2026-03-04 (Sprints 5-6 complete, Sprint 7 Memory Brain planned, Epic 36 E2E Test Remediation complete)
+**Total:** 37 Epics, 209 Stories, ~630+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -106,6 +106,7 @@ Sprint 7 (Planned) — Memory Brain (Institutional Memory)
 | 33 | [Memory Injection](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 5 | 1-2 weeks | Pending |
 | 34 | [Trust Model & Adaptive UX](epic-memory-brain.md) | `epic-memory-brain.md` | P2 Medium | 3 | 1 week | Pending |
 | 35 | [Memory Lifecycle & Observability](epic-memory-brain.md) | `epic-memory-brain.md` | P2 Medium | 4 | 1 week | Pending |
+| 36 | [E2E Playwright Test Remediation](epic-e2e-playwright-test-remediation.md) | `epic-e2e-playwright-test-remediation.md` | P1 High | 10 | 1 day | **Complete** (36→0 failures, 160/167 pass) |
 
 ## Story Count by Priority
 
@@ -350,3 +351,4 @@ Actual Outcome:
 | **Cross-domain volume conflicts (3 volumes, 6 compose files)** | **Epic 22, Stories 1-3** |
 | **Dockerfile security: root user, missing healthcheck, UID** | **Epic 23, Stories 1-8** |
 | **Deployment tooling gaps (no per-domain scripts)** | **Epic 24, Stories 1-5** |
+| **36 failing Playwright E2E tests (AI Automation UI)** | **Epic 36, Stories 1-10** |

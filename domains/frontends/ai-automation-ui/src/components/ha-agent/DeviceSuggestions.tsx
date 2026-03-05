@@ -184,6 +184,7 @@ export const DeviceSuggestions: React.FC<DeviceSuggestionsProps> = ({
             {suggestions.map((suggestion) => (
               <motion.div
                 key={suggestion.suggestion_id}
+                data-testid="suggestion-card"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}

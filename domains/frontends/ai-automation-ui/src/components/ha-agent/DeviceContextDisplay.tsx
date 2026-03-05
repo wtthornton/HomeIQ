@@ -103,7 +103,7 @@ export const DeviceContextDisplay: React.FC<DeviceContextDisplayProps> = ({
   }
 
   return (
-    <div className={`p-4 border-b ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+    <div data-testid="device-context" className={`p-4 border-b ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
           <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>

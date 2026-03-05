@@ -77,7 +77,7 @@ export const DeviceExplorer: React.FC<DeviceExplorerProps> = ({ devices, demoMod
   };
 
   return (
-    <div className="space-y-4">
+    <div data-testid="device-explorer" className="space-y-4">
       {/* Device Selector */}
       <div>
         <label className="block text-sm font-medium mb-2">

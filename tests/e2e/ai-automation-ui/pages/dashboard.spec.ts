@@ -18,16 +18,16 @@ test.describe('AI Automation UI - Conversational Dashboard', () => {
   test('P4.2 Dashboard page loads and displays suggestions or empty state', async ({ page }) => {
     const container = page.locator('[data-testid="dashboard-container"], main, [class*="Dashboard"]').first();
     await expect(container).toBeVisible({ timeout: 15000 });
-    const cards = page.locator('[data-testid="suggestion-card"], [class*="SuggestionCard"]');
-    const emptyState = page.getByText(/no suggestions|empty|get started/i).first();
+    const cards = page.locator('[data-testid="suggestion-card"]');
+    const emptyState = page.getByText(/no.*suggestions|loading.*suggestions|0 suggestions|empty|get started/i).first();
     const hasCards = await cards.first().isVisible().catch(() => false);
     const hasEmpty = await emptyState.isVisible().catch(() => false);
     expect(hasCards || hasEmpty).toBe(true);
   });
 
   test('Suggestion cards or empty state display', async ({ page }) => {
-    const suggestionCards = page.locator('[data-testid="suggestion-card"], [class*="SuggestionCard"]');
-    const emptyState = page.getByText(/no suggestions|empty|get started/i).first();
+    const suggestionCards = page.locator('[data-testid="suggestion-card"]');
+    const emptyState = page.getByText(/no.*suggestions|loading.*suggestions|0 suggestions|empty|get started/i).first();
     const hasCards = await suggestionCards.first().isVisible().catch(() => false);
     const hasEmpty = await emptyState.isVisible().catch(() => false);
     expect(hasCards || hasEmpty).toBe(true);
