@@ -164,9 +164,9 @@ services:
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_USERNAME=admin
       - INFLUXDB_PASSWORD=admin123
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=home_assistant_events
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-ha-ingestor-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
       - LOG_FORMAT=json

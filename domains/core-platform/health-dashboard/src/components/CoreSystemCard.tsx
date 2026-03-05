@@ -24,52 +24,52 @@ export interface CoreSystemCardProps {
   loading?: boolean;
 }
 
-const getStatusConfig = (status: string) => {
+const getStatusConfig = (status: string, darkMode: boolean) => {
   switch (status) {
     case 'healthy':
       return {
         icon: '✅',
         label: 'Healthy',
-        borderClass: 'border-green-500 dark:border-green-600',
-        bgClass: 'bg-green-50 dark:bg-green-900/20',
-        textClass: 'text-green-700 dark:text-green-300',
-        badgeClass: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+        borderClass: darkMode ? 'border-green-600' : 'border-green-500',
+        bgClass: darkMode ? 'bg-green-900/20' : 'bg-green-50',
+        textClass: darkMode ? 'text-green-300' : 'text-green-700',
+        badgeClass: darkMode ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800'
       };
     case 'degraded':
       return {
         icon: '⚠️',
         label: 'Degraded',
-        borderClass: 'border-yellow-500 dark:border-yellow-600',
-        bgClass: 'bg-yellow-50 dark:bg-yellow-900/20',
-        textClass: 'text-yellow-700 dark:text-yellow-300',
-        badgeClass: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
+        borderClass: darkMode ? 'border-yellow-600' : 'border-yellow-500',
+        bgClass: darkMode ? 'bg-yellow-900/20' : 'bg-yellow-50',
+        textClass: darkMode ? 'text-yellow-300' : 'text-yellow-700',
+        badgeClass: darkMode ? 'bg-yellow-900 text-yellow-200' : 'bg-yellow-100 text-yellow-800'
       };
     case 'unhealthy':
       return {
         icon: '❌',
         label: 'Unhealthy',
-        borderClass: 'border-red-500 dark:border-red-600',
-        bgClass: 'bg-red-50 dark:bg-red-900/20',
-        textClass: 'text-red-700 dark:text-red-300',
-        badgeClass: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+        borderClass: darkMode ? 'border-red-600' : 'border-red-500',
+        bgClass: darkMode ? 'bg-red-900/20' : 'bg-red-50',
+        textClass: darkMode ? 'text-red-300' : 'text-red-700',
+        badgeClass: darkMode ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800'
       };
     case 'paused':
       return {
         icon: '⏸️',
         label: 'Paused',
-        borderClass: 'border-gray-400 dark:border-gray-600',
-        bgClass: 'bg-gray-50 dark:bg-gray-800/50',
-        textClass: 'text-gray-700 dark:text-gray-300',
-        badgeClass: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+        borderClass: darkMode ? 'border-gray-600' : 'border-gray-400',
+        bgClass: darkMode ? 'bg-gray-800/50' : 'bg-gray-50',
+        textClass: darkMode ? 'text-gray-300' : 'text-gray-700',
+        badgeClass: darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'
       };
     default:
       return {
         icon: '❓',
         label: 'Unknown',
-        borderClass: 'border-gray-400 dark:border-gray-600',
-        bgClass: 'bg-gray-50 dark:bg-gray-800/50',
-        textClass: 'text-gray-700 dark:text-gray-300',
-        badgeClass: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+        borderClass: darkMode ? 'border-gray-600' : 'border-gray-400',
+        bgClass: darkMode ? 'bg-gray-800/50' : 'bg-gray-50',
+        textClass: darkMode ? 'text-gray-300' : 'text-gray-700',
+        badgeClass: darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'
       };
   }
 };
@@ -85,7 +85,7 @@ export const CoreSystemCard: React.FC<CoreSystemCardProps> = ({
   onExpand,
   loading = false
 }) => {
-  const statusConfig = getStatusConfig(status);
+  const statusConfig = getStatusConfig(status, darkMode);
 
   return (
     <div 

@@ -346,8 +346,12 @@ class StatsEndpoints:
             # Use shorter timeout for websocket-ingestion (5s instead of 10s)
             timeout = 5 if service_name == "websocket-ingestion" else 10
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
-                # Use /health endpoint for all services (most reliable)
-                stats_url = f"{service_url}/health"
+                # Use /health/detailed for websocket-ingestion (includes subscription stats),
+                # /health for everything else (most reliable)
+                if service_name == "websocket-ingestion":
+                    stats_url = f"{service_url}/health/detailed"
+                else:
+                    stats_url = f"{service_url}/health"
                 
                 try:
                     async with session.get(stats_url) as response:

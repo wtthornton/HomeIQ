@@ -23,7 +23,7 @@ class Settings(BaseServiceSettings):
     service_port: int = 8001
     service_name: str = "websocket-ingestion"
     influxdb_bucket: str = "home_assistant_events"
-    influxdb_org: str = "homeassistant"
+    influxdb_org: str = "homeiq"
 
     # Home Assistant connection (supports old + new variable names)
     ha_http_url: str | None = Field(default=None)
