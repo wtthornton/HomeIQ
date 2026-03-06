@@ -121,12 +121,12 @@ if [[ "$NO_DASHBOARD" != "true" ]]; then
   add_log "Pipeline starting" "info"
   add_log "Opening dashboard in browser..." "info"
   # Cross-platform browser open
-  if command -v xdg-open &>/dev/null; then
+  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
+    cmd.exe /c start "" "$DASHBOARD_HTML" 2>/dev/null &
+  elif command -v xdg-open &>/dev/null; then
     xdg-open "$DASHBOARD_HTML" 2>/dev/null &
   elif command -v open &>/dev/null; then
     open "$DASHBOARD_HTML" 2>/dev/null &
-  elif command -v start &>/dev/null; then
-    start "$DASHBOARD_HTML" 2>/dev/null &
   fi
 fi
 

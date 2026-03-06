@@ -264,8 +264,8 @@ claude --print `
     --max-turns 25 `
     $fixPrompt 2>$null
 
-# Check if anything was actually changed
-$changes = git status --porcelain
+# Check if anything was actually changed (ignore submodule drift)
+$changes = git status --porcelain --ignore-submodules
 if (-not $changes) {
     Add-LogEntry "No files were modified. Fixes may have failed." "error"
     Write-Dashboard -Step 3 -Status "error" -Message "No files were modified. Fixes may have failed."
@@ -361,7 +361,7 @@ Then run mcp__tapps-mcp__tapps_quick_check on each test file.
         --max-turns 20 `
         $testPrompt 2>$null
 
-    $testChanges = git status --porcelain
+    $testChanges = git status --porcelain --ignore-submodules
     if ($testChanges) {
         Add-LogEntry "Test generation complete." "success"
     } else {
@@ -376,11 +376,14 @@ Write-Host "[$commitStep/$totalSteps] Committing and creating PR..." -Foreground
 Add-LogEntry "Committing changes and creating PR..." "info"
 Write-Dashboard -Step $commitStep -Message "Committing and creating PR..." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugCount -FilesChanged $changedFilesCount -Validation "pass"
 
-$changedFiles = (git diff --name-only) -join ", "
+$changedFiles = (git diff --name-only --ignore-submodules) -join ", "
 $commitPrefix = if ($Chain) { "fix+refactor+test" } else { "fix" }
 $commitMsg = "$commitPrefix`: auto-fix $bugCount bugs across codebase`n`nBugs found and fixed by automated Claude Code analysis.`n`nFiles changed: $changedFiles"
 
-git add -A
+# Stage only tracked changes, excluding submodules
+git diff --name-only --ignore-submodules | ForEach-Object { git add -- $_ }
+# Also stage new files from chain test phase, excluding submodules
+git status --porcelain --ignore-submodules | Where-Object { $_ -match '^\?\?' } | ForEach-Object { git add -- $_.Substring(3) }
 git commit -m $commitMsg
 git push -u origin $Branch
 
