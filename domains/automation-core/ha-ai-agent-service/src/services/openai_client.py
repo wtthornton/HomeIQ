@@ -140,8 +140,8 @@ class OpenAIClient:
         # Use settings from config (set via environment variables)
         effective_model = self.model
         effective_reasoning = self.reasoning_effort
-        effective_max_tokens = max_tokens or self.max_tokens
-        effective_temperature = temperature or self.temperature
+        effective_max_tokens = max_tokens if max_tokens is not None else self.max_tokens
+        effective_temperature = temperature if temperature is not None else self.temperature
 
         @retry(
             retry=retry_if_exception_type((OpenAIRateLimitError, Exception)),
