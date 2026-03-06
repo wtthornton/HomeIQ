@@ -16,10 +16,14 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-data/ \
     /tmp/libs/homeiq-ha/
 
-# Copy requirements and install remaining dependencies
+# Copy requirements and install dependencies
 COPY domains/frontends/voice-gateway/requirements.txt .
+# Install openwakeword without deps (tflite-runtime doesn't support Python 3.12)
+# Then install onnxruntime as the backend
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --user -r requirements.txt
+    pip install --no-cache-dir --user openwakeword --no-deps && \
+    pip install --no-cache-dir --user onnxruntime>=1.18.0 && \
+    pip install --no-cache-dir --user -r requirements.txt --ignore-installed openwakeword
 
 # Production stage
 FROM python:3.12-slim AS production

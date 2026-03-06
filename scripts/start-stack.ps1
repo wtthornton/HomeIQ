@@ -55,14 +55,14 @@ function Wait-ForHealth {
 function Start-Domain {
     param([string]$DomainName)
 
-    $composeFile = Join-Path $ProjectRoot "domains" $DomainName "compose.yml"
+    $composeFile = Join-Path -Path $ProjectRoot -ChildPath "domains\$DomainName\compose.yml"
     if (-not (Test-Path $composeFile)) {
         Write-Host "[ERROR] Compose file not found: $composeFile" -ForegroundColor Red
         return
     }
 
     Write-Host "[INFO] Starting $DomainName..." -ForegroundColor Cyan
-    docker compose -f $composeFile up -d
+    & docker compose -f $composeFile up -d --pull always --force-recreate
     Write-Host "[OK] $DomainName started." -ForegroundColor Green
 }
 
