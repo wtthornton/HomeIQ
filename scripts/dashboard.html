@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="refresh" content="2">
+<title>HomeIQ Auto-Bugfix Dashboard</title>
+<style>
+  :root {
+    --teal: #14b8a6;
+    --teal-dark: #0d9488;
+    --teal-light: #99f6e4;
+    --bg: #0f172a;
+    --bg-card: #1e293b;
+    --bg-card-alt: #334155;
+    --text: #f1f5f9;
+    --text-dim: #94a3b8;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #eab308;
+    --orange: #f97316;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--teal);
+  }
+  .header h1 span { color: var(--text); font-weight: 400; }
+  .header-meta {
+    display: flex;
+    gap: 24px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .header-meta strong { color: var(--text); }
+
+  /* Status banner */
+  .status-banner {
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .status-running { background: rgba(20,184,166,0.15); border: 1px solid var(--teal); color: var(--teal-light); }
+  .status-done { background: rgba(34,197,94,0.15); border: 1px solid var(--green); color: var(--green); }
+  .status-error { background: rgba(239,68,68,0.15); border: 1px solid var(--red); color: var(--red); }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid transparent;
+    border-top-color: var(--teal);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  /* Pipeline steps */
+  .pipeline {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+  }
+  .step {
+    flex: 1;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    border: 1px solid transparent;
+    text-align: center;
+    position: relative;
+  }
+  .step-num {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .step-label { font-size: 14px; font-weight: 600; }
+  .step.completed { border-color: var(--green); }
+  .step.completed .step-label::before { content: '\2713 '; color: var(--green); }
+  .step.active { border-color: var(--teal); background: rgba(20,184,166,0.1); animation: pulse 2s ease-in-out infinite; }
+  .step.active .step-label { color: var(--teal-light); }
+  .step.pending .step-label { color: var(--text-dim); }
+  .step.error { border-color: var(--red); }
+  .step.error .step-label::before { content: '\2717 '; color: var(--red); }
+
+  /* Grid layout */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .grid-full { grid-column: 1 / -1; }
+
+  /* Cards */
+  .card {
+    background: var(--bg-card);
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .card h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h2 .count {
+    background: var(--teal);
+    color: var(--bg);
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+
+  /* Metadata list */
+  .meta-list { list-style: none; }
+  .meta-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 13px;
+  }
+  .meta-list li:last-child { border-bottom: none; }
+  .meta-list .label { color: var(--text-dim); }
+  .meta-list .value { font-weight: 600; font-family: 'Cascadia Code', 'Fira Code', monospace; }
+
+  /* Bug table */
+  .bug-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .bug-table th {
+    text-align: left;
+    padding: 8px 12px;
+    color: var(--text-dim);
+    font-weight: 500;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .bug-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: top;
+  }
+  .bug-table tr:hover { background: rgba(255,255,255,0.02); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .badge-high { background: rgba(239,68,68,0.2); color: var(--red); }
+  .badge-medium { background: rgba(249,115,22,0.2); color: var(--orange); }
+  .badge-low { background: rgba(234,179,8,0.2); color: var(--yellow); }
+  .badge-fixed { background: rgba(34,197,94,0.2); color: var(--green); }
+  .badge-pending { background: rgba(148,163,184,0.2); color: var(--text-dim); }
+
+  .file-path {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 12px;
+    color: var(--teal);
+  }
+
+  /* Validation results */
+  .validation-pass { color: var(--green); font-weight: 600; }
+  .validation-fail { color: var(--red); font-weight: 600; }
+
+  /* Activity log */
+  .log-container {
+    max-height: 260px;
+    overflow-y: auto;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg-card-alt) transparent;
+  }
+  .log-entry { padding: 2px 0; display: flex; gap: 10px; }
+  .log-time { color: var(--text-dim); white-space: nowrap; min-width: 70px; }
+  .log-msg { color: var(--text); }
+  .log-msg.info { color: var(--teal-light); }
+  .log-msg.success { color: var(--green); }
+  .log-msg.error { color: var(--red); }
+  .log-msg.warn { color: var(--yellow); }
+
+  /* PR card */
+  .pr-link {
+    color: var(--teal);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .pr-link:hover { text-decoration: underline; }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 32px;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  .empty .spinner { width: 24px; height: 24px; margin-bottom: 12px; }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    margin-top: 24px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="header">
+    <h1>HomeIQ <span>Auto-Bugfix</span></h1>
+    <div class="header-meta">
+      <span>Elapsed: <strong id="elapsed">--:--</strong></span>
+      <span>Refreshes in: <strong id="countdown">2</strong>s</span>
+    </div>
+  </div>
+
+  <div id="status-banner" class="status-banner status-running">
+    <div class="spinner"></div>
+    <span id="status-text">Initializing...</span>
+  </div>
+
+  <!-- Pipeline Steps -->
+  <div class="pipeline" id="pipeline">
+    <div class="step pending" id="step-1">
+      <div class="step-num">Step 1</div>
+      <div class="step-label">Branch</div>
+    </div>
+    <div class="step pending" id="step-2">
+      <div class="step-num">Step 2</div>
+      <div class="step-label">Scan</div>
+    </div>
+    <div class="step pending" id="step-3">
+      <div class="step-num">Step 3</div>
+      <div class="step-label">Fix & Validate</div>
+    </div>
+    <div class="step pending" id="step-4">
+      <div class="step-num">Step 4</div>
+      <div class="step-label">Commit & PR</div>
+    </div>
+    <div class="step pending" id="step-5">
+      <div class="step-num">Step 5</div>
+      <div class="step-label">Feedback</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- Run Info -->
+    <div class="card">
+      <h2>Run Info</h2>
+      <ul class="meta-list" id="run-info">
+        <li><span class="label">Branch</span><span class="value" id="meta-branch">--</span></li>
+        <li><span class="label">Base</span><span class="value" id="meta-base">--</span></li>
+        <li><span class="label">Target Bugs</span><span class="value" id="meta-target-bugs">--</span></li>
+        <li><span class="label">Started</span><span class="value" id="meta-start-time">--</span></li>
+        <li><span class="label">Working Dir</span><span class="value" id="meta-project-root">--</span></li>
+      </ul>
+    </div>
+
+    <!-- Results -->
+    <div class="card">
+      <h2>Results</h2>
+      <ul class="meta-list" id="results-info">
+        <li><span class="label">Bugs Found</span><span class="value" id="res-bugs-found">--</span></li>
+        <li><span class="label">Bugs Fixed</span><span class="value" id="res-bugs-fixed">--</span></li>
+        <li><span class="label">Files Changed</span><span class="value" id="res-files-changed">--</span></li>
+        <li><span class="label">Validation</span><span class="value" id="res-validation">--</span></li>
+        <li><span class="label">PR</span><span id="res-pr">--</span></li>
+      </ul>
+    </div>
+
+    <!-- Bug Table -->
+    <div class="card grid-full">
+      <h2>Bugs <span class="count" id="bug-count">0</span></h2>
+      <div id="bug-table-container">
+        <div class="empty" id="bug-empty">
+          <div class="spinner"></div>
+          <div>Waiting for scan results...</div>
+        </div>
+        <table class="bug-table" id="bug-table" style="display:none;">
+          <thead>
+            <tr>
+              <th style="width:30%">File</th>
+              <th style="width:5%">Line</th>
+              <th style="width:45%">Description</th>
+              <th style="width:10%">Severity</th>
+              <th style="width:10%">Status</th>
+            </tr>
+          </thead>
+          <tbody id="bug-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="card grid-full">
+      <h2>Activity Log <span class="count" id="log-count">0</span></h2>
+      <div class="log-container" id="log-container">
+        <div class="empty" id="log-empty">Waiting for activity...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    HomeIQ Auto-Bugfix Dashboard &middot; Auto-refreshes every 2 seconds &middot; Powered by Claude Code
+  </div>
+</div>
+
+<script>
+(function() {
+  // Read state from .dashboard-state.json (same directory as this HTML)
+  const STATE_FILE = '.dashboard-state.json';
+  let lastLogCount = 0;
+
+  function loadState() {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', STATE_FILE + '?t=' + Date.now(), false); // sync for simplicity
+    try {
+      xhr.send();
+      if (xhr.status === 200 || xhr.status === 0) { // status 0 for file://
+        return JSON.parse(xhr.responseText);
+      }
+    } catch(e) {}
+    return null;
+  }
+
+  function severityBadge(sev) {
+    const s = (sev || 'medium').toLowerCase();
+    return '<span class="badge badge-' + s + '">' + s + '</span>';
+  }
+
+  function statusBadge(status) {
+    if (status === 'fixed') return '<span class="badge badge-fixed">Fixed</span>';
+    if (status === 'failed') return '<span class="badge badge-high">Failed</span>';
+    return '<span class="badge badge-pending">Pending</span>';
+  }
+
+  function renderPipeline(currentStep, status) {
+    for (let i = 1; i <= 5; i++) {
+      const el = document.getElementById('step-' + i);
+      el.className = 'step';
+      if (status === 'error' && i === currentStep) {
+        el.classList.add('error');
+      } else if (i < currentStep) {
+        el.classList.add('completed');
+      } else if (i === currentStep) {
+        el.classList.add('active');
+      } else {
+        el.classList.add('pending');
+      }
+    }
+  }
+
+  function renderBugs(bugs) {
+    if (!bugs || bugs.length === 0) return;
+    document.getElementById('bug-empty').style.display = 'none';
+    document.getElementById('bug-table').style.display = 'table';
+    document.getElementById('bug-count').textContent = bugs.length;
+
+    const tbody = document.getElementById('bug-tbody');
+    tbody.innerHTML = '';
+    bugs.forEach(function(bug) {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="file-path">' + escHtml(bug.file || '') + '</td>' +
+        '<td>' + (bug.line || '--') + '</td>' +
+        '<td>' + escHtml(bug.description || '') + '</td>' +
+        '<td>' + severityBadge(bug.severity) + '</td>' +
+        '<td>' + statusBadge(bug.fix_status || 'pending') + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderLog(logs) {
+    if (!logs || logs.length === 0) return;
+    document.getElementById('log-empty').style.display = 'none';
+    document.getElementById('log-count').textContent = logs.length;
+
+    const container = document.getElementById('log-container');
+    // Only append new entries
+    for (let i = lastLogCount; i < logs.length; i++) {
+      const entry = logs[i];
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+      div.innerHTML =
+        '<span class="log-time">' + escHtml(entry.time || '') + '</span>' +
+        '<span class="log-msg ' + (entry.level || 'info') + '">' + escHtml(entry.msg || '') + '</span>';
+      container.appendChild(div);
+    }
+    lastLogCount = logs.length;
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function renderStatus(state) {
+    const banner = document.getElementById('status-banner');
+    const text = document.getElementById('status-text');
+    banner.className = 'status-banner';
+
+    if (state.status === 'running') {
+      banner.classList.add('status-running');
+      banner.innerHTML = '<div class="spinner"></div><span>' + escHtml(state.status_message || 'Running...') + '</span>';
+    } else if (state.status === 'done') {
+      banner.classList.add('status-done');
+      banner.innerHTML = '<span>\u2713 ' + escHtml(state.status_message || 'Complete!') + '</span>';
+    } else if (state.status === 'error') {
+      banner.classList.add('status-error');
+      banner.innerHTML = '<span>\u2717 ' + escHtml(state.status_message || 'Failed') + '</span>';
+    }
+  }
+
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function formatElapsed(startIso) {
+    if (!startIso) return '--:--';
+    var start = new Date(startIso).getTime();
+    var now = Date.now();
+    var sec = Math.floor((now - start) / 1000);
+    var m = Math.floor(sec / 60);
+    var s = sec % 60;
+    return m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0');
+  }
+
+  // Main render
+  var state = loadState();
+  if (state) {
+    // Metadata
+    document.getElementById('meta-branch').textContent = state.branch || '--';
+    document.getElementById('meta-base').textContent = state.base || '--';
+    document.getElementById('meta-target-bugs').textContent = state.target_bugs || '--';
+    document.getElementById('meta-start-time').textContent = state.start_time || '--';
+    document.getElementById('meta-project-root').textContent = state.project_root || '--';
+    document.getElementById('elapsed').textContent = formatElapsed(state.start_iso);
+
+    // Results
+    document.getElementById('res-bugs-found').textContent = state.bugs_found != null ? state.bugs_found : '--';
+    document.getElementById('res-bugs-fixed').textContent = state.bugs_fixed != null ? state.bugs_fixed : '--';
+    document.getElementById('res-files-changed').textContent = state.files_changed != null ? state.files_changed : '--';
+
+    var valEl = document.getElementById('res-validation');
+    if (state.validation === 'pass') {
+      valEl.innerHTML = '<span class="validation-pass">\u2713 PASS</span>';
+    } else if (state.validation === 'fail') {
+      valEl.innerHTML = '<span class="validation-fail">\u2717 FAIL</span>';
+    } else {
+      valEl.textContent = state.validation || '--';
+    }
+
+    var prEl = document.getElementById('res-pr');
+    if (state.pr_url) {
+      prEl.innerHTML = '<a class="pr-link" href="' + escHtml(state.pr_url) + '" target="_blank">' + escHtml(state.pr_url) + '</a>';
+    } else {
+      prEl.textContent = '--';
+    }
+
+    // Pipeline
+    renderPipeline(state.current_step || 1, state.status || 'running');
+
+    // Bugs
+    renderBugs(state.bugs);
+
+    // Log
+    renderLog(state.log);
+
+    // Status
+    renderStatus(state);
+
+    // Stop auto-refresh if done or error
+    if (state.status === 'done' || state.status === 'error') {
+      var metaRefresh = document.querySelector('meta[http-equiv="refresh"]');
+      if (metaRefresh) metaRefresh.remove();
+    }
+  }
+
+  // Countdown timer
+  var countdownEl = document.getElementById('countdown');
+  var cd = 2;
+  setInterval(function() {
+    cd = Math.max(0, cd - 1);
+    countdownEl.textContent = cd;
+  }, 1000);
+})();
+</script>
+</body>
+</html>

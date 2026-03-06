@@ -1,6 +1,9 @@
 # TappsMCP cache
 .tapps-mcp-cache/
 
+# Auto-bugfix dashboard state (ephemeral)
+scripts/.dashboard-state.json
+
 # Python
 __pycache__/
 *.py[cod]
