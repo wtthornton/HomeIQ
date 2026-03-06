@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-06 (Sprint 7 Memory Brain complete, all 37 epics done)
-**Total:** 37 Epics, 240 Stories, ~700+ files addressed
+**Created:** 2026-02-27 | **Updated:** 2026-03-06 (Sprint 8 planning: Pattern Detection + ML Upgrades)
+**Total:** 39 Epics, 258 Stories, ~700+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -64,6 +64,10 @@ Sprint 7 (COMPLETE — Mar 6, Agent Teams) — Memory Brain (Institutional Memor
 ├── Epic 33: Memory Injection [P1]                          ← COMPLETE (5 stories, all AI services query memory)
 ├── Epic 34: Trust Model & Adaptive UX [P2]                 ← COMPLETE (3 stories, per-domain trust)
 └── Epic 35: Memory Lifecycle & Observability [P2]          ← COMPLETE (4 stories, admin, dashboard, GC)
+
+Sprint 8 (PLANNED — Mar 2026) — Pattern Detection + ML Upgrades
+├── Epic 37: Pattern Detection Expansion [P1]               ← OPEN (10 stories, 8 new detectors)
+└── Epic 38: ML Dependencies Upgrade [P2]                   ← OPEN (8 stories, sentence-transformers 5.x + more)
 ```
 
 ## Epic Summary
@@ -107,16 +111,18 @@ Sprint 7 (COMPLETE — Mar 6, Agent Teams) — Memory Brain (Institutional Memor
 | 34 | [Trust Model & Adaptive UX](epic-memory-brain.md) | `epic-memory-brain.md` | P2 Medium | 3 | 1 week | **Complete** (API + dashboard widget) |
 | 35 | [Memory Lifecycle & Observability](epic-memory-brain.md) | `epic-memory-brain.md` | P2 Medium | 4 | 1 week | **Complete** (admin API, dashboard, self-heal) |
 | 36 | [E2E Playwright Test Remediation](epic-e2e-playwright-test-remediation.md) | `epic-e2e-playwright-test-remediation.md` | P1 High | 10 | 1 day | **Complete** (36→0 failures, 160/167 pass) |
+| 37 | [Pattern Detection Expansion](epic-pattern-detection-expansion.md) | `epic-pattern-detection-expansion.md` | P1 High | 10 | 2-3 weeks | **Open** (8 new detectors from stale branch) |
+| 38 | [ML Dependencies Upgrade](epic-ml-dependencies-upgrade.md) | `epic-ml-dependencies-upgrade.md` | P2 Medium | 8 | 1-2 weeks | **Open** (sentence-transformers 5.x) |
 
 ## Story Count by Priority
 
 | Priority | Count | Description |
 |----------|-------|-------------|
-| P0 Critical | 26 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) ✅ |
-| P1 High | 122 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory capture + injection (18) ✅ |
-| P2 Medium | 33 | Framework upgrades, feature integrations, background processing, Trust model + observability (7) ✅ |
-| P3 Low | 4 | ML model training, placeholder implementations |
-| **Total** | **240** | All complete (37 epics) |
+| P0 Critical | 28 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) + Embed Testing (2) ✅ |
+| P1 High | 132 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10) |
+| P2 Medium | 41 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8) |
+| P3 Low | 7 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3) |
+| **Total** | **258** | 240 complete (37 epics) + 18 open (2 epics) |
 
 ## Sprint 2 Results (COMPLETE — Mar 4, Agent Teams)
 
@@ -306,6 +312,8 @@ Actual Outcome:
 | Mar 4 | Sprint 5 complete — Epics 25+28 (device control + event bus), 32 files, 2 new services |
 | Mar 4 | Sprint 6 complete — Epics 26+27 (voice gateway + scheduled tasks), 32 files |
 | Mar 6 | Sprint 7 complete — Epics 29-35 (Memory Brain), homeiq-memory lib + 8 service integrations |
+| Mar 6 | Sprint 8 planned — Epics 37-38 (Pattern Detection + ML Upgrades) from stale branch review |
+| Mar 6 | Production redeployed — 51/51 containers healthy (voice-gateway + health check fixes) |
 | ~Mar 17 | Production deployment eligible (DB migration done, security hardened, quality gated) |
 
 ## Coverage of All Known Open Items
@@ -413,3 +421,23 @@ Actual Outcome:
 | Memory admin API | Epic 35, Story 1 |
 | Memory dashboard page | Epic 35, Story 2 |
 | Self-healing and graceful degradation | Epic 35, Story 4 |
+| **Pattern Detection Expansion (8 detectors from stale branch)** | **Epic 37, Stories 1-10** |
+| Sequence Detector (A → B → C patterns) | Epic 37, Story 1 |
+| Duration Detector (consistent state durations) | Epic 37, Story 2 |
+| Day Type Detector (weekday vs weekend) | Epic 37, Story 3 |
+| Room-Based Detector (multi-device room patterns) | Epic 37, Story 4 |
+| Seasonal Detector (monthly/quarterly changes) | Epic 37, Story 5 |
+| Anomaly Detector (unusual pattern deviations) | Epic 37, Story 6 |
+| Frequency Detector (consistent activation counts) | Epic 37, Story 7 |
+| Contextual Detector (sun/weather/occupancy) | Epic 37, Story 8 |
+| Pattern Service Integration | Epic 37, Story 9 |
+| Dashboard Integration | Epic 37, Story 10 |
+| **ML Dependencies Upgrade (from stale branch)** | **Epic 38, Stories 1-8** |
+| Embedding Compatibility Test Infrastructure | Epic 38, Story 1 |
+| sentence-transformers 5.x Assessment | Epic 38, Story 2 |
+| sentence-transformers Upgrade (conditional) | Epic 38, Story 3 |
+| Embedding Re-indexing (conditional) | Epic 38, Story 4 |
+| transformers Upgrade | Epic 38, Story 5 |
+| OpenVINO + Optimum-Intel Upgrade | Epic 38, Story 6 |
+| Model Regeneration (if required) | Epic 38, Story 7 |
+| Documentation and Rollback Plan | Epic 38, Story 8 |
