@@ -1,6 +1,6 @@
 # HomeIQ Tech Stack
 
-**Last Updated:** March 4, 2026
+**Last Updated:** March 6, 2026
 **Source of Truth:** Actual `requirements.txt`, `package.json`, and `Dockerfile` files in the codebase
 
 ---
@@ -52,9 +52,9 @@
 ### AI/ML
 | Library | Version | Notes |
 |---------|---------|-------|
-| **sentence-transformers** | 3.3.1 | Embeddings (openvino-service) |
+| **sentence-transformers** | >=5.0.0,<6.0.0 | Embeddings (openvino-service, homeiq-memory) — **Epic 38 upgrade** |
 | **transformers** | 4.46.1 | HuggingFace model loading |
-| **torch** | 2.5.0+ | PyTorch backend for ML models |
+| **torch** | >=2.5.0,<3.0.0 | PyTorch backend for ML models (CPU-only) |
 | **scikit-learn** | 1.4.0 – 1.6.1 | Classical ML (clustering, anomaly detection) |
 | **openai** | 1.30.0 – 1.61.0 | OpenAI GPT-4o-mini API client |
 | **tiktoken** | 0.7.0 – 0.8.0 | Token counting for LLM calls |
@@ -62,6 +62,8 @@
 > **Note:** OpenVINO was removed from `openvino-service` due to dependency conflicts. The service now uses sentence-transformers with PyTorch backend directly.
 
 > **Note:** LangChain is NOT used anywhere in the codebase.
+
+> **ML Pipeline Docs:** See [docs/architecture/ml-pipeline.md](docs/architecture/ml-pipeline.md) for version compatibility, rollback procedures, and upgrade history.
 
 ### Observability
 | Library | Version Range | Notes |

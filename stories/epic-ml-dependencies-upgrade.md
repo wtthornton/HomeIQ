@@ -185,17 +185,23 @@ Regenerate optimized models if format changes require it.
 
 ---
 
-### Story 38.8: Documentation and Rollback Plan
+### Story 38.8: Documentation and Rollback Plan ✓ COMPLETE
 **Priority:** P1  
-**Estimate:** 1 day
+**Estimate:** 1 day  
+**Completed:** 2026-03-06
 
 Document upgrade process and create rollback procedures.
 
 **Acceptance Criteria:**
-- [ ] Update `docs/architecture/ml-pipeline.md` with version info
-- [ ] Create rollback procedure document
-- [ ] Document known compatibility constraints
-- [ ] Update TECH_STACK.md with new versions
+- [x] Update `docs/architecture/ml-pipeline.md` with version info
+- [x] Create rollback procedure document
+- [x] Document known compatibility constraints
+- [x] Update TECH_STACK.md with new versions
+
+**Deliverables:**
+- `docs/architecture/ml-pipeline.md` — New comprehensive ML pipeline documentation
+- `TECH_STACK.md` — Updated with sentence-transformers 5.x, torch version ranges
+- Rollback procedures included in ml-pipeline.md
 
 ---
 
@@ -231,8 +237,8 @@ Document upgrade process and create rollback procedures.
 ## Definition of Done
 
 - [ ] All applicable stories complete
-- [ ] Embedding compatibility tests passing
+- [x] Embedding compatibility tests passing (Story 38.1)
 - [ ] All ML services healthy
 - [ ] Performance benchmarks within 10% of baseline
-- [ ] Documentation updated
-- [ ] TAPPS quality gate passing
+- [x] Documentation updated (Story 38.8)
+- [x] TAPPS quality gate passing (Story 38.3)

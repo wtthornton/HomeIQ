@@ -67,7 +67,7 @@ Sprint 7 (COMPLETE — Mar 6, Agent Teams) — Memory Brain (Institutional Memor
 
 Sprint 8 (IN PROGRESS — Mar 2026) — Pattern Detection + ML Upgrades
 ├── Epic 37: Pattern Detection Expansion [P1]               ← OPEN (10 stories, 8 new detectors)
-└── Epic 38: ML Dependencies Upgrade [P2]                   ← IN PROGRESS (4/8: 38.1-38.3 ✓, 38.4 skipped)
+└── Epic 38: ML Dependencies Upgrade [P2]                   ← IN PROGRESS (5/8: 38.1-38.3, 38.8 ✓, 38.4 skipped)
 ```
 
 ## Epic Summary
@@ -112,7 +112,7 @@ Sprint 8 (IN PROGRESS — Mar 2026) — Pattern Detection + ML Upgrades
 | 35 | [Memory Lifecycle & Observability](epic-memory-brain.md) | `epic-memory-brain.md` | P2 Medium | 4 | 1 week | **Complete** (admin API, dashboard, self-heal) |
 | 36 | [E2E Playwright Test Remediation](epic-e2e-playwright-test-remediation.md) | `epic-e2e-playwright-test-remediation.md` | P1 High | 10 | 1 day | **Complete** (36→0 failures, 160/167 pass) |
 | 37 | [Pattern Detection Expansion](epic-pattern-detection-expansion.md) | `epic-pattern-detection-expansion.md` | P1 High | 10 | 2-3 weeks | **Open** (8 new detectors from stale branch) |
-| 38 | [ML Dependencies Upgrade](epic-ml-dependencies-upgrade.md) | `epic-ml-dependencies-upgrade.md` | P2 Medium | 8 | 1-2 weeks | **Open** (sentence-transformers 5.x) |
+| 38 | [ML Dependencies Upgrade](epic-ml-dependencies-upgrade.md) | `epic-ml-dependencies-upgrade.md` | P2 Medium | 8 | 1-2 weeks | **Open** (5/8: sentence-transformers 5.x ✓, docs ✓) |
 
 ## Story Count by Priority
 
@@ -122,7 +122,7 @@ Sprint 8 (IN PROGRESS — Mar 2026) — Pattern Detection + ML Upgrades
 | P1 High | 132 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10) |
 | P2 Medium | 41 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8) |
 | P3 Low | 7 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3) |
-| **Total** | **258** | 240 complete (37 epics) + 18 open (2 epics) |
+| **Total** | **258** | 241 complete (37 epics) + 17 open (2 epics) |
 
 ## Sprint 2 Results (COMPLETE — Mar 4, Agent Teams)
 
