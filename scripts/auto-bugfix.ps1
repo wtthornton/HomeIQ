@@ -89,7 +89,7 @@ print(f"{best_unit['id']}|{best_unit['path']}|{best_unit['name']}|{best_unit['sc
     $TargetDir = $parts[1]
     $ScanUnitName = $parts[2]
     $ScanUnitHint = $parts[3]
-    Add-LogEntry "Rotate mode: selected unit '$ScanUnitId' ($ScanUnitName)" "info"
+    Write-Host "  Rotate: selected unit '$ScanUnitId' ($ScanUnitName)" -ForegroundColor Cyan
 }
 
 # --- Dashboard state management ---
@@ -348,7 +348,7 @@ if (-not $changes) {
 }
 
 # Update bug statuses to fixed and count changed files
-$changedFilesList = @(git diff --name-only)
+$changedFilesList = @(git diff --name-only --ignore-submodules)
 $changedFilesCount = $changedFilesList.Count
 foreach ($db in $dashBugs) {
     $db.fix_status = "fixed"
@@ -368,7 +368,7 @@ if ($Chain -and $ChainPhases -match "refactor") {
     Add-LogEntry "Chain mode: refactoring fixed files..." "info"
     Write-Dashboard -Step 4 -Message "Refactoring fixed files..." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugCount -FilesChanged $changedFilesCount -Validation "pass"
 
-    $changedFiles = (git diff --name-only) -join ", "
+    $changedFiles = (git diff --name-only --ignore-submodules) -join ", "
     $refactorPrompt = @"
 You are a senior Python developer. Review and minimally refactor these recently-fixed files:
 $changedFiles
@@ -394,7 +394,7 @@ Provide a summary of refactoring applied.
         --max-turns 15 `
         $refactorPrompt 2>$null
 
-    $refactorChanges = git diff --name-only
+    $refactorChanges = git diff --name-only --ignore-submodules
     if ($refactorChanges) {
         Add-LogEntry "Refactoring complete. Committing refactor changes." "success"
     } else {

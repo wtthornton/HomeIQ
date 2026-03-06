@@ -113,7 +113,7 @@ print(f\"{best_unit['id']}|{best_unit['path']}|{best_unit['name']}|{best_unit['s
   fi
 
   IFS='|' read -r SCAN_UNIT_ID TARGET_DIR SCAN_UNIT_NAME SCAN_UNIT_HINT <<< "$ROTATE_RESULT"
-  add_log "Rotate mode: selected unit '$SCAN_UNIT_ID' ($SCAN_UNIT_NAME)" "info"
+  echo "  Rotate: selected unit '$SCAN_UNIT_ID' ($SCAN_UNIT_NAME)"
 fi
 
 # --- Dashboard state management ---
