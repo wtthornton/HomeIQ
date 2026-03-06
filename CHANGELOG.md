@@ -19,6 +19,42 @@
 
 ### Fixed
 
+- **Correct ai-automation-ui health check port (80 -> 8080)** (ff02b5d) - Bill Thornton
+- **Resolve voice-gateway build failure (Python 3.12 compat)** (3153edd) - Bill Thornton
+- **Resolve 4 degraded service health checks** (35907d0) - Bill Thornton
+- **Windows browser open + ps1 submodule isolation parity** (577d156) - Bill Thornton
+- **auto-bugfix submodule isolation + dashboard & chain mode features** (8e06d81) - Bill Thornton
+- **auto-fix 1 bugs across codebase** (d835b5b) - Bill Thornton
+- **pass --mcp-config to headless claude for TappsMCP access** (596c727) - Bill Thornton
+- **ignore submodule changes in auto-bugfix dirty check** (4164cf5) - Bill Thornton
+- **fix(data-api): resolve datetime tz-naive/aware mismatch crashing /api/devices** (561c8cd) - Bill Thornton
+- **10 runtime bugs across 8 services (ZeroDivisionError, IndexError, resource leaks)** (7163a45) - Bill Thornton
+- **ingestion InfluxDB auth, stats endpoint routing, dark mode card styling** (95f3a6d) - Bill Thornton
+- **blueprint port refs, health monitoring, schema init, Docker tooling** (1c0bb5f) - Bill Thornton
+- **create missing automation schema tables (suggestions, plans, deployments)** (793ca15) - Bill Thornton
+- **Epic 36 — E2E Playwright test remediation (36 failures → 0, 160/167 pass)** (d46ef41) - Bill Thornton
+- **resolve 4 service failures — ai-core crash loop, ai-automation config, calendar deps, InfluxDB auth** (c090f11) - Bill Thornton
+- **fix(deploy): Epic 8 Phase 5 production deployment — 52/53 services healthy** (bfeed7e) - Bill Thornton
+- **fix(docker): remove tailwind.config.js COPY from frontend Dockerfiles** (c70ebe0) - Bill Thornton
+
+
+### Added
+
+- **Implement Memory Brain - Sprint 7 complete (Epics 29-35)** (463ac53) - Bill Thornton
+- **Complete security hardening + quality gate CI + ML upgrades** (4109be8) - Bill Thornton
+- **add auto-bugfix script with TappsMCP validation and feedback loop** (8e2bc8c) - Bill Thornton
+- **Epic 37 — Intent-based E2E test rewrite (55 files, 189 tests)** (b8fe047) - Bill Thornton
+- **Sprints 5-6 — Sapphire-inspired HA enhancements (Epics 25-28, 22 stories)** (0cbb537) - Bill Thornton
+
+### Changed
+
+- **Sprint 4 Wave 4 — final 2 services migrated (ha-simulator + observability)** (ca40d3c) - Bill Thornton
+- **Sprint 4 Wave 3 — 10 service migrations (aiohttp conversions + Tier 1)** (c06cd2f) - Bill Thornton
+- **Sprint 4 Wave 2 — 14 service migrations (ML, automation, energy, collectors)** (14755a5) - Bill Thornton
+- **Sprint 4 Wave 1 — frontend upgrades + 12 service migrations** (9403372) - Bill Thornton
+
+### Fixed
+
 - **Resolve voice-gateway build failure (Python 3.12 compat)** (3153edd) - Bill Thornton
 - **Resolve 4 degraded service health checks** (35907d0) - Bill Thornton
 - **Windows browser open + ps1 submodule isolation parity** (577d156) - Bill Thornton
