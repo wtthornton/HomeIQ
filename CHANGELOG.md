@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] - 2026-03-05
+## [Unreleased] - 2026-03-06
 
 ### Added
 
@@ -23,6 +23,7 @@
 
 ### Fixed
 
+- **fix(data-api): datetime tz-aware/naive mismatch in compute_device_status() causing 500 on /api/devices** — Health dashboard showed 0 Devices / 0 Entities; replaced 37 naive `datetime.now()` with `datetime.now(UTC)`
 - **blueprint port refs, health monitoring, schema init, Docker tooling** (1c0bb5f) - Bill Thornton
 - **create missing automation schema tables (suggestions, plans, deployments)** (793ca15) - Bill Thornton
 - **Epic 36 — E2E Playwright test remediation (36 failures → 0, 160/167 pass)** (d46ef41) - Bill Thornton

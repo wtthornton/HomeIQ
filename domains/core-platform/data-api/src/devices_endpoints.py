@@ -168,8 +168,10 @@ def compute_device_status(last_seen: datetime | None, inactive_days: int = 30) -
     if last_seen is None:
         return "inactive"
 
-    # Calculate days since last seen
-    days_ago = (datetime.now(UTC) - last_seen.replace(tzinfo=None)).days
+    # Calculate days since last seen — ensure both sides are tz-aware (UTC)
+    if last_seen.tzinfo is None:
+        last_seen = last_seen.replace(tzinfo=UTC)
+    days_ago = (datetime.now(UTC) - last_seen).days
 
     # Device is active if seen within inactive_days
     return "active" if days_ago <= inactive_days else "inactive"
@@ -330,7 +332,7 @@ async def list_devices(
                     model_id=model_id,
                     status=device_status,
                     entity_count=entity_count,
-                    timestamp=last_seen.isoformat() if last_seen else datetime.now().isoformat()
+                    timestamp=last_seen.isoformat() if last_seen else datetime.now(UTC).isoformat()
                 ))
             except (IndexError, AttributeError) as e:
                 # Handle case where new columns don't exist yet (before migration)
@@ -368,7 +370,7 @@ async def list_devices(
                     model_id=None,  # Will be populated after migration
                     status=device_status_fallback,
                     entity_count=row[-1],
-                    timestamp=last_seen_fallback.isoformat() if last_seen_fallback else datetime.now().isoformat()
+                    timestamp=last_seen_fallback.isoformat() if last_seen_fallback else datetime.now(UTC).isoformat()
                 ))
 
         result = DevicesListResponse(
@@ -473,7 +475,7 @@ async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
             model_id=model_id,
             status=device_status,
             entity_count=entity_count,
-            timestamp=last_seen.isoformat() if last_seen else datetime.now().isoformat()
+            timestamp=last_seen.isoformat() if last_seen else datetime.now(UTC).isoformat()
         )
     except HTTPException:
         raise
@@ -574,7 +576,7 @@ async def get_device_reliability(
             "total_events_in_period": all_events_count,
             "metadata_coverage_percentage": coverage,
             "reliability_data": reliability_data[:20],  # Top 20
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -667,7 +669,7 @@ async def list_entities(
                 # Phase 2: Entity Registry 2025 Attributes (Important)
                 labels=entity.labels if isinstance(entity.labels, list) else None,
                 options=entity.options if isinstance(entity.options, dict) else None,
-                timestamp=entity.updated_at.isoformat() if entity.updated_at else (entity.created_at.isoformat() if entity.created_at else datetime.now().isoformat())
+                timestamp=entity.updated_at.isoformat() if entity.updated_at else (entity.created_at.isoformat() if entity.created_at else datetime.now(UTC).isoformat())
             )
             for entity in entities_data
         ]
@@ -721,7 +723,7 @@ async def get_entity(entity_id: str, db: AsyncSession = Depends(get_db)):
                 # Phase 2: Entity Registry 2025 Attributes (Important)
                 labels=entity.labels if isinstance(entity.labels, list) else None,
                 options=entity.options if isinstance(entity.options, dict) else None,
-                timestamp=entity.updated_at.isoformat() if entity.updated_at else (entity.created_at.isoformat() if entity.created_at else datetime.now().isoformat())
+                timestamp=entity.updated_at.isoformat() if entity.updated_at else (entity.created_at.isoformat() if entity.created_at else datetime.now(UTC).isoformat())
         )
     except HTTPException:
         raise
@@ -1080,7 +1082,7 @@ async def get_integration_performance(
             "device_discovery_status": discovery_status,
             "total_events": total_events,
             "total_errors": total_errors,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -1096,7 +1098,7 @@ async def get_integration_performance(
             "total_events": 0,
             "total_errors": 0,
             "error": str(e),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
     # Shared client is not closed per-request (HIGH-01)
 
@@ -1148,7 +1150,7 @@ async def get_integration_analytics(
             "device_count": device_count,
             "entity_count": entity_count,
             "entity_breakdown": domain_breakdown,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -1188,7 +1190,7 @@ async def list_integrations(
         integrations = []
         for record in results:
             # Convert timestamp to string if needed
-            timestamp = record.get("_time", datetime.now())
+            timestamp = record.get("_time", datetime.now(UTC))
             if not isinstance(timestamp, str):
                 timestamp = timestamp.isoformat() if hasattr(timestamp, 'isoformat') else str(timestamp)
 
@@ -1342,7 +1344,7 @@ async def bulk_upsert_devices(
                 # Source tracking
                 'config_entry_id': device_data.get('config_entry_id'),
                 'via_device': via_device_id,
-                'last_seen': datetime.now()
+                'last_seen': datetime.now(UTC)
             }
 
             # Phase 3.1: Enrich with Device Database if available
@@ -1356,7 +1358,7 @@ async def bulk_upsert_devices(
                     # Merge Device Database updates
                     device_values.update(db_updates)
                     if db_updates:
-                        device_values['last_capability_sync'] = datetime.now()
+                        device_values['last_capability_sync'] = datetime.now(UTC)
                 except Exception as e:
                     logger.debug(f"Device Database enrichment failed for {device_id}: {e}")
 
@@ -1367,7 +1369,7 @@ async def bulk_upsert_devices(
                         setattr(existing_device, key, value)
             else:
                 # Insert new device
-                device_values['created_at'] = datetime.now()
+                device_values['created_at'] = datetime.now(UTC)
                 new_device = Device(**device_values)
                 db.add(new_device)
 
@@ -1382,7 +1384,7 @@ async def bulk_upsert_devices(
         return {
             "success": True,
             "upserted": upserted_count,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -1482,8 +1484,8 @@ async def bulk_upsert_entities(
                 options=entity_data.get('options'),
                 # Source tracking
                 config_entry_id=entity_data.get('config_entry_id'),
-                created_at=datetime.now(),
-                updated_at=datetime.now()
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC)
             )
 
             # Merge (upsert)
@@ -1590,7 +1592,7 @@ async def bulk_upsert_entities(
                         if enrichment_data.get("capabilities") or enrichment_data.get("supported_features") is not None:
                             entity.supported_features = enrichment_data.get("supported_features")
                             entity.capabilities = enrichment_data.get("capabilities")
-                            entity.updated_at = datetime.now()
+                            entity.updated_at = datetime.now(UTC)
                             enriched_count += 1
                     except Exception as e:
                         logger.debug(f"Failed to enrich capabilities for {entity.entity_id}: {e}")
@@ -1606,7 +1608,7 @@ async def bulk_upsert_entities(
         return {
             "success": True,
             "upserted": upserted_count,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -1662,7 +1664,7 @@ async def bulk_upsert_services(
                     'description': service_data.get('description'),
                     'fields': service_data.get('fields'),
                     'target': service_data.get('target'),
-                    'last_updated': datetime.now()
+                    'last_updated': datetime.now(UTC)
                 }
 
                 if existing_service:
@@ -1684,7 +1686,7 @@ async def bulk_upsert_services(
         return {
             "success": True,
             "upserted": upserted_count,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -1789,7 +1791,7 @@ async def get_health_summary(
             "healthy_devices": healthy_devices,
             "warning_devices": warning_devices,
             "error_devices": error_devices,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -1839,7 +1841,7 @@ async def get_maintenance_alerts(
                         "issue_type": issue.get("type"),
                         "severity": issue.get("severity"),
                         "message": issue.get("message"),
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now(UTC).isoformat()
                     })
 
             if len(alerts) >= limit:
@@ -1848,7 +1850,7 @@ async def get_maintenance_alerts(
         return {
             "alerts": alerts[:limit],
             "count": len(alerts[:limit]),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -1963,7 +1965,7 @@ async def get_device_efficiency(
             "spec_power_w": spec_power,
             "actual_power_w": actual_power,
             "efficiency_score": efficiency_score,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except HTTPException:
@@ -2006,7 +2008,7 @@ async def get_power_anomalies(
                         "excess_power_w": actual_power - spec_power,
                         "excess_percentage": ((actual_power / spec_power - 1) * 100),
                         "severity": "high" if actual_power > spec_power * 2 else "medium",
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now(UTC).isoformat()
                     })
 
             if len(anomalies) >= limit:
@@ -2015,7 +2017,7 @@ async def get_power_anomalies(
         return {
             "anomalies": anomalies[:limit],
             "count": len(anomalies[:limit]),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -2078,7 +2080,7 @@ async def classify_device(
             "device_name": device.name,
             "device_type": device.device_type,
             "device_category": device.device_category,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
         return {
@@ -2086,7 +2088,7 @@ async def classify_device(
             "device_name": device.name,
             "device_type": device.device_type,
             "device_category": device.device_category,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except HTTPException:
@@ -2272,7 +2274,7 @@ async def link_entities_to_devices(
             "message": f"Linked {linked_count} entities to devices",
             "linked": linked_count,
             "total": len(entities),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except HTTPException:
@@ -2369,7 +2371,7 @@ async def classify_all_devices(
             "message": f"Classified {classified_count} devices",
             "classified": classified_count,
             "total": len(devices),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -2452,7 +2454,7 @@ async def get_setup_issues(
             "device_name": device.name,
             "issues": issues,
             "count": len(issues),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except HTTPException:
@@ -2484,7 +2486,7 @@ async def mark_setup_complete(
             "device_id": device_id,
             "device_name": device.name,
             "setup_complete": True,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except HTTPException:
@@ -2532,7 +2534,7 @@ async def discover_device_capabilities(
 
         # Update device with capabilities
         device.device_features_json = capability_service.format_capabilities_for_storage(capabilities_data)
-        device.last_capability_sync = datetime.now()
+        device.last_capability_sync = datetime.now(UTC)
         await db.commit()
 
         return {
@@ -2542,7 +2544,7 @@ async def discover_device_capabilities(
             "features": capabilities_data.get("features", {}),
             "device_classes": capabilities_data.get("device_classes", []),
             "state_classes": capabilities_data.get("state_classes", []),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except HTTPException:
@@ -2620,7 +2622,7 @@ async def enrich_entities(
                 if available_services:
                     entity.available_services = available_services
 
-                entity.updated_at = datetime.now()
+                entity.updated_at = datetime.now(UTC)
                 enriched_count += 1
 
             except Exception as e:
@@ -2634,7 +2636,7 @@ async def enrich_entities(
             "success": True,
             "enriched": enriched_count,
             "failed": failed_count,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -2686,7 +2688,7 @@ async def get_device_recommendations(
             "device_type": device_type,
             "recommendations": recommendations,
             "count": len(recommendations),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
@@ -2797,7 +2799,7 @@ async def find_similar_devices(
             "reference_device_name": device.name,
             "similar_devices": similar,
             "count": len(similar),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except HTTPException:
@@ -2833,7 +2835,7 @@ async def clear_all_devices(
             "success": True,
             "devices_deleted": devices_count,
             "entities_deleted": entities_count,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     except Exception as e:
