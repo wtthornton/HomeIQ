@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "tapps-mcp": {
+      "command": "C:\\Users\\tappt\\.local\\bin\\tapps-mcp.exe",
+      "args": [
+        "serve"
+      ],
+      "env": {
+        "TAPPS_MCP_PROJECT_ROOT": "c:\\cursor\\HomeIQ"
+      }
+    }
+  }
+}
