@@ -247,3 +247,7 @@ phase2_results_*.json
 .tapps-mcp/.validation-marker
 .tapps-mcp/.validation-progress.json
 .tapps-mcp/tool-versions.json
+
+# ML model binaries (regenerated at deploy time)
+*.pkl
+!**/tests/**/*.pkl
