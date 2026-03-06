@@ -27,7 +27,7 @@ foreach ($cmd in @("claude", "git", "gh")) {
     }
 }
 
-$dirty = git status --porcelain
+$dirty = git status --porcelain --ignore-submodules
 if ($dirty) {
     Write-Error "ERROR: Working tree is dirty. Commit or stash changes first."
     exit 1

@@ -42,7 +42,7 @@ for cmd in claude git gh; do
   fi
 done
 
-if [[ -n "$(git status --porcelain)" ]]; then
+if [[ -n "$(git status --porcelain --ignore-submodules)" ]]; then
   echo "ERROR: Working tree is dirty. Commit or stash changes first."
   exit 1
 fi
