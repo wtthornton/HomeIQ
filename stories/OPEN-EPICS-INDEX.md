@@ -67,7 +67,7 @@ Sprint 7 (COMPLETE — Mar 6, Agent Teams) — Memory Brain (Institutional Memor
 
 Sprint 8 (IN PROGRESS — Mar 2026) — Pattern Detection + ML Upgrades
 ├── Epic 37: Pattern Detection Expansion [P1]               ← OPEN (10 stories, 8 new detectors)
-└── Epic 38: ML Dependencies Upgrade [P2]                   ← IN PROGRESS (1/8 stories: 38.1 test infrastructure ✓)
+└── Epic 38: ML Dependencies Upgrade [P2]                   ← IN PROGRESS (2/8 stories: 38.1 ✓, 38.2 ✓ UPGRADE SAFE)
 ```
 
 ## Epic Summary

@@ -55,26 +55,33 @@ Create test infrastructure to validate embedding compatibility across version up
 
 ---
 
-### Story 38.2: sentence-transformers Upgrade Assessment
+### Story 38.2: sentence-transformers Upgrade Assessment ✓ COMPLETE
 **Priority:** P1  
-**Estimate:** 2 days
+**Estimate:** 2 days  
+**Completed:** 2026-03-06
 
 Assess sentence-transformers 5.x upgrade feasibility.
 
 **Acceptance Criteria:**
-- [ ] Run embedding compatibility tests with sentence-transformers 5.x
-- [ ] Document any breaking API changes
-- [ ] Identify code changes required in:
-  - openvino-service
-  - model-prep
-  - rag-service (if applicable)
-- [ ] Decision document: upgrade vs re-index vs pin
-- [ ] If re-indexing required, estimate effort and data volume
+- [x] Run embedding compatibility tests with sentence-transformers 5.x
+- [x] Document any breaking API changes
+- [x] Identify code changes required in:
+  - openvino-service (requirements.txt only)
+  - model-prep (requirements.txt only)
+  - rag-service (not applicable - no direct dependency)
+- [x] Decision document: upgrade vs re-index vs pin
+- [x] If re-indexing required, estimate effort and data volume
+
+**Decision: ✅ UPGRADE SAFE**
+- API is fully backwards compatible
+- No code changes required (only requirements.txt updates)
+- No re-indexing needed (no stored embeddings)
+- See: `implementation/analysis/sentence-transformers-upgrade-assessment.md`
 
 **Technical Details:**
-- Create isolated test environment with 5.x
-- Test both model loading and inference
-- Check ONNX export compatibility
+- Created assessment script: `scripts/assess_sentence_transformers_upgrade.py`
+- v5.0 is officially "fully backwards compatible"
+- All HomeIQ API patterns verified compatible
 
 ---
 
