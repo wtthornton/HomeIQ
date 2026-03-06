@@ -94,8 +94,10 @@ Rules:
 Output a JSON array with objects: {\"file\": \"...\", \"line\": N, \"description\": \"...\", \"severity\": \"high|medium|low\"}
 Output ONLY the JSON array, no other text."
 
+MCP_CONFIG="$PROJECT_ROOT/.mcp.json"
+
 echo "[2/5] Scanning codebase for $NUM_BUGS bugs..."
-BUGS_JSON=$(claude --print --max-turns 3 "$FIND_PROMPT" 2>/dev/null)
+BUGS_JSON=$(claude --print --max-turns 3 --mcp-config "$MCP_CONFIG" "$FIND_PROMPT" 2>/dev/null)
 
 # Extract JSON from response (claude may wrap it in markdown)
 BUGS_JSON=$(echo "$BUGS_JSON" | sed -n '/^\[/,/^\]/p')
@@ -134,6 +136,7 @@ After fixing ALL bugs, you MUST run these validation steps in order:
 After validation passes, provide a summary of what you changed and the validation results."
 
 claude --print \
+  --mcp-config "$MCP_CONFIG" \
   --allowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check" \
   --max-turns 25 \
   "$FIX_PROMPT" 2>/dev/null
@@ -218,6 +221,7 @@ If ALL tools worked perfectly with no issues, append nothing — the goal is an 
 Read docs/TAPPS_FEEDBACK.md first to check for recurring issues and increment their recurrence count."
 
 claude --print \
+  --mcp-config "$MCP_CONFIG" \
   --allowedTools "Read,Edit,mcp__tapps-mcp__tapps_feedback" \
   --max-turns 10 \
   "$FEEDBACK_PROMPT" 2>/dev/null

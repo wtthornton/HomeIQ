@@ -83,7 +83,8 @@ Output ONLY the JSON array, no other text.
 "@
 
 Write-Host "[2/5] Scanning codebase for $Bugs bugs..." -ForegroundColor Yellow
-$rawOutput = claude --print --max-turns 3 $findPrompt 2>$null
+$mcpConfig = Join-Path $ProjectRoot ".mcp.json"
+$rawOutput = claude --print --max-turns 3 --mcp-config $mcpConfig $findPrompt 2>$null
 
 # Extract JSON array from response
 $jsonMatch = [regex]::Match($rawOutput, '\[[\s\S]*?\]')
@@ -135,6 +136,7 @@ After validation passes, provide a summary of what you changed and the validatio
 "@
 
 claude --print `
+    --mcp-config $mcpConfig `
     --allowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check" `
     --max-turns 25 `
     $fixPrompt 2>$null
@@ -220,6 +222,7 @@ Read docs/TAPPS_FEEDBACK.md first to check for recurring issues and increment th
 "@
 
 claude --print `
+    --mcp-config $mcpConfig `
     --allowedTools "Read,Edit,mcp__tapps-mcp__tapps_feedback" `
     --max-turns 10 `
     $feedbackPrompt 2>$null
