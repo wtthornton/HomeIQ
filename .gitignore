@@ -241,3 +241,6 @@ phase2_results_*.json
 .tapps-mcp/metrics/
 .tapps-mcp/sessions/
 .tapps-mcp/pre-compact-context.json
+.tapps-mcp/.validation-marker
+.tapps-mcp/.validation-progress.json
+.tapps-mcp/tool-versions.json
