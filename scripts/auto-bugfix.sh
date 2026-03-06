@@ -23,6 +23,8 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CHAIN=false
 CHAIN_PHASES="fix,refactor,test"
 NO_DASHBOARD=false
+ROTATE=false
+TARGET_UNIT=""
 
 # --- Parse args ---
 while [[ $# -gt 0 ]]; do
@@ -34,14 +36,85 @@ while [[ $# -gt 0 ]]; do
     --chain)          CHAIN=true;          shift ;;
     --chain-phases)   CHAIN=true; CHAIN_PHASES="$2"; shift 2 ;;
     --no-dashboard)   NO_DASHBOARD=true;   shift ;;
+    --rotate)         ROTATE=true;         shift ;;
+    --target-unit)    TARGET_UNIT="$2";    shift 2 ;;
     -h|--help)
-      echo "Usage: $0 [--bugs N] [--branch NAME] [--target-dir PATH] [--base BRANCH] [--chain] [--chain-phases PHASES] [--no-dashboard]"
+      echo "Usage: $0 [--bugs N] [--branch NAME] [--target-dir PATH] [--base BRANCH] [--chain] [--chain-phases PHASES] [--no-dashboard] [--rotate] [--target-unit UNIT]"
       exit 0 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
 
 cd "$PROJECT_ROOT"
+
+# --- Rotate mode: pick next scan unit from manifest ---
+SCAN_MANIFEST="$PROJECT_ROOT/docs/scan-manifest.json"
+SCAN_UNIT_ID=""
+SCAN_UNIT_NAME=""
+SCAN_UNIT_HINT=""
+
+if [[ "$ROTATE" == "true" || -n "$TARGET_UNIT" ]]; then
+  if [[ ! -f "$SCAN_MANIFEST" ]]; then
+    echo "ERROR: Scan manifest not found at $SCAN_MANIFEST"
+    echo "Run the initial setup or create docs/scan-manifest.json first."
+    exit 1
+  fi
+
+  # Pick the highest-scoring unit (or the one specified by --target-unit)
+  ROTATE_RESULT=$(python3 -c "
+import json, sys
+from datetime import datetime, timezone
+
+with open('$SCAN_MANIFEST') as f:
+    manifest = json.load(f)
+
+target_unit = '$TARGET_UNIT'
+now = datetime.now(timezone.utc)
+
+best_unit = None
+best_score = -1
+
+for unit in manifest['units']:
+    # If --target-unit specified, use that
+    if target_unit and unit['id'] != target_unit:
+        continue
+
+    # score = priority_weight * days_since_last_scan * (1 + bugs_found/5)
+    if unit['last_scanned']:
+        last = datetime.fromisoformat(unit['last_scanned'])
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        days = max((now - last).total_seconds() / 86400, 0.1)
+    else:
+        days = 365  # never scanned = max urgency
+
+    bug_boost = 1 + unit['total_bugs_found'] / 5
+    fp_penalty = 1 - (unit['false_positives'] / max(unit['total_bugs_found'], 1)) * 0.3
+    score = unit['priority_weight'] * days * bug_boost * max(fp_penalty, 0.5)
+
+    if score > best_score:
+        best_score = score
+        best_unit = unit
+
+if not best_unit:
+    if target_unit:
+        print(f'ERROR: Unit \"{target_unit}\" not found in manifest', file=sys.stderr)
+    else:
+        print('ERROR: No units in manifest', file=sys.stderr)
+    sys.exit(1)
+
+# Output: id|path|name|hint
+print(f\"{best_unit['id']}|{best_unit['path']}|{best_unit['name']}|{best_unit['scan_hint']}\")
+" 2>&1)
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR: $ROTATE_RESULT"
+    exit 1
+  fi
+
+  IFS='|' read -r SCAN_UNIT_ID TARGET_DIR SCAN_UNIT_NAME SCAN_UNIT_HINT <<< "$ROTATE_RESULT"
+  add_log "Rotate mode: selected unit '$SCAN_UNIT_ID' ($SCAN_UNIT_NAME)" "info"
+fi
 
 # --- Dashboard state management ---
 DASHBOARD_STATE="$PROJECT_ROOT/scripts/.dashboard-state.json"
@@ -139,6 +212,7 @@ echo "  Bugs:     $NUM_BUGS"
 echo "  Branch:   $BRANCH_NAME"
 echo "  Base:     $BASE_BRANCH"
 if [[ "$CHAIN" == "true" ]]; then echo "  Chain:    $CHAIN_PHASES"; fi
+if [[ -n "$SCAN_UNIT_ID" ]]; then echo "  Unit:     $SCAN_UNIT_ID ($SCAN_UNIT_NAME)"; fi
 echo ""
 
 # --- Step 1: Create feature branch ---
@@ -160,7 +234,11 @@ write_dashboard 1 "running" "Branch created. Starting scan..."
 # --- Step 2: Find bugs with Claude Code ---
 SCOPE_HINT=""
 if [[ -n "$TARGET_DIR" ]]; then
-  SCOPE_HINT="Focus your search on files under '$TARGET_DIR'."
+  SCOPE_HINT="Focus your search EXCLUSIVELY on files under '$TARGET_DIR'."
+  if [[ -n "$SCAN_UNIT_HINT" ]]; then
+    SCOPE_HINT="$SCOPE_HINT
+$SCAN_UNIT_HINT"
+  fi
 fi
 
 # Load prompt overrides if they exist (Feature 12)
@@ -505,6 +583,32 @@ with open(history_file, 'w') as f:
     json.dump(history, f, indent=2, default=str)
 " 2>/dev/null || true
 add_log "Bug history appended to docs/BUG_HISTORY.json" "info"
+
+# --- Update scan manifest if rotate mode ---
+if [[ -n "$SCAN_UNIT_ID" ]]; then
+  python3 -c "
+import json
+from datetime import datetime, timezone
+
+with open('$SCAN_MANIFEST') as f:
+    manifest = json.load(f)
+
+now = datetime.now(timezone.utc).isoformat()
+for unit in manifest['units']:
+    if unit['id'] == '$SCAN_UNIT_ID':
+        unit['last_scanned'] = now
+        unit['total_runs'] += 1
+        unit['total_bugs_found'] += $BUG_COUNT
+        break
+
+manifest['last_unit_scanned'] = '$SCAN_UNIT_ID'
+manifest['total_runs'] += 1
+
+with open('$SCAN_MANIFEST', 'w') as f:
+    json.dump(manifest, f, indent=2)
+" 2>/dev/null || true
+  add_log "Scan manifest updated for unit '$SCAN_UNIT_ID'" "info"
+fi
 
 # --- Done ---
 END_TIME=$(date +%s)

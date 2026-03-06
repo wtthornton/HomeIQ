@@ -17,12 +17,80 @@ param(
     [string]$Base = "master",
     [switch]$Chain,
     [string]$ChainPhases = "fix,refactor,test",
-    [switch]$NoDashboard
+    [switch]$NoDashboard,
+    [switch]$Rotate,
+    [string]$TargetUnit = ""
 )
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $ProjectRoot
+
+# --- Rotate mode: pick next scan unit from manifest ---
+$ScanManifest = Join-Path $ProjectRoot "docs/scan-manifest.json"
+$ScanUnitId = ""
+$ScanUnitName = ""
+$ScanUnitHint = ""
+
+if ($Rotate -or $TargetUnit) {
+    if (-not (Test-Path $ScanManifest)) {
+        Write-Error "ERROR: Scan manifest not found at $ScanManifest"
+        exit 1
+    }
+
+    $rotateScript = @"
+import json, sys
+from datetime import datetime, timezone
+
+with open(r'$ScanManifest') as f:
+    manifest = json.load(f)
+
+target_unit = '$TargetUnit'
+now = datetime.now(timezone.utc)
+
+best_unit = None
+best_score = -1
+
+for unit in manifest['units']:
+    if target_unit and unit['id'] != target_unit:
+        continue
+
+    if unit['last_scanned']:
+        last = datetime.fromisoformat(unit['last_scanned'])
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        days = max((now - last).total_seconds() / 86400, 0.1)
+    else:
+        days = 365
+
+    bug_boost = 1 + unit['total_bugs_found'] / 5
+    fp_penalty = 1 - (unit['false_positives'] / max(unit['total_bugs_found'], 1)) * 0.3
+    score = unit['priority_weight'] * days * bug_boost * max(fp_penalty, 0.5)
+
+    if score > best_score:
+        best_score = score
+        best_unit = unit
+
+if not best_unit:
+    print('ERROR', file=sys.stderr)
+    sys.exit(1)
+
+print(f"{best_unit['id']}|{best_unit['path']}|{best_unit['name']}|{best_unit['scan_hint']}")
+"@
+
+    $rotateResult = $rotateScript | python3 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "ERROR: Failed to pick scan unit from manifest"
+        exit 1
+    }
+
+    $parts = $rotateResult -split '\|', 4
+    $ScanUnitId = $parts[0]
+    $TargetDir = $parts[1]
+    $ScanUnitName = $parts[2]
+    $ScanUnitHint = $parts[3]
+    Add-LogEntry "Rotate mode: selected unit '$ScanUnitId' ($ScanUnitName)" "info"
+}
 
 # --- Dashboard state management ---
 $DashboardStateFile = Join-Path $ProjectRoot "scripts/.dashboard-state.json"
@@ -119,6 +187,7 @@ Write-Host "  Bugs:     $Bugs"
 Write-Host "  Branch:   $Branch"
 Write-Host "  Base:     $Base"
 if ($Chain) { Write-Host "  Chain:    $ChainPhases" -ForegroundColor Magenta }
+if ($ScanUnitId) { Write-Host "  Unit:     $ScanUnitId ($ScanUnitName)" -ForegroundColor Magenta }
 Write-Host ""
 
 # --- Step 1: Create feature branch ---
@@ -140,7 +209,10 @@ Write-Dashboard -Step 1 -Status "running" -Message "Branch created. Starting sca
 # --- Step 2: Find bugs with Claude Code ---
 $scopeHint = ""
 if ($TargetDir) {
-    $scopeHint = "Focus your search on files under '$TargetDir'."
+    $scopeHint = "Focus your search EXCLUSIVELY on files under '$TargetDir'."
+    if ($ScanUnitHint) {
+        $scopeHint += "`n$ScanUnitHint"
+    }
 }
 
 # Load prompt overrides if they exist (Feature 12: Self-Improving Prompts)
@@ -501,6 +573,24 @@ if (Test-Path $historyFile) {
 $history += $historyEntry
 $history | ConvertTo-Json -Depth 10 | Out-File -FilePath $historyFile -Encoding utf8 -Force
 Add-LogEntry "Bug history appended to docs/BUG_HISTORY.json" "info"
+
+# --- Update scan manifest if rotate mode ---
+if ($ScanUnitId) {
+    $manifest = Get-Content $ScanManifest -Raw | ConvertFrom-Json
+    $now = (Get-Date).ToUniversalTime().ToString("o")
+    foreach ($unit in $manifest.units) {
+        if ($unit.id -eq $ScanUnitId) {
+            $unit.last_scanned = $now
+            $unit.total_runs += 1
+            $unit.total_bugs_found += $bugCount
+            break
+        }
+    }
+    $manifest.last_unit_scanned = $ScanUnitId
+    $manifest.total_runs += 1
+    $manifest | ConvertTo-Json -Depth 10 | Out-File -FilePath $ScanManifest -Encoding utf8 -Force
+    Add-LogEntry "Scan manifest updated for unit '$ScanUnitId'" "info"
+}
 
 # --- Done ---
 $elapsed = (Get-Date) - $StartTime
