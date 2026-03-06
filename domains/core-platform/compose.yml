@@ -296,7 +296,7 @@ services:
     container_name: homeiq-dashboard
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "3000:8080"
     environment:
       - VITE_API_BASE_URL=
       - VITE_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
@@ -323,7 +323,7 @@ services:
         max-file: "3"
         labels: "service=health-dashboard,group=core-platform,environment=production"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: 30s
       timeout: 10s
       retries: 3

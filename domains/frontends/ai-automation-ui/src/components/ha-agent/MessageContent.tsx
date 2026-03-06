@@ -9,6 +9,7 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import rehypeSanitize from 'rehype-sanitize';
 import 'highlight.js/styles/github-dark.css';
 
 interface MessageContentProps {
@@ -28,7 +29,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
+        rehypePlugins={[rehypeSanitize, rehypeHighlight]}
         components={{
           // Customize paragraph styling
           p: ({ children }) => (
@@ -70,19 +71,26 @@ export const MessageContent: React.FC<MessageContentProps> = ({
               </code>
             );
           },
-          // Customize links
-          a: ({ children, href }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`underline ${
-                darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'
-              }`}
-            >
-              {children}
-            </a>
-          ),
+          // Customize links with URL sanitization
+          a: ({ children, href }) => {
+            // Sanitize URL to prevent javascript: and data: XSS attacks
+            const sanitizedHref = href && /^(https?:\/\/|\/|#)/i.test(href) ? href : undefined;
+            if (!sanitizedHref) {
+              return <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>{children}</span>;
+            }
+            return (
+              <a
+                href={sanitizedHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`underline ${
+                  darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'
+                }`}
+              >
+                {children}
+              </a>
+            );
+          },
           // Customize headings
           h1: ({ children }) => (
             <h1 className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
