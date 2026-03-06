@@ -25,20 +25,28 @@ The Phase 3A stale branch attempted a 2-major-version jump for sentence-transfor
 
 ## Stories
 
-### Story 38.1: Embedding Compatibility Test Infrastructure
+### Story 38.1: Embedding Compatibility Test Infrastructure ✓ COMPLETE
 **Priority:** P0 (Prerequisite)  
-**Estimate:** 2 days
+**Estimate:** 2 days  
+**Completed:** 2026-03-06
 
 Create test infrastructure to validate embedding compatibility across version upgrades.
 
 **Acceptance Criteria:**
-- [ ] Create `tests/ml/test_embedding_compatibility.py`
-- [ ] Test suite for `all-MiniLM-L6-v2` model embeddings
-- [ ] Test suite for `BAAI/bge-large-en-v1.5` model embeddings
-- [ ] Cosine similarity threshold: >=0.99 between versions
-- [ ] Generate reference embeddings from current production
-- [ ] Store reference embeddings in `tests/ml/fixtures/`
-- [ ] CI integration for embedding regression testing
+- [x] Create `tests/ml/test_embedding_compatibility.py`
+- [x] Test suite for `all-MiniLM-L6-v2` model embeddings
+- [x] Test suite for `BAAI/bge-large-en-v1.5` model embeddings
+- [x] Cosine similarity threshold: >=0.99 between versions
+- [x] Generate reference embeddings from current production
+- [x] Store reference embeddings in `tests/ml/fixtures/`
+- [x] CI integration for embedding regression testing
+
+**Implementation:**
+- `tests/ml/test_embedding_compatibility.py` - 19 unit tests (all passing)
+- `tests/ml/conftest.py` - pytest fixtures for test sentences and thresholds
+- `tests/ml/fixtures/test_sentences.json` - 100 representative HomeIQ sentences
+- `scripts/generate_reference_embeddings.py` - Reference embedding generator
+- `.github/workflows/embedding-regression.yml` - CI workflow with workflow_dispatch
 
 **Technical Details:**
 - Use a fixed set of 100 representative text samples

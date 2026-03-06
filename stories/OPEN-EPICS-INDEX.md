@@ -65,9 +65,9 @@ Sprint 7 (COMPLETE — Mar 6, Agent Teams) — Memory Brain (Institutional Memor
 ├── Epic 34: Trust Model & Adaptive UX [P2]                 ← COMPLETE (3 stories, per-domain trust)
 └── Epic 35: Memory Lifecycle & Observability [P2]          ← COMPLETE (4 stories, admin, dashboard, GC)
 
-Sprint 8 (PLANNED — Mar 2026) — Pattern Detection + ML Upgrades
+Sprint 8 (IN PROGRESS — Mar 2026) — Pattern Detection + ML Upgrades
 ├── Epic 37: Pattern Detection Expansion [P1]               ← OPEN (10 stories, 8 new detectors)
-└── Epic 38: ML Dependencies Upgrade [P2]                   ← OPEN (8 stories, sentence-transformers 5.x + more)
+└── Epic 38: ML Dependencies Upgrade [P2]                   ← IN PROGRESS (1/8 stories: 38.1 test infrastructure ✓)
 ```
 
 ## Epic Summary
