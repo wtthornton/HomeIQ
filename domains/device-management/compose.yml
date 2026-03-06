@@ -15,7 +15,7 @@ services:
     environment:
       - DEVICE_HEALTH_MONITOR_PORT=${DEVICE_HEALTH_MONITOR_PORT:-8019}
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
-      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - RELOAD=${RELOAD:-false}
     extra_hosts:
@@ -56,7 +56,7 @@ services:
     environment:
       - DEVICE_CONTEXT_CLASSIFIER_PORT=${DEVICE_CONTEXT_CLASSIFIER_PORT:-8020}
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
-      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - RELOAD=${RELOAD:-false}
     extra_hosts:
@@ -97,7 +97,7 @@ services:
     environment:
       - DEVICE_SETUP_ASSISTANT_PORT=${DEVICE_SETUP_ASSISTANT_PORT:-8021}
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
-      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - RELOAD=${RELOAD:-false}
     extra_hosts:
@@ -180,7 +180,7 @@ services:
     environment:
       - DEVICE_RECOMMENDER_PORT=${DEVICE_RECOMMENDER_PORT:-8023}
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
-      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
       - DEVICE_DATABASE_API_URL=${DEVICE_DATABASE_API_URL:-}
       - DEVICE_DATABASE_API_KEY=${DEVICE_DATABASE_API_KEY:-}
       - LOG_LEVEL=${LOG_LEVEL:-info}
@@ -317,7 +317,7 @@ services:
       - SERVICE_PORT=8020
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}}
-      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
       - DATABASE_SCHEMA=devices
       - DATA_API_URL=http://data-api:8006

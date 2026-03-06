@@ -59,8 +59,8 @@ class CalendarService:
         if not self.influxdb_token:
             raise ValueError("INFLUXDB_TOKEN required (set via environment variable)")
 
-        # Clean up calendar entity list
-        self.calendar_entities = [cal.strip() for cal in self.calendar_entities]
+        # Clean up calendar entity list (filter out empty strings)
+        self.calendar_entities = [cal.strip() for cal in self.calendar_entities if cal.strip()]
         logger.info(
             "Configured for %d calendar(s): %s",
             len(self.calendar_entities),

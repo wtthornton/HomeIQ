@@ -81,7 +81,7 @@ async def _check_db_healthy() -> bool:
     """Dependency check for PostgreSQL."""
     try:
         result = await check_db_health()
-        return result.get("status") == "connected"
+        return result.get("status") == "healthy"
     except Exception:
         return False
 

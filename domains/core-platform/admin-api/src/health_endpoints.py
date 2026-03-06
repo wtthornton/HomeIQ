@@ -90,7 +90,7 @@ class HealthEndpoints:
             "device-setup-assistant": os.getenv("DEVICE_SETUP_URL", "http://device-setup-assistant:8021"),
             # Core Platform self-monitoring
             "admin-api": os.getenv("ADMIN_API_URL", "http://admin-api:8004"),
-            "health-dashboard": os.getenv("HEALTH_DASHBOARD_URL", "http://health-dashboard:80"),
+            "health-dashboard": os.getenv("HEALTH_DASHBOARD_URL", "http://health-dashboard:8080"),
             "data-api": os.getenv("DATA_API_URL", "http://data-api:8006"),
         }
 
