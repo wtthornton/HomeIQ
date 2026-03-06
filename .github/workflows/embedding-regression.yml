@@ -1,0 +1,196 @@
+name: "Embedding Regression Tests"
+
+# Story 38.1: Embedding Compatibility Test Infrastructure
+# This workflow validates embedding consistency across sentence-transformers versions.
+
+on:
+  push:
+    paths:
+      - 'tests/ml/**'
+      - 'scripts/generate_reference_embeddings.py'
+      - 'domains/ml-engine/openvino-service/requirements.txt'
+      - 'libs/homeiq-memory/pyproject.toml'
+      - '.github/workflows/embedding-regression.yml'
+  pull_request:
+    paths:
+      - 'tests/ml/**'
+      - 'scripts/generate_reference_embeddings.py'
+      - 'domains/ml-engine/openvino-service/**'
+      - 'domains/ml-engine/model-prep/**'
+      - 'libs/homeiq-memory/**'
+      - '.github/workflows/embedding-regression.yml'
+  workflow_dispatch:
+    inputs:
+      run_full_tests:
+        description: 'Run full embedding tests (requires model download)'
+        required: false
+        default: 'false'
+        type: boolean
+      regenerate_reference:
+        description: 'Regenerate reference embeddings'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: embedding-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.12'
+  SENTENCE_TRANSFORMERS_VERSION: '3.3.1'
+
+jobs:
+  unit-tests:
+    name: "Unit Tests (No Model Download)"
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-cov numpy
+      
+      - name: Run unit tests
+        run: |
+          pytest tests/ml/test_embedding_compatibility.py \
+            -v \
+            --tb=short \
+            -m "not embedding_regression and not slow" \
+            --cov=tests/ml \
+            --cov-report=term-missing
+      
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-unit
+          path: .coverage
+
+  embedding-tests:
+    name: "Embedding Compatibility Tests"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_full_tests == 'true'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Cache HuggingFace models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: huggingface-${{ env.SENTENCE_TRANSFORMERS_VERSION }}-${{ hashFiles('tests/ml/fixtures/test_sentences.json') }}
+          restore-keys: |
+            huggingface-${{ env.SENTENCE_TRANSFORMERS_VERSION }}-
+            huggingface-
+      
+      - name: Install dependencies
+        run: |
+          pip install pytest pytest-cov numpy
+          pip install sentence-transformers==${{ env.SENTENCE_TRANSFORMERS_VERSION }}
+      
+      - name: Verify sentence-transformers version
+        run: |
+          python -c "import sentence_transformers; print(f'Version: {sentence_transformers.__version__}')"
+      
+      - name: Run embedding compatibility tests
+        run: |
+          pytest tests/ml/test_embedding_compatibility.py \
+            -v \
+            --tb=long \
+            -m "embedding_regression" \
+            --cov=tests/ml \
+            --cov-report=term-missing
+        timeout-minutes: 30
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: embedding-test-results
+          path: |
+            .coverage
+            pytest-*.xml
+
+  generate-reference:
+    name: "Generate Reference Embeddings"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.regenerate_reference == 'true'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Cache HuggingFace models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: huggingface-${{ env.SENTENCE_TRANSFORMERS_VERSION }}-reference
+          restore-keys: |
+            huggingface-${{ env.SENTENCE_TRANSFORMERS_VERSION }}-
+            huggingface-
+      
+      - name: Install dependencies
+        run: |
+          pip install numpy
+          pip install sentence-transformers==${{ env.SENTENCE_TRANSFORMERS_VERSION }}
+      
+      - name: Generate reference embeddings
+        run: |
+          python scripts/generate_reference_embeddings.py
+        timeout-minutes: 30
+      
+      - name: Upload reference embeddings
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-embeddings
+          path: tests/ml/fixtures/reference_embeddings/
+          retention-days: 30
+
+  lint:
+    name: "Lint Test Files"
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install ruff
+        run: pip install ruff
+      
+      - name: Lint tests/ml/
+        run: |
+          ruff check tests/ml/ --select=E,F,W,I --ignore=E501
+      
+      - name: Lint scripts/generate_reference_embeddings.py
+        run: |
+          ruff check scripts/generate_reference_embeddings.py --select=E,F,W,I --ignore=E501
