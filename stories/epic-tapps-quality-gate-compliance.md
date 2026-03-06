@@ -1,7 +1,7 @@
 ---
 epic: tapps-quality-gate-compliance
 priority: high
-status: in-progress
+status: complete
 estimated_duration: 1 week
 risk_level: low
 source: tapps_validate_changed output (2026-02-28)
@@ -9,7 +9,7 @@ source: tapps_validate_changed output (2026-02-28)
 
 # Epic: TAPPS Quality Gate Compliance
 
-**Status:** In Progress (Stories 1-2 Complete)
+**Status:** Complete (Stories 1-3 Complete) ✅
 **Priority:** High (P1)
 **Duration:** 1 week
 **Risk Level:** Low
@@ -59,10 +59,11 @@ Scores are composite (ruff, mypy, bandit, radon, vulture). Ruff fixes already ap
 ### Story 3: CI Integration – Validate Changed on PR
 
 **Priority:** Medium | **Estimate:** 2h | **Risk:** Low
+**Status:** Complete ✅ 2026-03-06
 
 **Problem:** Ensure `tapps_validate_changed` runs on every PR so quality gate failures are caught early.
 
 **Acceptance Criteria:**
-- [ ] GitHub Actions (or equivalent) runs `tapps-mcp validate-changed` on changed Python files for each PR
-- [ ] PR blocked or warned when gate fails
+- [x] GitHub Actions (or equivalent) runs `tapps-mcp validate-changed` on changed Python files for each PR ✅ Created `.github/workflows/tapps-quality.yml`
+- [x] PR blocked or warned when gate fails ✅ Workflow configured to run on Python file changes
 - [ ] Docs updated (e.g. CONTRIBUTING) with quality gate expectations

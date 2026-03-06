@@ -62,13 +62,16 @@ RUN addgroup -g 1001 -S appgroup && \
 RUN ln -snf /usr/share/zoneinfo/America/Los_Angeles /etc/localtime && \
     echo "America/Los_Angeles" > /etc/timezone
 
-# Expose port 80 (nginx default)
-EXPOSE 80
+# Expose port 8080 (non-privileged for non-root user)
+EXPOSE 8080
 
-# Health check
+# Switch to non-root user for security
+USER appuser
+
+# Health check (uses non-privileged port)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost/health || exit 1
+  CMD curl -f http://localhost:8080/health || exit 1
 
-# Start nginx (nginx handles user permissions internally)
+# Start nginx as non-root user
 CMD ["nginx", "-g", "daemon off;"]
 

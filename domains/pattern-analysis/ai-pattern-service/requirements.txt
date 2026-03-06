@@ -17,11 +17,11 @@ aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
 httpx>=0.27.0,<0.29.0  # Phase 1: aligned
 tenacity>=8.2.0,<10.0.0  # Phase 2: standardized
 
-# Data processing
-pandas>=2.2.0,<4.0.0  # Phase 3: allow 2.x and 3.x (Feb 2026 upgrade)
-numpy>=2.0.0,<3.0.0  # Phase 3: numpy 2.x baseline (Mar 2026 upgrade)
-scikit-learn>=1.5.0,<2.0.0  # Phase 3: upgraded (Mar 2026). TODO: regenerate .pkl model files after upgrade
-scipy>=1.14.0,<2.0.0  # Phase 3: scipy 1.14+ for numpy 2.x compat (Mar 2026 upgrade)
+# Data processing - March 2026 Upgrade (Epic backend-completion, Story 2-4)
+pandas==3.0.1  # Phase 3: pandas 3.0 (Mar 2026 upgrade)
+numpy==2.4.2  # Phase 3: numpy 2.x (Mar 2026 upgrade)
+scikit-learn==1.8.0  # Phase 3: upgraded Mar 2026. Requires model regeneration.
+scipy==1.17.1  # Phase 3: scipy 1.17 (Mar 2026 upgrade)
 
 # MQTT (for scheduler - Story 39.6)
 paho-mqtt==2.1.0  # Phase 2 upgrade - latest stable

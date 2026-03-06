@@ -21,9 +21,20 @@ git checkout -b feature/your-feature-name
 - **Tests** — add tests for new features, run `pytest` before submitting
 - **Docker** — test your changes build with `docker compose build <service-name>`
 
+### Docker Security Requirements
+
+All Docker images must follow these security practices:
+
+- **Non-root user** — containers must run as a non-root user (use `USER appuser` after setting up permissions)
+- **npm ci** — use `npm ci` instead of `npm install` for reproducible builds
+- **No secrets** — never hardcode API keys, passwords, or tokens in Dockerfiles or source code
+- **Minimal base images** — prefer Alpine-based images where possible
+
 ## Quality Gate (TAPPS)
 
-Every pull request that changes Python files is automatically checked by the **TAPPS quality pipeline**. The quality gate runs in CI and posts results directly on your PR as a comment.
+Every pull request that changes Python files is automatically checked by the **TAPPS quality pipeline** via [`.github/workflows/tapps-quality.yml`](.github/workflows/tapps-quality.yml). The quality gate runs in CI and posts results directly on your PR as a comment.
+
+**PRs with failing quality gates cannot be merged.**
 
 ### What the quality gate checks
 

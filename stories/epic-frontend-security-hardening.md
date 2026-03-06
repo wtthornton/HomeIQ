@@ -1,10 +1,11 @@
 ---
 epic: frontend-security-hardening
 priority: critical
-status: open
+status: in-progress
 estimated_duration: 3-5 days
 risk_level: high
 source: REVIEW_AND_FIXES.md audits (2026-02-06), TAPPS security expert consultation
+last_updated: 2026-03-06
 ---
 
 # Epic: Frontend Security Hardening
@@ -41,10 +42,10 @@ extractable from browser DevTools in production.
 - Both Dockerfiles: `ENV VITE_API_KEY` persists in layer history
 
 **Acceptance Criteria:**
-- [ ] Zero hardcoded API key strings in source code (grep confirms)
-- [ ] API keys injected at runtime via nginx sub_filter or window.__ENV__ pattern
+- [x] Zero hardcoded API key strings in source code (grep confirms) ✅ 2026-03-06
+- [x] API keys injected at runtime via nginx sub_filter or window.__ENV__ pattern ✅ 2026-03-06
 - [ ] Docker images contain no API keys in any layer (`docker history` clean)
-- [ ] Existing functionality unchanged — all API calls still authenticate
+- [x] Existing functionality unchanged — all API calls still authenticate ✅ 2026-03-06
 - [ ] Pre-commit hook added: grep guard for `VITE_.*KEY.*=.*['"]\w{10,}` patterns
 
 ---
@@ -60,9 +61,9 @@ extractable from browser DevTools in production.
 - `domains/frontends/ai-automation-ui/nginx.conf` — lines 41, 72, 106, 138, 170, 202, 240
 
 **Acceptance Criteria:**
-- [ ] CORS origin restricted to specific allowed origins (env-configurable)
-- [ ] `credentials: 'include'` only used with matching `Access-Control-Allow-Origin`
-- [ ] Preflight OPTIONS handled correctly for all proxy routes
+- [x] CORS origin restricted to specific allowed origins (env-configurable) ✅ 2026-03-06 (Already implemented)
+- [x] `credentials: 'include'` only used with matching `Access-Control-Allow-Origin` ✅ 2026-03-06
+- [x] Preflight OPTIONS handled correctly for all proxy routes ✅ 2026-03-06
 - [ ] Manual test: cross-origin request from unauthorized domain is rejected
 
 ---
@@ -78,10 +79,10 @@ extractable from browser DevTools in production.
 - `domains/core-platform/health-dashboard/nginx.conf`
 
 **Acceptance Criteria:**
-- [ ] CSP header added: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws: wss:`
+- [x] CSP header added: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws: wss:` ✅ 2026-03-06 (Already implemented)
 - [ ] No console CSP violations when using all app features
 - [ ] `X-XSS-Protection` deprecated header removed (SEC-04)
-- [ ] `X-Content-Type-Options: nosniff` and `X-Frame-Options: DENY` confirmed present
+- [x] `X-Content-Type-Options: nosniff` and `X-Frame-Options: DENY` confirmed present ✅ 2026-03-06
 
 ---
 
@@ -96,10 +97,10 @@ extractable from browser DevTools in production.
 - `MessageContent.tsx:29-105` — AI markdown rendered without `sanitizeMarkdown()`
 
 **Acceptance Criteria:**
-- [ ] RegExp input escaped via `escapeRegExp()` utility before `new RegExp()`
-- [ ] `serviceName` validated against allowlist pattern `^[a-zA-Z0-9_-]+$`
-- [ ] URLs validated via `sanitizeUrl()` before rendering in `href`
-- [ ] ReactMarkdown wrapped with `sanitizeMarkdown()` in MessageContent
+- [ ] RegExp input escaped via `escapeRegExp()` utility before `new RegExp()` (No vulnerable patterns found)
+- [x] `serviceName` validated against allowlist pattern `^[a-zA-Z0-9_-]+$` ✅ 2026-03-06 (Already implemented in api.ts)
+- [x] URLs validated via `sanitizeUrl()` before rendering in `href` ✅ 2026-03-06
+- [x] ReactMarkdown wrapped with `sanitizeMarkdown()` in MessageContent ✅ 2026-03-06 (Added rehype-sanitize)
 - [ ] Unit tests for each validation path
 
 ---
@@ -114,7 +115,7 @@ extractable from browser DevTools in production.
 - AI UI has 10 API modules with inconsistent auth patterns
 
 **Acceptance Criteria:**
-- [ ] CSRF token generation uses `crypto.getRandomValues()`
+- [x] CSRF token generation uses `crypto.getRandomValues()` ✅ 2026-03-06 (Already implemented)
 - [ ] All health dashboard fetch calls routed through `BaseApiClient`
 - [ ] Auth pattern consistent across AI UI API modules (addressed in Epic 3)
 

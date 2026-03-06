@@ -720,7 +720,7 @@ class PredictiveAnalyticsEngine:
 
         return recommendations
 
-    async def _evaluate_models(self, X_test: np.ndarray, y_test: np.ndarray, _use_scaled: bool = True):
+    async def _evaluate_models(self, X_test: np.ndarray, y_test: np.ndarray, use_scaled: bool = True):
         """
         Evaluate model performance.
 
@@ -754,7 +754,7 @@ class PredictiveAnalyticsEngine:
                 "evaluated_at": datetime.now(UTC).isoformat()
             }
 
-    async def _validate_models(self, X_test: np.ndarray, _y_test: np.ndarray, _use_scaled: bool = True) -> dict[str, Any]:
+    async def _validate_models(self, X_test: np.ndarray, y_test: np.ndarray, use_scaled: bool = True) -> dict[str, Any]:
         """
         Validate models meet minimum performance thresholds.
 
