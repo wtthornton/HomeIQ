@@ -64,7 +64,7 @@ from .api import (
     suggestion_router,
     synergy_router,
 )
-from .api.dependencies import close_clients, init_clients
+from .api.dependencies import close_clients, init_clients, init_memory_client
 from .api.middlewares import (
     AuthenticationMiddleware,
     RateLimitMiddleware,
@@ -203,6 +203,9 @@ async def _startup() -> None:
 
     # Initialize singleton HTTP clients (C4 fix)
     init_clients()
+
+    # Initialize MemoryClient (Epic 30: Memory Brain integration)
+    await init_memory_client()
 
     # Initialize database
     db_ok = await init_db()

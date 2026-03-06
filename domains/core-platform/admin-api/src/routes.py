@@ -12,6 +12,7 @@ from .config_endpoints import ConfigEndpoints
 from .docker_endpoints import DockerEndpoints
 from .ha_proxy_endpoints import router as ha_proxy_router
 from .health_endpoints import HealthEndpoints
+from .memory_endpoints import router as memory_router
 from .models import APIResponse
 from .mqtt_config_endpoints import public_router as mqtt_config_public_router
 from .mqtt_config_endpoints import router as mqtt_config_router
@@ -74,6 +75,9 @@ def register_routers(
     )
     app.include_router(
         ha_proxy_router, tags=["Home Assistant Proxy"], dependencies=secure,
+    )
+    app.include_router(
+        memory_router, tags=["Memories"], dependencies=secure,
     )
 
 

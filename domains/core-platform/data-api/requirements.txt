@@ -28,6 +28,9 @@ python-jose[cryptography]>=3.5.0,<4.0.0  # Unpinned for patch updates
 passlib[bcrypt]>=1.7.4,<2.0.0  # Unpinned for patch updates
 psutil>=7.2.1,<8.0.0  # Latest stable 7.2.1 (January 2026) - Fixed: Align with base
 
+# Scheduling (Epic 31: Memory Consolidation Jobs)
+apscheduler>=3.10.0,<4.0.0  # Stable task scheduler for background jobs
+
 # Testing (development)
 pytest>=8.3.0,<10.0.0  # Phase 2: standardized
 pytest-asyncio>=0.23.0,<2.0.0  # Phase 2: standardized

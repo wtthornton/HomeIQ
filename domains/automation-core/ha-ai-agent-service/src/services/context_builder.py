@@ -1,10 +1,15 @@
 """
 Context Builder Service
 Orchestrates all Tier 1 context components for OpenAI agent
+
+Story 33.2: Memory injection for LLM prompts
 """
+
+from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 import httpx
 from sqlalchemy import select
@@ -12,6 +17,9 @@ from sqlalchemy import select
 from ..config import Settings
 from ..database import ContextCache, get_session
 from ..prompts.system_prompt import SYSTEM_PROMPT
+
+if TYPE_CHECKING:
+    from homeiq_memory import MemoryInjector
 
 logger = logging.getLogger(__name__)
 
@@ -21,14 +29,20 @@ class ContextBuilder:
     Orchestrates all Tier 1 context components and formats context for OpenAI.
 
     Epic AI-19: Tier 1 context injection system
+    Story 33.2: Memory injection for LLM prompts
     """
 
-    def __init__(self, settings: Settings):
+    def __init__(
+        self,
+        settings: Settings,
+        memory_injector: MemoryInjector | None = None,
+    ):
         """
         Initialize context builder.
 
         Args:
             settings: Application settings
+            memory_injector: Optional MemoryInjector for memory context (Story 33.2)
         """
         self.settings = settings
         self._initialized = False
@@ -51,6 +65,8 @@ class ContextBuilder:
         self._enhanced_context_builder = None
         # Epic Activity Recognition: Activity context for Tier 1
         self._activity_context_service = None
+        # Story 33.2: Memory injection for personalized context
+        self._memory_injector = memory_injector
 
     async def initialize(self) -> None:
         """Initialize context builder and all services"""
@@ -355,6 +371,59 @@ class ContextBuilder:
             user_prompt=user_prompt,
             skip_truncation=skip_truncation,
         )
+
+    async def get_memory_context(
+        self,
+        query: str,
+        entity_ids: list[str] | None = None,
+        limit: int = 10,
+    ) -> str:
+        """
+        Get memory context for LLM prompt injection.
+
+        Story 33.2: Retrieves relevant memories based on the user's query
+        and formats them for injection into the LLM system prompt.
+
+        Args:
+            query: User message or search query for semantic memory retrieval
+            entity_ids: Optional list of entity IDs to filter memories
+            limit: Maximum number of memories to retrieve (default: 10)
+
+        Returns:
+            Formatted memory context string, or empty string if no memories found
+            or memory injection is not available
+        """
+        if not self._memory_injector:
+            logger.debug("Memory injector not available, skipping memory context")
+            return ""
+
+        try:
+            memory_context = await self._memory_injector.get_context(
+                query=query,
+                entity_ids=entity_ids,
+                limit=limit,
+            )
+            if memory_context:
+                logger.info(
+                    "Retrieved memory context for query (length: %d chars)",
+                    len(memory_context),
+                )
+            return memory_context
+        except Exception as e:
+            logger.warning("Failed to get memory context: %s", e)
+            return ""
+
+    @property
+    def memory_injector(self) -> MemoryInjector | None:
+        """Get the memory injector instance (if configured)."""
+        return self._memory_injector
+
+    @memory_injector.setter
+    def memory_injector(self, value: MemoryInjector | None) -> None:
+        """Set the memory injector instance."""
+        self._memory_injector = value
+        if value:
+            logger.info("Memory injector configured for context builder")
 
     async def build_filtered_context(
         self,

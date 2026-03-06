@@ -2,11 +2,12 @@
 Suggestion Generation Router
 
 Epic 39, Story 39.10: Automation Service Foundation
+Epic 30, Story 30.2: Approval/Rejection Memory Integration
 Extracted from ai-automation-service for independent scaling.
 """
 
 import logging
-from datetime import UTC
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -16,6 +17,7 @@ from ..api.dependencies import (
     DatabaseSession,
     get_json_query_service,
     get_json_rebuilder,
+    get_memory_client,
     get_suggestion_service,
 )
 from ..api.error_handlers import handle_route_errors
@@ -23,6 +25,16 @@ from ..database.models import Suggestion
 from ..services.json_query_service import JSONQueryService
 from ..services.json_rebuilder import JSONRebuilder
 from ..services.suggestion_service import SuggestionService
+
+try:
+    from homeiq_memory import MemoryClient, MemoryType, SourceChannel
+
+    MEMORY_AVAILABLE = True
+except ImportError:
+    MEMORY_AVAILABLE = False
+    MemoryClient = None  # type: ignore[misc,assignment]
+    MemoryType = None  # type: ignore[misc,assignment]
+    SourceChannel = None  # type: ignore[misc,assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +55,60 @@ class GenerateRequest(BaseModel):
     pattern_ids: list[str] | None = None
     days: int = 30
     limit: int = 10
+
+
+class ApprovalRequest(BaseModel):
+    """Request to approve a suggestion (Epic 30, Story 30.2)."""
+
+    feedback: str | None = None
+
+
+class RejectionRequest(BaseModel):
+    """Request to reject a suggestion (Epic 30, Story 30.2)."""
+
+    reason: str | None = None
+
+
+# Keywords that indicate a hard user boundary (e.g., safety, never, must not)
+_HARD_CONSTRAINT_KEYWORDS = frozenset([
+    "never", "always", "must not", "must never", "safety", "dangerous",
+    "security", "children", "kids", "baby", "pet", "allergy", "medical",
+    "fire", "emergency", "critical", "forbidden", "prohibited",
+])
+
+
+def _is_hard_constraint(reason: str | None) -> bool:
+    """Determine if rejection reason indicates a hard user boundary."""
+    if not reason:
+        return False
+    reason_lower = reason.lower()
+    return any(kw in reason_lower for kw in _HARD_CONSTRAINT_KEYWORDS)
+
+
+def _extract_entity_ids(suggestion: Suggestion) -> list[str] | None:
+    """Extract entity_ids from suggestion's automation_json if available."""
+    if not suggestion.automation_json:
+        return None
+
+    entity_ids: set[str] = set()
+    automation = suggestion.automation_json
+
+    for trigger in automation.get("triggers", []):
+        if eid := trigger.get("entity_id"):
+            if isinstance(eid, list):
+                entity_ids.update(eid)
+            else:
+                entity_ids.add(eid)
+
+    for action in automation.get("actions", []):
+        if target := action.get("target"):
+            if eid := target.get("entity_id"):
+                if isinstance(eid, list):
+                    entity_ids.update(eid)
+                else:
+                    entity_ids.add(eid)
+
+    return list(entity_ids) if entity_ids else None
 
 
 @router.post("/generate")
@@ -424,4 +490,150 @@ async def query_suggestions(
         "total": total,
         "limit": limit,
         "offset": offset,
+    }
+
+
+@router.post("/{suggestion_id}/approve")
+@handle_route_errors("approve suggestion")
+async def approve_suggestion(
+    suggestion_id: int,
+    request: ApprovalRequest,
+    db: DatabaseSession,
+    suggestion_svc: SuggestionService = Depends(get_suggestion_service),
+    memory_client: MemoryClient | None = Depends(get_memory_client),
+) -> dict[str, Any]:
+    """
+    Approve an automation suggestion (Epic 30, Story 30.2).
+
+    Updates suggestion status to 'approved' and saves an OUTCOME memory
+    recording the user's approval for future AI learning.
+
+    Args:
+        suggestion_id: ID of the suggestion to approve
+        request: Optional feedback from user
+
+    Returns:
+        Success status and updated suggestion details
+    """
+    suggestion = await db.get(Suggestion, suggestion_id)
+    if not suggestion:
+        raise HTTPException(status_code=404, detail="Suggestion not found")
+
+    suggestion.status = "approved"
+    suggestion.user_feedback = "approve"
+    suggestion.feedback_at = datetime.now(UTC)
+    await db.commit()
+    await db.refresh(suggestion)
+
+    memory_saved = False
+    if memory_client and MEMORY_AVAILABLE:
+        try:
+            entity_ids = _extract_entity_ids(suggestion)
+            content = f"Automation '{suggestion.title}' approved by user"
+            if request.feedback:
+                content += f". Feedback: {request.feedback}"
+
+            await memory_client.save(
+                content=content,
+                memory_type=MemoryType.OUTCOME,
+                source_channel=SourceChannel.EXPLICIT,
+                source_service="ai-automation-service",
+                entity_ids=entity_ids,
+                metadata={
+                    "suggestion_id": suggestion_id,
+                    "suggestion_title": suggestion.title,
+                    "feedback": request.feedback,
+                    "action": "approved",
+                },
+                confidence=0.8,
+            )
+            memory_saved = True
+            logger.info(f"Saved approval memory for suggestion {suggestion_id}")
+        except Exception as e:
+            logger.warning(f"Failed to save approval memory: {e}")
+
+    return {
+        "success": True,
+        "suggestion_id": suggestion_id,
+        "status": suggestion.status,
+        "memory_saved": memory_saved,
+        "message": f"Suggestion '{suggestion.title}' approved successfully",
+    }
+
+
+@router.post("/{suggestion_id}/reject")
+@handle_route_errors("reject suggestion")
+async def reject_suggestion(
+    suggestion_id: int,
+    request: RejectionRequest,
+    db: DatabaseSession,
+    suggestion_svc: SuggestionService = Depends(get_suggestion_service),
+    memory_client: MemoryClient | None = Depends(get_memory_client),
+) -> dict[str, Any]:
+    """
+    Reject an automation suggestion (Epic 30, Story 30.2).
+
+    Updates suggestion status to 'rejected' and saves a memory recording
+    the user's rejection. If the reason indicates a hard constraint
+    (safety, security, etc.), saves a BOUNDARY memory. Otherwise saves
+    a PREFERENCE memory for softer user preferences.
+
+    Args:
+        suggestion_id: ID of the suggestion to reject
+        request: Rejection reason from user
+
+    Returns:
+        Success status, updated suggestion details, and memory type used
+    """
+    suggestion = await db.get(Suggestion, suggestion_id)
+    if not suggestion:
+        raise HTTPException(status_code=404, detail="Suggestion not found")
+
+    suggestion.status = "rejected"
+    suggestion.user_feedback = "reject"
+    suggestion.feedback_at = datetime.now(UTC)
+    await db.commit()
+    await db.refresh(suggestion)
+
+    memory_saved = False
+    memory_type_used = None
+    if memory_client and MEMORY_AVAILABLE:
+        try:
+            entity_ids = _extract_entity_ids(suggestion)
+            is_boundary = _is_hard_constraint(request.reason)
+            memory_type = MemoryType.BOUNDARY if is_boundary else MemoryType.PREFERENCE
+
+            reason_text = request.reason or "no reason given"
+            content = f"Automation suggestion '{suggestion.title}' rejected: {reason_text}"
+
+            await memory_client.save(
+                content=content,
+                memory_type=memory_type,
+                source_channel=SourceChannel.EXPLICIT,
+                source_service="ai-automation-service",
+                entity_ids=entity_ids,
+                metadata={
+                    "suggestion_id": suggestion_id,
+                    "suggestion_title": suggestion.title,
+                    "reason": request.reason,
+                    "action": "rejected",
+                    "is_hard_constraint": is_boundary,
+                },
+                confidence=0.9 if is_boundary else 0.7,
+            )
+            memory_saved = True
+            memory_type_used = memory_type.value
+            logger.info(
+                f"Saved rejection memory ({memory_type.value}) for suggestion {suggestion_id}"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save rejection memory: {e}")
+
+    return {
+        "success": True,
+        "suggestion_id": suggestion_id,
+        "status": suggestion.status,
+        "memory_saved": memory_saved,
+        "memory_type": memory_type_used,
+        "message": f"Suggestion '{suggestion.title}' rejected",
     }

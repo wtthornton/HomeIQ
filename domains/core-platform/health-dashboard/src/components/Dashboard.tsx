@@ -23,6 +23,7 @@ const LazyHygieneTab = lazy(() => import('./tabs/HygieneTab').then(m => ({ defau
 const LazyValidationTab = lazy(() => import('./tabs/ValidationTab').then(m => ({ default: m.ValidationTab })));
 const LazyEvaluationTab = lazy(() => import('./tabs/EvaluationTab').then(m => ({ default: m.EvaluationTab })));
 const LazyConfigurationTab = lazy(() => import('./tabs/ConfigurationTab').then(m => ({ default: m.ConfigurationTab })));
+const LazyMemoryTab = lazy(() => import('./tabs/MemoryTab').then(m => ({ default: m.MemoryTab })));
 
 /** Only allow http/https URLs to prevent javascript: or data: injection */
 function sanitizeUrl(url: string | undefined, fallback: string): string {
@@ -76,6 +77,7 @@ const NAV_GROUPS = [
       { id: 'hygiene', label: 'Device Health' },
       { id: 'validation', label: 'Automation Checks' },
       { id: 'evaluation', label: 'AI Performance' },
+      { id: 'memory', label: 'Memory Brain' },
     ],
   },
   {
@@ -110,6 +112,7 @@ const TAB_COMPONENTS: Record<string, React.FC<TabProps>> = {
   validation: LazyValidationTab,
   evaluation: LazyEvaluationTab,
   configuration: LazyConfigurationTab,
+  memory: LazyMemoryTab,
 };
 
 /** Find the group that contains a given tab ID */

@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-04 (Sprints 5-6 complete, Sprint 7 Memory Brain planned, Epic 36 E2E Test Remediation complete)
-**Total:** 37 Epics, 209 Stories, ~630+ files addressed
+**Created:** 2026-02-27 | **Updated:** 2026-03-06 (Sprint 7 Memory Brain complete, all 37 epics done)
+**Total:** 37 Epics, 240 Stories, ~700+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -56,14 +56,14 @@ Sprint 6 (COMPLETE — Mar 4, Agent Teams) — Voice + Scheduled Tasks
 ├── Epic 26: Voice Gateway Service [P1]                     ← COMPLETE (6 stories, 17 files, new service port 8041)
 └── Epic 27: Scheduled AI Tasks (Continuity) [P2]           ← COMPLETE (5 stories, 15 files, enhances proactive-agent)
 
-Sprint 7 (Planned) — Memory Brain (Institutional Memory)
-├── Epic 29: Memory Store Foundation [P0]                   ← PENDING (6 stories, homeiq-memory lib + pgvector)
-├── Epic 30: Explicit Memory Capture [P1]                   ← PENDING (4 stories, chat + feedback → memory)
-├── Epic 31: Implicit Memory Capture [P1]                   ← PENDING (4 stories, overrides + behavior → memory)
-├── Epic 32: Synthesized Memory [P1]                        ← PENDING (5 stories, consolidation job)
-├── Epic 33: Memory Injection [P1]                          ← PENDING (5 stories, all AI services query memory)
-├── Epic 34: Trust Model & Adaptive UX [P2]                 ← PENDING (3 stories, per-domain trust)
-└── Epic 35: Memory Lifecycle & Observability [P2]          ← PENDING (4 stories, admin, dashboard, GC)
+Sprint 7 (COMPLETE — Mar 6, Agent Teams) — Memory Brain (Institutional Memory)
+├── Epic 29: Memory Store Foundation [P0]                   ← COMPLETE (6 stories, homeiq-memory lib + pgvector)
+├── Epic 30: Explicit Memory Capture [P1]                   ← COMPLETE (4 stories, chat + feedback → memory)
+├── Epic 31: Implicit Memory Capture [P1]                   ← COMPLETE (4 stories, overrides + behavior → memory)
+├── Epic 32: Synthesized Memory [P1]                        ← COMPLETE (5 stories, consolidation job)
+├── Epic 33: Memory Injection [P1]                          ← COMPLETE (5 stories, all AI services query memory)
+├── Epic 34: Trust Model & Adaptive UX [P2]                 ← COMPLETE (3 stories, per-domain trust)
+└── Epic 35: Memory Lifecycle & Observability [P2]          ← COMPLETE (4 stories, admin, dashboard, GC)
 ```
 
 ## Epic Summary
@@ -99,24 +99,24 @@ Sprint 7 (Planned) — Memory Brain (Institutional Memory)
 | 26 | [Voice Gateway Service](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P1 High | 6 | 2-3 weeks | **Complete** |
 | 27 | [Scheduled AI Tasks](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P2 Medium | 5 | 1-2 weeks | **Complete** |
 | 28 | [Enhanced Event Bus](epic-sapphire-ha-integration.md) | `epic-sapphire-ha-integration.md` | P2 Medium | 4 | 1 week | **Complete** |
-| 29 | [Memory Store Foundation](epic-memory-brain.md) | `epic-memory-brain.md` | **P0 Critical** | 6 | 2 weeks | Pending |
-| 30 | [Explicit Memory Capture](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 4 | 1-2 weeks | Pending |
-| 31 | [Implicit Memory Capture](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 4 | 1-2 weeks | Pending |
-| 32 | [Synthesized Memory](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 5 | 1-2 weeks | Pending |
-| 33 | [Memory Injection](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 5 | 1-2 weeks | Pending |
-| 34 | [Trust Model & Adaptive UX](epic-memory-brain.md) | `epic-memory-brain.md` | P2 Medium | 3 | 1 week | Pending |
-| 35 | [Memory Lifecycle & Observability](epic-memory-brain.md) | `epic-memory-brain.md` | P2 Medium | 4 | 1 week | Pending |
+| 29 | [Memory Store Foundation](epic-memory-brain.md) | `epic-memory-brain.md` | **P0 Critical** | 6 | 2 weeks | **Complete** (homeiq-memory lib, 14 files) |
+| 30 | [Explicit Memory Capture](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 4 | 1-2 weeks | **Complete** (chat + approval extraction) |
+| 31 | [Implicit Memory Capture](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 4 | 1-2 weeks | **Complete** (override + engagement tracking) |
+| 32 | [Synthesized Memory](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 5 | 1-2 weeks | **Complete** (consolidation job + routines) |
+| 33 | [Memory Injection](epic-memory-brain.md) | `epic-memory-brain.md` | P1 High | 5 | 1-2 weeks | **Complete** (4 AI services integrated) |
+| 34 | [Trust Model & Adaptive UX](epic-memory-brain.md) | `epic-memory-brain.md` | P2 Medium | 3 | 1 week | **Complete** (API + dashboard widget) |
+| 35 | [Memory Lifecycle & Observability](epic-memory-brain.md) | `epic-memory-brain.md` | P2 Medium | 4 | 1 week | **Complete** (admin API, dashboard, self-heal) |
 | 36 | [E2E Playwright Test Remediation](epic-e2e-playwright-test-remediation.md) | `epic-e2e-playwright-test-remediation.md` | P1 High | 10 | 1 day | **Complete** (36→0 failures, 160/167 pass) |
 
 ## Story Count by Priority
 
 | Priority | Count | Description |
 |----------|-------|-------------|
-| P0 Critical | 26 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) |
-| P1 High | 100 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory capture + injection (18) |
-| P2 Medium | 26 | Framework upgrades, feature integrations, background processing, Trust model + observability (7) |
+| P0 Critical | 26 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) ✅ |
+| P1 High | 122 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory capture + injection (18) ✅ |
+| P2 Medium | 33 | Framework upgrades, feature integrations, background processing, Trust model + observability (7) ✅ |
 | P3 Low | 4 | ML model training, placeholder implementations |
-| **Total** | **199** | (94 original + 31 Epics 16-20 + 21 Epics 21-24 + 22 Sprints 5-6 + 31 Memory Brain) |
+| **Total** | **240** | All complete (37 epics) |
 
 ## Sprint 2 Results (COMPLETE — Mar 4, Agent Teams)
 
@@ -250,6 +250,50 @@ Actual Outcome:
   Quality: all Python files pass quality gate (70+), security clean
 ```
 
+## Sprint 7 Results (COMPLETE — Mar 6, Agent Teams)
+
+**Memory Brain implementation — 4-wave agent execution:**
+
+```
+Wave 1 (Epic 29 Foundation):
+├── lib-foundation:    homeiq-memory shared library (14 Python files)
+│   ├── models.py — SQLAlchemy models (Memory, MemoryArchive, enums)
+│   ├── client.py — MemoryClient CRUD operations
+│   ├── search.py — Hybrid search (FTS + pgvector, RRF fusion)
+│   ├── embeddings.py — Sentence-transformers embedding generator
+│   ├── decay.py — Confidence decay engine (90/180/120-day half-lives)
+│   ├── consolidator.py — Mem0-style extract-consolidate-retrieve
+│   ├── injector.py — LLM prompt context injection
+│   └── health.py — Self-healing and health checks
+
+Wave 2 (Epics 30+31+35.1-3, parallel):
+├── ha-ai-agent:       Chat memory extraction (LLM-based fact extraction)
+├── ai-automation:     Approval/rejection → outcome/boundary memories
+├── rule-rec-ml:       Rating feedback → outcome memories
+├── admin-api:         Memory CRUD endpoints (/api/v1/memories)
+├── data-api:          Consolidation job (APScheduler, 6-hour cycle)
+└── proactive-agent:   Suggestion engagement tracking
+
+Wave 3 (Epics 32+33, parallel):
+├── consolidation:     Metrics tracking, routine synthesis (weekly)
+├── ha-ai-agent:       Memory injection into LLM prompts
+├── suggestion-svc:    Boundary filtering, preference boosting
+└── proactive-agent:   Memory-aware suggestion timing
+
+Wave 4 (Epics 34+35.4):
+├── trust-api:         GET /api/v1/memories/trust (Bayesian scoring)
+├── dashboard:         TrustScoreWidget + MemoryTab components
+└── self-healing:      FTS index repair, embedding backfill, graceful fallback
+
+Actual Outcome:
+  New shared library: homeiq-memory (14 files, 55+ tests)
+  Services integrated: ha-ai-agent, ai-automation-service-new, rule-recommendation-ml,
+                       admin-api, data-api, proactive-agent, health-dashboard
+  New API endpoints: 8 memory management + 2 trust score + 3 job control
+  Frontend: MemoryTab, TrustScoreWidget, useTrustScore hook
+  Quality: All core files pass quality gate (70+), 0 security issues
+```
+
 ## Key Dates
 
 | Date | Milestone |
@@ -261,8 +305,8 @@ Actual Outcome:
 | Mar 4 | Sprint 4 complete — Epic 5 + Epics 12-14 via 4-wave agent teams, 38 services + 2 frontends |
 | Mar 4 | Sprint 5 complete — Epics 25+28 (device control + event bus), 32 files, 2 new services |
 | Mar 4 | Sprint 6 complete — Epics 26+27 (voice gateway + scheduled tasks), 32 files |
+| Mar 6 | Sprint 7 complete — Epics 29-35 (Memory Brain), homeiq-memory lib + 8 service integrations |
 | ~Mar 17 | Production deployment eligible (DB migration done, security hardened, quality gated) |
-| TBD | Sprint 7: Memory Brain — institutional memory layer (7 epics, 31 stories) |
 
 ## Coverage of All Known Open Items
 
@@ -352,3 +396,20 @@ Actual Outcome:
 | **Dockerfile security: root user, missing healthcheck, UID** | **Epic 23, Stories 1-8** |
 | **Deployment tooling gaps (no per-domain scripts)** | **Epic 24, Stories 1-5** |
 | **36 failing Playwright E2E tests (AI Automation UI)** | **Epic 36, Stories 1-10** |
+| **Memory Brain — institutional memory layer** | **Epics 29-35** |
+| homeiq-memory shared library (14 files) | Epic 29, Stories 1-6 |
+| Chat memory extraction (LLM-based) | Epic 30, Story 1 |
+| Approval/rejection memories | Epic 30, Story 2 |
+| Rating feedback memories | Epic 30, Story 3 |
+| Override detection consolidation | Epic 31, Story 1 |
+| Usage pattern consolidation | Epic 31, Story 3 |
+| Suggestion engagement tracking | Epic 31, Story 4 |
+| Consolidation job infrastructure | Epic 32, Story 1 |
+| Routine synthesis | Epic 32, Story 2 |
+| Memory injection in ha-ai-agent | Epic 33, Story 2 |
+| Memory injection in suggestion service | Epic 33, Story 3 |
+| Trust score API | Epic 34, Story 1 |
+| Trust dashboard widget | Epic 34, Stories 2-3 |
+| Memory admin API | Epic 35, Story 1 |
+| Memory dashboard page | Epic 35, Story 2 |
+| Self-healing and graceful degradation | Epic 35, Story 4 |

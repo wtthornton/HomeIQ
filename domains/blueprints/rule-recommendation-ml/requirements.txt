@@ -35,3 +35,6 @@ asyncpg>=0.30.0
 # Utilities
 python-dotenv>=1.0.0,<2.0.0  # Phase 2: standardized
 structlog>=24.1.0
+
+# Memory Brain (Epic 30)
+homeiq-memory @ file:///${PROJECT_ROOT}/libs/homeiq-memory

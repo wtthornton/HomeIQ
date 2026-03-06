@@ -29,6 +29,7 @@ from .evaluation_endpoints import router as evaluation_router
 from .events_endpoints import EventsEndpoints
 from .ha_automation_endpoints import router as ha_automation_router
 from .hygiene_endpoints import router as hygiene_router
+from .jobs_endpoints import router as jobs_router
 from .metrics_endpoints import create_metrics_router
 from .metrics_state import metrics_buffer
 from .sports_endpoints import router as sports_router
@@ -116,6 +117,7 @@ def register_routers(app: FastAPI, svc: DataAPIService) -> None:
         (energy_router, "/api/v1", "Energy"),
         (hygiene_router, "", "Device Hygiene"),
         (evaluation_router, "/api/v1", "Agent Evaluation"),
+        (jobs_router, "", "Background Jobs"),
         (mcp_router, "", "MCP Tools"),
     ]
     for router, prefix, tag in _routers:

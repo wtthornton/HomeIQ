@@ -25,6 +25,11 @@ from .config import Settings
 from .database import init_database
 from .services.context_builder import ContextBuilder
 from .services.conversation_service import ConversationService
+from .services.memory_extractor import MemoryExtractor
+
+# Story 33.2: Memory injection imports (conditionally loaded)
+memory_injector = None  # MemoryInjector -- initialized in lifespan if enabled
+memory_search = None  # MemorySearch -- initialized in lifespan if enabled
 from .services.openai_client import OpenAIClient
 from .services.prompt_assembly_service import PromptAssemblyService
 from .services.tool_service import ToolService
@@ -53,6 +58,10 @@ tool_service: ToolService | None = None
 conversation_service: ConversationService | None = None
 prompt_assembly_service: PromptAssemblyService | None = None
 openai_client: OpenAIClient | None = None
+memory_extractor: MemoryExtractor | None = None  # Story 30.1
+memory_client = None  # MemoryClient -- initialized in lifespan if enabled
+memory_search = None  # MemorySearch -- initialized in lifespan if enabled (Story 33.2)
+memory_injector = None  # MemoryInjector -- initialized in lifespan if enabled (Story 33.2)
 group_health = None  # GroupHealthCheck -- initialized in lifespan
 
 
@@ -137,6 +146,7 @@ async def _startup_services() -> None:
     """Initialize all service components during startup."""
     global context_builder, tool_service, conversation_service
     global prompt_assembly_service, openai_client, group_health
+    global memory_extractor, memory_client, memory_search, memory_injector
 
     # Initialize database
     db_ok = await init_database(settings.database_url)
@@ -147,7 +157,7 @@ async def _startup_services() -> None:
 
     group_health = await _init_group_health()
 
-    # Initialize context builder
+    # Initialize context builder (memory_injector added after memory init below)
     cb = ContextBuilder(settings)
     await cb.initialize()
     logger.info("Context builder initialized")
@@ -172,6 +182,51 @@ async def _startup_services() -> None:
     logger.info("OpenAI client initialized")
     openai_client = oc
 
+    # Story 30.1: Initialize memory extraction if enabled
+    # Story 33.2: Initialize memory injection for LLM prompts
+    if settings.enable_memory_extraction:
+        try:
+            from homeiq_memory import (
+                MemoryClient as MemClient,
+                MemoryInjector,
+                MemorySearch,
+            )
+
+            mc = MemClient(database_url=settings.memory_database_url)
+            mem_ok = await mc.initialize()
+            if mem_ok:
+                memory_client = mc
+                memory_extractor = MemoryExtractor(mc, oc)
+                logger.info("Memory extraction enabled and initialized")
+
+                # Story 33.2: Initialize memory search and injector for LLM context
+                try:
+                    ms = MemorySearch(
+                        session_factory=mc._session_maker,
+                        embedding_generator=mc.embedding_generator,
+                    )
+                    memory_search = ms
+
+                    mi = MemoryInjector(
+                        search=ms,
+                        token_budget=2000,
+                        include_no_memories_message=False,
+                    )
+                    memory_injector = mi
+
+                    # Attach memory injector to context builder
+                    if context_builder:
+                        context_builder.memory_injector = mi
+                    logger.info("Memory injection enabled and initialized (Story 33.2)")
+                except Exception as e:
+                    logger.warning("Memory injection setup failed: %s", e)
+            else:
+                logger.warning("Memory client initialization failed - extraction disabled")
+        except ImportError:
+            logger.warning("homeiq-memory not installed - memory extraction disabled")
+        except Exception as e:
+            logger.warning("Memory extraction setup failed: %s", e)
+
     ts = ToolService(
         ha_cl, dapi_cl, ai_auto_cl, yaml_cl,
         oc.client if oc else None,
@@ -190,6 +245,7 @@ async def _startup_services() -> None:
     set_services(
         settings=settings, conversation_service=cs,
         prompt_assembly_service=pas, openai_client=oc, tool_service=ts,
+        memory_extractor=memory_extractor,
     )
     logger.info("HA AI Agent Service started successfully")
 
@@ -198,6 +254,7 @@ async def _shutdown_services() -> None:
     """Run cleanup tasks on shutdown."""
     global context_builder, tool_service, conversation_service
     global prompt_assembly_service, openai_client, group_health
+    global memory_extractor, memory_client, memory_search, memory_injector
 
     if conversation_service:
         try:
@@ -223,11 +280,22 @@ async def _shutdown_services() -> None:
         if tool_service.device_control_handler:
             await tool_service.device_control_handler.shutdown()
 
+    # Story 30.1: Close memory client
+    if memory_client:
+        try:
+            await memory_client.close()
+        except Exception as e:
+            logger.warning("Error closing memory client: %s", e)
+
     context_builder = None
     tool_service = None
     conversation_service = None
     prompt_assembly_service = None
     openai_client = None
+    memory_extractor = None
+    memory_client = None
+    memory_search = None  # Story 33.2
+    memory_injector = None  # Story 33.2
     group_health = None
 
 

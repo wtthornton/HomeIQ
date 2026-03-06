@@ -66,3 +66,17 @@ class Settings(BaseServiceSettings):
         description="OpenAI API timeout in seconds",
     )
 
+    # Memory Brain Configuration (Story 33.4)
+    memory_enabled: bool = Field(
+        default=True,
+        description="Enable memory-aware proactive suggestions",
+    )
+    memory_database_url: str | None = Field(
+        default=None,
+        description="PostgreSQL URL for Memory Brain (uses postgres_dsn if not set)",
+    )
+    memory_min_confidence: float = Field(
+        default=0.3,
+        description="Minimum confidence threshold for memory retrieval",
+    )
+

@@ -151,3 +151,13 @@ class Settings(BaseServiceSettings):
     # Token Budget (increased for richer entity context and better suggestions)
     max_context_tokens: int = 3000  # Maximum tokens for initial context (was 1500)
 
+    # Memory Extraction Configuration (Story 30.1)
+    enable_memory_extraction: bool = Field(
+        default=False,
+        description="Enable automatic memory extraction from user messages (Story 30.1)",
+    )
+    memory_database_url: str | None = Field(
+        default=None,
+        description="Database URL for memory storage (falls back to DATABASE_URL)",
+    )
+

@@ -28,6 +28,7 @@ from ..utils.performance_tracker import (
 )
 from .dependencies import (
     get_conversation_service,
+    get_memory_extractor,
     get_openai_client,
     get_prompt_assembly_service,
     get_settings,
@@ -87,6 +88,33 @@ class SimpleRateLimiter:
 
 # Global rate limiter instance
 _rate_limiter = SimpleRateLimiter(requests_per_minute=100)
+
+
+async def _extract_memories_background(
+    memory_extractor,
+    message: str,
+    conversation_id: str,
+) -> None:
+    """
+    Extract memories in background (fire-and-forget).
+
+    Story 30.1: Memory extraction runs asynchronously to not slow down
+    the main chat response flow.
+    """
+    try:
+        facts = await memory_extractor.extract_and_save(message, conversation_id)
+        if facts:
+            logger.debug(
+                "[Memory] Conversation %s: Extracted %d memories",
+                conversation_id,
+                len(facts),
+            )
+    except Exception as e:
+        logger.warning(
+            "[Memory] Background extraction failed for %s: %s",
+            conversation_id,
+            e,
+        )
 
 
 def _safe_parse_tool_arguments(arguments: Any) -> dict[str, Any]:
@@ -206,6 +234,7 @@ async def chat(
     prompt_assembly_service=Depends(get_prompt_assembly_service),
     openai_client=Depends(get_openai_client),
     tool_service=Depends(get_tool_service),
+    memory_extractor=Depends(get_memory_extractor),
 ):
     """
     Chat endpoint for interacting with the HA AI Agent.
@@ -291,6 +320,16 @@ async def chat(
                 await conversation_service.clear_pending_preview(conversation_id)
                 request.message = f"[USER REJECTED] {request.message}\n\nThe user has rejected the pending automation preview. Acknowledge and do not create the automation."
         end_tracking(pending_preview_id, {"has_pending": bool(pending_preview)})
+
+        # Story 30.1: Extract memories from user message (fire-and-forget)
+        if memory_extractor and settings.enable_memory_extraction:
+            asyncio.create_task(
+                _extract_memories_background(
+                    memory_extractor,
+                    request.message,
+                    conversation_id,
+                )
+            )
 
         # Assemble messages with context
         logger.info(

@@ -34,6 +34,9 @@ httpx>=0.27.0,<0.29.0  # Phase 1: aligned
 # InfluxDB client
 influxdb-client>=1.36.0,<2.0.0  # Phase 2: standardized
 
+# Memory Brain
+homeiq-memory>=1.0.0
+
 # Docker management
 docker==6.1.3
 

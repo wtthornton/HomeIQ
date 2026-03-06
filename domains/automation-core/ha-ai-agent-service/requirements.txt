@@ -38,3 +38,4 @@ httpx>=0.27.0,<0.29.0  # Phase 1: aligned (testing)
 # HomeIQ shared libraries (installed from libs/ in Docker)
 homeiq-patterns>=1.0.0
 homeiq-resilience>=1.0.0
+homeiq-memory>=1.0.0  # Story 30.1: Chat memory extraction

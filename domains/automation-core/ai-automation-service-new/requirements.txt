@@ -45,3 +45,4 @@ homeiq-resilience>=1.0.0
 homeiq-observability>=1.0.0
 homeiq-data>=1.0.0
 homeiq-ha>=1.0.0
+homeiq-memory>=1.0.0  # Epic 30: Memory Brain integration

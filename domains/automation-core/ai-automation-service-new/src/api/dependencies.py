@@ -2,6 +2,8 @@
 Dependency Injection Helpers (2025 Patterns)
 
 Epic 39, Story 39.10: Automation Service Foundation
+Epic 30, Story 30.2: Approval/Rejection Memory Integration
+
 Following 2025 FastAPI dependency injection patterns with Annotated types.
 
 C4 Fix: HTTP clients are now application-scoped singletons stored on app.state,
@@ -28,6 +30,15 @@ from ..services.json_rebuilder import JSONRebuilder
 from ..services.json_verification_service import JSONVerificationService
 from ..services.suggestion_service import SuggestionService
 from ..services.yaml_generation_service import YAMLGenerationService
+
+try:
+    from homeiq_memory import MemoryClient, MemorySearch
+
+    MEMORY_AVAILABLE = True
+except ImportError:
+    MEMORY_AVAILABLE = False
+    MemoryClient = None  # type: ignore[misc,assignment]
+    MemorySearch = None  # type: ignore[misc,assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +79,8 @@ _ha_client: HomeAssistantClient | None = None
 _openai_client: OpenAIClient | None = None
 _openai_yaml_client: OpenAIClient | None = None
 _yaml_validation_client: YAMLValidationClient | None = None
+_memory_client: MemoryClient | None = None
+_memory_search: MemorySearch | None = None
 
 
 def init_clients() -> None:
@@ -89,15 +102,51 @@ def init_clients() -> None:
     )
 
 
+async def init_memory_client() -> None:
+    """Initialize MemoryClient and MemorySearch singletons.
+
+    Called during lifespan startup (Epic 30, Story 33.3).
+    """
+    global _memory_client, _memory_search
+    if not MEMORY_AVAILABLE:
+        logger.info("homeiq-memory not available, memory features disabled")
+        return
+
+    _memory_client = MemoryClient()
+    initialized = await _memory_client.initialize()
+    if initialized:
+        logger.info("MemoryClient initialized successfully")
+        if _memory_client._session_maker:
+            _memory_search = MemorySearch(
+                session_factory=_memory_client._session_maker,
+                embedding_generator=_memory_client.embedding_generator,
+            )
+            logger.info("MemorySearch initialized for memory-aware suggestions")
+    else:
+        logger.warning("MemoryClient initialization failed, memory features degraded")
+        _memory_client = None
+        _memory_search = None
+
+
 async def close_clients() -> None:
     """Close all singleton HTTP clients. Called during lifespan shutdown."""
-    global _data_api_client, _ha_client, _openai_client, _openai_yaml_client, _yaml_validation_client
+    global _data_api_client, _ha_client, _openai_client, _openai_yaml_client
+    global _yaml_validation_client, _memory_client, _memory_search
     for client in [_data_api_client, _ha_client, _openai_client, _openai_yaml_client, _yaml_validation_client]:
         if client and hasattr(client, "close"):
             try:
                 await client.close()
             except Exception as e:
                 logger.warning(f"Error closing client: {e}")
+
+    if _memory_client:
+        try:
+            await _memory_client.close()
+        except Exception as e:
+            logger.warning(f"Error closing MemoryClient: {e}")
+        _memory_client = None
+
+    _memory_search = None
     _data_api_client = None
     _ha_client = None
     _openai_client = None
@@ -147,6 +196,16 @@ def get_yaml_validation_client() -> YAMLValidationClient:
     return _yaml_validation_client
 
 
+def get_memory_client() -> MemoryClient | None:
+    """Get MemoryClient singleton (Epic 30). Returns None if memory unavailable."""
+    return _memory_client
+
+
+def get_memory_search() -> MemorySearch | None:
+    """Get MemorySearch singleton (Story 33.3). Returns None if memory unavailable."""
+    return _memory_search
+
+
 # Service dependencies
 def get_yaml_generation_service(
     _db: DatabaseSession,
@@ -166,9 +225,15 @@ def get_suggestion_service(
     db: DatabaseSession,
     data_api_client: Annotated[DataAPIClient, Depends(get_data_api_client)],
     openai_client: Annotated[OpenAIClient, Depends(get_openai_client)],
+    memory_search: Annotated[MemorySearch | None, Depends(get_memory_search)] = None,
 ) -> SuggestionService:
-    """Get suggestion service instance."""
-    return SuggestionService(db=db, data_api_client=data_api_client, openai_client=openai_client)
+    """Get suggestion service instance with optional memory-aware filtering (Story 33.3)."""
+    return SuggestionService(
+        db=db,
+        data_api_client=data_api_client,
+        openai_client=openai_client,
+        memory_search=memory_search,
+    )
 
 
 def get_deployment_service(

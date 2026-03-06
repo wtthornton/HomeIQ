@@ -20,7 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.ha_agent_client import HAAgentClient
 from ..database import get_db
-from ..models import InvalidSuggestionReport, Suggestion
+from ..models import InvalidSuggestionReport, Suggestion, SuggestionEngagement
+from ..services.engagement_tracker_service import EngagementTracker
 from ..services.suggestion_storage_service import SuggestionStorageService
 
 # Agent Evaluation Framework: SessionTracer wiring (E3.S5)
@@ -141,10 +142,54 @@ class InvalidReportsListResponse(BaseModel):
     by_reason: dict[str, int]
 
 
+class EngagementTrackRequest(BaseModel):
+    """Request model for tracking engagement (Story 31.4)."""
+
+    metadata: dict[str, Any] | None = Field(
+        None,
+        description="Optional metadata about the engagement event",
+    )
+
+
+class EngagementTrackResponse(BaseModel):
+    """Response model for engagement tracking (Story 31.4)."""
+
+    success: bool
+    event_id: str | None = None
+    engagement_type: str
+    message: str
+
+
+class EngagementStatsResponse(BaseModel):
+    """Response model for engagement statistics (Story 31.4)."""
+
+    window_days: int
+    suggestion_id: str | None = None
+    category: str | None = None
+    by_type: dict[str, int]
+    total: int
+    engagement_rate: float
+
+
+class EngagementPatternsResponse(BaseModel):
+    """Response model for engagement pattern analysis (Story 31.4)."""
+
+    window_days: int
+    categories: dict[str, dict[str, int]]
+    patterns: dict[str, list[dict[str, Any]]]
+    thresholds: dict[str, int]
+
+
 # Dependency for storage service
 def get_storage_service() -> SuggestionStorageService:
     """Get suggestion storage service instance"""
     return SuggestionStorageService()
+
+
+# Dependency for engagement tracker
+def get_engagement_tracker() -> EngagementTracker:
+    """Get engagement tracker service instance (Story 31.4)"""
+    return EngagementTracker()
 
 
 @router.get("", response_model=SuggestionListResponse)
@@ -398,6 +443,49 @@ async def create_sample_suggestion(
         raise HTTPException(status_code=500, detail="Failed to create sample suggestion") from e
 
 
+@router.get("/engagement/stats", response_model=EngagementStatsResponse)
+async def get_engagement_stats(
+    category: str | None = Query(None, description="Filter by category"),
+    days: int | None = Query(None, ge=1, le=365, description="Time window in days"),
+    db: AsyncSession = Depends(get_db),
+    tracker: EngagementTracker = Depends(get_engagement_tracker),
+):
+    """
+    Get engagement statistics across all suggestions (Story 31.4).
+
+    Returns aggregate engagement metrics with optional category and time filters.
+    """
+    try:
+        stats = await tracker.get_engagement_stats(
+            category=category,
+            days=days,
+            db=db,
+        )
+        return EngagementStatsResponse(**stats)
+    except Exception as e:
+        logger.error(f"Failed to get engagement stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get engagement stats") from e
+
+
+@router.get("/engagement/patterns", response_model=EngagementPatternsResponse)
+async def get_engagement_patterns(
+    db: AsyncSession = Depends(get_db),
+    tracker: EngagementTracker = Depends(get_engagement_tracker),
+):
+    """
+    Analyze engagement patterns across categories (Story 31.4).
+
+    Identifies categories with high ignore rates, engaged categories,
+    and categories with low engagement that need attention.
+    """
+    try:
+        patterns = await tracker.evaluate_patterns(db=db)
+        return EngagementPatternsResponse(**patterns)
+    except Exception as e:
+        logger.error(f"Failed to evaluate engagement patterns: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to evaluate patterns") from e
+
+
 # --- Dynamic path routes (must come after all static paths) ---
 
 
@@ -647,3 +735,192 @@ async def report_invalid_suggestion(
             status_code=500,
             detail="Failed to submit report"
         ) from e
+
+
+@router.post("/{suggestion_id}/viewed", response_model=EngagementTrackResponse)
+async def track_suggestion_viewed(
+    suggestion_id: str,
+    request_data: EngagementTrackRequest | None = None,
+    db: AsyncSession = Depends(get_db),
+    storage_service: SuggestionStorageService = Depends(get_storage_service),
+    tracker: EngagementTracker = Depends(get_engagement_tracker),
+):
+    """
+    Track that a suggestion was viewed by the user (Story 31.4).
+
+    Args:
+        suggestion_id: ID of the suggestion viewed
+        request_data: Optional metadata about the view event
+        db: Database session
+        storage_service: Storage service instance
+        tracker: Engagement tracker instance
+
+    Returns:
+        Engagement tracking confirmation
+    """
+    try:
+        suggestion = await storage_service.get_suggestion(suggestion_id, db=db)
+        if not suggestion:
+            raise HTTPException(status_code=404, detail="Suggestion not found")
+
+        metadata = request_data.metadata if request_data else None
+        event = await tracker.track_engagement(
+            suggestion_id=suggestion_id,
+            category=suggestion.context_type,
+            engagement=SuggestionEngagement.VIEWED,
+            metadata=metadata,
+            db=db,
+        )
+
+        return EngagementTrackResponse(
+            success=event is not None,
+            event_id=event.id if event else None,
+            engagement_type=SuggestionEngagement.VIEWED.value,
+            message="View tracked" if event else "Failed to track view",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to track view for {suggestion_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to track view") from e
+
+
+@router.post("/{suggestion_id}/acted", response_model=EngagementTrackResponse)
+async def track_suggestion_acted(
+    suggestion_id: str,
+    request_data: EngagementTrackRequest | None = None,
+    db: AsyncSession = Depends(get_db),
+    storage_service: SuggestionStorageService = Depends(get_storage_service),
+    tracker: EngagementTracker = Depends(get_engagement_tracker),
+):
+    """
+    Track that a user acted on a suggestion (Story 31.4).
+
+    Called when the user approves or interacts with the suggestion.
+
+    Args:
+        suggestion_id: ID of the suggestion acted upon
+        request_data: Optional metadata about the action
+        db: Database session
+        storage_service: Storage service instance
+        tracker: Engagement tracker instance
+
+    Returns:
+        Engagement tracking confirmation
+    """
+    try:
+        suggestion = await storage_service.get_suggestion(suggestion_id, db=db)
+        if not suggestion:
+            raise HTTPException(status_code=404, detail="Suggestion not found")
+
+        metadata = request_data.metadata if request_data else None
+        event = await tracker.track_engagement(
+            suggestion_id=suggestion_id,
+            category=suggestion.context_type,
+            engagement=SuggestionEngagement.ACTED,
+            metadata=metadata,
+            db=db,
+        )
+
+        return EngagementTrackResponse(
+            success=event is not None,
+            event_id=event.id if event else None,
+            engagement_type=SuggestionEngagement.ACTED.value,
+            message="Action tracked" if event else "Failed to track action",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to track action for {suggestion_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to track action") from e
+
+
+@router.post("/{suggestion_id}/ignored", response_model=EngagementTrackResponse)
+async def track_suggestion_ignored(
+    suggestion_id: str,
+    request_data: EngagementTrackRequest | None = None,
+    db: AsyncSession = Depends(get_db),
+    storage_service: SuggestionStorageService = Depends(get_storage_service),
+    tracker: EngagementTracker = Depends(get_engagement_tracker),
+):
+    """
+    Track that a user ignored a suggestion (Story 31.4).
+
+    Called when the user dismisses or ignores the suggestion.
+    When ignore count for a category crosses threshold, creates behavioral memory.
+
+    Args:
+        suggestion_id: ID of the suggestion ignored
+        request_data: Optional metadata about the ignore event
+        db: Database session
+        storage_service: Storage service instance
+        tracker: Engagement tracker instance
+
+    Returns:
+        Engagement tracking confirmation
+    """
+    try:
+        suggestion = await storage_service.get_suggestion(suggestion_id, db=db)
+        if not suggestion:
+            raise HTTPException(status_code=404, detail="Suggestion not found")
+
+        metadata = request_data.metadata if request_data else None
+        event = await tracker.track_engagement(
+            suggestion_id=suggestion_id,
+            category=suggestion.context_type,
+            engagement=SuggestionEngagement.IGNORED,
+            metadata=metadata,
+            db=db,
+        )
+
+        return EngagementTrackResponse(
+            success=event is not None,
+            event_id=event.id if event else None,
+            engagement_type=SuggestionEngagement.IGNORED.value,
+            message="Ignore tracked" if event else "Failed to track ignore",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to track ignore for {suggestion_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to track ignore") from e
+
+
+@router.get("/{suggestion_id}/engagement", response_model=EngagementStatsResponse)
+async def get_suggestion_engagement_stats(
+    suggestion_id: str,
+    db: AsyncSession = Depends(get_db),
+    storage_service: SuggestionStorageService = Depends(get_storage_service),
+    tracker: EngagementTracker = Depends(get_engagement_tracker),
+):
+    """
+    Get engagement statistics for a specific suggestion (Story 31.4).
+
+    Args:
+        suggestion_id: ID of the suggestion
+        db: Database session
+        storage_service: Storage service instance
+        tracker: Engagement tracker instance
+
+    Returns:
+        Engagement statistics for the suggestion
+    """
+    try:
+        suggestion = await storage_service.get_suggestion(suggestion_id, db=db)
+        if not suggestion:
+            raise HTTPException(status_code=404, detail="Suggestion not found")
+
+        stats = await tracker.get_engagement_stats(
+            suggestion_id=suggestion_id,
+            db=db,
+        )
+        return EngagementStatsResponse(**stats)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get engagement stats for {suggestion_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get engagement stats") from e

@@ -1,4 +1,4 @@
-"""DataAPIService — auth, InfluxDB client, rate limiter, and metrics.
+"""DataAPIService — auth, InfluxDB client, rate limiter, metrics, and jobs.
 
 Extracted from main.py for maintainability index compliance.
 Configuration is loaded from ``config.Settings`` (BaseServiceSettings).
@@ -7,6 +7,7 @@ Configuration is loaded from ``config.Settings`` (BaseServiceSettings).
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from homeiq_data.auth import AuthManager
 from homeiq_data.influxdb_query_client import InfluxDBQueryClient
@@ -17,6 +18,9 @@ from homeiq_observability.monitoring import alerting_service, metrics_service
 from .config import settings
 from .ha_automation_endpoints import start_webhook_detector, stop_webhook_detector
 from .sports_influxdb_writer import get_sports_writer
+
+if TYPE_CHECKING:
+    from .jobs.scheduler import JobScheduler
 
 logger = setup_logging("data-api")
 
@@ -48,6 +52,7 @@ class DataAPIService:
             allow_anonymous=settings.allow_anonymous,
         )
         self.influxdb_client = InfluxDBQueryClient()
+        self.job_scheduler: JobScheduler | None = None
 
         # Runtime state
         self.start_time = datetime.now()
@@ -56,7 +61,7 @@ class DataAPIService:
         self.failed_requests = 0
 
     async def startup(self) -> None:
-        """Start monitoring, connect InfluxDB, start webhook detector."""
+        """Start monitoring, connect InfluxDB, start webhook detector, start jobs."""
         await alerting_service.start()
         await metrics_service.start()
         try:
@@ -67,13 +72,29 @@ class DataAPIService:
                 sw = get_sports_writer()
                 await sw.connect()
                 start_webhook_detector()
+                await self._start_job_scheduler()
         except Exception as e:
             logger.error("InfluxDB startup error: %s", e)
         self.is_running = True
 
+    async def _start_job_scheduler(self) -> None:
+        """Initialize and start background job scheduler."""
+        try:
+            from .jobs.scheduler import get_job_scheduler
+
+            self.job_scheduler = get_job_scheduler(self.influxdb_client)
+            if await self.job_scheduler.start():
+                logger.info("Background job scheduler started")
+        except ImportError:
+            logger.debug("Job scheduler not available (APScheduler not installed)")
+        except Exception as e:
+            logger.warning("Failed to start job scheduler: %s", e)
+
     async def shutdown(self) -> None:
-        """Stop monitoring and close connections."""
+        """Stop monitoring, close connections, and stop jobs."""
         stop_webhook_detector()
+        if self.job_scheduler:
+            await self.job_scheduler.stop()
         await alerting_service.stop()
         await metrics_service.stop()
         try:

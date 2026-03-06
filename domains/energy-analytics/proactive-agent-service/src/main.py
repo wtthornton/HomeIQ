@@ -7,6 +7,8 @@ Responsibilities:
 - Smart prompt generation
 - Agent-to-agent communication with HA AI Agent Service
 - Scheduled proactive suggestion generation
+
+Story 33.4: Memory-aware proactive suggestions using Memory Brain integration.
 """
 
 from __future__ import annotations
@@ -26,6 +28,15 @@ try:
 except ImportError:
     GroupHealthCheck = None  # type: ignore[assignment,misc]
     wait_for_dependency = None  # type: ignore[assignment]
+
+try:
+    from homeiq_memory import MemoryClient, MemorySearch
+
+    _MEMORY_AVAILABLE = True
+except ImportError:
+    MemoryClient = None  # type: ignore[assignment,misc]
+    MemorySearch = None  # type: ignore[assignment,misc]
+    _MEMORY_AVAILABLE = False
 
 from .api.health import router as health_router
 from .api.health import set_scheduler_service_for_health
@@ -51,6 +62,10 @@ scheduler_service: SchedulerService | None = None
 
 # Global cron task scheduler (Epic 27)
 cron_task_scheduler: CronTaskScheduler | None = None
+
+# Global memory instances (Story 33.4)
+memory_client: MemoryClient | None = None
+memory_search: MemorySearch | None = None
 
 # Global group health check
 _group_health: GroupHealthCheck | None = None
@@ -84,15 +99,63 @@ async def _startup_db() -> None:
         logger.warning("Database unavailable -- starting in degraded mode")
 
 
+async def _startup_memory() -> None:
+    """Initialize Memory Brain client and search (Story 33.4)."""
+    global memory_client, memory_search
+
+    if not settings.memory_enabled:
+        logger.info("Memory integration disabled in settings")
+        return
+
+    if not _MEMORY_AVAILABLE:
+        logger.info("homeiq-memory not installed, memory features disabled")
+        return
+
+    try:
+        memory_client = MemoryClient(
+            db_url=settings.memory_database_url or settings.postgres_dsn,
+        )
+        initialized = await memory_client.initialize()
+        if initialized and memory_client._session_maker:
+            memory_search = MemorySearch(
+                session_factory=memory_client._session_maker,
+                embedding_generator=memory_client.embedding_generator,
+            )
+            logger.info("Memory Brain initialized for proactive suggestions")
+        else:
+            logger.warning("Memory Brain initialization failed, suggestions degraded")
+            memory_client = None
+            memory_search = None
+    except Exception as e:
+        logger.warning(f"Failed to initialize Memory Brain: {e}")
+        memory_client = None
+        memory_search = None
+
+
+async def _shutdown_memory() -> None:
+    """Close Memory Brain resources."""
+    global memory_client, memory_search
+
+    if memory_client:
+        try:
+            await memory_client.close()
+        except Exception as e:
+            logger.warning(f"Error closing Memory Brain: {e}")
+        memory_client = None
+    memory_search = None
+
+
 async def _startup_scheduler() -> None:
     """Initialize and start the scheduler service."""
-    global scheduler_service
-    pipeline_service = SuggestionPipelineService()
+    global scheduler_service  # noqa: PLW0603
+    # Pass memory_search for memory-aware suggestions (Story 33.4)
+    pipeline_service = SuggestionPipelineService(memory_search=memory_search)
     scheduler_service = SchedulerService(settings, pipeline_service=pipeline_service)
     scheduler_service.start()
     set_scheduler_service(scheduler_service)
     set_scheduler_service_for_health(scheduler_service)
-    logger.info("Scheduler initialized")
+    memory_status = "enabled" if memory_search else "disabled"
+    logger.info(f"Scheduler initialized (memory={memory_status})")
 
 
 async def _shutdown_scheduler() -> None:
@@ -131,10 +194,12 @@ async def _shutdown_cron_scheduler() -> None:
 lifespan = ServiceLifespan(settings.service_name)
 lifespan.on_startup(_startup_dependencies, name="dependencies")
 lifespan.on_startup(_startup_db, name="database")
+lifespan.on_startup(_startup_memory, name="memory")  # Story 33.4
 lifespan.on_startup(_startup_scheduler, name="scheduler")
 lifespan.on_startup(_startup_cron_scheduler, name="cron_scheduler")
 lifespan.on_shutdown(_shutdown_cron_scheduler, name="cron_scheduler")
 lifespan.on_shutdown(_shutdown_scheduler, name="scheduler")
+lifespan.on_shutdown(_shutdown_memory, name="memory")  # Story 33.4
 lifespan.on_shutdown(close_database, name="database")
 
 

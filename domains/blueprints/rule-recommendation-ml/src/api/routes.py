@@ -13,9 +13,11 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
+from homeiq_memory import MemoryClient
 from pydantic import BaseModel, Field
 
 from ..data.feedback_store import FeedbackStore
+from ..services.memory_integration import save_rating_memory
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +102,7 @@ class HealthResponse(BaseModel):
 _recommender = None
 _model_path = Path("./models/rule_recommender.pkl")
 _feedback_store: FeedbackStore | None = None
+_memory_client: MemoryClient | None = None
 
 # Number of new feedback items that trigger an incremental retrain
 RETRAIN_THRESHOLD = 50
@@ -133,6 +136,23 @@ def init_feedback_store(db_path: Path | str | None = None) -> FeedbackStore:
     _feedback_store = FeedbackStore(db_path)
     logger.info("Feedback store configured (db_path=%s)", db_path)
     return _feedback_store
+
+
+def get_memory_client() -> MemoryClient | None:
+    """Get the memory client singleton (may be None if not initialized)."""
+    return _memory_client
+
+
+async def init_memory_client(database_url: str | None = None) -> MemoryClient:
+    """Create and initialize the module-level memory client singleton."""
+    global _memory_client
+    _memory_client = MemoryClient(database_url=database_url)
+    success = await _memory_client.initialize()
+    if success:
+        logger.info("Memory client initialized successfully")
+    else:
+        logger.warning("Memory client initialization failed - rating memories disabled")
+    return _memory_client
 
 
 def load_model(path: Path | str | None = None) -> bool:
@@ -349,6 +369,7 @@ async def submit_feedback(feedback: RecommendationFeedback):
     - Retraining with updated interaction data
     - Adjusting recommendation weights
     - Identifying low-quality patterns
+    - Saving memories for strong ratings (Story 30.3)
 
     When enough feedback accumulates (default: 50 items since last
     retrain), an incremental model update is triggered as a background
@@ -383,6 +404,21 @@ async def submit_feedback(feedback: RecommendationFeedback):
             status_code=500,
             detail="Failed to store feedback. Please try again.",
         ) from None
+
+    # Story 30.3: Save rating memory for strong signals
+    if feedback.rating is not None and feedback.automation_id:
+        memory_client = get_memory_client()
+        if memory_client is not None:
+            try:
+                await save_rating_memory(
+                    memory_client=memory_client,
+                    automation_id=feedback.automation_id,
+                    rule_pattern=feedback.rule_pattern,
+                    rating=feedback.rating,
+                    comment=feedback.comment,
+                )
+            except Exception:
+                logger.exception("Failed to save rating memory (non-blocking)")
 
     # Check whether we should trigger an incremental retrain
     try:

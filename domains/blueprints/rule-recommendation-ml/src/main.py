@@ -13,7 +13,7 @@ from pathlib import Path
 
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
-from .api.routes import init_feedback_store, load_model, router
+from .api.routes import init_feedback_store, init_memory_client, load_model, router
 from .config import settings
 
 
@@ -36,11 +36,14 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 async def _startup_init() -> None:
-    """Initialize feedback store and load model."""
+    """Initialize feedback store, memory client, and load model."""
     # Initialize feedback store (must be before model load)
     db_path = Path(settings.feedback_db_path)
     init_feedback_store(db_path)
     logger.info("Feedback store ready (path=%s)", db_path)
+
+    # Initialize memory client (Story 30.3: Rating & Feedback Memory)
+    await init_memory_client()
 
     # Load model if it exists
     model_path = Path(settings.model_path)

@@ -1,7 +1,8 @@
 # HomeIQ Memory Brain — Integration Map
 
-**Status:** Draft
+**Status:** Implemented
 **Created:** 2026-03-04
+**Implemented:** 2026-03-06
 **Parent:** [memory-brain-architecture.md](memory-brain-architecture.md)
 
 This document maps exactly what each subsystem **writes to** and **reads from** the memory brain. Developers reference this during implementation to understand their service's integration points.

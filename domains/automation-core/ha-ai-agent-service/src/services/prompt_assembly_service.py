@@ -3,6 +3,8 @@ Prompt Assembly Service
 Epic AI-20 Story AI20.3: Prompt Assembly & Context Integration
 
 Assembles prompts with context injection, token counting, and budget enforcement.
+
+Story 33.2: Memory context injection for personalized responses
 """
 
 import json
@@ -258,6 +260,31 @@ class PromptAssemblyService:
             logger.warning(
                 f"[Device State Context] Conversation {conversation_id}: "
                 f"Failed to inject device state context: {e}"
+            )
+
+        # Story 33.2: Inject memory context for personalized responses
+        try:
+            if self.context_builder.memory_injector:
+                entity_ids_for_memory = None
+                if entity_result and entity_result.success and entity_result.matched_entities:
+                    entity_ids_for_memory = entity_result.matched_entities
+
+                memory_context = await self.context_builder.get_memory_context(
+                    query=user_message,
+                    entity_ids=entity_ids_for_memory,
+                    limit=10,
+                )
+
+                if memory_context and memory_context.strip():
+                    system_prompt = f"{system_prompt}\n\n---\n\n{memory_context}\n\n---\n"
+                    logger.info(
+                        f"[Memory Context] Conversation {conversation_id}: "
+                        f"Injected memory context ({len(memory_context)} chars)"
+                    )
+        except Exception as e:
+            logger.warning(
+                f"[Memory Context] Conversation {conversation_id}: "
+                f"Failed to inject memory context: {e}"
             )
 
         # Inject pending preview context if available (2025 Preview-and-Approval Workflow)
