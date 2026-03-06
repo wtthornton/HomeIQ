@@ -113,7 +113,7 @@ services:
         max-file: "2"
         labels: "service=ai-ui,group=frontends,environment=production"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 5s
       retries: 3
