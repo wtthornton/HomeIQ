@@ -84,11 +84,17 @@ class WeatherService:
         """Initialize InfluxDB configuration with fallback hostname logic."""
         influxdb_url = settings.influxdb_url
         if '://' in influxdb_url:
-            self.influxdb_host = influxdb_url.split('://')[1].split(':')[0]
-            self.influxdb_port = influxdb_url.split(':')[-1] if ':' in influxdb_url.split('://')[1] else '8086'
+            host_port = influxdb_url.split('://')[1].rstrip('/')
+            if ':' in host_port:
+                self.influxdb_host = host_port.split(':')[0]
+                self.influxdb_port = host_port.split(':')[1].split('/')[0]
+            else:
+                self.influxdb_host = host_port.split('/')[0]
+                self.influxdb_port = '8086'
         else:
-            self.influxdb_host = influxdb_url.split(':')[0]
-            self.influxdb_port = influxdb_url.split(':')[1] if ':' in influxdb_url else '8086'
+            parts = influxdb_url.split(':')
+            self.influxdb_host = parts[0]
+            self.influxdb_port = parts[1].split('/')[0] if len(parts) > 1 else '8086'
 
         fallback_hosts = [h.strip() for h in settings.influxdb_fallback_hosts.split(',') if h.strip()]
 
@@ -217,13 +223,14 @@ class WeatherService:
                     data = await response.json()
 
                     timestamp = datetime.now(UTC).isoformat()
+                    weather_block = (data.get("weather") or [{}])[0]
                     weather = {
                         'temperature': data.get("main", {}).get("temp", 0),
                         'feels_like': data.get("main", {}).get("feels_like", 0),
                         'humidity': data.get("main", {}).get("humidity", 0),
                         'pressure': data.get("main", {}).get("pressure", 0),
-                        'condition': data.get("weather", [{}])[0].get("main", "Unknown"),
-                        'description': data.get("weather", [{}])[0].get("description", ""),
+                        'condition': weather_block.get("main", "Unknown"),
+                        'description': weather_block.get("description", ""),
                         'wind_speed': data.get("wind", {}).get("speed", 0),
                         'cloudiness': data.get("clouds", {}).get("all", 0),
                         'location': data.get("name", self.location),

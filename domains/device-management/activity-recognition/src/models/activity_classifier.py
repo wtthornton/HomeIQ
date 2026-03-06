@@ -429,8 +429,12 @@ def predict_with_onnx(
     sensor_sequence = sensor_sequence.astype(np.float32)
 
     # Run inference
-    input_name = session.get_inputs()[0].name
-    output_name = session.get_outputs()[0].name
+    inputs = session.get_inputs()
+    outputs = session.get_outputs()
+    if not inputs or not outputs:
+        raise RuntimeError("ONNX model has no inputs or outputs defined")
+    input_name = inputs[0].name
+    output_name = outputs[0].name
 
     logits = session.run([output_name], {input_name: sensor_sequence})[0]
 

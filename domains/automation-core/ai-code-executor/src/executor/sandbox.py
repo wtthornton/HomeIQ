@@ -18,7 +18,7 @@ import sys
 import traceback
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from types import MappingProxyType
 from typing import Any
 
@@ -134,12 +134,12 @@ def _sandbox_process_worker(
     """Worker process that compiles and executes user code."""
     stdout_capture = io.StringIO()
     stderr_capture = io.StringIO()
-    start_time = datetime.now()
+    start_time = datetime.now(UTC)
     process = psutil.Process()
     initial_memory = process.memory_info().rss / 1024 / 1024
 
     def _write_result(success: bool, return_value: Any, error: str | None):
-        execution_time = (datetime.now() - start_time).total_seconds()
+        execution_time = (datetime.now(UTC) - start_time).total_seconds()
         final_memory = process.memory_info().rss / 1024 / 1024
         memory_used = max(0, final_memory - initial_memory)
         result_queue.put(

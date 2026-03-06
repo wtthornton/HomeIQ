@@ -99,14 +99,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
             # Check if request is allowed
             if bucket["tokens"] < 1:
+                retry_after = int(1 / bucket["refill_rate"]) if bucket["refill_rate"] > 0 else 1
                 return JSONResponse(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     content={
                         "error": "rate_limit_exceeded",
                         "message": "Rate limit exceeded. Please try again later.",
-                        "retry_after": int(1 / bucket["refill_rate"]),
+                        "retry_after": retry_after,
                     },
-                    headers={"Retry-After": str(int(1 / bucket["refill_rate"]))},
+                    headers={"Retry-After": str(retry_after)},
                 )
 
             # Consume token
@@ -129,9 +130,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # Add rate limit headers
         response.headers["X-RateLimit-Limit"] = str(bucket["capacity"])
         response.headers["X-RateLimit-Remaining"] = str(int(bucket["tokens"]))
-        response.headers["X-RateLimit-Reset"] = str(
-            int(current_time + (1 / bucket["refill_rate"]))
-        )
+        reset_delta = (1 / bucket["refill_rate"]) if bucket["refill_rate"] > 0 else 1
+        response.headers["X-RateLimit-Reset"] = str(int(current_time + reset_delta))
 
         # Add performance header
         response.headers["X-Response-Time"] = f"{elapsed_time:.3f}s"

@@ -245,11 +245,10 @@ def test_performance(
 def _test_tcp_connectivity(host: str, port: int, timeout: int = 5) -> bool:
     """Test TCP connectivity to a host and port."""
     try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(timeout)
-        result = sock.connect_ex((host, port))
-        sock.close()
-        return result == 0
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(timeout)
+            result = sock.connect_ex((host, port))
+            return result == 0
     except Exception:
         return False
 
@@ -313,8 +312,13 @@ def _diagnose_connection_issues(formatter: OutputFormatter, config) -> None:
     host = config.api_url.replace("http://", "").replace("https://", "").split(":")[0]
     port = 8000
     
-    if ":" in config.api_url.replace("http://", "").replace("https://", ""):
-        port = int(config.api_url.split(":")[-1])
+    stripped_url = config.api_url.replace("http://", "").replace("https://", "")
+    if ":" in stripped_url:
+        port_str = stripped_url.split(":")[-1].split("/")[0]
+        try:
+            port = int(port_str)
+        except ValueError:
+            port = 8000
     
     formatter.print_info(f"Testing connectivity to {host}:{port}...")
     

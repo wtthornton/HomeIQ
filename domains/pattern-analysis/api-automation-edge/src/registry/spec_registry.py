@@ -42,13 +42,18 @@ class SpecVersion(Base):
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary"""
+        try:
+            spec_content = json.loads(self.spec_content) if self.spec_content else {}
+        except (json.JSONDecodeError, TypeError):
+            logger.warning("Corrupt spec_content for spec %s, returning raw string", self.spec_id)
+            spec_content = self.spec_content
         return {
             "id": self.id,
             "spec_id": self.spec_id,
             "version": self.version,
             "home_id": self.home_id,
             "spec_hash": self.spec_hash,
-            "spec_content": json.loads(self.spec_content),
+            "spec_content": spec_content,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "deployed_at": self.deployed_at.isoformat() if self.deployed_at else None,
             "is_active": self.is_active

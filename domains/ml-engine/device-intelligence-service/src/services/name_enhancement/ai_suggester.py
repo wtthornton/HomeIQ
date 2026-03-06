@@ -107,9 +107,11 @@ class AINameSuggester:
             content = content.strip()
             # Remove markdown code blocks if present
             if content.startswith("```"):
-                content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
+                parts = content.split("```")
+                if len(parts) >= 2:
+                    content = parts[1]
+                    if content.startswith("json"):
+                        content = content[4:]
             content = content.strip()
 
             try:
