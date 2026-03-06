@@ -3,7 +3,7 @@
 
 # Core ML libraries
 transformers>=4.46.0
-sentence-transformers>=3.3.0
+sentence-transformers>=5.0.0,<6.0.0  # Epic 38: upgraded from 3.3.x
 torch>=2.5.0
 
 # OpenVINO for optimized models (optional, but recommended)

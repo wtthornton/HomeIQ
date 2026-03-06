@@ -85,42 +85,48 @@ Assess sentence-transformers 5.x upgrade feasibility.
 
 ---
 
-### Story 38.3: sentence-transformers Upgrade (Conditional)
+### Story 38.3: sentence-transformers Upgrade ✓ COMPLETE
 **Priority:** P1  
 **Estimate:** 3 days  
-**Blocked by:** Story 38.2 decision
+**Completed:** 2026-03-06
 
-If embedding compatibility confirmed, upgrade sentence-transformers.
+Upgrade sentence-transformers to 5.x (compatibility confirmed in Story 38.2).
 
 **Acceptance Criteria:**
-- [ ] Update requirements.txt in affected services
-- [ ] Update any deprecated API calls
-- [ ] Verify model loading on startup
-- [ ] Verify inference produces compatible embeddings
-- [ ] Performance benchmark: no >10% regression
-- [ ] TAPPS quality gate passing
+- [x] Update requirements.txt in affected services
+- [x] Update any deprecated API calls (none needed)
+- [x] Verify model loading on startup
+- [x] Verify inference produces compatible embeddings
+- [x] Performance benchmark: no >10% regression
+- [x] TAPPS quality gate passing
 
-**Affected Services:**
-- `domains/ml-engine/openvino-service/`
-- `domains/ml-engine/model-prep/`
+**Changes Made:**
+- `domains/ml-engine/openvino-service/requirements.txt`: `>=5.0.0,<6.0.0`
+- `domains/ml-engine/model-prep/requirements.txt`: `>=5.0.0,<6.0.0`
+- `libs/homeiq-memory/pyproject.toml`: `>=5.0.0,<6.0.0`
+
+**Verification:**
+- all-MiniLM-L6-v2: 384-dim embeddings ✓
+- BAAI/bge-large-en-v1.5: 1024-dim embeddings ✓
+- 19/19 unit tests passing ✓
 
 ---
 
-### Story 38.4: Embedding Re-indexing (Conditional)
+### Story 38.4: Embedding Re-indexing — SKIPPED
 **Priority:** P1  
 **Estimate:** 3 days  
-**Blocked by:** Story 38.2 decision
+**Status:** Not Required
 
-If embeddings incompatible, implement re-indexing pipeline.
+Re-indexing not needed — Story 38.2 confirmed embeddings are compatible.
 
 **Acceptance Criteria:**
-- [ ] Create re-indexing script for stored embeddings
-- [ ] Batch processing to avoid memory issues
-- [ ] Progress tracking and resumability
-- [ ] Rollback capability
-- [ ] Estimate and document re-indexing time
+- [x] ~~Create re-indexing script for stored embeddings~~ Not required
+- [x] ~~Batch processing to avoid memory issues~~ Not required
+- [x] ~~Progress tracking and resumability~~ Not required
+- [x] ~~Rollback capability~~ Not required
+- [x] ~~Estimate and document re-indexing time~~ Not required
 
-**Note:** Only execute if Story 38.2 determines re-indexing is required.
+**Note:** Story 38.2 determined embeddings are compatible; re-indexing skipped.
 
 ---
 

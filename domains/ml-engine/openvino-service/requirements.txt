@@ -15,7 +15,7 @@ numpy>=1.26.0,<3.0.0  # Phase 3: allow 1.x and 2.x (Feb 2026 upgrade)
 # CPU-only PyTorch index (no CUDA - saves 8.5GB!)
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-sentence-transformers==3.3.1  # Embeddings: BAAI/bge-large-en-v1.5 (1024-dim) [Epic 47]
+sentence-transformers>=5.0.0,<6.0.0  # Embeddings: BAAI/bge-large-en-v1.5 (1024-dim) [Epic 38]
 transformers==4.46.1          # HuggingFace models (compatible with sentence-transformers)
 torch>=2.5.0,<3.0.0  # Feb 2026 upgrade — aligned with activity-recognition, CPU-only
 sentencepiece                 # Required for T5 tokenizer
