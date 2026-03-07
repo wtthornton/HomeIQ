@@ -4,6 +4,9 @@
 # Auto-bugfix dashboard state (ephemeral)
 scripts/.dashboard-state.json
 
+# Parallel bugfix worktrees
+.worktrees/
+
 # Python
 __pycache__/
 *.py[cod]

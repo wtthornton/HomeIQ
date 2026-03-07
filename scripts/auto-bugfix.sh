@@ -25,6 +25,7 @@ CHAIN_PHASES="fix,refactor,test"
 NO_DASHBOARD=false
 ROTATE=false
 TARGET_UNIT=""
+WORKTREE_MODE=false
 
 # --- Parse args ---
 while [[ $# -gt 0 ]]; do
@@ -38,8 +39,9 @@ while [[ $# -gt 0 ]]; do
     --no-dashboard)   NO_DASHBOARD=true;   shift ;;
     --rotate)         ROTATE=true;         shift ;;
     --target-unit)    TARGET_UNIT="$2";    shift 2 ;;
+    --worktree)       WORKTREE_MODE=true;  shift ;;
     -h|--help)
-      echo "Usage: $0 [--bugs N] [--branch NAME] [--target-dir PATH] [--base BRANCH] [--chain] [--chain-phases PHASES] [--no-dashboard] [--rotate] [--target-unit UNIT]"
+      echo "Usage: $0 [--bugs N] [--branch NAME] [--target-dir PATH] [--base BRANCH] [--chain] [--chain-phases PHASES] [--no-dashboard] [--rotate] [--target-unit UNIT] [--worktree]"
       exit 0 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
@@ -183,8 +185,8 @@ for cmd in claude git gh python3; do
   fi
 done
 
-if [[ -n "$(git status --porcelain --ignore-submodules)" ]]; then
-  echo "ERROR: Working tree is dirty. Commit or stash changes first."
+if [[ "$WORKTREE_MODE" != "true" ]] && [[ -n "$(git status --porcelain --ignore-submodules)" ]]; then
+  echo "ERROR: Working tree is dirty. Commit or stash changes first. (Use --worktree to skip)"
   exit 1
 fi
 
@@ -216,19 +218,25 @@ if [[ -n "$SCAN_UNIT_ID" ]]; then echo "  Unit:     $SCAN_UNIT_ID ($SCAN_UNIT_NA
 echo ""
 
 # --- Step 1: Create feature branch ---
-add_log "Creating feature branch '$BRANCH_NAME'" "info"
-write_dashboard 1 "running" "Creating feature branch..."
-
-CURRENT_BRANCH=$(git branch --show-current)
-if [[ "$CURRENT_BRANCH" != "$BASE_BRANCH" ]]; then
-  echo "[1/$TOTAL_STEPS] Switching to '$BASE_BRANCH' and creating branch '$BRANCH_NAME'..."
-  git checkout "$BASE_BRANCH"
+if [[ "$WORKTREE_MODE" == "true" ]]; then
+  BRANCH_NAME=$(git branch --show-current)
+  add_log "Worktree mode: already on branch '$BRANCH_NAME'" "info"
+  echo "[1/$TOTAL_STEPS] Worktree mode: already on branch '$BRANCH_NAME'"
 else
-  echo "[1/$TOTAL_STEPS] Already on '$BASE_BRANCH'. Creating branch '$BRANCH_NAME'..."
-fi
-git checkout -b "$BRANCH_NAME"
+  add_log "Creating feature branch '$BRANCH_NAME'" "info"
+  write_dashboard 1 "running" "Creating feature branch..."
 
-add_log "Branch '$BRANCH_NAME' created" "success"
+  CURRENT_BRANCH=$(git branch --show-current)
+  if [[ "$CURRENT_BRANCH" != "$BASE_BRANCH" ]]; then
+    echo "[1/$TOTAL_STEPS] Switching to '$BASE_BRANCH' and creating branch '$BRANCH_NAME'..."
+    git checkout "$BASE_BRANCH"
+  else
+    echo "[1/$TOTAL_STEPS] Already on '$BASE_BRANCH'. Creating branch '$BRANCH_NAME'..."
+  fi
+  git checkout -b "$BRANCH_NAME"
+
+  add_log "Branch '$BRANCH_NAME' created" "success"
+fi
 write_dashboard 1 "running" "Branch created. Starting scan..."
 
 # --- Step 2: Find bugs with Claude Code ---
@@ -293,8 +301,7 @@ if [[ -z "$BUGS_JSON" ]] || ! echo "$BUGS_JSON" | python3 -c "import sys,json; j
   write_dashboard 2 "error" "Failed to extract bug list from Claude output"
   echo "ERROR: Failed to get valid bug list from Claude. Raw output saved to /tmp/auto-bugfix-raw.txt"
   echo "$BUGS_JSON" > /tmp/auto-bugfix-raw.txt
-  git checkout "$BASE_BRANCH"
-  git branch -D "$BRANCH_NAME"
+  if [[ "$WORKTREE_MODE" != "true" ]]; then git checkout "$BASE_BRANCH"; git branch -D "$BRANCH_NAME"; fi
   exit 1
 fi
 
@@ -348,8 +355,7 @@ if [[ -z "$(git status --porcelain --ignore-submodules)" ]]; then
   add_log "No files were modified. Fixes may have failed." "error"
   write_dashboard 3 "error" "No files were modified. Fixes may have failed."
   echo "ERROR: No files were modified. Fixes may have failed."
-  git checkout "$BASE_BRANCH"
-  git branch -D "$BRANCH_NAME"
+  if [[ "$WORKTREE_MODE" != "true" ]]; then git checkout "$BASE_BRANCH"; git branch -D "$BRANCH_NAME"; fi
   exit 1
 fi
 

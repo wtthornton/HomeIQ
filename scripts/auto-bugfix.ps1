@@ -19,7 +19,8 @@ param(
     [string]$ChainPhases = "fix,refactor,test",
     [switch]$NoDashboard,
     [switch]$Rotate,
-    [string]$TargetUnit = ""
+    [string]$TargetUnit = "",
+    [switch]$Worktree
 )
 
 $ErrorActionPreference = "Stop"
@@ -165,10 +166,12 @@ foreach ($cmd in @("claude", "git", "gh")) {
     }
 }
 
-$dirty = git status --porcelain --ignore-submodules
-if ($dirty) {
-    Write-Error "ERROR: Working tree is dirty. Commit or stash changes first."
-    exit 1
+if (-not $Worktree) {
+    $dirty = git status --porcelain --ignore-submodules
+    if ($dirty) {
+        Write-Error "ERROR: Working tree is dirty. Commit or stash changes first. (Use -Worktree to skip this check)"
+        exit 1
+    }
 }
 
 # --- Open dashboard ---
@@ -191,19 +194,27 @@ if ($ScanUnitId) { Write-Host "  Unit:     $ScanUnitId ($ScanUnitName)" -Foregro
 Write-Host ""
 
 # --- Step 1: Create feature branch ---
-Add-LogEntry "Creating feature branch '$Branch'" "info"
-Write-Dashboard -Step 1 -Message "Creating feature branch..."
-
-$currentBranch = (git branch --show-current).Trim()
-if ($currentBranch -ne $Base) {
-    Write-Host "[1/$totalSteps] Switching to '$Base' and creating branch '$Branch'..." -ForegroundColor Yellow
-    git checkout $Base
+if ($Worktree) {
+    # In worktree mode, we're already on the right branch
+    $Branch = (git branch --show-current).Trim()
+    Add-LogEntry "Worktree mode: already on branch '$Branch'" "info"
+    Write-Dashboard -Step 1 -Message "Worktree mode: on branch '$Branch'"
+    Write-Host "[1/$totalSteps] Worktree mode: already on branch '$Branch'" -ForegroundColor Yellow
 } else {
-    Write-Host "[1/$totalSteps] Already on '$Base'. Creating branch '$Branch'..." -ForegroundColor Yellow
-}
-git checkout -b $Branch
+    Add-LogEntry "Creating feature branch '$Branch'" "info"
+    Write-Dashboard -Step 1 -Message "Creating feature branch..."
 
-Add-LogEntry "Branch '$Branch' created" "success"
+    $currentBranch = (git branch --show-current).Trim()
+    if ($currentBranch -ne $Base) {
+        Write-Host "[1/$totalSteps] Switching to '$Base' and creating branch '$Branch'..." -ForegroundColor Yellow
+        git checkout $Base
+    } else {
+        Write-Host "[1/$totalSteps] Already on '$Base'. Creating branch '$Branch'..." -ForegroundColor Yellow
+    }
+    git checkout -b $Branch
+
+    Add-LogEntry "Branch '$Branch' created" "success"
+}
 Write-Dashboard -Step 1 -Status "running" -Message "Branch created. Starting scan..."
 
 # --- Step 2: Find bugs with Claude Code ---
@@ -265,8 +276,7 @@ if (-not $jsonMatch.Success) {
     Write-Error "ERROR: Failed to extract bug list JSON from Claude output."
     $rawOutput | Out-File -FilePath "$env:TEMP\auto-bugfix-raw.txt"
     Write-Host "Raw output saved to $env:TEMP\auto-bugfix-raw.txt"
-    git checkout $Base
-    git branch -D $Branch
+    if (-not $Worktree) { git checkout $Base; git branch -D $Branch }
     exit 1
 }
 
@@ -279,8 +289,7 @@ try {
     Add-LogEntry "Invalid JSON in bug list" "error"
     Write-Dashboard -Step 2 -Status "error" -Message "Invalid JSON in bug list"
     Write-Error "ERROR: Invalid JSON in bug list."
-    git checkout $Base
-    git branch -D $Branch
+    if (-not $Worktree) { git checkout $Base; git branch -D $Branch }
     exit 1
 }
 
@@ -342,8 +351,7 @@ if (-not $changes) {
     Add-LogEntry "No files were modified. Fixes may have failed." "error"
     Write-Dashboard -Step 3 -Status "error" -Message "No files were modified. Fixes may have failed."
     Write-Error "ERROR: No files were modified. Fixes may have failed."
-    git checkout $Base
-    git branch -D $Branch
+    if (-not $Worktree) { git checkout $Base; git branch -D $Branch }
     exit 1
 }
 
