@@ -21,8 +21,16 @@ from ..clients.mqtt_client import MQTTNotificationClient
 from ..config import settings
 from ..crud import store_patterns, store_synergy_opportunities
 from ..database import AsyncSessionLocal
+from ..pattern_analyzer.anomaly import AnomalyPatternDetector
 from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
+from ..pattern_analyzer.contextual import ContextualPatternDetector
+from ..pattern_analyzer.day_type import DayTypePatternDetector
+from ..pattern_analyzer.duration import DurationPatternDetector
 from ..pattern_analyzer.filters import EventFilter
+from ..pattern_analyzer.frequency import FrequencyPatternDetector
+from ..pattern_analyzer.room_based import RoomBasedPatternDetector
+from ..pattern_analyzer.seasonal import SeasonalPatternDetector
+from ..pattern_analyzer.sequence import SequencePatternDetector
 from ..pattern_analyzer.time_of_day import TimeOfDayPatternDetector
 from ..synergy_detection.synergy_detector import DeviceSynergyDetector
 
@@ -126,8 +134,10 @@ class PatternAnalysisScheduler:
         """
         Run pattern detection and synergy detection analysis.
 
-        Epic 39, Story 39.6: Simplified version focusing on:
-        1. Pattern detection (time-of-day, co-occurrence)
+        Epic 39, Story 39.6 + Epic 37, Story 37.9: Full detection pipeline:
+        1. Pattern detection (10 detectors: time-of-day, co-occurrence,
+           sequence, duration, anomaly, day-type, frequency, room-based,
+           seasonal, contextual)
         2. Synergy detection
         3. Store results
         4. Publish MQTT notifications
@@ -290,7 +300,10 @@ class PatternAnalysisScheduler:
         job_result: dict[str, Any]
     ) -> list[dict[str, Any]]:
         """
-        Detect patterns using time-of-day and co-occurrence detectors.
+        Detect patterns using all registered detectors.
+
+        Epic 37, Story 37.9: Pattern Service Integration
+        Runs all 10 detector types with individual error isolation.
 
         Args:
             events_df: DataFrame containing events (already pre-filtered)
@@ -299,26 +312,65 @@ class PatternAnalysisScheduler:
         Returns:
             List of detected patterns
         """
-        logger.info("Phase 2: Running pattern detection...")
+        logger.info("Phase 2: Running pattern detection (10 detectors)...")
         logger.info(f"  → Input events: {len(events_df)} (pre-filtered)")
         all_patterns: list[dict[str, Any]] = []
+        counts: dict[str, int] = {}
 
-        # Time-of-day patterns
-        logger.info("  → Starting time-of-day pattern detection...")
-        tod_patterns = await self._detect_time_of_day_patterns(events_df, job_result)
-        logger.info(f"    ✅ Time-of-day patterns: {len(tod_patterns)}")
-        all_patterns.extend(tod_patterns)
+        # Define detector pipeline — each entry: (name, coroutine)
+        detectors = [
+            ("time_of_day", self._detect_time_of_day_patterns(events_df, job_result)),
+            ("co_occurrence", self._detect_co_occurrence_patterns(events_df, job_result)),
+            ("sequence", self._run_sync_detector("sequence", SequencePatternDetector(), events_df, job_result)),
+            ("duration", self._run_sync_detector("duration", DurationPatternDetector(), events_df, job_result)),
+            ("anomaly", self._run_sync_detector("anomaly", AnomalyPatternDetector(), events_df, job_result)),
+            ("day_type", self._run_sync_detector("day_type", DayTypePatternDetector(), events_df, job_result)),
+            ("frequency", self._run_sync_detector("frequency", FrequencyPatternDetector(), events_df, job_result)),
+            ("room_based", self._run_sync_detector("room_based", RoomBasedPatternDetector(), events_df, job_result)),
+            ("seasonal", self._run_sync_detector("seasonal", SeasonalPatternDetector(min_days_total=10), events_df, job_result)),
+            ("contextual", self._run_sync_detector("contextual", ContextualPatternDetector(), events_df, job_result)),
+        ]
 
-        # Co-occurrence patterns
-        logger.info("  → Starting co-occurrence pattern detection...")
-        co_patterns = await self._detect_co_occurrence_patterns(events_df, job_result)
-        logger.info(f"    ✅ Co-occurrence patterns: {len(co_patterns)}")
-        all_patterns.extend(co_patterns)
+        for name, coro in detectors:
+            patterns = await coro
+            counts[name] = len(patterns)
+            all_patterns.extend(patterns)
 
         job_result["patterns_detected"] = len(all_patterns)
-        logger.info(f"✅ Total patterns detected: {len(all_patterns)} (TOD: {len(tod_patterns)}, CO: {len(co_patterns)})")
+        job_result["pattern_counts"] = counts
+        count_summary = ", ".join(f"{k}:{v}" for k, v in counts.items() if v > 0)
+        logger.info(f"✅ Total patterns detected: {len(all_patterns)} ({count_summary})")
 
         return all_patterns
+
+    async def _run_sync_detector(
+        self,
+        name: str,
+        detector: Any,
+        events_df: pd.DataFrame,
+        job_result: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """
+        Run a synchronous detector in a thread with error isolation.
+
+        Args:
+            name: Detector name for logging
+            detector: Detector instance with detect_patterns method
+            events_df: DataFrame containing events
+            job_result: Job result dictionary to update with errors
+
+        Returns:
+            List of detected patterns (empty on error)
+        """
+        try:
+            patterns = await asyncio.to_thread(detector.detect_patterns, events_df)
+            if patterns:
+                logger.info(f"    ✅ {name}: {len(patterns)} patterns")
+            return patterns
+        except Exception as e:
+            logger.error(f"    ❌ {name} detection failed: {e}", exc_info=True)
+            job_result["errors"].append(f"{name} detection: {str(e)}")
+            return []
 
     async def _detect_time_of_day_patterns(
         self,
@@ -441,69 +493,77 @@ class PatternAnalysisScheduler:
             List of detected synergies
         """
         logger.info("Phase 3.2: Running regular synergy detection...")
-        all_synergies = []
+        all_synergies: list[dict[str, Any]] = []
 
         try:
-            # Initialize detector with data_api_client (REQUIRED parameter)
-            # The detector will fetch devices/entities internally via data_api_client
             synergy_detector = DeviceSynergyDetector(data_api_client=data_client)
-
-            # Pass database session for pattern validation during detection
             regular_synergies = await synergy_detector.detect_synergies(db=db)
             logger.info(f"✅ Found {len(regular_synergies)} regular synergy opportunities")
             all_synergies.extend(regular_synergies)
 
             # 2026 Enhancement: Discover relationships from events
-            if RELATIONSHIP_DISCOVERY_AVAILABLE and not events_df.empty:
-                try:
-                    logger.info("Phase 3.3: Discovering relationships from events...")
-                    relationship_engine = RelationshipDiscoveryEngine()
-                    discovered_relationships = await relationship_engine.discover_from_events(events_df)
-
-                    if discovered_relationships:
-                        logger.info(f"✅ Discovered {len(discovered_relationships)} relationships from events")
-                        # Convert relationships to synergies
-                        relationship_synergies = []
-                        for relationship in discovered_relationships:
-                            if relationship.get('confidence', 0.0) >= 0.6:  # Filter by confidence
-                                synergy = {
-                                    'synergy_id': str(uuid.uuid4()),
-                                    'synergy_type': 'device_pair',
-                                    'devices': [relationship['device1'], relationship['device2']],
-                                    'trigger_entity': relationship['device1'],
-                                    'action_entity': relationship['device2'],
-                                    'impact_score': relationship.get('confidence', 0.7),
-                                    'confidence': relationship.get('confidence', 0.7),
-                                    'rationale': f"Discovered from event co-occurrence: {relationship.get('frequency', 0)} occurrences",
-                                    'synergy_depth': 2,
-                                    'chain_devices': [relationship['device1'], relationship['device2']],
-                                    'discovery_method': 'relationship_discovery'
-                                }
-                                relationship_synergies.append(synergy)
-
-                        if relationship_synergies:
-                            logger.info(f"✅ Converted {len(relationship_synergies)} relationships to synergies")
-                            all_synergies.extend(relationship_synergies)
-                except Exception as e:
-                    logger.warning(f"⚠️ Relationship discovery failed: {e}", exc_info=True)
-                    # Don't fail the entire process if relationship discovery fails
-                    job_result["errors"].append(f"Relationship discovery: {str(e)}")
-
-            # 2026 Enhancement: Discover temporal synergies from time-of-day patterns
-            if TEMPORAL_DETECTOR_AVAILABLE:
-                try:
-                    # Get time-of-day patterns (already detected in _detect_patterns)
-                    # We'll discover temporal synergies in a separate pass
-                    # This can be enhanced to use the time-of-day patterns directly
-                    pass  # Placeholder for future enhancement
-                except Exception as e:
-                    logger.debug(f"Temporal discovery: {e}")
+            relationship_synergies = await self._discover_relationships(
+                events_df, job_result
+            )
+            all_synergies.extend(relationship_synergies)
 
             return all_synergies
         except Exception as e:
             logger.error(f"❌ Synergy detection failed: {e}", exc_info=True)
             job_result["errors"].append(f"Synergy detection: {str(e)}")
             return []
+
+    async def _discover_relationships(
+        self,
+        events_df: pd.DataFrame,
+        job_result: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Discover relationships from events and convert to synergies."""
+        if not RELATIONSHIP_DISCOVERY_AVAILABLE or events_df.empty:
+            return []
+
+        try:
+            logger.info("Phase 3.3: Discovering relationships from events...")
+            relationship_engine = RelationshipDiscoveryEngine()
+            discovered = await relationship_engine.discover_from_events(events_df)
+
+            if not discovered:
+                return []
+
+            logger.info(f"✅ Discovered {len(discovered)} relationships from events")
+            synergies = [
+                self._relationship_to_synergy(r)
+                for r in discovered
+                if r.get('confidence', 0.0) >= 0.6
+            ]
+
+            if synergies:
+                logger.info(f"✅ Converted {len(synergies)} relationships to synergies")
+            return synergies
+        except Exception as e:
+            logger.warning(f"⚠️ Relationship discovery failed: {e}", exc_info=True)
+            job_result["errors"].append(f"Relationship discovery: {str(e)}")
+            return []
+
+    @staticmethod
+    def _relationship_to_synergy(relationship: dict[str, Any]) -> dict[str, Any]:
+        """Convert a discovered relationship to a synergy dict."""
+        return {
+            'synergy_id': str(uuid.uuid4()),
+            'synergy_type': 'device_pair',
+            'devices': [relationship['device1'], relationship['device2']],
+            'trigger_entity': relationship['device1'],
+            'action_entity': relationship['device2'],
+            'impact_score': relationship.get('confidence', 0.7),
+            'confidence': relationship.get('confidence', 0.7),
+            'rationale': (
+                f"Discovered from event co-occurrence: "
+                f"{relationship.get('frequency', 0)} occurrences"
+            ),
+            'synergy_depth': 2,
+            'chain_devices': [relationship['device1'], relationship['device2']],
+            'discovery_method': 'relationship_discovery',
+        }
 
     def _merge_synergies(
         self,
@@ -626,46 +686,17 @@ class PatternAnalysisScheduler:
                 'mismatch_rate': 0.0
             }
 
-        # Extract entity IDs from patterns
-        pattern_entities: set[str] = set()
-        for pattern in all_patterns:
-            # Handle different pattern formats
-            if 'entities' in pattern:
-                pattern_entities.update(pattern['entities'])
-            elif 'device_id' in pattern:
-                pattern_entities.add(pattern['device_id'])
-            elif 'device1' in pattern and 'device2' in pattern:
-                pattern_entities.add(pattern['device1'])
-                pattern_entities.add(pattern['device2'])
-
         # Extract entity IDs from synergies
         synergy_entities: set[str] = set()
         for synergy in synergies:
-            if 'entities' in synergy:
-                synergy_entities.update(synergy['entities'])
-            elif 'trigger' in synergy and 'action' in synergy:
-                synergy_entities.add(synergy['trigger'])
-                synergy_entities.add(synergy['action'])
+            synergy_entities.update(self._extract_entities(synergy))
 
         # Calculate alignment
-        aligned_patterns = 0
-        misaligned_patterns = 0
-
-        for pattern in all_patterns:
-            pattern_entity_set = set()
-            if 'entities' in pattern:
-                pattern_entity_set.update(pattern['entities'])
-            elif 'device_id' in pattern:
-                pattern_entity_set.add(pattern['device_id'])
-            elif 'device1' in pattern and 'device2' in pattern:
-                pattern_entity_set.add(pattern['device1'])
-                pattern_entity_set.add(pattern['device2'])
-
-            # Check if any pattern entity appears in synergies
-            if pattern_entity_set.intersection(synergy_entities):
-                aligned_patterns += 1
-            else:
-                misaligned_patterns += 1
+        aligned_patterns = sum(
+            1 for p in all_patterns
+            if self._extract_entities(p).intersection(synergy_entities)
+        )
+        misaligned_patterns = len(all_patterns) - aligned_patterns
 
         total_patterns = len(all_patterns)
         mismatch_rate = misaligned_patterns / total_patterns if total_patterns > 0 else 0.0
@@ -860,4 +891,18 @@ class PatternAnalysisScheduler:
             logger.info(f"✅ Published analysis notification to {topic}")
         except Exception as e:
             logger.warning(f"⚠️ Failed to publish MQTT notification: {e}")
+
+    @staticmethod
+    def _extract_entities(item: dict[str, Any]) -> set[str]:
+        """Extract entity IDs from a pattern or synergy dict."""
+        entities: set[str] = set()
+        if 'entities' in item:
+            entities.update(item['entities'])
+        elif 'device_id' in item:
+            entities.add(item['device_id'])
+        if 'device1' in item and 'device2' in item:
+            entities.update([item['device1'], item['device2']])
+        if 'trigger' in item and 'action' in item:
+            entities.update([item['trigger'], item['action']])
+        return entities
 

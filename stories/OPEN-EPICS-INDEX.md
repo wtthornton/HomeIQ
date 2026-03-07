@@ -1,6 +1,6 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-06 (Sprint 8 planning: Pattern Detection + ML Upgrades)
+**Created:** 2026-02-27 | **Updated:** 2026-03-07 (Sprint 8 complete: Pattern Detection + ML Upgrades)
 **Total:** 39 Epics, 258 Stories, ~700+ files addressed
 
 ## Execution Order & Dependencies
@@ -65,9 +65,9 @@ Sprint 7 (COMPLETE — Mar 6, Agent Teams) — Memory Brain (Institutional Memor
 ├── Epic 34: Trust Model & Adaptive UX [P2]                 ← COMPLETE (3 stories, per-domain trust)
 └── Epic 35: Memory Lifecycle & Observability [P2]          ← COMPLETE (4 stories, admin, dashboard, GC)
 
-Sprint 8 (IN PROGRESS — Mar 2026) — Pattern Detection + ML Upgrades
-├── Epic 37: Pattern Detection Expansion [P1]               ← IN PROGRESS (4/10: 37.1-37.2, 37.4, 37.6 ✓, 6 pending)
-└── Epic 38: ML Dependencies Upgrade [P2]                   ← IN PROGRESS (5/8: 38.1-38.3, 38.8 ✓, 38.4 skipped)
+Sprint 8 (COMPLETE — Mar 7, 2026) — Pattern Detection + ML Upgrades
+├── Epic 37: Pattern Detection Expansion [P1]               ← COMPLETE (10/10: 8 detectors + scheduler + dashboard)
+└── Epic 38: ML Dependencies Upgrade [P2]                   ← COMPLETE (7/8: transformers, openvino, optimum-intel; 38.4 skipped)
 ```
 
 ## Epic Summary
@@ -111,8 +111,8 @@ Sprint 8 (IN PROGRESS — Mar 2026) — Pattern Detection + ML Upgrades
 | 34 | [Trust Model & Adaptive UX](epic-memory-brain.md) | `epic-memory-brain.md` | P2 Medium | 3 | 1 week | **Complete** (API + dashboard widget) |
 | 35 | [Memory Lifecycle & Observability](epic-memory-brain.md) | `epic-memory-brain.md` | P2 Medium | 4 | 1 week | **Complete** (admin API, dashboard, self-heal) |
 | 36 | [E2E Playwright Test Remediation](epic-e2e-playwright-test-remediation.md) | `epic-e2e-playwright-test-remediation.md` | P1 High | 10 | 1 day | **Complete** (36→0 failures, 160/167 pass) |
-| 37 | [Pattern Detection Expansion](epic-pattern-detection-expansion.md) | `epic-pattern-detection-expansion.md` | P1 High | 10 | 2-3 weeks | **In Progress** (1/10: Sequence Detector ✓) |
-| 38 | [ML Dependencies Upgrade](epic-ml-dependencies-upgrade.md) | `epic-ml-dependencies-upgrade.md` | P2 Medium | 8 | 1-2 weeks | **Open** (5/8: sentence-transformers 5.x ✓, docs ✓) |
+| 37 | [Pattern Detection Expansion](epic-pattern-detection-expansion.md) | `epic-pattern-detection-expansion.md` | P1 High | 10 | 2-3 weeks | **Complete** (10/10: 8 detectors + integration) |
+| 38 | [ML Dependencies Upgrade](epic-ml-dependencies-upgrade.md) | `epic-ml-dependencies-upgrade.md` | P2 Medium | 8 | 1-2 weeks | **Complete** (7/8, 1 skipped) |
 
 ## Story Count by Priority
 
@@ -122,7 +122,7 @@ Sprint 8 (IN PROGRESS — Mar 2026) — Pattern Detection + ML Upgrades
 | P1 High | 132 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10) |
 | P2 Medium | 41 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8) |
 | P3 Low | 7 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3) |
-| **Total** | **258** | 242 complete (37 epics) + 16 open (2 epics) |
+| **Total** | **258** | 258 complete (39 epics, 1 story skipped) |
 
 ## Sprint 2 Results (COMPLETE — Mar 4, Agent Teams)
 
@@ -300,6 +300,36 @@ Actual Outcome:
   Quality: All core files pass quality gate (70+), 0 security issues
 ```
 
+## Sprint 8 Results (COMPLETE — Mar 7, 2026)
+
+**Pattern Detection Expansion + ML Dependencies Upgrade:**
+
+```
+Epic 37: Pattern Detection Expansion (10/10 stories)
+├── 8 new detectors: sequence, duration, anomaly, room_based, day_type, frequency, seasonal, contextual
+├── Scheduler integration: all 10 detectors wired into PatternAnalysisScheduler pipeline
+├── Dashboard integration: all 11 pattern types marked "active" in AI Automation UI
+├── 300+ unit tests across 8 test files
+├── All files pass quality gate (70+), 0 security issues
+└── Key refactoring: _run_sync_detector, _discover_relationships, _extract_entities
+
+Epic 38: ML Dependencies Upgrade (7/8 stories, 1 skipped)
+├── sentence-transformers: 3.3.1 → >=5.0.0,<6.0.0 (Stories 38.1-38.3)
+├── transformers: 4.46.x → >=4.50.0,<5.0.0 (Story 38.5)
+├── openvino: 2024.5.0 → >=2025.0.0 (Story 38.6)
+├── optimum-intel: 1.20.0 → >=1.25.0 (Story 38.6)
+├── Model regeneration: not required (Story 38.7)
+├── Embedding re-indexing: skipped — no stored embeddings (Story 38.4)
+└── Documentation: ml-pipeline.md with rollback procedures (Story 38.8)
+
+Actual Outcome:
+  Pattern detectors: 10 total (8 new + 2 existing time_of_day/co_occurrence)
+  Test files: 8 new test suites, 300+ unit tests
+  ML requirements: 3 files updated (openvino-service, model-prep, nlp-fine-tuning)
+  Frontend: 2 files updated (types/index.ts, usePatternData.ts)
+  Docs: TECH_STACK.md + ml-pipeline.md updated
+```
+
 ## Key Dates
 
 | Date | Milestone |
@@ -313,6 +343,7 @@ Actual Outcome:
 | Mar 4 | Sprint 6 complete — Epics 26+27 (voice gateway + scheduled tasks), 32 files |
 | Mar 6 | Sprint 7 complete — Epics 29-35 (Memory Brain), homeiq-memory lib + 8 service integrations |
 | Mar 6 | Sprint 8 planned — Epics 37-38 (Pattern Detection + ML Upgrades) from stale branch review |
+| Mar 7 | Sprint 8 complete — Epic 37 (10/10) + Epic 38 (7/8), all 39 epics done |
 | Mar 6 | Production redeployed — 51/51 containers healthy (voice-gateway + health check fixes) |
 | ~Mar 17 | Production deployment eligible (DB migration done, security hardened, quality gated) |
 

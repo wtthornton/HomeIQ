@@ -53,7 +53,7 @@
 | Library | Version | Notes |
 |---------|---------|-------|
 | **sentence-transformers** | >=5.0.0,<6.0.0 | Embeddings (openvino-service, homeiq-memory) — **Epic 38 upgrade** |
-| **transformers** | 4.46.1 | HuggingFace model loading |
+| **transformers** | >=4.50.0,<5.0.0 | HuggingFace model loading — **Story 38.5 upgrade** |
 | **torch** | >=2.5.0,<3.0.0 | PyTorch backend for ML models (CPU-only) |
 | **scikit-learn** | 1.4.0 – 1.6.1 | Classical ML (clustering, anomaly detection) |
 | **openai** | 1.30.0 – 1.61.0 | OpenAI GPT-4o-mini API client |

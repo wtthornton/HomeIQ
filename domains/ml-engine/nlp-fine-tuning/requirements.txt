@@ -7,7 +7,7 @@ pyarrow>=14.0.0
 
 # Hugging Face
 datasets>=3.0.0
-transformers>=4.45.0
+transformers>=4.50.0,<5.0.0  # Epic 38, Story 38.5: upgraded from 4.45.x
 accelerate>=1.0.0
 peft>=0.13.0
 

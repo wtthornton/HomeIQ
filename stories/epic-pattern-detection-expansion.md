@@ -82,23 +82,30 @@ Detect devices with consistent on/off durations.
 
 ---
 
-### Story 37.3: Day Type Detector (REQ-PAT-03)
-**Priority:** P2  
+### Story 37.3: Day Type Detector (REQ-PAT-03) ✓ COMPLETE
+**Priority:** P2
 **Estimate:** 2 days
+**Completed:** 2026-03-06
 
 Compare activation patterns between weekdays and weekends.
 
 **Acceptance Criteria:**
-- [ ] Implement `DayTypeDetector` class extending `PatternDetector`
-- [ ] Separate pattern analysis for weekdays vs weekends
-- [ ] Identify devices with significantly different behavior by day type
-- [ ] Return: entity, weekday_pattern, weekend_pattern, variance_score
-- [ ] Unit tests with >80% coverage
+- [x] Implement `DayTypePatternDetector` class
+- [x] Separate pattern analysis for weekdays vs weekends
+- [x] Identify devices with significantly different behavior by day type
+- [x] Return: entity, weekday_pattern, weekend_pattern, variance_score
+- [x] Unit tests with >80% coverage (39 test cases)
 
 **Technical Details:**
 - Use day of week from event timestamps
 - Calculate activation count and timing distributions per day type
 - Flag entities with >30% variance between day types
+
+**Implementation:**
+- `src/pattern_analyzer/day_type.py` — DayTypePatternDetector class
+- `tests/pattern_analyzer/test_day_type.py` — 39 unit tests
+- Quality score: 71.48 (gate passed, highest of detectors)
+- Features: circular hour distance, Bhattacharyya distribution overlap, day-type scheduling suggestions
 
 ---
 
@@ -179,23 +186,30 @@ Statistical outlier detection on established patterns.
 
 ---
 
-### Story 37.7: Frequency Detector (REQ-PAT-07)
-**Priority:** P3  
+### Story 37.7: Frequency Detector (REQ-PAT-07) ✓ COMPLETE
+**Priority:** P3
 **Estimate:** 2 days
+**Completed:** 2026-03-07
 
 Detect devices with consistent daily/weekly activation counts.
 
 **Acceptance Criteria:**
-- [ ] Implement `FrequencyDetector` class extending `PatternDetector`
-- [ ] Track daily and weekly activation counts per entity
-- [ ] Flag significant changes in frequency as potential issues
-- [ ] Return: entity, daily_avg, weekly_avg, variance, trend
-- [ ] Unit tests with >80% coverage
+- [x] Implement `FrequencyPatternDetector` class
+- [x] Track daily and weekly activation counts per entity
+- [x] Flag significant changes in frequency as potential issues
+- [x] Return: entity, daily_avg, weekly_avg, variance, trend
+- [x] Unit tests with >80% coverage (43 test cases)
 
 **Technical Details:**
 - Rolling 7-day and 30-day windows
 - Alert threshold: >50% change from baseline
 - Track trend direction (increasing/decreasing/stable)
+
+**Implementation:**
+- `src/pattern_analyzer/frequency.py` — FrequencyPatternDetector class
+- `tests/pattern_analyzer/test_frequency.py` — 43 unit tests
+- Quality score: 71.48 (gate passed)
+- Features: linear regression trend, gap-filling, change detection, frequency alert suggestions
 
 ---
 

@@ -16,7 +16,7 @@ numpy>=1.26.0,<3.0.0  # Phase 3: allow 1.x and 2.x (Feb 2026 upgrade)
 --extra-index-url https://download.pytorch.org/whl/cpu
 
 sentence-transformers>=5.0.0,<6.0.0  # Embeddings: BAAI/bge-large-en-v1.5 (1024-dim) [Epic 38]
-transformers==4.46.1          # HuggingFace models (compatible with sentence-transformers)
+transformers>=4.50.0,<5.0.0   # HuggingFace models (Epic 38, Story 38.5: upgraded from 4.46.1)
 torch>=2.5.0,<3.0.0  # Feb 2026 upgrade — aligned with activity-recognition, CPU-only
 sentencepiece                 # Required for T5 tokenizer
 # Removed OpenVINO for now due to dependency conflicts

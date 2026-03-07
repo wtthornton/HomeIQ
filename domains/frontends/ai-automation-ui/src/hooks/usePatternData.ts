@@ -304,12 +304,17 @@ export function getPatternIcon(type: string): string {
     day_type: '\uD83D\uDCC5',
     seasonal: '\uD83C\uDF42',
     anomaly: '\u26A0\uFE0F',
+    frequency: '\uD83D\uDCC8',
   };
   return icons[type] || '\uD83D\uDCCA';
 }
 
 export function getPatternStatus(type: string): 'active' | 'coming-soon' {
-  const activeTypes = ['time_of_day', 'co_occurrence', 'multi_factor'];
+  const activeTypes = [
+    'time_of_day', 'co_occurrence', 'multi_factor',
+    'sequence', 'duration', 'anomaly', 'room_based',
+    'day_type', 'frequency', 'seasonal', 'contextual',
+  ];
   return activeTypes.includes(type) ? 'active' : 'coming-soon';
 }
 
@@ -380,6 +385,12 @@ export function getPatternTypeInfo(type: string): { name: string; description: s
       description: 'Identifies unusual behaviors that deviate from normal patterns.',
       importance: 'Helps detect potential issues, security concerns, or opportunities to optimize unusual device usage.',
       example: 'Device activated at unusual time, or device left on longer than normal, or unexpected device combination.'
+    },
+    frequency: {
+      name: 'Frequency Patterns',
+      description: 'Tracks daily activation counts and detects significant changes in device usage frequency.',
+      importance: 'Reveals usage trends and alerts to sudden changes that may indicate equipment issues or behavior shifts.',
+      example: 'Furnace cycling 20x/day jumps to 40x/day (equipment issue), or garage door averaging 4 opens/day consistently.'
     }
   };
   return info[type] || {

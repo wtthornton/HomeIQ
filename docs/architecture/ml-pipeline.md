@@ -12,12 +12,12 @@ HomeIQ uses a distributed ML pipeline for embeddings, semantic search, and patte
 | Package | Version | Services | Purpose |
 |---------|---------|----------|---------|
 | **sentence-transformers** | >=5.0.0,<6.0.0 | openvino-service, homeiq-memory, model-prep | Text embeddings |
-| **transformers** | 4.46.1 | openvino-service, model-prep, nlp-fine-tuning | HuggingFace model loading |
+| **transformers** | >=4.50.0,<5.0.0 | openvino-service, model-prep, nlp-fine-tuning | HuggingFace model loading |
 | **torch** | >=2.5.0,<3.0.0 | All ML services | PyTorch backend (CPU-only) |
 | **scikit-learn** | 1.4.0–1.6.1 | ai-pattern-service, ml-service | Classical ML (clustering, anomaly) |
 | **openai** | 1.30.0–1.61.0 | ha-ai-agent, openai-service | GPT-4o-mini API |
-| **openvino** | 2024.5.0 | model-prep | Model optimization (offline) |
-| **optimum-intel** | >=1.20.0 | model-prep | Intel model optimization |
+| **openvino** | >=2025.0.0 | model-prep | Model optimization (offline) — Story 38.6 upgrade |
+| **optimum-intel** | >=1.25.0 | model-prep | Intel model optimization — Story 38.6 upgrade |
 
 ## Embedding Models
 
@@ -64,8 +64,8 @@ embeddings = model.encode(["text1", "text2"], convert_to_numpy=True)
 | sentence-transformers | transformers | torch | Status |
 |----------------------|--------------|-------|--------|
 | 3.3.1 | 4.46.1 | 2.5.x | Previous (worked) |
-| **5.x** | **4.46.1** | **2.5.x** | **Current (Epic 38)** |
-| 5.x | 4.50.x | 2.5.x | Planned (Story 38.5) |
+| 5.x | 4.46.1 | 2.5.x | Previous (Epic 38 partial) |
+| **5.x** | **>=4.50.0** | **2.5.x** | **Current (Story 38.5 complete)** |
 
 ### Compatibility Constraints
 
@@ -90,13 +90,13 @@ embeddings = model.encode(["text1", "text2"], convert_to_numpy=True)
 |-------|--------|
 | 38.4 | Re-indexing not required (no stored embeddings) |
 
-### Remaining (P2/P3)
+### Completed (Stories 38.5-38.7)
 
-| Story | Description | Priority |
-|-------|-------------|----------|
-| 38.5 | transformers upgrade to 4.50.x | P2 |
-| 38.6 | OpenVINO + Optimum-Intel upgrade | P3 |
-| 38.7 | Model regeneration (if required) | P2 |
+| Story | Description | Status |
+|-------|-------------|--------|
+| 38.5 | transformers upgrade (4.46.1 → >=4.50.0,<5.0.0) | ✅ Complete |
+| 38.6 | OpenVINO >=2025.0.0 + Optimum-Intel >=1.25.0 | ✅ Complete |
+| 38.7 | Model regeneration — not required (no model format changes) | ✅ Complete |
 
 ## Rollback Procedures
 
