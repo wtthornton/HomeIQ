@@ -6,7 +6,7 @@
 ## Executive Summary
 
 Sprint 8 covers two epics:
-- **Epic 37:** Pattern Detection Expansion (10 stories, 0 complete)
+- **Epic 37:** Pattern Detection Expansion (10 stories, 3 complete)
 - **Epic 38:** ML Dependencies Upgrade (8 stories, 5 complete)
 
 ## Epic 38: ML Dependencies Upgrade — Status
@@ -58,7 +58,6 @@ Epic 38 remaining stories (38.5-38.7) are P2/P3 and do not block Epic 37. They c
 | 37.3 | Day Type Detector | P2 | 2 days | Pending |
 | 37.4 | Room-Based Detector | P2 | 3 days | Pending |
 | 37.5 | Seasonal Detector | P3 | 2 days | Pending |
-| 37.6 | Anomaly Detector | P2 | 3 days | Pending |
 | 37.7 | Frequency Detector | P3 | 2 days | Pending |
 | 37.8 | Contextual Detector | P2 | 3 days | Pending |
 | 37.9 | Pattern Service Integration | P1 | 2 days | Pending |
@@ -143,17 +142,24 @@ Epic 38 remaining stories (38.5-38.7) are P2/P3 and do not block Epic 37. They c
 
 To continue Sprint 8, choose one:
 
-### Option A: Continue Epic 37 (Pattern Detection)
+### Option A: Story 37.4 (Room-Based Detector) — Recommended
 ```
-Story 37.2: Duration Detector
 - Location: domains/pattern-analysis/ai-pattern-service/src/pattern_analyzer/
-- Pattern: Follow SequencePatternDetector structure
-- Acceptance: Detect consistent on/off durations, unit tests >80%
+- Pattern: Follow sequence.py/duration.py/anomaly.py structure
+- Features: Correlate device activity within same area/room
+- Leverages: area_id from websocket-ingestion (Epic 23)
+- Acceptance: Unit tests >80%, quality score ~69+
 ```
 
-### Option B: Complete Epic 38 (ML Upgrades)
+### Option B: Story 37.3 (Day Type Detector)
 ```
-Story 38.5: transformers Upgrade
+- Compare activation patterns weekdays vs weekends
+- Identify devices with different weekend behavior
+- Flag >30% variance between day types
+```
+
+### Option C: Story 38.5 (transformers Upgrade)
+```
 - Update transformers from 4.46.1 to 4.50.x
 - Test compatibility with sentence-transformers 5.x
 - Verify model loading in openvino-service
