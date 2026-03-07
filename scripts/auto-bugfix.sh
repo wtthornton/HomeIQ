@@ -161,6 +161,7 @@ state = {
     'start_time': '$START_TIME',
     'start_iso': '$START_ISO',
     'project_root': '$PROJECT_ROOT',
+    'total_steps': $TOTAL_STEPS,
     'current_step': $step,
     'status': '$status',
     'status_message': '''$message''',
@@ -172,8 +173,16 @@ state = {
     'bugs': json.loads('''$bugs_json'''),
     'log': json.loads('''$(echo "$LOG_ENTRIES")''')
 }
+state_json = json.dumps(state, indent=2, default=str)
 with open('$DASHBOARD_STATE', 'w') as f:
-    json.dump(state, f, indent=2, default=str)
+    f.write(state_json)
+
+# Write self-contained HTML with embedded state (avoids file:// CORS issues)
+with open('$DASHBOARD_HTML') as f:
+    template = f.read()
+live_html = template.replace('<script>', '<script>\nwindow.__DASHBOARD_STATE__ = ' + state_json + ';\n', 1)
+with open('${DASHBOARD_HTML%.html}-live.html', 'w') as f:
+    f.write(live_html)
 " 2>/dev/null || true
 }
 
@@ -195,13 +204,14 @@ if [[ "$NO_DASHBOARD" != "true" ]]; then
   write_dashboard 1 "running" "Initializing pipeline..."
   add_log "Pipeline starting" "info"
   add_log "Opening dashboard in browser..." "info"
+  DASHBOARD_LIVE="${DASHBOARD_HTML%.html}-live.html"
   # Cross-platform browser open
   if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
-    cmd.exe /c start "" "$DASHBOARD_HTML" 2>/dev/null &
+    cmd.exe /c start "" "$DASHBOARD_LIVE" 2>/dev/null &
   elif command -v xdg-open &>/dev/null; then
-    xdg-open "$DASHBOARD_HTML" 2>/dev/null &
+    xdg-open "$DASHBOARD_LIVE" 2>/dev/null &
   elif command -v open &>/dev/null; then
-    open "$DASHBOARD_HTML" 2>/dev/null &
+    open "$DASHBOARD_LIVE" 2>/dev/null &
   fi
 fi
 

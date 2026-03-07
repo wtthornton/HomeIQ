@@ -3,6 +3,7 @@
 
 # Auto-bugfix dashboard state (ephemeral)
 scripts/.dashboard-state.json
+scripts/dashboard-live.html
 
 # Parallel bugfix worktrees
 .worktrees/

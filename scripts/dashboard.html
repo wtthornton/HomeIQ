@@ -255,29 +255,8 @@
     <span id="status-text">Initializing...</span>
   </div>
 
-  <!-- Pipeline Steps -->
-  <div class="pipeline" id="pipeline">
-    <div class="step pending" id="step-1">
-      <div class="step-num">Step 1</div>
-      <div class="step-label">Branch</div>
-    </div>
-    <div class="step pending" id="step-2">
-      <div class="step-num">Step 2</div>
-      <div class="step-label">Scan</div>
-    </div>
-    <div class="step pending" id="step-3">
-      <div class="step-num">Step 3</div>
-      <div class="step-label">Fix & Validate</div>
-    </div>
-    <div class="step pending" id="step-4">
-      <div class="step-num">Step 4</div>
-      <div class="step-label">Commit & PR</div>
-    </div>
-    <div class="step pending" id="step-5">
-      <div class="step-num">Step 5</div>
-      <div class="step-label">Feedback</div>
-    </div>
-  </div>
+  <!-- Pipeline Steps (rendered dynamically from state) -->
+  <div class="pipeline" id="pipeline"></div>
 
   <div class="grid">
     <!-- Run Info -->
@@ -288,6 +267,7 @@
         <li><span class="label">Base</span><span class="value" id="meta-base">--</span></li>
         <li><span class="label">Target Bugs</span><span class="value" id="meta-target-bugs">--</span></li>
         <li><span class="label">Started</span><span class="value" id="meta-start-time">--</span></li>
+        <li><span class="label">Scan Unit</span><span class="value" id="meta-scan-unit">--</span></li>
         <li><span class="label">Working Dir</span><span class="value" id="meta-project-root">--</span></li>
       </ul>
     </div>
@@ -343,16 +323,21 @@
 
 <script>
 (function() {
-  // Read state from .dashboard-state.json (same directory as this HTML)
-  const STATE_FILE = '.dashboard-state.json';
+  // State is embedded directly by Write-Dashboard / write_dashboard.
+  // Falls back to XHR for .dashboard-state.json if no embedded state.
   let lastLogCount = 0;
 
   function loadState() {
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', STATE_FILE + '?t=' + Date.now(), false); // sync for simplicity
+    // Check for embedded state first (injected by the pipeline script)
+    if (window.__DASHBOARD_STATE__) {
+      return window.__DASHBOARD_STATE__;
+    }
+    // Fallback: try loading from JSON file (works on some browsers with file://)
     try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', '.dashboard-state.json?t=' + Date.now(), false);
       xhr.send();
-      if (xhr.status === 200 || xhr.status === 0) { // status 0 for file://
+      if (xhr.status === 200 || xhr.status === 0) {
         return JSON.parse(xhr.responseText);
       }
     } catch(e) {}
@@ -370,19 +355,30 @@
     return '<span class="badge badge-pending">Pending</span>';
   }
 
-  function renderPipeline(currentStep, status) {
-    for (let i = 1; i <= 5; i++) {
-      const el = document.getElementById('step-' + i);
-      el.className = 'step';
-      if (status === 'error' && i === currentStep) {
-        el.classList.add('error');
-      } else if (i < currentStep) {
-        el.classList.add('completed');
-      } else if (i === currentStep) {
-        el.classList.add('active');
+  // Default steps; chain mode adds Refactor + Test
+  var STEP_LABELS_5 = ['Branch', 'Scan', 'Fix & Validate', 'Commit & PR', 'Feedback'];
+  var STEP_LABELS_7 = ['Branch', 'Scan', 'Fix & Validate', 'Refactor', 'Test', 'Commit & PR', 'Feedback'];
+
+  function renderPipeline(currentStep, status, totalSteps) {
+    var labels = (totalSteps === 7) ? STEP_LABELS_7 : STEP_LABELS_5;
+    var container = document.getElementById('pipeline');
+    container.innerHTML = '';
+    for (var i = 0; i < labels.length; i++) {
+      var stepNum = i + 1;
+      var div = document.createElement('div');
+      div.className = 'step';
+      div.id = 'step-' + stepNum;
+      if (status === 'error' && stepNum === currentStep) {
+        div.classList.add('error');
+      } else if (stepNum < currentStep) {
+        div.classList.add('completed');
+      } else if (stepNum === currentStep) {
+        div.classList.add('active');
       } else {
-        el.classList.add('pending');
+        div.classList.add('pending');
       }
+      div.innerHTML = '<div class="step-num">Step ' + stepNum + '</div><div class="step-label">' + labels[i] + '</div>';
+      container.appendChild(div);
     }
   }
 
@@ -467,6 +463,7 @@
     document.getElementById('meta-base').textContent = state.base || '--';
     document.getElementById('meta-target-bugs').textContent = state.target_bugs || '--';
     document.getElementById('meta-start-time').textContent = state.start_time || '--';
+    document.getElementById('meta-scan-unit').textContent = state.scan_unit || '--';
     document.getElementById('meta-project-root').textContent = state.project_root || '--';
     document.getElementById('elapsed').textContent = formatElapsed(state.start_iso);
 
@@ -492,7 +489,7 @@
     }
 
     // Pipeline
-    renderPipeline(state.current_step || 1, state.status || 'running');
+    renderPipeline(state.current_step || 1, state.status || 'running', state.total_steps || 5);
 
     // Bugs
     renderBugs(state.bugs);

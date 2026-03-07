@@ -122,6 +122,8 @@ function Write-Dashboard {
         start_time   = $StartTime.ToString("yyyy-MM-dd HH:mm:ss")
         start_iso    = $StartIso
         project_root = $ProjectRoot
+        scan_unit    = if ($ScanUnitId) { "$ScanUnitId ($ScanUnitName)" } else { $null }
+        total_steps  = $totalSteps
         current_step = $Step
         status       = $Status
         status_message = $Message
@@ -134,7 +136,14 @@ function Write-Dashboard {
         log          = $Script:DashboardLog
     }
 
-    $state | ConvertTo-Json -Depth 10 | Out-File -FilePath $DashboardStateFile -Encoding utf8 -Force
+    $stateJson = $state | ConvertTo-Json -Depth 10
+    $stateJson | Out-File -FilePath $DashboardStateFile -Encoding utf8 -Force
+
+    # Also write a self-contained HTML with embedded state (avoids file:// CORS issues)
+    $DashboardLiveHtml = Join-Path $ProjectRoot "scripts/dashboard-live.html"
+    $templateContent = Get-Content $DashboardHtml -Raw
+    $injectedHtml = $templateContent -replace '<script>', "<script>`nwindow.__DASHBOARD_STATE__ = $stateJson;`n"
+    [System.IO.File]::WriteAllText($DashboardLiveHtml, $injectedHtml, [System.Text.UTF8Encoding]::new($false))
 }
 
 function Add-LogEntry {
@@ -174,15 +183,16 @@ if (-not $Worktree) {
     }
 }
 
+$totalSteps = if ($Chain) { 7 } else { 5 }
+
 # --- Open dashboard ---
 if (-not $NoDashboard) {
     Write-Dashboard -Step 1 -Message "Initializing pipeline..."
     Add-LogEntry "Pipeline starting" "info"
     Add-LogEntry "Opening dashboard in browser..." "info"
-    Start-Process $DashboardHtml
+    $DashboardLiveHtml = Join-Path $ProjectRoot "scripts/dashboard-live.html"
+    Start-Process $DashboardLiveHtml
 }
-
-$totalSteps = if ($Chain) { 7 } else { 5 }
 
 Write-Host "=== Auto Bug Fix Pipeline ===" -ForegroundColor Cyan
 Write-Host "  Project:  $ProjectRoot"
