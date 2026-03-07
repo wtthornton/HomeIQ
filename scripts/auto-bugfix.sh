@@ -199,6 +199,9 @@ if [[ "$WORKTREE_MODE" != "true" ]] && [[ -n "$(git status --porcelain --ignore-
   exit 1
 fi
 
+TOTAL_STEPS=5
+if [[ "$CHAIN" == "true" ]]; then TOTAL_STEPS=7; fi
+
 # --- Open dashboard ---
 if [[ "$NO_DASHBOARD" != "true" ]]; then
   write_dashboard 1 "running" "Initializing pipeline..."
@@ -214,9 +217,6 @@ if [[ "$NO_DASHBOARD" != "true" ]]; then
     open "$DASHBOARD_LIVE" 2>/dev/null &
   fi
 fi
-
-TOTAL_STEPS=5
-if [[ "$CHAIN" == "true" ]]; then TOTAL_STEPS=7; fi
 
 echo "=== Auto Bug Fix Pipeline ==="
 echo "  Project:  $PROJECT_ROOT"
@@ -271,37 +271,45 @@ $(cat "$OVERRIDES_FILE")"
 fi
 
 FIND_PROMPT="You are a senior Python developer doing a bug audit of the HomeIQ project.
-Use the project's CLAUDE.md and your knowledge of the codebase structure to guide your search.
 
-The project has 50 microservices under domains/ organized into 9 domain groups,
-with shared libraries under libs/ (homeiq-patterns, homeiq-resilience, homeiq-observability, homeiq-data, homeiq-ha).
-Key services: websocket-ingestion (8001), data-api (8006), admin-api (8004), health-dashboard (3000).
+STEP 1: Use TappsMCP tools to scan for real issues. Run these in order:
+- Call mcp__tapps-mcp__tapps_security_scan on 3-5 key Python files in the target area to find vulnerabilities.
+- Call mcp__tapps-mcp__tapps_quick_check on 3-5 key Python files to find quality issues (score < 70 = likely bugs).
+- Read the flagged files to understand the actual bugs.
 
-Find exactly $NUM_BUGS real, distinct bugs in the Python source code. $SCOPE_HINT
+STEP 2: Combine TappsMCP findings with your own code review.
+- Read files that TappsMCP flagged and look for the specific issues.
+- Also scan for bugs TappsMCP might miss: logic errors, race conditions, wrong operators, missing null checks.
 
-For each bug, identify:
+$SCOPE_HINT
+
+Find exactly $NUM_BUGS real, distinct bugs. For each bug, identify:
 1. File path and line number
-2. What the bug is (be specific - off-by-one, missing null check, race condition, wrong operator, etc.)
-3. Why it's a bug (what breaks or could break)
+2. What the bug is (be specific)
+3. Why it's a bug (what breaks)
 
 Rules:
 - Only report REAL bugs that would cause incorrect behavior, crashes, or data loss at runtime.
 - Do NOT report style issues, missing docstrings, type hints, or theoretical concerns.
 - Do NOT report bugs in test files.
 - Each bug must be in a different file.
-- Prioritize bugs in Tier 1 critical services and shared libraries.
+- Prioritize bugs found by tapps_security_scan (these are most likely real).
 $PROMPT_OVERRIDES
 
-Output a JSON array with objects: {\"file\": \"...\", \"line\": N, \"description\": \"...\", \"severity\": \"high|medium|low\"}
-Output ONLY the JSON array, no other text."
+After completing your analysis, output a JSON array with objects: {\"file\": \"...\", \"line\": N, \"description\": \"...\", \"severity\": \"high|medium|low\"}
+Output ONLY the JSON array as your final message, no other text."
 
 MCP_CONFIG="$PROJECT_ROOT/.mcp.json"
 
-echo "[2/$TOTAL_STEPS] Scanning codebase for $NUM_BUGS bugs..."
-add_log "Scanning codebase for $NUM_BUGS bugs (Claude Code headless)..." "info"
-write_dashboard 2 "running" "Scanning codebase for $NUM_BUGS bugs..."
+echo "[2/$TOTAL_STEPS] Scanning codebase for $NUM_BUGS bugs (TappsMCP + code review)..."
+add_log "Scanning with TappsMCP security_scan + quick_check + code review..." "info"
+write_dashboard 2 "running" "Scanning for $NUM_BUGS bugs (TappsMCP + review)..."
 
-BUGS_JSON=$(claude --print --max-turns 3 --mcp-config "$MCP_CONFIG" "$FIND_PROMPT" 2>/dev/null)
+BUGS_JSON=$(claude --print \
+  --max-turns 8 \
+  --mcp-config "$MCP_CONFIG" \
+  --allowedTools "Read,Grep,Glob,Bash,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_score_file" \
+  "$FIND_PROMPT" 2>/dev/null)
 
 # Extract JSON from response (claude may wrap it in markdown)
 BUGS_JSON=$(echo "$BUGS_JSON" | sed -n '/^\[/,/^\]/p')

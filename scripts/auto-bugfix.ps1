@@ -246,37 +246,45 @@ if (Test-Path $overridesFile) {
 
 $findPrompt = @"
 You are a senior Python developer doing a bug audit of the HomeIQ project.
-Use the project's CLAUDE.md and your knowledge of the codebase structure to guide your search.
 
-The project has 50 microservices under domains/ organized into 9 domain groups,
-with shared libraries under libs/ (homeiq-patterns, homeiq-resilience, homeiq-observability, homeiq-data, homeiq-ha).
-Key services: websocket-ingestion (8001), data-api (8006), admin-api (8004), health-dashboard (3000).
+STEP 1: Use TappsMCP tools to scan for real issues. Run these in order:
+- Call mcp__tapps-mcp__tapps_security_scan on 3-5 key Python files in the target area to find vulnerabilities.
+- Call mcp__tapps-mcp__tapps_quick_check on 3-5 key Python files to find quality issues (score < 70 = likely bugs).
+- Read the flagged files to understand the actual bugs.
 
-Find exactly $Bugs real, distinct bugs in the Python source code. $scopeHint
+STEP 2: Combine TappsMCP findings with your own code review.
+- Read files that TappsMCP flagged and look for the specific issues.
+- Also scan for bugs TappsMCP might miss: logic errors, race conditions, wrong operators, missing null checks.
 
-For each bug, identify:
+$scopeHint
+
+Find exactly $Bugs real, distinct bugs. For each bug, identify:
 1. File path and line number
-2. What the bug is (be specific - off-by-one, missing null check, race condition, wrong operator, etc.)
-3. Why it's a bug (what breaks or could break)
+2. What the bug is (be specific)
+3. Why it's a bug (what breaks)
 
 Rules:
 - Only report REAL bugs that would cause incorrect behavior, crashes, or data loss at runtime.
 - Do NOT report style issues, missing docstrings, type hints, or theoretical concerns.
 - Do NOT report bugs in test files.
 - Each bug must be in a different file.
-- Prioritize bugs in Tier 1 critical services and shared libraries.
+- Prioritize bugs found by tapps_security_scan (these are most likely real).
 $promptOverrides
 
-Output a JSON array with objects: {"file": "...", "line": N, "description": "...", "severity": "high|medium|low"}
-Output ONLY the JSON array, no other text.
+After completing your analysis, output a JSON array with objects: {"file": "...", "line": N, "description": "...", "severity": "high|medium|low"}
+Output ONLY the JSON array as your final message, no other text.
 "@
 
-Write-Host "[2/$totalSteps] Scanning codebase for $Bugs bugs..." -ForegroundColor Yellow
-Add-LogEntry "Scanning codebase for $Bugs bugs (Claude Code headless)..." "info"
-Write-Dashboard -Step 2 -Message "Scanning codebase for $Bugs bugs..."
+Write-Host "[2/$totalSteps] Scanning codebase for $Bugs bugs (TappsMCP + code review)..." -ForegroundColor Yellow
+Add-LogEntry "Scanning with TappsMCP security_scan + quick_check + code review..." "info"
+Write-Dashboard -Step 2 -Message "Scanning for $Bugs bugs (TappsMCP + review)..."
 
 $mcpConfig = Join-Path $ProjectRoot ".mcp.json"
-$rawOutput = claude --print --max-turns 3 --mcp-config $mcpConfig $findPrompt 2>$null
+$rawOutput = claude --print `
+    --max-turns 8 `
+    --mcp-config $mcpConfig `
+    --allowedTools "Read,Grep,Glob,Bash,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_score_file" `
+    $findPrompt 2>$null
 
 # Extract JSON array from response
 $jsonMatch = [regex]::Match($rawOutput, '\[[\s\S]*?\]')
