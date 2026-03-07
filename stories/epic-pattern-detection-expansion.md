@@ -102,24 +102,31 @@ Compare activation patterns between weekdays and weekends.
 
 ---
 
-### Story 37.4: Room-Based Detector (REQ-PAT-04)
-**Priority:** P2  
+### Story 37.4: Room-Based Detector (REQ-PAT-04) ✓ COMPLETE
+**Priority:** P2
 **Estimate:** 3 days
+**Completed:** 2026-03-06
 
 Correlate device activity within the same area/room.
 
 **Acceptance Criteria:**
-- [ ] Implement `RoomBasedDetector` class extending `PatternDetector`
-- [ ] Use `area_id` from Home Assistant entity registry
-- [ ] Detect room-level behavioral patterns (e.g., "living room evening routine")
-- [ ] Group co-occurring events by room
-- [ ] Return: area_id, device_group, pattern_type, confidence
-- [ ] Unit tests with >80% coverage
+- [x] Implement `RoomBasedPatternDetector` class
+- [x] Use `area_id` from Home Assistant entity registry
+- [x] Detect room-level behavioral patterns (e.g., "living room evening routine")
+- [x] Group co-occurring events by room (2-minute windows)
+- [x] Return: area_id, device_group, pattern_type, confidence
+- [x] Unit tests with >80% coverage (56 test cases)
 
 **Technical Details:**
 - Requires area_id enrichment from websocket-ingestion (Epic 23)
 - Fall back to entity_id prefix parsing if area_id unavailable
 - Correlate within 2-minute windows
+
+**Implementation:**
+- `src/pattern_analyzer/room_based.py` — RoomBasedPatternDetector class
+- `tests/pattern_analyzer/test_room_based.py` — 56 unit tests
+- Quality score: 69.56 (consistent with other detectors)
+- Features: area_id fallback, time-of-day periods, subset detection, automation suggestions
 
 ---
 

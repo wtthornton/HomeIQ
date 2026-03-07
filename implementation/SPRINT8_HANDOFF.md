@@ -48,15 +48,15 @@ Epic 38 remaining stories (38.5-38.7) are P2/P3 and do not block Epic 37. They c
 
 ## Epic 37: Pattern Detection Expansion — Status
 
-### Stories: 3/10 Complete
+### Stories: 4/10 Complete
 
 | Story | Description | Priority | Estimate | Status |
 |-------|-------------|----------|----------|--------|
 | 37.1 | Sequence Detector | P1 | 3 days | ✅ Complete |
 | 37.2 | Duration Detector | P2 | 2 days | ✅ Complete |
 | 37.6 | Anomaly Detector | P2 | 3 days | ✅ Complete |
+| 37.4 | Room-Based Detector | P2 | 3 days | ✅ Complete |
 | 37.3 | Day Type Detector | P2 | 2 days | Pending |
-| 37.4 | Room-Based Detector | P2 | 3 days | Pending |
 | 37.5 | Seasonal Detector | P3 | 2 days | Pending |
 | 37.7 | Frequency Detector | P3 | 2 days | Pending |
 | 37.8 | Contextual Detector | P2 | 3 days | Pending |
@@ -116,6 +116,28 @@ Epic 38 remaining stories (38.5-38.7) are P2/P3 and do not block Epic 37. They c
 - Z-score based statistical detection with configurable sensitivity
 - Automation suggestions for anomaly alerts
 
+### Completed: Story 37.4 (Room-Based Detector)
+
+**Files Created:**
+- `domains/pattern-analysis/ai-pattern-service/src/pattern_analyzer/room_based.py` — RoomBasedPatternDetector class
+- `domains/pattern-analysis/ai-pattern-service/tests/pattern_analyzer/test_room_based.py` — 56 unit tests
+
+**Quality:**
+- Score: 69.56 (consistent with other detectors)
+- Security: Clean (no vulnerabilities)
+- Lint: Clean (0 issues)
+
+**Features:**
+- Correlates device activity within same area/room using area_id
+- Falls back to entity_id prefix parsing when area_id unavailable
+- Time-of-day period classification (morning, afternoon, evening, night, late_night)
+- 2-minute co-occurrence windows for grouping events
+- Subset detection (A+B+C also counts A+B patterns)
+- Superset deduplication (prefers larger device groups)
+- Confidence scoring based on occurrence count, timing consistency, device count
+- Automation suggestions (room routine scenes)
+- System noise filtering (same constants as other detectors)
+
 ### Recommended Execution Order
 
 1. **37.1** (Sequence Detector) — Core P1 functionality
@@ -142,16 +164,7 @@ Epic 38 remaining stories (38.5-38.7) are P2/P3 and do not block Epic 37. They c
 
 To continue Sprint 8, choose one:
 
-### Option A: Story 37.4 (Room-Based Detector) — Recommended
-```
-- Location: domains/pattern-analysis/ai-pattern-service/src/pattern_analyzer/
-- Pattern: Follow sequence.py/duration.py/anomaly.py structure
-- Features: Correlate device activity within same area/room
-- Leverages: area_id from websocket-ingestion (Epic 23)
-- Acceptance: Unit tests >80%, quality score ~69+
-```
-
-### Option B: Story 37.3 (Day Type Detector)
+### Option A: Story 37.3 (Day Type Detector) — Recommended
 ```
 - Compare activation patterns weekdays vs weekends
 - Identify devices with different weekend behavior
