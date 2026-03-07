@@ -48,20 +48,74 @@ Epic 38 remaining stories (38.5-38.7) are P2/P3 and do not block Epic 37. They c
 
 ## Epic 37: Pattern Detection Expansion — Status
 
-### All Stories Pending (0/10)
+### Stories: 3/10 Complete
 
-| Story | Description | Priority | Estimate |
-|-------|-------------|----------|----------|
-| 37.1 | Sequence Detector | P1 | 3 days |
-| 37.2 | Duration Detector | P2 | 2 days |
-| 37.3 | Day Type Detector | P2 | 2 days |
-| 37.4 | Room-Based Detector | P2 | 3 days |
-| 37.5 | Seasonal Detector | P3 | 2 days |
-| 37.6 | Anomaly Detector | P2 | 3 days |
-| 37.7 | Frequency Detector | P3 | 2 days |
-| 37.8 | Contextual Detector | P2 | 3 days |
-| 37.9 | Pattern Service Integration | P1 | 2 days |
-| 37.10 | Dashboard Integration | P2 | 2 days |
+| Story | Description | Priority | Estimate | Status |
+|-------|-------------|----------|----------|--------|
+| 37.1 | Sequence Detector | P1 | 3 days | ✅ Complete |
+| 37.2 | Duration Detector | P2 | 2 days | ✅ Complete |
+| 37.6 | Anomaly Detector | P2 | 3 days | ✅ Complete |
+| 37.3 | Day Type Detector | P2 | 2 days | Pending |
+| 37.4 | Room-Based Detector | P2 | 3 days | Pending |
+| 37.5 | Seasonal Detector | P3 | 2 days | Pending |
+| 37.6 | Anomaly Detector | P2 | 3 days | Pending |
+| 37.7 | Frequency Detector | P3 | 2 days | Pending |
+| 37.8 | Contextual Detector | P2 | 3 days | Pending |
+| 37.9 | Pattern Service Integration | P1 | 2 days | Pending |
+| 37.10 | Dashboard Integration | P2 | 2 days | Pending |
+
+### Completed: Story 37.1 (Sequence Detector)
+
+**Files Created:**
+- `domains/pattern-analysis/ai-pattern-service/src/pattern_analyzer/sequence.py` — 598 lines
+- `domains/pattern-analysis/ai-pattern-service/tests/pattern_analyzer/test_sequence.py` — 25 unit tests
+- `domains/pattern-analysis/ai-pattern-service/tests/pattern_analyzer/test_sequence_integration.py` — 6 integration tests
+
+**Quality:**
+- Score: 68.36 (higher than existing co_occurrence.py at 65.6)
+- All 31 tests passing
+- Security: Clean (no vulnerabilities)
+- Lint: Clean (0 issues)
+
+### Completed: Story 37.2 (Duration Detector)
+
+**Files Created:**
+- `domains/pattern-analysis/ai-pattern-service/src/pattern_analyzer/duration.py` — 593 lines
+- `domains/pattern-analysis/ai-pattern-service/tests/pattern_analyzer/test_duration.py` — 35+ unit tests
+
+**Quality:**
+- Score: 69.08 (higher than sequence.py at 68.36)
+- Security: Clean (no vulnerabilities)
+- Lint: Clean (0 issues)
+
+**Features:**
+- Detects consistent on/off duration patterns
+- Statistical analysis (mean, std, CV, min, max)
+- Anomaly detection (>2 standard deviations from mean)
+- State normalization (on/off/home/away/open/closed/etc.)
+- Automation suggestions (auto-off, anomaly alerts)
+- System noise filtering (same as sequence.py)
+
+### Completed: Story 37.6 (Anomaly Detector)
+
+**Files Created:**
+- `domains/pattern-analysis/ai-pattern-service/src/pattern_analyzer/anomaly.py` — 691 lines
+- `domains/pattern-analysis/ai-pattern-service/tests/pattern_analyzer/test_anomaly.py` — 40+ unit tests
+
+**Quality:**
+- Score: 69.12 (consistent with other detectors)
+- Security: Clean (no vulnerabilities)
+- Lint: Clean (0 issues)
+
+**Features:**
+- Builds behavioral baselines from 7+ days of historical data
+- Detects timing anomalies (activity at unusual hours)
+- Detects frequency anomalies (unusual activation counts)
+- Detects duration anomalies (unusual state durations)
+- Detects absence anomalies (expected activity missing)
+- Severity levels: low, medium, high, critical
+- Z-score based statistical detection with configurable sensitivity
+- Automation suggestions for anomaly alerts
 
 ### Recommended Execution Order
 
@@ -89,12 +143,12 @@ Epic 38 remaining stories (38.5-38.7) are P2/P3 and do not block Epic 37. They c
 
 To continue Sprint 8, choose one:
 
-### Option A: Start Epic 37 (Pattern Detection)
+### Option A: Continue Epic 37 (Pattern Detection)
 ```
-Story 37.1: Sequence Detector
+Story 37.2: Duration Detector
 - Location: domains/pattern-analysis/ai-pattern-service/src/pattern_analyzer/
-- Base class: PatternDetector
-- Acceptance: Detect A → B → C patterns, unit tests >80%
+- Pattern: Follow SequencePatternDetector structure
+- Acceptance: Detect consistent on/off durations, unit tests >80%
 ```
 
 ### Option B: Complete Epic 38 (ML Upgrades)
