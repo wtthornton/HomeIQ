@@ -95,7 +95,7 @@ for cmd in claude git gh python3; do
   fi
 done
 
-if [[ -n "$(git status --porcelain --ignore-submodules)" ]]; then
+if [[ "$DRY_RUN" != "true" ]] && [[ -n "$(git status --porcelain --ignore-submodules)" ]]; then
   echo "ERROR: Working tree is dirty. Commit or stash changes first."
   exit 1
 fi
@@ -112,48 +112,12 @@ if [[ ! -f "$SCAN_MANIFEST" ]]; then
   exit 1
 fi
 
-ALL_LOWER=$(echo "$ALL" | tr '[:upper:]' '[:lower:]')
-SELECTED=$(python3 -c "
-import json, sys
-from datetime import datetime, timezone
+PICKER_SCRIPT="$PROJECT_ROOT/scripts/pick-scan-units.py"
+PICKER_ARGS=(--manifest "$SCAN_MANIFEST" --max "$MAX_PARALLEL")
+if [[ -n "$UNITS" ]]; then PICKER_ARGS+=(--units "$UNITS"); fi
+if [[ "$ALL" == "true" ]]; then PICKER_ARGS+=(--all); fi
 
-with open('$SCAN_MANIFEST') as f:
-    manifest = json.load(f)
-
-requested = '$UNITS'.split(',') if '$UNITS' else []
-select_all = $([[ "$ALL" == "true" ]] && echo "True" || echo "False")
-max_count = $MAX_PARALLEL
-
-now = datetime.now(timezone.utc)
-scored = []
-
-for unit in manifest['units']:
-    if requested and unit['id'] not in requested:
-        continue
-    if unit['last_scanned']:
-        last = datetime.fromisoformat(unit['last_scanned'])
-        if last.tzinfo is None:
-            last = last.replace(tzinfo=timezone.utc)
-        days = max((now - last).total_seconds() / 86400, 0.1)
-    else:
-        days = 365
-    bug_boost = 1 + unit['total_bugs_found'] / 5
-    fp_penalty = 1 - (unit['false_positives'] / max(unit['total_bugs_found'], 1)) * 0.3
-    score = unit['priority_weight'] * days * bug_boost * max(fp_penalty, 0.5)
-    scored.append((score, unit))
-
-scored.sort(key=lambda x: x[0], reverse=True)
-
-if requested:
-    selected = [u for _, u in scored]
-elif select_all:
-    selected = [u for _, u in scored]
-else:
-    selected = [u for _, u in scored[:max_count]]
-
-for u in selected:
-    print(f\"{u['id']}|{u['path']}|{u['name']}|{u['scan_hint']}\")
-" 2>/dev/null)
+SELECTED=$(python3 "$PICKER_SCRIPT" "${PICKER_ARGS[@]}" 2>/dev/null)
 
 if [[ -z "$SELECTED" ]]; then
   echo "ERROR: No scan units selected."

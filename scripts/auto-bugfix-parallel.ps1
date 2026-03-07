@@ -92,10 +92,12 @@ foreach ($cmd in @("claude", "git", "gh", "python3")) {
     }
 }
 
-$dirty = git status --porcelain --ignore-submodules
-if ($dirty) {
-    Write-Error "ERROR: Working tree is dirty. Commit or stash changes first."
-    exit 1
+if (-not $DryRun) {
+    $dirty = git status --porcelain --ignore-submodules
+    if ($dirty) {
+        Write-Error "ERROR: Working tree is dirty. Commit or stash changes first."
+        exit 1
+    }
 }
 
 $currentBranch = (git branch --show-current).Trim()
@@ -111,64 +113,31 @@ if (-not (Test-Path $ScanManifest)) {
     exit 1
 }
 
-$pickScript = @"
-import json, sys
-from datetime import datetime, timezone
-
-with open(r'$ScanManifest') as f:
-    manifest = json.load(f)
-
-requested_units = '$Units'.split(',') if '$Units' else []
-select_all = $($All.ToString().ToLower())
-max_count = $MaxParallel
-
-now = datetime.now(timezone.utc)
-scored = []
-
-for unit in manifest['units']:
-    if requested_units and unit['id'] not in requested_units:
-        continue
-
-    if unit['last_scanned']:
-        last = datetime.fromisoformat(unit['last_scanned'])
-        if last.tzinfo is None:
-            last = last.replace(tzinfo=timezone.utc)
-        days = max((now - last).total_seconds() / 86400, 0.1)
-    else:
-        days = 365
-
-    bug_boost = 1 + unit['total_bugs_found'] / 5
-    fp_penalty = 1 - (unit['false_positives'] / max(unit['total_bugs_found'], 1)) * 0.3
-    score = unit['priority_weight'] * days * bug_boost * max(fp_penalty, 0.5)
-
-    scored.append((score, unit))
-
-scored.sort(key=lambda x: x[0], reverse=True)
-
-if requested_units:
-    selected = [u for _, u in scored]
-elif select_all:
-    selected = [u for _, u in scored]
-else:
-    selected = [u for _, u in scored[:max_count]]
-
-for u in selected:
-    print(f"{u['id']}|{u['path']}|{u['name']}|{u['scan_hint']}")
-"@
+$pickerScript = Join-Path $ProjectRoot "scripts/pick-scan-units.py"
+$pickerArgs = @("--manifest", $ScanManifest, "--max", $MaxParallel)
+if ($Units) { $pickerArgs += @("--units", $Units) }
+if ($All)   { $pickerArgs += "--all" }
 
 $selectedUnits = @()
-$pickTempFile = [System.IO.Path]::GetTempFileName() -replace '\.tmp$', '.py'
-$pickScript | Out-File -FilePath $pickTempFile -Encoding utf8 -Force
-python3 $pickTempFile 2>$null | ForEach-Object {
-    $parts = $_ -split '\|', 4
-    $selectedUnits += @{
-        Id   = $parts[0]
-        Path = $parts[1]
-        Name = $parts[2]
-        Hint = $parts[3]
+$pickOutput = python3 $pickerScript @pickerArgs 2>&1
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "ERROR: Failed to pick scan units. Output: $pickOutput"
+    exit 1
+}
+
+$pickOutput | ForEach-Object {
+    $line = $_.ToString().Trim()
+    if ($line -and $line -match '\|') {
+        $parts = $line -split '\|', 4
+        $selectedUnits += @{
+            Id   = $parts[0]
+            Path = $parts[1]
+            Name = $parts[2]
+            Hint = $parts[3]
+        }
     }
 }
-Remove-Item $pickTempFile -ErrorAction SilentlyContinue
 
 if ($selectedUnits.Count -eq 0) {
     Write-Error "ERROR: No scan units selected."
