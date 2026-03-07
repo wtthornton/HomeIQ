@@ -157,7 +157,9 @@ for u in selected:
 "@
 
 $selectedUnits = @()
-$pickScript | python3 2>$null | ForEach-Object {
+$pickTempFile = [System.IO.Path]::GetTempFileName() -replace '\.tmp$', '.py'
+$pickScript | Out-File -FilePath $pickTempFile -Encoding utf8 -Force
+python3 $pickTempFile 2>$null | ForEach-Object {
     $parts = $_ -split '\|', 4
     $selectedUnits += @{
         Id   = $parts[0]
@@ -166,6 +168,7 @@ $pickScript | python3 2>$null | ForEach-Object {
         Hint = $parts[3]
     }
 }
+Remove-Item $pickTempFile -ErrorAction SilentlyContinue
 
 if ($selectedUnits.Count -eq 0) {
     Write-Error "ERROR: No scan units selected."
