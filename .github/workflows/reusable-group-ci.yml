@@ -62,6 +62,12 @@ jobs:
       - name: Lint with ruff
         run: ruff check domains/${{ inputs.domain_dir }}/${{ matrix.service }}/
 
+      - name: Check formatting with ruff
+        run: ruff format --check domains/${{ inputs.domain_dir }}/${{ matrix.service }}/
+
+      - name: Validate Dockerfile shared libs
+        run: python scripts/validate-dockerfile-libs.py --strict
+
       - name: Install shared libraries
         run: |
           for lib in libs/homeiq-*/; do

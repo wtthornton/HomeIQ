@@ -12,6 +12,7 @@ members = [
     "libs/homeiq-data",
     "libs/homeiq-ha",
     "libs/homeiq-observability",
+    "libs/homeiq-memory",
 ]
 
 [tool.ruff]

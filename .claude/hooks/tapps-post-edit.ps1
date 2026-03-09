@@ -1,5 +1,5 @@
 # TappsMCP PostToolUse hook (Edit/Write)
-# Reminds the agent to run quality checks after file edits.
+# BLOCKING: Instructs agent to run quality checks after Python file edits.
 $rawInput = @($input) -join "`n"
 try {
     $data = $rawInput | ConvertFrom-Json
@@ -9,8 +9,15 @@ try {
 } catch {
     $file = ""
 }
+
 if ($file -and $file -match '\.py$') {
-    Write-Output "Python file edited: $file"
-    Write-Output "Consider running tapps_quick_check on it."
+    Write-Output "BLOCKING: Python file edited: $file"
+    Write-Output "You MUST call tapps_quick_check with file_path='$file' before proceeding to other tasks."
 }
+
+if ($file -and $file -match 'Dockerfile') {
+    Write-Output "BLOCKING: Dockerfile edited: $file"
+    Write-Output "You MUST run 'python scripts/validate-dockerfile-libs.py --strict' to verify shared lib installs."
+}
+
 exit 0
