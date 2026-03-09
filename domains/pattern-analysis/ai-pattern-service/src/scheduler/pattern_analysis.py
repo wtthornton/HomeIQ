@@ -328,7 +328,7 @@ class PatternAnalysisScheduler:
             ("frequency", self._run_sync_detector("frequency", FrequencyPatternDetector(), events_df, job_result)),
             ("room_based", self._run_sync_detector("room_based", RoomBasedPatternDetector(), events_df, job_result)),
             ("seasonal", self._run_sync_detector("seasonal", SeasonalPatternDetector(min_days_total=10), events_df, job_result)),
-            ("contextual", self._run_sync_detector("contextual", ContextualPatternDetector(), events_df, job_result)),
+            ("contextual", self._run_sync_detector("contextual", ContextualPatternDetector(latitude=settings.contextual_latitude, longitude=settings.contextual_longitude), events_df, job_result)),
         ]
 
         for name, coro in detectors:

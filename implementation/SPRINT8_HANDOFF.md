@@ -299,6 +299,28 @@ Sprint 8 covers two epics — both complete:
 
 ---
 
+## Post-Sprint 8 Fixes (2026-03-09)
+
+### Fix: Memory Brain migration enum mismatch (blocker)
+
+The original Alembic migration (001) defined `memory_type` CHECK constraint with old enum values
+(`fact`, `pattern`, `context`, `correction`) that don't match the application's `MemoryType` enum
+(`behavioral`, `boundary`, `outcome`, `routine`). This would cause INSERT failures on deployment.
+
+**File Created:**
+- `libs/homeiq-memory/alembic/versions/002_fix_memory_type_enum.py` — Drops old constraints, migrates existing rows, adds correct constraints. Fully reversible.
+
+### Fix: Configurable coordinates for ContextualPatternDetector
+
+The contextual detector's latitude/longitude were hardcoded to London (51.5, -0.1).
+Now configurable via environment variables.
+
+**Files Modified:**
+- `domains/pattern-analysis/ai-pattern-service/src/config.py` — Added `contextual_latitude` and `contextual_longitude` settings
+- `domains/pattern-analysis/ai-pattern-service/src/scheduler/pattern_analysis.py` — Wired settings into detector instantiation
+
+---
+
 ## Sprint 8 Summary
 
 **All work complete.** Both epics delivered:

@@ -17,6 +17,10 @@ class Settings(BaseServiceSettings):
     co_occurrence_support_overrides: dict = {}
     co_occurrence_confidence_overrides: dict = {}
 
+    # Contextual Pattern Detection — location for sun calculations
+    contextual_latitude: float = 51.5  # Default: London (override via env)
+    contextual_longitude: float = -0.1
+
     # Synergy Detection Configuration
     synergy_min_confidence: float = 0.5
     synergy_min_impact_score: float = 0.3
