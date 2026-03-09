@@ -22,6 +22,10 @@ export default defineConfig(({ command, mode }) => {
         fastRefresh: true,
         // Optimize JSX runtime
         jsxRuntime: 'automatic',
+        // React Compiler — automatic memoization (React 19)
+        babel: {
+          plugins: ['babel-plugin-react-compiler'],
+        },
       }),
     ],
     

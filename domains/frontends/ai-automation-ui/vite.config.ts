@@ -8,7 +8,11 @@ export default defineConfig({
     setupFiles: './src/test/setup.ts',
   },
   plugins: [
-    react(),
+    react({
+      babel: {
+        plugins: ['babel-plugin-react-compiler'],
+      },
+    }),
   ],
   server: {
     host: '0.0.0.0',
