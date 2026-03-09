@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
-from shared.resilience.health import DependencyStatus, GroupHealthCheck
+from homeiq_resilience.health import DependencyStatus, GroupHealthCheck
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ class TestAllHealthy:
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.get = AsyncMock(return_value=_make_ok_response())
 
-        with patch("shared.resilience.health.httpx.AsyncClient", return_value=mock_client):
+        with patch("homeiq_resilience.health.httpx.AsyncClient", return_value=mock_client):
             result = await health_check.to_dict()
 
         assert result["status"] == "healthy"
@@ -111,7 +111,7 @@ class TestDegraded:
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.get = mock_get
 
-        with patch("shared.resilience.health.httpx.AsyncClient", return_value=mock_client):
+        with patch("homeiq_resilience.health.httpx.AsyncClient", return_value=mock_client):
             result = await health_check.to_dict()
 
         assert result["status"] == "degraded"
@@ -137,7 +137,7 @@ class TestUnhealthy:
             side_effect=httpx.ConnectError("Connection refused")
         )
 
-        with patch("shared.resilience.health.httpx.AsyncClient", return_value=mock_client):
+        with patch("homeiq_resilience.health.httpx.AsyncClient", return_value=mock_client):
             result = await health_check.to_dict()
 
         assert result["status"] == "unhealthy"
@@ -154,7 +154,7 @@ class TestUnhealthy:
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.get = AsyncMock(return_value=_make_500_response())
 
-        with patch("shared.resilience.health.httpx.AsyncClient", return_value=mock_client):
+        with patch("homeiq_resilience.health.httpx.AsyncClient", return_value=mock_client):
             result = await health_check.to_dict()
 
         assert result["status"] == "unhealthy"
@@ -177,7 +177,7 @@ class TestResponseFormat:
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.get = AsyncMock(return_value=_make_ok_response())
 
-        with patch("shared.resilience.health.httpx.AsyncClient", return_value=mock_client):
+        with patch("homeiq_resilience.health.httpx.AsyncClient", return_value=mock_client):
             result = await health_check.to_dict()
 
         required_keys = {
@@ -202,7 +202,7 @@ class TestResponseFormat:
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.get = AsyncMock(return_value=_make_ok_response())
 
-        with patch("shared.resilience.health.httpx.AsyncClient", return_value=mock_client):
+        with patch("homeiq_resilience.health.httpx.AsyncClient", return_value=mock_client):
             result = await health_check.to_dict()
 
         for dep in result["dependencies"].values():

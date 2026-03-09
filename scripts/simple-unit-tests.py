@@ -66,83 +66,120 @@ class SimpleUnitTestRunner:
         else:
             print(f"[INFO] [{timestamp}] {message}")
     
+    # Test directories to run independently (avoids cross-directory import conflicts)
+    TEST_DIRS = [
+        "libs/homeiq-patterns/tests",
+        "libs/homeiq-resilience/tests",
+        "libs/homeiq-data/tests",
+        "libs/homeiq-ha/tests",
+        "libs/homeiq-observability/tests",
+        "libs/homeiq-memory/tests",
+        "domains/core-platform/admin-api/tests",
+        "domains/core-platform/data-api/tests",
+        "domains/core-platform/data-retention/tests",
+        "domains/core-platform/ha-simulator/tests",
+        "domains/core-platform/websocket-ingestion/tests",
+        "domains/automation-core/ai-automation-service-new/tests",
+        "domains/automation-core/ai-code-executor/tests",
+        "domains/automation-core/ai-query-service/tests",
+        "domains/automation-core/automation-linter/tests",
+        "domains/automation-core/automation-trace-service/tests",
+        "domains/automation-core/ha-ai-agent-service/tests",
+        "domains/automation-core/yaml-validation-service/tests",
+        "domains/blueprints/automation-miner/tests",
+        "domains/blueprints/blueprint-index/tests",
+        "domains/data-collectors/air-quality-service/tests",
+        "domains/data-collectors/calendar-service/tests",
+        "domains/data-collectors/carbon-intensity-service/tests",
+        "domains/data-collectors/electricity-pricing-service/tests",
+        "domains/data-collectors/log-aggregator/tests",
+        "domains/data-collectors/smart-meter-service/tests",
+        "domains/data-collectors/sports-api/tests",
+        "domains/data-collectors/weather-api/tests",
+        "domains/device-management/ha-setup-service/tests",
+        "domains/energy-analytics/energy-correlator/tests",
+        "domains/energy-analytics/energy-forecasting/tests",
+        "domains/energy-analytics/proactive-agent-service/tests",
+        "domains/frontends/observability-dashboard/tests",
+        "domains/ml-engine/ai-core-service/tests",
+        "domains/ml-engine/ai-training-service/tests",
+        "domains/ml-engine/device-intelligence-service/tests",
+        "domains/ml-engine/ml-service/tests",
+        "domains/ml-engine/openvino-service/tests",
+        "domains/ml-engine/rag-service/tests",
+        "domains/pattern-analysis/ai-pattern-service/tests",
+    ]
+
     def run_python_tests(self):
-        """Run Python unit tests"""
+        """Run Python unit tests per-directory to avoid import conflicts."""
         self.print_progress("Starting Python unit tests...")
-        
-        # Use the updated pytest configuration
-        cmd = [
-            "python", "-m", "pytest", "-c", "pytest-unit.ini",
-            "--verbose",
-            "--tb=short",
-            "--cov-report=html:test-results/coverage/python",
-            "--cov-report=xml:test-results/coverage/python/coverage.xml",
-            "--cov-report=term-missing",
-            "--disable-warnings",
-            "--maxfail=10"
-        ]
-        
-        try:
-            self.print_progress(f"Running: {' '.join(cmd)}")
-            result = subprocess.run(
-                cmd,
-                cwd=self.project_root,
-                capture_output=True,
-                text=True,
-                timeout=600  # 10 minute timeout
-            )
-            
-            # Parse results from stdout
-            output = result.stdout + result.stderr
-            lines = output.split('\n')
-            
-            # Look for pytest summary line (e.g., "5 passed, 3 failed in 2.34s")
-            passed_count = 0
-            failed_count = 0
-            for line in lines:
-                # Match patterns like "X passed", "X failed", "X error"
-                if 'passed' in line.lower() or 'failed' in line.lower() or 'error' in line.lower():
-                    # Try to extract numbers
+
+        total_passed = 0
+        total_failed = 0
+        failed_dirs = []
+
+        for test_dir in self.TEST_DIRS:
+            test_path = self.project_root / test_dir
+            if not test_path.exists():
+                continue
+
+            cmd = [
+                sys.executable, "-m", "pytest", str(test_path),
+                "--tb=short", "--no-header", "-q",
+                "--disable-warnings", "--maxfail=10"
+            ]
+
+            try:
+                result = subprocess.run(
+                    cmd,
+                    cwd=self.project_root,
+                    capture_output=True,
+                    text=True,
+                    timeout=120
+                )
+
+                output = result.stdout + result.stderr
+                passed = 0
+                failed = 0
+                for line in output.split('\n'):
                     passed_matches = re.findall(r'(\d+)\s+passed', line, re.IGNORECASE)
                     failed_matches = re.findall(r'(\d+)\s+failed', line, re.IGNORECASE)
                     error_matches = re.findall(r'(\d+)\s+error', line, re.IGNORECASE)
-                    
                     if passed_matches:
-                        passed_count = int(passed_matches[0])
+                        passed = int(passed_matches[0])
                     if failed_matches:
-                        failed_count = int(failed_matches[0])
+                        failed = int(failed_matches[0])
                     if error_matches:
-                        failed_count += int(error_matches[0])
-            
-            # If we couldn't parse, check return code
-            if passed_count == 0 and failed_count == 0:
-                if result.returncode == 0:
-                    # Try to find "X passed" pattern
-                    for line in lines:
-                        match = re.search(r'(\d+)\s+passed', line, re.IGNORECASE)
-                        if match:
-                            passed_count = int(match.group(1))
-                            break
-                else:
-                    failed_count = 1
-            
-            self.results['python']['passed'] = passed_count
-            self.results['python']['failed'] = failed_count
-            self.results['python']['total'] = passed_count + failed_count
-            
-            if result.returncode == 0 and failed_count == 0:
-                self.print_progress(f"Python tests completed: {passed_count} passed", "SUCCESS")
-            else:
-                self.print_progress(f"Python tests had failures: {passed_count} passed, {failed_count} failed", "WARNING")
-            
-        except subprocess.TimeoutExpired:
-            self.print_progress("Python tests timed out after 10 minutes", "ERROR")
-            self.results['python']['failed'] = 1
-            self.results['python']['total'] = 1
-        except Exception as e:
-            self.print_progress(f"Error running Python tests: {str(e)}", "ERROR")
-            self.results['python']['failed'] = 1
-            self.results['python']['total'] = 1
+                        failed += int(error_matches[0])
+
+                total_passed += passed
+                total_failed += failed
+
+                status = "SUCCESS" if failed == 0 and result.returncode == 0 else "WARNING"
+                self.print_progress(f"  {test_dir}: {passed} passed, {failed} failed", status)
+                if failed > 0:
+                    failed_dirs.append(test_dir)
+
+            except subprocess.TimeoutExpired:
+                self.print_progress(f"  {test_dir}: TIMEOUT", "ERROR")
+                total_failed += 1
+                failed_dirs.append(test_dir)
+            except Exception as e:
+                self.print_progress(f"  {test_dir}: ERROR - {e}", "ERROR")
+                total_failed += 1
+                failed_dirs.append(test_dir)
+
+        self.results['python']['passed'] = total_passed
+        self.results['python']['failed'] = total_failed
+        self.results['python']['total'] = total_passed + total_failed
+
+        if total_failed == 0:
+            self.print_progress(f"Python tests completed: {total_passed} passed", "SUCCESS")
+        else:
+            self.print_progress(
+                f"Python tests: {total_passed} passed, {total_failed} failed in {len(failed_dirs)} dir(s)",
+                "WARNING"
+            )
     
     def run_typescript_tests(self):
         """Run TypeScript unit tests"""

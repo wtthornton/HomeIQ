@@ -1,8 +1,9 @@
-import importlib.util
+"""
+Shared test configuration for log-aggregator
+"""
+
 import sys
 from pathlib import Path
-
-import pytest
 
 # Add service root and src/ directory to sys.path for imports
 _service_root = str(Path(__file__).resolve().parent.parent)
@@ -11,10 +12,3 @@ if _service_root not in sys.path:
     sys.path.insert(0, _service_root)
 if _service_src not in sys.path:
     sys.path.insert(0, _service_src)
-
-_has_influxdb = importlib.util.find_spec("influxdb_client_3") is not None
-
-requires_influxdb = pytest.mark.skipif(
-    not _has_influxdb,
-    reason="influxdb_client_3 dependency not installed",
-)

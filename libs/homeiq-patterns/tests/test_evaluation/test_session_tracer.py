@@ -156,7 +156,7 @@ class TestTraceSessionDecorator:
         sink = InMemorySink()
 
         @trace_session(agent_name="input-test", sink=sink)
-        async def handler(_request=None):
+        async def handler(request=None):
             return {"response": "ok"}
 
         await handler(request={"message": "hello world"})

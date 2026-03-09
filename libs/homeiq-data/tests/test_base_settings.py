@@ -9,12 +9,25 @@ Covers:
 
 from __future__ import annotations
 
+from pydantic import ConfigDict
+
 from homeiq_data.base_settings import BaseServiceSettings
 
 
+class _IsolatedSettings(BaseServiceSettings):
+    """Subclass that ignores .env file for testing defaults."""
+    model_config = ConfigDict(env_file=None)
+
+
 class TestBaseServiceSettings:
-    def test_defaults(self) -> None:
-        settings = BaseServiceSettings()
+    def test_defaults(self, monkeypatch) -> None:
+        # Clear env vars that override defaults
+        for var in ("INFLUXDB_URL", "DATA_API_URL", "POSTGRES_URL", "DATABASE_URL",
+                    "INFLUXDB_TOKEN", "INFLUXDB_ORG", "INFLUXDB_BUCKET",
+                    "SERVICE_NAME", "SERVICE_PORT", "LOG_LEVEL",
+                    "DATA_API_KEY", "DATABASE_SCHEMA", "CORS_ORIGINS"):
+            monkeypatch.delenv(var, raising=False)
+        settings = _IsolatedSettings()
         assert settings.service_name == "homeiq-service"
         assert settings.service_port == 8000
         assert settings.log_level == "INFO"

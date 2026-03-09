@@ -18,7 +18,7 @@ from typing import Any
 from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .database import Base
+from ..database import Base
 
 
 class InvalidReportReason(str, Enum):
@@ -207,4 +207,3 @@ Index(
     SuggestionEngagementEvent.engagement_type,
     SuggestionEngagementEvent.recorded_at,
 )
-

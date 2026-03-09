@@ -121,6 +121,25 @@ class TestNullInfluxDBWriter:
 # ---------------------------------------------------------------------------
 
 
+def _pg_available():
+    try:
+        import asyncio
+        import asyncpg
+        asyncio.get_event_loop().run_until_complete(
+            asyncio.wait_for(
+                asyncpg.connect(user="homeiq", password="homeiq", database="homeiq", host="localhost", port=5432),
+                timeout=2,
+            )
+        )
+        return True
+    except Exception:
+        return False
+
+
+_skip_no_pg = pytest.mark.skipif(not _pg_available(), reason="PostgreSQL not available")
+
+
+@_skip_no_pg
 class TestEvaluationStore:
     """Test EvaluationStore with PostgreSQL."""
 
@@ -228,6 +247,7 @@ class TestEvaluationStore:
 # ---------------------------------------------------------------------------
 
 
+@_skip_no_pg
 class TestInfluxDBIntegration:
     """Test InfluxDB writing via mock writer."""
 

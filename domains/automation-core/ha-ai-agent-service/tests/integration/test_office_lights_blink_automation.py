@@ -17,12 +17,12 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-# Add src to path for imports
-src_path = Path(__file__).parent.parent.parent / "src"
-sys.path.insert(0, str(src_path))
+# Add service root to path for package imports
+service_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(service_root))
 
-from config import Settings
-from services.context_builder import ContextBuilder
+from src.config import Settings
+from src.services.context_builder import ContextBuilder
 
 
 @pytest.fixture

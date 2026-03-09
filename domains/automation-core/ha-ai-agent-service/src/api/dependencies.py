@@ -6,9 +6,7 @@ Story 30.1: Memory Extraction
 Dependency injection functions for FastAPI endpoints.
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+from typing import Any
 
 from fastapi import HTTPException
 
@@ -18,16 +16,13 @@ from ..services.openai_client import OpenAIClient
 from ..services.prompt_assembly_service import PromptAssemblyService
 from ..services.tool_service import ToolService
 
-if TYPE_CHECKING:
-    from ..services.memory_extractor import MemoryExtractor
-
 # These will be set by main.py during startup
 _settings: Settings | None = None
 _conversation_service: ConversationService | None = None
 _prompt_assembly_service: PromptAssemblyService | None = None
 _openai_client: OpenAIClient | None = None
 _tool_service: ToolService | None = None
-_memory_extractor: MemoryExtractor | None = None
+_memory_extractor: Any | None = None
 
 
 def set_services(
@@ -36,7 +31,7 @@ def set_services(
     prompt_assembly_service: PromptAssemblyService,
     openai_client: OpenAIClient,
     tool_service: ToolService,
-    memory_extractor: MemoryExtractor | None = None,
+    memory_extractor: Any | None = None,
 ):
     """Set service instances (called from main.py during startup)"""
     global _settings, _conversation_service, _prompt_assembly_service
@@ -84,7 +79,7 @@ def get_tool_service() -> ToolService:
     return _tool_service
 
 
-def get_memory_extractor() -> MemoryExtractor | None:
+def get_memory_extractor() -> Any | None:
     """Get memory extractor instance (may be None if disabled)"""
     return _memory_extractor
 

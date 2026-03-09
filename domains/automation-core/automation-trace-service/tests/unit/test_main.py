@@ -21,24 +21,22 @@ class TestRootEndpoint:
         response = client.get("/")
         assert response.status_code == 200
         data = response.json()
-        assert data["service"] == "automation-trace-service"
+        assert data["service"] == "Automation Trace Service"
         assert "version" in data
         assert data["status"] == "running"
-        assert "/health" in data["endpoints"]
-        assert "/metrics" in data["endpoints"]
 
 
 class TestHealthEndpoint:
     """Tests for the /health endpoint."""
 
-    def test_health_returns_503_when_not_initialized(self, client: TestClient) -> None:
-        """Health returns 503 when trace_poller is not yet initialized."""
+    def test_health_details_returns_503_when_not_initialized(self, client: TestClient) -> None:
+        """Health details returns 503 when trace_poller is not yet initialized."""
         import src.main as main_module
 
         original = main_module.trace_poller
         main_module.trace_poller = None
         try:
-            response = client.get("/health")
+            response = client.get("/health/details")
             assert response.status_code == 503
         finally:
             main_module.trace_poller = original

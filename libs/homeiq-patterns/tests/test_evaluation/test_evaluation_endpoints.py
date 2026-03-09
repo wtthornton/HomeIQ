@@ -40,6 +40,24 @@ from homeiq_patterns.evaluation import (
     EvaluationStore,
 )
 
+
+def _pg_available():
+    try:
+        import asyncio
+        import asyncpg
+        asyncio.get_event_loop().run_until_complete(
+            asyncio.wait_for(
+                asyncpg.connect(user="homeiq", password="homeiq", database="homeiq", host="localhost", port=5432),
+                timeout=2,
+            )
+        )
+        return True
+    except Exception:
+        return False
+
+
+_skip_no_pg = pytest.mark.skipif(not _pg_available(), reason="PostgreSQL not available")
+
 # ---------------------------------------------------------------------------
 # Store tests (query methods used by endpoints)
 # ---------------------------------------------------------------------------
@@ -88,6 +106,7 @@ def _make_report(agent: str = "test-agent", score: float = 0.85) -> BatchReport:
     )
 
 
+@_skip_no_pg
 @pytest.mark.asyncio
 async def test_store_batch_report(store):
     report = _make_report()
@@ -95,6 +114,7 @@ async def test_store_batch_report(store):
     assert run_id > 0
 
 
+@_skip_no_pg
 @pytest.mark.asyncio
 async def test_get_latest_report(store):
     await store.store_batch_report(_make_report())
@@ -104,12 +124,14 @@ async def test_get_latest_report(store):
     assert result["sessions_evaluated"] == 5
 
 
+@_skip_no_pg
 @pytest.mark.asyncio
 async def test_get_scores_empty(store):
     scores = await store.get_scores("nonexistent")
     assert scores == []
 
 
+@_skip_no_pg
 @pytest.mark.asyncio
 async def test_get_scores_with_data(store):
     await store.store_batch_report(_make_report())
@@ -118,6 +140,7 @@ async def test_get_scores_with_data(store):
     assert scores[0]["evaluator_name"] in ("goal_success_rate", "correctness")
 
 
+@_skip_no_pg
 @pytest.mark.asyncio
 async def test_get_scores_filtered_by_evaluator(store):
     await store.store_batch_report(_make_report())
@@ -125,6 +148,7 @@ async def test_get_scores_filtered_by_evaluator(store):
     assert all(s["evaluator_name"] == "correctness" for s in scores)
 
 
+@_skip_no_pg
 @pytest.mark.asyncio
 async def test_get_trends(store):
     await store.store_batch_report(_make_report())
@@ -133,12 +157,14 @@ async def test_get_trends(store):
     assert "goal_success_rate" in trends
 
 
+@_skip_no_pg
 @pytest.mark.asyncio
 async def test_get_trends_empty_agent(store):
     trends = await store.get_trends("nonexistent")
     assert trends == {}
 
 
+@_skip_no_pg
 @pytest.mark.asyncio
 async def test_get_run_count(store):
     assert await store.get_run_count("test-agent") == 0
@@ -146,6 +172,7 @@ async def test_get_run_count(store):
     assert await store.get_run_count("test-agent") == 1
 
 
+@_skip_no_pg
 @pytest.mark.asyncio
 async def test_multiple_runs(store):
     await store.store_batch_report(_make_report(score=0.80))
@@ -288,6 +315,7 @@ class TestResponseModels:
 # ---------------------------------------------------------------------------
 
 
+@_skip_no_pg
 @pytest.mark.asyncio
 async def test_cleanup_expired(store):
     await store.store_batch_report(_make_report())
@@ -296,6 +324,7 @@ async def test_cleanup_expired(store):
     assert deleted == 0
 
 
+@_skip_no_pg
 @pytest.mark.asyncio
 async def test_store_close_and_reopen():
     s = EvaluationStore(db_url="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq")

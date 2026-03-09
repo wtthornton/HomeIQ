@@ -52,7 +52,7 @@ class TestAPIEndpoints(AioHTTPTestCase):
         }
         service.last_fetch_time = datetime.now(UTC)
         
-        return await create_app(service)
+        return create_app(service)
     
     @unittest_run_loop
     async def test_health_endpoint(self):
@@ -125,7 +125,7 @@ class TestAPIEndpoints(AioHTTPTestCase):
         service.session = AsyncMock()
         service.cached_data = None  # No cached data
         
-        app = await create_app(service)
+        app = create_app(service)
         
         # Create new test client
         from aiohttp.test_utils import TestClient

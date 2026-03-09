@@ -58,20 +58,6 @@ def pytest_ignore_collect(collection_path, config):
 
 
 def pytest_sessionstart(session):  # pragma: no cover - test harness hook
-    """Ensure unified `src` namespace is loaded before any tests import it."""
+    """Add project root to sys.path for imports."""
     project_root = Path(__file__).resolve().parent
     _insert_unique(project_root)
-
-    print("[conftest] Initialising unified src namespace")
-
-    sys.modules.pop("src", None)
-    module = import_module("src")
-    sys.modules["src"] = module
-
-    for name in ("devices_endpoints", "weather_cache", "weather_client"):
-        try:
-            submodule = import_module(f"src.{name}")
-            setattr(module, name, submodule)
-        except ModuleNotFoundError:
-            print(f"[conftest] Submodule {name} not found during bootstrap")
-            continue

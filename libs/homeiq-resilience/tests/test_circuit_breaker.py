@@ -13,7 +13,7 @@ from __future__ import annotations
 import time
 
 import pytest
-from shared.resilience.circuit_breaker import (
+from homeiq_resilience.circuit_breaker import (
     CircuitBreaker,
     CircuitOpenError,
     CircuitState,

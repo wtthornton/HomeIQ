@@ -32,13 +32,14 @@ action:
     def test_syntax_validation_invalid_yaml(self, validator):
         """Test syntax validation with invalid YAML."""
         yaml_content = """
-alias: "Test Automation"
+alias: "Test Automation
 trigger:
   - platform: time
-    at: "07:00:00"  # Missing closing quote
+    at: "07:00:00"
 action:
+  - service: light.turn_on
 """
-        
+
         result = validator._validate_syntax(yaml_content)
         assert result["valid"] is False
         assert len(result["errors"]) > 0

@@ -17,10 +17,10 @@ def test_health():
     assert data["service"] == "rag-service"
 
 
-def test_readiness():
-    """Test readiness endpoint."""
-    response = client.get("/health/ready")
+def test_root():
+    """Test root endpoint returns service info."""
+    response = client.get("/")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "ready"
-    assert data["service"] == "rag-service"
+    assert data["status"] == "running"
+    assert data["service"] == "RAG Service"

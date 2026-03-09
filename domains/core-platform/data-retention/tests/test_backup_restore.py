@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import sys
 import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -9,6 +10,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from src.backup_restore import BackupInfo, BackupRestoreService
+
+_skip_windows = pytest.mark.skipif(sys.platform == "win32", reason="Linux-specific paths")
 
 
 class TestBackupInfo:
@@ -193,6 +196,7 @@ class TestBackupRestoreService:
             assert data["events"][0]["value"] == 20.5
 
     @pytest.mark.asyncio
+    @_skip_windows
     async def test_backup_config(self, service):
         """Test backing up configuration."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -211,6 +215,7 @@ class TestBackupRestoreService:
                     mock_copy.assert_called()
 
     @pytest.mark.asyncio
+    @_skip_windows
     async def test_backup_logs(self, service):
         """Test backing up logs."""
         with tempfile.TemporaryDirectory() as temp_dir:

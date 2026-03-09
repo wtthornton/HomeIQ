@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from shared.resilience.cross_group_client import CrossGroupClient
+from homeiq_resilience.cross_group_client import CrossGroupClient
 
 
 @pytest.fixture
@@ -35,9 +35,9 @@ async def test_traceparent_injected_when_otel_available(client):
     mock_response.status_code = 200
 
     with (
-        patch("shared.resilience.cross_group_client._OTEL_AVAILABLE", True),
-        patch("shared.resilience.cross_group_client.otel_inject", mock_inject),
-        patch("shared.resilience.cross_group_client.trace") as mock_trace,
+        patch("homeiq_resilience.cross_group_client._OTEL_AVAILABLE", True),
+        patch("homeiq_resilience.cross_group_client.otel_inject", mock_inject),
+        patch("homeiq_resilience.cross_group_client.trace") as mock_trace,
         patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response),
     ):
         mock_trace.get_current_span.return_value = mock_span
@@ -65,9 +65,9 @@ async def test_traceparent_sets_group_attribute(client):
     mock_response.status_code = 200
 
     with (
-        patch("shared.resilience.cross_group_client._OTEL_AVAILABLE", True),
-        patch("shared.resilience.cross_group_client.otel_inject", MagicMock()),
-        patch("shared.resilience.cross_group_client.trace") as mock_trace,
+        patch("homeiq_resilience.cross_group_client._OTEL_AVAILABLE", True),
+        patch("homeiq_resilience.cross_group_client.otel_inject", MagicMock()),
+        patch("homeiq_resilience.cross_group_client.trace") as mock_trace,
         patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response),
     ):
         mock_trace.get_current_span.return_value = mock_span
@@ -91,7 +91,7 @@ async def test_no_error_when_otel_unavailable(client):
     mock_response.status_code = 200
 
     with (
-        patch("shared.resilience.cross_group_client._OTEL_AVAILABLE", False),
+        patch("homeiq_resilience.cross_group_client._OTEL_AVAILABLE", False),
         patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response),
     ):
         response = await client.call("GET", "/health")
@@ -110,7 +110,7 @@ async def test_no_traceparent_when_otel_unavailable(client):
         return mock_resp
 
     with (
-        patch("shared.resilience.cross_group_client._OTEL_AVAILABLE", False),
+        patch("homeiq_resilience.cross_group_client._OTEL_AVAILABLE", False),
         patch("httpx.AsyncClient.request", capture_request),
     ):
         await client.call("GET", "/health")
@@ -144,9 +144,9 @@ async def test_auth_header_preserved_with_otel():
         carrier["traceparent"] = "00-abc-def-01"
 
     with (
-        patch("shared.resilience.cross_group_client._OTEL_AVAILABLE", True),
-        patch("shared.resilience.cross_group_client.otel_inject", fake_inject),
-        patch("shared.resilience.cross_group_client.trace") as mock_trace,
+        patch("homeiq_resilience.cross_group_client._OTEL_AVAILABLE", True),
+        patch("homeiq_resilience.cross_group_client.otel_inject", fake_inject),
+        patch("homeiq_resilience.cross_group_client.trace") as mock_trace,
         patch("httpx.AsyncClient.request", capture_request),
     ):
         mock_span = MagicMock()

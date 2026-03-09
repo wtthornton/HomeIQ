@@ -40,10 +40,10 @@ async function globalSetup(config: FullConfig) {
   try {
     // Wait for all services to be healthy
     const services = [
-      { name: 'InfluxDB', url: 'http://localhost:8086/health' },
-      { name: 'WebSocket Ingestion', url: 'http://localhost:8001/health' },
-      { name: 'Admin API', url: 'http://localhost:8004/health', optional: true }, // Use /health instead of /api/v1/health
-      { name: 'Data Retention', url: 'http://localhost:8080/health', optional: true }
+      { name: 'InfluxDB', url: 'http://127.0.0.1:8086/health' },
+      { name: 'WebSocket Ingestion', url: 'http://127.0.0.1:8001/health' },
+      { name: 'Admin API', url: 'http://127.0.0.1:8004/health', optional: true }, // Use /health instead of /api/v1/health
+      { name: 'Data Retention', url: 'http://127.0.0.1:8080/health', optional: true }
     ];
     
     for (const service of services) {
@@ -83,7 +83,7 @@ async function globalSetup(config: FullConfig) {
     
     // Optional: if ai-automation-ui project will run, ensure 3001 is up
     try {
-      const aiUiResp = await page.request.get('http://localhost:3001', { timeout: 5000 });
+      const aiUiResp = await page.request.get('http://127.0.0.1:3001', { timeout: 5000 });
       if (aiUiResp.status() === 200) {
         console.log('✓ AI Automation UI (3001) is accessible');
       }
@@ -94,7 +94,7 @@ async function globalSetup(config: FullConfig) {
     // Wait for the health dashboard to be accessible
     // Use domcontentloaded instead of networkidle for faster, more reliable loading
     // Some API calls may still be in flight, but the DOM is ready
-    await page.goto('http://localhost:3000', {
+    await page.goto('http://127.0.0.1:3000', {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
@@ -119,7 +119,7 @@ async function globalSetup(config: FullConfig) {
     
     // Test basic API endpoints (with timeout and error handling)
     try {
-      const statsResponse = await page.request.get('http://localhost:8004/api/v1/stats', { timeout: 10000 });
+      const statsResponse = await page.request.get('http://127.0.0.1:8004/api/v1/stats', { timeout: 10000 });
       if (statsResponse.status() === 200) {
         console.log('✓ Admin API statistics endpoint is working');
       }
@@ -128,7 +128,7 @@ async function globalSetup(config: FullConfig) {
     }
     
     try {
-      const eventsResponse = await page.request.get('http://localhost:8006/api/v1/events?limit=10', { timeout: 10000 });
+      const eventsResponse = await page.request.get('http://127.0.0.1:8006/api/v1/events?limit=10', { timeout: 10000 });
       if (eventsResponse.status() === 200) {
         console.log('✓ Admin API events endpoint is working');
       }
