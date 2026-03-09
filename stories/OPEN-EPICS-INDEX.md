@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-07 (Sprint 8 complete: Pattern Detection + ML Upgrades)
-**Total:** 39 Epics, 258 Stories, ~700+ files addressed
+**Created:** 2026-02-27 | **Updated:** 2026-03-09 (Sprint 9 planned: React 19 + ML Upgrade + Memory Tuning)
+**Total:** 42 Epics, 279 Stories, ~700+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -68,6 +68,11 @@ Sprint 7 (COMPLETE — Mar 6, Agent Teams) — Memory Brain (Institutional Memor
 Sprint 8 (COMPLETE — Mar 7, 2026) — Pattern Detection + ML Upgrades
 ├── Epic 37: Pattern Detection Expansion [P1]               ← COMPLETE (10/10: 8 detectors + scheduler + dashboard)
 └── Epic 38: ML Dependencies Upgrade [P2]                   ← COMPLETE (7/8: transformers, openvino, optimum-intel; 38.4 skipped)
+
+Sprint 9 (PLANNED — Mar 2026) — React 19 + ML Patterns + Memory Tuning
+├── Epic 39: React 19 Migration [P2]                        ← OPEN (6 stories, 2 React apps)
+├── Epic 40: Pattern Detection ML Upgrade [P2]              ← OPEN (8 stories, LSTM + Isolation Forest + FP-Growth)
+└── Epic 41: Memory Brain Quality Tuning [P2]               ← OPEN (7 stories, trust scores + search + metrics)
 ```
 
 ## Epic Summary
@@ -113,16 +118,19 @@ Sprint 8 (COMPLETE — Mar 7, 2026) — Pattern Detection + ML Upgrades
 | 36 | [E2E Playwright Test Remediation](epic-e2e-playwright-test-remediation.md) | `epic-e2e-playwright-test-remediation.md` | P1 High | 10 | 1 day | **Complete** (36→0 failures, 160/167 pass) |
 | 37 | [Pattern Detection Expansion](epic-pattern-detection-expansion.md) | `epic-pattern-detection-expansion.md` | P1 High | 10 | 2-3 weeks | **Complete** (10/10: 8 detectors + integration) |
 | 38 | [ML Dependencies Upgrade](epic-ml-dependencies-upgrade.md) | `epic-ml-dependencies-upgrade.md` | P2 Medium | 8 | 1-2 weeks | **Complete** (7/8, 1 skipped) |
+| 39 | [React 19 Migration](epic-react19-migration.md) | `epic-react19-migration.md` | P2 Medium | 6 | 2-3 weeks | Open |
+| 40 | [Pattern Detection ML Upgrade](epic-pattern-detection-ml-upgrade.md) | `epic-pattern-detection-ml-upgrade.md` | P2 Medium | 8 | 3-4 weeks | Open |
+| 41 | [Memory Brain Quality Tuning](epic-memory-brain-tuning.md) | `epic-memory-brain-tuning.md` | P2 Medium | 7 | 2 weeks | Open |
 
 ## Story Count by Priority
 
 | Priority | Count | Description |
 |----------|-------|-------------|
 | P0 Critical | 28 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) + Embed Testing (2) ✅ |
-| P1 High | 132 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10) |
-| P2 Medium | 41 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8) |
-| P3 Low | 7 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3) |
-| **Total** | **258** | 258 complete (39 epics, 1 story skipped) |
+| P1 High | 138 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2) |
+| P2 Medium | 53 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4) |
+| P3 Low | 10 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
+| **Total** | **279** | 258 complete (39 epics), 21 open (3 epics) |
 
 ## Sprint 2 Results (COMPLETE — Mar 4, Agent Teams)
 
