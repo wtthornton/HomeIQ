@@ -36,7 +36,7 @@ ENV PYTHONUNBUFFERED=1
 USER appuser
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:${SERVICE_PORT:-8040}/health || exit 1
+    CMD curl -f http://localhost:${SERVICE_PORT:-8046}/health || exit 1
 
-EXPOSE 8040
+EXPOSE 8046
 CMD ["python", "-m", "src.main"]

@@ -252,6 +252,8 @@ RUN pip install -r requirements.txt
 | 8043 | activity-recognition | device-management |
 | 8044 | automation-trace-service | automation-core |
 | 8045 | activity-writer | device-management |
+| 8046 | ha-device-control | automation-core |
+| 8047 | voice-gateway | frontends |
 | 8080 | data-retention | core-platform |
 | 8086 | InfluxDB | core-platform |
 | 8501 | observability-dashboard | frontends |

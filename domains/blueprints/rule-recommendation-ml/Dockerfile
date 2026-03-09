@@ -17,7 +17,8 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-resilience/ \
     /tmp/libs/homeiq-observability/ \
     /tmp/libs/homeiq-data/ \
-    /tmp/libs/homeiq-ha/
+    /tmp/libs/homeiq-ha/ \
+    /tmp/libs/homeiq-memory/
 
 # Install Python dependencies
 COPY domains/blueprints/rule-recommendation-ml/requirements.txt .

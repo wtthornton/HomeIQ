@@ -345,13 +345,13 @@ services:
     container_name: homeiq-ha-device-control
     restart: unless-stopped
     ports:
-      - "8040:8040"
+      - "8046:8046"
     extra_hosts:
       - "homeassistant:192.168.1.86"
     env_file:
       - ../../.env
     environment:
-      - SERVICE_PORT=8040
+      - SERVICE_PORT=8046
       - HA_URL=${HA_URL:-http://homeassistant:8123}
       - HA_TOKEN=${HA_TOKEN}
       - DEFAULT_NOTIFY_SERVICE=${DEFAULT_NOTIFY_SERVICE:-}
@@ -368,7 +368,7 @@ services:
           memory: 128M
           cpus: '0.1'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8040/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8046/health"]
       interval: 30s
       timeout: 10s
       retries: 3

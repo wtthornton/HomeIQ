@@ -138,6 +138,8 @@ docker exec homeiq-postgres psql -U homeiq -d homeiq -c "SELECT 1;"
 | automation-miner | 8029 | `GET /health` | homeiq-automation-miner | blueprints |
 | ai-pattern-service | 8034 | `GET /health` | ai-pattern-service | pattern-analysis |
 | api-automation-edge | 8041 | `GET /health` | homeiq-api-automation-edge | pattern-analysis |
+| ha-device-control | 8046 | `GET /health` | homeiq-ha-device-control | automation-core |
+| voice-gateway | 8047 | `GET /health` | homeiq-voice-gateway | frontends |
 
 ---
 

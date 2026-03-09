@@ -219,7 +219,7 @@ curl http://localhost:8028/health   # device-intelligence-service
 
 ---
 
-## Domain 4: automation-core (7 services)
+## Domain 4: automation-core (8 services)
 
 **Purpose:** Core automation engine -- NL to YAML pipeline, entity resolution, validation, and deployment. The most actively developed domain.
 
@@ -232,6 +232,7 @@ curl http://localhost:8028/health   # device-intelligence-service
 | yaml-validation-service | 8037 | Unified schema/entity/service validation |
 | ai-code-executor | (internal) | Safe code execution sandbox |
 | automation-trace-service | 8044 | HA automation trace + logbook ingestion |
+| ha-device-control | 8046 | Direct HA device control (lights, switches, covers) |
 
 **Compose file:** `domains/automation-core/compose.yml`
 **Depends on:** Domain 1 (data-api), Domain 3 (ML inference via ai-core-service)
@@ -367,7 +368,7 @@ curl http://localhost:8041/health   # api-automation-edge
 
 ---
 
-## Domain 9: frontends (4 services)
+## Domain 9: frontends (5 services)
 
 **Purpose:** User-facing UIs and observability tooling. Fast iteration, independent build pipelines (Node/React vs Python).
 
@@ -377,6 +378,7 @@ curl http://localhost:8041/health   # api-automation-edge
 | observability-dashboard | 8501 | Monitoring dashboard (Streamlit) |
 | health-dashboard | 3000 | Primary system monitoring UI (React/Vite) |
 | jaeger | 16686 | Distributed tracing UI |
+| voice-gateway | 8047 | Voice input/output gateway (STT/TTS) |
 
 **Compose file:** `domains/frontends/compose.yml`
 **Depends on:** Domain 1 (admin-api, data-api), Domain 4 (automation endpoints)
