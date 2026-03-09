@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
 **Created:** 2026-02-27 | **Updated:** 2026-03-09 (Sprint 9 planned: React 19 + ML Upgrade + Memory Tuning)
-**Total:** 42 Epics, 279 Stories, ~700+ files addressed
+**Total:** 46 Epics, 304 Stories (279 complete, 25 open), ~700+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -73,6 +73,12 @@ Sprint 9 (Mar 2026) — React 19 + ML Patterns + Memory Tuning
 ├── Epic 39: React 19 Migration [P2]                        ← COMPLETE (6 stories, both apps already React 19.2.4 + Compiler)
 ├── Epic 40: Pattern Detection ML Upgrade [P2]              ← COMPLETE (8 stories, LSTM + Isolation Forest + FP-Growth)
 └── Epic 41: Memory Brain Quality Tuning [P2]               ← COMPLETE (7 stories, trust scores + search + metrics)
+
+Sprint 10 (Mar 2026) — Frontend Testing & Coverage
+├── Epic 42: Frontend Test Infrastructure [P0]               ← OPEN (5 stories, coverage baseline + CI gating)
+├── Epic 43: Health Dashboard Testing [P0]                   ← OPEN (8 stories, target 50%+ coverage)
+├── Epic 44: AI Automation UI Testing [P0]                   ← OPEN (8 stories, target 40%+ coverage)
+└── Epic 45: Observability Dashboard Testing [P1]            ← OPEN (4 stories, target 70%+ coverage)
 ```
 
 ## Epic Summary
@@ -121,16 +127,20 @@ Sprint 9 (Mar 2026) — React 19 + ML Patterns + Memory Tuning
 | 39 | [React 19 Migration](epic-react19-migration.md) | `epic-react19-migration.md` | P2 Medium | 6 | 2-3 weeks | **Complete** |
 | 40 | [Pattern Detection ML Upgrade](epic-pattern-detection-ml-upgrade.md) | `epic-pattern-detection-ml-upgrade.md` | P2 Medium | 8 | 3-4 weeks | **Complete** |
 | 41 | [Memory Brain Quality Tuning](epic-memory-brain-tuning.md) | `epic-memory-brain-tuning.md` | P2 Medium | 7 | 2 weeks | **Complete** |
+| 42 | [Frontend Test Infrastructure](epic-frontend-test-infrastructure.md) | `epic-frontend-test-infrastructure.md` | **P0 Critical** | 5 | 1 week | **Open** |
+| 43 | [Health Dashboard Testing](epic-health-dashboard-testing.md) | `epic-health-dashboard-testing.md` | **P0 Critical** | 8 | 2 weeks | **Open** |
+| 44 | [AI Automation UI Testing](epic-ai-automation-ui-testing.md) | `epic-ai-automation-ui-testing.md` | **P0 Critical** | 8 | 2 weeks | **Open** |
+| 45 | [Observability Dashboard Testing](epic-observability-dashboard-testing.md) | `epic-observability-dashboard-testing.md` | P1 High | 4 | 1 week | **Open** |
 
 ## Story Count by Priority
 
 | Priority | Count | Description |
 |----------|-------|-------------|
-| P0 Critical | 28 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) + Embed Testing (2) ✅ |
-| P1 High | 138 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2) |
+| P0 Critical | 49 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) + Embed Testing (2) + Frontend Test Infra (5) + HD Testing (8) + AI UI Testing (8) ✅ |
+| P1 High | 142 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4) |
 | P2 Medium | 53 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4) |
 | P3 Low | 10 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
-| **Total** | **279** | 279 complete (42 epics), 0 open |
+| **Total** | **304** | 279 complete (42 epics), 25 open (4 epics) |
 
 ## Sprint 2 Results (COMPLETE — Mar 4, Agent Teams)
 
