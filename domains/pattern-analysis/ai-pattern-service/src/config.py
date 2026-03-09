@@ -49,6 +49,12 @@ class Settings(BaseServiceSettings):
     # Device Intelligence Service Configuration (Phase 1.3 - Capability Integration)
     device_intelligence_url: str = "http://device-intelligence-service:8019"
 
+    # ML Configuration (Story 40.1 + 40.7)
+    ml_training_data_retention_days: int = 90
+    ml_min_training_days: int = 7
+    ml_model_storage_dir: str = "/app/data/models"
+    ml_retraining_schedule: str = "0 4 * * 0"  # Weekly at 4 AM Sunday
+
     # Override base defaults
     service_port: int = 8020
     service_name: str = "ai-pattern-service"

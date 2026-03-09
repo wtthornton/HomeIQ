@@ -183,6 +183,16 @@ class PatternAnalysisScheduler:
 
                 all_patterns = await self._detect_patterns(events_df, job_result)
 
+                # Story 40.8: Cross-detector pattern fusion
+                try:
+                    from ..services.pattern_fusion import PatternFusionEngine
+                    fusion = PatternFusionEngine()
+                    all_patterns = fusion.deduplicate(all_patterns)
+                    all_patterns = fusion.fuse_patterns(all_patterns)
+                    job_result["patterns_detected"] = len(all_patterns)
+                except Exception as e:
+                    logger.warning(f"Pattern fusion failed (continuing without): {e}")
+
                 # Create database session for pattern validation and storage
                 # Patterns are stored first, then synergies are detected with pattern validation
                 async with AsyncSessionLocal() as db:
@@ -196,6 +206,22 @@ class PatternAnalysisScheduler:
                         )
                         logger.info(f"✅ Stored {stored_patterns} patterns in database")
                         await db.commit()  # Commit patterns so they're available for validation
+
+                        # Story 40.1: Record training data
+                        try:
+                            from ..services.training_data_service import TrainingDataService
+                            training_svc = TrainingDataService(db)
+                            events_summary = {
+                                "event_count": len(events_df),
+                                "time_range_start": str(events_df["timestamp"].min()),
+                                "time_range_end": str(events_df["timestamp"].max()),
+                                "unique_devices": int(events_df["device_id"].nunique()),
+                            }
+                            await training_svc.record_detection_run(all_patterns, events_summary)
+                            await training_svc.cleanup_old_data()
+                            await db.commit()
+                        except Exception as e:
+                            logger.warning(f"Failed to record training data: {e}")
 
                         # Recommendation 5.1: Track pattern evolution
                         evolution_results = await self._track_pattern_evolution(all_patterns, job_result, db=db)

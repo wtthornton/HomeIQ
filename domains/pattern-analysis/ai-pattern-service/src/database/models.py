@@ -149,3 +149,40 @@ class PatternRating(Base):
         return f"<PatternRating(id={self.id}, pattern_id={self.pattern_id}, rating={self.rating})>"
 
 
+class PatternTrainingData(Base):
+    """Training data for ML pattern detectors. Story 40.1."""
+    __tablename__ = 'pattern_training_data'
+
+    id = Column(Integer, primary_key=True)
+    run_id = Column(String(36), nullable=False, index=True)  # UUID for each analysis run
+    pattern_type = Column(String(50), nullable=False, index=True)
+    device_id = Column(String(255), nullable=True)
+    raw_events_summary = Column(JSON, nullable=False)  # Summary of input events (counts, time range)
+    detected_pattern = Column(JSON, nullable=False)  # The detected pattern dict
+    user_action = Column(String(20), nullable=True, index=True)  # 'accept', 'reject', 'ignore', None
+    user_feedback_at = Column(DateTime, nullable=True)
+    confidence = Column(Float, nullable=False)
+    ml_model_version = Column(String(50), nullable=True)  # Which model version generated this
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False, index=True)
+
+    def __repr__(self) -> str:
+        return f"<PatternTrainingData(id={self.id}, type={self.pattern_type}, confidence={self.confidence})>"
+
+
+class MLModel(Base):
+    """ML model registry entry. Story 40.7."""
+    __tablename__ = 'ml_models'
+
+    id = Column(Integer, primary_key=True)
+    model_name = Column(String(100), nullable=False, index=True)
+    version = Column(String(50), nullable=False)
+    file_path = Column(String(500), nullable=False)
+    metrics = Column(JSON, default=dict)
+    metadata_ = Column("metadata", JSON, default=dict)
+    trained_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+
+    def __repr__(self) -> str:
+        return f"<MLModel(id={self.id}, name={self.model_name}, version={self.version}, active={self.is_active})>"
+
+

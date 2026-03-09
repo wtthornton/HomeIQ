@@ -2,8 +2,9 @@
 
 **Priority:** P2 Medium
 **Estimated Duration:** 3-4 weeks
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-03-09
+**Completed:** 2026-03-09
 **Source:** Sprint 8 review — only 1/10 detectors uses real ML (KMeans)
 
 ## Overview

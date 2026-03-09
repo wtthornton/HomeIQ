@@ -413,6 +413,50 @@ async def get_pattern_stats(
             ) from e
 
 
+@router.post("/feedback/{pattern_id}")
+async def submit_pattern_feedback(
+    pattern_id: int,
+    action: str,  # 'accept', 'reject', 'ignore'
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit feedback on a detected pattern. Story 40.5."""
+    if action not in ("accept", "reject", "ignore"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid action: {action}. Must be accept/reject/ignore",
+        )
+
+    from ..services.training_data_service import TrainingDataService
+
+    svc = TrainingDataService(db)
+    success = await svc.record_feedback(pattern_id, action)
+    if not success:
+        raise HTTPException(
+            status_code=404, detail=f"Pattern {pattern_id} not found"
+        )
+
+    # Apply confidence adjustments
+    from ..services.feedback_processor import FeedbackProcessor
+
+    processor = FeedbackProcessor(db)
+    await processor.apply_feedback(pattern_id, action)
+    await db.commit()
+
+    return {"status": "ok", "pattern_id": pattern_id, "action": action}
+
+
+@router.get("/feedback/stats")
+async def get_feedback_stats(
+    db: AsyncSession = Depends(get_db),
+):
+    """Get acceptance rate per pattern type. Story 40.5."""
+    from ..services.feedback_processor import FeedbackProcessor
+
+    processor = FeedbackProcessor(db)
+    stats = await processor.get_acceptance_stats()
+    return {"stats": stats}
+
+
 @router.post("/repair")
 async def repair_database(
     db: AsyncSession = Depends(get_db)

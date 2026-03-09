@@ -121,6 +121,10 @@ class CoOccurrencePatternDetector:
         self.domain_support_overrides = domain_support_overrides or {}
         self.domain_confidence_overrides = domain_confidence_overrides or {}
         self.feedback_client = feedback_client
+        self.fpgrowth = FPGrowthDetector(
+            min_support=0.1,
+            min_confidence=min_confidence,
+        )
         logger.info(
             f"CoOccurrencePatternDetector initialized: "
             f"window={window_minutes}min, min_support={min_support}, min_confidence={min_confidence}, "
@@ -333,6 +337,14 @@ class CoOccurrencePatternDetector:
 
         logger.info(f"✅ Detected {len(patterns)} co-occurrence patterns")
 
+        # Story 40.4: Enrich with FP-Growth association rules
+        try:
+            fp_rules = self.fpgrowth.mine_rules(events, self.window_minutes)
+            if fp_rules:
+                patterns = self._enrich_with_rules(patterns, fp_rules)
+        except Exception as e:
+            logger.warning(f"FP-Growth enrichment failed (fallback to sliding window): {e}")
+
         # Recommendation 2.1: Integrate feedback into pattern detection
         if self.feedback_client and patterns:
             patterns = await self._apply_feedback_adjustments(patterns)
@@ -505,6 +517,38 @@ class CoOccurrencePatternDetector:
             logger.warning(f"Failed to calculate time delta for {device1}+{device2}: {e}")
             return None
 
+    def _enrich_with_rules(
+        self, patterns: list[dict], rules: list[dict]
+    ) -> list[dict]:
+        """Enrich co-occurrence patterns with association rule metrics. Story 40.4."""
+        # Build lookup: (device1, device2) -> rule
+        rule_lookup: dict[tuple[str, str], dict] = {}
+        for rule in rules:
+            key = tuple(sorted([rule['antecedent'], rule['consequent']]))
+            existing = rule_lookup.get(key)
+            if not existing or rule['lift'] > existing['lift']:
+                rule_lookup[key] = rule
+
+        enriched_count = 0
+        for pattern in patterns:
+            d1 = pattern.get('device1', '')
+            d2 = pattern.get('device2', '')
+            key = tuple(sorted([d1, d2]))
+            rule = rule_lookup.get(key)
+            if rule:
+                pattern['metadata']['association_rule'] = {
+                    'support': rule['support'],
+                    'confidence': rule['confidence'],
+                    'lift': rule['lift'],
+                    'direction': f"{rule['antecedent']} -> {rule['consequent']}",
+                }
+                enriched_count += 1
+
+        if enriched_count:
+            logger.info(f"Enriched {enriched_count}/{len(patterns)} patterns with association rules")
+
+        return patterns
+
     def _filter_system_noise(self, events: pd.DataFrame) -> pd.DataFrame:
         """
         Filter out system sensors, trackers, images, and events.
@@ -660,4 +704,139 @@ class CoOccurrencePatternDetector:
                 '90-100%': sum(1 for p in patterns if 0.9 <= p['confidence'] <= 1.0)
             }
         }
+
+
+class FPGrowthDetector:
+    """Frequent pattern mining via transaction-based approach. Story 40.4.
+
+    Converts sliding-window co-occurrence data into transactions,
+    then mines frequent itemsets and generates association rules.
+    Falls back to standard co-occurrence when < 100 events.
+    """
+
+    def __init__(self, min_support: float = 0.1, min_confidence: float = 0.5):
+        self.min_support = min_support
+        self.min_confidence = min_confidence
+
+    def mine_rules(
+        self, events: pd.DataFrame, window_minutes: int = 5
+    ) -> list[dict]:
+        """Mine association rules from event transactions."""
+        if events.empty or len(events) < 100:
+            logger.info("Insufficient events for FP-Growth (need >= 100)")
+            return []
+
+        # Build transactions: group events into time windows
+        transactions = self._build_transactions(events, window_minutes)
+        if not transactions:
+            return []
+
+        # Count itemset frequencies
+        itemsets = self._count_itemsets(transactions)
+
+        # Generate rules
+        rules = self._generate_rules(itemsets, len(transactions))
+
+        logger.info(f"FP-Growth: {len(rules)} association rules from {len(transactions)} transactions")
+        return rules
+
+    def _build_transactions(
+        self, events: pd.DataFrame, window_minutes: int
+    ) -> list[set[str]]:
+        """Convert events into transactions based on time windows."""
+        events = events.sort_values('timestamp')
+        transactions: list[set[str]] = []
+        current_window_start = events.iloc[0]['timestamp']
+        current_transaction: set[str] = set()
+        window_delta = pd.Timedelta(minutes=window_minutes)
+
+        for _, event in events.iterrows():
+            if event['timestamp'] - current_window_start > window_delta:
+                if len(current_transaction) >= 2:
+                    transactions.append(current_transaction)
+                current_transaction = set()
+                current_window_start = event['timestamp']
+            current_transaction.add(event['device_id'])
+
+        if len(current_transaction) >= 2:
+            transactions.append(current_transaction)
+
+        return transactions
+
+    def _count_itemsets(
+        self, transactions: list[set[str]]
+    ) -> dict[frozenset[str], int]:
+        """Count frequency of item pairs in transactions."""
+        from itertools import combinations
+
+        itemset_counts: dict[frozenset[str], int] = {}
+        item_counts: dict[str, int] = {}
+
+        for txn in transactions:
+            for item in txn:
+                item_counts[item] = item_counts.get(item, 0) + 1
+            for pair in combinations(sorted(txn), 2):
+                key = frozenset(pair)
+                itemset_counts[key] = itemset_counts.get(key, 0) + 1
+
+        # Filter by min_support
+        n_txn = len(transactions)
+        min_count = max(1, int(n_txn * self.min_support))
+        return {k: v for k, v in itemset_counts.items() if v >= min_count}
+
+    def _generate_rules(
+        self, itemsets: dict[frozenset[str], int], n_transactions: int
+    ) -> list[dict]:
+        """Generate association rules with confidence and lift."""
+        rules: list[dict] = []
+
+        # Get individual item counts
+        item_counts: dict[str, int] = {}
+        for itemset, count in itemsets.items():
+            for item in itemset:
+                item_counts[item] = max(item_counts.get(item, 0), count)
+
+        for itemset, count in itemsets.items():
+            items = sorted(itemset)
+            if len(items) != 2:
+                continue
+
+            support = count / n_transactions
+            a, b = items
+
+            # Rule: A -> B
+            count_a = item_counts.get(a, 1)
+            conf_a_to_b = count / count_a if count_a > 0 else 0
+            support_b = item_counts.get(b, 1) / n_transactions
+            lift_a_to_b = conf_a_to_b / support_b if support_b > 0 else 0
+
+            if conf_a_to_b >= self.min_confidence:
+                rules.append({
+                    'antecedent': a,
+                    'consequent': b,
+                    'support': float(support),
+                    'confidence': float(conf_a_to_b),
+                    'lift': float(lift_a_to_b),
+                    'count': count,
+                })
+
+            # Rule: B -> A
+            count_b = item_counts.get(b, 1)
+            conf_b_to_a = count / count_b if count_b > 0 else 0
+            support_a = item_counts.get(a, 1) / n_transactions
+            lift_b_to_a = conf_b_to_a / support_a if support_a > 0 else 0
+
+            if conf_b_to_a >= self.min_confidence:
+                rules.append({
+                    'antecedent': b,
+                    'consequent': a,
+                    'support': float(support),
+                    'confidence': float(conf_b_to_a),
+                    'lift': float(lift_b_to_a),
+                    'count': count,
+                })
+
+        # Sort by lift descending
+        rules.sort(key=lambda r: r['lift'], reverse=True)
+        return rules
 

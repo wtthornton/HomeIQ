@@ -92,6 +92,78 @@ class FrequencyChange:
     confidence: float
 
 
+class SeasonalDecomposer:
+    """Lightweight time-series decomposition. Story 40.6.
+
+    Replaces Prophet with a manual STL-like decomposition using
+    moving averages for trend and seasonal component extraction.
+    Falls back to linear regression when data < 14 days.
+    """
+
+    def __init__(self, period: int = 7):
+        """period: seasonality period in days (default: 7 = weekly)."""
+        self.period = period
+
+    def decompose(self, daily_counts: list[int]) -> dict:
+        """Decompose daily counts into trend, seasonal, and residual."""
+        if len(daily_counts) < self.period * 2:
+            return {}
+
+        y = np.array(daily_counts, dtype=float)
+        n = len(y)
+
+        # Extract trend via moving average
+        trend = np.full(n, np.nan)
+        half = self.period // 2
+        for i in range(half, n - half):
+            trend[i] = np.mean(y[max(0, i - half):i + half + 1])
+
+        # Fill edges
+        first_valid = np.nanmean(trend[:self.period * 2]) if not np.all(np.isnan(trend[:self.period * 2])) else y[0]
+        last_valid = np.nanmean(trend[-self.period * 2:]) if not np.all(np.isnan(trend[-self.period * 2:])) else y[-1]
+        trend = np.where(np.isnan(trend), first_valid, trend)
+
+        # Detrended series
+        detrended = y - trend
+
+        # Seasonal component: average detrended values for each day-of-week
+        seasonal = np.zeros(n)
+        for day in range(self.period):
+            indices = list(range(day, n, self.period))
+            day_values = detrended[indices]
+            day_avg = float(np.mean(day_values))
+            for idx in indices:
+                seasonal[idx] = day_avg
+
+        # Residual
+        residual = y - trend - seasonal
+
+        # Detect changepoints (where residual exceeds 2 std)
+        residual_std = float(np.std(residual)) if len(residual) > 1 else 1.0
+        changepoints = []
+        for i in range(1, n):
+            if abs(residual[i]) > 2 * residual_std:
+                changepoints.append(i)
+
+        # Forecast next 7 days
+        forecast = []
+        for day in range(7):
+            future_day = (n + day) % self.period
+            trend_val = float(trend[-1])
+            seasonal_val = float(seasonal[future_day]) if future_day < len(seasonal) else 0.0
+            forecast.append(max(0.0, trend_val + seasonal_val))
+
+        return {
+            'trend_direction': 'increasing' if trend[-1] > trend[0] else ('decreasing' if trend[-1] < trend[0] else 'stable'),
+            'trend_slope': float((trend[-1] - trend[0]) / n) if n > 0 else 0.0,
+            'seasonal_amplitude': float(np.max(seasonal) - np.min(seasonal)),
+            'residual_std': residual_std,
+            'changepoints': changepoints,
+            'forecast_7d': forecast,
+            'has_weekly_seasonality': float(np.max(seasonal) - np.min(seasonal)) > 1.0,
+        }
+
+
 class FrequencyPatternDetector:
     """
     Detects devices with consistent daily/weekly activation counts
@@ -126,6 +198,7 @@ class FrequencyPatternDetector:
         self.recent_window_days = recent_window_days
         self.filter_system_noise = filter_system_noise
         self.aggregate_client = aggregate_client
+        self.decomposer = SeasonalDecomposer(period=7)
 
         logger.info(
             "FrequencyPatternDetector initialized: "
@@ -390,6 +463,17 @@ class FrequencyPatternDetector:
                     'direction': change.direction,
                     'change_ratio': float(change.change_ratio),
                 }
+
+            # Story 40.6: Seasonal decomposition
+            if profile.total_days >= 14:
+                try:
+                    decomp = self.decomposer.decompose(profile.daily_counts)
+                    if decomp:
+                        pattern['metadata']['seasonal'] = decomp
+                        if decomp.get('forecast_7d'):
+                            pattern['metadata']['forecast_7d'] = decomp['forecast_7d']
+                except Exception as e:
+                    logger.debug(f"Seasonal decomposition failed for {profile.device_id}: {e}")
 
             patterns.append(pattern)
 

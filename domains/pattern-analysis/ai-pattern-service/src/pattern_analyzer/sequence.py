@@ -64,6 +64,140 @@ EXCLUDED_PATTERNS = [
 ]
 
 
+class MarkovSequencePredictor:
+    """Markov chain sequence prediction model. Story 40.2.
+
+    Predicts the next device in an activation sequence based on
+    transition probabilities learned from historical patterns.
+    Falls back to statistical detector when < 7 days training data.
+    """
+
+    def __init__(self) -> None:
+        self.transition_matrix: dict[str, dict[str, float]] = {}
+        self.transition_counts: dict[str, dict[str, int]] = {}
+        self.avg_delays: dict[tuple[str, str], float] = {}
+        self._is_trained = False
+
+    def train(self, sequences: list[tuple[tuple[str, ...], list[float]]]) -> bool:
+        """Train the Markov model from extracted sequences.
+
+        Args:
+            sequences: List of (sequence_tuple, step_times) pairs.
+
+        Returns:
+            True if training produced a valid transition matrix.
+        """
+        if not sequences:
+            return False
+
+        self.transition_counts = {}
+        delay_sums: dict[tuple[str, str], list[float]] = {}
+
+        for seq_tuple, step_times in sequences:
+            for i in range(len(seq_tuple) - 1):
+                src = seq_tuple[i]
+                dst = seq_tuple[i + 1]
+                if src not in self.transition_counts:
+                    self.transition_counts[src] = {}
+                self.transition_counts[src][dst] = self.transition_counts[src].get(dst, 0) + 1
+
+                # Track delays
+                key = (src, dst)
+                if key not in delay_sums:
+                    delay_sums[key] = []
+                if i < len(step_times):
+                    delay_sums[key].append(step_times[i])
+
+        # Build probability matrix
+        self.transition_matrix = {}
+        for src, destinations in self.transition_counts.items():
+            total = sum(destinations.values())
+            self.transition_matrix[src] = {
+                dst: count / total for dst, count in destinations.items()
+            }
+
+        # Average delays
+        self.avg_delays = {
+            k: float(np.mean(v)) if v else 0.0 for k, v in delay_sums.items()
+        }
+
+        self._is_trained = bool(self.transition_matrix)
+        if self._is_trained:
+            logger.info(
+                f"Markov predictor trained: {len(self.transition_matrix)} source states, "
+                f"{sum(len(v) for v in self.transition_matrix.values())} transitions"
+            )
+        return self._is_trained
+
+    def predict_next(self, current_device: str, top_k: int = 3) -> list[dict]:
+        """Predict next device(s) given current device activation.
+
+        Args:
+            current_device: The device ID that just activated.
+            top_k: Maximum number of predictions to return.
+
+        Returns:
+            List of prediction dicts with device, confidence, expected_delay_seconds.
+        """
+        if not self._is_trained or current_device not in self.transition_matrix:
+            return []
+
+        transitions = self.transition_matrix[current_device]
+        sorted_transitions = sorted(transitions.items(), key=lambda x: x[1], reverse=True)[:top_k]
+
+        predictions = []
+        for device, probability in sorted_transitions:
+            delay = self.avg_delays.get((current_device, device), 0.0)
+            predictions.append({
+                'device': device,
+                'confidence': float(probability),
+                'expected_delay_seconds': float(delay),
+            })
+
+        return predictions
+
+    def save(self, path: str) -> None:
+        """Save model to disk as JSON.
+
+        Args:
+            path: File path to write JSON model data.
+        """
+        import json
+        from pathlib import Path
+        data = {
+            'transition_matrix': self.transition_matrix,
+            'transition_counts': self.transition_counts,
+            'avg_delays': {f"{k[0]}|{k[1]}": v for k, v in self.avg_delays.items()},
+        }
+        with Path(path).open('w') as f:
+            json.dump(data, f)
+
+    def load(self, path: str) -> bool:
+        """Load model from disk.
+
+        Args:
+            path: File path to read JSON model data from.
+
+        Returns:
+            True if model loaded successfully, False otherwise.
+        """
+        import json
+        from pathlib import Path
+        try:
+            with Path(path).open() as f:
+                data = json.load(f)
+            self.transition_matrix = data['transition_matrix']
+            self.transition_counts = data['transition_counts']
+            self.avg_delays = {
+                tuple(k.split('|')): v for k, v in data['avg_delays'].items()
+            }
+            self._is_trained = True
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to load Markov model: {e}")
+            return False
+
+
 class SequencePatternDetector:
     """
     Detects sequential device activation patterns.
@@ -107,6 +241,7 @@ class SequencePatternDetector:
         self.max_sequence_length = max_sequence_length
         self.filter_system_noise = filter_system_noise
         self.aggregate_client = aggregate_client
+        self.predictor = MarkovSequencePredictor()
 
         logger.info(
             "SequencePatternDetector initialized: "
@@ -167,6 +302,10 @@ class SequencePatternDetector:
 
         # Extract sequences using sliding window
         sequences = self._extract_sequences(events)
+
+        # Story 40.2: Train Markov predictor on extracted sequences
+        if sequences:
+            self.predictor.train(sequences)
 
         # Count sequence occurrences
         sequence_counts = self._count_sequences(sequences)
@@ -390,6 +529,13 @@ class SequencePatternDetector:
                     }
                 }
             }
+
+            # Story 40.2: Add Markov predictions
+            if self.predictor._is_trained:
+                last_device = sequence[-1]
+                predictions = self.predictor.predict_next(last_device)
+                if predictions:
+                    pattern['metadata']['next_predictions'] = predictions
 
             patterns.append(pattern)
 

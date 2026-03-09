@@ -119,6 +119,85 @@ class Anomaly:
     confidence: float = 0.0
 
 
+class IsolationForestDetector:
+    """Isolation Forest anomaly detection. Story 40.3."""
+
+    def __init__(self, contamination: float = 0.05):
+        self.contamination = contamination
+        self.model = None
+        self._is_fitted = False
+        self._device_ids: list[str] = []
+
+    def fit(self, baselines: dict[str, DeviceBaseline]) -> bool:
+        """Train IF model on device behavioral features."""
+        from sklearn.ensemble import IsolationForest
+
+        features = []
+        self._device_ids = []
+        for device_id, baseline in baselines.items():
+            if baseline.total_events < 10:
+                continue
+            for hour, count in baseline.hourly_distribution.items():
+                features.append([
+                    float(hour),
+                    float(baseline.avg_daily_count),
+                    float(baseline.std_daily_count),
+                    float(baseline.avg_duration_seconds),
+                    float(count),
+                ])
+                self._device_ids.append(device_id)
+
+        if len(features) < 10:
+            logger.info("Insufficient data for Isolation Forest (need >= 10 samples)")
+            return False
+
+        X = np.array(features)
+        self.model = IsolationForest(
+            contamination=self.contamination,
+            random_state=42,
+            n_estimators=100,
+        )
+        self.model.fit(X)
+        self._is_fitted = True
+        logger.info(f"Isolation Forest trained on {len(features)} feature vectors")
+        return True
+
+    def score_events(self, events: pd.DataFrame, baselines: dict[str, DeviceBaseline]) -> list[dict]:
+        """Score events using the trained IF model."""
+        if not self._is_fitted or self.model is None:
+            return []
+
+        anomalies: list[dict] = []
+
+        for device_id in events['device_id'].unique():
+            baseline = baselines.get(device_id)
+            if not baseline or baseline.total_events < 10:
+                continue
+
+            device_events = events[events['device_id'] == device_id]
+            for _, event in device_events.iterrows():
+                hour = event['timestamp'].hour
+                features = np.array([[
+                    float(hour),
+                    float(baseline.avg_daily_count),
+                    float(baseline.std_daily_count),
+                    float(baseline.avg_duration_seconds),
+                    float(baseline.hourly_distribution.get(hour, 0)),
+                ]])
+                score = self.model.decision_function(features)[0]
+                prediction = self.model.predict(features)[0]
+
+                if prediction == -1:  # Anomaly
+                    anomalies.append({
+                        'device_id': device_id,
+                        'timestamp': event['timestamp'],
+                        'if_score': float(score),
+                        'hour': hour,
+                    })
+
+        return anomalies
+
+
 class AnomalyPatternDetector:
     """
     Detects anomalous device behavior patterns.
@@ -162,6 +241,8 @@ class AnomalyPatternDetector:
         self.aggregate_client = aggregate_client
 
         self._baselines: dict[str, DeviceBaseline] = {}
+        self.if_detector = IsolationForestDetector(contamination=0.05)
+        self.if_weight = 0.4  # Weight for IF scores in ensemble (z-score gets 0.6)
 
         logger.info(
             "AnomalyPatternDetector initialized: "
@@ -337,6 +418,12 @@ class AnomalyPatternDetector:
 
         absence_anomalies = self._detect_absence_anomalies(events)
         anomalies.extend(absence_anomalies)
+
+        # Story 40.3: Isolation Forest ensemble scoring
+        if_fitted = self.if_detector.fit(self._baselines)
+        if if_fitted:
+            if_anomalies = self.if_detector.score_events(events, self._baselines)
+            anomalies = self._ensemble_scores(anomalies, if_anomalies)
 
         return anomalies
 
@@ -581,6 +668,43 @@ class AnomalyPatternDetector:
                     ))
 
         return anomalies
+
+    def _ensemble_scores(
+        self, zscore_anomalies: list[Anomaly], if_anomalies: list[dict]
+    ) -> list[Anomaly]:
+        """Combine z-score and Isolation Forest scores. Story 40.3."""
+        # Build IF anomaly lookup
+        if_lookup: dict[tuple[str, int], float] = {}
+        for a in if_anomalies:
+            key = (a['device_id'], a['timestamp'].hour if hasattr(a['timestamp'], 'hour') else 0)
+            if_lookup[key] = a['if_score']
+
+        # Boost z-score anomaly confidence when IF agrees
+        for anomaly in zscore_anomalies:
+            key = (anomaly.device_id, anomaly.timestamp.hour)
+            if key in if_lookup:
+                # Both methods agree — boost confidence
+                anomaly.confidence = min(1.0, anomaly.confidence * 1.2)
+                anomaly.context['if_score'] = if_lookup[key]
+                anomaly.context['ensemble'] = True
+
+        # Add IF-only anomalies (not caught by z-score)
+        zscore_keys = {(a.device_id, a.timestamp.hour) for a in zscore_anomalies}
+        for a in if_anomalies:
+            key = (a['device_id'], a['timestamp'].hour if hasattr(a['timestamp'], 'hour') else 0)
+            if key not in zscore_keys:
+                zscore_anomalies.append(Anomaly(
+                    device_id=a['device_id'],
+                    anomaly_type=AnomalyType.TIMING,
+                    severity=SeverityLevel.LOW,
+                    timestamp=a['timestamp'],
+                    description=f"{a['device_id']} flagged by Isolation Forest (hour {a['hour']})",
+                    context={'if_score': a['if_score'], 'ensemble': False, 'source': 'isolation_forest'},
+                    z_score=0.0,
+                    confidence=min(abs(a['if_score']) / 0.5, 1.0),
+                ))
+
+        return zscore_anomalies
 
     def _calculate_severity(self, z_score: float) -> SeverityLevel:
         """Calculate severity level based on z-score."""

@@ -15,7 +15,7 @@ Epic 37: Pattern Detection Expansion
 """
 
 from .anomaly import AnomalyPatternDetector
-from .co_occurrence import CoOccurrencePatternDetector
+from .co_occurrence import CoOccurrencePatternDetector, FPGrowthDetector
 from .contextual import ContextualPatternDetector
 from .day_type import DayTypePatternDetector
 from .duration import DurationPatternDetector
@@ -28,6 +28,7 @@ from .time_of_day import TimeOfDayPatternDetector
 __all__ = [
     "TimeOfDayPatternDetector",
     "CoOccurrencePatternDetector",
+    "FPGrowthDetector",
     "SequencePatternDetector",
     "DurationPatternDetector",
     "AnomalyPatternDetector",
