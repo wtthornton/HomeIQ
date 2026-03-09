@@ -34,37 +34,50 @@ interface ConsolidationStatus {
   error_message?: string;
 }
 
+interface MemoryMetrics {
+  counters: Record<string, number>;
+  search_latency: { count: number; min: number; max: number; avg: number; p50: number; p95: number; p99: number };
+  embedding_latency: { count: number; min: number; max: number; avg: number; p50: number; p95: number; p99: number };
+}
+
 const API_BASE = '/api/v1';
 
 export const MemoryTab: React.FC<TabProps> = ({ darkMode }) => {
   const [stats, setStats] = useState<MemoryStats | null>(null);
   const [recentMemories, setRecentMemories] = useState<MemoryEntry[]>([]);
   const [consolidation, setConsolidation] = useState<ConsolidationStatus | null>(null);
+  const [metrics, setMetrics] = useState<MemoryMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionStatus, setActionStatus] = useState<string | null>(null);
   const { scores: trustScores } = useTrustScores();
 
   const fetchData = useCallback(async () => {
     try {
       setError(null);
-      
-      const [statsRes, memoriesRes, consolidationRes] = await Promise.allSettled([
+
+      const [statsRes, memoriesRes, consolidationRes, metricsRes] = await Promise.allSettled([
         fetch(`${API_BASE}/memories/stats`),
         fetch(`${API_BASE}/memories?limit=10&sort=created_at:desc`),
-        fetch(`${API_BASE}/memories/consolidation/status`)
+        fetch(`${API_BASE}/memories/consolidation/status`),
+        fetch(`${API_BASE}/memories/metrics`)
       ]);
 
       if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
         setStats(await statsRes.value.json());
       }
-      
+
       if (memoriesRes.status === 'fulfilled' && memoriesRes.value.ok) {
         const data = await memoriesRes.value.json();
         setRecentMemories(data.memories || data.items || []);
       }
-      
+
       if (consolidationRes.status === 'fulfilled' && consolidationRes.value.ok) {
         setConsolidation(await consolidationRes.value.json());
+      }
+
+      if (metricsRes.status === 'fulfilled' && metricsRes.value.ok) {
+        setMetrics(await metricsRes.value.json());
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load memory data');
@@ -72,6 +85,22 @@ export const MemoryTab: React.FC<TabProps> = ({ darkMode }) => {
       setLoading(false);
     }
   }, []);
+
+  const triggerAction = useCallback(async (action: string) => {
+    setActionStatus(`Running ${action}...`);
+    try {
+      const res = await fetch(`${API_BASE}/memories/${action}`, { method: 'POST' });
+      if (res.ok) {
+        setActionStatus(`${action} completed successfully`);
+        fetchData();
+      } else {
+        setActionStatus(`${action} failed: ${res.statusText}`);
+      }
+    } catch (err) {
+      setActionStatus(`${action} failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+    setTimeout(() => setActionStatus(null), 5000);
+  }, [fetchData]);
 
   useEffect(() => {
     fetchData();
@@ -409,6 +438,120 @@ export const MemoryTab: React.FC<TabProps> = ({ darkMode }) => {
                 {consolidation.error_message}
               </p>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Operational Metrics */}
+      {metrics && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Search Latency */}
+          <Card className={darkMode ? 'bg-gray-800 border-gray-700' : ''}>
+            <CardHeader>
+              <CardTitle className={darkMode ? 'text-gray-300' : ''}>
+                Search Latency (ms)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-4 gap-3">
+                {(['p50', 'p95', 'p99', 'avg'] as const).map((key) => (
+                  <div key={key} className="text-center">
+                    <p className={`text-xs font-medium uppercase ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {key}
+                    </p>
+                    <p className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {metrics.search_latency[key]?.toFixed(1) ?? '—'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <p className={`text-xs mt-3 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                {metrics.search_latency.count} searches recorded
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Operation Counters */}
+          <Card className={darkMode ? 'bg-gray-800 border-gray-700' : ''}>
+            <CardHeader>
+              <CardTitle className={darkMode ? 'text-gray-300' : ''}>
+                Operation Counters
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {Object.entries(metrics.counters).length > 0 ? (
+                  Object.entries(metrics.counters)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([name, count]) => (
+                      <div key={name} className="flex items-center justify-between">
+                        <span className={`text-sm font-mono ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {name.replace('memory_', '').replace(/_/g, ' ')}
+                        </span>
+                        <span className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {count}
+                        </span>
+                      </div>
+                    ))
+                ) : (
+                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    No operations recorded yet
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Admin Actions */}
+      <Card className={darkMode ? 'bg-gray-800 border-gray-700' : ''}>
+        <CardHeader>
+          <CardTitle className={darkMode ? 'text-gray-300' : ''}>
+            Admin Actions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => triggerAction('reindex-embeddings')}
+              className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                darkMode
+                  ? 'bg-teal-700 hover:bg-teal-600 text-white'
+                  : 'bg-teal-100 hover:bg-teal-200 text-teal-800'
+              }`}
+            >
+              Reindex Embeddings
+            </button>
+            <button
+              onClick={() => triggerAction('consolidate')}
+              className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                darkMode
+                  ? 'bg-blue-700 hover:bg-blue-600 text-white'
+                  : 'bg-blue-100 hover:bg-blue-200 text-blue-800'
+              }`}
+            >
+              Run Consolidation Now
+            </button>
+            <button
+              onClick={() => triggerAction('garbage-collection')}
+              className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                darkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+              }`}
+            >
+              Run Garbage Collection
+            </button>
+          </div>
+          {actionStatus && (
+            <p className={`mt-3 text-sm ${
+              actionStatus.includes('failed')
+                ? (darkMode ? 'text-red-400' : 'text-red-600')
+                : (darkMode ? 'text-green-400' : 'text-green-600')
+            }`}>
+              {actionStatus}
+            </p>
           )}
         </CardContent>
       </Card>

@@ -107,6 +107,21 @@ class MemoryHealthCheck:
                     else:
                         repairs.append("FTS index rebuild failed")
 
+            # Check superseded chain integrity
+            orphaned = await self.check_superseded_chain_integrity()
+            if orphaned:
+                issues.append(
+                    f"Found {len(orphaned)} orphaned superseded_by references"
+                )
+                if auto_repair:
+                    repaired = await self.repair_orphaned_superseded()
+                    if repaired > 0:
+                        repairs.append(
+                            f"Repaired {repaired} orphaned superseded_by references"
+                        )
+                    else:
+                        repairs.append("Orphaned superseded_by repair failed")
+
         embedding_ok = self._check_embedding_model()
         if not embedding_ok:
             issues.append("Embedding model not loaded")
@@ -171,14 +186,16 @@ class MemoryHealthCheck:
             return False
 
     def _check_embedding_model(self) -> bool:
-        """Check if embedding model is loaded or loadable.
-
-        Returns:
-            True if embedding model is available.
-        """
+        """Check if embedding model is loaded or loadable."""
         try:
             generator = self.memory.embedding_generator
-            return generator is not None
+            if generator is None:
+                return False
+            if generator.is_loaded():
+                return True
+            # Model exists but not yet loaded — acceptable (will lazy-load)
+            logger.debug("Embedding model available but not preloaded")
+            return True
         except Exception as e:
             logger.error("Embedding model check failed: %s", e)
             return False
@@ -235,6 +252,65 @@ class MemoryHealthCheck:
         except Exception as e:
             logger.error("FTS index rebuild failed: %s", e)
             return False
+
+    async def check_superseded_chain_integrity(self) -> list[int]:
+        """Detect orphaned superseded_by references.
+
+        Finds memories where superseded_by points to a non-existent memory ID.
+
+        Returns:
+            List of memory IDs with orphaned superseded_by references.
+        """
+        orphaned_ids: list[int] = []
+        try:
+            async with self.memory._get_session() as session:
+                result = await session.execute(
+                    text(
+                        "SELECT m.id FROM memory.memories m "
+                        "WHERE m.superseded_by IS NOT NULL "
+                        "AND NOT EXISTS ("
+                        "  SELECT 1 FROM memory.memories m2 WHERE m2.id = m.superseded_by"
+                        ")"
+                    )
+                )
+                orphaned_ids = [row[0] for row in result.fetchall()]
+
+            if orphaned_ids:
+                logger.warning(
+                    "Found %d memories with orphaned superseded_by references: %s",
+                    len(orphaned_ids),
+                    orphaned_ids[:10],
+                )
+        except Exception as e:
+            logger.error("Superseded chain integrity check failed: %s", e)
+
+        return orphaned_ids
+
+    async def repair_orphaned_superseded(self) -> int:
+        """Repair orphaned superseded_by references by setting them to NULL.
+
+        Returns:
+            Count of repaired memories.
+        """
+        try:
+            orphaned = await self.check_superseded_chain_integrity()
+            if not orphaned:
+                return 0
+
+            async with self.memory._get_session() as session:
+                await session.execute(
+                    text(
+                        "UPDATE memory.memories SET superseded_by = NULL "
+                        "WHERE id = ANY(:ids)"
+                    ),
+                    {"ids": orphaned},
+                )
+
+            logger.info("Repaired %d orphaned superseded_by references", len(orphaned))
+            return len(orphaned)
+        except Exception as e:
+            logger.error("Superseded chain repair failed: %s", e)
+            return 0
 
     async def backfill_embeddings(self, batch_size: int = 50) -> int:
         """Generate embeddings for memories with NULL embeddings.

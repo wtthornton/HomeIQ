@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import text
@@ -54,6 +55,10 @@ class MemorySearch:
 
     FTS_WEIGHT = 0.6
     VECTOR_WEIGHT = 0.4
+
+    RECENCY_BOOST_DAYS = 30  # Memories within this window get a boost
+    RECENCY_BOOST_FACTOR = 0.1  # Maximum recency boost added to RRF score
+    CONFIDENCE_BOOST_FACTOR = 0.05  # Maximum confidence boost
 
     def __init__(
         self,
@@ -101,6 +106,10 @@ class MemorySearch:
         """
         if not query.strip():
             return []
+
+        import time
+
+        start_time = time.perf_counter()
 
         filters = {
             "memory_types": memory_types,
@@ -168,7 +177,9 @@ class MemorySearch:
                 memories_by_id[memory.id] = memory
 
         results: list[MemorySearchResult] = []
-        for memory_id, score in fused:
+        now = datetime.now(UTC)
+
+        for memory_id, rrf_score in fused:
             memory = memories_by_id.get(memory_id)
             if memory is None:
                 continue
@@ -177,19 +188,40 @@ class MemorySearch:
             if eff_conf < min_confidence:
                 continue
 
+            # Recency boost: newer memories scored higher for equal relevance
+            recency_boost = 0.0
+            if memory.updated_at:
+                days_old = (now - memory.updated_at).total_seconds() / 86400
+                if days_old < self.RECENCY_BOOST_DAYS:
+                    recency_boost = self.RECENCY_BOOST_FACTOR * (
+                        1.0 - days_old / self.RECENCY_BOOST_DAYS
+                    )
+
+            # Confidence boost: higher confidence memories ranked higher
+            confidence_boost = self.CONFIDENCE_BOOST_FACTOR * eff_conf
+
+            final_score = rrf_score + recency_boost + confidence_boost
+
             results.append(
                 MemorySearchResult(
                     memory=memory,
-                    relevance_score=score,
+                    relevance_score=final_score,
                     fts_rank=fts_ranks.get(memory_id),
                     vector_rank=vector_ranks.get(memory_id),
                 )
             )
 
-            if len(results) >= limit:
-                break
+        # Re-sort by final boosted score
+        results.sort(key=lambda r: r.relevance_score, reverse=True)
 
-        return results
+        from . import metrics
+
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        mode = "hybrid" if vector_results else "fts_only"
+        metrics.emit_histogram("memory_search_latency_ms", duration_ms, {"mode": mode})
+        metrics.emit("memory_search_result_count", len(results), {"mode": mode})
+
+        return results[:limit]
 
     async def _fts_search(
         self, query: str, filters: dict, limit: int

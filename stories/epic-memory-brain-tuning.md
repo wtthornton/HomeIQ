@@ -2,8 +2,9 @@
 
 **Priority:** P2 Medium
 **Estimated Duration:** 2 weeks
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-03-09
+**Completed:** 2026-03-09
 **Source:** Sprint 8 review — identified naive heuristics and missing observability
 
 ## Overview
@@ -29,13 +30,13 @@ The Memory Brain review identified these quality concerns:
 Replace crude `ILIKE '%domain%'` keyword matching with semantic domain classification for trust scores.
 
 **Acceptance Criteria:**
-- [ ] Define domain taxonomy: lighting, climate, security, media, covers, water, energy
-- [ ] Tag memories with `domain` field at creation time (from entity_id prefix parsing)
-- [ ] Trust score queries filter by `domain` column instead of content keyword search
-- [ ] Handle multi-domain memories (e.g., "turn off lights and lock doors")
-- [ ] Backward-compatible: existing memories without domain tag use keyword fallback
-- [ ] Trust score accuracy validated against 20+ test cases
-- [ ] 10+ unit tests
+- [x] Define domain taxonomy: lighting, climate, security, media, covers, water, energy
+- [x] Tag memories with `domain` field at creation time (from entity_id prefix parsing)
+- [x] Trust score queries filter by `domain` column instead of content keyword search
+- [x] Handle multi-domain memories (e.g., "turn off lights and lock doors")
+- [x] Backward-compatible: existing memories without domain tag use keyword fallback
+- [x] Trust score accuracy validated against 20+ test cases
+- [x] 10+ unit tests
 
 ### Story 41.2: Intelligent Content Consolidation
 **Priority:** P2 Medium
@@ -44,13 +45,13 @@ Replace crude `ILIKE '%domain%'` keyword matching with semantic domain classific
 Replace naive "prefer longer text" merge with semantic-aware consolidation.
 
 **Acceptance Criteria:**
-- [ ] Compare semantic similarity of old vs new content before merging
-- [ ] If similarity > 0.9: keep newer (more recent = more accurate)
-- [ ] If similarity 0.7–0.9: merge with deduplication (extract unique facts from each)
-- [ ] If similarity < 0.7: create separate memory (not a true consolidation)
-- [ ] Preserve entity_ids and area_ids union during merge
-- [ ] Log consolidation decisions for debugging
-- [ ] 15+ unit tests covering all merge paths
+- [x] Compare semantic similarity of old vs new content before merging
+- [x] If similarity > 0.9: keep newer (more recent = more accurate)
+- [x] If similarity 0.7–0.9: merge with deduplication (extract unique facts from each)
+- [x] If similarity < 0.7: create separate memory (not a true consolidation)
+- [x] Preserve entity_ids and area_ids union during merge
+- [x] Log consolidation decisions for debugging
+- [x] 15+ unit tests covering all merge paths
 
 ### Story 41.3: InfluxDB Metrics for Memory Operations
 **Priority:** P1 High
@@ -59,15 +60,15 @@ Replace naive "prefer longer text" merge with semantic-aware consolidation.
 Add operational metrics for memory operations using the existing InfluxDB infrastructure.
 
 **Acceptance Criteria:**
-- [ ] Metric: `memory_save_count` (by type, source_channel) — per save() call
-- [ ] Metric: `memory_search_latency_ms` — per search() call (FTS vs vector vs hybrid)
-- [ ] Metric: `memory_search_result_count` — per search() call
-- [ ] Metric: `memory_consolidation_decisions` — per consolidate() call (by decision type)
-- [ ] Metric: `memory_decay_archived_count` — per GC run
-- [ ] Metric: `memory_embedding_latency_ms` — per generate() call
-- [ ] Use existing InfluxDB write pattern from websocket-ingestion
-- [ ] Grafana dashboard template (JSON) for memory metrics
-- [ ] No performance impact > 5% on memory operations
+- [x] Metric: `memory_save_count` (by type, source_channel) — per save() call
+- [x] Metric: `memory_search_latency_ms` — per search() call (FTS vs vector vs hybrid)
+- [x] Metric: `memory_search_result_count` — per search() call
+- [x] Metric: `memory_consolidation_decisions` — per consolidate() call (by decision type)
+- [x] Metric: `memory_decay_archived_count` — per GC run
+- [x] Metric: `memory_embedding_latency_ms` — per generate() call
+- [x] Use existing InfluxDB write pattern from websocket-ingestion
+- [x] Grafana dashboard template (JSON) for memory metrics
+- [x] No performance impact > 5% on memory operations
 
 ### Story 41.4: Embedding Preloading
 **Priority:** P2 Medium
@@ -76,12 +77,12 @@ Add operational metrics for memory operations using the existing InfluxDB infras
 Preload the embedding model at service startup instead of lazy-loading on first request.
 
 **Acceptance Criteria:**
-- [ ] Load embedding model during service lifespan startup (not first `generate()` call)
-- [ ] Log model load time and memory usage at startup
-- [ ] Health check reports model status (loaded/loading/failed)
-- [ ] Configurable: `MEMORY_PRELOAD_EMBEDDINGS=true` (default: true)
-- [ ] Graceful degradation: if preload fails, fall back to lazy loading
-- [ ] Startup time increase documented (expected: 2-5 seconds)
+- [x] Load embedding model during service lifespan startup (not first `generate()` call)
+- [x] Log model load time and memory usage at startup
+- [x] Health check reports model status (loaded/loading/failed)
+- [x] Configurable: `MEMORY_PRELOAD_EMBEDDINGS=true` (default: true)
+- [x] Graceful degradation: if preload fails, fall back to lazy loading
+- [x] Startup time increase documented (expected: 2-5 seconds)
 
 ### Story 41.5: Superseded Memory Chain Integrity
 **Priority:** P2 Medium
@@ -90,11 +91,11 @@ Preload the embedding model at service startup instead of lazy-loading on first 
 Add cascade handling for superseded memory chains to prevent orphaned references.
 
 **Acceptance Criteria:**
-- [ ] Add `ON DELETE SET NULL` to `superseded_by` FK (Alembic migration 003)
-- [ ] When archiving a memory, update any memories that reference it via `superseded_by`
-- [ ] Add integrity check in health.py: detect orphaned `superseded_by` references
-- [ ] Self-healing: repair orphaned references during health check
-- [ ] 5+ unit tests
+- [x] Add `ON DELETE SET NULL` to `superseded_by` FK (Alembic migration 003)
+- [x] When archiving a memory, update any memories that reference it via `superseded_by`
+- [x] Add integrity check in health.py: detect orphaned `superseded_by` references
+- [x] Self-healing: repair orphaned references during health check
+- [x] 5+ unit tests
 
 ### Story 41.6: Search Relevance Tuning
 **Priority:** P1 High
@@ -103,14 +104,14 @@ Add cascade handling for superseded memory chains to prevent orphaned references
 Tune the hybrid search (FTS + vector) RRF fusion for better relevance.
 
 **Acceptance Criteria:**
-- [ ] Benchmark current search quality with 50 test queries and expected results
-- [ ] Tune RRF weights (currently 0.6 FTS / 0.4 vector) based on benchmark
-- [ ] Add recency boost: newer memories ranked higher for equal relevance
-- [ ] Add confidence boost: higher confidence memories ranked higher
-- [ ] Filter out memories below effective_confidence threshold (after decay)
-- [ ] Search results include explanation scores for debugging
-- [ ] No latency regression > 20% on search operations
-- [ ] Benchmark score improves by 10%+ after tuning
+- [x] Benchmark current search quality with 50 test queries and expected results
+- [x] Tune RRF weights (currently 0.6 FTS / 0.4 vector) based on benchmark
+- [x] Add recency boost: newer memories ranked higher for equal relevance
+- [x] Add confidence boost: higher confidence memories ranked higher
+- [x] Filter out memories below effective_confidence threshold (after decay)
+- [x] Search results include explanation scores for debugging
+- [x] No latency regression > 20% on search operations
+- [x] Benchmark score improves by 10%+ after tuning
 
 ### Story 41.7: Memory Admin Dashboard Enhancements
 **Priority:** P3 Low
@@ -119,13 +120,13 @@ Tune the hybrid search (FTS + vector) RRF fusion for better relevance.
 Enhance the MemoryTab in health-dashboard with operational insights.
 
 **Acceptance Criteria:**
-- [ ] Show memory metrics charts (from InfluxDB, Story 41.3)
-- [ ] Show search latency histogram (p50, p95, p99)
-- [ ] Show consolidation decision breakdown (pie chart)
-- [ ] Show trust score trend over time per domain
-- [ ] Add "Reindex Embeddings" button (triggers backfill job)
-- [ ] Add "Run Consolidation Now" button (triggers consolidation job)
-- [ ] Responsive layout for mobile
+- [x] Show memory metrics charts (from InfluxDB, Story 41.3)
+- [x] Show search latency histogram (p50, p95, p99)
+- [x] Show consolidation decision breakdown (pie chart)
+- [x] Show trust score trend over time per domain
+- [x] Add "Reindex Embeddings" button (triggers backfill job)
+- [x] Add "Run Consolidation Now" button (triggers consolidation job)
+- [x] Responsive layout for mobile
 
 ## Dependencies
 

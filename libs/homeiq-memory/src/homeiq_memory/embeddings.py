@@ -162,12 +162,19 @@ class EmbeddingGenerator:
         if self._model is None:
             raise RuntimeError("Model failed to load")
 
+        import time
+
+        start = time.perf_counter()
         loop = asyncio.get_running_loop()
         embedding = await loop.run_in_executor(
             _get_thread_pool(),
             self._encode_single,
             text,
         )
+        duration_ms = (time.perf_counter() - start) * 1000
+        from . import metrics
+
+        metrics.emit_histogram("memory_embedding_latency_ms", duration_ms)
         return embedding.tolist()
 
     def _encode_single(self, text: str) -> Any:
@@ -217,6 +224,44 @@ class EmbeddingGenerator:
     def model_name(self) -> str:
         """Return the model name or path being used."""
         return self._model_path or self._model_name
+
+    async def preload(self) -> bool:
+        """Preload the embedding model at startup.
+
+        Loads the model in a background thread to avoid blocking the event loop.
+        Should be called during service lifespan startup.
+
+        Returns:
+            True if model loaded successfully, False otherwise.
+        """
+        if self._model is not None:
+            return True
+
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(_get_thread_pool(), self._load_model)
+            logger.info(
+                "Embedding model preloaded: %s (dim=%d)",
+                self.model_name,
+                self._dimension,
+            )
+            return True
+        except Exception as e:
+            logger.error("Embedding model preload failed: %s", e)
+            return False
+
+    def status(self) -> dict[str, Any]:
+        """Return model status for health checks.
+
+        Returns:
+            Dict with model_name, loaded, dimension, device.
+        """
+        return {
+            "model_name": self.model_name,
+            "loaded": self.is_loaded(),
+            "dimension": self._dimension,
+            "device": self._device or "auto",
+        }
 
     def is_loaded(self) -> bool:
         """Check if the model has been loaded."""

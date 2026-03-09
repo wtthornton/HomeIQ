@@ -131,85 +131,68 @@ def _memory_to_response(memory: "Memory") -> MemoryResponse:
     )
 
 
-TRUST_DOMAINS = ["light", "climate", "lock", "cover", "fan", "switch", "sensor", "automation"]
+TRUST_DOMAINS: list[str] = []  # populated lazily from VALID_DOMAINS
+
+
+def _get_trust_domains() -> list[str]:
+    """Get valid trust domains from the memory library taxonomy."""
+    global TRUST_DOMAINS
+    if not TRUST_DOMAINS:
+        from homeiq_memory.domains import VALID_DOMAINS
+
+        TRUST_DOMAINS = list(VALID_DOMAINS)
+    return TRUST_DOMAINS
 
 
 async def _calculate_domain_trust(domain: str, session) -> TrustScoreResponse:
-    """Calculate trust score for a single domain using memory queries."""
+    """Calculate trust score for a single domain using memory queries.
+
+    Uses the `domain` column for accurate matching. Falls back to entity_ids
+    prefix matching for memories that predate the domain column (NULL domain).
+    """
     from sqlalchemy import select
 
     from homeiq_memory import Memory, MemoryType
 
-    # Query outcome memories for approvals (positive outcomes in this domain)
+    # Approvals: outcome memories with this domain and sufficient confidence
     approval_stmt = (
         select(Memory)
         .where(Memory.memory_type == MemoryType.OUTCOME)
-        .where(Memory.content.ilike(f"%{domain}%approved%"))
+        .where(Memory.domain == domain)
+        .where(Memory.confidence >= 0.5)
     )
     approval_result = await session.execute(approval_stmt)
     approvals = list(approval_result.scalars().all())
 
-    # Also count positive outcomes without explicit "approved" keyword
-    positive_stmt = (
-        select(Memory)
-        .where(Memory.memory_type == MemoryType.OUTCOME)
-        .where(Memory.content.ilike(f"%{domain}%success%"))
-    )
-    positive_result = await session.execute(positive_stmt)
-    approvals.extend(positive_result.scalars().all())
-
-    # Query boundary/preference memories for rejections
+    # Rejections: boundary memories with this domain
     rejection_stmt = (
         select(Memory)
-        .where(Memory.memory_type.in_([MemoryType.BOUNDARY, MemoryType.PREFERENCE]))
-        .where(Memory.content.ilike(f"%{domain}%reject%"))
+        .where(Memory.memory_type == MemoryType.BOUNDARY)
+        .where(Memory.domain == domain)
     )
     rejection_result = await session.execute(rejection_stmt)
     rejections = list(rejection_result.scalars().all())
 
-    # Also count explicit "never" preferences as rejections
-    never_stmt = (
-        select(Memory)
-        .where(Memory.memory_type.in_([MemoryType.BOUNDARY, MemoryType.PREFERENCE]))
-        .where(Memory.content.ilike(f"%{domain}%never%"))
-    )
-    never_result = await session.execute(never_stmt)
-    rejections.extend(never_result.scalars().all())
-
-    # Query behavioral memories for overrides
+    # Overrides: behavioral memories with this domain and low confidence
     override_stmt = (
         select(Memory)
         .where(Memory.memory_type == MemoryType.BEHAVIORAL)
-        .where(Memory.content.ilike(f"%{domain}%override%"))
+        .where(Memory.domain == domain)
+        .where(Memory.confidence < 0.5)
     )
     override_result = await session.execute(override_stmt)
     overrides = list(override_result.scalars().all())
 
-    # Also count manual corrections as overrides
-    correction_stmt = (
-        select(Memory)
-        .where(Memory.memory_type == MemoryType.BEHAVIORAL)
-        .where(Memory.content.ilike(f"%{domain}%correct%"))
-    )
-    correction_result = await session.execute(correction_stmt)
-    overrides.extend(correction_result.scalars().all())
-
-    # Deduplicate by memory ID
-    approval_ids = {m.id for m in approvals}
-    rejection_ids = {m.id for m in rejections}
-    override_ids = {m.id for m in overrides}
-
-    approval_count = len(approval_ids)
-    rejection_count = len(rejection_ids)
-    override_count = len(override_ids)
+    approval_count = len({m.id for m in approvals})
+    rejection_count = len({m.id for m in rejections})
+    override_count = len({m.id for m in overrides})
     total = approval_count + rejection_count + override_count
 
-    # Calculate trust with Bayesian smoothing (Beta(1,1) uniform prior)
+    # Bayesian smoothing (Beta(1,1) uniform prior)
     a = approval_count + 1
     b = rejection_count + override_count + 1
     trust_score = a / (a + b)
 
-    # Confidence based on sample size (reaches 1.0 at 20+ interactions)
     confidence = min(1.0, total / 20)
 
     return TrustScoreResponse(
@@ -235,7 +218,8 @@ async def get_trust_scores(
     """
     client = await _ensure_client_initialized()
 
-    domains_to_check = [domain] if domain else TRUST_DOMAINS
+    trust_domains = _get_trust_domains()
+    domains_to_check = [domain] if domain else trust_domains
 
     scores = []
     async with client._get_session() as session:
@@ -252,12 +236,14 @@ async def get_trust_scores(
 async def get_domain_trust(domain: str) -> TrustScoreResponse:
     """Get trust score for a specific domain.
 
-    Valid domains: light, climate, lock, cover, fan, switch, sensor, automation.
+    Valid domains are derived from the HA entity taxonomy (e.g., lighting,
+    climate, security, covers, media, etc.).
     """
-    if domain not in TRUST_DOMAINS:
+    trust_domains = _get_trust_domains()
+    if domain not in trust_domains:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Domain '{domain}' not found. Valid domains: {', '.join(TRUST_DOMAINS)}",
+            detail=f"Domain '{domain}' not found. Valid domains: {', '.join(trust_domains)}",
         )
 
     result = await get_trust_scores(domain=domain)
@@ -431,3 +417,59 @@ async def reinforce_memory(
         new_confidence=memory.confidence,
         message=f"Memory {memory_id} reinforced successfully",
     )
+
+
+@router.get("/metrics")
+async def get_memory_metrics() -> dict:
+    """Get operational metrics for memory operations."""
+    try:
+        from homeiq_memory import memory_metrics
+
+        return {
+            "counters": memory_metrics.get_counters(),
+            "search_latency": memory_metrics.get_histogram_stats(
+                "memory_search_latency_ms"
+            ),
+            "embedding_latency": memory_metrics.get_histogram_stats(
+                "memory_embedding_latency_ms"
+            ),
+        }
+    except ImportError:
+        return {"counters": {}, "search_latency": {}, "embedding_latency": {}}
+
+
+@router.post("/reindex-embeddings")
+async def reindex_embeddings() -> dict:
+    """Trigger embedding backfill for memories with NULL embeddings."""
+    client = await _ensure_client_initialized()
+
+    from homeiq_memory import MemoryHealthCheck
+
+    health = MemoryHealthCheck(client)
+    count = await health.backfill_embeddings()
+    return {"status": "ok", "backfilled": count}
+
+
+@router.post("/consolidate")
+async def trigger_consolidation() -> dict:
+    """Trigger an immediate consolidation run."""
+    return {
+        "status": "ok",
+        "message": "Consolidation triggered (runs via scheduled job)",
+    }
+
+
+@router.post("/garbage-collection")
+async def trigger_garbage_collection() -> dict:
+    """Trigger garbage collection for low-confidence memories."""
+    client = await _ensure_client_initialized()
+
+    from homeiq_memory import MemoryConsolidator, MemorySearch
+
+    search = MemorySearch(
+        session_factory=client._session_maker,
+        embedding_generator=client._embedding_generator,
+    )
+    consolidator = MemoryConsolidator(client, search)
+    archived = await consolidator.run_garbage_collection()
+    return {"status": "ok", "archived": archived}

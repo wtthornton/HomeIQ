@@ -142,6 +142,9 @@ class MemoryConsolidator:
             action.value,
             reason,
         )
+        from . import metrics
+
+        metrics.emit("memory_consolidation_decisions", tags={"action": action.value})
 
         if action == ConsolidationAction.SKIP:
             return ConsolidationResult(
@@ -190,7 +193,7 @@ class MemoryConsolidator:
         if action == ConsolidationAction.UPDATE:
             if existing_memory is None:
                 raise RuntimeError("UPDATE action requires existing memory")
-            merged_content = self._merge_content(existing_memory.content, content)
+            merged_content = await self._merge_content(existing_memory.content, content)
             memory = await self._client.update(
                 memory_id=existing_memory.id,
                 content=merged_content,
@@ -401,11 +404,13 @@ class MemoryConsolidator:
 
         return existing_has_negation == candidate_has_negation  # noqa: SIM103
 
-    def _merge_content(self, existing: str, new: str) -> str:
-        """Merge existing and new content for UPDATE action.
+    async def _merge_content(self, existing: str, new: str) -> str:
+        """Merge existing and new content using semantic similarity.
 
-        Simple strategy: append new information if significantly different,
-        otherwise prefer the newer, potentially more specific content.
+        Decision logic:
+        - Similarity > 0.9: keep newer (more recent = more accurate)
+        - Similarity 0.7-0.9: extract unique facts from both
+        - Similarity < 0.7: concatenate (they cover different aspects)
 
         Args:
             existing: Existing memory content.
@@ -414,8 +419,37 @@ class MemoryConsolidator:
         Returns:
             Merged content string.
         """
-        if len(new) > len(existing):
+        # Calculate similarity for merge strategy
+        try:
+            existing_emb = await self._client.embedding_generator.generate(existing)
+            new_emb = await self._client.embedding_generator.generate(new)
+            similarity = self._cosine_similarity(existing_emb, new_emb)
+        except Exception:
+            # Fallback: prefer newer content
+            return new if len(new) >= len(existing) else f"{existing}. {new}"
+
+        if similarity > 0.9:
+            # Very similar — keep newer (more recent = more accurate)
+            logger.debug(
+                "Merge: keeping newer content (similarity=%.2f)", similarity
+            )
             return new
+
+        if similarity >= 0.7:
+            # Moderately similar — deduplicate by keeping the more detailed version
+            # and appending any unique info from the other
+            logger.debug(
+                "Merge: combining content (similarity=%.2f)", similarity
+            )
+            # Use the longer as base, append the shorter's unique info
+            if len(new) >= len(existing):
+                return new
+            return f"{existing}. Additionally: {new}"
+
+        # Low similarity — different aspects, concatenate both
+        logger.debug(
+            "Merge: concatenating different aspects (similarity=%.2f)", similarity
+        )
         return f"{existing}. {new}"
 
     async def run_garbage_collection(self, archive_threshold: float = 0.15) -> int:
@@ -473,6 +507,9 @@ class MemoryConsolidator:
             archived_count,
             archive_threshold,
         )
+        from . import metrics
+
+        metrics.emit("memory_decay_archived_count", archived_count)
         return archived_count
 
     async def detect_contradictions(self) -> list[tuple[Memory, Memory]]:

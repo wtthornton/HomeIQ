@@ -171,6 +171,21 @@ class MemoryClient:
         """Whether the client is initialized and available."""
         return self._available
 
+    async def preload_embeddings(self) -> bool:
+        """Preload the embedding model at startup.
+
+        Should be called during service lifespan startup after initialize().
+        Falls back to lazy loading if preload fails.
+
+        Returns:
+            True if model loaded successfully, False otherwise.
+        """
+        try:
+            return await self.embedding_generator.preload()
+        except Exception as e:
+            logger.warning("Embedding preload failed, will lazy-load: %s", e)
+            return False
+
     async def save(
         self,
         content: str,
@@ -179,6 +194,7 @@ class MemoryClient:
         source_service: str | None = None,
         entity_ids: list[str] | None = None,
         area_ids: list[str] | None = None,
+        domain: str | None = None,
         tags: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
         confidence: float = 0.5,
@@ -192,6 +208,8 @@ class MemoryClient:
             source_service: Optional service name that created the memory.
             entity_ids: Optional list of related Home Assistant entity IDs.
             area_ids: Optional list of related Home Assistant area IDs.
+            domain: Optional semantic domain (e.g., "lighting", "climate").
+                Auto-classified from entity_ids if not provided.
             tags: Optional list of tags for categorization.
             metadata: Optional JSON metadata dictionary.
             confidence: Initial confidence score (0.0-1.0, default 0.5).
@@ -206,6 +224,11 @@ class MemoryClient:
         if not content or not content.strip():
             raise ValueError("Memory content cannot be empty")
 
+        if domain is None:
+            from .domains import classify_domain
+
+            domain = classify_domain(entity_ids)
+
         embedding = await self.embedding_generator.generate(content)
 
         memory = Memory(
@@ -215,6 +238,7 @@ class MemoryClient:
             source_service=source_service,
             entity_ids=entity_ids,
             area_ids=area_ids,
+            domain=domain,
             tags=tags,
             embedding=embedding,
             confidence=confidence,
@@ -231,6 +255,9 @@ class MemoryClient:
                 memory_type.value,
                 confidence,
             )
+            from . import metrics
+
+            metrics.emit("memory_save_count", tags={"type": memory_type.value, "source": source_channel.value})
             return memory
 
     async def get(self, memory_id: int) -> Memory | None:
@@ -336,6 +363,7 @@ class MemoryClient:
                 source_service=memory.source_service,
                 entity_ids=memory.entity_ids,
                 area_ids=memory.area_ids,
+                domain=memory.domain,
                 tags=memory.tags,
                 embedding=memory.embedding,
                 created_at=memory.created_at,
@@ -356,6 +384,9 @@ class MemoryClient:
                 memory_id,
                 reason,
             )
+            from . import metrics
+
+            metrics.emit("memory_delete_count", tags={"reason": reason})
             return True
 
     async def supersede(
@@ -396,6 +427,12 @@ class MemoryClient:
 
             embedding = await self.embedding_generator.generate(new_content.strip())
 
+            domain = kwargs.get("domain")
+            if domain is None:
+                from .domains import classify_domain
+
+                domain = classify_domain(kwargs.get("entity_ids"))
+
             new_memory = Memory(
                 content=new_content.strip(),
                 memory_type=memory_type,
@@ -403,6 +440,7 @@ class MemoryClient:
                 source_service=kwargs.get("source_service"),
                 entity_ids=kwargs.get("entity_ids"),
                 area_ids=kwargs.get("area_ids"),
+                domain=domain,
                 tags=kwargs.get("tags"),
                 embedding=embedding,
                 confidence=kwargs.get("confidence", 0.5),

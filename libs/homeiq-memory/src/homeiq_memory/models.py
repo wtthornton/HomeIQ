@@ -7,10 +7,9 @@ vector embeddings for similarity search, and full audit trail.
 Schema: memory (PostgreSQL schema isolation)
 """
 
-from __future__ import annotations
-
+from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
@@ -24,9 +23,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 
 class Base(DeclarativeBase):
@@ -107,6 +103,11 @@ class Memory(Base):
         ARRAY(String),
         nullable=True,
     )
+    domain: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+        index=True,
+    )
     tags: Mapped[list[str] | None] = mapped_column(
         ARRAY(String),
         nullable=True,
@@ -136,7 +137,7 @@ class Memory(Base):
     )
     superseded_by: Mapped[int | None] = mapped_column(
         BigInteger,
-        ForeignKey("memory.memories.id"),
+        ForeignKey("memory.memories.id", ondelete="SET NULL"),
         nullable=True,
     )
     metadata_: Mapped[dict[str, Any] | None] = mapped_column(
@@ -203,6 +204,10 @@ class MemoryArchive(Base):
     )
     area_ids: Mapped[list[str] | None] = mapped_column(
         ARRAY(String),
+        nullable=True,
+    )
+    domain: Mapped[str | None] = mapped_column(
+        String(30),
         nullable=True,
     )
     tags: Mapped[list[str] | None] = mapped_column(
