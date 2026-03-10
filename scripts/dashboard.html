@@ -1953,7 +1953,6 @@
           else if (b.fix_status === 'unfixed' || b.fix_status === 'failed') files[shortName].status = 'error';
         }
       });
-    }
 
     toolCalls.slice(-10).forEach(function(tc) {
         if (tc.target && tc.target.match(/\.py$/)) {
@@ -1963,7 +1962,6 @@
           }
         }
       });
-    }
 
     var fileNames = Object.keys(files);
     if (fileNames.length === 0) { card.style.display = 'none'; return; }
