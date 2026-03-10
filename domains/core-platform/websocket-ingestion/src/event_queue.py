@@ -273,6 +273,19 @@ class EventQueue:
         if maxsize <= 0:
             raise ValueError("maxsize must be positive")
 
+        # asyncio.Queue capacity is fixed at construction; rebuild with new size
+        new_queue: asyncio.Queue = asyncio.Queue(maxsize=maxsize)
+        while not self.queue.empty():
+            try:
+                item = self.queue.get_nowait()
+                try:
+                    new_queue.put_nowait(item)
+                except asyncio.QueueFull:
+                    self.overflow_queue.append(item)
+            except asyncio.QueueEmpty:
+                break
+        self.queue = new_queue
+        self.overflow_queue = deque(self.overflow_queue, maxlen=maxsize)
         self.maxsize = maxsize
         logger.info(f"Updated queue maxsize to {maxsize}")
 

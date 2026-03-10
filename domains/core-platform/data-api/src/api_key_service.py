@@ -150,7 +150,8 @@ class APIKeyService:
             # Test the API key if validation URL is available
             if config['validation_url']:
                 is_valid = await self._test_api_key(service, api_key)
-                if not is_valid:
+                if is_valid is False:
+                    # Definitively rejected (e.g. 401); transient errors (None) are skipped
                     return False, f"API key validation failed for {service}"
 
             # Update environment variable
@@ -249,10 +250,11 @@ class APIKeyService:
                             return config['validation_response_check'] in data
                         return True
                     elif response.status == 401:
-                        return False  # Unauthorized - invalid key
+                        return False  # Unauthorized - definitively invalid key
                     else:
-                        logger.warning(f"Unexpected response status {response.status} for {service}")
-                        return False
+                        # Transient error (429, 503, 500, etc.) — cannot determine validity
+                        logger.warning(f"Unexpected response status {response.status} for {service} - validation inconclusive")
+                        return None
 
         except Exception as e:
             logger.error(f"Error testing API key for {service}: {e}")

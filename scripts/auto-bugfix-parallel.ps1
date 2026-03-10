@@ -26,7 +26,9 @@ param(
     [string]$ChainPhases = "fix,refactor,test",
     [switch]$NoDashboard,
     [switch]$DryRun,
-    [switch]$Cleanup
+    [switch]$Cleanup,
+    [string]$Model = "claude-sonnet-4-6",
+    [double]$MaxCost = 2.00
 )
 
 $ErrorActionPreference = "Stop"
@@ -237,7 +239,7 @@ Write-Host ""
 # --- Run scans in parallel ---
 # Build a script block for each job
 $jobScriptBlock = {
-    param($JobData, $ScriptPath, $BugCount, $UseChain, $Phases, $BaseBranch)
+    param($JobData, $ScriptPath, $BugCount, $UseChain, $Phases, $BaseBranch, $ModelName, $CostLimit)
     $unitId = $JobData.UnitId
     $worktreePath = $JobData.WorktreePath
     $branch = $JobData.Branch
@@ -251,7 +253,9 @@ $jobScriptBlock = {
         "-Rotate",
         "-TargetUnit", $unitId,
         "-NoDashboard",
-        "-Worktree"
+        "-Worktree",
+        "-Model", $ModelName,
+        "-MaxCost", $CostLimit
     )
     if ($UseChain) {
         $params += "-Chain"
@@ -299,7 +303,7 @@ if ($UsePSJobs) {
         }
 
         Write-Host "  START: $($job.UnitId)" -ForegroundColor Cyan
-        $psJob = Start-Job -ScriptBlock $jobScriptBlock -ArgumentList $job, $scriptPath, $Bugs, $Chain.IsPresent, $ChainPhases, $Base
+        $psJob = Start-Job -ScriptBlock $jobScriptBlock -ArgumentList $job, $scriptPath, $Bugs, $Chain.IsPresent, $ChainPhases, $Base, $Model, $MaxCost
         $runningJobs += $psJob
     }
 
@@ -315,7 +319,7 @@ if ($UsePSJobs) {
     # PowerShell 7+: Use ForEach-Object -Parallel
     $results = $jobs | ForEach-Object -Parallel {
         $job = $_
-        $result = & $using:jobScriptBlock $job $using:scriptPath $using:Bugs $using:Chain.IsPresent $using:ChainPhases $using:Base
+        $result = & $using:jobScriptBlock $job $using:scriptPath $using:Bugs $using:Chain.IsPresent $using:ChainPhases $using:Base $using:Model $using:MaxCost
         $result
     } -ThrottleLimit $MaxParallel
 }

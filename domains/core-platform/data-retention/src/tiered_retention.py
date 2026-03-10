@@ -9,7 +9,7 @@ For InfluxDB 2.7, these operations are disabled to prevent SSL errors.
 import logging
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ class TieredRetentionManager:
 
         logger.info("Starting hot to warm downsampling (raw → hourly)...")
 
-        cutoff_date = datetime.now() - timedelta(days=7)
+        cutoff_date = datetime.now(UTC) - timedelta(days=7)
 
         try:
             # Create hourly aggregates
@@ -160,7 +160,7 @@ class TieredRetentionManager:
 
         logger.info("Starting warm to cold downsampling (hourly → daily)...")
 
-        cutoff_date = datetime.now() - timedelta(days=90)
+        cutoff_date = datetime.now(UTC) - timedelta(days=90)
 
         try:
             cutoff_iso = _validate_iso_timestamp(cutoff_date.isoformat())

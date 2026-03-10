@@ -1,12 +1,16 @@
 {
   "mcpServers": {
-    "tapps-mcp": {
-      "command": "C:\\Users\\tappt\\.local\\bin\\tapps-mcp.exe",
+    "MCP_DOCKER": {
+      "command": "docker",
       "args": [
-        "serve"
+        "mcp",
+        "gateway",
+        "run"
       ],
       "env": {
-        "TAPPS_MCP_PROJECT_ROOT": "c:\\cursor\\HomeIQ"
+        "LOCALAPPDATA": "C:\\Users\\tappt\\AppData\\Local",
+        "ProgramData": "C:\\ProgramData",
+        "ProgramFiles": "C:\\Program Files"
       }
     }
   }
