@@ -5,12 +5,42 @@
 <meta http-equiv="refresh" content="1">
 <title>HomeIQ Auto-Bugfix Dashboard</title>
 <style>
+  /* === 2026 CSS: Custom animatable properties === */
+  @property --gauge-pct {
+    syntax: '<number>';
+    inherits: false;
+    initial-value: 0;
+  }
+  @property --turns-pct {
+    syntax: '<number>';
+    inherits: false;
+    initial-value: 0;
+  }
+  @property --counter-val {
+    syntax: '<integer>';
+    inherits: false;
+    initial-value: 0;
+  }
+  @property --glow-intensity {
+    syntax: '<number>';
+    inherits: false;
+    initial-value: 0;
+  }
+  @property --particle-hue {
+    syntax: '<number>';
+    inherits: false;
+    initial-value: 168;
+  }
+
   :root {
     --teal: #14b8a6;
     --teal-dark: #0d9488;
     --teal-light: #99f6e4;
-    --bg: #0f172a;
-    --bg-card: #1e293b;
+    --teal-glow: rgba(20,184,166,0.4);
+    --bg: #0a0f1e;
+    --bg-glass: rgba(15,23,42,0.65);
+    --bg-card: rgba(30,41,59,0.5);
+    --bg-card-hover: rgba(30,41,59,0.7);
     --bg-card-alt: #334155;
     --text: #f1f5f9;
     --text-dim: #94a3b8;
@@ -18,173 +48,429 @@
     --red: #ef4444;
     --yellow: #eab308;
     --orange: #f97316;
+    --purple: #a78bfa;
+    --glass-border: rgba(255,255,255,0.08);
+    --glass-shadow: 0 8px 32px rgba(0,0,0,0.3);
   }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
-    padding: 24px;
+    overflow-x: hidden;
+    position: relative;
   }
 
-  /* Header */
+  /* === Background Canvas === */
+  #bg-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* === Mesh gradient overlay === */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 20%, rgba(20,184,166,0.08), transparent),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(167,139,250,0.05), transparent),
+      radial-gradient(ellipse 50% 50% at 50% 50%, rgba(20,184,166,0.03), transparent);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  #app {
+    position: relative;
+    z-index: 2;
+    padding: 20px 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* === Glassmorphism base === */
+  .glass {
+    background: var(--bg-glass);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    box-shadow: var(--glass-shadow);
+  }
+
+  /* === Header === */
   .header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     flex-wrap: wrap;
     gap: 12px;
   }
-  .header h1 {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--teal);
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
   }
-  .header h1 span { color: var(--text); font-weight: 400; }
+  .logo-orb {
+    width: 42px; height: 42px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 20px var(--teal-glow);
+    position: relative;
+    overflow: hidden;
+  }
+  .logo-orb::after {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: conic-gradient(from 0deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: orb-spin 3s linear infinite;
+  }
+  @keyframes orb-spin { to { transform: rotate(360deg); } }
+  .logo-orb svg { width: 22px; height: 22px; fill: white; z-index: 1; position: relative; }
+
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--teal-light), var(--teal));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header h1 span {
+    -webkit-text-fill-color: var(--text);
+    font-weight: 400;
+    font-size: 20px;
+  }
   .header-meta {
     display: flex;
-    gap: 20px;
-    font-size: 13px;
+    gap: 8px;
+    font-size: 12px;
     color: var(--text-dim);
     align-items: center;
     flex-wrap: wrap;
   }
-  .header-meta strong { color: var(--text); }
-  .usage-stat {
+  .chip {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 3px 10px;
+    gap: 5px;
+    padding: 4px 10px;
     background: var(--bg-card);
-    border-radius: 6px;
-    font-size: 12px;
-    border: 1px solid rgba(255,255,255,0.06);
-  }
-  .usage-stat .label { color: var(--text-dim); }
-  .usage-stat .value { color: var(--teal-light); font-weight: 600; font-family: 'Cascadia Code', 'Fira Code', monospace; }
-
-  /* Status banner */
-  .status-banner {
-    padding: 12px 20px;
+    backdrop-filter: blur(10px);
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 11px;
+    border: 1px solid var(--glass-border);
+    transition: all 0.3s ease;
+  }
+  .chip:hover { border-color: rgba(20,184,166,0.3); }
+  .chip .label { color: var(--text-dim); }
+  .chip .value {
+    color: var(--teal-light);
     font-weight: 600;
-    margin-bottom: 20px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+  }
+  .sound-toggle {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: var(--bg-card);
+    color: var(--text-dim);
+    cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.2s;
   }
-  .status-running { background: rgba(20,184,166,0.15); border: 1px solid var(--teal); color: var(--teal-light); }
-  .status-done { background: rgba(34,197,94,0.15); border: 1px solid var(--green); color: var(--green); }
-  .status-error { background: rgba(239,68,68,0.15); border: 1px solid var(--red); color: var(--red); }
+  .sound-toggle:hover { border-color: var(--teal); color: var(--teal); }
+  .sound-toggle.active { color: var(--teal); border-color: var(--teal); }
+
+  /* === Status Banner === */
+  .status-banner {
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    backdrop-filter: blur(16px);
+    transition: all 0.5s ease;
+  }
+  .status-running {
+    background: linear-gradient(135deg, rgba(20,184,166,0.12), rgba(20,184,166,0.06));
+    border: 1px solid rgba(20,184,166,0.3);
+    color: var(--teal-light);
+  }
+  .status-done {
+    background: linear-gradient(135deg, rgba(34,197,94,0.12), rgba(34,197,94,0.06));
+    border: 1px solid rgba(34,197,94,0.3);
+    color: var(--green);
+  }
+  .status-error {
+    background: linear-gradient(135deg, rgba(239,68,68,0.12), rgba(239,68,68,0.06));
+    border: 1px solid rgba(239,68,68,0.3);
+    color: var(--red);
+  }
+
+  /* Animated spinner */
   .spinner {
     width: 16px; height: 16px;
     border: 2px solid transparent;
-    border-top-color: var(--teal);
+    border-top-color: currentColor;
+    border-right-color: currentColor;
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin 0.7s linear infinite;
     display: inline-block;
+    flex-shrink: 0;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
-  @keyframes pulse-glow {
-    0%,100% { box-shadow: 0 0 0 0 rgba(20,184,166,0.3); }
-    50% { box-shadow: 0 0 16px 4px rgba(20,184,166,0.15); }
+
+  /* Pulse dot */
+  .pulse-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse-dot 1.5s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 currentColor; }
+    50% { opacity: 0.6; transform: scale(1.3); box-shadow: 0 0 12px currentColor; }
   }
 
-  /* Pipeline steps */
+  /* === Pipeline Steps === */
+  .pipeline-container {
+    position: relative;
+    margin-bottom: 16px;
+  }
   .pipeline {
     display: flex;
-    gap: 4px;
-    margin-bottom: 20px;
+    gap: 2px;
+    position: relative;
   }
   .step {
     flex: 1;
-    padding: 12px 16px;
-    background: var(--bg-card);
-    border-radius: 8px;
+    padding: 14px 12px;
+    border-radius: 12px;
     border: 1px solid transparent;
     text-align: center;
     position: relative;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    background: var(--bg-card);
+    backdrop-filter: blur(10px);
+  }
+  .step::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: transparent;
+    transition: background 0.4s ease;
   }
   .step-num {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-dim);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
     margin-bottom: 4px;
   }
-  .step-label { font-size: 14px; font-weight: 600; }
-  .step.completed { border-color: var(--green); }
+  .step-label { font-size: 13px; font-weight: 600; transition: color 0.3s; }
+  .step.completed {
+    border-color: rgba(34,197,94,0.3);
+    background: rgba(34,197,94,0.06);
+  }
+  .step.completed::before { background: var(--green); }
   .step.completed .step-label::before { content: '\2713 '; color: var(--green); }
-  .step.active { border-color: var(--teal); background: rgba(20,184,166,0.1); animation: pulse 2s ease-in-out infinite; }
+  .step.active {
+    border-color: rgba(20,184,166,0.4);
+    background: rgba(20,184,166,0.08);
+    box-shadow: 0 0 24px rgba(20,184,166,0.12);
+  }
+  .step.active::before { background: linear-gradient(90deg, var(--teal), var(--teal-light), var(--teal)); background-size: 200% 100%; animation: shimmer 2s linear infinite; }
   .step.active .step-label { color: var(--teal-light); }
   .step.pending .step-label { color: var(--text-dim); }
-  .step.error { border-color: var(--red); }
+  .step.error { border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.06); }
+  .step.error::before { background: var(--red); }
   .step.error .step-label::before { content: '\2717 '; color: var(--red); }
 
-  /* Current Action Panel */
-  .current-action {
-    background: var(--bg-card);
-    border-radius: 8px;
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  /* Pipeline connector particles */
+  .pipeline-connector {
+    position: absolute;
+    top: 50%;
+    height: 2px;
+    background: rgba(20,184,166,0.15);
+    z-index: -1;
+  }
+  .pipeline-connector.active-flow {
+    overflow: hidden;
+  }
+  .pipeline-connector.active-flow::after {
+    content: '';
+    position: absolute;
+    top: -1px;
+    width: 30px;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, var(--teal), transparent);
+    border-radius: 2px;
+    animation: flow-particle 1.5s linear infinite;
+  }
+  @keyframes flow-particle {
+    0% { left: -30px; }
+    100% { left: 100%; }
+  }
+
+  /* === AI Activity Visualizer === */
+  .ai-activity {
+    margin-bottom: 16px;
+    border-radius: 14px;
     padding: 16px 20px;
-    margin-bottom: 20px;
-    border: 1px solid rgba(20,184,166,0.2);
+    position: relative;
+    overflow: hidden;
+  }
+  .ai-activity-header {
     display: flex;
     align-items: center;
-    gap: 16px;
-    min-height: 60px;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .ai-activity-header h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+  }
+  .ai-activity-header .activity-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .activity-badge.thinking { background: rgba(20,184,166,0.15); color: var(--teal); }
+  .activity-badge.idle { background: rgba(148,163,184,0.1); color: var(--text-dim); }
+  .activity-badge.complete { background: rgba(34,197,94,0.15); color: var(--green); }
+
+  /* Waveform visualization */
+  .waveform {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 32px;
+    padding: 0 4px;
+  }
+  .waveform-bar {
+    flex: 1;
+    min-width: 3px;
+    max-width: 6px;
+    background: var(--teal);
+    border-radius: 2px;
+    transition: height 0.15s ease;
+    opacity: 0.7;
+  }
+  .waveform-bar.active {
+    animation: wave-bar calc(0.5s + var(--delay)) ease-in-out infinite alternate;
+  }
+  @keyframes wave-bar {
+    0% { height: 4px; opacity: 0.3; }
+    100% { height: 100%; opacity: 1; }
+  }
+
+  /* Current tool action */
+  .current-action {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    min-height: 62px;
+    transition: all 0.4s ease;
+    position: relative;
+    overflow: hidden;
   }
   .current-action.active {
-    animation: pulse-glow 2s ease-in-out infinite;
-    border-color: var(--teal);
+    border-color: rgba(20,184,166,0.3);
+    box-shadow: 0 0 30px rgba(20,184,166,0.08);
   }
-  .current-action .action-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    background: rgba(20,184,166,0.15);
+  .current-action.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--teal), transparent);
+    animation: scan-line 2s ease-in-out infinite;
+  }
+  @keyframes scan-line {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+  .action-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    transition: all 0.3s;
   }
-  .current-action .action-icon .spinner { width: 20px; height: 20px; }
-  .current-action .action-icon.idle {
-    background: rgba(148,163,184,0.1);
+  .action-icon.active-icon {
+    background: rgba(20,184,166,0.15);
+    box-shadow: 0 0 16px rgba(20,184,166,0.2);
   }
-  .current-action .action-icon.idle::after {
+  .action-icon.idle-icon {
+    background: rgba(148,163,184,0.08);
+  }
+  .action-icon.idle-icon::after {
     content: '\2022\2022\2022';
     color: var(--text-dim);
     font-size: 10px;
     letter-spacing: 2px;
   }
-  .current-action .action-details { flex: 1; min-width: 0; }
-  .current-action .tool-name {
-    font-size: 18px;
+  .action-details { flex: 1; min-width: 0; }
+  .tool-name {
+    font-size: 16px;
     font-weight: 700;
     color: var(--teal);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: all 0.3s;
   }
-  .current-action .tool-name.idle {
+  .tool-name.idle {
     color: var(--text-dim);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 500;
   }
-  .current-action .tool-target {
+  .tool-target {
     font-family: 'Cascadia Code', 'Fira Code', monospace;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-dim);
     margin-top: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .current-action .action-elapsed {
+  .action-elapsed {
     font-family: 'Cascadia Code', 'Fira Code', monospace;
     font-size: 14px;
     color: var(--teal-light);
@@ -192,191 +478,14 @@
     flex-shrink: 0;
   }
 
-  /* Grid layout */
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 16px;
-  }
-  .grid-full { grid-column: 1 / -1; }
-
-  /* Cards */
-  .card {
-    background: var(--bg-card);
-    border-radius: 8px;
-    padding: 16px;
-    border: 1px solid rgba(255,255,255,0.06);
-  }
-  .card h2 {
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-dim);
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .card h2 .count {
-    background: var(--teal);
-    color: var(--bg);
-    font-size: 11px;
-    padding: 1px 7px;
-    border-radius: 10px;
-    font-weight: 700;
-  }
-
-  /* Metadata list */
-  .meta-list { list-style: none; }
-  .meta-list li {
-    display: flex;
-    justify-content: space-between;
-    padding: 6px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    font-size: 13px;
-  }
-  .meta-list li:last-child { border-bottom: none; }
-  .meta-list .label { color: var(--text-dim); }
-  .meta-list .value { font-weight: 600; font-family: 'Cascadia Code', 'Fira Code', monospace; }
-
-  /* Bug table */
-  .bug-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .bug-table th {
-    text-align: left;
-    padding: 8px 12px;
-    color: var(--text-dim);
-    font-weight: 500;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-  }
-  .bug-table td {
-    padding: 8px 12px;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    vertical-align: top;
-  }
-  .bug-table tr:hover { background: rgba(255,255,255,0.02); }
-  .badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-  }
-  .badge-high { background: rgba(239,68,68,0.2); color: var(--red); }
-  .badge-medium { background: rgba(249,115,22,0.2); color: var(--orange); }
-  .badge-low { background: rgba(234,179,8,0.2); color: var(--yellow); }
-  .badge-fixed { background: rgba(34,197,94,0.2); color: var(--green); }
-  .badge-pending { background: rgba(148,163,184,0.2); color: var(--text-dim); }
-  .badge-running { background: rgba(20,184,166,0.2); color: var(--teal); }
-  .badge-complete { background: rgba(34,197,94,0.2); color: var(--green); }
-  .badge-error { background: rgba(239,68,68,0.2); color: var(--red); }
-
-  .file-path {
-    font-family: 'Cascadia Code', 'Fira Code', monospace;
-    font-size: 12px;
-    color: var(--teal);
-  }
-
-  /* Validation results */
-  .validation-pass { color: var(--green); font-weight: 600; }
-  .validation-fail { color: var(--red); font-weight: 600; }
-
-  /* Tool call timeline */
-  .tool-timeline {
-    max-height: 280px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--bg-card-alt) transparent;
-  }
-  .tool-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 6px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    font-size: 13px;
-  }
-  .tool-row:last-child { border-bottom: none; }
-  .tool-row .tool-name-col {
-    min-width: 180px;
-    font-weight: 600;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .tool-row .tool-target-col {
-    flex: 1;
-    font-family: 'Cascadia Code', 'Fira Code', monospace;
-    font-size: 11px;
-    color: var(--text-dim);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-  }
-  .tool-row .tool-duration-col {
-    min-width: 60px;
-    text-align: right;
-    font-family: 'Cascadia Code', 'Fira Code', monospace;
-    font-size: 12px;
-    color: var(--text-dim);
-  }
-  .tool-row .tool-status-col {
-    min-width: 80px;
-    text-align: right;
-  }
-
-  /* Activity log */
-  .log-container {
-    max-height: 400px;
-    overflow-y: auto;
-    font-family: 'Cascadia Code', 'Fira Code', monospace;
-    font-size: 12px;
-    line-height: 1.7;
-    scrollbar-width: thin;
-    scrollbar-color: var(--bg-card-alt) transparent;
-  }
-  .log-entry { padding: 2px 0; display: flex; gap: 10px; }
-  .log-time { color: var(--text-dim); white-space: nowrap; min-width: 70px; }
-  .log-msg { color: var(--text); }
-  .log-msg.info { color: var(--teal-light); }
-  .log-msg.success { color: var(--green); }
-  .log-msg.error { color: var(--red); }
-  .log-msg.warn { color: var(--yellow); }
-
-  /* PR card */
-  .pr-link {
-    color: var(--teal);
-    text-decoration: none;
-    font-weight: 600;
-  }
-  .pr-link:hover { text-decoration: underline; }
-
-  /* Empty state */
-  .empty {
-    text-align: center;
-    padding: 32px;
-    color: var(--text-dim);
-    font-size: 14px;
-  }
-  .empty .spinner { width: 24px; height: 24px; margin-bottom: 12px; }
-
-  /* Telemetry Panel */
+  /* === Telemetry Panel === */
   .telemetry {
     display: grid;
-    grid-template-columns: 160px 1fr 1fr;
-    gap: 24px;
+    grid-template-columns: 150px 1fr 1fr;
+    gap: 20px;
     align-items: center;
-    background: var(--bg-card);
-    border: 1px solid rgba(20,184,166,0.15);
-    border-radius: 10px;
-    padding: 20px 24px;
-    margin-bottom: 20px;
+    padding: 18px 22px;
+    margin-bottom: 16px;
     position: relative;
     overflow: hidden;
   }
@@ -384,36 +493,38 @@
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, var(--teal), var(--teal-dark), transparent);
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--teal), transparent);
+    opacity: 0.5;
   }
   .telemetry h2 {
     position: absolute;
-    top: 8px; left: 16px;
-    font-size: 10px;
+    top: 6px; left: 14px;
+    font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 1.5px;
     color: var(--text-dim);
-    opacity: 0.6;
+    opacity: 0.5;
   }
 
   /* Ring Gauge */
-  .gauge-container { position: relative; width: 140px; height: 140px; }
+  .gauge-container { position: relative; width: 130px; height: 130px; }
   .gauge-container svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-  .gauge-track { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 10; }
+  .gauge-track { fill: none; stroke: rgba(255,255,255,0.04); stroke-width: 10; }
   .gauge-fill-budget {
     fill: none;
     stroke-width: 10;
     stroke-linecap: round;
-    transition: stroke-dashoffset 0.8s ease, stroke 0.5s ease;
+    transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.5s ease;
+    filter: drop-shadow(0 0 6px var(--teal-glow));
   }
   .gauge-fill-turns {
     fill: none;
     stroke: var(--teal);
     stroke-width: 6;
     stroke-linecap: round;
-    opacity: 0.5;
-    transition: stroke-dashoffset 0.8s ease;
+    opacity: 0.4;
+    transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .gauge-center {
     position: absolute;
@@ -423,13 +534,14 @@
   }
   .gauge-cost {
     font-family: 'Cascadia Code', 'Fira Code', monospace;
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 700;
     color: var(--teal-light);
     line-height: 1;
+    transition: color 0.5s;
   }
   .gauge-label {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--text-dim);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -437,54 +549,101 @@
   }
   .gauge-pct {
     font-family: 'Cascadia Code', 'Fira Code', monospace;
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-dim);
     margin-top: 1px;
   }
 
-  /* Budget/Turns Bars */
-  .telem-bars { display: flex; flex-direction: column; gap: 14px; }
+  /* Progress Bars */
+  .telem-bars { display: flex; flex-direction: column; gap: 12px; }
   .telem-bar-row label {
     display: flex;
     justify-content: space-between;
-    font-size: 11px;
+    font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.8px;
     color: var(--text-dim);
-    margin-bottom: 5px;
+    margin-bottom: 4px;
   }
-  .telem-bar-row label span { color: var(--text); font-weight: 600; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; }
+  .telem-bar-row label span {
+    color: var(--text);
+    font-weight: 600;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 11px;
+  }
   .bar-track {
-    height: 8px;
-    background: rgba(255,255,255,0.06);
-    border-radius: 4px;
+    height: 6px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 3px;
     overflow: hidden;
+    position: relative;
   }
   .bar-fill {
     height: 100%;
-    border-radius: 4px;
-    transition: width 0.8s ease, background 0.5s ease;
+    border-radius: 3px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1), background 0.5s ease;
     min-width: 2px;
+    position: relative;
   }
-  .bar-fill.budget { background: var(--teal); }
-  .bar-fill.budget.warn { background: var(--yellow); }
-  .bar-fill.budget.danger { background: var(--red); }
-  .bar-fill.turns { background: var(--teal); opacity: 0.6; }
+  .bar-fill::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 20px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+    border-radius: 3px;
+  }
+  .bar-fill.budget { background: linear-gradient(90deg, var(--teal-dark), var(--teal)); }
+  .bar-fill.budget.warn { background: linear-gradient(90deg, #b45309, var(--yellow)); }
+  .bar-fill.budget.danger { background: linear-gradient(90deg, #991b1b, var(--red)); }
+  .bar-fill.turns { background: linear-gradient(90deg, var(--teal-dark), var(--teal)); opacity: 0.5; }
+
+  /* Sparkline */
+  .sparkline-container {
+    grid-column: 1 / -1;
+    height: 40px;
+    margin-top: 4px;
+    position: relative;
+  }
+  .sparkline-container svg { width: 100%; height: 100%; }
+  .sparkline-area { fill: url(#sparkGrad); opacity: 0.3; }
+  .sparkline-line {
+    fill: none;
+    stroke: var(--teal);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 3px var(--teal-glow));
+  }
+  .sparkline-dot {
+    fill: var(--teal-light);
+    filter: drop-shadow(0 0 6px rgba(20,184,166,0.8));
+  }
+  .sparkline-label {
+    position: absolute;
+    right: 0; top: -2px;
+    font-size: 8px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
 
   /* Stats Grid */
   .telem-stats {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 8px;
   }
   .telem-stat {
     background: rgba(255,255,255,0.02);
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 10px 12px;
-    border: 1px solid rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.03);
+    transition: border-color 0.3s;
   }
+  .telem-stat:hover { border-color: rgba(20,184,166,0.15); }
   .telem-stat .stat-label {
-    font-size: 10px;
+    font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.8px;
     color: var(--text-dim);
@@ -492,81 +651,398 @@
   }
   .telem-stat .stat-value {
     font-family: 'Cascadia Code', 'Fira Code', monospace;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     color: var(--text);
+    transition: color 0.3s;
   }
   .telem-stat .stat-value.good { color: var(--green); }
   .telem-stat .stat-value.warn { color: var(--yellow); }
   .telem-stat .stat-value.danger { color: var(--red); }
 
-  /* Sparkline */
-  .sparkline-container {
-    grid-column: 1 / -1;
-    height: 36px;
-    margin-top: 4px;
-    position: relative;
-  }
-  .sparkline-container svg { width: 100%; height: 100%; }
-  .sparkline-area { fill: url(#sparkGrad); opacity: 0.3; }
-  .sparkline-line { fill: none; stroke: var(--teal); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-  .sparkline-dot {
-    fill: var(--teal-light);
-    filter: drop-shadow(0 0 4px rgba(20,184,166,0.6));
-  }
-  .sparkline-label {
-    position: absolute;
-    right: 0; top: -2px;
-    font-size: 9px;
-    color: var(--text-dim);
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-  }
-
   @keyframes gauge-pulse {
     0%, 100% { filter: drop-shadow(0 0 0 transparent); }
-    50% { filter: drop-shadow(0 0 8px rgba(20,184,166,0.3)); }
+    50% { filter: drop-shadow(0 0 10px rgba(20,184,166,0.3)); }
   }
   .gauge-container.active { animation: gauge-pulse 2s ease-in-out infinite; }
 
-  /* Footer */
+  /* === Grid Layout === */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .grid-full { grid-column: 1 / -1; }
+
+  /* === Cards === */
+  .card {
+    padding: 16px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .card:hover {
+    border-color: rgba(20,184,166,0.15);
+    box-shadow: var(--glass-shadow), 0 0 30px rgba(20,184,166,0.04);
+  }
+  .card h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h2 .count {
+    background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+    color: white;
+    font-size: 10px;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+
+  /* === Metadata list === */
+  .meta-list { list-style: none; }
+  .meta-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 12px;
+  }
+  .meta-list li:last-child { border-bottom: none; }
+  .meta-list .label { color: var(--text-dim); }
+  .meta-list .value {
+    font-weight: 600;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 11px;
+    max-width: 60%;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* === Bug Table === */
+  .bug-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .bug-table th {
+    text-align: left;
+    padding: 8px 12px;
+    color: var(--text-dim);
+    font-weight: 500;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .bug-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    vertical-align: top;
+  }
+  .bug-table tr {
+    transition: background 0.2s;
+  }
+  .bug-table tr:hover { background: rgba(20,184,166,0.04); }
+
+  /* Bug row entry animation */
+  .bug-table tr.new-row {
+    animation: row-slide-in 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  @keyframes row-slide-in {
+    from { opacity: 0; transform: translateX(-12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* Bug row fix celebration */
+  .bug-table tr.just-fixed {
+    animation: fix-flash 0.8s ease;
+  }
+  @keyframes fix-flash {
+    0% { background: transparent; }
+    30% { background: rgba(34,197,94,0.15); }
+    100% { background: transparent; }
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .badge-high { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .badge-medium { background: rgba(249,115,22,0.15); color: var(--orange); border: 1px solid rgba(249,115,22,0.2); }
+  .badge-low { background: rgba(234,179,8,0.15); color: var(--yellow); border: 1px solid rgba(234,179,8,0.2); }
+  .badge-fixed { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .badge-pending { background: rgba(148,163,184,0.1); color: var(--text-dim); border: 1px solid rgba(148,163,184,0.1); }
+  .badge-running { background: rgba(20,184,166,0.15); color: var(--teal); border: 1px solid rgba(20,184,166,0.2); }
+  .badge-complete { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .badge-error { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .badge-unfixed { background: rgba(249,115,22,0.15); color: var(--orange); border: 1px solid rgba(249,115,22,0.2); }
+
+  .file-path {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--teal);
+  }
+
+  .validation-pass { color: var(--green); font-weight: 600; }
+  .validation-fail { color: var(--red); font-weight: 600; }
+
+  /* === Tool Call Timeline === */
+  .tool-timeline {
+    max-height: 320px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(20,184,166,0.2) transparent;
+  }
+  .tool-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 12px;
+    transition: background 0.2s;
+  }
+  .tool-row:hover { background: rgba(20,184,166,0.04); }
+  .tool-row:last-child { border-bottom: none; }
+  .tool-row .tool-step-badge {
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    min-width: 32px;
+    text-align: center;
+  }
+  .tool-row .tool-name-col {
+    min-width: 160px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11px;
+  }
+  .tool-row .tool-target-col {
+    flex: 1;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .tool-row .tool-duration-col {
+    min-width: 50px;
+    text-align: right;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .tool-row .tool-status-col {
+    min-width: 70px;
+    text-align: right;
+  }
+  .tool-row.running {
+    background: rgba(20,184,166,0.04);
+    border-left: 2px solid var(--teal);
+    padding-left: 8px;
+  }
+
+  /* === Activity Log === */
+  .log-container {
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 11px;
+    line-height: 1.8;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(20,184,166,0.2) transparent;
+  }
+  .log-entry {
+    padding: 2px 0;
+    display: flex;
+    gap: 10px;
+    transition: opacity 0.3s;
+  }
+  .log-time { color: var(--text-dim); white-space: nowrap; min-width: 65px; opacity: 0.6; font-size: 10px; }
+  .log-msg { color: var(--text); }
+  .log-msg.info { color: var(--teal-light); }
+  .log-msg.success { color: var(--green); }
+  .log-msg.error { color: var(--red); }
+  .log-msg.warn { color: var(--yellow); }
+
+  /* New log entry animation */
+  .log-entry.new {
+    animation: log-fade-in 0.3s ease;
+  }
+  @keyframes log-fade-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* === File Impact Graph === */
+  .file-graph {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .file-node {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 10px;
+    border: 1px solid;
+    transition: all 0.3s;
+    cursor: default;
+  }
+  .file-node.scanning {
+    background: rgba(20,184,166,0.08);
+    border-color: rgba(20,184,166,0.3);
+    color: var(--teal);
+    animation: node-pulse 1.5s ease-in-out infinite;
+  }
+  .file-node.modified {
+    background: rgba(34,197,94,0.08);
+    border-color: rgba(34,197,94,0.3);
+    color: var(--green);
+  }
+  .file-node.error {
+    background: rgba(239,68,68,0.08);
+    border-color: rgba(239,68,68,0.3);
+    color: var(--red);
+  }
+  @keyframes node-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(20,184,166,0); }
+    50% { box-shadow: 0 0 8px 2px rgba(20,184,166,0.2); }
+  }
+
+  /* === PR Link === */
+  .pr-link {
+    color: var(--teal);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s;
+  }
+  .pr-link:hover { color: var(--teal-light); text-decoration: underline; }
+
+  /* === Empty State === */
+  .empty {
+    text-align: center;
+    padding: 28px;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  .empty .spinner { width: 20px; height: 20px; margin: 0 auto 10px; }
+
+  /* === Confetti Canvas === */
+  #confetti-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 100;
+    pointer-events: none;
+  }
+
+  /* === Footer === */
   .footer {
     text-align: center;
-    margin-top: 24px;
-    font-size: 12px;
+    margin-top: 20px;
+    padding: 12px;
+    font-size: 11px;
     color: var(--text-dim);
+    opacity: 0.5;
+  }
+
+  /* === Responsive === */
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+    .telemetry { grid-template-columns: 1fr; }
+    .gauge-container { margin: 0 auto; }
+    .pipeline { flex-wrap: wrap; }
+    .step { min-width: calc(33% - 4px); }
+  }
+
+  /* Accessibility: reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    #bg-canvas, #confetti-canvas { display: none; }
   }
 </style>
 </head>
 <body>
 
+<!-- Background particle canvas -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- Confetti canvas (hidden until celebration) -->
+<canvas id="confetti-canvas" style="display:none;"></canvas>
+
 <div id="app">
+  <!-- Header -->
   <div class="header">
-    <h1>HomeIQ <span>Auto-Bugfix</span></h1>
+    <div class="header-left">
+      <div class="logo-orb">
+        <svg viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      </div>
+      <h1>HomeIQ <span>Auto-Bugfix</span></h1>
+    </div>
     <div class="header-meta">
-      <span>Elapsed: <strong id="elapsed">--:--</strong></span>
-      <span class="usage-stat"><span class="label">Model:</span> <span class="value" id="usage-model">--</span></span>
-      <span class="usage-stat"><span class="label">Turns:</span> <span class="value" id="usage-turns">--</span></span>
-      <span class="usage-stat"><span class="label">Tokens:</span> <span class="value" id="usage-tokens">--</span></span>
-      <span class="usage-stat"><span class="label">Cost:</span> <span class="value" id="usage-cost">--</span></span>
-      <span class="usage-stat"><span class="label">Budget:</span> <span class="value" id="usage-budget">--</span></span>
-      <span>Refresh: <strong id="countdown">1</strong>s</span>
+      <span class="chip"><span class="label">Elapsed</span> <span class="value" id="elapsed">00:00</span></span>
+      <span class="chip"><span class="label">Model</span> <span class="value" id="usage-model">--</span></span>
+      <span class="chip"><span class="label">Turns</span> <span class="value" id="usage-turns">--</span></span>
+      <span class="chip"><span class="label">Tokens</span> <span class="value" id="usage-tokens">--</span></span>
+      <span class="chip"><span class="label">Cost</span> <span class="value" id="usage-cost">--</span></span>
+      <span class="chip"><span class="label">Budget</span> <span class="value" id="usage-budget">--</span></span>
+      <button class="sound-toggle" id="sound-toggle" title="Toggle sound effects" onclick="toggleSound()">&#128264;</button>
     </div>
   </div>
 
+  <!-- Status Banner -->
   <div id="status-banner" class="status-banner status-running">
     <div class="spinner"></div>
     <span id="status-text">Initializing...</span>
   </div>
 
-  <!-- Pipeline Steps (rendered dynamically from state) -->
-  <div class="pipeline" id="pipeline"></div>
+  <!-- Pipeline Steps -->
+  <div class="pipeline-container">
+    <div class="pipeline" id="pipeline"></div>
+  </div>
+
+  <!-- AI Activity Visualizer + Current Action -->
+  <div class="ai-activity glass" id="ai-activity">
+    <div class="ai-activity-header">
+      <h2>AI Activity</h2>
+      <span class="activity-badge thinking" id="activity-badge">Thinking</span>
+    </div>
+    <div class="waveform" id="waveform"></div>
+  </div>
+
+  <!-- Current Action Panel -->
+  <div class="current-action glass" id="current-action">
+    <div class="action-icon idle-icon" id="action-icon"></div>
+    <div class="action-details">
+      <div class="tool-name idle" id="action-tool-name">Waiting for Claude...</div>
+      <div class="tool-target" id="action-tool-target"></div>
+    </div>
+    <div class="action-elapsed" id="action-elapsed"></div>
+  </div>
 
   <!-- Telemetry Panel -->
-  <div class="telemetry" id="telemetry">
+  <div class="telemetry glass" id="telemetry">
     <h2>Telemetry</h2>
-
-    <!-- Ring Gauge -->
     <div class="gauge-container" id="gauge-container">
       <svg viewBox="0 0 140 140">
         <circle class="gauge-track" cx="70" cy="70" r="58" />
@@ -582,8 +1058,6 @@
         <div class="gauge-pct" id="gauge-pct-text">0%</div>
       </div>
     </div>
-
-    <!-- Progress Bars -->
     <div class="telem-bars">
       <div class="telem-bar-row">
         <label>Budget <span id="bar-budget-label">$0.00 / $0.00</span></label>
@@ -595,16 +1069,14 @@
       </div>
       <div class="sparkline-container">
         <span class="sparkline-label">Cost over time</span>
-        <svg id="sparkline-svg" viewBox="0 0 400 36" preserveAspectRatio="none">
+        <svg id="sparkline-svg" viewBox="0 0 400 40" preserveAspectRatio="none">
           <defs><linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="var(--teal)" stop-opacity="0.4"/>
+            <stop offset="0%" stop-color="var(--teal)" stop-opacity="0.5"/>
             <stop offset="100%" stop-color="var(--teal)" stop-opacity="0"/>
           </linearGradient></defs>
         </svg>
       </div>
     </div>
-
-    <!-- Stats -->
     <div class="telem-stats">
       <div class="telem-stat">
         <div class="stat-label">Burn Rate</div>
@@ -625,21 +1097,11 @@
     </div>
   </div>
 
-  <!-- Current Action Panel -->
-  <div class="current-action" id="current-action">
-    <div class="action-icon idle" id="action-icon"></div>
-    <div class="action-details">
-      <div class="tool-name idle" id="action-tool-name">Waiting for Claude...</div>
-      <div class="tool-target" id="action-tool-target"></div>
-    </div>
-    <div class="action-elapsed" id="action-elapsed"></div>
-  </div>
-
   <div class="grid">
     <!-- Run Info -->
-    <div class="card">
+    <div class="card glass">
       <h2>Run Info</h2>
-      <ul class="meta-list" id="run-info">
+      <ul class="meta-list">
         <li><span class="label">Branch</span><span class="value" id="meta-branch">--</span></li>
         <li><span class="label">Base</span><span class="value" id="meta-base">--</span></li>
         <li><span class="label">Target Bugs</span><span class="value" id="meta-target-bugs">--</span></li>
@@ -650,19 +1112,19 @@
     </div>
 
     <!-- Results -->
-    <div class="card">
+    <div class="card glass">
       <h2>Results</h2>
-      <ul class="meta-list" id="results-info">
+      <ul class="meta-list">
         <li><span class="label">Bugs Found</span><span class="value" id="res-bugs-found">--</span></li>
         <li><span class="label">Bugs Fixed</span><span class="value" id="res-bugs-fixed">--</span></li>
         <li><span class="label">Files Changed</span><span class="value" id="res-files-changed">--</span></li>
         <li><span class="label">Validation</span><span class="value" id="res-validation">--</span></li>
-        <li><span class="label">PR</span><span id="res-pr">--</span></li>
+        <li><span class="label">PR</span><span class="value" id="res-pr">--</span></li>
       </ul>
     </div>
 
     <!-- Bug Table -->
-    <div class="card grid-full">
+    <div class="card glass grid-full">
       <h2>Bugs <span class="count" id="bug-count">0</span></h2>
       <div id="bug-table-container">
         <div class="empty" id="bug-empty">
@@ -672,11 +1134,11 @@
         <table class="bug-table" id="bug-table" style="display:none;">
           <thead>
             <tr>
-              <th style="width:30%">File</th>
+              <th style="width:28%">File</th>
               <th style="width:5%">Line</th>
-              <th style="width:45%">Description</th>
-              <th style="width:10%">Severity</th>
-              <th style="width:10%">Status</th>
+              <th style="width:42%">Description</th>
+              <th style="width:12%">Severity</th>
+              <th style="width:13%">Status</th>
             </tr>
           </thead>
           <tbody id="bug-tbody"></tbody>
@@ -684,8 +1146,14 @@
       </div>
     </div>
 
+    <!-- File Impact Visualization -->
+    <div class="card glass grid-full" id="file-graph-card" style="display:none;">
+      <h2>File Impact Map <span class="count" id="file-count">0</span></h2>
+      <div class="file-graph" id="file-graph"></div>
+    </div>
+
     <!-- Tool Call Timeline -->
-    <div class="card grid-full">
+    <div class="card glass grid-full">
       <h2>Tool Calls <span class="count" id="tool-count">0</span></h2>
       <div id="tool-timeline-container">
         <div class="empty" id="tool-empty">
@@ -697,7 +1165,7 @@
     </div>
 
     <!-- Activity Log -->
-    <div class="card grid-full">
+    <div class="card glass grid-full">
       <h2>Activity Log <span class="count" id="log-count">0</span></h2>
       <div class="log-container" id="log-container">
         <div class="empty" id="log-empty">Waiting for activity...</div>
@@ -706,55 +1174,346 @@
   </div>
 
   <div class="footer">
-    HomeIQ Auto-Bugfix Dashboard &middot; Auto-refreshes every 1 second &middot; Powered by Claude Code
+    HomeIQ Auto-Bugfix Dashboard &middot; Auto-refreshes every 1s &middot; Powered by Claude Code
   </div>
 </div>
 
 <script>
+/*__INJECT_STATE__*/
 (function() {
-  // State is embedded directly by Write-Dashboard / write_dashboard.
-  // Falls back to XHR for .dashboard-state.json if no embedded state.
-  let lastLogCount = 0;
-  let lastToolCount = 0;
+  'use strict';
+
+  // ============================================================
+  // SECTION 1: Background Particle System (Neural Network Effect)
+  // ============================================================
+  var bgCanvas = document.getElementById('bg-canvas');
+  var bgCtx = bgCanvas.getContext('2d');
+  var particles = [];
+  var PARTICLE_COUNT = 60;
+  var CONNECT_DIST = 150;
+  var isRunning = true;
+
+  function resizeCanvas() {
+    bgCanvas.width = window.innerWidth;
+    bgCanvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  function Particle() {
+    this.x = Math.random() * bgCanvas.width;
+    this.y = Math.random() * bgCanvas.height;
+    this.vx = (Math.random() - 0.5) * 0.4;
+    this.vy = (Math.random() - 0.5) * 0.4;
+    this.radius = Math.random() * 1.5 + 0.5;
+    this.alpha = Math.random() * 0.3 + 0.1;
+    this.pulse = Math.random() * Math.PI * 2;
+  }
+
+  for (var i = 0; i < PARTICLE_COUNT; i++) {
+    particles.push(new Particle());
+  }
+
+  function animateParticles() {
+    if (!isRunning) return;
+    bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+    // Update and draw particles
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.pulse += 0.02;
+
+      // Wrap around
+      if (p.x < 0) p.x = bgCanvas.width;
+      if (p.x > bgCanvas.width) p.x = 0;
+      if (p.y < 0) p.y = bgCanvas.height;
+      if (p.y > bgCanvas.height) p.y = 0;
+
+      var pulseAlpha = p.alpha * (0.7 + 0.3 * Math.sin(p.pulse));
+      bgCtx.beginPath();
+      bgCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      bgCtx.fillStyle = 'rgba(20,184,166,' + pulseAlpha + ')';
+      bgCtx.fill();
+
+      // Draw connections
+      for (var j = i + 1; j < particles.length; j++) {
+        var p2 = particles[j];
+        var dx = p.x - p2.x;
+        var dy = p.y - p2.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < CONNECT_DIST) {
+          var lineAlpha = (1 - dist / CONNECT_DIST) * 0.08;
+          bgCtx.beginPath();
+          bgCtx.moveTo(p.x, p.y);
+          bgCtx.lineTo(p2.x, p2.y);
+          bgCtx.strokeStyle = 'rgba(20,184,166,' + lineAlpha + ')';
+          bgCtx.lineWidth = 0.5;
+          bgCtx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(animateParticles);
+  }
+  animateParticles();
+
+  // ============================================================
+  // SECTION 2: Confetti System
+  // ============================================================
+  var confettiCanvas = document.getElementById('confetti-canvas');
+  var confettiCtx = confettiCanvas.getContext('2d');
+  var confettiPieces = [];
+  var confettiActive = false;
+
+  function launchConfetti() {
+    confettiCanvas.style.display = 'block';
+    confettiCanvas.width = window.innerWidth;
+    confettiCanvas.height = window.innerHeight;
+    confettiPieces = [];
+    confettiActive = true;
+
+    var colors = ['#14b8a6', '#22c55e', '#99f6e4', '#eab308', '#a78bfa', '#f97316', '#f1f5f9'];
+    for (var i = 0; i < 200; i++) {
+      confettiPieces.push({
+        x: window.innerWidth / 2 + (Math.random() - 0.5) * 400,
+        y: window.innerHeight / 2 - 100,
+        vx: (Math.random() - 0.5) * 15,
+        vy: -Math.random() * 12 - 5,
+        w: Math.random() * 8 + 4,
+        h: Math.random() * 4 + 2,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rotation: Math.random() * 360,
+        rotSpeed: (Math.random() - 0.5) * 10,
+        gravity: 0.15 + Math.random() * 0.1,
+        alpha: 1
+      });
+    }
+    animateConfetti();
+    playSound('celebration');
+    setTimeout(function() { confettiActive = false; }, 4000);
+  }
+
+  function animateConfetti() {
+    if (!confettiActive && confettiPieces.length === 0) {
+      confettiCanvas.style.display = 'none';
+      return;
+    }
+    confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    confettiPieces = confettiPieces.filter(function(p) { return p.alpha > 0.01; });
+    for (var i = 0; i < confettiPieces.length; i++) {
+      var p = confettiPieces[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += p.gravity;
+      p.vx *= 0.99;
+      p.rotation += p.rotSpeed;
+      if (p.y > confettiCanvas.height - 50) p.alpha -= 0.02;
+
+      confettiCtx.save();
+      confettiCtx.translate(p.x, p.y);
+      confettiCtx.rotate(p.rotation * Math.PI / 180);
+      confettiCtx.globalAlpha = p.alpha;
+      confettiCtx.fillStyle = p.color;
+      confettiCtx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      confettiCtx.restore();
+    }
+    requestAnimationFrame(animateConfetti);
+  }
+
+  // ============================================================
+  // SECTION 3: Web Audio API Sound Effects
+  // ============================================================
+  var audioCtx = null;
+  var soundEnabled = false;
+
+  try { soundEnabled = sessionStorage.getItem('bugfix-sound') === 'true'; } catch(e) {}
+
+  function getAudioCtx() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+    }
+    return audioCtx;
+  }
+
+  window.toggleSound = function() {
+    soundEnabled = !soundEnabled;
+    try { sessionStorage.setItem('bugfix-sound', soundEnabled); } catch(e) {}
+    var btn = document.getElementById('sound-toggle');
+    btn.textContent = soundEnabled ? '\u{1F50A}' : '\u{1F507}';
+    btn.classList.toggle('active', soundEnabled);
+    if (soundEnabled) {
+      getAudioCtx();
+      playSound('click');
+    }
+  };
+
+  // Initialize button state
+  var soundBtn = document.getElementById('sound-toggle');
+  soundBtn.textContent = soundEnabled ? '\u{1F50A}' : '\u{1F507}';
+  if (soundEnabled) soundBtn.classList.add('active');
+
+  function playSound(type) {
+    if (!soundEnabled) return;
+    var ctx = getAudioCtx();
+    if (!ctx) return;
+
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    switch(type) {
+      case 'tool-start':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(800, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.05, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.15);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.15);
+        break;
+      case 'tool-done':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(600, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.04, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.12);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.12);
+        break;
+      case 'bug-fixed':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523, ctx.currentTime);
+        osc.frequency.setValueAtTime(659, ctx.currentTime + 0.1);
+        osc.frequency.setValueAtTime(784, ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.06, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.35);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.35);
+        break;
+      case 'celebration':
+        // Major chord arpeggio
+        [523, 659, 784, 1047].forEach(function(freq, i) {
+          var o = ctx.createOscillator();
+          var g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.type = 'sine';
+          o.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.12);
+          g.gain.setValueAtTime(0.07, ctx.currentTime + i * 0.12);
+          g.gain.linearRampToValueAtTime(0, ctx.currentTime + i * 0.12 + 0.4);
+          o.start(ctx.currentTime + i * 0.12);
+          o.stop(ctx.currentTime + i * 0.12 + 0.4);
+        });
+        break;
+      case 'error':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(100, ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.05, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.3);
+        break;
+      case 'step-complete':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(880, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.05, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.2);
+        break;
+      default:
+        osc.type = 'sine';
+        osc.frequency.value = 500;
+        gain.gain.setValueAtTime(0.03, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.1);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.1);
+    }
+  }
+
+  // ============================================================
+  // SECTION 4: Waveform Visualizer
+  // ============================================================
+  var waveformEl = document.getElementById('waveform');
+  var WAVE_BARS = 60;
+  for (var wi = 0; wi < WAVE_BARS; wi++) {
+    var bar = document.createElement('div');
+    bar.className = 'waveform-bar';
+    bar.style.setProperty('--delay', (wi * 0.03) + 's');
+    bar.style.height = '4px';
+    waveformEl.appendChild(bar);
+  }
+
+  function setWaveformActive(active) {
+    var bars = waveformEl.children;
+    for (var i = 0; i < bars.length; i++) {
+      if (active) {
+        bars[i].classList.add('active');
+      } else {
+        bars[i].classList.remove('active');
+        bars[i].style.height = '4px';
+      }
+    }
+  }
+
+  // ============================================================
+  // SECTION 5: State Management & Transitions
+  // ============================================================
+  var lastLogCount = 0;
+  var lastToolCount = 0;
+  var prevBugStatuses = {};
+  var prevStep = 0;
+  var prevStatus = '';
+
+  // Load previous state from sessionStorage for smooth transitions
+  try {
+    prevStep = parseInt(sessionStorage.getItem('bugfix-prev-step') || '0');
+    prevStatus = sessionStorage.getItem('bugfix-prev-status') || '';
+    var savedBugStatuses = sessionStorage.getItem('bugfix-prev-bug-statuses');
+    if (savedBugStatuses) prevBugStatuses = JSON.parse(savedBugStatuses);
+    lastLogCount = parseInt(sessionStorage.getItem('bugfix-log-count') || '0');
+  } catch(e) {}
 
   function loadState() {
-    // Check for embedded state first (injected by the pipeline script)
-    if (window.__DASHBOARD_STATE__) {
-      return window.__DASHBOARD_STATE__;
-    }
-    // Fallback: try loading from JSON file (works on some browsers with file://)
+    if (window.__DASHBOARD_STATE__) return window.__DASHBOARD_STATE__;
     try {
-      const xhr = new XMLHttpRequest();
+      var xhr = new XMLHttpRequest();
       xhr.open('GET', '.dashboard-state.json?t=' + Date.now(), false);
       xhr.send();
-      if (xhr.status === 200 || xhr.status === 0) {
-        return JSON.parse(xhr.responseText);
-      }
+      if (xhr.status === 200 || xhr.status === 0) return JSON.parse(xhr.responseText);
     } catch(e) {}
     return null;
   }
 
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
   function severityBadge(sev) {
-    const s = (sev || 'medium').toLowerCase();
+    var s = (sev || 'medium').toLowerCase();
     return '<span class="badge badge-' + s + '">' + s + '</span>';
   }
 
   function statusBadge(status) {
-    if (status === 'fixed') return '<span class="badge badge-fixed">Fixed</span>';
-    if (status === 'failed') return '<span class="badge badge-high">Failed</span>';
-    return '<span class="badge badge-pending">Pending</span>';
+    if (status === 'fixed') return '<span class="badge badge-fixed">\u2713 Fixed</span>';
+    if (status === 'failed' || status === 'unfixed') return '<span class="badge badge-unfixed">\u2717 Unfixed</span>';
+    return '<span class="badge badge-pending">\u2022 Pending</span>';
   }
 
   function toolStatusBadge(status) {
     if (status === 'complete') return '<span class="badge badge-complete">Done</span>';
     if (status === 'error') return '<span class="badge badge-error">Error</span>';
-    if (status === 'running') return '<span class="badge badge-running">Running</span>';
+    if (status === 'running') return '<span class="badge badge-running">\u25CF Running</span>';
     return '<span class="badge badge-pending">' + escHtml(status || 'unknown') + '</span>';
   }
 
   function formatToolName(name) {
     if (!name) return '';
-    // Shorten MCP tool names for display
     return name.replace(/^mcp__tapps-mcp__/, 'tapps:');
   }
 
@@ -766,11 +1525,22 @@
 
   function formatTokens(count) {
     if (!count || count === 0) return '0';
+    if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M';
     if (count >= 1000) return (count / 1000).toFixed(1) + 'k';
     return count.toString();
   }
 
-  // Default steps; chain mode adds Refactor + Test
+  function formatElapsed(startIso) {
+    if (!startIso) return '00:00';
+    var sec = Math.floor((Date.now() - new Date(startIso).getTime()) / 1000);
+    var m = Math.floor(sec / 60);
+    var s = sec % 60;
+    return m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0');
+  }
+
+  // ============================================================
+  // SECTION 6: Render Functions
+  // ============================================================
   var STEP_LABELS_5 = ['Branch', 'Scan', 'Fix & Validate', 'Commit & PR', 'Feedback'];
   var STEP_LABELS_7 = ['Branch', 'Scan', 'Fix & Validate', 'Refactor', 'Test', 'Commit & PR', 'Feedback'];
 
@@ -782,9 +1552,10 @@
       var stepNum = i + 1;
       var div = document.createElement('div');
       div.className = 'step';
-      div.id = 'step-' + stepNum;
       if (status === 'error' && stepNum === currentStep) {
         div.classList.add('error');
+      } else if (status === 'done' && stepNum <= currentStep) {
+        div.classList.add('completed');
       } else if (stepNum < currentStep) {
         div.classList.add('completed');
       } else if (stepNum === currentStep) {
@@ -795,6 +1566,11 @@
       div.innerHTML = '<div class="step-num">Step ' + stepNum + '</div><div class="step-label">' + labels[i] + '</div>';
       container.appendChild(div);
     }
+
+    // Detect step transitions for sound effects
+    if (currentStep > prevStep && prevStep > 0) {
+      playSound('step-complete');
+    }
   }
 
   function renderCurrentAction(state) {
@@ -803,22 +1579,41 @@
     var nameEl = document.getElementById('action-tool-name');
     var targetEl = document.getElementById('action-tool-target');
     var elapsedEl = document.getElementById('action-elapsed');
+    var badge = document.getElementById('activity-badge');
 
     var ct = state.current_tool;
     if (ct && ct.name) {
       panel.classList.add('active');
-      icon.className = 'action-icon';
+      icon.className = 'action-icon active-icon';
       icon.innerHTML = '<div class="spinner"></div>';
       nameEl.className = 'tool-name';
       nameEl.textContent = formatToolName(ct.name);
       targetEl.textContent = ct.target || '';
       elapsedEl.textContent = ct.elapsed_s ? ct.elapsed_s.toFixed(1) + 's' : '';
+      badge.className = 'activity-badge thinking';
+      badge.textContent = 'Thinking';
+      setWaveformActive(true);
     } else {
       panel.classList.remove('active');
-      icon.className = 'action-icon idle';
+      icon.className = 'action-icon idle-icon';
       icon.innerHTML = '';
       nameEl.className = 'tool-name idle';
-      nameEl.textContent = (state.status === 'done') ? 'Pipeline complete' : 'Waiting for Claude...';
+      if (state.status === 'done') {
+        nameEl.textContent = 'Pipeline complete';
+        badge.className = 'activity-badge complete';
+        badge.textContent = 'Complete';
+        setWaveformActive(false);
+      } else if (state.status === 'error') {
+        nameEl.textContent = 'Pipeline failed';
+        badge.className = 'activity-badge idle';
+        badge.textContent = 'Error';
+        setWaveformActive(false);
+      } else {
+        nameEl.textContent = 'Waiting for Claude...';
+        badge.className = 'activity-badge idle';
+        badge.textContent = 'Idle';
+        setWaveformActive(false);
+      }
       targetEl.textContent = '';
       elapsedEl.textContent = '';
     }
@@ -830,17 +1625,80 @@
     document.getElementById('bug-table').style.display = 'table';
     document.getElementById('bug-count').textContent = bugs.length;
 
-    const tbody = document.getElementById('bug-tbody');
+    var tbody = document.getElementById('bug-tbody');
     tbody.innerHTML = '';
-    bugs.forEach(function(bug) {
-      const tr = document.createElement('tr');
+    var newStatuses = {};
+    var justFixedCount = 0;
+
+    bugs.forEach(function(bug, idx) {
+      var tr = document.createElement('tr');
+      var bugKey = (bug.file || '') + ':' + (bug.line || '');
+      var currentStatus = bug.fix_status || 'pending';
+      newStatuses[bugKey] = currentStatus;
+
+      // Detect status transitions
+      if (prevBugStatuses[bugKey] && prevBugStatuses[bugKey] !== 'fixed' && currentStatus === 'fixed') {
+        tr.classList.add('just-fixed');
+        justFixedCount++;
+        playSound('bug-fixed');
+      } else {
+        tr.classList.add('new-row');
+      }
+
       tr.innerHTML =
         '<td class="file-path">' + escHtml(bug.file || '') + '</td>' +
         '<td>' + (bug.line || '--') + '</td>' +
         '<td>' + escHtml(bug.description || '') + '</td>' +
         '<td>' + severityBadge(bug.severity) + '</td>' +
-        '<td>' + statusBadge(bug.fix_status || 'pending') + '</td>';
+        '<td>' + statusBadge(currentStatus) + '</td>';
       tbody.appendChild(tr);
+    });
+
+    // Save for next reload
+    try { sessionStorage.setItem('bugfix-prev-bug-statuses', JSON.stringify(newStatuses)); } catch(e) {}
+  }
+
+  function renderFileGraph(bugs, toolCalls) {
+    var card = document.getElementById('file-graph-card');
+    var graph = document.getElementById('file-graph');
+    var files = {};
+
+    // Collect files from bugs
+    if (bugs) {
+      bugs.forEach(function(b) {
+        if (b.file) {
+          var shortName = b.file.split('/').slice(-2).join('/');
+          files[shortName] = files[shortName] || { status: 'scanning' };
+          if (b.fix_status === 'fixed') files[shortName].status = 'modified';
+          else if (b.fix_status === 'unfixed' || b.fix_status === 'failed') files[shortName].status = 'error';
+        }
+      });
+    }
+
+    // Collect files from recent tool calls
+    if (toolCalls) {
+      toolCalls.slice(-10).forEach(function(tc) {
+        if (tc.target && tc.target.match(/\.py$/)) {
+          var shortName = tc.target.split('/').slice(-2).join('/');
+          if (!files[shortName]) {
+            files[shortName] = { status: tc.status === 'running' ? 'scanning' : 'modified' };
+          }
+        }
+      });
+    }
+
+    var fileNames = Object.keys(files);
+    if (fileNames.length === 0) { card.style.display = 'none'; return; }
+
+    card.style.display = 'block';
+    document.getElementById('file-count').textContent = fileNames.length;
+    graph.innerHTML = '';
+
+    fileNames.forEach(function(name) {
+      var node = document.createElement('div');
+      node.className = 'file-node ' + files[name].status;
+      node.textContent = name;
+      graph.appendChild(node);
     });
   }
 
@@ -851,11 +1709,10 @@
     timeline.style.display = 'block';
     document.getElementById('tool-count').textContent = toolCalls.length;
 
-    // Re-render all tool calls (they can change status from running to complete)
     timeline.innerHTML = '';
     toolCalls.forEach(function(tc) {
       var row = document.createElement('div');
-      row.className = 'tool-row';
+      row.className = 'tool-row' + (tc.status === 'running' ? ' running' : '');
       row.innerHTML =
         '<div class="tool-name-col">' + escHtml(formatToolName(tc.tool_name || '')) + '</div>' +
         '<div class="tool-target-col" title="' + escHtml(tc.target || '') + '">' + escHtml(tc.target || '') + '</div>' +
@@ -864,8 +1721,14 @@
       timeline.appendChild(row);
     });
 
-    // Auto-scroll to bottom
     timeline.scrollTop = timeline.scrollHeight;
+
+    // Sound for new tool calls
+    if (toolCalls.length > lastToolCount) {
+      var lastTc = toolCalls[toolCalls.length - 1];
+      if (lastTc.status === 'running') playSound('tool-start');
+    }
+    lastToolCount = toolCalls.length;
   }
 
   function renderLog(logs) {
@@ -873,63 +1736,54 @@
     document.getElementById('log-empty').style.display = 'none';
     document.getElementById('log-count').textContent = logs.length;
 
-    const container = document.getElementById('log-container');
-    // Only append new entries
-    for (let i = lastLogCount; i < logs.length; i++) {
-      const entry = logs[i];
-      const div = document.createElement('div');
-      div.className = 'log-entry';
+    var container = document.getElementById('log-container');
+
+    // Only append new entries to avoid re-rendering everything
+    for (var i = lastLogCount; i < logs.length; i++) {
+      var entry = logs[i];
+      var div = document.createElement('div');
+      div.className = 'log-entry new';
       div.innerHTML =
         '<span class="log-time">' + escHtml(entry.time || '') + '</span>' +
         '<span class="log-msg ' + (entry.level || 'info') + '">' + escHtml(entry.msg || '') + '</span>';
       container.appendChild(div);
     }
     lastLogCount = logs.length;
+    try { sessionStorage.setItem('bugfix-log-count', lastLogCount.toString()); } catch(e) {}
     container.scrollTop = container.scrollHeight;
   }
 
   function renderUsage(usage, state) {
     if (!usage) return;
-    var turnsEl = document.getElementById('usage-turns');
-    var tokensEl = document.getElementById('usage-tokens');
-    var costEl = document.getElementById('usage-cost');
-    var modelEl = document.getElementById('usage-model');
-    var budgetEl = document.getElementById('usage-budget');
-
     if (state && state.model) {
-      modelEl.textContent = state.model.replace('claude-', '').replace('-4-6', ' 4.6');
+      document.getElementById('usage-model').textContent = state.model.replace('claude-', '').replace('-4-6', ' 4.6');
     }
     if (state && state.max_cost > 0) {
-      budgetEl.textContent = '$' + state.max_cost.toFixed(2);
+      document.getElementById('usage-budget').textContent = '$' + state.max_cost.toFixed(2);
     }
-
     if (usage.max_turns > 0) {
-      turnsEl.textContent = usage.turns_used + '/' + usage.max_turns;
+      document.getElementById('usage-turns').textContent = usage.turns_used + '/' + usage.max_turns;
     } else if (usage.turns_used > 0) {
-      turnsEl.textContent = usage.turns_used.toString();
+      document.getElementById('usage-turns').textContent = usage.turns_used.toString();
     }
-
     var totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
     if (totalTokens > 0) {
-      tokensEl.textContent = formatTokens(totalTokens);
+      document.getElementById('usage-tokens').textContent = formatTokens(totalTokens);
     }
-
     if (usage.total_cost_usd > 0) {
+      var costEl = document.getElementById('usage-cost');
       costEl.textContent = '$' + usage.total_cost_usd.toFixed(4);
-      // Color cost red if over 80% of budget
       if (state && state.max_cost > 0 && usage.total_cost_usd > state.max_cost * 0.8) {
         costEl.style.color = '#ef4444';
       }
     }
   }
 
-  // --- Telemetry Panel ---
-  var BUDGET_CIRC = 2 * Math.PI * 58;  // ~364.42
-  var TURNS_CIRC = 2 * Math.PI * 48;   // ~301.59
+  // Telemetry
+  var BUDGET_CIRC = 2 * Math.PI * 58;
+  var TURNS_CIRC = 2 * Math.PI * 48;
 
-  function getRunKey(state) {
-    return 'bugfix-spark-' + (state.branch || 'default');
-  }
+  function getRunKey(state) { return 'bugfix-spark-' + (state.branch || 'default'); }
 
   function loadSparkHistory(state) {
     try {
@@ -940,7 +1794,6 @@
 
   function saveSparkHistory(state, history) {
     try {
-      // Keep last 120 samples (2 min at 1/sec)
       if (history.length > 120) history = history.slice(-120);
       localStorage.setItem(getRunKey(state), JSON.stringify(history));
     } catch(e) {}
@@ -961,7 +1814,6 @@
     var maxTurns = usage.max_turns || 1;
     var turnsPct = Math.min(turnsUsed / maxTurns, 1);
 
-    // Ring gauge
     var budgetRing = document.getElementById('gauge-budget');
     var turnsRing = document.getElementById('gauge-turns');
     var gaugeCont = document.getElementById('gauge-container');
@@ -971,13 +1823,11 @@
     if (state.status === 'running') gaugeCont.classList.add('active');
     else gaugeCont.classList.remove('active');
 
-    // Center text
     document.getElementById('gauge-cost-text').textContent = '$' + cost.toFixed(2);
     document.getElementById('gauge-cost-text').style.color = gaugeColor(pct);
     document.getElementById('gauge-budget-text').textContent = '$' + maxCost.toFixed(2);
     document.getElementById('gauge-pct-text').textContent = Math.round(pct * 100) + '%';
 
-    // Progress bars
     var budgetFill = document.getElementById('bar-budget-fill');
     budgetFill.style.width = (pct * 100) + '%';
     budgetFill.className = 'bar-fill budget' + (pct >= 0.85 ? ' danger' : pct >= 0.65 ? ' warn' : '');
@@ -986,7 +1836,6 @@
     document.getElementById('bar-turns-fill').style.width = (turnsPct * 100) + '%';
     document.getElementById('bar-turns-label').textContent = turnsUsed + ' / ' + maxTurns;
 
-    // Burn rate & projections
     var elapsedSec = 0;
     if (state.start_iso) {
       elapsedSec = Math.max(1, (Date.now() - new Date(state.start_iso).getTime()) / 1000);
@@ -996,7 +1845,6 @@
     burnEl.textContent = burnPerMin > 0 ? '$' + burnPerMin.toFixed(2) + '/m' : '--';
     burnEl.className = 'stat-value' + (burnPerMin > maxCost / 3 ? ' warn' : '');
 
-    // Projected cost (linear extrapolation based on step progress)
     var stepPct = (state.current_step || 1) / (state.total_steps || 5);
     var projected = stepPct > 0.05 ? cost / stepPct : 0;
     var projEl = document.getElementById('stat-projected');
@@ -1005,10 +1853,8 @@
       projEl.className = 'stat-value' + (projected > maxCost ? ' danger' : projected > maxCost * 0.8 ? ' warn' : ' good');
     } else {
       projEl.textContent = '--';
-      projEl.className = 'stat-value';
     }
 
-    // ETA
     var etaEl = document.getElementById('stat-eta');
     if (burnPerMin > 0 && state.status === 'running') {
       var remainingCost = Math.max(0, projected - cost);
@@ -1023,12 +1869,10 @@
       etaEl.textContent = '--';
     }
 
-    // Throughput (tokens/sec)
     var totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
     var tps = elapsedSec > 0 ? totalTokens / elapsedSec : 0;
     document.getElementById('stat-throughput').textContent = tps > 0 ? Math.round(tps) + ' tok/s' : '--';
 
-    // Sparkline
     var history = loadSparkHistory(state);
     if (state.status !== 'done' && state.status !== 'error') {
       history.push({ t: Date.now(), c: cost });
@@ -1040,8 +1884,8 @@
   function renderSparkline(history, maxCost) {
     if (history.length < 2) return;
     var svg = document.getElementById('sparkline-svg');
-    var W = 400, H = 36, PAD = 2;
-    var maxC = Math.max(maxCost, Math.max.apply(null, history.map(function(h){ return h.c; }))) || 1;
+    var W = 400, H = 40, PAD = 2;
+    var maxC = Math.max(maxCost, Math.max.apply(null, history.map(function(h) { return h.c; }))) || 1;
 
     var points = history.map(function(h, i) {
       var x = PAD + (i / (history.length - 1)) * (W - PAD * 2);
@@ -1050,23 +1894,22 @@
     });
 
     var lineD = points.map(function(p, i) { return (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' ');
-    var areaD = lineD + ' L' + points[points.length-1].x.toFixed(1) + ',' + H + ' L' + points[0].x.toFixed(1) + ',' + H + ' Z';
+    var areaD = lineD + ' L' + points[points.length - 1].x.toFixed(1) + ',' + H + ' L' + points[0].x.toFixed(1) + ',' + H + ' Z';
 
-    // Keep the gradient def, replace everything else
     var defs = svg.querySelector('defs').outerHTML;
     svg.innerHTML = defs +
       '<path class="sparkline-area" d="' + areaD + '"/>' +
       '<path class="sparkline-line" d="' + lineD + '"/>' +
-      '<circle class="sparkline-dot" cx="' + points[points.length-1].x.toFixed(1) + '" cy="' + points[points.length-1].y.toFixed(1) + '" r="3"/>';
+      '<circle class="sparkline-dot" cx="' + points[points.length - 1].x.toFixed(1) + '" cy="' + points[points.length - 1].y.toFixed(1) + '" r="3"/>';
   }
 
   function renderStatus(state) {
-    const banner = document.getElementById('status-banner');
+    var banner = document.getElementById('status-banner');
     banner.className = 'status-banner';
 
     if (state.status === 'running') {
       banner.classList.add('status-running');
-      banner.innerHTML = '<div class="spinner"></div><span>' + escHtml(state.status_message || 'Running...') + '</span>';
+      banner.innerHTML = '<div class="pulse-dot"></div><span>' + escHtml(state.status_message || 'Running...') + '</span>';
     } else if (state.status === 'done') {
       banner.classList.add('status-done');
       banner.innerHTML = '<span>\u2713 ' + escHtml(state.status_message || 'Complete!') + '</span>';
@@ -1074,32 +1917,31 @@
       banner.classList.add('status-error');
       banner.innerHTML = '<span>\u2717 ' + escHtml(state.status_message || 'Failed') + '</span>';
     }
+
+    // Detect completion transition
+    if (state.status === 'done' && prevStatus !== 'done') {
+      launchConfetti();
+    }
+    if (state.status === 'error' && prevStatus !== 'error') {
+      playSound('error');
+    }
   }
 
-  function escHtml(s) {
-    var d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-  }
-
-  function formatElapsed(startIso) {
-    if (!startIso) return '--:--';
-    var start = new Date(startIso).getTime();
-    var now = Date.now();
-    var sec = Math.floor((now - start) / 1000);
-    var m = Math.floor(sec / 60);
-    var s = sec % 60;
-    return m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0');
-  }
-
-  // Store start ISO for the elapsed timer
+  // ============================================================
+  // SECTION 7: Main Render
+  // ============================================================
   var startIso = null;
   var isDone = false;
 
-  // Main render
   var state = loadState();
   if (state) {
     startIso = state.start_iso;
+
+    // Save state for transition detection on next reload
+    try {
+      sessionStorage.setItem('bugfix-prev-step', (state.current_step || 1).toString());
+      sessionStorage.setItem('bugfix-prev-status', state.status || '');
+    } catch(e) {}
 
     // Metadata
     document.getElementById('meta-branch').textContent = state.branch || '--';
@@ -1131,55 +1973,31 @@
       prEl.textContent = '--';
     }
 
-    // Pipeline
     renderPipeline(state.current_step || 1, state.status || 'running', state.total_steps || 5);
-
-    // Current Action
     renderCurrentAction(state);
-
-    // Bugs
     renderBugs(state.bugs);
-
-    // Tool Timeline
+    renderFileGraph(state.bugs, state.tool_calls);
     renderToolTimeline(state.tool_calls);
-
-    // Usage
     renderUsage(state.usage, state);
-
-    // Telemetry
     renderTelemetry(state);
-
-    // Log
     renderLog(state.log);
-
-    // Status
     renderStatus(state);
 
-    // Stop auto-refresh if done or error
     if (state.status === 'done' || state.status === 'error') {
       isDone = true;
       var metaRefresh = document.querySelector('meta[http-equiv="refresh"]');
       if (metaRefresh) metaRefresh.remove();
+      // Stop background particles when done to save CPU
+      if (state.status === 'done') {
+        setTimeout(function() { isRunning = false; }, 5000);
+      }
     }
   }
 
-  // Elapsed timer — ticks every second independently of meta-refresh
+  // Elapsed timer
   setInterval(function() {
     if (startIso && !isDone) {
       document.getElementById('elapsed').textContent = formatElapsed(startIso);
-    }
-  }, 1000);
-
-  // Countdown timer for next refresh
-  var countdownEl = document.getElementById('countdown');
-  var cd = 1;
-  setInterval(function() {
-    if (!isDone) {
-      cd = Math.max(0, cd - 1);
-      if (cd === 0) cd = 1;
-      countdownEl.textContent = cd;
-    } else {
-      countdownEl.textContent = '-';
     }
   }, 1000);
 })();

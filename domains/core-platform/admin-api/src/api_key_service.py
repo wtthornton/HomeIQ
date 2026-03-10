@@ -55,6 +55,7 @@ class APIKeyService:
                 'description': 'WattTime API Token',
                 'required': True,
                 'validation_url': 'https://api2.watttime.org/v2/index',
+                'validation_headers': {'Authorization': 'Bearer {key}'},
                 'validation_response_check': 'status'
             },
             'electricity-pricing': {
@@ -240,10 +241,13 @@ class APIKeyService:
             # Replace placeholder in validation URL
             test_url = config['validation_url'].format(key=api_key)
 
+            # Build request headers with key substitution
+            headers = {k: v.format(key=api_key) for k, v in config.get('validation_headers', {}).items()}
+
             # Make test request
             timeout = aiohttp.ClientTimeout(total=10)
             async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(test_url) as response:
+                async with session.get(test_url, headers=headers) as response:
                     if response.status == 200:
                         # Check for expected response structure
                         if config['validation_response_check']:

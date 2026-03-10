@@ -581,7 +581,7 @@ class ConnectionManager:
 
         # If still in a reconnectable state, start reconnection
         current_state = self.state_machine.get_state()
-        if current_state in [ConnectionState.RECONNECTING, ConnectionState.FAILED] and not self.reconnect_task:
+        if current_state in [ConnectionState.RECONNECTING, ConnectionState.FAILED] and (self.reconnect_task is None or self.reconnect_task.done()):
             self.reconnect_task = asyncio.create_task(self._reconnect_loop())
 
     async def _on_message(self, message: dict[str, Any]):

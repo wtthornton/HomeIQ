@@ -180,7 +180,7 @@ with open('$DASHBOARD_STATE', 'w') as f:
 # Write self-contained HTML with embedded state (avoids file:// CORS issues)
 with open('$DASHBOARD_HTML') as f:
     template = f.read()
-live_html = template.replace('<script>', '<script>\nwindow.__DASHBOARD_STATE__ = ' + state_json + ';\n', 1)
+live_html = template.replace('/*__INJECT_STATE__*/', 'window.__DASHBOARD_STATE__ = ' + state_json + ';', 1)
 with open('${DASHBOARD_HTML%.html}-live.html', 'w') as f:
     f.write(live_html)
 " 2>/dev/null || true

@@ -56,7 +56,7 @@ class RetentionScheduler:
                     task_time = time(task['hour'], task['minute'])
 
                     # Check if it's time to run
-                    if current_time.hour == task_time.hour and current_time.minute == task_time.minute:
+                    if current_time >= task_time:
                         # Check if already run today
                         if task['last_run']:
                             last_run_date = task['last_run'].date()

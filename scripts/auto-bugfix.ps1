@@ -169,7 +169,9 @@ function Write-Dashboard {
     # Also write a self-contained HTML with embedded state (avoids file:// CORS issues)
     $DashboardLiveHtml = Join-Path $ProjectRoot "scripts/dashboard-live.html"
     $templateContent = Get-Content $DashboardHtml -Raw
-    $injectedHtml = $templateContent -replace '<script>', "<script>`nwindow.__DASHBOARD_STATE__ = $stateJson;`n"
+    # Use .Replace() to avoid regex (state JSON may contain '<script>' in log messages)
+    $marker = '/*__INJECT_STATE__*/'
+    $injectedHtml = $templateContent.Replace($marker, "window.__DASHBOARD_STATE__ = $stateJson;")
     [System.IO.File]::WriteAllText($DashboardLiveHtml, $injectedHtml, [System.Text.UTF8Encoding]::new($false))
 }
 
@@ -569,7 +571,13 @@ git diff --name-only --ignore-submodules | ForEach-Object { git add -- $_ }
 # Also stage new files from chain test phase, excluding submodules
 git status --porcelain --ignore-submodules | Where-Object { $_ -match '^\?\?' } | ForEach-Object { git add -- $_.Substring(3) }
 git commit -m $commitMsg
-git pull --rebase origin $Branch 2>$null
+
+# Rebase only if the remote branch already exists (fresh branches won't have one)
+$remoteBranch = git ls-remote --heads origin $Branch 2>$null
+if ($remoteBranch) {
+    git pull --rebase origin $Branch
+}
+
 git push -u origin $Branch
 
 Add-LogEntry "Pushed to origin/$Branch" "success"
