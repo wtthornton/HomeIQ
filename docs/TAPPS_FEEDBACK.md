@@ -36,6 +36,13 @@
 <!-- FEEDBACK ENTRIES BELOW — newest first -->
 <!-- Delete entries once addressed by TappsMCP -->
 
+### [ENHANCEMENT] P2: No validation coverage for TypeScript/TSX files in mixed-language runs
+- **Date**: 2026-03-10 08:26
+- **Run**: master
+- **Tool**: tapps_validate_changed
+- **Detail**: This bugfix run changed 19 files: 3 Python libs and 16 TypeScript/React test files (.test.tsx, .test.ts). `tapps_validate_changed` correctly validated the 3 Python files but skipped all 16 TypeScript files entirely (no output, no warning). In a run where 84% of changed files are non-Python, the pipeline completion signal ("all gates passed") is misleading — it only reflects Python coverage. A summary line such as "16 files skipped (non-Python)" would clarify scope and prevent false confidence.
+- **Recurrence**: 1
+
 ### [UX] P2: Score discrepancy between tapps_quick_check and tapps_validate_changed (quick mode)
 - **Date**: 2026-03-06 09:46
 - **Run**: auto/bugfix-20260306-094105
