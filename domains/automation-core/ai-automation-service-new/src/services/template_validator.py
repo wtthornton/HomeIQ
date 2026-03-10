@@ -344,8 +344,7 @@ class TemplateValidator:
                         except Exception as exc:
                             logger.warning(f"Error checking state for {entity_id}: {exc}, keeping")
                             active_sensors.append(entity_id)
-                    if active_sensors:
-                        motion_sensors = active_sensors
+                    motion_sensors = active_sensors
 
                 if motion_sensors:
                     # ON trigger: all sensors (OR — any one triggers lights on)

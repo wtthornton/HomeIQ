@@ -196,7 +196,8 @@ class JSONVerificationService:
             }
 
             # Extract triggers
-            triggers = yaml_data.get("trigger") or yaml_data.get("triggers", [])
+            raw_triggers = yaml_data.get("trigger") or yaml_data.get("triggers", [])
+            triggers = [raw_triggers] if isinstance(raw_triggers, dict) else raw_triggers
             for trigger in triggers:
                 automation_json["triggers"].append(
                     {

@@ -642,7 +642,7 @@ Requirements:
 
         except Exception as e:
             logger.error(f"Failed to validate entities: {e}")
-            return (False, [])
+            return (True, [])
 
     def _extract_entity_ids(self, data: Any, entity_ids: list[str] | None = None) -> list[str]:
         """

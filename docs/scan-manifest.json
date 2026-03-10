@@ -1,8 +1,8 @@
 {
     "version":  1,
     "description":  "Auto-bugfix rotating scan manifest. Tracks which scan units have been scanned and their bug yield.",
-    "last_unit_scanned":  "core-platform",
-    "total_runs":  2,
+    "last_unit_scanned":  "ha-ai-agent-service",
+    "total_runs":  3,
     "units":  [
                   {
                       "id":  "libs",
@@ -34,9 +34,9 @@
                       "path":  "domains/automation-core/ha-ai-agent-service/",
                       "priority_weight":  7,
                       "scan_hint":  "Largest single service (127 .py files). Focus on OpenAI client error handling, entity resolution (or-vs-is-not-None patterns), context builder, and chat session management.",
-                      "last_scanned":  null,
-                      "total_runs":  0,
-                      "total_bugs_found":  0,
+                      "last_scanned":  "2026-03-10T21:53:04.3111151Z",
+                      "total_runs":  1,
+                      "total_bugs_found":  3,
                       "bugs_fixed_confirmed":  0,
                       "false_positives":  0
                   },

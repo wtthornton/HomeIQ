@@ -6,7 +6,7 @@
         "bugs":  [
                      {
                          "pr_merged":  null,
-                         "description":  "create_shared_session_maker() checks `if database_url not in _session_makers` without holding `_engine_lock`. Two concurrent callers can both find the key missing, both create a session maker, and the second overwrites the first in the dict. Any sessions already created from the first session maker are now orphaned Î“Ã‡Ã¶ their parent session maker is no longer tracked, so those connections leak out of the pool accounting. The engine creation directly below IS protected by _engine_lock, but session maker creation is not.",
+                         "description":  "create_shared_session_maker() checks `if database_url not in _session_makers` without holding `_engine_lock`. Two concurrent callers can both find the key missing, both create a session maker, and the second overwrites the first in the dict. Any sessions already created from the first session maker are now orphaned ÃŽâ€œÃƒâ€¡ÃƒÂ¶ their parent session maker is no longer tracked, so those connections leak out of the pool accounting. The engine creation directly below IS protected by _engine_lock, but session maker creation is not.",
                          "line":  102,
                          "was_real":  null,
                          "severity":  "high",
@@ -22,7 +22,7 @@
                      },
                      {
                          "pr_merged":  null,
-                         "description":  "get_all_context() breaks out of the loop entirely on the first context whose size would exceed the budget (when contexts is non-empty). Contexts are sorted by relevance score descending, so a large but highly-relevant context will cause all subsequent smaller contexts Î“Ã‡Ã¶ which could fit within the remaining budget Î“Ã‡Ã¶ to be silently skipped. The LLM receives incomplete context, causing incorrect automation suggestions and missed domain knowledge for all 50+ downstream services using this registry.",
+                         "description":  "get_all_context() breaks out of the loop entirely on the first context whose size would exceed the budget (when contexts is non-empty). Contexts are sorted by relevance score descending, so a large but highly-relevant context will cause all subsequent smaller contexts ÃŽâ€œÃƒâ€¡ÃƒÂ¶ which could fit within the remaining budget ÃŽâ€œÃƒâ€¡ÃƒÂ¶ to be silently skipped. The LLM receives incomplete context, causing incorrect automation suggestions and missed domain knowledge for all 50+ downstream services using this registry.",
                          "line":  129,
                          "was_real":  null,
                          "severity":  "medium",
@@ -59,6 +59,38 @@
                          "was_real":  null,
                          "severity":  "medium",
                          "file":  "domains/core-platform/data-retention/src/storage_analytics.py"
+                     }
+                 ],
+        "chain":  false
+    },
+    {
+        "date":  "2026-03-10 14:52",
+        "run_id":  "master",
+        "branch":  "master",
+        "bugs":  [
+                     {
+                         "pr_merged":  null,
+                         "description":  "String comparison used for model version check: `model \u003e= \"gpt-5.2\"` is lexicographic. A future model like \"gpt-5.10\" compares as less than \"gpt-5.2\" (because \u00271\u0027 \u003c \u00272\u0027 in ASCII), misclassifying it as a non-reasoning model. This incorrectly adds a `temperature` parameter to the request instead of `reasoning`, causing an API error from OpenAI.",
+                         "line":  174,
+                         "was_real":  null,
+                         "severity":  "medium",
+                         "file":  "domains/automation-core/ha-ai-agent-service/src/services/openai_client.py"
+                     },
+                     {
+                         "pr_merged":  null,
+                         "description":  "`area_keywords` is a Python `set` literal. Set iteration order is non-deterministic across processes due to Python hash randomization (PYTHONHASHSEED). When a user prompt contains multiple area names (e.g. \"turn on bedroom and kitchen lights\"), the first matched area varies per-process, making entity resolution results non-deterministic for the same input.",
+                         "line":  174,
+                         "was_real":  null,
+                         "severity":  "medium",
+                         "file":  "domains/automation-core/ha-ai-agent-service/src/services/entity_resolution/entity_resolution_service.py"
+                     },
+                     {
+                         "pr_merged":  null,
+                         "description":  "`create_conversation` is declared as `-\u003e Conversation` but falls through to `return None` at line 138 when `get_session()` yields no sessions (e.g. during a database outage). Any caller that accesses the return value (e.g. `conv.conversation_id`) will crash with `AttributeError: \u0027NoneType\u0027 object has no attribute \u0027conversation_id\u0027`.",
+                         "line":  138,
+                         "was_real":  null,
+                         "severity":  "high",
+                         "file":  "domains/automation-core/ha-ai-agent-service/src/services/conversation_service.py"
                      }
                  ],
         "chain":  false

@@ -1899,7 +1899,8 @@
   }
 
   function renderBugs(bugs) {
-    if (!bugs || bugs.length === 0) return;
+    bugs = ensureArray(bugs);
+    if (bugs.length === 0) return;
     document.getElementById('bug-empty').style.display = 'none';
     document.getElementById('bug-table').style.display = 'table';
     document.getElementById('bug-count').textContent = bugs.length;
@@ -1941,10 +1942,10 @@
     var card = document.getElementById('file-graph-card');
     var graph = document.getElementById('file-graph');
     var files = {};
+    bugs = ensureArray(bugs);
+    toolCalls = ensureArray(toolCalls);
 
-    // Collect files from bugs
-    if (bugs) {
-      bugs.forEach(function(b) {
+    bugs.forEach(function(b) {
         if (b.file) {
           var shortName = b.file.split('/').slice(-2).join('/');
           files[shortName] = files[shortName] || { status: 'scanning' };
@@ -1954,9 +1955,7 @@
       });
     }
 
-    // Collect files from recent tool calls
-    if (toolCalls) {
-      toolCalls.slice(-10).forEach(function(tc) {
+    toolCalls.slice(-10).forEach(function(tc) {
         if (tc.target && tc.target.match(/\.py$/)) {
           var shortName = tc.target.split('/').slice(-2).join('/');
           if (!files[shortName]) {
@@ -1982,7 +1981,8 @@
   }
 
   function renderToolTimeline(toolCalls) {
-    if (!toolCalls || toolCalls.length === 0) return;
+    toolCalls = ensureArray(toolCalls);
+    if (toolCalls.length === 0) return;
     document.getElementById('tool-empty').style.display = 'none';
     var timeline = document.getElementById('tool-timeline');
     timeline.style.display = 'block';
@@ -2011,7 +2011,8 @@
   }
 
   function renderLog(logs) {
-    if (!logs || logs.length === 0) return;
+    logs = ensureArray(logs);
+    if (logs.length === 0) return;
     document.getElementById('log-empty').style.display = 'none';
     document.getElementById('log-count').textContent = logs.length;
 
@@ -2400,9 +2401,14 @@
   var pollIntervalId = null;
   var useFileFallback = false;
 
+  function ensureArray(v) { return Array.isArray(v) ? v : []; }
+
   function applyState(state) {
     if (!state) return;
     startIso = state.start_iso;
+    state.bugs = ensureArray(state.bugs);
+    state.tool_calls = ensureArray(state.tool_calls);
+    state.log = ensureArray(state.log);
     try {
       sessionStorage.setItem('bugfix-prev-step', (state.current_step || 1).toString());
       sessionStorage.setItem('bugfix-prev-status', state.status || '');
