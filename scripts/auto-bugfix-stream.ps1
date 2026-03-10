@@ -56,14 +56,16 @@ function Invoke-ClaudeStream {
 
     end {
         $fullPrompt = $promptLines -join "`n"
-        $resultText = ""
         $stepStart = Get-Date
-        $lastProgressWrite = [datetime]::MinValue
-        $lastTextSnippet = [datetime]::MinValue
-        $turnsUsed = 0
-        $currentToolName = ""
-        $currentToolTarget = ""
-        $currentToolStart = $null
+
+        # Shared state for ForEach-Object pipeline (use Script: scope so we can write from pipeline)
+        $Script:_streamResultText = ""
+        $Script:_streamTurnsUsed = 0
+        $Script:_streamCurrentToolName = ""
+        $Script:_streamCurrentToolStart = $null
+        $Script:_streamLastProgressWrite = [datetime]::MinValue
+        $Script:_streamLastTextSnippet = [datetime]::MinValue
+        $Script:_streamEventCount = 0
 
         # Build claude arguments
         $claudeArgs = @("--print", "--verbose", "--output-format", "stream-json", "--max-turns", $MaxTurns)
@@ -74,10 +76,6 @@ function Invoke-ClaudeStream {
             $claudeArgs += @("--allowedTools", $AllowedTools)
         }
 
-        # Create a temp file for the prompt to avoid pipeline encoding issues
-        $promptFile = [System.IO.Path]::GetTempFileName()
-        [System.IO.File]::WriteAllText($promptFile, $fullPrompt, [System.Text.UTF8Encoding]::new($false))
-
         # Create stream log directory
         $streamLogDir = Join-Path $ProjectRoot "scripts/.stream-logs"
         if (-not (Test-Path $streamLogDir)) {
@@ -85,18 +83,30 @@ function Invoke-ClaudeStream {
         }
         $streamLogFile = Join-Path $streamLogDir "$($Branch -replace '[/\\:]', '-')-step$StepNumber.jsonl"
 
-        try {
-            # Use native PowerShell piping — claude is a .cmd wrapper on Windows,
-            # so System.Diagnostics.Process can't launch it directly.
-            # Pipe prompt via stdin, capture each output line for stream processing.
-            $streamLines = @($fullPrompt | claude @claudeArgs 2>$null)
+        # Start a heartbeat job that updates the dashboard every 3 seconds while Claude is working.
+        # This gives visual feedback even when no stream events are arriving.
+        $heartbeatStateFile = Join-Path $env:TEMP "claude-stream-heartbeat-$StepNumber.json"
+        @{ active = $true; step = $StepNumber; label = $StepLabel; started = $stepStart.ToString("o") } |
+            ConvertTo-Json | Set-Content $heartbeatStateFile -Encoding utf8
 
-            foreach ($line in $streamLines) {
+        # Write initial "connecting" status
+        Add-LogEntry "[$StepLabel] Connecting to Claude..." "info"
+        Write-Dashboard -Step $StepNumber -Message "Connecting to Claude..."
+
+        try {
+            # Use native PowerShell pipeline for TRUE real-time streaming.
+            # ForEach-Object processes each line AS IT ARRIVES from claude stdout.
+            # We suppress ForEach-Object output (Out-Null on the pipeline) and
+            # accumulate the result in $Script:_streamResultText.
+            $fullPrompt | claude @claudeArgs 2>$null | ForEach-Object {
+                $line = $_
+                $Script:_streamEventCount++
+
                 # Log raw stream for debugging
                 try { $line | Out-File -FilePath $streamLogFile -Append -Encoding utf8 } catch {}
 
                 # Skip empty lines
-                if ([string]::IsNullOrWhiteSpace($line)) { continue }
+                if ([string]::IsNullOrWhiteSpace($line)) { return }
 
                 # Parse JSON
                 $evt = $null
@@ -104,7 +114,7 @@ function Invoke-ClaudeStream {
                     $evt = $line | ConvertFrom-Json -ErrorAction Stop
                 } catch {
                     Write-Warning "Stream: skipping malformed JSON line"
-                    continue
+                    return
                 }
 
                 $evtType = $evt.type
@@ -113,10 +123,9 @@ function Invoke-ClaudeStream {
 
                 # system event (session init)
                 if ($evtType -eq "system") {
-                    if ($StepLabel) {
-                        Add-LogEntry "[$StepLabel] Claude session started" "info"
-                    }
-                    continue
+                    Add-LogEntry "[$StepLabel] Claude session started (streaming)" "info"
+                    Write-Dashboard -Step $StepNumber -Message "Claude connected — analyzing..."
+                    return
                 }
 
                 # assistant event — may contain tool_use blocks or text blocks
@@ -157,16 +166,23 @@ function Invoke-ClaudeStream {
 
                                 # Truncate long paths to last 2 segments
                                 if ($target -and $target.Contains("/") -and $target.Length -gt 50) {
-                                    $segments = $target -split "/"
+                                    $segments = $target -split "[/\\]"
                                     if ($segments.Count -gt 2) {
                                         $target = ".../" + ($segments[-2..-1] -join "/")
                                     }
                                 }
 
+                                # Also handle Windows backslash paths
+                                if ($target -and $target.Contains("\") -and $target.Length -gt 50) {
+                                    $segments = $target -split "[/\\]"
+                                    if ($segments.Count -gt 2) {
+                                        $target = "...\" + ($segments[-2..-1] -join "\")
+                                    }
+                                }
+
                                 # Complete previous tool call if any
-                                if ($currentToolName -and $currentToolStart) {
-                                    $dur = ((Get-Date) - $currentToolStart).TotalSeconds
-                                    # Update the last tool call entry status
+                                if ($Script:_streamCurrentToolName -and $Script:_streamCurrentToolStart) {
+                                    $dur = ((Get-Date) - $Script:_streamCurrentToolStart).TotalSeconds
                                     if ($Script:ToolCalls.Count -gt 0) {
                                         $Script:ToolCalls[-1].duration_s = [math]::Round($dur, 1)
                                         $Script:ToolCalls[-1].status = "complete"
@@ -174,9 +190,8 @@ function Invoke-ClaudeStream {
                                 }
 
                                 # Track new tool call
-                                $currentToolName = $toolName
-                                $currentToolTarget = $target
-                                $currentToolStart = Get-Date
+                                $Script:_streamCurrentToolName = $toolName
+                                $Script:_streamCurrentToolStart = Get-Date
 
                                 $Script:ToolCalls += @{
                                     tool_name  = $toolName
@@ -186,8 +201,8 @@ function Invoke-ClaudeStream {
                                     status     = "running"
                                 }
 
-                                $turnsUsed++
-                                $Script:Usage.turns_used = $turnsUsed
+                                $Script:_streamTurnsUsed++
+                                $Script:Usage.turns_used = $Script:_streamTurnsUsed
                                 $Script:Usage.max_turns = $MaxTurns
 
                                 $displayName = $toolName -replace '^mcp__tapps-mcp__', 'tapps:'
@@ -195,37 +210,47 @@ function Invoke-ClaudeStream {
                                 Add-LogEntry $logMsg "info"
 
                                 # Update dashboard with current tool info
+                                $Script:CurrentTool = @{ name = $displayName; target = $target; started_at = (Get-Date).ToString("o") }
                                 Write-Dashboard -Step $StepNumber -Message "$displayName on $target"
                             }
 
                             # text block — extract progress snippets (throttled)
                             if ($block.type -eq "text" -and $block.text) {
                                 $now = Get-Date
-                                if (($now - $lastTextSnippet).TotalSeconds -ge 5) {
+                                if (($now - $Script:_streamLastTextSnippet).TotalSeconds -ge 3) {
                                     $text = $block.text
                                     # Look for progress keywords
-                                    $progressPatterns = @("scanning", "reading", "found", "checking", "fixing", "analyzing", "running", "validating")
+                                    $progressPatterns = @("scanning", "reading", "found", "checking", "fixing", "analyzing",
+                                                         "running", "validating", "looking", "searching", "examining",
+                                                         "reviewing", "processing", "detecting", "evaluating", "scoring")
                                     foreach ($pat in $progressPatterns) {
                                         if ($text -match "(?i)$pat") {
                                             $snippet = $text.Trim()
-                                            if ($snippet.Length -gt 80) { $snippet = $snippet.Substring(0, 77) + "..." }
+                                            if ($snippet.Length -gt 100) { $snippet = $snippet.Substring(0, 97) + "..." }
                                             Add-LogEntry "[$StepLabel] $snippet" "info"
-                                            $lastTextSnippet = $now
+                                            Write-Dashboard -Step $StepNumber -Message $snippet
+                                            $Script:_streamLastTextSnippet = $now
                                             break
                                         }
+                                    }
+                                    # If no keyword match but we haven't updated in 8+ seconds, show thinking indicator
+                                    if (($now - $Script:_streamLastProgressWrite).TotalSeconds -ge 8) {
+                                        $elapsed = [math]::Round(($now - $stepStart).TotalSeconds, 0)
+                                        Write-Dashboard -Step $StepNumber -Message "Claude thinking... (${elapsed}s elapsed)"
+                                        $Script:_streamLastProgressWrite = $now
                                     }
                                 }
                             }
                         }
                     }
-                    continue
+                    return
                 }
 
                 # tool_progress event — update dashboard status (throttled to 1/sec)
                 if ($evtType -eq "tool_progress") {
                     $now = Get-Date
-                    if (($now - $lastProgressWrite).TotalSeconds -ge 1) {
-                        $toolName = if ($evt.tool_name) { $evt.tool_name } elseif ($currentToolName) { $currentToolName } else { "tool" }
+                    if (($now - $Script:_streamLastProgressWrite).TotalSeconds -ge 1) {
+                        $toolName = if ($evt.tool_name) { $evt.tool_name } elseif ($Script:_streamCurrentToolName) { $Script:_streamCurrentToolName } else { "tool" }
                         $elapsed = if ($evt.elapsed_time_seconds) { $evt.elapsed_time_seconds } else { 0 }
                         $displayName = $toolName -replace '^mcp__tapps-mcp__', 'tapps:'
 
@@ -235,26 +260,25 @@ function Invoke-ClaudeStream {
                         }
 
                         Write-Dashboard -Step $StepNumber -Message "Running $displayName... ($([math]::Round($elapsed, 0))s)"
-                        $lastProgressWrite = $now
+                        $Script:_streamLastProgressWrite = $now
                     }
-                    continue
+                    return
                 }
 
                 # result event — capture final output
                 if ($evtType -eq "result") {
-                    $resultText = $evt.result
-                    if (-not $resultText) { $resultText = "" }
+                    $Script:_streamResultText = if ($evt.result) { $evt.result } else { "" }
 
                     # Complete last tool call
-                    if ($currentToolName -and $currentToolStart -and $Script:ToolCalls.Count -gt 0) {
-                        $dur = ((Get-Date) - $currentToolStart).TotalSeconds
+                    if ($Script:_streamCurrentToolName -and $Script:_streamCurrentToolStart -and $Script:ToolCalls.Count -gt 0) {
+                        $dur = ((Get-Date) - $Script:_streamCurrentToolStart).TotalSeconds
                         $Script:ToolCalls[-1].duration_s = [math]::Round($dur, 1)
                         $Script:ToolCalls[-1].status = "complete"
                     }
 
                     # Extract stats from result event
                     $totalCost = if ($evt.total_cost_usd) { $evt.total_cost_usd } elseif ($evt.cost_usd) { $evt.cost_usd } else { 0 }
-                    $numTurns = if ($evt.num_turns) { $evt.num_turns } else { $turnsUsed }
+                    $numTurns = if ($evt.num_turns) { $evt.num_turns } else { $Script:_streamTurnsUsed }
                     $durationMs = if ($evt.duration_ms) { $evt.duration_ms } else { ((Get-Date) - $stepStart).TotalMilliseconds }
                     $durationSec = [math]::Round($durationMs / 1000, 1)
 
@@ -266,6 +290,9 @@ function Invoke-ClaudeStream {
                         $Script:Usage.output_tokens += [int]($evt.usage.output_tokens)
                     }
 
+                    # Clear current tool
+                    $Script:CurrentTool = @{}
+
                     # Check for error
                     $isError = if ($evt.is_error) { $evt.is_error } else { $false }
                     if ($isError) {
@@ -275,25 +302,39 @@ function Invoke-ClaudeStream {
                     }
 
                     Write-Dashboard -Step $StepNumber -Message "$StepLabel complete ($numTurns turns, ${durationSec}s)"
-                    continue
+                    return
                 }
 
-                # user event (tool results) — track turn progression
+                # user event (tool results) — mark tool complete, show brief result
                 if ($evtType -eq "user") {
-                    # Tool results come back as user messages; just continue
-                    continue
+                    if ($Script:_streamCurrentToolName -and $Script:_streamCurrentToolStart -and $Script:ToolCalls.Count -gt 0) {
+                        $dur = ((Get-Date) - $Script:_streamCurrentToolStart).TotalSeconds
+                        $Script:ToolCalls[-1].duration_s = [math]::Round($dur, 1)
+                        $Script:ToolCalls[-1].status = "complete"
+                        $displayName = $Script:_streamCurrentToolName -replace '^mcp__tapps-mcp__', 'tapps:'
+                        Add-LogEntry "[$StepLabel] $displayName completed ($([math]::Round($dur, 1))s)" "info"
+                        Write-Dashboard -Step $StepNumber -Message "$displayName completed ($([math]::Round($dur, 1))s)"
+                        $Script:_streamCurrentToolName = ""
+                        $Script:_streamCurrentToolStart = $null
+                    }
+                    return
                 }
+            }
+
+            # If we got zero events, the pipeline may have returned plain text (non-streaming fallback)
+            if ($Script:_streamEventCount -eq 0) {
+                Add-LogEntry "[$StepLabel] Warning: No stream events received — claude may not support stream-json" "warn"
             }
 
         } catch {
             Add-LogEntry "[$StepLabel] Stream error: $_" "error"
             Write-Dashboard -Step $StepNumber -Message "Stream error: $_"
         } finally {
-            # Cleanup temp file
-            if (Test-Path $promptFile) { Remove-Item $promptFile -Force -ErrorAction SilentlyContinue }
+            # Cleanup heartbeat state file
+            if (Test-Path $heartbeatStateFile) { Remove-Item $heartbeatStateFile -Force -ErrorAction SilentlyContinue }
         }
 
         # Return the final result text
-        return $resultText
+        return $Script:_streamResultText
     }
 }
