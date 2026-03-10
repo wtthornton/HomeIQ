@@ -4,6 +4,35 @@
 
 ### Added
 
+- **add --Model parameter, default to claude-sonnet-4-6** (be9a0cd) - Bill Thornton
+- **true real-time streaming with ForEach-Object pipeline** (237d4d7) - Bill Thornton
+- **streaming dashboard for auto-bugfix pipeline (E1+E2+E3)** (1c8981b) - Bill Thornton
+- **auto-fix infrastructure — pre-commit, lib validation, CI hardening** (5e361e7) - Bill Thornton
+- **Epic 41 — Memory Brain quality tuning (7 stories)** (2837a2a) - Bill Thornton
+- **Epic 40 — pattern detection ML upgrade (8 stories)** (38b7b4d) - Bill Thornton
+- **Epic 39 — enable React Compiler for both frontend apps** (7f8b1df) - Bill Thornton
+- **complete Sprint 8 — pattern detection expansion + ML upgrades** (d32ecb2) - Bill Thornton
+
+### Fixed
+
+- **remove em dash in string + unused heartbeat causing parse errors** (bb9701d) - Bill Thornton
+- **accumulate assistant text as fallback result + bump scan turns to 15** (9cc9953) - Bill Thornton
+- **add --verbose flag required for stream-json output format** (93e53ba) - Bill Thornton
+- **replace System.Diagnostics.Process with native PS piping** (51672b7) - Bill Thornton
+- **resolve claude CLI full path in stream parser** (28e2975) - Bill Thornton
+- **use stdin piping + join output for claude --print in auto-bugfix.ps1** (35f25d3) - Bill Thornton
+- **use PowerShell argument splatting for claude --print calls** (2af2d02) - Bill Thornton
+- **use temp file for prompt passing in auto-bugfix.ps1** (1b44ef4) - Bill Thornton
+- **pipe prompts via stdin to claude --print in auto-bugfix.ps1** (0d66146) - Bill Thornton
+- **Docker deployment — add homeiq-memory lib + resolve port conflicts** (71b3f31) - Bill Thornton
+- **test infrastructure improvements and model refactoring** (ea7656c) - Bill Thornton
+- **resolve memory brain migration enum mismatch + configurable pattern coordinates** (2d3e420) - Bill Thornton
+- **use TappsMCP tools for bug scanning instead of pure LLM guessing** (6bdc94f) - Bill Thornton
+- **dashboard now embeds state in HTML (fixes Chrome file:// CORS)** (e59bd86) - Bill Thornton
+
+
+### Added
+
 - **true real-time streaming with ForEach-Object pipeline** (237d4d7) - Bill Thornton
 - **streaming dashboard for auto-bugfix pipeline (E1+E2+E3)** (1c8981b) - Bill Thornton
 - **auto-fix infrastructure — pre-commit, lib validation, CI hardening** (5e361e7) - Bill Thornton
