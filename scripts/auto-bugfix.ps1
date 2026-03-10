@@ -51,7 +51,7 @@ if ($UseRotate) {
 import json, sys
 from datetime import datetime, timezone
 
-with open(r'$ScanManifest') as f:
+with open(r'$ScanManifest', encoding='utf-8-sig') as f:
     manifest = json.load(f)
 
 target_unit = '$TargetUnit'
@@ -693,7 +693,7 @@ if (Test-Path $historyFile) {
     $history = @()
 }
 $history += $historyEntry
-$history | ConvertTo-Json -Depth 10 | Out-File -FilePath $historyFile -Encoding utf8 -Force
+[System.IO.File]::WriteAllText($historyFile, ($history | ConvertTo-Json -Depth 10), [System.Text.UTF8Encoding]::new($false))
 Add-LogEntry "Bug history appended to docs/BUG_HISTORY.json" "info"
 
 # --- Update scan manifest if rotate mode ---
@@ -710,7 +710,7 @@ if ($ScanUnitId) {
     }
     $manifest.last_unit_scanned = $ScanUnitId
     $manifest.total_runs += 1
-    $manifest | ConvertTo-Json -Depth 10 | Out-File -FilePath $ScanManifest -Encoding utf8 -Force
+    [System.IO.File]::WriteAllText($ScanManifest, ($manifest | ConvertTo-Json -Depth 10), [System.Text.UTF8Encoding]::new($false))
     Add-LogEntry "Scan manifest updated for unit '$ScanUnitId'" "info"
 }
 
