@@ -280,11 +280,13 @@ Add-LogEntry "Scanning with TappsMCP security_scan + quick_check + code review..
 Write-Dashboard -Step 2 -Message "Scanning for $Bugs bugs (TappsMCP + review)..."
 
 $mcpConfig = Join-Path $ProjectRoot ".mcp.json"
-$rawOutput = $findPrompt | claude --print `
+$promptFile = Join-Path $env:TEMP "auto-bugfix-prompt.txt"
+[System.IO.File]::WriteAllText($promptFile, $findPrompt, [System.Text.UTF8Encoding]::new($false))
+$rawOutput = claude --print `
     --max-turns 8 `
     --mcp-config $mcpConfig `
     --allowedTools "Read,Grep,Glob,Bash,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_score_file" `
-    2>$null
+    (Get-Content $promptFile -Raw) 2>$null
 
 # Extract JSON array from response
 $jsonMatch = [regex]::Match($rawOutput, '\[[\s\S]*?\]')
@@ -357,11 +359,12 @@ After fixing ALL bugs, you MUST run these validation steps in order:
 After validation passes, provide a summary of what you changed and the validation results.
 "@
 
-$fixPrompt | claude --print `
+[System.IO.File]::WriteAllText($promptFile, $fixPrompt, [System.Text.UTF8Encoding]::new($false))
+claude --print `
     --mcp-config $mcpConfig `
     --allowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check" `
     --max-turns 25 `
-    2>$null
+    (Get-Content $promptFile -Raw) 2>$null
 
 # Check if anything was actually changed (ignore submodule drift)
 $changes = git status --porcelain --ignore-submodules
@@ -414,11 +417,12 @@ After refactoring, run mcp__tapps-mcp__tapps_validate_changed() to verify qualit
 Provide a summary of refactoring applied.
 "@
 
-    $refactorPrompt | claude --print `
+    [System.IO.File]::WriteAllText($promptFile, $refactorPrompt, [System.Text.UTF8Encoding]::new($false))
+    claude --print `
         --mcp-config $mcpConfig `
         --allowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_quick_check" `
         --max-turns 15 `
-        2>$null
+        (Get-Content $promptFile -Raw) 2>$null
 
     $refactorChanges = git diff --name-only --ignore-submodules
     if ($refactorChanges) {
@@ -453,11 +457,12 @@ After writing tests, run: pytest <test_file> -v --tb=short to verify they pass.
 Then run mcp__tapps-mcp__tapps_quick_check on each test file.
 "@
 
-    $testPrompt | claude --print `
+    [System.IO.File]::WriteAllText($promptFile, $testPrompt, [System.Text.UTF8Encoding]::new($false))
+    claude --print `
         --mcp-config $mcpConfig `
         --allowedTools "Read,Edit,Write,Grep,Glob,Bash,mcp__tapps-mcp__tapps_quick_check" `
         --max-turns 20 `
-        2>$null
+        (Get-Content $promptFile -Raw) 2>$null
 
     $testChanges = git status --porcelain --ignore-submodules
     if ($testChanges) {
@@ -555,11 +560,12 @@ If ALL tools worked perfectly with no issues, append nothing — the goal is an 
 Read docs/TAPPS_FEEDBACK.md first to check for recurring issues and increment their recurrence count.
 "@
 
-$feedbackPrompt | claude --print `
+[System.IO.File]::WriteAllText($promptFile, $feedbackPrompt, [System.Text.UTF8Encoding]::new($false))
+claude --print `
     --mcp-config $mcpConfig `
     --allowedTools "Read,Edit,mcp__tapps-mcp__tapps_feedback" `
     --max-turns 10 `
-    2>$null
+    (Get-Content $promptFile -Raw) 2>$null
 
 # Commit feedback file if it changed
 $feedbackChanged = git diff --name-only docs/TAPPS_FEEDBACK.md
