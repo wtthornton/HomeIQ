@@ -6,7 +6,7 @@
         "bugs":  [
                      {
                          "pr_merged":  null,
-                         "description":  "create_shared_session_maker() checks `if database_url not in _session_makers` without holding `_engine_lock`. Two concurrent callers can both find the key missing, both create a session maker, and the second overwrites the first in the dict. Any sessions already created from the first session maker are now orphaned ÃƒÅ½Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Â¡ÃƒÆ’Ã‚Â¶ their parent session maker is no longer tracked, so those connections leak out of the pool accounting. The engine creation directly below IS protected by _engine_lock, but session maker creation is not.",
+                         "description":  "create_shared_session_maker() checks `if database_url not in _session_makers` without holding `_engine_lock`. Two concurrent callers can both find the key missing, both create a session maker, and the second overwrites the first in the dict. Any sessions already created from the first session maker are now orphaned ÃƒÆ’Ã…Â½ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ their parent session maker is no longer tracked, so those connections leak out of the pool accounting. The engine creation directly below IS protected by _engine_lock, but session maker creation is not.",
                          "line":  102,
                          "was_real":  null,
                          "severity":  "high",
@@ -22,7 +22,7 @@
                      },
                      {
                          "pr_merged":  null,
-                         "description":  "get_all_context() breaks out of the loop entirely on the first context whose size would exceed the budget (when contexts is non-empty). Contexts are sorted by relevance score descending, so a large but highly-relevant context will cause all subsequent smaller contexts ÃƒÅ½Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Â¡ÃƒÆ’Ã‚Â¶ which could fit within the remaining budget ÃƒÅ½Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Â¡ÃƒÆ’Ã‚Â¶ to be silently skipped. The LLM receives incomplete context, causing incorrect automation suggestions and missed domain knowledge for all 50+ downstream services using this registry.",
+                         "description":  "get_all_context() breaks out of the loop entirely on the first context whose size would exceed the budget (when contexts is non-empty). Contexts are sorted by relevance score descending, so a large but highly-relevant context will cause all subsequent smaller contexts ÃƒÆ’Ã…Â½ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ which could fit within the remaining budget ÃƒÆ’Ã…Â½ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ to be silently skipped. The LLM receives incomplete context, causing incorrect automation suggestions and missed domain knowledge for all 50+ downstream services using this registry.",
                          "line":  129,
                          "was_real":  null,
                          "severity":  "medium",
@@ -123,6 +123,38 @@
                          "was_real":  null,
                          "severity":  "medium",
                          "file":  "domains/automation-core/ai-automation-service-new/src/services/json_verification_service.py"
+                     }
+                 ],
+        "chain":  false
+    },
+    {
+        "date":  "2026-03-10 15:19",
+        "run_id":  "master",
+        "branch":  "master",
+        "bugs":  [
+                     {
+                         "pr_merged":  null,
+                         "description":  "The `anomaly_detection` StandardScaler is initialised in __init__ but never fitted during training ΓÇö the IsolationForest is fitted on `X_train_scaled` (produced by `scalers[\u0027failure_prediction\u0027]`), while `scalers[\u0027anomaly_detection\u0027]` is never given `.fit()`. When model_type==\u0027tabpfn\u0027, `predict_device_failure` calls `self.scalers[\u0027anomaly_detection\u0027].transform([features])`, which raises `sklearn.exceptions.NotFittedError` and crashes every TabPFN prediction call.",
+                         "line":  359,
+                         "was_real":  null,
+                         "severity":  "high",
+                         "file":  "domains/ml-engine/device-intelligence-service/src/core/predictive_analytics.py"
+                     },
+                     {
+                         "pr_merged":  null,
+                         "description":  "In `predict()`, `pred = self.model.predict_one(features_dict)` can return `None` when the Hoeffding tree has not yet seen a sample for a given class (River\u0027s documented behaviour). The immediate `predictions.append(int(pred))` call then raises `TypeError: int() argument must be a string, a bytes-like object or a real number, not \u0027NoneType\u0027`, crashing batch prediction entirely.",
+                         "line":  165,
+                         "was_real":  null,
+                         "severity":  "high",
+                         "file":  "domains/ml-engine/device-intelligence-service/src/core/incremental_predictor.py"
+                     },
+                     {
+                         "pr_merged":  null,
+                         "description":  "The TabPFNClassifier is constructed with `N_ensemble_configurations=4` (capital N, as used in TabPFN v1). TabPFN v2 (the version required per the error message: `tabpfn\u003e=2.2.0`) renamed this parameter to `n_ensemble_configurations` (all lowercase). Passing the old name raises `TypeError: __init__() got an unexpected keyword argument \u0027N_ensemble_configurations\u0027`, preventing any TabPFN model from being initialised.",
+                         "line":  61,
+                         "was_real":  null,
+                         "severity":  "medium",
+                         "file":  "domains/ml-engine/device-intelligence-service/src/core/tabpfn_predictor.py"
                      }
                  ],
         "chain":  false

@@ -103,11 +103,11 @@ class QueryProcessor:
                 suggestions = await self.suggestion_generator.generate(
                     query=query,
                     entities=entities,
-                    user_id=user_id,
-                    clarification_context=clarification_result,
-                    query_id=query_id,
+                    _user_id=user_id,
+                    _clarification_context=clarification_result,
+                    _query_id=query_id,
                     area_filter=area_filter,
-                    db=db
+                    _db=db
                 )
                 logger.info(f"✅ Generated {len(suggestions)} suggestions")
 

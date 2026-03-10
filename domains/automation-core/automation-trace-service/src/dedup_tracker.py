@@ -15,7 +15,7 @@ class DedupTracker:
     """Track which trace run_ids have already been captured."""
 
     def __init__(self, max_per_automation: int = 50):
-        self._seen: dict[str, set[str]] = {}
+        self._seen: dict[str, dict[str, None]] = {}
         self.max_per_automation = max_per_automation
         self.total_deduped = 0
 
@@ -29,17 +29,17 @@ class DedupTracker:
     def mark_seen(self, automation_id: str, traces: list[dict]):
         """Record run_ids as seen. Trims oldest if over limit."""
         if automation_id not in self._seen:
-            self._seen[automation_id] = set()
+            self._seen[automation_id] = {}
 
         for t in traces:
             run_id = t.get("run_id")
             if run_id:
-                self._seen[automation_id].add(run_id)
+                self._seen[automation_id][run_id] = None
 
-        # Trim to bounded size (keep most recent by sort order)
-        if len(self._seen[automation_id]) > self.max_per_automation:
-            sorted_ids = sorted(self._seen[automation_id])
-            self._seen[automation_id] = set(sorted_ids[-self.max_per_automation :])
+        # Trim oldest entries to stay within bound (dict preserves insertion order)
+        while len(self._seen[automation_id]) > self.max_per_automation:
+            oldest = next(iter(self._seen[automation_id]))
+            del self._seen[automation_id][oldest]
 
     @property
     def tracked_automation_count(self) -> int:

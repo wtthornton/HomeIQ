@@ -23,7 +23,7 @@ from types import MappingProxyType
 from typing import Any
 
 import psutil
-from RestrictedPython import compile_restricted
+from RestrictedPython import compile_restricted_exec
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +157,7 @@ def _sandbox_process_worker(
     try:
         _apply_resource_limits(config)
 
-        byte_code = compile_restricted(code, filename="<sandbox>", mode="exec")
+        byte_code = compile_restricted_exec(code, filename="<sandbox>")
         if byte_code.errors:
             _write_result(False, None, f"Compilation errors: {byte_code.errors}")
             return

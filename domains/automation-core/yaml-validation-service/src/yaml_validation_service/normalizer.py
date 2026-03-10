@@ -55,7 +55,7 @@ class YAMLNormalizer:
                 return (yaml_content, fixes_applied)
 
             # Apply normalizations
-            normalized_data = self._normalize_dict(data, fixes_applied)
+            normalized_data = self._normalize_dict(data, fixes_applied, is_root=True)
 
             # Render back to YAML
             normalized_yaml = yaml.safe_dump(
@@ -76,7 +76,7 @@ class YAMLNormalizer:
             logger.error(f"Unexpected error during normalization: {e}")
             return (yaml_content, fixes_applied)
 
-    def _normalize_dict(self, data: dict[str, Any], fixes_applied: list[str]) -> dict[str, Any]:
+    def _normalize_dict(self, data: dict[str, Any], fixes_applied: list[str], is_root: bool = False) -> dict[str, Any]:
         """Recursively normalize dictionary."""
         result: dict[str, Any] = {}
 
@@ -112,8 +112,8 @@ class YAMLNormalizer:
         if "action" in result and isinstance(result["action"], list):
             result["action"] = [self._normalize_action_item(item, fixes_applied) for item in result["action"]]
 
-        # Ensure initial_state: true for 2025.10+ compliance
-        if "initial_state" not in result:
+        # Ensure initial_state: true for 2025.10+ compliance (top-level automation only)
+        if is_root and "initial_state" not in result:
             result["initial_state"] = True
             fixes_applied.append("Added: 'initial_state: true' (required for 2025.10+ compliance)")
 

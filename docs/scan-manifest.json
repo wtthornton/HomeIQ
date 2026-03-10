@@ -1,8 +1,8 @@
 {
     "version":  1,
     "description":  "Auto-bugfix rotating scan manifest. Tracks which scan units have been scanned and their bug yield.",
-    "last_unit_scanned":  "ai-automation-service",
-    "total_runs":  4,
+    "last_unit_scanned":  "device-intelligence",
+    "total_runs":  5,
     "units":  [
                   {
                       "id":  "libs",
@@ -58,9 +58,9 @@
                       "path":  "domains/ml-engine/device-intelligence-service/",
                       "priority_weight":  7,
                       "scan_hint":  "99 .py files with 36 .pkl model files. Focus on model loading (joblib cross-version), tensor shape mismatches, feature extraction, and prediction error handling.",
-                      "last_scanned":  null,
-                      "total_runs":  0,
-                      "total_bugs_found":  0,
+                      "last_scanned":  "2026-03-10T22:21:14.9644216Z",
+                      "total_runs":  1,
+                      "total_bugs_found":  3,
                       "bugs_fixed_confirmed":  0,
                       "false_positives":  0
                   },

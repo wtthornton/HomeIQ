@@ -194,7 +194,7 @@ class SuggestionGenerator:
         raw_text = response.output_text or "[]"
         # Strip optional markdown fence
         if raw_text.startswith("```"):
-            lines = raw_text.split("\n")
+            lines = raw_text.strip().split("\n")
             raw_text = "\n".join(lines[1:-1])
 
         parsed = json.loads(raw_text)
