@@ -280,11 +280,11 @@ Add-LogEntry "Scanning with TappsMCP security_scan + quick_check + code review..
 Write-Dashboard -Step 2 -Message "Scanning for $Bugs bugs (TappsMCP + review)..."
 
 $mcpConfig = Join-Path $ProjectRoot ".mcp.json"
-$rawOutput = claude --print `
+$rawOutput = $findPrompt | claude --print `
     --max-turns 8 `
     --mcp-config $mcpConfig `
     --allowedTools "Read,Grep,Glob,Bash,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_score_file" `
-    $findPrompt 2>$null
+    2>$null
 
 # Extract JSON array from response
 $jsonMatch = [regex]::Match($rawOutput, '\[[\s\S]*?\]')
@@ -357,11 +357,11 @@ After fixing ALL bugs, you MUST run these validation steps in order:
 After validation passes, provide a summary of what you changed and the validation results.
 "@
 
-claude --print `
+$fixPrompt | claude --print `
     --mcp-config $mcpConfig `
     --allowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check" `
     --max-turns 25 `
-    $fixPrompt 2>$null
+    2>$null
 
 # Check if anything was actually changed (ignore submodule drift)
 $changes = git status --porcelain --ignore-submodules
@@ -414,11 +414,11 @@ After refactoring, run mcp__tapps-mcp__tapps_validate_changed() to verify qualit
 Provide a summary of refactoring applied.
 "@
 
-    claude --print `
+    $refactorPrompt | claude --print `
         --mcp-config $mcpConfig `
         --allowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_quick_check" `
         --max-turns 15 `
-        $refactorPrompt 2>$null
+        2>$null
 
     $refactorChanges = git diff --name-only --ignore-submodules
     if ($refactorChanges) {
@@ -453,11 +453,11 @@ After writing tests, run: pytest <test_file> -v --tb=short to verify they pass.
 Then run mcp__tapps-mcp__tapps_quick_check on each test file.
 "@
 
-    claude --print `
+    $testPrompt | claude --print `
         --mcp-config $mcpConfig `
         --allowedTools "Read,Edit,Write,Grep,Glob,Bash,mcp__tapps-mcp__tapps_quick_check" `
         --max-turns 20 `
-        $testPrompt 2>$null
+        2>$null
 
     $testChanges = git status --porcelain --ignore-submodules
     if ($testChanges) {
@@ -555,11 +555,11 @@ If ALL tools worked perfectly with no issues, append nothing — the goal is an 
 Read docs/TAPPS_FEEDBACK.md first to check for recurring issues and increment their recurrence count.
 "@
 
-claude --print `
+$feedbackPrompt | claude --print `
     --mcp-config $mcpConfig `
     --allowedTools "Read,Edit,mcp__tapps-mcp__tapps_feedback" `
     --max-turns 10 `
-    $feedbackPrompt 2>$null
+    2>$null
 
 # Commit feedback file if it changed
 $feedbackChanged = git diff --name-only docs/TAPPS_FEEDBACK.md
