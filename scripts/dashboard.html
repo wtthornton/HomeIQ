@@ -366,6 +366,169 @@
   }
   .empty .spinner { width: 24px; height: 24px; margin-bottom: 12px; }
 
+  /* Telemetry Panel */
+  .telemetry {
+    display: grid;
+    grid-template-columns: 160px 1fr 1fr;
+    gap: 24px;
+    align-items: center;
+    background: var(--bg-card);
+    border: 1px solid rgba(20,184,166,0.15);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .telemetry::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--teal), var(--teal-dark), transparent);
+  }
+  .telemetry h2 {
+    position: absolute;
+    top: 8px; left: 16px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    opacity: 0.6;
+  }
+
+  /* Ring Gauge */
+  .gauge-container { position: relative; width: 140px; height: 140px; }
+  .gauge-container svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .gauge-track { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 10; }
+  .gauge-fill-budget {
+    fill: none;
+    stroke-width: 10;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.8s ease, stroke 0.5s ease;
+  }
+  .gauge-fill-turns {
+    fill: none;
+    stroke: var(--teal);
+    stroke-width: 6;
+    stroke-linecap: round;
+    opacity: 0.5;
+    transition: stroke-dashoffset 0.8s ease;
+  }
+  .gauge-center {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .gauge-cost {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--teal-light);
+    line-height: 1;
+  }
+  .gauge-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+  .gauge-pct {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 1px;
+  }
+
+  /* Budget/Turns Bars */
+  .telem-bars { display: flex; flex-direction: column; gap: 14px; }
+  .telem-bar-row label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    margin-bottom: 5px;
+  }
+  .telem-bar-row label span { color: var(--text); font-weight: 600; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; }
+  .bar-track {
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.8s ease, background 0.5s ease;
+    min-width: 2px;
+  }
+  .bar-fill.budget { background: var(--teal); }
+  .bar-fill.budget.warn { background: var(--yellow); }
+  .bar-fill.budget.danger { background: var(--red); }
+  .bar-fill.turns { background: var(--teal); opacity: 0.6; }
+
+  /* Stats Grid */
+  .telem-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .telem-stat {
+    background: rgba(255,255,255,0.02);
+    border-radius: 6px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .telem-stat .stat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    margin-bottom: 3px;
+  }
+  .telem-stat .stat-value {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .telem-stat .stat-value.good { color: var(--green); }
+  .telem-stat .stat-value.warn { color: var(--yellow); }
+  .telem-stat .stat-value.danger { color: var(--red); }
+
+  /* Sparkline */
+  .sparkline-container {
+    grid-column: 1 / -1;
+    height: 36px;
+    margin-top: 4px;
+    position: relative;
+  }
+  .sparkline-container svg { width: 100%; height: 100%; }
+  .sparkline-area { fill: url(#sparkGrad); opacity: 0.3; }
+  .sparkline-line { fill: none; stroke: var(--teal); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .sparkline-dot {
+    fill: var(--teal-light);
+    filter: drop-shadow(0 0 4px rgba(20,184,166,0.6));
+  }
+  .sparkline-label {
+    position: absolute;
+    right: 0; top: -2px;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  @keyframes gauge-pulse {
+    0%, 100% { filter: drop-shadow(0 0 0 transparent); }
+    50% { filter: drop-shadow(0 0 8px rgba(20,184,166,0.3)); }
+  }
+  .gauge-container.active { animation: gauge-pulse 2s ease-in-out infinite; }
+
   /* Footer */
   .footer {
     text-align: center;
@@ -398,6 +561,69 @@
 
   <!-- Pipeline Steps (rendered dynamically from state) -->
   <div class="pipeline" id="pipeline"></div>
+
+  <!-- Telemetry Panel -->
+  <div class="telemetry" id="telemetry">
+    <h2>Telemetry</h2>
+
+    <!-- Ring Gauge -->
+    <div class="gauge-container" id="gauge-container">
+      <svg viewBox="0 0 140 140">
+        <circle class="gauge-track" cx="70" cy="70" r="58" />
+        <circle class="gauge-track" cx="70" cy="70" r="48" />
+        <circle class="gauge-fill-budget" id="gauge-budget" cx="70" cy="70" r="58"
+                stroke-dasharray="364.42" stroke-dashoffset="364.42" />
+        <circle class="gauge-fill-turns" id="gauge-turns" cx="70" cy="70" r="48"
+                stroke-dasharray="301.59" stroke-dashoffset="301.59" />
+      </svg>
+      <div class="gauge-center">
+        <div class="gauge-cost" id="gauge-cost-text">$0.00</div>
+        <div class="gauge-label">of <span id="gauge-budget-text">$0.00</span></div>
+        <div class="gauge-pct" id="gauge-pct-text">0%</div>
+      </div>
+    </div>
+
+    <!-- Progress Bars -->
+    <div class="telem-bars">
+      <div class="telem-bar-row">
+        <label>Budget <span id="bar-budget-label">$0.00 / $0.00</span></label>
+        <div class="bar-track"><div class="bar-fill budget" id="bar-budget-fill" style="width:0%"></div></div>
+      </div>
+      <div class="telem-bar-row">
+        <label>Turns <span id="bar-turns-label">0 / 0</span></label>
+        <div class="bar-track"><div class="bar-fill turns" id="bar-turns-fill" style="width:0%"></div></div>
+      </div>
+      <div class="sparkline-container">
+        <span class="sparkline-label">Cost over time</span>
+        <svg id="sparkline-svg" viewBox="0 0 400 36" preserveAspectRatio="none">
+          <defs><linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--teal)" stop-opacity="0.4"/>
+            <stop offset="100%" stop-color="var(--teal)" stop-opacity="0"/>
+          </linearGradient></defs>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="telem-stats">
+      <div class="telem-stat">
+        <div class="stat-label">Burn Rate</div>
+        <div class="stat-value" id="stat-burn-rate">--</div>
+      </div>
+      <div class="telem-stat">
+        <div class="stat-label">Projected Cost</div>
+        <div class="stat-value" id="stat-projected">--</div>
+      </div>
+      <div class="telem-stat">
+        <div class="stat-label">Time Left</div>
+        <div class="stat-value" id="stat-eta">--</div>
+      </div>
+      <div class="telem-stat">
+        <div class="stat-label">Throughput</div>
+        <div class="stat-value" id="stat-throughput">--</div>
+      </div>
+    </div>
+  </div>
 
   <!-- Current Action Panel -->
   <div class="current-action" id="current-action">
@@ -697,6 +923,143 @@
     }
   }
 
+  // --- Telemetry Panel ---
+  var BUDGET_CIRC = 2 * Math.PI * 58;  // ~364.42
+  var TURNS_CIRC = 2 * Math.PI * 48;   // ~301.59
+
+  function getRunKey(state) {
+    return 'bugfix-spark-' + (state.branch || 'default');
+  }
+
+  function loadSparkHistory(state) {
+    try {
+      var raw = localStorage.getItem(getRunKey(state));
+      return raw ? JSON.parse(raw) : [];
+    } catch(e) { return []; }
+  }
+
+  function saveSparkHistory(state, history) {
+    try {
+      // Keep last 120 samples (2 min at 1/sec)
+      if (history.length > 120) history = history.slice(-120);
+      localStorage.setItem(getRunKey(state), JSON.stringify(history));
+    } catch(e) {}
+  }
+
+  function gaugeColor(pct) {
+    if (pct >= 0.85) return '#ef4444';
+    if (pct >= 0.65) return '#eab308';
+    return '#14b8a6';
+  }
+
+  function renderTelemetry(state) {
+    var usage = state.usage || {};
+    var maxCost = state.max_cost || 1;
+    var cost = usage.total_cost_usd || 0;
+    var pct = Math.min(cost / maxCost, 1);
+    var turnsUsed = usage.turns_used || 0;
+    var maxTurns = usage.max_turns || 1;
+    var turnsPct = Math.min(turnsUsed / maxTurns, 1);
+
+    // Ring gauge
+    var budgetRing = document.getElementById('gauge-budget');
+    var turnsRing = document.getElementById('gauge-turns');
+    var gaugeCont = document.getElementById('gauge-container');
+    budgetRing.style.strokeDashoffset = BUDGET_CIRC * (1 - pct);
+    budgetRing.style.stroke = gaugeColor(pct);
+    turnsRing.style.strokeDashoffset = TURNS_CIRC * (1 - turnsPct);
+    if (state.status === 'running') gaugeCont.classList.add('active');
+    else gaugeCont.classList.remove('active');
+
+    // Center text
+    document.getElementById('gauge-cost-text').textContent = '$' + cost.toFixed(2);
+    document.getElementById('gauge-cost-text').style.color = gaugeColor(pct);
+    document.getElementById('gauge-budget-text').textContent = '$' + maxCost.toFixed(2);
+    document.getElementById('gauge-pct-text').textContent = Math.round(pct * 100) + '%';
+
+    // Progress bars
+    var budgetFill = document.getElementById('bar-budget-fill');
+    budgetFill.style.width = (pct * 100) + '%';
+    budgetFill.className = 'bar-fill budget' + (pct >= 0.85 ? ' danger' : pct >= 0.65 ? ' warn' : '');
+    document.getElementById('bar-budget-label').textContent = '$' + cost.toFixed(2) + ' / $' + maxCost.toFixed(2);
+
+    document.getElementById('bar-turns-fill').style.width = (turnsPct * 100) + '%';
+    document.getElementById('bar-turns-label').textContent = turnsUsed + ' / ' + maxTurns;
+
+    // Burn rate & projections
+    var elapsedSec = 0;
+    if (state.start_iso) {
+      elapsedSec = Math.max(1, (Date.now() - new Date(state.start_iso).getTime()) / 1000);
+    }
+    var burnPerMin = cost > 0 ? (cost / elapsedSec) * 60 : 0;
+    var burnEl = document.getElementById('stat-burn-rate');
+    burnEl.textContent = burnPerMin > 0 ? '$' + burnPerMin.toFixed(2) + '/m' : '--';
+    burnEl.className = 'stat-value' + (burnPerMin > maxCost / 3 ? ' warn' : '');
+
+    // Projected cost (linear extrapolation based on step progress)
+    var stepPct = (state.current_step || 1) / (state.total_steps || 5);
+    var projected = stepPct > 0.05 ? cost / stepPct : 0;
+    var projEl = document.getElementById('stat-projected');
+    if (projected > 0) {
+      projEl.textContent = '$' + projected.toFixed(2);
+      projEl.className = 'stat-value' + (projected > maxCost ? ' danger' : projected > maxCost * 0.8 ? ' warn' : ' good');
+    } else {
+      projEl.textContent = '--';
+      projEl.className = 'stat-value';
+    }
+
+    // ETA
+    var etaEl = document.getElementById('stat-eta');
+    if (burnPerMin > 0 && state.status === 'running') {
+      var remainingCost = Math.max(0, projected - cost);
+      var etaSec = (remainingCost / burnPerMin) * 60;
+      var etaM = Math.floor(etaSec / 60);
+      var etaS = Math.floor(etaSec % 60);
+      etaEl.textContent = '~' + etaM + ':' + etaS.toString().padStart(2, '0');
+    } else if (state.status === 'done') {
+      etaEl.textContent = 'Done';
+      etaEl.className = 'stat-value good';
+    } else {
+      etaEl.textContent = '--';
+    }
+
+    // Throughput (tokens/sec)
+    var totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+    var tps = elapsedSec > 0 ? totalTokens / elapsedSec : 0;
+    document.getElementById('stat-throughput').textContent = tps > 0 ? Math.round(tps) + ' tok/s' : '--';
+
+    // Sparkline
+    var history = loadSparkHistory(state);
+    if (state.status !== 'done' && state.status !== 'error') {
+      history.push({ t: Date.now(), c: cost });
+      saveSparkHistory(state, history);
+    }
+    renderSparkline(history, maxCost);
+  }
+
+  function renderSparkline(history, maxCost) {
+    if (history.length < 2) return;
+    var svg = document.getElementById('sparkline-svg');
+    var W = 400, H = 36, PAD = 2;
+    var maxC = Math.max(maxCost, Math.max.apply(null, history.map(function(h){ return h.c; }))) || 1;
+
+    var points = history.map(function(h, i) {
+      var x = PAD + (i / (history.length - 1)) * (W - PAD * 2);
+      var y = H - PAD - ((h.c / maxC) * (H - PAD * 2));
+      return { x: x, y: y };
+    });
+
+    var lineD = points.map(function(p, i) { return (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' ');
+    var areaD = lineD + ' L' + points[points.length-1].x.toFixed(1) + ',' + H + ' L' + points[0].x.toFixed(1) + ',' + H + ' Z';
+
+    // Keep the gradient def, replace everything else
+    var defs = svg.querySelector('defs').outerHTML;
+    svg.innerHTML = defs +
+      '<path class="sparkline-area" d="' + areaD + '"/>' +
+      '<path class="sparkline-line" d="' + lineD + '"/>' +
+      '<circle class="sparkline-dot" cx="' + points[points.length-1].x.toFixed(1) + '" cy="' + points[points.length-1].y.toFixed(1) + '" r="3"/>';
+  }
+
   function renderStatus(state) {
     const banner = document.getElementById('status-banner');
     banner.className = 'status-banner';
@@ -782,6 +1145,9 @@
 
     // Usage
     renderUsage(state.usage, state);
+
+    // Telemetry
+    renderTelemetry(state);
 
     // Log
     renderLog(state.log);

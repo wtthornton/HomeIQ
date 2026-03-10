@@ -569,6 +569,7 @@ git diff --name-only --ignore-submodules | ForEach-Object { git add -- $_ }
 # Also stage new files from chain test phase, excluding submodules
 git status --porcelain --ignore-submodules | Where-Object { $_ -match '^\?\?' } | ForEach-Object { git add -- $_.Substring(3) }
 git commit -m $commitMsg
+git pull --rebase origin $Branch 2>$null
 git push -u origin $Branch
 
 Add-LogEntry "Pushed to origin/$Branch" "success"
@@ -595,11 +596,16 @@ $diffFiles
 *Review carefully before merging. These fixes were generated automatically.*
 "@
 
+$prBodyFile = Join-Path $env:TEMP "auto-bugfix-pr-body.md"
+$prBody | Out-File -FilePath $prBodyFile -Encoding utf8 -Force
+
 $prUrl = gh pr create `
     --title "fix: auto-fix $bugCount bugs found by Claude Code analysis" `
-    --body $prBody `
+    --body-file $prBodyFile `
     --base $Base `
     --head $Branch
+
+Remove-Item $prBodyFile -ErrorAction SilentlyContinue
 
 Add-LogEntry "PR created: $prUrl" "success"
 Write-Dashboard -Step $commitStep -Message "PR created." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugsFixed -FilesChanged $changedFilesCount -Validation "pass" -PrUrl $prUrl
@@ -612,9 +618,15 @@ Add-LogEntry "Collecting TappsMCP feedback..." "info"
 Write-Dashboard -Step $feedbackStep -Message "Collecting TappsMCP feedback..." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugsFixed -FilesChanged $changedFilesCount -Validation "pass" -PrUrl $prUrl
 
 $runTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
+$feedbackFileTimestamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
+$feedbackDir = Join-Path $ProjectRoot "docs/tapps-feedback"
+if (-not (Test-Path $feedbackDir)) { New-Item -ItemType Directory -Path $feedbackDir -Force | Out-Null }
+$feedbackFile = "docs/tapps-feedback/feedback-$feedbackFileTimestamp.md"
+$feedbackFileFull = Join-Path $ProjectRoot $feedbackFile
+
 $feedbackPrompt = @"
 You just completed an automated bugfix run. Review how the TappsMCP tools performed
-during this session and append structured feedback to docs/TAPPS_FEEDBACK.md.
+during this session and write structured feedback to $feedbackFile.
 
 Run context:
 - Date: $runTimestamp
@@ -624,7 +636,9 @@ Run context:
 
 Evaluate each TappsMCP tool you used (tapps_validate_changed, tapps_checklist, tapps_quick_check):
 
-For each issue found, append a markdown entry to docs/TAPPS_FEEDBACK.md using this exact format:
+Write a markdown file at $feedbackFile with a header and entries using this format:
+
+# TappsMCP Feedback - $runTimestamp
 
 ### [CATEGORY] P[0-2]: One-line summary
 - **Date**: $runTimestamp
@@ -637,17 +651,17 @@ Categories: BUG, FALSE_POSITIVE, FALSE_NEGATIVE, UX, PERF, ENHANCEMENT, INTEGRAT
 
 Also call mcp__tapps-mcp__tapps_feedback for each tool you used (helpful=true/false with context).
 
-If ALL tools worked perfectly with no issues, append nothing -- the goal is an empty file.
-Read docs/TAPPS_FEEDBACK.md first to check for recurring issues and increment their recurrence count.
+If ALL tools worked perfectly with no issues, write a short note saying so -- keep the file for the audit trail.
+Check docs/tapps-feedback/ for previous feedback files to look for recurring issues.
 "@
 
-$feedbackPrompt | Invoke-ClaudeStream -MaxTurns 10 -McpConfig $mcpConfig -AllowedTools "Read,Edit,mcp__tapps-mcp__tapps_feedback" -StepNumber $feedbackStep -StepLabel "Feedback" -Model $Model -MaxBudget $feedbackBudget
+$feedbackPrompt | Invoke-ClaudeStream -MaxTurns 10 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Write,Glob,mcp__tapps-mcp__tapps_feedback" -StepNumber $feedbackStep -StepLabel "Feedback" -Model $Model -MaxBudget $feedbackBudget
 
-# Commit feedback file if it changed
-$feedbackChanged = git diff --name-only docs/TAPPS_FEEDBACK.md
-if ($feedbackChanged) {
-    git add docs/TAPPS_FEEDBACK.md
+# Commit feedback file if it was created
+if (Test-Path $feedbackFileFull) {
+    git add $feedbackFile
     git commit -m "docs: tapps feedback from auto-bugfix run $runTimestamp"
+    git pull --rebase origin $Branch 2>$null
     git push origin $Branch
     Add-LogEntry "Feedback committed and pushed." "success"
 }
