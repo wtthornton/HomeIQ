@@ -60,6 +60,7 @@ function Invoke-ClaudeStream {
 
         # Shared state for ForEach-Object pipeline (use Script: scope so we can write from pipeline)
         $Script:_streamResultText = ""
+        $Script:_streamAccumulatedText = ""   # All assistant text blocks, used as fallback
         $Script:_streamTurnsUsed = 0
         $Script:_streamCurrentToolName = ""
         $Script:_streamCurrentToolStart = $null
@@ -214,8 +215,9 @@ function Invoke-ClaudeStream {
                                 Write-Dashboard -Step $StepNumber -Message "$displayName on $target"
                             }
 
-                            # text block — extract progress snippets (throttled)
+                            # text block — accumulate for fallback result + extract progress snippets
                             if ($block.type -eq "text" -and $block.text) {
+                                $Script:_streamAccumulatedText += $block.text + "`n"
                                 $now = Get-Date
                                 if (($now - $Script:_streamLastTextSnippet).TotalSeconds -ge 3) {
                                     $text = $block.text
@@ -265,9 +267,9 @@ function Invoke-ClaudeStream {
                     return
                 }
 
-                # result event — capture final output
+                # result event — capture final output (use accumulated text as fallback)
                 if ($evtType -eq "result") {
-                    $Script:_streamResultText = if ($evt.result) { $evt.result } else { "" }
+                    $Script:_streamResultText = if ($evt.result) { $evt.result } else { $Script:_streamAccumulatedText }
 
                     # Complete last tool call
                     if ($Script:_streamCurrentToolName -and $Script:_streamCurrentToolStart -and $Script:ToolCalls.Count -gt 0) {
