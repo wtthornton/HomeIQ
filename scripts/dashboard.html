@@ -382,9 +382,11 @@
     <h1>HomeIQ <span>Auto-Bugfix</span></h1>
     <div class="header-meta">
       <span>Elapsed: <strong id="elapsed">--:--</strong></span>
+      <span class="usage-stat"><span class="label">Model:</span> <span class="value" id="usage-model">--</span></span>
       <span class="usage-stat"><span class="label">Turns:</span> <span class="value" id="usage-turns">--</span></span>
       <span class="usage-stat"><span class="label">Tokens:</span> <span class="value" id="usage-tokens">--</span></span>
       <span class="usage-stat"><span class="label">Cost:</span> <span class="value" id="usage-cost">--</span></span>
+      <span class="usage-stat"><span class="label">Budget:</span> <span class="value" id="usage-budget">--</span></span>
       <span>Refresh: <strong id="countdown">1</strong>s</span>
     </div>
   </div>
@@ -660,11 +662,20 @@
     container.scrollTop = container.scrollHeight;
   }
 
-  function renderUsage(usage) {
+  function renderUsage(usage, state) {
     if (!usage) return;
     var turnsEl = document.getElementById('usage-turns');
     var tokensEl = document.getElementById('usage-tokens');
     var costEl = document.getElementById('usage-cost');
+    var modelEl = document.getElementById('usage-model');
+    var budgetEl = document.getElementById('usage-budget');
+
+    if (state && state.model) {
+      modelEl.textContent = state.model.replace('claude-', '').replace('-4-6', ' 4.6');
+    }
+    if (state && state.max_cost > 0) {
+      budgetEl.textContent = '$' + state.max_cost.toFixed(2);
+    }
 
     if (usage.max_turns > 0) {
       turnsEl.textContent = usage.turns_used + '/' + usage.max_turns;
@@ -679,6 +690,10 @@
 
     if (usage.total_cost_usd > 0) {
       costEl.textContent = '$' + usage.total_cost_usd.toFixed(4);
+      // Color cost red if over 80% of budget
+      if (state && state.max_cost > 0 && usage.total_cost_usd > state.max_cost * 0.8) {
+        costEl.style.color = '#ef4444';
+      }
     }
   }
 
@@ -766,7 +781,7 @@
     renderToolTimeline(state.tool_calls);
 
     // Usage
-    renderUsage(state.usage);
+    renderUsage(state.usage, state);
 
     // Log
     renderLog(state.log);

@@ -45,7 +45,9 @@ function Invoke-ClaudeStream {
 
         [string]$StepLabel = "",
 
-        [string]$Model = ""
+        [string]$Model = "",
+
+        [double]$MaxBudget = 0
     )
 
     begin {
@@ -74,6 +76,9 @@ function Invoke-ClaudeStream {
         $claudeArgs = @("--print", "--verbose", "--output-format", "stream-json", "--max-turns", $MaxTurns)
         if ($Model) {
             $claudeArgs += @("--model", $Model)
+        }
+        if ($MaxBudget -gt 0) {
+            $claudeArgs += @("--max-budget-usd", $MaxBudget)
         }
         if ($McpConfig) {
             $claudeArgs += @("--mcp-config", $McpConfig)
@@ -193,13 +198,13 @@ function Invoke-ClaudeStream {
                                 $Script:_streamCurrentToolName = $toolName
                                 $Script:_streamCurrentToolStart = Get-Date
 
-                                $Script:ToolCalls += @{
+                                $Script:ToolCalls.Add(@{
                                     tool_name  = $toolName
                                     target     = $target
                                     started_at = (Get-Date).ToString("o")
                                     duration_s = 0
                                     status     = "running"
-                                }
+                                }) | Out-Null
 
                                 $Script:_streamTurnsUsed++
                                 $Script:Usage.turns_used = $Script:_streamTurnsUsed

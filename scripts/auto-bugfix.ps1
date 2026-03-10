@@ -21,7 +21,8 @@ param(
     [switch]$Rotate,
     [string]$TargetUnit = "",
     [switch]$Worktree,
-    [string]$Model = "claude-sonnet-4-6"
+    [string]$Model = "claude-sonnet-4-6",
+    [double]$MaxCost = 2.00
 )
 
 $ErrorActionPreference = "Stop"
@@ -99,8 +100,8 @@ $DashboardStateFile = Join-Path $ProjectRoot "scripts/.dashboard-state.json"
 $DashboardHtml = Join-Path $ProjectRoot "scripts/dashboard.html"
 $StartTime = Get-Date
 $StartIso = $StartTime.ToString("o")
-$Script:DashboardLog = @()
-$Script:ToolCalls = @()
+$Script:DashboardLog = [System.Collections.Generic.List[object]]::new()
+$Script:ToolCalls = [System.Collections.Generic.List[object]]::new()
 $Script:Usage = @{ input_tokens = 0; output_tokens = 0; total_cost_usd = 0; turns_used = 0; max_turns = 0 }
 $Script:CurrentTool = @{ name = ""; target = ""; elapsed_s = 0 }
 
@@ -152,6 +153,8 @@ function Write-Dashboard {
         tool_calls    = $Script:ToolCalls
         usage         = $Script:Usage
         current_tool  = $curTool
+        model         = $Model
+        max_cost      = $MaxCost
     }
 
     $stateJson = $state | ConvertTo-Json -Depth 10
@@ -174,7 +177,7 @@ function Add-LogEntry {
         msg   = $Msg
         level = $Level
     }
-    $Script:DashboardLog += $entry
+    $Script:DashboardLog.Add($entry) | Out-Null
     # Also write to console
     $color = switch ($Level) {
         "success" { "Green" }
@@ -221,6 +224,7 @@ Write-Host "  Bugs:     $Bugs"
 Write-Host "  Branch:   $Branch"
 Write-Host "  Base:     $Base"
 Write-Host "  Model:    $Model"
+Write-Host "  Budget:   `$$MaxCost"
 if ($Chain) { Write-Host "  Chain:    $ChainPhases" -ForegroundColor Magenta }
 if ($ScanUnitId) { Write-Host "  Unit:     $ScanUnitId ($ScanUnitName)" -ForegroundColor Magenta }
 Write-Host ""
@@ -294,7 +298,13 @@ Rules:
 $promptOverrides
 
 After completing your analysis, output a JSON array with objects: {"file": "...", "line": N, "description": "...", "severity": "high|medium|low"}
-Output ONLY the JSON array as your final message, no other text.
+
+IMPORTANT: Wrap your JSON output between these exact markers:
+<<<BUGS>>>
+[{"file": "...", "line": N, "description": "...", "severity": "high|medium|low"}, ...]
+<<<END_BUGS>>>
+
+Output ONLY the markers and JSON array as your final message, no other text.
 "@
 
 Write-Host "[2/$totalSteps] Scanning codebase for $Bugs bugs (TappsMCP + code review)..." -ForegroundColor Yellow
@@ -302,21 +312,53 @@ Add-LogEntry "Scanning with TappsMCP security_scan + quick_check + code review..
 Write-Dashboard -Step 2 -Message "Scanning for $Bugs bugs (TappsMCP + review)..."
 
 $mcpConfig = Join-Path $ProjectRoot ".mcp.json"
-$rawOutput = $findPrompt | Invoke-ClaudeStream -MaxTurns 15 -McpConfig $mcpConfig -AllowedTools "Read,Grep,Glob,Bash,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_score_file" -StepNumber 2 -StepLabel "Scan" -Model $Model
+# Budget allocation: Scan 30%, Fix 40%, Refactor/Test 15%, Feedback 15%
+$scanBudget = [math]::Round($MaxCost * 0.30, 2)
+$fixBudget  = [math]::Round($MaxCost * 0.40, 2)
+$chainBudget = [math]::Round($MaxCost * 0.15, 2)
+$feedbackBudget = [math]::Round($MaxCost * 0.15, 2)
 
-# Extract JSON array from response (greedy match for full array)
-$jsonMatch = [regex]::Match($rawOutput, '\[\s*\{[\s\S]*\}\s*\]')
-if (-not $jsonMatch.Success) {
-    Add-LogEntry "Failed to extract bug list JSON from Claude output" "error"
-    Write-Dashboard -Step 2 -Status "error" -Message "Failed to extract bug list from Claude output"
+$bugsJson = ""
+$scanAttempts = 2
+$scanAllowedTools = "Read,Grep,Glob,Bash,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_score_file"
+
+for ($attempt = 1; $attempt -le $scanAttempts; $attempt++) {
+    if ($attempt -gt 1) {
+        Add-LogEntry "Retrying scan (attempt $attempt/$scanAttempts) with fewer turns..." "warn"
+        Write-Dashboard -Step 2 -Message "Retry ${attempt}: rescanning..."
+    }
+
+    # On retry: use more turns and a stricter prompt
+    $scanTurns = if ($attempt -eq 1) { 15 } else { 20 }
+    $rawOutput = $findPrompt | Invoke-ClaudeStream -MaxTurns $scanTurns -McpConfig $mcpConfig -AllowedTools $scanAllowedTools -StepNumber 2 -StepLabel "Scan" -Model $Model -MaxBudget $scanBudget
+
+    # Extract JSON array - try delimited markers first, fall back to greedy regex
+    $jsonMatch = [regex]::Match($rawOutput, '<<<BUGS>>>\s*([\s\S]*?)\s*<<<END_BUGS>>>')
+    if ($jsonMatch.Success) {
+        $bugsJson = $jsonMatch.Groups[1].Value.Trim()
+        Add-LogEntry "Extracted bug list via <<<BUGS>>> markers" "info"
+        break
+    }
+
+    $jsonMatch = [regex]::Match($rawOutput, '\[\s*\{[\s\S]*\}\s*\]')
+    if ($jsonMatch.Success) {
+        $bugsJson = $jsonMatch.Value
+        Add-LogEntry "Extracted bug list via fallback regex" "warn"
+        break
+    }
+
+    Add-LogEntry "Attempt ${attempt}: no JSON found in scan output" "warn"
+    $rawOutput | Out-File -FilePath "$env:TEMP\auto-bugfix-raw-attempt$attempt.txt"
+}
+
+if (-not $bugsJson) {
+    Add-LogEntry "Failed to extract bug list JSON after $scanAttempts attempts" "error"
+    Write-Dashboard -Step 2 -Status "error" -Message "Failed to extract bug list after $scanAttempts attempts"
     Write-Error "ERROR: Failed to extract bug list JSON from Claude output."
-    $rawOutput | Out-File -FilePath "$env:TEMP\auto-bugfix-raw.txt"
-    Write-Host "Raw output saved to $env:TEMP\auto-bugfix-raw.txt"
+    Write-Host "Raw output saved to $env:TEMP\auto-bugfix-raw-attempt*.txt"
     if (-not $Worktree) { git checkout $Base; git branch -D $Branch }
     exit 1
 }
-
-$bugsJson = $jsonMatch.Value
 
 try {
     $bugsList = $bugsJson | ConvertFrom-Json
@@ -333,15 +375,15 @@ Write-Host "  Found $bugCount bugs." -ForegroundColor Green
 $bugsList | Format-Table -AutoSize
 
 # Build dashboard bug list with pending status
-$dashBugs = @()
+$dashBugs = [System.Collections.Generic.List[object]]::new()
 foreach ($b in $bugsList) {
-    $dashBugs += @{
+    $dashBugs.Add(@{
         file        = $b.file
         line        = $b.line
         description = $b.description
         severity    = $b.severity
         fix_status  = "pending"
-    }
+    }) | Out-Null
 }
 
 Add-LogEntry "Found $bugCount bugs" "success"
@@ -351,9 +393,10 @@ foreach ($b in $bugsList) {
 Write-Dashboard -Step 2 -Message "Found $bugCount bugs. Starting fixes..." -BugsList $dashBugs -BugsFound $bugCount
 
 # --- Step 3: Fix bugs with Claude Code ---
+$fixMaxTurns = [math]::Min($bugCount * 5 + 5, 30)  # 5 turns per bug + 5 for validation, cap at 30
 Write-Host ""
 Write-Host "[3/$totalSteps] Fixing bugs..." -ForegroundColor Yellow
-Add-LogEntry "Fixing $bugCount bugs (Claude Code headless, max 25 turns)..." "info"
+Add-LogEntry "Fixing $bugCount bugs (Claude Code headless, max $fixMaxTurns turns)..." "info"
 Write-Dashboard -Step 3 -Message "Fixing $bugCount bugs..." -BugsList $dashBugs -BugsFound $bugCount
 
 $fixPrompt = @"
@@ -375,7 +418,7 @@ After fixing ALL bugs, you MUST run these validation steps in order:
 After validation passes, provide a summary of what you changed and the validation results.
 "@
 
-$fixPrompt | Invoke-ClaudeStream -MaxTurns 25 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check" -StepNumber 3 -StepLabel "Fix" -Model $Model
+$fixPrompt | Invoke-ClaudeStream -MaxTurns $fixMaxTurns -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check" -StepNumber 3 -StepLabel "Fix" -Model $Model -MaxBudget $fixBudget
 
 # Check if anything was actually changed (ignore submodule drift)
 $changes = git status --porcelain --ignore-submodules
@@ -387,26 +430,39 @@ if (-not $changes) {
     exit 1
 }
 
-# Update bug statuses to fixed and count changed files
+# Update bug statuses — cross-reference changed files with bug list
 $changedFilesList = @(git diff --name-only --ignore-submodules)
 $changedFilesCount = $changedFilesList.Count
+$bugsFixed = 0
 foreach ($db in $dashBugs) {
-    $db.fix_status = "fixed"
+    # Normalize: bug file path may be relative, changed files are repo-relative
+    $bugFile = $db.file -replace '\\', '/'
+    $matched = $changedFilesList | Where-Object { ($_ -replace '\\', '/') -like "*$bugFile" -or $bugFile -like "*$_" }
+    if ($matched) {
+        $db.fix_status = "fixed"
+        $bugsFixed++
+    } else {
+        $db.fix_status = "unfixed"
+    }
 }
 
-Add-LogEntry "All bugs fixed. $changedFilesCount files changed." "success"
+if ($bugsFixed -eq $bugCount) {
+    Add-LogEntry "All $bugCount bugs fixed. $changedFilesCount files changed." "success"
+} else {
+    Add-LogEntry "$bugsFixed of $bugCount bugs fixed. $changedFilesCount files changed." "warn"
+}
 foreach ($f in $changedFilesList) {
     Add-LogEntry "  Modified: $f" "info"
 }
 Add-LogEntry "TAPPS validation completed" "success"
-Write-Dashboard -Step 3 -Message "Bugs fixed and validated." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugCount -FilesChanged $changedFilesCount -Validation "pass"
+Write-Dashboard -Step 3 -Message "$bugsFixed/$bugCount bugs fixed and validated." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugsFixed -FilesChanged $changedFilesCount -Validation "pass"
 
 # --- Chain Mode: Refactor Phase ---
 if ($Chain -and $ChainPhases -match "refactor") {
     Write-Host ""
     Write-Host "[4/$totalSteps] Refactoring fixed files..." -ForegroundColor Magenta
     Add-LogEntry "Chain mode: refactoring fixed files..." "info"
-    Write-Dashboard -Step 4 -Message "Refactoring fixed files..." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugCount -FilesChanged $changedFilesCount -Validation "pass"
+    Write-Dashboard -Step 4 -Message "Refactoring fixed files..." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugsFixed -FilesChanged $changedFilesCount -Validation "pass"
 
     $changedFiles = (git diff --name-only --ignore-submodules) -join ", "
     $refactorPrompt = @"
@@ -428,7 +484,7 @@ After refactoring, run mcp__tapps-mcp__tapps_validate_changed() to verify qualit
 Provide a summary of refactoring applied.
 "@
 
-    $refactorPrompt | Invoke-ClaudeStream -MaxTurns 15 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_quick_check" -StepNumber 4 -StepLabel "Refactor" -Model $Model
+    $refactorPrompt | Invoke-ClaudeStream -MaxTurns 15 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_quick_check" -StepNumber 4 -StepLabel "Refactor" -Model $Model -MaxBudget $chainBudget
 
     $refactorChanges = git diff --name-only --ignore-submodules
     if ($refactorChanges) {
@@ -444,7 +500,7 @@ if ($Chain -and $ChainPhases -match "test") {
     Write-Host ""
     Write-Host "[$testStep/$totalSteps] Generating tests for fixed bugs..." -ForegroundColor Magenta
     Add-LogEntry "Chain mode: generating tests for fixed bugs..." "info"
-    Write-Dashboard -Step $testStep -Message "Generating tests for fixed bugs..." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugCount -FilesChanged $changedFilesCount -Validation "pass"
+    Write-Dashboard -Step $testStep -Message "Generating tests for fixed bugs..." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugsFixed -FilesChanged $changedFilesCount -Validation "pass"
 
     $testPrompt = @"
 You are a senior Python developer. Write unit tests for these bug fixes:
@@ -463,7 +519,7 @@ After writing tests, run: pytest <test_file> -v --tb=short to verify they pass.
 Then run mcp__tapps-mcp__tapps_quick_check on each test file.
 "@
 
-    $testPrompt | Invoke-ClaudeStream -MaxTurns 20 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Write,Grep,Glob,Bash,mcp__tapps-mcp__tapps_quick_check" -StepNumber 5 -StepLabel "Test" -Model $Model
+    $testPrompt | Invoke-ClaudeStream -MaxTurns 20 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Write,Grep,Glob,Bash,mcp__tapps-mcp__tapps_quick_check" -StepNumber 5 -StepLabel "Test" -Model $Model -MaxBudget $chainBudget
 
     $testChanges = git status --porcelain --ignore-submodules
     if ($testChanges) {
@@ -478,7 +534,7 @@ $commitStep = if ($Chain) { 6 } else { 4 }
 Write-Host ""
 Write-Host "[$commitStep/$totalSteps] Committing and creating PR..." -ForegroundColor Yellow
 Add-LogEntry "Committing changes and creating PR..." "info"
-Write-Dashboard -Step $commitStep -Message "Committing and creating PR..." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugCount -FilesChanged $changedFilesCount -Validation "pass"
+Write-Dashboard -Step $commitStep -Message "Committing and creating PR..." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugsFixed -FilesChanged $changedFilesCount -Validation "pass"
 
 $changedFiles = (git diff --name-only --ignore-submodules) -join ", "
 $commitPrefix = if ($Chain) { "fix+refactor+test" } else { "fix" }
@@ -522,14 +578,14 @@ $prUrl = gh pr create `
     --head $Branch
 
 Add-LogEntry "PR created: $prUrl" "success"
-Write-Dashboard -Step $commitStep -Message "PR created." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugCount -FilesChanged $changedFilesCount -Validation "pass" -PrUrl $prUrl
+Write-Dashboard -Step $commitStep -Message "PR created." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugsFixed -FilesChanged $changedFilesCount -Validation "pass" -PrUrl $prUrl
 
 # --- Step 5/7: Collect TappsMCP feedback ---
 $feedbackStep = if ($Chain) { 7 } else { 5 }
 Write-Host ""
 Write-Host "[$feedbackStep/$totalSteps] Collecting TappsMCP feedback..." -ForegroundColor Yellow
 Add-LogEntry "Collecting TappsMCP feedback..." "info"
-Write-Dashboard -Step $feedbackStep -Message "Collecting TappsMCP feedback..." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugCount -FilesChanged $changedFilesCount -Validation "pass" -PrUrl $prUrl
+Write-Dashboard -Step $feedbackStep -Message "Collecting TappsMCP feedback..." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugsFixed -FilesChanged $changedFilesCount -Validation "pass" -PrUrl $prUrl
 
 $runTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
 $feedbackPrompt = @"
@@ -561,7 +617,7 @@ If ALL tools worked perfectly with no issues, append nothing — the goal is an 
 Read docs/TAPPS_FEEDBACK.md first to check for recurring issues and increment their recurrence count.
 "@
 
-$feedbackPrompt | Invoke-ClaudeStream -MaxTurns 10 -McpConfig $mcpConfig -AllowedTools "Read,Edit,mcp__tapps-mcp__tapps_feedback" -StepNumber $feedbackStep -StepLabel "Feedback" -Model $Model
+$feedbackPrompt | Invoke-ClaudeStream -MaxTurns 10 -McpConfig $mcpConfig -AllowedTools "Read,Edit,mcp__tapps-mcp__tapps_feedback" -StepNumber $feedbackStep -StepLabel "Feedback" -Model $Model -MaxBudget $feedbackBudget
 
 # Commit feedback file if it changed
 $feedbackChanged = git diff --name-only docs/TAPPS_FEEDBACK.md
@@ -624,7 +680,7 @@ if ($ScanUnitId) {
 $elapsed = (Get-Date) - $StartTime
 $elapsedStr = "{0:mm\:ss}" -f $elapsed
 Add-LogEntry "Pipeline complete in $elapsedStr" "success"
-Write-Dashboard -Step $feedbackStep -Status "done" -Message "Complete! $bugCount bugs fixed in $elapsedStr. PR: $prUrl" -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugCount -FilesChanged $changedFilesCount -Validation "pass" -PrUrl $prUrl
+Write-Dashboard -Step $feedbackStep -Status "done" -Message "Complete! $bugsFixed/$bugCount bugs fixed in $elapsedStr. PR: $prUrl" -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugsFixed -FilesChanged $changedFilesCount -Validation "pass" -PrUrl $prUrl
 
 Write-Host ""
 Write-Host "=== Done ===" -ForegroundColor Green
