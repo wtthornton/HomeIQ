@@ -21,7 +21,7 @@ the pipeline below.
 - Fix issues before moving to the next file
 
 ### Stage 4: Validate
-- Run `tapps_validate_changed` before declaring work complete
+- Run `tapps_validate_changed` with explicit `file_paths` before declaring work complete (default is quick mode; `quick=false` is a last resort)
 - Run `tapps_security_scan` on security-sensitive files
 - Ensure overall score >= 70 and no HIGH security findings
 
