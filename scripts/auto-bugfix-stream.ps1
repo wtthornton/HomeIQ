@@ -84,12 +84,6 @@ function Invoke-ClaudeStream {
         }
         $streamLogFile = Join-Path $streamLogDir "$($Branch -replace '[/\\:]', '-')-step$StepNumber.jsonl"
 
-        # Start a heartbeat job that updates the dashboard every 3 seconds while Claude is working.
-        # This gives visual feedback even when no stream events are arriving.
-        $heartbeatStateFile = Join-Path $env:TEMP "claude-stream-heartbeat-$StepNumber.json"
-        @{ active = $true; step = $StepNumber; label = $StepLabel; started = $stepStart.ToString("o") } |
-            ConvertTo-Json | Set-Content $heartbeatStateFile -Encoding utf8
-
         # Write initial "connecting" status
         Add-LogEntry "[$StepLabel] Connecting to Claude..." "info"
         Write-Dashboard -Step $StepNumber -Message "Connecting to Claude..."
@@ -125,7 +119,7 @@ function Invoke-ClaudeStream {
                 # system event (session init)
                 if ($evtType -eq "system") {
                     Add-LogEntry "[$StepLabel] Claude session started (streaming)" "info"
-                    Write-Dashboard -Step $StepNumber -Message "Claude connected — analyzing..."
+                    Write-Dashboard -Step $StepNumber -Message "Claude connected - analyzing..."
                     return
                 }
 
@@ -325,15 +319,14 @@ function Invoke-ClaudeStream {
 
             # If we got zero events, the pipeline may have returned plain text (non-streaming fallback)
             if ($Script:_streamEventCount -eq 0) {
-                Add-LogEntry "[$StepLabel] Warning: No stream events received — claude may not support stream-json" "warn"
+                Add-LogEntry "[$StepLabel] Warning: No stream events received - claude may not support stream-json" "warn"
             }
 
         } catch {
             Add-LogEntry "[$StepLabel] Stream error: $_" "error"
             Write-Dashboard -Step $StepNumber -Message "Stream error: $_"
         } finally {
-            # Cleanup heartbeat state file
-            if (Test-Path $heartbeatStateFile) { Remove-Item $heartbeatStateFile -Force -ErrorAction SilentlyContinue }
+            # No cleanup needed
         }
 
         # Return the final result text
