@@ -195,8 +195,13 @@ class HAFineTuner:
                 return_tensors=None,
             )
 
-            # Set labels (same as input_ids for causal LM)
-            tokenized["labels"] = tokenized["input_ids"].copy()
+            # Set labels for causal LM, masking padding positions with -100
+            # so the loss is not computed on padding tokens
+            pad_id = self.tokenizer.pad_token_id
+            tokenized["labels"] = [
+                -100 if token_id == pad_id else token_id
+                for token_id in tokenized["input_ids"]
+            ]
 
             return tokenized
 

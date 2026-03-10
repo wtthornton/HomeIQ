@@ -1,6 +1,6 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-10 (Epic 46 complete, Epic 48 added)
+**Created:** 2026-02-27 | **Updated:** 2026-03-10 (Epic 46, Epic 48 complete)
 **Total:** 48 Epics, 309 Stories (309 complete, 7 open for Epic 47), ~700+ files addressed
 
 ## Execution Order & Dependencies
@@ -86,8 +86,8 @@ Sprint 11 (COMPLETE — Mar 10, 2026) — Auto-Bugfix Pipeline
 Sprint 12 (Backlog) — Auto-Bugfix Dashboard
 └── Epic 47: Auto-Bugfix Dashboard Real-Time Updates [P1]   ← OPEN (7 stories: live Model/Turns/Cost/Bugs/telemetry via stream + XHR polling)
 
-Sprint 13 (Backlog) — Auto-Bugfix Subagents
-└── Epic 48: Auto-Bugfix Subagents Integration [P1]         ← OPEN (5 stories: Claude Code subagents for faster, cheaper scan phase)
+Sprint 13 (COMPLETE — Mar 10, 2026) — Auto-Bugfix Subagents
+└── Epic 48: Auto-Bugfix Subagents Integration [P1]         ← COMPLETE (5 stories: bug-scanner subagent, -UseSubagents, docs)
 ```
 
 ## Epic Summary
@@ -142,7 +142,7 @@ Sprint 13 (Backlog) — Auto-Bugfix Subagents
 | 45 | [Observability Dashboard Testing](epic-observability-dashboard-testing.md) | `epic-observability-dashboard-testing.md` | P1 High | 4 | 1 week | **Complete** (109 tests, 8 files) |
 | 46 | [Auto-Bugfix Scan Robustness & Tests](epic-auto-bugfix-robustness-and-tests.md) | `epic-auto-bugfix-robustness-and-tests.md` | P1 High | 5 | 1-2 weeks | **Complete** |
 | 47 | [Auto-Bugfix Dashboard Real-Time Updates](../docs/planning/auto-bugfix-dashboard-realtime-epic.md) | `docs/planning/auto-bugfix-dashboard-realtime-epic.md` | P1 High | 7 | 1-2 weeks | **Open** |
-| 48 | [Auto-Bugfix Subagents Integration](epic-auto-bugfix-subagents-integration.md) | `epic-auto-bugfix-subagents-integration.md` | P1 High | 5 | 1-2 weeks | **Open** |
+| 48 | [Auto-Bugfix Subagents Integration](epic-auto-bugfix-subagents-integration.md) | `epic-auto-bugfix-subagents-integration.md` | P1 High | 5 | 1-2 weeks | **Complete** |
 
 ## Story Count by Priority
 

@@ -183,6 +183,24 @@ class ServiceManager:
         wait=wait_exponential(multiplier=1, min=4, max=10),
         retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError)),
     )
+    async def _call_service_with_retry(
+        self,
+        service_name: str,
+        url: str,
+        endpoint: str,
+        data: dict[str, Any],
+        timeout: float | None = None,
+    ) -> dict[str, Any]:
+        """Inner HTTP call with retry logic. No circuit breaker side-effects here."""
+        if self.client is None:
+            raise RuntimeError("ServiceManager has been closed")
+        effective_timeout = timeout or self.client.timeout
+        response = await self.client.post(
+            f"{url}{endpoint}", json=data, timeout=effective_timeout
+        )
+        response.raise_for_status()
+        return response.json()
+
     async def _call_service(
         self,
         service_name: str,
@@ -191,23 +209,22 @@ class ServiceManager:
         data: dict[str, Any],
         timeout: float | None = None,
     ) -> dict[str, Any]:
-        """Call a service with retry logic and circuit breaker protection."""
-        if self.client is None:
-            raise RuntimeError("ServiceManager has been closed")
+        """Call a service with retry logic and circuit breaker protection.
 
+        Circuit breaker is updated once per logical call (after all retries),
+        not once per retry attempt, preventing premature circuit opens.
+        """
         cb = self.circuit_breakers.get(service_name)
         if cb and not cb.can_execute():
             raise RuntimeError(f"Circuit breaker open for service: {service_name}")
 
         try:
-            effective_timeout = timeout or self.client.timeout
-            response = await self.client.post(
-                f"{url}{endpoint}", json=data, timeout=effective_timeout
+            result = await self._call_service_with_retry(
+                service_name, url, endpoint, data, timeout
             )
-            response.raise_for_status()
             if cb:
                 cb.record_success()
-            return response.json()
+            return result
         except Exception as e:
             if cb:
                 cb.record_failure()

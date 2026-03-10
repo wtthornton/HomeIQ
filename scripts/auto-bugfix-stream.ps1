@@ -29,6 +29,9 @@ function Invoke-ClaudeStream {
 
     .PARAMETER StepLabel
         Human-readable label for the current step (e.g., "Scan", "Fix").
+
+    .PARAMETER DisallowedTools
+        Optional. Comma-separated tools to block (e.g., "Agent(bug-scanner)"). Epic 48.
     #>
     [CmdletBinding()]
     param(

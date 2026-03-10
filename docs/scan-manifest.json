@@ -1,8 +1,8 @@
 {
     "version":  1,
     "description":  "Auto-bugfix rotating scan manifest. Tracks which scan units have been scanned and their bug yield.",
-    "last_unit_scanned":  "device-intelligence",
-    "total_runs":  5,
+    "last_unit_scanned":  "automation-core-rest",
+    "total_runs":  6,
     "units":  [
                   {
                       "id":  "libs",
@@ -70,9 +70,9 @@
                       "path":  "domains/automation-core/",
                       "priority_weight":  5,
                       "scan_hint":  "Scan ai-query-service, ai-code-executor, automation-linter, automation-trace-service, ha-device-control, yaml-validation-service. SKIP ha-ai-agent-service and ai-automation-service-new (they have their own units).",
-                      "last_scanned":  null,
-                      "total_runs":  0,
-                      "total_bugs_found":  0,
+                      "last_scanned":  "2026-03-10T22:39:15.2654540Z",
+                      "total_runs":  1,
+                      "total_bugs_found":  5,
                       "bugs_fixed_confirmed":  0,
                       "false_positives":  0
                   },
