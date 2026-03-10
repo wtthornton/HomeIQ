@@ -66,7 +66,7 @@ function Invoke-ClaudeStream {
         $currentToolStart = $null
 
         # Build claude arguments
-        $claudeArgs = @("--print", "--output-format", "stream-json", "--max-turns", $MaxTurns)
+        $claudeArgs = @("--print", "--verbose", "--output-format", "stream-json", "--max-turns", $MaxTurns)
         if ($McpConfig) {
             $claudeArgs += @("--mcp-config", $McpConfig)
         }
