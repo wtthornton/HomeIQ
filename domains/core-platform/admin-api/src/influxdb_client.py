@@ -5,8 +5,11 @@ InfluxDB Client for Admin API Statistics Queries
 import asyncio
 import logging
 import os
+import re
 from datetime import datetime
 from typing import Any
+
+_SERVICE_NAME_RE = re.compile(r'^[a-zA-Z0-9_\-]{1,128}$')
 
 try:
     from influxdb_client import InfluxDBClient
@@ -181,6 +184,9 @@ from(bucket: "{self.bucket}")
         """
         if not self.is_connected or not self.query_api:
             raise Exception("InfluxDB client not connected")
+
+        if not _SERVICE_NAME_RE.match(service_name):
+            raise ValueError(f"Invalid service_name: {service_name!r}")
 
         query = f'''
 from(bucket: "{self.bucket}")

@@ -160,6 +160,9 @@ class StorageAnalytics:
     ):
         """Log retention operation for tracking"""
 
+        if not self.enabled:
+            return
+
         try:
             point = Point("retention_operations") \
                 .tag("operation_type", operation_type) \

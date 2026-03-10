@@ -36,7 +36,16 @@ async def create_backup(request: Request, backup_request: BackupCreateRequest):
             include_config=backup_request.include_config,
             include_logs=backup_request.include_logs
         )
-        return backup_info
+        created_at = backup_info.created_at
+        if hasattr(created_at, "isoformat"):
+            created_at = created_at.isoformat()
+        return BackupResponse(
+            backup_id=backup_info.backup_id,
+            backup_type=backup_info.backup_type,
+            created_at=created_at,
+            size_bytes=backup_info.size_bytes,
+            status="success" if backup_info.success else "failed",
+        )
     except Exception as e:
         logger.error(f"Backup creation failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from None

@@ -573,20 +573,32 @@ git status --porcelain --ignore-submodules | Where-Object { $_ -match '^\?\?' } 
 git commit -m $commitMsg
 
 # Rebase only if the remote branch already exists (fresh branches won't have one)
-$remoteBranch = git ls-remote --heads origin $Branch 2>$null
-if ($remoteBranch) {
-    $stashed = $false
-    $dirty = git status --porcelain --ignore-submodules
-    if ($dirty) {
-        Add-LogEntry "Stashing local changes before pull (e.g. CRLF normalization)" "info"
-        git stash push -m "auto-bugfix: pre-pull" 2>$null
-        $stashed = ($LASTEXITCODE -eq 0)
+# Use Continue so git progress (e.g. "From https://...") on stderr does not abort script
+$prevErrorAction = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+try {
+    $remoteBranch = git ls-remote --heads origin $Branch 2>$null
+    if ($remoteBranch) {
+        $stashed = $false
+        $dirty = git status --porcelain --ignore-submodules
+        if ($dirty) {
+            Add-LogEntry "Stashing local changes before pull (e.g. CRLF normalization)" "info"
+            git stash push -m "auto-bugfix: pre-pull" 2>$null
+            $stashed = ($LASTEXITCODE -eq 0)
+        }
+        git pull --rebase origin $Branch 2>$null
+        if ($LASTEXITCODE -ne 0) { Add-LogEntry "Pull --rebase failed (non-fatal, continuing push)" "warn" }
+        if ($stashed) { git stash pop 2>$null }
     }
-    git pull --rebase origin $Branch 2>$null
-    if ($stashed) { git stash pop 2>$null }
-}
 
-git push -u origin $Branch
+    git push -u origin $Branch 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        $ErrorActionPreference = $prevErrorAction
+        throw "git push failed with exit code $LASTEXITCODE"
+    }
+} finally {
+    $ErrorActionPreference = $prevErrorAction
+}
 
 Add-LogEntry "Pushed to origin/$Branch" "success"
 
@@ -684,15 +696,22 @@ if (Test-Path $feedbackFileFull) {
     git commit -m "docs: tapps feedback from auto-bugfix run $runTimestamp"
     $stashedFeedback = $false
     $dirtyFeedback = git status --porcelain --ignore-submodules
-    if ($dirtyFeedback) {
-        Add-LogEntry "Stashing local changes before pull (e.g. CRLF)" "info"
-        git stash push -m "auto-bugfix: pre-pull-feedback" 2>$null
-        $stashedFeedback = ($LASTEXITCODE -eq 0)
+    $prevEA = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        if ($dirtyFeedback) {
+            Add-LogEntry "Stashing local changes before pull (e.g. CRLF)" "info"
+            git stash push -m "auto-bugfix: pre-pull-feedback" 2>$null
+            $stashedFeedback = ($LASTEXITCODE -eq 0)
+        }
+        git pull --rebase origin $Branch 2>$null
+        if ($LASTEXITCODE -ne 0) { Add-LogEntry "Pull after feedback failed (non-fatal)" "warn" }
+        if ($stashedFeedback) { git stash pop 2>$null }
+        git push origin $Branch 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { Add-LogEntry "Push after feedback failed (non-fatal)" "warn" }
+    } finally {
+        $ErrorActionPreference = $prevEA
     }
-    git pull --rebase origin $Branch 2>$null
-    if ($LASTEXITCODE -ne 0) { Add-LogEntry "Pull after feedback failed (non-fatal)" "warn" }
-    if ($stashedFeedback) { git stash pop 2>$null }
-    git push origin $Branch 2>$null
     Add-LogEntry "Feedback committed and pushed." "success"
 }
 
