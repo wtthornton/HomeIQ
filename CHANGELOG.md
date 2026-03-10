@@ -21,6 +21,36 @@
 
 ### Fixed
 
+- **pipe prompts via stdin to claude --print in auto-bugfix.ps1** (0d66146) - Bill Thornton
+- **Docker deployment — add homeiq-memory lib + resolve port conflicts** (71b3f31) - Bill Thornton
+- **test infrastructure improvements and model refactoring** (ea7656c) - Bill Thornton
+- **resolve memory brain migration enum mismatch + configurable pattern coordinates** (2d3e420) - Bill Thornton
+- **use TappsMCP tools for bug scanning instead of pure LLM guessing** (6bdc94f) - Bill Thornton
+- **dashboard now embeds state in HTML (fixes Chrome file:// CORS)** (e59bd86) - Bill Thornton
+- **use temp file for python script in parallel orchestrator (PS5 compat)** (0c1d43c) - Bill Thornton
+- **resolve function-before-definition errors in rotate mode** (beb5a80) - Bill Thornton
+- **Correct ai-automation-ui health check port (80 -> 8080)** (ff02b5d) - Bill Thornton
+
+
+### Added
+
+- **auto-fix infrastructure — pre-commit, lib validation, CI hardening** (5e361e7) - Bill Thornton
+- **Epic 41 — Memory Brain quality tuning (7 stories)** (2837a2a) - Bill Thornton
+- **Epic 40 — pattern detection ML upgrade (8 stories)** (38b7b4d) - Bill Thornton
+- **Epic 39 — enable React Compiler for both frontend apps** (7f8b1df) - Bill Thornton
+- **complete Sprint 8 — pattern detection expansion + ML upgrades** (d32ecb2) - Bill Thornton
+- **worktree-based parallel auto-bugfix with shared picker script** (705045c) - Bill Thornton
+- **feat(epic-37): add anomaly and duration pattern detectors** (0bbaaf5) - Bill Thornton
+- **add worktree-based parallel auto-bugfix scanning** (3aec513) - Bill Thornton
+- **feat(story-37.1): add SequencePatternDetector to pattern-analyzer** (4cd48f8) - Bill Thornton
+- **feat(story-38.3): Upgrade sentence-transformers to 5.x across all ML services** (8782a2f) - Bill Thornton
+- **feat(story-38.2): Complete sentence-transformers upgrade assessment - UPGRADE SAFE** (d9f6dee) - Bill Thornton
+- **feat(story-38.1): Add embedding compatibility test infrastructure** (c7ca9db) - Bill Thornton
+- **add rotating scan units for systematic codebase coverage** (6c62499) - Bill Thornton
+- **Add Sprint 8 epics - Pattern Detection (10 stories) + ML Upgrades (8 stories)** (65afe1c) - Bill Thornton
+
+### Fixed
+
 - **Docker deployment — add homeiq-memory lib + resolve port conflicts** (71b3f31) - Bill Thornton
 - **test infrastructure improvements and model refactoring** (ea7656c) - Bill Thornton
 - **resolve memory brain migration enum mismatch + configurable pattern coordinates** (2d3e420) - Bill Thornton
