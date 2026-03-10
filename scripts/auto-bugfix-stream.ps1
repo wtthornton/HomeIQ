@@ -86,9 +86,15 @@ function Invoke-ClaudeStream {
         $streamLogFile = Join-Path $streamLogDir "$($Branch -replace '[/\\:]', '-')-step$StepNumber.jsonl"
 
         try {
-            # Start claude process with stdin redirected from prompt file
+            # Resolve full path to claude — System.Diagnostics.Process doesn't search PATH like a shell
+            $claudePath = (Get-Command claude -ErrorAction SilentlyContinue).Source
+            if (-not $claudePath) {
+                throw "Cannot find 'claude' in PATH. Ensure Claude CLI is installed."
+            }
+
+            # Start claude process with stdin redirected
             $psi = New-Object System.Diagnostics.ProcessStartInfo
-            $psi.FileName = "claude"
+            $psi.FileName = $claudePath
             $psi.Arguments = $claudeArgs -join " "
             $psi.UseShellExecute = $false
             $psi.RedirectStandardInput = $true
