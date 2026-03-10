@@ -99,25 +99,26 @@ def create_shared_session_maker(
     Returns:
         Shared async_sessionmaker instance
     """
-    if database_url not in _session_makers:
-        engine = create_shared_db_engine(
-            database_url,
-            pool_size=pool_size,
-            max_overflow=max_overflow,
-            database_path=database_path,
-        )
+    with _engine_lock:
+        if database_url not in _session_makers:
+            engine = create_shared_db_engine(
+                database_url,
+                pool_size=pool_size,
+                max_overflow=max_overflow,
+                database_path=database_path,
+            )
 
-        _session_makers[database_url] = async_sessionmaker(
-            engine,
-            class_=AsyncSession,
-            expire_on_commit=False,
-            autocommit=False,
-            autoflush=False,
-        )
+            _session_makers[database_url] = async_sessionmaker(
+                engine,
+                class_=AsyncSession,
+                expire_on_commit=False,
+                autocommit=False,
+                autoflush=False,
+            )
 
-        logger.info(
-            f"Created shared session maker: {database_path or database_url}"
-        )
+            logger.info(
+                f"Created shared session maker: {database_path or database_url}"
+            )
 
     return _session_makers[database_url]
 

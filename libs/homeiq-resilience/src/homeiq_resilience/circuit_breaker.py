@@ -126,14 +126,39 @@ class CircuitBreaker:
     # Core API
     # ------------------------------------------------------------------
 
-    def allow_request(self) -> bool:
-        """Return ``True`` if a request is allowed under the current state."""
-        current = self.state
-        if current == CircuitState.CLOSED:
-            return True
-        if current == CircuitState.HALF_OPEN:
-            return self._half_open_calls < self._half_open_max_calls
-        return False  # OPEN
+    async def allow_request(self) -> bool:
+        """Return ``True`` if a request is allowed under the current state.
+
+        In the HALF_OPEN state the check and counter increment are performed
+        atomically under ``_lock``, preventing multiple concurrent coroutines
+        from all seeing ``_half_open_calls == 0`` and flooding the recovering
+        upstream with simultaneous probe requests.
+        """
+        async with self._lock:
+            # Apply OPEN -> HALF_OPEN transition inside the lock so that the
+            # state read and the subsequent counter increment are one atomic op.
+            if (
+                self._state == CircuitState.OPEN
+                and self._last_failure_time is not None
+                and (time.monotonic() - self._last_failure_time)
+                >= self._recovery_timeout
+            ):
+                self._state = CircuitState.HALF_OPEN
+                self._half_open_calls = 0
+                logger.info(
+                    "Circuit '%s' transitioned OPEN -> HALF_OPEN after %.1fs",
+                    self._name,
+                    self._recovery_timeout,
+                )
+
+            if self._state == CircuitState.CLOSED:
+                return True
+            if self._state == CircuitState.HALF_OPEN:
+                if self._half_open_calls < self._half_open_max_calls:
+                    self._half_open_calls += 1
+                    return True
+                return False
+            return False  # OPEN
 
     async def record_success(self) -> None:
         """Record a successful request, potentially closing the circuit."""

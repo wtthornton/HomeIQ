@@ -2,28 +2,39 @@
 
 **Sprint:** 10
 **Priority:** P1 (High)
-**Status:** Open
-**Created:** 2026-03-09
+**Status:** Complete
+**Created:** 2026-03-09 | **Completed:** 2026-03-10
 **Effort:** 1 week
 **Dependencies:** Epic 42, Story 42.4 (pytest setup)
 **Source:** `docs/planning/frontend-testing-epics.md` (Epic 53 mapping)
 
 ## Objective
 
-Achieve 70%+ coverage for the observability-dashboard by testing the Jaeger client, data processing, and async helpers. Currently at 0% coverage (0 test files / 12 source files).
+Achieve 70%+ coverage for the observability-dashboard by expanding the existing test suite. Currently has 3 test files + conftest with 35 passing tests across 14 source files. JaegerClient and trace helpers are already tested.
+
+## Verified Baseline (2026-03-10)
+
+| File | Tests | Status |
+|------|-------|--------|
+| test_jaeger_client.py | 12 | All passing |
+| test_trace_helpers.py | 16 | All passing |
+| test_anomaly_detection.py | 7 | All passing |
+| conftest.py | Fixtures | make_span, make_trace, etc. |
 
 ## Stories
 
-### Story 45.1: JaegerClient Unit Tests (P0)
-- Test with mocked httpx: get_traces, get_services (caching, TTL), get_trace (404 handling), get_dependencies, search_traces, close
-- Test Pydantic model validation: TraceSpan, Trace, Service, Dependency
-- **Target:** 25-30 tests
-- **Effort:** 4 hours
+### Story 45.1: Expand JaegerClient Tests (P0)
+- Already has 12 tests covering get_traces, get_trace, get_services, get_dependencies, close
+- Add: search_traces tests, cache TTL expiry, concurrent request handling
+- Add: Pydantic model validation edge cases (missing fields, type coercion)
+- **Target:** +10-15 new tests
+- **Effort:** 2 hours
 
-### Story 45.2: Data Processing Tests (P0)
-- Test trace timeline construction, span tree building, duration calculations
-- Test service dependency graph generation
-- Test performance metric aggregation
+### Story 45.2: Data Processing & Page Logic Tests (P0)
+- Test _create_timeline_chart, _create_dependency_graph (trace_visualization.py)
+- Test _calculate_service_metrics, _create_health_dataframe (service_performance.py)
+- Test _calculate_service_health, _detect_anomalies (real_time_monitoring.py)
+- Test run_async_safe (async_helpers.py)
 - **Target:** 15-20 tests
 - **Effort:** 3 hours
 

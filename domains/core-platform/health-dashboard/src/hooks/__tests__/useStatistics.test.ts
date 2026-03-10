@@ -6,7 +6,6 @@ import { http, HttpResponse } from 'msw';
 
 describe('useStatistics Hook', () => {
   afterEach(() => {
-    // ✅ Context7 Best Practice: Cleanup after each test
     server.resetHandlers();
     vi.useRealTimers();
     vi.clearAllMocks();
@@ -26,7 +25,7 @@ describe('useStatistics Hook', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    // Verify statistics data is populated
+    // Verify statistics data is populated (matches Statistics interface)
     expect(result.current.statistics).toBeDefined();
     expect(result.current.statistics?.metrics).toBeDefined();
     expect(result.current.statistics?.metrics['websocket-ingestion']?.total_events_received).toBeDefined();
@@ -37,7 +36,7 @@ describe('useStatistics Hook', () => {
   it('shows error message when statistics API returns error', async () => {
     // Mock API to return 500 error
     server.use(
-      http.get('http://localhost/api/v1/stats', () => {
+      http.get('/api/v1/stats', () => {
         return new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' });
       })
     );
@@ -59,13 +58,24 @@ describe('useStatistics Hook', () => {
     let requestedPeriod = '';
 
     server.use(
-      http.get('http://localhost/api/v1/stats', ({ request }) => {
+      http.get('/api/v1/stats', ({ request }) => {
         const url = new URL(request.url);
         requestedPeriod = url.searchParams.get('period') || '';
         return HttpResponse.json({
-          total_events: 999,
-          events_per_minute: 10,
-          error_rate: 1.0,
+          timestamp: new Date().toISOString(),
+          period: '24h',
+          metrics: {
+            'websocket-ingestion': {
+              events_per_minute: 10,
+              error_rate: 1.0,
+              response_time_ms: 20,
+              connection_attempts: 3,
+              total_events_received: 999,
+            },
+          },
+          trends: {},
+          alerts: [],
+          source: 'mock',
         });
       })
     );
@@ -80,4 +90,3 @@ describe('useStatistics Hook', () => {
     expect(requestedPeriod).toBe('24h');
   });
 });
-

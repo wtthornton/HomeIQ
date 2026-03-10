@@ -6,6 +6,26 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     setupFiles: './src/test/setup.ts',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+      reportsDirectory: './coverage',
+      exclude: [
+        'node_modules/',
+        'src/test/',
+        'src/mocks/',
+        '**/*.test.ts',
+        '**/*.test.tsx',
+        '**/*.d.ts',
+        'vite.config.ts',
+      ],
+      thresholds: {
+        statements: 30,
+        branches: 25,
+        functions: 25,
+        lines: 30,
+      },
+    },
   },
   plugins: [
     react({

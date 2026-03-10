@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw';
 
 describe('useHealth Hook', () => {
   afterEach(() => {
-    // ✅ Context7 Best Practice: Cleanup after each test
+    // Cleanup after each test
     vi.useRealTimers();
     vi.clearAllMocks();
     vi.unstubAllGlobals();
@@ -14,18 +14,18 @@ describe('useHealth Hook', () => {
 
   it('displays health status when health data loads', async () => {
     const { result } = renderHook(() => useHealth(1000));
-    
+
     // Initially loading
     expect(result.current.loading).toBe(true);
     expect(result.current.health).toBeNull();
     expect(result.current.error).toBeNull();
-    
+
     // Wait for data to load
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
-    
-    // Verify health data is populated
+
+    // Verify health data is populated (matches HealthStatus interface)
     expect(result.current.health).toBeDefined();
     expect(result.current.health?.status).toBe('healthy');
     expect(result.current.health?.service).toBeDefined();
@@ -35,7 +35,7 @@ describe('useHealth Hook', () => {
   it('shows error message when health API returns 500 error', async () => {
     // Mock API to return 500 error
     server.use(
-      http.get('http://localhost/api/health', () => {
+      http.get('/api/health', () => {
         return new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' });
       })
     );
@@ -56,7 +56,7 @@ describe('useHealth Hook', () => {
   it('shows error message when network connection fails', async () => {
     // Mock network failure
     server.use(
-      http.get('http://localhost/api/health', () => {
+      http.get('/api/health', () => {
         return HttpResponse.error();
       })
     );
@@ -88,7 +88,7 @@ describe('useHealth Hook', () => {
 
     // Mock a different response for the next fetch
     server.use(
-      http.get('http://localhost/api/health', () => {
+      http.get('/api/health', () => {
         return HttpResponse.json({
           service: 'data-api',
           status: 'degraded',
@@ -112,4 +112,3 @@ describe('useHealth Hook', () => {
     }, { timeout: 1000 });
   });
 });
-

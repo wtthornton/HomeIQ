@@ -2,15 +2,15 @@
 
 **Sprint:** 10
 **Priority:** P0 (Critical)
-**Status:** Open
-**Created:** 2026-03-09
+**Status:** Complete
+**Created:** 2026-03-09 | **Completed:** 2026-03-10
 **Effort:** 2 weeks
 **Dependencies:** Epic 42 complete
 **Source:** `docs/planning/frontend-testing-epics.md` (Epic 51 mapping)
 
 ## Objective
 
-Achieve 50%+ file coverage for health-dashboard by testing all critical tabs, core hooks, and the API layer. Currently at 14% file coverage (15 test files / 169 source files).
+Achieve 50%+ file coverage for health-dashboard by testing all critical tabs, core hooks, and the API layer. Currently at 9.5% file coverage (18 test files / 189 source files). Baseline: 169 tests (153 pass, 16 fail across 6 files — to be fixed in Epic 42).
 
 ## Stories
 

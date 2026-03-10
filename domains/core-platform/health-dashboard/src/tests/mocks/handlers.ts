@@ -3,66 +3,58 @@ import { http, HttpResponse } from 'msw';
 // Mock API response handlers for testing
 export const handlers = [
   // Health endpoint (used by useHealth hook)
-  http.get('http://localhost/api/health', () => {
+  http.get('/api/health', () => {
     return HttpResponse.json({
-      overall_status: 'healthy',
+      service: 'websocket-ingestion',
+      status: 'healthy',
       timestamp: new Date().toISOString(),
-      ingestion_service: {
-        websocket_connection: {
-          is_connected: true,
-          connection_attempts: 5,
-        },
-        event_processing: {
-          status: 'healthy',
-          events_per_minute: 42,
-          total_events: 12345,
-          error_rate: 0.5,
-        },
-        influxdb_storage: {
-          is_connected: true,
-          write_errors: 0,
-        },
-        weather_enrichment: {
-          api_calls: 150,
-        },
+      uptime_seconds: 86400,
+      version: '1.0.0',
+      dependencies: [],
+      metrics: {
+        uptime_seconds: 86400,
+        uptime_human: '24h',
+        start_time: new Date().toISOString(),
+        current_time: new Date().toISOString(),
       },
     });
   }),
 
   // Enhanced health endpoint
-  http.get('http://localhost/api/v1/health', () => {
+  http.get('/api/v1/health', () => {
     return HttpResponse.json({
-      overall_status: 'healthy',
+      status: 'healthy',
+      service: 'websocket-ingestion',
       timestamp: new Date().toISOString(),
-      ingestion_service: {
-        websocket_connection: {
-          is_connected: true,
-          connection_attempts: 5,
-        },
-        event_processing: {
-          status: 'healthy',
-          events_per_minute: 42,
-          total_events: 12345,
-          error_rate: 0.5,
-        },
-        influxdb_storage: {
-          is_connected: true,
-          write_errors: 0,
-        },
-        weather_enrichment: {
-          api_calls: 150,
-        },
+      uptime_seconds: 86400,
+      version: '1.0.0',
+      dependencies: [],
+      metrics: {
+        uptime_seconds: 86400,
+        uptime_human: '24h',
+        start_time: new Date().toISOString(),
+        current_time: new Date().toISOString(),
       },
     });
   }),
 
   // Statistics endpoint (used by useStatistics hook)
-  http.get('http://localhost/api/v1/stats', () => {
+  http.get('/api/v1/stats', () => {
     return HttpResponse.json({
-      total_events: 12345,
-      events_per_minute: 42,
-      error_rate: 0.5,
-      uptime_hours: 24.5,
+      timestamp: new Date().toISOString(),
+      period: '1h',
+      metrics: {
+        'websocket-ingestion': {
+          events_per_minute: 42,
+          error_rate: 0.5,
+          response_time_ms: 15,
+          connection_attempts: 5,
+          total_events_received: 12345,
+        },
+      },
+      trends: {},
+      alerts: [],
+      source: 'mock',
     });
   }),
 
@@ -95,5 +87,45 @@ export const handlers = [
         },
       ],
     });
+  }),
+
+  // Services health endpoint (used by Dashboard)
+  http.get('/api/v1/health/services', () => {
+    return HttpResponse.json({});
+  }),
+
+  // Health groups endpoint
+  http.get('/api/v1/health/groups', () => {
+    return HttpResponse.json({});
+  }),
+
+  // Active alerts endpoint (used by Dashboard)
+  http.get('/api/v1/alerts/active', () => {
+    return HttpResponse.json([]);
+  }),
+
+  // Alerts summary endpoint
+  http.get('/api/v1/alerts/summary', () => {
+    return HttpResponse.json({ total: 0, critical: 0, warning: 0, info: 0 });
+  }),
+
+  // Docker containers endpoint
+  http.get('/api/v1/docker/containers', () => {
+    return HttpResponse.json([]);
+  }),
+
+  // Devices endpoint
+  http.get('/api/devices', () => {
+    return HttpResponse.json({ devices: [] });
+  }),
+
+  // Entities endpoint
+  http.get('/api/entities', () => {
+    return HttpResponse.json({ entities: [] });
+  }),
+
+  // Activity endpoint
+  http.get('/api/v1/activity', () => {
+    return HttpResponse.json([]);
   }),
 ];

@@ -43,6 +43,19 @@
       "env": {
         "TAPPS_MCP_PROJECT_ROOT": "C:\\cursor\\HomeIQ"
       }
+    },
+    "MCP_DOCKER": {
+      "command": "docker",
+      "args": [
+        "mcp",
+        "gateway",
+        "run"
+      ],
+      "env": {
+        "LOCALAPPDATA": "C:\\Users\\tappt\\AppData\\Local",
+        "ProgramData": "C:\\ProgramData",
+        "ProgramFiles": "C:\\Program Files"
+      }
     }
   }
 }

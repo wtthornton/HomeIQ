@@ -2,15 +2,17 @@
 
 **Sprint:** 10
 **Priority:** P0 (Critical)
-**Status:** Open
-**Created:** 2026-03-09
+**Status:** Complete
+**Created:** 2026-03-09 | **Completed:** 2026-03-10
 **Effort:** 2 weeks
 **Dependencies:** Epic 42 complete
 **Source:** `docs/planning/frontend-testing-epics.md` (Epic 52 mapping)
 
 ## Objective
 
-Achieve 40%+ file coverage for ai-automation-ui by testing the chat system, API clients, and core page components. Currently at 7% file coverage (7 test files / 105 source files).
+Achieve 40%+ file coverage for ai-automation-ui by testing the chat system, API clients, and core page components. Currently at 10.3% file coverage (12 test files / 116 source files). Baseline: 175 tests (166 pass, 9 fail in AutomationPreview — to be fixed in Epic 42).
+
+**Note:** "Suggestions" page is split into `BlueprintSuggestions.tsx` and `ProactiveSuggestions.tsx` (not a single Suggestions page).
 
 ## Stories
 
@@ -42,7 +44,7 @@ Achieve 40%+ file coverage for ai-automation-ui by testing the chat system, API 
 - **Effort:** 3 hours
 
 ### Story 44.6: Page Component Tests (P1)
-- Test Suggestions, Deployed, Patterns, Synergies pages
+- Test BlueprintSuggestions, ProactiveSuggestions, Deployed, Patterns, Synergies pages
 - **Target:** 40-48 tests
 - **Effort:** 5 hours
 

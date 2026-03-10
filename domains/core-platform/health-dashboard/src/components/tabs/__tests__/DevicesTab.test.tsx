@@ -82,14 +82,15 @@ describe('DevicesTab Component', () => {
   it('renders page heading and description', () => {
     render(<DevicesTab darkMode={false} />);
 
-    expect(screen.getByRole('heading', { name: /Devices/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /Devices/i })).toBeInTheDocument();
     expect(screen.getByText(/Manage and monitor your Home Assistant devices/i)).toBeInTheDocument();
   });
 
   it('renders refresh button', () => {
     render(<DevicesTab darkMode={false} />);
 
-    expect(screen.getByRole('button', { name: /Refresh/i })).toBeInTheDocument();
+    const buttons = screen.getAllByRole('button', { name: /Refresh/i });
+    expect(buttons.length).toBeGreaterThanOrEqual(1);
   });
 
   it('calls refresh when Refresh button is clicked', async () => {
@@ -102,7 +103,8 @@ describe('DevicesTab Component', () => {
     const user = userEvent.setup();
     render(<DevicesTab darkMode={false} />);
 
-    await user.click(screen.getByRole('button', { name: /Refresh/i }));
+    const buttons = screen.getAllByRole('button', { name: /Refresh/i });
+    await user.click(buttons[0]);
     expect(mockRefresh).toHaveBeenCalledTimes(1);
   });
 

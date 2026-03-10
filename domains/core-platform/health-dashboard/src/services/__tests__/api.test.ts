@@ -36,7 +36,7 @@ describe('AdminApiClient service health utilities', () => {
 
     const response = await apiService.getServicesHealth();
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/health/services', undefined);
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/health/services', expect.objectContaining({ headers: expect.any(Object) }));
     expect(response).toEqual(mockServicesHealth);
   });
 

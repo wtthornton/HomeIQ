@@ -240,7 +240,7 @@ describe('SportsTab Component', () => {
 
     render(<SportsTab darkMode={false} />);
     
-    expect(screen.getByText(/No Games Right Now/i)).toBeInTheDocument();
+    expect(screen.getByText(/No Live Games/i)).toBeInTheDocument();
   });
 
   it('displays error state when games fail to load', () => {

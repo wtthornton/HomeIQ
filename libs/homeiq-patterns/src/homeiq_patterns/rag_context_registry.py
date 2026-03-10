@@ -131,7 +131,7 @@ class RAGContextRegistry:
                     f"RAG budget exceeded: skipping {name} "
                     f"({context_len} chars, {used_chars}/{budget_chars} used)"
                 )
-                break
+                continue
             contexts.append(context)
             used_chars += context_len
 

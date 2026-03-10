@@ -46,13 +46,15 @@ vi.mock('react-hot-toast', () => ({
 }));
 
 // Mock API services
-vi.mock('../../services/haAiAgentApi', () => ({
+vi.mock('../../../services/haAiAgentApi', () => ({
   executeToolCall: vi.fn(),
 }));
 
-// Mock api-v2 service
-const mockValidateYAML = vi.fn();
-vi.mock('../../services/api-v2', () => ({
+// Mock api-v2 service — use vi.hoisted so the fn is available when vi.mock factory runs (hoisted)
+const { mockValidateYAML } = vi.hoisted(() => ({
+  mockValidateYAML: vi.fn(),
+}));
+vi.mock('../../../services/api-v2', () => ({
   apiV2: {
     validateYAML: mockValidateYAML,
   },
@@ -68,6 +70,12 @@ describe('AutomationPreview', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockValidateYAML.mockResolvedValue({
+      valid: true,
+      errors: [],
+      warnings: [],
+      score: 100,
+    });
   });
 
   describe('Initial Render', () => {
@@ -77,7 +85,13 @@ describe('AutomationPreview', () => {
     });
 
     it('displays automation alias when provided', () => {
-      render(<AutomationPreview {...defaultProps} alias="Custom Alias" />);
+      render(
+        <AutomationPreview
+          {...defaultProps}
+          automationYaml="trigger:\n  - platform: state"
+          alias="Custom Alias"
+        />
+      );
       expect(screen.getByText('Custom Alias')).toBeInTheDocument();
     });
 
@@ -88,7 +102,8 @@ describe('AutomationPreview', () => {
 
     it('displays description when present in YAML', () => {
       render(<AutomationPreview {...defaultProps} />);
-      expect(screen.getByText(/Test description/)).toBeInTheDocument();
+      // Description appears in both metadata section and syntax highlighter
+      expect(screen.getAllByText(/Test description/).length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -198,16 +213,16 @@ describe('AutomationPreview', () => {
     it('renders DebugTab component when Debug tab is active', async () => {
       render(<AutomationPreview {...defaultProps} />);
       const debugTab = screen.getByText('🐛 Debug');
-      
+
       fireEvent.click(debugTab);
-      
+
       await waitFor(() => {
         expect(DebugTab).toHaveBeenCalledWith(
           expect.objectContaining({
             conversationId: 'test-conversation-id',
             darkMode: false,
           }),
-          expect.anything()
+          undefined
         );
       });
     });
@@ -245,9 +260,11 @@ describe('AutomationPreview', () => {
       });
     });
 
-    it('renders Create Automation button', () => {
+    it('renders Create Automation button', async () => {
       render(<AutomationPreview {...defaultProps} />);
-      expect(screen.getByText('Create Automation')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Create Automation')).toBeInTheDocument();
+      });
     });
 
     it('renders Cancel button', () => {
@@ -292,9 +309,9 @@ describe('AutomationPreview', () => {
 
     it('applies dark mode styles to tab buttons', () => {
       render(<AutomationPreview {...defaultProps} darkMode={true} />);
-      const previewTab = screen.getByText('Preview');
-      // Check for dark mode classes
-      expect(previewTab.closest('button')).toHaveClass('text-gray-400');
+      const debugTab = screen.getByText('🐛 Debug');
+      // Inactive tab in dark mode should have text-gray-400
+      expect(debugTab.closest('button')).toHaveClass('text-gray-400');
     });
   });
 
@@ -314,15 +331,15 @@ describe('AutomationPreview', () => {
     it('handles missing conversationId gracefully', async () => {
       render(<AutomationPreview {...defaultProps} conversationId="" />);
       const debugTab = screen.getByText('🐛 Debug');
-      
+
       fireEvent.click(debugTab);
-      
+
       await waitFor(() => {
         expect(DebugTab).toHaveBeenCalledWith(
           expect.objectContaining({
             conversationId: null,
           }),
-          expect.anything()
+          undefined
         );
       });
     });
@@ -363,8 +380,8 @@ action:
       entity_id: light.test2
       `;
       render(<AutomationPreview {...defaultProps} automationYaml={yamlWithEntities} />);
-      // Should display entities in the metadata section
-      expect(screen.getByText(/sensor.test1/)).toBeInTheDocument();
+      // Should display entities in the metadata section (also appears in YAML preview)
+      expect(screen.getAllByText(/sensor.test1/).length).toBeGreaterThanOrEqual(1);
     });
   });
 });

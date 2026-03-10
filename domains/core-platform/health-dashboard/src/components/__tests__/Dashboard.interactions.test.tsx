@@ -7,24 +7,23 @@ describe('Dashboard User Interactions', () => {
   it('should toggle dark mode when theme button is clicked', async () => {
     const user = userEvent.setup();
     render(<Dashboard />);
-    
-    // Wait for dashboard to load (use heading role)
-    await screen.findByRole('heading', { name: /HA Ingestor Dashboard/i });
-    
+
+    // Wait for dashboard to load
+    await screen.findByTestId('dashboard-title');
+
     // Initially light mode (no dark class)
     expect(document.documentElement).not.toHaveClass('dark');
-    
-    // Find and click theme toggle
-    const themeToggle = screen.getByTitle(/Switch to Dark Mode/i);
+
+    // Find and click theme toggle using testid (desktop sidebar only)
+    const themeToggle = screen.getByTestId('theme-toggle');
     await user.click(themeToggle);
-    
+
     // Verify dark mode is applied
     expect(document.documentElement).toHaveClass('dark');
-    
+
     // Click again to toggle back
-    const lightModeToggle = screen.getByTitle(/Switch to Light Mode/i);
-    await user.click(lightModeToggle);
-    
+    await user.click(themeToggle);
+
     // Verify light mode is restored
     expect(document.documentElement).not.toHaveClass('dark');
   });
@@ -32,37 +31,40 @@ describe('Dashboard User Interactions', () => {
   it('should toggle auto-refresh when refresh button is clicked', async () => {
     const user = userEvent.setup();
     render(<Dashboard />);
-    
+
     // Wait for dashboard to load
-    await screen.findByRole('heading', { name: /HA Ingestor Dashboard/i });
-    
-    // Find auto-refresh toggle (initially ON)
-    const autoRefreshToggle = screen.getByTitle(/Auto Refresh: ON/i);
+    await screen.findByTestId('dashboard-title');
+
+    // Find auto-refresh toggle using testid
+    const autoRefreshToggle = screen.getByTestId('auto-refresh-toggle');
     expect(autoRefreshToggle).toBeInTheDocument();
-    
+
+    // Initially ON
+    expect(autoRefreshToggle).toHaveAttribute('aria-label', 'Auto Refresh: ON');
+
     // Click to turn OFF
     await user.click(autoRefreshToggle);
-    
+
     // Verify it changed to OFF
     await waitFor(() => {
-      expect(screen.getByTitle(/Auto Refresh: OFF/i)).toBeInTheDocument();
+      expect(autoRefreshToggle).toHaveAttribute('aria-label', 'Auto Refresh: OFF');
     });
   });
 
   it('should change time range when selector is used', async () => {
     const user = userEvent.setup();
     render(<Dashboard />);
-    
+
     // Wait for dashboard to load
-    await screen.findByRole('heading', { name: /HA Ingestor Dashboard/i });
-    
-    // Find time range selector
-    const timeSelector = screen.getByRole('combobox', { name: /Select time range/i });
+    await screen.findByTestId('dashboard-title');
+
+    // Find time range selector using testid
+    const timeSelector = screen.getByTestId('time-range-selector');
     expect(timeSelector).toHaveValue('1h');
-    
+
     // Change to 24h
     await user.selectOptions(timeSelector, '24h');
-    
+
     // Verify selection changed
     expect(timeSelector).toHaveValue('24h');
   });
@@ -70,29 +72,32 @@ describe('Dashboard User Interactions', () => {
   it('should navigate through all main tabs', async () => {
     const user = userEvent.setup();
     render(<Dashboard />);
-    
-    // Wait for dashboard to load
-    await screen.findByRole('heading', { name: /HA Ingestor Dashboard/i });
-    
-    // Test navigating to each tab
-    const tabs = [
-      'Overview',
-      'Setup',
-      'Services',
-      'Dependencies',
-      'Devices',
-      'Events',
-      'Logs',
-      'Sports',
-    ];
-    
-    for (const tabName of tabs) {
-      const tab = screen.getByRole('button', { name: new RegExp(tabName, 'i') });
-      await user.click(tab);
 
-      // Verify tab is active (has blue background class in light mode)
-      expect(tab).toHaveClass('bg-blue-100');
-    }
+    // Wait for dashboard to load
+    await screen.findByTestId('dashboard-title');
+
+    // Overview is a single-tab group, rendered as a direct button
+    const overviewBtn = screen.getByRole('button', { name: /^Overview$/i });
+    await user.click(overviewBtn);
+    expect(overviewBtn.className).toContain('bg-primary');
+
+    // For grouped nav items, we need to expand groups first then click sub-tabs
+    // Expand Infrastructure group
+    const infraGroup = screen.getByRole('button', { name: /Infrastructure/i });
+    await user.click(infraGroup);
+
+    // Click Services tab within Infrastructure group
+    const servicesTab = screen.getByTestId('tab-services');
+    await user.click(servicesTab);
+    expect(servicesTab.className).toContain('bg-primary');
+
+    // Expand Devices & Data group
+    const devicesGroup = screen.getByRole('button', { name: /Devices & Data/i });
+    await user.click(devicesGroup);
+
+    // Click Devices tab
+    const devicesTab = screen.getByTestId('tab-devices');
+    await user.click(devicesTab);
+    expect(devicesTab.className).toContain('bg-primary');
   });
 });
-
