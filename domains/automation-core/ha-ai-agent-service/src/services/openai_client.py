@@ -144,7 +144,7 @@ class OpenAIClient:
         effective_temperature = temperature if temperature is not None else self.temperature
 
         @retry(
-            retry=retry_if_exception_type((OpenAIRateLimitError, Exception)),
+            retry=retry_if_exception_type(OpenAIRateLimitError),
             stop=stop_after_attempt(self.settings.openai_max_retries),
             wait=wait_exponential(multiplier=1, min=2, max=10),
             reraise=True,

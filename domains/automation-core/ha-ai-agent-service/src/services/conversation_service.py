@@ -182,7 +182,7 @@ class ConversationService:
             return await db_list_conversations(
                 session, state, limit, offset, start_date, end_date
             )
-        return None
+        return []
 
     async def count_conversations(
         self,
@@ -203,7 +203,7 @@ class ConversationService:
         """
         async for session in get_session():
             return await db_count_conversations(session, state, start_date, end_date)
-        return None
+        return 0
 
     async def delete_conversation(self, conversation_id: str) -> bool:
         """

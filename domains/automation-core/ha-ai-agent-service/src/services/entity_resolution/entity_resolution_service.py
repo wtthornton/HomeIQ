@@ -357,9 +357,9 @@ class EntityResolutionService:
                         score += 1.0
                         break
 
-            # Bonus for exact matches in friendly_name
+            # Bonus for whole-word matches in friendly_name (avoid substring false positives)
             if friendly_name and any(
-                word in friendly_name for word in prompt_lower.split()
+                word in friendly_name.split() for word in prompt_lower.split()
             ):
                 score += 0.5
 
