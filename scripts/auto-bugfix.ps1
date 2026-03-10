@@ -1,9 +1,10 @@
-# auto-bugfix.ps1 — Find bugs, fix them, and open a PR using Claude Code headless mode.
+# auto-bugfix.ps1 -- Find bugs, fix them, and open a PR using Claude Code headless mode.
 #
 # Usage:
 #   .\scripts\auto-bugfix.ps1 [-Bugs 5] [-Branch "auto/bugfix"] [-TargetDir "domains/"] [-Base "master"]
 #   .\scripts\auto-bugfix.ps1 -Bugs 1 -Chain          # Run bugfix + refactor + test
 #   .\scripts\auto-bugfix.ps1 -Bugs 3 -NoDashboard    # Skip live dashboard
+#   .\scripts\auto-bugfix.ps1 -Bugs 3 -NoRotate       # Scan entire repo instead of rotating
 #
 # Requirements:
 #   - claude CLI installed and authenticated
@@ -18,7 +19,7 @@ param(
     [switch]$Chain,
     [string]$ChainPhases = "fix,refactor,test",
     [switch]$NoDashboard,
-    [switch]$Rotate,
+    [switch]$NoRotate,
     [string]$TargetUnit = "",
     [switch]$Worktree,
     [string]$Model = "claude-sonnet-4-6",
@@ -35,12 +36,17 @@ $ScanUnitId = ""
 $ScanUnitName = ""
 $ScanUnitHint = ""
 
-if ($Rotate -or $TargetUnit) {
-    if (-not (Test-Path $ScanManifest)) {
+$UseRotate = (-not $NoRotate) -or [bool]$TargetUnit
+if ($UseRotate -and -not (Test-Path $ScanManifest)) {
+    if ($TargetUnit) {
         Write-Error "ERROR: Scan manifest not found at $ScanManifest"
         exit 1
     }
+    Write-Host "  Rotate: scan manifest not found, falling back to full-repo scan." -ForegroundColor Yellow
+    $UseRotate = $false
+}
 
+if ($UseRotate) {
     $rotateScript = @"
 import json, sys
 from datetime import datetime, timezone
@@ -337,7 +343,7 @@ Output your results wrapped in these EXACT markers:
 
 for ($attempt = 1; $attempt -le $scanAttempts; $attempt++) {
     if ($attempt -gt 1) {
-        Add-LogEntry "Retrying scan (attempt $attempt/$scanAttempts) — direct code review only..." "warn"
+        Add-LogEntry "Retrying scan (attempt $attempt/$scanAttempts) -- direct code review only..." "warn"
         Write-Dashboard -Step 2 -Message "Retry ${attempt}: direct code review..."
     }
 
@@ -351,7 +357,7 @@ for ($attempt = 1; $attempt -le $scanAttempts; $attempt++) {
     $jsonMatch = [regex]::Match($rawOutput, '<<<BUGS>>>\s*([\s\S]*?)\s*<<<END_BUGS>>>')
     if ($jsonMatch.Success) {
         $bugsJson = $jsonMatch.Groups[1].Value.Trim()
-        Add-LogEntry "Extracted bug list via <<<BUGS>>> markers" "info"
+        Add-LogEntry 'Extracted bug list via BUGS markers' "info"
         break
     }
 
@@ -446,7 +452,7 @@ if (-not $changes) {
     exit 1
 }
 
-# Update bug statuses — cross-reference changed files with bug list
+# Update bug statuses -- cross-reference changed files with bug list
 $changedFilesList = @(git diff --name-only --ignore-submodules)
 $changedFilesCount = $changedFilesList.Count
 $bugsFixed = 0
@@ -631,7 +637,7 @@ Categories: BUG, FALSE_POSITIVE, FALSE_NEGATIVE, UX, PERF, ENHANCEMENT, INTEGRAT
 
 Also call mcp__tapps-mcp__tapps_feedback for each tool you used (helpful=true/false with context).
 
-If ALL tools worked perfectly with no issues, append nothing — the goal is an empty file.
+If ALL tools worked perfectly with no issues, append nothing -- the goal is an empty file.
 Read docs/TAPPS_FEEDBACK.md first to check for recurring issues and increment their recurrence count.
 "@
 
