@@ -99,6 +99,9 @@ $DashboardHtml = Join-Path $ProjectRoot "scripts/dashboard.html"
 $StartTime = Get-Date
 $StartIso = $StartTime.ToString("o")
 $Script:DashboardLog = @()
+$Script:ToolCalls = @()
+$Script:Usage = @{ input_tokens = 0; output_tokens = 0; total_cost_usd = 0; turns_used = 0; max_turns = 0 }
+$Script:CurrentTool = @{ name = ""; target = ""; elapsed_s = 0 }
 
 function Write-Dashboard {
     param(
@@ -115,25 +118,39 @@ function Write-Dashboard {
 
     if ($NoDashboard) { return }
 
+    # Build current_tool from the last running tool call
+    $curTool = @{ name = ""; target = ""; elapsed_s = 0 }
+    if ($Script:ToolCalls.Count -gt 0) {
+        $last = $Script:ToolCalls[-1]
+        if ($last.status -eq "running") {
+            $curTool.name = $last.tool_name
+            $curTool.target = $last.target
+            $curTool.elapsed_s = $last.duration_s
+        }
+    }
+
     $state = @{
-        branch       = $Branch
-        base         = $Base
-        target_bugs  = $Bugs
-        start_time   = $StartTime.ToString("yyyy-MM-dd HH:mm:ss")
-        start_iso    = $StartIso
-        project_root = $ProjectRoot
-        scan_unit    = if ($ScanUnitId) { "$ScanUnitId ($ScanUnitName)" } else { $null }
-        total_steps  = $totalSteps
-        current_step = $Step
-        status       = $Status
+        branch        = $Branch
+        base          = $Base
+        target_bugs   = $Bugs
+        start_time    = $StartTime.ToString("yyyy-MM-dd HH:mm:ss")
+        start_iso     = $StartIso
+        project_root  = $ProjectRoot
+        scan_unit     = if ($ScanUnitId) { "$ScanUnitId ($ScanUnitName)" } else { $null }
+        total_steps   = $totalSteps
+        current_step  = $Step
+        status        = $Status
         status_message = $Message
-        bugs_found   = if ($BugsFound -ge 0) { $BugsFound } else { $null }
-        bugs_fixed   = if ($BugsFixed -ge 0) { $BugsFixed } else { $null }
+        bugs_found    = if ($BugsFound -ge 0) { $BugsFound } else { $null }
+        bugs_fixed    = if ($BugsFixed -ge 0) { $BugsFixed } else { $null }
         files_changed = if ($FilesChanged -ge 0) { $FilesChanged } else { $null }
-        validation   = if ($Validation) { $Validation } else { $null }
-        pr_url       = if ($PrUrl) { $PrUrl } else { $null }
-        bugs         = if ($BugsList) { $BugsList } else { @() }
-        log          = $Script:DashboardLog
+        validation    = if ($Validation) { $Validation } else { $null }
+        pr_url        = if ($PrUrl) { $PrUrl } else { $null }
+        bugs          = if ($BugsList) { $BugsList } else { @() }
+        log           = $Script:DashboardLog
+        tool_calls    = $Script:ToolCalls
+        usage         = $Script:Usage
+        current_tool  = $curTool
     }
 
     $stateJson = $state | ConvertTo-Json -Depth 10
@@ -166,6 +183,9 @@ function Add-LogEntry {
     }
     Write-Host "  [$($entry.time)] $Msg" -ForegroundColor $color
 }
+
+# --- Dot-source stream parser module ---
+. "$ProjectRoot/scripts/auto-bugfix-stream.ps1"
 
 # --- Preflight checks ---
 foreach ($cmd in @("claude", "git", "gh")) {
@@ -280,7 +300,7 @@ Add-LogEntry "Scanning with TappsMCP security_scan + quick_check + code review..
 Write-Dashboard -Step 2 -Message "Scanning for $Bugs bugs (TappsMCP + review)..."
 
 $mcpConfig = Join-Path $ProjectRoot ".mcp.json"
-$rawOutput = ($findPrompt | claude --print --max-turns 8 --mcp-config $mcpConfig --allowedTools "Read,Grep,Glob,Bash,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_score_file" 2>$null) -join "`n"
+$rawOutput = $findPrompt | Invoke-ClaudeStream -MaxTurns 8 -McpConfig $mcpConfig -AllowedTools "Read,Grep,Glob,Bash,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_score_file" -StepNumber 2 -StepLabel "Scan"
 
 # Extract JSON array from response (greedy match for full array)
 $jsonMatch = [regex]::Match($rawOutput, '\[\s*\{[\s\S]*\}\s*\]')
@@ -353,7 +373,7 @@ After fixing ALL bugs, you MUST run these validation steps in order:
 After validation passes, provide a summary of what you changed and the validation results.
 "@
 
-$fixPrompt | claude --print --max-turns 25 --mcp-config $mcpConfig --allowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check" 2>$null
+$fixPrompt | Invoke-ClaudeStream -MaxTurns 25 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check" -StepNumber 3 -StepLabel "Fix"
 
 # Check if anything was actually changed (ignore submodule drift)
 $changes = git status --porcelain --ignore-submodules
@@ -406,7 +426,7 @@ After refactoring, run mcp__tapps-mcp__tapps_validate_changed() to verify qualit
 Provide a summary of refactoring applied.
 "@
 
-    $refactorPrompt | claude --print --max-turns 15 --mcp-config $mcpConfig --allowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_quick_check" 2>$null
+    $refactorPrompt | Invoke-ClaudeStream -MaxTurns 15 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_quick_check" -StepNumber 4 -StepLabel "Refactor"
 
     $refactorChanges = git diff --name-only --ignore-submodules
     if ($refactorChanges) {
@@ -441,7 +461,7 @@ After writing tests, run: pytest <test_file> -v --tb=short to verify they pass.
 Then run mcp__tapps-mcp__tapps_quick_check on each test file.
 "@
 
-    $testPrompt | claude --print --max-turns 20 --mcp-config $mcpConfig --allowedTools "Read,Edit,Write,Grep,Glob,Bash,mcp__tapps-mcp__tapps_quick_check" 2>$null
+    $testPrompt | Invoke-ClaudeStream -MaxTurns 20 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Write,Grep,Glob,Bash,mcp__tapps-mcp__tapps_quick_check" -StepNumber 5 -StepLabel "Test"
 
     $testChanges = git status --porcelain --ignore-submodules
     if ($testChanges) {
@@ -539,7 +559,7 @@ If ALL tools worked perfectly with no issues, append nothing — the goal is an 
 Read docs/TAPPS_FEEDBACK.md first to check for recurring issues and increment their recurrence count.
 "@
 
-$feedbackPrompt | claude --print --max-turns 10 --mcp-config $mcpConfig --allowedTools "Read,Edit,mcp__tapps-mcp__tapps_feedback" 2>$null
+$feedbackPrompt | Invoke-ClaudeStream -MaxTurns 10 -McpConfig $mcpConfig -AllowedTools "Read,Edit,mcp__tapps-mcp__tapps_feedback" -StepNumber $feedbackStep -StepLabel "Feedback"
 
 # Commit feedback file if it changed
 $feedbackChanged = git diff --name-only docs/TAPPS_FEEDBACK.md

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="2">
+<meta http-equiv="refresh" content="1">
 <title>HomeIQ Auto-Bugfix Dashboard</title>
 <style>
   :root {
@@ -34,6 +34,8 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
   }
   .header h1 {
     font-size: 24px;
@@ -43,11 +45,25 @@
   .header h1 span { color: var(--text); font-weight: 400; }
   .header-meta {
     display: flex;
-    gap: 24px;
+    gap: 20px;
     font-size: 13px;
     color: var(--text-dim);
+    align-items: center;
+    flex-wrap: wrap;
   }
   .header-meta strong { color: var(--text); }
+  .usage-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    background: var(--bg-card);
+    border-radius: 6px;
+    font-size: 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .usage-stat .label { color: var(--text-dim); }
+  .usage-stat .value { color: var(--teal-light); font-weight: 600; font-family: 'Cascadia Code', 'Fira Code', monospace; }
 
   /* Status banner */
   .status-banner {
@@ -73,12 +89,16 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  @keyframes pulse-glow {
+    0%,100% { box-shadow: 0 0 0 0 rgba(20,184,166,0.3); }
+    50% { box-shadow: 0 0 16px 4px rgba(20,184,166,0.15); }
+  }
 
   /* Pipeline steps */
   .pipeline {
     display: flex;
     gap: 4px;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
   }
   .step {
     flex: 1;
@@ -104,6 +124,73 @@
   .step.pending .step-label { color: var(--text-dim); }
   .step.error { border-color: var(--red); }
   .step.error .step-label::before { content: '\2717 '; color: var(--red); }
+
+  /* Current Action Panel */
+  .current-action {
+    background: var(--bg-card);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(20,184,166,0.2);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-height: 60px;
+  }
+  .current-action.active {
+    animation: pulse-glow 2s ease-in-out infinite;
+    border-color: var(--teal);
+  }
+  .current-action .action-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: rgba(20,184,166,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .current-action .action-icon .spinner { width: 20px; height: 20px; }
+  .current-action .action-icon.idle {
+    background: rgba(148,163,184,0.1);
+  }
+  .current-action .action-icon.idle::after {
+    content: '\2022\2022\2022';
+    color: var(--text-dim);
+    font-size: 10px;
+    letter-spacing: 2px;
+  }
+  .current-action .action-details { flex: 1; min-width: 0; }
+  .current-action .tool-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--teal);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .current-action .tool-name.idle {
+    color: var(--text-dim);
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .current-action .tool-target {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .current-action .action-elapsed {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 14px;
+    color: var(--teal-light);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
 
   /* Grid layout */
   .grid {
@@ -184,6 +271,9 @@
   .badge-low { background: rgba(234,179,8,0.2); color: var(--yellow); }
   .badge-fixed { background: rgba(34,197,94,0.2); color: var(--green); }
   .badge-pending { background: rgba(148,163,184,0.2); color: var(--text-dim); }
+  .badge-running { background: rgba(20,184,166,0.2); color: var(--teal); }
+  .badge-complete { background: rgba(34,197,94,0.2); color: var(--green); }
+  .badge-error { background: rgba(239,68,68,0.2); color: var(--red); }
 
   .file-path {
     font-family: 'Cascadia Code', 'Fira Code', monospace;
@@ -195,9 +285,55 @@
   .validation-pass { color: var(--green); font-weight: 600; }
   .validation-fail { color: var(--red); font-weight: 600; }
 
+  /* Tool call timeline */
+  .tool-timeline {
+    max-height: 280px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg-card-alt) transparent;
+  }
+  .tool-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 13px;
+  }
+  .tool-row:last-child { border-bottom: none; }
+  .tool-row .tool-name-col {
+    min-width: 180px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tool-row .tool-target-col {
+    flex: 1;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .tool-row .tool-duration-col {
+    min-width: 60px;
+    text-align: right;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .tool-row .tool-status-col {
+    min-width: 80px;
+    text-align: right;
+  }
+
   /* Activity log */
   .log-container {
-    max-height: 260px;
+    max-height: 400px;
     overflow-y: auto;
     font-family: 'Cascadia Code', 'Fira Code', monospace;
     font-size: 12px;
@@ -246,7 +382,10 @@
     <h1>HomeIQ <span>Auto-Bugfix</span></h1>
     <div class="header-meta">
       <span>Elapsed: <strong id="elapsed">--:--</strong></span>
-      <span>Refreshes in: <strong id="countdown">2</strong>s</span>
+      <span class="usage-stat"><span class="label">Turns:</span> <span class="value" id="usage-turns">--</span></span>
+      <span class="usage-stat"><span class="label">Tokens:</span> <span class="value" id="usage-tokens">--</span></span>
+      <span class="usage-stat"><span class="label">Cost:</span> <span class="value" id="usage-cost">--</span></span>
+      <span>Refresh: <strong id="countdown">1</strong>s</span>
     </div>
   </div>
 
@@ -257,6 +396,16 @@
 
   <!-- Pipeline Steps (rendered dynamically from state) -->
   <div class="pipeline" id="pipeline"></div>
+
+  <!-- Current Action Panel -->
+  <div class="current-action" id="current-action">
+    <div class="action-icon idle" id="action-icon"></div>
+    <div class="action-details">
+      <div class="tool-name idle" id="action-tool-name">Waiting for Claude...</div>
+      <div class="tool-target" id="action-tool-target"></div>
+    </div>
+    <div class="action-elapsed" id="action-elapsed"></div>
+  </div>
 
   <div class="grid">
     <!-- Run Info -->
@@ -307,6 +456,18 @@
       </div>
     </div>
 
+    <!-- Tool Call Timeline -->
+    <div class="card grid-full">
+      <h2>Tool Calls <span class="count" id="tool-count">0</span></h2>
+      <div id="tool-timeline-container">
+        <div class="empty" id="tool-empty">
+          <div class="spinner"></div>
+          <div>Waiting for tool calls...</div>
+        </div>
+        <div class="tool-timeline" id="tool-timeline" style="display:none;"></div>
+      </div>
+    </div>
+
     <!-- Activity Log -->
     <div class="card grid-full">
       <h2>Activity Log <span class="count" id="log-count">0</span></h2>
@@ -317,7 +478,7 @@
   </div>
 
   <div class="footer">
-    HomeIQ Auto-Bugfix Dashboard &middot; Auto-refreshes every 2 seconds &middot; Powered by Claude Code
+    HomeIQ Auto-Bugfix Dashboard &middot; Auto-refreshes every 1 second &middot; Powered by Claude Code
   </div>
 </div>
 
@@ -326,6 +487,7 @@
   // State is embedded directly by Write-Dashboard / write_dashboard.
   // Falls back to XHR for .dashboard-state.json if no embedded state.
   let lastLogCount = 0;
+  let lastToolCount = 0;
 
   function loadState() {
     // Check for embedded state first (injected by the pipeline script)
@@ -355,6 +517,31 @@
     return '<span class="badge badge-pending">Pending</span>';
   }
 
+  function toolStatusBadge(status) {
+    if (status === 'complete') return '<span class="badge badge-complete">Done</span>';
+    if (status === 'error') return '<span class="badge badge-error">Error</span>';
+    if (status === 'running') return '<span class="badge badge-running">Running</span>';
+    return '<span class="badge badge-pending">' + escHtml(status || 'unknown') + '</span>';
+  }
+
+  function formatToolName(name) {
+    if (!name) return '';
+    // Shorten MCP tool names for display
+    return name.replace(/^mcp__tapps-mcp__/, 'tapps:');
+  }
+
+  function formatDuration(seconds) {
+    if (seconds == null || seconds === 0) return '--';
+    if (seconds < 1) return '<1s';
+    return seconds.toFixed(1) + 's';
+  }
+
+  function formatTokens(count) {
+    if (!count || count === 0) return '0';
+    if (count >= 1000) return (count / 1000).toFixed(1) + 'k';
+    return count.toString();
+  }
+
   // Default steps; chain mode adds Refactor + Test
   var STEP_LABELS_5 = ['Branch', 'Scan', 'Fix & Validate', 'Commit & PR', 'Feedback'];
   var STEP_LABELS_7 = ['Branch', 'Scan', 'Fix & Validate', 'Refactor', 'Test', 'Commit & PR', 'Feedback'];
@@ -382,6 +569,33 @@
     }
   }
 
+  function renderCurrentAction(state) {
+    var panel = document.getElementById('current-action');
+    var icon = document.getElementById('action-icon');
+    var nameEl = document.getElementById('action-tool-name');
+    var targetEl = document.getElementById('action-tool-target');
+    var elapsedEl = document.getElementById('action-elapsed');
+
+    var ct = state.current_tool;
+    if (ct && ct.name) {
+      panel.classList.add('active');
+      icon.className = 'action-icon';
+      icon.innerHTML = '<div class="spinner"></div>';
+      nameEl.className = 'tool-name';
+      nameEl.textContent = formatToolName(ct.name);
+      targetEl.textContent = ct.target || '';
+      elapsedEl.textContent = ct.elapsed_s ? ct.elapsed_s.toFixed(1) + 's' : '';
+    } else {
+      panel.classList.remove('active');
+      icon.className = 'action-icon idle';
+      icon.innerHTML = '';
+      nameEl.className = 'tool-name idle';
+      nameEl.textContent = (state.status === 'done') ? 'Pipeline complete' : 'Waiting for Claude...';
+      targetEl.textContent = '';
+      elapsedEl.textContent = '';
+    }
+  }
+
   function renderBugs(bugs) {
     if (!bugs || bugs.length === 0) return;
     document.getElementById('bug-empty').style.display = 'none';
@@ -400,6 +614,30 @@
         '<td>' + statusBadge(bug.fix_status || 'pending') + '</td>';
       tbody.appendChild(tr);
     });
+  }
+
+  function renderToolTimeline(toolCalls) {
+    if (!toolCalls || toolCalls.length === 0) return;
+    document.getElementById('tool-empty').style.display = 'none';
+    var timeline = document.getElementById('tool-timeline');
+    timeline.style.display = 'block';
+    document.getElementById('tool-count').textContent = toolCalls.length;
+
+    // Re-render all tool calls (they can change status from running to complete)
+    timeline.innerHTML = '';
+    toolCalls.forEach(function(tc) {
+      var row = document.createElement('div');
+      row.className = 'tool-row';
+      row.innerHTML =
+        '<div class="tool-name-col">' + escHtml(formatToolName(tc.tool_name || '')) + '</div>' +
+        '<div class="tool-target-col" title="' + escHtml(tc.target || '') + '">' + escHtml(tc.target || '') + '</div>' +
+        '<div class="tool-duration-col">' + formatDuration(tc.duration_s) + '</div>' +
+        '<div class="tool-status-col">' + toolStatusBadge(tc.status) + '</div>';
+      timeline.appendChild(row);
+    });
+
+    // Auto-scroll to bottom
+    timeline.scrollTop = timeline.scrollHeight;
   }
 
   function renderLog(logs) {
@@ -422,9 +660,30 @@
     container.scrollTop = container.scrollHeight;
   }
 
+  function renderUsage(usage) {
+    if (!usage) return;
+    var turnsEl = document.getElementById('usage-turns');
+    var tokensEl = document.getElementById('usage-tokens');
+    var costEl = document.getElementById('usage-cost');
+
+    if (usage.max_turns > 0) {
+      turnsEl.textContent = usage.turns_used + '/' + usage.max_turns;
+    } else if (usage.turns_used > 0) {
+      turnsEl.textContent = usage.turns_used.toString();
+    }
+
+    var totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+    if (totalTokens > 0) {
+      tokensEl.textContent = formatTokens(totalTokens);
+    }
+
+    if (usage.total_cost_usd > 0) {
+      costEl.textContent = '$' + usage.total_cost_usd.toFixed(4);
+    }
+  }
+
   function renderStatus(state) {
     const banner = document.getElementById('status-banner');
-    const text = document.getElementById('status-text');
     banner.className = 'status-banner';
 
     if (state.status === 'running') {
@@ -455,9 +714,15 @@
     return m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0');
   }
 
+  // Store start ISO for the elapsed timer
+  var startIso = null;
+  var isDone = false;
+
   // Main render
   var state = loadState();
   if (state) {
+    startIso = state.start_iso;
+
     // Metadata
     document.getElementById('meta-branch').textContent = state.branch || '--';
     document.getElementById('meta-base').textContent = state.base || '--';
@@ -491,8 +756,17 @@
     // Pipeline
     renderPipeline(state.current_step || 1, state.status || 'running', state.total_steps || 5);
 
+    // Current Action
+    renderCurrentAction(state);
+
     // Bugs
     renderBugs(state.bugs);
+
+    // Tool Timeline
+    renderToolTimeline(state.tool_calls);
+
+    // Usage
+    renderUsage(state.usage);
 
     // Log
     renderLog(state.log);
@@ -502,17 +776,30 @@
 
     // Stop auto-refresh if done or error
     if (state.status === 'done' || state.status === 'error') {
+      isDone = true;
       var metaRefresh = document.querySelector('meta[http-equiv="refresh"]');
       if (metaRefresh) metaRefresh.remove();
     }
   }
 
-  // Countdown timer
-  var countdownEl = document.getElementById('countdown');
-  var cd = 2;
+  // Elapsed timer — ticks every second independently of meta-refresh
   setInterval(function() {
-    cd = Math.max(0, cd - 1);
-    countdownEl.textContent = cd;
+    if (startIso && !isDone) {
+      document.getElementById('elapsed').textContent = formatElapsed(startIso);
+    }
+  }, 1000);
+
+  // Countdown timer for next refresh
+  var countdownEl = document.getElementById('countdown');
+  var cd = 1;
+  setInterval(function() {
+    if (!isDone) {
+      cd = Math.max(0, cd - 1);
+      if (cd === 0) cd = 1;
+      countdownEl.textContent = cd;
+    } else {
+      countdownEl.textContent = '-';
+    }
   }, 1000);
 })();
 </script>
