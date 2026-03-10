@@ -271,40 +271,36 @@ if (Test-Path $overridesFile) {
 }
 
 $findPrompt = @"
-You are a senior Python developer doing a bug audit of the HomeIQ project.
+You are a senior Python developer doing a FAST bug audit of the HomeIQ project.
 
-STEP 1: Use TappsMCP tools to scan for real issues. Run these in order:
-- Call mcp__tapps-mcp__tapps_security_scan on 3-5 key Python files in the target area to find vulnerabilities.
-- Call mcp__tapps-mcp__tapps_quick_check on 3-5 key Python files to find quality issues (score < 70 = likely bugs).
-- Read the flagged files to understand the actual bugs.
+TURN BUDGET: You have limited turns. Be efficient. Do NOT spend more than 2-3 turns on TappsMCP tools.
 
-STEP 2: Combine TappsMCP findings with your own code review.
-- Read files that TappsMCP flagged and look for the specific issues.
-- Also scan for bugs TappsMCP might miss: logic errors, race conditions, wrong operators, missing null checks.
+STEP 1 (2-3 turns max): Quick TappsMCP scan.
+- Call mcp__tapps-mcp__tapps_security_scan on 1-2 key Python files in the target area.
+- Call mcp__tapps-mcp__tapps_quick_check on 1-2 different key Python files.
+- Do NOT scan more than 3 files total with TappsMCP tools.
 
+STEP 2 (5-8 turns): Read code and find bugs.
+- Use Glob to find Python files in the target area, then Read the most important ones.
+- Look for: logic errors, race conditions, wrong operators, missing null checks, security issues.
+- Combine what TappsMCP found with your own code review.
 $scopeHint
 
-Find exactly $Bugs real, distinct bugs. For each bug, identify:
-1. File path and line number
-2. What the bug is (be specific)
-3. Why it's a bug (what breaks)
+Find exactly $Bugs real, distinct bugs. Each bug must be in a different file.
 
 Rules:
-- Only report REAL bugs that would cause incorrect behavior, crashes, or data loss at runtime.
+- Only REAL bugs that cause incorrect behavior, crashes, or data loss at runtime.
 - Do NOT report style issues, missing docstrings, type hints, or theoretical concerns.
 - Do NOT report bugs in test files.
-- Each bug must be in a different file.
-- Prioritize bugs found by tapps_security_scan (these are most likely real).
 $promptOverrides
 
-After completing your analysis, output a JSON array with objects: {"file": "...", "line": N, "description": "...", "severity": "high|medium|low"}
+STEP 3 (FINAL turn): Output your results.
+CRITICAL: You MUST output the bug list JSON wrapped in these exact markers on your LAST turn.
+Do NOT spend additional turns after producing this output.
 
-IMPORTANT: Wrap your JSON output between these exact markers:
 <<<BUGS>>>
-[{"file": "...", "line": N, "description": "...", "severity": "high|medium|low"}, ...]
+[{"file": "path/to/file.py", "line": 42, "description": "what the bug is", "severity": "high|medium|low"}]
 <<<END_BUGS>>>
-
-Output ONLY the markers and JSON array as your final message, no other text.
 "@
 
 Write-Host "[2/$totalSteps] Scanning codebase for $Bugs bugs (TappsMCP + code review)..." -ForegroundColor Yellow
@@ -322,15 +318,34 @@ $bugsJson = ""
 $scanAttempts = 2
 $scanAllowedTools = "Read,Grep,Glob,Bash,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_score_file"
 
+$retryPrompt = @"
+You are a senior Python developer. Find exactly $Bugs real bugs in the HomeIQ project.
+Do NOT use any MCP tools. Only use Read, Grep, and Glob to find and inspect Python files.
+$scopeHint
+
+Rules:
+- Only REAL bugs (crashes, data loss, incorrect behavior). No style issues.
+- Each bug in a different file. No test files.
+$promptOverrides
+
+Output your results wrapped in these EXACT markers:
+
+<<<BUGS>>>
+[{"file": "path/to/file.py", "line": 42, "description": "what the bug is", "severity": "high|medium|low"}]
+<<<END_BUGS>>>
+"@
+
 for ($attempt = 1; $attempt -le $scanAttempts; $attempt++) {
     if ($attempt -gt 1) {
-        Add-LogEntry "Retrying scan (attempt $attempt/$scanAttempts) with fewer turns..." "warn"
-        Write-Dashboard -Step 2 -Message "Retry ${attempt}: rescanning..."
+        Add-LogEntry "Retrying scan (attempt $attempt/$scanAttempts) — direct code review only..." "warn"
+        Write-Dashboard -Step 2 -Message "Retry ${attempt}: direct code review..."
     }
 
-    # On retry: use more turns and a stricter prompt
-    $scanTurns = if ($attempt -eq 1) { 15 } else { 20 }
-    $rawOutput = $findPrompt | Invoke-ClaudeStream -MaxTurns $scanTurns -McpConfig $mcpConfig -AllowedTools $scanAllowedTools -StepNumber 2 -StepLabel "Scan" -Model $Model -MaxBudget $scanBudget
+    # First attempt: 20 turns with TappsMCP; retry: 25 turns, no MCP, just code reading
+    $scanTurns = if ($attempt -eq 1) { 20 } else { 25 }
+    $currentPrompt = if ($attempt -eq 1) { $findPrompt } else { $retryPrompt }
+    $currentTools = if ($attempt -eq 1) { $scanAllowedTools } else { "Read,Grep,Glob" }
+    $rawOutput = $currentPrompt | Invoke-ClaudeStream -MaxTurns $scanTurns -McpConfig $mcpConfig -AllowedTools $currentTools -StepNumber 2 -StepLabel "Scan" -Model $Model -MaxBudget $scanBudget
 
     # Extract JSON array - try delimited markers first, fall back to greedy regex
     $jsonMatch = [regex]::Match($rawOutput, '<<<BUGS>>>\s*([\s\S]*?)\s*<<<END_BUGS>>>')
@@ -410,15 +425,16 @@ For each bug:
 2. Make the minimal, correct fix. Do not refactor surrounding code.
 3. Verify your fix doesn't break anything obvious.
 
-After fixing ALL bugs, you MUST run these validation steps in order:
-1. Call mcp__tapps-mcp__tapps_validate_changed() with default args (auto-detects changed files, quick mode)
-2. Call mcp__tapps-mcp__tapps_checklist(task_type="bugfix")
-3. If validation fails, fix the issues before finishing.
+After fixing ALL bugs, validate your work:
+1. Call mcp__tapps-mcp__tapps_quick_check on each changed file.
+2. If any fix involves security, API design, or database logic, call mcp__tapps-mcp__tapps_consult_expert with a question about your approach.
+3. Call mcp__tapps-mcp__tapps_validate_changed() to batch-validate all changes.
+4. If validation fails, fix the issues before finishing.
 
 After validation passes, provide a summary of what you changed and the validation results.
 "@
 
-$fixPrompt | Invoke-ClaudeStream -MaxTurns $fixMaxTurns -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check" -StepNumber 3 -StepLabel "Fix" -Model $Model -MaxBudget $fixBudget
+$fixPrompt | Invoke-ClaudeStream -MaxTurns $fixMaxTurns -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_consult_expert,mcp__tapps-mcp__tapps_impact_analysis" -StepNumber 3 -StepLabel "Fix" -Model $Model -MaxBudget $fixBudget
 
 # Check if anything was actually changed (ignore submodule drift)
 $changes = git status --porcelain --ignore-submodules
@@ -480,11 +496,13 @@ Do NOT:
 - Add docstrings, comments, or type hints
 - Restructure modules or move code between files
 
+Before refactoring, call mcp__tapps-mcp__tapps_impact_analysis on the main file to check blast radius.
+Use mcp__tapps-mcp__tapps_dead_code to find unused imports/functions to remove.
 After refactoring, run mcp__tapps-mcp__tapps_validate_changed() to verify quality improved.
 Provide a summary of refactoring applied.
 "@
 
-    $refactorPrompt | Invoke-ClaudeStream -MaxTurns 15 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_quick_check" -StepNumber 4 -StepLabel "Refactor" -Model $Model -MaxBudget $chainBudget
+    $refactorPrompt | Invoke-ClaudeStream -MaxTurns 15 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_dead_code,mcp__tapps-mcp__tapps_impact_analysis,mcp__tapps-mcp__tapps_consult_expert" -StepNumber 4 -StepLabel "Refactor" -Model $Model -MaxBudget $chainBudget
 
     $refactorChanges = git diff --name-only --ignore-submodules
     if ($refactorChanges) {
