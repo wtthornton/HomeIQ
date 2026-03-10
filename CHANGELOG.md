@@ -12,6 +12,36 @@
 
 ### Fixed
 
+- **auto-fix 3 bugs across codebase** (5a49c4c) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (1e8fa65) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (5fca34f) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (d6edf4b) - Bill Thornton
+- **auto-bugfix stash-before-pull and skip PR when branch=base** (15ad419) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (7352a79) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (432eb56) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (b33c6f9) - Bill Thornton
+- **remove UTF-8 BOM from JSON outputs in auto-bugfix script** (8d038f8) - Bill Thornton
+- **auto-bugfix PR body quoting, push rebase, and timestamped feedback** (95bdafb) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (a1199f7) - Bill Thornton
+- **auto-bugfix rotate-by-default + PS5.1 parse fix** (e716e24) - Bill Thornton
+- **scan turn exhaustion + deeper TappsMCP integration** (05d9bd9) - Bill Thornton
+- **remove em dash in string + unused heartbeat causing parse errors** (bb9701d) - Bill Thornton
+- **accumulate assistant text as fallback result + bump scan turns to 15** (9cc9953) - Bill Thornton
+- **add --verbose flag required for stream-json output format** (93e53ba) - Bill Thornton
+- **replace System.Diagnostics.Process with native PS piping** (51672b7) - Bill Thornton
+- **resolve claude CLI full path in stream parser** (28e2975) - Bill Thornton
+
+
+### Added
+
+- **animated mascot runner banner and live usage chips for dashboard** (83d6a72) - Bill Thornton
+- **pipeline optimization epic — cost, speed, reliability** (e2df950) - Bill Thornton
+- **add --Model parameter, default to claude-sonnet-4-6** (be9a0cd) - Bill Thornton
+- **true real-time streaming with ForEach-Object pipeline** (237d4d7) - Bill Thornton
+- **streaming dashboard for auto-bugfix pipeline (E1+E2+E3)** (1c8981b) - Bill Thornton
+
+### Fixed
+
 - **auto-fix 3 bugs across codebase** (5fca34f) - Bill Thornton
 - **auto-fix 3 bugs across codebase** (d6edf4b) - Bill Thornton
 - **auto-bugfix stash-before-pull and skip PR when branch=base** (15ad419) - Bill Thornton
