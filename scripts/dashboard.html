@@ -179,7 +179,21 @@
     color: var(--teal-light);
     font-weight: 600;
     font-family: 'Cascadia Code', 'Fira Code', monospace;
+    transition: color 0.3s ease, transform 0.3s ease;
   }
+  .chip .value.value-flash {
+    color: #fff;
+    transform: scale(1.15);
+  }
+  .chip .value.value-waiting {
+    animation: chip-pulse 2s ease-in-out infinite;
+  }
+  @keyframes chip-pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+  .chip .value.cost-warning { color: var(--yellow); }
+  .chip .value.cost-danger { color: var(--red); }
   .sound-toggle {
     width: 32px; height: 32px;
     border-radius: 8px;
@@ -198,16 +212,16 @@
 
   /* === Status Banner === */
   .status-banner {
-    padding: 14px 20px;
+    padding: 0;
     border-radius: 12px;
     font-size: 14px;
     font-weight: 600;
     margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
     backdrop-filter: blur(16px);
     transition: all 0.5s ease;
+    overflow: hidden;
+    position: relative;
+    min-height: 56px;
   }
   .status-running {
     background: linear-gradient(135deg, rgba(20,184,166,0.12), rgba(20,184,166,0.06));
@@ -223,6 +237,190 @@
     background: linear-gradient(135deg, rgba(239,68,68,0.12), rgba(239,68,68,0.06));
     border: 1px solid rgba(239,68,68,0.3);
     color: var(--red);
+  }
+
+  /* --- Mascot Runner Banner --- */
+  .banner-track {
+    position: relative;
+    height: 56px;
+    width: 100%;
+  }
+
+  /* Progress trail that fills behind the mascot */
+  .banner-trail {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    background: linear-gradient(90deg, rgba(20,184,166,0.18), rgba(20,184,166,0.08));
+    border-right: 2px solid rgba(20,184,166,0.4);
+    transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
+  }
+  .banner-trail::after {
+    content: '';
+    position: absolute;
+    right: -1px; top: 0; bottom: 0; width: 30px;
+    background: linear-gradient(90deg, transparent, rgba(20,184,166,0.25));
+    filter: blur(8px);
+  }
+
+  /* Mascot character */
+  .banner-mascot {
+    position: absolute;
+    top: 50%;
+    z-index: 3;
+    transform: translateY(-50%);
+    transition: left 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    filter: drop-shadow(0 0 10px rgba(20,184,166,0.6));
+  }
+  .mascot-body {
+    width: 36px; height: 36px;
+    position: relative;
+    animation: mascot-bounce 0.6s ease-in-out infinite;
+  }
+  @keyframes mascot-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  .mascot-body svg {
+    width: 36px; height: 36px;
+  }
+
+  /* Step icon that floats above mascot */
+  .mascot-step-icon {
+    position: absolute;
+    top: -18px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 16px;
+    animation: icon-float 2s ease-in-out infinite;
+    filter: drop-shadow(0 0 6px rgba(20,184,166,0.5));
+  }
+  @keyframes icon-float {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-3px); }
+  }
+
+  /* Sparkle particles behind mascot */
+  .banner-sparkles {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 2;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .sparkle {
+    position: absolute;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--teal-light);
+    opacity: 0;
+    animation: sparkle-fade 1.5s ease-out forwards;
+  }
+  @keyframes sparkle-fade {
+    0% { opacity: 0.9; transform: scale(1) translateY(0); }
+    100% { opacity: 0; transform: scale(0) translateY(-20px); }
+  }
+
+  /* Banner text overlay */
+  .banner-text-area {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+  }
+  .banner-step-label {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .banner-step-detail {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+  .typewriter {
+    overflow: hidden;
+    border-right: 2px solid var(--teal);
+    animation: blink-caret 0.8s step-end infinite;
+  }
+  @keyframes blink-caret {
+    0%, 100% { border-color: var(--teal); }
+    50% { border-color: transparent; }
+  }
+
+  /* Step milestone markers on the track */
+  .banner-milestones {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .milestone-marker {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(148,163,184,0.3);
+    border: 1px solid rgba(148,163,184,0.2);
+    transition: all 0.5s ease;
+  }
+  .milestone-marker.reached {
+    background: var(--teal);
+    border-color: var(--teal);
+    box-shadow: 0 0 8px rgba(20,184,166,0.5);
+  }
+  .milestone-marker.reached::after {
+    content: '';
+    position: absolute;
+    top: -3px; left: -3px; right: -3px; bottom: -3px;
+    border-radius: 50%;
+    border: 1px solid rgba(20,184,166,0.3);
+    animation: milestone-ring 2s ease-out infinite;
+  }
+  @keyframes milestone-ring {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(2.5); opacity: 0; }
+  }
+
+  /* Done state: mascot celebration */
+  .mascot-celebrate .mascot-body {
+    animation: mascot-celebrate 0.5s ease-in-out infinite;
+  }
+  @keyframes mascot-celebrate {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-6px) rotate(-5deg); }
+    75% { transform: translateY(-6px) rotate(5deg); }
+  }
+
+  /* Error state: mascot shake */
+  .mascot-error .mascot-body {
+    animation: mascot-shake 0.3s ease-in-out infinite;
+  }
+  @keyframes mascot-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+  }
+
+  .status-done .banner-trail {
+    background: linear-gradient(90deg, rgba(34,197,94,0.18), rgba(34,197,94,0.08));
+    border-right-color: rgba(34,197,94,0.4);
+  }
+  .status-done .banner-trail::after {
+    background: linear-gradient(90deg, transparent, rgba(34,197,94,0.25));
+  }
+  .status-done .milestone-marker.reached {
+    background: var(--green);
+    border-color: var(--green);
+    box-shadow: 0 0 8px rgba(34,197,94,0.5);
+  }
+  .status-error .banner-trail {
+    background: linear-gradient(90deg, rgba(239,68,68,0.18), rgba(239,68,68,0.08));
+    border-right-color: rgba(239,68,68,0.4);
   }
 
   /* Animated spinner */
@@ -1010,10 +1208,76 @@
     </div>
   </div>
 
-  <!-- Status Banner -->
+  <!-- Status Banner — Animated Mascot Runner -->
   <div id="status-banner" class="status-banner status-running">
-    <div class="spinner"></div>
-    <span id="status-text">Initializing...</span>
+    <div class="banner-track">
+      <!-- Progress trail -->
+      <div class="banner-trail" id="banner-trail" style="width: 0%"></div>
+
+      <!-- Milestone dots along the track -->
+      <div class="banner-milestones" id="banner-milestones"></div>
+
+      <!-- Sparkle particles -->
+      <div class="banner-sparkles" id="banner-sparkles"></div>
+
+      <!-- Walking mascot -->
+      <div class="banner-mascot" id="banner-mascot" style="left: 2%">
+        <div class="mascot-step-icon" id="mascot-icon">&#9889;</div>
+        <div class="mascot-body">
+          <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Robot body -->
+            <rect x="8" y="10" width="20" height="16" rx="4" fill="#14b8a6" opacity="0.9"/>
+            <!-- Robot head -->
+            <rect x="11" y="4" width="14" height="10" rx="3" fill="#14b8a6"/>
+            <!-- Antenna -->
+            <line x1="18" y1="4" x2="18" y2="1" stroke="#99f6e4" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="18" cy="0.5" r="1.5" fill="#99f6e4">
+              <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite"/>
+            </circle>
+            <!-- Eyes -->
+            <circle cx="15" cy="9" r="1.5" fill="#0a0f1e"/>
+            <circle cx="21" cy="9" r="1.5" fill="#0a0f1e"/>
+            <!-- Eye glow -->
+            <circle cx="15" cy="9" r="0.6" fill="#99f6e4">
+              <animate attributeName="opacity" values="0.8;0.3;0.8" dur="2s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="21" cy="9" r="0.6" fill="#99f6e4">
+              <animate attributeName="opacity" values="0.8;0.3;0.8" dur="2s" repeatCount="indefinite" begin="0.3s"/>
+            </circle>
+            <!-- Chest panel -->
+            <rect x="14" y="14" width="8" height="4" rx="1" fill="#0d9488"/>
+            <rect x="15.5" y="15" width="2" height="2" rx="0.5" fill="#99f6e4" opacity="0.7">
+              <animate attributeName="opacity" values="0.7;0.2;0.7" dur="1.5s" repeatCount="indefinite"/>
+            </rect>
+            <rect x="18.5" y="15" width="2" height="2" rx="0.5" fill="#99f6e4" opacity="0.5">
+              <animate attributeName="opacity" values="0.5;0.2;0.5" dur="1.5s" repeatCount="indefinite" begin="0.5s"/>
+            </rect>
+            <!-- Left leg -->
+            <rect x="11" y="26" width="5" height="6" rx="2" fill="#0d9488">
+              <animate attributeName="height" values="6;4;6" dur="0.6s" repeatCount="indefinite"/>
+            </rect>
+            <!-- Right leg -->
+            <rect x="20" y="26" width="5" height="6" rx="2" fill="#0d9488">
+              <animate attributeName="height" values="4;6;4" dur="0.6s" repeatCount="indefinite"/>
+            </rect>
+            <!-- Left arm -->
+            <rect x="4" y="12" width="5" height="3" rx="1.5" fill="#0d9488">
+              <animate attributeName="y" values="12;14;12" dur="0.6s" repeatCount="indefinite"/>
+            </rect>
+            <!-- Right arm -->
+            <rect x="27" y="14" width="5" height="3" rx="1.5" fill="#0d9488">
+              <animate attributeName="y" values="14;12;14" dur="0.6s" repeatCount="indefinite"/>
+            </rect>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Center text -->
+      <div class="banner-text-area">
+        <span class="banner-step-label" id="banner-label">&#9889; Initializing...</span>
+        <span class="banner-step-detail typewriter" id="banner-detail">Preparing workspace</span>
+      </div>
+    </div>
   </div>
 
   <!-- Pipeline Steps -->
@@ -1753,29 +2017,78 @@
     container.scrollTop = container.scrollHeight;
   }
 
+  // Flash a chip value when it changes
+  function flashValue(el, newText) {
+    if (!el) return;
+    var old = el.textContent;
+    if (old === newText) return; // no change
+    el.textContent = newText;
+    el.classList.remove('value-waiting');
+    el.classList.add('value-flash');
+    setTimeout(function() { el.classList.remove('value-flash'); }, 350);
+  }
+
   function renderUsage(usage, state) {
-    if (!usage) return;
+    var modelEl = document.getElementById('usage-model');
+    var turnsEl = document.getElementById('usage-turns');
+    var tokensEl = document.getElementById('usage-tokens');
+    var costEl = document.getElementById('usage-cost');
+    var budgetEl = document.getElementById('usage-budget');
+
+    // Model
     if (state && state.model) {
-      document.getElementById('usage-model').textContent = state.model.replace('claude-', '').replace('-4-6', ' 4.6');
+      var modelName = state.model.replace('claude-', '').replace('-4-6', ' 4.6');
+      flashValue(modelEl, modelName);
+    } else if (modelEl.textContent === '--') {
+      modelEl.classList.add('value-waiting');
     }
+
+    // Budget
     if (state && state.max_cost > 0) {
-      document.getElementById('usage-budget').textContent = '$' + state.max_cost.toFixed(2);
+      flashValue(budgetEl, '$' + state.max_cost.toFixed(2));
+    } else if (budgetEl.textContent === '--') {
+      budgetEl.classList.add('value-waiting');
     }
+
+    if (!usage) {
+      // Mark all as waiting while no usage data
+      [turnsEl, tokensEl, costEl].forEach(function(el) {
+        if (el && el.textContent === '--') el.classList.add('value-waiting');
+      });
+      return;
+    }
+
+    // Turns
     if (usage.max_turns > 0) {
-      document.getElementById('usage-turns').textContent = usage.turns_used + '/' + usage.max_turns;
+      flashValue(turnsEl, usage.turns_used + '/' + usage.max_turns);
     } else if (usage.turns_used > 0) {
-      document.getElementById('usage-turns').textContent = usage.turns_used.toString();
+      flashValue(turnsEl, usage.turns_used.toString());
+    } else if (turnsEl.textContent === '--') {
+      turnsEl.classList.add('value-waiting');
     }
+
+    // Tokens
     var totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
     if (totalTokens > 0) {
-      document.getElementById('usage-tokens').textContent = formatTokens(totalTokens);
+      flashValue(tokensEl, formatTokens(totalTokens));
+    } else if (tokensEl.textContent === '--') {
+      tokensEl.classList.add('value-waiting');
     }
+
+    // Cost with warning colors
     if (usage.total_cost_usd > 0) {
-      var costEl = document.getElementById('usage-cost');
-      costEl.textContent = '$' + usage.total_cost_usd.toFixed(4);
-      if (state && state.max_cost > 0 && usage.total_cost_usd > state.max_cost * 0.8) {
-        costEl.style.color = '#ef4444';
+      flashValue(costEl, '$' + usage.total_cost_usd.toFixed(4));
+      costEl.classList.remove('cost-warning', 'cost-danger');
+      if (state && state.max_cost > 0) {
+        var ratio = usage.total_cost_usd / state.max_cost;
+        if (ratio > 0.9) {
+          costEl.classList.add('cost-danger');
+        } else if (ratio > 0.65) {
+          costEl.classList.add('cost-warning');
+        }
       }
+    } else if (costEl.textContent === '--') {
+      costEl.classList.add('value-waiting');
     }
   }
 
@@ -1903,22 +2216,157 @@
       '<circle class="sparkline-dot" cx="' + points[points.length - 1].x.toFixed(1) + '" cy="' + points[points.length - 1].y.toFixed(1) + '" r="3"/>';
   }
 
+  // Step config for animated banner — using Unicode escapes for emoji
+  // 7-step icon map: 0=init, 1=branch, 2=scan, 3=fix, 4=refactor, 5=test, 6=commit, 7=feedback
+  var STEP_ICONS = ['\u26A1', '\uD83C\uDF3F', '\uD83D\uDD0D', '\uD83D\uDD27', '\uD83D\uDEE0', '\uD83E\uDDEA', '\uD83D\uDCE6', '\uD83D\uDCCA'];
+  var STEP_MESSAGES = {
+    0: { label: '\u26A1 Initializing...', detail: 'Preparing workspace' },
+    1: { label: '\uD83C\uDF3F Creating Branch', detail: 'Setting up bugfix branch' },
+    2: { label: '\uD83D\uDD0D Scanning Code', detail: 'Hunting for bugs...' },
+    3: { label: '\uD83D\uDD27 Fix & Validate', detail: 'Patching and verifying' },
+    4: { label: '\uD83D\uDEE0 Refactor', detail: 'Cleaning up code' },
+    5: { label: '\uD83E\uDDEA Testing', detail: 'Running test suite' },
+    6: { label: '\uD83D\uDCE6 Commit & PR', detail: 'Packaging changes' },
+    7: { label: '\uD83D\uDCCA Feedback', detail: 'Collecting results' }
+  };
+  // Map for 5-step mode
+  var STEP_MSG_5 = {
+    0: STEP_MESSAGES[0],
+    1: STEP_MESSAGES[1],
+    2: STEP_MESSAGES[2],
+    3: STEP_MESSAGES[3],
+    4: { label: '\uD83D\uDCE6 Commit & PR', detail: 'Packaging changes' },
+    5: { label: '\uD83D\uDCCA Feedback', detail: 'Collecting results' }
+  };
+  var STEP_ICON_5 = ['\u26A1', '\uD83C\uDF3F', '\uD83D\uDD0D', '\uD83D\uDD27', '\uD83D\uDCE6', '\uD83D\uDCCA'];
+
+  var sparkleInterval = null;
+
+  function spawnSparkles(mascotLeft) {
+    var container = document.getElementById('banner-sparkles');
+    if (!container) return;
+    // Spawn 2-3 sparkles near the mascot
+    for (var s = 0; s < 3; s++) {
+      var spark = document.createElement('div');
+      spark.className = 'sparkle';
+      var xOff = (Math.random() - 0.5) * 30;
+      var yOff = 10 + Math.random() * 36;
+      spark.style.left = 'calc(' + mascotLeft + ' + ' + xOff.toFixed(0) + 'px)';
+      spark.style.top = yOff.toFixed(0) + 'px';
+      spark.style.animationDelay = (s * 0.2) + 's';
+      spark.style.width = (2 + Math.random() * 3) + 'px';
+      spark.style.height = spark.style.width;
+      container.appendChild(spark);
+      // Clean up after animation
+      (function(el) {
+        setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 1800);
+      })(spark);
+    }
+  }
+
+  function renderMilestones(totalSteps, currentStep) {
+    var container = document.getElementById('banner-milestones');
+    if (!container) return;
+    container.innerHTML = '';
+    for (var i = 1; i <= totalSteps; i++) {
+      var m = document.createElement('div');
+      m.className = 'milestone-marker' + (i <= currentStep ? ' reached' : '');
+      m.style.left = ((i / totalSteps) * 92 + 4) + '%';
+      container.appendChild(m);
+    }
+  }
+
   function renderStatus(state) {
     var banner = document.getElementById('status-banner');
-    banner.className = 'status-banner';
+    var trail = document.getElementById('banner-trail');
+    var mascot = document.getElementById('banner-mascot');
+    var labelEl = document.getElementById('banner-label');
+    var detailEl = document.getElementById('banner-detail');
+    var iconEl = document.getElementById('mascot-icon');
 
-    if (state.status === 'running') {
-      banner.classList.add('status-running');
-      banner.innerHTML = '<div class="pulse-dot"></div><span>' + escHtml(state.status_message || 'Running...') + '</span>';
-    } else if (state.status === 'done') {
-      banner.classList.add('status-done');
-      banner.innerHTML = '<span>\u2713 ' + escHtml(state.status_message || 'Complete!') + '</span>';
-    } else if (state.status === 'error') {
-      banner.classList.add('status-error');
-      banner.innerHTML = '<span>\u2717 ' + escHtml(state.status_message || 'Failed') + '</span>';
+    // If elements don't exist (banner was replaced by old code path), skip
+    if (!trail || !mascot) {
+      banner.className = 'status-banner';
+      if (state.status === 'running') {
+        banner.classList.add('status-running');
+      } else if (state.status === 'done') {
+        banner.classList.add('status-done');
+      } else if (state.status === 'error') {
+        banner.classList.add('status-error');
+      }
+      // Detect transitions
+      if (state.status === 'done' && prevStatus !== 'done') launchConfetti();
+      if (state.status === 'error' && prevStatus !== 'error') playSound('error');
+      return;
     }
 
-    // Detect completion transition
+    banner.className = 'status-banner';
+
+    var step = state.current_step || 0;
+    var total = state.total_steps || 5;
+    var is5 = total === 5;
+    var msgMap = is5 ? STEP_MSG_5 : STEP_MESSAGES;
+    var iconMap = is5 ? STEP_ICON_5 : STEP_ICONS;
+
+    // Calculate progress percentage (0% to 96%)
+    var progress = 0;
+    if (step > 0) {
+      progress = Math.min((step / total) * 96, 96);
+    }
+
+    if (state.status === 'done') {
+      banner.classList.add('status-done');
+      progress = 100;
+      trail.style.width = '100%';
+      mascot.style.left = '94%';
+      mascot.className = 'banner-mascot mascot-celebrate';
+      labelEl.innerHTML = '&#10003; ' + escHtml(state.status_message || 'All bugs squashed!');
+      detailEl.textContent = 'Mission complete';
+      detailEl.classList.remove('typewriter');
+      iconEl.innerHTML = '&#127881;';
+    } else if (state.status === 'error') {
+      banner.classList.add('status-error');
+      trail.style.width = progress + '%';
+      mascot.className = 'banner-mascot mascot-error';
+      var errMsg = msgMap[step] || msgMap[0];
+      labelEl.innerHTML = '&#10007; ' + escHtml(state.status_message || 'Error encountered');
+      detailEl.textContent = 'Step ' + step + ' failed';
+      detailEl.classList.remove('typewriter');
+      iconEl.innerHTML = '&#128165;';
+    } else {
+      banner.classList.add('status-running');
+      trail.style.width = progress + '%';
+      mascot.style.left = Math.max(2, progress - 2) + '%';
+      mascot.className = 'banner-mascot';
+
+      var msg = msgMap[step] || msgMap[0];
+      labelEl.innerHTML = msg.label;
+      // Use status_message if available and more specific
+      var detail = state.status_message || msg.detail;
+      if (detail !== detailEl.textContent) {
+        detailEl.textContent = detail;
+        detailEl.classList.add('typewriter');
+        // Remove caret after text settles
+        setTimeout(function() { detailEl.classList.remove('typewriter'); }, 3000);
+      }
+      iconEl.innerHTML = iconMap[step] || '&#9889;';
+    }
+
+    // Render milestone dots
+    renderMilestones(total, step);
+
+    // Start sparkle emitter if running
+    if (state.status === 'running' && !sparkleInterval) {
+      sparkleInterval = setInterval(function() {
+        var m = document.getElementById('banner-mascot');
+        if (m) spawnSparkles(m.style.left);
+      }, 400);
+    } else if (state.status !== 'running' && sparkleInterval) {
+      clearInterval(sparkleInterval);
+      sparkleInterval = null;
+    }
+
+    // Detect transitions
     if (state.status === 'done' && prevStatus !== 'done') {
       launchConfetti();
     }
