@@ -280,17 +280,10 @@ Add-LogEntry "Scanning with TappsMCP security_scan + quick_check + code review..
 Write-Dashboard -Step 2 -Message "Scanning for $Bugs bugs (TappsMCP + review)..."
 
 $mcpConfig = Join-Path $ProjectRoot ".mcp.json"
-$claudeArgs = @(
-    '--print',
-    '--max-turns', '8',
-    '--mcp-config', $mcpConfig,
-    '--allowedTools', 'Read,Grep,Glob,Bash,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_score_file',
-    $findPrompt
-)
-$rawOutput = & claude @claudeArgs 2>$null
+$rawOutput = ($findPrompt | claude --print --max-turns 8 --mcp-config $mcpConfig --allowedTools "Read,Grep,Glob,Bash,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_score_file" 2>$null) -join "`n"
 
-# Extract JSON array from response
-$jsonMatch = [regex]::Match($rawOutput, '\[[\s\S]*?\]')
+# Extract JSON array from response (greedy match for full array)
+$jsonMatch = [regex]::Match($rawOutput, '\[\s*\{[\s\S]*\}\s*\]')
 if (-not $jsonMatch.Success) {
     Add-LogEntry "Failed to extract bug list JSON from Claude output" "error"
     Write-Dashboard -Step 2 -Status "error" -Message "Failed to extract bug list from Claude output"
@@ -360,14 +353,7 @@ After fixing ALL bugs, you MUST run these validation steps in order:
 After validation passes, provide a summary of what you changed and the validation results.
 "@
 
-$claudeArgs = @(
-    '--print',
-    '--max-turns', '25',
-    '--mcp-config', $mcpConfig,
-    '--allowedTools', 'Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check',
-    $fixPrompt
-)
-& claude @claudeArgs 2>$null
+$fixPrompt | claude --print --max-turns 25 --mcp-config $mcpConfig --allowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check" 2>$null
 
 # Check if anything was actually changed (ignore submodule drift)
 $changes = git status --porcelain --ignore-submodules
@@ -420,14 +406,7 @@ After refactoring, run mcp__tapps-mcp__tapps_validate_changed() to verify qualit
 Provide a summary of refactoring applied.
 "@
 
-    $claudeArgs = @(
-        '--print',
-        '--max-turns', '15',
-        '--mcp-config', $mcpConfig,
-        '--allowedTools', 'Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_quick_check',
-        $refactorPrompt
-    )
-    & claude @claudeArgs 2>$null
+    $refactorPrompt | claude --print --max-turns 15 --mcp-config $mcpConfig --allowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_quick_check" 2>$null
 
     $refactorChanges = git diff --name-only --ignore-submodules
     if ($refactorChanges) {
@@ -462,14 +441,7 @@ After writing tests, run: pytest <test_file> -v --tb=short to verify they pass.
 Then run mcp__tapps-mcp__tapps_quick_check on each test file.
 "@
 
-    $claudeArgs = @(
-        '--print',
-        '--max-turns', '20',
-        '--mcp-config', $mcpConfig,
-        '--allowedTools', 'Read,Edit,Write,Grep,Glob,Bash,mcp__tapps-mcp__tapps_quick_check',
-        $testPrompt
-    )
-    & claude @claudeArgs 2>$null
+    $testPrompt | claude --print --max-turns 20 --mcp-config $mcpConfig --allowedTools "Read,Edit,Write,Grep,Glob,Bash,mcp__tapps-mcp__tapps_quick_check" 2>$null
 
     $testChanges = git status --porcelain --ignore-submodules
     if ($testChanges) {
@@ -567,14 +539,7 @@ If ALL tools worked perfectly with no issues, append nothing — the goal is an 
 Read docs/TAPPS_FEEDBACK.md first to check for recurring issues and increment their recurrence count.
 "@
 
-$claudeArgs = @(
-    '--print',
-    '--max-turns', '10',
-    '--mcp-config', $mcpConfig,
-    '--allowedTools', 'Read,Edit,mcp__tapps-mcp__tapps_feedback',
-    $feedbackPrompt
-)
-& claude @claudeArgs 2>$null
+$feedbackPrompt | claude --print --max-turns 10 --mcp-config $mcpConfig --allowedTools "Read,Edit,mcp__tapps-mcp__tapps_feedback" 2>$null
 
 # Commit feedback file if it changed
 $feedbackChanged = git diff --name-only docs/TAPPS_FEEDBACK.md
