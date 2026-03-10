@@ -575,7 +575,15 @@ git commit -m $commitMsg
 # Rebase only if the remote branch already exists (fresh branches won't have one)
 $remoteBranch = git ls-remote --heads origin $Branch 2>$null
 if ($remoteBranch) {
-    git pull --rebase origin $Branch
+    $stashed = $false
+    $dirty = git status --porcelain --ignore-submodules
+    if ($dirty) {
+        Add-LogEntry "Stashing local changes before pull (e.g. CRLF normalization)" "info"
+        git stash push -m "auto-bugfix: pre-pull" 2>$null
+        $stashed = ($LASTEXITCODE -eq 0)
+    }
+    git pull --rebase origin $Branch 2>$null
+    if ($stashed) { git stash pop 2>$null }
 }
 
 git push -u origin $Branch
@@ -607,15 +615,20 @@ $diffFiles
 $prBodyFile = Join-Path $env:TEMP "auto-bugfix-pr-body.md"
 $prBody | Out-File -FilePath $prBodyFile -Encoding utf8 -Force
 
-$prUrl = gh pr create `
-    --title "fix: auto-fix $bugCount bugs found by Claude Code analysis" `
-    --body-file $prBodyFile `
-    --base $Base `
-    --head $Branch
+$prUrl = ""
+if ($Branch -ne $Base) {
+    $prUrl = gh pr create `
+        --title "fix: auto-fix $bugCount bugs found by Claude Code analysis" `
+        --body-file $prBodyFile `
+        --base $Base `
+        --head $Branch 2>&1 | ForEach-Object { $_ }
+} else {
+    Add-LogEntry "Skipping PR (branch is same as base, e.g. Worktree on master)" "info"
+}
 
 Remove-Item $prBodyFile -ErrorAction SilentlyContinue
 
-Add-LogEntry "PR created: $prUrl" "success"
+if ($prUrl) { Add-LogEntry "PR created: $prUrl" "success" }
 Write-Dashboard -Step $commitStep -Message "PR created." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugsFixed -FilesChanged $changedFilesCount -Validation "pass" -PrUrl $prUrl
 
 # --- Step 5/7: Collect TappsMCP feedback ---
@@ -669,8 +682,17 @@ $feedbackPrompt | Invoke-ClaudeStream -MaxTurns 10 -McpConfig $mcpConfig -Allowe
 if (Test-Path $feedbackFileFull) {
     git add $feedbackFile
     git commit -m "docs: tapps feedback from auto-bugfix run $runTimestamp"
+    $stashedFeedback = $false
+    $dirtyFeedback = git status --porcelain --ignore-submodules
+    if ($dirtyFeedback) {
+        Add-LogEntry "Stashing local changes before pull (e.g. CRLF)" "info"
+        git stash push -m "auto-bugfix: pre-pull-feedback" 2>$null
+        $stashedFeedback = ($LASTEXITCODE -eq 0)
+    }
     git pull --rebase origin $Branch 2>$null
-    git push origin $Branch
+    if ($LASTEXITCODE -ne 0) { Add-LogEntry "Pull after feedback failed (non-fatal)" "warn" }
+    if ($stashedFeedback) { git stash pop 2>$null }
+    git push origin $Branch 2>$null
     Add-LogEntry "Feedback committed and pushed." "success"
 }
 
