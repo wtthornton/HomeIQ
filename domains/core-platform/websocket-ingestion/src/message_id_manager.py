@@ -7,6 +7,7 @@ Home Assistant 'id_reuse' errors.
 
 import asyncio
 import logging
+import threading
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ class MessageIDManager:
         # Use a higher starting point to avoid conflicts with other services
         self._counter = 1
         self._lock = asyncio.Lock()
+        self._thread_lock = threading.Lock()
         self._initialized = True
         logger.info("MessageIDManager initialized with counter starting at 1")
 
@@ -49,8 +51,9 @@ class MessageIDManager:
             Next available message ID (strictly increasing)
         """
         async with self._lock:
-            self._counter += 1
-            message_id = self._counter
+            with self._thread_lock:
+                self._counter += 1
+                message_id = self._counter
             logger.debug(f"Generated message ID: {message_id}")
             return message_id
 
@@ -64,19 +67,22 @@ class MessageIDManager:
         Returns:
             Next available message ID (strictly increasing)
         """
-        # Create lock if it doesn't exist (for sync contexts)
+        # Create locks if they don't exist (for sync contexts)
         if self._lock is None:
             self._lock = asyncio.Lock()
+        if not hasattr(self, '_thread_lock') or self._thread_lock is None:
+            self._thread_lock = threading.Lock()
 
         # Use asyncio.run if we're in a sync context
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                # If loop is running, we need to use a different approach
-                # For now, just increment (not thread-safe in sync context)
-                # This is a fallback - prefer async usage
-                self._counter += 1
-                return self._counter
+                # Event loop is running (e.g. called from asyncio.to_thread).
+                # Use a threading.Lock to protect _counter against concurrent
+                # calls from both this sync path and the async get_next_id().
+                with self._thread_lock:
+                    self._counter += 1
+                    return self._counter
             else:
                 return loop.run_until_complete(self.get_next_id())
         except RuntimeError:
