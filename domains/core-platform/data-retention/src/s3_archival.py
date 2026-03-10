@@ -199,11 +199,11 @@ class S3ArchivalManager:
                 )
 
             # Read Parquet file
-            table = pq.read_table(local_file)
-            df = table.to_pandas()
-
-            # Clean up
-            os.remove(local_file)
+            try:
+                table = pq.read_table(local_file)
+                df = table.to_pandas()
+            finally:
+                os.remove(local_file)
 
             logger.info(f"Restored {len(df)} records from S3")
 

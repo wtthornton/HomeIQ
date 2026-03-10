@@ -289,7 +289,7 @@ class InfluxDBBatchWriter:
         Returns:
             True if batch was written successfully, False otherwise
         """
-        for attempt in range(self.max_retries):
+        for attempt in range(max(1, self.max_retries)):
             try:
                 # Validate points before writing
                 valid_points = []

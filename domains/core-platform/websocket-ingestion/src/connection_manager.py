@@ -256,7 +256,6 @@ class ConnectionManager:
         while current_state in [ConnectionState.RECONNECTING, ConnectionState.FAILED] and (self.max_retries == -1 or self.current_retry_count < self.max_retries):
             try:
                 self._increment_retry_count()
-                self.connection_attempts += 1
                 delay = self._calculate_delay()
 
                 # Format retry message (show "∞" for infinite retries)
