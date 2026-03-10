@@ -58,7 +58,7 @@ class TabPFNFailurePredictor:
         logger.info(f"Training TabPFN on {len(X)} samples with {X.shape[1]} features...")
 
         # Initialize TabPFN (CPU-optimized for NUC)
-        self.model = TabPFNClassifier(device='cpu', N_ensemble_configurations=4)
+        self.model = TabPFNClassifier(device='cpu', n_ensemble_configurations=4)
 
         # TabPFN training is instant (no actual training, just stores data)
         self.model.fit(X, y)

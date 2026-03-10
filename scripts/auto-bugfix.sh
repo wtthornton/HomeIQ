@@ -342,7 +342,7 @@ write_dashboard 2 "running" "Found $BUG_COUNT bugs. Starting fixes..." "$DASH_BU
 # --- Step 3: Fix bugs with Claude Code ---
 echo ""
 echo "[3/$TOTAL_STEPS] Fixing bugs..."
-add_log "Fixing $BUG_COUNT bugs (Claude Code headless, max 25 turns)..." "info"
+add_log "Fixing $BUG_COUNT bugs (Claude Code headless, max 50 turns)..." "info"
 write_dashboard 3 "running" "Fixing $BUG_COUNT bugs..." "$DASH_BUGS" "$BUG_COUNT"
 
 FIX_PROMPT="You are a senior Python developer. Fix the following bugs in this codebase.
@@ -365,7 +365,7 @@ After validation passes, provide a summary of what you changed and the validatio
 claude --print \
   --mcp-config "$MCP_CONFIG" \
   --allowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check" \
-  --max-turns 25 \
+  --max-turns 50 \
   "$FIX_PROMPT" 2>/dev/null
 
 # Check if anything was actually changed (ignore submodule drift)

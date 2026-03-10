@@ -162,7 +162,7 @@ class IncrementalFailurePredictor:
         for i in range(len(X)):
             features_dict = self._array_to_dict(X[i])
             pred = self.model.predict_one(features_dict)
-            predictions.append(int(pred))
+            predictions.append(int(pred) if pred is not None else 0)
 
         return np.array(predictions)
 

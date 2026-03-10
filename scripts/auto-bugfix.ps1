@@ -32,7 +32,7 @@ param(
     [string]$TargetUnit = "",
     [switch]$Worktree,
     [string]$Model = "claude-sonnet-4-6",
-    [double]$MaxCost = 2.00
+    [double]$MaxCost = 5.00
 )
 
 $ErrorActionPreference = "Stop"
@@ -370,8 +370,8 @@ for ($attempt = 1; $attempt -le $scanAttempts; $attempt++) {
         Write-Dashboard -Step 2 -Message "Retry ${attempt}: direct code review..."
     }
 
-    # First attempt: 20 turns with TappsMCP; retry: 25 turns, no MCP, just code reading
-    $scanTurns = if ($attempt -eq 1) { 20 } else { 25 }
+    # First attempt: 30 turns with TappsMCP; retry: 40 turns, no MCP, just code reading
+    $scanTurns = if ($attempt -eq 1) { 30 } else { 40 }
     $currentPrompt = if ($attempt -eq 1) { $findPrompt } else { $retryPrompt }
     $currentTools = if ($attempt -eq 1) { $scanAllowedTools } else { "Read,Grep,Glob" }
     $rawOutput = $currentPrompt | Invoke-ClaudeStream -MaxTurns $scanTurns -McpConfig $mcpConfig -AllowedTools $currentTools -StepNumber 2 -StepLabel "Scan" -Model $Model -MaxBudget $scanBudget
@@ -454,7 +454,7 @@ foreach ($b in $bugsList) {
 Write-Dashboard -Step 2 -Message "Found $bugCount bugs. Starting fixes..." -BugsList $dashBugs -BugsFound $bugCount
 
 # --- Step 3: Fix bugs with Claude Code ---
-$fixMaxTurns = [math]::Min($bugCount * 5 + 5, 30)  # 5 turns per bug + 5 for validation, cap at 30
+$fixMaxTurns = [math]::Min($bugCount * 5 + 5, 50)  # 5 turns per bug + 5 for validation, cap at 50
 Write-Host ""
 Write-Host "[3/$totalSteps] Fixing bugs..." -ForegroundColor Yellow
 Add-LogEntry "Fixing $bugCount bugs (Claude Code headless, max $fixMaxTurns turns)..." "info"

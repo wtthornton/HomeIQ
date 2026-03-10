@@ -180,6 +180,7 @@ class PredictiveAnalyticsEngine:
             # Scale features
             X_train_scaled = self.scalers["failure_prediction"].fit_transform(X_train)
             X_test_scaled = self.scalers["failure_prediction"].transform(X_test)
+            self.scalers["anomaly_detection"].fit(X_train)
 
             # Training parameters
             training_params = {

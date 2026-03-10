@@ -1,8 +1,8 @@
 {
     "version":  1,
     "description":  "Auto-bugfix rotating scan manifest. Tracks which scan units have been scanned and their bug yield.",
-    "last_unit_scanned":  "ha-ai-agent-service",
-    "total_runs":  3,
+    "last_unit_scanned":  "ai-automation-service",
+    "total_runs":  4,
     "units":  [
                   {
                       "id":  "libs",
@@ -46,9 +46,9 @@
                       "path":  "domains/automation-core/ai-automation-service-new/",
                       "priority_weight":  7,
                       "scan_hint":  "101 .py files. Focus on template validation, YAML generation, post-action verification, and the unified validation router.",
-                      "last_scanned":  null,
-                      "total_runs":  0,
-                      "total_bugs_found":  0,
+                      "last_scanned":  "2026-03-10T22:01:36.1576781Z",
+                      "total_runs":  1,
+                      "total_bugs_found":  3,
                       "bugs_fixed_confirmed":  0,
                       "false_positives":  0
                   },

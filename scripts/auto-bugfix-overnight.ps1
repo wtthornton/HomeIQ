@@ -18,7 +18,7 @@ param(
     [int]$BugsPerUnit = 3,
     [int]$CooldownMinutes = 2,
     [double]$TotalBudget = 25.00,
-    [double]$MaxCostPerUnit = 3.00,
+    [double]$MaxCostPerUnit = 5.00,
     [int]$MaxHours = 8,
     [string]$Base = "master",
     [string]$Model = "claude-sonnet-4-6",

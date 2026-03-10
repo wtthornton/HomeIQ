@@ -6,7 +6,7 @@
         "bugs":  [
                      {
                          "pr_merged":  null,
-                         "description":  "create_shared_session_maker() checks `if database_url not in _session_makers` without holding `_engine_lock`. Two concurrent callers can both find the key missing, both create a session maker, and the second overwrites the first in the dict. Any sessions already created from the first session maker are now orphaned ÃŽâ€œÃƒâ€¡ÃƒÂ¶ their parent session maker is no longer tracked, so those connections leak out of the pool accounting. The engine creation directly below IS protected by _engine_lock, but session maker creation is not.",
+                         "description":  "create_shared_session_maker() checks `if database_url not in _session_makers` without holding `_engine_lock`. Two concurrent callers can both find the key missing, both create a session maker, and the second overwrites the first in the dict. Any sessions already created from the first session maker are now orphaned ÃƒÅ½Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Â¡ÃƒÆ’Ã‚Â¶ their parent session maker is no longer tracked, so those connections leak out of the pool accounting. The engine creation directly below IS protected by _engine_lock, but session maker creation is not.",
                          "line":  102,
                          "was_real":  null,
                          "severity":  "high",
@@ -22,7 +22,7 @@
                      },
                      {
                          "pr_merged":  null,
-                         "description":  "get_all_context() breaks out of the loop entirely on the first context whose size would exceed the budget (when contexts is non-empty). Contexts are sorted by relevance score descending, so a large but highly-relevant context will cause all subsequent smaller contexts ÃŽâ€œÃƒâ€¡ÃƒÂ¶ which could fit within the remaining budget ÃŽâ€œÃƒâ€¡ÃƒÂ¶ to be silently skipped. The LLM receives incomplete context, causing incorrect automation suggestions and missed domain knowledge for all 50+ downstream services using this registry.",
+                         "description":  "get_all_context() breaks out of the loop entirely on the first context whose size would exceed the budget (when contexts is non-empty). Contexts are sorted by relevance score descending, so a large but highly-relevant context will cause all subsequent smaller contexts ÃƒÅ½Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Â¡ÃƒÆ’Ã‚Â¶ which could fit within the remaining budget ÃƒÅ½Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Â¡ÃƒÆ’Ã‚Â¶ to be silently skipped. The LLM receives incomplete context, causing incorrect automation suggestions and missed domain knowledge for all 50+ downstream services using this registry.",
                          "line":  129,
                          "was_real":  null,
                          "severity":  "medium",
@@ -91,6 +91,38 @@
                          "was_real":  null,
                          "severity":  "high",
                          "file":  "domains/automation-core/ha-ai-agent-service/src/services/conversation_service.py"
+                     }
+                 ],
+        "chain":  false
+    },
+    {
+        "date":  "2026-03-10 15:00",
+        "run_id":  "master",
+        "branch":  "master",
+        "bugs":  [
+                     {
+                         "pr_merged":  null,
+                         "description":  "When all motion sensors are inactive (state in {\u0027unavailable\u0027,\u0027unknown\u0027}), `active_sensors` ends up empty. The guard `if active_sensors: motion_sensors = active_sensors` silently skips the update, so the original unfiltered list of unavailable sensors is written to `resolved[\u0027motion_sensor_entities\u0027]`. The automation is then generated referencing sensors that HA cannot use.",
+                         "line":  347,
+                         "was_real":  null,
+                         "severity":  "high",
+                         "file":  "domains/automation-core/ai-automation-service-new/src/services/template_validator.py"
+                     },
+                     {
+                         "pr_merged":  null,
+                         "description":  "In `validate_entities`, any exception (e.g. transient data-API failure) returns `(False, [])`. Every caller treats this as \u0027invalid entities found\u0027 and raises `YAMLGenerationError(f\u0027...Invalid entities found: \u0027)` with an empty entity list, producing a misleading error message and discarding a potentially valid automation. YAML generation is broken for the duration of any data-API outage.",
+                         "line":  643,
+                         "was_real":  null,
+                         "severity":  "medium",
+                         "file":  "domains/automation-core/ai-automation-service-new/src/services/yaml_generation_service.py"
+                     },
+                     {
+                         "pr_merged":  null,
+                         "description":  "In `rebuild_from_yaml`, `triggers = yaml_data.get(\u0027trigger\u0027) or yaml_data.get(\u0027triggers\u0027, [])` does not handle the common case where `trigger` is a single dict (not a list). Iterating `for trigger in triggers` then iterates over the dict\u0027s **keys** (strings), so `trigger.get(\u0027platform\u0027)` raises `AttributeError: \u0027str\u0027 object has no attribute \u0027get\u0027`. The exception is silently caught and the method returns `None` for every single-trigger HA automation.",
+                         "line":  199,
+                         "was_real":  null,
+                         "severity":  "medium",
+                         "file":  "domains/automation-core/ai-automation-service-new/src/services/json_verification_service.py"
                      }
                  ],
         "chain":  false
