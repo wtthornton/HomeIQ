@@ -86,31 +86,12 @@ function Invoke-ClaudeStream {
         $streamLogFile = Join-Path $streamLogDir "$($Branch -replace '[/\\:]', '-')-step$StepNumber.jsonl"
 
         try {
-            # Resolve full path to claude — System.Diagnostics.Process doesn't search PATH like a shell
-            $claudePath = (Get-Command claude -ErrorAction SilentlyContinue).Source
-            if (-not $claudePath) {
-                throw "Cannot find 'claude' in PATH. Ensure Claude CLI is installed."
-            }
+            # Use native PowerShell piping — claude is a .cmd wrapper on Windows,
+            # so System.Diagnostics.Process can't launch it directly.
+            # Pipe prompt via stdin, capture each output line for stream processing.
+            $streamLines = @($fullPrompt | claude @claudeArgs 2>$null)
 
-            # Start claude process with stdin redirected
-            $psi = New-Object System.Diagnostics.ProcessStartInfo
-            $psi.FileName = $claudePath
-            $psi.Arguments = $claudeArgs -join " "
-            $psi.UseShellExecute = $false
-            $psi.RedirectStandardInput = $true
-            $psi.RedirectStandardOutput = $true
-            $psi.RedirectStandardError = $true
-            $psi.CreateNoWindow = $true
-            $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
-
-            $proc = [System.Diagnostics.Process]::Start($psi)
-
-            # Write prompt to stdin and close it
-            $proc.StandardInput.Write($fullPrompt)
-            $proc.StandardInput.Close()
-
-            # Process stdout line by line
-            while ($null -ne ($line = $proc.StandardOutput.ReadLine())) {
+            foreach ($line in $streamLines) {
                 # Log raw stream for debugging
                 try { $line | Out-File -FilePath $streamLogFile -Append -Encoding utf8 } catch {}
 
@@ -304,23 +285,12 @@ function Invoke-ClaudeStream {
                 }
             }
 
-            $proc.WaitForExit()
-
-            # If process exited with error and we have no result, capture stderr
-            if ($proc.ExitCode -ne 0 -and -not $resultText) {
-                $stderr = $proc.StandardError.ReadToEnd()
-                Add-LogEntry "[$StepLabel] Claude exited with code $($proc.ExitCode): $stderr" "error"
-            }
-
         } catch {
             Add-LogEntry "[$StepLabel] Stream error: $_" "error"
             Write-Dashboard -Step $StepNumber -Message "Stream error: $_"
         } finally {
             # Cleanup temp file
             if (Test-Path $promptFile) { Remove-Item $promptFile -Force -ErrorAction SilentlyContinue }
-            if ($proc -and -not $proc.HasExited) {
-                try { $proc.Kill() } catch {}
-            }
         }
 
         # Return the final result text
