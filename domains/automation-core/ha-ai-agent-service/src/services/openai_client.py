@@ -171,7 +171,11 @@ class OpenAIClient:
             # GPT-5.x reasoning models: use max_output_tokens and reasoning config
             if model.startswith("gpt-5"):
                 request_params["max_output_tokens"] = req_max_tokens
-                is_reasoning_model = "mini" in model or model >= "gpt-5.2"
+                try:
+                    minor_ver = int(model.split("gpt-5.", 1)[1].split("-")[0].split(".")[0])
+                except (IndexError, ValueError):
+                    minor_ver = 0
+                is_reasoning_model = "mini" in model or minor_ver >= 2
                 if is_reasoning_model:
                     # Reasoning models don't support temperature (only default 1)
                     if reasoning_effort and not model.startswith("gpt-5.1"):

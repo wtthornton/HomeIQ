@@ -69,8 +69,13 @@ function Invoke-ClaudeStream {
         $Script:_streamCurrentToolName = ""
         $Script:_streamCurrentToolStart = $null
         $Script:_streamLastProgressWrite = [datetime]::MinValue
+        $Script:_streamLastStateWrite = [datetime]::MinValue   # Epic 47.2: throttle state writes to ~1/s
         $Script:_streamLastTextSnippet = [datetime]::MinValue
         $Script:_streamEventCount = 0
+        $Script:_streamLastMessage = "Connecting to Claude..."  # For throttled StateOnly writes
+
+        # Epic 47.1/47.3: Set usage.max_turns and ensure model/budget visible from run start
+        $Script:Usage.max_turns = $MaxTurns
 
         # Build claude arguments
         $claudeArgs = @("--print", "--verbose", "--output-format", "stream-json", "--max-turns", $MaxTurns)
@@ -129,7 +134,8 @@ function Invoke-ClaudeStream {
                 # system event (session init)
                 if ($evtType -eq "system") {
                     Add-LogEntry "[$StepLabel] Claude session started (streaming)" "info"
-                    Write-Dashboard -Step $StepNumber -Message "Claude connected - analyzing..."
+                    $Script:_streamLastMessage = "Claude connected - analyzing..."
+                    Write-Dashboard -Step $StepNumber -Message $Script:_streamLastMessage
                     return
                 }
 
@@ -138,10 +144,16 @@ function Invoke-ClaudeStream {
                     $contentBlocks = $evt.message.content
                     if (-not $contentBlocks) { $contentBlocks = $evt.content }
 
-                    # Track usage from assistant events
+                    # Epic 47.1: Track usage from assistant events so dashboard updates during step
                     if ($evt.message -and $evt.message.usage) {
                         $Script:Usage.input_tokens = [Math]::Max($Script:Usage.input_tokens, [int]($evt.message.usage.input_tokens))
                         $Script:Usage.output_tokens = [Math]::Max($Script:Usage.output_tokens, [int]($evt.message.usage.output_tokens))
+                        # Throttled state write so polling dashboard sees live tokens (47.2)
+                        $now = Get-Date
+                        if (($now - $Script:_streamLastStateWrite).TotalSeconds -ge 1) {
+                            Write-Dashboard -Step $StepNumber -Message $Script:_streamLastMessage -StateOnly
+                            $Script:_streamLastStateWrite = $now
+                        }
                     }
 
                     if ($contentBlocks -and $contentBlocks.Count -gt 0) {
@@ -214,9 +226,11 @@ function Invoke-ClaudeStream {
                                 $logMsg = if ($target) { "[$StepLabel] $displayName -> $target" } else { "[$StepLabel] $displayName" }
                                 Add-LogEntry $logMsg "info"
 
-                                # Update dashboard with current tool info
+                                # Update dashboard with current tool info (47.2: StateOnly so JSON is fresh for polling)
                                 $Script:CurrentTool = @{ name = $displayName; target = $target; started_at = (Get-Date).ToString("o") }
-                                Write-Dashboard -Step $StepNumber -Message "$displayName on $target"
+                                $Script:_streamLastMessage = "$displayName on $target"
+                                Write-Dashboard -Step $StepNumber -Message $Script:_streamLastMessage -StateOnly
+                                $Script:_streamLastStateWrite = Get-Date
                             }
 
                             # text block — accumulate for fallback result + extract progress snippets
@@ -234,7 +248,8 @@ function Invoke-ClaudeStream {
                                             $snippet = $text.Trim()
                                             if ($snippet.Length -gt 100) { $snippet = $snippet.Substring(0, 97) + "..." }
                                             Add-LogEntry "[$StepLabel] $snippet" "info"
-                                            Write-Dashboard -Step $StepNumber -Message $snippet
+                                            $Script:_streamLastMessage = $snippet
+                                            Write-Dashboard -Step $StepNumber -Message $snippet -StateOnly
                                             $Script:_streamLastTextSnippet = $now
                                             break
                                         }
@@ -242,7 +257,8 @@ function Invoke-ClaudeStream {
                                     # If no keyword match but we haven't updated in 8+ seconds, show thinking indicator
                                     if (($now - $Script:_streamLastProgressWrite).TotalSeconds -ge 8) {
                                         $elapsed = [math]::Round(($now - $stepStart).TotalSeconds, 0)
-                                        Write-Dashboard -Step $StepNumber -Message "Claude thinking... (${elapsed}s elapsed)"
+                                        $Script:_streamLastMessage = "Claude thinking... (${elapsed}s elapsed)"
+                                        Write-Dashboard -Step $StepNumber -Message $Script:_streamLastMessage -StateOnly
                                         $Script:_streamLastProgressWrite = $now
                                     }
                                 }
@@ -265,7 +281,9 @@ function Invoke-ClaudeStream {
                             $Script:ToolCalls[-1].duration_s = [math]::Round($elapsed, 1)
                         }
 
-                        Write-Dashboard -Step $StepNumber -Message "Running $displayName... ($([math]::Round($elapsed, 0))s)"
+                        $Script:_streamLastMessage = "Running $displayName... ($([math]::Round($elapsed, 0))s)"
+                        Write-Dashboard -Step $StepNumber -Message $Script:_streamLastMessage -StateOnly
+                        $Script:_streamLastStateWrite = $now
                         $Script:_streamLastProgressWrite = $now
                     }
                     return
@@ -319,7 +337,8 @@ function Invoke-ClaudeStream {
                         $Script:ToolCalls[-1].status = "complete"
                         $displayName = $Script:_streamCurrentToolName -replace '^mcp__tapps-mcp__', 'tapps:'
                         Add-LogEntry "[$StepLabel] $displayName completed ($([math]::Round($dur, 1))s)" "info"
-                        Write-Dashboard -Step $StepNumber -Message "$displayName completed ($([math]::Round($dur, 1))s)"
+                        $Script:_streamLastMessage = "$displayName completed ($([math]::Round($dur, 1))s)"
+                        Write-Dashboard -Step $StepNumber -Message $Script:_streamLastMessage -StateOnly
                         $Script:_streamCurrentToolName = ""
                         $Script:_streamCurrentToolStart = $null
                     }

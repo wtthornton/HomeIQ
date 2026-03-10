@@ -135,7 +135,7 @@ class ConversationService:
                 title=title,
                 source=source or "user"
             )
-        return None
+        raise RuntimeError("Database session unavailable: could not create conversation")
 
     async def get_conversation_by_debug_id(self, debug_id: str) -> Conversation | None:
         """Get a conversation by debug_id (troubleshooting ID)"""

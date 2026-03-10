@@ -78,6 +78,8 @@ This is the **single index** for project documentation. Use it for correct paths
 | [Quality Audit](planning/quality-audit-report.md) | Codebase quality assessment |
 | [TAPPS Quality Baseline](../reports/quality/TAPPS_BASELINE.md) | Per-service TAPPS scores, gates, and security baseline |
 | [Deployment Checklist](planning/deployment-checklist.md) | Pre-deployment verification checklist |
+| [Auto-Bugfix Streaming Dashboard PRD](planning/auto-bugfix-streaming-dashboard-prd.md) | Stream-json parser, pipeline integration, dashboard UI (Epics 1–5) |
+| [Auto-Bugfix Dashboard Real-Time Updates](planning/auto-bugfix-dashboard-realtime-epic.md) | Epic 47: near real-time Model/Turns/Cost/Bugs/telemetry (7 stories) |
 
 ---
 

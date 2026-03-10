@@ -130,7 +130,8 @@ function Write-Dashboard {
         [int]$BugsFixed = -1,
         [int]$FilesChanged = -1,
         [string]$Validation = "",
-        [string]$PrUrl = ""
+        [string]$PrUrl = "",
+        [switch]$StateOnly
     )
 
     if ($NoDashboard) { return }
@@ -173,12 +174,22 @@ function Write-Dashboard {
     }
 
     $stateJson = $state | ConvertTo-Json -Depth 10
-    $stateJson | Out-File -FilePath $DashboardStateFile -Encoding utf8 -Force
 
-    # Also write a self-contained HTML with embedded state (avoids file:// CORS issues)
+    # Atomic write: write to temp file then rename so readers never see partial JSON (Epic 47.2)
+    $tmpFile = "$DashboardStateFile.tmp"
+    try {
+        $stateJson | Out-File -FilePath $tmpFile -Encoding utf8 -Force
+        Move-Item -Path $tmpFile -Destination $DashboardStateFile -Force
+    } catch {
+        if (Test-Path $tmpFile) { Remove-Item $tmpFile -Force -ErrorAction SilentlyContinue }
+        $stateJson | Out-File -FilePath $DashboardStateFile -Encoding utf8 -Force
+    }
+
+    if ($StateOnly) { return }
+
+    # Full write: also emit HTML with embedded state (for file:// fallback and first load)
     $DashboardLiveHtml = Join-Path $ProjectRoot "scripts/dashboard-live.html"
     $templateContent = Get-Content $DashboardHtml -Raw
-    # Use .Replace() to avoid regex (state JSON may contain '<script>' in log messages)
     $marker = '/*__INJECT_STATE__*/'
     $injectedHtml = $templateContent.Replace($marker, "window.__DASHBOARD_STATE__ = $stateJson;")
     [System.IO.File]::WriteAllText($DashboardLiveHtml, $injectedHtml, [System.Text.UTF8Encoding]::new($false))
@@ -439,6 +450,7 @@ Add-LogEntry "Found $bugCount bugs" "success"
 foreach ($b in $bugsList) {
     Add-LogEntry "  Bug: $($b.file):$($b.line) - $($b.description)" "info"
 }
+# Epic 47.6: bugs_found is set when scan completes; stream-json does not provide partial counts, so dashboard shows count in one update.
 Write-Dashboard -Step 2 -Message "Found $bugCount bugs. Starting fixes..." -BugsList $dashBugs -BugsFound $bugCount
 
 # --- Step 3: Fix bugs with Claude Code ---

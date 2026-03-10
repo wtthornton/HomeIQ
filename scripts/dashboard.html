@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="1">
+<!-- Epic 47.4: Meta refresh removed; polling used when fetch works. Re-added only for file:// fallback (47.5). -->
 <title>HomeIQ Auto-Bugfix Dashboard</title>
 <style>
   /* === 2026 CSS: Custom animatable properties === */
@@ -1189,6 +1189,10 @@
 <canvas id="confetti-canvas" style="display:none;"></canvas>
 
 <div id="app">
+  <!-- Epic 47.5: Shown when opened as file:// so user knows to use a local server for real-time updates -->
+  <div id="file-fallback-notice" style="display:none; margin-bottom:12px; padding:10px 14px; background:rgba(234,179,8,0.15); border:1px solid rgba(234,179,8,0.4); border-radius:10px; font-size:13px; color:#fef08a;">
+    Opening from file:// — using 2s refresh. For real-time updates, serve from the <code>scripts</code> folder (e.g. <code>python -m http.server 8765</code>) and open <code>http://localhost:8765/dashboard-live.html</code>.
+  </div>
   <!-- Header -->
   <div class="header">
     <div class="header-left">
@@ -1447,26 +1451,35 @@
 (function() {
   'use strict';
 
+  function showFatalError(msg) {
+    var app = document.getElementById('app');
+    if (app) app.innerHTML = '<div style="padding:24px;color:#fef08a;">' + msg + '</div>';
+    console.error(msg);
+  }
+
   // ============================================================
   // SECTION 1: Background Particle System (Neural Network Effect)
   // ============================================================
   var bgCanvas = document.getElementById('bg-canvas');
-  var bgCtx = bgCanvas.getContext('2d');
+  var bgCtx = bgCanvas ? bgCanvas.getContext('2d') : null;
   var particles = [];
   var PARTICLE_COUNT = 60;
   var CONNECT_DIST = 150;
   var isRunning = true;
 
   function resizeCanvas() {
+    if (!bgCanvas) return;
     bgCanvas.width = window.innerWidth;
     bgCanvas.height = window.innerHeight;
   }
-  window.addEventListener('resize', resizeCanvas);
-  resizeCanvas();
+  if (bgCanvas && bgCtx) {
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+  }
 
   function Particle() {
-    this.x = Math.random() * bgCanvas.width;
-    this.y = Math.random() * bgCanvas.height;
+    this.x = bgCanvas ? Math.random() * bgCanvas.width : 0;
+    this.y = bgCanvas ? Math.random() * bgCanvas.height : 0;
     this.vx = (Math.random() - 0.5) * 0.4;
     this.vy = (Math.random() - 0.5) * 0.4;
     this.radius = Math.random() * 1.5 + 0.5;
@@ -1479,7 +1492,7 @@
   }
 
   function animateParticles() {
-    if (!isRunning) return;
+    if (!isRunning || !bgCtx || !bgCanvas) { requestAnimationFrame(animateParticles); return; }
     bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
 
     // Update and draw particles
@@ -1526,11 +1539,12 @@
   // SECTION 2: Confetti System
   // ============================================================
   var confettiCanvas = document.getElementById('confetti-canvas');
-  var confettiCtx = confettiCanvas.getContext('2d');
+  var confettiCtx = confettiCanvas ? confettiCanvas.getContext('2d') : null;
   var confettiPieces = [];
   var confettiActive = false;
 
   function launchConfetti() {
+    if (!confettiCanvas || !confettiCtx) return;
     confettiCanvas.style.display = 'block';
     confettiCanvas.width = window.innerWidth;
     confettiCanvas.height = window.innerHeight;
@@ -1559,6 +1573,7 @@
   }
 
   function animateConfetti() {
+    if (!confettiCanvas || !confettiCtx) return;
     if (!confettiActive && confettiPieces.length === 0) {
       confettiCanvas.style.display = 'none';
       return;
@@ -2014,7 +2029,9 @@
     }
     lastLogCount = logs.length;
     try { sessionStorage.setItem('bugfix-log-count', lastLogCount.toString()); } catch(e) {}
-    container.scrollTop = container.scrollHeight;
+    // Epic 47.4: Auto-scroll only when user is near bottom (chat-style UX)
+    var nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+    if (nearBottom) container.scrollTop = container.scrollHeight;
   }
 
   // Flash a chip value when it changes
@@ -2376,51 +2393,42 @@
   }
 
   // ============================================================
-  // SECTION 7: Main Render
+  // SECTION 7: Main Render (Epic 47.4: polling; 47.5: file:// fallback)
   // ============================================================
   var startIso = null;
   var isDone = false;
+  var pollIntervalId = null;
+  var useFileFallback = false;
 
-  var state = loadState();
-  if (state) {
+  function applyState(state) {
+    if (!state) return;
     startIso = state.start_iso;
-
-    // Save state for transition detection on next reload
     try {
       sessionStorage.setItem('bugfix-prev-step', (state.current_step || 1).toString());
       sessionStorage.setItem('bugfix-prev-status', state.status || '');
     } catch(e) {}
-
-    // Metadata
-    document.getElementById('meta-branch').textContent = state.branch || '--';
-    document.getElementById('meta-base').textContent = state.base || '--';
-    document.getElementById('meta-target-bugs').textContent = state.target_bugs || '--';
-    document.getElementById('meta-start-time').textContent = state.start_time || '--';
-    document.getElementById('meta-scan-unit').textContent = state.scan_unit || '--';
-    document.getElementById('meta-project-root').textContent = state.project_root || '--';
-    document.getElementById('elapsed').textContent = formatElapsed(state.start_iso);
-
-    // Results
-    document.getElementById('res-bugs-found').textContent = state.bugs_found != null ? state.bugs_found : '--';
-    document.getElementById('res-bugs-fixed').textContent = state.bugs_fixed != null ? state.bugs_fixed : '--';
-    document.getElementById('res-files-changed').textContent = state.files_changed != null ? state.files_changed : '--';
-
+    function set(id, val) { var el = document.getElementById(id); if (el) el.textContent = val !== null && val !== undefined ? val : '--'; }
+    set('meta-branch', state.branch);
+    set('meta-base', state.base);
+    set('meta-target-bugs', state.target_bugs);
+    set('meta-start-time', state.start_time);
+    set('meta-scan-unit', state.scan_unit);
+    set('meta-project-root', state.project_root);
+    set('elapsed', formatElapsed(state.start_iso));
+    set('res-bugs-found', state.bugs_found != null ? state.bugs_found : '--');
+    set('res-bugs-fixed', state.bugs_fixed != null ? state.bugs_fixed : '--');
+    set('res-files-changed', state.files_changed != null ? state.files_changed : '--');
     var valEl = document.getElementById('res-validation');
-    if (state.validation === 'pass') {
-      valEl.innerHTML = '<span class="validation-pass">\u2713 PASS</span>';
-    } else if (state.validation === 'fail') {
-      valEl.innerHTML = '<span class="validation-fail">\u2717 FAIL</span>';
-    } else {
-      valEl.textContent = state.validation || '--';
+    if (valEl) {
+      if (state.validation === 'pass') valEl.innerHTML = '<span class="validation-pass">\u2713 PASS</span>';
+      else if (state.validation === 'fail') valEl.innerHTML = '<span class="validation-fail">\u2717 FAIL</span>';
+      else valEl.textContent = state.validation || '--';
     }
-
     var prEl = document.getElementById('res-pr');
-    if (state.pr_url) {
-      prEl.innerHTML = '<a class="pr-link" href="' + escHtml(state.pr_url) + '" target="_blank">' + escHtml(state.pr_url) + '</a>';
-    } else {
-      prEl.textContent = '--';
+    if (prEl) {
+      if (state.pr_url) prEl.innerHTML = '<a class="pr-link" href="' + escHtml(state.pr_url) + '" target="_blank">' + escHtml(state.pr_url) + '</a>';
+      else prEl.textContent = '--';
     }
-
     renderPipeline(state.current_step || 1, state.status || 'running', state.total_steps || 5);
     renderCurrentAction(state);
     renderBugs(state.bugs);
@@ -2430,23 +2438,66 @@
     renderTelemetry(state);
     renderLog(state.log);
     renderStatus(state);
-
     if (state.status === 'done' || state.status === 'error') {
       isDone = true;
+      if (pollIntervalId) { clearInterval(pollIntervalId); pollIntervalId = null; }
       var metaRefresh = document.querySelector('meta[http-equiv="refresh"]');
       if (metaRefresh) metaRefresh.remove();
-      // Stop background particles when done to save CPU
-      if (state.status === 'done') {
-        setTimeout(function() { isRunning = false; }, 5000);
-      }
+      if (state.status === 'done') setTimeout(function() { isRunning = false; }, 5000);
     }
   }
 
-  // Elapsed timer
-  setInterval(function() {
-    if (startIso && !isDone) {
-      document.getElementById('elapsed').textContent = formatElapsed(startIso);
+  var state = loadState();
+  if (state) {
+    try { applyState(state); } catch (e) {
+      var app = document.getElementById('app');
+      if (app) app.innerHTML = '<div style="padding:24px;color:#fef08a;">Dashboard error: ' + String(e.message) + '</div>';
+      console.error('applyState error:', e);
     }
+  } else {
+    var app = document.getElementById('app');
+    if (app) app.innerHTML = '<div style="padding:24px;color:#94a3b8;"><p>No dashboard state.</p><p>Run the auto-bugfix pipeline first, or open via HTTP for real-time updates:</p><p><code>cd scripts && python -m http.server 8765</code></p><p>Then open <code>http://localhost:8765/dashboard-live.html</code></p></div>';
+  }
+
+  function startPolling() {
+    if (pollIntervalId || isDone) return;
+    pollIntervalId = setInterval(function() {
+      if (isDone) { clearInterval(pollIntervalId); pollIntervalId = null; return; }
+      var url = '.dashboard-state.json?t=' + Date.now();
+      fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(s) {
+        if (s) applyState(s);
+      }).catch(function() {
+        if (useFileFallback) return;
+        if (window.location.protocol !== 'file:') return;
+        useFileFallback = true;
+        if (pollIntervalId) { clearInterval(pollIntervalId); pollIntervalId = null; }
+        var meta = document.createElement('meta');
+        meta.httpEquiv = 'refresh';
+        meta.content = '2';
+        document.head.appendChild(meta);
+        var notice = document.getElementById('file-fallback-notice');
+        if (notice) notice.style.display = 'block';
+      });
+    }, 800);
+  }
+
+  if (state && state.status !== 'done' && state.status !== 'error') {
+    if (window.location.protocol === 'file:') {
+      useFileFallback = true;
+      var meta = document.createElement('meta');
+      meta.httpEquiv = 'refresh';
+      meta.content = '2';
+      document.head.appendChild(meta);
+      var noticeEl = document.getElementById('file-fallback-notice');
+      if (noticeEl) noticeEl.style.display = 'block';
+    } else {
+      startPolling();
+    }
+  }
+
+  setInterval(function() {
+    var el = document.getElementById('elapsed');
+    if (el && startIso && !isDone) el.textContent = formatElapsed(startIso);
   }, 1000);
 })();
 </script>

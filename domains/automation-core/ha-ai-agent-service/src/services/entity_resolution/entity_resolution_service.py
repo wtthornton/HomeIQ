@@ -171,7 +171,7 @@ class EntityResolutionService:
             Area ID if found, None otherwise
         """
         # Common area names (could be expanded with actual area names from context)
-        area_keywords = {
+        area_keywords = [
             "office",
             "kitchen",
             "bedroom",
@@ -180,7 +180,7 @@ class EntityResolutionService:
             "garage",
             "basement",
             "attic",
-        }
+        ]
 
         prompt_lower = user_prompt.lower()
         for area in area_keywords:
