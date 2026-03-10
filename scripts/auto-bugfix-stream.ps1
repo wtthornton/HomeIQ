@@ -43,7 +43,9 @@ function Invoke-ClaudeStream {
 
         [int]$StepNumber = 0,
 
-        [string]$StepLabel = ""
+        [string]$StepLabel = "",
+
+        [string]$Model = ""
     )
 
     begin {
@@ -70,6 +72,9 @@ function Invoke-ClaudeStream {
 
         # Build claude arguments
         $claudeArgs = @("--print", "--verbose", "--output-format", "stream-json", "--max-turns", $MaxTurns)
+        if ($Model) {
+            $claudeArgs += @("--model", $Model)
+        }
         if ($McpConfig) {
             $claudeArgs += @("--mcp-config", $McpConfig)
         }

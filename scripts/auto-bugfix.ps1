@@ -20,7 +20,8 @@ param(
     [switch]$NoDashboard,
     [switch]$Rotate,
     [string]$TargetUnit = "",
-    [switch]$Worktree
+    [switch]$Worktree,
+    [string]$Model = "claude-sonnet-4-6"
 )
 
 $ErrorActionPreference = "Stop"
@@ -219,6 +220,7 @@ Write-Host "  Project:  $ProjectRoot"
 Write-Host "  Bugs:     $Bugs"
 Write-Host "  Branch:   $Branch"
 Write-Host "  Base:     $Base"
+Write-Host "  Model:    $Model"
 if ($Chain) { Write-Host "  Chain:    $ChainPhases" -ForegroundColor Magenta }
 if ($ScanUnitId) { Write-Host "  Unit:     $ScanUnitId ($ScanUnitName)" -ForegroundColor Magenta }
 Write-Host ""
@@ -300,7 +302,7 @@ Add-LogEntry "Scanning with TappsMCP security_scan + quick_check + code review..
 Write-Dashboard -Step 2 -Message "Scanning for $Bugs bugs (TappsMCP + review)..."
 
 $mcpConfig = Join-Path $ProjectRoot ".mcp.json"
-$rawOutput = $findPrompt | Invoke-ClaudeStream -MaxTurns 15 -McpConfig $mcpConfig -AllowedTools "Read,Grep,Glob,Bash,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_score_file" -StepNumber 2 -StepLabel "Scan"
+$rawOutput = $findPrompt | Invoke-ClaudeStream -MaxTurns 15 -McpConfig $mcpConfig -AllowedTools "Read,Grep,Glob,Bash,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_score_file" -StepNumber 2 -StepLabel "Scan" -Model $Model
 
 # Extract JSON array from response (greedy match for full array)
 $jsonMatch = [regex]::Match($rawOutput, '\[\s*\{[\s\S]*\}\s*\]')
@@ -373,7 +375,7 @@ After fixing ALL bugs, you MUST run these validation steps in order:
 After validation passes, provide a summary of what you changed and the validation results.
 "@
 
-$fixPrompt | Invoke-ClaudeStream -MaxTurns 25 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check" -StepNumber 3 -StepLabel "Fix"
+$fixPrompt | Invoke-ClaudeStream -MaxTurns 25 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check" -StepNumber 3 -StepLabel "Fix" -Model $Model
 
 # Check if anything was actually changed (ignore submodule drift)
 $changes = git status --porcelain --ignore-submodules
@@ -426,7 +428,7 @@ After refactoring, run mcp__tapps-mcp__tapps_validate_changed() to verify qualit
 Provide a summary of refactoring applied.
 "@
 
-    $refactorPrompt | Invoke-ClaudeStream -MaxTurns 15 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_quick_check" -StepNumber 4 -StepLabel "Refactor"
+    $refactorPrompt | Invoke-ClaudeStream -MaxTurns 15 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_quick_check" -StepNumber 4 -StepLabel "Refactor" -Model $Model
 
     $refactorChanges = git diff --name-only --ignore-submodules
     if ($refactorChanges) {
@@ -461,7 +463,7 @@ After writing tests, run: pytest <test_file> -v --tb=short to verify they pass.
 Then run mcp__tapps-mcp__tapps_quick_check on each test file.
 "@
 
-    $testPrompt | Invoke-ClaudeStream -MaxTurns 20 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Write,Grep,Glob,Bash,mcp__tapps-mcp__tapps_quick_check" -StepNumber 5 -StepLabel "Test"
+    $testPrompt | Invoke-ClaudeStream -MaxTurns 20 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Write,Grep,Glob,Bash,mcp__tapps-mcp__tapps_quick_check" -StepNumber 5 -StepLabel "Test" -Model $Model
 
     $testChanges = git status --porcelain --ignore-submodules
     if ($testChanges) {
@@ -559,7 +561,7 @@ If ALL tools worked perfectly with no issues, append nothing — the goal is an 
 Read docs/TAPPS_FEEDBACK.md first to check for recurring issues and increment their recurrence count.
 "@
 
-$feedbackPrompt | Invoke-ClaudeStream -MaxTurns 10 -McpConfig $mcpConfig -AllowedTools "Read,Edit,mcp__tapps-mcp__tapps_feedback" -StepNumber $feedbackStep -StepLabel "Feedback"
+$feedbackPrompt | Invoke-ClaudeStream -MaxTurns 10 -McpConfig $mcpConfig -AllowedTools "Read,Edit,mcp__tapps-mcp__tapps_feedback" -StepNumber $feedbackStep -StepLabel "Feedback" -Model $Model
 
 # Commit feedback file if it changed
 $feedbackChanged = git diff --name-only docs/TAPPS_FEEDBACK.md
