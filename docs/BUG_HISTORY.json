@@ -1,32 +1,66 @@
-{
-  "date": "2026-03-10 08:26",
-  "run_id": "master",
-  "branch": "master",
-  "bugs": [
+[
     {
-      "pr_merged": null,
-      "description": "create_shared_session_maker() checks `if database_url not in _session_makers` without holding `_engine_lock`. Two concurrent callers can both find the key missing, both create a session maker, and the second overwrites the first in the dict. Any sessions already created from the first session maker are now orphaned ΓÇö their parent session maker is no longer tracked, so those connections leak out of the pool accounting. The engine creation directly below IS protected by _engine_lock, but session maker creation is not.",
-      "line": 102,
-      "was_real": null,
-      "severity": "high",
-      "file": "libs/homeiq-data/src/homeiq_data/database_pool.py"
+        "date":  "2026-03-10 08:26",
+        "run_id":  "master",
+        "branch":  "master",
+        "bugs":  [
+                     {
+                         "pr_merged":  null,
+                         "description":  "create_shared_session_maker() checks `if database_url not in _session_makers` without holding `_engine_lock`. Two concurrent callers can both find the key missing, both create a session maker, and the second overwrites the first in the dict. Any sessions already created from the first session maker are now orphaned Î“Ã‡Ã¶ their parent session maker is no longer tracked, so those connections leak out of the pool accounting. The engine creation directly below IS protected by _engine_lock, but session maker creation is not.",
+                         "line":  102,
+                         "was_real":  null,
+                         "severity":  "high",
+                         "file":  "libs/homeiq-data/src/homeiq_data/database_pool.py"
+                     },
+                     {
+                         "pr_merged":  null,
+                         "description":  "allow_request() reads _half_open_calls and _state without holding _lock, and the caller must separately call increment_half_open_calls() in a distinct async step. This TOCTOU race means N concurrent coroutines can all call allow_request() before any of them calls increment_half_open_calls(), and all see _half_open_calls == 0 \u003c half_open_max_calls (default 1), causing all N to return True. This floods the recovering upstream with concurrent probe requests instead of the intended single trial, defeating HALF_OPEN limiting entirely.",
+                         "line":  129,
+                         "was_real":  null,
+                         "severity":  "high",
+                         "file":  "libs/homeiq-resilience/src/homeiq_resilience/circuit_breaker.py"
+                     },
+                     {
+                         "pr_merged":  null,
+                         "description":  "get_all_context() breaks out of the loop entirely on the first context whose size would exceed the budget (when contexts is non-empty). Contexts are sorted by relevance score descending, so a large but highly-relevant context will cause all subsequent smaller contexts Î“Ã‡Ã¶ which could fit within the remaining budget Î“Ã‡Ã¶ to be silently skipped. The LLM receives incomplete context, causing incorrect automation suggestions and missed domain knowledge for all 50+ downstream services using this registry.",
+                         "line":  129,
+                         "was_real":  null,
+                         "severity":  "medium",
+                         "file":  "libs/homeiq-patterns/src/homeiq_patterns/rag_context_registry.py"
+                     }
+                 ],
+        "chain":  false
     },
     {
-      "pr_merged": null,
-      "description": "allow_request() reads _half_open_calls and _state without holding _lock, and the caller must separately call increment_half_open_calls() in a distinct async step. This TOCTOU race means N concurrent coroutines can all call allow_request() before any of them calls increment_half_open_calls(), and all see _half_open_calls == 0 < half_open_max_calls (default 1), causing all N to return True. This floods the recovering upstream with concurrent probe requests instead of the intended single trial, defeating HALF_OPEN limiting entirely.",
-      "line": 129,
-      "was_real": null,
-      "severity": "high",
-      "file": "libs/homeiq-resilience/src/homeiq_resilience/circuit_breaker.py"
-    },
-    {
-      "pr_merged": null,
-      "description": "get_all_context() breaks out of the loop entirely on the first context whose size would exceed the budget (when contexts is non-empty). Contexts are sorted by relevance score descending, so a large but highly-relevant context will cause all subsequent smaller contexts ΓÇö which could fit within the remaining budget ΓÇö to be silently skipped. The LLM receives incomplete context, causing incorrect automation suggestions and missed domain knowledge for all 50+ downstream services using this registry.",
-      "line": 129,
-      "was_real": null,
-      "severity": "medium",
-      "file": "libs/homeiq-patterns/src/homeiq_patterns/rag_context_registry.py"
+        "date":  "2026-03-10 13:04",
+        "run_id":  "master",
+        "branch":  "master",
+        "bugs":  [
+                     {
+                         "pr_merged":  null,
+                         "description":  "Flux query injection: the `service_name` parameter is directly interpolated into the Flux filter string (`r.service == \"{service_name}\"`) with no sanitization. An attacker who controls `service_name` can inject arbitrary Flux clauses (e.g., closing the string and appending `|\u003e drop()` or piping to a second query), altering query semantics or exfiltrating data from the bucket.",
+                         "line":  189,
+                         "was_real":  null,
+                         "severity":  "high",
+                         "file":  "domains/core-platform/admin-api/src/influxdb_client.py"
+                     },
+                     {
+                         "pr_merged":  null,
+                         "description":  "Type mismatch between the service return type and the declared response_model. `service.create_backup()` returns a `BackupInfo` dataclass (backup_restore.py) that has `success: bool` and no `status` field, but the endpoint is declared `response_model=BackupResponse` which requires `status: str` (no default). FastAPI\u0027s response validation raises a ResponseValidationError (HTTP 500) on every backup creation request.",
+                         "line":  39,
+                         "was_real":  null,
+                         "severity":  "high",
+                         "file":  "domains/core-platform/data-retention/src/api/routers/backup.py"
+                     },
+                     {
+                         "pr_merged":  null,
+                         "description":  "Missing `self.enabled` guard in `log_retention_operation()`. Every other public method in this class checks `if not self.enabled: return` before using `self.client`, but `log_retention_operation` does not. When storage analytics is disabled (the default case with InfluxDB 2.7, where `self.client` is None), calling `self.client.write(point)` raises AttributeError. The surrounding try/except silently swallows the error, causing all retention operation audit records to be silently dropped.",
+                         "line":  173,
+                         "was_real":  null,
+                         "severity":  "medium",
+                         "file":  "domains/core-platform/data-retention/src/storage_analytics.py"
+                     }
+                 ],
+        "chain":  false
     }
-  ],
-  "chain": false
-}
+]

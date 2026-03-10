@@ -4,7 +4,7 @@ Simple tests for InfluxDB client
 
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -118,6 +118,52 @@ async def test_successful_connection(mock_client_class, mock_test_connection):
     # Should succeed but will fail due to missing query_api in mock
     # This is a simple test, just verify it tried to connect
     assert mock_client_class.called
+
+
+# --- get_service_metrics service_name validation (Flux injection guard, Epic 46) ---
+
+
+@pytest.mark.asyncio
+async def test_get_service_metrics_invalid_service_name_raises_value_error():
+    """Invalid service_name must raise ValueError before any Flux query (injection guard)."""
+    client = AdminAPIInfluxDBClient()
+    client.is_connected = True
+    client.query_api = MagicMock()
+
+    invalid_names = [
+        'evil" |> drop()',
+        'x">',
+        'a\nb',
+        'pipe|>',
+        'semicolon;',
+        'backtick`',
+        'x' * 129,
+    ]
+    for name in invalid_names:
+        with pytest.raises(ValueError, match=r"Invalid service_name"):
+            await client.get_service_metrics(name, period="1h")
+
+
+@pytest.mark.asyncio
+async def test_get_service_metrics_valid_service_name_passes_validation():
+    """Valid service_name (alphanumeric, underscore, hyphen, length <= 128) passes validation."""
+    client = AdminAPIInfluxDBClient()
+    client.is_connected = True
+    client.query_api = MagicMock()
+
+    valid_names = [
+        "data-api",
+        "websocket_ingestion",
+        "admin-api",
+        "Svc123",
+        "a",
+        "x" * 128,
+    ]
+    for name in valid_names:
+        with patch.object(client, "_execute_query", new_callable=AsyncMock, return_value=None):
+            # Should not raise ValueError
+            result = await client.get_service_metrics(name, period="1h")
+            assert isinstance(result, dict)
 
 
 if __name__ == "__main__":

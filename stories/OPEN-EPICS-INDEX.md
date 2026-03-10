@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-10 (Sprint 10 verified: corrected baselines, execution started)
-**Total:** 46 Epics, 304 Stories (304 complete, 0 open), ~700+ files addressed
+**Created:** 2026-02-27 | **Updated:** 2026-03-10 (Epic 46 executed and complete)
+**Total:** 47 Epics, 309 Stories (309 complete, 0 open), ~700+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -79,6 +79,9 @@ Sprint 10 (COMPLETE — Mar 10, 2026) — Frontend Testing & Coverage
 ├── Epic 43: Health Dashboard Testing [P0]                   ← COMPLETE (8 stories, 268 tests / 30 files, 16% file coverage)
 ├── Epic 44: AI Automation UI Testing [P0]                   ← COMPLETE (8 stories, 285 tests / 22 files, 19% file coverage)
 └── Epic 45: Observability Dashboard Testing [P1]            ← COMPLETE (4 stories, 109 tests / 8 files, 57% file coverage)
+
+Sprint 11 (COMPLETE — Mar 10, 2026) — Auto-Bugfix Pipeline
+└── Epic 46: Auto-Bugfix Scan Robustness & Tests [P1]        ← COMPLETE (5 stories: scan format doc, retry/fallback, 3 test suites)
 ```
 
 ## Epic Summary
@@ -131,6 +134,7 @@ Sprint 10 (COMPLETE — Mar 10, 2026) — Frontend Testing & Coverage
 | 43 | [Health Dashboard Testing](epic-health-dashboard-testing.md) | `epic-health-dashboard-testing.md` | **P0 Critical** | 8 | 2 weeks | **Complete** (268 tests, 30 files) |
 | 44 | [AI Automation UI Testing](epic-ai-automation-ui-testing.md) | `epic-ai-automation-ui-testing.md` | **P0 Critical** | 8 | 2 weeks | **Complete** (285 tests, 22 files) |
 | 45 | [Observability Dashboard Testing](epic-observability-dashboard-testing.md) | `epic-observability-dashboard-testing.md` | P1 High | 4 | 1 week | **Complete** (109 tests, 8 files) |
+| 46 | [Auto-Bugfix Scan Robustness & Tests](epic-auto-bugfix-robustness-and-tests.md) | `epic-auto-bugfix-robustness-and-tests.md` | P1 High | 5 | 1-2 weeks | **Complete** |
 
 ## Story Count by Priority
 
@@ -140,7 +144,7 @@ Sprint 10 (COMPLETE — Mar 10, 2026) — Frontend Testing & Coverage
 | P1 High | 142 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4) |
 | P2 Medium | 53 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4) |
 | P3 Low | 10 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
-| **Total** | **304** | 304 complete (46 epics), 0 open |
+| **Total** | **309** | 309 complete (47 epics), 0 open |
 
 ## Sprint 2 Results (COMPLETE — Mar 4, Agent Teams)
 

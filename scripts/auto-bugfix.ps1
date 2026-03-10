@@ -6,6 +6,15 @@
 #   .\scripts\auto-bugfix.ps1 -Bugs 3 -NoDashboard    # Skip live dashboard
 #   .\scripts\auto-bugfix.ps1 -Bugs 3 -NoRotate       # Scan entire repo instead of rotating
 #
+# Scan output format (required for bug list extraction):
+#   Claude must emit a JSON array between exact markers: <<<BUGS>>> [...] <<<END_BUGS>>>
+#   Each object: { "file": "path/to/file.py", "line": N, "description": "...", "severity": "high|medium|low" }
+#   See: docs/workflows/auto-bugfix-scan-format.md
+#
+# Scan retries: If the first scan produces no parseable output, the script retries once with
+#   "direct code review only" (no MCP tools). Max 2 attempts total. On failure, raw output is
+#   saved to $env:TEMP\auto-bugfix-raw-attempt*.txt and optionally implementation/ for inspection.
+#
 # Requirements:
 #   - claude CLI installed and authenticated
 #   - git configured with push access
@@ -303,8 +312,9 @@ Rules:
 $promptOverrides
 
 STEP 3 (FINAL turn): Output your results.
-CRITICAL: You MUST output the bug list JSON wrapped in these exact markers on your LAST turn.
-Do NOT spend additional turns after producing this output.
+CRITICAL: On your LAST turn you MUST emit exactly the block below with a valid JSON array. No prose after the block.
+- Use the exact markers <<<BUGS>>> and <<<END_BUGS>>> (three angle brackets each).
+- Put one JSON array between them; each object needs file, line, description, severity.
 
 <<<BUGS>>>
 [{"file": "path/to/file.py", "line": 42, "description": "what the bug is", "severity": "high|medium|low"}]
@@ -371,13 +381,29 @@ for ($attempt = 1; $attempt -le $scanAttempts; $attempt++) {
     }
 
     Add-LogEntry "Attempt ${attempt}: no JSON found in scan output" "warn"
-    $rawOutput | Out-File -FilePath "$env:TEMP\auto-bugfix-raw-attempt$attempt.txt"
+    $tempPath = "$env:TEMP\auto-bugfix-raw-attempt$attempt.txt"
+    $rawOutput | Out-File -FilePath $tempPath
+    if ($attempt -eq $scanAttempts) {
+        $implDir = Join-Path $ProjectRoot "implementation"
+        if (Test-Path $implDir) {
+            $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $savePath = Join-Path $implDir "auto-bugfix-scan-failure-$stamp.txt"
+            Copy-Item -Path $tempPath -Destination $savePath -Force
+            Add-LogEntry "Scan failure output saved to $savePath for inspection" "info"
+        }
+    }
 }
 
 if (-not $bugsJson) {
     Add-LogEntry "Failed to extract bug list JSON after $scanAttempts attempts" "error"
     Write-Dashboard -Step 2 -Status "error" -Message "Failed to extract bug list after $scanAttempts attempts"
-    Write-Error "ERROR: Failed to extract bug list JSON from Claude output."
+    $msg = "ERROR: Failed to extract bug list JSON from Claude output after $scanAttempts attempt(s). Raw output saved to $env:TEMP\auto-bugfix-raw-attempt*.txt"
+    $implDir = Join-Path $ProjectRoot "implementation"
+    if (Test-Path $implDir) {
+        $latest = Get-ChildItem -Path $implDir -Filter "auto-bugfix-scan-failure-*.txt" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($latest) { $msg += " and to $($latest.FullName)" }
+    }
+    Write-Error $msg
     Write-Host "Raw output saved to $env:TEMP\auto-bugfix-raw-attempt*.txt"
     if (-not $Worktree) { git checkout $Base; git branch -D $Branch }
     exit 1

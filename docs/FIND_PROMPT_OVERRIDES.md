@@ -9,6 +9,7 @@ Each rule is a bullet point. Be specific and actionable.
 
 ## Rules
 
+- Always emit the bug list inside <<<BUGS>>>...<<<END_BUGS>>> with a valid JSON array (file, line, description, severity). No prose after the block.
 - Do NOT report missing `__init__.py` files as bugs.
 - Do NOT report `datetime.utcnow()` as a bug — these have already been audited and fixed where needed.
 - Do NOT report missing error handling in test/example files.
