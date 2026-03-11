@@ -1,0 +1,12 @@
+# Auto-fix pipeline project — minimal .gitignore
+# Prevents committing noise when adding code later.
+*.log
+__pycache__/
+.env
+.env.*
+!.env.example
+node_modules/
+.venv/
+venv/
+*.pyc
+.DS_Store

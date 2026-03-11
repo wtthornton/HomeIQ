@@ -22,6 +22,7 @@
 
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
+import { isIgnorableConsoleError } from '../../../shared/helpers/console-filters';
 import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
 test.describe('Deployed Automations - What automations are running in my Home Assistant?', () => {
@@ -126,12 +127,7 @@ test.describe('Deployed Automations - What automations are running in my Home As
     await page.reload();
     await waitForLoadingComplete(page);
 
-    const criticalErrors = consoleErrors.filter(
-      (e) =>
-        !e.includes('favicon') &&
-        !e.includes('sourcemap') &&
-        !e.includes('DevTools')
-    );
+    const criticalErrors = consoleErrors.filter((e) => !isIgnorableConsoleError(e));
     expect(criticalErrors).toEqual([]);
   });
 });

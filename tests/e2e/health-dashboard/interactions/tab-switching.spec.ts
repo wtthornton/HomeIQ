@@ -52,19 +52,17 @@ test.describe('Tab switching -- navigating between sections', () => {
   });
 
   test('clicking a sidebar item updates the URL hash for deep-linking', async ({ page }) => {
-    // Navigate to services to expand the Infrastructure sidebar group
     await page.goto('/#overview');
     await waitForLoadingComplete(page);
 
     const sidebar = page.getByRole('navigation', { name: /dashboard/i });
-    // Expand Infrastructure group
     const infraGroup = sidebar.getByRole('button', { name: /infrastructure/i });
     await expect(infraGroup).toBeVisible({ timeout: 5000 });
     await infraGroup.click();
+    await new Promise(r => setTimeout(r, 300));
 
-    // Click Services sub-item
-    const servicesButton = sidebar.getByRole('button', { name: /^Services$/i });
-    await expect(servicesButton).toBeVisible({ timeout: 3000 });
+    const servicesButton = page.getByTestId('tab-services');
+    await expect(servicesButton).toBeVisible({ timeout: 5000 });
     await servicesButton.click();
 
     await page.waitForURL(/#services/, { timeout: 5000 });
@@ -72,18 +70,21 @@ test.describe('Tab switching -- navigating between sections', () => {
   });
 
   test('keyboard ArrowDown moves focus to the next sidebar item', async ({ page }) => {
-    // Expand the Infrastructure group by navigating to services
-    await page.goto('/#services');
+    await page.goto('/#overview');
     await waitForLoadingComplete(page);
-
     const sidebar = page.getByRole('navigation', { name: /dashboard/i });
-    const servicesButton = sidebar.getByRole('button', { name: /^Services$/i });
+    const infraGroup = sidebar.getByRole('button', { name: /infrastructure/i });
+    await expect(infraGroup).toBeVisible({ timeout: 5000 });
+    await infraGroup.click();
+    await new Promise(r => setTimeout(r, 300));
+
+    const servicesButton = page.getByTestId('tab-services');
     await expect(servicesButton).toBeVisible({ timeout: 5000 });
 
     // Focus the button and arrow down
     await servicesButton.focus();
     await page.keyboard.press('ArrowDown');
-    await page.waitForTimeout(300);
+    await new Promise((r) => setTimeout(r, 300));
 
     // Focus should have moved to a different element
     const focusedElement = page.locator(':focus');
@@ -100,7 +101,7 @@ test.describe('Tab switching -- navigating between sections', () => {
     const sampleTabs = ['overview', 'services', 'energy', 'alerts', 'configuration'];
     for (const tabId of sampleTabs) {
       await page.goto(`/#${tabId}`);
-      await page.waitForTimeout(1000);
+      await new Promise(r => setTimeout(r, 1000));
     }
 
     // Filter known noise — the PURPOSE of this test is navigation stability,

@@ -156,7 +156,7 @@ test.describe('Sports API - Webhooks & Event Detection (Story 12.4)', () => {
     expect(Array.isArray(body.webhooks)).toBeTruthy();
   });
 
-  test.skip('should register webhook (requires webhook service)', async ({ request }) => {
+  test('should register webhook (requires webhook service)', async ({ request }) => {
     // TODO: Set up mock webhook receiver for E2E tests
     const webhookData = {
       url: 'http://test-webhook-receiver:8080/webhook',
@@ -174,7 +174,7 @@ test.describe('Sports API - Webhooks & Event Detection (Story 12.4)', () => {
     expect(body).toHaveProperty('webhook_id');
   });
 
-  test.skip('should unregister webhook (requires webhook service)', async ({ request }) => {
+  test('should unregister webhook (requires webhook service)', async ({ request }) => {
     // TODO: Set up mock webhook receiver for E2E tests
     // First register a webhook
     const registerResponse = await request.post(`${SPORTS_API_BASE_URL}/api/v1/webhooks/register`, {

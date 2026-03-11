@@ -2,6 +2,15 @@
 
 Comprehensive end-to-end tests for the Ask AI feature, covering query submission, test execution, approval workflow, and regression tests for bug fixes.
 
+## Test modes and CI (Epic 49)
+
+Ask AI has two E2E modes:
+
+1. **Mocked E2E (CI, fast)** — `tests/e2e/ai-automation-ui/workflows/ask-ai-mocked.spec.ts` runs in Docker E2E. It mocks `/api/v1/ask-ai/*` so no OpenAI API key or Home Assistant is required. Run time &lt; 30s.
+2. **Full E2E (local/optional)** — `tests/e2e/ask-ai-complete.spec.ts` and `tests/e2e/ask-ai-debug.spec.ts` use live OpenAI and (for test/approve) Home Assistant. They are **not** in the default Docker E2E run; run them locally with the appropriate env (e.g. `OPENAI_API_KEY`). Use long timeout (e.g. 90s per test).
+
+**HA Agent Chat E2E:** `tests/e2e/ai-automation-ui/pages/ha-agent-chat.spec.ts` covers the Chat page. It can use mocks or a live backend depending on config; see that spec for details.
+
 ## 📋 Test Coverage
 
 ### Core Functionality

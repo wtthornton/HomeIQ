@@ -21,6 +21,7 @@
 
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
+import { isIgnorableConsoleError } from '../../../shared/helpers/console-filters';
 import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
 test.describe('Admin - Can I access admin configuration?', () => {
@@ -66,12 +67,7 @@ test.describe('Admin - Can I access admin configuration?', () => {
     await page.reload();
     await waitForLoadingComplete(page);
 
-    const criticalErrors = consoleErrors.filter(
-      (e) =>
-        !e.includes('favicon') &&
-        !e.includes('sourcemap') &&
-        !e.includes('DevTools')
-    );
+    const criticalErrors = consoleErrors.filter((e) => !isIgnorableConsoleError(e));
     expect(criticalErrors).toEqual([]);
   });
 });

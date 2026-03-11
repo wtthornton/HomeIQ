@@ -30,6 +30,8 @@ TappsMCP is an MCP server that provides a comprehensive quality toolset for your
 
 You only see these tools when the host has started the TappsMCP server and attached it to your session.
 
+**In this project:** TappsMCP is provided by **MCP_DOCKER** (Docker MCP Toolkit). Configure `.cursor/mcp.json` and, for headless runs (e.g. auto-bugfix), `.mcp.json` at project root with the `MCP_DOCKER` server (`docker mcp gateway run`). Tools appear as `mcp__MCP_DOCKER__tapps_*` (e.g. `mcp__MCP_DOCKER__tapps_quick_check`). See [.cursor/MCP_SETUP_INSTRUCTIONS.md](.cursor/MCP_SETUP_INSTRUCTIONS.md).
+
 **File paths:** For tools that take `file_path`, use **paths relative to the project root** (e.g. `src/main.py`, `tests/test_foo.py`) so they work with both stdio and Docker. If the server is configured with `TAPPS_MCP_HOST_PROJECT_ROOT` (e.g. when using Docker), you can also pass **absolute host paths** (e.g. `C:\projects\myapp\src\main.py`); the server will map them to the project root.
 
 ---

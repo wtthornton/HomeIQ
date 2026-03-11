@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-10 (Epic 46, Epic 48 complete)
-**Total:** 48 Epics, 309 Stories (309 complete, 7 open for Epic 47), ~700+ files addressed
+**Created:** 2026-02-27 | **Updated:** 2026-03-11 (Epic 53 added)
+**Total:** 53 Epics, 345 Stories (316 complete, 7 open for Epic 47, 13 open for Epic 49, 12 open for Epic 51, 4 open for Epic 53), ~700+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -88,6 +88,18 @@ Sprint 12 (Backlog) — Auto-Bugfix Dashboard
 
 Sprint 13 (COMPLETE — Mar 10, 2026) — Auto-Bugfix Subagents
 └── Epic 48: Auto-Bugfix Subagents Integration [P1]         ← COMPLETE (5 stories: bug-scanner subagent, -UseSubagents, docs)
+
+Sprint 14 (Backlog) — E2E Playwright Coverage Expansion
+└── Epic 49: E2E Playwright Coverage Expansion [P1]         ← OPEN (13 stories: visual regression, Ask AI, error/loading depth, AI UI routes)
+
+Sprint 15 (COMPLETE) — Auto-Fix Isolated Project (Epic 0)
+└── Epic 50: Auto-Fix Isolated Project — Structure Setup [P1]  ← COMPLETE / EXECUTED (7 stories; structure in place; ready for Epic 1)
+
+Sprint 16 (Complete) — E2E Skipped Tests
+└── Epic 51: E2E Skipped Tests — Fix or Delete [P1]         ← COMPLETE (12 stories; 0 skipped). Follow-up executed 2026-03-11: health-dashboard 223 pass, 0 fail, 2 fixme (RAG); AI UI 134 pass, 3–4 fail (enhancement-button needs real/mocked AI). Backlog: fix 3× enhancement-button E2E (mock chat→proposal) or gate behind AI_SERVICES_AVAILABLE.
+
+Sprint 17 (Backlog) — Ask AI Integration Validation
+└── Epic 53: Ask AI Integration Validation [P1]             ← OPEN (4 stories: full flow + HA validation, response schema, HA helper, optional CI)
 ```
 
 ## Epic Summary
@@ -143,6 +155,11 @@ Sprint 13 (COMPLETE — Mar 10, 2026) — Auto-Bugfix Subagents
 | 46 | [Auto-Bugfix Scan Robustness & Tests](epic-auto-bugfix-robustness-and-tests.md) | `epic-auto-bugfix-robustness-and-tests.md` | P1 High | 5 | 1-2 weeks | **Complete** |
 | 47 | [Auto-Bugfix Dashboard Real-Time Updates](../docs/planning/auto-bugfix-dashboard-realtime-epic.md) | `docs/planning/auto-bugfix-dashboard-realtime-epic.md` | P1 High | 7 | 1-2 weeks | **Open** |
 | 48 | [Auto-Bugfix Subagents Integration](epic-auto-bugfix-subagents-integration.md) | `epic-auto-bugfix-subagents-integration.md` | P1 High | 5 | 1-2 weeks | **Complete** |
+| 49 | [E2E Playwright Coverage Expansion](epic-e2e-playwright-coverage-expansion.md) | `epic-e2e-playwright-coverage-expansion.md` | P1 High | 13 | 2-3 weeks | **Open** |
+| 50 | [Auto-Fix Isolated Project — Structure Setup](epic-50-auto-fix-isolated-project-structure.md) | `epic-50-auto-fix-isolated-project-structure.md` | P1 High | 7 | 1 day | **Complete** |
+| 51 | [E2E Skipped Tests — Fix or Delete](epic-51-e2e-skipped-tests.md) | `epic-51-e2e-skipped-tests.md` | P1 High | 12 | 1–2 weeks | **Complete** (0 skipped). Follow-up: health 223 pass/2 fixme; AI UI 3 fail = enhancement-button (mock or gate). |
+| 52 | [Auto-Bugfix Cleanup — Delete Legacy, Keep Config-Driven](epic-auto-bugfix-cleanup-legacy.md) | `epic-auto-bugfix-cleanup-legacy.md` | P1 High | 6 | 2-3 days | **Open** |
+| 53 | [Ask AI Integration Validation](epic-53-ask-ai-integration-validation.md) | `epic-53-ask-ai-integration-validation.md` | P1 High | 4 | 1-2 weeks | **Open** |
 
 ## Story Count by Priority
 
@@ -152,7 +169,7 @@ Sprint 13 (COMPLETE — Mar 10, 2026) — Auto-Bugfix Subagents
 | P1 High | 142 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4) |
 | P2 Medium | 53 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4) |
 | P3 Low | 10 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
-| **Total** | **316** | 309 complete (47 epics), 7 open (Epic 47) |
+| **Total** | **341** | 309 complete (47 epics), 7 open (Epic 47), 13 open (Epic 49), 12 open (Epic 51) |
 
 ## Sprint 2 Results (COMPLETE — Mar 4, Agent Teams)
 

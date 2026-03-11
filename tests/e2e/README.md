@@ -56,6 +56,29 @@ curl http://localhost:3000           # Health Dashboard
 
 **All Playwright tests run against the deployed Docker stack with no mocked API data.** Use `docker-deployment.config.ts` to run the full E2E suite (legacy specs, health-dashboard, ai-automation-ui, api-integration) against `http://localhost:3000` (health dashboard) and `http://localhost:3001` (AI automation UI when applicable). Ensure `docker-compose up` is running before executing tests.
 
+### Important: Run from `tests/e2e`
+
+To avoid "Playwright Test did not expect test.describe() to be called here" (caused by two different `@playwright/test` versions when run from repo root), **run Playwright from this directory**:
+
+```bash
+cd tests/e2e
+```
+
+Then use paths relative to this directory (no `tests/e2e/` prefix), for example:
+
+```bash
+# Health-dashboard + visual regression (Chromium only)
+npx playwright test health-dashboard visual-regression.spec.ts --config=docker-deployment.config.ts --project=docker-chromium
+
+# AI UI (Chromium only)
+npx playwright test ai-automation-ui --config=docker-deployment.config.ts --project=docker-ai-ui-chromium
+
+# Update visual baselines (use --workers=1 for stability)
+npx playwright test visual-regression.spec.ts --config=docker-deployment.config.ts --project=docker-chromium --update-snapshots --workers=1
+```
+
+See **implementation/VISUAL_BASELINE_AND_E2E_ISSUES_PLAN.md** for the full visual baseline and issue list.
+
 ### Quick Start
 
 Run all tests with the automated test runner:
@@ -66,32 +89,32 @@ Run all tests with the automated test runner:
 
 ### Individual Test Suites
 
-Run specific test suites:
+From **`tests/e2e`** (paths relative to this directory):
 
 ```bash
 # System health tests
-npx playwright test tests/e2e/system-health.spec.ts --config=tests/e2e/docker-deployment.config.ts
+npx playwright test system-health.spec.ts --config=docker-deployment.config.ts
 
 # Dashboard functionality tests
-npx playwright test tests/e2e/dashboard-functionality.spec.ts --config=tests/e2e/docker-deployment.config.ts
+npx playwright test dashboard-functionality.spec.ts --config=docker-deployment.config.ts
 
-# Visual regression tests
-npx playwright test tests/e2e/visual-regression.spec.ts --config=tests/e2e/docker-deployment.config.ts
+# Visual regression tests (use --workers=1 for stability; add --update-snapshots to refresh baselines)
+npx playwright test visual-regression.spec.ts --config=docker-deployment.config.ts --project=docker-chromium --workers=1
 
 # Integration tests
-npx playwright test tests/e2e/integration.spec.ts --config=tests/e2e/docker-deployment.config.ts
+npx playwright test integration.spec.ts --config=docker-deployment.config.ts
 
 # Performance tests
-npx playwright test tests/e2e/performance.spec.ts --config=tests/e2e/docker-deployment.config.ts
+npx playwright test performance.spec.ts --config=docker-deployment.config.ts
 
 # Health Dashboard (all tabs and components; no mocks)
-npx playwright test tests/e2e/health-dashboard/ --config=tests/e2e/docker-deployment.config.ts
+npx playwright test health-dashboard/ --config=docker-deployment.config.ts --project=docker-chromium
 
 # AI Automation UI (all pages and workflows; no mocks)
-npx playwright test tests/e2e/ai-automation-ui/ --config=tests/e2e/docker-deployment.config.ts
+npx playwright test ai-automation-ui/ --config=docker-deployment.config.ts --project=docker-ai-ui-chromium
 
 # API integration (Phase 6 – Admin, Data, AI Automation APIs, UI→API flow)
-npx playwright test tests/e2e/api-integration/ --config=tests/e2e/docker-deployment.config.ts
+npx playwright test api-integration/ --config=docker-deployment.config.ts
 ```
 
 **API Integration specs (Phase 5–6):**

@@ -69,7 +69,7 @@ test.describe('Dependencies -- Service Architecture & Failure Cascade Map', () =
   test('graph labels include recognizable service names', async ({ page }) => {
     // Wait for graph to fully render with data
     await expect(page.getByRole('heading', { name: /Architecture Overview/i })).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(2000);
+    await new Promise((r) => setTimeout(r, 2000));
 
     // The graph image (SVG rendered as img) contains clickable service nodes
     // Check for well-known service names in the graph node labels
@@ -136,7 +136,7 @@ test.describe('Dependencies -- Service Architecture & Failure Cascade Map', () =
     await expect(page.getByRole('columnheader', { name: 'Status' })).toBeVisible();
 
     // Wait for table data to load, then check for data rows
-    await page.waitForTimeout(2000);
+    await new Promise((r) => setTimeout(r, 2000));
     const rows = table.getByRole('row');
     const rowCount = await rows.count();
     expect(
@@ -153,7 +153,7 @@ test.describe('Dependencies -- Service Architecture & Failure Cascade Map', () =
 
   test('error state displays a clear error message when API fails', async ({ page }) => {
     // Wait for page to settle
-    await page.waitForTimeout(3000);
+    await new Promise((r) => setTimeout(r, 3000));
 
     // Either the Architecture Overview loads or an error is shown
     const hasOverview = await page.getByRole('heading', { name: /Architecture Overview/i })
@@ -178,7 +178,7 @@ test.describe('Dependencies -- Service Architecture & Failure Cascade Map', () =
 
   test('graph area renders without being stuck in permanent loading state', async ({ page }) => {
     // After initial load, the graph should not show a permanent spinner
-    await page.waitForTimeout(5000);
+    await new Promise((r) => setTimeout(r, 5000));
 
     // Either the architecture overview is visible or an error is shown -- not a perpetual spinner
     const loadingSpinner = page.locator('[class*="animate-spin"], [class*="spinner"], [class*="loading"]');
@@ -208,7 +208,7 @@ test.describe('Dependencies -- Service Architecture & Failure Cascade Map', () =
 
     await page.goto('/#dependencies');
     await waitForLoadingComplete(page);
-    await page.waitForTimeout(3000);
+    await new Promise((r) => setTimeout(r, 3000));
 
     const apiErrors = errors.filter(error =>
       !error.includes('favicon') &&

@@ -321,7 +321,7 @@ test.describe('Blueprint Suggestions - Accept/Decline Actions', () => {
       await page.acceptSuggestion(0);
       await page.waitForSuccessToast(/accepted/i);
     } else {
-      test.skip();
+      expect(true, 'Required condition not met for blueprint test').toBe(false);
     }
   });
 
@@ -335,7 +335,7 @@ test.describe('Blueprint Suggestions - Accept/Decline Actions', () => {
       // Should navigate to chat page
       await expect(playwrightPage).toHaveURL(/.*chat/, { timeout: 10000 });
     } else {
-      test.skip();
+      expect(true, 'Required condition not met for blueprint test').toBe(false);
     }
   });
 
@@ -346,7 +346,7 @@ test.describe('Blueprint Suggestions - Accept/Decline Actions', () => {
       await page.declineSuggestion(0);
       await page.waitForSuccessToast(/declined/i);
     } else {
-      test.skip();
+      expect(true, 'Required condition not met for blueprint test').toBe(false);
     }
   });
 
@@ -365,7 +365,7 @@ test.describe('Blueprint Suggestions - Accept/Decline Actions', () => {
       const newCount = await page.getSuggestionCount();
       expect(newCount).toBeLessThan(count);
     } else {
-      test.skip();
+      expect(true, 'Required condition not met for blueprint test').toBe(false);
     }
   });
 });
@@ -506,7 +506,7 @@ test.describe('Blueprint Suggestions - Delete All', () => {
       const newCount = await page.getSuggestionCount();
       expect(newCount).toBe(0);
     } else {
-      test.skip();
+      expect(true, 'Required condition not met for blueprint test').toBe(false);
     }
   });
 
@@ -541,8 +541,7 @@ test.describe('Blueprint Suggestions - Pagination', () => {
       await expect(page.getNextButton()).toBeVisible();
       await expect(paginationInfo).toBeVisible();
     } else {
-      // No pagination needed - skip test
-      test.skip();
+      expect(true, 'Pagination required for this test').toBe(false);
     }
   });
 
@@ -554,7 +553,7 @@ test.describe('Blueprint Suggestions - Pagination', () => {
       const infoText = await paginationInfo.textContent();
       expect(infoText).toMatch(/\d+-\d+ of \d+/);
     } else {
-      test.skip();
+      expect(true, 'Required condition not met for blueprint test').toBe(false);
     }
   });
 
@@ -569,7 +568,7 @@ test.describe('Blueprint Suggestions - Pagination', () => {
       const newInfo = await page.getPaginationInfo().textContent();
       expect(newInfo).not.toBe(initialInfo);
     } else {
-      test.skip();
+      expect(true, 'Required condition not met for blueprint test').toBe(false);
     }
   });
 
@@ -593,7 +592,7 @@ test.describe('Blueprint Suggestions - Pagination', () => {
         expect(newInfo).not.toBe(initialInfo);
       }
     } else {
-      test.skip();
+      expect(true, 'Required condition not met for blueprint test').toBe(false);
     }
   });
 
@@ -608,7 +607,7 @@ test.describe('Blueprint Suggestions - Pagination', () => {
       // We can't easily determine which page we're on, so we'll just check if it exists
       expect(isEnabled).toBeDefined();
     } else {
-      test.skip();
+      expect(true, 'Required condition not met for blueprint test').toBe(false);
     }
   });
 });
@@ -678,7 +677,7 @@ test.describe('Blueprint Suggestions - Error Handling', () => {
       await page.acceptSuggestion(0);
       await page.waitForErrorToast(/failed|error/i);
     } else {
-      test.skip();
+      expect(true, 'Required condition not met for blueprint test').toBe(false);
     }
   });
 });

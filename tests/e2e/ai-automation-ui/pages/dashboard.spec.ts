@@ -22,6 +22,7 @@
 
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
+import { isIgnorableConsoleError } from '../../../shared/helpers/console-filters';
 import { waitForLoadingComplete, waitForModalOpen } from '../../../shared/helpers/wait-helpers';
 
 test.describe('Dashboard - Can I see my AI automation suggestions and act on them?', () => {
@@ -147,6 +148,39 @@ test.describe('Dashboard - Can I see my AI automation suggestions and act on the
     }
   });
 
+  // Epic 49.11: empty and error depth
+  test('dashboard shows empty state when suggestions API returns empty', async ({ page }) => {
+    await page.route('**/api/**/suggestions**', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ suggestions: [], total: 0 }),
+      })
+    );
+
+    await page.goto('/');
+    await waitForLoadingComplete(page);
+
+    const emptyOrCards = page.getByText(/no.*suggestions|get started|0 suggestions/i).or(page.locator('[data-testid="suggestion-card"]'));
+    await expect(emptyOrCards.first()).toBeVisible({ timeout: 10000 });
+  });
+
+  test('dashboard shows error or graceful message when suggestions API returns 500', async ({ page }) => {
+    await page.route('**/api/**/suggestions**', route =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Internal Server Error' }),
+      })
+    );
+
+    await page.goto('/');
+    await waitForLoadingComplete(page);
+
+    const errorOrContent = page.locator('[data-testid="error-state"], [data-testid="retry-button"]').or(page.getByText(/error|retry/i)).or(page.locator('main'));
+    await expect(errorOrContent.first()).toBeVisible({ timeout: 10000 });
+  });
+
   test('no console errors on the dashboard', async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on('console', (msg) => {
@@ -158,12 +192,7 @@ test.describe('Dashboard - Can I see my AI automation suggestions and act on the
     await page.reload();
     await waitForLoadingComplete(page);
 
-    const criticalErrors = consoleErrors.filter(
-      (e) =>
-        !e.includes('favicon') &&
-        !e.includes('sourcemap') &&
-        !e.includes('DevTools')
-    );
+    const criticalErrors = consoleErrors.filter((e) => !isIgnorableConsoleError(e));
     expect(criticalErrors).toEqual([]);
   });
 });

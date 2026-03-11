@@ -1,0 +1,17 @@
+# Example repos.yaml for multi-repo mode (Phase 4).
+# Paths are relative to the directory containing this file (meta-repo root).
+# Use with: .\auto-fix-pipeline\runner\run-multirepo.ps1 -ReposPath "auto-fix-pipeline/config/example/repos-example.yaml"
+
+default_config: "auto-fix-pipeline/config/example/homeiq-default.yaml"
+
+repos:
+  - path: "."
+    name: "HomeIQ (this repo)"
+    config_path: "auto-fix-pipeline/config/example/homeiq-default.yaml"
+    purpose: "Single repo: run pipeline on this repo as if it were one of several."
+  # Add more repos when you have multiple clones/submodules under meta-repo:
+  # - path: "repos/service-a"
+  #   name: "Service A"
+  # - path: "repos/service-b"
+  #   name: "Service B"
+  #   config_path: "auto-fix-pipeline/config/example/homeiq-default.yaml"

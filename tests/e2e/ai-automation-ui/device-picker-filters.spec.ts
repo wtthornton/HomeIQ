@@ -25,6 +25,7 @@
 
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../shared/helpers/auth-helpers';
+import { isIgnorableConsoleError } from '../../shared/helpers/console-filters';
 import { waitForLoadingComplete } from '../../shared/helpers/wait-helpers';
 
 test.describe('Device Picker Filters - Can I filter devices effectively?', () => {
@@ -84,10 +85,7 @@ test.describe('Device Picker Filters - Can I filter devices effectively?', () =>
 
     await page.waitForTimeout(1000);
     const initialDevices = await deviceListbox.locator('[role="option"]').count();
-    if (initialDevices === 0) {
-      test.skip();
-      return;
-    }
+    expect(initialDevices, 'Device picker should have at least one device option to filter').toBeGreaterThan(0);
 
     await deviceTypeSelect.selectOption('fan');
     await page.waitForTimeout(2000);
@@ -218,12 +216,7 @@ test.describe('Device Picker Filters - Can I filter devices effectively?', () =>
     await searchInput.clear();
     await page.waitForTimeout(1000);
 
-    const criticalErrors = consoleErrors.filter(
-      (e) =>
-        !e.includes('favicon') &&
-        !e.includes('sourcemap') &&
-        !e.includes('deprecated')
-    );
+    const criticalErrors = consoleErrors.filter((e) => !isIgnorableConsoleError(e));
     expect(criticalErrors).toEqual([]);
   });
 });

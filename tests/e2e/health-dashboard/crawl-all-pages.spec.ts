@@ -138,7 +138,7 @@ test.describe('Crawl all Health Dashboard pages', () => {
       }
 
       if (!navOk) continue;
-      await page.waitForTimeout(1500);
+      await new Promise((r) => setTimeout(r, 1500));
 
       // -- Console errors and warnings --
       for (const { type, text } of consoleMessages) {

@@ -5,6 +5,8 @@
 #   .\scripts\auto-bugfix.ps1 -Bugs 1 -Chain          # Run bugfix + refactor + test
 #   .\scripts\auto-bugfix.ps1 -Bugs 3 -NoDashboard    # Skip live dashboard
 #   .\scripts\auto-bugfix.ps1 -Bugs 3 -NoRotate       # Scan entire repo instead of rotating
+#   .\scripts\auto-bugfix.ps1 -ConfigPath "auto-fix-pipeline/config/example/homeiq-default.yaml"  # Config-driven (Epic 3)
+#   .\scripts\auto-bugfix.ps1 -ProjectRootOverride "C:/repos/other" -ConfigPath "path/to/config.yaml"  # Multi-repo (Phase 4)
 #
 # Scan output format (required for bug list extraction):
 #   Claude must emit a JSON array between exact markers: <<<BUGS>>> [...] <<<END_BUGS>>>
@@ -19,6 +21,8 @@
 #   - claude CLI installed and authenticated
 #   - git configured with push access
 #   - gh CLI installed (for PR creation)
+#   - MCP: TappsMCP via MCP_DOCKER (Docker MCP Toolkit). Use .mcp.json at project root with
+#     MCP_DOCKER server (docker mcp gateway run). If using standalone tapps-mcp, pass -TappsMcpServer "tapps-mcp".
 
 param(
     [int]$Bugs = 5,
@@ -32,15 +36,123 @@ param(
     [string]$TargetUnit = "",
     [switch]$Worktree,
     [string]$Model = "claude-sonnet-4-6",
-    [double]$MaxCost = 5.00
+    [double]$MaxCost = 5.00,
+    [string]$TappsMcpServer = "MCP_DOCKER",
+    [string]$ConfigPath = "",
+    [string]$ProjectRootOverride = ""
 )
+# TappsMCP is provided by Docker MCP Toolkit (MCP_DOCKER). Tool prefix: mcp__MCP_DOCKER__tapps_*
+# If using standalone tapps-mcp server instead, set -TappsMcpServer "tapps-mcp"
+# Optional -ConfigPath: load pipeline config (YAML); when set, paths/manifest/model/budget/MCP come from config (Epic 3).
+# Optional -ProjectRootOverride: use this as project root (for multi-repo mode when script is invoked from meta-repo; Phase 4).
 
 $ErrorActionPreference = "Stop"
-$ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+if ($ProjectRootOverride) {
+    $ProjectRoot = if ([System.IO.Path]::IsPathRooted($ProjectRootOverride)) { $ProjectRootOverride } else { (Resolve-Path -Path $ProjectRootOverride -ErrorAction Stop).Path }
+} else {
+    $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+}
 Set-Location $ProjectRoot
 
-# --- Rotate mode: pick next scan unit from manifest ---
+# Config is required. Default: $env:AUTO_FIX_CONFIG or homeiq-default.yaml (Epic 52).
+if (-not $ConfigPath) {
+    $ConfigPath = if ($env:AUTO_FIX_CONFIG) { $env:AUTO_FIX_CONFIG } else { "auto-fix-pipeline/config/example/homeiq-default.yaml" }
+}
+
+# TappsMCP tool prefix: when using MCP_DOCKER (Docker MCP Toolkit), tools are mcp__MCP_DOCKER__tapps_*
+$TappsPrefix = "mcp__${TappsMcpServer}__"
+
+# Schema defaults (auto-fix-pipeline/config/schema/README). Config overwrites below.
 $ScanManifest = Join-Path $ProjectRoot "docs/scan-manifest.json"
+$DashboardStateFile = Join-Path $ProjectRoot "scripts/.dashboard-state.json"
+$DashboardHtml = Join-Path $ProjectRoot "scripts/dashboard.html"
+$mcpConfig = Join-Path $ProjectRoot ".mcp.json"
+$scanAttempts = 2
+$scanBudget = [math]::Round($MaxCost * 0.30, 2)
+$fixBudget = [math]::Round($MaxCost * 0.40, 2)
+$chainBudget = [math]::Round($MaxCost * 0.15, 2)
+$feedbackBudget = [math]::Round($MaxCost * 0.15, 2)
+$implDir = Join-Path $ProjectRoot "implementation"
+$feedbackDirRelative = "docs/tapps-feedback"
+$historyFileRelative = "docs/BUG_HISTORY.json"
+$scanFailurePrefix = "auto-bugfix-scan-failure"
+$Script:PromptTemplatePaths = @{}
+$Script:ConfigProjectName = "HomeIQ"
+$Script:ConfigLanguages = "Python"
+
+$configFullPath = if ([System.IO.Path]::IsPathRooted($ConfigPath)) { $ConfigPath } else { Join-Path $ProjectRoot $ConfigPath }
+if (-not (Test-Path $configFullPath)) {
+    Write-Error "Config file not found: $configFullPath. Set -ConfigPath or env:AUTO_FIX_CONFIG."
+    exit 1
+}
+$configJson = python -c "import yaml,json,sys; f=open(sys.argv[1],encoding='utf-8'); d=yaml.safe_load(f); f.close(); print(json.dumps(d or {}))" $configFullPath 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to parse config YAML: $configFullPath"
+    exit 1
+}
+$cfg = $configJson | ConvertFrom-Json
+if ($cfg.runner) {
+    if ($cfg.runner.model) { $Model = $cfg.runner.model }
+    if ($null -ne $cfg.runner.max_cost) { $MaxCost = [double]$cfg.runner.max_cost }
+    if ($cfg.runner.budget_allocation) {
+        $ba = $cfg.runner.budget_allocation
+        $s = if ($null -ne $ba.scan) { [double]$ba.scan } else { 0.30 }; $scanBudget = [math]::Round($MaxCost * $s, 2)
+        $f = if ($null -ne $ba.fix) { [double]$ba.fix } else { 0.40 }; $fixBudget = [math]::Round($MaxCost * $f, 2)
+        $c = if ($null -ne $ba.chain) { [double]$ba.chain } else { 0.15 }; $chainBudget = [math]::Round($MaxCost * $c, 2)
+        $fb = if ($null -ne $ba.feedback) { [double]$ba.feedback } else { 0.15 }; $feedbackBudget = [math]::Round($MaxCost * $fb, 2)
+    }
+}
+if ($cfg.mcp -and $cfg.mcp.tapps_mcp_server) {
+    $TappsMcpServer = $cfg.mcp.tapps_mcp_server
+    $TappsPrefix = "mcp__${TappsMcpServer}__"
+}
+if ($cfg.mcp -and $cfg.mcp.config_path) {
+    $mcpConfig = Join-Path $ProjectRoot $cfg.mcp.config_path
+}
+if ($cfg.scan) {
+    if ($cfg.scan.manifest_path) { $ScanManifest = Join-Path $ProjectRoot $cfg.scan.manifest_path }
+    if ($null -ne $cfg.scan.retry_attempts) { $scanAttempts = [int]$cfg.scan.retry_attempts }
+}
+if ($cfg.paths) {
+    $p = $cfg.paths
+    if ($p.dashboard_state) { $DashboardStateFile = Join-Path $ProjectRoot $p.dashboard_state }
+    if ($p.dashboard_html) { $DashboardHtml = Join-Path $ProjectRoot $p.dashboard_html }
+    if ($p.feedback_dir) { $feedbackDirRelative = $p.feedback_dir }
+    if ($p.history_file) { $historyFileRelative = $p.history_file }
+    if ($p.impl_dir) { $implDir = Join-Path $ProjectRoot $p.impl_dir }
+    if ($p.scan_failure_prefix) { $scanFailurePrefix = $p.scan_failure_prefix }
+}
+if ($cfg.project) {
+    if ($cfg.project.name) { $Script:ConfigProjectName = $cfg.project.name }
+    if ($cfg.project.languages -and $cfg.project.languages.Count -gt 0) {
+        $Script:ConfigLanguages = ($cfg.project.languages | ForEach-Object { $_ }) -join ", "
+    }
+}
+if ($cfg.prompts) {
+    $pt = $cfg.prompts
+    if ($pt.find) { $Script:PromptTemplatePaths.find = Join-Path $ProjectRoot $pt.find }
+    if ($pt.retry) { $Script:PromptTemplatePaths.retry = Join-Path $ProjectRoot $pt.retry }
+    if ($pt.fix) { $Script:PromptTemplatePaths.fix = Join-Path $ProjectRoot $pt.fix }
+    if ($pt.refactor) { $Script:PromptTemplatePaths.refactor = Join-Path $ProjectRoot $pt.refactor }
+    if ($pt.test) { $Script:PromptTemplatePaths.test = Join-Path $ProjectRoot $pt.test }
+    if ($pt.feedback) { $Script:PromptTemplatePaths.feedback = Join-Path $ProjectRoot $pt.feedback }
+}
+Write-Host "  Config: $ConfigPath (model=$Model max_cost=$MaxCost TappsMcpServer=$TappsMcpServer)" -ForegroundColor Gray
+
+function Get-PromptFromTemplate {
+    param([string]$Path, [hashtable]$Placeholders)
+    if (-not $Path -or -not (Test-Path $Path)) { return $null }
+    $t = Get-Content -Path $Path -Raw -ErrorAction SilentlyContinue
+    if (-not $t) { return $null }
+    foreach ($k in $Placeholders.Keys) {
+        $val = [string]$Placeholders[$k]
+        if ($null -eq $val) { $val = "" }
+        $t = $t -replace "\{\{$k\}\}", $val
+    }
+    return $t.Trim()
+}
+
+# --- Rotate mode: pick next scan unit from manifest ---
 $ScanUnitId = ""
 $ScanUnitName = ""
 $ScanUnitHint = ""
@@ -111,8 +223,6 @@ print(f"{best_unit['id']}|{best_unit['path']}|{best_unit['name']}|{best_unit['sc
 }
 
 # --- Dashboard state management ---
-$DashboardStateFile = Join-Path $ProjectRoot "scripts/.dashboard-state.json"
-$DashboardHtml = Join-Path $ProjectRoot "scripts/dashboard.html"
 $StartTime = Get-Date
 $StartIso = $StartTime.ToString("o")
 $Script:DashboardLog = [System.Collections.Generic.List[object]]::new()
@@ -298,14 +408,19 @@ if (Test-Path $overridesFile) {
     Add-LogEntry "Loaded prompt overrides from FIND_PROMPT_OVERRIDES.md" "info"
 }
 
-$findPrompt = @"
+$findPrompt = Get-PromptFromTemplate $Script:PromptTemplatePaths.find @{
+    project_name = $Script:ConfigProjectName; languages = $Script:ConfigLanguages
+    scope_hint = $scopeHint; bug_count = $Bugs; prompt_overrides = $promptOverrides; tapps_prefix = $TappsPrefix
+}
+if (-not $findPrompt) {
+    $findPrompt = @"
 You are a senior Python developer doing a FAST bug audit of the HomeIQ project.
 
 TURN BUDGET: You have limited turns. Be efficient. Do NOT spend more than 2-3 turns on TappsMCP tools.
 
 STEP 1 (2-3 turns max): Quick TappsMCP scan.
-- Call mcp__tapps-mcp__tapps_security_scan on 1-2 key Python files in the target area.
-- Call mcp__tapps-mcp__tapps_quick_check on 1-2 different key Python files.
+- Call ${TappsPrefix}tapps_security_scan on 1-2 key Python files in the target area.
+- Call ${TappsPrefix}tapps_quick_check on 1-2 different key Python files.
 - Do NOT scan more than 3 files total with TappsMCP tools.
 
 STEP 2 (5-8 turns): Read code and find bugs.
@@ -331,23 +446,21 @@ CRITICAL: On your LAST turn you MUST emit exactly the block below with a valid J
 [{"file": "path/to/file.py", "line": 42, "description": "what the bug is", "severity": "high|medium|low"}]
 <<<END_BUGS>>>
 "@
+}
 
 Write-Host "[2/$totalSteps] Scanning codebase for $Bugs bugs (TappsMCP + code review)..." -ForegroundColor Yellow
 Add-LogEntry "Scanning with TappsMCP security_scan + quick_check + code review..." "info"
 Write-Dashboard -Step 2 -Message "Scanning for $Bugs bugs (TappsMCP + review)..."
 
-$mcpConfig = Join-Path $ProjectRoot ".mcp.json"
-# Budget allocation: Scan 30%, Fix 40%, Refactor/Test 15%, Feedback 15%
-$scanBudget = [math]::Round($MaxCost * 0.30, 2)
-$fixBudget  = [math]::Round($MaxCost * 0.40, 2)
-$chainBudget = [math]::Round($MaxCost * 0.15, 2)
-$feedbackBudget = [math]::Round($MaxCost * 0.15, 2)
-
 $bugsJson = ""
-$scanAttempts = 2
-$scanAllowedTools = "Read,Grep,Glob,Bash,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_score_file"
+$scanAllowedTools = "Read,Grep,Glob,Bash,${TappsPrefix}tapps_security_scan,${TappsPrefix}tapps_quick_check,${TappsPrefix}tapps_score_file"
 
-$retryPrompt = @"
+$retryPrompt = Get-PromptFromTemplate $Script:PromptTemplatePaths.retry @{
+    project_name = $Script:ConfigProjectName; languages = $Script:ConfigLanguages
+    scope_hint = $scopeHint; bug_count = $Bugs; prompt_overrides = $promptOverrides; tapps_prefix = $TappsPrefix
+}
+if (-not $retryPrompt) {
+    $retryPrompt = @"
 You are a senior Python developer. Find exactly $Bugs real bugs in the HomeIQ project.
 Do NOT use any MCP tools. Only use Read, Grep, and Glob to find and inspect Python files.
 $scopeHint
@@ -363,6 +476,7 @@ Output your results wrapped in these EXACT markers:
 [{"file": "path/to/file.py", "line": 42, "description": "what the bug is", "severity": "high|medium|low"}]
 <<<END_BUGS>>>
 "@
+}
 
 for ($attempt = 1; $attempt -le $scanAttempts; $attempt++) {
     if ($attempt -gt 1) {
@@ -395,10 +509,9 @@ for ($attempt = 1; $attempt -le $scanAttempts; $attempt++) {
     $tempPath = "$env:TEMP\auto-bugfix-raw-attempt$attempt.txt"
     $rawOutput | Out-File -FilePath $tempPath
     if ($attempt -eq $scanAttempts) {
-        $implDir = Join-Path $ProjectRoot "implementation"
         if (Test-Path $implDir) {
             $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-            $savePath = Join-Path $implDir "auto-bugfix-scan-failure-$stamp.txt"
+            $savePath = Join-Path $implDir "$scanFailurePrefix-$stamp.txt"
             Copy-Item -Path $tempPath -Destination $savePath -Force
             Add-LogEntry "Scan failure output saved to $savePath for inspection" "info"
         }
@@ -409,9 +522,8 @@ if (-not $bugsJson) {
     Add-LogEntry "Failed to extract bug list JSON after $scanAttempts attempts" "error"
     Write-Dashboard -Step 2 -Status "error" -Message "Failed to extract bug list after $scanAttempts attempts"
     $msg = "ERROR: Failed to extract bug list JSON from Claude output after $scanAttempts attempt(s). Raw output saved to $env:TEMP\auto-bugfix-raw-attempt*.txt"
-    $implDir = Join-Path $ProjectRoot "implementation"
     if (Test-Path $implDir) {
-        $latest = Get-ChildItem -Path $implDir -Filter "auto-bugfix-scan-failure-*.txt" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        $latest = Get-ChildItem -Path $implDir -Filter "$scanFailurePrefix-*.txt" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($latest) { $msg += " and to $($latest.FullName)" }
     }
     Write-Error $msg
@@ -460,7 +572,12 @@ Write-Host "[3/$totalSteps] Fixing bugs..." -ForegroundColor Yellow
 Add-LogEntry "Fixing $bugCount bugs (Claude Code headless, max $fixMaxTurns turns)..." "info"
 Write-Dashboard -Step 3 -Message "Fixing $bugCount bugs..." -BugsList $dashBugs -BugsFound $bugCount
 
-$fixPrompt = @"
+$fixPrompt = Get-PromptFromTemplate $Script:PromptTemplatePaths.fix @{
+    project_name = $Script:ConfigProjectName; languages = $Script:ConfigLanguages
+    bugs_json = $bugsJson; tapps_prefix = $TappsPrefix
+}
+if (-not $fixPrompt) {
+    $fixPrompt = @"
 You are a senior Python developer. Fix the following bugs in this codebase.
 
 BUGS TO FIX:
@@ -472,15 +589,16 @@ For each bug:
 3. Verify your fix doesn't break anything obvious.
 
 After fixing ALL bugs, validate your work:
-1. Call mcp__tapps-mcp__tapps_quick_check on each changed file.
-2. If any fix involves security, API design, or database logic, call mcp__tapps-mcp__tapps_consult_expert with a question about your approach.
-3. Call mcp__tapps-mcp__tapps_validate_changed() to batch-validate all changes.
+1. Call ${TappsPrefix}tapps_quick_check on each changed file.
+2. If any fix involves security, API design, or database logic, call ${TappsPrefix}tapps_consult_expert with a question about your approach.
+3. Call ${TappsPrefix}tapps_validate_changed() to batch-validate all changes.
 4. If validation fails, fix the issues before finishing.
 
 After validation passes, provide a summary of what you changed and the validation results.
 "@
+}
 
-$fixPrompt | Invoke-ClaudeStream -MaxTurns $fixMaxTurns -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_checklist,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_consult_expert,mcp__tapps-mcp__tapps_impact_analysis" -StepNumber 3 -StepLabel "Fix" -Model $Model -MaxBudget $fixBudget
+$fixPrompt | Invoke-ClaudeStream -MaxTurns $fixMaxTurns -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,${TappsPrefix}tapps_validate_changed,${TappsPrefix}tapps_checklist,${TappsPrefix}tapps_quick_check,${TappsPrefix}tapps_consult_expert,${TappsPrefix}tapps_impact_analysis" -StepNumber 3 -StepLabel "Fix" -Model $Model -MaxBudget $fixBudget
 
 # Check if anything was actually changed (ignore submodule drift)
 $changes = git status --porcelain --ignore-submodules
@@ -527,7 +645,12 @@ if ($Chain -and $ChainPhases -match "refactor") {
     Write-Dashboard -Step 4 -Message "Refactoring fixed files..." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugsFixed -FilesChanged $changedFilesCount -Validation "pass"
 
     $changedFiles = (git diff --name-only --ignore-submodules) -join ", "
-    $refactorPrompt = @"
+    $refactorPrompt = Get-PromptFromTemplate $Script:PromptTemplatePaths.refactor @{
+        project_name = $Script:ConfigProjectName; languages = $Script:ConfigLanguages
+        changed_files = $changedFiles; tapps_prefix = $TappsPrefix
+    }
+    if (-not $refactorPrompt) {
+        $refactorPrompt = @"
 You are a senior Python developer. Review and minimally refactor these recently-fixed files:
 $changedFiles
 
@@ -542,13 +665,14 @@ Do NOT:
 - Add docstrings, comments, or type hints
 - Restructure modules or move code between files
 
-Before refactoring, call mcp__tapps-mcp__tapps_impact_analysis on the main file to check blast radius.
-Use mcp__tapps-mcp__tapps_dead_code to find unused imports/functions to remove.
-After refactoring, run mcp__tapps-mcp__tapps_validate_changed() to verify quality improved.
+Before refactoring, call ${TappsPrefix}tapps_impact_analysis on the main file to check blast radius.
+Use ${TappsPrefix}tapps_dead_code to find unused imports/functions to remove.
+After refactoring, run ${TappsPrefix}tapps_validate_changed() to verify quality improved.
 Provide a summary of refactoring applied.
 "@
+    }
 
-    $refactorPrompt | Invoke-ClaudeStream -MaxTurns 15 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,mcp__tapps-mcp__tapps_validate_changed,mcp__tapps-mcp__tapps_quick_check,mcp__tapps-mcp__tapps_dead_code,mcp__tapps-mcp__tapps_impact_analysis,mcp__tapps-mcp__tapps_consult_expert" -StepNumber 4 -StepLabel "Refactor" -Model $Model -MaxBudget $chainBudget
+    $refactorPrompt | Invoke-ClaudeStream -MaxTurns 15 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Grep,Glob,Bash,${TappsPrefix}tapps_validate_changed,${TappsPrefix}tapps_quick_check,${TappsPrefix}tapps_dead_code,${TappsPrefix}tapps_impact_analysis,${TappsPrefix}tapps_consult_expert" -StepNumber 4 -StepLabel "Refactor" -Model $Model -MaxBudget $chainBudget
 
     $refactorChanges = git diff --name-only --ignore-submodules
     if ($refactorChanges) {
@@ -566,7 +690,12 @@ if ($Chain -and $ChainPhases -match "test") {
     Add-LogEntry "Chain mode: generating tests for fixed bugs..." "info"
     Write-Dashboard -Step $testStep -Message "Generating tests for fixed bugs..." -BugsList $dashBugs -BugsFound $bugCount -BugsFixed $bugsFixed -FilesChanged $changedFilesCount -Validation "pass"
 
-    $testPrompt = @"
+    $testPrompt = Get-PromptFromTemplate $Script:PromptTemplatePaths.test @{
+        project_name = $Script:ConfigProjectName; languages = $Script:ConfigLanguages
+        bugs_json = $bugsJson; tapps_prefix = $TappsPrefix
+    }
+    if (-not $testPrompt) {
+        $testPrompt = @"
 You are a senior Python developer. Write unit tests for these bug fixes:
 
 BUGS THAT WERE FIXED:
@@ -580,10 +709,11 @@ For each bug:
 5. Mock external dependencies (databases, APIs, file I/O).
 
 After writing tests, run: pytest <test_file> -v --tb=short to verify they pass.
-Then run mcp__tapps-mcp__tapps_quick_check on each test file.
+Then run ${TappsPrefix}tapps_quick_check on each test file.
 "@
+    }
 
-    $testPrompt | Invoke-ClaudeStream -MaxTurns 20 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Write,Grep,Glob,Bash,mcp__tapps-mcp__tapps_quick_check" -StepNumber 5 -StepLabel "Test" -Model $Model -MaxBudget $chainBudget
+    $testPrompt | Invoke-ClaudeStream -MaxTurns 20 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Write,Grep,Glob,Bash,${TappsPrefix}tapps_quick_check" -StepNumber 5 -StepLabel "Test" -Model $Model -MaxBudget $chainBudget
 
     $testChanges = git status --porcelain --ignore-submodules
     if ($testChanges) {
@@ -690,12 +820,19 @@ Write-Dashboard -Step $feedbackStep -Message "Collecting TappsMCP feedback..." -
 
 $runTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
 $feedbackFileTimestamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
-$feedbackDir = Join-Path $ProjectRoot "docs/tapps-feedback"
+$feedbackDir = Join-Path $ProjectRoot $feedbackDirRelative
 if (-not (Test-Path $feedbackDir)) { New-Item -ItemType Directory -Path $feedbackDir -Force | Out-Null }
-$feedbackFile = "docs/tapps-feedback/feedback-$feedbackFileTimestamp.md"
+$feedbackFile = "$feedbackDirRelative/feedback-$feedbackFileTimestamp.md"
 $feedbackFileFull = Join-Path $ProjectRoot $feedbackFile
 
-$feedbackPrompt = @"
+$feedbackPrompt = Get-PromptFromTemplate $Script:PromptTemplatePaths.feedback @{
+    project_name = $Script:ConfigProjectName; languages = $Script:ConfigLanguages
+    feedback_file = $feedbackFile; feedback_dir = $feedbackDirRelative
+    run_timestamp = $runTimestamp; branch = $Branch; bug_count = $bugCount
+    changed_files = $changedFiles; tapps_prefix = $TappsPrefix
+}
+if (-not $feedbackPrompt) {
+    $feedbackPrompt = @"
 You just completed an automated bugfix run. Review how the TappsMCP tools performed
 during this session and write structured feedback to $feedbackFile.
 
@@ -720,13 +857,14 @@ Write a markdown file at $feedbackFile with a header and entries using this form
 
 Categories: BUG, FALSE_POSITIVE, FALSE_NEGATIVE, UX, PERF, ENHANCEMENT, INTEGRATION
 
-Also call mcp__tapps-mcp__tapps_feedback for each tool you used (helpful=true/false with context).
+Also call ${TappsPrefix}tapps_feedback for each tool you used (helpful=true/false with context).
 
 If ALL tools worked perfectly with no issues, write a short note saying so -- keep the file for the audit trail.
 Check docs/tapps-feedback/ for previous feedback files to look for recurring issues.
 "@
+}
 
-$feedbackPrompt | Invoke-ClaudeStream -MaxTurns 10 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Write,Glob,mcp__tapps-mcp__tapps_feedback" -StepNumber $feedbackStep -StepLabel "Feedback" -Model $Model -MaxBudget $feedbackBudget
+$feedbackPrompt | Invoke-ClaudeStream -MaxTurns 10 -McpConfig $mcpConfig -AllowedTools "Read,Edit,Write,Glob,${TappsPrefix}tapps_feedback" -StepNumber $feedbackStep -StepLabel "Feedback" -Model $Model -MaxBudget $feedbackBudget
 
 # Commit feedback file if it was created
 if (Test-Path $feedbackFileFull) {
@@ -754,7 +892,7 @@ if (Test-Path $feedbackFileFull) {
 }
 
 # --- Append to bug history (Feature 12) ---
-$historyFile = Join-Path $ProjectRoot "docs/BUG_HISTORY.json"
+$historyFile = Join-Path $ProjectRoot $historyFileRelative
 $historyEntry = @{
     run_id    = $Branch
     date      = $runTimestamp

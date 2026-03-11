@@ -23,6 +23,11 @@ target-version = "py311"
 select = ["E", "W", "F", "I", "B", "C4", "UP", "ARG", "SIM", "TCH", "PTH"]
 ignore = ["E501", "B008", "T201"]
 
+[tool.pytest.ini_options]
+markers = [
+    "integration: integration tests (real Docker/HA); run with pytest -m integration (Epic 53)",
+]
+
 [tool.ruff.lint.per-file-ignores]
 # E402: Imports must follow sys.path setup for shared module resolution
 "domains/core-platform/admin-api/src/main.py" = ["E402"]

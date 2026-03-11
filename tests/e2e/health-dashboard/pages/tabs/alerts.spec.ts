@@ -203,7 +203,7 @@ test.describe('Alerts — Operator Fire Alarm Panel', () => {
     await qualityGroup.click();
     await page.getByTestId('tab-alerts').click();
     await waitForLoadingComplete(page);
-    await page.waitForTimeout(3000);
+    await new Promise((r) => setTimeout(r, 3000));
 
     const apiErrors = errors.filter(error =>
       !error.includes('favicon') &&

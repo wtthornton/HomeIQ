@@ -126,7 +126,7 @@ test.describe('Validation -- HA Configuration Validation & Fix Suggestions', () 
 
   test('displays issue table with entity details or a no-issues message', async ({ page }) => {
     await expect(page.locator('[data-testid="validation-results"]')).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(3000);
+    await new Promise((r) => setTimeout(r, 3000));
 
     // Either the table with headers is shown or the clean state message
     const tableHeaders = page.locator('th');
@@ -151,7 +151,7 @@ test.describe('Validation -- HA Configuration Validation & Fix Suggestions', () 
 
   test('issue table has entity, category, suggestion, and action columns', async ({ page }) => {
     await expect(page.locator('[data-testid="validation-results"]')).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(3000);
+    await new Promise((r) => setTimeout(r, 3000));
 
     const tableHeaders = page.locator('th');
     const hasTable = await tableHeaders.first().isVisible({ timeout: 2000 }).catch(() => false);
@@ -176,7 +176,7 @@ test.describe('Validation -- HA Configuration Validation & Fix Suggestions', () 
 
   test('issue rows have Apply Fix buttons for actionable remediation', async ({ page }) => {
     await expect(page.locator('[data-testid="validation-results"]')).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(3000);
+    await new Promise((r) => setTimeout(r, 3000));
 
     const tableRows = page.locator('tbody tr');
     const rowCount = await tableRows.count();
@@ -199,7 +199,7 @@ test.describe('Validation -- HA Configuration Validation & Fix Suggestions', () 
 
   test('header checkbox enables bulk selection of issues', async ({ page }) => {
     await expect(page.locator('[data-testid="validation-results"]')).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(3000);
+    await new Promise((r) => setTimeout(r, 3000));
 
     const tableRows = page.locator('tbody tr');
     const rowCount = await tableRows.count();
@@ -230,7 +230,7 @@ test.describe('Validation -- HA Configuration Validation & Fix Suggestions', () 
 
   test('last scan timestamp is displayed for data freshness', async ({ page }) => {
     await expect(page.locator('[data-testid="validation-results"]')).toBeVisible({ timeout: 15000 });
-    await page.waitForTimeout(2000);
+    await new Promise((r) => setTimeout(r, 2000));
 
     // Look for the last scan info at the bottom of the page
     const lastScan = page.getByText(/Last scan/i);
@@ -256,7 +256,7 @@ test.describe('Validation -- HA Configuration Validation & Fix Suggestions', () 
 
     await page.goto('/#validation');
     await waitForLoadingComplete(page);
-    await page.waitForTimeout(3000);
+    await new Promise((r) => setTimeout(r, 3000));
 
     const apiErrors = errors.filter(error =>
       !error.includes('favicon') &&

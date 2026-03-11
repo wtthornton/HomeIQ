@@ -21,6 +21,7 @@
 
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
+import { isIgnorableConsoleError } from '../../../shared/helpers/console-filters';
 import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
 const APP_ROUTES = [
@@ -139,14 +140,7 @@ test.describe('Navigation - Can the user navigate between all AI automation view
       await waitForLoadingComplete(page);
     }
 
-    // Filter out known non-critical errors (favicon, sourcemaps, etc.)
-    const criticalErrors = consoleErrors.filter(
-      (e) =>
-        !e.includes('favicon') &&
-        !e.includes('sourcemap') &&
-        !e.includes('DevTools') &&
-        !e.includes('404 (Not Found)') // API calls may 404 when backend services are starting
-    );
+    const criticalErrors = consoleErrors.filter((e) => !isIgnorableConsoleError(e));
     expect(criticalErrors).toEqual([]);
   });
 });

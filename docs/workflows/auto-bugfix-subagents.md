@@ -14,11 +14,14 @@ The auto-bugfix pipeline can use Claude Code **subagents** for the scan phase to
 
 ### Enable (default)
 
-Subagents are enabled by default. The project subagent `bug-scanner` is loaded from `.claude/agents/`. No extra flags:
+Subagents are enabled by default. The project subagent `bug-scanner` is loaded from `.claude/agents/`. Use the runner (preferred) or script with config:
 
 ```powershell
+.\auto-fix-pipeline\runner\run.ps1 -Bugs 5
 .\scripts\auto-bugfix.ps1 -Bugs 5
 ```
+
+Both use config by default (`homeiq-default.yaml` or `$env:AUTO_FIX_CONFIG`).
 
 ### Disable
 
@@ -45,6 +48,7 @@ Scan prompt → Main session (Sonnet)
 ## Environment and Requirements
 
 - Claude Code CLI with subagent support (project agents in `.claude/agents/`)
+- **MCP:** TappsMCP is provided by MCP_DOCKER (Docker MCP Toolkit). Use `.mcp.json` at project root with an `MCP_DOCKER` server entry so headless Claude can call TappsMCP tools. See [.cursor/MCP_SETUP_INSTRUCTIONS.md](../../.cursor/MCP_SETUP_INSTRUCTIONS.md).
 - No special env vars for subagents (unlike agent teams, which need `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`)
 
 ## Future Work

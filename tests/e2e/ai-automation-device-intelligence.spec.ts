@@ -96,8 +96,7 @@ test.describe('AI Automation Device Intelligence - Story 26.5', () => {
         }
       }
 
-      // Mark test as skipped if tab doesn't exist
-      test.skip(!hasDeviceTab, 'Device Intelligence tab not yet implemented');
+      expect(hasDeviceTab, 'Device Intelligence tab should be present').toBe(true);
     }
   });
 

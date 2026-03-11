@@ -26,7 +26,7 @@ test.describe('Monitoring Screen Tests', () => {
     expect(bodyText?.length).toBeGreaterThan(100);
   });
 
-  test.skip('Performance metrics display (legacy selector)', async ({ page }) => {
+  test('Performance metrics display (legacy selector)', async ({ page }) => {
     await page.waitForSelector('[data-testid="performance-metrics"]');
     
     // Verify key performance indicators
@@ -43,7 +43,7 @@ test.describe('Monitoring Screen Tests', () => {
     await expect(memoryUsage).toBeVisible();
   });
 
-  test.skip('Real-time updates work correctly (legacy)', async ({ page }) => {
+  test('Real-time updates work correctly (legacy)', async ({ page }) => {
     await page.waitForSelector('[data-testid="service-monitoring"]');
     const initialTimestamp = await page.locator('[data-testid="last-updated"]').textContent();
     await page.waitForTimeout(5000);
@@ -51,7 +51,7 @@ test.describe('Monitoring Screen Tests', () => {
     expect(updatedTimestamp).not.toBe(initialTimestamp);
   });
 
-  test.skip('Service details modal (legacy selectors)', async ({ page }) => {
+  test('Service details modal (legacy selectors)', async ({ page }) => {
     // Wait for service cards to load
     await page.waitForSelector('[data-testid="service-card"]');
     
@@ -74,13 +74,13 @@ test.describe('Monitoring Screen Tests', () => {
     await expect(modal).not.toBeVisible();
   });
 
-  test.skip('Alert management (legacy selectors)', async ({ page }) => {
+  test('Alert management (legacy selectors)', async ({ page }) => {
     await page.waitForSelector('[data-testid="alert-management"]');
     const alertsList = page.locator('[data-testid="alerts-list"]');
     await expect(alertsList).toBeVisible();
   });
 
-  test.skip('Log viewer (legacy selectors)', async ({ page }) => {
+  test('Log viewer (legacy selectors)', async ({ page }) => {
     // Wait for log viewer section
     await page.waitForSelector('[data-testid="log-viewer"]');
     
@@ -108,7 +108,7 @@ test.describe('Monitoring Screen Tests', () => {
     }
   });
 
-  test.skip('Export functionality (legacy selectors)', async ({ page }) => {
+  test('Export functionality (legacy selectors)', async ({ page }) => {
     // Wait for monitoring screen to load
     await page.waitForSelector('[data-testid="monitoring-screen"]');
     
@@ -138,7 +138,7 @@ test.describe('Monitoring Screen Tests', () => {
     await expect(dashboard.getDashboardRoot()).toBeVisible({ timeout: 15000 });
   });
 
-  test.skip('Error states (legacy)', async ({ page }) => {
+  test('Error states (legacy)', async ({ page }) => {
     await page.route('**/api/v1/monitoring/**', route => route.abort());
     await page.goto('http://localhost:3000/#services');
     

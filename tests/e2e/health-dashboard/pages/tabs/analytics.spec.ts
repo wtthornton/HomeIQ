@@ -20,11 +20,11 @@ import { waitForLoadingComplete } from '../../../../shared/helpers/wait-helpers'
  * 5. No hidden errors — are analytics APIs silently failing?
  *
  * ACTUAL DOM STRUCTURE (from live inspection):
- * - Charts are <img alt="Events Per Minute chart"> sparkline images
+ * - Charts are SVG (MiniChart) with role="img" and aria-label like "Events Per Minute chart"
  * - Time range uses buttons: "Last Hour", "Last 6 Hours", "Last 24 Hours", "Last 7 Days"
- * - No metric selector, filter input, or export button exist
  * - dashboard-root data-testid is present
  */
+const CHART_SELECTOR = '[role="img"][aria-label*="chart" i]';
 
 /**
  * Navigate to the Analytics tab via hash routing.
@@ -33,8 +33,10 @@ import { waitForLoadingComplete } from '../../../../shared/helpers/wait-helpers'
 async function navigateToAnalytics(page: import('@playwright/test').Page) {
   await page.goto('/#analytics');
   await waitForLoadingComplete(page);
-  // Wait for the analytics heading to appear
-  await expect(page.getByRole('heading', { name: /system analytics/i })).toBeVisible({ timeout: 15000 });
+  // Wait for the analytics tab content: heading (System Analytics / Analytics) or loading/no-data state
+  await expect(
+    page.getByRole('heading', { name: /system analytics|analytics|no analytics data/i }).first()
+  ).toBeVisible({ timeout: 20000 });
 }
 
 test.describe('Analytics — System Trend Intelligence', () => {
@@ -49,8 +51,8 @@ test.describe('Analytics — System Trend Intelligence', () => {
   // alt text like "Events Per Minute chart".
 
   test('@smoke analytics charts render with visible dimensions', async ({ page }) => {
-    const charts = page.locator('img[alt*="chart" i]');
-    await expect(charts.first()).toBeVisible({ timeout: 10000 });
+    const charts = page.locator(CHART_SELECTOR);
+    await expect(charts.first()).toBeVisible({ timeout: 15000 });
 
     const count = await charts.count();
     expect(
@@ -71,9 +73,8 @@ test.describe('Analytics — System Trend Intelligence', () => {
   // data in the charts. The time range uses buttons, not a <select>.
 
   test('changing time range refreshes chart content', async ({ page }) => {
-    // Wait for initial charts to fully render
-    const charts = page.locator('img[alt*="chart" i]');
-    await expect(charts.first()).toBeVisible({ timeout: 10000 });
+    const charts = page.locator(CHART_SELECTOR);
+    await expect(charts.first()).toBeVisible({ timeout: 15000 });
 
     // Time range buttons: "Last Hour", "Last 6 Hours", "Last 24 Hours", "Last 7 Days"
     const timeRangeBtn = page.getByRole('button', { name: /Last 7 Days/i }).first();
@@ -108,14 +109,13 @@ test.describe('Analytics — System Trend Intelligence', () => {
   // hovering does not crash or hide the chart.
 
   test('hovering over chart surface does not crash', async ({ page }) => {
-    const chart = page.locator('img[alt*="chart" i]').first();
-    await expect(chart).toBeVisible({ timeout: 10000 });
+    const chart = page.locator(CHART_SELECTOR).first();
+    await expect(chart).toBeVisible({ timeout: 15000 });
 
-    // Hover over the center of the chart
     const box = await chart.boundingBox();
     if (box) {
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-      await page.waitForTimeout(500);
+      await new Promise(r => setTimeout(r, 500));
 
       // Sparkline images typically do not have DOM tooltips -- chart must remain stable
       await expect(chart).toBeVisible();
@@ -153,7 +153,7 @@ test.describe('Analytics — System Trend Intelligence', () => {
 
     // At least one piece of analytics content should be rendered
     const hasHeading = await page.getByRole('heading', { name: /System Analytics/i }).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasChart = await page.locator('img[alt*="chart" i]').first().isVisible({ timeout: 5000 }).catch(() => false);
+    const hasChart = await page.locator(CHART_SELECTOR).first().isVisible({ timeout: 5000 }).catch(() => false);
 
     expect(
       hasHeading || hasChart,
@@ -174,7 +174,7 @@ test.describe('Analytics — System Trend Intelligence', () => {
 
     // Re-navigate to capture fresh console output
     await navigateToAnalytics(page);
-    await page.waitForTimeout(3000);
+    await new Promise(r => setTimeout(r, 3000));
 
     const apiErrors = errors.filter(error =>
       !error.includes('favicon') &&

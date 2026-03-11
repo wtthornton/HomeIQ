@@ -141,16 +141,10 @@ test.describe('Database Health Tests', () => {
     test('read events filtered by entity_id', async ({ request }) => {
       // First get any available entity
       const entitiesResponse = await request.get(`${DATA_BASE}/api/v1/events/entities`);
-      if (!entitiesResponse.ok()) {
-        test.skip();
-        return;
-      }
+      expect(entitiesResponse.ok(), 'Entities API should be available').toBe(true);
 
       const entities = await entitiesResponse.json();
-      if (!Array.isArray(entities) || entities.length === 0) {
-        test.skip();
-        return;
-      }
+      expect(Array.isArray(entities) && entities.length > 0, 'At least one entity required').toBe(true);
 
       const entityId = typeof entities[0] === 'string' ? entities[0] : entities[0].entity_id;
       const response = await request.get(
@@ -252,10 +246,7 @@ test.describe('Database Health Tests', () => {
 
     test('event timestamps are valid ISO 8601', async ({ request }) => {
       const response = await request.get(`${DATA_BASE}/api/v1/events?limit=10`);
-      if (!response.ok()) {
-        test.skip();
-        return;
-      }
+      expect(response.ok(), 'Events API should be available').toBe(true);
 
       const events = await response.json();
       for (const event of events) {
@@ -271,10 +262,7 @@ test.describe('Database Health Tests', () => {
 
     test('event IDs are unique within a result set', async ({ request }) => {
       const response = await request.get(`${DATA_BASE}/api/v1/events?limit=50`);
-      if (!response.ok()) {
-        test.skip();
-        return;
-      }
+      expect(response.ok(), 'Events API should be available').toBe(true);
 
       const events = await response.json();
       if (events.length > 1) {
@@ -286,10 +274,7 @@ test.describe('Database Health Tests', () => {
 
     test('health endpoint timestamps are recent', async ({ request }) => {
       const response = await request.get(`${ADMIN_BASE}/api/v1/health`);
-      if (!response.ok()) {
-        test.skip();
-        return;
-      }
+      expect(response.ok(), 'Health API should be available').toBe(true);
 
       const data = await response.json();
       if (data.timestamp) {

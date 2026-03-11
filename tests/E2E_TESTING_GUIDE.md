@@ -350,6 +350,24 @@ test('Async operation completes', async ({ page }) => {
 - Verify selector is correct
 - Check if element is in iframe
 
+## Ask AI and HA Agent E2E
+
+- **Ask AI:** Two modes — (1) **Mocked** (`tests/e2e/ai-automation-ui/workflows/ask-ai-mocked.spec.ts`) runs in Docker CI with no OpenAI/HA; (2) **Full** (`ask-ai-complete.spec.ts`, `ask-ai-debug.spec.ts`) is local-only with long timeout and env (e.g. `OPENAI_API_KEY`). See [ASK_AI_E2E_TESTS_README.md](e2e/ASK_AI_E2E_TESTS_README.md).
+- **Ask AI integration (Epic 53):** Python integration tests in `tests/integration/test_ask_ai_ha_validation.py` run the full Ask AI flow against the real API and validate created automations exist in HA (via deploy service or HA URL). **Not** in default CI; run locally. See [tests/integration/README.md](integration/README.md).
+- **HA Agent Chat:** `tests/e2e/ai-automation-ui/pages/ha-agent-chat.spec.ts`; may use mocks or live backend.
+
+## Visual regression
+
+Visual regression tests live in `tests/e2e/visual-regression.spec.ts` and target the health-dashboard (hash routes `/#overview`, `/#services`, `/#configuration`). They are **not** part of the default CI run; run them locally or on-demand.
+
+**Updating baselines:** When the UI intentionally changes, update snapshots with:
+
+```bash
+npx playwright test tests/e2e/visual-regression.spec.ts --update-snapshots
+```
+
+Use the same config as your run (e.g. `--config=tests/e2e/docker-deployment.config.ts` if testing against Docker). Commit the updated snapshot files under the test output directory.
+
 ## Resources
 
 - [Playwright Documentation](https://playwright.dev/)

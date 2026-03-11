@@ -74,8 +74,8 @@ export default defineConfig({
             '--disable-dev-shm-usage',
             '--disable-gpu',
             '--no-first-run',
-            '--no-zygote',
-            '--single-process'
+            '--no-zygote'
+            // --single-process removed to reduce "context closed" flakiness (see VISUAL_BASELINE_AND_E2E_ISSUES_PLAN.md §4)
           ]
         }
       },
@@ -92,8 +92,8 @@ export default defineConfig({
             '--disable-dev-shm-usage',
             '--disable-gpu',
             '--no-first-run',
-            '--no-zygote',
-            '--single-process'
+            '--no-zygote'
+            // --single-process removed to reduce "context closed" flakiness (see VISUAL_BASELINE_AND_E2E_ISSUES_PLAN.md §4)
           ]
         }
       },
@@ -139,6 +139,8 @@ export default defineConfig({
   expect: {
     /* Timeout for expect() assertions */
     timeout: 10000,
+    /* Allow minor pixel drift (timestamps, live data, fonts) in visual regression */
+    toHaveScreenshot: { maxDiffPixelRatio: 0.02 },
   },
 
   /* Output directory for test artifacts */

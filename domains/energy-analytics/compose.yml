@@ -27,10 +27,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
           cpus: '1.0'
         reservations:
-          memory: 128M
+          memory: 256M
           cpus: '0.5'
     logging:
       driver: "json-file"
@@ -75,10 +75,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 1.5G
           cpus: '2.0'
         reservations:
-          memory: 512M
+          memory: 768M
           cpus: '1.0'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8037/api/v1/health"]
@@ -127,10 +127,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
           cpus: '1.0'
         reservations:
-          memory: 128M
+          memory: 256M
           cpus: '0.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8031/health"]

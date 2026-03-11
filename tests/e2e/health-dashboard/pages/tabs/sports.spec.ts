@@ -46,7 +46,7 @@ test.describe('Sports -- Team Tracking & Game Scores', () => {
 
   test('@smoke sports tab loads with team content or setup wizard', async ({ page }) => {
     // Wait for the page to fully render
-    await page.waitForTimeout(5000);
+    await new Promise((r) => setTimeout(r, 5000));
 
     // The page should show EITHER:
     // - Game content (for configured users): game cards, team names
@@ -75,7 +75,7 @@ test.describe('Sports -- Team Tracking & Game Scores', () => {
   // vs what already happened vs what is coming up.
 
   test('game sections distinguish between live, upcoming, and completed games', async ({ page }) => {
-    await page.waitForTimeout(5000);
+    await new Promise((r) => setTimeout(r, 5000));
 
     // If teams are configured, game sections should be labeled
     const hasGameSections = await page.getByText(/Live|Upcoming|Completed|Results/i).first()
@@ -99,7 +99,7 @@ test.describe('Sports -- Team Tracking & Game Scores', () => {
   // tests counted cards but never verified they contained meaningful data.
 
   test('game cards display team names, not just generic placeholders', async ({ page }) => {
-    await page.waitForTimeout(5000);
+    await new Promise((r) => setTimeout(r, 5000));
 
     // Look for game card elements that contain team vs team matchups
     const gameCards = page.locator('[class*="GameCard"], [class*="game-card"], [class*="game"]')
@@ -126,7 +126,7 @@ test.describe('Sports -- Team Tracking & Game Scores', () => {
   // when teams are configured.
 
   test('filter controls are available for league and team selection', async ({ page }) => {
-    await page.waitForTimeout(5000);
+    await new Promise((r) => setTimeout(r, 5000));
 
     const hasGameContent = await page.getByText(/Live|Upcoming|Completed|Results/i).first()
       .isVisible({ timeout: 3000 }).catch(() => false);
@@ -151,7 +151,7 @@ test.describe('Sports -- Team Tracking & Game Scores', () => {
   // contained game-specific content.
 
   test('clicking a game card opens a detail modal with game information', async ({ page }) => {
-    await page.waitForTimeout(5000);
+    await new Promise((r) => setTimeout(r, 5000));
 
     // Find a clickable game card
     const gameCard = page.locator('[class*="GameCard"], [class*="game-card"]').first()
@@ -182,7 +182,7 @@ test.describe('Sports -- Team Tracking & Game Scores', () => {
   // prompt should be accessible -- not a blank or broken page.
 
   test('team management or setup is accessible from the sports tab', async ({ page }) => {
-    await page.waitForTimeout(5000);
+    await new Promise((r) => setTimeout(r, 5000));
 
     // Look for any team management access point
     const managementAccess = page.getByRole('button', { name: /Manage|Setup|Configure|Add.*Team|Settings/i });
@@ -205,7 +205,7 @@ test.describe('Sports -- Team Tracking & Game Scores', () => {
   // indicator or refresh button should be visible.
 
   test('sports data shows a refresh mechanism or last-update indicator', async ({ page }) => {
-    await page.waitForTimeout(5000);
+    await new Promise((r) => setTimeout(r, 5000));
 
     const hasGameContent = await page.getByText(/Live|Upcoming|Completed|Results/i).first()
       .isVisible({ timeout: 3000 }).catch(() => false);
@@ -239,7 +239,7 @@ test.describe('Sports -- Team Tracking & Game Scores', () => {
 
     await page.goto('/#sports');
     await waitForLoadingComplete(page);
-    await page.waitForTimeout(3000);
+    await new Promise((r) => setTimeout(r, 3000));
 
     const apiErrors = errors.filter(error =>
       !error.includes('favicon') &&

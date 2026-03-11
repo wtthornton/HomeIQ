@@ -260,3 +260,65 @@ RUN pip install -r requirements.txt
 | 16686 | jaeger (UI) | frontends |
 
 Internal-only services (no published host port): `ner-service`, `ai-code-executor`
+
+---
+
+## Tech stack by service (simple)
+
+| Domain | Service | Language | Runtime / framework | Key stack |
+|--------|---------|----------|--------------------|-----------|
+| **core-platform** | influxdb | — | Container | InfluxDB 2.8 |
+| | postgres | — | Container | PostgreSQL 17 |
+| | data-api | Python 3.12 | FastAPI + Uvicorn | InfluxDB client, SQLAlchemy, asyncpg, Pydantic |
+| | websocket-ingestion | Python 3.12 | FastAPI + Uvicorn | aiohttp, websockets, InfluxDB client |
+| | admin-api | Python 3.12 | FastAPI + Uvicorn | Docker API, JWT, InfluxDB |
+| | health-dashboard | TypeScript 5.9 | React 19 + Vite 7 | Tailwind 4, Radix UI, Chart.js, Recharts |
+| | data-retention | Python 3.12 | FastAPI + Uvicorn | InfluxDB client |
+| | ha-simulator | Python 3.12 | (dev profile) | HA WebSocket simulator |
+| | prometheus / grafana / postgres-exporter | — | Container | Prometheus, Grafana 11, postgres-exporter |
+| **frontends** | jaeger | — | Container | Jaeger 2.15 |
+| | observability-dashboard | Python 3.11 | Streamlit | Pandas, Plotly, httpx |
+| | ai-automation-ui | TypeScript 5.9 | React 19 + Vite 7 | Tailwind 4, TanStack Query, Zustand, Framer Motion |
+| | voice-gateway | Python 3.12 | FastAPI + Uvicorn | faster-whisper (STT), kokoro (TTS), websockets |
+| **data-collectors** | weather-api | Python 3.12 | FastAPI + Uvicorn | InfluxDB client |
+| | smart-meter | Python 3.12 | FastAPI + Uvicorn | HA client, InfluxDB client |
+| | sports-api | Python 3.12 | FastAPI + Uvicorn | HA client, InfluxDB client |
+| | air-quality | Python 3.12 | FastAPI + Uvicorn | OpenWeatherMap, InfluxDB client |
+| | carbon-intensity | Python 3.12 | FastAPI + Uvicorn | WattTime, InfluxDB client |
+| | electricity-pricing | Python 3.12 | FastAPI + Uvicorn | aWattar, InfluxDB client |
+| | calendar | Python 3.12 | FastAPI + Uvicorn | HA client, InfluxDB client |
+| | log-aggregator | Python 3.12 | FastAPI + Uvicorn | Docker API, log aggregation |
+| **automation-core** | ha-ai-agent-service | Python 3.12 | FastAPI + Uvicorn | OpenAI, SQLAlchemy, asyncpg, data-api |
+| | ai-automation-service-new | Python 3.12 | FastAPI + Uvicorn | OpenAI, SQLAlchemy, asyncpg, PyYAML |
+| | ai-query-service | Python 3.12 | FastAPI + Uvicorn | OpenAI, SQLAlchemy, asyncpg, data-api |
+| | yaml-validation-service | Python 3.12 | FastAPI + Uvicorn | data-api, HA client |
+| | automation-linter | Python 3.11 | FastAPI + Uvicorn | Streamlit UI, homeiq-ha lint |
+| | ai-code-executor | Python 3.12 | FastAPI + Uvicorn | Sandboxed execution |
+| | automation-trace-service | Python 3.12 | FastAPI + Uvicorn | HA WebSocket, InfluxDB, data-api |
+| | ha-device-control | Python 3.12 | FastAPI + Uvicorn | HA REST API |
+| **ml-engine** | openvino-service | Python 3.12 | FastAPI + Uvicorn | sentence-transformers, PyTorch |
+| | ml-service | Python 3.12 | FastAPI + Uvicorn | ML inference |
+| | ner-service | Python 3.12 | FastAPI + Uvicorn | NER models |
+| | openai-service | Python 3.12 | FastAPI + Uvicorn | OpenAI API proxy |
+| | rag-service | Python 3.12 | FastAPI + Uvicorn | Embeddings, vector search |
+| | ai-core-service | Python 3.12 | FastAPI + Uvicorn | httpx, tenacity |
+| | ai-training-service | Python 3.12 | FastAPI + Uvicorn | Training pipeline |
+| | device-intelligence-service | Python 3.12 | FastAPI + Uvicorn | Device ML |
+| | model-prep / nlp-fine-tuning | Python 3.12 | CLI / batch | Offline model prep |
+| **blueprints** | blueprint-index | Python 3.12 | FastAPI + Uvicorn | PostgreSQL, asyncpg, GitHub |
+| | blueprint-suggestion-service | Python 3.12 | FastAPI + Uvicorn | PostgreSQL, data-api, pattern service |
+| | rule-recommendation-ml | Python 3.12 | FastAPI + Uvicorn | ML recommendations |
+| | automation-miner | Python 3.12 | FastAPI + Uvicorn | BeautifulSoup, blueprint mining |
+| **pattern-analysis** | ai-pattern-service | Python 3.12 | FastAPI + Uvicorn | PostgreSQL, data-api, device-intelligence |
+| | api-automation-edge | Python 3.12 | FastAPI + Uvicorn | Huey (task queue), PostgreSQL, InfluxDB, WebSockets |
+| **energy-analytics** | energy-correlator | Python 3.12 | FastAPI + Uvicorn | InfluxDB client |
+| | energy-forecasting | Python 3.12 | FastAPI + Uvicorn | InfluxDB, data-api, ML models |
+| | proactive-agent-service | Python 3.12 | FastAPI + Uvicorn | Energy analytics, agents |
+| **device-management** | device-health-monitor | Python 3.12 | FastAPI + Uvicorn | HA client |
+| | device-context-classifier | Python 3.12 | FastAPI + Uvicorn | HA client, classification |
+| | device-setup-assistant | Python 3.12 | FastAPI + Uvicorn | HA, device onboarding |
+| | device-database-client | Python 3.12 | FastAPI + Uvicorn | PostgreSQL, device metadata |
+| | device-recommender | Python 3.12 | FastAPI + Uvicorn | Recommendations |
+| | ha-setup-service | Python 3.12 | FastAPI + Uvicorn | HA setup |
+| | activity-recognition | Python 3.12 | FastAPI + Uvicorn | Activity ML |
+| | activity-writer | Python 3.12 | FastAPI + Uvicorn | InfluxDB writer |

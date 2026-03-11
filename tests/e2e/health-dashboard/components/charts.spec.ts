@@ -30,6 +30,9 @@ async function navigateToAnalytics(page: import('@playwright/test').Page) {
   await expect(page.getByRole('heading', { name: /system analytics/i })).toBeVisible({ timeout: 15000 });
 }
 
+/** Analytics uses MiniChart: SVG with role="img" and aria-label containing "chart". */
+const CHART_SELECTOR = '[role="img"][aria-label*="chart" i]';
+
 test.describe('Charts -- operator trend visualization', () => {
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
@@ -37,12 +40,11 @@ test.describe('Charts -- operator trend visualization', () => {
   });
 
   test('charts render with visible content so the operator can read trends', async ({ page }) => {
-    // The operator needs at least one chart to be present and rendered.
-    // Analytics charts are rendered as <img> elements with alt text containing "chart".
-    const charts = page.locator('img[alt*="chart" i]');
-    await expect(charts.first()).toBeVisible({ timeout: 10000 });
+    // Analytics tab uses SVG charts (MiniChart) with role="img" and aria-label like "Events Per Minute chart".
+    // If the panel shows loading/error/no data, skip or wait for at least one chart.
+    const charts = page.locator(CHART_SELECTOR);
+    await expect(charts.first()).toBeVisible({ timeout: 15000 });
 
-    // Verify the chart has actual rendered content -- not just a placeholder.
     const chartBox = await charts.first().boundingBox();
     expect(chartBox).not.toBeNull();
     expect(chartBox!.width).toBeGreaterThan(50);
@@ -50,44 +52,34 @@ test.describe('Charts -- operator trend visualization', () => {
   });
 
   test('hovering a chart does not crash the page', async ({ page }) => {
-    // Analytics charts are sparkline images -- they may not have DOM-based tooltips.
-    // The key assertion is that hovering does not cause errors or hide the chart.
-    const chart = page.locator('img[alt*="chart" i]').first();
-    await expect(chart).toBeVisible({ timeout: 10000 });
+    const chart = page.locator(CHART_SELECTOR).first();
+    await expect(chart).toBeVisible({ timeout: 15000 });
 
     const box = await chart.boundingBox();
     expect(box).not.toBeNull();
 
-    // Hover near the center of the chart
     await chart.hover({ position: { x: Math.floor(box!.width / 2), y: Math.floor(box!.height / 2) } });
-    await page.waitForTimeout(600);
+    await new Promise((r) => setTimeout(r, 600));
 
-    // Tooltips may be rendered as role="tooltip" or via a class name
     const tooltip = page.locator('[role="tooltip"], [class*="tooltip"], [class*="Tooltip"]').first();
     const tooltipVisible = await tooltip.isVisible().catch(() => false);
-
-    // If the chart library renders tooltips, they should contain text
     if (tooltipVisible) {
       const tooltipText = await tooltip.textContent();
       expect(tooltipText?.trim().length).toBeGreaterThan(0);
     }
-    // Sparkline <img> charts typically do not have DOM tooltips -- the hover must not crash.
     await expect(chart).toBeVisible();
   });
 
   test('chart remains stable after data refresh cycle', async ({ page }) => {
-    // The operator expects charts to survive periodic data refreshes without
-    // disappearing, flickering, or throwing console errors.
-    const chart = page.locator('img[alt*="chart" i]').first();
-    await expect(chart).toBeVisible({ timeout: 10000 });
+    const chart = page.locator(CHART_SELECTOR).first();
+    await expect(chart).toBeVisible({ timeout: 15000 });
 
     const consoleErrors: string[] = [];
     page.on('console', (msg) => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());
     });
 
-    // Wait for at least one potential refresh cycle (dashboard polls every ~5s)
-    await page.waitForTimeout(6000);
+    await new Promise(r => setTimeout(r, 6000));
 
     // Chart must still be visible -- no blank screen after refresh
     await expect(chart).toBeVisible();
@@ -106,7 +98,7 @@ test.describe('Charts -- operator trend visualization', () => {
     });
 
     // Let the page settle and charts render
-    await page.waitForTimeout(3000);
+    await new Promise((r) => setTimeout(r, 3000));
 
     // Filter out known benign errors to focus on real issues
     const significantErrors = errors.filter(

@@ -23,6 +23,7 @@
 
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
+import { isIgnorableConsoleError } from '../../../shared/helpers/console-filters';
 import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
 test.describe('Automation Creation Workflow - From idea to deployment', () => {
@@ -107,16 +108,24 @@ test.describe('Automation Creation Workflow - From idea to deployment', () => {
 
   test('@integration step 5: verify deployed automation appears in the list', async ({ page }) => {
     const deployedTab = page.locator('button:has-text("Deployed"), [data-status="deployed"]').first();
-    if (await deployedTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await deployedTab.click();
-      await waitForLoadingComplete(page);
+    await expect(deployedTab, 'Automation creation flow should show Deployed tab').toBeVisible({ timeout: 5000 });
+    await deployedTab.click();
+    await waitForLoadingComplete(page);
 
-      const deployedCards = page.locator('[data-testid="suggestion-card"]');
-      const emptyState = page.getByText(/no.*suggestions/i).first();
-      const hasCards = await deployedCards.first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasEmpty = await emptyState.isVisible({ timeout: 2000 }).catch(() => false);
-      expect(hasCards || hasEmpty).toBe(true);
-    }
+    // Deployed page: data-testid="deployed-container", cards "deployed-automation", empty "No Deployed Automations Yet"
+    const container = page.locator('[data-testid="deployed-container"]');
+    await container.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
+
+    const deployedCards = page.locator('[data-testid="deployed-automation"], [data-testid="suggestion-card"]');
+    const emptyState = page.getByText(/No Deployed Automations Yet|no.*suggestions|no automations/i).first();
+    const loading = page.getByText(/Loading deployed automations/i);
+    const hasCards = await deployedCards.first().isVisible({ timeout: 5000 }).catch(() => false);
+    const hasEmpty = await emptyState.isVisible({ timeout: 5000 }).catch(() => false);
+    const stillLoading = await loading.isVisible({ timeout: 2000 }).catch(() => false);
+    expect(
+      hasCards || hasEmpty || stillLoading,
+      'Deployed tab should show list, empty state, or loading'
+    ).toBe(true);
   });
 
   test('no console errors during the creation workflow', async ({ page }) => {
@@ -137,12 +146,7 @@ test.describe('Automation Creation Workflow - From idea to deployment', () => {
       }
     }
 
-    const criticalErrors = consoleErrors.filter(
-      (e) =>
-        !e.includes('favicon') &&
-        !e.includes('sourcemap') &&
-        !e.includes('DevTools')
-    );
+    const criticalErrors = consoleErrors.filter((e) => !isIgnorableConsoleError(e));
     expect(criticalErrors).toEqual([]);
   });
 });

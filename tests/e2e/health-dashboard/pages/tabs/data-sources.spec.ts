@@ -152,7 +152,7 @@ test.describe('Data Sources — External API Feed Monitor', () => {
     }
 
     await configButton.click();
-    await page.waitForTimeout(500);
+    await new Promise((r) => setTimeout(r, 500));
 
     const dialog = page.getByRole('dialog').or(page.locator('.modal, [class*="modal"]')).first();
     await expect(dialog).toBeVisible({ timeout: 3000 });
@@ -201,7 +201,7 @@ test.describe('Data Sources — External API Feed Monitor', () => {
 
     await page.goto('/#data-sources');
     await waitForLoadingComplete(page);
-    await page.waitForTimeout(3000);
+    await new Promise((r) => setTimeout(r, 3000));
 
     const apiErrors = errors.filter(error =>
       !error.includes('favicon') &&

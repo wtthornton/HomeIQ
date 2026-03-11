@@ -29,12 +29,12 @@ Create a comprehensive Playwright E2E test suite that delivers **full coverage**
 
 ### 2.1 Health Dashboard (Port 3000)
 
-#### Tabs (16 total)
+#### Tabs (17 total)
 | Tab ID | Label | Primary APIs | Components |
 |--------|-------|--------------|------------|
 | overview | Overview | /api/health, /api/v1/health, /api/v1/stats, /api/v1/health/services, /api/v1/alerts/active, /api/v1/docker/containers, /api/v1/real-time-metrics | RAGStatusSection, CoreSystemCard, ConnectionStatusIndicator |
-| setup | Setup & Health | /api/health, /api/v1/health | SetupWizard, EnvironmentHealth |
 | services | Services | /api/v1/health/services | ServicesTab |
+| groups | Groups | Group/aggregation APIs | GroupsTab |
 | dependencies | Dependencies | Integration health | DependenciesTab |
 | devices | Devices | /api/devices, /api/entities | DevicesTab |
 | events | Events | /api/v1/events, /api/v1/events/search, /api/v1/events/stats | EventsTab |
@@ -45,8 +45,9 @@ Create a comprehensive Playwright E2E test suite that delivers **full coverage**
 | analytics | Analytics | Analytics data | AnalyticsTab |
 | alerts | Alerts | /api/v1/alerts/active, /api/v1/alerts/{id}/acknowledge, /api/v1/alerts/{id}/resolve | AlertsTab |
 | hygiene | Device Hygiene | /api/v1/hygiene/issues | HygieneTab |
-| validation | HA Validation | HA validation APIs | ValidationTab |
-| synergies | Synergies | AI pattern service | SynergiesTab |
+| validation | Automation Checks | HA validation APIs | ValidationTab |
+| evaluation | AI Performance | AI evaluation APIs | EvaluationTab |
+| memory | Memory Brain | Memory APIs | MemoryTab |
 | configuration | Configuration | /api/v1/docker/api-keys | ConfigurationTab |
 
 #### Global Controls
@@ -77,20 +78,20 @@ Create a comprehensive Playwright E2E test suite that delivers **full coverage**
 
 ### 2.2 AI Automation UI (Port 3001)
 
-#### Pages
-| Page | Route | Primary APIs | Components |
-|------|-------|--------------|------------|
-| Conversational Dashboard | / | AI automation, suggestions | SuggestionCard, FilterPills, BatchActions |
-| Ask AI / HA Agent Chat | /ask-ai, /ha-agent | /api/v1/ask-ai/query, NL generate | SendButton, ConversationSidebar, DevicePicker, AutomationPreview |
-| Deployed | /deployed | Deployed automations API | DeployedBadge, CTAActionButtons |
-| Patterns | /patterns | Pattern API | PatternChart, PatternDetailsModal, SynergyChart |
-| Settings | /settings | Settings API, API keys | PreferenceSettings, TeamTrackerSettings |
-| Discovery | /discovery | Device intelligence | DeviceExplorer, SmartShopping |
-| Synergies | /synergies | Synergy API | NetworkGraphView, RoomCard, RoomMapView |
-| Proactive Suggestions | /proactive | Proactive API | ProactiveFilters, ProactiveStats, ProactiveSuggestionCard |
-| Blueprint Suggestions | /blueprint-suggestions | Blueprint API | BlueprintSuggestions |
-| Admin | /admin | Admin APIs | Admin page |
-| Name Enhancement | /name-enhancement | Name enhancement API | NameEnhancementDashboard |
+#### Pages (route → E2E: see docs/planning/ai-automation-ui-routes-e2e-matrix.md)
+| Page | Route | E2E spec | Primary APIs |
+|------|-------|----------|---------------|
+| Ideas | / | dashboard.spec.ts | AI automation, suggestions |
+| HA Agent Chat | /chat (legacy /ha-agent→/chat) | ha-agent-chat.spec.ts | /api/v1/ask-ai/query, chat |
+| Deployed | /automations (legacy /deployed→/automations) | deployed.spec.ts | Deployed automations API |
+| Insights | /insights (legacy /patterns→/insights) | patterns.spec.ts | Pattern API |
+| Settings | /settings (legacy /admin→/settings?section=system) | settings.spec.ts, admin.spec.ts | Settings API, API keys |
+| Discovery | /explore (legacy /discovery→/explore) | discovery.spec.ts | Device intelligence |
+| Synergies | /insights (legacy /synergies→/insights) | patterns.spec.ts, synergies.spec.ts | Synergy API |
+| Proactive | /?source=context (legacy /proactive) | proactive.spec.ts, dashboard.spec.ts | Proactive API |
+| Blueprint Suggestions | /?source=blueprints (legacy /blueprint-suggestions) | blueprint-suggestions.spec.ts | Blueprint API |
+| Name Enhancement | /name-enhancement | name-enhancement.spec.ts | Name enhancement API |
+| Scheduled Tasks | /scheduled | (navigation or add spec) | Scheduled tasks API |
 
 #### API Services Used (ai-automation-ui)
 - AI Automation (8018): suggestions, NL generate, deploy

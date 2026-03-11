@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://homeiq.local/auto-fix-pipeline/config-schema.json",
+  "title": "Auto-fix pipeline config",
+  "description": "Schema for the auto-fix pipeline config YAML. All keys optional with defaults per schema/README.md.",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "version": { "type": "integer", "default": 1 },
+    "project": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "languages": { "type": "array", "items": { "type": "string" } },
+        "root": { "type": "string" }
+      }
+    },
+    "runner": {
+      "type": "object",
+      "properties": {
+        "cli": { "type": "string" },
+        "model": { "type": "string" },
+        "max_cost": { "type": "number" },
+        "budget_allocation": {
+          "type": "object",
+          "properties": {
+            "scan": { "type": "number" },
+            "fix": { "type": "number" },
+            "chain": { "type": "number" },
+            "feedback": { "type": "number" }
+          }
+        }
+      }
+    },
+    "scan": {
+      "type": "object",
+      "properties": {
+        "manifest_path": { "type": "string" },
+        "selector": { "type": "string" },
+        "output_format": {
+          "type": "object",
+          "properties": {
+            "markers": { "type": "array", "items": { "type": "string" }, "minItems": 2, "maxItems": 2 },
+            "schema": { "type": "object" }
+          }
+        },
+        "retry_attempts": { "type": "integer" },
+        "retry_fallback_tools": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "fix": {
+      "type": "object",
+      "properties": {
+        "chain_phases": { "type": "array", "items": { "type": "string" } },
+        "validation_required": { "type": "boolean" }
+      }
+    },
+    "mcp": {
+      "type": "object",
+      "properties": {
+        "config_path": { "type": "string" },
+        "tapps_mcp_server": { "type": "string" },
+        "scan_tools": { "type": "string" },
+        "fix_tools": { "type": "string" },
+        "expert_domains": { "type": "array", "items": { "type": "string" } },
+        "docs_lookup": { "type": "boolean" }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "properties": {
+        "dashboard_state": { "type": "string" },
+        "dashboard_html": { "type": "string" },
+        "feedback_dir": { "type": "string" },
+        "history_file": { "type": "string" },
+        "impl_dir": { "type": "string" },
+        "scan_failure_prefix": { "type": "string" }
+      }
+    },
+    "prompts": {
+      "type": "object",
+      "properties": {
+        "find": { "type": "string" },
+        "retry": { "type": "string" },
+        "fix": { "type": "string" },
+        "refactor": { "type": "string" },
+        "test": { "type": "string" },
+        "feedback": { "type": "string" }
+      }
+    }
+  }
+}

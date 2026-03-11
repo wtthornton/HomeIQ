@@ -1,0 +1,58 @@
+# HomeIQ default — matches current scripts/auto-bugfix.ps1 behavior (Epic 1).
+# Use with runner or -ConfigPath once Epic 2/3 are in place. Do not move scripts.
+# Schema: auto-fix-pipeline/config/schema/README.md and config-schema.json
+
+version: 1
+
+project:
+  name: "HomeIQ"
+  languages: ["python"]
+  root: "."
+
+runner:
+  cli: "claude"
+  model: "claude-sonnet-4-6"
+  max_cost: 5.0
+  budget_allocation:
+    scan: 0.30
+    fix: 0.40
+    chain: 0.15
+    feedback: 0.15
+
+scan:
+  manifest_path: "docs/scan-manifest.json"
+  selector: "builtin"
+  output_format:
+    markers: ["<<<BUGS>>>", "<<<END_BUGS>>>"]
+    schema: { file: "string", line: "int", description: "string", severity: "string" }
+  retry_attempts: 2
+  retry_fallback_tools: ["Read", "Grep", "Glob"]
+
+fix:
+  chain_phases: ["fix", "refactor", "test"]
+  validation_required: true
+
+mcp:
+  config_path: ".mcp.json"
+  tapps_mcp_server: "MCP_DOCKER"
+  scan_tools: "Read,Grep,Glob,Bash,mcp__MCP_DOCKER__tapps_security_scan,mcp__MCP_DOCKER__tapps_quick_check,mcp__MCP_DOCKER__tapps_score_file"
+  fix_tools: "Read,Edit,Grep,Glob,Bash,mcp__MCP_DOCKER__tapps_validate_changed,mcp__MCP_DOCKER__tapps_checklist,mcp__MCP_DOCKER__tapps_quick_check,mcp__MCP_DOCKER__tapps_consult_expert,mcp__MCP_DOCKER__tapps_impact_analysis"
+  expert_domains: ["security", "testing-strategies", "api-design-integration", "database-data-management"]
+  docs_lookup: true
+
+paths:
+  dashboard_state: "scripts/.dashboard-state.json"
+  dashboard_html: "scripts/dashboard.html"
+  feedback_dir: "docs/tapps-feedback"
+  history_file: "docs/BUG_HISTORY.json"
+  impl_dir: "implementation"
+  scan_failure_prefix: "auto-bugfix-scan-failure"
+
+# Prompt templates (Epic 4). When set, script loads these and substitutes placeholders.
+prompts:
+  find: "auto-fix-pipeline/config/prompts/find.md"
+  retry: "auto-fix-pipeline/config/prompts/retry.md"
+  fix: "auto-fix-pipeline/config/prompts/fix.md"
+  refactor: "auto-fix-pipeline/config/prompts/refactor.md"
+  test: "auto-fix-pipeline/config/prompts/test.md"
+  feedback: "auto-fix-pipeline/config/prompts/feedback.md"

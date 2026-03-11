@@ -2,7 +2,7 @@
 
 **HomeIQ.** Full AI assistant guide: [.cursor/CLAUDE.md](.cursor/CLAUDE.md). Doc index: [docs/README.md](docs/README.md).
 
-This project uses the TAPPS MCP server for automated code quality enforcement.
+This project uses the TAPPS MCP server for automated code quality enforcement. TappsMCP is provided by **MCP_DOCKER** (Docker MCP Toolkit). See [.cursor/MCP_SETUP_INSTRUCTIONS.md](.cursor/MCP_SETUP_INSTRUCTIONS.md).
 Every tool response includes `next_steps` - follow them.
 
 ## CRITICAL: Tool Call Obligations

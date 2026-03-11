@@ -1,7 +1,7 @@
-# Port 3001 (AI Automation UI) – Crawl Issues
+# Port 3001 (AI Automation UI) -- Crawl Issues
 
-**Source:** Playwright crawl of all routes  
-**Generated:** 2026-03-05
+**Source:** Playwright crawl of all routes
+**Generated:** 2026-03-11
 **Base URL:** http://localhost:3001
 
 ---
@@ -10,11 +10,11 @@
 
 | Severity | Count |
 |----------|-------|
-| Critical | 8 |
+| Critical | 7 |
 | High     | 32 |
 | Medium   | 0 |
 | Low      | 0 |
-| **Total** | **40** |
+| **Total** | **39** |
 
 ---
 
@@ -28,10 +28,9 @@
 | 2 | `/chat` | network_fail | HTTP 503: http://localhost:3001/api/ha-ai-agent/v1/conversations?limit=50 |
 | 3 | `/chat` | visible_error | Visible error/warning: Failed to load conversations |
 | 4 | `/explore` | network_fail | HTTP 502: http://localhost:3001/api/automation-miner/devices/recommendations?user_devices=light,switch,sensor&limit=10 |
-| 5 | `/insights` | network_fail | HTTP 500: http://localhost:3001/api/patterns/list?min_confidence=0.7&limit=100 |
-| 6 | `/insights` | network_fail | HTTP 500: http://localhost:3001/api/analysis/status |
-| 7 | `/insights` | network_fail | HTTP 500: http://localhost:3001/api/patterns/stats |
-| 8 | `/insights` | visible_error | Visible error/warning: Failed to list patterns: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "pattern |
+| 5 | `/insights` | network_fail | HTTP 500: http://localhost:3001/api/patterns/stats |
+| 6 | `/insights` | network_fail | HTTP 500: http://localhost:3001/api/patterns/list?min_confidence=0.7&limit=100 |
+| 7 | `/insights` | network_fail | HTTP 500: http://localhost:3001/api/analysis/status |
 
 ### High
 
@@ -41,16 +40,16 @@
 | 2 | `/` | console_error | Failed to load resource: the server responded with a status of 500 (Internal Server Error) |
 | 3 | `/chat` | console_error | [api-client] VITE_API_KEY is not set. API requests may fail with 401. Set VITE_API_KEY at build time for production. |
 | 4 | `/chat` | console_error | Failed to load resource: the server responded with a status of 503 (Service Unavailable) |
-| 5 | `/chat` | console_error | Failed to load conversations: APIError: Service not ready     at We (http://localhost:3001/assets/index-DWdF5_6-.js:4139:117650)     at async http://localhost:3001/assets/index-DWdF5_6-.js:4271:14010 |
+| 5 | `/chat` | console_error | Failed to load conversations: APIError: Service not ready     at We (http://localhost:3001/assets/index-CRw92fyF.js:4139:117670)     at async http://localhost:3001/assets/index-CRw92fyF.js:4271:14010 |
 | 6 | `/explore` | console_error | [api-client] VITE_API_KEY is not set. API requests may fail with 401. Set VITE_API_KEY at build time for production. |
 | 7 | `/explore` | console_error | Failed to load resource: the server responded with a status of 404 (Not Found) |
-| 8 | `/explore` | console_error | Error fetching devices: Error: Failed to fetch entities     at http://localhost:3001/assets/index-DWdF5_6-.js:4267:2956 |
+| 8 | `/explore` | console_error | Error fetching devices: Error: Failed to fetch entities     at http://localhost:3001/assets/index-CRw92fyF.js:4267:2956 |
 | 9 | `/explore` | console_error | Failed to load resource: the server responded with a status of 502 (Bad Gateway) |
-| 10 | `/explore` | console_error | Error fetching recommendations: Error: Failed to fetch recommendations     at http://localhost:3001/assets/index-DWdF5_6-.js:4264:55577 |
+| 10 | `/explore` | console_error | Error fetching recommendations: Error: Failed to fetch recommendations     at http://localhost:3001/assets/index-CRw92fyF.js:4264:55577 |
 | 11 | `/explore` | network_fail | HTTP 404: http://localhost:3001/api/entities?limit=10000 |
 | 12 | `/insights` | console_error | [api-client] VITE_API_KEY is not set. API requests may fail with 401. Set VITE_API_KEY at build time for production. |
 | 13 | `/insights` | console_error | Failed to load resource: the server responded with a status of 500 (Internal Server Error) |
-| 14 | `/insights` | console_error | Failed to load patterns: APIError: Failed to list patterns: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "patterns" does not exi |
+| 14 | `/insights` | console_error | Failed to load patterns: APIError: Failed to get pattern stats: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "patterns" does not |
 | 15 | `/insights` | console_error | Failed to load analysis status: APIError: Failed to get analysis status: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "patterns" |
 | 16 | `/insights` | visible_error | Visible error/warning: ✕ |
 | 17 | `/automations` | console_error | [api-client] VITE_API_KEY is not set. API requests may fail with 401. Set VITE_API_KEY at build time for production. |

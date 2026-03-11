@@ -1,15 +1,70 @@
-# Context7 MCP Configuration Setup
+# MCP Configuration Setup
 
 **Created:** January 2025  
-**Purpose:** Instructions for setting up Context7 MCP server configuration
+**Updated:** March 2026  
+**Purpose:** Instructions for setting up MCP servers used by HomeIQ — TappsMCP (via Docker MCP Toolkit) and optional Context7.
 
 ---
 
-## 1. Set the API Key in Your Environment
+## 1. TappsMCP via MCP_DOCKER (Docker MCP Toolkit)
+
+**TappsMCP** provides code quality, security scanning, expert consultation, and doc lookup. In this project it runs **inside MCP_DOCKER**, not as a standalone server.
+
+### Requirements
+
+- **Docker** installed and running.
+- **Docker MCP Toolkit** (e.g. `docker mcp gateway run` available).
+
+### Configuration
+
+**Cursor / IDE:** Use `.cursor/mcp.json` with the `MCP_DOCKER` server:
+
+```json
+{
+  "mcpServers": {
+    "MCP_DOCKER": {
+      "command": "docker",
+      "args": ["mcp", "gateway", "run"],
+      "env": {
+        "LOCALAPPDATA": "C:\\Users\\<you>\\AppData\\Local",
+        "ProgramData": "C:\\ProgramData",
+        "ProgramFiles": "C:\\Program Files"
+      }
+    }
+  }
+}
+```
+
+On macOS/Linux, adjust or omit `env` if not needed for your Docker setup.
+
+**Headless / auto-bugfix:** The pipeline uses `.mcp.json` at **project root**. It must include the same `MCP_DOCKER` entry so Claude CLI can call TappsMCP tools. Copy the `MCP_DOCKER` block from `.cursor/mcp.json` into the project root `.mcp.json` (or symlink), or ensure both files define `MCP_DOCKER`.
+
+### Tool names
+
+With MCP_DOCKER, TappsMCP tools appear as:
+
+- `mcp__MCP_DOCKER__tapps_session_start`
+- `mcp__MCP_DOCKER__tapps_quick_check`
+- `mcp__MCP_DOCKER__tapps_validate_changed`
+- etc.
+
+The auto-bugfix script (`scripts/auto-bugfix.ps1`) uses the `MCP_DOCKER` prefix by default. If you use a standalone TappsMCP server instead, run with `-TappsMcpServer "tapps-mcp"`.
+
+### Verification
+
+In Cursor, start a session and call `tapps_session_start` (or the full tool name your client shows). If the Docker MCP gateway is running and configured, the tool should respond with server info and project profile.
+
+---
+
+## 2. Context7 MCP (optional)
+
+Context7 provides up-to-date library documentation lookups. TappsMCP can use Context7 for `tapps_lookup_docs` when configured; Context7 can also be run as a separate MCP server if desired.
+
+### Set the API Key in Your Environment
 
 **The key is never stored in the project.** Cursor resolves `${env:CONTEXT7_API_KEY}` from your OS environment.
 
-### Windows (PowerShell – current user, persistent)
+**Windows (PowerShell – current user, persistent):**
 
 ```powershell
 [System.Environment]::SetEnvironmentVariable("CONTEXT7_API_KEY", "ctx7sk-xxxx-your-key-here", "User")
@@ -17,7 +72,7 @@
 
 Or: **Settings → System → About → Advanced system settings → Environment Variables → User variables → New**
 
-### Windows (temporary, this session only)
+**Windows (temporary, this session only):**
 
 ```powershell
 $env:CONTEXT7_API_KEY = "ctx7sk-xxxx-your-key-here"
@@ -25,9 +80,7 @@ $env:CONTEXT7_API_KEY = "ctx7sk-xxxx-your-key-here"
 
 Then start Cursor from this same PowerShell window.
 
-### macOS / Linux
-
-Add to `~/.zshrc`, `~/.bashrc`, or `~/.profile`:
+**macOS / Linux:** Add to `~/.zshrc`, `~/.bashrc`, or `~/.profile`:
 
 ```bash
 export CONTEXT7_API_KEY="ctx7sk-xxxx-your-key-here"
@@ -35,54 +88,30 @@ export CONTEXT7_API_KEY="ctx7sk-xxxx-your-key-here"
 
 Then restart the terminal and Cursor (or run `source ~/.zshrc` and start Cursor from that shell).
 
----
+### Context7 server entry
 
-## 2. Required Configuration
-
-Create `.cursor/mcp.json` with the following (**no key in the file**):
+Add to `.cursor/mcp.json` (and optionally to project root `.mcp.json` for headless) **in addition to** `MCP_DOCKER`:
 
 ```json
-{
-  "mcpServers": {
-    "Context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp"],
-      "env": {
-        "CONTEXT7_API_KEY": "${env:CONTEXT7_API_KEY}"
-      }
-    }
+"Context7": {
+  "command": "npx",
+  "args": ["-y", "@upstash/context7-mcp"],
+  "env": {
+    "CONTEXT7_API_KEY": "${env:CONTEXT7_API_KEY}"
   }
 }
 ```
 
----
+### Verification
 
-## Configuration Details
-
-- **Server:** `npx -y @upstash/context7-mcp`
-- **API Key:** From environment via `${env:CONTEXT7_API_KEY}` — set `CONTEXT7_API_KEY` before starting Cursor
-- **Key Format:** Valid Context7 API key (starts with `ctx7sk`)
-
----
-
-## Security
-
-- ✅ **No key in the repo** — `mcp.json` only references `${env:CONTEXT7_API_KEY}`
-- ✅ `.cursor/mcp.json` is in `.gitignore` (optional; it contains no secrets)
-- ✅ API key stays in your OS user environment or shell only
-
----
-
-## Verification
-
-After setting `CONTEXT7_API_KEY` and creating `mcp.json`, **fully quit and reopen Cursor** (so it sees the env var), then test:
+After setting `CONTEXT7_API_KEY` and adding the Context7 server, fully quit and reopen Cursor, then test:
 
 ```bash
 @bmad-master
 *context7-kb-test
 ```
 
-Or test with a documentation lookup:
+Or:
 
 ```bash
 @bmad-master
@@ -91,23 +120,16 @@ Or test with a documentation lookup:
 
 ---
 
-## Next Steps
+## Summary
 
-Once MCP is configured:
+| Component    | Purpose                          | Config (IDE)       | Headless / auto-bugfix   |
+|-------------|-----------------------------------|--------------------|---------------------------|
+| **MCP_DOCKER** | TappsMCP (quality, security, experts) | `.cursor/mcp.json` | Project root `.mcp.json`  |
+| **Context7**  | Doc lookup (optional)            | `.cursor/mcp.json` | Optional in `.mcp.json`  |
 
-1. **Execute KB Fetch Plan:**
-   - See `docs/kb/EPIC_AI17_AI18_KB_FETCH_PLAN.md`
-   - Run Phase 1 commands to fetch critical documentation
-
-2. **Verify KB Cache:**
-   ```bash
-   *context7-kb-status
-   ```
-
-3. **Start Epic AI-17 Implementation:**
-   - All required documentation will be cached and available
+- **TappsMCP** is provided by the Docker MCP Toolkit (`MCP_DOCKER`). Do not add a separate `tapps-mcp` server unless you are not using Docker.
+- Keep **secrets** (e.g. Context7 API key) in environment variables only; do not put them in committed config files.
 
 ---
 
-**Note:** This file and `.cursor/mcp.json` can be committed; neither contains the API key. The key exists only in your `CONTEXT7_API_KEY` environment variable.
-
+**References:** [AGENTS.md](../AGENTS.md), [docs/TAPPS_TOOL_PRIORITY.md](../docs/TAPPS_TOOL_PRIORITY.md), [scripts/auto-bugfix.ps1](../scripts/auto-bugfix.ps1).

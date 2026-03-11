@@ -118,7 +118,7 @@ test.describe('Logs -- Real-Time Service Log Viewer', () => {
     await expect(page.getByTestId('log-viewer')).toBeVisible({ timeout: 15000 });
 
     // Wait for logs to load so services dropdown gets populated
-    await page.waitForTimeout(3000);
+    await new Promise((r) => setTimeout(r, 3000));
 
     const levelSelects = page.locator('select');
     const selectCount = await levelSelects.count();
@@ -150,7 +150,7 @@ test.describe('Logs -- Real-Time Service Log Viewer', () => {
     await expect(page.getByTestId('log-viewer')).toBeVisible({ timeout: 15000 });
 
     // Wait for the log aggregator API to respond
-    await page.waitForTimeout(5000);
+    await new Promise((r) => setTimeout(r, 5000));
 
     // Log entries typically contain timestamps in ISO or locale format
     // If logs exist, at least one should have a recognizable timestamp
@@ -214,7 +214,7 @@ test.describe('Logs -- Real-Time Service Log Viewer', () => {
 
     await page.goto('/#logs');
     await waitForLoadingComplete(page);
-    await page.waitForTimeout(3000);
+    await new Promise((r) => setTimeout(r, 3000));
 
     const apiErrors = errors.filter(error =>
       !error.includes('favicon') &&

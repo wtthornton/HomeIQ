@@ -26,7 +26,7 @@ test.describe('Settings Screen Tests', () => {
     expect(bodyText?.length).toBeGreaterThan(100);
   });
 
-  test.skip('Settings navigation tabs (legacy)', async ({ page }) => {
+  test('Settings navigation tabs (legacy)', async ({ page }) => {
     // Wait for settings navigation
     await page.waitForSelector('[data-testid="settings-navigation"]');
     
@@ -52,7 +52,7 @@ test.describe('Settings Screen Tests', () => {
     }
   });
 
-  test.skip('General settings (legacy)', async ({ page }) => {
+  test('General settings (legacy)', async ({ page }) => {
     // Navigate to general settings
     await page.click('[data-testid="settings-tab-general"]');
     
@@ -83,7 +83,7 @@ test.describe('Settings Screen Tests', () => {
     await expect(successMessage).toBeVisible();
   });
 
-  test.skip('API configuration (legacy)', async ({ page }) => {
+  test('API configuration (legacy)', async ({ page }) => {
     // Navigate to API configuration
     await page.click('[data-testid="settings-tab-api-config"]');
     
@@ -116,7 +116,7 @@ test.describe('Settings Screen Tests', () => {
     await expect(testResult).toBeVisible();
   });
 
-  test.skip('Notification settings (legacy)', async ({ page }) => {
+  test('Notification settings (legacy)', async ({ page }) => {
     // Navigate to notifications settings
     await page.click('[data-testid="settings-tab-notifications"]');
     
@@ -149,7 +149,7 @@ test.describe('Settings Screen Tests', () => {
     await page.waitForSelector('[data-testid="save-success"]', { timeout: 5000 });
   });
 
-  test.skip('Data retention (legacy)', async ({ page }) => {
+  test('Data retention (legacy)', async ({ page }) => {
     // Navigate to data retention settings
     await page.click('[data-testid="settings-tab-data-retention"]');
     
@@ -185,7 +185,7 @@ test.describe('Settings Screen Tests', () => {
     await page.waitForSelector('[data-testid="save-success"]', { timeout: 5000 });
   });
 
-  test.skip('Security settings (legacy)', async ({ page }) => {
+  test('Security settings (legacy)', async ({ page }) => {
     // Navigate to security settings
     await page.click('[data-testid="settings-tab-security"]');
     
@@ -218,7 +218,7 @@ test.describe('Settings Screen Tests', () => {
     await page.waitForSelector('[data-testid="save-success"]', { timeout: 5000 });
   });
 
-  test.skip('Configuration backup (legacy)', async ({ page }) => {
+  test('Configuration backup (legacy)', async ({ page }) => {
     // Navigate to general settings (where backup/restore typically is)
     await page.click('[data-testid="settings-tab-general"]');
     
@@ -260,7 +260,7 @@ test.describe('Settings Screen Tests', () => {
     await page.waitForSelector('[data-testid="restore-success"]', { timeout: 10000 });
   });
 
-  test.skip('Settings validation (legacy)', async ({ page }) => {
+  test('Settings validation (legacy)', async ({ page }) => {
     // Navigate to API configuration
     await page.click('[data-testid="settings-tab-api-config"]');
     
@@ -292,7 +292,7 @@ test.describe('Settings Screen Tests', () => {
     await expect(dashboard.getDashboardRoot()).toBeVisible({ timeout: 15000 });
   });
 
-  test.skip('Settings reset (legacy)', async ({ page }) => {
+  test('Settings reset (legacy)', async ({ page }) => {
     // Navigate to general settings
     await page.click('[data-testid="settings-tab-general"]');
     

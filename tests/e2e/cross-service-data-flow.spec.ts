@@ -102,10 +102,7 @@ test.describe('Cross-Service Data Flow Tests', () => {
 
     test('data-api event statistics reflect stored data', async ({ request }) => {
       const statsResponse = await request.get(`${DATA_API_BASE}/api/v1/events/stats`);
-      if (!statsResponse.ok()) {
-        test.skip();
-        return;
-      }
+      expect(statsResponse.ok(), 'Data API stats should be available').toBe(true);
 
       const stats = await statsResponse.json();
       expect(typeof stats).toBe('object');
@@ -167,10 +164,7 @@ test.describe('Cross-Service Data Flow Tests', () => {
       const eventsResponse = await request.get(`${DATA_API_BASE}/api/v1/events?limit=50`);
       const entitiesResponse = await request.get(`${DATA_API_BASE}/api/v1/events/entities`);
 
-      if (!eventsResponse.ok() || !entitiesResponse.ok()) {
-        test.skip();
-        return;
-      }
+      expect(eventsResponse.ok() && entitiesResponse.ok(), 'Events and entities APIs should be available').toBe(true);
 
       const events = await eventsResponse.json();
       const entities = await entitiesResponse.json();

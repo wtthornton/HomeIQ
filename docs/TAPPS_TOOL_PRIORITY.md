@@ -1,7 +1,9 @@
 # TappsMCP Tool Priority for HomeIQ
 
-**Last Updated:** March 3, 2026  
+**Last Updated:** March 11, 2026  
 **Purpose:** Recommended tool order and rationale for using TappsMCP in the HomeIQ project
+
+**MCP setup:** In this project TappsMCP is provided by **MCP_DOCKER** (Docker MCP Toolkit), not a standalone server. Use `.cursor/mcp.json` (IDE) and `.mcp.json` (headless/auto-bugfix) with the `MCP_DOCKER` entry. Tools are exposed as `mcp__MCP_DOCKER__tapps_*`. See [.cursor/MCP_SETUP_INSTRUCTIONS.md](../.cursor/MCP_SETUP_INSTRUCTIONS.md).
 
 ---
 

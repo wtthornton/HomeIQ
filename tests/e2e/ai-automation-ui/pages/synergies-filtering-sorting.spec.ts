@@ -23,6 +23,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { isIgnorableConsoleError } from '../../../shared/helpers/console-filters';
 
 test.describe('Synergies Filtering & Sorting - Can I filter and sort synergy data effectively?', () => {
   test.beforeEach(async ({ page }) => {
@@ -162,12 +163,7 @@ test.describe('Synergies Filtering & Sorting - Can I filter and sort synergy dat
 
     await page.waitForTimeout(1000);
 
-    const criticalErrors = consoleErrors.filter(
-      (e) =>
-        !e.includes('favicon') &&
-        !e.includes('sourcemap') &&
-        !e.includes('DevTools')
-    );
+    const criticalErrors = consoleErrors.filter((e) => !isIgnorableConsoleError(e));
     expect(criticalErrors).toEqual([]);
   });
 });

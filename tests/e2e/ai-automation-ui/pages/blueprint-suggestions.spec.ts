@@ -23,6 +23,7 @@
 
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
+import { isIgnorableConsoleError } from '../../../shared/helpers/console-filters';
 import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
 test.describe('Blueprint Suggestions - What blueprint-based automations are suggested?', () => {
@@ -53,7 +54,7 @@ test.describe('Blueprint Suggestions - What blueprint-based automations are sugg
   });
 
   test('generate button opens the suggestion generation form', async ({ page }) => {
-    const generateBtn = page.getByRole('button', { name: /Generate/i });
+    const generateBtn = page.getByRole('button', { name: /Generate/i }).first();
     if (await generateBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await generateBtn.click();
       await waitForLoadingComplete(page);
@@ -99,12 +100,7 @@ test.describe('Blueprint Suggestions - What blueprint-based automations are sugg
     await page.reload();
     await waitForLoadingComplete(page);
 
-    const criticalErrors = consoleErrors.filter(
-      (e) =>
-        !e.includes('favicon') &&
-        !e.includes('sourcemap') &&
-        !e.includes('DevTools')
-    );
+    const criticalErrors = consoleErrors.filter((e) => !isIgnorableConsoleError(e));
     expect(criticalErrors).toEqual([]);
   });
 });

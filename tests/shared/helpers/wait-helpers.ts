@@ -15,7 +15,7 @@ export async function waitForStable(
 ): Promise<void> {
   await locator.waitFor({ state: 'visible', timeout });
   // Wait for any animations to complete
-  await locator.page().waitForTimeout(300);
+  await new Promise((r) => setTimeout(r, 300));
 }
 
 /**
@@ -58,13 +58,13 @@ export async function waitForAnimationComplete(
   const startPosition = await locator.boundingBox();
   if (!startPosition) return;
 
-  await locator.page().waitForTimeout(100);
+  await new Promise((r) => setTimeout(r, 100));
 
   let stableCount = 0;
   const maxStableChecks = 5;
 
   for (let i = 0; i < maxStableChecks; i++) {
-    await locator.page().waitForTimeout(100);
+    await new Promise((r) => setTimeout(r, 100));
     const currentPosition = await locator.boundingBox();
 
     if (
@@ -112,7 +112,7 @@ export async function waitForChartRender(
     await chartElement.waitFor({ state: 'visible', timeout });
   } catch {
     // Chart might be rendered differently, just wait for the container
-    await locator.page().waitForTimeout(500);
+    await new Promise((r) => setTimeout(r, 500));
   }
 }
 
@@ -127,7 +127,7 @@ export async function waitForModalOpen(
   const modal = page.locator(modalSelector).first();
   await modal.waitFor({ state: 'visible', timeout });
   // Wait for modal animation
-  await page.waitForTimeout(200);
+  await new Promise((r) => setTimeout(r, 200));
 }
 
 /**

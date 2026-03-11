@@ -19,7 +19,7 @@
 
 ## Quality Pipeline (TAPPS)
 
-This project uses TAPPS for automated code quality enforcement. When TappsMCP is configured:
+This project uses TAPPS for automated code quality enforcement. TappsMCP is provided by **MCP_DOCKER** (Docker MCP Toolkit). When TappsMCP is configured (see [MCP_SETUP_INSTRUCTIONS.md](MCP_SETUP_INSTRUCTIONS.md)):
 
 - Call `tapps_session_start()` at the start of every session
 - Call `tapps_quick_check(file_path)` after editing any Python file

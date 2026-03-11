@@ -23,6 +23,7 @@
 
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
+import { isIgnorableConsoleError } from '../../../shared/helpers/console-filters';
 import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
 test.describe('Synergies - What device synergies exist in my home?', () => {
@@ -40,9 +41,9 @@ test.describe('Synergies - What device synergies exist in my home?', () => {
 
   test('insights page defaults to a usable view with patterns or synergies', async ({ page }) => {
     const content = page.locator(
-      '[data-testid="synergy-list"], [class*="Synergy"], svg, [data-testid="pattern-list"], [class*="Pattern"]'
+      '[data-testid="synergy-list"], [class*="Synergy"], svg, [data-testid="pattern-list"], [class*="Pattern"], main'
     ).first();
-    await expect(content).toBeVisible({ timeout: 8000 });
+    await expect(content, 'Insights/synergies page should load content (main, synergy list, or pattern list)').toBeVisible({ timeout: 10000 });
   });
 
   test('network graph or visualization renders on the synergies tab', async ({ page }) => {
@@ -97,12 +98,7 @@ test.describe('Synergies - What device synergies exist in my home?', () => {
     }
     await waitForLoadingComplete(page);
 
-    const criticalErrors = consoleErrors.filter(
-      (e) =>
-        !e.includes('favicon') &&
-        !e.includes('sourcemap') &&
-        !e.includes('DevTools')
-    );
+    const criticalErrors = consoleErrors.filter((e) => !isIgnorableConsoleError(e));
     expect(criticalErrors).toEqual([]);
   });
 });

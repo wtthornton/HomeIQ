@@ -246,6 +246,7 @@ $jobScriptBlock = {
     $logFile = Join-Path $worktreePath "bugfix-output.log"
 
     $params = @(
+        "-ConfigPath", "auto-fix-pipeline/config/example/homeiq-default.yaml",
         "-Bugs", $BugCount,
         "-Branch", $branch,
         "-TargetDir", $JobData.UnitPath,

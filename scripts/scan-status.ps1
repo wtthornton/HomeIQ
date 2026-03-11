@@ -73,7 +73,7 @@ if ($Next) {
     Write-Host "  Past bugs:   $($nextUnit.BugsFound) found, $($nextUnit.Confirmed) confirmed, $($nextUnit.FalsePos) false positives"
     Write-Host ""
     Write-Host "Run: " -NoNewline
-    Write-Host ".\scripts\auto-bugfix.ps1 -Bugs 3 -Rotate" -ForegroundColor Green
+    Write-Host ".\auto-fix-pipeline\runner\run.ps1 -Bugs 3" -ForegroundColor Green
     Write-Host ""
     exit 0
 }

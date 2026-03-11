@@ -4,7 +4,7 @@ alwaysApply: true
 
 # TAPPS Quality Pipeline
 
-This project uses the TAPPS MCP server for code quality enforcement.
+This project uses the TAPPS MCP server for code quality enforcement. TappsMCP is provided by **MCP_DOCKER** (Docker MCP Toolkit); configure `.cursor/mcp.json` and, for headless/auto-bugfix, `.mcp.json` at project root. See [.cursor/MCP_SETUP_INSTRUCTIONS.md](../MCP_SETUP_INSTRUCTIONS.md).
 
 ## Session Start (REQUIRED)
 

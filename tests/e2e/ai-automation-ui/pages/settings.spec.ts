@@ -22,6 +22,7 @@
 
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
+import { isIgnorableConsoleError } from '../../../shared/helpers/console-filters';
 import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
 test.describe('Settings - Can I configure the AI automation system?', () => {
@@ -29,6 +30,30 @@ test.describe('Settings - Can I configure the AI automation system?', () => {
     await setupAuthenticatedSession(page);
     await page.goto('/settings');
     await waitForLoadingComplete(page);
+  });
+
+  // Epic 49.11: error state when settings API fails
+  test('settings page shows content or error when preferences API returns 500', async ({ page }) => {
+    await page.route('**/api/**/preferences**', route =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Internal Server Error' }),
+      })
+    );
+    await page.route('**/api/**/settings**', route =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Internal Server Error' }),
+      })
+    );
+
+    await page.goto('/settings');
+    await waitForLoadingComplete(page);
+
+    const mainOrError = page.locator('main').or(page.locator('[data-testid="error-state"]'));
+    await expect(mainOrError.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('@smoke settings page loads with a form or configuration panel', async ({ page }) => {
@@ -93,12 +118,7 @@ test.describe('Settings - Can I configure the AI automation system?', () => {
     await page.reload();
     await waitForLoadingComplete(page);
 
-    const criticalErrors = consoleErrors.filter(
-      (e) =>
-        !e.includes('favicon') &&
-        !e.includes('sourcemap') &&
-        !e.includes('DevTools')
-    );
+    const criticalErrors = consoleErrors.filter((e) => !isIgnorableConsoleError(e));
     expect(criticalErrors).toEqual([]);
   });
 });

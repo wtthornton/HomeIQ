@@ -24,12 +24,7 @@ import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers'
 import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
 test.describe('Enhancement Button - Can I enhance an automation after creating it?', () => {
-  // These tests require live AI services (OpenAI API key, ha-ai-agent-service)
-  test.skip(
-    !process.env.AI_SERVICES_AVAILABLE,
-    'Requires live AI services (set AI_SERVICES_AVAILABLE=true to run)'
-  );
-
+  // Without AI_SERVICES_AVAILABLE the tests will fail on first assertion (e.g. input not found or timeout)
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
     await page.goto('/chat');
@@ -47,9 +42,9 @@ test.describe('Enhancement Button - Can I enhance an automation after creating i
     // Wait for the AI to respond with a proposal
     await page.waitForSelector('text=/automation|create|ready to create/i', { timeout: 30000 });
 
-    // Click "Create Automation" to deploy it
-    const createButton = page.locator('button:has-text("Create Automation"), button:has-text("approve")').first();
-    await createButton.waitFor({ state: 'visible', timeout: 10000 });
+    // Click "Create Automation" to deploy (button text may include suffix e.g. "(Preview first)")
+    const createButton = page.getByRole('button', { name: /Create Automation/i }).first();
+    await createButton.waitFor({ state: 'visible', timeout: 15000 });
     await createButton.click();
 
     // Wait for success confirmation
@@ -69,8 +64,8 @@ test.describe('Enhancement Button - Can I enhance an automation after creating i
 
     await page.waitForSelector('text=/automation|create|ready to create/i', { timeout: 30000 });
 
-    const createButton = page.locator('button:has-text("Create Automation"), button:has-text("approve")').first();
-    await createButton.waitFor({ state: 'visible', timeout: 10000 });
+    const createButton = page.getByRole('button', { name: /Create Automation/i }).first();
+    await createButton.waitFor({ state: 'visible', timeout: 15000 });
     await createButton.click();
 
     await page.waitForSelector('text=/Automation.*created/i', { timeout: 15000 });
@@ -118,8 +113,8 @@ test.describe('Enhancement Button - Can I enhance an automation after creating i
     }
 
     // Now create the automation
-    const createButton = page.locator('button:has-text("Create Automation"), button:has-text("approve")').first();
-    await createButton.waitFor({ state: 'visible', timeout: 10000 });
+    const createButton = page.getByRole('button', { name: /Create Automation/i }).first();
+    await createButton.waitFor({ state: 'visible', timeout: 15000 });
     await createButton.click();
 
     await page.waitForSelector('text=/Automation.*created/i', { timeout: 15000 });

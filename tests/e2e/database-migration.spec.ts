@@ -94,10 +94,7 @@ test.describe('Database Migration Tests', () => {
 
     test('events endpoint returns consistent structure', async ({ request }) => {
       const response = await request.get(`${DATA_BASE}/api/v1/events?limit=10`);
-      if (!response.ok()) {
-        test.skip();
-        return;
-      }
+      expect(response.ok(), 'API should be available').toBe(true);
 
       const events = await response.json();
       expect(Array.isArray(events)).toBe(true);
@@ -123,10 +120,7 @@ test.describe('Database Migration Tests', () => {
 
     test('events/stats endpoint returns consistent structure', async ({ request }) => {
       const response = await request.get(`${DATA_BASE}/api/v1/events/stats`);
-      if (!response.ok()) {
-        test.skip();
-        return;
-      }
+      expect(response.ok(), 'API should be available').toBe(true);
 
       const stats = await response.json();
       expect(typeof stats).toBe('object');
@@ -138,10 +132,7 @@ test.describe('Database Migration Tests', () => {
 
     test('events/entities endpoint returns consistent list format', async ({ request }) => {
       const response = await request.get(`${DATA_BASE}/api/v1/events/entities`);
-      if (!response.ok()) {
-        test.skip();
-        return;
-      }
+      expect(response.ok(), 'API should be available').toBe(true);
 
       const entities = await response.json();
       expect(Array.isArray(entities)).toBe(true);
@@ -159,10 +150,7 @@ test.describe('Database Migration Tests', () => {
 
     test('events/types endpoint returns consistent list format', async ({ request }) => {
       const response = await request.get(`${DATA_BASE}/api/v1/events/types`);
-      if (!response.ok()) {
-        test.skip();
-        return;
-      }
+      expect(response.ok(), 'API should be available').toBe(true);
 
       const types = await response.json();
       expect(Array.isArray(types)).toBe(true);
@@ -179,10 +167,7 @@ test.describe('Database Migration Tests', () => {
     test('pagination works consistently across backends', async ({ request }) => {
       // Fetch page 1
       const page1 = await request.get(`${DATA_BASE}/api/v1/events?limit=3&offset=0`);
-      if (!page1.ok()) {
-        test.skip();
-        return;
-      }
+      expect(page1.ok(), 'Data API should be available').toBe(true);
 
       const events1 = await page1.json();
       expect(Array.isArray(events1)).toBe(true);
@@ -190,10 +175,7 @@ test.describe('Database Migration Tests', () => {
 
       // Fetch page 2
       const page2 = await request.get(`${DATA_BASE}/api/v1/events?limit=3&offset=3`);
-      if (!page2.ok()) {
-        test.skip();
-        return;
-      }
+      expect(page2.ok(), 'Data API should be available').toBe(true);
 
       const events2 = await page2.json();
       expect(Array.isArray(events2)).toBe(true);
@@ -341,10 +323,7 @@ test.describe('Database Migration Tests', () => {
         headers: authHeaders,
       });
 
-      if (!response.ok()) {
-        test.skip();
-        return;
-      }
+      expect(response.ok(), 'API should be available').toBe(true);
 
       const stats = await response.json();
 

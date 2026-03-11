@@ -68,6 +68,10 @@ npx playwright test --ui         # Run with UI mode
 npx playwright test --grep @smoke # Run smoke tests
 ```
 
+## Visual regression
+
+Visual regression (`tests/e2e/visual-regression.spec.ts`) is **not** part of the default CI pipeline. Run it locally or on-demand; see [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md#visual-regression) for baseline update instructions.
+
 ## Test Tags
 
 - `@smoke` - Critical path tests (run on every commit)
