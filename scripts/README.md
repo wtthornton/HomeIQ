@@ -2,6 +2,18 @@
 
 Operational scripts for deploying, managing, and monitoring the HomeIQ stack.
 
+**Single configuration:** Use domain scripts only. See [docs/deployment/DEPLOYMENT_QUICK_REFERENCE.md](../docs/deployment/DEPLOYMENT_QUICK_REFERENCE.md).
+
+```powershell
+# Full stack (Windows)
+.\scripts\start-stack.ps1
+
+# Full stack (Linux/Mac)
+./scripts/start-stack.sh
+```
+
+**Do not** use `docker compose up -d` from the project root — it creates orphan project groups.
+
 ## Current Scripts
 
 | Script | Purpose | When to Use |

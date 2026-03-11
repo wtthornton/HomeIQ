@@ -110,7 +110,9 @@ description: Development environment setup and configuration
 
 ### Docker Service Deployment
 
-**Recommended:** Use the deployment script for all service deployments:
+**Full stack:** Use `.\scripts\start-stack.ps1` (never root `docker compose up`). See `docs/deployment/DEPLOYMENT_QUICK_REFERENCE.md`.
+
+**Single service:** Use the deployment script:
 
 ```powershell
 # Deploy a single service (recommended)

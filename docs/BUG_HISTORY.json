@@ -6,7 +6,7 @@
         "bugs":  [
                      {
                          "pr_merged":  null,
-                         "description":  "create_shared_session_maker() checks `if database_url not in _session_makers` without holding `_engine_lock`. Two concurrent callers can both find the key missing, both create a session maker, and the second overwrites the first in the dict. Any sessions already created from the first session maker are now orphaned ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â½ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¶ their parent session maker is no longer tracked, so those connections leak out of the pool accounting. The engine creation directly below IS protected by _engine_lock, but session maker creation is not.",
+                         "description":  "create_shared_session_maker() checks `if database_url not in _session_makers` without holding `_engine_lock`. Two concurrent callers can both find the key missing, both create a session maker, and the second overwrites the first in the dict. Any sessions already created from the first session maker are now orphaned ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¶ their parent session maker is no longer tracked, so those connections leak out of the pool accounting. The engine creation directly below IS protected by _engine_lock, but session maker creation is not.",
                          "line":  102,
                          "was_real":  null,
                          "severity":  "high",
@@ -22,7 +22,7 @@
                      },
                      {
                          "pr_merged":  null,
-                         "description":  "get_all_context() breaks out of the loop entirely on the first context whose size would exceed the budget (when contexts is non-empty). Contexts are sorted by relevance score descending, so a large but highly-relevant context will cause all subsequent smaller contexts ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â½ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¶ which could fit within the remaining budget ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â½ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¶ to be silently skipped. The LLM receives incomplete context, causing incorrect automation suggestions and missed domain knowledge for all 50+ downstream services using this registry.",
+                         "description":  "get_all_context() breaks out of the loop entirely on the first context whose size would exceed the budget (when contexts is non-empty). Contexts are sorted by relevance score descending, so a large but highly-relevant context will cause all subsequent smaller contexts ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¶ which could fit within the remaining budget ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¶ to be silently skipped. The LLM receives incomplete context, causing incorrect automation suggestions and missed domain knowledge for all 50+ downstream services using this registry.",
                          "line":  129,
                          "was_real":  null,
                          "severity":  "medium",
@@ -134,7 +134,7 @@
         "bugs":  [
                      {
                          "pr_merged":  null,
-                         "description":  "The `anomaly_detection` StandardScaler is initialised in __init__ but never fitted during training Î“Ã‡Ã¶ the IsolationForest is fitted on `X_train_scaled` (produced by `scalers[\u0027failure_prediction\u0027]`), while `scalers[\u0027anomaly_detection\u0027]` is never given `.fit()`. When model_type==\u0027tabpfn\u0027, `predict_device_failure` calls `self.scalers[\u0027anomaly_detection\u0027].transform([features])`, which raises `sklearn.exceptions.NotFittedError` and crashes every TabPFN prediction call.",
+                         "description":  "The `anomaly_detection` StandardScaler is initialised in __init__ but never fitted during training ÃŽâ€œÃƒâ€¡ÃƒÂ¶ the IsolationForest is fitted on `X_train_scaled` (produced by `scalers[\u0027failure_prediction\u0027]`), while `scalers[\u0027anomaly_detection\u0027]` is never given `.fit()`. When model_type==\u0027tabpfn\u0027, `predict_device_failure` calls `self.scalers[\u0027anomaly_detection\u0027].transform([features])`, which raises `sklearn.exceptions.NotFittedError` and crashes every TabPFN prediction call.",
                          "line":  359,
                          "was_real":  null,
                          "severity":  "high",
@@ -182,7 +182,7 @@
                      },
                      {
                          "pr_merged":  null,
-                         "description":  "_normalize_dict() adds \u0027initial_state: true\u0027 to every dict it processes (lines 115-118), but it is called recursively via _normalize_value() for all nested dicts. This injects \u0027initial_state: true\u0027 into trigger item dicts, action step dicts, data dicts, target dicts, and any other nested mappings in the automation YAMLΓÇönot just the top-level automation object where the field is valid. This corrupts the generated YAML with spurious fields in nested structures.",
+                         "description":  "_normalize_dict() adds \u0027initial_state: true\u0027 to every dict it processes (lines 115-118), but it is called recursively via _normalize_value() for all nested dicts. This injects \u0027initial_state: true\u0027 into trigger item dicts, action step dicts, data dicts, target dicts, and any other nested mappings in the automation YAMLÎ“Ã‡Ã¶not just the top-level automation object where the field is valid. This corrupts the generated YAML with spurious fields in nested structures.",
                          "line":  115,
                          "was_real":  null,
                          "severity":  "high",
@@ -203,6 +203,38 @@
                          "was_real":  null,
                          "severity":  "medium",
                          "file":  "domains/automation-core/ai-query-service/src/services/suggestion/generator.py"
+                     }
+                 ],
+        "chain":  false
+    },
+    {
+        "date":  "2026-03-10 15:49",
+        "run_id":  "master",
+        "branch":  "master",
+        "bugs":  [
+                     {
+                         "pr_merged":  null,
+                         "description":  "Leading space before \u0027ner_pipeline = None\u0027 at module level causes IndentationError: unexpected indent, crashing the service at startup before it can load.",
+                         "line":  20,
+                         "was_real":  null,
+                         "severity":  "high",
+                         "file":  "domains/ml-engine/ner-service/src/ner_service.py"
+                     },
+                     {
+                         "pr_merged":  null,
+                         "description":  "tokenized[\"labels\"] = tokenized[\"input_ids\"].copy() sets padding token IDs as training targets. DataCollatorForLanguageModeling(mlm=False) preserves pre-computed labels as-is and does NOT mask padding positions to -100, so the loss is incorrectly computed on padding tokens, corrupting model training.",
+                         "line":  199,
+                         "was_real":  null,
+                         "severity":  "high",
+                         "file":  "domains/ml-engine/nlp-fine-tuning/src/training/fine_tune_peft.py"
+                     },
+                     {
+                         "pr_merged":  null,
+                         "description":  "cb.record_failure() is called inside the per-attempt exception handler of _call_service, which is decorated with @retry(stop=stop_after_attempt(3)). Each of the 3 retry attempts increments the circuit breaker failure count, so the breaker (threshold=5) trips after just 2 caller-level failures (2x3=6 recorded) instead of 5, causing premature circuit opens and false service outages.",
+                         "line":  211,
+                         "was_real":  null,
+                         "severity":  "medium",
+                         "file":  "domains/ml-engine/ai-core-service/src/orchestrator/service_manager.py"
                      }
                  ],
         "chain":  false

@@ -88,7 +88,7 @@ if (-not $Domain) {
 
 Test-Domain -DomainName $Domain
 
-$ComposeFile = Join-Path $ProjectRoot "domains" $Domain "compose.yml"
+$ComposeFile = Join-Path -Path $ProjectRoot -ChildPath "domains\$Domain\compose.yml"
 
 if (-not (Test-Path $ComposeFile)) {
     Write-Host "[ERROR] Compose file not found: $ComposeFile" -ForegroundColor Red
@@ -99,33 +99,33 @@ switch ($Command) {
     "start" {
         Write-Host "[START] Starting $Domain..." -ForegroundColor Green
         & "$ScriptDir\ensure-network.ps1"
-        docker compose -f $ComposeFile up -d
+        docker compose -f $ComposeFile --profile production up -d
         Write-Host "[OK] $Domain started." -ForegroundColor Green
     }
     "stop" {
         Write-Host "[STOP] Stopping $Domain..." -ForegroundColor Yellow
-        docker compose -f $ComposeFile down
+        docker compose -f $ComposeFile --profile production down
         Write-Host "[OK] $Domain stopped." -ForegroundColor Green
     }
     "restart" {
         Write-Host "[RESTART] Restarting $Domain..." -ForegroundColor Yellow
         & "$ScriptDir\ensure-network.ps1"
-        docker compose -f $ComposeFile restart
+        docker compose -f $ComposeFile --profile production restart
         Write-Host "[OK] $Domain restarted." -ForegroundColor Green
     }
     "status" {
-        docker compose -f $ComposeFile ps
+        docker compose -f $ComposeFile --profile production ps
     }
     "logs" {
         if ($Service) {
-            docker compose -f $ComposeFile logs -f $Service
+            docker compose -f $ComposeFile --profile production logs -f $Service
         } else {
-            docker compose -f $ComposeFile logs -f
+            docker compose -f $ComposeFile --profile production logs -f
         }
     }
     "build" {
         Write-Host "[BUILD] Building $Domain images..." -ForegroundColor Green
-        docker compose -f $ComposeFile build
+        docker compose -f $ComposeFile --profile production build
         Write-Host "[OK] $Domain images built." -ForegroundColor Green
     }
     default {

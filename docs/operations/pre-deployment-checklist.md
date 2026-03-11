@@ -173,7 +173,7 @@ docker stop homeiq-ai-automation-ui && docker rm homeiq-ai-automation-ui
 ```
 
 **Prevention:** Always use `./scripts/domain.sh` or `./scripts/start-stack.sh` to manage
-services. Never run `docker compose up` directly from the project root with `--profile`.
+services. Use `./scripts/start-stack.sh` or `.\scripts\start-stack.ps1` — never `docker compose up` from the project root. See [Deployment Quick Reference](../deployment/DEPLOYMENT_QUICK_REFERENCE.md).
 
 ---
 

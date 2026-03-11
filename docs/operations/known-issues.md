@@ -11,8 +11,8 @@
 | ID | Severity | Component | Description | Workaround | Status |
 |---|---|---|---|---|---|
 | KI-001 | Low | websocket-ingestion | 2 HA-dependent services show degraded health when Home Assistant is unavailable | Expected behavior — services operate in graceful degradation mode | Accepted |
-| KI-002 | Low | data-collectors | air-quality, carbon-intensity, electricity-pricing, calendar services use `production` Docker profile — not started by default `docker compose up` | Use `./scripts/domain.sh start data-collectors --all-profiles` (see KI-003 for why NOT root compose) | By Design |
-| KI-003 | Medium | docker | Running `docker compose --profile production up` from root `docker-compose.yml` assigns `name: homeiq` to profile-gated services instead of `homeiq-<domain>`, causing them to appear in the wrong Docker Desktop group | **NEVER** use root compose with `--profile production`. Always use `./scripts/domain.sh start <domain> --all-profiles` or `./scripts/start-stack.sh --all-profiles`. Run `./scripts/domain.sh verify` to detect misplacements. | Resolved (safeguards added) |
+| KI-002 | Low | data-collectors | air-quality, carbon-intensity, electricity-pricing, calendar use `production` profile | Scripts use `--profile production` by default. Always use `./scripts/start-stack.sh` or `./scripts/domain.sh start <domain>`. | By Design |
+| KI-003 | Medium | docker | Root `docker compose up` creates orphan "homeiq" project — containers appear in wrong Docker Desktop group | **NEVER** use root compose. Use `./scripts/start-stack.sh` or `./scripts/domain.sh start <domain>`. Run `./scripts/domain.sh verify` to detect misplacements. | Resolved (single config) |
 
 ---
 
@@ -54,16 +54,14 @@ via the per-domain compose file.**
 ### Do
 
 ```bash
-# Start a single domain (default profile)
+# Start full stack (single configuration)
+./scripts/start-stack.sh      # Linux/Mac
+.\scripts\start-stack.ps1     # Windows
+
+# Start a single domain
 ./scripts/domain.sh start data-collectors
 
-# Start a domain with production-profile services
-./scripts/domain.sh start data-collectors --all-profiles
-
-# Start the full stack with all profiles
-./scripts/start-stack.sh --all-profiles
-
-# Verify all containers are in the correct groups
+# Verify containers are in correct project groups
 ./scripts/domain.sh verify
 ```
 
@@ -83,9 +81,9 @@ cd domains/data-collectors && docker compose up -d
 # 1. Identify misplaced containers
 ./scripts/domain.sh verify
 
-# 2. Remove and redeploy
-docker rm -f <container-name>
-./scripts/domain.sh start <domain> --all-profiles
+# 2. Remove orphan project and redeploy
+docker compose --profile production down
+./scripts/start-stack.sh
 ```
 
 ---

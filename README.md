@@ -124,8 +124,12 @@ cp infrastructure/env.example infrastructure/.env
 #   HA_WS_URL=ws://YOUR_HA_IP:8123/api/websocket
 #   HA_TOKEN=your-long-lived-access-token
 
-# Start all services
-docker compose up -d
+# Start all services (by domain — recommended; groups by domain in Docker Desktop)
+./scripts/start-stack.sh      # Linux/Mac
+.\scripts\start-stack.ps1     # Windows
+
+# Alternative: merge all into one project
+# docker compose --profile production up -d
 
 # Verify deployment
 ./scripts/verify-deployment.sh
@@ -152,8 +156,9 @@ docker compose -f domains/core-platform/compose.yml up -d
 docker compose -f domains/core-platform/compose.yml \
                -f domains/data-collectors/compose.yml up -d
 
-# Full stack (all 50 services)
-docker compose up -d
+# Full stack (all 50 services, grouped by domain in Docker Desktop)
+./scripts/start-stack.sh      # Linux/Mac
+.\scripts\start-stack.ps1     # Windows
 ```
 
 ---

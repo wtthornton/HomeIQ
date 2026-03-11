@@ -3,10 +3,8 @@
 # Each domain launches as a separate Docker Desktop group (via compose name: directive).
 #
 # Usage:
-#   ./scripts/start-stack.sh                         # Default profile services only
-#   ./scripts/start-stack.sh --all-profiles           # Include production-profile services
-#   ./scripts/start-stack.sh --skip-wait              # Skip health polling after core-platform
-#   ./scripts/start-stack.sh --all-profiles --skip-wait
+#   ./scripts/start-stack.sh              # Full stack (includes production-profile services)
+#   ./scripts/start-stack.sh --skip-wait  # Skip health polling after core-platform
 #
 # IMPORTANT: This script starts each domain via its own compose file to ensure
 # containers get the correct 'homeiq-<domain>' project name in Docker Desktop.
@@ -18,11 +16,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 SKIP_WAIT=false
-ALL_PROFILES=false
 for arg in "$@"; do
   case "$arg" in
     --skip-wait) SKIP_WAIT=true ;;
-    --all-profiles) ALL_PROFILES=true ;;
   esac
 done
 
@@ -87,13 +83,8 @@ start_domain() {
     return 1
   fi
 
-  local profile_flags=()
-  if [[ "$ALL_PROFILES" == "true" ]]; then
-    profile_flags+=(--profile production)
-  fi
-
-  log_info "Starting $domain${ALL_PROFILES:+ (all profiles)}..."
-  docker compose -f "$compose_file" "${profile_flags[@]}" up -d
+  log_info "Starting $domain..."
+  docker compose -f "$compose_file" --profile production up -d
   log_ok "$domain started."
 }
 

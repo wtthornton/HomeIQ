@@ -1,8 +1,8 @@
 {
     "version":  1,
     "description":  "Auto-bugfix rotating scan manifest. Tracks which scan units have been scanned and their bug yield.",
-    "last_unit_scanned":  "automation-core-rest",
-    "total_runs":  6,
+    "last_unit_scanned":  "ml-engine-rest",
+    "total_runs":  7,
     "units":  [
                   {
                       "id":  "libs",
@@ -82,9 +82,9 @@
                       "path":  "domains/ml-engine/",
                       "priority_weight":  5,
                       "scan_hint":  "Scan ai-core-service, ai-training-service, ml-service, rag-service, model-prep, ner-service, nlp-fine-tuning, openai-service, openvino-service. SKIP device-intelligence-service (has its own unit).",
-                      "last_scanned":  null,
-                      "total_runs":  0,
-                      "total_bugs_found":  0,
+                      "last_scanned":  "2026-03-10T22:51:56.9454352Z",
+                      "total_runs":  1,
+                      "total_bugs_found":  3,
                       "bugs_fixed_confirmed":  0,
                       "false_positives":  0
                   },

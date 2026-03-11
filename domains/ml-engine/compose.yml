@@ -193,7 +193,8 @@ services:
     env_file:
       - ../../infrastructure/env.ai-automation
     environment:
-      - AI_CORE_API_KEY=${AI_CORE_API_KEY}
+      # Fallback to API_KEY for local dev when AI_CORE_API_KEY not in .env
+      - AI_CORE_API_KEY=${AI_CORE_API_KEY:-${API_KEY:-homeiq-dev-ai-core-key}}
       - OPENVINO_SERVICE_URL=http://openvino-service:8019
       - ML_SERVICE_URL=http://ml-service:8020
       - NER_SERVICE_URL=http://ner-service:8031

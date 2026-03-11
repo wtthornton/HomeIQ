@@ -1,14 +1,16 @@
 # HomeIQ Deployment Runbook
 
-**Last Updated:** February 27, 2026
+**Last Updated:** March 11, 2026
 **Status:** Active
-**Version:** 2.5
+**Version:** 2.6
 
 ---
 
 ## Overview
 
 This runbook provides step-by-step instructions for deploying HomeIQ to production, including pre-deployment checks, deployment procedures, and post-deployment verification.
+
+**Single configuration:** For local deployment, always use the domain scripts. See [Deployment Quick Reference](./DEPLOYMENT_QUICK_REFERENCE.md) for the canonical approach.
 
 **Note:** This runbook covers both automated (GitHub Actions) and manual deployment procedures. For automated deployments, see [Deployment Pipeline Documentation](./DEPLOYMENT_PIPELINE.md).
 
@@ -583,9 +585,25 @@ influxdb (direct writes)
 
 ### Manual Deployment
 
-**Use this method for local deployments or when automation is unavailable:**
+**Use this method for local deployments or when automation is unavailable.**
 
-**⚠️ RECOMMENDED: Use the deployment script for easier deployments:**
+#### Domain-Based Startup (Single Configuration)
+
+**Start by domain** — the only supported local configuration. Services appear grouped in Docker Desktop (homeiq-core-platform, homeiq-data-collectors, etc.):
+
+```powershell
+# Windows
+.\scripts\start-stack.ps1
+
+# Linux/Mac
+./scripts/start-stack.sh
+```
+
+Uses `--profile production` so data-collectors includes air-quality, carbon-intensity, electricity-pricing, and calendar. Use `-SkipWait` to skip health polling. See [Deployment Quick Reference](./DEPLOYMENT_QUICK_REFERENCE.md).
+
+#### Single-Service Deployment
+
+**Use the deployment script for deploying individual services:**
 
 ```powershell
 # Deploy single service with health check (recommended)

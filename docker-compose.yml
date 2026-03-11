@@ -3,8 +3,17 @@
 # This file uses the Docker Compose `include` directive (v2.20+) to compose
 # 9 independently deployable domain groups from co-located compose files.
 #
-# Usage:
-#   Full stack:        docker compose up -d
+# ONLY CONFIG: Run by domain — never use this file to start the full stack.
+#   Full stack: .\scripts\start-stack.ps1 (Windows) or ./scripts/start-stack.sh (Linux/Mac)
+#   Single domain: docker compose -f domains/<domain>/compose.yml --profile production up -d
+#   See: docs/deployment/DEPLOYMENT_QUICK_REFERENCE.md
+#
+# Usage (root compose — for CI/rebuild only; creates merged "homeiq" project):
+#   Full stack (by domain, recommended):
+#     .\scripts\start-stack.ps1          # Windows
+#     ./scripts/start-stack.sh            # Linux/Mac
+#   Full stack (merged into one project, all under "homeiq"):
+#     docker compose --profile production up -d
 #   Single domain:     docker compose -f domains/core-platform/compose.yml up -d
 #   Core + collectors: docker compose -f domains/core-platform/compose.yml \
 #                                     -f domains/data-collectors/compose.yml up -d

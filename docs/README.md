@@ -47,9 +47,10 @@ This is the **single index** for project documentation. Use it for correct paths
 
 | Document | Description |
 |----------|-------------|
-| [Docker Shared Resources](docker-shared-resources.md) | Shared volume ownership, external references, and migration |
+| **[Deployment Quick Reference](deployment/DEPLOYMENT_QUICK_REFERENCE.md)** | **Single configuration — start here** |
 | [Deployment Runbook](deployment/DEPLOYMENT_RUNBOOK.md) | Step-by-step deployment guide |
 | [Deployment Pipeline](deployment/DEPLOYMENT_PIPELINE.md) | CI/CD pipeline documentation |
+| [Docker Shared Resources](docker-shared-resources.md) | Shared volume ownership, external references |
 | [Nginx Proxy](deployment/NGINX_PROXY_CONFIGURATION.md) | Nginx reverse proxy patterns |
 | [Scripts Reference](../scripts/README.md) | Domain management, stack startup, and operational scripts |
 

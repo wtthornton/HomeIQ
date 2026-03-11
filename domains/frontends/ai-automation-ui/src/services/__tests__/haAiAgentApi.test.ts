@@ -130,7 +130,7 @@ describe('haAiAgentApi', () => {
     it('sends POST to create conversation', async () => {
       mockFetchJSON.mockResolvedValue({ conversation_id: 'new-1', state: 'active', message_count: 0 });
 
-      const result = await createConversation('Hello bot');
+      await createConversation('Hello bot');
 
       expect(mockFetchJSON).toHaveBeenCalledWith(
         'http://localhost:8030/api/v1/conversations',

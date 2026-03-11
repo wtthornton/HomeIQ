@@ -3,8 +3,8 @@
  * Story 44.1: API client coverage for conversation, action, and automation APIs.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { apiV2, APIError } from '../api-v2';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { apiV2 } from '../api-v2';
 
 // Mock haAiAgentApi to avoid side effects from validateYAML delegation
 vi.mock('../haAiAgentApi', () => ({
