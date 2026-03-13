@@ -107,6 +107,8 @@ export const HAAgentChat: React.FC = () => {
         const loadedMessages = conversation.messages?.map((msg) => ({
           ...msg,
           isLoading: false,
+          // Map API tool_calls (snake_case) to component toolCalls (camelCase)
+          toolCalls: msg.tool_calls || undefined,
         })) || [];
         
         // When loading a conversation, replace all messages (don't merge)

@@ -524,8 +524,16 @@ async def chat(
 
             # Add assistant message to conversation (only if there's content or it's the final response)
             if assistant_content or not function_call_items:
+                # On the final message (no more tool calls), persist accumulated tool_calls
+                tc_dicts = None
+                if not function_call_items and tool_calls:
+                    tc_dicts = [
+                        {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
+                        for tc in tool_calls
+                    ]
                 await conversation_service.add_message(
-                    conversation_id, "assistant", assistant_content or "[Processing...]"
+                    conversation_id, "assistant", assistant_content or "[Processing...]",
+                    tool_calls=tc_dicts,
                 )
 
             # Process tool calls if any

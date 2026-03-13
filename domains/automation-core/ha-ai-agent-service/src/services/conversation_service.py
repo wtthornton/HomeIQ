@@ -220,7 +220,8 @@ class ConversationService:
         return None
 
     async def add_message(
-        self, conversation_id: str, role: str, content: str
+        self, conversation_id: str, role: str, content: str,
+        tool_calls: list[dict] | None = None,
     ) -> Message | None:
         """
         Add a message to a conversation.
@@ -229,12 +230,15 @@ class ConversationService:
             conversation_id: Conversation ID
             role: Message role ('user' or 'assistant')
             content: Message content
+            tool_calls: Optional list of tool calls made during this message
 
         Returns:
             Created Message instance or None if conversation not found
         """
         async for session in get_session():
-            return await db_add_message(session, conversation_id, role, content)
+            return await db_add_message(
+                session, conversation_id, role, content, tool_calls=tool_calls,
+            )
         return None
 
     async def get_messages(self, conversation_id: str) -> list[Message]:

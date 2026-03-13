@@ -1,6 +1,6 @@
 # TAPPS Quality Pipeline - MANDATORY
 
-**HomeIQ.** Full AI assistant guide: [.cursor/CLAUDE.md](.cursor/CLAUDE.md). Doc index: [docs/README.md](docs/README.md).
+**HomeIQ.** Full AI assistant guide: [.cursor/CLAUDE.md](.cursor/CLAUDE.md). Doc index: [docs/README.md](docs/README.md). Epic tracker: [stories/OPEN-EPICS-INDEX.md](stories/OPEN-EPICS-INDEX.md) — check before creating work, update after completing work.
 
 This project uses the TAPPS MCP server for automated code quality enforcement. TappsMCP is provided by **MCP_DOCKER** (Docker MCP Toolkit). See [.cursor/MCP_SETUP_INSTRUCTIONS.md](.cursor/MCP_SETUP_INSTRUCTIONS.md).
 Every tool response includes `next_steps` - follow them.

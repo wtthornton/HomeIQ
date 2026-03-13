@@ -1,13 +1,20 @@
 # Frontend Testing Epics & Stories
 
-**Created:** 2026-03-02
+**Created:** 2026-03-02 | **Updated:** 2026-03-13 (epics renumbered, delivery status updated)
 **Based on:** Automated agent review of all 3 frontend apps
-**Status:** In Progress — Epic 37 (E2E intent-based rewrite) complete
+**Status:** Epics 50-53 DELIVERED (by project Epics 42-45). Epics 54-55 renumbered to 58-59.
 **Supersedes:** Frontend Epics Roadmap Epic 5 (generic testing framework) — this plan is detailed and actionable
 
-> **Epic 37 (Complete — 2026-03-05):** All 55 Playwright E2E test files rewritten with
-> intent-based methodology across Health Dashboard (30 files) and AI Automation UI (21 files).
-> 157/189 tests passing (83%), 20 skipped. Commit `b8fe047`.
+> **DELIVERY STATUS (2026-03-13):**
+> - **Epic 50 (Test Infra)** → DELIVERED by project Epic 42 (Sprint 10, Mar 10)
+> - **Epic 51 (HD Testing)** → DELIVERED by project Epic 43 (268 tests, 30 files)
+> - **Epic 52 (AI UI Testing)** → DELIVERED by project Epic 44 (285 tests, 22 files)
+> - **Epic 53 (Obs Dashboard)** → DELIVERED by project Epic 45 (109 tests, 8 files, 57% coverage)
+> - **Epic 54 (Test Quality)** → RENUMBERED to **project Epic 58** (not yet started)
+> - **Epic 55 (Integration & E2E)** → RENUMBERED to **project Epic 59** (not yet started)
+>
+> Epic numbers in this file are LOCAL to this planning doc. See `stories/OPEN-EPICS-INDEX.md`
+> for canonical project-wide epic numbers.
 
 ---
 

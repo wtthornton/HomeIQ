@@ -6,6 +6,7 @@ Pydantic 2.9+ models for conversation management endpoints.
 """
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -18,6 +19,9 @@ class MessageResponse(BaseModel):
     message_id: str = Field(..., description="Message ID")
     role: str = Field(..., description="Message role (user, assistant)")
     content: str = Field(..., description="Message content")
+    tool_calls: list[dict[str, Any]] | None = Field(
+        None, description="Tool calls made during this message (e.g. create_automation_from_prompt)"
+    )
     created_at: datetime = Field(..., description="Message creation timestamp")
 
     model_config = ConfigDict(from_attributes=True)

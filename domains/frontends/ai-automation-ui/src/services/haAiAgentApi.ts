@@ -59,6 +59,7 @@ export interface Message {
   message_id: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
+  tool_calls?: ToolCall[];
   created_at: string;
 }
 

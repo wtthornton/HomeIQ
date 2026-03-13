@@ -1,10 +1,35 @@
 # Phase 5: Production Deployment Plan
 
-**Date:** February 27, 2026
-**Status:** READY FOR EXECUTION
-**Target Start:** Week of March 5, 2026
+**Date:** February 27, 2026 | **Refreshed:** March 13, 2026
+**Status:** NEEDS REFRESH BEFORE EXECUTION — plan is stale (see update notes below)
+**Target Start:** TBD (original: March 5-9, 2026 — window passed)
 **Estimated Duration:** 5 days
 **Overall Progress:** 66.7% complete (4/6 phases done)
+
+> **2026-03-13 UPDATE — PLAN REFRESH REQUIRED:**
+>
+> This plan was written Feb 27 when the project had 19 epics and 50 services.
+> As of Mar 13, the project has **56 completed epics** and **51+ containers**.
+> Key changes since this plan was written:
+>
+> | Area | Feb 27 State | Mar 13 State |
+> |------|-------------|-------------|
+> | Epics complete | 19 | 56 (+37 more) |
+> | Containers | 50 + 3 frontends | 51 services + 5 frontends (includes voice-gateway, ha-device-control) |
+> | Healthy containers | 47/49 (2 HA-dependent) | 51/51 (all healthy, redeployed Mar 6) |
+> | Frontend tests | 704 Python tests only | 662 frontend tests + 704 Python tests |
+> | Security | Basic hardening | Epic 55 production hardening (rate limits, pool tuning, security headers) |
+> | Observability | Prometheus + Grafana | Epic 56 structured logging, Prometheus metrics, tracing, alerts, ops scripts |
+> | New services | — | voice-gateway (8041), ha-device-control (8040), scheduled tasks |
+> | New libs | 6 shared libs | + homeiq-memory (institutional memory with pgvector) |
+> | E2E tests | Basic Playwright | 13-story E2E expansion (Epic 49), visual regression, route-spec matrix |
+>
+> **Before executing, update:**
+> 1. Service inventory in pre-deployment checks (add voice-gateway, ha-device-control)
+> 2. Health endpoint table (now 51+ services)
+> 3. Rollout tiers to include new domain services
+> 4. Monitoring section to leverage Epic 56 structured logging + ops scripts
+> 5. Timeline — schedule a new deployment window
 
 ---
 
@@ -26,33 +51,38 @@
 
 ### What We're Deploying
 
-Phase 5 is the production deployment of **19 completed epics** across **50 microservices**:
+Phase 5 is the production deployment of **56 completed epics** across **51+ microservices**:
 
 | Epics Completed | Services | Status | Notes |
 |---|---|---|---|
 | **Phase 1** — Library Foundation | 38 | ✅ READY | Core Python packages (SQLAlchemy 2.0.36+, FastAPI 0.115+, Pydantic 2.9+) |
 | **Phase 2** — Standard Libraries | 40+ | ✅ READY | Testing frameworks, async patterns, async-HTTP, python-dotenv |
-| **Phase 4** — Frontend & Testing | 2 frontends | ✅ READY | health-dashboard, ai-automation-ui (Vite, TypeScript, Playwright) |
+| **Phase 4** — Frontend & Testing | 2 frontends | ✅ READY | health-dashboard, ai-automation-ui (Vite 7, React 19, Tailwind 4) |
 | **Phase 4b** — Frontend Redesign | 3 apps | ✅ READY | UI overhaul, design system, 29 tabs → 14 consolidated |
-| **Activity Recognition** | 1 feature | ✅ READY | Cross-agent context integration |
-| **Deploy Pipeline Root Cause Fixes** | 1 feature | ✅ READY | Hardware-aware templates, LLM prompt fixes, automation updates |
-| **Agent Evaluation Framework** | 4 agents | ✅ READY | @trace_session wired, 20 evaluators, 5-level pyramid |
+| **Sprints 2-4** — Quality + Docker + Migration | 51 services | ✅ READY | Lint cleanup, Docker hardening, 38/38 service migration, shared libs |
+| **Sprints 5-6** — HA Enhancements | 2 new services | ✅ READY | voice-gateway (8041), ha-device-control (8040), scheduled tasks, event bus |
+| **Sprint 7** — Memory Brain | 8 integrations | ✅ READY | homeiq-memory lib, pgvector, trust model, 8 services integrated |
+| **Sprint 8** — Pattern Detection + ML | 10 detectors | ✅ READY | 8 new detectors, ML deps upgraded (transformers, openvino) |
+| **Sprint 10** — Frontend Testing | 662 tests | ✅ READY | 3 apps tested: 268 HD + 285 AI UI + 109 obs-dashboard tests |
+| **Sprint 19** — Production Hardening | All | ✅ READY | Rate limits, pool tuning, security headers, structured logging, Prometheus metrics, tracing, alerts |
 | **PostgreSQL Migration** | 13 services | ✅ READY | Schema-per-domain, Alembic migrations |
 | **Operational Readiness** | All | ✅ READY | Prometheus, Grafana, backups, runbooks, E2E tests |
 
 ### Key Metrics
 
-- **Service Count:** 50 microservices + 3 frontends (53 total)
-- **Tested Status:** 47/49 services healthy (2 HA-dependent = expected degradation)
-- **Test Coverage:** 704+ tests passing, 70 Python files validated (ruff + bandit clean)
-- **Docker:** 28 Dockerfiles fixed, all shared libs properly wired
+- **Service Count:** 51 microservices + 5 frontends (56 total containers)
+- **Tested Status:** 51/51 services healthy (redeployed Mar 6, 2026)
+- **Test Coverage:** 662 frontend tests + 704+ Python tests, 70 Python files validated (ruff + bandit clean)
+- **Docker:** 28 Dockerfiles hardened, UID 1001, multi-stage builds, all shared libs wired
 - **Database:** PostgreSQL 17 ready, Alembic migrations for 13 services
-- **Monitoring:** Prometheus v3.2.1 + Grafana 11.5.2 with 15 alert rules
+- **Monitoring:** Prometheus v3.2.1 + Grafana 11.5.2 with 15 alert rules + Epic 56 structured logging
+- **Security:** Epic 55 rate limits + security headers + Epic 1 frontend hardening
+- **E2E:** 13-story Playwright expansion (Epic 49) with visual regression and route-spec matrix
 
 ### Timeline
 
 ```
-Phase 5 Deployment Window: March 5-9, 2026 (off-peak hours)
+Phase 5 Deployment Window: TBD (original Mar 5-9 passed — reschedule needed)
 ├─ Day 1: Pre-deployment validation & health checks
 ├─ Day 2: Staged rollout (Tier 1-2)
 ├─ Day 3: Full production deployment + validation
@@ -68,7 +98,7 @@ Phase 5 Deployment Window: March 5-9, 2026 (off-peak hours)
 
 **Goal:** Verify all services are healthy before deployment
 
-**33 Services with Health Endpoints Confirmed:**
+**44+ Services with Health Endpoints Confirmed:**
 
 | Service | Port | Endpoint | Domain |
 |---|---|---|---|
@@ -90,22 +120,34 @@ Phase 5 Deployment Window: March 5-9, 2026 (off-peak hours)
 | openvino-service | 8026 | /health | ml-engine |
 | ml-service | 8025 | /health | ml-engine |
 | ai-training-service | 8033 | /health | ml-engine |
+| rag-service | 8027 | /health | ml-engine |
+| openai-service | 8020 | /health | ml-engine |
 | automation-linter | 8016 | /health | automation-core |
 | ha-ai-agent-service | 8030 | /health | automation-core |
 | automation-trace-service | 8044 | /health | automation-core |
+| ai-automation-service-new | 8036 | /health | automation-core |
+| ai-query-service | 8035 | /health | automation-core |
+| yaml-validation-service | 8037 | /health | automation-core |
+| ha-device-control | 8040 | /health | automation-core |
 | ai-code-executor | (internal only) | /health | automation-core |
 | blueprint-suggestion-service | 8039 | /health | blueprints |
 | blueprint-index | 8038 | /health | blueprints |
 | automation-miner | 8029 | /health | blueprints |
+| rule-recommendation-ml | 8040 | /api/v1/health | blueprints |
 | energy-correlator | 8017 | /health | energy-analytics |
 | energy-forecasting | 8042 | /api/v1/health | energy-analytics |
+| proactive-agent-service | 8031 | /health | energy-analytics |
 | device-health-monitor | 8019 | /health | device-management |
 | device-database-client | 8022 | /health | device-management |
 | device-recommender | 8023 | /health | device-management |
 | device-setup-assistant | 8021 | /health | device-management |
 | device-context-classifier | 8032 | /health | device-management |
+| activity-recognition | 8043 | /health | device-management |
 | activity-writer | 8045 | /health | device-management |
 | ha-setup-service | 8024 | /health | device-management |
+| ai-pattern-service | 8034 | /health | pattern-analysis |
+| api-automation-edge | 8041 | /health | pattern-analysis |
+| voice-gateway | 8041 | /health | frontends |
 
 **Pre-Deployment Health Check Script:**
 
@@ -150,18 +192,23 @@ exit $FAILED
 # Python services: 704+ tests
 pytest tests/ -v --tb=short
 
-# Frontend services: 150+ tests
+# Frontend services: 662+ tests (268 HD + 285 AI UI + 109 obs-dashboard)
 cd domains/core-platform/health-dashboard && npm test
 cd domains/frontends/ai-automation-ui && npm test
+cd domains/frontends/observability-dashboard && pytest tests/ -v
 
 # Integration tests: Cross-group validation
 pytest tests/integration/ -v
 
-# E2E tests (Playwright): 3 scenarios
-pytest tests/e2e/playwright/ -v
+# E2E tests (Playwright): 13+ scenarios (Epic 49 expansion)
+npx playwright test
   - database-health (PostgreSQL + InfluxDB)
   - cross-service-data-flow
   - database-migration rollback
+  - health-dashboard tabs (overview, services, devices, events, hygiene, validation)
+  - ai-automation-ui pages (chat, deployed, patterns, suggestions, navigation)
+  - visual regression baseline
+  - route-spec matrix validation
 
 # Success Criteria: 100% pass rate
 ```
@@ -177,8 +224,8 @@ pytest tests/e2e/playwright/ -v
 time docker buildx bake full
 
 # Expected output:
-# ✅ 50 microservices built
-# ✅ 3 frontends built
+# ✅ 51 microservices built
+# ✅ 5 frontends built (incl. voice-gateway, jaeger)
 # ✅ No layer cache misses on critical layers
 # ✅ Image registry push (if using private registry)
 ```
@@ -187,7 +234,7 @@ time docker buildx bake full
 
 ```bash
 # Verify all images present
-docker images | grep homeiq | wc -l  # Should be 53
+docker images | grep homeiq | wc -l  # Should be 56
 
 # Verify image sizes reasonable (no bloat)
 docker images | grep homeiq | awk '{print $2, $7}' | sort
@@ -417,10 +464,10 @@ done
 
 #### Tier 4-7: Specialized Services (Fourth onwards — 3 hours)
 
-**Tier 4** — Automation Core (7 services)
+**Tier 4** — Automation Core (8 services)
 ```
 docker compose -f domains/automation-core/compose.yml up -d --pull always
-# ha-ai-agent, ai-automation, ai-query, yaml-validation, linter, code-executor, traces
+# ha-ai-agent, ai-automation, ai-query, yaml-validation, linter, code-executor, traces, ha-device-control
 ```
 
 **Tier 5** — Blueprints (4 services)
@@ -447,10 +494,10 @@ docker compose -f domains/pattern-analysis/compose.yml up -d --pull always
 # ai-pattern, api-automation-edge
 ```
 
-**Tier 9** — Frontends (3 services)
+**Tier 9** — Frontends (5 services)
 ```
 docker compose -f domains/frontends/compose.yml up -d --pull always
-# jaeger, observability-dashboard, ai-automation-ui
+# jaeger, observability-dashboard, ai-automation-ui, voice-gateway, health-dashboard-frontend
 ```
 
 ---
@@ -492,29 +539,30 @@ Tier 3 Deployment (Hour 3-4):
   [ ] Sign-off: Tier 3 stable
 
 Tier 4-8 Deployment (Hour 5):
-  [ ] Deploy automation-core (7 services)
+  [ ] Deploy automation-core (8 services, incl. ha-device-control)
   [ ] Deploy blueprints (4 services)
   [ ] Deploy energy-analytics (3 services)
   [ ] Deploy device-management (8 services)
   [ ] Deploy pattern-analysis (2 services)
-  [ ] Run health checks: 24/24 healthy
+  [ ] Run health checks: 25/25 healthy
   [ ] Sign-off: Tiers 4-8 stable
 
 Tier 9 Deployment (Hour 6):
-  [ ] Deploy frontends (3 services + Jaeger)
+  [ ] Deploy frontends (5 services incl. voice-gateway, Jaeger)
   [ ] Verify observability-dashboard loading
   [ ] Verify ai-automation-ui loading
   [ ] Verify health-dashboard loading
+  [ ] Verify voice-gateway responsive
   [ ] Sign-off: All frontends operational
 
 Post-Deployment (Hour 7):
   [ ] Run full integration test suite
-  [ ] Run E2E tests
+  [ ] Run E2E tests (13+ Playwright scenarios)
   [ ] Manual smoke testing
-  [ ] Verify no error spikes
+  [ ] Verify no error spikes (check structured logs from Epic 56)
   [ ] Commit deployment manifest to docs/
 
-Day 2 Sign-off: ✅ Deployment complete, all 50 services healthy
+Day 2 Sign-off: ✅ Deployment complete, all 51+ services healthy
 ```
 
 ---
@@ -567,7 +615,7 @@ pytest tests/validation/check_data_integrity.py -v
 pytest tests/smoke/ -v --tb=short
 
 # 4. Notify team
-# "Phase 5 deployment complete. All 50 services healthy. Monitoring active."
+# "Phase 5 deployment complete. All 51+ services healthy. Monitoring active."
 ```
 
 ### Day 3: Validation & Cutover
@@ -576,7 +624,7 @@ pytest tests/smoke/ -v --tb=short
 
 ```yaml
 Morning (9 AM):
-  ✅ All 50 services healthy
+  ✅ All 51+ services healthy
   ✅ All frontends loading correctly
   ✅ Data flows working (HA → ingestion → influxdb → data-api)
   ✅ No error spikes in logs
@@ -601,7 +649,7 @@ End of Day (5 PM):
 
 | Metric | Go Threshold | Status | Decision |
 |---|---|---|---|
-| Services Healthy | 100% (50/50) | ✅ | GO |
+| Services Healthy | 100% (51/51+) | ✅ | GO |
 | Test Pass Rate | 100% | ✅ | GO |
 | Error Rate | <0.5% | ✅ | GO |
 | Response Time | <baseline+10% | ✅ | GO |
@@ -618,9 +666,9 @@ End of Day (5 PM):
 **Prometheus + Grafana Setup:**
 
 ```bash
-# 1. Verify Prometheus scraping all 50 services
+# 1. Verify Prometheus scraping all 51+ services
 curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets | length'
-# Expected: 50+
+# Expected: 51+
 
 # 2. Verify Grafana dashboards
 # - HomeIQ Service Health (15 alert rules)
@@ -629,7 +677,13 @@ curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets | length'
 # - Jaeger Distributed Tracing
 # - Custom E2E dashboard
 
-# 3. Configure alert routing (PagerDuty, Slack, etc.)
+# 3. Verify Epic 56 observability tooling
+# - Structured JSON logging (all services)
+# - Prometheus /metrics endpoints (service-level metrics)
+# - OpenTelemetry tracing spans
+# - Ops scripts: scripts/ops-health-check.sh, scripts/ops-log-analyzer.sh
+
+# 4. Configure alert routing (PagerDuty, Slack, etc.)
 ```
 
 ### Critical Alerts (24x7 Monitoring)
@@ -649,7 +703,7 @@ curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets | length'
 
 ```yaml
 Availability:
-  - All 50 services: 99.9% uptime target
+  - All 51+ services: 99.9% uptime target
   - Tier 1 services: 99.99% uptime target
 
 Performance:
@@ -811,7 +865,7 @@ docker exec influxdb influx restore \
 docker compose up -d
 
 # 5. Wait for all services to be healthy (10-15 min)
-watch -n 5 'docker ps | grep healthy | wc -l'  # Should reach 50
+watch -n 5 'docker ps | grep healthy | wc -l'  # Should reach 51+
 
 # 6. Run full health check
 scripts/pre-deployment-health-check.sh
@@ -840,9 +894,9 @@ scripts/pre-deployment-health-check.sh
 
 **Must Pass Before Day 2 Deployment:**
 
-- [ ] All 33 health endpoints responding
-- [ ] 704+ tests passing (100% pass rate)
-- [ ] Docker builds successful for all 53 services
+- [ ] All 44+ health endpoints responding
+- [ ] 1366+ tests passing (704 Python + 662 frontend, 100% pass rate)
+- [ ] Docker builds successful for all 56 containers
 - [ ] PostgreSQL 17 with all 8 schemas deployed
 - [ ] InfluxDB 2.8.0 with all buckets created
 - [ ] Alembic migrations run on all services
@@ -890,7 +944,7 @@ scripts/pre-deployment-health-check.sh
 
 | Metric | Target | Actual | Status |
 |---|---|---|---|
-| Services Healthy | 50/50 | _ | [ ] |
+| Services Healthy | 51/51+ | _ | [ ] |
 | Error Rate | <0.5% | _ | [ ] |
 | Response Time p95 | <baseline+10% | _ | [ ] |
 | Uptime | 100% | _ | [ ] |
@@ -909,22 +963,25 @@ scripts/pre-deployment-health-check.sh
 **Message to Team:**
 
 ```
-Subject: Phase 5 Production Deployment - Week of March 5
+Subject: Phase 5 Production Deployment - [TBD Week]
 
 Hi team,
 
 Phase 5 (Production Deployment) is scheduled for:
 - Date: [TBD Day 1-3]
 - Window: 9 PM - 6 AM (off-peak)
-- Services: All 50 microservices + 3 frontends
+- Services: All 51 microservices + 5 frontends (56 containers total)
 - Expected Duration: 3-4 hours deployment, 24-48 hours validation
 
-What's being deployed:
+What's being deployed (56 epics, 357 stories):
 ✅ Phase 1-4 library upgrades (SQLAlchemy 2.0, FastAPI 0.115+, Pydantic 2.9+)
-✅ Frontend redesign (29 tabs → 14 consolidated pages)
+✅ Frontend redesign (29 tabs → 14 consolidated pages, React 19, Vite 7, Tailwind 4)
 ✅ PostgreSQL migration (PostgreSQL 17, schema-per-domain)
-✅ Agent evaluation framework (4 agents, 20 evaluators)
-✅ Operational readiness (Prometheus, Grafana, backups, E2E tests)
+✅ Memory Brain (homeiq-memory lib, pgvector, trust model, 8 services integrated)
+✅ Pattern Detection Expansion (8 new detectors, ML models: LSTM, Isolation Forest, FP-Growth)
+✅ Production Hardening (rate limits, pool tuning, security headers, structured logging)
+✅ Observability (Prometheus metrics, OpenTelemetry tracing, Grafana alerts, ops scripts)
+✅ 1366+ tests (704 Python + 662 frontend + 13 E2E Playwright scenarios)
 
 Impact:
 - Minimal impact on HA automations (deployed during off-peak hours)
@@ -960,7 +1017,7 @@ Questions? Reach out to [DevOps Lead]
 10:50 PM: ✅ Tiers 4-8 health checks passing
 11:00 PM: Tier 9 deployment starting (frontends)
 11:15 PM: ✅ All frontends responsive
-11:20 PM: ✅ DEPLOYMENT COMPLETE — all 50 services healthy
+11:20 PM: ✅ DEPLOYMENT COMPLETE — all 51+ services healthy
 11:30 PM: Integration tests running...
 11:45 PM: ✅ E2E tests passed
 12:00 AM: ✅ Phase 5 deployment successful
@@ -975,12 +1032,12 @@ Monitoring continues through Day 3 and Day 4-5
 ```
 Subject: Phase 5 Deployment Complete ✅
 
-All 50 microservices and 3 frontends deployed successfully!
+All 51 microservices and 5 frontends deployed successfully!
 
 Deployment Results:
 ✅ Duration: 2.5 hours (on schedule)
-✅ Services Healthy: 50/50 (100%)
-✅ Tests Passing: 704/704 (100%)
+✅ Services Healthy: 51/51+ (100%)
+✅ Tests Passing: 1366+ (704 Python + 662 frontend) (100%)
 ✅ Error Rate: <0.1% (excellent)
 ✅ Zero data loss
 ✅ Zero unplanned restarts
@@ -988,8 +1045,11 @@ Deployment Results:
 Key Improvements:
 - 15% faster database queries (PostgreSQL with connection pooling)
 - 8% reduction in error rates (library upgrades)
-- New observability dashboard with 15 alert rules
-- 3-tier testing coverage (unit/integration/E2E)
+- Structured JSON logging + Prometheus metrics + OpenTelemetry tracing (Epic 56)
+- Rate limiting + security headers + pool tuning (Epic 55)
+- Memory Brain: institutional memory with pgvector, trust model, 8 services integrated
+- 8 new pattern detectors with ML models (LSTM, Isolation Forest, FP-Growth)
+- 3-tier testing coverage (unit/integration/E2E — 1366+ tests)
 - Automated disaster recovery playbooks
 
 Monitoring:
@@ -1058,8 +1118,8 @@ Thank you for your patience during the deployment window!
   [ ] Verify backup infrastructure ready
 
 24 Hours Before Deployment:
-  [ ] Run full test suite: 704+ tests
-  [ ] Verify Docker builds: 53 services
+  [ ] Run full test suite: 1366+ tests (704 Python + 662 frontend)
+  [ ] Verify Docker builds: 56 containers
   [ ] Check database schemas: 8 PostgreSQL schemas
   [ ] Verify InfluxDB buckets
   [ ] Run pre-deployment health check
@@ -1115,26 +1175,29 @@ The following ports were corrected from the original plan to match actual `compo
 - `ha-setup-service`: 8034 -> **8024** (external port mapping: 8024:8020)
 - `ai-code-executor`: 8032 -> **internal only** (uses `expose`, no published port)
 
-### Additional Services Not in Original Plan
+### Services Added Since Original Plan (Mar 13 Refresh)
 
-These services have health endpoints but were not listed in the original 33:
+The original plan listed 33 services. The following were added to the health table:
 
 - `rag-service` (port 8027, ml-engine)
 - `openai-service` (port 8020, ml-engine)
 - `ai-automation-service-new` (port 8036, automation-core)
 - `ai-query-service` (port 8035, automation-core)
 - `yaml-validation-service` (port 8037, automation-core)
+- `ha-device-control` (port 8040, automation-core) — **NEW: Sprint 5, Epic 25**
 - `rule-recommendation-ml` (port 8040, blueprints — health: `/api/v1/health`)
 - `proactive-agent-service` (port 8031, energy-analytics)
 - `activity-recognition` (port 8043, device-management)
 - `ai-pattern-service` (port 8034, pattern-analysis)
 - `api-automation-edge` (port 8041, pattern-analysis)
+- `voice-gateway` (port 8041, frontends) — **NEW: Sprint 6, Epic 26**
 
-Total services with health endpoints: **42+** (not 33 as originally estimated).
+Total services with health endpoints: **44+** (up from 33 in original plan).
 
 ---
 
-**Status:** READY FOR EXECUTION
+**Status:** REFRESHED — Ready for scheduling
 **Approved By:** [To be signed]
-**Last Updated:** March 2, 2026
-**Next Review:** March 5, 2026
+**Last Updated:** March 13, 2026
+**Next Review:** [Schedule deployment window]
+**Refresh Notes:** Updated from 19→56 epics, 33→44+ health endpoints, 50→51+ services, added voice-gateway + ha-device-control, integrated Epic 55-56 hardening, updated test counts to 1366+.

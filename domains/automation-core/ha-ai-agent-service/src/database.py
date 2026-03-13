@@ -99,6 +99,7 @@ class MessageModel(Base):
     )
     role: Mapped[str] = mapped_column(String(20))  # 'user' or 'assistant'
     content: Mapped[str] = mapped_column(Text)
+    tool_calls: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

@@ -56,6 +56,7 @@ def _conversation_model_to_domain(model: ConversationModel) -> Conversation:
             content=msg_model.content,
             message_id=msg_model.message_id,
             created_at=msg_model.created_at,
+            tool_calls=getattr(msg_model, 'tool_calls', None),
         )
         conversation.messages.append(message)
 
@@ -73,6 +74,7 @@ def _message_model_to_domain(model: MessageModel) -> Message:
         content=model.content,
         message_id=model.message_id,
         created_at=model.created_at,
+        tool_calls=getattr(model, 'tool_calls', None),
     )
 
 
@@ -266,7 +268,8 @@ async def delete_conversation(session: AsyncSession, conversation_id: str) -> bo
 
 
 async def add_message(
-    session: AsyncSession, conversation_id: str, role: str, content: str
+    session: AsyncSession, conversation_id: str, role: str, content: str,
+    tool_calls: list[dict] | None = None,
 ) -> Message | None:
     """Add a message to a conversation"""
     # Verify conversation exists
@@ -281,6 +284,7 @@ async def add_message(
         conversation_id=conversation_id,
         role=role,
         content=content,
+        tool_calls=tool_calls,
         created_at=datetime.now(),
     )
 

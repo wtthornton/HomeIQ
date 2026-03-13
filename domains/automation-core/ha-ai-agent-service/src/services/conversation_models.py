@@ -28,6 +28,7 @@ class Message:
         content: str,
         message_id: str | None = None,
         created_at: datetime | None = None,
+        tool_calls: list[dict] | None = None,
     ):
         """
         Initialize a message.
@@ -37,20 +38,25 @@ class Message:
             content: Message content
             message_id: Optional message ID (generated if not provided)
             created_at: Optional creation timestamp (current time if not provided)
+            tool_calls: Optional list of tool calls made during this message
         """
         self.message_id = message_id or str(uuid4())
         self.role = role
         self.content = content
         self.created_at = created_at or datetime.now()
+        self.tool_calls = tool_calls
 
     def to_dict(self) -> dict:
         """Convert message to dictionary"""
-        return {
+        result = {
             "message_id": self.message_id,
             "role": self.role,
             "content": self.content,
             "created_at": self.created_at.isoformat(),
         }
+        if self.tool_calls:
+            result["tool_calls"] = self.tool_calls
+        return result
 
     def to_openai_format(self) -> dict[str, str]:
         """Convert message to OpenAI API format"""
@@ -107,18 +113,19 @@ class Conversation:
         """Get total message count"""
         return len(self.messages)
 
-    def add_message(self, role: str, content: str) -> Message:
+    def add_message(self, role: str, content: str, tool_calls: list[dict] | None = None) -> Message:
         """
         Add a message to the conversation.
 
         Args:
             role: Message role ('user' or 'assistant')
             content: Message content
+            tool_calls: Optional list of tool calls made during this message
 
         Returns:
             Created Message instance
         """
-        message = Message(role=role, content=content)
+        message = Message(role=role, content=content, tool_calls=tool_calls)
         self.messages.append(message)
         self.updated_at = datetime.now()
         logger.debug(

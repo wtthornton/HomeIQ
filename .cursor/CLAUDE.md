@@ -8,12 +8,26 @@
 
 ## 🎯 Quick Reference
 
-**What is HomeIQ?** AI-powered Home Assistant intelligence platform — **50 microservices** in **9 domain groups** (plus InfluxDB/PostgreSQL).
+**What is HomeIQ?** AI-powered Home Assistant intelligence platform — **51 microservices** in **9 domain groups** (plus InfluxDB/PostgreSQL).
 **Deployment:** Single NUC, Docker Compose, local network. Services live under `domains/<group>/`.
 **Architecture:** Hybrid DB (InfluxDB time-series + PostgreSQL 17 metadata), Epic 31 direct writes (no enrichment-pipeline).
 **Languages:** Python 3.12+ (backend), TypeScript/React 18 (frontend)
 **Home Assistant:** External (e.g. `192.168.1.86:8123`), WebSocket connection
 **Documentation:** [docs/README.md](docs/README.md) — single index; use it for all doc paths.
+**Epic Index:** [stories/OPEN-EPICS-INDEX.md](../stories/OPEN-EPICS-INDEX.md) — **single source of truth** for all epic/story tracking. Check before creating new work. Update after completing any epic/story.
+
+---
+
+## Epic & Story Tracking
+
+All epics (completed and planned) are tracked in **[stories/OPEN-EPICS-INDEX.md](../stories/OPEN-EPICS-INDEX.md)**.
+
+**Rules for agents:**
+1. **Before creating new epics:** Check the index for duplicates, superseded work, or overlap.
+2. **After completing any epic/story:** Update the index immediately (status, commit hash, date).
+3. **Planning docs** in `docs/planning/` contain detailed story breakdowns. The index links to them.
+4. **The "Open Work" section** lists all planned-but-unstarted epics in priority order.
+5. **Epic numbers are sequential.** Next available: **61+**. Never reuse a number.
 
 ---
 

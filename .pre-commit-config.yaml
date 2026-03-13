@@ -32,3 +32,10 @@ repos:
         language: python
         files: (Dockerfile|requirements.*\.txt)$
         pass_filenames: false
+
+      - id: no-secrets
+        name: Check for hardcoded secrets
+        entry: python scripts/check-secrets.py
+        language: python
+        types_or: [ts, tsx, javascript, jsx, python, json, yaml, text]
+        exclude: '(\.example$|\.template$|test-data\.ts$|api-mocks\.ts$|auth-helpers\.ts$|\.test\.|\.spec\.|__tests__)'

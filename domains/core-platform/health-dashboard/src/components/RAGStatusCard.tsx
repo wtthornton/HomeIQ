@@ -98,10 +98,14 @@ export const RAGStatusCard: React.FC<RAGStatusCardProps> = ({
 }) => {
   if (loading && !ragStatus) {
     return (
-      <div className={`
-        rounded-xl shadow-lg p-6 border-2 transition-all-smooth
-        ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}
-      `}>
+      <div
+        className={`
+          rounded-xl shadow-lg p-6 border-2 transition-all-smooth
+          ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}
+        `}
+        data-testid="rag-status-card"
+        data-rag-state="loading"
+      >
         <div className="flex items-center justify-center h-48">
           <LoadingSpinner variant="dots" size="md" color="default" />
           <span className={`ml-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -114,10 +118,14 @@ export const RAGStatusCard: React.FC<RAGStatusCardProps> = ({
 
   if (!ragStatus) {
     return (
-      <div className={`
-        rounded-xl shadow-lg p-6 border-2 transition-all-smooth
-        ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}
-      `}>
+      <div
+        className={`
+          rounded-xl shadow-lg p-6 border-2 transition-all-smooth
+          ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}
+        `}
+        data-testid="rag-status-card"
+        data-rag-state="unavailable"
+      >
         <div className={`text-center py-8 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           <p className="text-lg mb-2">🚦</p>
           <p>RAG status unavailable</p>

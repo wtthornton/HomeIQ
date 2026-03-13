@@ -53,8 +53,12 @@ CREATE TABLE IF NOT EXISTS messages (
     conversation_id VARCHAR(36) NOT NULL REFERENCES conversations(conversation_id) ON DELETE CASCADE,
     role VARCHAR(20) NOT NULL,
     content TEXT NOT NULL,
+    tool_calls JSON,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Migration: add tool_calls column if table already exists without it
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS tool_calls JSON;
 
 CREATE INDEX IF NOT EXISTS ix_messages_conversation_id ON messages (conversation_id);
 CREATE INDEX IF NOT EXISTS ix_messages_created_at ON messages (created_at);

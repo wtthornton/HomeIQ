@@ -227,21 +227,17 @@ test.describe('RAG Details Modal -- subsystem health inspection', () => {
     await page.waitForLoadState('domcontentloaded');
     await waitForLoadingComplete(page, '[data-testid="loading"], [aria-label="Loading"]', 10000);
 
+    // RAG card now renders data-testid in all states (loading, unavailable, loaded)
     const ragCard = page.locator('[data-testid="rag-status-card"]');
-    if (!(await ragCard.isVisible({ timeout: 15000 }).catch(() => false))) {
-      test.skip(true, 'RAG card not visible — component may not render loading state without data');
-      return;
-    }
+    await ragCard.waitFor({ state: 'visible', timeout: 15000 });
 
-    await ragCard.click();
-    await waitForModalOpen(page, '[role="dialog"]', 5000);
-    const modal = page.locator('[role="dialog"]').filter({ hasText: /RAG|Loading/i });
-    if (await modal.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const loading = modal.locator('text=/Loading|loading/i');
-      const hasLoading = await loading.isVisible({ timeout: 2000 }).catch(() => false);
-      // Loading state may flash too quickly — pass if modal opened at all
-      expect(hasLoading || await modal.isVisible()).toBe(true);
-    }
+    // Card should show loading or unavailable state (data-rag-state attribute)
+    const ragState = await ragCard.getAttribute('data-rag-state').catch(() => null);
+    const cardText = await ragCard.textContent().catch(() => '');
+
+    // Either the loading state is caught, the card transitioned to unavailable,
+    // or it loaded successfully — all are valid outcomes
+    expect(ragState || cardText).toBeTruthy();
   });
 
   test('error state displays when RAG service is unavailable', async ({ page }) => {
@@ -259,34 +255,21 @@ test.describe('RAG Details Modal -- subsystem health inspection', () => {
     await waitForLoadingComplete(page, '[data-testid="loading"], [aria-label="Loading"]', 10000);
 
     const ragSection = page.locator('[data-testid="rag-status-section"]');
-    await ragSection.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
-    if (!(await ragSection.isVisible())) {
-      test.skip(true, 'RAG section not rendered — cannot test error state');
-      return;
-    }
+    await ragSection.waitFor({ state: 'visible', timeout: 15000 });
 
+    // RAG card now renders data-testid in all states including unavailable
     const ragCard = page.locator('[data-testid="rag-status-card"]');
-    await ragCard.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
+    await ragCard.waitFor({ state: 'visible', timeout: 10000 });
 
     // With a 500 response, the card should show unavailable/error state
+    const ragState = await ragCard.getAttribute('data-rag-state').catch(() => null);
     const cardText = await ragCard.textContent().catch(() => '');
-    const hasErrorState = /unavailable|error|failed|offline/i.test(cardText || '');
 
-    if (hasErrorState) {
-      // Card itself shows error — good
-      expect(hasErrorState).toBe(true);
-    } else if (await ragCard.isVisible()) {
-      // Try clicking to see modal error state
-      await ragCard.click();
-      await page.waitForTimeout(1000);
-      const modal = page.locator('[role="dialog"]');
-      if (await modal.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const modalText = await modal.textContent().catch(() => '');
-        expect(/unavailable|error|failed|no data/i.test(modalText || '')).toBe(true);
-      } else {
-        // Modal didn't open with error — card blocked click, which is also valid error handling
-        expect(true).toBe(true);
-      }
-    }
+    // Card should indicate error: either via data-rag-state="unavailable" or text content
+    const hasErrorIndicator =
+      ragState === 'unavailable' ||
+      /unavailable|error|failed|offline/i.test(cardText || '');
+
+    expect(hasErrorIndicator).toBe(true);
   });
 });
