@@ -4,6 +4,37 @@
 
 ### Added
 
+- **Epic 54 Consolidation Sprint — E2E fixes, PatternResult types, ML dep alignment (6/6 stories)** (64f5f85) - Bill Thornton
+- **feat(e2e): Epic 49 complete — E2E Playwright Coverage Expansion (13/13 stories)** (94c42d7) - Bill Thornton
+- **animated mascot runner banner and live usage chips for dashboard** (83d6a72) - Bill Thornton
+
+### Changed
+
+- **refactor(auto-bugfix): Epic 52 config-driven cleanup, keep only new framework** (020c660) - Bill Thornton
+
+### Fixed
+
+- **fix(e2e): align tests with Epic 31 and health-dashboard** (e5f62d9) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (a80f38c) - Bill Thornton
+- **auto-fix 5 bugs across codebase** (5034978) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (0cd0f5f) - Bill Thornton
+- **remove extra closing braces in renderFileGraph() that broke all dashboard JS** (87ed039) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (40a709b) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (5a49c4c) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (1e8fa65) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (5fca34f) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (d6edf4b) - Bill Thornton
+- **auto-bugfix stash-before-pull and skip PR when branch=base** (15ad419) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (7352a79) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (432eb56) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (b33c6f9) - Bill Thornton
+- **remove UTF-8 BOM from JSON outputs in auto-bugfix script** (8d038f8) - Bill Thornton
+- **auto-bugfix PR body quoting, push rebase, and timestamped feedback** (95bdafb) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (a1199f7) - Bill Thornton
+
+
+### Added
+
 - **feat(e2e): Epic 49 complete — E2E Playwright Coverage Expansion (13/13 stories)** (94c42d7) - Bill Thornton
 - **animated mascot runner banner and live usage chips for dashboard** (83d6a72) - Bill Thornton
 
