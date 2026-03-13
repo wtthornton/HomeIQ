@@ -130,6 +130,12 @@ class StandardHealthCheck:
 
         if checks_results:
             response["checks"] = checks_results
+            # Build dependencies summary (name -> friendly status)
+            dependencies: dict[str, str] = {}
+            for check_result in checks_results:
+                raw = check_result["status"]
+                dependencies[check_result["name"]] = "ok" if raw == "healthy" else "down"
+            response["dependencies"] = dependencies
 
         if self.include_timestamp:
             response["timestamp"] = datetime.now(UTC).isoformat()

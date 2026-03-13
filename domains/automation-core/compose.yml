@@ -146,7 +146,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 192M
+          memory: 256M
           cpus: '2.0'
         reservations:
           memory: 128M
@@ -190,7 +190,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 192M
+          memory: 256M
           cpus: '1.0'
         reservations:
           memory: 128M

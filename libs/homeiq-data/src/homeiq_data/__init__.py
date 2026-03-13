@@ -11,6 +11,7 @@ from .base_settings import BaseServiceSettings
 from .database_manager import DatabaseManager
 from .database_pool import (
     check_pg_connection,
+    check_pool_health,
     close_all_engines,
     close_all_engines_async,
     create_pg_engine,
@@ -32,6 +33,7 @@ __all__ = [
     "StandardDataAPIClient",
     "StandardOpenAIClient",
     "check_pg_connection",
+    "check_pool_health",
     "close_all_engines",
     "close_all_engines_async",
     "create_pg_engine",

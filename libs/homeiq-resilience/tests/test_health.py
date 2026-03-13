@@ -82,9 +82,9 @@ class TestAllHealthy:
         assert result["group"] == "automation-intelligence"
         assert result["version"] == "1.2.3"
         assert "data-api" in result["dependencies"]
-        assert result["dependencies"]["data-api"]["status"] == "healthy"
+        assert result["dependencies"]["data-api"]["status"] == "ok"
         assert "ai-core-service" in result["dependencies"]
-        assert result["dependencies"]["ai-core-service"]["status"] == "healthy"
+        assert result["dependencies"]["ai-core-service"]["status"] == "ok"
 
 
 # ------------------------------------------------------------------
@@ -116,8 +116,8 @@ class TestDegraded:
 
         assert result["status"] == "degraded"
         statuses = [d["status"] for d in result["dependencies"].values()]
-        assert "healthy" in statuses
-        assert "unreachable" in statuses
+        assert "ok" in statuses
+        assert "down" in statuses
 
 
 # ------------------------------------------------------------------
@@ -142,7 +142,7 @@ class TestUnhealthy:
 
         assert result["status"] == "unhealthy"
         for dep in result["dependencies"].values():
-            assert dep["status"] == "unreachable"
+            assert dep["status"] == "down"
 
     @pytest.mark.asyncio
     async def test_unhealthy_http_status(
@@ -159,7 +159,7 @@ class TestUnhealthy:
 
         assert result["status"] == "unhealthy"
         for dep in result["dependencies"].values():
-            assert dep["status"] == "unhealthy"
+            assert dep["status"] == "down"
 
 
 # ------------------------------------------------------------------

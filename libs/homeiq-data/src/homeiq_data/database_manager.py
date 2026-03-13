@@ -62,8 +62,9 @@ class DatabaseManager:
         schema: str,
         service_name: str = "",
         pool_size: int = 10,
-        max_overflow: int = 5,
-        pool_recycle: int = 3600,
+        max_overflow: int = 20,
+        pool_recycle: int = 1800,
+        pool_timeout: int = 30,
         database_url: str | None = None,
         auto_commit_sessions: bool = True,
     ):
@@ -74,8 +75,9 @@ class DatabaseManager:
             schema: PostgreSQL schema name for search_path isolation.
             service_name: Service name for logging context.
             pool_size: Connection pool size (default: 10).
-            max_overflow: Max overflow connections (default: 5).
-            pool_recycle: Recycle connections after N seconds (default: 3600).
+            max_overflow: Max overflow connections (default: 20).
+            pool_recycle: Recycle connections after N seconds (default: 1800).
+            pool_timeout: Seconds to wait for a connection from pool (default: 30).
             database_url: Explicit database URL override. If None, resolves
                 from POSTGRES_URL -> DATABASE_URL -> default fallback.
             auto_commit_sessions: If True, get_db() auto-commits on success.
@@ -86,6 +88,7 @@ class DatabaseManager:
         self._pool_size = pool_size
         self._max_overflow = max_overflow
         self._pool_recycle = pool_recycle
+        self._pool_timeout = pool_timeout
         self._auto_commit = auto_commit_sessions
         self._available = False
         self._engine: AsyncEngine | None = None
@@ -132,6 +135,7 @@ class DatabaseManager:
                 pool_size=self._pool_size,
                 max_overflow=self._max_overflow,
                 pool_recycle=self._pool_recycle,
+                pool_timeout=self._pool_timeout,
             )
 
             # Create session factory
@@ -247,14 +251,19 @@ class DatabaseManager:
             async with self._session_maker() as session:
                 await session.execute(text("SELECT 1"))
                 pool = self._engine.pool
+                checked_out = pool.checkedout()
+                total_capacity = pool.size() + max(0, pool.overflow())
+                utilization = (checked_out / total_capacity * 100) if total_capacity > 0 else 0.0
                 return {
                     "status": "healthy",
                     "backend": "postgresql",
                     "schema": self._schema,
                     "pool_size": pool.size(),
                     "pool_checked_in": pool.checkedin(),
-                    "pool_checked_out": pool.checkedout(),
+                    "pool_checked_out": checked_out,
                     "pool_overflow": pool.overflow(),
+                    "pool_utilization_percent": round(utilization, 1),
+                    "pool_checkedout_overflow": max(0, checked_out - pool.size()),
                     "connection": "ok",
                 }
         except Exception as e:

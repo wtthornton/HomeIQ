@@ -36,7 +36,7 @@ def test_all_attribute() -> None:
     import homeiq_data
 
     assert hasattr(homeiq_data, "__all__")
-    assert len(homeiq_data.__all__) == 18
+    assert len(homeiq_data.__all__) == 19
 
 
 def test_version_attribute() -> None:

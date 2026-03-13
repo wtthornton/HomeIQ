@@ -29,10 +29,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 512M
           cpus: '1.0'
         reservations:
-          memory: 192M
+          memory: 256M
           cpus: '0.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
@@ -68,10 +68,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 512M
           cpus: '1.0'
         reservations:
-          memory: 192M
+          memory: 256M
           cpus: '0.5'
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-homeiq} -d homeiq"]
@@ -200,10 +200,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 512M
           cpus: '1.0'
         reservations:
-          memory: 192M
+          memory: 256M
           cpus: '0.5'
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
@@ -265,10 +265,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 512M
           cpus: '1.0'
         reservations:
-          memory: 192M
+          memory: 256M
           cpus: '0.5'
     logging:
       driver: "json-file"

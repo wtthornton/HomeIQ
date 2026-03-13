@@ -116,7 +116,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 192M
+          memory: 256M
           cpus: '1.0'
         reservations:
           memory: 128M
@@ -259,7 +259,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 192M
+          memory: 256M
           cpus: '2.0'
         reservations:
           memory: 128M
@@ -353,6 +353,14 @@ services:
       - homeiq-network
     profiles:
       - development
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
     logging:
       driver: "json-file"
       options:

@@ -39,7 +39,8 @@ def _is_postgres_url(url: str) -> bool:
 def create_shared_db_engine(
     database_url: str,
     pool_size: int = 10,
-    max_overflow: int = 5,
+    max_overflow: int = 20,
+    pool_timeout: int = 30,
     database_path: str | None = None,
 ) -> AsyncEngine:
     """
@@ -52,7 +53,8 @@ def create_shared_db_engine(
     Args:
         database_url: SQLAlchemy database URL
         pool_size: Connection pool size (default: 10, max: 20 per service)
-        max_overflow: Max overflow connections (default: 5)
+        max_overflow: Max overflow connections (default: 20)
+        pool_timeout: Seconds to wait for a connection from pool (default: 30)
         database_path: Optional database path for logging
 
     Returns:
@@ -64,7 +66,8 @@ def create_shared_db_engine(
                 "pool_size": pool_size,
                 "max_overflow": max_overflow,
                 "pool_pre_ping": True,
-                "pool_recycle": 3600,
+                "pool_recycle": 1800,
+                "pool_timeout": pool_timeout,
                 "echo": False,
             }
 
@@ -84,7 +87,7 @@ def create_shared_db_engine(
 def create_shared_session_maker(
     database_url: str,
     pool_size: int = 10,
-    max_overflow: int = 5,
+    max_overflow: int = 20,
     database_path: str | None = None,
 ) -> async_sessionmaker:
     """
@@ -126,7 +129,7 @@ def create_shared_session_maker(
 async def get_shared_db_session(
     database_url: str,
     pool_size: int = 10,
-    max_overflow: int = 5,
+    max_overflow: int = 20,
 ) -> AsyncSession:
     """
     Get a database session from the shared pool.
@@ -173,6 +176,37 @@ def get_pool_stats(database_url: str) -> dict:
     }
 
 
+def check_pool_health(database_url: str) -> dict:
+    """Check pool health and warn if usage exceeds 80%.
+
+    Returns pool stats with a utilization_percent field.
+    Logs a warning when pool usage is high.
+    """
+    stats = get_pool_stats(database_url)
+    if "error" in stats:
+        return stats
+
+    total_capacity = stats["pool_size"] + max(0, stats.get("overflow", 0))
+    checked_out = stats["checked_out"]
+
+    if total_capacity > 0:
+        utilization = (checked_out / total_capacity) * 100
+    else:
+        utilization = 0.0
+
+    stats["utilization_percent"] = round(utilization, 1)
+    stats["pool_checkedout_overflow"] = max(0, checked_out - stats["pool_size"])
+
+    if utilization >= 80:
+        logger.warning(
+            "Pool exhaustion warning: %.1f%% utilization "
+            "(checked_out=%d, capacity=%d)",
+            utilization, checked_out, total_capacity,
+        )
+
+    return stats
+
+
 def close_all_engines():
     """Close all shared database engines (synchronous, for backward compat)."""
     global _engines, _session_makers
@@ -199,8 +233,9 @@ def create_pg_engine(
     database_url: str,
     schema: str,
     pool_size: int = 10,
-    max_overflow: int = 5,
-    pool_recycle: int = 3600,
+    max_overflow: int = 20,
+    pool_recycle: int = 1800,
+    pool_timeout: int = 30,
 ) -> AsyncEngine:
     """
     Create a PostgreSQL async engine with schema isolation.
@@ -212,8 +247,9 @@ def create_pg_engine(
         database_url: PostgreSQL connection URL
         schema: PostgreSQL schema name for search_path isolation
         pool_size: Connection pool size (default: 10)
-        max_overflow: Max overflow connections (default: 5)
-        pool_recycle: Recycle connections after N seconds (default: 3600)
+        max_overflow: Max overflow connections (default: 20)
+        pool_recycle: Recycle connections after N seconds (default: 1800)
+        pool_timeout: Seconds to wait for a connection from pool (default: 30)
 
     Returns:
         AsyncEngine configured for the specified schema
@@ -226,6 +262,7 @@ def create_pg_engine(
         pool_size=pool_size,
         max_overflow=max_overflow,
         pool_recycle=pool_recycle,
+        pool_timeout=pool_timeout,
         pool_pre_ping=True,
         echo=False,
     )

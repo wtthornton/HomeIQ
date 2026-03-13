@@ -91,6 +91,19 @@ class RateLimiter:
             if old_ips:
                 logger.debug("Cleaned up %s expired rate limiter entries", len(old_ips))
 
+    def get_client_info(self, ip: str) -> tuple[int, float]:
+        """Return (remaining_tokens, seconds_until_full_refill) for a client."""
+        if ip not in self._buckets:
+            return self.burst, 0.0
+        bucket = self._buckets[ip]
+        now = datetime.now()
+        elapsed = (now - bucket["last_update"]).total_seconds()
+        tokens_to_add = elapsed * (self.rate / self.per)
+        current = min(self.burst, bucket["tokens"] + tokens_to_add)
+        remaining = max(0, int(current))
+        reset_seconds = (self.burst - current) * (self.per / self.rate) if current < self.burst else 0.0
+        return remaining, reset_seconds
+
     def get_stats(self) -> Dict[str, float | int]:
         """Return statistics for observability endpoints."""
         percentage = 0.0
@@ -123,10 +136,11 @@ async def rate_limit_middleware(request: Request, call_next, limiter: RateLimite
 
     client_ip = request.client.host if request.client else "unknown"
     allowed = await limiter.check_rate_limit(client_ip)
+    remaining, reset_seconds = limiter.get_client_info(client_ip)
 
     if not allowed:
         logger.warning("Rate limit exceeded for IP: %s", client_ip)
-        return JSONResponse(
+        response = JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={
                 "success": False,
@@ -134,6 +148,17 @@ async def rate_limit_middleware(request: Request, call_next, limiter: RateLimite
                 "error_code": "RATE_LIMIT_EXCEEDED",
             },
         )
+        response.headers["Retry-After"] = str(int(reset_seconds) + 1)
+    else:
+        response = await call_next(request)
 
-    return await call_next(request)
+    response.headers["X-RateLimit-Limit"] = str(limiter.rate)
+    response.headers["X-RateLimit-Remaining"] = str(remaining)
+    response.headers["X-RateLimit-Reset"] = str(int(reset_seconds))
+    return response
+
+
+def create_write_rate_limiter() -> RateLimiter:
+    """Create a rate limiter configured for write endpoints (20 req/min)."""
+    return RateLimiter(rate=20, per=60, burst=5)
 

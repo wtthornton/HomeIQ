@@ -113,7 +113,8 @@ class GroupHealthCheck:
 
         dependencies_dict: dict[str, dict[str, Any]] = {}
         for dep in dep_statuses:
-            entry: dict[str, Any] = {"status": dep.status}
+            friendly_status = "ok" if dep.status == "healthy" else "down"
+            entry: dict[str, Any] = {"status": friendly_status}
             if dep.latency_ms is not None:
                 entry["latency_ms"] = round(dep.latency_ms, 1)
             if dep.last_seen is not None:

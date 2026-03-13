@@ -44,6 +44,7 @@ def create_app(
     cors_allow_credentials: bool = False,
     include_request_id: bool = True,
     include_timing: bool = True,
+    rate_limiter: Any | None = None,
 ) -> FastAPI:
     """Create a standard HomeIQ FastAPI application.
 
@@ -69,6 +70,9 @@ def create_app(
         Add ``X-Request-ID`` header middleware.
     include_timing:
         Add ``X-Process-Time`` header middleware.
+    rate_limiter:
+        Optional ``RateLimiter`` instance from ``homeiq_data.rate_limiter``.
+        When provided, rate-limiting middleware is added automatically.
     """
     app = FastAPI(
         title=title,
@@ -110,6 +114,25 @@ def create_app(
             elapsed = time.monotonic() - start
             response.headers["X-Process-Time"] = f"{elapsed:.4f}"
             return response
+
+    # --- Security headers middleware ---
+    @app.middleware("http")
+    async def _security_headers_middleware(request: Request, call_next: Any) -> Response:
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
+    # --- Rate limiting middleware ---
+    if rate_limiter is not None:
+        from homeiq_data.rate_limiter import rate_limit_middleware as _rl_middleware
+
+        @app.middleware("http")
+        async def _rate_limit_middleware(request: Request, call_next: Any) -> Response:
+            return await _rl_middleware(request, call_next, rate_limiter)
 
     # --- Standard exception handler ---
     @app.exception_handler(Exception)
