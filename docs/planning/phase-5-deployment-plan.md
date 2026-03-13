@@ -1,10 +1,10 @@
 # Phase 5: Production Deployment Plan
 
 **Date:** February 27, 2026 | **Refreshed:** March 13, 2026
-**Status:** NEEDS REFRESH BEFORE EXECUTION — plan is stale (see update notes below)
+**Status:** READY FOR EXECUTION — fully refreshed Mar 13, scripts updated
 **Target Start:** TBD (original: March 5-9, 2026 — window passed)
 **Estimated Duration:** 5 days
-**Overall Progress:** 66.7% complete (4/6 phases done)
+**Overall Progress:** 83.3% complete (5/6 phases done — Day 1 pre-deployment validation GO)
 
 > **2026-03-13 UPDATE — PLAN REFRESH REQUIRED:**
 >
@@ -98,7 +98,7 @@ Phase 5 Deployment Window: TBD (original Mar 5-9 passed — reschedule needed)
 
 **Goal:** Verify all services are healthy before deployment
 
-**44+ Services with Health Endpoints Confirmed:**
+**48 Services with Health Endpoints Confirmed (+ 3 internal/dev-only):**
 
 | Service | Port | Endpoint | Domain |
 |---|---|---|---|
@@ -122,18 +122,21 @@ Phase 5 Deployment Window: TBD (original Mar 5-9 passed — reschedule needed)
 | ai-training-service | 8033 | /health | ml-engine |
 | rag-service | 8027 | /health | ml-engine |
 | openai-service | 8020 | /health | ml-engine |
+| nlp-fine-tuning | — | (no port) | ml-engine | training-only, not a running service |
+| ner-service | 8031 | expose only | ml-engine | internal only, no published port |
+| model-prep | — | (no port) | ml-engine | dev profile only |
 | automation-linter | 8016 | /health | automation-core |
 | ha-ai-agent-service | 8030 | /health | automation-core |
 | automation-trace-service | 8044 | /health | automation-core |
 | ai-automation-service-new | 8036 | /health | automation-core |
 | ai-query-service | 8035 | /health | automation-core |
 | yaml-validation-service | 8037 | /health | automation-core |
-| ha-device-control | 8040 | /health | automation-core |
+| ha-device-control | 8046 | /health | automation-core |
 | ai-code-executor | (internal only) | /health | automation-core |
 | blueprint-suggestion-service | 8039 | /health | blueprints |
 | blueprint-index | 8038 | /health | blueprints |
 | automation-miner | 8029 | /health | blueprints |
-| rule-recommendation-ml | 8040 | /api/v1/health | blueprints |
+| rule-recommendation-ml | 8040 | /api/v1/health | blueprints | (ext 8040 → int 8035) |
 | energy-correlator | 8017 | /health | energy-analytics |
 | energy-forecasting | 8042 | /api/v1/health | energy-analytics |
 | proactive-agent-service | 8031 | /health | energy-analytics |
@@ -147,7 +150,7 @@ Phase 5 Deployment Window: TBD (original Mar 5-9 passed — reschedule needed)
 | ha-setup-service | 8024 | /health | device-management |
 | ai-pattern-service | 8034 | /health | pattern-analysis |
 | api-automation-edge | 8041 | /health | pattern-analysis |
-| voice-gateway | 8041 | /health | frontends |
+| voice-gateway | 8047 | /health | frontends |
 
 **Pre-Deployment Health Check Script:**
 
@@ -1192,7 +1195,7 @@ The original plan listed 33 services. The following were added to the health tab
 - `api-automation-edge` (port 8041, pattern-analysis)
 - `voice-gateway` (port 8041, frontends) — **NEW: Sprint 6, Epic 26**
 
-Total services with health endpoints: **44+** (up from 33 in original plan).
+Total services with health endpoints: **48** (up from 33 in original plan, + 3 internal/dev-only).
 
 ---
 
@@ -1200,4 +1203,4 @@ Total services with health endpoints: **44+** (up from 33 in original plan).
 **Approved By:** [To be signed]
 **Last Updated:** March 13, 2026
 **Next Review:** [Schedule deployment window]
-**Refresh Notes:** Updated from 19→56 epics, 33→44+ health endpoints, 50→51+ services, added voice-gateway + ha-device-control, integrated Epic 55-56 hardening, updated test counts to 1366+.
+**Refresh Notes:** Updated from 19→59 epics, 33→48 health endpoints (+ 3 internal), 50→51+ services, corrected ports (ha-device-control 8046, voice-gateway 8047), added 6 missing services to scripts, integrated Epic 55-58 hardening.

@@ -207,6 +207,8 @@ deploy_tier_3() {
     "ai-core-service:8018"
     "ai-training-service:8033"
     "device-intelligence-service:8028"
+    "rag-service:8027"
+    "openai-service:8020"
   )
 
   if ! wait_for_tier_health "Tier 3" "${tier3_services[@]}"; then
@@ -247,15 +249,47 @@ deploy_tiers_4_9() {
   log_info "Waiting 15 seconds for services to initialize..."
   sleep 15
 
-  # Simple health check for all services (ping /health endpoints)
+  # Health checks for all Tier 4-9 services
   log_info "Running full health checks..."
-  local all_healthy=true
 
-  for port in 8030 8036 8035 8016 8037 8032 8038 8039 8029 8017 8024 8031 8019 8022 8023 8021 8032 8033 8034 8034 16686; do
+  local tier49_services=(
+    # Tier 4: automation-core
+    "ha-ai-agent-service:8030"
+    "ai-automation-service-new:8036"
+    "ai-query-service:8035"
+    "automation-linter:8016"
+    "yaml-validation-service:8037"
+    "automation-trace-service:8044"
+    "ha-device-control:8046"
+    # Tier 5: blueprints
+    "blueprint-index:8038"
+    "blueprint-suggestion-service:8039"
+    "automation-miner:8029"
+    # Tier 6: energy-analytics
+    "energy-correlator:8017"
+    "proactive-agent-service:8031"
+    # Tier 7: device-management
+    "device-health-monitor:8019"
+    "device-setup-assistant:8021"
+    "device-database-client:8022"
+    "device-recommender:8023"
+    "ha-setup-service:8024"
+    "device-context-classifier:8032"
+    "activity-recognition:8043"
+    "activity-writer:8045"
+    # Tier 8: pattern-analysis
+    "ai-pattern-service:8034"
+    "api-automation-edge:8041"
+    # Tier 9: frontends
+    "voice-gateway:8047"
+  )
+
+  for service in "${tier49_services[@]}"; do
+    IFS=':' read -r name port <<< "$service"
     if curl -f -s "http://localhost:$port/health" > /dev/null 2>&1; then
-      log_success "Port $port is responding"
+      log_success "$name (port $port) is responding"
     else
-      log_warning "Port $port is not responding yet"
+      log_warning "$name (port $port) is not responding yet"
     fi
   done
 

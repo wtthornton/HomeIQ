@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
 **Created:** 2026-02-27 | **Updated:** 2026-03-13 (Epic 58 complete — Frontend Test Quality)
-**Total:** 59 Completed Epics, 370 Stories complete | 4 Planned Epics (open)
+**Total:** 59 Completed Epics, 370 Stories complete | 1 In Progress (Epic 61) | 3 Planned Epics (open)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -129,6 +129,10 @@ Sprint 21 (COMPLETE — Mar 13, 2026) — Chat Endpoint Complexity Refactor
 Sprint 22 (COMPLETE — Mar 13, 2026) — Frontend Test Quality
 └── Epic 58: Frontend Test Quality [P1]                       ← COMPLETE (6/6 stories)
     └── TESTING_STANDARDS.md, error boundary tests (4), skeleton tests (2), a11y sweep (8 files), dark mode sweep, MSW expansion
+
+Sprint 23 (IN PROGRESS — Mar 13, 2026) — Phase 5 Production Deployment
+└── Epic 61: Phase 5 Production Deployment Execution [P0]     ← IN PROGRESS
+    └── Script updates, pre-deployment validation, 9-tier staged rollout, monitoring
 ```
 
 ---
@@ -137,13 +141,13 @@ Sprint 22 (COMPLETE — Mar 13, 2026) — Frontend Test Quality
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **61** (Epics 57-60 complete, Epic 58 complete).
+> Next available epic number: **62** (Epic 61 = Phase 5 Deployment Execution, in progress).
 
-### P0 — Execute Now
+### P0 — In Progress
 
 | # | Epic | Source Doc | Stories | Effort | Notes |
 |---|------|-----------|---------|--------|-------|
-| — | **Phase 5: Production Deployment** | [phase-5-deployment-plan.md](../docs/planning/phase-5-deployment-plan.md) | 9-tier rollout | 5 days | **REFRESHED Mar 13** — plan updated to 56 epics / 51+ services / 44+ health endpoints / 1366+ tests. Incorporates Epics 54-56 hardening. Ready for scheduling. |
+| 61 | **Phase 5: Production Deployment Execution** | [phase-5-deployment-plan.md](../docs/planning/phase-5-deployment-plan.md) | 6 | 5 days | **IN PROGRESS** — Day 1 complete (3/6 stories done), pre-deployment GO, backups created |
 
 ### P1 — Start After Phase 5
 
@@ -199,6 +203,19 @@ Sprint 22 (COMPLETE — Mar 13, 2026) — Frontend Test Quality
 | 58.4 | **Skeleton component tests** — 2 new test files: HD Skeletons (23 tests for Card/Graph/List/Table), AI UI Skeletons (25 tests for Card/Grid/Filter/Stats) | **DONE** |
 | 58.5 | **Testing standards doc** — Created `docs/TESTING_STANDARDS.md` with conventions, required categories, a11y patterns, coverage targets, templates | **DONE** |
 | 58.6 | **MSW handler expansion** — Added 6 new success handlers (energy, events, integrations, RAG, memory, config) + 6 error handlers (500, 401, 404, 503, network error) | **DONE** |
+
+### Epic 61: Phase 5 Production Deployment Execution — IN PROGRESS (Mar 13)
+
+**Priority:** P0 | **Effort:** 5 days | **Dependencies:** Epics 54-58, 60 | **Status:** IN PROGRESS
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 61.1 | **Update deployment scripts** — Add 6 missing services to pre-deployment-check.sh, fix tiers 4-9 port list in deploy-phase-5.sh, correct plan ports (ha-device-control 8046, voice-gateway 8047) | **DONE** |
+| 61.2 | **Pre-deployment validation (Day 1)** — 48/48 health endpoints, Docker config validates, PostgreSQL 8/8 schemas, InfluxDB healthy, 231GB disk, Prometheus+Grafana healthy. **Decision: GO** | **DONE** |
+| 61.3 | **Create deployment backups** — PostgreSQL dump (6.2MB), backup manifest created | **DONE** |
+| 61.4 | **Tier 1-3 deployment (Day 2)** — Core infrastructure + data collectors + ML services | PENDING |
+| 61.5 | **Tiers 4-9 deployment (Day 2)** — Automation, blueprints, energy, devices, patterns, frontends | PENDING |
+| 61.6 | **Post-deployment validation (Day 3-5)** — Integration tests, E2E, 48-hour monitoring, sign-off | PENDING |
 
 ### Archived (Verified Complete / Resolved)
 
