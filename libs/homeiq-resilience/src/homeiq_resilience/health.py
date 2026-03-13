@@ -9,6 +9,8 @@ Example response::
         "status": "degraded",
         "group": "automation-intelligence",
         "version": "1.2.3",
+        "git_sha": "0abbae91",
+        "build_time": "2026-03-13T19:00:00Z",
         "uptime_seconds": 3600,
         "dependencies": {
             "data-api": {"status": "healthy", "latency_ms": 12},
@@ -24,6 +26,7 @@ Example response::
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -58,6 +61,8 @@ class GroupHealthCheck:
     def __init__(self, group_name: str, version: str = "0.0.0") -> None:
         self._group_name = group_name
         self._version = version
+        self._git_sha = os.environ.get("GIT_SHA", "unknown")
+        self._build_time = os.environ.get("BUILD_TIME", "unknown")
         self._start_time = time.monotonic()
         self._dependencies: dict[str, str] = {}  # name -> health URL
         self._degraded_features: list[str] = []
@@ -125,6 +130,8 @@ class GroupHealthCheck:
             "status": overall,
             "group": self._group_name,
             "version": self._version,
+            "git_sha": self._git_sha,
+            "build_time": self._build_time,
             "uptime_seconds": round(time.monotonic() - self._start_time),
             "dependencies": dependencies_dict,
             "degraded_features": list(self._degraded_features),

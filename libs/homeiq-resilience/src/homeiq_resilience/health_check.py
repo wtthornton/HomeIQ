@@ -23,6 +23,8 @@ Response format::
         "status": "healthy",
         "service": "device-recommender",
         "version": "1.0.0",
+        "git_sha": "0abbae91",
+        "build_time": "2026-03-13T19:00:00Z",
         "uptime_seconds": 3600,
         "checks": [
             {"name": "database", "status": "healthy", "latency_ms": 2.1},
@@ -34,6 +36,7 @@ Response format::
 from __future__ import annotations
 
 import logging
+import os
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -70,6 +73,8 @@ class StandardHealthCheck:
     ) -> None:
         self.service_name = service_name
         self.version = version
+        self.git_sha = os.environ.get("GIT_SHA", "unknown")
+        self.build_time = os.environ.get("BUILD_TIME", "unknown")
         self.include_timestamp = include_timestamp
         self._start_time = time.monotonic()
         self._checks: list[tuple[str, HealthCheckFn]] = []
@@ -125,6 +130,8 @@ class StandardHealthCheck:
             "status": overall,
             "service": self.service_name,
             "version": self.version,
+            "git_sha": self.git_sha,
+            "build_time": self.build_time,
             "uptime_seconds": round(time.monotonic() - self._start_time),
         }
 

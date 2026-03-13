@@ -213,8 +213,8 @@ Sprint 23 (IN PROGRESS — Mar 13, 2026) — Phase 5 Production Deployment
 | 61.1 | **Update deployment scripts** — Add 6 missing services to pre-deployment-check.sh, fix tiers 4-9 port list in deploy-phase-5.sh, correct plan ports (ha-device-control 8046, voice-gateway 8047) | **DONE** |
 | 61.2 | **Pre-deployment validation (Day 1)** — 48/48 health endpoints, Docker config validates, PostgreSQL 8/8 schemas, InfluxDB healthy, 231GB disk, Prometheus+Grafana healthy. **Decision: GO** | **DONE** |
 | 61.3 | **Create deployment backups** — PostgreSQL dump (6.2MB), backup manifest created | **DONE** |
-| 61.4 | **Tier 1-3 deployment (Day 2)** — Core infrastructure + data collectors + ML services | PENDING |
-| 61.5 | **Tiers 4-9 deployment (Day 2)** — Automation, blueprints, energy, devices, patterns, frontends | PENDING |
+| 61.4 | **Tier 1-3 deployment (Day 2)** — All 21 services verified healthy (48/48 endpoints 200 OK), PostgreSQL 10 schemas, InfluxDB v2.8.0 ready | **DONE** |
+| 61.5 | **Tiers 4-9 deployment (Day 2)** — All 22 remaining services verified healthy, 43/43 version check script passing, monitoring (Prometheus+Grafana) confirmed | **DONE** |
 | 61.6 | **Post-deployment validation (Day 3-5)** — Integration tests, E2E, 48-hour monitoring, sign-off | PENDING |
 
 ### Archived (Verified Complete / Resolved)

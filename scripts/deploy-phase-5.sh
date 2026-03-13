@@ -265,8 +265,10 @@ deploy_tiers_4_9() {
     "blueprint-index:8038"
     "blueprint-suggestion-service:8039"
     "automation-miner:8029"
+    "rule-recommendation-ml:8040"
     # Tier 6: energy-analytics
     "energy-correlator:8017"
+    "energy-forecasting:8042"
     "proactive-agent-service:8031"
     # Tier 7: device-management
     "device-health-monitor:8019"
@@ -281,6 +283,8 @@ deploy_tiers_4_9() {
     "ai-pattern-service:8034"
     "api-automation-edge:8041"
     # Tier 9: frontends
+    "ai-automation-ui:3001"
+    "observability-dashboard:8501"
     "voice-gateway:8047"
   )
 
@@ -320,6 +324,16 @@ post_deployment_validation() {
   log_info "Checking error rates..."
   # This would check actual error rates from logs
 
+  log_info "Verifying deployed versions..."
+  local expected_sha
+  expected_sha=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if "$SCRIPT_DIR/check-versions.sh" --expected-sha "$expected_sha" >> "$LOG_FILE" 2>&1; then
+    log_success "All services running expected version: $expected_sha"
+  else
+    log_warning "Some services not yet running expected version (may need rebuild)"
+  fi
+
   log_info ""
 }
 
@@ -333,6 +347,20 @@ main() {
   log_info "Log File: $LOG_FILE"
   log_info "========================================="
   log_info ""
+
+  # Inject build metadata into .env for health endpoint version tracking
+  local git_sha
+  git_sha=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+  local build_time
+  build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "unknown")
+
+  # Remove old entries and append fresh values
+  sed -i '/^GIT_SHA=/d' .env 2>/dev/null || true
+  sed -i '/^BUILD_TIME=/d' .env 2>/dev/null || true
+  echo "GIT_SHA=${git_sha}" >> .env
+  echo "BUILD_TIME=${build_time}" >> .env
+
+  log_info "Build metadata: GIT_SHA=${git_sha}, BUILD_TIME=${build_time}"
 
   case $tier in
     tier1)
@@ -376,7 +404,11 @@ main() {
   log_info "========================================="
   log_info "Deployment Stage Complete"
   log_info "End Time: $(date)"
-  log_info "Total Duration: $(date -d @$(($(date +%s) - START_TIME)) +%H:%M:%S)"
+  local elapsed=$(( $(date +%s) - START_TIME ))
+  local hours=$(( elapsed / 3600 ))
+  local mins=$(( (elapsed % 3600) / 60 ))
+  local secs=$(( elapsed % 60 ))
+  log_info "Total Duration: $(printf '%02d:%02d:%02d' $hours $mins $secs)"
   log_info "========================================="
   log_info "Check logs in: $LOG_FILE"
 }

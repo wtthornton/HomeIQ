@@ -19,6 +19,7 @@ Key Features:
 - Admin endpoints for corpus management
 """
 import logging
+import os
 from contextlib import asynccontextmanager
 from datetime import UTC
 from typing import Any
@@ -266,6 +267,8 @@ async def health_check() -> dict[str, Any]:
                 "status": "healthy",
                 "service": "automation-miner",
                 "version": "0.1.0",
+                "git_sha": os.environ.get("GIT_SHA", "unknown"),
+                "build_time": os.environ.get("BUILD_TIME", "unknown"),
                 "initialization": {
                     "status": init_status,
                     "in_progress": init_in_progress
