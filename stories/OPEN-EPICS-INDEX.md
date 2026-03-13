@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
 **Created:** 2026-02-27 | **Updated:** 2026-03-13 (Epic 57 complete, Phase 5 plan refreshed)
-**Total:** 57 Completed Epics, 361 Stories complete | 6 Planned Epics (open)
+**Total:** 58 Completed Epics, 364 Stories complete | 5 Planned Epics (open)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -121,6 +121,10 @@ Sprint 20 (COMPLETE — Mar 13, 2026) — Cleanup & Gaps + Phase 5 Refresh
 ├── Epic 57: Cleanup & Gaps [P1]                              ← COMPLETE (4/4 stories)
 │   └── tool_calls persistence, RAG data-testid, entity_extractor verified, secret scanning hook
 └── Phase 5 Plan Refresh                                      ← COMPLETE (44+ health endpoints, 1366+ tests, 51+ services)
+
+Sprint 21 (COMPLETE — Mar 13, 2026) — Chat Endpoint Complexity Refactor
+└── Epic 60: Chat Endpoint Complexity Refactor [P1]           ← COMPLETE (3/3 stories)
+    └── tool_execution.py extracted, _run_openai_loop() helper, lint fixes (721→481+254 lines)
 ```
 
 ---
@@ -129,7 +133,7 @@ Sprint 20 (COMPLETE — Mar 13, 2026) — Cleanup & Gaps + Phase 5 Refresh
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **61** (Epics 57-60 allocated).
+> Next available epic number: **61** (Epics 57-60 complete).
 
 ### P0 — Execute Now
 
@@ -143,7 +147,6 @@ Sprint 20 (COMPLETE — Mar 13, 2026) — Cleanup & Gaps + Phase 5 Refresh
 |---|------|-----------|---------|--------|-------|
 | 58 | **Frontend Test Quality** | [frontend-testing-epics.md](../docs/planning/frontend-testing-epics.md) Epic 54→58 | 6 | 1 week | A11y sweep, dark mode sweep, error boundaries, testing standards |
 | 59 | **Frontend Integration & E2E** | [frontend-testing-epics.md](../docs/planning/frontend-testing-epics.md) Epic 55→59 | 6 | 2 weeks | Cross-component flows, E2E smoke, performance baselines, visual regression |
-| 60 | **Chat Endpoint Complexity Refactor** | *(this file — see below)* | 3 | 2-3 days | chat_endpoints.py CC~40, score 69.2 fails quality gate. Extract helpers, split loop. |
 | — | **Bundle Optimization** | [frontend-epics-roadmap.md](../docs/planning/frontend-epics-roadmap.md) Epic 3 | 6 | 2-3 weeks | Code splitting, lazy loading, bundle size monitoring |
 
 ### P2 — Deferred / After Stability Window
@@ -170,16 +173,15 @@ Sprint 20 (COMPLETE — Mar 13, 2026) — Cleanup & Gaps + Phase 5 Refresh
 | 57.3 | ~~Wire `entity_extractor` in ai-query-service~~ | **ALREADY DONE** — EntityExtractor() at query_router.py:54. No code change needed. |
 | 57.4 | Add pre-commit secret scanning hook | **DONE** — `no-secrets` hook in .pre-commit-config.yaml + scripts/check-secrets.py (5 patterns) |
 
-### Epic 60: Chat Endpoint Complexity Refactor (NEW)
+### Epic 60: Chat Endpoint Complexity Refactor — COMPLETE (Mar 13)
 
-**Priority:** P1 | **Effort:** 2-3 days | **Dependencies:** None
-**Root Cause:** `chat_endpoints.py` has cyclomatic complexity ~40 in the main `chat()` function (720 lines). TAPPS quality gate scores it 69.2/100 (threshold 70). The function handles rate limiting, conversation management, approval workflow, memory extraction, message assembly, the OpenAI tool-call loop, parallel tool execution, performance tracking, and response building — all in a single function body.
+**Priority:** P1 | **Effort:** 1 session | **Dependencies:** None | **Status:** COMPLETE (3/3)
 
-| Story | Description | Acceptance |
-|-------|-------------|------------|
-| 60.1 | **Extract tool execution into helper module** — Move parallel/sequential tool execution logic (lines 540-632) into a `_execute_tool_calls()` async helper. Move `_process_tool_result()` and `_safe_parse_tool_arguments()` into a `tool_execution.py` module. | Tool execution logic in separate module; `chat()` calls helper; all E2E tests still pass. |
-| 60.2 | **Extract OpenAI loop into helper** — Move the iteration loop (lines 408-642) into `_run_openai_loop()` that returns `(assistant_content, tool_calls, total_tokens, iterations)`. The main `chat()` becomes: setup → loop → build response. | `chat()` function CC < 15; loop helper CC < 20; quality gate passes (score >= 70). |
-| 60.3 | **Fix remaining lint issues** — Resolve 4 E501 line-length violations (lines 145, 173, 313, 321). B008 `Depends()` warnings are idiomatic FastAPI — suppress with `# noqa: B008` if needed. | 0 lint errors; TAPPS score >= 75. |
+| Story | Description | Status |
+|-------|-------------|--------|
+| 60.1 | **Extract tool execution into helper module** — `safe_parse_tool_arguments`, `process_tool_result`, `execute_tool_calls` moved to `tool_execution.py` (254 lines) | **DONE** |
+| 60.2 | **Extract OpenAI loop into helper** — `_run_openai_loop()` returns `LoopResult` dataclass. `chat()` is now: setup → loop → build response (721→481 lines) | **DONE** |
+| 60.3 | **Fix remaining lint issues** — f-string logging → `%s` format, `# noqa: B008` for FastAPI Depends, long lines fixed | **DONE** |
 
 ### Archived (Verified Complete / Resolved)
 
@@ -261,6 +263,7 @@ These items were previously listed as open but are now confirmed done:
 | 55 | Production Hardening | N/A | P1 High | 6 | 1 day | **Complete** (commit 0df0ae6e) |
 | 56 | Observability & Monitoring Hardening | N/A | P1 High | 6 | 1 day | **Complete** (commit cd0ffc32) |
 | 57 | Cleanup & Gaps | *(this file)* | P1 High | 4 | 1-2 days | **Complete** (4/4: tool_calls persistence, RAG card data-testid, entity_extractor verified, secret scanning hook) |
+| 60 | Chat Endpoint Complexity Refactor | *(this file)* | P1 High | 3 | 1 session | **Complete** (3/3: tool_execution.py extracted, _run_openai_loop helper, lint fixes) |
 
 ## Story Count by Priority
 
@@ -270,7 +273,7 @@ These items were previously listed as open but are now confirmed done:
 | P1 High | 142 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4) |
 | P2 Medium | 53 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4) |
 | P3 Low | 10 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
-| **Total** | **361** | 361 complete (57 epics). See **Open Work** section for planned epics. |
+| **Total** | **364** | 364 complete (58 epics). See **Open Work** section for planned epics. |
 
 ## Key Dates
 
@@ -284,7 +287,7 @@ These items were previously listed as open but are now confirmed done:
 | Mar 6 | Production redeployed — 51/51 containers healthy |
 | Mar 10 | Sprint 10 complete — Epics 42-45 (Frontend Testing), 662 tests, 60 test files |
 | Mar 12 | Sprint 19 complete — Epics 54-56 (Consolidation + Production Hardening + Observability) |
-| Mar 13 | Epic 57 complete (4/4: tool_calls, RAG testid, entity_extractor, secret scanning). Phase 5 plan refreshed (44+ health endpoints, 1366+ tests). |
+| Mar 13 | Epic 57 complete (4/4: tool_calls, RAG testid, entity_extractor, secret scanning). Phase 5 plan refreshed (44+ health endpoints, 1366+ tests). Epic 60 complete (chat_endpoints refactor: 721→481+254 lines). |
 
 > **Detailed sprint results:** [SPRINT-HISTORY.md](SPRINT-HISTORY.md)
 
