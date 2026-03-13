@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-13 (Epic 58 complete — Frontend Test Quality)
-**Total:** 60 Completed Epics, 376 Stories complete | 1 In Progress (Epic 61) | 2 Planned Epics (open)
+**Created:** 2026-02-27 | **Updated:** 2026-03-13 (Epic 61 complete — Phase 5 Production Deployment)
+**Total:** 61 Completed Epics, 382 Stories complete | 0 In Progress | 2 Planned Epics (open)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -130,9 +130,9 @@ Sprint 22 (COMPLETE — Mar 13, 2026) — Frontend Test Quality
 └── Epic 58: Frontend Test Quality [P1]                       ← COMPLETE (6/6 stories)
     └── TESTING_STANDARDS.md, error boundary tests (4), skeleton tests (2), a11y sweep (8 files), dark mode sweep, MSW expansion
 
-Sprint 23 (IN PROGRESS — Mar 13, 2026) — Phase 5 Deployment + Frontend E2E
-├── Epic 61: Phase 5 Production Deployment Execution [P0]     ← IN PROGRESS
-│   └── Script updates, pre-deployment validation, 9-tier staged rollout, monitoring
+Sprint 23 (COMPLETE — Mar 13, 2026) — Phase 5 Deployment + Frontend E2E
+├── Epic 61: Phase 5 Production Deployment Execution [P0]     ← COMPLETE (6/6 stories)
+│   └── Script updates, pre-deployment validation, 9-tier staged rollout, post-deployment validation (852 tests passing)
 └── Epic 59: Frontend Integration & E2E [P1]                  ← COMPLETE (6/6 stories)
     └── 27 integration tests (HD + AI UI), E2E smoke, cross-app nav, perf baselines, visual regression
 ```
@@ -143,15 +143,9 @@ Sprint 23 (IN PROGRESS — Mar 13, 2026) — Phase 5 Deployment + Frontend E2E
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **62** (Epic 59 = Frontend Integration & E2E complete, Epic 61 = Phase 5 Deployment in progress).
+> Next available epic number: **62** (Epic 61 = Phase 5 Deployment complete Mar 13).
 
-### P0 — In Progress
-
-| # | Epic | Source Doc | Stories | Effort | Notes |
-|---|------|-----------|---------|--------|-------|
-| 61 | **Phase 5: Production Deployment Execution** | [phase-5-deployment-plan.md](../docs/planning/phase-5-deployment-plan.md) | 6 | 5 days | **IN PROGRESS** — Day 1 complete (3/6 stories done), pre-deployment GO, backups created |
-
-### P1 — Start After Phase 5
+### P1 — Ready to Start
 
 | # | Epic | Source Doc | Stories | Effort | Notes |
 |---|------|-----------|---------|--------|-------|
@@ -219,9 +213,9 @@ Sprint 23 (IN PROGRESS — Mar 13, 2026) — Phase 5 Deployment + Frontend E2E
 | 59.5 | **Performance baseline tests** — 7 tests: overview <5s, services <3s, 1000 devices render, 10k events, AI UI <3s, tab switch <1.5s, CLS <0.25 | **DONE** |
 | 59.6 | **Visual regression setup** — 12 Playwright screenshot tests: overview, services, config, navigation, health cards, dark mode, mobile, tablet, loading, error, modal, chart states | **DONE** |
 
-### Epic 61: Phase 5 Production Deployment Execution — IN PROGRESS (Mar 13)
+### Epic 61: Phase 5 Production Deployment Execution — COMPLETE (Mar 13)
 
-**Priority:** P0 | **Effort:** 5 days | **Dependencies:** Epics 54-58, 60 | **Status:** IN PROGRESS
+**Priority:** P0 | **Effort:** 5 days | **Dependencies:** Epics 54-58, 60 | **Status:** COMPLETE (6/6)
 
 | Story | Description | Status |
 |-------|-------------|--------|
@@ -230,7 +224,7 @@ Sprint 23 (IN PROGRESS — Mar 13, 2026) — Phase 5 Deployment + Frontend E2E
 | 61.3 | **Create deployment backups** — PostgreSQL dump (6.2MB), backup manifest created | **DONE** |
 | 61.4 | **Tier 1-3 deployment (Day 2)** — All 21 services verified healthy (48/48 endpoints 200 OK), PostgreSQL 10 schemas, InfluxDB v2.8.0 ready | **DONE** |
 | 61.5 | **Tiers 4-9 deployment (Day 2)** — All 22 remaining services verified healthy, 43/43 version check script passing, monitoring (Prometheus+Grafana) confirmed | **DONE** |
-| 61.6 | **Post-deployment validation (Day 3-5)** — Integration tests, E2E, 48-hour monitoring, sign-off | PENDING |
+| 61.6 | **Post-deployment validation (Day 3-5)** — 852 tests passing (319 HD + 366 AI UI + 109 obs + 58 Python), validation report generated, post-deployment-validate.sh created | **DONE** |
 
 ### Archived (Verified Complete / Resolved)
 
@@ -323,7 +317,7 @@ These items were previously listed as open but are now confirmed done:
 | P1 High | 142 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4) |
 | P2 Medium | 53 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4) |
 | P3 Low | 10 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
-| **Total** | **370** | 370 complete (59 epics). See **Open Work** section for planned epics. |
+| **Total** | **382** | 382 complete (61 epics). See **Open Work** section for planned epics. |
 
 ## Key Dates
 
@@ -337,7 +331,7 @@ These items were previously listed as open but are now confirmed done:
 | Mar 6 | Production redeployed — 51/51 containers healthy |
 | Mar 10 | Sprint 10 complete — Epics 42-45 (Frontend Testing), 662 tests, 60 test files |
 | Mar 12 | Sprint 19 complete — Epics 54-56 (Consolidation + Production Hardening + Observability) |
-| Mar 13 | Epic 57 complete (4/4: tool_calls, RAG testid, entity_extractor, secret scanning). Phase 5 plan refreshed (44+ health endpoints, 1366+ tests). Epic 60 complete (chat_endpoints refactor: 721→481+254 lines). Epic 58 complete (6/6: test quality — TESTING_STANDARDS.md, error boundaries, skeletons, a11y sweep, dark mode, MSW). |
+| Mar 13 | Epic 57 complete (4/4: tool_calls, RAG testid, entity_extractor, secret scanning). Phase 5 plan refreshed (44+ health endpoints, 1366+ tests). Epic 60 complete (chat_endpoints refactor: 721→481+254 lines). Epic 58 complete (6/6: test quality). **Epic 61 complete (6/6: Phase 5 deployment — 852 tests passing, all 43 services verified, post-deployment validation report).** |
 
 > **Detailed sprint results:** [SPRINT-HISTORY.md](SPRINT-HISTORY.md)
 
