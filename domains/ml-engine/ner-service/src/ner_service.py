@@ -3,18 +3,17 @@ NER Model Service - Containerized Entity Extraction
 Provides NER-based entity extraction as a microservice
 """
 
-import logging
 import time
 from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from homeiq_observability.logging_config import setup_logging
 from pydantic import BaseModel
 from transformers import pipeline
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = setup_logging("ner-service", group_name="ml-engine")
 
 # Global NER pipeline (loaded once at startup)
 ner_pipeline = None

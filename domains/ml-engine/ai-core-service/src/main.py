@@ -11,9 +11,7 @@ Responsibilities:
 """
 
 import asyncio
-import logging
 import secrets
-import sys
 import time
 from collections import deque
 from typing import Any
@@ -21,6 +19,7 @@ from typing import Any
 from fastapi import Depends, HTTPException, Request, Security
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
+from homeiq_observability.logging_config import setup_logging
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
@@ -59,12 +58,7 @@ def _trace_decorator():
 
 
 # Configure structured logging
-logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper(), logging.INFO),
-    format='{"time":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","message":"%(message)s"}',
-    stream=sys.stdout,
-)
-logger = logging.getLogger(__name__)
+logger = setup_logging("ai-core-service", group_name="ml-engine")
 
 
 # ---------------------------------------------------------------------------

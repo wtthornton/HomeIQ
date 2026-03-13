@@ -45,6 +45,7 @@ def create_app(
     include_request_id: bool = True,
     include_timing: bool = True,
     rate_limiter: Any | None = None,
+    include_metrics: bool = True,
 ) -> FastAPI:
     """Create a standard HomeIQ FastAPI application.
 
@@ -73,6 +74,9 @@ def create_app(
     rate_limiter:
         Optional ``RateLimiter`` instance from ``homeiq_data.rate_limiter``.
         When provided, rate-limiting middleware is added automatically.
+    include_metrics:
+        Add Prometheus ``/metrics`` endpoint and HTTP instrumentation
+        middleware.  Defaults to ``True``.
     """
     app = FastAPI(
         title=title,
@@ -150,6 +154,14 @@ def create_app(
     # --- Health check router ---
     if health_check is not None:
         app.include_router(health_check.router)
+
+    # --- Prometheus metrics ---
+    if include_metrics:
+        from .prometheus_metrics import add_prometheus_middleware, create_metrics_registry
+
+        metrics = create_metrics_registry(title)
+        add_prometheus_middleware(app, metrics)
+        app.state.metrics = metrics
 
     # --- Root endpoint ---
     @app.get("/")

@@ -8,12 +8,11 @@ Provides optimized model inference for:
 - flan-t5-small - Classification
 """
 
-import json
-import logging
 import time
 from typing import Any
 
 from fastapi import HTTPException, Request
+from homeiq_observability.logging_config import setup_logging
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
@@ -30,38 +29,10 @@ from .models_api import (
 )
 
 # ---------------------------------------------------------------------------
-# Structured JSON Logging (ENH-4)
+# Structured JSON Logging
 # ---------------------------------------------------------------------------
 
-
-class JSONFormatter(logging.Formatter):
-    """Structured JSON log formatter for log aggregation systems."""
-
-    def format(self, record: logging.LogRecord) -> str:
-        log_entry: dict[str, Any] = {
-            "timestamp": self.formatTime(record),
-            "level": record.levelname,
-            "logger": record.name,
-            "message": record.getMessage(),
-        }
-        if hasattr(record, "method"):
-            log_entry["method"] = record.method
-        if hasattr(record, "path"):
-            log_entry["path"] = record.path
-        if hasattr(record, "status_code"):
-            log_entry["status_code"] = record.status_code
-        if hasattr(record, "duration_seconds"):
-            log_entry["duration_seconds"] = record.duration_seconds
-        if record.exc_info:
-            log_entry["exception"] = self.formatException(record.exc_info)
-        return json.dumps(log_entry)
-
-
-# Configure structured logging
-_handler = logging.StreamHandler()
-_handler.setFormatter(JSONFormatter())
-logging.basicConfig(level=logging.INFO, handlers=[_handler])
-logger = logging.getLogger(__name__)
+logger = setup_logging("openvino-service", group_name="ml-engine")
 
 # Global model manager
 openvino_manager: OpenVINOManager | None = None

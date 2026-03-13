@@ -28,6 +28,7 @@ from .logging_config import (
     setup_logging,
 )
 from .metrics_collector import MetricsCollector, get_metrics_collector
+from .tracing_setup import get_tracer, instrument_fastapi as instrument_fastapi_tracing, setup_tracing
 
 __all__: list[str] = [
     "AlertManager",
@@ -47,4 +48,7 @@ __all__: list[str] = [
     "propagate_correlation_id",
     "set_correlation_id",
     "setup_logging",
+    "setup_tracing",
+    "instrument_fastapi_tracing",
+    "get_tracer",
 ]

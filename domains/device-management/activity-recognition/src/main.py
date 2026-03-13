@@ -1,26 +1,14 @@
 """Main FastAPI application for Activity Recognition Service."""
 
-import logging
-import sys
 from pathlib import Path
 
+from homeiq_observability.logging_config import setup_logging
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from .api.routes import load_model, router
 from .config import settings
 
-
-def _configure_logging() -> None:
-    """Configure logging for the service."""
-    logging.basicConfig(
-        level=getattr(logging, settings.log_level.upper()),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],
-    )
-
-
-_configure_logging()
-logger = logging.getLogger(__name__)
+logger = setup_logging("activity-recognition", group_name="device-management")
 
 
 # ---------------------------------------------------------------------------

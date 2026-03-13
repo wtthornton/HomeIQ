@@ -3,14 +3,13 @@ OpenAI Service - Thin wrapper for OpenAI API used by AI Core Service.
 Exposes /health and /chat/completions for suggestion generation.
 """
 
-import logging
 import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from homeiq_observability.logging_config import setup_logging
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = setup_logging("openai-service", group_name="ml-engine")
 
 
 @asynccontextmanager

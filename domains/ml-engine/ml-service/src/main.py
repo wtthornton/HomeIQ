@@ -14,11 +14,12 @@ from typing import Any
 from fastapi import HTTPException, Request, status
 from homeiq_resilience import ServiceLifespan, create_app
 
+from homeiq_observability.logging_config import setup_logging
+
 from .algorithms.anomaly_detection import AnomalyDetectionManager
 from .algorithms.clustering import ClusteringManager
 from .batch import process_single_operation
 from .config import settings
-from .logging_config import setup_ml_logging
 from .middleware import (
     RATE_LIMIT_MAX_REQUESTS,
     RATE_LIMIT_WINDOW,
@@ -53,7 +54,7 @@ __all__ = [
     "app",
 ]
 
-logger = setup_ml_logging()
+logger = setup_logging("ml-service", group_name="ml-engine")
 
 MAX_CLUSTERS = settings.ml_max_clusters
 MAX_BATCH_SIZE = settings.ml_max_batch_size

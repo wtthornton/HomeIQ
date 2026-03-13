@@ -238,3 +238,83 @@ groups:
         annotations:
           summary: "Websocket ingestion experiencing backpressure"
           description: "The websocket-ingestion service is returning 429/503 responses, indicating it cannot keep up with incoming events."
+
+  # --- Application Pool Metrics (Story 56.4) ---
+  - name: app_pool_metrics
+    rules:
+      - alert: AppPoolExhaustion
+        expr: db_pool_utilization_percent > 80
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Application DB pool near exhaustion on {{ $labels.job }}"
+          description: "Application-level database pool utilization is {{ $value }}% on {{ $labels.instance }}. Connections may start queuing."
+
+      - alert: AppPoolCheckedOutHigh
+        expr: db_pool_checked_out > 15
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High checked-out DB connections on {{ $labels.job }}"
+          description: "{{ $labels.instance }} has {{ $value }} checked-out DB connections."
+
+  # --- Tier-Specific Latency (Story 56.4) ---
+  - name: tier_latency
+    rules:
+      - alert: Tier1HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum by (service, le) (rate(http_request_duration_seconds_bucket{tier="1"}[5m]))
+          ) > 2
+        for: 3m
+        labels:
+          severity: critical
+          page: "true"
+        annotations:
+          summary: "Tier 1 service {{ $labels.service }} p95 latency > 2s"
+          description: "Critical path service {{ $labels.service }} p95 latency is {{ $value | humanizeDuration }}. SLA breach risk."
+
+      - alert: Tier2PlusHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum by (service, le) (rate(http_request_duration_seconds_bucket{tier=~"[2-7]"}[5m]))
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Service {{ $labels.service }} p95 latency > 5s"
+          description: "{{ $labels.service }} p95 latency is {{ $value | humanizeDuration }}."
+
+  # --- Enhanced Resource Limits (Story 56.4) ---
+  - name: resource_limits
+    rules:
+      - alert: MemoryNearLimit
+        expr: |
+          (
+            process_resident_memory_bytes
+            /
+            on(instance) group_left container_memory_limit_bytes
+          ) > 0.90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.service }} memory at 90% of limit"
+          description: "{{ $labels.service }} is using over 90% of its container memory limit. OOM kill imminent."
+
+      - alert: DiskUsageHigh
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/"}
+            /
+            node_filesystem_size_bytes{mountpoint="/"}
+          ) < 0.15
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk usage above 85%"
+          description: "Less than 15% disk space remaining on {{ $labels.instance }}."

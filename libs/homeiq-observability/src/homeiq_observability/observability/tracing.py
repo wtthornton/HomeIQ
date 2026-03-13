@@ -1,20 +1,27 @@
-"""
-OpenTelemetry Tracing Setup
+"""OpenTelemetry Tracing Setup.
 
 Provides distributed tracing capabilities for all services.
+Uses OTLP HTTP exporter (port 4318) for Jaeger integration.
+
+.. note::
+    Prefer the top-level :func:`homeiq_observability.setup_tracing` for new
+    code -- it adds service group/tier metadata and defaults to OTLP HTTP.
+    This module is kept for backward compatibility with existing callers.
 """
+
+from __future__ import annotations
 
 import logging
 import os
 from functools import wraps
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
 # OpenTelemetry imports (optional - will fail gracefully if not installed)
 try:
     from opentelemetry import trace
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
@@ -22,53 +29,56 @@ try:
     OPENTELEMETRY_AVAILABLE = True
 except ImportError:
     OPENTELEMETRY_AVAILABLE = False
-    logger.warning("OpenTelemetry not available. Install with: pip install opentelemetry-api opentelemetry-sdk opentelemetry-instrumentation-fastapi")
+    logger.info("OpenTelemetry not available -- tracing disabled")
 
 
 def setup_tracing(service_name: str, otlp_endpoint: Optional[str] = None) -> bool:
-    """
-    Set up OpenTelemetry tracing for a service.
-    
+    """Set up OpenTelemetry tracing for a service.
+
     Args:
         service_name: Name of the service
-        otlp_endpoint: Optional OTLP endpoint URL (e.g., "http://jaeger:4317")
-        
+        otlp_endpoint: Optional OTLP HTTP endpoint URL (e.g., "http://jaeger:4318")
+
     Returns:
         True if tracing was set up successfully, False otherwise
     """
     if not OPENTELEMETRY_AVAILABLE:
-        logger.warning("OpenTelemetry not available, skipping tracing setup")
+        logger.info("OpenTelemetry not available, skipping tracing setup")
         return False
-    
+
     try:
-        # Create resource with service name
         resource = Resource.create({
             "service.name": service_name,
-            "service.version": os.getenv("SERVICE_VERSION", "1.0.0")
+            "service.version": os.getenv("SERVICE_VERSION", "1.0.0"),
+            "deployment.environment": os.getenv("ENVIRONMENT", "production"),
         })
-        
-        # Create tracer provider
+
         provider = TracerProvider(resource=resource)
-        
-        # Add span processor
+
         if otlp_endpoint:
-            # Export to OTLP collector
-            otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True)
+            otlp_exporter = OTLPSpanExporter(endpoint=f"{otlp_endpoint}/v1/traces")
             provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
-            logger.info(f"✅ Tracing configured with OTLP endpoint: {otlp_endpoint}")
+            logger.info(
+                "Tracing configured with OTLP HTTP endpoint: %s", otlp_endpoint
+            )
         else:
-            # Console exporter for development
-            console_exporter = ConsoleSpanExporter()
-            provider.add_span_processor(BatchSpanProcessor(console_exporter))
-            logger.info("✅ Tracing configured with console exporter")
-        
-        # Set global tracer provider
+            default_endpoint = os.getenv(
+                "OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4318"
+            )
+            otlp_exporter = OTLPSpanExporter(
+                endpoint=f"{default_endpoint}/v1/traces"
+            )
+            provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+            logger.info(
+                "Tracing configured with default OTLP HTTP endpoint: %s",
+                default_endpoint,
+            )
+
         trace.set_tracer_provider(provider)
-        
         return True
-        
+
     except Exception as e:
-        logger.error(f"Failed to set up tracing: {e}", exc_info=True)
+        logger.error("Failed to set up tracing: %s", e, exc_info=True)
         return False
 
 
@@ -143,23 +153,25 @@ def trace_function(operation_name: Optional[str] = None):
     return decorator
 
 
-def instrument_fastapi(app, service_name: str):
-    """
-    Instrument FastAPI app with OpenTelemetry.
-    
+def instrument_fastapi(app: Any, service_name: str) -> bool:
+    """Instrument FastAPI app with OpenTelemetry.
+
     Args:
         app: FastAPI application instance
         service_name: Name of the service
+
+    Returns:
+        True if instrumentation succeeded, False otherwise
     """
     if not OPENTELEMETRY_AVAILABLE:
-        logger.warning("OpenTelemetry not available, skipping FastAPI instrumentation")
+        logger.info("OpenTelemetry not available, skipping FastAPI instrumentation")
         return False
-    
+
     try:
         FastAPIInstrumentor.instrument_app(app)
-        logger.info(f"✅ FastAPI app instrumented for tracing: {service_name}")
+        logger.info("FastAPI app instrumented for tracing: %s", service_name)
         return True
     except Exception as e:
-        logger.error(f"Failed to instrument FastAPI app: {e}", exc_info=True)
+        logger.error("Failed to instrument FastAPI app: %s", e, exc_info=True)
         return False
 

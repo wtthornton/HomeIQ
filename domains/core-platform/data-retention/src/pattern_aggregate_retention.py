@@ -188,10 +188,10 @@ if __name__ == "__main__":
 
     async def main():
         results = await run_pattern_aggregate_retention()
-        print("Pattern Aggregate Retention Results:")
-        print(f"  Duration: {results['duration_seconds']:.2f}s")
+        logger.info("Pattern Aggregate Retention Results:")
+        logger.info("  Duration: %.2fs", results['duration_seconds'])
         for bucket, result in results['results'].items():
-            status = 'OK' if result['success'] else 'FAIL'
-            print(f"  {bucket}: {status}")
+            bucket_status = 'OK' if result['success'] else 'FAIL'
+            logger.info("  %s: %s", bucket, bucket_status)
 
     asyncio.run(main())
