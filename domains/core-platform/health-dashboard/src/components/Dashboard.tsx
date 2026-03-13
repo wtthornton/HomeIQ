@@ -251,7 +251,11 @@ export const Dashboard: React.FC = () => {
         <div key={group.id} className="mb-1">
           {group.tabs.length === 1 ? (
             <button
+              role="tab"
               data-tab={group.tabs[0].id}
+              data-testid={`tab-${group.tabs[0].id}`}
+              aria-selected={selectedTab === group.tabs[0].id}
+              aria-controls={`tabpanel-${group.tabs[0].id}`}
               onClick={() => handleTabChange(group.tabs[0].id)}
               onKeyDown={(e) => handleTabKeyDown(e, group.tabs[0].id)}
               className={`w-full text-left px-4 py-2 text-sm font-medium transition-colors ${
@@ -265,6 +269,7 @@ export const Dashboard: React.FC = () => {
           ) : (
             <>
               <button
+                aria-expanded={expandedGroups.has(group.id)}
                 onClick={() => toggleGroup(group.id)}
                 className="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold tracking-wide text-muted-foreground hover:text-foreground"
               >
@@ -276,8 +281,11 @@ export const Dashboard: React.FC = () => {
                   {group.tabs.map((tab) => (
                     <button
                       key={tab.id}
+                      role="tab"
                       data-tab={tab.id}
                       data-testid={`tab-${tab.id}`}
+                      aria-selected={selectedTab === tab.id}
+                      aria-controls={`tabpanel-${tab.id}`}
                       onClick={() => handleTabChange(tab.id)}
                       onKeyDown={(e) => handleTabKeyDown(e, tab.id)}
                       className={`w-full text-left px-4 py-1.5 text-sm transition-colors ${
@@ -404,7 +412,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Nav groups */}
-        <nav className="flex-1 overflow-y-auto py-2" aria-label="Dashboard navigation">
+        <nav role="tablist" data-testid="tab-navigation" className="flex-1 overflow-y-auto py-2" aria-label="Dashboard navigation">
           {renderNavGroups()}
         </nav>
 
@@ -437,7 +445,7 @@ export const Dashboard: React.FC = () => {
                 </svg>
               </button>
             </div>
-            <nav className="flex-1 overflow-y-auto py-2" aria-label="Dashboard navigation">
+            <nav role="tablist" data-testid="tab-navigation" className="flex-1 overflow-y-auto py-2" aria-label="Dashboard navigation">
               {renderNavGroups()}
             </nav>
             {renderControls()}

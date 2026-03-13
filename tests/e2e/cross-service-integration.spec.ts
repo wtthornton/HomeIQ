@@ -38,8 +38,10 @@ test.describe('Cross-Service Integration Tests', () => {
       // Step 3: Verify InfluxDB storage is connected
       expect(healthData.ingestion_service.influxdb_storage.is_connected).toBe(true);
       
-      // Step 4: Verify enrichment pipeline is running
-      expect(healthData.ingestion_service.weather_enrichment.enabled).toBe(true);
+      // Step 4: Epic 31 - enrichment-pipeline deprecated; inline normalization in websocket-ingestion
+      if (healthData.ingestion_service.weather_enrichment) {
+        expect(healthData.ingestion_service.weather_enrichment.enabled).toBe(true);
+      }
       
       // Step 5: Load dashboard and verify data flows through
       await page.goto('http://localhost:3000');
@@ -139,25 +141,23 @@ test.describe('Cross-Service Integration Tests', () => {
       expect(adminData.ingestion_service.websocket_connection.connection_attempts).toBeDefined();
     });
 
-    test('Enrichment Pipeline to Admin API communication', async ({ page }) => {
-      // Step 1: Verify Enrichment Pipeline is healthy
-      const enrichResponse = await page.request.get('http://localhost:8002/health');
-      expect(enrichResponse.status()).toBe(200);
-      const enrichData = await enrichResponse.json();
-      expect(enrichData.status).toBe('healthy');
-      
-      // Step 2: Verify Admin API reports enrichment status
+    test('WebSocket Ingestion direct InfluxDB writes (Epic 31)', async ({ page }) => {
+      // Epic 31: Enrichment pipeline deprecated. WebSocket ingestion writes directly to InfluxDB.
+      // Step 1: Verify WebSocket ingestion is healthy
+      const wsResponse = await page.request.get('http://localhost:8001/health');
+      expect(wsResponse.status()).toBe(200);
+      const wsData = await wsResponse.json();
+      expect(wsData.status).toBe('healthy');
+
+      // Step 2: Verify Admin API reports WebSocket and InfluxDB status
       const adminResponse = await page.request.get('http://localhost:8004/api/v1/health');
       expect(adminResponse.status()).toBe(200);
       const adminData = await adminResponse.json();
-      
-      // Step 3: Verify weather enrichment status is reported
-      expect(adminData.ingestion_service.weather_enrichment).toBeDefined();
-      expect(adminData.ingestion_service.weather_enrichment.enabled).toBe(true);
-      
-      // Step 4: Verify enrichment metrics are available
-      expect(adminData.ingestion_service.weather_enrichment.cache_hits).toBeDefined();
-      expect(adminData.ingestion_service.weather_enrichment.api_calls).toBeDefined();
+
+      expect(adminData.ingestion_service.websocket_connection).toBeDefined();
+      expect(adminData.ingestion_service.websocket_connection.is_connected).toBe(true);
+      expect(adminData.ingestion_service.influxdb_storage).toBeDefined();
+      expect(adminData.ingestion_service.influxdb_storage.is_connected).toBe(true);
     });
 
     test('API Automation Edge to Home Assistant communication', async ({ page }) => {
@@ -216,10 +216,7 @@ test.describe('Cross-Service Integration Tests', () => {
       const wsResponse = await page.request.get('http://localhost:8001/health');
       expect(wsResponse.status()).toBe(200);
       
-      // Step 3: Verify Enrichment Pipeline reports InfluxDB connection
-      const enrichResponse = await page.request.get('http://localhost:8002/health');
-      expect(enrichResponse.status()).toBe(200);
-      
+      // Step 3: Epic 31 - enrichment-pipeline deprecated; WebSocket writes directly to InfluxDB
       // Step 4: Verify Admin API reports InfluxDB connection
       const adminResponse = await page.request.get('http://localhost:8004/api/v1/health');
       expect(adminResponse.status()).toBe(200);
@@ -284,7 +281,6 @@ test.describe('Cross-Service Integration Tests', () => {
       const services = [
         { name: 'InfluxDB', url: 'http://localhost:8086/health' },
         { name: 'WebSocket Ingestion', url: 'http://localhost:8001/health' },
-        { name: 'Enrichment Pipeline', url: 'http://localhost:8002/health' },
         { name: 'Admin API', url: 'http://localhost:8004/api/v1/health' },
         { name: 'Data Retention', url: 'http://localhost:8080/health' },
         { name: 'API Automation Edge', url: 'http://localhost:8041/health' }
@@ -340,15 +336,7 @@ test.describe('Cross-Service Integration Tests', () => {
         }
       }
       
-      const enrichResponse = await page.request.get('http://localhost:8002/health');
-      if (enrichResponse.status() === 200) {
-        const enrichData = await enrichResponse.json();
-        // Service should report InfluxDB as unhealthy
-        if (enrichData.dependencies?.influxdb) {
-          expect(enrichData.dependencies.influxdb).toBe('unhealthy');
-        }
-      }
-      
+      // Epic 31: enrichment-pipeline deprecated
       // Step 4: Check that admin API reports degraded status
       const adminResponse = await page.request.get('http://localhost:8004/api/v1/health');
       if (adminResponse.status() === 200) {
@@ -356,13 +344,13 @@ test.describe('Cross-Service Integration Tests', () => {
         expect(['degraded', 'unhealthy']).toContain(adminData.overall_status);
       }
       
-      // Step 5: Restore InfluxDB
+      // Step 6: Restore InfluxDB
       await page.unroute('http://localhost:8086/**');
-      
-      // Step 6: Wait for recovery
+
+      // Step 7: Wait for recovery
       await page.waitForTimeout(10000);
-      
-      // Step 7: Verify system recovers
+
+      // Step 8: Verify system recovers
       const recoveryResponse = await page.request.get('http://localhost:8004/api/v1/health');
       if (recoveryResponse.status() === 200) {
         const recoveryData = await recoveryResponse.json();
@@ -402,36 +390,23 @@ test.describe('Cross-Service Integration Tests', () => {
       }
     });
 
-    test('Enrichment pipeline failure handling', async ({ page }) => {
-      // Step 1: Simulate Enrichment Pipeline failure
-      await page.route('http://localhost:8002/**', route => route.abort());
-      
-      // Step 2: Wait for error propagation
-      await page.waitForTimeout(5000);
-      
-      // Step 3: Check that admin API reports degraded status
+    test('Data API failure handling', async ({ page }) => {
+      // Epic 31: Enrichment pipeline deprecated. Test Data API (8006) failure instead.
+      // Step 1: Simulate Data API failure
+      await page.route('http://localhost:8006/**', route => route.abort());
+
+      // Step 2: Dashboard should still load (Admin API at 8004 is primary for health)
       const adminResponse = await page.request.get('http://localhost:8004/api/v1/health');
-      if (adminResponse.status() === 200) {
-        const adminData = await adminResponse.json();
-        expect(['degraded', 'unhealthy']).toContain(adminData.overall_status);
-        
-        // Weather enrichment should be reported as disabled
-        expect(adminData.ingestion_service.weather_enrichment.enabled).toBe(false);
-      }
-      
-      // Step 4: Restore Enrichment Pipeline
-      await page.unroute('http://localhost:8002/**');
-      
-      // Step 5: Wait for recovery
-      await page.waitForTimeout(10000);
-      
-      // Step 6: Verify system recovers
+      expect(adminResponse.status()).toBe(200);
+
+      // Step 3: Restore Data API
+      await page.unroute('http://localhost:8006/**');
+
+      // Step 4: Verify system remains healthy
       const recoveryResponse = await page.request.get('http://localhost:8004/api/v1/health');
-      if (recoveryResponse.status() === 200) {
-        const recoveryData = await recoveryResponse.json();
-        expect(recoveryData.overall_status).toBe('healthy');
-        expect(recoveryData.ingestion_service.weather_enrichment.enabled).toBe(true);
-      }
+      expect(recoveryResponse.status()).toBe(200);
+      const recoveryData = await recoveryResponse.json();
+      expect(recoveryData.overall_status).toBe('healthy');
     });
   });
 
