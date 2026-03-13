@@ -75,4 +75,22 @@ describe('ConversationalDashboard Page', () => {
       expect(screen.getByText('Refresh Suggestions')).toBeInTheDocument();
     });
   });
+
+  // === Accessibility ===
+
+  it('page heading uses correct heading element', async () => {
+    renderWithProviders(<ConversationalDashboard />);
+    await waitFor(() => {
+      const heading = screen.getByText(/Automation Suggestions/);
+      expect(heading.tagName).toMatch(/^H[1-3]$/);
+    });
+  });
+
+  it('Refresh button is a button element', async () => {
+    renderWithProviders(<ConversationalDashboard />);
+    await waitFor(() => {
+      const btn = screen.getByText('Refresh Suggestions');
+      expect(btn.closest('button')).toBeInTheDocument();
+    });
+  });
 });

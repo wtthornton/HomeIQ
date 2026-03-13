@@ -165,4 +165,41 @@ describe('ConversationSidebar', () => {
       expect(deleteButtons).toHaveLength(2);
     });
   });
+
+  // === Accessibility ===
+
+  it('conversation items have role="option" for screen readers', async () => {
+    render(<ConversationSidebar {...defaultProps} />);
+    await waitFor(() => {
+      const options = screen.getAllByRole('option');
+      expect(options.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('search input has placeholder for screen readers', async () => {
+    render(<ConversationSidebar {...defaultProps} />);
+    await waitFor(() => {
+      const search = screen.getByPlaceholderText('Search conversations...');
+      expect(search.tagName).toMatch(/INPUT/i);
+    });
+  });
+
+  it('delete buttons have accessible title attribute', async () => {
+    render(<ConversationSidebar {...defaultProps} />);
+    await waitFor(() => {
+      const deleteButtons = screen.getAllByTitle('Delete conversation');
+      deleteButtons.forEach(btn => {
+        expect(btn).toHaveAttribute('title', 'Delete conversation');
+      });
+    });
+  });
+
+  // === Dark Mode ===
+
+  it('renders correctly in dark mode', async () => {
+    render(<ConversationSidebar {...defaultProps} darkMode={true} />);
+    await waitFor(() => {
+      expect(screen.getByText('Conversations')).toBeInTheDocument();
+    });
+  });
 });

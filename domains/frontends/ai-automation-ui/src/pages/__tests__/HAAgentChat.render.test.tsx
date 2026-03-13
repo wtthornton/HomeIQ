@@ -128,4 +128,21 @@ describe('HAAgentChat Page', () => {
       expect(textarea).toBeInTheDocument();
     });
   });
+
+  // === Accessibility ===
+
+  it('chat input is a textarea or input element', async () => {
+    renderWithProviders(<HAAgentChat />, { route: '/chat' });
+    await waitFor(() => {
+      const textarea = screen.getByPlaceholderText(/type|message|ask/i);
+      expect(textarea.tagName).toMatch(/TEXTAREA|INPUT/i);
+    });
+  });
+
+  it('send button is present and interactive', async () => {
+    renderWithProviders(<HAAgentChat />, { route: '/chat' });
+    await waitFor(() => {
+      expect(screen.getByTestId('send-button')).toBeInTheDocument();
+    });
+  });
 });

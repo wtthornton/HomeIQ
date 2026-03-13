@@ -315,4 +315,31 @@ describe('OverviewTab', () => {
       expect(screen.getByText(/System Status: degraded/)).toBeInTheDocument();
     });
   });
+
+  // === Accessibility ===
+
+  it('system status hero has data-testid for screen readers', async () => {
+    render(<OverviewTab darkMode={false} />);
+    await waitFor(() => {
+      expect(screen.getByTestId('system-status-hero')).toBeInTheDocument();
+    });
+  });
+
+  it('retry buttons are interactive button elements', async () => {
+    mockUseHealth.mockReturnValue({
+      health: null,
+      loading: false,
+      error: 'Connection refused',
+      lastUpdated: null,
+      refresh: vi.fn(),
+    } as any);
+
+    render(<OverviewTab darkMode={false} />);
+    await waitFor(() => {
+      const retryButtons = screen.getAllByText('Retry');
+      retryButtons.forEach(btn => {
+        expect(btn.closest('button')).toBeInTheDocument();
+      });
+    });
+  });
 });

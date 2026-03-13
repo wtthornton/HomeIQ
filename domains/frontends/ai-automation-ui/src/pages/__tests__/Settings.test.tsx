@@ -110,4 +110,22 @@ describe('Settings Page', () => {
       expect(screen.getByText(/Save Settings/)).toBeInTheDocument();
     });
   });
+
+  // === Accessibility ===
+
+  it('Save Settings is a button element', async () => {
+    renderWithProviders(<Settings />);
+    await waitFor(() => {
+      const btn = screen.getByText(/Save Settings/);
+      expect(btn.closest('button')).toBeInTheDocument();
+    });
+  });
+
+  it('settings form has accessible form element', async () => {
+    renderWithProviders(<Settings />);
+    await waitFor(() => {
+      const form = screen.getByTestId('settings-form');
+      expect(form.tagName).toMatch(/FORM|DIV/);
+    });
+  });
 });

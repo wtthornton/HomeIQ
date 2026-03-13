@@ -133,4 +133,29 @@ describe('BlueprintSuggestions Page', () => {
       expect(screen.getByText('Generate Suggestions')).toBeInTheDocument();
     });
   });
+
+  // === Accessibility ===
+
+  it('page heading uses correct heading element', async () => {
+    renderWithProviders(<BlueprintSuggestions />);
+    await waitFor(() => {
+      const heading = screen.getByText('Blueprint Suggestions');
+      expect(heading.tagName).toMatch(/^H[1-3]$/);
+    });
+  });
+
+  it('Generate Suggestions is a button element', async () => {
+    renderWithProviders(<BlueprintSuggestions />);
+    await waitFor(() => {
+      const btn = screen.getByText('Generate Suggestions');
+      expect(btn.closest('button')).toBeInTheDocument();
+    });
+  });
+
+  it('loading state text is visible for screen readers', async () => {
+    mockGetSuggestions.mockReturnValue(new Promise(() => {}));
+    mockGetStats.mockReturnValue(new Promise(() => {}));
+    renderWithProviders(<BlueprintSuggestions />);
+    expect(screen.getByText('Loading suggestions...')).toBeInTheDocument();
+  });
 });

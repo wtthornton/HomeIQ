@@ -128,4 +128,59 @@ export const handlers = [
   http.get('/api/v1/activity', () => {
     return HttpResponse.json([]);
   }),
+
+  // Energy endpoint
+  http.get('/api/v1/energy', () => {
+    return HttpResponse.json({
+      current: { consumption_watts: 1200, solar_watts: 800, grid_watts: 400 },
+      daily: [],
+    });
+  }),
+
+  // Events endpoint
+  http.get('/api/v1/events', () => {
+    return HttpResponse.json({ events: [], total: 0 });
+  }),
+
+  // Integrations endpoint
+  http.get('/api/v1/integrations', () => {
+    return HttpResponse.json({ integrations: [] });
+  }),
+
+  // RAG status endpoint
+  http.get('/api/v1/rag/status', () => {
+    return HttpResponse.json({ status: 'available', documents: 0, last_indexed: null });
+  }),
+
+  // Memory status endpoint
+  http.get('/api/v1/memory/status', () => {
+    return HttpResponse.json({ status: 'available', entries: 0 });
+  }),
+
+  // Configuration endpoint
+  http.get('/api/v1/configuration', () => {
+    return HttpResponse.json({ settings: {} });
+  }),
 ];
+
+// Error response handlers — use with server.use() in individual tests
+export const errorHandlers = {
+  health500: http.get('/api/health', () => {
+    return HttpResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }),
+  health401: http.get('/api/health', () => {
+    return HttpResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }),
+  stats404: http.get('/api/v1/stats', () => {
+    return HttpResponse.json({ error: 'Not found' }, { status: 404 });
+  }),
+  services503: http.get('/api/v1/services', () => {
+    return HttpResponse.json({ error: 'Service unavailable' }, { status: 503 });
+  }),
+  devices500: http.get('/api/devices', () => {
+    return HttpResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }),
+  networkError: http.get('/api/health', () => {
+    return HttpResponse.error();
+  }),
+};

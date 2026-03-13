@@ -67,4 +67,22 @@ describe('Patterns Page', () => {
       expect(screen.getByText(/Run.*Analysis/)).toBeInTheDocument();
     });
   });
+
+  // === Accessibility ===
+
+  it('page heading uses correct heading element', async () => {
+    renderWithProviders(<Patterns />);
+    await waitFor(() => {
+      const heading = screen.getByText('Detected Patterns');
+      expect(heading.tagName).toMatch(/^H[1-3]$/);
+    });
+  });
+
+  it('Run Analysis is rendered as a button element', async () => {
+    renderWithProviders(<Patterns />);
+    await waitFor(() => {
+      const btn = screen.getByText(/Run.*Analysis/);
+      expect(btn.closest('button')).toBeInTheDocument();
+    });
+  });
 });

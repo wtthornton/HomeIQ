@@ -49,4 +49,14 @@ describe('Deployed Page', () => {
       expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
     });
   });
+
+  // === Accessibility ===
+
+  it('heading is an h1 element', async () => {
+    renderWithProviders(<Deployed />);
+    await waitFor(() => {
+      const heading = screen.getByRole('heading', { level: 1 });
+      expect(heading.tagName).toBe('H1');
+    });
+  });
 });
