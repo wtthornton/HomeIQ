@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
 **Created:** 2026-02-27 | **Updated:** 2026-03-13 (Epic 58 complete — Frontend Test Quality)
-**Total:** 59 Completed Epics, 370 Stories complete | 1 In Progress (Epic 61) | 3 Planned Epics (open)
+**Total:** 60 Completed Epics, 376 Stories complete | 1 In Progress (Epic 61) | 2 Planned Epics (open)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -130,9 +130,11 @@ Sprint 22 (COMPLETE — Mar 13, 2026) — Frontend Test Quality
 └── Epic 58: Frontend Test Quality [P1]                       ← COMPLETE (6/6 stories)
     └── TESTING_STANDARDS.md, error boundary tests (4), skeleton tests (2), a11y sweep (8 files), dark mode sweep, MSW expansion
 
-Sprint 23 (IN PROGRESS — Mar 13, 2026) — Phase 5 Production Deployment
-└── Epic 61: Phase 5 Production Deployment Execution [P0]     ← IN PROGRESS
-    └── Script updates, pre-deployment validation, 9-tier staged rollout, monitoring
+Sprint 23 (IN PROGRESS — Mar 13, 2026) — Phase 5 Deployment + Frontend E2E
+├── Epic 61: Phase 5 Production Deployment Execution [P0]     ← IN PROGRESS
+│   └── Script updates, pre-deployment validation, 9-tier staged rollout, monitoring
+└── Epic 59: Frontend Integration & E2E [P1]                  ← COMPLETE (6/6 stories)
+    └── 27 integration tests (HD + AI UI), E2E smoke, cross-app nav, perf baselines, visual regression
 ```
 
 ---
@@ -141,7 +143,7 @@ Sprint 23 (IN PROGRESS — Mar 13, 2026) — Phase 5 Production Deployment
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **62** (Epic 61 = Phase 5 Deployment Execution, in progress).
+> Next available epic number: **62** (Epic 59 = Frontend Integration & E2E complete, Epic 61 = Phase 5 Deployment in progress).
 
 ### P0 — In Progress
 
@@ -154,7 +156,7 @@ Sprint 23 (IN PROGRESS — Mar 13, 2026) — Phase 5 Production Deployment
 | # | Epic | Source Doc | Stories | Effort | Notes |
 |---|------|-----------|---------|--------|-------|
 | ~~58~~ | ~~**Frontend Test Quality**~~ | ~~[frontend-testing-epics.md](../docs/planning/frontend-testing-epics.md) Epic 54→58~~ | ~~6~~ | ~~1 week~~ | **COMPLETE (Mar 13)** — TESTING_STANDARDS.md, 4 error boundary test files, 2 skeleton test files, a11y sweep (8 files), dark mode tests, MSW expansion |
-| 59 | **Frontend Integration & E2E** | [frontend-testing-epics.md](../docs/planning/frontend-testing-epics.md) Epic 55→59 | 6 | 2 weeks | Cross-component flows, E2E smoke, performance baselines, visual regression |
+| ~~59~~ | ~~**Frontend Integration & E2E**~~ | ~~[frontend-testing-epics.md](../docs/planning/frontend-testing-epics.md) Epic 55→59~~ | ~~6~~ | ~~2 weeks~~ | **COMPLETE (Mar 13)** — 27 integration tests (HD 14 + AI UI 13), 11 E2E smoke, 6 cross-app nav, 7 perf baselines, 12 visual regression |
 | — | **Bundle Optimization** | [frontend-epics-roadmap.md](../docs/planning/frontend-epics-roadmap.md) Epic 3 | 6 | 2-3 weeks | Code splitting, lazy loading, bundle size monitoring |
 
 ### P2 — Deferred / After Stability Window
@@ -203,6 +205,19 @@ Sprint 23 (IN PROGRESS — Mar 13, 2026) — Phase 5 Production Deployment
 | 58.4 | **Skeleton component tests** — 2 new test files: HD Skeletons (23 tests for Card/Graph/List/Table), AI UI Skeletons (25 tests for Card/Grid/Filter/Stats) | **DONE** |
 | 58.5 | **Testing standards doc** — Created `docs/TESTING_STANDARDS.md` with conventions, required categories, a11y patterns, coverage targets, templates | **DONE** |
 | 58.6 | **MSW handler expansion** — Added 6 new success handlers (energy, events, integrations, RAG, memory, config) + 6 error handlers (500, 401, 404, 503, network error) | **DONE** |
+
+### Epic 59: Frontend Integration & E2E — COMPLETE (Mar 13)
+
+**Priority:** P1 | **Effort:** 1 session | **Dependencies:** Epics 42-45, 58 | **Status:** COMPLETE (6/6)
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 59.1 | **Health Dashboard integration tests** — 14 tests: cross-tab nav, URL hash sync, group expand/collapse, auto-refresh, time range persistence, custom events, keyboard nav, degraded status resilience | **DONE** |
+| 59.2 | **AI Automation UI integration tests** — 13 tests: conversation lifecycle, optimistic updates, multi-turn flows, sidebar loading, error handling, input sanitization, performance tracking | **DONE** |
+| 59.3 | **Health Dashboard E2E smoke tests** — 11 Playwright tests: dashboard loads, overview metrics, services health, devices list, sidebar navigation, dark mode persistence, time range, auto-refresh, deep linking, API error handling | **DONE** |
+| 59.4 | **Cross-app navigation E2E** — 6 tests: app switcher links, HD↔AI UI navigation, HD↔Observability, footer links, URL safety validation | **DONE** |
+| 59.5 | **Performance baseline tests** — 7 tests: overview <5s, services <3s, 1000 devices render, 10k events, AI UI <3s, tab switch <1.5s, CLS <0.25 | **DONE** |
+| 59.6 | **Visual regression setup** — 12 Playwright screenshot tests: overview, services, config, navigation, health cards, dark mode, mobile, tablet, loading, error, modal, chart states | **DONE** |
 
 ### Epic 61: Phase 5 Production Deployment Execution — IN PROGRESS (Mar 13)
 

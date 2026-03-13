@@ -3,10 +3,17 @@ import { setupAuthenticatedSession } from '../shared/helpers/auth-helpers';
 import { waitForLoadingComplete } from '../shared/helpers/wait-helpers';
 
 /**
- * Visual Regression Tests
+ * Visual Regression Tests (Story 59.6)
+ *
  * Aligned with health-dashboard: tab-based hash routing (#overview, #services, #configuration),
  * and selectors that exist in the app (dashboard-root, dashboard-content, health-card).
+ *
+ * Coverage: Overview, Services, Configuration, Navigation, Health Cards,
+ * Dark Mode, Mobile, Tablet, Loading States, Error States, Modals, Charts.
+ *
  * Update baselines: npx playwright test visual-regression.spec.ts --update-snapshots
+ * Review diffs:     npx playwright show-report
+ * Tolerance:        5% pixel difference (maxDiffPixelRatio: 0.05)
  */
 
 async function waitForDashboardStable(page: import('@playwright/test').Page) {
