@@ -96,17 +96,18 @@ Run: `python -m pytest tests/auto-fix-pipeline -v`
 
 ### AI Automation UI
 
-#### Pages/Routes (9/9)
+#### Pages/Routes (8/8 primary + 8 legacy redirects)
 
-- ✅ Conversational Dashboard
-- ✅ Patterns Page
-- ✅ Synergies Page
-- ✅ Deployed Page
-- ✅ Discovery Page
-- ✅ HA Agent Chat
-- ✅ Settings Page
-- ✅ Admin Page
-- ✅ Navigation
+- ✅ Ideas Dashboard (`/`)
+- ✅ HA Agent Chat (`/chat`)
+- ✅ Discovery / Explore (`/explore`)
+- ✅ Insights / Patterns (`/insights`)
+- ✅ Deployed Automations (`/automations`)
+- ✅ Scheduled Tasks (`/scheduled`)
+- ✅ Settings (`/settings`)
+- ✅ Name Enhancement (`/name-enhancement`)
+- ✅ Legacy redirects: `/ha-agent`, `/deployed`, `/discovery`, `/patterns`, `/synergies`, `/admin`, `/proactive`, `/blueprint-suggestions`
+- ✅ Navigation (sidebar)
 
 #### Components
 
@@ -184,16 +185,17 @@ Config-driven bug-finding pipeline. See `auto-fix-pipeline/README.md`.
 
 1. **WebSocket Real-Time Updates**: Limited testing of real-time WebSocket connections
 2. **Performance Testing**: No performance benchmarks
-3. **Visual Regression**: No visual regression testing
-4. **Cross-Browser Edge Cases**: Some edge cases not tested in all browsers
+3. **Cross-Browser Edge Cases**: Some edge cases not tested in all browsers
 
 ### Future Improvements
 
-1. Add visual regression testing
-2. Add performance benchmarks
-3. Expand WebSocket testing
-4. Add more edge case coverage
-5. Add visual diff testing
+1. Add performance benchmarks
+2. Expand WebSocket testing
+3. Add more edge case coverage
+
+### Visual Regression
+
+Visual regression tests exist in `tests/e2e/visual-regression.spec.ts` covering dashboard, services, configuration, responsive, dark theme, loading/error states. These run **locally on-demand** (not in default CI). Update baselines: `npx playwright test visual-regression --update-snapshots`.
 
 ## Running Coverage Reports
 

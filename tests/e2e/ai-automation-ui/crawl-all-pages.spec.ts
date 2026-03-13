@@ -29,6 +29,7 @@ const ROUTES = [
   { path: '/explore', name: 'Explore' },
   { path: '/insights', name: 'Insights' },
   { path: '/automations', name: 'Automations' },
+  { path: '/scheduled', name: 'Scheduled Tasks' },
   { path: '/settings', name: 'Settings' },
   { path: '/name-enhancement', name: 'Name Enhancement' },
   { path: '/?source=blueprints', name: 'Ideas (Blueprints tab)' },

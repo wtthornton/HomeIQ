@@ -1,11 +1,13 @@
 # auto-bugfix.ps1 -- Find bugs, fix them, and open a PR using Claude Code headless mode.
+# Config-driven: uses homeiq-default.yaml by default or $env:AUTO_FIX_CONFIG.
+# Preferred entry point: .\auto-fix-pipeline\runner\run.ps1 (delegates here with -ConfigPath).
 #
 # Usage:
-#   .\scripts\auto-bugfix.ps1 [-Bugs 5] [-Branch "auto/bugfix"] [-TargetDir "domains/"] [-Base "master"]
+#   .\scripts\auto-bugfix.ps1 -Bugs 3                 # Uses default config (homeiq-default.yaml)
 #   .\scripts\auto-bugfix.ps1 -Bugs 1 -Chain          # Run bugfix + refactor + test
 #   .\scripts\auto-bugfix.ps1 -Bugs 3 -NoDashboard    # Skip live dashboard
 #   .\scripts\auto-bugfix.ps1 -Bugs 3 -NoRotate       # Scan entire repo instead of rotating
-#   .\scripts\auto-bugfix.ps1 -ConfigPath "auto-fix-pipeline/config/example/homeiq-default.yaml"  # Config-driven (Epic 3)
+#   .\scripts\auto-bugfix.ps1 -ConfigPath "path/to/custom-config.yaml"  # Custom config
 #   .\scripts\auto-bugfix.ps1 -ProjectRootOverride "C:/repos/other" -ConfigPath "path/to/config.yaml"  # Multi-repo (Phase 4)
 #
 # Scan output format (required for bug list extraction):
@@ -54,7 +56,9 @@ if ($ProjectRootOverride) {
 }
 Set-Location $ProjectRoot
 
-# Config is required. Default: $env:AUTO_FIX_CONFIG or homeiq-default.yaml (Epic 52).
+# Config is REQUIRED. Default: $env:AUTO_FIX_CONFIG or homeiq-default.yaml.
+# All pipeline settings (model, budget, paths, prompts, MCP) come from config YAML.
+# See: auto-fix-pipeline/config/schema/README.md
 if (-not $ConfigPath) {
     $ConfigPath = if ($env:AUTO_FIX_CONFIG) { $env:AUTO_FIX_CONFIG } else { "auto-fix-pipeline/config/example/homeiq-default.yaml" }
 }
@@ -62,7 +66,7 @@ if (-not $ConfigPath) {
 # TappsMCP tool prefix: when using MCP_DOCKER (Docker MCP Toolkit), tools are mcp__MCP_DOCKER__tapps_*
 $TappsPrefix = "mcp__${TappsMcpServer}__"
 
-# Schema defaults (auto-fix-pipeline/config/schema/README). Config overwrites below.
+# Initial defaults — overwritten by config YAML below (lines 94-139).
 $ScanManifest = Join-Path $ProjectRoot "docs/scan-manifest.json"
 $DashboardStateFile = Join-Path $ProjectRoot "scripts/.dashboard-state.json"
 $DashboardHtml = Join-Path $ProjectRoot "scripts/dashboard.html"

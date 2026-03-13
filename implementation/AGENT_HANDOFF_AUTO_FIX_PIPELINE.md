@@ -21,9 +21,9 @@ You are continuing work on the **auto-fix pipeline isolated project** inside Hom
 - **Isolated project:** `auto-fix-pipeline/`  
   - `README.md` — purpose, links, "next: Epic 1"  
   - `docs/` — NEXT_STEPS.md (recommended Epics 1–4), architecture/workflows/reference (placeholders)  
-  - `config/` — schema/ and example/ (empty; Epic 1 will add config schema and HomeIQ example)  
-  - `runner/` — placeholder only; Epic 2 will add runner that delegates to existing script  
-  - `stories/` — EPIC-00-INDEX.md (Epic 0 done); Epic 1+ will be defined in parent `stories/` or here  
+  - `config/` — schema/ (JSON Schema + README) and example/ (homeiq-default.yaml + repos-example.yaml)
+  - `runner/` — run.ps1 (single-repo) and run-multirepo.ps1 (Phase 4; delegates to script with -ConfigPath)
+  - `stories/` — EPIC-00-INDEX.md (Epic 0 done); epics defined in parent `stories/`
 - **Epic 0 (done):** `stories/epic-50-auto-fix-isolated-project-structure.md`  
 - **Architecture:** `docs/architecture/auto-fix-mcp-architecture.md` (MCP_DOCKER, TappsMCP, docs-mcp, pipeline phases, config model)  
 - **Generalization plan:** `implementation/AUTO_BUGFIX_GENERALIZATION_PLAN.md` (phased rollout, config YAML shape)  
@@ -31,7 +31,11 @@ You are continuing work on the **auto-fix pipeline isolated project** inside Hom
 
 ## Recommended next work
 
-**Epic 1 (recommended first):** Config schema and HomeIQ default. Add config schema under `auto-fix-pipeline/config/schema/` and an example config under `auto-fix-pipeline/config/example/` that matches current HomeIQ behavior. Do **not** change `scripts/auto-bugfix.ps1` in Epic 1. Schema should cover: project (name, languages, root), runner (cli, model, max_cost, budget_allocation), scan (manifest_path, selector, output_format, retry_attempts), fix (chain_phases, validation_required), mcp (config_path, tapps_mcp_server, scan_tools, fix_tools, expert_domains, docs_lookup), paths (dashboard_state, feedback_dir, history_file, impl_dir). Reference the YAML example in `implementation/AUTO_BUGFIX_GENERALIZATION_PLAN.md` section 4.1.
+Epics 1-4 and 52 (config, runner, script reads config, prompts, cleanup) are **all complete**. The pipeline is fully config-driven. Next work depends on the task you're given — possible areas include:
+- New config profiles for other projects (see `auto-fix-pipeline/docs/adoption-and-breakout.md`)
+- Phase 4 multi-repo runner enhancements
+- Additional prompt templates or scan strategies
+- Breakout to standalone repo (Phase 5)
 
 ## Rules
 

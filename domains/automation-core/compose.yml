@@ -40,10 +40,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 256M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 128M
           cpus: '0.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8030/health"]
@@ -96,10 +96,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 256M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 128M
           cpus: '0.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8025/health"]
@@ -146,10 +146,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 192M
           cpus: '2.0'
         reservations:
-          memory: 256M
+          memory: 128M
           cpus: '1.0'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8018/health"]
@@ -190,10 +190,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 192M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 128M
           cpus: '0.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8037/health"]

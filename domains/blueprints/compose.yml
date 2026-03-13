@@ -31,10 +31,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 192M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 96M
           cpus: '0.5'
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8031/health')"]
@@ -77,10 +77,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 192M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 96M
           cpus: '0.5'
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8032/health')"]
@@ -116,10 +116,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 256M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 128M
           cpus: '0.5'
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; import sys; response = urllib.request.urlopen('http://localhost:8035/api/v1/health', timeout=5); sys.exit(0 if response.getcode() == 200 else 1)"]
@@ -166,10 +166,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 192M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 96M
           cpus: '0.5'
     logging:
       driver: "json-file"

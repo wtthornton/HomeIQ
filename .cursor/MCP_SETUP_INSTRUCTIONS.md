@@ -50,9 +50,31 @@ With MCP_DOCKER, TappsMCP tools appear as:
 
 The auto-bugfix script (`scripts/auto-bugfix.ps1`) uses the `MCP_DOCKER` prefix by default. If you use a standalone TappsMCP server instead, run with `-TappsMcpServer "tapps-mcp"`.
 
+### TappsMCP workspace_path configuration
+
+TappsMCP needs a `workspace_path` to know which project to analyze. The Docker MCP Toolkit stores this in its internal extension storage.
+
+**Check current config:**
+```
+mcp-config-set(server="tapps-mcp", config={"workspace_path": "C:\\cursor\\HomeIQ"})
+```
+
+The response shows `Old config` — if it says `${workspaceFolder}`, the variable was not expanded and needs fixing. The command above both checks and fixes it in one step.
+
+**Known issue:** `${workspaceFolder}` does not expand in Claude Code or headless contexts. Use an absolute path instead. The fix persists across Docker Desktop restarts (stored in Docker extension storage, not on the host filesystem).
+
+**For different projects:** Re-run `mcp-config-set` with the new project's absolute path.
+
+### Activating tapps tools in a session
+
+TappsMCP tools may not appear in the deferred tool list automatically. To activate:
+
+1. `mcp-add(name="tapps-mcp", activate=true)` — registers all 30 tools
+2. Use `mcp-exec(name="tapps_server_info")` or `mcp-exec(name="tapps_session_start")` to call tools
+
 ### Verification
 
-In Cursor, start a session and call `tapps_session_start` (or the full tool name your client shows). If the Docker MCP gateway is running and configured, the tool should respond with server info and project profile.
+In Cursor, start a session and call `tapps_session_start` (or use `mcp-exec` as described above). If the Docker MCP gateway is running and configured, the tool should respond with server info and project profile.
 
 ---
 

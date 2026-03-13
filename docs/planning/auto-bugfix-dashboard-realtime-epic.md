@@ -1,10 +1,11 @@
 # Epic 47: Auto-Bugfix Dashboard — Near Real-Time Updates
 
-**Status:** Open  
-**Priority:** P1 High  
-**Estimated duration:** 1–2 weeks  
-**Risk level:** Low  
-**Depends on:** [Auto-Bugfix Streaming Dashboard PRD](auto-bugfix-streaming-dashboard-prd.md) (Epics 1–3; stream parser and pipeline integration)  
+**Status:** Complete
+**Completed:** 2026-03-12
+**Priority:** P1 High
+**Estimated duration:** 1–2 weeks
+**Risk level:** Low
+**Depends on:** [Auto-Bugfix Streaming Dashboard PRD](auto-bugfix-streaming-dashboard-prd.md) (Epics 1–3; stream parser and pipeline integration)
 **Expert review:** TAPPS UX, Development Workflow, API Design, Software Architecture, Observability (Mar 2026)
 
 ---
@@ -66,10 +67,10 @@ After any change to `$Script:Usage`, ensure the dashboard state is written (see 
 
 **Acceptance criteria:**
 
-- [ ] Turns in the dashboard header and telemetry increase during a step (e.g. 1, 2, 3…) as turns complete, not only at step end.
-- [ ] Cost and tokens (if provided by the stream) update during the step where possible.
-- [ ] If API only provides cost on result event, document limitation; turns still update live.
-- [ ] No regression: final totals after a step still match the result event.
+- [x] Turns in the dashboard header and telemetry increase during a step (e.g. 1, 2, 3…) as turns complete, not only at step end. *(auto-bugfix-stream.ps1:224-226)*
+- [x] Cost and tokens (if provided by the stream) update during the step where possible. *(auto-bugfix-stream.ps1:151-153)*
+- [x] If API only provides cost on result event, document limitation; turns still update live. *(auto-bugfix.ps1:565, cost from result event only: line 307)*
+- [x] No regression: final totals after a step still match the result event. *(auto-bugfix-stream.ps1:307-318)*
 
 ---
 
@@ -84,9 +85,9 @@ During `Invoke-ClaudeStream`, call `Write-Dashboard` (or a variant that writes o
 
 **Acceptance criteria:**
 
-- [ ] While a step is running, `.dashboard-state.json` is updated at least every 1 s when there are usage/tool changes.
-- [ ] Use atomic write (temp file → rename) so readers never see partial JSON.
-- [ ] Optional: add a “state-only” write that updates only the JSON file (not the full HTML) for high-frequency updates; full HTML write remains on step transitions or a longer interval.
+- [x] While a step is running, `.dashboard-state.json` is updated at least every 1 s when there are usage/tool changes. *(auto-bugfix-stream.ps1:156-159, 288)*
+- [x] Use atomic write (temp file → rename) so readers never see partial JSON. *(auto-bugfix.ps1:288-296)*
+- [x] Optional: add a “state-only” write that updates only the JSON file (not the full HTML) for high-frequency updates; full HTML write remains on step transitions or a longer interval. *(-StateOnly switch: auto-bugfix.ps1:244,298)*
 
 ---
 
@@ -99,8 +100,8 @@ Ensure the very first `Write-Dashboard` call (and the initial state written when
 
 **Acceptance criteria:**
 
-- [ ] On opening the dashboard at “Initializing” or “Connecting to Claude…”, the header shows the chosen model (e.g. “sonnet 4.6”) and budget (e.g. “$2.00”) instead of `--`.
-- [ ] State schema and `Write-Dashboard` default values document model and max_cost.
+- [x] On opening the dashboard at “Initializing” or “Connecting to Claude…”, the header shows the chosen model (e.g. “sonnet 4.6”) and budget (e.g. “$2.00”) instead of `--`. *(auto-bugfix.ps1:282-283, initial Write-Dashboard at line 352)*
+- [x] State schema and `Write-Dashboard` default values document model and max_cost. *(auto-bugfix.ps1:282-283, auto-bugfix-stream.ps1:81)*
 
 ---
 
@@ -122,10 +123,10 @@ In `scripts/dashboard-live.html` (and any shared logic in `scripts/dashboard.htm
 
 **Acceptance criteria:**
 
-- [ ] No full page reload during a run; all updates are in-place via fetched state.
-- [ ] Model, Turns, Cost, Budget, Bugs Found, Bugs Fixed, Files Changed, Validation, PR, and all telemetry fields update within ~1 s of the pipeline writing state.
-- [ ] Log panel: auto-scroll to bottom only when user is near bottom; preserve scroll when user has scrolled up to read history.
-- [ ] Polling stops when the run is done or in error.
+- [x] No full page reload during a run; all updates are in-place via fetched state. *(dashboard.html:5, meta refresh removed)*
+- [x] Model, Turns, Cost, Budget, Bugs Found, Bugs Fixed, Files Changed, Validation, PR, and all telemetry fields update within ~1 s of the pipeline writing state. *(dashboard.html:2468, 800ms polling)*
+- [x] Log panel: auto-scroll to bottom only when user is near bottom; preserve scroll when user has scrolled up to read history. *(dashboard.html:2032-2033)*
+- [x] Polling stops when the run is done or in error. *(dashboard.html:2445-2449)*
 
 ---
 
@@ -143,8 +144,8 @@ When the dashboard is opened as a local file (`file://`), `fetch('./.dashboard-s
 
 **Acceptance criteria:**
 
-- [ ] When opened via HTTP (e.g. `python -m http.server` from `scripts/`), polling works and state updates in near real-time.
-- [ ] When opened as file:// and fetch fails, fallback to meta refresh (2–3 s) with a user-visible notice; document in README or script help.
+- [x] When opened via HTTP (e.g. `python -m http.server` from `scripts/`), polling works and state updates in near real-time. *(dashboard.html:2497-2499)*
+- [x] When opened as file:// and fetch fails, fallback to meta refresh (2–3 s) with a user-visible notice; document in README or script help. *(dashboard.html:2489-2496, 2473-2484)*
 
 ---
 
@@ -157,8 +158,8 @@ Today `bugs_found` is only set when the scan step completes and the main script 
 
 **Acceptance criteria:**
 
-- [ ] If the scan stream or script logic can derive a running count of bugs found, the dashboard state is updated during the step and the “Bugs Found” result and header update in near real-time.
-- [ ] If the API does not support partial counts, document the limitation and leave “Bugs Found” as a single update at scan completion (no regression).
+- [x] If the scan stream or script logic can derive a running count of bugs found, the dashboard state is updated during the step and the “Bugs Found” result and header update in near real-time. *(N/A — stream-json does not provide partial counts)*
+- [x] If the API does not support partial counts, document the limitation and leave “Bugs Found” as a single update at scan completion (no regression). *(auto-bugfix.ps1:565 — documented)*
 
 ---
 
@@ -171,8 +172,8 @@ Ensure that as soon as the pipeline knows **bugs_fixed**, **files_changed**, **v
 
 **Acceptance criteria:**
 
-- [ ] Bugs Fixed, Files Changed, Validation, and PR update in the dashboard as soon as the pipeline has determined them (no unnecessary delay until “Feedback” or final step).
-- [ ] Telemetry (burn rate, projected cost, time left, throughput) updates every time the frontend polls and state has new usage/cost data (already implied by 47.1 and 47.4; verify with a run).
+- [x] Bugs Fixed, Files Changed, Validation, and PR update in the dashboard as soon as the pipeline has determined them (no unnecessary delay until “Feedback” or final step). *(auto-bugfix.ps1:638,812)*
+- [x] Telemetry (burn rate, projected cost, time left, throughput) updates every time the frontend polls and state has new usage/cost data (already implied by 47.1 and 47.4; verify with a run). *(dashboard.html: renderTelemetry called from applyState on every poll)*
 
 ---
 

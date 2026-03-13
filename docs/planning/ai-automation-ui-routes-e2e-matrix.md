@@ -11,7 +11,7 @@
 | `/explore` | `ai-automation-ui/pages/discovery.spec.ts` | Discovery / device explorer |
 | `/insights` | `ai-automation-ui/pages/patterns.spec.ts` | Insights / patterns |
 | `/automations` | `ai-automation-ui/pages/deployed.spec.ts` | Deployed automations |
-| `/scheduled` | — | Scheduled tasks; cover via navigation or add spec |
+| `/scheduled` | `ai-automation-ui/pages/scheduled.spec.ts` | Scheduled AI tasks |
 | `/settings` | `ai-automation-ui/pages/settings.spec.ts` | Settings |
 | `/name-enhancement` | `ai-automation-ui/pages/name-enhancement.spec.ts` | Name Enhancement dashboard |
 
@@ -40,4 +40,4 @@
 **Coverage gaps addressed in Epic 49:**
 
 - `/name-enhancement`: added `name-enhancement.spec.ts` (navigate + assert main content).
-- `/scheduled`: covered indirectly via navigation; add dedicated spec if needed.
+- `/scheduled`: added `scheduled.spec.ts` (navigate + assert main content + console errors).

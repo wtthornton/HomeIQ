@@ -91,7 +91,7 @@ Create a comprehensive Playwright E2E test suite that delivers **full coverage**
 | Proactive | /?source=context (legacy /proactive) | proactive.spec.ts, dashboard.spec.ts | Proactive API |
 | Blueprint Suggestions | /?source=blueprints (legacy /blueprint-suggestions) | blueprint-suggestions.spec.ts | Blueprint API |
 | Name Enhancement | /name-enhancement | name-enhancement.spec.ts | Name enhancement API |
-| Scheduled Tasks | /scheduled | (navigation or add spec) | Scheduled tasks API |
+| Scheduled Tasks | /scheduled | scheduled.spec.ts | Scheduled tasks API |
 
 #### API Services Used (ai-automation-ui)
 - AI Automation (8018): suggestions, NL generate, deploy

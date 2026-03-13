@@ -1,7 +1,7 @@
 # Epic 49: E2E Playwright Coverage Expansion
 
-**Created:** 2026-03-11 | **Priority:** P1 | **Sprint:** 14 (Backlog)
-**Status:** OPEN
+**Created:** 2026-03-11 | **Priority:** P1 | **Sprint:** 14
+**Status:** COMPLETE (2026-03-12) — All 13 stories done. Stories 49.1–49.11 were already implemented by prior epics. Stories 49.12–49.13 completed: route-spec matrix, `/scheduled` spec, crawl updated, docs aligned.
 **Scope:** Expand Playwright E2E coverage across four gap areas — Visual Regression, Ask AI/HA Agent, Error/Loading Depth, AI Automation UI Routes
 
 ## Objective
@@ -255,10 +255,10 @@ Address identified E2E test gaps so that critical user journeys, visual consiste
 
 ## Success Criteria (Epic)
 
-- [ ] Visual regression spec runs against current health-dashboard without selector failures; routes and selectors documented or updated.
-- [ ] Ask AI has a mocked E2E path runnable in CI; ownership and CI strategy documented.
-- [ ] At least three critical health-dashboard tabs have explicit empty-state and API-failure tests; at least two have loading→loaded tests.
-- [ ] AI Automation UI has a route–spec matrix; every listed route has at least one E2E test; implementation plan and TEST_COVERAGE are aligned with actual app.
+- [x] Visual regression spec runs against current health-dashboard without selector failures; routes and selectors documented or updated.
+- [x] Ask AI has a mocked E2E path runnable in CI; ownership and CI strategy documented.
+- [x] At least three critical health-dashboard tabs have explicit empty-state and API-failure tests; at least two have loading→loaded tests.
+- [x] AI Automation UI has a route–spec matrix; every listed route has at least one E2E test; implementation plan and TEST_COVERAGE are aligned with actual app.
 
 ## References
 

@@ -31,10 +31,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 256M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 128M
           cpus: '0.5'
     logging:
       driver: "json-file"
@@ -72,10 +72,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 256M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 128M
           cpus: '0.5'
     logging:
       driver: "json-file"
@@ -113,10 +113,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 256M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 128M
           cpus: '0.5'
     logging:
       driver: "json-file"
@@ -155,10 +155,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 256M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 128M
           cpus: '0.5'
     logging:
       driver: "json-file"
@@ -198,10 +198,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 256M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 128M
           cpus: '0.5'
     logging:
       driver: "json-file"
@@ -233,7 +233,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 512M
           cpus: '1.0'
         reservations:
           memory: 384M
@@ -283,10 +283,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 256M
           cpus: '0.5'
         reservations:
-          memory: 192M
+          memory: 128M
           cpus: '0.25'
     logging:
       driver: "json-file"
@@ -336,10 +336,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 384M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 192M
           cpus: '0.5'
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]

@@ -28,6 +28,14 @@ services:
       - ai_automation_data:/app/data
     networks:
       - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
     # Cross-domain: depends on core-platform/data-api
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]
@@ -85,10 +93,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 256M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 128M
           cpus: '0.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8025/health"]

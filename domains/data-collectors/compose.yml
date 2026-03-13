@@ -39,7 +39,7 @@ services:
           memory: 384M
           cpus: '0.5'
         reservations:
-          memory: 192M
+          memory: 256M
           cpus: '0.25'
     logging:
       driver: "json-file"
@@ -129,10 +129,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 192M
           cpus: '0.5'
         reservations:
-          memory: 192M
+          memory: 128M
           cpus: '0.25'
     logging:
       driver: "json-file"
@@ -220,10 +220,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 192M
           cpus: '0.5'
         reservations:
-          memory: 192M
+          memory: 128M
           cpus: '0.25'
     logging:
       driver: "json-file"

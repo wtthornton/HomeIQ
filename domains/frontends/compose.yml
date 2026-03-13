@@ -29,10 +29,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 384M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 192M
           cpus: '0.5'
 
   observability-dashboard:
@@ -66,10 +66,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 384M
           cpus: '1.0'
         reservations:
-          memory: 384M
+          memory: 192M
           cpus: '0.5'
     logging:
       driver: "json-file"
@@ -101,10 +101,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 96M
           cpus: '1.0'
         reservations:
-          memory: 256M
+          memory: 48M
           cpus: '0.5'
     logging:
       driver: "json-file"
@@ -151,10 +151,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 3G
+          memory: 1G
           cpus: '2.0'
         reservations:
-          memory: 1G
+          memory: 512M
           cpus: '0.5'
     logging:
       driver: "json-file"

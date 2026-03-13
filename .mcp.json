@@ -1,13 +1,13 @@
 {
   "mcpServers": {
     "MCP_DOCKER": {
-      "command": "cmd",
+      "command": "docker",
       "args": [
-        "/c",
-        "C:\\Users\\tappt\\.docker\\mcp\\set-workspace-and-run.cmd"
+        "mcp",
+        "gateway",
+        "run"
       ],
       "env": {
-        "TAPPS_WORKSPACE": "${workspaceFolder}",
         "LOCALAPPDATA": "C:\\Users\\tappt\\AppData\\Local",
         "ProgramData": "C:\\ProgramData",
         "ProgramFiles": "C:\\Program Files"
