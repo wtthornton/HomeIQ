@@ -76,8 +76,8 @@ describe('Dashboard User Interactions', () => {
     // Wait for dashboard to load
     await screen.findByTestId('dashboard-title');
 
-    // Overview is a single-tab group, rendered as a direct button
-    const overviewBtn = screen.getByRole('button', { name: /^Overview$/i });
+    // Overview is a single-tab group, rendered as a tab button
+    const overviewBtn = screen.getByTestId('tab-overview');
     await user.click(overviewBtn);
     expect(overviewBtn.className).toContain('bg-primary');
 
