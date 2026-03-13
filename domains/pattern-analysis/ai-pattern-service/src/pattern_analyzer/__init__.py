@@ -24,6 +24,7 @@ from .room_based import RoomBasedPatternDetector
 from .seasonal import SeasonalPatternDetector
 from .sequence import SequencePatternDetector
 from .time_of_day import TimeOfDayPatternDetector
+from .types import PatternResult, PATTERN_TYPES, normalize_results
 
 __all__ = [
     "TimeOfDayPatternDetector",
@@ -37,4 +38,7 @@ __all__ = [
     "FrequencyPatternDetector",
     "SeasonalPatternDetector",
     "ContextualPatternDetector",
+    "PatternResult",
+    "PATTERN_TYPES",
+    "normalize_results",
 ]

@@ -25,6 +25,8 @@ import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
 test.describe('Enhancement Button - Can I enhance an automation after creating it?', () => {
   // Without AI_SERVICES_AVAILABLE the tests will fail on first assertion (e.g. input not found or timeout)
+  test.skip(!process.env.AI_SERVICES_AVAILABLE, 'Requires live AI services — set AI_SERVICES_AVAILABLE=1 to enable');
+
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
     await page.goto('/chat');

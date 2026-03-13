@@ -6,7 +6,7 @@ polars>=1.0.0
 numpy>=1.26.0,<3.0.0  # Phase 3: allow 1.x and 2.x (Feb 2026 upgrade)
 
 # ML
-torch>=2.5.0
+torch>=2.5.0,<3.0.0  # Epic 54: aligned
 onnxruntime>=1.20.0,<2.0.0  # Feb 2026 upgrade — latest stable 1.x
 
 # API

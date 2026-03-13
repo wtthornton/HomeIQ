@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
 **Created:** 2026-02-27 | **Updated:** 2026-03-12 (Epics 52+53 complete)
-**Total:** 53 Epics, 345 Stories (345 complete, 0 open), ~700+ files addressed
+**Total:** 54 Epics, 351 Stories (351 complete, 0 open), ~700+ files addressed
 
 ## Execution Order & Dependencies
 
@@ -103,6 +103,15 @@ Sprint 17 (COMPLETE — Mar 11, 2026) — Ask AI Integration Validation
 
 Sprint 18 (COMPLETE — Mar 12, 2026) — Auto-Bugfix Cleanup
 └── Epic 52: Auto-Bugfix Cleanup — Delete Legacy [P1]       ← COMPLETE (6 stories: config verified, scripts assessed, docs updated, no deletions needed — all already config-driven)
+
+Sprint 19 (Mar 12, 2026) — Consolidation
+└── Epic 54: Consolidation Sprint [P1]                        ← IN PROGRESS (6 stories)
+    ├── 54.1: Gate enhancement-button E2E behind AI_SERVICES_AVAILABLE
+    ├── 54.2: Fix FIXME RAG modal tests with Playwright route mocking
+    ├── 54.3: PatternResult type standardization (types.py)
+    ├── 54.4: ML dependency version alignment across all services
+    ├── 54.5: Mark Epic 56/57 as superseded by Epics 37/38
+    └── 54.6: Documentation updates
 ```
 
 ## Epic Summary
@@ -163,6 +172,7 @@ Sprint 18 (COMPLETE — Mar 12, 2026) — Auto-Bugfix Cleanup
 | 51 | [E2E Skipped Tests — Fix or Delete](epic-51-e2e-skipped-tests.md) | `epic-51-e2e-skipped-tests.md` | P1 High | 12 | 1–2 weeks | **Complete** (0 skipped). Follow-up: health 223 pass/2 fixme; AI UI 3 fail = enhancement-button (mock or gate). |
 | 52 | [Auto-Bugfix Cleanup — Delete Legacy, Keep Config-Driven](epic-auto-bugfix-cleanup-legacy.md) | `epic-auto-bugfix-cleanup-legacy.md` | P1 High | 6 | 2-3 days | **Complete** (config verified, scripts assessed, docs updated) |
 | 53 | [Ask AI Integration Validation](epic-53-ask-ai-integration-validation.md) | `epic-53-ask-ai-integration-validation.md` | P1 High | 4 | 1-2 weeks | **Complete** (schema doc, HA helper, full-flow test, CI=local) |
+| 54 | Consolidation Sprint | N/A (this sprint) | P1 High | 6 | 1 day | **In Progress** |
 
 ## Story Count by Priority
 
@@ -546,3 +556,10 @@ Actual Outcome:
 | OpenVINO + Optimum-Intel Upgrade | Epic 38, Story 6 |
 | Model Regeneration (if required) | Epic 38, Story 7 |
 | Documentation and Rollback Plan | Epic 38, Story 8 |
+
+## Superseded Epics
+
+> **Epics 56 and 57** from `docs/planning/epic-56-57-pattern-detectors-ml-upgrade.md` are **SUPERSEDED**.
+> Epic 56 (Advanced Pattern Detection Framework) was fully delivered by Epic 37 (Sprint 8, Mar 7, 2026).
+> Epic 57 (ML Stack Modernization) was mostly delivered by Epic 38 (Sprint 8, Mar 7, 2026).
+> The remaining gap (Story 57.6: ML Dependency Alignment Audit) is addressed by Epic 54, Story 54.4.

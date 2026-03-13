@@ -10,7 +10,7 @@ numpy>=1.26.0,<3.0.0  # Phase 3: allow 1.x and 2.x migration path
 darts>=0.40.0,<0.41.0  # Feb 2026 upgrade — Chronos2Model, new config system
 
 # ML
-torch>=2.5.0
+torch>=2.5.0,<3.0.0  # Epic 54: aligned
 pytorch-lightning>=2.2.0
 
 # Optional: Prophet

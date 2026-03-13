@@ -4,7 +4,7 @@
 # Core ML libraries
 transformers>=4.50.0,<5.0.0  # Epic 38, Story 38.5: upgraded from 4.46.x
 sentence-transformers>=5.0.0,<6.0.0  # Epic 38: upgraded from 3.3.x
-torch>=2.5.0
+torch>=2.5.0,<3.0.0  # Epic 54: aligned
 
 # OpenVINO for optimized models (optional, but recommended)
 openvino>=2025.0.0  # Epic 38, Story 38.6: upgraded from 2024.5.0

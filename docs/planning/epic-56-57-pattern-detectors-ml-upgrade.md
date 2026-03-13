@@ -3,7 +3,11 @@
 
 > Source: [stale-branch-review-requirements.md](stale-branch-review-requirements.md)
 > Created: 2026-03-06
-> Status: PLANNED
+> Status: SUPERSEDED — delivered by Epic 37 (Pattern Detection) and Epic 38 (ML Dependencies)
+
+> **NOTE (2026-03-12):** Epic 56 was fully delivered by Epic 37 (Sprint 8, Mar 7) which implemented all 10 detectors.
+> Epic 57 was mostly delivered by Epic 38 (Sprint 8, Mar 7). Only Story 57.6 (alignment audit) remained and is
+> addressed by Epic 54, Story 54.4.
 
 ---
 

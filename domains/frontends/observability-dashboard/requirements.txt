@@ -5,7 +5,7 @@
 streamlit>=1.54.0,<2.0.0
 
 # Data & Visualization
-pandas>=2.0.0,<3.0.0
+pandas>=2.2.0,<3.1.0  # Epic 54: aligned
 plotly>=5.17.0,<6.0.0
 
 # HTTP Client
