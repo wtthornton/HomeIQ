@@ -11,12 +11,12 @@
 #   docker build -t homeiq-model-prep -f services/model-prep/Dockerfile services/model-prep
 #   docker run --rm -v homeiq_models:/app/models homeiq-model-prep
 
-FROM python:3.12-alpine AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
 # Install build dependencies
-RUN apk add --no-cache gcc musl-dev linux-headers git curl
+RUN apt-get update && apt-get install -y --no-install-recommends gcc git curl && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip
 RUN pip install --upgrade pip==25.2
@@ -24,7 +24,7 @@ RUN pip install --upgrade pip==25.2
 # Install model download dependencies
 COPY domains/ml-engine/model-prep/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --user -r requirements.txt
+    pip install --no-cache-dir --user --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
 
 # Install shared libs from libs/
 COPY libs/ /tmp/libs/
@@ -36,16 +36,16 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-ha/
 
 # Production stage
-FROM python:3.12-alpine AS production
+FROM python:3.12-slim AS production
 
 WORKDIR /app
 
 # Install runtime dependencies
-RUN apk add --no-cache curl ca-certificates git
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -S appuser -u 1001 -G appgroup
+RUN groupadd -g 1001 appgroup && \
+    useradd -u 1001 -g appgroup -s /bin/false appuser
 
 # Copy Python dependencies from builder
 COPY --from=builder /root/.local /home/appuser/.local

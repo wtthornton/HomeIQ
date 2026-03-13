@@ -33,7 +33,7 @@ All epics (completed and planned) are tracked in **[stories/OPEN-EPICS-INDEX.md]
 
 ## Quality Pipeline (TAPPS)
 
-This project uses TAPPS for automated code quality enforcement. TappsMCP is provided by **MCP_DOCKER** (Docker MCP Toolkit). When TappsMCP is configured (see [MCP_SETUP_INSTRUCTIONS.md](MCP_SETUP_INSTRUCTIONS.md)):
+This project uses TAPPS for automated code quality enforcement. TappsMCP runs locally via **uv stdio** from `C:\cursor\TappMCP` (v1.6.0). When TappsMCP is configured (see [MCP_SETUP_INSTRUCTIONS.md](MCP_SETUP_INSTRUCTIONS.md)):
 
 - Call `tapps_session_start()` at the start of every session
 - Call `tapps_quick_check(file_path)` after editing any Python file

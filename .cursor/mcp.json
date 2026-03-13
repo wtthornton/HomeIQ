@@ -25,18 +25,17 @@
         "GITHUB_PERSONAL_ACCESS_TOKEN": ""
       }
     },
-    "MCP_DOCKER": {
-      "command": "docker",
-      "args": [
-        "mcp",
-        "gateway",
-        "run"
-      ],
-      "env": {
-        "LOCALAPPDATA": "C:\\Users\\tappt\\AppData\\Local",
-        "ProgramData": "C:\\ProgramData",
-        "ProgramFiles": "C:\\Program Files"
-      }
+    "tapps-mcp": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["--directory", "C:\\cursor\\TappMCP", "run", "--no-sync", "tapps-mcp", "serve"],
+      "env": { "TAPPS_MCP_PROJECT_ROOT": "${workspaceFolder}" }
+    },
+    "docs-mcp": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["--directory", "C:\\cursor\\TappMCP", "run", "--no-sync", "docsmcp", "serve"],
+      "env": { "DOCS_MCP_PROJECT_ROOT": "${workspaceFolder}" }
     }
   }
 }

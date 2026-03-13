@@ -75,7 +75,7 @@ vi.mock('../../components/ha-agent/DeleteConversationModal', () => ({
 }));
 
 vi.mock('../../components/ha-agent/ClearChatModal', () => ({
-  ClearChatModal: ({ isOpen, onConfirm, onCancel }: any) =>
+  ClearChatModal: ({ isOpen, onConfirm }: any) =>
     isOpen ? (
       <div data-testid="clear-modal">
         <button data-testid="clear-confirm" onClick={onConfirm}>
@@ -143,10 +143,8 @@ vi.mock('../../components/ha-agent/DebugTab', () => ({
 }));
 
 // DevicePicker: capture props to simulate device selection
-let capturedDevicePickerProps: any = {};
 vi.mock('../../components/ha-agent/DevicePicker', () => ({
   DevicePicker: (props: any) => {
-    capturedDevicePickerProps = props;
     return props.isOpen ? (
       <div data-testid="device-picker">
         <button
@@ -286,7 +284,7 @@ describe('HAAgentChat Integration Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     capturedSidebarProps = {};
-    capturedDevicePickerProps = {};
+    // reset mocks
     localStorage.clear();
     // Default: no active conversation
     mockGetConversation.mockResolvedValue({ messages: [] });
@@ -443,7 +441,7 @@ describe('HAAgentChat Integration Tests', () => {
       renderWithProviders(<HAAgentChat />, { route: '/chat' });
 
       // Simulate loading a conversation with tool calls via sidebar
-      const loadBtn = await screen.findByTestId('sidebar-load-conv');
+      await screen.findByTestId('sidebar-load-conv');
       // Override the mock for this specific load
       mockGetConversation.mockResolvedValue(mockConversationWithToolCalls);
 
@@ -490,7 +488,7 @@ describe('HAAgentChat Integration Tests', () => {
 
   describe('Performance Tracking', () => {
     it('tracks send message performance', async () => {
-      const { startTracking, endTracking } = await import('../../utils/performanceTracker');
+      const { startTracking } = await import('../../utils/performanceTracker');
       const user = userEvent.setup();
       mockSendChatMessage.mockResolvedValue(mockChatResponse);
       mockGetConversation.mockResolvedValue(mockConversationDetail);
