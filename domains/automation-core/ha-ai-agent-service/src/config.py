@@ -237,3 +237,31 @@ class Settings(BaseServiceSettings):
         description="Enable prompt caching for reduced token costs",
     )
 
+    # Epic 69: Agent Eval — Adaptive Model Routing & Feedback Loop
+
+    # Story 69.1-69.2: Adaptive Model Routing
+    adaptive_routing_enabled: bool = Field(
+        default=True,
+        description="Enable eval-score-driven adaptive model routing",
+    )
+    eval_score_floor: float = Field(
+        default=70.0,
+        description="Min eval score before auto-upgrading to primary model",
+    )
+
+    # Story 69.4: Eval Degradation Alerting
+    eval_alerting_enabled: bool = Field(
+        default=True,
+        description="Enable automated eval degradation alerts",
+    )
+    eval_drop_threshold_pct: float = Field(
+        default=10.0,
+        description="Percent drop threshold to trigger alert (vs 7-day baseline)",
+    )
+
+    # Story 69.6: Cost Tracking
+    cost_tracking_enabled: bool = Field(
+        default=True,
+        description="Enable API cost tracking and savings reporting",
+    )
+

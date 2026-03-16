@@ -18,6 +18,7 @@ import { RAGDetailsModal } from '../RAGDetailsModal';
 import { DataFreshnessIndicator } from '../DataFreshnessIndicator';
 import { ServiceHealthResponse } from '../../types/health';
 import { apiService, dataApi } from '../../services/api';
+import { ConventionComplianceCard } from '../ConventionComplianceCard';
 import { TabProps } from './types';
 
 // Enhanced status color system (Phase 2.2)
@@ -714,6 +715,22 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
             loading={ragLoading}
             darkMode={darkMode}
             onExpand={() => setShowRAGDetails(true)}
+          />
+        </div>
+      </div>
+
+      {/* Naming Convention Compliance (Epic 64) */}
+      <div className="mb-8" data-testid="convention-compliance-section">
+        <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          Naming Convention Compliance
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <ConventionComplianceCard
+            darkMode={darkMode}
+            onNavigateToSetup={() => {
+              const setupTab = document.querySelector('[data-tab="ha-setup"]') as HTMLElement;
+              if (setupTab) setupTab.click();
+            }}
           />
         </div>
       </div>

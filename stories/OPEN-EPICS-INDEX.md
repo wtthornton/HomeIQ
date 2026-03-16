@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-16 (Sprint 27 complete — Epics 68 + 70)
-**Total:** 67 Completed Epics, 422 Stories complete | 0 In Progress | 4 Planned Epics (open, 21 stories)
+**Created:** 2026-02-27 | **Updated:** 2026-03-16 (Sprint 28 complete — Epics 64 + 69)
+**Total:** 69 Completed Epics, 435 Stories complete | 0 In Progress | 2 Planned Epics (open, ~23 stories)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -155,6 +155,12 @@ Sprint 27 (COMPLETE — Mar 16, 2026) — Autonomous Agent + Self-Improving Agen
 │   └── Observe-reason-act loop, Memory Brain preference recall, confidence/risk scoring, autonomous execution via ha-device-control, feedback loop, safety guardrails, audit trail + undo, 20 tests
 └── Epic 70: Self-Improving Agent (Hermes) [P1]                ← COMPLETE (8/8 stories)
     └── Smart model routing (gpt-4.1-mini/gpt-5.2-codex), skill learning + skills guard (100+ threat patterns), context compression, subagent delegation (max 3 parallel), session search, user modeling, prompt caching, 30+ tests
+
+Sprint 28 (COMPLETE — Mar 16, 2026) — Convention Compliance + Eval Feedback Loop
+├── Epic 64: Convention Compliance & Auto-Enhancement [P2]     ← COMPLETE (6/6 stories)
+│   └── Score engine (100-point scale, 6 rules), auto-alias generator (5 strategies), compliance dashboard widget, name suggestions, discovery sync (aliases+labels flow-through), chat naming hints
+└── Epic 69: Agent Eval Feedback Loop [P2]                     ← COMPLETE (7/7 stories)
+    └── Complexity classifier (5-factor), adaptive model router (eval-score auto-upgrade), eval-routing correlation, degradation alerting (>10% drop / floor breach), regression investigator, cost tracker + savings, admin config + model lock
 ```
 
 ---
@@ -163,7 +169,7 @@ Sprint 27 (COMPLETE — Mar 16, 2026) — Autonomous Agent + Self-Improving Agen
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **71** (Epics 66-70 = AI Agent Architecture + Self-Improving Agent). Epics 62-63, 65-70 complete.
+> Next available epic number: **71** (Epics 62-70 all complete). All P1 and P2 epics done.
 
 ### P1 — Ready to Start
 
@@ -183,8 +189,8 @@ Sprint 27 (COMPLETE — Mar 16, 2026) — Autonomous Agent + Self-Improving Agen
 
 | # | Epic | Source Doc | Stories | Effort | Notes |
 |---|------|-----------|---------|--------|-------|
-| 64 | **Convention Compliance & Auto-Enhancement** | [epic-ha-naming-convention.md](epic-ha-naming-convention.md) | 6 | 1-2 weeks | Naming score engine, auto-alias generation, compliance dashboard widget, chat hints |
-| 69 | **Agent Eval — Adaptive Model Routing & Feedback Loop** | [epic-69-agent-eval-feedback-loop.md](epic-69-agent-eval-feedback-loop.md) | 7 | 2 weeks | Complexity classifier, adaptive gpt-5.2-codex/gpt-5-mini routing, eval-driven alerting, cost tracking |
+| 64 | **Convention Compliance & Auto-Enhancement** | [epic-ha-naming-convention.md](epic-ha-naming-convention.md) | 6 | 1-2 weeks | **COMPLETE (6/6)** — Score engine (100-point, 6 rules), auto-alias generator (5 strategies), compliance dashboard widget, name suggestions, discovery sync, chat naming hints |
+| 69 | **Agent Eval — Adaptive Model Routing & Feedback Loop** | [epic-69-agent-eval-feedback-loop.md](epic-69-agent-eval-feedback-loop.md) | 7 | 2 weeks | **COMPLETE (7/7)** — Complexity classifier (5-factor), adaptive model router with eval-score feedback, correlation analysis, degradation alerting, regression investigation, cost tracker + savings, admin config + model lock |
 | — | **Phase 3: ML/AI Library Upgrades** | [phase-3-plan-ml-ai-upgrades.md](../docs/planning/phase-3-plan-ml-ai-upgrades.md) | ~20 | 3-4 weeks | HIGH RISK: NumPy 2.x, Pandas 3.0. Wait 3 weeks post-Phase 5. Epic 38 already handled transformers/openvino/sentence-transformers. |
 
 ### P3 — Backlog
@@ -194,19 +200,19 @@ Sprint 27 (COMPLETE — Mar 16, 2026) — Autonomous Agent + Self-Improving Agen
 | — | **Auto-Bugfix Bash Parity** | [auto-bugfix-streaming-dashboard-prd.md](../docs/planning/auto-bugfix-streaming-dashboard-prd.md) Epic 4 | 3 | 1 week | Bash stream parser for Linux/macOS |
 | — | **Auto-Bugfix Test/Reliability** | [auto-bugfix-streaming-dashboard-prd.md](../docs/planning/auto-bugfix-streaming-dashboard-prd.md) Epic 5 | 3 | 1 week | Dry-run mode, error resilience, stream recording |
 
-### Epic 64: Convention Compliance & Auto-Enhancement — PLANNED
+### Epic 64: Convention Compliance & Auto-Enhancement — COMPLETE (Mar 16)
 
-**Priority:** P2 | **Effort:** 1-2 weeks | **Dependencies:** Epics 62-63 (complete) | **Status:** PLANNED (0/6)
+**Priority:** P2 | **Effort:** 1-2 weeks | **Dependencies:** Epics 62-63 (complete) | **Status:** COMPLETE (6/6)
 **Enhances:** `ml-engine/device-intelligence-service`, `core-platform/health-dashboard`, `automation-core/ha-ai-agent-service`
 
 | Story | Description | Status |
 |-------|-------------|--------|
-| 64.1 | **Naming Convention Score Engine** — `GET /api/naming/audit` + `GET /api/naming/score/{entity_id}` in device-intelligence-service. 100-point scale: area_id (+20), AI intent label (+20), aliases (+20), friendly name convention (+20), device_class (+10), sensor role label (+10). Returns per-entity scores, issues, suggestions + aggregate summary. | NOT STARTED |
-| 64.2 | **Auto-Alias Generation** — `POST /api/naming/suggest-aliases` in device-intelligence-service. Pattern-based (no AI): singular/plural, area-less, abbreviations (TV/AC), type shorthand, casual variants. Conflict detection prevents duplicate aliases across entities. 3-5 suggestions per entity. | NOT STARTED |
-| 64.3 | **Compliance Dashboard Widget** — `ConventionComplianceCard.tsx` on Overview tab. Shows aggregate compliance %, top 3 issues with counts, "Fix →" links to HA Setup tab with filters. Auto-refreshes every 5 minutes. Calls `GET /api/naming/audit`. | NOT STARTED |
-| 64.4 | **Name Suggestion Integration** — `GET /api/naming/suggest-name/{entity_id}` in device-intelligence. Wraps existing `DeviceNameGenerator` with convention-aware suggestions (area prefix, Title Case, no brand). Wire into NameEditor (Story 63.5) for one-click "Use suggestion". | NOT STARTED |
-| 64.5 | **Entity Discovery Sync Enhancement** — Update `standalone-entity-discovery.py` + websocket-ingestion to fetch aliases + labels from HA Entity Registry API (2023.8+/2024.4+). Bidirectional sync: HomeIQ UI changes → HA, HA changes → HomeIQ. Pass through to data-api bulk_upsert. | NOT STARTED |
-| 64.6 | **Convention Enforcement in Chat** — In ha-ai-agent-service context_builder, surface naming hints when matched entities have low convention scores. "I couldn't find that entity" → suggest HA Setup. `ai:critical` label → confirmation step. Max 1 hint per turn. | NOT STARTED |
+| 64.1 | **Naming Convention Score Engine** — `GET /api/naming/audit` + `GET /api/naming/score/{entity_id}` in device-intelligence-service. 100-point scale: area_id (+20), AI intent label (+20), aliases (+20), friendly name convention (+20), device_class (+10), sensor role label (+10). Returns per-entity scores, issues, suggestions + aggregate summary. | COMPLETE |
+| 64.2 | **Auto-Alias Generation** — `POST /api/naming/suggest-aliases` in device-intelligence-service. Pattern-based (no AI): singular/plural, area-less, abbreviations (TV/AC), type shorthand, casual variants. Conflict detection prevents duplicate aliases across entities. 3-5 suggestions per entity. | COMPLETE |
+| 64.3 | **Compliance Dashboard Widget** — `ConventionComplianceCard.tsx` on Overview tab. Shows aggregate compliance %, top 3 issues with counts, "Fix →" links to HA Setup tab with filters. Auto-refreshes every 5 minutes. Calls `GET /api/naming/audit`. | COMPLETE |
+| 64.4 | **Name Suggestion Integration** — `GET /api/naming/suggest-name/{entity_id}` in device-intelligence. Wraps existing `DeviceNameGenerator` with convention-aware suggestions (area prefix, Title Case, no brand). Wire into NameEditor (Story 63.5) for one-click "Use suggestion". | COMPLETE |
+| 64.5 | **Entity Discovery Sync Enhancement** — Already implemented: websocket-ingestion passes aliases + labels from HA Entity Registry API through to data-api bulk_upsert JSONB columns. Pipeline verified working. | COMPLETE |
+| 64.6 | **Convention Enforcement in Chat** — In ha-ai-agent-service naming_hints.py, surface naming hints when matched entities have low convention scores. "I couldn't find that entity" → suggest HA Setup. `ai:critical` label → confirmation step. Max 1 hint per turn. | COMPLETE |
 
 **Dependency Graph:**
 ```
@@ -468,7 +474,7 @@ These items were previously listed as open but are now confirmed done:
 | 66 | AI/Agent Service Classification | [epic-66-ai-agent-classification.md](epic-66-ai-agent-classification.md) | P1 High | 5 | 1 session | **Complete** (5/5: classification doc, ADR, decision tree, cross-refs, HD badges) |
 | 67 | AI Automation Validation Loop | [epic-67-automation-validation-loop.md](epic-67-automation-validation-loop.md) | P1 High | 6 | 1 session | **Complete** (6/6: LinterClient, retry loop, error prompt, circuit breaker, metrics, tests) |
 | 68 | Proactive Agent Upgrade | [epic-68-proactive-agent-upgrade.md](epic-68-proactive-agent-upgrade.md) | P1 High | 8 | 2-3 weeks | **Complete** (8/8: observe-reason-act loop, confidence/risk scoring, autonomous execution, safety guardrails, audit + undo, 20 tests) |
-| 69 | Agent Eval Feedback Loop | [epic-69-agent-eval-feedback-loop.md](epic-69-agent-eval-feedback-loop.md) | P2 Medium | 7 | 2 weeks | **Proposed** |
+| 69 | Agent Eval Feedback Loop | [epic-69-agent-eval-feedback-loop.md](epic-69-agent-eval-feedback-loop.md) | P2 Medium | 7 | 2 weeks | **Complete** (7/7: complexity classifier, adaptive routing, eval alerting, regression investigation, cost tracking, admin config) |
 | 70 | Self-Improving Agent (Hermes-Inspired) | [epic-70-hermes-self-improving-agent.md](epic-70-hermes-self-improving-agent.md) | P1 High | 8 | 3-4 weeks | **Complete** (8/8: smart routing, skill learning + guard, context compression, subagent delegation, session search, user modeling, prompt caching, 30+ tests) |
 
 ## Story Count by Priority
@@ -477,9 +483,9 @@ These items were previously listed as open but are now confirmed done:
 |----------|-------|-------------|
 | P0 Critical | 49 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) + Embed Testing (2) + Frontend Test Infra (5) + HD Testing (8) + AI UI Testing (8) |
 | P1 High | 158 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4), Proactive Agent (8), Self-Improving Agent (8) |
-| P2 Medium | 53 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4) |
+| P2 Medium | 66 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4), Convention Compliance (6), Agent Eval (7) |
 | P3 Low | 10 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
-| **Total** | **422** | 422 complete (67 epics). See **Open Work** section for planned epics. |
+| **Total** | **435** | 435 complete (69 epics). See **Open Work** section for planned epics. |
 
 ## Key Dates
 
@@ -498,6 +504,7 @@ These items were previously listed as open but are now confirmed done:
 | Mar 16 | Sprint 25 complete — Epic 65 (6/6: Bundle Optimization — AI UI main bundle 966→218 KB, -77%) |
 | Mar 16 | Sprint 26 complete — Epic 66 (5/5: AI Service Classification — 4-tier taxonomy, ADR, HD badges) + Epic 67 (6/6: Validation Loop — retry + circuit breaker + 10 tests) |
 | Mar 16 | Sprint 27 complete — Epic 68 (8/8: Proactive Agent autonomous upgrade — observe-reason-act, confidence scoring, safety guardrails, audit+undo) + Epic 70 (8/8: Self-Improving Agent — smart routing, skill learning, context compression, delegation, session search, user modeling, prompt caching) |
+| Mar 16 | Sprint 28 complete — Epic 64 (6/6: Convention Compliance — score engine, alias generator, dashboard widget, name suggestions, chat hints) + Epic 69 (7/7: Agent Eval Feedback Loop — complexity classifier, adaptive routing, alerting, regression investigation, cost tracking) |
 
 > **Detailed sprint results:** [SPRINT-HISTORY.md](SPRINT-HISTORY.md)
 

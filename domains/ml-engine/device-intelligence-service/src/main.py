@@ -23,6 +23,7 @@ from .api.health import router as health_router
 from .api.health_router import router as health_api_router
 from .api.hygiene_router import router as hygiene_router
 from .api.name_enhancement_router import router as name_enhancement_router
+from .api.naming_router import router as naming_router
 from .api.predictions_router import router as predictions_router
 from .api.recommendations_router import router as recommendations_router
 from .api.storage import router as storage_router
@@ -202,6 +203,7 @@ app.include_router(team_tracker_router, tags=["Team Tracker"])
 # storage_router already serves the identical /api/devices/* routes with
 # real DeviceService logic.
 app.include_router(device_mappings_router)  # Epic AI-24: Device Mapping Library
+app.include_router(naming_router)  # Epic 64: Naming Convention
 
 
 if __name__ == "__main__":
