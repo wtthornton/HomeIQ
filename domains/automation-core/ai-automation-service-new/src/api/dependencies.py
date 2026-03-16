@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.data_api_client import DataAPIClient
 from ..clients.ha_client import HomeAssistantClient
+from ..clients.linter_client import LinterClient
 from ..clients.openai_client import OpenAIClient
 from ..clients.yaml_validation_client import YAMLValidationClient
 from ..config import settings
@@ -79,13 +80,15 @@ _ha_client: HomeAssistantClient | None = None
 _openai_client: OpenAIClient | None = None
 _openai_yaml_client: OpenAIClient | None = None
 _yaml_validation_client: YAMLValidationClient | None = None
+_linter_client: LinterClient | None = None
 _memory_client: MemoryClient | None = None
 _memory_search: MemorySearch | None = None
 
 
 def init_clients() -> None:
     """Initialize singleton HTTP clients. Called during lifespan startup."""
-    global _data_api_client, _ha_client, _openai_client, _openai_yaml_client, _yaml_validation_client
+    global _data_api_client, _ha_client, _openai_client, _openai_yaml_client
+    global _yaml_validation_client, _linter_client
     _data_api_client = DataAPIClient(base_url=settings.data_api_url)
     _ha_client = HomeAssistantClient(ha_url=settings.ha_url, access_token=settings.ha_token)
     _openai_client = OpenAIClient(api_key=settings.openai_api_key, model=settings.openai_model)
@@ -95,10 +98,16 @@ def init_clients() -> None:
     _yaml_validation_client = YAMLValidationClient(
         base_url=settings.yaml_validation_service_url, api_key=settings.yaml_validation_api_key
     )
+    # Epic 67: Automation linter client
+    _linter_client = LinterClient(
+        base_url=settings.automation_linter_url,
+        timeout=settings.automation_linter_timeout,
+    )
     logger.info(
-        "Singleton HTTP clients initialized (plan=%s, yaml=%s)",
+        "Singleton HTTP clients initialized (plan=%s, yaml=%s, linter=%s)",
         settings.openai_model,
         settings.openai_yaml_model,
+        settings.automation_linter_url,
     )
 
 
@@ -131,8 +140,8 @@ async def init_memory_client() -> None:
 async def close_clients() -> None:
     """Close all singleton HTTP clients. Called during lifespan shutdown."""
     global _data_api_client, _ha_client, _openai_client, _openai_yaml_client
-    global _yaml_validation_client, _memory_client, _memory_search
-    for client in [_data_api_client, _ha_client, _openai_client, _openai_yaml_client, _yaml_validation_client]:
+    global _yaml_validation_client, _linter_client, _memory_client, _memory_search
+    for client in [_data_api_client, _ha_client, _openai_client, _openai_yaml_client, _yaml_validation_client, _linter_client]:
         if client and hasattr(client, "close"):
             try:
                 await client.close()
@@ -152,6 +161,7 @@ async def close_clients() -> None:
     _openai_client = None
     _openai_yaml_client = None
     _yaml_validation_client = None
+    _linter_client = None
     logger.info("Singleton HTTP clients closed")
 
 
@@ -196,6 +206,16 @@ def get_yaml_validation_client() -> YAMLValidationClient:
     return _yaml_validation_client
 
 
+def get_linter_client() -> LinterClient:
+    """Get automation-linter client singleton (Epic 67)."""
+    if _linter_client is None:
+        return LinterClient(
+            base_url=settings.automation_linter_url,
+            timeout=settings.automation_linter_timeout,
+        )
+    return _linter_client
+
+
 def get_memory_client() -> MemoryClient | None:
     """Get MemoryClient singleton (Epic 30). Returns None if memory unavailable."""
     return _memory_client
@@ -212,12 +232,18 @@ def get_yaml_generation_service(
     openai_client: Annotated[OpenAIClient, Depends(get_openai_yaml_client)],
     data_api_client: Annotated[DataAPIClient, Depends(get_data_api_client)],
     yaml_validation_client: Annotated[YAMLValidationClient, Depends(get_yaml_validation_client)],
+    linter_client: Annotated[LinterClient, Depends(get_linter_client)],
 ) -> YAMLGenerationService:
-    """Get YAML generation service (uses openai_yaml_model / Codex for YAML and HomeIQ JSON)."""
+    """Get YAML generation service (uses openai_yaml_model / Codex for YAML and HomeIQ JSON).
+
+    Epic 67: Now includes linter_client for validation retry loop.
+    """
     return YAMLGenerationService(
         openai_client=openai_client,
         data_api_client=data_api_client,
         yaml_validation_client=yaml_validation_client,
+        linter_client=linter_client,
+        max_validation_retries=settings.validation_max_retries,
     )
 
 

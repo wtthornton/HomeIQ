@@ -5,6 +5,15 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Icon, StatusIndicator, TabIcons } from './ui/icons';
 import { cn } from '@/lib/utils';
+import type { AiTierInfo } from '../hooks/useAiTierManifest';
+
+/** Map AI tier color names to Badge-compatible variants */
+const AI_TIER_BADGE_VARIANT: Record<string, string> = {
+  red: 'critical',
+  amber: 'warning',
+  blue: 'secondary',
+  green: 'healthy',
+};
 
 interface ServiceCardProps {
   service: ServiceStatus;
@@ -17,6 +26,7 @@ interface ServiceCardProps {
   onRestart?: () => void;
   containerStatus?: string;
   isOperating?: boolean;
+  aiTier?: (AiTierInfo & { tier: string }) | null;
 }
 
 export const ServiceCard: React.FC<ServiceCardProps> = ({
@@ -29,6 +39,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
   onRestart,
   containerStatus,
   isOperating = false,
+  aiTier,
 }) => {
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -85,7 +96,19 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
               )}
             </div>
           </div>
-          <StatusIndicator status={indicatorStatus(service.status)} size="sm" />
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {aiTier && aiTier.tier !== 'T4' && (
+              <Badge
+                variant={AI_TIER_BADGE_VARIANT[aiTier.color] as 'critical' | 'warning' | 'secondary' | 'healthy' ?? 'secondary'}
+                size="sm"
+                title={aiTier.description}
+                data-testid="ai-tier-badge"
+              >
+                {aiTier.label}
+              </Badge>
+            )}
+            <StatusIndicator status={indicatorStatus(service.status)} size="sm" />
+          </div>
         </div>
       </CardHeader>
 

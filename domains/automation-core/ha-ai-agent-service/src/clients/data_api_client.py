@@ -215,46 +215,35 @@ class DataAPIClient:
 
     async def get_areas(self) -> list[dict[str, Any]]:
         """
-        Extract areas from devices and entities (local/cached).
+        Fetch areas from Data API /api/areas endpoint (Story 62.1/62.5).
 
-        Returns:
-            List of area dictionaries with keys: area_id, name
-
-        Raises:
-            Exception: If API request fails
+        Returns a list of area dicts with keys: area_id, display_name, entity_count, domains.
+        Falls back to extracting areas from devices if the endpoint is unavailable.
         """
         try:
-            # Fetch devices to extract unique areas
-            devices = await self.get_devices(limit=1000)
-
-            # Extract unique area_ids from devices
-            area_map: dict[str, str] = {}
-            for device in devices:
-                area_id = device.get("area_id")
-                if area_id and area_id not in area_map:
-                    # Use area_id as name (can be improved with actual area names if available)
-                    area_map[area_id] = area_id.replace("_", " ").title()
-
-            # Also check entities for any additional areas
-            entities = await self.fetch_entities(limit=1000)
-            for entity in entities:
-                area_id = entity.get("area_id")
-                if area_id and area_id not in area_map:
-                    area_map[area_id] = area_id.replace("_", " ").title()
-
-            # Convert to list format
-            areas = [
-                {"area_id": area_id, "name": name}
-                for area_id, name in sorted(area_map.items())
-            ]
-
-            logger.info(f"✅ Extracted {len(areas)} areas from Data API")
+            response = await self._cross_client.call("GET", "/api/areas")
+            response.raise_for_status()
+            data = response.json()
+            areas = data.get("areas", []) if isinstance(data, dict) else data
+            logger.info("Fetched %d areas from Data API /api/areas", len(areas))
             return areas
-
         except Exception as e:
-            error_msg = f"Error extracting areas: {str(e)}"
-            logger.error(f"❌ {error_msg}")
-            raise Exception(error_msg) from e
+            logger.warning("Failed to fetch /api/areas, falling back to device scan: %s", e)
+            # Fallback: extract from devices (pre-62.1 behavior)
+            try:
+                devices = await self.get_devices(limit=1000)
+                area_map: dict[str, str] = {}
+                for device in devices:
+                    area_id = device.get("area_id")
+                    if area_id and area_id not in area_map:
+                        area_map[area_id] = area_id.replace("_", " ").title()
+                return [
+                    {"area_id": aid, "display_name": name, "entity_count": 0, "domains": []}
+                    for aid, name in sorted(area_map.items())
+                ]
+            except Exception as fallback_err:
+                logger.error("Area fallback also failed: %s", fallback_err)
+                raise Exception(f"Error fetching areas: {e}") from e
 
     async def close(self):
         """No-op — CrossGroupClient uses per-request clients."""

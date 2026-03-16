@@ -14,7 +14,7 @@
 **Scope:** Define the pipeline config in the isolated project; keep existing script behavior unchanged.
 
 - Add **config schema** in `auto-fix-pipeline/config/schema/` (e.g. JSON Schema or documented YAML shape for project, runner, scan, fix, mcp, paths, prompts).
-- Add **example config** in `auto-fix-pipeline/config/example/` that matches current HomeIQ behavior (paths, manifest, MCP_DOCKER tool prefix, budget allocation).
+- Add **example config** in `auto-fix-pipeline/config/example/` that matches current HomeIQ behavior (paths, manifest, tapps-mcp tool prefix, budget allocation).
 - Optionally: add a **HomeIQ default** — either a copy at repo root (e.g. `auto-fix-pipeline/config/example/homeiq-default.yaml`) or document “current defaults” in the schema so the existing script can later be refactored to read from config.
 - **Do not** change `scripts/auto-bugfix.ps1` behavior yet; this epic is config-only so the schema can be tested and reviewed.
 
@@ -61,7 +61,7 @@
 ## 5. Later (after tested here)
 
 - **Phase 4 (optional):** Multi-repo support — **Done.** `runner/run-multirepo.ps1` reads `repos.yaml` and runs the pipeline per repo with `-ProjectRootOverride` and `-ConfigPath`. Script supports `-ProjectRootOverride`. Schema: [config/repos-schema.md](../config/repos-schema.md); example: [config/example/repos-example.yaml](../config/example/repos-example.yaml).
-- **Phase 5:** Document adoption and breakout — **Done.** See [docs/adoption-and-breakout.md](adoption-and-breakout.md): how to copy or reference the template, use with MCP_DOCKER/TappsMCP, customize, and move `auto-fix-pipeline/` to its own repo.
+- **Phase 5:** Document adoption and breakout — **Done.** See [docs/adoption-and-breakout.md](adoption-and-breakout.md): how to copy or reference the template, use with tapps-mcp/TappsMCP, customize, and move `auto-fix-pipeline/` to its own repo.
 
 ---
 

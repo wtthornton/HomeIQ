@@ -10,7 +10,7 @@ Pipeline prompts are stored here as Markdown templates with placeholders. When t
 | `{{languages}}` | find, retry, fix, refactor, test | From config `project.languages` or "Python" |
 | `{{scope_hint}}` | find, retry | Runtime scope (target dir / scan unit hint) |
 | `{{bug_count}}` | find, retry, feedback | Number of bugs to find or fixed |
-| `{{tapps_prefix}}` | all | MCP tool prefix (e.g. `mcp__MCP_DOCKER__`) |
+| `{{tapps_prefix}}` | all | MCP tool prefix (e.g. `mcp__tapps-mcp__`) |
 | `{{prompt_overrides}}` | find, retry | Content of FIND_PROMPT_OVERRIDES.md if present |
 | `{{bugs_json}}` | fix, test | JSON array of bugs to fix or that were fixed |
 | `{{changed_files}}` | refactor, feedback | Comma-separated list of changed files |

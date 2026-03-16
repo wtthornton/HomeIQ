@@ -22,7 +22,7 @@ You can **copy** the pipeline into your repo or **reference** it (e.g. submodule
    - `runner.model`, `runner.max_cost`, `runner.budget_allocation`
    - `paths.*` (dashboard, feedback, history, impl_dir)
    - `scan.manifest_path` if you use a scan manifest
-   - `mcp.config_path`, `mcp.tapps_mcp_server` (e.g. `MCP_DOCKER`), and optionally `mcp.scan_tools` / `mcp.fix_tools` if you restrict tools
+   - `mcp.config_path`, `mcp.tapps_mcp_server` (e.g. `tapps-mcp`), and optionally `mcp.scan_tools` / `mcp.fix_tools` if you restrict tools
    - `prompts.find`, `prompts.retry`, etc. if you use template files (paths relative to project root)
 4. Run from repo root:
    - **Via runner:** `.\auto-fix-pipeline\runner\run.ps1 -ConfigPath auto-fix-pipeline/config/example/my-project.yaml`
@@ -37,10 +37,10 @@ You can **copy** the pipeline into your repo or **reference** it (e.g. submodule
 
 ---
 
-## 2. Using with MCP_DOCKER and TappsMCP
+## 2. Using with tapps-mcp and TappsMCP
 
-- **MCP_DOCKER** (Docker MCP Toolkit) provides TappsMCP (and optionally docs-mcp). Tools appear with the prefix `mcp__MCP_DOCKER__` (e.g. `mcp__MCP_DOCKER__tapps_quick_check`).
-- **Config:** Set `mcp.tapps_mcp_server: "MCP_DOCKER"` and ensure `.mcp.json` at project root (or `mcp.config_path`) configures the MCP_DOCKER server. See parent repo `.cursor/MCP_SETUP_INSTRUCTIONS.md`.
+- **tapps-mcp** provides TappsMCP via direct stdio (and optionally docs-mcp as a separate stdio server). Tools appear with the prefix `mcp__tapps-mcp__` (e.g. `mcp__tapps-mcp__tapps_quick_check`).
+- **Config:** Set `mcp.tapps_mcp_server: "tapps-mcp"` and ensure `.mcp.json` at project root (or `mcp.config_path`) configures the `tapps-mcp` server as a stdio command. See parent repo `.cursor/MCP_SETUP_INSTRUCTIONS.md`.
 - **Headless / CI:** Use `.mcp.json` at project root for headless runs (e.g. `claude --headless` or the auto-bugfix script). The pipeline passes the MCP config path to the CLI so tools are available during scan/fix/feedback.
 - **Without TappsMCP:** Omit or disable MCP in config; the script still runs but quality/security tools won’t be in the allowed-tools list. You can point `prompts` at templates that don’t reference `{{tapps_prefix}}` or use built-in prompts and accept fewer tools.
 

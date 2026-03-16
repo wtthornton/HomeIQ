@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-16 (Epic 65 complete — Bundle Optimization)
-**Total:** 63 Completed Epics, 395 Stories complete | 0 In Progress | 3 Planned Epics (open)
+**Created:** 2026-02-27 | **Updated:** 2026-03-16 (Sprint 27 complete — Epics 68 + 70)
+**Total:** 67 Completed Epics, 422 Stories complete | 0 In Progress | 4 Planned Epics (open, 21 stories)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -143,6 +143,18 @@ Sprint 24 (COMPLETE — Mar 14, 2026) — HA Setup Wizard UI
 Sprint 25 (COMPLETE — Mar 16, 2026) — Bundle Optimization
 └── Epic 65: Bundle Optimization [P1]                          ← COMPLETE (6/6 stories)
     └── AI UI: index 966→218 KB (-77%), 8 lazy routes, force-graph deferred. HD: visualizer added. CI bundle check script.
+
+Sprint 26 (COMPLETE — Mar 16, 2026) — AI Classification + Validation Loop
+├── Epic 66: AI/Agent Service Classification [P1]              ← COMPLETE (5/5 stories)
+│   └── 4-tier classification (T1-T4) of all 51 services, ADR single-agent, Mermaid decision tree, cross-refs, HD badges
+└── Epic 67: AI Automation Validation Loop [P1]                ← COMPLETE (6/6 stories)
+    └── LinterClient + ValidationRetryLoop (max 3 attempts), error-feedback prompt, CircuitBreaker, metrics, 10 tests
+
+Sprint 27 (COMPLETE — Mar 16, 2026) — Autonomous Agent + Self-Improving Agent
+├── Epic 68: Proactive Agent — Autonomous Upgrade [P1]         ← COMPLETE (8/8 stories)
+│   └── Observe-reason-act loop, Memory Brain preference recall, confidence/risk scoring, autonomous execution via ha-device-control, feedback loop, safety guardrails, audit trail + undo, 20 tests
+└── Epic 70: Self-Improving Agent (Hermes) [P1]                ← COMPLETE (8/8 stories)
+    └── Smart model routing (gpt-4.1-mini/gpt-5.2-codex), skill learning + skills guard (100+ threat patterns), context compression, subagent delegation (max 3 parallel), session search, user modeling, prompt caching, 30+ tests
 ```
 
 ---
@@ -151,7 +163,7 @@ Sprint 25 (COMPLETE — Mar 16, 2026) — Bundle Optimization
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **66** (Epics 62-64 = HA Naming Convention, Epic 65 = Bundle Optimization). Epics 62-63, 65 complete.
+> Next available epic number: **71** (Epics 66-70 = AI Agent Architecture + Self-Improving Agent). Epics 62-63, 65-70 complete.
 
 ### P1 — Ready to Start
 
@@ -162,12 +174,17 @@ Sprint 25 (COMPLETE — Mar 16, 2026) — Bundle Optimization
 | ~~58~~ | ~~**Frontend Test Quality**~~ | ~~[frontend-testing-epics.md](../docs/planning/frontend-testing-epics.md) Epic 54→58~~ | ~~6~~ | ~~1 week~~ | **COMPLETE (Mar 13)** — TESTING_STANDARDS.md, 4 error boundary test files, 2 skeleton test files, a11y sweep (8 files), dark mode tests, MSW expansion |
 | ~~59~~ | ~~**Frontend Integration & E2E**~~ | ~~[frontend-testing-epics.md](../docs/planning/frontend-testing-epics.md) Epic 55→59~~ | ~~6~~ | ~~2 weeks~~ | **COMPLETE (Mar 13)** — 27 integration tests (HD 14 + AI UI 13), 11 E2E smoke, 6 cross-app nav, 7 perf baselines, 12 visual regression |
 | 65 | **Bundle Optimization** | [frontend-epics-roadmap.md](../docs/planning/frontend-epics-roadmap.md) Epic 3 | 6 | 1 session | **COMPLETE (6/6)** — AI UI main bundle 966→218 KB (-77%), 8 lazy routes + Suspense, force-graph deferred to graph view, visualizer + CI check |
+| 66 | **AI/Agent Service Classification & Architecture Doc** | [epic-66-ai-agent-classification.md](epic-66-ai-agent-classification.md) | 5 | 2-3 days | **COMPLETE (5/5)** — 4-tier classification, ADR, Mermaid decision tree, cross-refs to service-groups + TECH_STACK, HD AI tier badges |
+| 67 | **AI Automation Service — Self-Healing Validation Loop** | [epic-67-automation-validation-loop.md](epic-67-automation-validation-loop.md) | 6 | 1 week | **COMPLETE (6/6)** — LinterClient + ValidationRetryLoop, error-feedback prompt, CircuitBreaker graceful degradation, metrics, 10 integration tests |
+| 68 | **Proactive Agent Service — Autonomous Agent Upgrade** | [epic-68-proactive-agent-upgrade.md](epic-68-proactive-agent-upgrade.md) | 8 | 2-3 weeks | **COMPLETE (8/8)** — Observe-reason-act loop, Memory Brain preference recall, confidence/risk scoring, autonomous execution, feedback loop, safety guardrails, audit trail + undo, 20 tests |
+| 70 | **Self-Improving Agent — Hermes-Inspired Learning & Delegation** | [epic-70-hermes-self-improving-agent.md](epic-70-hermes-self-improving-agent.md) | 8 | 3-4 weeks | **COMPLETE (8/8)** — Smart model routing, skill learning + skills guard (100+ patterns), context compression, subagent delegation, session search, user modeling, prompt caching, 30+ tests |
 
 ### P2 — Deferred / After Stability Window
 
 | # | Epic | Source Doc | Stories | Effort | Notes |
 |---|------|-----------|---------|--------|-------|
 | 64 | **Convention Compliance & Auto-Enhancement** | [epic-ha-naming-convention.md](epic-ha-naming-convention.md) | 6 | 1-2 weeks | Naming score engine, auto-alias generation, compliance dashboard widget, chat hints |
+| 69 | **Agent Eval — Adaptive Model Routing & Feedback Loop** | [epic-69-agent-eval-feedback-loop.md](epic-69-agent-eval-feedback-loop.md) | 7 | 2 weeks | Complexity classifier, adaptive gpt-5.2-codex/gpt-5-mini routing, eval-driven alerting, cost tracking |
 | — | **Phase 3: ML/AI Library Upgrades** | [phase-3-plan-ml-ai-upgrades.md](../docs/planning/phase-3-plan-ml-ai-upgrades.md) | ~20 | 3-4 weeks | HIGH RISK: NumPy 2.x, Pandas 3.0. Wait 3 weeks post-Phase 5. Epic 38 already handled transformers/openvino/sentence-transformers. |
 
 ### P3 — Backlog
@@ -176,6 +193,42 @@ Sprint 25 (COMPLETE — Mar 16, 2026) — Bundle Optimization
 |---|------|-----------|---------|--------|-------|
 | — | **Auto-Bugfix Bash Parity** | [auto-bugfix-streaming-dashboard-prd.md](../docs/planning/auto-bugfix-streaming-dashboard-prd.md) Epic 4 | 3 | 1 week | Bash stream parser for Linux/macOS |
 | — | **Auto-Bugfix Test/Reliability** | [auto-bugfix-streaming-dashboard-prd.md](../docs/planning/auto-bugfix-streaming-dashboard-prd.md) Epic 5 | 3 | 1 week | Dry-run mode, error resilience, stream recording |
+
+### Epic 64: Convention Compliance & Auto-Enhancement — PLANNED
+
+**Priority:** P2 | **Effort:** 1-2 weeks | **Dependencies:** Epics 62-63 (complete) | **Status:** PLANNED (0/6)
+**Enhances:** `ml-engine/device-intelligence-service`, `core-platform/health-dashboard`, `automation-core/ha-ai-agent-service`
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 64.1 | **Naming Convention Score Engine** — `GET /api/naming/audit` + `GET /api/naming/score/{entity_id}` in device-intelligence-service. 100-point scale: area_id (+20), AI intent label (+20), aliases (+20), friendly name convention (+20), device_class (+10), sensor role label (+10). Returns per-entity scores, issues, suggestions + aggregate summary. | NOT STARTED |
+| 64.2 | **Auto-Alias Generation** — `POST /api/naming/suggest-aliases` in device-intelligence-service. Pattern-based (no AI): singular/plural, area-less, abbreviations (TV/AC), type shorthand, casual variants. Conflict detection prevents duplicate aliases across entities. 3-5 suggestions per entity. | NOT STARTED |
+| 64.3 | **Compliance Dashboard Widget** — `ConventionComplianceCard.tsx` on Overview tab. Shows aggregate compliance %, top 3 issues with counts, "Fix →" links to HA Setup tab with filters. Auto-refreshes every 5 minutes. Calls `GET /api/naming/audit`. | NOT STARTED |
+| 64.4 | **Name Suggestion Integration** — `GET /api/naming/suggest-name/{entity_id}` in device-intelligence. Wraps existing `DeviceNameGenerator` with convention-aware suggestions (area prefix, Title Case, no brand). Wire into NameEditor (Story 63.5) for one-click "Use suggestion". | NOT STARTED |
+| 64.5 | **Entity Discovery Sync Enhancement** — Update `standalone-entity-discovery.py` + websocket-ingestion to fetch aliases + labels from HA Entity Registry API (2023.8+/2024.4+). Bidirectional sync: HomeIQ UI changes → HA, HA changes → HomeIQ. Pass through to data-api bulk_upsert. | NOT STARTED |
+| 64.6 | **Convention Enforcement in Chat** — In ha-ai-agent-service context_builder, surface naming hints when matched entities have low convention scores. "I couldn't find that entity" → suggest HA Setup. `ai:critical` label → confirmation step. Max 1 hint per turn. | NOT STARTED |
+
+**Dependency Graph:**
+```
+64.1 score engine ← Epic 62.2 (label query)
+64.2 auto-aliases ← Epic 62.3 (alias search)
+64.3 compliance card ← 64.1
+64.4 name suggestions ← Epic 62.4 (entity CRUD)
+64.5 discovery sync ← Epic 62.4
+64.6 chat hints ← Epic 62.6 (label filtering) + 64.1
+```
+
+**Recommended execution order:** 64.1 → 64.2 → 64.3 (depends on 64.1) → 64.4 → 64.5 → 64.6 (depends on 64.1)
+Stories 64.1 + 64.2 can run in parallel. Stories 64.4 + 64.5 can run in parallel.
+
+**New Files:**
+- `domains/ml-engine/device-intelligence-service/src/services/naming_convention/score_engine.py`
+- `domains/ml-engine/device-intelligence-service/src/services/naming_convention/convention_rules.py`
+- `domains/ml-engine/device-intelligence-service/src/services/naming_convention/alias_generator.py`
+- `domains/ml-engine/device-intelligence-service/src/naming_endpoints.py`
+- `domains/core-platform/health-dashboard/src/components/overview/ConventionComplianceCard.tsx`
+
+---
 
 ### Epic 57: Cleanup & Gaps — COMPLETE (Mar 13)
 
@@ -250,6 +303,67 @@ Sprint 25 (COMPLETE — Mar 16, 2026) — Bundle Optimization
 | 63.5 | **Friendly Name Editor** — NameEditor.tsx with live convention check (area prefix, Title Case, no brand/model), AI-suggested name, saves name_by_user via admin-api | **DONE** |
 | 63.6 | **Exclusion Manager** — ExclusionManager.tsx with glob pattern management, ai:ignore entity listing, suggested exclusion patterns, match count preview, total impact summary | **DONE** |
 | 63.7 | **Bulk Operations & Quick Actions** — BulkActionsBar.tsx (multi-select + bulk add/remove labels, quick Mark Automatable/Ignore), QuickActions.tsx (6 domain-wide one-click actions) | **DONE** |
+
+### Epic 66: AI/Agent Service Classification — COMPLETE (Mar 16)
+
+**Priority:** P1 | **Effort:** 1 session | **Dependencies:** None | **Status:** COMPLETE (5/5)
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 66.1 | **Service Classification Audit & Tier Document** — `docs/architecture/ai-agent-classification.md` with 4-tier classification (T1-T4) for all 51 services, evidence table, summary stats | **DONE** |
+| 66.2 | **ADR — Single Agent Architecture** — `docs/architecture/adr-single-agent-architecture.md` documenting why only ha-ai-agent-service is T1 (cost, latency, testability, security, debuggability) | **DONE** |
+| 66.3 | **Decision Tree** — Mermaid flowchart in classification doc: LLM? → Iterates? → Tool use? → Tier assignment | **DONE** |
+| 66.4 | **Cross-Reference Integration** — AI Tier column in TECH_STACK.md service table, links in service-groups.md | **DONE** |
+| 66.5 | **Health Dashboard AI Tier Badges** — Static manifest `ai-tier-manifest.json`, `useAiTierManifest` hook, Badge in ServiceCard (T1-T3 only, T4 hidden) | **DONE** |
+
+### Epic 67: AI Automation Validation Loop — COMPLETE (Mar 16)
+
+**Priority:** P1 | **Effort:** 1 session | **Dependencies:** Epic 66 | **Status:** COMPLETE (6/6)
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 67.1 | **Validation Client Integration** — `LinterClient` for POST /lint with CircuitBreaker, `LintResult` dataclass, 2s timeout | **DONE** |
+| 67.2 | **Retry Loop** — `ValidationRetryLoop.generate_and_validate()` with configurable max retries (default 3), best-attempt tracking | **DONE** |
+| 67.3 | **Error Context Prompt** — `ERROR_FEEDBACK_PROMPT` template with original request + failed YAML + structured error list for LLM correction | **DONE** |
+| 67.4 | **Graceful Degradation** — CircuitBreaker + try/except for both linter and validator; `AI FALLBACK:` logging; pass-through when services are down | **DONE** |
+| 67.5 | **Metrics & Observability** — `first_pass_rate`, `average_retries`, `total_generations` tracked on ValidationRetryLoop; `/health/validation-metrics` endpoint | **DONE** |
+| 67.6 | **Integration Tests** — 10 tests: pass-first-try, pass-second-try, all-exhausted, linter-down, validator-down, both-down, no-clients, metrics, error-format, LinterClient unit tests | **DONE** |
+
+### Epic 68: Proactive Agent — Autonomous Upgrade — COMPLETE (Mar 16)
+
+**Priority:** P1 | **Effort:** 2-3 weeks | **Dependencies:** Epic 66, Memory Brain | **Status:** COMPLETE (8/8)
+**Enhances:** `energy-analytics/proactive-agent-service`, `automation-core/ha-device-control`
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 68.1 | **Observe-Reason-Act Agent Loop** — `ProactiveAgentLoop` with observe (house status + weather + time), reason (LLM structured output), act (route to auto-execute/suggest/suppress) on configurable interval (default 15m) | **DONE** |
+| 68.2 | **Memory Brain Integration — Preference Recall** — `PreferenceService` queries behavioral/boundary memories + `action_preference_history` table for acceptance rates. Injects preference context into LLM reasoning prompt | **DONE** |
+| 68.3 | **Confidence & Risk Scoring Engine** — `ConfidenceScorer` with 5-factor scoring (LLM confidence 30%, acceptance rate 30%, context match 20%, preference 10%, reversibility 10%). Risk classification by entity domain. Safety-critical domains hardcoded as frozenset | **DONE** |
+| 68.4 | **Autonomous Execution Path** — `AutonomousExecutor` calls ha-device-control directly (lights, switches, climate, scenes). Pre/post state snapshots, `DeviceControlClient` with CrossGroupClient + circuit breaker, user notification after execution | **DONE** |
+| 68.5 | **Feedback Loop — Outcome Recording** — `FeedbackRecorder` updates `action_preference_history` table on every outcome (accepted/rejected/auto-executed/undone). Records to Memory Brain for broader preference learning | **DONE** |
+| 68.6 | **User Configuration & Safety Guardrails** — `UserPreference` model, REST endpoints (GET/PUT /api/proactive/preferences), configurable thresholds/quiet hours/excluded categories. Lock/alarm/camera always blocked (hardcoded frozenset) | **DONE** |
+| 68.7 | **Audit Trail & Reversibility** — `AutonomousActionAudit` model with pre/post state snapshots, confidence/risk scores, undo capability within configurable window (default 15m). GET /api/proactive/audit + POST /api/proactive/undo/{id} | **DONE** |
+| 68.8 | **Integration Tests & Safety Validation** — 20 tests: confidence scoring (high/low/medium), risk classification, safety blocked domains, quiet hours suppression, autonomous disabled, preference learning, undo rate calculation, time slot mapping | **DONE** |
+
+---
+
+### Epic 70: Self-Improving Agent (Hermes) — COMPLETE (Mar 16)
+
+**Priority:** P1 | **Effort:** 3-4 weeks | **Dependencies:** Epic 60 (complete), Memory Brain | **Status:** COMPLETE (8/8)
+**Enhances:** `automation-core/ha-ai-agent-service`
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 70.1 | **Procedural Skill Learning** — `SkillStore` (CRUD + text search), `SkillExtractor` (trigger heuristics: 5+ iterations, save keywords), `SkillRecall` (category + area + text search, 500-token budget), `Skill` SQLAlchemy model in agent.skills table | **DONE** |
+| 70.2 | **Skills Guard (Security Scanner)** — `SkillsGuard.scan()` with 85+ threat patterns across 6 categories (prompt injection, HA dangerous services, exfiltration, destructive, structural, unicode abuse). Blocks critical/high, warns medium/low. filter_safe_skills for recall | **DONE** |
+| 70.3 | **Smart Model Routing** — `choose_model_route()` routes simple queries (<160 chars, <28 words, no automation keywords) to gpt-4.1-mini, complex to gpt-5.2-codex. Fallback to primary on any error. Cost factor tracking | **DONE** |
+| 70.4 | **Context Compression** — `ContextCompressor` preserves first 3 + last 4 turns, LLM-summarizes middle. Orphaned tool_call/tool_result pair sanitization. Graceful fallback to drop-without-summary on summarization failure | **DONE** |
+| 70.5 | **Subagent Delegation** — `DelegateService` + `SubagentRunner`: up to 3 parallel child loops with area-scoped context, restricted toolsets, per-subagent token budget (8K default). asyncio.gather() with result synthesis | **DONE** |
+| 70.6 | **Session Search** — `SessionSearch.search()` via PostgreSQL text matching on messages table. Groups by conversation_id, deduplicates, top 3 sessions. Optional summarization via cheap model. format_for_context() for prompt injection | **DONE** |
+| 70.7 | **User Modeling** — `UserProfile` model (5 dimensions: confirmation, trigger, risk, communication, naming). `PreferenceExtractor` (background LLM analysis), `ProfileInjector` (200-token budget system prompt section). Configurable TTL (default 90d) | **DONE** |
+| 70.8 | **Prompt Caching** — `apply_cache_control()` for Anthropic (explicit cache_control markers) and OpenAI (message restructuring for automatic caching). system_and_3 strategy. `estimate_cache_savings()` for cost tracking | **DONE** |
+
+---
 
 ### Epic 65: Bundle Optimization — COMPLETE (Mar 16)
 
@@ -351,16 +465,21 @@ These items were previously listed as open but are now confirmed done:
 | 62 | Entity Convention API Foundation | *(this file)* | P1 High | 8 | 1-2 weeks | **Complete** (8/8: areas, labels, aliases, CRUD, dynamic areas, filtering, alias tiers, scoring) |
 | 63 | HA Setup Wizard & Entity Management UI | *(this file)* | P1 High | 7 | 1 session | **Complete** (7/7: HASetupTab, EntityAuditView, LabelEditor, AliasEditor, NameEditor, ExclusionManager, BulkActionsBar) |
 | 65 | Bundle Optimization | *(this file)* | P1 High | 6 | 1 session | **Complete** (6/6: AI UI main 966→218 KB, 8 lazy routes, force-graph deferred, visualizer, CI check) |
+| 66 | AI/Agent Service Classification | [epic-66-ai-agent-classification.md](epic-66-ai-agent-classification.md) | P1 High | 5 | 1 session | **Complete** (5/5: classification doc, ADR, decision tree, cross-refs, HD badges) |
+| 67 | AI Automation Validation Loop | [epic-67-automation-validation-loop.md](epic-67-automation-validation-loop.md) | P1 High | 6 | 1 session | **Complete** (6/6: LinterClient, retry loop, error prompt, circuit breaker, metrics, tests) |
+| 68 | Proactive Agent Upgrade | [epic-68-proactive-agent-upgrade.md](epic-68-proactive-agent-upgrade.md) | P1 High | 8 | 2-3 weeks | **Complete** (8/8: observe-reason-act loop, confidence/risk scoring, autonomous execution, safety guardrails, audit + undo, 20 tests) |
+| 69 | Agent Eval Feedback Loop | [epic-69-agent-eval-feedback-loop.md](epic-69-agent-eval-feedback-loop.md) | P2 Medium | 7 | 2 weeks | **Proposed** |
+| 70 | Self-Improving Agent (Hermes-Inspired) | [epic-70-hermes-self-improving-agent.md](epic-70-hermes-self-improving-agent.md) | P1 High | 8 | 3-4 weeks | **Complete** (8/8: smart routing, skill learning + guard, context compression, subagent delegation, session search, user modeling, prompt caching, 30+ tests) |
 
 ## Story Count by Priority
 
 | Priority | Count | Description |
 |----------|-------|-------------|
 | P0 Critical | 49 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) + Embed Testing (2) + Frontend Test Infra (5) + HD Testing (8) + AI UI Testing (8) |
-| P1 High | 142 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4) |
+| P1 High | 158 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4), Proactive Agent (8), Self-Improving Agent (8) |
 | P2 Medium | 53 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4) |
 | P3 Low | 10 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
-| **Total** | **395** | 395 complete (63 epics). See **Open Work** section for planned epics. |
+| **Total** | **422** | 422 complete (67 epics). See **Open Work** section for planned epics. |
 
 ## Key Dates
 
@@ -377,6 +496,8 @@ These items were previously listed as open but are now confirmed done:
 | Mar 13 | Epic 57 complete (4/4: tool_calls, RAG testid, entity_extractor, secret scanning). Phase 5 plan refreshed (44+ health endpoints, 1366+ tests). Epic 60 complete (chat_endpoints refactor: 721→481+254 lines). Epic 58 complete (6/6: test quality). **Epic 61 complete (6/6: Phase 5 deployment — 852 tests passing, all 43 services verified, post-deployment validation report).** |
 | Mar 14 | Sprint 24 complete — Epic 63 (7/7: HA Setup Wizard & Entity Management UI) |
 | Mar 16 | Sprint 25 complete — Epic 65 (6/6: Bundle Optimization — AI UI main bundle 966→218 KB, -77%) |
+| Mar 16 | Sprint 26 complete — Epic 66 (5/5: AI Service Classification — 4-tier taxonomy, ADR, HD badges) + Epic 67 (6/6: Validation Loop — retry + circuit breaker + 10 tests) |
+| Mar 16 | Sprint 27 complete — Epic 68 (8/8: Proactive Agent autonomous upgrade — observe-reason-act, confidence scoring, safety guardrails, audit+undo) + Epic 70 (8/8: Self-Improving Agent — smart routing, skill learning, context compression, delegation, session search, user modeling, prompt caching) |
 
 > **Detailed sprint results:** [SPRINT-HISTORY.md](SPRINT-HISTORY.md)
 

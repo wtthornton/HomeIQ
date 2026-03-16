@@ -62,6 +62,11 @@ class Settings(BaseServiceSettings):
     yaml_validation_service_url: str = "http://yaml-validation-service:8037"
     yaml_validation_api_key: str | None = None
 
+    # Automation Linter Configuration (Epic 67)
+    automation_linter_url: str = "http://automation-linter:8020"
+    automation_linter_timeout: float = 2.0
+    validation_max_retries: int = 3
+
     # Suggestion Generation Settings
     max_suggestions_per_request: int = 50
     suggestion_cache_ttl: int = 3600  # 1 hour cache

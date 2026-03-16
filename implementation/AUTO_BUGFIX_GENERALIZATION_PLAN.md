@@ -20,7 +20,7 @@ The current auto-bugfix pipeline (`scripts/auto-bugfix.ps1` + stream + scan mani
 - **Meta-repository pattern:** A dedicated “agents” repo as an AI knowledge base (AGENTS.md, repos.yaml, structure/, conventions/, workflows/) gives agents persistent orientation and eliminates re-exploration each session (Seylox/Anyline, 2026).
 - **Config repo pattern:** Separating pipeline/agent configuration from application code supports independent updates, access control, and reuse across many services (Argo CD / GitOps, 2026).
 - **Pipeline reuse maturity:** Progression from copy-paste → shared templates → managed inheritance so one change propagates across many projects (Harness, 2026).
-- **MCP (Model Context Protocol):** Standardized tool interface; servers are reusable across Cursor, VS Code, GitHub Copilot. In HomeIQ, **TappsMCP** is provided by **MCP_DOCKER** (Docker MCP Toolkit), not a standalone server; tools appear as `mcp__MCP_DOCKER__tapps_*`. Context7 can be separate or used by TappsMCP for doc lookup (MCP spec 2025–11, VS Code/Copilot docs).
+- **MCP (Model Context Protocol):** Standardized tool interface; servers are reusable across Cursor, VS Code, GitHub Copilot. In HomeIQ, **TappsMCP** is provided by **tapps-mcp** via direct stdio; tools appear as `mcp__tapps-mcp__tapps_*`. Context7 can be separate or used by TappsMCP for doc lookup (MCP spec 2025–11, VS Code/Copilot docs).
 
 ### 2.2 TappsMCP and Context7 in the Generalized Design
 
@@ -37,7 +37,7 @@ The current auto-bugfix pipeline (`scripts/auto-bugfix.ps1` + stream + scan mani
 | **Project root** | Derived from script path (e.g. `Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)`) | Config or env: `project_root` / `WORKSPACE_ROOT`; support single-repo and multi-repo workspaces. |
 | **Scan manifest** | `docs/scan-manifest.json` with HomeIQ-specific `units` (id, path, name, priority_weight, scan_hint, etc.) | **Scan manifest schema** as part of shared config; any project can define “scan units” (paths + hints + priority). |
 | **Prompts** | Inline in PowerShell (find, retry, fix, refactor, test, feedback) with “HomeIQ”, “Python”, TappsMCP tool names | **Prompt templates** in config or separate files; placeholders for `{{project_name}}`, `{{languages}}`, `{{scope_hint}}`, `{{allowed_tools}}`, `{{bug_count}}`. |
-| **MCP config** | `.mcp.json` at project root; TappsMCP via MCP_DOCKER (Docker MCP Toolkit); tool names in script | Config section: `mcp_config_path`, `tapps_mcp_server` (e.g. `MCP_DOCKER` or `tapps-mcp`), `scan_tools`, `fix_tools`, `optional_tools`; allow empty for no-MCP runs. |
+| **MCP config** | `.mcp.json` at project root; TappsMCP via direct stdio `tapps-mcp`; tool names in script | Config section: `mcp_config_path`, `tapps_mcp_server` (e.g. `tapps-mcp`), `scan_tools`, `fix_tools`, `optional_tools`; allow empty for no-MCP runs. |
 | **Output format** | `<<<BUGS>>>` / `<<<END_BUGS>>>` + JSON schema (file, line, description, severity) | Keep as default; make **markers and schema** configurable (e.g. for non-Python or different taxonomies). |
 | **Paths** | Dashboard, feedback, BUG_HISTORY, implementation/ saves | All path keys in config (e.g. `paths.dashboard_state`, `paths.feedback_dir`, `paths.history_file`, `paths.impl_dir`). |
 | **Rotate logic** | Inline Python in PowerShell; score = f(priority_weight, days_since_scan, bugs_found, false_positives) | **Pluggable** “scan unit selector”: config points to script or CLI; default implementation stays same algorithm, other projects can override. |
@@ -85,9 +85,9 @@ fix:
 
 mcp:
   config_path: ".mcp.json"
-  tapps_mcp_server: "MCP_DOCKER"   # or "tapps-mcp" if standalone
-  scan_tools: "Read,Grep,Glob,mcp__MCP_DOCKER__tapps_security_scan,mcp__MCP_DOCKER__tapps_quick_check,..."
-  fix_tools: "Read,Edit,Grep,Glob,mcp__MCP_DOCKER__tapps_validate_changed,..."
+  tapps_mcp_server: "tapps-mcp"   # direct stdio server name
+  scan_tools: "Read,Grep,Glob,mcp__tapps-mcp__tapps_security_scan,mcp__tapps-mcp__tapps_quick_check,..."
+  fix_tools: "Read,Edit,Grep,Glob,mcp__tapps-mcp__tapps_validate_changed,..."
   expert_domains: ["security", "testing-strategies", "api-design-integration", "database-data-management"]
   docs_lookup: true        # use Context7 / tapps_lookup_docs when available
 
@@ -190,7 +190,7 @@ Projects that adopt the pipeline either:
 
 - **Current pipeline:** `scripts/auto-bugfix.ps1`, `scripts/auto-bugfix-stream.ps1`, `docs/workflows/auto-bugfix-scan-format.md`, `docs/workflows/auto-bugfix-subagents.md`
 - **Scan manifest:** `docs/scan-manifest.json`
-- **TappsMCP / experts / docs:** `AGENTS.md`, `docs/TAPPS_TOOL_PRIORITY.md`, `.cursor/skills/tapps-research/SKILL.md`, `.cursor/MCP_SETUP_INSTRUCTIONS.md` (TappsMCP via MCP_DOCKER / Docker MCP Toolkit)
+- **TappsMCP / experts / docs:** `AGENTS.md`, `docs/TAPPS_TOOL_PRIORITY.md`, `.cursor/skills/tapps-research/SKILL.md`, `.cursor/MCP_SETUP_INSTRUCTIONS.md` (TappsMCP via direct stdio `tapps-mcp`)
 - **Context7:** `scripts/update-context7-versions.py`, `scripts/refresh-context7-docs.py`, `docs/kb/` (context7-cache)
 - **2026 research:** Meta-repo pattern (Seylox), cross-repo AI workflows (Augment Code), config repo pattern (Argo CD / GitOps), pipeline reuse (Harness), MCP specification and VS Code/Copilot integration
 

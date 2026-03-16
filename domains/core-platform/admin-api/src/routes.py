@@ -10,6 +10,7 @@ from fastapi import Depends
 
 from .config_endpoints import ConfigEndpoints
 from .docker_endpoints import DockerEndpoints
+from .entity_management_endpoints import router as entity_mgmt_router
 from .ha_proxy_endpoints import router as ha_proxy_router
 from .health_endpoints import HealthEndpoints
 from .memory_endpoints import router as memory_router
@@ -78,6 +79,9 @@ def register_routers(
     )
     app.include_router(
         memory_router, tags=["Memories"], dependencies=secure,
+    )
+    app.include_router(
+        entity_mgmt_router, tags=["Entity Management"], dependencies=secure,
     )
 
 

@@ -4,7 +4,7 @@ Story 22.2 - Simple device registry
 Phase 1.1: Enhanced with device intelligence fields
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -53,11 +53,11 @@ class Device(Base):
     troubleshooting_notes = Column(Text)  # Common issues and solutions
     device_features_json = Column(Text)  # Structured capabilities (stored as JSON string)
     community_rating = Column(Float)  # Rating from Device Database (if available)
-    last_capability_sync = Column(DateTime)  # When capabilities were last updated
+    last_capability_sync = Column(DateTime(timezone=True))  # When capabilities were last updated
 
     # Timestamps
-    last_seen = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    last_seen = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
     # Relationship to entities
     entities = relationship("Entity", back_populates="device", cascade="all, delete-orphan")

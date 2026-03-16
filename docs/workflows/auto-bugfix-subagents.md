@@ -48,7 +48,7 @@ Scan prompt → Main session (Sonnet)
 ## Environment and Requirements
 
 - Claude Code CLI with subagent support (project agents in `.claude/agents/`)
-- **MCP:** TappsMCP is provided by MCP_DOCKER (Docker MCP Toolkit). Use `.mcp.json` at project root with an `MCP_DOCKER` server entry so headless Claude can call TappsMCP tools. See [.cursor/MCP_SETUP_INSTRUCTIONS.md](../../.cursor/MCP_SETUP_INSTRUCTIONS.md).
+- **MCP:** TappsMCP is provided by `tapps-mcp` via direct stdio. Use `.mcp.json` at project root with a `tapps-mcp` server entry so headless Claude can call TappsMCP tools. See [.cursor/MCP_SETUP_INSTRUCTIONS.md](../../.cursor/MCP_SETUP_INSTRUCTIONS.md).
 - No special env vars for subagents (unlike agent teams, which need `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`)
 
 ## Future Work

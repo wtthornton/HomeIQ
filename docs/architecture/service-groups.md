@@ -4,6 +4,7 @@
 **Status:** Active
 **Epic Reference:** Domain Architecture Restructuring (Epics 1-5 Complete)
 **Approach:** 9-domain structure (extended from Option C -- Criticality + Domain Hybrid)
+**AI Classification:** See [AI/Agent Service Classification](ai-agent-classification.md) for tier labels (T1-T4) and [ADR: Single Agent Architecture](adr-single-agent-architecture.md)
 
 ---
 

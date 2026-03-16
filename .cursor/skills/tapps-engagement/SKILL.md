@@ -14,3 +14,4 @@ Set the TappsMCP LLM engagement level:
 3. **medium** - Balanced enforcement; core tools required, advanced tools recommended
 4. **low** - Optional guidance; quality tools are suggestions, not requirements
 5. Confirm the level was saved to `.tapps-mcp.yaml`
+6. If `content_return: true`, write `.tapps-mcp.yaml` from `file_manifest` using the Write tool

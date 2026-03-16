@@ -169,6 +169,7 @@ CREATE TABLE memory.memories (
     source_service  VARCHAR(50),             -- which service created it
     entity_ids      TEXT[],                  -- related HA entity IDs
     area_ids        TEXT[],                  -- related HA areas
+    domain          VARCHAR(30),             -- semantic domain (lighting, climate, security, etc.)
     tags            TEXT[],                  -- free-form tags for filtering
     embedding       vector(768),             -- pgvector embedding (768 for nomic, 384 for MiniLM — finalize in Story 1.4)
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -192,6 +193,9 @@ CREATE INDEX idx_memories_type_conf ON memory.memories (memory_type, confidence 
 
 -- Entity lookup
 CREATE INDEX idx_memories_entities ON memory.memories USING gin(entity_ids);
+
+-- Domain classification
+CREATE INDEX idx_memories_domain ON memory.memories (domain);
 ```
 
 ### Hybrid Search (Reciprocal Rank Fusion)
@@ -313,12 +317,18 @@ Every AI-facing service MUST query the memory API before generating suggestions,
 
 ## Shared Library: `homeiq-memory`
 
-New shared library under `libs/homeiq-memory/` providing:
-- `MemoryClient` — async client for CRUD + search operations
-- `MemoryConsolidator` — extract/consolidate/supersede logic
-- `MemoryDecay` — confidence decay calculations
-- `MemoryInjector` — formats memories for LLM prompt injection
-- Embedding generation via lightweight model (all-MiniLM-L6-v2 384-dim, or nomic-embed-text-v1.5 768-dim — benchmark both during Story 1.4)
+Shared library under `libs/homeiq-memory/` (v1.0.0) providing:
+- `MemoryClient` — async client for CRUD + search operations (with fallback methods)
+- `MemoryConsolidator` — Mem0-style extract/consolidate/supersede logic with contradiction detection
+- `MemorySearch` — hybrid RRF search (FTS 60% + pgvector 40%) with graceful degradation
+- `EmbeddingGenerator` — async sentence-transformer encoding (all-MiniLM-L6-v2 384-dim or nomic-embed-text-v1.5 768-dim)
+- `MemoryInjector` — formats memories for LLM prompt injection with token budgeting
+- `MemoryHealthCheck` — health monitoring with auto-repair (FTS reindex, orphaned chain fix)
+- Confidence decay functions: `effective_confidence`, `reinforce`, `contradict`, `should_archive`
+- Domain taxonomy: auto-classifies HA entity prefixes to semantic domains
+- Callback-based metrics interface for InfluxDB/Prometheus integration
+
+See [libs/homeiq-memory/README.md](../../libs/homeiq-memory/README.md) for full API reference and usage examples.
 
 All services install `homeiq-memory` the same way as existing shared libs:
 ```dockerfile

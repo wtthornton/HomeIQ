@@ -80,3 +80,60 @@ class Settings(BaseServiceSettings):
         description="Minimum confidence threshold for memory retrieval",
     )
 
+    # Epic 68: Autonomous Agent Upgrade
+    # Observe-Reason-Act loop
+    agent_loop_enabled: bool = Field(
+        default=True,
+        description="Enable observe-reason-act agent loop (Epic 68)",
+    )
+    agent_loop_interval_minutes: int = Field(
+        default=15,
+        description="Interval between observe-reason-act cycles (minutes)",
+    )
+
+    # ha-device-control for autonomous execution (Story 68.4)
+    ha_device_control_url: str = Field(
+        default="http://ha-device-control:8040",
+        description="HA Device Control service URL for autonomous execution",
+    )
+    ha_device_control_timeout: int = Field(
+        default=10,
+        description="Timeout for ha-device-control calls (seconds)",
+    )
+
+    # Confidence & risk thresholds (Story 68.3)
+    auto_execute_confidence_threshold: int = Field(
+        default=85,
+        description="Minimum confidence (0-100) to auto-execute an action",
+    )
+    suggest_confidence_threshold: int = Field(
+        default=50,
+        description="Minimum confidence (0-100) to surface as suggestion",
+    )
+    suppress_confidence_threshold: int = Field(
+        default=30,
+        description="Below this confidence, suppress the suggestion entirely",
+    )
+
+    # Safety guardrails (Story 68.6)
+    autonomous_execution_enabled: bool = Field(
+        default=True,
+        description="Master switch for autonomous execution",
+    )
+    safety_blocked_domains: str = Field(
+        default="lock,alarm,camera",
+        description="Comma-separated HA entity domains that can never be auto-executed",
+    )
+    quiet_hours_start: str = Field(
+        default="23:00",
+        description="Start of quiet hours (no autonomous actions)",
+    )
+    quiet_hours_end: str = Field(
+        default="06:00",
+        description="End of quiet hours",
+    )
+    undo_window_minutes: int = Field(
+        default=15,
+        description="Time window (minutes) for undoing autonomous actions",
+    )
+

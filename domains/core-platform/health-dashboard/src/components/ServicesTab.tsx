@@ -7,6 +7,7 @@ import type { ServiceStatus, ServiceDefinition, ServiceGroupId } from '../types'
 import { fetchAIStats, AIStatsData } from './AIStats';
 import { aiApi } from '../services/api';
 import type { ServicesHealthResponse } from '../types/health';
+import { useAiTierManifest, getServiceTier } from '../hooks/useAiTierManifest';
 
 interface ServicesTabProps {
   darkMode: boolean;
@@ -81,6 +82,7 @@ export const GROUP_DEFINITIONS: Record<ServiceGroupId, { label: string; descript
 };
 
 export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
+  const aiTierManifest = useAiTierManifest();
   const [services, setServices] = useState<ServiceStatus[]>([]);
   const [containers, setContainers] = useState<ContainerInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -539,6 +541,7 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
                   onRestart={() => handleContainerOperation(service.service, 'restart')}
                   containerStatus={getContainerStatus(service.service)}
                   isOperating={operatingServices.has(service.service)}
+                  aiTier={getServiceTier(aiTierManifest, service.service)}
                 />
               </div>
             ))}
@@ -574,6 +577,7 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
                   onRestart={() => handleContainerOperation(service.service, 'restart')}
                   containerStatus={getContainerStatus(service.service)}
                   isOperating={operatingServices.has(service.service)}
+                  aiTier={getServiceTier(aiTierManifest, service.service)}
                 />
               </div>
             ))}

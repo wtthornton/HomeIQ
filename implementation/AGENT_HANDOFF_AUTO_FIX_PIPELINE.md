@@ -14,7 +14,7 @@ You are continuing work on the **auto-fix pipeline isolated project** inside Hom
 
 - **Epic 0 (structure setup) is complete and executed.** A dedicated directory `auto-fix-pipeline/` exists at repo root. It is intended to hold the config-driven, generalized auto-fix pipeline and MCP design. One day this folder will be split into its own repo; for now we develop and test here.
 - **Epic 52 (config cleanup) complete.** Config is required. Preferred entry: `.\auto-fix-pipeline\runner\run.ps1 -Bugs 3`. Script `scripts/auto-bugfix.ps1` defaults to `homeiq-default.yaml` or `$env:AUTO_FIX_CONFIG`. Do not move or delete `scripts/auto-bugfix.ps1` or `scripts/auto-bugfix-stream.ps1`.
-- **MCP:** TappsMCP and docs-mcp are provided by **MCP_DOCKER** (Docker MCP Toolkit). Tool prefix is `mcp__MCP_DOCKER__` (e.g. `mcp__MCP_DOCKER__tapps_quick_check`). Config lives at `.cursor/mcp.json` (IDE) and `.mcp.json` at project root (headless). See `.cursor/MCP_SETUP_INSTRUCTIONS.md`.
+- **MCP:** TappsMCP and docs-mcp are provided by **tapps-mcp** via direct stdio. Tool prefix is `mcp__tapps-mcp__` (e.g. `mcp__tapps-mcp__tapps_quick_check`). Config lives at `.cursor/mcp.json` (IDE) and `.mcp.json` at project root (headless). See `.cursor/MCP_SETUP_INSTRUCTIONS.md`.
 
 ## Where things live
 
@@ -25,7 +25,7 @@ You are continuing work on the **auto-fix pipeline isolated project** inside Hom
   - `runner/` — run.ps1 (single-repo) and run-multirepo.ps1 (Phase 4; delegates to script with -ConfigPath)
   - `stories/` — EPIC-00-INDEX.md (Epic 0 done); epics defined in parent `stories/`
 - **Epic 0 (done):** `stories/epic-50-auto-fix-isolated-project-structure.md`  
-- **Architecture:** `docs/architecture/auto-fix-mcp-architecture.md` (MCP_DOCKER, TappsMCP, docs-mcp, pipeline phases, config model)  
+- **Architecture:** `docs/architecture/auto-fix-mcp-architecture.md` (tapps-mcp, TappsMCP, docs-mcp, pipeline phases, config model)
 - **Generalization plan:** `implementation/AUTO_BUGFIX_GENERALIZATION_PLAN.md` (phased rollout, config YAML shape)  
 - **Recommended next steps:** `auto-fix-pipeline/docs/NEXT_STEPS.md` (Epic 1: config schema; Epic 2: runner; Epic 3: script reads config; Epic 4: prompts)
 
@@ -43,7 +43,7 @@ Epics 1-4 and 52 (config, runner, script reads config, prompts, cleanup) are **a
 2. Do not change existing HomeIQ behavior unless the handoff task explicitly asks for it (and then keep backward compatibility).  
 3. New pipeline code and config belong under `auto-fix-pipeline/` or, when integrating, as optional parameters to existing scripts.  
 4. Follow project structure: implementation notes and handoffs in `implementation/`; reference docs in `docs/`; epics/stories in `stories/`.  
-5. TappsMCP is via MCP_DOCKER; use tool prefix `mcp__MCP_DOCKER__` in any new config or docs that reference tool names.
+5. TappsMCP is via direct stdio `tapps-mcp`; use tool prefix `mcp__tapps-mcp__` in any new config or docs that reference tool names.
 
 Proceed with the task I give you.
 ```
@@ -53,7 +53,7 @@ Proceed with the task I give you.
 ## Short version (if the agent has limited context)
 
 ```
-Continue the auto-fix pipeline isolated project. Epic 0 is done (structure under `auto-fix-pipeline/`). Do not change `scripts/auto-bugfix.ps1` behavior; do not break HomeIQ. Next: Epic 1 — add config schema in `auto-fix-pipeline/config/schema/` and HomeIQ example in `auto-fix-pipeline/config/example/`. See `auto-fix-pipeline/docs/NEXT_STEPS.md` and `implementation/AUTO_BUGFIX_GENERALIZATION_PLAN.md` section 4.1 for config shape. TappsMCP/docs-mcp are via MCP_DOCKER (prefix `mcp__MCP_DOCKER__`). [Then add your specific task.]
+Continue the auto-fix pipeline isolated project. Epic 0 is done (structure under `auto-fix-pipeline/`). Do not change `scripts/auto-bugfix.ps1` behavior; do not break HomeIQ. Next: Epic 1 — add config schema in `auto-fix-pipeline/config/schema/` and HomeIQ example in `auto-fix-pipeline/config/example/`. See `auto-fix-pipeline/docs/NEXT_STEPS.md` and `implementation/AUTO_BUGFIX_GENERALIZATION_PLAN.md` section 4.1 for config shape. TappsMCP/docs-mcp are via direct stdio `tapps-mcp` (prefix `mcp__tapps-mcp__`). [Then add your specific task.]
 ```
 
 ---

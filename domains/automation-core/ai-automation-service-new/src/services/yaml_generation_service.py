@@ -16,10 +16,12 @@ from homeiq_ha.homeiq_automation.validator import HomeIQAutomationValidator
 from homeiq_ha.yaml_validation_service.renderer import AutomationRenderer
 
 from ..clients.data_api_client import DataAPIClient
+from ..clients.linter_client import LinterClient
 from ..clients.openai_client import OpenAIClient
 from ..clients.yaml_validation_client import YAMLValidationClient
 from ..database.models import Suggestion
 from ..services.plan_parser import PlanParser
+from ..services.validation_retry_loop import ValidationRetryLoop
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +54,8 @@ class YAMLGenerationService:
         openai_client: OpenAIClient,
         data_api_client: DataAPIClient,
         yaml_validation_client: YAMLValidationClient | None = None,
+        linter_client: LinterClient | None = None,
+        max_validation_retries: int = 3,
     ):
         """
         Initialize YAML generation service.
@@ -60,14 +64,24 @@ class YAMLGenerationService:
             openai_client: Client for generating YAML via OpenAI
             data_api_client: Client for validating entities
             yaml_validation_client: Client for comprehensive YAML validation (Epic 51, optional)
+            linter_client: Client for automation-linter (Epic 67, optional)
+            max_validation_retries: Max retry attempts for validation loop (Epic 67, default 3)
         """
         self.openai_client = openai_client
         self.data_api_client = data_api_client
         self.yaml_validation_client = yaml_validation_client
+        self.linter_client = linter_client
         self.plan_parser = PlanParser()
         self.renderer = AutomationRenderer()
         self.json_validator = HomeIQAutomationValidator(data_api_client=data_api_client)
         self.json_converter = HomeIQToAutomationSpecConverter()
+        # Epic 67: Validation retry loop
+        self.validation_loop = ValidationRetryLoop(
+            openai_client=openai_client,
+            linter_client=linter_client,
+            yaml_validation_client=yaml_validation_client,
+            max_retries=max_validation_retries,
+        )
 
     async def _fetch_entity_context(self) -> dict[str, Any]:
         """
@@ -357,27 +371,36 @@ If you need an entity that doesn't exist, use the closest matching entity from t
                 logger.error(error_msg)
                 raise YAMLGenerationError(error_msg)
 
-            # Step 5: Additional YAML validation (optional, but recommended)
-            if self.yaml_validation_client:
-                try:
-                    validation_result = await self.yaml_validation_client.validate_yaml(
-                        yaml_content=yaml_content, normalize=True, validate_entities=True
-                    )
-                    if not validation_result.get("valid", False):
-                        errors = validation_result.get("errors", [])
-                        logger.warning(f"YAML validation found issues: {errors}")
-                        # Use fixed YAML if available
-                        if validation_result.get("fixed_yaml"):
-                            yaml_content = validation_result["fixed_yaml"]
-                            logger.info("Using normalized YAML from validation service")
-                except Exception as e:
-                    logger.warning(f"YAML validation failed (non-critical): {e}")
+            # Epic 67: Validation retry loop (replaces inline validation)
+            # Runs automation-linter + yaml-validation-service, retries on failure
+            description = (
+                suggestion.description if isinstance(suggestion, Suggestion)
+                else suggestion.get("description", "")
+            )
+            retry_result = await self.validation_loop.generate_and_validate(
+                yaml_content=yaml_content,
+                original_request=description or "Generate automation YAML",
+                entity_context=await self._fetch_entity_context(),
+            )
 
-            logger.info(f"Generated YAML from HomeIQ JSON: {homeiq_automation.alias}")
+            if retry_result.validated and not retry_result.passed:
+                error_msgs = [f.message for f in retry_result.findings if f.severity == "error"]
+                logger.warning(
+                    "YAML validation failed after %d attempts: %s",
+                    retry_result.attempts, "; ".join(error_msgs[:3]),
+                )
+
+            yaml_content = retry_result.yaml_content
+            logger.info(
+                "Generated YAML from HomeIQ JSON: %s (validated=%s, passed=%s, attempts=%d, %.0fms)",
+                homeiq_automation.alias, retry_result.validated,
+                retry_result.passed, retry_result.attempts,
+                retry_result.total_duration_ms,
+            )
             return yaml_content
 
         except Exception as e:
-            logger.error(f"Failed to generate YAML from HomeIQ JSON: {e}")
+            logger.error("Failed to generate YAML from HomeIQ JSON: %s", e)
             raise YAMLGenerationError(f"HomeIQ JSON to YAML conversion failed: {e}") from e
 
     async def _generate_yaml_from_structured_plan(self, title: str, description: str) -> str:

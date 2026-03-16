@@ -1,3 +1,4 @@
+<!-- tapps-generated: v1.7.0 -->
 ---
 name: tapps-researcher
 description: Technical researcher using TappsMCP expert consultation and docs

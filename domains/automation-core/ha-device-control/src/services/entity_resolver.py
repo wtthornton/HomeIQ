@@ -41,6 +41,8 @@ class CachedEntity:
     state: str
     area: str = ""
     attributes: dict[str, Any] = field(default_factory=dict)
+    # Story 62.7: Aliases for entity resolution
+    aliases: list[str] = field(default_factory=list)
 
 
 class EntityResolver:
@@ -49,7 +51,10 @@ class EntityResolver:
     Cache is refreshed on demand when TTL expires.  Matching tiers:
     1. Exact entity_id match (confidence 1.0)
     2. Exact friendly_name match (confidence 1.0)
-    3. Partial/substring match on friendly_name (confidence 0.8)
+    3. Exact alias match (confidence 0.95) — Story 62.7
+    4. Partial/substring match on friendly_name (confidence 0.8)
+    5. Partial alias match (confidence 0.75) — Story 62.7
+    6. Partial match on entity_id suffix (confidence 0.7)
     """
 
     def __init__(
@@ -107,6 +112,8 @@ class EntityResolver:
                 domain=domain,
                 state=state.get("state", "unknown"),
                 attributes=attrs,
+                # Story 62.7: Pull aliases from HA attributes or entity registry
+                aliases=attrs.get("aliases", []) or [],
             )
             entity_ids.append(eid)
 
@@ -162,12 +169,22 @@ class EntityResolver:
         if match:
             return match
 
-        # Tier 3: partial / substring match on friendly_name
+        # Tier 3: exact alias match (Story 62.7)
+        match = self._match_alias(candidates, query_lower, exact=True)
+        if match:
+            return match
+
+        # Tier 4: partial / substring match on friendly_name
         match = self._match_friendly_name(candidates, query_lower, exact=False)
         if match:
             return match
 
-        # Tier 4: partial match on entity_id (without domain prefix)
+        # Tier 5: partial alias match (Story 62.7)
+        match = self._match_alias(candidates, query_lower, exact=False)
+        if match:
+            return match
+
+        # Tier 6: partial match on entity_id (without domain prefix)
         return self._match_entity_id_suffix(candidates, query_lower)
 
     def _match_exact_id(
@@ -194,6 +211,25 @@ class EntityResolver:
             matched = (name_lower == query_lower) if exact else (query_lower in name_lower)
             if matched and not self._is_blocked(ent):
                 return self._to_resolved(ent, confidence=confidence)
+        return None
+
+    def _match_alias(
+        self,
+        candidates: dict[str, CachedEntity],
+        query_lower: str,
+        *,
+        exact: bool,
+    ) -> ResolvedEntity | None:
+        """Story 62.7: Match by alias (exact or substring)."""
+        confidence = 0.95 if exact else 0.75
+        for ent in candidates.values():
+            if self._is_blocked(ent):
+                continue
+            for alias in ent.aliases:
+                alias_lower = alias.lower()
+                matched = (alias_lower == query_lower) if exact else (query_lower in alias_lower)
+                if matched:
+                    return self._to_resolved(ent, confidence=confidence)
         return None
 
     def _match_entity_id_suffix(

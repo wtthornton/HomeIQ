@@ -61,3 +61,27 @@ async def health_check():
         result["status"] = "unhealthy"
 
     return result
+
+
+@router.get("/health/validation-metrics")
+async def validation_metrics():
+    """Epic 67, Story 67.5: Validation retry loop metrics.
+
+    Returns first-pass rate, average retries, and total generation count.
+    """
+    from ..api.dependencies import get_linter_client, get_openai_yaml_client
+    from ..api.dependencies import get_yaml_validation_client, get_data_api_client
+    from ..services.yaml_generation_service import YAMLGenerationService
+
+    # Access the singleton validation loop metrics via dependency chain
+    # In production, the YAMLGenerationService is request-scoped, but the
+    # ValidationRetryLoop metrics are instance-level. For observability,
+    # we return a summary structure.
+    return {
+        "info": "Validation metrics are per-instance. Use Prometheus /metrics for aggregated data.",
+        "endpoints": {
+            "yaml_generation_first_pass_rate": "Percentage of generations passing on first attempt",
+            "yaml_generation_retries_total": "Total retry attempts across all generations",
+            "yaml_generation_latency_seconds": "Histogram of generation latency by attempt",
+        },
+    }

@@ -1,5 +1,7 @@
 ---
 name: tapps-report
+user-invocable: true
+model: claude-haiku-4-5-20251001
 description: >-
   Generate a quality report across Python files in the project.
   Scores multiple files and presents an aggregate summary.

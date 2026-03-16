@@ -12,7 +12,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from homeiq_data.influxdb_query_client import InfluxDBQueryClient
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, cast, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
@@ -124,6 +124,33 @@ class IntegrationResponse(BaseModel):
     state: str = Field(description="Setup state")
     version: int = Field(default=1, description="Config version")
     timestamp: str = Field(description="Last update timestamp")
+
+
+class AreaResponse(BaseModel):
+    """Area response model — Story 62.1"""
+    area_id: str = Field(description="Area identifier (e.g., 'kitchen')")
+    display_name: str = Field(description="Human-readable name (e.g., 'Kitchen')")
+    entity_count: int = Field(description="Number of entities in this area")
+    domains: list[str] = Field(description="Distinct entity domains in this area")
+
+
+class AreasListResponse(BaseModel):
+    """Areas list response — Story 62.1"""
+    areas: list[AreaResponse]
+    count: int
+
+
+class LabelResponse(BaseModel):
+    """Label response model — Story 62.2"""
+    label: str = Field(description="Label value (e.g., 'ai:automatable')")
+    entity_count: int = Field(description="Number of entities with this label")
+    prefix: str = Field(description="Label prefix (e.g., 'ai')")
+
+
+class LabelsListResponse(BaseModel):
+    """Labels list response — Story 62.2"""
+    labels: list[LabelResponse]
+    count: int
 
 
 class DevicesListResponse(BaseModel):
@@ -590,6 +617,95 @@ async def get_device_reliability(
     # Shared client is not closed per-request (HIGH-01)
 
 
+# ============================================================================
+# Story 62.1: Areas endpoints
+# ============================================================================
+
+@router.get("/api/areas", response_model=AreasListResponse)
+async def list_areas(db: AsyncSession = Depends(get_db)):
+    """List all areas with entity counts and domain breakdown — Story 62.1"""
+    cache_key = "areas:list"
+    cached = await cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        # Distinct areas with entity counts
+        query = (
+            select(
+                Entity.area_id,
+                func.count(Entity.entity_id).label("entity_count"),
+                func.array_agg(func.distinct(Entity.domain)).label("domains"),
+            )
+            .where(Entity.area_id.isnot(None))
+            .where(Entity.area_id != "")
+            .group_by(Entity.area_id)
+            .order_by(Entity.area_id)
+        )
+        result = await db.execute(query)
+        rows = result.all()
+
+        areas = [
+            AreaResponse(
+                area_id=row.area_id,
+                display_name=row.area_id.replace("_", " ").title(),
+                entity_count=row.entity_count,
+                domains=sorted(row.domains) if row.domains else [],
+            )
+            for row in rows
+        ]
+        response = AreasListResponse(areas=areas, count=len(areas))
+        await cache.set(cache_key, response, ttl=60)
+        return response
+    except Exception as e:
+        logger.error("Error listing areas: %s", e)
+        raise HTTPException(status_code=500, detail=f"Failed to list areas: {e}") from e
+
+
+@router.get("/internal/areas/list", response_model=AreasListResponse)
+async def internal_list_areas(db: AsyncSession = Depends(get_db)):
+    """Internal area list for inter-service use (no auth) — Story 62.1"""
+    return await list_areas(db=db)
+
+
+# ============================================================================
+# Story 62.2: Labels endpoint
+# ============================================================================
+
+@router.get("/api/labels", response_model=LabelsListResponse)
+async def list_labels(db: AsyncSession = Depends(get_db)):
+    """List all distinct labels with entity counts — Story 62.2"""
+    cache_key = "labels:list"
+    cached = await cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        # Unnest JSONB arrays and aggregate distinct labels with counts
+        query = text(
+            "SELECT lbl, COUNT(*) as entity_count "
+            "FROM entities, jsonb_array_elements_text(entities.labels) AS lbl "
+            "GROUP BY lbl ORDER BY entity_count DESC"
+        )
+        result = await db.execute(query)
+        rows = result.all()
+
+        labels = [
+            LabelResponse(
+                label=row[0],
+                entity_count=row[1],
+                prefix=row[0].split(":")[0] if ":" in row[0] else "",
+            )
+            for row in rows
+        ]
+        response = LabelsListResponse(labels=labels, count=len(labels))
+        await cache.set(cache_key, response, ttl=60)
+        return response
+    except Exception as e:
+        logger.error("Error listing labels: %s", e)
+        raise HTTPException(status_code=500, detail=f"Failed to list labels: {e}") from e
+
+
 @router.get("/api/entities", response_model=EntitiesListResponse)
 async def list_entities(
     request: Request,
@@ -597,23 +713,23 @@ async def list_entities(
     domain: str | None = Query(default=None, description="Filter by domain (light, sensor, etc)"),
     platform: str | None = Query(default=None, description="Filter by platform"),
     device_id: str | None = Query(default=None, description="Filter by device ID"),
+    label: list[str] | None = Query(default=None, description="Filter by label (JSONB containment, repeatable)"),
+    alias: str | None = Query(default=None, description="Search entities by alias (case-insensitive substring)"),
+    has_aliases: bool | None = Query(default=None, description="Filter by alias presence (true=has aliases, false=missing)"),
     db: AsyncSession = Depends(get_db)
 ):
-    """List entities - Story 22.2"""
+    """List entities — Story 22.2, extended by Stories 62.2 & 62.3"""
     try:
         # Debug: Check raw query parameters
         raw_query = dict(request.query_params)
-        logger.info(f"🔍 [list_entities] Raw query params: {raw_query}")
-        logger.info(f"🔍 [list_entities] Parsed params: limit={limit}, domain={domain}, platform={platform}, device_id={device_id}")
+        logger.info("list_entities raw query params: %s", raw_query)
 
         # Override with raw query params if FastAPI didn't parse them
         if 'device_id' in raw_query and not device_id:
             device_id = raw_query.get('device_id')
-            logger.warning(f"⚠️ [list_entities] Using device_id from raw query: {device_id}")
         if 'limit' in raw_query and limit == 100:
             try:
                 limit = int(raw_query.get('limit', 100))
-                logger.warning(f"⚠️ [list_entities] Using limit from raw query: {limit}")
             except (ValueError, TypeError):
                 pass
 
@@ -623,15 +739,37 @@ async def list_entities(
         # Apply filters
         if domain:
             query = query.where(Entity.domain == domain)
-            logger.debug(f"🔍 [list_entities] Applied domain filter: {domain}")
         if platform:
             query = query.where(Entity.platform == platform)
-            logger.debug(f"🔍 [list_entities] Applied platform filter: {platform}")
         if device_id:
-            # Use case-insensitive comparison to handle potential case mismatches
-            # Normalize both sides for case-insensitive comparison
             query = query.where(func.lower(Entity.device_id) == func.lower(device_id))
-            logger.info(f"🔍 [list_entities] Applied device_id filter (case-insensitive): {device_id}")
+
+        # Story 62.2: Label filter (JSONB containment — uses GIN index)
+        if label:
+            for lbl in label:
+                query = query.where(
+                    Entity.labels.op("@>")(cast(f'["{lbl}"]', Entity.labels.type))
+                )
+
+        # Story 62.3: Alias search (case-insensitive substring across JSONB array)
+        if alias:
+            alias_lower = alias.lower()
+            query = query.where(
+                text(
+                    "EXISTS (SELECT 1 FROM jsonb_array_elements_text(entities.aliases) a "
+                    "WHERE lower(a) LIKE :alias_pattern)"
+                ).bindparams(alias_pattern=f"%{alias_lower}%")
+            )
+
+        # Story 62.3: Has-aliases filter
+        if has_aliases is True:
+            query = query.where(
+                and_(Entity.aliases.isnot(None), Entity.aliases != cast("[]", Entity.aliases.type))
+            )
+        elif has_aliases is False:
+            query = query.where(
+                or_(Entity.aliases.is_(None), Entity.aliases == cast("[]", Entity.aliases.type))
+            )
 
         # Apply limit
         query = query.limit(limit)
@@ -847,36 +985,7 @@ async def get_device_for_entity(
         ) from e
 
 
-@router.get("/api/areas")
-async def list_areas(
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    List all distinct areas from the entity registry.
-
-    Returns area_id and name for each area. Used by template_validator
-    to resolve room_type → area_id during automation compilation.
-    """
-    try:
-        result = await db.execute(
-            select(Entity.area_id)
-            .where(Entity.area_id.isnot(None))
-            .where(Entity.area_id != "")
-            .distinct()
-            .order_by(Entity.area_id)
-        )
-        area_ids = [row[0] for row in result.all()]
-        areas = [
-            {"area_id": aid, "name": aid.replace("_", " ").title()}
-            for aid in area_ids
-        ]
-        return {"areas": areas, "count": len(areas)}
-    except Exception as e:
-        logger.error(f"Error listing areas: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list areas: {str(e)}"
-        ) from e
+# NOTE: /api/areas endpoint moved to Story 62.1 block above (richer response with entity_count + domains)
 
 
 @router.get("/api/entities/by-area/{area_id}")

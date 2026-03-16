@@ -4,7 +4,7 @@ Story 22.2 - Simple entity registry with FK to devices
 Epic 2025: Enhanced with Entity Registry name fields and capabilities
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
@@ -59,8 +59,8 @@ class Entity(Base):
     config_entry_id = Column(String, index=True)  # Config entry ID (source tracking)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     # Relationship to device
     device = relationship("Device", back_populates="entities")
@@ -79,4 +79,7 @@ Index('idx_entity_device_class', Entity.device_class)
 Index('idx_entity_config_entry', Entity.config_entry_id)
 # Phase 1-2: Indexes for new 2025 HA API attributes
 Index('idx_entity_name_by_user', Entity.name_by_user)  # For user-customized name lookups
+# Story 62.2-62.3: GIN indexes for JSONB label/alias queries
+Index('idx_entity_labels_gin', Entity.labels, postgresql_using='gin')
+Index('idx_entity_aliases_gin', Entity.aliases, postgresql_using='gin')
 

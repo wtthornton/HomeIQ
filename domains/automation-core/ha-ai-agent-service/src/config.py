@@ -9,7 +9,7 @@ class Settings(BaseServiceSettings):
 
     Inherits from BaseServiceSettings which provides: service_name,
     service_port, log_level, database_url, postgres_url, database_schema,
-    data_api_url, data_api_key, openai_api_key (SecretStr), cors_origins,
+    data_api_url, data_api_key, cors_origins,
     influxdb_url/token/org/bucket, and effective_database_url property.
     """
 
@@ -106,7 +106,11 @@ class Settings(BaseServiceSettings):
         description="Weather API Service URL for weather data",
     )
 
-    # OpenAI Configuration (openai_api_key inherited from base as SecretStr)
+    # OpenAI Configuration
+    openai_api_key: SecretStr = Field(
+        default="",
+        description="OpenAI API key for GPT-based automation generation",
+    )
     openai_model: str = Field(
         default="gpt-5.2-codex",
         description="OpenAI model for agentic chat, tool calling, and YAML generation",
@@ -159,5 +163,77 @@ class Settings(BaseServiceSettings):
     memory_database_url: str | None = Field(
         default=None,
         description="Database URL for memory storage (falls back to DATABASE_URL)",
+    )
+
+    # Epic 70: Self-Improving Agent — Hermes-Inspired Features
+
+    # Story 70.3: Smart Model Routing
+    routing_enabled: bool = Field(
+        default=True,
+        description="Enable smart model routing (cheap model for simple queries)",
+    )
+    cheap_model: str = Field(
+        default="gpt-4.1-mini",
+        description="Cheap/fast model for simple queries",
+    )
+    cheap_model_max_chars: int = Field(
+        default=160,
+        description="Max message chars for cheap model routing",
+    )
+    cheap_model_max_words: int = Field(
+        default=28,
+        description="Max message words for cheap model routing",
+    )
+
+    # Story 70.1: Skill Learning
+    enable_skill_learning: bool = Field(
+        default=True,
+        description="Enable procedural skill learning from conversations",
+    )
+
+    # Story 70.4: Context Compression
+    context_compression_enabled: bool = Field(
+        default=True,
+        description="Enable intelligent context compression",
+    )
+    compression_threshold_pct: float = Field(
+        default=0.5,
+        description="Context usage threshold (0.0-1.0) to trigger compression",
+    )
+
+    # Story 70.5: Subagent Delegation
+    delegation_enabled: bool = Field(
+        default=True,
+        description="Enable multi-area subagent delegation",
+    )
+    max_subagents: int = Field(
+        default=3,
+        description="Maximum parallel subagents",
+    )
+    subagent_max_tokens: int = Field(
+        default=8000,
+        description="Per-subagent output token budget",
+    )
+
+    # Story 70.6: Session Search
+    session_search_enabled: bool = Field(
+        default=True,
+        description="Enable cross-conversation session search",
+    )
+
+    # Story 70.7: User Modeling
+    user_modeling_enabled: bool = Field(
+        default=True,
+        description="Enable cross-session user preference modeling",
+    )
+    profile_ttl_days: int = Field(
+        default=90,
+        description="TTL for user preference dimensions (days)",
+    )
+
+    # Story 70.8: Prompt Caching
+    prompt_caching_enabled: bool = Field(
+        default=True,
+        description="Enable prompt caching for reduced token costs",
     )
 

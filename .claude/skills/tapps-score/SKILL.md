@@ -1,7 +1,9 @@
 ---
 name: tapps-score
+user-invocable: true
+model: claude-haiku-4-5-20251001
 description: Score a Python file across 7 quality categories and display a structured report.
-allowed-tools: mcp__tapps-mcp__tapps_score_file, mcp__tapps-mcp__tapps_quick_check
+allowed-tools: mcp__tapps-mcp__tapps_score_file mcp__tapps-mcp__tapps_quick_check
 argument-hint: "[file-path]"
 ---
 

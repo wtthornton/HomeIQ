@@ -1,5 +1,7 @@
 ---
 name: tapps-tool-reference
+user-invocable: true
+model: claude-haiku-4-5-20251001
 description: >-
   Look up when to use each TappsMCP tool. Full tool reference with per-tool
   guidance for session start, scoring, validation, checklist, docs, experts, and more.
@@ -16,7 +18,7 @@ provide the full tool reference from this skill.
 |------|----------------|
 | **tapps_session_start** | **FIRST call in every session** - returns server info only |
 | **tapps_quick_check** | **After editing any Python file** - quick score + gate + basic security |
-| **tapps_validate_changed** | **Before multi-file complete** - score + gate on changed files |
+| **tapps_validate_changed** | **Before multi-file complete** - score + gate on changed files. Always pass explicit `file_paths`. Default is quick; `quick=false` is a last resort. |
 | **tapps_checklist** | **Before declaring complete** - reports which tools were called |
 | **tapps_quality_gate** | Before declaring work complete - ensures file passes preset |
 
@@ -54,7 +56,7 @@ provide the full tool reference from this skill.
 ## Pipeline & init
 | Tool | When to use it |
 |------|----------------|
-| **tapps_init** | Pipeline bootstrap (once per project) - creates AGENTS.md, rules, hooks |
+| **tapps_init** | Pipeline bootstrap (once per project) - creates AGENTS.md, rules, hooks. **CLI fallback:** `tapps-mcp upgrade --force --host auto` then `tapps-mcp doctor` |
 | **tapps_upgrade** | After TappsMCP version update - refreshes generated files |
 | **tapps_doctor** | Diagnose configuration issues |
 | **tapps_set_engagement_level** | Change enforcement intensity (high/medium/low) |

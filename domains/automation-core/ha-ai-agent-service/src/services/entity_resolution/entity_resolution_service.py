@@ -3,15 +3,24 @@ Entity Resolution Service.
 
 Extracts business rules from system prompt to testable code for resolving
 entities from user prompts based on area, keywords, and device types.
+Story 62.5: Dynamic area resolution from data-api /api/areas.
+Story 62.8: Enhanced alias scoring.
 """
 
 import logging
+import time
 from typing import Any
 
 from ...clients.data_api_client import DataAPIClient
 from .entity_resolution_result import EntityResolutionResult
 
 logger = logging.getLogger(__name__)
+
+# Story 62.5: Fallback areas used only when data-api is unreachable
+_FALLBACK_AREAS = [
+    "office", "kitchen", "bedroom", "living room", "bathroom",
+    "garage", "basement", "attic", "hallway", "dining room",
+]
 
 
 class EntityResolutionService:
@@ -24,6 +33,9 @@ class EntityResolutionService:
     3. Device type matching (LED, WLED, strip, bulb)
     4. Validation (verify matches user description)
     """
+
+    # Story 62.5: Area cache TTL in seconds
+    _AREA_CACHE_TTL = 300  # 5 minutes
 
     # Positional keywords for matching
     POSITIONAL_KEYWORDS = {
@@ -67,6 +79,9 @@ class EntityResolutionService:
             data_api_client: Data API client for entity queries (optional)
         """
         self.data_api_client = data_api_client
+        # Story 62.5: Cached area list (populated lazily)
+        self._area_cache: list[str] = []
+        self._area_cache_time: float = 0.0
 
     async def resolve_entities(
         self,
@@ -86,8 +101,8 @@ class EntityResolutionService:
             EntityResolutionResult with matched entities and confidence scores
         """
         try:
-            # Step 1: Extract area from prompt
-            area_id = self._extract_area_from_prompt(user_prompt)
+            # Step 1: Extract area from prompt (Story 62.5: async dynamic lookup)
+            area_id = await self._extract_area_from_prompt(user_prompt)
 
             # Step 2: Get entities (from context or API)
             if context_entities:
@@ -114,6 +129,12 @@ class EntityResolutionService:
             # Step 4: Filter by domain if specified
             if target_domain:
                 entities = self._filter_by_domain(entities, target_domain)
+
+            # Step 4.5: Story 62.6 — Exclude ai:ignore entities
+            entities = [
+                e for e in entities
+                if "ai:ignore" not in (e.get("labels") or [])
+            ]
 
             # Step 5: Extract keywords from prompt
             # Check patterns FIRST (before device type keywords) to prevent false matches
@@ -144,6 +165,11 @@ class EntityResolutionService:
                 matched_entities, user_prompt, area_id
             )
 
+            # Story 62.6: Check if any matched entity requires confirmation
+            needs_confirm = any(
+                e.get("requires_confirmation", False) for e in matched_entities
+            )
+
             return EntityResolutionResult(
                 success=validation_result["valid"],
                 matched_entities=[e["entity_id"] for e in matched_entities],
@@ -151,6 +177,7 @@ class EntityResolutionService:
                 confidence_score=validation_result["confidence"],
                 warnings=validation_result["warnings"],
                 error=validation_result.get("error"),
+                requires_confirmation=needs_confirm,
             )
 
         except Exception as e:
@@ -160,32 +187,50 @@ class EntityResolutionService:
                 error=f"Entity resolution failed: {str(e)}",
             )
 
-    def _extract_area_from_prompt(self, user_prompt: str) -> str | None:
-        """
-        Extract area ID from user prompt.
+    async def _refresh_area_cache(self) -> None:
+        """Story 62.5: Refresh area cache from data-api if expired."""
+        now = time.monotonic()
+        if self._area_cache and (now - self._area_cache_time) < self._AREA_CACHE_TTL:
+            return  # Cache still valid
 
-        Args:
-            user_prompt: User's natural language request
+        if not self.data_api_client:
+            self._area_cache = list(_FALLBACK_AREAS)
+            self._area_cache_time = now
+            return
 
-        Returns:
-            Area ID if found, None otherwise
+        try:
+            areas = await self.data_api_client.get_areas()
+            # Build display_name → area_id list, sorted longest-first
+            # to match "living room" before "living"
+            area_names = []
+            for a in areas:
+                area_id = a.get("area_id", "")
+                display = a.get("display_name", area_id.replace("_", " ").title())
+                area_names.append(display.lower())
+            # Sort by length descending so longer names match first
+            area_names.sort(key=len, reverse=True)
+            self._area_cache = area_names
+            self._area_cache_time = now
+            logger.info("Refreshed area cache: %d areas", len(area_names))
+        except Exception:
+            logger.warning("Failed to refresh area cache, using fallback")
+            if not self._area_cache:
+                self._area_cache = list(_FALLBACK_AREAS)
+            self._area_cache_time = now  # Don't retry immediately
+
+    async def _extract_area_from_prompt(self, user_prompt: str) -> str | None:
         """
-        # Common area names (could be expanded with actual area names from context)
-        area_keywords = [
-            "office",
-            "kitchen",
-            "bedroom",
-            "living room",
-            "bathroom",
-            "garage",
-            "basement",
-            "attic",
-        ]
+        Extract area ID from user prompt using dynamic area list.
+
+        Story 62.5: Fetches areas from data-api (cached 5 min), falls back
+        to hardcoded list if unavailable. Sorted longest-first to prevent
+        "bed" matching before "bedroom".
+        """
+        await self._refresh_area_cache()
 
         prompt_lower = user_prompt.lower()
-        for area in area_keywords:
+        for area in self._area_cache:
             if area in prompt_lower:
-                # Return area as-is (could normalize to area_id format)
                 return area.replace(" ", "_")
 
         return None
@@ -328,10 +373,21 @@ class EntityResolutionService:
             score = 0.0
             entity_id = entity.get("entity_id", "").lower()
             friendly_name = entity.get("friendly_name", "").lower()
-            aliases = [a.lower() for a in entity.get("aliases", [])]
+            aliases = [a.lower() for a in entity.get("aliases") or []]
 
             # Search text combines entity_id, friendly_name, and aliases
             search_text = f"{entity_id} {friendly_name} {' '.join(aliases)}"
+
+            # Story 62.8: Alias-first scoring (whole-phrase matching)
+            for alias in aliases:
+                if alias == prompt_lower or alias in prompt_lower:
+                    # Exact or contained match — high boost
+                    score += 3.0
+                    break
+                if any(word in alias.split() for word in prompt_lower.split()):
+                    # Partial word overlap with alias
+                    score += 1.5
+                    break
 
             # Score pattern keyword matches FIRST (highest priority)
             # Pattern: "switch_led" → boost entities with both "switch" and "led" in name
@@ -363,10 +419,21 @@ class EntityResolutionService:
             ):
                 score += 0.5
 
+            # Story 62.6: Label-aware scoring boosts
+            entity_labels = set(entity.get("labels") or [])
+            requires_confirmation = False
+            if "ai:automatable" in entity_labels:
+                score += 0.5  # Boost automatable entities
+            if "ai:critical" in entity_labels:
+                requires_confirmation = True
+            if "sensor:primary" in entity_labels:
+                score += 0.3  # Prefer primary sensors over duplicates
+
             scored.append(
                 {
                     **entity,
                     "score": score,
+                    "requires_confirmation": requires_confirmation,
                 }
             )
 

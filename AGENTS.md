@@ -1,4 +1,4 @@
-<!-- tapps-agents-version: 0.7.1 -->
+<!-- tapps-agents-version: 1.8.0 -->
 # TappsMCP - instructions for AI assistants
 
 When the **TappsMCP** MCP server is configured, you have access to tools for **code quality, doc lookup, and domain expert advice**. Use them to avoid hallucinated APIs, missed quality steps, and inconsistent output.
@@ -30,7 +30,7 @@ TappsMCP is an MCP server that provides a comprehensive quality toolset for your
 
 You only see these tools when the host has started the TappsMCP server and attached it to your session.
 
-**In this project:** TappsMCP is provided by **MCP_DOCKER** (Docker MCP Toolkit). Configure `.cursor/mcp.json` and, for headless runs (e.g. auto-bugfix), `.mcp.json` at project root with the `MCP_DOCKER` server (`docker mcp gateway run`). Tools appear as `mcp__MCP_DOCKER__tapps_*` (e.g. `mcp__MCP_DOCKER__tapps_quick_check`). See [.cursor/MCP_SETUP_INSTRUCTIONS.md](.cursor/MCP_SETUP_INSTRUCTIONS.md).
+**In this project:** TappsMCP is provided via **direct stdio** (`tapps-mcp serve`). Configure `.cursor/mcp.json` (Cursor) and `.mcp.json` (Claude Code) at project root. Tools appear as `mcp__tapps-mcp__tapps_*` (e.g. `mcp__tapps-mcp__tapps_quick_check`).
 
 **File paths:** For tools that take `file_path`, use **paths relative to the project root** (e.g. `src/main.py`, `tests/test_foo.py`) so they work with both stdio and Docker. If the server is configured with `TAPPS_MCP_HOST_PROJECT_ROOT` (e.g. when using Docker), you can also pass **absolute host paths** (e.g. `C:\projects\myapp\src\main.py`); the server will map them to the project root.
 
@@ -87,6 +87,10 @@ Pass the `domain` parameter when the context clearly implies a domain. This impr
 
 When in doubt, omit `domain` to let auto-detection from the question text choose.
 
+### Business experts
+
+Projects can define custom business-domain experts in `.tapps-mcp/experts.yaml`. Use `tapps_manage_experts(action="list")` to see them. Pass business domain names to `tapps_consult_expert(domain="...")` like built-in domains.
+
 ---
 
 ## Recommended workflow
@@ -98,10 +102,10 @@ When in doubt, omit `domain` to let auto-detection from the question text choose
 4. **Before modifying a file's API:** Call `tapps_impact_analysis(file_path=...)` to see what depends on it.
 5. **During edits:** Call `tapps_quick_check(file_path=...)` or `tapps_score_file(file_path=..., quick=True)` after each change.
 6. **Before declaring work complete:**
-   - Call `tapps_validate_changed()` to score + gate + security scan all changed files.
+   - Call `tapps_validate_changed(file_paths="file1.py,file2.py")` with explicit paths to score + gate changed files. Never call without `file_paths` in large repos. Default is quick mode; only use `quick=false` as a last resort (pre-release, security audit).
    - Call `tapps_checklist(task_type=...)` and, if `complete` is false, call the missing required tools (use `missing_required_hints` for reasons).
    - Optionally call `tapps_report(format="markdown")` to generate a quality summary.
-7. **When in doubt:** Use `tapps_consult_expert` for domain-specific questions; use `tapps_validate_config` for Docker/infra files. **For library-specific domain questions**, pair `tapps_consult_expert` with `tapps_lookup_docs` to get expert guidance backed by current documentation (the expert response will suggest the right library/topic to look up).
+7. **When in doubt:** Use `tapps_consult_expert` for domain-specific questions; use `tapps_validate_config` for Docker/infra files. **For expert + docs in one call**, use `tapps_research(question, ...)` instead of consult_expert + lookup_docs.
 
 ### Review Pipeline (multi-file)
 
@@ -148,6 +152,8 @@ The checklist uses this to decide which tools are required vs recommended vs opt
 
 **Lighter tapps_init options** (for timeout-prone MCP clients): Use `dry_run: true` to preview (~2-5s); use `verify_only: true` for a quick server/checker check (~1-3s); or set `warm_cache_from_tech_stack: false` and `warm_expert_rag_from_tech_stack: false` for a faster init without cache warming.
 
+**Tool contract:** Session start returns server info only (no project profile—call tapps_project_profile when needed). tapps_validate_changed default = score + gate only; use `security_depth='full'` or `quick=false` for security. tapps_quick_check has no `quick` parameter (use tapps_score_file(quick=True) for that).
+
 ---
 
 ## Platform hooks and automation
@@ -171,14 +177,14 @@ When `tapps_init` generates platform-specific files, it also creates **hooks**, 
 
 ### Subagents (auto-generated)
 
-Three agent definitions per platform in `.claude/agents/` or `.cursor/agents/`:
+Four agent definitions per platform in `.claude/agents/` or `.cursor/agents/`:
 - **tapps-reviewer** (sonnet) - Reviews code quality and runs security scans after edits
 - **tapps-researcher** (haiku) - Looks up documentation and consults domain experts
 - **tapps-validator** (sonnet) - Runs pre-completion validation on all changed files
 
 ### Skills (auto-generated)
 
-Seven SKILL.md files per platform in `.claude/skills/` or `.cursor/skills/`:
+Twelve SKILL.md files per platform in `.claude/skills/` or `.cursor/skills/`:
 - **tapps-score** - Score a Python file across 7 quality categories
 - **tapps-gate** - Run a quality gate check and report pass/fail
 - **tapps-validate** - Validate all changed files before declaring work complete
@@ -245,32 +251,53 @@ The bare `mcp__tapps-mcp` entry is needed as a reliable fallback - the wildcard 
 2. Verify the TappsMCP server is running: `tapps-mcp doctor`
 3. Check that your permission mode is not `dontAsk` (which auto-denies unlisted tools)
 4. As a last resort, use `tapps_quick_check` on individual files instead of `tapps_validate_changed`
+
+---
+
 ## Essential tools (always-on workflow)
 
 | Tool | When to use |
 |------|--------------|
 | **tapps_session_start** | **FIRST call in every session** - server info only |
 | **tapps_quick_check** | **After editing any Python file** - quick score + gate + security |
-| **tapps_validate_changed** | **Before declaring multi-file work complete** - score + gate on changed files |
+| **tapps_validate_changed** | **Before declaring multi-file work complete** - score + gate on changed files. **Always pass explicit `file_paths`** (comma-separated). Default is quick mode; only use `quick=false` as a last resort. |
 | **tapps_checklist** | **Before declaring work complete** - reports missing required steps |
 | **tapps_quality_gate** | Before declaring work complete - ensures file passes preset |
 
-**For full tool reference** (28 tools with per-tool guidance), invoke the **tapps-tool-reference** skill when the user asks "what tools does TappsMCP have?", "when do I use tapps_score_file?", etc.
+**For full tool reference** (30 tools with per-tool guidance), invoke the **tapps-tool-reference** skill when the user asks "what tools does TappsMCP have?", "when do I use tapps_score_file?", etc.
 
 ---
 
 ## Memory systems
 
-Your project may have two complementary memory systems. Use the right one for each type of knowledge:
+Your project may have two complementary memory systems:
 
-- **Claude Code auto memory** (`~/.claude/projects/<project>/memory/MEMORY.md`): Session learnings, user preferences, build commands, IDE settings, debugging insights. Auto-managed by Claude Code across sessions.
-- **TappsMCP shared memory** (`tapps_memory` tool): Architecture decisions, quality patterns, expert consultation findings, cross-agent knowledge. Structured with tier classification (architectural/pattern/context), confidence scoring, decay, contradiction detection, and cross-session persistence.
+- **Claude Code auto memory** (`~/.claude/projects/<project>/memory/MEMORY.md`): Build commands, IDE preferences, personal workflow notes. Auto-managed.
+- **TappsMCP shared memory** (`tapps_memory` tool): Architecture decisions, quality patterns, expert findings, cross-agent knowledge. Structured with tiers, confidence decay, contradiction detection, consolidation, and federation.
 
-**When to use which:**
-- Build commands, IDE preferences, personal workflow notes --> auto memory
-- Architecture decisions, quality patterns, cross-agent knowledge --> `tapps_memory`
+RECOMMENDED: Use `tapps_memory` for architecture decisions and quality patterns.
 
-Use `tapps_memory` for architecture decisions and quality patterns.
+### Memory actions (20 total)
+
+**Core:** `save`, `save_bulk`, `get`, `list`, `delete` — CRUD operations with tier/scope/tag classification
+
+**Search:** `search` — ranked BM25 retrieval with composite scoring (relevance + confidence + recency + frequency)
+
+**Intelligence:** `reinforce` (reset decay clock), `gc` (archive stale entries), `contradictions` (detect stale claims), `reseed` (re-populate from profile)
+
+**Consolidation:** `consolidate` (merge related entries with provenance), `unconsolidate` (undo merge)
+
+**Import/export:** `import` (JSON), `export` (JSON or Markdown)
+
+**Federation:** `federate_register`, `federate_publish`, `federate_subscribe`, `federate_sync`, `federate_search`, `federate_status` — cross-project memory sharing via central hub
+
+### Memory tiers and scopes
+
+**Tiers:** `architectural` (180-day half-life, stable decisions), `pattern` (60-day, conventions), `procedural` (30-day, workflows), `context` (14-day, short-lived)
+
+**Scopes:** `project` (default, all sessions), `branch` (git branch), `session` (ephemeral), `shared` (federation-eligible)
+
+**Configuration:** Override `memory.capture_prompt`, `memory.write_rules`, and `memory_hooks` in `.tapps-mcp.yaml`. Max 1500 entries per project. Auto-GC at 80% capacity.
 
 ---
 

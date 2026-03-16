@@ -80,13 +80,13 @@ This directory defines the **pipeline config shape** for the auto-fix pipeline. 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `config_path` | string | `".mcp.json"` | MCP config path (project root). |
-| `tapps_mcp_server` | string | `"MCP_DOCKER"` | Server name; tool prefix becomes `mcp__{server}__`. |
+| `tapps_mcp_server` | string | `"tapps-mcp"` | Server name; tool prefix becomes `mcp__{server}__`. |
 | `scan_tools` | string | (see example) | Comma-separated tools for scan phase. |
 | `fix_tools` | string | (see example) | Comma-separated tools for fix phase. |
 | `expert_domains` | array of string | (see example) | Domains for `tapps_consult_expert`. |
 | `docs_lookup` | boolean | `true` | Use Context7 / `tapps_lookup_docs` when available. |
 
-Tool names must use the configured prefix, e.g. `mcp__MCP_DOCKER__tapps_quick_check`.
+Tool names must use the configured prefix, e.g. `mcp__tapps-mcp__tapps_quick_check`.
 
 ---
 

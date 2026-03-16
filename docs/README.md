@@ -11,7 +11,7 @@ This is the **single index** for project documentation. Use it for correct paths
 | Document | Description |
 |----------|-------------|
 | [README](../README.md) | Project overview, quick start, architecture |
-| [TAPPS Tool Priority](TAPPS_TOOL_PRIORITY.md) | TappsMCP (via MCP_DOCKER) tool order and rationale for HomeIQ. See [.cursor/MCP_SETUP_INSTRUCTIONS.md](../.cursor/MCP_SETUP_INSTRUCTIONS.md). |
+| [TAPPS Tool Priority](TAPPS_TOOL_PRIORITY.md) | TappsMCP (via direct stdio `tapps-mcp`) tool order and rationale for HomeIQ. See [.cursor/MCP_SETUP_INSTRUCTIONS.md](../.cursor/MCP_SETUP_INSTRUCTIONS.md). |
 | [Tech Stack](../TECH_STACK.md) | Complete technology reference with versions |
 | [Rebuild Status](../REBUILD_STATUS.md) | Phase completion tracker |
 | [Changelog](../CHANGELOG.md) | Version history and release notes |
@@ -40,7 +40,7 @@ This is the **single index** for project documentation. Use it for correct paths
 | [InfluxDB Schema](architecture/influxdb-schema.md) | InfluxDB measurements, tags, and fields |
 | [Domain Structure](architecture/domain-structure.md) | Domain group folder layout |
 | [Quick Reference](architecture/README_ARCHITECTURE_QUICK_REF.md) | Architecture patterns overview |
-| [Auto-Fix Pipeline and MCP](architecture/auto-fix-mcp-architecture.md) | Auto-fix pipeline, MCP_DOCKER (TappsMCP + docs-mcp), config-driven design |
+| [Auto-Fix Pipeline and MCP](architecture/auto-fix-mcp-architecture.md) | Auto-fix pipeline, tapps-mcp (TappsMCP + docs-mcp), config-driven design |
 
 **Isolated project:** The directory [auto-fix-pipeline/](../auto-fix-pipeline/) at repo root is the isolated project for the auto-fix pipeline and MCP design (future repo breakout). See [auto-fix-pipeline/README.md](../auto-fix-pipeline/README.md) and the architecture doc above.
 

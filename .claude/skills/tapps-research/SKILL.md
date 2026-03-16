@@ -1,15 +1,16 @@
 ---
 name: tapps-research
+user-invocable: true
 description: >-
   Research a technical question using domain experts and library docs.
   Combines expert consultation with docs lookup for comprehensive answers.
 allowed-tools: >-
-  mcp__tapps-mcp__tapps_research,
-  mcp__tapps-mcp__tapps_consult_expert,
+  mcp__tapps-mcp__tapps_research
+  mcp__tapps-mcp__tapps_consult_expert
   mcp__tapps-mcp__tapps_lookup_docs
 argument-hint: "[question]"
 context: fork
-model: haiku
+model: claude-sonnet-4-6
 ---
 
 Research a technical question using TappsMCP:

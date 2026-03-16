@@ -40,12 +40,15 @@ except ImportError:
 
 from .api.health import router as health_router
 from .api.health import set_scheduler_service_for_health
+from .api.proactive_router import router as proactive_router
+from .api.proactive_router import set_agent_loop, set_autonomous_executor
 from .api.suggestions import router as suggestions_router
 from .api.suggestions import set_scheduler_service
 from .api.task_router import router as task_router
 from .api.task_router import set_cron_scheduler
 from .config import Settings
 from .database import close_database, init_database
+from .services.agent_loop import ProactiveAgentLoop
 from .services.scheduler_service import SchedulerService
 from .services.suggestion_pipeline_service import SuggestionPipelineService
 from .services.task_executor import TaskExecutor
@@ -62,6 +65,9 @@ scheduler_service: SchedulerService | None = None
 
 # Global cron task scheduler (Epic 27)
 cron_task_scheduler: CronTaskScheduler | None = None
+
+# Global proactive agent loop (Epic 68)
+agent_loop: ProactiveAgentLoop | None = None
 
 # Global memory instances (Story 33.4)
 memory_client: MemoryClient | None = None
@@ -187,6 +193,45 @@ async def _shutdown_cron_scheduler() -> None:
         cron_task_scheduler = None
 
 
+async def _startup_agent_loop() -> None:
+    """Initialize and start the proactive agent loop (Epic 68)."""
+    global agent_loop  # noqa: PLW0603
+    if not settings.agent_loop_enabled:
+        logger.info("Proactive agent loop disabled in settings")
+        return
+
+    from .clients.device_control_client import DeviceControlClient
+    from .services.confidence_scorer import ConfidenceScorer
+    from .services.feedback_recorder import FeedbackRecorder
+    from .services.preference_service import PreferenceService
+
+    device_control = DeviceControlClient(
+        base_url=settings.ha_device_control_url,
+        timeout=settings.ha_device_control_timeout,
+    )
+    preference_service = PreferenceService(memory_search=memory_search)
+    feedback_recorder = FeedbackRecorder(memory_client=memory_client)
+
+    agent_loop = ProactiveAgentLoop(
+        settings=settings,
+        device_control_client=device_control,
+        preference_service=preference_service,
+        feedback_recorder=feedback_recorder,
+    )
+    set_agent_loop(agent_loop)
+    set_autonomous_executor(agent_loop.executor)
+    await agent_loop.start()
+    logger.info("Proactive agent loop initialized (Epic 68)")
+
+
+async def _shutdown_agent_loop() -> None:
+    """Stop the proactive agent loop."""
+    global agent_loop  # noqa: PLW0603
+    if agent_loop:
+        await agent_loop.stop()
+        agent_loop = None
+
+
 # ---------------------------------------------------------------------------
 # Lifespan
 # ---------------------------------------------------------------------------
@@ -197,6 +242,8 @@ lifespan.on_startup(_startup_db, name="database")
 lifespan.on_startup(_startup_memory, name="memory")  # Story 33.4
 lifespan.on_startup(_startup_scheduler, name="scheduler")
 lifespan.on_startup(_startup_cron_scheduler, name="cron_scheduler")
+lifespan.on_startup(_startup_agent_loop, name="agent_loop")  # Epic 68
+lifespan.on_shutdown(_shutdown_agent_loop, name="agent_loop")  # Epic 68
 lifespan.on_shutdown(_shutdown_cron_scheduler, name="cron_scheduler")
 lifespan.on_shutdown(_shutdown_scheduler, name="scheduler")
 lifespan.on_shutdown(_shutdown_memory, name="memory")  # Story 33.4
@@ -230,6 +277,7 @@ app = create_app(
 app.include_router(health_router)
 app.include_router(suggestions_router)
 app.include_router(task_router)
+app.include_router(proactive_router)  # Epic 68
 
 
 if __name__ == "__main__":

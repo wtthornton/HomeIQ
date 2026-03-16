@@ -18,7 +18,7 @@ type: structure
 
 ## Context
 
-The auto-fix pipeline and MCP architecture (TappsMCP, docs-mcp via MCP_DOCKER) are documented and used from within HomeIQ. To prepare for eventual breakout into a separate repository, we isolate all new “project” work under a single top-level directory. This epic creates **only** the folder and file structure for that project. No HomeIQ code is moved, no existing scripts or configs are modified, and no references from the rest of HomeIQ to this directory are required for normal operation.
+The auto-fix pipeline and MCP architecture (TappsMCP, docs-mcp via direct stdio `tapps-mcp`) are documented and used from within HomeIQ. To prepare for eventual breakout into a separate repository, we isolate all new “project” work under a single top-level directory. This epic creates **only** the folder and file structure for that project. No HomeIQ code is moved, no existing scripts or configs are modified, and no references from the rest of HomeIQ to this directory are required for normal operation.
 
 ## Scope
 
