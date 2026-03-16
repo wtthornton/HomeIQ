@@ -4,6 +4,42 @@
 
 ### Added
 
+- **Sprint 26-27 — Epics 66-70 (AI Classification, Validation Loop, Autonomous Agent, Self-Improving Agent)** (23f1587) - Bill Thornton
+- **Epic 65 — Bundle Optimization (6/6 stories)** (bae9cb3) - Bill Thornton
+- **Epic 63 — HA Setup Wizard & Entity Management UI (7/7 stories)** (7f22c9a) - Bill Thornton
+- **Epic 61 Story 61.6 — post-deployment validation complete (6/6)** (f9f443d) - Bill Thornton
+- **Epic 59 Stories 59.3-59.6 — E2E smoke, cross-app nav, perf baselines, visual regression** (b063d7a) - Bill Thornton
+- **Epic 59 Stories 59.1-59.2 — frontend integration tests** (15b587a) - Bill Thornton
+- **Epic 61 Phase 5 Deployment — version tracking + tier validation (5/6 stories)** (50cb721) - Bill Thornton
+- **Epic 61 Phase 5 Deployment — Day 1 pre-deployment validation GO (3/6 stories)** (0abbae9) - Bill Thornton
+- **Epic 58 Frontend Test Quality — a11y sweep, error boundaries, skeletons, testing standards (6/6 stories)** (8a69cb4) - Bill Thornton
+- **Epic 60 Chat Endpoint Complexity Refactor — extract tool execution + OpenAI loop (3/3 stories)** (0670481) - Bill Thornton
+- **Epic 57 Cleanup & Gaps + Phase 5 plan refresh + Epic 60 planned (Sprint 20)** (1a0c8dd) - Bill Thornton
+- **Epic 56 Observability & Monitoring Hardening — structured logging, Prometheus metrics, tracing, alerts, ops scripts, E2E smoke test (6/6 stories)** (60700ef) - Bill Thornton
+- **Epic 55 Production Hardening — rate limits, pool tuning, health hardening, security headers (6/6 stories)** (4f681ea) - Bill Thornton
+- **Epic 54 Consolidation Sprint — E2E fixes, PatternResult types, ML dep alignment (6/6 stories)** (64f5f85) - Bill Thornton
+- **feat(e2e): Epic 49 complete — E2E Playwright Coverage Expansion (13/13 stories)** (94c42d7) - Bill Thornton
+
+### Changed
+
+- **refactor(auto-bugfix): Epic 52 config-driven cleanup, keep only new framework** (020c660) - Bill Thornton
+
+### Fixed
+
+- **Docker build fixes — model-prep Alpine→Slim, TS unused vars, MCP config updates** (cd7fb93) - Bill Thornton
+- **Dashboard tab navigation test — use getByTestId for role=tab Overview button** (ff49943) - Bill Thornton
+- **fix(e2e): align tests with Epic 31 and health-dashboard** (e5f62d9) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (a80f38c) - Bill Thornton
+- **auto-fix 5 bugs across codebase** (5034978) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (0cd0f5f) - Bill Thornton
+- **remove extra closing braces in renderFileGraph() that broke all dashboard JS** (87ed039) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (40a709b) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (5a49c4c) - Bill Thornton
+- **auto-fix 3 bugs across codebase** (1e8fa65) - Bill Thornton
+
+
+### Added
+
 - **Epic 65 — Bundle Optimization (6/6 stories)** (bae9cb3) - Bill Thornton
 - **Epic 63 — HA Setup Wizard & Entity Management UI (7/7 stories)** (7f22c9a) - Bill Thornton
 - **Epic 61 Story 61.6 — post-deployment validation complete (6/6)** (f9f443d) - Bill Thornton
