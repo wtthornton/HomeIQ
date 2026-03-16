@@ -251,6 +251,19 @@ Sprint 25 (COMPLETE — Mar 16, 2026) — Bundle Optimization
 | 63.6 | **Exclusion Manager** — ExclusionManager.tsx with glob pattern management, ai:ignore entity listing, suggested exclusion patterns, match count preview, total impact summary | **DONE** |
 | 63.7 | **Bulk Operations & Quick Actions** — BulkActionsBar.tsx (multi-select + bulk add/remove labels, quick Mark Automatable/Ignore), QuickActions.tsx (6 domain-wide one-click actions) | **DONE** |
 
+### Epic 65: Bundle Optimization — COMPLETE (Mar 16)
+
+**Priority:** P1 | **Effort:** 1 session | **Dependencies:** None | **Status:** COMPLETE (6/6)
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 65.1 | **Establish bundle size baseline** — Installed `rollup-plugin-visualizer` in both apps, captured baseline metrics (AI UI: 966 KB main, HD: 264 KB main), `dist/stats.html` treemap reports | **DONE** |
+| 65.2 | **Implement advanced code splitting** — AI UI: `manualChunks` config (vendor, query, force-graph, charts, markdown, animation), 8 page routes converted to `React.lazy()` dynamic imports | **DONE** |
+| 65.3 | **Dependency audit & consolidation** — Identified `react-force-graph`+`three` (1.9 MB) only used in Synergies graph view; lazy-loaded `NetworkGraphView`, `Patterns`, `Synergies` sub-pages inside Insights | **DONE** |
+| 65.4 | **Implement Suspense boundaries** — `PageLoadingSkeleton` at route level, skeleton fallback on Insights sub-tabs, "Loading graph..." on NetworkGraphView | **DONE** |
+| 65.5 | **Measure & compare metrics** — Main bundle 966→218 KB (-77%), initial gzip 269→69 KB (-74%), 10 lazy route chunks, force-graph deferred from /insights to graph-view-only | **DONE** |
+| 65.6 | **Document & CI bundle check** — `.github/scripts/check-bundle-size.sh` (warn >10%, fail >20%), updated FRONTEND_IMPLEMENTATION_PATTERNS.md, epic index | **DONE** |
+
 ### Archived (Verified Complete / Resolved)
 
 These items were previously listed as open but are now confirmed done:
@@ -332,7 +345,12 @@ These items were previously listed as open but are now confirmed done:
 | 56 | Observability & Monitoring Hardening | N/A | P1 High | 6 | 1 day | **Complete** (commit cd0ffc32) |
 | 57 | Cleanup & Gaps | *(this file)* | P1 High | 4 | 1-2 days | **Complete** (4/4: tool_calls persistence, RAG card data-testid, entity_extractor verified, secret scanning hook) |
 | 58 | Frontend Test Quality | *(this file)* | P1 High | 6 | 1 session | **Complete** (6/6: TESTING_STANDARDS.md, error boundary tests, skeleton tests, a11y sweep, dark mode, MSW expansion) |
+| 59 | Frontend Integration & E2E | *(this file)* | P1 High | 6 | 1 session | **Complete** (6/6: 27 integration tests, E2E smoke, cross-app nav, perf baselines, visual regression) |
 | 60 | Chat Endpoint Complexity Refactor | *(this file)* | P1 High | 3 | 1 session | **Complete** (3/3: tool_execution.py extracted, _run_openai_loop helper, lint fixes) |
+| 61 | Phase 5 Production Deployment | *(this file)* | **P0 Critical** | 6 | 5 days | **Complete** (6/6: script updates, pre/post-deployment validation, 9-tier rollout, 852 tests) |
+| 62 | Entity Convention API Foundation | *(this file)* | P1 High | 8 | 1-2 weeks | **Complete** (8/8: areas, labels, aliases, CRUD, dynamic areas, filtering, alias tiers, scoring) |
+| 63 | HA Setup Wizard & Entity Management UI | *(this file)* | P1 High | 7 | 1 session | **Complete** (7/7: HASetupTab, EntityAuditView, LabelEditor, AliasEditor, NameEditor, ExclusionManager, BulkActionsBar) |
+| 65 | Bundle Optimization | *(this file)* | P1 High | 6 | 1 session | **Complete** (6/6: AI UI main 966→218 KB, 8 lazy routes, force-graph deferred, visualizer, CI check) |
 
 ## Story Count by Priority
 
@@ -342,7 +360,7 @@ These items were previously listed as open but are now confirmed done:
 | P1 High | 142 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4) |
 | P2 Medium | 53 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4) |
 | P3 Low | 10 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
-| **Total** | **382** | 382 complete (61 epics). See **Open Work** section for planned epics. |
+| **Total** | **395** | 395 complete (63 epics). See **Open Work** section for planned epics. |
 
 ## Key Dates
 
@@ -357,6 +375,8 @@ These items were previously listed as open but are now confirmed done:
 | Mar 10 | Sprint 10 complete — Epics 42-45 (Frontend Testing), 662 tests, 60 test files |
 | Mar 12 | Sprint 19 complete — Epics 54-56 (Consolidation + Production Hardening + Observability) |
 | Mar 13 | Epic 57 complete (4/4: tool_calls, RAG testid, entity_extractor, secret scanning). Phase 5 plan refreshed (44+ health endpoints, 1366+ tests). Epic 60 complete (chat_endpoints refactor: 721→481+254 lines). Epic 58 complete (6/6: test quality). **Epic 61 complete (6/6: Phase 5 deployment — 852 tests passing, all 43 services verified, post-deployment validation report).** |
+| Mar 14 | Sprint 24 complete — Epic 63 (7/7: HA Setup Wizard & Entity Management UI) |
+| Mar 16 | Sprint 25 complete — Epic 65 (6/6: Bundle Optimization — AI UI main bundle 966→218 KB, -77%) |
 
 > **Detailed sprint results:** [SPRINT-HISTORY.md](SPRINT-HISTORY.md)
 
