@@ -455,6 +455,55 @@ class AdminApiClient extends BaseApiClient {
   async getRealTimeMetrics(): Promise<any> {
     return this.fetchWithErrorHandling<any>(this.buildUrl('/api/v1/real-time-metrics'));
   }
+
+  // Epic 63: Entity management endpoints
+  async setEntityLabels(entityId: string, labels: string[]): Promise<any> {
+    return this.fetchWithErrorHandling<any>(
+      this.buildUrl(`/api/v1/entities/${entityId}/labels`),
+      {
+        method: 'PUT',
+        headers: { ...withCsrfHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ labels }),
+      }
+    );
+  }
+
+  async setEntityAliases(entityId: string, aliases: string[]): Promise<any> {
+    return this.fetchWithErrorHandling<any>(
+      this.buildUrl(`/api/v1/entities/${entityId}/aliases`),
+      {
+        method: 'PUT',
+        headers: { ...withCsrfHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aliases }),
+      }
+    );
+  }
+
+  async setEntityName(entityId: string, nameByUser: string): Promise<any> {
+    return this.fetchWithErrorHandling<any>(
+      this.buildUrl(`/api/v1/entities/${entityId}/name`),
+      {
+        method: 'PUT',
+        headers: { ...withCsrfHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name_by_user: nameByUser }),
+      }
+    );
+  }
+
+  async bulkLabel(entityIds: string[], addLabels: string[], removeLabels: string[] = []): Promise<any> {
+    return this.fetchWithErrorHandling<any>(
+      this.buildUrl('/api/v1/entities/bulk-label'),
+      {
+        method: 'POST',
+        headers: { ...withCsrfHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entity_ids: entityIds,
+          add_labels: addLabels,
+          remove_labels: removeLabels,
+        }),
+      }
+    );
+  }
 }
 
 /**
@@ -588,15 +637,30 @@ class DataApiClient extends BaseApiClient {
     domain?: string;
     platform?: string;
     device_id?: string;
+    label?: string[];
+    alias?: string;
+    has_aliases?: boolean;
   } = {}): Promise<any> {
     const queryParams = new URLSearchParams();
     if (params.limit) queryParams.append('limit', params.limit.toString());
     if (params.domain) queryParams.append('domain', params.domain);
     if (params.platform) queryParams.append('platform', params.platform);
     if (params.device_id) queryParams.append('device_id', params.device_id);
+    if (params.label) params.label.forEach(l => queryParams.append('label', l));
+    if (params.alias) queryParams.append('alias', params.alias);
+    if (params.has_aliases !== undefined) queryParams.append('has_aliases', String(params.has_aliases));
 
     const url = `/api/entities${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
     return this.fetchWithErrorHandling<any>(url);
+  }
+
+  // Epic 62: Areas & Labels endpoints
+  async getAreas(): Promise<any> {
+    return this.fetchWithErrorHandling<any>('/api/areas');
+  }
+
+  async getLabels(): Promise<any> {
+    return this.fetchWithErrorHandling<any>('/api/labels');
   }
 
   async getEntityById(entityId: string): Promise<any> {

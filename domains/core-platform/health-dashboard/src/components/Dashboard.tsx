@@ -24,6 +24,7 @@ const LazyValidationTab = lazy(() => import('./tabs/ValidationTab').then(m => ({
 const LazyEvaluationTab = lazy(() => import('./tabs/EvaluationTab').then(m => ({ default: m.EvaluationTab })));
 const LazyConfigurationTab = lazy(() => import('./tabs/ConfigurationTab').then(m => ({ default: m.ConfigurationTab })));
 const LazyMemoryTab = lazy(() => import('./tabs/MemoryTab').then(m => ({ default: m.MemoryTab })));
+const LazyHASetupTab = lazy(() => import('./tabs/HASetupTab').then(m => ({ default: m.HASetupTab })));
 
 /** Only allow http/https URLs to prevent javascript: or data: injection */
 function sanitizeUrl(url: string | undefined, fallback: string): string {
@@ -62,6 +63,7 @@ const NAV_GROUPS = [
     icon: 'devices',
     tabs: [
       { id: 'devices', label: 'Devices' },
+      { id: 'ha-setup', label: 'HA Setup' },
       { id: 'events', label: 'Events' },
       { id: 'data-sources', label: 'Data Feeds' },
       { id: 'energy', label: 'Energy' },
@@ -101,6 +103,7 @@ const TAB_COMPONENTS: Record<string, React.FC<TabProps>> = {
   groups: LazyGroupsTab,
   dependencies: LazyDependenciesTab,
   devices: LazyDevicesTab,
+  'ha-setup': LazyHASetupTab,
   events: LazyEventsTab,
   logs: LazyLogsTab,
   sports: LazySportsTab,

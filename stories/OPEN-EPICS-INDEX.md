@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-13 (Epic 61 complete — Phase 5 Production Deployment)
-**Total:** 61 Completed Epics, 382 Stories complete | 0 In Progress | 2 Planned Epics (open)
+**Created:** 2026-02-27 | **Updated:** 2026-03-14 (Epic 63 complete — HA Setup Wizard UI)
+**Total:** 62 Completed Epics, 389 Stories complete | 0 In Progress | 4 Planned Epics (open)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -135,6 +135,10 @@ Sprint 23 (COMPLETE — Mar 13, 2026) — Phase 5 Deployment + Frontend E2E
 │   └── Script updates, pre-deployment validation, 9-tier staged rollout, post-deployment validation (852 tests passing)
 └── Epic 59: Frontend Integration & E2E [P1]                  ← COMPLETE (6/6 stories)
     └── 27 integration tests (HD + AI UI), E2E smoke, cross-app nav, perf baselines, visual regression
+
+Sprint 24 (COMPLETE — Mar 14, 2026) — HA Setup Wizard UI
+└── Epic 63: HA Setup Wizard & Entity Management UI [P1]      ← COMPLETE (7/7 stories)
+    └── HASetupTab (lazy-loaded), EntityAuditView with scoring, LabelEditor, AliasEditor, NameEditor, ExclusionManager, BulkActionsBar + QuickActions
 ```
 
 ---
@@ -143,12 +147,14 @@ Sprint 23 (COMPLETE — Mar 13, 2026) — Phase 5 Deployment + Frontend E2E
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **62** (Epic 61 = Phase 5 Deployment complete Mar 13).
+> Next available epic number: **65** (Epics 62-64 = HA Naming Convention for AI Discovery). Epic 62-63 complete.
 
 ### P1 — Ready to Start
 
 | # | Epic | Source Doc | Stories | Effort | Notes |
 |---|------|-----------|---------|--------|-------|
+| 62 | **Entity Convention API Foundation** | [epic-ha-naming-convention.md](epic-ha-naming-convention.md) | 8 | 1-2 weeks | **COMPLETE (8/8)** — All stories done: areas, labels, aliases, CRUD, dynamic areas, label-aware filtering, alias resolution tiers, alias scoring |
+| 63 | **HA Setup Wizard & Entity Management UI** | [epic-ha-naming-convention.md](epic-ha-naming-convention.md) | 7 | 1-2 weeks | **COMPLETE (7/7)** — HASetupTab, EntityAuditView with scoring, LabelEditor, AliasEditor, NameEditor, ExclusionManager, BulkActionsBar + QuickActions |
 | ~~58~~ | ~~**Frontend Test Quality**~~ | ~~[frontend-testing-epics.md](../docs/planning/frontend-testing-epics.md) Epic 54→58~~ | ~~6~~ | ~~1 week~~ | **COMPLETE (Mar 13)** — TESTING_STANDARDS.md, 4 error boundary test files, 2 skeleton test files, a11y sweep (8 files), dark mode tests, MSW expansion |
 | ~~59~~ | ~~**Frontend Integration & E2E**~~ | ~~[frontend-testing-epics.md](../docs/planning/frontend-testing-epics.md) Epic 55→59~~ | ~~6~~ | ~~2 weeks~~ | **COMPLETE (Mar 13)** — 27 integration tests (HD 14 + AI UI 13), 11 E2E smoke, 6 cross-app nav, 7 perf baselines, 12 visual regression |
 | — | **Bundle Optimization** | [frontend-epics-roadmap.md](../docs/planning/frontend-epics-roadmap.md) Epic 3 | 6 | 2-3 weeks | Code splitting, lazy loading, bundle size monitoring |
@@ -157,6 +163,7 @@ Sprint 23 (COMPLETE — Mar 13, 2026) — Phase 5 Deployment + Frontend E2E
 
 | # | Epic | Source Doc | Stories | Effort | Notes |
 |---|------|-----------|---------|--------|-------|
+| 64 | **Convention Compliance & Auto-Enhancement** | [epic-ha-naming-convention.md](epic-ha-naming-convention.md) | 6 | 1-2 weeks | Naming score engine, auto-alias generation, compliance dashboard widget, chat hints |
 | — | **Phase 3: ML/AI Library Upgrades** | [phase-3-plan-ml-ai-upgrades.md](../docs/planning/phase-3-plan-ml-ai-upgrades.md) | ~20 | 3-4 weeks | HIGH RISK: NumPy 2.x, Pandas 3.0. Wait 3 weeks post-Phase 5. Epic 38 already handled transformers/openvino/sentence-transformers. |
 
 ### P3 — Backlog
@@ -225,6 +232,20 @@ Sprint 23 (COMPLETE — Mar 13, 2026) — Phase 5 Deployment + Frontend E2E
 | 61.4 | **Tier 1-3 deployment (Day 2)** — All 21 services verified healthy (48/48 endpoints 200 OK), PostgreSQL 10 schemas, InfluxDB v2.8.0 ready | **DONE** |
 | 61.5 | **Tiers 4-9 deployment (Day 2)** — All 22 remaining services verified healthy, 43/43 version check script passing, monitoring (Prometheus+Grafana) confirmed | **DONE** |
 | 61.6 | **Post-deployment validation (Day 3-5)** — 852 tests passing (319 HD + 366 AI UI + 109 obs + 58 Python), validation report generated, post-deployment-validate.sh created | **DONE** |
+
+### Epic 63: HA Setup Wizard & Entity Management UI — COMPLETE (Mar 14)
+
+**Priority:** P1 | **Effort:** 1 session | **Dependencies:** Epic 62 | **Status:** COMPLETE (7/7)
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 63.1 | **HA Setup tab & navigation** — HASetupTab.tsx lazy-loaded, added to NAV_GROUPS under "Devices & Data" after Devices, URL hash `#ha-setup`, sub-nav: Audit/Labels/Aliases/Exclusions | **DONE** |
+| 63.2 | **Entity Audit View** — EntityAuditView.tsx with AuditSummaryCards (compliance %, missing area/labels/aliases counts), entity scoring (100-pt scale), sortable/filterable table, click-to-expand | **DONE** |
+| 63.3 | **Label Editor Panel** — LabelEditor.tsx with taxonomy dropdown, custom label input (prefix:name validation), smart suggestions per domain/device_class, removable badges, optimistic saves | **DONE** |
+| 63.4 | **Alias Editor Panel** — AliasEditor.tsx with free-text input, auto-suggestions (singular/plural, without area, abbreviations), removable tags, saves via admin-api | **DONE** |
+| 63.5 | **Friendly Name Editor** — NameEditor.tsx with live convention check (area prefix, Title Case, no brand/model), AI-suggested name, saves name_by_user via admin-api | **DONE** |
+| 63.6 | **Exclusion Manager** — ExclusionManager.tsx with glob pattern management, ai:ignore entity listing, suggested exclusion patterns, match count preview, total impact summary | **DONE** |
+| 63.7 | **Bulk Operations & Quick Actions** — BulkActionsBar.tsx (multi-select + bulk add/remove labels, quick Mark Automatable/Ignore), QuickActions.tsx (6 domain-wide one-click actions) | **DONE** |
 
 ### Archived (Verified Complete / Resolved)
 
