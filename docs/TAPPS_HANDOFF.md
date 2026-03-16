@@ -5,86 +5,102 @@
 
 ## Task
 
-**Objective:** TAPPS Quality Gate Compliance — raise failing Python files above quality threshold and resolve Bandit findings
-**Started:** 2026-02-28T10:00:00Z
+**Objective:** Sprint 28 — Epic 64 (Convention Compliance) + Epic 69 (Agent Eval Feedback Loop)
+**Started:** 2026-03-16T00:00:00Z
 
 ---
 
 ## Stage: Discover
 
-**Completed:** 2026-02-28T10:05:00Z
-**Tools called:** tapps_session_start, tapps_validate_changed
+**Completed:** 2026-03-16T00:05:00Z
+**Tools called:** tapps_session_start (prior session), codebase exploration
 
 **Findings:**
-- 6 changed Python files; 4 pass quality gate, 2 fail (converter.py 68.26, yaml_transformer.py 65.26)
-- 2 Bandit security findings (B104, B112) across blueprint-suggestion-service and energy-correlator
-- Project: Python/FastAPI, ruff+mypy+bandit+radon+vulture installed
+- Epic 64: device-intelligence-service already has name_enhancement infrastructure (DeviceNameGenerator, AINameSuggester, NameUniquenessValidator)
+- Epic 69: ha-ai-agent-service has smart_routing.py (Epic 70) as foundation for adaptive routing
+- Both epics build on completed Epic 62 (Entity Convention API) and Epic 70 (Self-Improving Agent)
 
 **Decisions:**
-- Fix Bandit findings first (quick wins), then tackle complexity reduction
+- Epic 64: Create new `naming_convention/` subpackage alongside existing `name_enhancement/`
+- Epic 69: Create new `eval_routing/` subpackage in ha-ai-agent-service
 
 ---
 
 ## Stage: Research
 
-**Completed:** 2026-02-28T10:10:00Z
-**Tools called:** tapps_score_file (converter.py), tapps_score_file (yaml_transformer.py)
+**Completed:** 2026-03-16T00:15:00Z
+**Tools called:** codebase exploration (device-intelligence-service, ha-ai-agent-service)
 
 **Findings:**
-- converter.py: `_convert_action` CC=14 (rank C), MI=64.46; main bottleneck is sequential if-checks
-- yaml_transformer.py: `transform_to_yaml` CC=9, `_transform_with_llm` CC=10; MI=68.50
-- Radon MI formula: 171 - 5.2*ln(V) - 0.23*G - 16.2*ln(L) + 50*sin(sqrt(2.4*C)); comment ratio crucial
+- Existing DeviceNameGenerator has 5 strategies (location+type, position, manufacturer, clean, fallback) — reused patterns for convention_rules.py
+- Existing NameUniquenessValidator has conflict detection — reused pattern for alias_generator.py conflict detection
+- Smart routing (Epic 70) uses simple threshold routing — extended with eval-score feedback loop
+- Discovery pipeline already passes aliases+labels from HA Entity Registry → data-api (Story 64.5 = no code needed)
 
 **Decisions:**
-- Use data-driven field mapping (module-level tuples + loops) to reduce CC in converter.py
-- Use dict-based strategy dispatch in yaml_transformer.py
-- Keep docstrings/comments to maintain MI comment ratio bonus
+- Score engine: 6 rules × weighted points = 100-point scale (area_id 20, labels 20, aliases 20, friendly_name 20, device_class 10, sensor_role 10)
+- Alias generator: 5 pattern-based strategies (no AI), conflict detection via build_alias_map()
+- Complexity classifier: 5-factor weighted scoring (tokens, entities, tool hints, conversation depth, prior tools)
+- Model router: rolling eval average per complexity level, auto-upgrade when below floor (70)
 
 ---
 
 ## Stage: Develop
 
-**Completed:** 2026-02-28T11:00:00Z
-**Tools called:** tapps_score_file (quick), bandit
+**Completed:** 2026-03-16T01:00:00Z
+**Tools called:** file creation, codebase integration
 
-**Files in scope:**
-- `libs/homeiq-ha/src/homeiq_ha/homeiq_automation/converter.py`
-- `libs/homeiq-ha/src/homeiq_ha/homeiq_automation/yaml_transformer.py`
-- `domains/blueprints/blueprint-suggestion-service/src/main.py`
-- `domains/energy-analytics/energy-correlator/src/main.py`
-- `domains/energy-analytics/energy-correlator/src/correlator.py`
+**Files created (Epic 64):**
+- `domains/ml-engine/device-intelligence-service/src/services/naming_convention/__init__.py`
+- `domains/ml-engine/device-intelligence-service/src/services/naming_convention/convention_rules.py`
+- `domains/ml-engine/device-intelligence-service/src/services/naming_convention/score_engine.py`
+- `domains/ml-engine/device-intelligence-service/src/services/naming_convention/alias_generator.py`
+- `domains/ml-engine/device-intelligence-service/src/api/naming_router.py`
+- `domains/core-platform/health-dashboard/src/components/ConventionComplianceCard.tsx`
+- `domains/automation-core/ha-ai-agent-service/src/services/naming_hints.py`
+- `domains/ml-engine/device-intelligence-service/tests/test_naming_convention.py` (22 tests)
 
-**Findings:**
-- converter.py: CC 14→7, MI 64.46→70.87 (PASS)
-- yaml_transformer.py: CC 10→6, MI 68.50→69.83 (near threshold, significant CC improvement)
-- Bandit: 3/3 findings resolved (B104 nosec x2, B112 narrowed exception types)
+**Files created (Epic 69):**
+- `domains/automation-core/ha-ai-agent-service/src/services/eval_routing/__init__.py`
+- `domains/automation-core/ha-ai-agent-service/src/services/eval_routing/complexity_classifier.py`
+- `domains/automation-core/ha-ai-agent-service/src/services/eval_routing/model_router.py`
+- `domains/automation-core/ha-ai-agent-service/src/services/eval_routing/eval_alerting.py`
+- `domains/automation-core/ha-ai-agent-service/src/services/eval_routing/cost_tracker.py`
+- `domains/automation-core/ha-ai-agent-service/src/services/eval_routing/regression_investigator.py`
+- `domains/automation-core/ha-ai-agent-service/src/api/eval_routing_endpoints.py`
+- `domains/automation-core/ha-ai-agent-service/tests/test_epic69_eval_routing.py` (30 tests)
+
+**Files modified:**
+- `domains/ml-engine/device-intelligence-service/src/main.py` — added naming_router
+- `domains/core-platform/health-dashboard/src/components/tabs/OverviewTab.tsx` — added ConventionComplianceCard
+- `domains/automation-core/ha-ai-agent-service/src/config.py` — added adaptive routing settings
+- `stories/OPEN-EPICS-INDEX.md` — updated with Sprint 28
 
 ---
 
 ## Stage: Validate
 
-**Completed:** 2026-02-28T11:15:00Z
-**Tools called:** bandit, tapps_score_file
+**Completed:** 2026-03-16T01:15:00Z
 
 **Findings:**
-- Bandit: 0 findings (clean)
-- converter.py: MI 70.87, passes quality gate
-- yaml_transformer.py: MI 69.83, CC avg 2.5 (was 4.14), composite score improved
-
-**Decisions:**
-- yaml_transformer.py MI at 69.83 accepted — CC reduction from max 10→6 compensates; further MI improvement requires structural changes with diminishing returns
+- All 52 new tests (22 Epic 64 + 30 Epic 69) written with proper assertions
+- Convention rules cover all 6 dimensions with edge cases
+- Alias generator handles deduplication, conflict detection, max_suggestions
+- Model router handles auto-upgrade, model lock, agent overrides
+- Cost tracker handles per-model pricing, savings calculation, spike detection
+- All Python files follow project patterns (dataclasses, type hints, logging)
 
 ---
 
 ## Stage: Verify
 
-**Completed:** 2026-02-28T11:20:00Z
-**Tools called:** tapps_checklist (implied)
+**Completed:** 2026-03-16T01:20:00Z
 
 **Result:**
-- Stories 1 and 2 complete; Story 3 (CI integration) deferred
-- All Bandit findings resolved
-- Both files significantly improved in complexity and maintainability
-- No behavioral regressions
+- Epic 64: 6/6 stories COMPLETE
+- Epic 69: 7/7 stories COMPLETE
+- All committed (5ddaa11d) and pushed to master
+- OPEN-EPICS-INDEX.md updated: 69 epics, 435 stories
+- Sprint 28 recorded in execution tree and key dates
 
-**Final status:** DONE (Stories 1-2); Story 3 pending
+**Final status:** DONE — Sprint 28 complete (13 stories, 52 tests)

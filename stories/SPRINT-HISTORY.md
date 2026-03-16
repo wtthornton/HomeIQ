@@ -360,6 +360,327 @@ Actual Outcome:
 | Model Regeneration (if required) | Epic 38, Story 7 |
 | Documentation and Rollback Plan | Epic 38, Story 8 |
 
+## Sprint 11 Results (COMPLETE — Mar 10, 2026)
+
+**Auto-Bugfix Scan Robustness & Tests:**
+
+```
+Epic 46: Auto-Bugfix Scan Robustness & Tests (5/5 stories)
+├── Scan format documentation
+├── Retry/fallback mechanisms
+└── 3 test suites
+
+Actual Outcome:
+  Scan output format documented and standardized
+  Retry logic with exponential backoff added
+  3 new test suites covering scan edge cases
+```
+
+## Sprint 12 Results (COMPLETE — Mar 12, 2026)
+
+**Auto-Bugfix Dashboard Real-Time Updates:**
+
+```
+Epic 47: Auto-Bugfix Dashboard Real-Time Updates (7/7 stories)
+├── Live usage display from stream
+├── Atomic state writes
+├── XHR polling at 800ms interval
+└── file:// fallback for local development
+
+Actual Outcome:
+  Dashboard reads live usage data from streaming output
+  State writes are atomic (no partial UI updates)
+  800ms polling for non-streaming fallback
+  file:// protocol support for local development
+```
+
+## Sprint 13 Results (COMPLETE — Mar 10, 2026)
+
+**Auto-Bugfix Subagents Integration:**
+
+```
+Epic 48: Auto-Bugfix Subagents Integration (5/5 stories)
+├── bug-scanner subagent type
+├── -UseSubagents CLI flag
+└── Documentation
+
+Actual Outcome:
+  New bug-scanner subagent for parallel scanning
+  -UseSubagents flag enables subagent mode
+  Docs updated with subagent architecture
+```
+
+## Sprint 14 Results (COMPLETE — Mar 12, 2026)
+
+**E2E Playwright Coverage Expansion:**
+
+```
+Epic 49: E2E Playwright Coverage Expansion (13/13 stories)
+├── Visual regression aligned
+├── Mocked Ask AI flow
+├── Empty/error/loading state tests
+├── Route-spec matrix
+└── /scheduled spec
+
+Actual Outcome:
+  Visual regression tests aligned with current UI
+  Ask AI flow fully mocked for offline testing
+  Comprehensive state coverage (empty, error, loading)
+  Route-spec matrix ensures all routes have specs
+```
+
+## Sprint 15 Results (COMPLETE)
+
+**Auto-Fix Isolated Project Structure:**
+
+```
+Epic 50: Auto-Fix Isolated Project — Structure Setup (7/7 stories)
+├── Isolated project structure created
+└── Ready for Epic 1 (auto-fix pipeline)
+```
+
+## Sprint 16 Results (COMPLETE)
+
+**E2E Skipped Tests:**
+
+```
+Epic 51: E2E Skipped Tests — Fix or Delete (12/12 stories)
+├── All skipped tests resolved (0 remaining)
+└── Follow-up: health 223 pass/2 fixme (RAG); AI UI 3 fail = enhancement-button
+```
+
+## Sprint 17 Results (COMPLETE — Mar 11, 2026)
+
+**Ask AI Integration Validation:**
+
+```
+Epic 53: Ask AI Integration Validation (4/4 stories)
+├── Schema documentation
+├── HA helper utilities
+├── Full-flow integration test
+└── CI decision: local/on-demand
+
+Actual Outcome:
+  Schema documented for Ask AI request/response
+  HA helper for test environment setup
+  Full flow test: user input → agent → HA action → response
+  CI: local execution (no external dependencies)
+```
+
+## Sprint 18 Results (COMPLETE — Mar 12, 2026)
+
+**Auto-Bugfix Cleanup:**
+
+```
+Epic 52: Auto-Bugfix Cleanup — Delete Legacy (6/6 stories)
+├── Config verified (all config-driven)
+├── Scripts assessed (no legacy deletions needed)
+└── Documentation updated
+
+Actual Outcome:
+  Audit confirmed all scripts are config-driven
+  No deletions needed — legacy code already removed
+  Docs updated to reflect current architecture
+```
+
+## Sprint 19 Results (COMPLETE — Mar 12, 2026)
+
+**Consolidation + Production Hardening + Observability:**
+
+```
+Epic 54: Consolidation Sprint (6/6 stories, commit 64f5f85c)
+Epic 55: Production Hardening (6/6 stories, commit 0df0ae6e)
+├── Rate limits, connection pool tuning, health hardening, security headers
+Epic 56: Observability & Monitoring Hardening (6/6 stories, commit cd0ffc32)
+├── Structured logging, Prometheus metrics, distributed tracing
+├── Alert rules, ops scripts, E2E smoke test
+
+Actual Outcome:
+  3 epics completed in single session
+  Rate limiting on all public endpoints
+  Connection pool sizes tuned per tier
+  Prometheus metrics + Grafana dashboards
+  Structured JSON logging across all services
+  Ops scripts for common admin tasks
+```
+
+## Sprint 20 Results (COMPLETE — Mar 13, 2026)
+
+**Cleanup & Gaps + Phase 5 Refresh:**
+
+```
+Epic 57: Cleanup & Gaps (4/4 stories)
+├── tool_calls JSON persistence in ha-ai-agent-service
+├── RAG status card data-testid attributes
+├── entity_extractor verified (already wired)
+└── Pre-commit secret scanning hook
+
+Phase 5 Plan Refresh:
+  44+ health endpoints verified
+  1366+ tests passing
+  51+ services deployed
+```
+
+## Sprint 21 Results (COMPLETE — Mar 13, 2026)
+
+**Chat Endpoint Complexity Refactor:**
+
+```
+Epic 60: Chat Endpoint Complexity Refactor (3/3 stories)
+├── tool_execution.py extracted (254 lines)
+├── _run_openai_loop() helper with LoopResult dataclass
+└── Lint fixes: f-string logging → %s, noqa for FastAPI Depends
+
+Actual Outcome:
+  chat_endpoints.py: 721 → 481 lines
+  tool_execution.py: 254 lines (clean extraction)
+  Cyclomatic complexity significantly reduced
+```
+
+## Sprint 22 Results (COMPLETE — Mar 13, 2026)
+
+**Frontend Test Quality:**
+
+```
+Epic 58: Frontend Test Quality (6/6 stories)
+├── TESTING_STANDARDS.md documentation
+├── Error boundary tests (4 new test files, 39 tests)
+├── Skeleton component tests (2 new test files, 48 tests)
+├── A11y test sweep (8 files updated)
+├── Dark mode test sweep
+└── MSW handler expansion (6 success + 6 error handlers)
+```
+
+## Sprint 23 Results (COMPLETE — Mar 13, 2026)
+
+**Phase 5 Deployment + Frontend E2E:**
+
+```
+Epic 61: Phase 5 Production Deployment Execution (6/6 stories)
+├── Script updates (6 missing services added)
+├── Pre-deployment validation (48/48 health endpoints)
+├── 9-tier staged rollout
+└── Post-deployment validation (852 tests passing)
+
+Epic 59: Frontend Integration & E2E (6/6 stories)
+├── 27 integration tests (HD 14 + AI UI 13)
+├── 11 E2E smoke tests
+├── 6 cross-app navigation tests
+├── 7 performance baseline tests
+└── 12 visual regression tests
+
+Actual Outcome:
+  All 43 services verified healthy
+  852 tests passing across all frontends
+  Post-deployment validation report generated
+```
+
+## Sprint 24 Results (COMPLETE — Mar 14, 2026)
+
+**HA Setup Wizard UI:**
+
+```
+Epic 63: HA Setup Wizard & Entity Management UI (7/7 stories)
+├── HASetupTab (lazy-loaded, sub-nav: Audit/Labels/Aliases/Exclusions)
+├── EntityAuditView (100-pt scoring, sortable/filterable table)
+├── LabelEditor (taxonomy dropdown, smart suggestions, optimistic saves)
+├── AliasEditor (auto-suggestions, removable tags)
+├── NameEditor (live convention check, AI-suggested name)
+├── ExclusionManager (glob patterns, ai:ignore listing, match preview)
+└── BulkActionsBar + QuickActions (multi-select bulk ops, 6 one-click actions)
+```
+
+## Sprint 25 Results (COMPLETE — Mar 16, 2026)
+
+**Bundle Optimization:**
+
+```
+Epic 65: Bundle Optimization (6/6 stories)
+├── Baseline: AI UI 966 KB main, HD 264 KB main
+├── manualChunks config + 8 lazy route imports
+├── react-force-graph deferred to graph-view-only
+├── Suspense boundaries with PageLoadingSkeleton
+├── Result: AI UI main 966→218 KB (-77%), gzip 269→69 KB (-74%)
+└── CI bundle check script (.github/scripts/check-bundle-size.sh)
+```
+
+## Sprint 26 Results (COMPLETE — Mar 16, 2026)
+
+**AI Classification + Validation Loop:**
+
+```
+Epic 66: AI/Agent Service Classification (5/5 stories)
+├── 4-tier classification (T1-T4) for all 51 services
+├── ADR: single-agent architecture decision
+├── Mermaid decision tree flowchart
+├── Cross-references in TECH_STACK.md + service-groups.md
+└── Health Dashboard AI tier badges (T1-T3 visible)
+
+Epic 67: AI Automation Validation Loop (6/6 stories)
+├── LinterClient (POST /lint, CircuitBreaker, 2s timeout)
+├── ValidationRetryLoop (max 3 retries, best-attempt tracking)
+├── ERROR_FEEDBACK_PROMPT template
+├── CircuitBreaker graceful degradation
+├── Metrics: first_pass_rate, average_retries, total_generations
+└── 10 integration tests
+```
+
+## Sprint 27 Results (COMPLETE — Mar 16, 2026)
+
+**Autonomous Agent + Self-Improving Agent:**
+
+```
+Epic 68: Proactive Agent — Autonomous Upgrade (8/8 stories)
+├── ProactiveAgentLoop: observe-reason-act on 15m interval
+├── PreferenceService: Memory Brain integration + acceptance history
+├── ConfidenceScorer: 5-factor scoring (LLM 30%, acceptance 30%, context 20%, preference 10%, reversibility 10%)
+├── AutonomousExecutor: ha-device-control integration with pre/post snapshots
+├── FeedbackRecorder: outcome recording + Memory Brain feedback
+├── UserPreference: REST config (thresholds, quiet hours, excluded categories)
+├── AutonomousActionAudit: audit trail with undo (15m window)
+└── 20 tests (confidence, risk, safety, quiet hours, undo)
+
+Epic 70: Self-Improving Agent — Hermes-Inspired (8/8 stories)
+├── SkillStore + SkillExtractor + SkillRecall (500-token budget)
+├── SkillsGuard: 85+ threat patterns, 6 categories, blocks critical/high
+├── Smart routing: gpt-4.1-mini (simple) / gpt-5.2-codex (complex)
+├── ContextCompressor: first 3 + last 4 turns, LLM-summarized middle
+├── DelegateService + SubagentRunner: up to 3 parallel (8K budget each)
+├── SessionSearch: PostgreSQL text matching, top 3, optional summarization
+├── UserProfile: 5 dimensions, PreferenceExtractor, ProfileInjector (200 tokens)
+└── Prompt caching: Anthropic explicit + OpenAI automatic, system_and_3 strategy
+```
+
+## Sprint 28 Results (COMPLETE — Mar 16, 2026)
+
+**Convention Compliance + Eval Feedback Loop:**
+
+```
+Epic 64: Convention Compliance & Auto-Enhancement (6/6 stories)
+├── Score Engine: 100-point scale, 6 rules (area_id, labels, aliases, friendly_name, device_class, sensor_role)
+├── Auto-Alias Generator: 5 strategies (area-less, abbreviation, casual, plural, shorthand)
+├── ConventionComplianceCard: dashboard widget, 5-min auto-refresh, compliance %, top issues
+├── Name Suggestion: convention-aware wrapping of DeviceNameGenerator
+├── Discovery Sync: verified aliases+labels flow through websocket-ingestion → data-api
+└── Chat Naming Hints: max 1/turn, ai:critical confirmation, HA Setup suggestion
+
+Epic 69: Agent Eval — Adaptive Model Routing & Feedback Loop (7/7 stories)
+├── ComplexityClassifier: 5-factor weighted scoring → low/medium/high
+├── ModelRouter: eval-score auto-upgrade (rolling avg < 70 → upgrade to primary)
+├── Eval-Routing Correlation: ring buffer of 1000 decisions for analysis
+├── EvalAlertService: degradation (>10% drop) + floor breach (<50), 1h cooldown
+├── RegressionInvestigator: 5 lowest traces, common patterns analysis
+├── CostTracker: per-model/agent/day, baseline vs adaptive savings, >50% spike detection
+└── Admin endpoints: routing table, config update, agent override, model lock
+
+New files:
+  device-intelligence-service: convention_rules.py, score_engine.py, alias_generator.py, naming_router.py
+  health-dashboard: ConventionComplianceCard.tsx
+  ha-ai-agent-service: complexity_classifier.py, model_router.py, eval_alerting.py,
+    cost_tracker.py, regression_investigator.py, eval_routing_endpoints.py, naming_hints.py
+Tests: 22 (Epic 64) + 30 (Epic 69) = 52 new tests
+```
+
 ## Superseded Epics
 
 > **Epics 56 and 57** from `docs/planning/epic-56-57-pattern-detectors-ml-upgrade.md` are **SUPERSEDED**.
