@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-14 (Epic 63 complete — HA Setup Wizard UI)
-**Total:** 62 Completed Epics, 389 Stories complete | 0 In Progress | 4 Planned Epics (open)
+**Created:** 2026-02-27 | **Updated:** 2026-03-16 (Epic 65 complete — Bundle Optimization)
+**Total:** 63 Completed Epics, 395 Stories complete | 0 In Progress | 3 Planned Epics (open)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -139,6 +139,10 @@ Sprint 23 (COMPLETE — Mar 13, 2026) — Phase 5 Deployment + Frontend E2E
 Sprint 24 (COMPLETE — Mar 14, 2026) — HA Setup Wizard UI
 └── Epic 63: HA Setup Wizard & Entity Management UI [P1]      ← COMPLETE (7/7 stories)
     └── HASetupTab (lazy-loaded), EntityAuditView with scoring, LabelEditor, AliasEditor, NameEditor, ExclusionManager, BulkActionsBar + QuickActions
+
+Sprint 25 (COMPLETE — Mar 16, 2026) — Bundle Optimization
+└── Epic 65: Bundle Optimization [P1]                          ← COMPLETE (6/6 stories)
+    └── AI UI: index 966→218 KB (-77%), 8 lazy routes, force-graph deferred. HD: visualizer added. CI bundle check script.
 ```
 
 ---
@@ -147,7 +151,7 @@ Sprint 24 (COMPLETE — Mar 14, 2026) — HA Setup Wizard UI
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **65** (Epics 62-64 = HA Naming Convention for AI Discovery). Epic 62-63 complete.
+> Next available epic number: **66** (Epics 62-64 = HA Naming Convention, Epic 65 = Bundle Optimization). Epics 62-63, 65 complete.
 
 ### P1 — Ready to Start
 
@@ -157,7 +161,7 @@ Sprint 24 (COMPLETE — Mar 14, 2026) — HA Setup Wizard UI
 | 63 | **HA Setup Wizard & Entity Management UI** | [epic-ha-naming-convention.md](epic-ha-naming-convention.md) | 7 | 1-2 weeks | **COMPLETE (7/7)** — HASetupTab, EntityAuditView with scoring, LabelEditor, AliasEditor, NameEditor, ExclusionManager, BulkActionsBar + QuickActions |
 | ~~58~~ | ~~**Frontend Test Quality**~~ | ~~[frontend-testing-epics.md](../docs/planning/frontend-testing-epics.md) Epic 54→58~~ | ~~6~~ | ~~1 week~~ | **COMPLETE (Mar 13)** — TESTING_STANDARDS.md, 4 error boundary test files, 2 skeleton test files, a11y sweep (8 files), dark mode tests, MSW expansion |
 | ~~59~~ | ~~**Frontend Integration & E2E**~~ | ~~[frontend-testing-epics.md](../docs/planning/frontend-testing-epics.md) Epic 55→59~~ | ~~6~~ | ~~2 weeks~~ | **COMPLETE (Mar 13)** — 27 integration tests (HD 14 + AI UI 13), 11 E2E smoke, 6 cross-app nav, 7 perf baselines, 12 visual regression |
-| — | **Bundle Optimization** | [frontend-epics-roadmap.md](../docs/planning/frontend-epics-roadmap.md) Epic 3 | 6 | 2-3 weeks | Code splitting, lazy loading, bundle size monitoring |
+| 65 | **Bundle Optimization** | [frontend-epics-roadmap.md](../docs/planning/frontend-epics-roadmap.md) Epic 3 | 6 | 1 session | **COMPLETE (6/6)** — AI UI main bundle 966→218 KB (-77%), 8 lazy routes + Suspense, force-graph deferred to graph view, visualizer + CI check |
 
 ### P2 — Deferred / After Stability Window
 

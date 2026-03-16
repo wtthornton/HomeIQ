@@ -6,7 +6,7 @@
  * Story AI3.8: Frontend Synergy Tab
  */
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { lazy, Suspense, useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
@@ -14,7 +14,7 @@ import api from '../services/api';
 import type { SynergyOpportunity } from '../types';
 import { ImpactScoreGauge, ScoreBreakdownChart } from '../components/SynergyChart';
 import { RoomMapView } from '../components/synergies/RoomMapView';
-import { NetworkGraphView } from '../components/synergies/NetworkGraphView';
+const LazyNetworkGraphView = lazy(() => import('../components/synergies/NetworkGraphView').then(m => ({ default: m.NetworkGraphView })));
 import { SkeletonCardGrid } from '../components/SkeletonCard';
 import { SkeletonStats } from '../components/SkeletonStats';
 import { SkeletonFilter } from '../components/SkeletonFilter';
@@ -1460,10 +1460,12 @@ export const Synergies: React.FC = () => {
       {viewMode === 'map' ? (
         <RoomMapView synergies={sortedSynergies} darkMode={darkMode} />
       ) : viewMode === 'graph' ? (
-        <NetworkGraphView 
-          synergies={sortedSynergies} 
-          darkMode={darkMode}
-        />
+        <Suspense fallback={<div className="flex items-center justify-center h-64 text-[var(--text-secondary)]">Loading graph...</div>}>
+          <LazyNetworkGraphView
+            synergies={sortedSynergies}
+            darkMode={darkMode}
+          />
+        </Suspense>
       ) : (
         /* Synergy Grid */
         <AnimatePresence mode="popLayout">

@@ -3,21 +3,38 @@
  * Routes and layout for AI Automation UI
  */
 
-import React, { useEffect } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { CustomToaster } from './components/CustomToast';
 import { SelectionProvider } from './context/SelectionContext';
 import { Sidebar } from './components/Sidebar';
 import { PageErrorBoundaryWrapper } from './components/PageErrorBoundary';
-import { Ideas } from './pages/Ideas';
-import { Insights } from './pages/Insights';
-import { Deployed } from './pages/Deployed';
-import { Settings } from './pages/Settings';
-import { DiscoveryPage } from './pages/Discovery';
-import { NameEnhancementDashboard } from './components/name-enhancement';
-import { HAAgentChat } from './pages/HAAgentChat';
-import { ScheduledTasks } from './components/ScheduledTasks';
 import { useAppStore } from './store';
+
+const LazyIdeas = lazy(() => import('./pages/Ideas').then(m => ({ default: m.Ideas })));
+const LazyInsights = lazy(() => import('./pages/Insights').then(m => ({ default: m.Insights })));
+const LazyDeployed = lazy(() => import('./pages/Deployed').then(m => ({ default: m.Deployed })));
+const LazySettings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const LazyDiscovery = lazy(() => import('./pages/Discovery').then(m => ({ default: m.DiscoveryPage })));
+const LazyNameEnhancement = lazy(() => import('./components/name-enhancement').then(m => ({ default: m.NameEnhancementDashboard })));
+const LazyHAAgentChat = lazy(() => import('./pages/HAAgentChat').then(m => ({ default: m.HAAgentChat })));
+const LazyScheduledTasks = lazy(() => import('./components/ScheduledTasks').then(m => ({ default: m.ScheduledTasks })));
+
+const PageLoadingSkeleton: React.FC = () => (
+  <div className="animate-pulse space-y-6 py-4">
+    <div className="h-8 w-48 rounded bg-[var(--bg-tertiary)]" />
+    <div className="space-y-3">
+      <div className="h-4 w-full rounded bg-[var(--bg-tertiary)]" />
+      <div className="h-4 w-3/4 rounded bg-[var(--bg-tertiary)]" />
+      <div className="h-4 w-1/2 rounded bg-[var(--bg-tertiary)]" />
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {[1, 2, 3].map(i => (
+        <div key={i} className="h-32 rounded-lg bg-[var(--bg-tertiary)]" />
+      ))}
+    </div>
+  </div>
+);
 
 /** Update document title based on current route */
 const TitleUpdater: React.FC = () => {
@@ -74,83 +91,85 @@ export const App: React.FC = () => {
 
           <div className="flex-1 flex flex-col min-w-0">
             <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <Routes>
-                {/* Primary routes */}
-                <Route
-                  path="/"
-                  element={
-                    <PageErrorBoundaryWrapper pageName="Ideas">
-                      <Ideas />
-                    </PageErrorBoundaryWrapper>
-                  }
-                />
-                <Route
-                  path="/chat"
-                  element={
-                    <PageErrorBoundaryWrapper pageName="Chat">
-                      <HAAgentChat />
-                    </PageErrorBoundaryWrapper>
-                  }
-                />
-                <Route
-                  path="/explore"
-                  element={
-                    <PageErrorBoundaryWrapper pageName="Explore">
-                      <DiscoveryPage />
-                    </PageErrorBoundaryWrapper>
-                  }
-                />
-                <Route
-                  path="/insights"
-                  element={
-                    <PageErrorBoundaryWrapper pageName="Insights">
-                      <Insights />
-                    </PageErrorBoundaryWrapper>
-                  }
-                />
-                <Route
-                  path="/automations"
-                  element={
-                    <PageErrorBoundaryWrapper pageName="Automations">
-                      <Deployed />
-                    </PageErrorBoundaryWrapper>
-                  }
-                />
-                <Route
-                  path="/scheduled"
-                  element={
-                    <PageErrorBoundaryWrapper pageName="Scheduled Tasks">
-                      <ScheduledTasks />
-                    </PageErrorBoundaryWrapper>
-                  }
-                />
-                <Route
-                  path="/settings"
-                  element={
-                    <PageErrorBoundaryWrapper pageName="Settings">
-                      <Settings />
-                    </PageErrorBoundaryWrapper>
-                  }
-                />
-                <Route
-                  path="/name-enhancement"
-                  element={
-                    <PageErrorBoundaryWrapper pageName="Name Enhancement">
-                      <NameEnhancementDashboard />
-                    </PageErrorBoundaryWrapper>
-                  }
-                />
+              <Suspense fallback={<PageLoadingSkeleton />}>
+                <Routes>
+                  {/* Primary routes */}
+                  <Route
+                    path="/"
+                    element={
+                      <PageErrorBoundaryWrapper pageName="Ideas">
+                        <LazyIdeas />
+                      </PageErrorBoundaryWrapper>
+                    }
+                  />
+                  <Route
+                    path="/chat"
+                    element={
+                      <PageErrorBoundaryWrapper pageName="Chat">
+                        <LazyHAAgentChat />
+                      </PageErrorBoundaryWrapper>
+                    }
+                  />
+                  <Route
+                    path="/explore"
+                    element={
+                      <PageErrorBoundaryWrapper pageName="Explore">
+                        <LazyDiscovery />
+                      </PageErrorBoundaryWrapper>
+                    }
+                  />
+                  <Route
+                    path="/insights"
+                    element={
+                      <PageErrorBoundaryWrapper pageName="Insights">
+                        <LazyInsights />
+                      </PageErrorBoundaryWrapper>
+                    }
+                  />
+                  <Route
+                    path="/automations"
+                    element={
+                      <PageErrorBoundaryWrapper pageName="Automations">
+                        <LazyDeployed />
+                      </PageErrorBoundaryWrapper>
+                    }
+                  />
+                  <Route
+                    path="/scheduled"
+                    element={
+                      <PageErrorBoundaryWrapper pageName="Scheduled Tasks">
+                        <LazyScheduledTasks />
+                      </PageErrorBoundaryWrapper>
+                    }
+                  />
+                  <Route
+                    path="/settings"
+                    element={
+                      <PageErrorBoundaryWrapper pageName="Settings">
+                        <LazySettings />
+                      </PageErrorBoundaryWrapper>
+                    }
+                  />
+                  <Route
+                    path="/name-enhancement"
+                    element={
+                      <PageErrorBoundaryWrapper pageName="Name Enhancement">
+                        <LazyNameEnhancement />
+                      </PageErrorBoundaryWrapper>
+                    }
+                  />
 
-                {/* Legacy redirects */}
-                <Route path="/ha-agent" element={<Navigate to="/chat" replace />} />
-                <Route path="/deployed" element={<Navigate to="/automations" replace />} />
-                <Route path="/discovery" element={<Navigate to="/explore" replace />} />
-                <Route path="/patterns" element={<Navigate to="/insights" replace />} />
-                <Route path="/synergies" element={<Navigate to="/insights" replace />} />
-                <Route path="/admin" element={<Navigate to="/settings?section=system" replace />} />
-                <Route path="/proactive" element={<Navigate to="/?source=context" replace />} />
-                <Route path="/blueprint-suggestions" element={<Navigate to="/?source=blueprints" replace />} />
-              </Routes>
+                  {/* Legacy redirects */}
+                  <Route path="/ha-agent" element={<Navigate to="/chat" replace />} />
+                  <Route path="/deployed" element={<Navigate to="/automations" replace />} />
+                  <Route path="/discovery" element={<Navigate to="/explore" replace />} />
+                  <Route path="/patterns" element={<Navigate to="/insights" replace />} />
+                  <Route path="/synergies" element={<Navigate to="/insights" replace />} />
+                  <Route path="/admin" element={<Navigate to="/settings?section=system" replace />} />
+                  <Route path="/proactive" element={<Navigate to="/?source=context" replace />} />
+                  <Route path="/blueprint-suggestions" element={<Navigate to="/?source=blueprints" replace />} />
+                </Routes>
+              </Suspense>
             </main>
 
             {/* Footer */}

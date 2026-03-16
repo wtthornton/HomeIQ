@@ -659,6 +659,8 @@ export default defineConfig({
 
 ## Bundle Optimization
 
+> **Status:** Implemented in Epic 65 (Mar 16, 2026). AI Automation UI main bundle reduced from 966 KB → 218 KB (-77%). 8 route-level lazy chunks + deferred force-graph loading. Health Dashboard already had 18 lazy tabs.
+
 ### Code Splitting Configuration
 
 **vite.config.ts:**

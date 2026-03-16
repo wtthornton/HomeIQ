@@ -3,9 +3,9 @@
  * Merges: Patterns + Synergies
  */
 
-import React, { useState } from 'react';
-import { Patterns } from './Patterns';
-import { Synergies } from './Synergies';
+import React, { lazy, Suspense, useState } from 'react';
+const LazyPatterns = lazy(() => import('./Patterns').then(m => ({ default: m.Patterns })));
+const LazySynergies = lazy(() => import('./Synergies').then(m => ({ default: m.Synergies })));
 
 type InsightView = 'patterns' | 'connections' | 'rooms';
 
@@ -52,8 +52,10 @@ export const Insights: React.FC = () => {
 
       {/* Content */}
       <div role="tabpanel" id={`insight-tabpanel-${activeView}`} aria-labelledby={`insight-tab-${activeView}`}>
-        {activeView === 'patterns' && <Patterns />}
-        {(activeView === 'connections' || activeView === 'rooms') && <Synergies />}
+        <Suspense fallback={<div className="animate-pulse h-64 rounded bg-[var(--bg-tertiary)]" />}>
+          {activeView === 'patterns' && <LazyPatterns />}
+          {(activeView === 'connections' || activeView === 'rooms') && <LazySynergies />}
+        </Suspense>
       </div>
     </div>
   );

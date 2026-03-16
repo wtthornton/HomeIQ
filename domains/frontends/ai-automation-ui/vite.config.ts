@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 export default defineConfig({
   test: {
@@ -33,6 +34,12 @@ export default defineConfig({
         plugins: ['babel-plugin-react-compiler'],
       },
     }),
+    visualizer({
+      filename: 'dist/stats.html',
+      gzipSize: true,
+      brotliSize: true,
+      template: 'treemap',
+    }),
   ],
   server: {
     host: '0.0.0.0',
@@ -44,12 +51,29 @@ export default defineConfig({
     port: 3001,
     strictPort: true
   },
+  build: {
+    reportCompressedSize: true,
+    chunkSizeWarningLimit: 500,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          query: ['@tanstack/react-query'],
+          'force-graph': ['react-force-graph', 'three'],
+          charts: ['chart.js'],
+          markdown: ['react-markdown', 'react-syntax-highlighter', 'highlight.js'],
+          animation: ['framer-motion'],
+        },
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash][extname]',
+      },
+    },
+  },
   optimizeDeps: {
     include: ['react-force-graph', 'three']
   },
   define: {
-    // Provide AFRAME as a global for modules that check for it
-    // Only define in non-test environments
     ...(process.env.NODE_ENV !== 'test' && {
       'global.AFRAME': 'window.AFRAME'
     })

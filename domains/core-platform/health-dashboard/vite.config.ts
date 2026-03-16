@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { visualizer } from 'rollup-plugin-visualizer';
 import { resolve } from 'path';
 
 // https://vitejs.dev/config/
@@ -18,14 +19,17 @@ export default defineConfig(({ command, mode }) => {
   return {
     plugins: [
       react({
-        // Enable React Fast Refresh
         fastRefresh: true,
-        // Optimize JSX runtime
         jsxRuntime: 'automatic',
-        // React Compiler — automatic memoization (React 19)
         babel: {
           plugins: ['babel-plugin-react-compiler'],
         },
+      }),
+      visualizer({
+        filename: 'dist/stats.html',
+        gzipSize: true,
+        brotliSize: true,
+        template: 'treemap',
       }),
     ],
     
