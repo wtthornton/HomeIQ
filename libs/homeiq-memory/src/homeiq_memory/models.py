@@ -113,7 +113,7 @@ class Memory(Base):
         nullable=True,
     )
     embedding: Mapped[Any | None] = mapped_column(
-        Vector(768),
+        Vector(384),
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -215,7 +215,7 @@ class MemoryArchive(Base):
         nullable=True,
     )
     embedding: Mapped[Any | None] = mapped_column(
-        Vector(768),
+        Vector(384),
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(

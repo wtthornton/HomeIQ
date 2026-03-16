@@ -242,6 +242,7 @@ alembic/versions/
   001_create_memory_schema.py   -- memories + memory_archive tables, indexes
   002_fix_memory_type_enum.py   -- enum type fix
   003_add_domain_and_fix_fk.py  -- domain column + ON DELETE SET NULL for superseded_by
+  004_fix_embedding_dimension_384.py -- fix vector(768) to vector(384) for default model
 ```
 
 Run migrations:

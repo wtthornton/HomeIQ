@@ -171,7 +171,7 @@ CREATE TABLE memory.memories (
     area_ids        TEXT[],                  -- related HA areas
     domain          VARCHAR(30),             -- semantic domain (lighting, climate, security, etc.)
     tags            TEXT[],                  -- free-form tags for filtering
-    embedding       vector(768),             -- pgvector embedding (768 for nomic, 384 for MiniLM — finalize in Story 1.4)
+    embedding       vector(384),             -- pgvector embedding (384 for default all-MiniLM-L6-v2)
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_accessed   TIMESTAMPTZ,             -- for decay calculation

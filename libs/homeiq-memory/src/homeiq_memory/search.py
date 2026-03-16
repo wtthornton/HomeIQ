@@ -165,6 +165,7 @@ class MemorySearch:
                     source_service=row["source_service"],
                     entity_ids=row["entity_ids"],
                     area_ids=row["area_ids"],
+                    domain=row["domain"],
                     tags=row["tags"],
                     embedding=row["embedding"],
                     created_at=row["created_at"],

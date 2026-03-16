@@ -432,6 +432,8 @@ class MemoryClient:
                 from .domains import classify_domain
 
                 domain = classify_domain(kwargs.get("entity_ids"))
+            if domain is None:
+                domain = old_memory.domain
 
             new_memory = Memory(
                 content=new_content.strip(),

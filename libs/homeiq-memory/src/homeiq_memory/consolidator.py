@@ -483,6 +483,7 @@ class MemoryConsolidator:
                         source_service=memory.source_service,
                         entity_ids=memory.entity_ids,
                         area_ids=memory.area_ids,
+                        domain=memory.domain,
                         tags=memory.tags,
                         embedding=memory.embedding,
                         created_at=memory.created_at,
