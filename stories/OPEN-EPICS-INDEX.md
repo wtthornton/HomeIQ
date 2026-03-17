@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-16 (Sprint 33 complete; Epic 75 done — Zeek Anomaly Detection & Security Baseline)
-**Total:** 74 Completed Epics, 468 Stories complete | 0 In Progress | 2 Planned Epics (open, 0 stories)
+**Created:** 2026-02-27 | **Updated:** 2026-03-16 (Sprint 34 complete; Epics 78-79 done — Integration Tests + Production Alerting)
+**Total:** 78 Completed Epics, 480+ Stories complete | 0 In Progress | 2 Planned Epics (P3 backlog, 0 stories started)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -165,6 +165,25 @@ Sprint 28 (COMPLETE — Mar 16, 2026) — Convention Compliance + Eval Feedback 
 Sprint 29 (COMPLETE — Mar 16, 2026) — 2026 Release: ML/AI Library Upgrades
 └── Epic 71: ML/AI Library Upgrades (Phase 3) [P2]             ← COMPLETE (8/8 stories)
     └── NumPy 2.4.3, Pandas 3.0.1, scikit-learn 1.8.0, SciPy 1.17.1, OpenAI 2.28.0, joblib 1.5.3. 8 services updated, 27 files audited, zero deprecated APIs, PyArrow added for Pandas 3.0
+
+Sprint 34 (COMPLETE — Mar 16, 2026) — P1 Blockers + Integration Tests + Production Alerting
+├── Blocker Fixes [P1]                                          ← COMPLETE
+│   ├── Playwright dual-version conflict — aligned root + tests/e2e to @playwright/test@1.58.2
+│   └── tests/shared/ import paths — fixed 10 files, conftest.py → libs/*/src, bare imports → package-qualified
+├── Epic 78: Cross-Service Integration Tests [P1]               ← COMPLETE (6/6 stories, 24 new tests)
+│   ├── 78.1 Tier 1 data flow chain (InfluxDB write/query, DataAPIClient, bearer auth, retry, roundtrip)
+│   ├── 78.2 Zeek pipeline (conn.log, dns.log parsers, fingerprint PG schema, anomaly lifecycle, health)
+│   ├── 78.3 Agent chains (CrossGroupClient retry, CircuitBreaker, confidence scoring, auth propagation, safety guardrails)
+│   ├── 78.4 Memory Brain (save/search, semantic relevance, decay tiers, consolidation, domain scoping)
+│   ├── 78.5 Cross-group auth (invalid token rejection, valid token acceptance, header injection)
+│   └── 78.6 CI updates (4 new GitHub Actions jobs, workflow_dispatch)
+└── Epic 79: Production Alerting & SLA Monitoring [P1]          ← COMPLETE (6/6 stories)
+    ├── 79.1 SLA recording rules (availability, latency p95/p99, error rate, error budget per tier)
+    ├── 79.2 SLA alert rules (8 rules: tier breaches, latency, error budget burn rate)
+    ├── 79.3 AlertManager (v0.28.1 container, 3 receivers, inhibition rules, Prometheus integration)
+    ├── 79.4 Grafana SLA dashboard (availability gauges, error budget, latency heatmap, active alerts)
+    ├── 79.5 Zeek security alerts (8 rules: new device, beaconing, DGA, weak TLS, expired cert, rogue MQTT)
+    └── 79.6 Admin API webhook (AlertStore with 15-min TTL, /api/alerts/webhook + /active + /active/count)
 ```
 
 ---
@@ -173,32 +192,17 @@ Sprint 29 (COMPLETE — Mar 16, 2026) — 2026 Release: ML/AI Library Upgrades
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **78** (Epics 62-74 complete, 75-77 planned). All prior P1/P2 complete.
+> Next available epic number: **80** (78 epics complete, 76-77 in P3 backlog). All P1/P2 complete.
 
-### P1 — Ready to Start
+### P1 — All Complete
 
-| # | Epic | Source Doc | Stories | Effort | Notes |
-|---|------|-----------|---------|--------|-------|
-| 73 | **Zeek Device Fingerprinting** | [epic-zeek-network-intelligence.md](epic-zeek-network-intelligence.md) | 6 | **COMPLETE** | **COMPLETE (6/6)** — DHCP parsing + fingerprints PG table, JA3/JA4 TLS, HASSH SSH, OUI vendor lookup (~200 vendors), fingerprint REST API, 32 tests |
-| 62 | **Entity Convention API Foundation** | [epic-ha-naming-convention.md](epic-ha-naming-convention.md) | 8 | 1-2 weeks | **COMPLETE (8/8)** — All stories done: areas, labels, aliases, CRUD, dynamic areas, label-aware filtering, alias resolution tiers, alias scoring |
-| 63 | **HA Setup Wizard & Entity Management UI** | [epic-ha-naming-convention.md](epic-ha-naming-convention.md) | 7 | 1-2 weeks | **COMPLETE (7/7)** — HASetupTab, EntityAuditView with scoring, LabelEditor, AliasEditor, NameEditor, ExclusionManager, BulkActionsBar + QuickActions |
-| ~~58~~ | ~~**Frontend Test Quality**~~ | ~~[frontend-testing-epics.md](../docs/planning/frontend-testing-epics.md) Epic 54→58~~ | ~~6~~ | ~~1 week~~ | **COMPLETE (Mar 13)** — TESTING_STANDARDS.md, 4 error boundary test files, 2 skeleton test files, a11y sweep (8 files), dark mode tests, MSW expansion |
-| ~~59~~ | ~~**Frontend Integration & E2E**~~ | ~~[frontend-testing-epics.md](../docs/planning/frontend-testing-epics.md) Epic 55→59~~ | ~~6~~ | ~~2 weeks~~ | **COMPLETE (Mar 13)** — 27 integration tests (HD 14 + AI UI 13), 11 E2E smoke, 6 cross-app nav, 7 perf baselines, 12 visual regression |
-| 65 | **Bundle Optimization** | [frontend-epics-roadmap.md](../docs/planning/frontend-epics-roadmap.md) Epic 3 | 6 | 1 session | **COMPLETE (6/6)** — AI UI main bundle 966→218 KB (-77%), 8 lazy routes + Suspense, force-graph deferred to graph view, visualizer + CI check |
-| 66 | **AI/Agent Service Classification & Architecture Doc** | [epic-66-ai-agent-classification.md](epic-66-ai-agent-classification.md) | 5 | 2-3 days | **COMPLETE (5/5)** — 4-tier classification, ADR, Mermaid decision tree, cross-refs to service-groups + TECH_STACK, HD AI tier badges |
-| 67 | **AI Automation Service — Self-Healing Validation Loop** | [epic-67-automation-validation-loop.md](epic-67-automation-validation-loop.md) | 6 | 1 week | **COMPLETE (6/6)** — LinterClient + ValidationRetryLoop, error-feedback prompt, CircuitBreaker graceful degradation, metrics, 10 integration tests |
-| 68 | **Proactive Agent Service — Autonomous Agent Upgrade** | [epic-68-proactive-agent-upgrade.md](epic-68-proactive-agent-upgrade.md) | 8 | 2-3 weeks | **COMPLETE (8/8)** — Observe-reason-act loop, Memory Brain preference recall, confidence/risk scoring, autonomous execution, feedback loop, safety guardrails, audit trail + undo, 20 tests |
-| 70 | **Self-Improving Agent — Hermes-Inspired Learning & Delegation** | [epic-70-hermes-self-improving-agent.md](epic-70-hermes-self-improving-agent.md) | 8 | 3-4 weeks | **COMPLETE (8/8)** — Smart model routing, skill learning + skills guard (100+ patterns), context compression, subagent delegation, session search, user modeling, prompt caching, 30+ tests |
+> All former P1 epics (58, 59, 62, 63, 65, 66, 67, 68, 70, 73) are now complete.
+> See the Execution History and detailed story sections below.
 
-### P2 — Deferred / After Stability Window
+### P2 — All Complete
 
-| # | Epic | Source Doc | Stories | Effort | Notes |
-|---|------|-----------|---------|--------|-------|
-| 74 | **Zeek MQTT & Protocol Intelligence** | [epic-zeek-network-intelligence.md](epic-zeek-network-intelligence.md) | 5 | **COMPLETE** | **COMPLETE (5/5)** — MQTT parsing (connect/publish/subscribe), TLS cert tracking (x509+ssl), DNS behavior profiles (7-day rolling, 6 categories), security alerts (rogue clients, expired certs, weak TLS), 39 tests |
-| 75 | **Zeek Anomaly Detection & Security Baseline** | [epic-zeek-network-intelligence.md](epic-zeek-network-intelligence.md) | 7 | **COMPLETE** | **COMPLETE (7/7)** — Anomaly parsing (weird/notice), network baseline with approval, new device detection, beaconing/DGA/DNS tunneling detection, flowmeter ML features, security feeds, 37 tests |
-| 64 | **Convention Compliance & Auto-Enhancement** | [epic-ha-naming-convention.md](epic-ha-naming-convention.md) | 6 | 1-2 weeks | **COMPLETE (6/6)** — Score engine (100-point, 6 rules), auto-alias generator (5 strategies), compliance dashboard widget, name suggestions, discovery sync, chat naming hints |
-| 69 | **Agent Eval — Adaptive Model Routing & Feedback Loop** | [epic-69-agent-eval-feedback-loop.md](epic-69-agent-eval-feedback-loop.md) | 7 | 2 weeks | **COMPLETE (7/7)** — Complexity classifier (5-factor), adaptive model router with eval-score feedback, correlation analysis, degradation alerting, regression investigation, cost tracker + savings, admin config + model lock |
-| 71 | **ML/AI Library Upgrades (Phase 3)** | [phase-3-plan-ml-ai-upgrades.md](../docs/planning/phase-3-plan-ml-ai-upgrades.md) | 8 | 1 session | **COMPLETE (8/8)** — NumPy 2.4.3, Pandas 3.0.1, scikit-learn 1.8.0, SciPy 1.17.1, OpenAI 2.28.0, joblib 1.5.3. 8 services, 27 files audited, zero deprecated APIs, PyArrow added |
+> All former P2 epics (64, 69, 71, 74, 75) are now complete.
+> See the Execution History and detailed story sections below.
 
 ### P3 — Backlog
 
@@ -545,16 +549,18 @@ These items were previously listed as open but are now confirmed done:
 | 69 | Agent Eval Feedback Loop | [epic-69-agent-eval-feedback-loop.md](epic-69-agent-eval-feedback-loop.md) | P2 Medium | 7 | 2 weeks | **Complete** (7/7: complexity classifier, adaptive routing, eval alerting, regression investigation, cost tracking, admin config) |
 | 70 | Self-Improving Agent (Hermes-Inspired) | [epic-70-hermes-self-improving-agent.md](epic-70-hermes-self-improving-agent.md) | P1 High | 8 | 3-4 weeks | **Complete** (8/8: smart routing, skill learning + guard, context compression, subagent delegation, session search, user modeling, prompt caching, 30+ tests) |
 | 71 | ML/AI Library Upgrades (Phase 3) | [phase-3-plan-ml-ai-upgrades.md](../docs/planning/phase-3-plan-ml-ai-upgrades.md) | P2 Medium | 8 | 1 session | **Complete** (8/8: NumPy 2.4.3, Pandas 3.0.1, sklearn 1.8.0, SciPy 1.17.1, OpenAI 2.28.0, joblib 1.5.3, 8 services, PyArrow added) |
+| 78 | Cross-Service Integration Tests | [epic-78-cross-service-integration-tests.md](epic-78-cross-service-integration-tests.md) | P1 High | 6 | 1 session | **Complete** (6/6: Tier 1 data flow, Zeek pipeline, agent chains, Memory Brain, cross-group auth, CI — 24 new tests, 39 total) |
+| 79 | Production Alerting & SLA Monitoring | [epic-79-production-alerting-sla.md](epic-79-production-alerting-sla.md) | P1 High | 6 | 1 session | **Complete** (6/6: SLA rules, SLA alerts, AlertManager v0.28.1, Grafana dashboard, Zeek alerts, admin webhook) |
 
 ## Story Count by Priority
 
 | Priority | Count | Description |
 |----------|-------|-------------|
 | P0 Critical | 49 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) + Embed Testing (2) + Frontend Test Infra (5) + HD Testing (8) + AI UI Testing (8) |
-| P1 High | 158 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4), Proactive Agent (8), Self-Improving Agent (8) |
+| P1 High | 170 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4), Proactive Agent (8), Self-Improving Agent (8), Integration Tests (6), Alerting/SLA (6) |
 | P2 Medium | 79 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4), Convention Compliance (6), Agent Eval (7), ML/AI Library Upgrades (8), MQTT/Protocol Intelligence (5) |
 | P3 Low | 10 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
-| **Total** | **461** | 461 complete (73 epics). See **Open Work** section for planned epics. |
+| **Total** | **480** | 480 complete (76 epics). See **Open Work** section for planned epics. |
 
 ## Key Dates
 
@@ -578,6 +584,7 @@ These items were previously listed as open but are now confirmed done:
 | Mar 16 | Sprint 30 complete — **Epic 72 (7/7: Zeek Core Network Ingestion)** — Greenfield zeek-network-service (:8048). 2 containers (zeek packet capture + Python sidecar), conn.log + dns.log parsing → 3 InfluxDB measurements, device aggregation with double-buffer, REST API (6 endpoints), 25 tests. Review fixes: batch writes, SecretStr, schema SQL injection guard, safe int/float, IPv6 support |
 | Mar 16 | Sprint 31 complete — **Epic 73 (6/6: Zeek Device Fingerprinting)** — DHCP parsing + PostgreSQL fingerprints table, JA3/JA4 TLS fingerprinting, HASSH SSH fingerprinting, software.log parsing, MAC OUI vendor lookup (~200 vendors), fingerprint REST API (3 new endpoints), 32 new tests |
 | Mar 16 | Sprint 32 complete — **Epic 74 (5/5: Zeek MQTT & Protocol Intelligence)** — MQTT parsing (connect/publish/subscribe → InfluxDB), TLS certificate tracking (x509+ssl → PostgreSQL), DNS behavior profiles (6 categories, 7-day rolling counts), protocol intelligence REST API (5 new endpoints), security alerts (rogue MQTT clients, expired certs, weak TLS), 2 Alembic migrations, 39 new tests |
+| Mar 16 | Sprint 34 complete — **P1 Blockers** (Playwright 1.58.2 alignment, tests/shared import paths: 10 files fixed) + **Epic 78 (6/6: Cross-Service Integration Tests)** — 24 new tests (39 total): Tier 1 data flow, Zeek pipeline, agent chains, Memory Brain, cross-group auth, 4 new CI jobs + **Epic 79 (6/6: Production Alerting & SLA Monitoring)** — SLA recording rules (3 tiers), 8 SLA alerts, AlertManager v0.28.1 container, Grafana SLA dashboard, 8 Zeek security alerts, admin-api webhook (AlertStore with TTL) |
 
 > **Detailed sprint results:** [SPRINT-HISTORY.md](SPRINT-HISTORY.md)
 
