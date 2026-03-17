@@ -9,7 +9,7 @@ description = "HomeIQ data access: InfluxDB client, database pool, caching, serv
 requires-python = ">=3.11"
 dependencies = [
     "influxdb-client>=1.36",
-    "aiohttp>=3.9",
+    "aiohttp>=3.13.3",
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
     "sqlalchemy[asyncio]>=2.0.36",

@@ -15,7 +15,7 @@ alembic>=1.17.2,<2.0.0
 
 # HTTP client for external APIs
 httpx>=0.28.1,<0.29.0
-aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
+aiohttp>=3.13.3,<4.0.0  # CVE-2025-69223..69230 fix — min 3.13.3
 tenacity>=8.2.0,<10.0.0  # Phase 2: standardized
 
 # YAML configuration support

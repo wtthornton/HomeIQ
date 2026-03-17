@@ -3,7 +3,7 @@
 
 fastapi>=0.115.0,<1.0.0  # Phase 1: aligned
 uvicorn[standard]>=0.30.0,<1.0.0  # Phase 1: aligned
-aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
+aiohttp>=3.13.3,<4.0.0  # CVE-2025-69223..69230 fix — min 3.13.3
 python-dotenv>=1.0.0,<2.0.0  # Phase 2: standardized
 pydantic>=2.9.0,<3.0.0
 influxdb3-python[pandas]>=0.3.0,<1.0.0  # Phase 2: standardized

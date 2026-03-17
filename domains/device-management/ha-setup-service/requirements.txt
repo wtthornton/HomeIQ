@@ -5,7 +5,7 @@ pydantic>=2.9.0,<3.0.0  # Phase 1: aligned
 pydantic-settings>=2.6.0,<3.0.0  # Phase 1: aligned
 
 # Async support
-aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
+aiohttp>=3.13.3,<4.0.0  # CVE-2025-69223..69230 fix — min 3.13.3
 
 # System metrics
 psutil>=5.9.0,<6.0.0

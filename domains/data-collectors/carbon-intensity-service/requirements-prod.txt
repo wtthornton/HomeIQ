@@ -1,6 +1,6 @@
 fastapi>=0.115.0,<1.0.0
 uvicorn>=0.34.0,<1.0.0
-aiohttp>=3.9.0,<4.0.0  # HTTP client for WattTime API
+aiohttp>=3.13.3,<4.0.0  # HTTP client for WattTime API
 python-dotenv>=1.0.1,<2.0.0
 influxdb3-python>=0.3.0,<1.0.0
 pydantic-settings>=2.0.0,<3.0.0

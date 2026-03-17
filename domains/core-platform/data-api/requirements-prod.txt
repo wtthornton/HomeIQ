@@ -4,7 +4,7 @@
 fastapi>=0.129.0,<0.130.0  # Stable 0.129.x series (February 2026)
 uvicorn[standard]>=0.41.0,<0.42.0
 python-multipart>=0.0.9,<1.0.0  # Phase 2: standardized
-aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
+aiohttp>=3.13.3,<4.0.0  # CVE-2025-69223..69230 fix — min 3.13.3
 influxdb-client>=1.40.0,<2.0.0
 sqlalchemy>=2.0.35,<3.0.0
 alembic>=1.13.0,<2.0.0

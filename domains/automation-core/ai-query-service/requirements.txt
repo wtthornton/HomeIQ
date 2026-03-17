@@ -13,7 +13,7 @@ asyncpg>=0.30.0  # Phase 1C: PostgreSQL migration
 alembic>=1.13.0,<2.0.0  # Phase 1: aligned
 
 # Async support
-aiohttp>=3.9.0,<4.0.0  # Phase 2: standardized
+aiohttp>=3.13.3,<4.0.0  # CVE-2025-69223..69230 fix — min 3.13.3
 httpx>=0.27.0,<0.29.0  # Phase 1: aligned
 
 # OpenAI (for query processing)
