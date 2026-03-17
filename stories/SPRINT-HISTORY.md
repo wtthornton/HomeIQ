@@ -681,6 +681,171 @@ New files:
 Tests: 22 (Epic 64) + 30 (Epic 69) = 52 new tests
 ```
 
+## Sprint 30 Results (COMPLETE — Mar 16, Solo Session)
+
+**Epic 72: Zeek Core Network Ingestion (MVP)** — 7/7 stories
+
+Greenfield `zeek-network-service` (:8048) in `domains/data-collectors/`.
+
+```
+Stories completed:
+  72.1  Zeek Docker image + config files (Dockerfile.zeek, local.zeek, homeiq.zeek, entrypoint)
+  72.2  Compose integration (zeek + zeek-network-service, --net=host, BPF filter, volumes)
+  72.3  Python service scaffold (FastAPI, 6 homeiq libs, Alembic init, multi-stage Dockerfile)
+  72.4  conn.log parser + InfluxDB writer (seek offsets, rotation handling, 5-min buffer)
+  72.5  dns.log parser + InfluxDB writer (reuses log_tracker)
+  72.6  Per-device metric aggregation (double-buffer pattern, 60s window)
+  72.7  REST API + integration tests (6 endpoints, 25 tests)
+
+New files: 22 (4 Zeek config, 7 Python source, 3 Alembic, 3 test, 2 Docker, 3 init/pkg)
+New containers: 2 (zeek packet capture, zeek-network-service Python sidecar)
+InfluxDB measurements: network_connections, network_dns, network_device_metrics
+Tests: 25 passing (parsers, log tracker, aggregator, direction classification, safe conversions, restart recovery)
+
+Review fixes applied:
+  - Device aggregator: double-buffer pattern (lock-free, iteration-safe)
+  - InfluxDB: batch writes (was per-point loop)
+  - config.py: data_api_key → SecretStr
+  - alembic/env.py: schema name SQL injection guard
+  - Parsers: _safe_int/_safe_float for Zeek "-" values
+  - IPv6 ULA/link-local/loopback in private range detection
+  - IP validation on /devices/{ip} endpoint
+```
+
+---
+
+## Sprint 31 Results (COMPLETE — Mar 16, Solo Session)
+
+**Epic 73: Zeek Device Fingerprinting (Phase 2)** — 6/6 stories
+
+Extends `zeek-network-service` with device auto-discovery and multi-signal fingerprinting.
+
+```
+Stories completed:
+  73.1  Custom Zeek image with fingerprinting packages (already in Dockerfile.zeek from Epic 72)
+  73.2  DHCP parsing + PostgreSQL fingerprints (dhcp_parser.py, fingerprint_service.py, Alembic 001)
+  73.3  TLS fingerprinting (tls_parser.py — ja3.log, ja4.log, ssl.log)
+  73.4  SSH + software fingerprinting (ssh_parser.py — hassh.log, software.log)
+  73.5  MAC OUI vendor lookup (oui_lookup.py — ~200 curated IoT/networking vendors)
+  73.6  Fingerprint REST API + tests (3 new endpoints, 32 new tests)
+
+New files: 7
+  src/models/__init__.py, src/models/fingerprints.py (SQLAlchemy model)
+  src/parsers/dhcp_parser.py, src/parsers/tls_parser.py, src/parsers/ssh_parser.py
+  src/services/fingerprint_service.py, src/services/oui_lookup.py
+  alembic/versions/001_fingerprints.py
+  tests/test_fingerprinting.py
+
+Modified files: 4
+  src/main.py (integrated 3 new parsers, fingerprint service, 3 new REST endpoints)
+  src/services/log_tracker.py (added 7 new log files to freshness check)
+  tests/conftest.py (8 new fixtures for DHCP, JA3, JA4, HASSH, software samples)
+  src/config.py (no changes needed — BaseServiceSettings already has postgres_url)
+
+PostgreSQL: devices.network_device_fingerprints table (Alembic 001)
+REST API: GET /devices/{ip}/fingerprint, GET /devices/discovered, GET /devices/new
+Tests: 32 new (57 total) — OUI lookup (9), DHCP parser (5), TLS parser (6), SSH parser (6), log tracker (3), integration cycles (3)
+
+Bug fix: ssh_parser version_minor=0 was falsy → used explicit None check
+```
+
+---
+
+## Sprint 32 Results (COMPLETE — Mar 16, Solo Session)
+
+**Epic 74: Zeek MQTT & Protocol Intelligence (Phase 3)** — 5/5 stories
+
+Extends `zeek-network-service` with MQTT monitoring, TLS certificate tracking, DNS behavior profiling, and security alerting.
+
+```
+Stories completed:
+  74.1  MQTT log parsing → InfluxDB (mqtt_connect/publish/subscribe.log → network_mqtt measurement)
+  74.2  TLS certificate tracking (x509.log + ssl.log → devices.network_tls_certificates PG table)
+  74.3  DNS behavior profiles (per-device domain categorization: cloud_api, ntp, update_check, ad_tracker, social_media, unknown)
+  74.4  Protocol intelligence REST API (5 new endpoints)
+  74.5  Security alerts (rogue MQTT clients, expired certs, weak TLS < 1.2)
+
+New files: 9
+  src/parsers/mqtt_parser.py (connect, publish, subscribe log parsing)
+  src/parsers/x509_parser.py (x509.log + ssl.log certificate tracking)
+  src/services/cert_tracker.py (PostgreSQL service — upsert, expired, weak TLS queries)
+  src/services/dns_profiler.py (per-device DNS profiles, domain classification, 7-day rolling counts)
+  src/models/tls_certificates.py (SQLAlchemy model for network_tls_certificates)
+  src/models/dns_profiles.py (SQLAlchemy model for network_device_dns_profiles)
+  alembic/versions/002_dns_profiles.py (Alembic migration)
+  alembic/versions/003_tls_certificates.py (Alembic migration)
+  tests/test_protocol_intelligence.py (39 tests)
+
+Modified files: 2
+  src/main.py (Phase 3 parsers + services wired in, 5 new REST endpoints, security alerts endpoint)
+  src/services/log_tracker.py (MQTT + x509 logs added to freshness check)
+
+PostgreSQL: 2 new tables
+  devices.network_tls_certificates (Alembic 003) — fingerprint, subject, issuer, validity, TLS version, cipher
+  devices.network_device_dns_profiles (Alembic 002) — device_ip + domain_suffix unique, category, rolling 7-day counts
+
+REST API (new endpoints):
+  GET /mqtt/topics — active MQTT topics with message counts
+  GET /mqtt/clients — connected MQTT clients
+  GET /tls/certificates — tracked certs with expiry status
+  GET /dns/profiles/{ip} — per-device DNS profile with category summary
+  GET /security/alerts — expired certs, weak TLS, rogue MQTT clients
+
+Tests: 39 new (96 total) — domain classification (9), MQTT parser (11), X.509 parser (8), log tracker (5), security alerts (2), timestamp parsing (3), integration cycles (1)
+Ruff: all checks passed (0 errors)
+```
+
+---
+
+## Sprint 33 Results (COMPLETE — Mar 16, Epic 75: Zeek Anomaly Detection & Security Baseline)
+
+**Epic 75 — 7/7 stories complete (Phase 4 of Zeek Network Intelligence)**
+
+```
+Stories completed:
+  75.1: Anomaly log parsing — weird.log + notice.log → InfluxDB network_anomalies measurement
+  75.2: Network baseline — known_hosts/services → PostgreSQL network_baseline_hosts with approval workflow
+  75.3: New device detection — unseen MAC alerts, baseline-suppressible, enriched with fingerprints
+  75.4: Beaconing + DNS anomaly detection — C2 beaconing (jitter-based), DGA (Shannon entropy), DNS tunneling (large TXT)
+  75.5: zeek-flowmeter ML features — flowmeter.log → ML-ready feature extraction for ml-service
+  75.6: Cross-service security feeds — HTTP push to proactive-agent + ai-pattern with circuit breaker
+  75.7: Security REST API + integration tests — 4 new endpoints, 37 tests
+
+New files (7):
+  src/parsers/anomaly_parser.py — weird.log + notice.log parsing, severity mapping
+  src/parsers/flowmeter_parser.py — flowmeter.log ML feature extraction (80+ features)
+  src/models/baseline_hosts.py — SQLAlchemy model for network_baseline_hosts
+  alembic/versions/004_baseline_hosts.py — Alembic migration (IP, MAC, services JSONB, approval)
+  src/services/baseline_service.py — PostgreSQL CRUD for baseline + approval workflow
+  src/services/anomaly_detector.py — Detection engine (new device, beaconing, DGA, DNS tunneling)
+  src/services/security_feed.py — Cross-service HTTP feeds with 3-failure circuit breaker
+
+Modified files (3):
+  src/config.py (beaconing thresholds, service URLs)
+  src/main.py (Phase 4 init, 3 background tasks, shutdown, stats, 4 new endpoints)
+  tests/test_anomaly_detection.py (37 new tests)
+
+PostgreSQL: 1 new table
+  devices.network_baseline_hosts (Alembic 004) — ip_address, mac, hostname, services JSONB, is_baseline, approved_by
+
+REST API (new endpoints):
+  GET /anomalies — anomaly events filterable by severity/type
+  GET /baseline/devices — network baseline with approval status
+  POST /baseline/approve/{ip} — approve device into baseline
+  GET /flowmeter/features — ML-ready traffic features (incremental fetch)
+
+Detection capabilities:
+  Beaconing: configurable jitter (±5s), min connections (20), min duration (1h)
+  DGA: Shannon entropy > 3.5 or 5+ consonant clusters on labels > 12 chars
+  DNS tunneling: TXT records > 200 bytes
+  New device: auto-alert on unseen MAC, suppressible via POST /baseline/approve/{ip}
+
+Tests: 37 new (133 total across zeek-network-service)
+Ruff: all checks passed (0 errors)
+```
+
+---
+
 ## Superseded Epics
 
 > **Epics 56 and 57** from `docs/planning/epic-56-57-pattern-detectors-ml-upgrade.md` are **SUPERSEDED**.

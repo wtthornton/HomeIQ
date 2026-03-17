@@ -22,7 +22,7 @@ asyncpg>=0.30.0  # Phase 1C: PostgreSQL migration
 apscheduler>=3.10.4,<3.11.0  # Async scheduler for batch jobs
 
 # OpenAI Integration (for prompt generation)
-openai>=2.21.0,<3.0.0  # OpenAI Python SDK 2.x (Feb 2026 upgrade — Responses API, reasoning params)
+openai>=2.28.0,<3.0.0  # Phase 3: upgraded from 2.21.x → 2.28.0 (Mar 2026 latest)
 
 # Utilities
 python-dotenv>=1.0.0,<2.0.0  # Phase 2: standardized

@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-16 (Sprint 28 complete — Epics 64 + 69)
-**Total:** 69 Completed Epics, 435 Stories complete | 0 In Progress | 2 Planned Epics (open, ~23 stories)
+**Created:** 2026-02-27 | **Updated:** 2026-03-16 (Sprint 33 complete; Epic 75 done — Zeek Anomaly Detection & Security Baseline)
+**Total:** 74 Completed Epics, 468 Stories complete | 0 In Progress | 2 Planned Epics (open, 0 stories)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -161,6 +161,10 @@ Sprint 28 (COMPLETE — Mar 16, 2026) — Convention Compliance + Eval Feedback 
 │   └── Score engine (100-point scale, 6 rules), auto-alias generator (5 strategies), compliance dashboard widget, name suggestions, discovery sync (aliases+labels flow-through), chat naming hints
 └── Epic 69: Agent Eval Feedback Loop [P2]                     ← COMPLETE (7/7 stories)
     └── Complexity classifier (5-factor), adaptive model router (eval-score auto-upgrade), eval-routing correlation, degradation alerting (>10% drop / floor breach), regression investigator, cost tracker + savings, admin config + model lock
+
+Sprint 29 (COMPLETE — Mar 16, 2026) — 2026 Release: ML/AI Library Upgrades
+└── Epic 71: ML/AI Library Upgrades (Phase 3) [P2]             ← COMPLETE (8/8 stories)
+    └── NumPy 2.4.3, Pandas 3.0.1, scikit-learn 1.8.0, SciPy 1.17.1, OpenAI 2.28.0, joblib 1.5.3. 8 services updated, 27 files audited, zero deprecated APIs, PyArrow added for Pandas 3.0
 ```
 
 ---
@@ -169,12 +173,13 @@ Sprint 28 (COMPLETE — Mar 16, 2026) — Convention Compliance + Eval Feedback 
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **71** (Epics 62-70 all complete). All P1 and P2 epics done.
+> Next available epic number: **78** (Epics 62-74 complete, 75-77 planned). All prior P1/P2 complete.
 
 ### P1 — Ready to Start
 
 | # | Epic | Source Doc | Stories | Effort | Notes |
 |---|------|-----------|---------|--------|-------|
+| 73 | **Zeek Device Fingerprinting** | [epic-zeek-network-intelligence.md](epic-zeek-network-intelligence.md) | 6 | **COMPLETE** | **COMPLETE (6/6)** — DHCP parsing + fingerprints PG table, JA3/JA4 TLS, HASSH SSH, OUI vendor lookup (~200 vendors), fingerprint REST API, 32 tests |
 | 62 | **Entity Convention API Foundation** | [epic-ha-naming-convention.md](epic-ha-naming-convention.md) | 8 | 1-2 weeks | **COMPLETE (8/8)** — All stories done: areas, labels, aliases, CRUD, dynamic areas, label-aware filtering, alias resolution tiers, alias scoring |
 | 63 | **HA Setup Wizard & Entity Management UI** | [epic-ha-naming-convention.md](epic-ha-naming-convention.md) | 7 | 1-2 weeks | **COMPLETE (7/7)** — HASetupTab, EntityAuditView with scoring, LabelEditor, AliasEditor, NameEditor, ExclusionManager, BulkActionsBar + QuickActions |
 | ~~58~~ | ~~**Frontend Test Quality**~~ | ~~[frontend-testing-epics.md](../docs/planning/frontend-testing-epics.md) Epic 54→58~~ | ~~6~~ | ~~1 week~~ | **COMPLETE (Mar 13)** — TESTING_STANDARDS.md, 4 error boundary test files, 2 skeleton test files, a11y sweep (8 files), dark mode tests, MSW expansion |
@@ -189,16 +194,55 @@ Sprint 28 (COMPLETE — Mar 16, 2026) — Convention Compliance + Eval Feedback 
 
 | # | Epic | Source Doc | Stories | Effort | Notes |
 |---|------|-----------|---------|--------|-------|
+| 74 | **Zeek MQTT & Protocol Intelligence** | [epic-zeek-network-intelligence.md](epic-zeek-network-intelligence.md) | 5 | **COMPLETE** | **COMPLETE (5/5)** — MQTT parsing (connect/publish/subscribe), TLS cert tracking (x509+ssl), DNS behavior profiles (7-day rolling, 6 categories), security alerts (rogue clients, expired certs, weak TLS), 39 tests |
+| 75 | **Zeek Anomaly Detection & Security Baseline** | [epic-zeek-network-intelligence.md](epic-zeek-network-intelligence.md) | 7 | **COMPLETE** | **COMPLETE (7/7)** — Anomaly parsing (weird/notice), network baseline with approval, new device detection, beaconing/DGA/DNS tunneling detection, flowmeter ML features, security feeds, 37 tests |
 | 64 | **Convention Compliance & Auto-Enhancement** | [epic-ha-naming-convention.md](epic-ha-naming-convention.md) | 6 | 1-2 weeks | **COMPLETE (6/6)** — Score engine (100-point, 6 rules), auto-alias generator (5 strategies), compliance dashboard widget, name suggestions, discovery sync, chat naming hints |
 | 69 | **Agent Eval — Adaptive Model Routing & Feedback Loop** | [epic-69-agent-eval-feedback-loop.md](epic-69-agent-eval-feedback-loop.md) | 7 | 2 weeks | **COMPLETE (7/7)** — Complexity classifier (5-factor), adaptive model router with eval-score feedback, correlation analysis, degradation alerting, regression investigation, cost tracker + savings, admin config + model lock |
-| — | **Phase 3: ML/AI Library Upgrades** | [phase-3-plan-ml-ai-upgrades.md](../docs/planning/phase-3-plan-ml-ai-upgrades.md) | ~20 | 3-4 weeks | HIGH RISK: NumPy 2.x, Pandas 3.0. Wait 3 weeks post-Phase 5. Epic 38 already handled transformers/openvino/sentence-transformers. |
+| 71 | **ML/AI Library Upgrades (Phase 3)** | [phase-3-plan-ml-ai-upgrades.md](../docs/planning/phase-3-plan-ml-ai-upgrades.md) | 8 | 1 session | **COMPLETE (8/8)** — NumPy 2.4.3, Pandas 3.0.1, scikit-learn 1.8.0, SciPy 1.17.1, OpenAI 2.28.0, joblib 1.5.3. 8 services, 27 files audited, zero deprecated APIs, PyArrow added |
 
 ### P3 — Backlog
 
 | # | Epic | Source Doc | Stories | Effort | Notes |
 |---|------|-----------|---------|--------|-------|
-| — | **Auto-Bugfix Bash Parity** | [auto-bugfix-streaming-dashboard-prd.md](../docs/planning/auto-bugfix-streaming-dashboard-prd.md) Epic 4 | 3 | 1 week | Bash stream parser for Linux/macOS |
-| — | **Auto-Bugfix Test/Reliability** | [auto-bugfix-streaming-dashboard-prd.md](../docs/planning/auto-bugfix-streaming-dashboard-prd.md) Epic 5 | 3 | 1 week | Dry-run mode, error resilience, stream recording |
+| 76 | **Auto-Bugfix Bash Parity** | [auto-bugfix-streaming-dashboard-prd.md](../docs/planning/auto-bugfix-streaming-dashboard-prd.md) Epic 4 | 3 | 1 week | Bash stream parser for Linux/macOS |
+| 77 | **Auto-Bugfix Test/Reliability** | [auto-bugfix-streaming-dashboard-prd.md](../docs/planning/auto-bugfix-streaming-dashboard-prd.md) Epic 5 | 3 | 1 week | Dry-run mode, error resilience, stream recording |
+
+### Epic 72: Zeek Core Network Ingestion (MVP) — COMPLETE (Mar 16)
+
+**Priority:** P1 | **Effort:** 1-2 weeks | **Dependencies:** None (greenfield) | **Status:** COMPLETE (7/7)
+**New service:** `domains/data-collectors/zeek-network-service/` (port 8048)
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 72.1 | **Zeek Docker image & config files** — `Dockerfile.zeek` (FROM `zeek/zeek:8.1.1`), `local.zeek` + `homeiq.zeek`, entrypoint script for env var expansion | COMPLETE |
+| 72.2 | **Compose integration & shared volume** — `zeek` + `zeek-network-service` in compose.yml, `--net=host`, BPF filter, `zeek-logs` + `zeek-state` volumes | COMPLETE |
+| 72.3 | **Python service scaffold** — FastAPI + BaseServiceSettings + 6 homeiq libs, Alembic init, multi-stage Alpine Dockerfile | COMPLETE |
+| 72.4 | **conn.log parser + InfluxDB writer** — 30s polling, seek offset persistence, log rotation handling, 5-min in-memory buffer on InfluxDB outage | COMPLETE |
+| 72.5 | **dns.log parser + InfluxDB writer** — dns.log → `network_dns` measurement, reuses log_tracker | COMPLETE |
+| 72.6 | **Per-device metric aggregation** — 60s window → `network_device_metrics`, double-buffer pattern | COMPLETE |
+| 72.7 | **REST API + integration tests** — 6 endpoints, 25 tests passing, IP validation, safe int/float for Zeek `-` values | COMPLETE |
+
+**Key deliverables:** 22 new files, 2 Docker containers (zeek + zeek-network-service), 3 InfluxDB measurements, 25 unit tests
+
+---
+
+### Epic 73: Zeek Device Fingerprinting (Phase 2) — COMPLETE (Mar 16)
+
+**Priority:** P1 | **Effort:** 2-3 weeks | **Dependencies:** Epic 72 (complete) | **Status:** COMPLETE (6/6)
+**Extends:** `domains/data-collectors/zeek-network-service/`
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 73.1 | **Custom Zeek image with fingerprinting packages** — ja3, ja4, hassh, KYD already in `Dockerfile.zeek` | COMPLETE |
+| 73.2 | **DHCP parsing + PostgreSQL fingerprints** — `dhcp_parser.py`, `fingerprint_service.py`, Alembic 001 migration, MAC-keyed upsert | COMPLETE |
+| 73.3 | **TLS fingerprinting** — `tls_parser.py` parsing ja3.log, ja4.log, ssl.log → JA3/JA4 hashes | COMPLETE |
+| 73.4 | **SSH + software fingerprinting** — `ssh_parser.py` parsing hassh.log + software.log → HASSH hashes, user-agent, OS guess | COMPLETE |
+| 73.5 | **MAC OUI vendor lookup** — `oui_lookup.py` with ~200 curated IoT/networking vendor OUI prefixes | COMPLETE |
+| 73.6 | **Fingerprint REST API + tests** — 3 new endpoints, 32 new tests (57 total) | COMPLETE |
+
+**Key deliverables:** 9 new files, 1 PostgreSQL table (devices.network_device_fingerprints), 3 new REST endpoints, 32 new tests
+
+---
 
 ### Epic 64: Convention Compliance & Auto-Enhancement — COMPLETE (Mar 16)
 
@@ -371,6 +415,30 @@ Stories 64.1 + 64.2 can run in parallel. Stories 64.4 + 64.5 can run in parallel
 
 ---
 
+### Epic 71: ML/AI Library Upgrades (Phase 3) — COMPLETE (Mar 16)
+
+**Priority:** P2 | **Effort:** 1 session | **Dependencies:** Phase 5 stable 3+ weeks | **Status:** COMPLETE (8/8)
+**Affects:** device-intelligence-service, ml-service, ai-pattern-service, ha-ai-agent-service, ai-automation-service-new, ai-query-service, proactive-agent-service, nlp-fine-tuning
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 71.1 | **NumPy 2.4.3 upgrade** — Updated numpy pin from `>=1.26.0,<3.0.0` to `>=2.4.3,<3.0.0` in device-intelligence-service, ml-service, ai-pattern-service. Code audit: 27 files, zero deprecated NumPy 1.x APIs (no np.bool/int/float/object/NZERO usage). NEP 50 dtype promotion compatible. | **DONE** |
+| 71.2 | **Pandas 3.0.1 upgrade** — Updated pandas pin from `>=2.2.0,<3.1.0` to `>=3.0.1,<3.1.0` in device-intelligence-service, ai-pattern-service. Added `pyarrow>=18.0.0` dependency (required for Pandas 3.0 default string dtype). Code audit: no `df.append()`, no `dtype=='object'` checks, no deprecated APIs. | **DONE** |
+| 71.3 | **scikit-learn 1.8.0 upgrade** — Updated scikit-learn pin from `>=1.5.0,<2.0.0` to `>=1.8.0,<2.0.0` in device-intelligence-service, ml-service, ai-pattern-service. All import paths current (sklearn.ensemble, .preprocessing, .metrics, .model_selection, .cluster). Added model regeneration documentation. | **DONE** |
+| 71.4 | **SciPy 1.17.1 upgrade** — Updated scipy pin from `>=1.13.0,<2.0.0` to `>=1.17.1,<2.0.0` in ml-service, ai-pattern-service. No direct scipy imports in source (transitive dependency via sklearn). | **DONE** |
+| 71.5 | **OpenAI SDK 2.28.0 upgrade** — Updated openai pin from `>=2.21.0,<3.0.0` to `>=2.28.0,<3.0.0` across 5 services: ha-ai-agent-service, ai-automation-service-new, ai-query-service, proactive-agent-service, nlp-fine-tuning. Already on v2 API — no code changes needed. | **DONE** |
+| 71.6 | **joblib 1.5.3 upgrade** — Updated joblib pin from `>=1.3.0,<2.0.0` to `>=1.5.3,<2.0.0` in device-intelligence-service. Added model regeneration guidance to predictive_analytics.py docstring and error handler (13 joblib.load/dump call sites). | **DONE** |
+| 71.7 | **Model regeneration safety** — Enhanced error message in `initialize_models()` (predictive_analytics.py) to guide operators when sklearn-incompatible .pkl files are detected. Existing try/except gracefully degrades; nightly APScheduler retraining auto-regenerates. | **DONE** |
+| 71.8 | **Phase 3 plan finalization** — Updated `docs/planning/phase-3-plan-ml-ai-upgrades.md` with verified 2026 version numbers (web-verified from PyPI), marked all prerequisites DONE, updated version table for all 8 services, documented verification sources. | **DONE** |
+
+**Code Audit Summary:**
+- 27 Python files audited across 4 services + homeiq-memory lib
+- **Zero deprecated APIs found** — codebase fully compatible with all target versions
+- **No code changes required** for NumPy 2.x, Pandas 3.0, or sklearn 1.8.0
+- **Critical note**: 36 .pkl model files must be regenerated after first deployment (automatic via nightly training)
+
+---
+
 ### Epic 65: Bundle Optimization — COMPLETE (Mar 16)
 
 **Priority:** P1 | **Effort:** 1 session | **Dependencies:** None | **Status:** COMPLETE (6/6)
@@ -476,6 +544,7 @@ These items were previously listed as open but are now confirmed done:
 | 68 | Proactive Agent Upgrade | [epic-68-proactive-agent-upgrade.md](epic-68-proactive-agent-upgrade.md) | P1 High | 8 | 2-3 weeks | **Complete** (8/8: observe-reason-act loop, confidence/risk scoring, autonomous execution, safety guardrails, audit + undo, 20 tests) |
 | 69 | Agent Eval Feedback Loop | [epic-69-agent-eval-feedback-loop.md](epic-69-agent-eval-feedback-loop.md) | P2 Medium | 7 | 2 weeks | **Complete** (7/7: complexity classifier, adaptive routing, eval alerting, regression investigation, cost tracking, admin config) |
 | 70 | Self-Improving Agent (Hermes-Inspired) | [epic-70-hermes-self-improving-agent.md](epic-70-hermes-self-improving-agent.md) | P1 High | 8 | 3-4 weeks | **Complete** (8/8: smart routing, skill learning + guard, context compression, subagent delegation, session search, user modeling, prompt caching, 30+ tests) |
+| 71 | ML/AI Library Upgrades (Phase 3) | [phase-3-plan-ml-ai-upgrades.md](../docs/planning/phase-3-plan-ml-ai-upgrades.md) | P2 Medium | 8 | 1 session | **Complete** (8/8: NumPy 2.4.3, Pandas 3.0.1, sklearn 1.8.0, SciPy 1.17.1, OpenAI 2.28.0, joblib 1.5.3, 8 services, PyArrow added) |
 
 ## Story Count by Priority
 
@@ -483,9 +552,9 @@ These items were previously listed as open but are now confirmed done:
 |----------|-------|-------------|
 | P0 Critical | 49 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) + Embed Testing (2) + Frontend Test Infra (5) + HD Testing (8) + AI UI Testing (8) |
 | P1 High | 158 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4), Proactive Agent (8), Self-Improving Agent (8) |
-| P2 Medium | 66 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4), Convention Compliance (6), Agent Eval (7) |
+| P2 Medium | 79 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4), Convention Compliance (6), Agent Eval (7), ML/AI Library Upgrades (8), MQTT/Protocol Intelligence (5) |
 | P3 Low | 10 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
-| **Total** | **435** | 435 complete (69 epics). See **Open Work** section for planned epics. |
+| **Total** | **461** | 461 complete (73 epics). See **Open Work** section for planned epics. |
 
 ## Key Dates
 
@@ -505,6 +574,10 @@ These items were previously listed as open but are now confirmed done:
 | Mar 16 | Sprint 26 complete — Epic 66 (5/5: AI Service Classification — 4-tier taxonomy, ADR, HD badges) + Epic 67 (6/6: Validation Loop — retry + circuit breaker + 10 tests) |
 | Mar 16 | Sprint 27 complete — Epic 68 (8/8: Proactive Agent autonomous upgrade — observe-reason-act, confidence scoring, safety guardrails, audit+undo) + Epic 70 (8/8: Self-Improving Agent — smart routing, skill learning, context compression, delegation, session search, user modeling, prompt caching) |
 | Mar 16 | Sprint 28 complete — Epic 64 (6/6: Convention Compliance — score engine, alias generator, dashboard widget, name suggestions, chat hints) + Epic 69 (7/7: Agent Eval Feedback Loop — complexity classifier, adaptive routing, alerting, regression investigation, cost tracking) |
+| Mar 16 | Sprint 29 complete — Epic 71 (8/8: ML/AI Library Upgrades — NumPy 2.4.3, Pandas 3.0.1, scikit-learn 1.8.0, SciPy 1.17.1, OpenAI 2.28.0, joblib 1.5.3, 8 services updated) |
+| Mar 16 | Sprint 30 complete — **Epic 72 (7/7: Zeek Core Network Ingestion)** — Greenfield zeek-network-service (:8048). 2 containers (zeek packet capture + Python sidecar), conn.log + dns.log parsing → 3 InfluxDB measurements, device aggregation with double-buffer, REST API (6 endpoints), 25 tests. Review fixes: batch writes, SecretStr, schema SQL injection guard, safe int/float, IPv6 support |
+| Mar 16 | Sprint 31 complete — **Epic 73 (6/6: Zeek Device Fingerprinting)** — DHCP parsing + PostgreSQL fingerprints table, JA3/JA4 TLS fingerprinting, HASSH SSH fingerprinting, software.log parsing, MAC OUI vendor lookup (~200 vendors), fingerprint REST API (3 new endpoints), 32 new tests |
+| Mar 16 | Sprint 32 complete — **Epic 74 (5/5: Zeek MQTT & Protocol Intelligence)** — MQTT parsing (connect/publish/subscribe → InfluxDB), TLS certificate tracking (x509+ssl → PostgreSQL), DNS behavior profiles (6 categories, 7-day rolling counts), protocol intelligence REST API (5 new endpoints), security alerts (rogue MQTT clients, expired certs, weak TLS), 2 Alembic migrations, 39 new tests |
 
 > **Detailed sprint results:** [SPRINT-HISTORY.md](SPRINT-HISTORY.md)
 

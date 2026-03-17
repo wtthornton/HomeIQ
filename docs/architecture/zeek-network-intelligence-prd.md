@@ -1,10 +1,11 @@
 # PRD & Architecture: Zeek Network Intelligence Service
 
 **Document Type:** Combined Product Requirements Document + Architecture Specification
-**Status:** Draft
+**Status:** Complete (All 4 phases delivered — 25/25 stories, 133 tests)
 **Created:** 2026-03-16
 **Author:** HomeIQ Engineering
-**Epic:** TBD (next available epic number)
+**Epics:** 72 (Core Ingestion), 73 (Fingerprinting), 74 (MQTT/Protocol), 75 (Anomaly/Security)
+**Stories:** [epic-zeek-network-intelligence.md](../../stories/epic-zeek-network-intelligence.md)
 **Target Domain:** `domains/data-collectors/zeek-network-service/`
 
 ---
@@ -493,28 +494,31 @@ CREATE TABLE devices.network_baseline_hosts (
 
 ## Phased Requirements
 
-### Phase 1: Core Network Ingestion (MVP)
+### Phase 1: Core Network Ingestion (MVP) — COMPLETE (Sprint 30)
 
 **Goal:** Deploy Zeek, parse `conn.log` and `dns.log`, write to InfluxDB, expose REST API.
-**Estimated stories:** 6-8
+**Stories:** 7 (Epic 72) — all complete
 **Dependencies:** None (new service)
 
 #### Requirements
 
 | ID | Requirement | Priority |
 |---|---|---|
-| P1.1 | Zeek Docker container with `--net=host`, JSON output, BPF filter excluding `homeiq-network` bridge | Must |
-| P1.2 | Shared Docker volume (`zeek-logs`) mounted read-write in Zeek, read-only in sidecar | Must |
-| P1.3 | Python `zeek-network-service` using `BaseServiceSettings`, `ServiceLifespan`, `StandardHealthCheck` | Must |
-| P1.4 | Background polling loop (30s) parsing `conn.log` JSON → `network_connections` InfluxDB measurement | Must |
-| P1.5 | Background polling loop parsing `dns.log` JSON → `network_dns` InfluxDB measurement | Must |
-| P1.6 | Per-device aggregation computing `network_device_metrics` measurement (60s window) | Must |
-| P1.7 | Log file position tracking (seek offsets) to avoid re-processing on restart | Must |
-| P1.8 | Health endpoint reporting: Zeek process status, log freshness (seconds since last log line), InfluxDB write counts | Must |
-| P1.9 | REST API: `GET /health`, `GET /current-stats`, `GET /devices` | Must |
-| P1.10 | Port 8048 assignment in `domains/data-collectors/compose.yml` | Must |
-| P1.11 | Dockerfile following multi-stage Alpine pattern, all 5 homeiq libs installed | Must |
-| P1.12 | Zeek `local.zeek` configuration: JSON output, log rotation (5 min), monitored interface from env var | Must |
+| P1.1 | Zeek Docker image (`Dockerfile.zeek`) with entrypoint script for `ZEEK_INTERFACE` env var expansion | Must |
+| P1.2 | Zeek `local.zeek` + `homeiq.zeek` configuration: JSON output, log rotation (5 min), MQTT enabled | Must |
+| P1.3 | Compose integration: `--net=host`, `NET_RAW`/`NET_ADMIN` caps, BPF filter excluding `homeiq-network` bridge. Note: Zeek container health monitored indirectly via log freshness (not reachable by service name due to host network mode) | Must |
+| P1.4 | Shared Docker volume (`zeek-logs`) mounted read-write in Zeek, read-only in sidecar | Must |
+| P1.5 | Python `zeek-network-service` using `BaseServiceSettings`, `ServiceLifespan`, `StandardHealthCheck` | Must |
+| P1.6 | Dockerfile following multi-stage Alpine pattern, all 6 homeiq libs installed (including `homeiq-memory`) | Must |
+| P1.7 | Initialize Alembic environment (empty migration head — first migration in Phase 2) | Must |
+| P1.8 | Background polling loop (30s) parsing `conn.log` JSON → `network_connections` InfluxDB measurement | Must |
+| P1.9 | Background polling loop parsing `dns.log` JSON → `network_dns` InfluxDB measurement | Must |
+| P1.10 | Log file position tracking via JSON state file (`/app/state/offsets.json`) on persistent volume. Handles Zeek's 5-min log rotation (detect renamed file via inode or file-size reset) | Must |
+| P1.11 | In-memory buffer (5 min max) when InfluxDB is unavailable, flush on recovery | Must |
+| P1.12 | Per-device aggregation computing `network_device_metrics` measurement (60s window) | Must |
+| P1.13 | Health endpoint reporting: Zeek process status, log freshness (seconds since last log line), InfluxDB write counts | Must |
+| P1.14 | REST API: `GET /health`, `GET /current-stats`, `GET /devices` | Must |
+| P1.15 | Port 8048 assignment in `domains/data-collectors/compose.yml` | Must |
 
 #### Acceptance Criteria
 
@@ -551,10 +555,10 @@ Feature: Core network ingestion
 
 ---
 
-### Phase 2: Device Fingerprinting
+### Phase 2: Device Fingerprinting — COMPLETE (Sprint 31)
 
 **Goal:** Auto-discover devices via DHCP, fingerprint via JA3/JA4/HASSH, feed device-intelligence-service.
-**Estimated stories:** 5-7
+**Stories:** 6 (Epic 73) — all complete
 **Dependencies:** Phase 1 complete
 
 #### Requirements
@@ -598,6 +602,19 @@ Feature: Device fingerprinting
     And times_seen is incremented
     And last_seen is updated
 ```
+
+#### Implementation Notes (Sprint 31)
+
+- **Zeek packages** already installed in `Dockerfile.zeek` from Phase 1 (ja3, ja4, hassh, KYD, zeek-flowmeter)
+- **DHCP parser** (`dhcp_parser.py`) — parses `dhcp.log` + `dhcpfp.log`, upserts via `FingerprintService`
+- **TLS parser** (`tls_parser.py`) — parses `ja3.log`, `ja4.log`, `ssl.log` (with embedded JA3/JA4 fallback)
+- **SSH/software parser** (`ssh_parser.py`) — parses `hassh.log` + `software.log`, maps software_type to correct DB field
+- **OUI lookup** (`oui_lookup.py`) — curated dictionary of ~200 IoT/networking vendor OUI prefixes
+- **Fingerprint service** (`fingerprint_service.py`) — asyncpg with upsert (ON CONFLICT MAC), COALESCE for partial updates
+- **Alembic migration 001** — `devices.network_device_fingerprints` table with 4 indexes
+- **REST API** — 3 new endpoints: `GET /devices/{ip}/fingerprint`, `GET /devices/discovered`, `GET /devices/new`
+- **Tests** — 32 new tests (57 total), all passing
+- **Bug fix** — `version_minor=0` was falsy in ssh_parser, fixed with explicit None check
 
 ---
 
@@ -854,6 +871,7 @@ Added to `domains/data-collectors/compose.yml`:
       - "8048:8048"
     volumes:
       - zeek-logs:/zeek/logs:ro  # Read-only access to Zeek logs
+      - zeek-state:/app/state    # Persistent seek offset state
     environment:
       - SERVICE_NAME=zeek-network-service
       - SERVICE_PORT=8048
@@ -902,6 +920,8 @@ Added to `domains/data-collectors/compose.yml`:
 volumes:
   zeek-logs:
     driver: local
+  zeek-state:
+    driver: local
 ```
 
 ### Dockerfile (Python Sidecar)
@@ -921,7 +941,8 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-resilience/ \
     /tmp/libs/homeiq-observability/ \
     /tmp/libs/homeiq-data/ \
-    /tmp/libs/homeiq-ha/
+    /tmp/libs/homeiq-ha/ \
+    /tmp/libs/homeiq-memory/
 
 COPY domains/data-collectors/zeek-network-service/requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
@@ -931,6 +952,9 @@ FROM python:3.12-alpine
 
 RUN adduser -D -u 1001 appuser
 WORKDIR /app
+
+# Persistent state directory for log seek offsets
+RUN mkdir -p /app/state && chown appuser:root /app/state
 
 COPY --from=builder /root/.local /home/appuser/.local
 COPY domains/data-collectors/zeek-network-service/src/ ./src/
@@ -969,9 +993,21 @@ RUN mkdir -p /zeek/logs && chown -R zeek:zeek /zeek
 USER zeek
 WORKDIR /zeek
 
+# Entrypoint script handles ZEEK_INTERFACE env var expansion
+# (exec form CMD cannot expand shell variables)
+COPY domains/data-collectors/zeek-network-service/docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+```
+
+**docker-entrypoint.sh:**
+```bash
+#!/bin/bash
+set -e
 # Use af_packet for high-performance capture (built into core since v8.1.0)
 # Falls back to libpcap if af_packet unavailable (e.g., non-Linux hosts)
-CMD ["zeek", "-i", "af_packet::${ZEEK_INTERFACE:-eth0}", "local"]
+exec zeek -i "af_packet::${ZEEK_INTERFACE:-eth0}" local
 ```
 
 ### Resource Budget

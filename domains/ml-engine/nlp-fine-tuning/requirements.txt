@@ -16,7 +16,7 @@ torch>=2.5.0,<3.0.0  # Epic 54: aligned
 bitsandbytes>=0.43.0  # For quantization
 
 # OpenAI
-openai>=2.21.0,<3.0.0  # Feb 2026 upgrade — aligned with all LLM services
+openai>=2.28.0,<3.0.0  # Phase 3: upgraded from 2.21.x → 2.28.0 (Mar 2026 latest)
 
 # Evaluation
 nltk>=3.8.0

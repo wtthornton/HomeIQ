@@ -4,7 +4,7 @@ name: homeiq-data-collectors
 # Deploy cadence: Medium — per-API contract change
 #
 # Services: weather-api, smart-meter, sports-api, air-quality, carbon-intensity,
-#           electricity-pricing, calendar, log-aggregator
+#           electricity-pricing, calendar, log-aggregator, zeek, zeek-network-service
 # Depends on: Group 1 (influxdb write, data-api metadata)
 # Depended on by: Groups 3, 4 (indirect — via InfluxDB data)
 
@@ -381,11 +381,102 @@ services:
       retries: 3
       start_period: 30s
 
+  # Zeek network monitor — packet capture (Story 72.1, 72.2)
+  zeek:
+    image: homeiq/zeek:latest
+    build:
+      context: ../..
+      dockerfile: domains/data-collectors/zeek-network-service/Dockerfile.zeek
+    container_name: homeiq-zeek
+    network_mode: host  # Required for physical NIC access
+    cap_add:
+      - NET_RAW           # Required for packet capture
+      - NET_ADMIN         # Required for interface configuration
+    volumes:
+      - zeek-logs:/zeek/logs
+    environment:
+      - ZEEK_INTERFACE=${ZEEK_INTERFACE:-eth0}
+      - ZEEK_BPF_FILTER=not net 172.18.0.0/16  # Exclude homeiq-network bridge
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4096M
+        reservations:
+          cpus: "1.0"
+          memory: 2048M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=zeek,group=data-collectors,environment=production"
+
+  # Zeek network service — log parser and data router (Story 72.2, 72.3)
+  zeek-network-service:
+    build:
+      context: ../..
+      dockerfile: domains/data-collectors/zeek-network-service/Dockerfile
+    container_name: homeiq-zeek-network-service
+    restart: unless-stopped
+    ports:
+      - "8048:8048"
+    volumes:
+      - zeek-logs:/zeek/logs:ro  # Read-only access to Zeek logs
+      - zeek-state:/app/state    # Persistent seek offset state
+    env_file:
+      - ../../.env
+    environment:
+      - SERVICE_NAME=zeek-network-service
+      - SERVICE_PORT=8048
+      - INFLUXDB_URL=${INFLUXDB_URL:-http://influxdb:8086}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
+      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_SCHEMA=devices
+      - DATA_API_URL=${DATA_API_URL:-http://data-api:8006}
+      - DATA_API_KEY=${DATA_API_KEY}
+      - ZEEK_LOG_DIR=/zeek/logs
+      - POLL_INTERVAL_SECONDS=30
+      - DEVICE_METRICS_INTERVAL_SECONDS=60
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      zeek:
+        condition: service_started
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 384M
+        reservations:
+          cpus: "0.25"
+          memory: 192M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=zeek-network-service,group=data-collectors,environment=production"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8048/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
 # Shared volumes — homeiq_logs owned by core-platform
 volumes:
   homeiq_logs:
     external: true
     name: ${HOMEIQ_LOGS_VOLUME:-homeiq-core-platform_homeiq_logs}
+  zeek-logs:
+    driver: local
+  zeek-state:
+    driver: local
 
 networks:
   homeiq-network:

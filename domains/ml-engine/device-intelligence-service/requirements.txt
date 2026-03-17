@@ -44,11 +44,12 @@ flake8>=6.1.0,<7.0.0  # Unpinned for patch updates
 mypy>=1.7.1,<2.0.0  # Unpinned for patch updates
 types-psutil>=6.1.0.20241022  # Unpinned for patch updates (types packages use date versions)
 
-# Machine Learning and Analytics - March 2026 Upgrade (Epic backend-completion, Story 2-4)
-scikit-learn>=1.5.0,<2.0.0  # Epic 54: aligned
-pandas>=2.2.0,<3.1.0  # Epic 54: aligned
-numpy>=1.26.0,<3.0.0  # Epic 54: aligned
-joblib>=1.3.0,<2.0.0  # Epic 54: aligned
+# Machine Learning and Analytics - 2026 Release (Phase 3: ML/AI Library Upgrades, Epic 71)
+scikit-learn>=1.8.0,<2.0.0  # Phase 3: upgraded from 1.5.x → 1.8.0 (Mar 2026). IMPORTANT: .pkl models must be regenerated
+pandas>=3.0.1,<3.1.0  # Phase 3: upgraded from 2.2.x → 3.0.1 (Feb 2026). PyArrow string dtype default
+numpy>=2.4.3,<3.0.0  # Phase 3: upgraded from 1.26.x → 2.4.3 (Mar 2026). NEP 50 dtype promotion
+joblib>=1.5.3,<2.0.0  # Phase 3: upgraded from 1.3.x → 1.5.3 (Mar 2026)
+pyarrow>=18.0.0  # Phase 3: required by Pandas 3.0 for default string dtype
 lightgbm>=4.0.0,<5.0.0  # LightGBM for faster training (2-5x speedup, 2025 improvement)
 tabpfn>=2.2.0,<7.0.0  # TabPFN for instant predictions (5-10x faster, 2025 improvement)
 river>=0.21.0,<1.0.0  # River for incremental learning (10-50x faster updates, 2025 improvement)
