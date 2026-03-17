@@ -1,6 +1,6 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-17 (Sprint 37; Epic 81 aiohttp CVE verification — 44/44 containers on 3.13.3)
+**Created:** 2026-02-27 | **Updated:** 2026-03-17 (Sprint 37; Epic 81 Docker deployment fixes — 58/58 containers healthy)
 **Total:** 80 Completed Epics, 509 Stories complete | 2 Planned (P3 backlog)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
@@ -221,7 +221,7 @@ Sprint 35 (COMPLETE — Mar 16, 2026) — Security Hardening + Test Coverage
 | # | Epic | Source Doc | Stories | Effort | Notes |
 |---|------|-----------|---------|--------|-------|
 | 80 | **Data-API Test Coverage & Security Hardening** | [epic-80-data-api-test-coverage.md](epic-80-data-api-test-coverage.md) | 12 | 5-7 days | **ALL PHASES COMPLETE (12/12)** — 345 tests total (158 Phase 1 + 134 Phases 2-4 + 53 Story 80.10) |
-| 81 | **Docker Rebuild & Deploy — aiohttp CVE** | [epic-81-docker-rebuild-aiohttp-cve.md](epic-81-docker-rebuild-aiohttp-cve.md) | 5 | 1 session | **COMPLETE** — 44/44 containers verified on aiohttp 3.13.3, 8 CVEs remediated |
+| 81 | **Docker Rebuild & Deploy — aiohttp CVE** | [epic-81-docker-rebuild-aiohttp-cve.md](epic-81-docker-rebuild-aiohttp-cve.md) | 5 | 1 session | **COMPLETE** — 58/58 containers healthy, aiohttp 3.13.3 verified, postgres-exporter PG17 fix, Zeek 8.1.1 compat |
 
 ### P3 — Backlog
 
@@ -571,7 +571,7 @@ These items were previously listed as open but are now confirmed done:
 | 78 | Cross-Service Integration Tests | [epic-78-cross-service-integration-tests.md](epic-78-cross-service-integration-tests.md) | P1 High | 6 | 1 session | **Complete** (6/6: Tier 1 data flow, Zeek pipeline, agent chains, Memory Brain, cross-group auth, CI — 24 new tests, 39 total) |
 | 79 | Production Alerting & SLA Monitoring | [epic-79-production-alerting-sla.md](epic-79-production-alerting-sla.md) | P1 High | 6 | 1 session | **Complete** (6/6: SLA rules, SLA alerts, AlertManager v0.28.1, Grafana dashboard, Zeek alerts, admin webhook) |
 | 80 | Data-API Test Coverage & Security Hardening | [epic-80-data-api-test-coverage.md](epic-80-data-api-test-coverage.md) | P1 High | 12 | 5-7 days | **Complete** (12/12: 345 tests — auth, database, endpoints, security) |
-| 81 | Docker Rebuild & Deploy — aiohttp CVE | [epic-81-docker-rebuild-aiohttp-cve.md](epic-81-docker-rebuild-aiohttp-cve.md) | P1 High | 5 | 1 session | **Complete** (5/5: 44/44 containers verified aiohttp 3.13.3, 8 CVEs remediated) |
+| 81 | Docker Rebuild & Deploy — aiohttp CVE | [epic-81-docker-rebuild-aiohttp-cve.md](epic-81-docker-rebuild-aiohttp-cve.md) | P1 High | 5 | 1 session | **Complete** (5/5: 58/58 containers healthy, aiohttp 3.13.3 verified, postgres-exporter PG17, Zeek 8.1.1 compat) |
 
 ## Story Count by Priority
 
@@ -607,7 +607,7 @@ These items were previously listed as open but are now confirmed done:
 | Mar 16 | Sprint 32 complete — **Epic 74 (5/5: Zeek MQTT & Protocol Intelligence)** — MQTT parsing (connect/publish/subscribe → InfluxDB), TLS certificate tracking (x509+ssl → PostgreSQL), DNS behavior profiles (6 categories, 7-day rolling counts), protocol intelligence REST API (5 new endpoints), security alerts (rogue MQTT clients, expired certs, weak TLS), 2 Alembic migrations, 39 new tests |
 | Mar 16 | Sprint 34 complete — **P1 Blockers** (Playwright 1.58.2 alignment, tests/shared import paths: 10 files fixed) + **Epic 78 (6/6: Cross-Service Integration Tests)** — 24 new tests (39 total): Tier 1 data flow, Zeek pipeline, agent chains, Memory Brain, cross-group auth, 4 new CI jobs + **Epic 79 (6/6: Production Alerting & SLA Monitoring)** — SLA recording rules (3 tiers), 8 SLA alerts, AlertManager v0.28.1 container, Grafana SLA dashboard, 8 Zeek security alerts, admin-api webhook (AlertStore with TTL) |
 | Mar 16 | Sprint 35 complete — **aiohttp CVE fix** (8 CVEs, 40 files pinned >=3.13.3) + **npm CVE fix** (basic-ftp CVSS 9.1) + **Epic 80 Phase 1** (158 new security tests: auth, database, api_key_service, _startup) + conftest.py fixes across 3 Tier 1 services |
-| Mar 17 | Sprint 37 — **Epic 81 (5/5: Docker aiohttp CVE Verification)** — Pre-deployment check (47/48 healthy), verified all 44 Python containers running aiohttp 3.13.3, 8 CVEs confirmed remediated across full production stack |
+| Mar 17 | Sprint 37 — **Epic 81 (5/5: Docker Deployment & CVE Verification)** — 58/58 containers healthy. Fixes: homeiq-observability aiohttp dep, postgres-exporter v0.17.0 (PG17), Zeek 8.1.1 compat (Dockerfile, packages, configs, CRLF). All 44 Python containers verified on aiohttp 3.13.3 |
 
 > **Detailed sprint results:** [SPRINT-HISTORY.md](SPRINT-HISTORY.md)
 

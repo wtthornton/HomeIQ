@@ -73,3 +73,14 @@ During deployment review, several additional issues were discovered and fixed:
 - **Symptom:** `exec /usr/local/bin/docker-entrypoint.sh: no such file or directory`
 - **Root cause:** Windows CRLF (`\r\n`) line endings in `docker-entrypoint.sh` → Linux can't parse `#!/bin/bash\r`
 - **Fix:** Converted to Unix LF line endings
+
+### 5. Zeek 8.1.1 config incompatibilities
+- **`hassh` package:** Uses `&default` + `&optional` together which became an error in Zeek 8.x → removed from install
+- **`protocols/mqtt`:** MQTT analyzer not included in base `zeek/zeek:8.1.1` image → commented out `@load`
+- **`Scan::addr_scan_threshold` / `Scan::port_scan_threshold`:** Module API changed in 8.x → removed redefs
+- **`Notice::policy`:** No longer `&redef` in 8.x → removed redef
+- **`Log::disable_rotation_ifaces`:** Removed in Zeek 8.x → removed redef
+
+### Final Result
+- **58/58 containers running and healthy** (all 9 domain groups)
+- 2 commits: `deb86dbb` (deployment fixes) + `caabd719` (Zeek 8.1.1 compat)
