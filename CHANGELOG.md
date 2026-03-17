@@ -4,6 +4,41 @@
 
 ### Added
 
+- **Sprint 34 — Epics 78-79 Cross-Service Integration Tests & Production Alerting** (0479e85) - Bill Thornton
+- **Sprint 33 — Epic 75 Zeek Anomaly Detection & Security Baseline (7/7 stories)** (39f3996) - Bill Thornton
+- **Sprint 28 — Epics 64 + 69 (Convention Compliance, Eval Feedback Loop)** (5ddaa11) - Bill Thornton
+- **Sprint 26-27 — Epics 66-70 (AI Classification, Validation Loop, Autonomous Agent, Self-Improving Agent)** (23f1587) - Bill Thornton
+- **Epic 65 — Bundle Optimization (6/6 stories)** (bae9cb3) - Bill Thornton
+- **Epic 63 — HA Setup Wizard & Entity Management UI (7/7 stories)** (7f22c9a) - Bill Thornton
+- **Epic 61 Story 61.6 — post-deployment validation complete (6/6)** (f9f443d) - Bill Thornton
+- **Epic 59 Stories 59.3-59.6 — E2E smoke, cross-app nav, perf baselines, visual regression** (b063d7a) - Bill Thornton
+- **Epic 59 Stories 59.1-59.2 — frontend integration tests** (15b587a) - Bill Thornton
+- **Epic 61 Phase 5 Deployment — version tracking + tier validation (5/6 stories)** (50cb721) - Bill Thornton
+- **Epic 61 Phase 5 Deployment — Day 1 pre-deployment validation GO (3/6 stories)** (0abbae9) - Bill Thornton
+- **Epic 58 Frontend Test Quality — a11y sweep, error boundaries, skeletons, testing standards (6/6 stories)** (8a69cb4) - Bill Thornton
+- **Epic 60 Chat Endpoint Complexity Refactor — extract tool execution + OpenAI loop (3/3 stories)** (0670481) - Bill Thornton
+- **Epic 57 Cleanup & Gaps + Phase 5 plan refresh + Epic 60 planned (Sprint 20)** (1a0c8dd) - Bill Thornton
+- **Epic 56 Observability & Monitoring Hardening — structured logging, Prometheus metrics, tracing, alerts, ops scripts, E2E smoke test (6/6 stories)** (60700ef) - Bill Thornton
+- **Epic 55 Production Hardening — rate limits, pool tuning, health hardening, security headers (6/6 stories)** (4f681ea) - Bill Thornton
+- **Epic 54 Consolidation Sprint — E2E fixes, PatternResult types, ML dep alignment (6/6 stories)** (64f5f85) - Bill Thornton
+- **feat(e2e): Epic 49 complete — E2E Playwright Coverage Expansion (13/13 stories)** (94c42d7) - Bill Thornton
+
+### Changed
+
+- **refactor(auto-bugfix): Epic 52 config-driven cleanup, keep only new framework** (020c660) - Bill Thornton
+
+### Fixed
+
+- **pin aiohttp>=3.13.3 across all 40 requirements files (8 CVEs)** (5b6572a) - Bill Thornton
+- **resolve critical basic-ftp path traversal CVE (GHSA-5rq4-664w-9x2c)** (8c09b52) - Bill Thornton
+- **Memory Brain — embedding dimension mismatch and domain field gaps** (e352a69) - Bill Thornton
+- **Docker build fixes — model-prep Alpine→Slim, TS unused vars, MCP config updates** (cd7fb93) - Bill Thornton
+- **Dashboard tab navigation test — use getByTestId for role=tab Overview button** (ff49943) - Bill Thornton
+- **fix(e2e): align tests with Epic 31 and health-dashboard** (e5f62d9) - Bill Thornton
+
+
+### Added
+
 - **Sprint 35 — Epic 80 Phase 1: Security-Critical Test Suites (158 tests)** (7acbd2f) — auth.py (55), database.py (27), api_key_service.py (60), _startup.py (16). Fixes broken conftest.py in 3 Tier 1 services.
 - **Sprint 34 — Epics 78-79: Cross-Service Integration Tests & Production Alerting** (0479e85) — 24 integration tests, AlertManager, Grafana SLA dashboard, Prometheus SLA/Zeek rules, admin-api webhook
 
