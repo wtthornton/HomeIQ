@@ -46,7 +46,7 @@
 | Library | Version Range | Notes |
 |---------|--------------|-------|
 | **httpx** | 0.27.0 – 0.28.1 | Async HTTP client (service-to-service) |
-| **aiohttp** | 3.10.0 – 3.11.11 | WebSocket client (HA connection) |
+| **aiohttp** | >=3.13.3 | Async HTTP client (HA connection, API key validation). Pinned >=3.13.3 for CVE-2025-69223..69230 |
 | **websockets** | 12.0 – 14.2 | WebSocket protocol support |
 
 ### AI/ML

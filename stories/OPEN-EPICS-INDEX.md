@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-16 (Sprint 34 complete; Epics 78-79 done — Integration Tests + Production Alerting)
-**Total:** 78 Completed Epics, 480+ Stories complete | 0 In Progress | 2 Planned Epics (P3 backlog, 0 stories started)
+**Created:** 2026-02-27 | **Updated:** 2026-03-16 (Sprint 35 complete; Epic 80 Phase 1 — security test suites + aiohttp CVE fix)
+**Total:** 78 Completed Epics, 492+ Stories complete | 1 In Progress (Epic 80) | 2 Planned (P3 backlog)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -186,13 +186,24 @@ Sprint 34 (COMPLETE — Mar 16, 2026) — P1 Blockers + Integration Tests + Prod
     └── 79.6 Admin API webhook (AlertStore with 15-min TTL, /api/alerts/webhook + /active + /active/count)
 ```
 
+Sprint 35 (COMPLETE — Mar 16, 2026) — Security Hardening + Test Coverage
+├── aiohttp CVE remediation [P0]                                  ← COMPLETE (40 files: >=3.9.0 → >=3.13.3, fixes 8 CVEs)
+├── npm CVE fix [P0]                                              ← COMPLETE (basic-ftp path traversal GHSA-5rq4-664w-9x2c)
+└── Epic 80 Phase 1: Security-Critical Test Suites [P1]           ← COMPLETE (3/12 stories, 158 new tests)
+    ├── 80.1 data-api auth.py (55 tests: token validation, sessions, timing-safe comparison)
+    ├── 80.2 data-api database.py (27 tests: init lifecycle, schema creation, migration, health)
+    └── 80.3 admin-api api_key_service.py (60 tests: key status, format validation, masking, write protection)
+    + websocket-ingestion _startup.py (16 tests: 3 startup phases, graceful failure)
+    + conftest.py fixes (admin-api, websocket-ingestion, data-api path_setup loader)
+```
+
 ---
 
 ## Open Work — Planned Epics (Not Yet Started)
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **80** (78 epics complete, 76-77 in P3 backlog). All P1/P2 complete.
+> Next available epic number: **81** (78 epics complete, Epic 80 in progress, 76-77 in P3 backlog). All P1/P2 complete.
 
 ### P1 — All Complete
 
@@ -203,6 +214,12 @@ Sprint 34 (COMPLETE — Mar 16, 2026) — P1 Blockers + Integration Tests + Prod
 
 > All former P2 epics (64, 69, 71, 74, 75) are now complete.
 > See the Execution History and detailed story sections below.
+
+### In Progress
+
+| # | Epic | Source Doc | Stories | Effort | Notes |
+|---|------|-----------|---------|--------|-------|
+| 80 | **Data-API Test Coverage & Security Hardening** | [epic-80-data-api-test-coverage.md](epic-80-data-api-test-coverage.md) | 12 | 5-7 days | **Phase 1 DONE (3/12)** — auth.py (55 tests), database.py (27 tests), api_key_service.py (60 tests), _startup.py (16 tests). Phases 2-4 pending: core endpoints, business logic, integration |
 
 ### P3 — Backlog
 
@@ -557,10 +574,10 @@ These items were previously listed as open but are now confirmed done:
 | Priority | Count | Description |
 |----------|-------|-------------|
 | P0 Critical | 49 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) + Embed Testing (2) + Frontend Test Infra (5) + HD Testing (8) + AI UI Testing (8) |
-| P1 High | 170 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4), Proactive Agent (8), Self-Improving Agent (8), Integration Tests (6), Alerting/SLA (6) |
+| P1 High | 182 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4), Proactive Agent (8), Self-Improving Agent (8), Integration Tests (6), Alerting/SLA (6), Data-API Test Coverage (12) |
 | P2 Medium | 79 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4), Convention Compliance (6), Agent Eval (7), ML/AI Library Upgrades (8), MQTT/Protocol Intelligence (5) |
 | P3 Low | 10 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
-| **Total** | **480** | 480 complete (76 epics). See **Open Work** section for planned epics. |
+| **Total** | **492** | 492 stories (78 epics complete, Epic 80 in progress). See **Open Work** section. |
 
 ## Key Dates
 
@@ -585,6 +602,7 @@ These items were previously listed as open but are now confirmed done:
 | Mar 16 | Sprint 31 complete — **Epic 73 (6/6: Zeek Device Fingerprinting)** — DHCP parsing + PostgreSQL fingerprints table, JA3/JA4 TLS fingerprinting, HASSH SSH fingerprinting, software.log parsing, MAC OUI vendor lookup (~200 vendors), fingerprint REST API (3 new endpoints), 32 new tests |
 | Mar 16 | Sprint 32 complete — **Epic 74 (5/5: Zeek MQTT & Protocol Intelligence)** — MQTT parsing (connect/publish/subscribe → InfluxDB), TLS certificate tracking (x509+ssl → PostgreSQL), DNS behavior profiles (6 categories, 7-day rolling counts), protocol intelligence REST API (5 new endpoints), security alerts (rogue MQTT clients, expired certs, weak TLS), 2 Alembic migrations, 39 new tests |
 | Mar 16 | Sprint 34 complete — **P1 Blockers** (Playwright 1.58.2 alignment, tests/shared import paths: 10 files fixed) + **Epic 78 (6/6: Cross-Service Integration Tests)** — 24 new tests (39 total): Tier 1 data flow, Zeek pipeline, agent chains, Memory Brain, cross-group auth, 4 new CI jobs + **Epic 79 (6/6: Production Alerting & SLA Monitoring)** — SLA recording rules (3 tiers), 8 SLA alerts, AlertManager v0.28.1 container, Grafana SLA dashboard, 8 Zeek security alerts, admin-api webhook (AlertStore with TTL) |
+| Mar 16 | Sprint 35 complete — **aiohttp CVE fix** (8 CVEs, 40 files pinned >=3.13.3) + **npm CVE fix** (basic-ftp CVSS 9.1) + **Epic 80 Phase 1** (158 new security tests: auth, database, api_key_service, _startup) + conftest.py fixes across 3 Tier 1 services |
 
 > **Detailed sprint results:** [SPRINT-HISTORY.md](SPRINT-HISTORY.md)
 

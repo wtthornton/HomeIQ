@@ -4,6 +4,16 @@
 
 ### Added
 
+- **Sprint 35 — Epic 80 Phase 1: Security-Critical Test Suites (158 tests)** (7acbd2f) — auth.py (55), database.py (27), api_key_service.py (60), _startup.py (16). Fixes broken conftest.py in 3 Tier 1 services.
+- **Sprint 34 — Epics 78-79: Cross-Service Integration Tests & Production Alerting** (0479e85) — 24 integration tests, AlertManager, Grafana SLA dashboard, Prometheus SLA/Zeek rules, admin-api webhook
+
+### Fixed
+
+- **aiohttp CVE remediation — pin >=3.13.3 across 40 requirements files** (5b6572a) — Fixes CVE-2025-69223..69230 (DoS, request smuggling, path traversal). 37 service requirements + 3 shared lib pyproject.toml
+- **npm basic-ftp path traversal CVE (GHSA-5rq4-664w-9x2c)** (8c09b52) — Upgrade 5.0.5→5.2.0 via puppeteer dep chain
+
+### Added
+
 - **Sprint 33 — Epic 75 Zeek Anomaly Detection & Security Baseline (7/7 stories)** (39f3996) - Bill Thornton
 - **Sprint 28 — Epics 64 + 69 (Convention Compliance, Eval Feedback Loop)** (5ddaa11) - Bill Thornton
 - **Sprint 26-27 — Epics 66-70 (AI Classification, Validation Loop, Autonomous Agent, Self-Improving Agent)** (23f1587) - Bill Thornton
