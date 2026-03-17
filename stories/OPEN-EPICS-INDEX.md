@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-16 (Sprint 35 complete; Epic 80 Phase 1 — security test suites + aiohttp CVE fix)
-**Total:** 78 Completed Epics, 492+ Stories complete | 1 In Progress (Epic 80) | 2 Planned (P3 backlog)
+**Created:** 2026-02-27 | **Updated:** 2026-03-17 (Sprint 36 complete; Epic 80 Phases 2-4 — 134 new data-api tests)
+**Total:** 78 Completed Epics, 500+ Stories complete | 1 In Progress (Epic 80) | 2 Planned (P3 backlog)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -219,7 +219,7 @@ Sprint 35 (COMPLETE — Mar 16, 2026) — Security Hardening + Test Coverage
 
 | # | Epic | Source Doc | Stories | Effort | Notes |
 |---|------|-----------|---------|--------|-------|
-| 80 | **Data-API Test Coverage & Security Hardening** | [epic-80-data-api-test-coverage.md](epic-80-data-api-test-coverage.md) | 12 | 5-7 days | **Phase 1 DONE (3/12)** — auth.py (55 tests), database.py (27 tests), api_key_service.py (60 tests), _startup.py (16 tests). Phases 2-4 pending: core endpoints, business logic, integration |
+| 80 | **Data-API Test Coverage & Security Hardening** | [epic-80-data-api-test-coverage.md](epic-80-data-api-test-coverage.md) | 12 | 5-7 days | **Phases 1-4 DONE (11/12)** — 292 tests total (158 Phase 1 + 134 Phases 2-4). Story 80.10 (remaining 8 endpoint modules) pending |
 
 ### P3 — Backlog
 
