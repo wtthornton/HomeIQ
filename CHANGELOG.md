@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Epic 82 — Zeek Container Docker Healthcheck (Stories 82.1-82.3)** — healthcheck.sh (process + log freshness), Dockerfile HEALTHCHECK instruction, compose healthcheck block + service_healthy dependency
 - **Sprint 34 — Epics 78-79 Cross-Service Integration Tests & Production Alerting** (0479e85) - Bill Thornton
 - **Sprint 33 — Epic 75 Zeek Anomaly Detection & Security Baseline (7/7 stories)** (39f3996) - Bill Thornton
 - **Sprint 28 — Epics 64 + 69 (Convention Compliance, Eval Feedback Loop)** (5ddaa11) - Bill Thornton

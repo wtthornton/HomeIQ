@@ -16,6 +16,13 @@ COPY domains/data-collectors/zeek-network-service/zeek-config/homeiq.zeek /usr/l
 COPY domains/data-collectors/zeek-network-service/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+# Healthcheck script — process alive + log freshness (Epic 82)
+COPY domains/data-collectors/zeek-network-service/healthcheck.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/healthcheck.sh
+
+HEALTHCHECK --interval=60s --timeout=10s --retries=3 --start-period=120s \
+    CMD /usr/local/bin/healthcheck.sh
+
 # Log output directory (zeek 8.1.1 runs as root; network capture requires CAP_NET_RAW)
 RUN mkdir -p /zeek/logs
 WORKDIR /zeek

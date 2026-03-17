@@ -406,6 +406,12 @@ services:
           cpus: "1.0"
           memory: 2048M
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
     logging:
       driver: "json-file"
       options:
@@ -444,7 +450,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
       zeek:
-        condition: service_started
+        condition: service_healthy
     networks:
       - homeiq-network
     deploy:
