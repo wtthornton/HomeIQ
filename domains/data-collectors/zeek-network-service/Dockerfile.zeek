@@ -2,11 +2,11 @@ FROM zeek/zeek:8.1.1
 
 # af_packet is now built into core (v8.1.0+) — no separate install needed
 # Install community packages for device fingerprinting and ML features
-# Device fingerprinting packages (KYD & zeek-flowmeter removed — repos unavailable)
+# Device fingerprinting packages
+# Removed: KYD, zeek-flowmeter (repos unavailable), hassh (incompatible with Zeek 8.1.1)
 RUN zkg autoconfig --force && \
     zkg install --force https://github.com/salesforce/ja3 && \
-    zkg install --force https://github.com/FoxIO-LLC/ja4 && \
-    zkg install --force https://github.com/salesforce/hassh
+    zkg install --force https://github.com/FoxIO-LLC/ja4
 
 # Copy custom Zeek configuration
 COPY domains/data-collectors/zeek-network-service/zeek-config/local.zeek /usr/local/zeek/share/zeek/site/local.zeek
