@@ -5,6 +5,10 @@ WORKDIR /app
 
 RUN pip install --upgrade pip
 
+# Install shared libraries
+COPY libs/ /tmp/libs/
+RUN pip install --no-cache-dir --user /tmp/libs/homeiq-observability/
+
 COPY domains/ml-engine/openai-service/requirements-prod.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -r requirements-prod.txt

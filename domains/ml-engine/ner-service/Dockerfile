@@ -5,6 +5,10 @@ WORKDIR /app
 
 RUN pip install --upgrade pip
 
+# Install shared libraries
+COPY libs/ /tmp/libs/
+RUN pip install --no-cache-dir --user /tmp/libs/homeiq-observability/
+
 # Install dependencies
 COPY domains/ml-engine/ner-service/requirements-prod.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
