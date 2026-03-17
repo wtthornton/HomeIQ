@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-17 (Sprint 36 complete; Epic 80 Phases 2-4 — 134 new data-api tests)
-**Total:** 78 Completed Epics, 500+ Stories complete | 1 In Progress (Epic 80) | 2 Planned (P3 backlog)
+**Created:** 2026-02-27 | **Updated:** 2026-03-17 (Sprint 36 complete; Epic 80 ALL PHASES DONE — 345 data-api tests)
+**Total:** 79 Completed Epics, 504 Stories complete | 2 Planned (P3 backlog)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -189,10 +189,11 @@ Sprint 34 (COMPLETE — Mar 16, 2026) — P1 Blockers + Integration Tests + Prod
 Sprint 35 (COMPLETE — Mar 16, 2026) — Security Hardening + Test Coverage
 ├── aiohttp CVE remediation [P0]                                  ← COMPLETE (40 files: >=3.9.0 → >=3.13.3, fixes 8 CVEs)
 ├── npm CVE fix [P0]                                              ← COMPLETE (basic-ftp path traversal GHSA-5rq4-664w-9x2c)
-└── Epic 80 Phase 1: Security-Critical Test Suites [P1]           ← COMPLETE (3/12 stories, 158 new tests)
-    ├── 80.1 data-api auth.py (55 tests: token validation, sessions, timing-safe comparison)
-    ├── 80.2 data-api database.py (27 tests: init lifecycle, schema creation, migration, health)
-    └── 80.3 admin-api api_key_service.py (60 tests: key status, format validation, masking, write protection)
+└── Epic 80: Data-API Test Coverage & Security Hardening [P1]     ← COMPLETE (12/12 stories, 345 new tests)
+    ├── Phase 1: 80.1 auth.py (55), 80.2 database.py (27), 80.3 api_key_service.py (60) — 158 tests
+    ├── Phase 2-4: 80.4 devices (29), 80.5 events (16), 80.6 health (16), 80.7 alerts (19) — 80 tests
+    │   80.8 entity_registry (13), 80.9 device_classifier (14), 80.11 cache/config (12), 80.12 integration (10) — 49 tests
+    └── Phase 5: 80.10 remaining endpoints: automation, jobs, config, eval, metrics, energy, sports, activity, analytics (53) — 53 tests
     + websocket-ingestion _startup.py (16 tests: 3 startup phases, graceful failure)
     + conftest.py fixes (admin-api, websocket-ingestion, data-api path_setup loader)
 ```
@@ -203,7 +204,7 @@ Sprint 35 (COMPLETE — Mar 16, 2026) — Security Hardening + Test Coverage
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **81** (78 epics complete, Epic 80 in progress, 76-77 in P3 backlog). All P1/P2 complete.
+> Next available epic number: **81** (79 epics complete, 76-77 in P3 backlog). All P1/P2 complete.
 
 ### P1 — All Complete
 
@@ -219,7 +220,7 @@ Sprint 35 (COMPLETE — Mar 16, 2026) — Security Hardening + Test Coverage
 
 | # | Epic | Source Doc | Stories | Effort | Notes |
 |---|------|-----------|---------|--------|-------|
-| 80 | **Data-API Test Coverage & Security Hardening** | [epic-80-data-api-test-coverage.md](epic-80-data-api-test-coverage.md) | 12 | 5-7 days | **Phases 1-4 DONE (11/12)** — 292 tests total (158 Phase 1 + 134 Phases 2-4). Story 80.10 (remaining 8 endpoint modules) pending |
+| 80 | **Data-API Test Coverage & Security Hardening** | [epic-80-data-api-test-coverage.md](epic-80-data-api-test-coverage.md) | 12 | 5-7 days | **ALL PHASES COMPLETE (12/12)** — 345 tests total (158 Phase 1 + 134 Phases 2-4 + 53 Story 80.10) |
 
 ### P3 — Backlog
 
@@ -577,7 +578,7 @@ These items were previously listed as open but are now confirmed done:
 | P1 High | 182 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4), Proactive Agent (8), Self-Improving Agent (8), Integration Tests (6), Alerting/SLA (6), Data-API Test Coverage (12) |
 | P2 Medium | 79 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4), Convention Compliance (6), Agent Eval (7), ML/AI Library Upgrades (8), MQTT/Protocol Intelligence (5) |
 | P3 Low | 10 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
-| **Total** | **492** | 492 stories (78 epics complete, Epic 80 in progress). See **Open Work** section. |
+| **Total** | **504** | 504 stories (79 epics complete). See **Open Work** section. |
 
 ## Key Dates
 
