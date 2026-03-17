@@ -59,17 +59,18 @@ _EVAL_AVAILABLE = False
 try:
     from pathlib import Path as _Path
 
-    _project_root = str(_Path(__file__).resolve().parents[2])
-    if _project_root not in sys.path:
-        sys.path.insert(0, _project_root)
+    _project_root = _Path(__file__).resolve().parents[2]
+    _patterns_src = str(_project_root / "libs" / "homeiq-patterns" / "src")
+    if _patterns_src not in sys.path:
+        sys.path.insert(0, _patterns_src)
 
-    from shared.patterns.evaluation import (
+    from homeiq_patterns.evaluation import (
         AgentResponse as EvalAgentResponse,
     )
-    from shared.patterns.evaluation import (
+    from homeiq_patterns.evaluation import (
         ConfigLoader as EvalConfigLoader,
     )
-    from shared.patterns.evaluation import (
+    from homeiq_patterns.evaluation import (
         EvalLevel,
         EvaluationRegistry,
         EvaluationReport,
@@ -78,10 +79,10 @@ try:
         OpenAIProvider,
         SessionTrace,
     )
-    from shared.patterns.evaluation import (
+    from homeiq_patterns.evaluation import (
         ToolCall as EvalToolCall,
     )
-    from shared.patterns.evaluation import (
+    from homeiq_patterns.evaluation import (
         UserMessage as EvalUserMessage,
     )
 

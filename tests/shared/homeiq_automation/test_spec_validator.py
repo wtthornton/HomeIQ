@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from shared.homeiq_automation.spec_validator import (
+from homeiq_ha.homeiq_automation.spec_validator import (
     SpecValidator,
     validate_semver,
 )

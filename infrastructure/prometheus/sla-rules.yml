@@ -1,0 +1,90 @@
+# SLA recording rules for HomeIQ
+# Epic 79, Story 79.1: SLA Definitions & Prometheus Recording Rules
+#
+# Service Tiers:
+#   Tier 1 (Critical): 99.9% availability, p95 < 500ms, error rate < 0.1%
+#   Tier 2 (Essential): 99.5% availability, p95 < 1s, error rate < 1%
+#   Tier 3+ (AI/ML/Features): 99.0% availability, p95 < 2s, error rate < 5%
+
+groups:
+  - name: sla_recording_rules
+    interval: 15s
+    rules:
+      # --- Availability (1-hour rolling window) ---
+      - record: service:availability:ratio_1h
+        expr: |
+          1 - (
+            sum by (service, group, tier) (rate(http_requests_total{status=~"5.."}[1h]))
+            /
+            sum by (service, group, tier) (rate(http_requests_total[1h]))
+          )
+
+      # --- Latency P95 (5-minute rolling window) ---
+      - record: service:latency:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (service, group, tier, le) (rate(http_request_duration_seconds_bucket[5m]))
+          )
+
+      # --- Latency P99 (5-minute rolling window) ---
+      - record: service:latency:p99_5m
+        expr: |
+          histogram_quantile(0.99,
+            sum by (service, group, tier, le) (rate(http_request_duration_seconds_bucket[5m]))
+          )
+
+      # --- Error Rate (5-minute rolling window) ---
+      - record: service:error_rate:ratio_5m
+        expr: |
+          sum by (service, group, tier) (rate(http_requests_total{status=~"5.."}[5m]))
+          /
+          sum by (service, group, tier) (rate(http_requests_total[5m]))
+
+      # --- Error Budget Remaining (30-day window) ---
+      # Tier 1: SLA target 99.9% => budget = 0.001
+      - record: service:error_budget:remaining_30d
+        expr: |
+          1 - (
+            (1 - service:availability:ratio_1h{tier="1"})
+            /
+            (1 - 0.999)
+          )
+        labels:
+          sla_target: "99.9"
+
+      # Tier 2: SLA target 99.5% => budget = 0.005
+      - record: service:error_budget:remaining_30d
+        expr: |
+          1 - (
+            (1 - service:availability:ratio_1h{tier="2"})
+            /
+            (1 - 0.995)
+          )
+        labels:
+          sla_target: "99.5"
+
+      # Tier 3+: SLA target 99.0% => budget = 0.01
+      - record: service:error_budget:remaining_30d
+        expr: |
+          1 - (
+            (1 - service:availability:ratio_1h{tier=~"[3-9]"})
+            /
+            (1 - 0.99)
+          )
+        labels:
+          sla_target: "99.0"
+
+      # --- Request Rate (per service, 5m window) ---
+      - record: service:requests:rate_5m
+        expr: |
+          sum by (service, group, tier) (rate(http_requests_total[5m]))
+
+      # --- Availability by Tier (aggregated) ---
+      - record: tier:availability:ratio_1h
+        expr: |
+          avg by (tier) (service:availability:ratio_1h)
+
+      # --- Latency by Tier (aggregated P95) ---
+      - record: tier:latency:p95_5m
+        expr: |
+          max by (tier) (service:latency:p95_5m)

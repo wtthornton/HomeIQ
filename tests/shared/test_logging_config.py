@@ -13,7 +13,7 @@ from unittest.mock import patch
 import pytest
 
 # Import module under test
-from logging_config import (
+from homeiq_observability.logging_config import (
     PerformanceLogger,
     StructuredFormatter,
     correlation_id,

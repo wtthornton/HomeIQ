@@ -7,9 +7,15 @@ from pathlib import Path
 
 import pytest
 
-# Add shared module to path
-shared_path = Path(__file__).parent.parent.parent / "shared"
-sys.path.insert(0, str(shared_path))
+# Add shared library source directories to path
+_project_root = Path(__file__).parent.parent.parent
+for _lib_src in [
+    _project_root / "libs" / "homeiq-ha" / "src",
+    _project_root / "libs" / "homeiq-observability" / "src",
+    _project_root / "libs" / "homeiq-data" / "src",
+]:
+    if str(_lib_src) not in sys.path:
+        sys.path.insert(0, str(_lib_src))
 
 # Override async fixtures from parent conftest since these tests are synchronous
 @pytest.fixture(autouse=True)

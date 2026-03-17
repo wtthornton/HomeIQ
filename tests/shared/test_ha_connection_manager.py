@@ -13,7 +13,7 @@ import pytest
 import websockets
 
 # Import module under test
-from ha_connection_manager import (
+from homeiq_ha.ha_connection_manager import (
     ConnectionResult,
     ConnectionType,
     HAConnectionConfig,

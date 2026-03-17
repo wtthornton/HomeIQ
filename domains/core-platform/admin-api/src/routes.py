@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import Depends
 
+from .alertmanager_webhook import router as alertmanager_webhook_router
 from .config_endpoints import ConfigEndpoints
 from .docker_endpoints import DockerEndpoints
 from .entity_management_endpoints import router as entity_mgmt_router
@@ -82,6 +83,10 @@ def register_routers(
     )
     app.include_router(
         entity_mgmt_router, tags=["Entity Management"], dependencies=secure,
+    )
+    # AlertManager webhook — no auth required (called by AlertManager container)
+    app.include_router(
+        alertmanager_webhook_router, tags=["AlertManager Webhooks"],
     )
 
 

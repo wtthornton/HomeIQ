@@ -10,9 +10,18 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-# Add shared directory to path
-shared_path = Path(__file__).parent.parent.parent / "shared"
-sys.path.insert(0, str(shared_path))
+# Add shared library source directories to path
+_project_root = Path(__file__).parent.parent.parent
+for _lib_src in [
+    _project_root / "libs" / "homeiq-observability" / "src",
+    _project_root / "libs" / "homeiq-ha" / "src",
+    _project_root / "libs" / "homeiq-data" / "src",
+    _project_root / "libs" / "homeiq-resilience" / "src",
+    _project_root / "libs" / "homeiq-patterns" / "src",
+    _project_root / "libs" / "homeiq-memory" / "src",
+]:
+    if str(_lib_src) not in sys.path:
+        sys.path.insert(0, str(_lib_src))
 
 
 # ============================================================================
@@ -67,7 +76,7 @@ def mock_websockets_connect(mock_websocket_connection):
 @pytest.fixture
 def ha_connection_config():
     """Sample HA connection configuration"""
-    from ha_connection_manager import ConnectionType, HAConnectionConfig
+    from homeiq_ha.ha_connection_manager import ConnectionType, HAConnectionConfig
 
     return HAConnectionConfig(
         name="Test HA",
@@ -88,7 +97,7 @@ def ha_connection_config():
 @pytest.fixture
 def metrics_collector():
     """Create a fresh metrics collector for testing"""
-    from metrics_collector import MetricsCollector
+    from homeiq_observability.metrics_collector import MetricsCollector
 
     collector = MetricsCollector(service_name="test-service")
     yield collector
@@ -111,7 +120,7 @@ def mock_influxdb_client():
 @pytest.fixture
 async def influxdb_query_client():
     """Create InfluxDB query client for testing"""
-    from influxdb_query_client import InfluxDBQueryClient
+    from homeiq_data.influxdb_query_client import InfluxDBQueryClient
 
     client = InfluxDBQueryClient()
     yield client
@@ -148,7 +157,7 @@ def mock_influxdb_query_api():
 @pytest.fixture
 def test_logger():
     """Create a test logger"""
-    from logging_config import setup_logging
+    from homeiq_observability.logging_config import setup_logging
 
     logger = setup_logging("test-service", log_level="DEBUG", log_format="text")
     yield logger
@@ -160,7 +169,7 @@ def test_logger():
 @pytest.fixture
 def correlation_id_context():
     """Set up correlation ID context for testing"""
-    from logging_config import correlation_id, set_correlation_id
+    from homeiq_observability.logging_config import correlation_id, set_correlation_id
 
     test_corr_id = "test_corr_12345678"
     set_correlation_id(test_corr_id)
@@ -257,7 +266,7 @@ def reset_singletons():
 
     # Clear metrics collectors
     try:
-        from metrics_collector import _metrics_collectors
+        from homeiq_observability.metrics_collector import _metrics_collectors
         _metrics_collectors.clear()
     except:
         pass

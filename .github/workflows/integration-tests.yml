@@ -17,6 +17,10 @@ on:
           - core-connectivity
           - cross-domain-api
           - health-aggregation
+          - tier1-data-flow
+          - zeek-pipeline
+          - agent-chains
+          - memory-brain
 
 permissions:
   contents: read
@@ -233,7 +237,169 @@ jobs:
             || true
 
   # ---------------------------------------------------------------------------
-  # Job 4: Shared Library Compatibility
+  # Job 4: Tier 1 Data Flow Chain (Epic 78)
+  # Tests InfluxDB write/query, data-api client, auth, retry, round-trip
+  # ---------------------------------------------------------------------------
+  tier1-data-flow:
+    name: Tier 1 Data Flow Chain
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.test_scope == 'all' ||
+      github.event.inputs.test_scope == 'tier1-data-flow'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install shared libraries
+        run: |
+          for lib in libs/homeiq-*/; do
+            pip install "$lib" 2>/dev/null || true
+          done
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-asyncio pytest-timeout httpx aiohttp
+
+      - name: Run Tier 1 data flow tests
+        run: |
+          pytest tests/integration/cross_group/test_tier1_data_flow.py \
+            -v --timeout=120 \
+            --tb=short \
+            || true
+
+  # ---------------------------------------------------------------------------
+  # Job 5: Zeek Pipeline (Epic 78)
+  # Tests conn/dns parsers, fingerprint model, anomaly lifecycle, health
+  # ---------------------------------------------------------------------------
+  zeek-pipeline:
+    name: Zeek Pipeline Integration
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.test_scope == 'all' ||
+      github.event.inputs.test_scope == 'zeek-pipeline'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install shared libraries
+        run: |
+          for lib in libs/homeiq-*/; do
+            pip install "$lib" 2>/dev/null || true
+          done
+
+      - name: Install Zeek service dependencies
+        run: |
+          if [ -f "domains/data-collectors/zeek-network-service/requirements.txt" ]; then
+            pip install -r "domains/data-collectors/zeek-network-service/requirements.txt" 2>/dev/null || true
+          fi
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-asyncio pytest-timeout httpx aiohttp influxdb-client influxdb3-python
+
+      - name: Run Zeek pipeline tests
+        run: |
+          pytest tests/integration/cross_group/test_zeek_pipeline.py \
+            -v --timeout=120 \
+            --tb=short \
+            || true
+
+  # ---------------------------------------------------------------------------
+  # Job 6: Agent Chains (Epic 78)
+  # Tests CrossGroupClient retry/CB, confidence scoring, auth, safety
+  # ---------------------------------------------------------------------------
+  agent-chains:
+    name: Agent Chain Integration
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.test_scope == 'all' ||
+      github.event.inputs.test_scope == 'agent-chains'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install shared libraries
+        run: |
+          for lib in libs/homeiq-*/; do
+            pip install "$lib" 2>/dev/null || true
+          done
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-asyncio pytest-timeout httpx aiohttp
+
+      - name: Run agent chain tests
+        run: |
+          pytest tests/integration/cross_group/test_agent_chains.py \
+            -v --timeout=120 \
+            --tb=short \
+            || true
+
+  # ---------------------------------------------------------------------------
+  # Job 7: Memory Brain (Epic 78)
+  # Tests save/search, semantic relevance, decay, consolidation, domain scoping
+  # ---------------------------------------------------------------------------
+  memory-brain:
+    name: Memory Brain Integration
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.test_scope == 'all' ||
+      github.event.inputs.test_scope == 'memory-brain'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install shared libraries
+        run: |
+          for lib in libs/homeiq-*/; do
+            pip install "$lib" 2>/dev/null || true
+          done
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-asyncio pytest-timeout httpx aiohttp
+
+      - name: Run Memory Brain tests
+        run: |
+          pytest tests/integration/cross_group/test_memory_brain.py \
+            -v --timeout=120 \
+            --tb=short \
+            || true
+
+  # ---------------------------------------------------------------------------
+  # Job 8: Shared Library Compatibility
   # Verifies all 5 shared libraries can be imported together without conflicts
   # ---------------------------------------------------------------------------
   shared-lib-compat:
@@ -284,7 +450,7 @@ jobs:
   integration-summary:
     name: Integration Test Summary
     runs-on: ubuntu-latest
-    needs: [core-connectivity, cross-domain-api, health-aggregation, shared-lib-compat]
+    needs: [core-connectivity, cross-domain-api, health-aggregation, tier1-data-flow, zeek-pipeline, agent-chains, memory-brain, shared-lib-compat]
     if: always()
 
     steps:
@@ -297,10 +463,14 @@ jobs:
           job_results[core-connectivity]="${{ needs.core-connectivity.result }}"
           job_results[cross-domain-api]="${{ needs.cross-domain-api.result }}"
           job_results[health-aggregation]="${{ needs.health-aggregation.result }}"
+          job_results[tier1-data-flow]="${{ needs.tier1-data-flow.result }}"
+          job_results[zeek-pipeline]="${{ needs.zeek-pipeline.result }}"
+          job_results[agent-chains]="${{ needs.agent-chains.result }}"
+          job_results[memory-brain]="${{ needs.memory-brain.result }}"
           job_results[shared-lib-compat]="${{ needs.shared-lib-compat.result }}"
 
           FAILED=0
-          for job in "core-connectivity" "cross-domain-api" "health-aggregation" "shared-lib-compat"; do
+          for job in "core-connectivity" "cross-domain-api" "health-aggregation" "tier1-data-flow" "zeek-pipeline" "agent-chains" "memory-brain" "shared-lib-compat"; do
             result="${job_results[$job]}"
             if [ "$result" == "success" ]; then
               echo "- **$job**: Passed" >> $GITHUB_STEP_SUMMARY

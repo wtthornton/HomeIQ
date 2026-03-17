@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 # Import module under test
-from correlation_middleware import (
+from homeiq_observability.correlation_middleware import (
     AioHTTPCorrelationMiddleware,
     FastAPICorrelationMiddleware,
     correlation_context,
@@ -23,7 +23,7 @@ from correlation_middleware import (
     update_correlation_context,
     with_correlation_id,
 )
-from logging_config import correlation_id, get_correlation_id, set_correlation_id
+from homeiq_observability.logging_config import correlation_id, get_correlation_id, set_correlation_id
 
 # ============================================================================
 # Correlation Context Tests

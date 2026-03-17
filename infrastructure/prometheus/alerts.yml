@@ -318,3 +318,119 @@ groups:
         annotations:
           summary: "Disk usage above 85%"
           description: "Less than 15% disk space remaining on {{ $labels.instance }}."
+
+  # --- SLA Alerts (Epic 79, Story 79.2) ---
+  - name: sla_alerts
+    rules:
+      # Tier 1: 99.9% availability SLA
+      - alert: Tier1SLABreach
+        expr: service:availability:ratio_1h{tier="1"} < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          page: "true"
+        annotations:
+          summary: "Tier 1 SLA breach: {{ $labels.service }} availability {{ $value | humanizePercentage }}"
+          description: "Critical service {{ $labels.service }} has dropped below 99.9% availability SLA target. Current: {{ $value | humanizePercentage }}."
+
+      - alert: Tier1LatencySLABreach
+        expr: service:latency:p95_5m{tier="1"} > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          page: "true"
+        annotations:
+          summary: "Tier 1 latency SLA breach: {{ $labels.service }} p95 {{ $value | humanizeDuration }}"
+          description: "Critical service {{ $labels.service }} p95 latency exceeds 500ms SLA target. Current: {{ $value | humanizeDuration }}."
+
+      - alert: Tier1ErrorRateSLABreach
+        expr: service:error_rate:ratio_5m{tier="1"} > 0.001
+        for: 5m
+        labels:
+          severity: critical
+          page: "true"
+        annotations:
+          summary: "Tier 1 error rate SLA breach: {{ $labels.service }} at {{ $value | humanizePercentage }}"
+          description: "Critical service {{ $labels.service }} error rate exceeds 0.1% SLA target. Current: {{ $value | humanizePercentage }}."
+
+      # Tier 2: 99.5% availability SLA
+      - alert: Tier2SLABreach
+        expr: service:availability:ratio_1h{tier="2"} < 0.995
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tier 2 SLA breach: {{ $labels.service }} availability {{ $value | humanizePercentage }}"
+          description: "Essential service {{ $labels.service }} has dropped below 99.5% availability SLA target. Current: {{ $value | humanizePercentage }}."
+
+      - alert: Tier2LatencySLABreach
+        expr: service:latency:p95_5m{tier="2"} > 1.0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tier 2 latency SLA breach: {{ $labels.service }} p95 {{ $value | humanizeDuration }}"
+          description: "Essential service {{ $labels.service }} p95 latency exceeds 1s SLA target. Current: {{ $value | humanizeDuration }}."
+
+      # Tier 3+: 99.0% availability SLA
+      - alert: Tier3SLABreach
+        expr: service:availability:ratio_1h{tier=~"[3-9]"} < 0.99
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tier 3+ SLA breach: {{ $labels.service }} availability {{ $value | humanizePercentage }}"
+          description: "Service {{ $labels.service }} has dropped below 99.0% availability SLA target. Current: {{ $value | humanizePercentage }}."
+
+      # Error Budget Burn Rate
+      - alert: ErrorBudgetBurnRateCritical
+        expr: service:error_budget:remaining_30d < 0.10
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Error budget < 10% for {{ $labels.service }}"
+          description: "Service {{ $labels.service }} has consumed over 90% of its 30-day error budget. Remaining: {{ $value | humanizePercentage }}."
+
+      - alert: ErrorBudgetBurnRateWarning
+        expr: service:error_budget:remaining_30d < 0.25
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Error budget < 25% for {{ $labels.service }}"
+          description: "Service {{ $labels.service }} has consumed over 75% of its 30-day error budget. Remaining: {{ $value | humanizePercentage }}."
+
+  # --- Cross-Cutting Alerts (Epic 79, Story 79.2) ---
+  - name: cross_cutting_alerts
+    rules:
+      # Zeek security alert escalation
+      - alert: ZeekAlertEscalation
+        expr: count(ALERTS{alertname=~"Zeek.*", alertstate="firing"}) > 5
+        for: 5m
+        labels:
+          severity: critical
+          domain: security
+        annotations:
+          summary: "Multiple Zeek security alerts firing ({{ $value }} active)"
+          description: "More than 5 Zeek security alerts are active simultaneously. This may indicate a coordinated attack or widespread network issue."
+
+      # Memory Brain health — embedding service down
+      - alert: MemoryBrainEmbeddingDown
+        expr: up{service="rag-service"} == 0
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory Brain embedding service (rag-service) is down"
+          description: "The RAG service used for Memory Brain embeddings has been unreachable for over 3 minutes. Memory search and consolidation are impaired."
+
+      # Cross-group circuit breaker open
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_state{state="open"} == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Circuit breaker open: {{ $labels.service }} -> {{ $labels.target }}"
+          description: "A cross-group circuit breaker has been open for over 5 minutes between {{ $labels.service }} and {{ $labels.target }}. Inter-service communication is degraded."

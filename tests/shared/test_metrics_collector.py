@@ -15,7 +15,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 # Import module under test
-from metrics_collector import MetricsCollector, _metrics_collectors, get_metrics_collector
+from homeiq_observability.metrics_collector import MetricsCollector, _metrics_collectors, get_metrics_collector
 
 # ============================================================================
 # Metrics Collector Initialization Tests

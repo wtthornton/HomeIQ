@@ -1,0 +1,113 @@
+# Zeek security alert rules for HomeIQ
+# Epic 79, Story 79.5: Zeek Security Alert Routing
+#
+# These alerts fire on custom metrics exposed by zeek-network-service (:8048/metrics).
+# Metric prefix: zeek_
+
+groups:
+  # --- Zeek Recording Rules ---
+  - name: zeek_recording_rules
+    interval: 15s
+    rules:
+      # Total anomalies detected (5-minute rate)
+      - record: zeek:anomalies:rate_5m
+        expr: |
+          sum by (anomaly_type) (rate(zeek_anomaly_detections_total[5m]))
+
+      # Active network connections by protocol
+      - record: zeek:connections:active
+        expr: |
+          sum by (protocol) (zeek_active_connections)
+
+      # TLS handshake failures (5-minute rate)
+      - record: zeek:tls_failures:rate_5m
+        expr: |
+          sum(rate(zeek_tls_handshake_failures_total[5m]))
+
+      # DNS query rate
+      - record: zeek:dns:query_rate_5m
+        expr: |
+          sum(rate(zeek_dns_queries_total[5m]))
+
+  # --- Zeek Security Alerts ---
+  - name: zeek_security_alerts
+    rules:
+      - alert: ZeekNewDeviceDetected
+        expr: increase(zeek_new_mac_addresses_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          domain: security
+        annotations:
+          summary: "New device detected on network"
+          description: "Zeek detected {{ $value }} new MAC address(es) in the last 5 minutes. Investigate for unauthorized devices."
+
+      - alert: ZeekBeaconingDetected
+        expr: zeek_beaconing_detections > 0
+        for: 5m
+        labels:
+          severity: critical
+          domain: security
+        annotations:
+          summary: "Beaconing behavior detected"
+          description: "Zeek detected {{ $value }} active beaconing pattern(s). This may indicate C2 communication or malware."
+
+      - alert: ZeekDGADetected
+        expr: zeek_dga_detections_total > 0
+        for: 2m
+        labels:
+          severity: critical
+          domain: security
+        annotations:
+          summary: "Domain Generation Algorithm (DGA) pattern detected"
+          description: "Zeek detected potential DGA activity with {{ $value }} suspicious domain queries. This is a strong indicator of malware."
+
+      - alert: ZeekWeakTLS
+        expr: zeek_weak_tls_negotiations_total > 0
+        for: 5m
+        labels:
+          severity: warning
+          domain: security
+        annotations:
+          summary: "Weak TLS negotiation detected"
+          description: "{{ $value }} connection(s) negotiated TLS < 1.2. This is a security risk and should be remediated."
+
+      - alert: ZeekExpiredCert
+        expr: zeek_expired_certificates > 0
+        for: 5m
+        labels:
+          severity: warning
+          domain: security
+        annotations:
+          summary: "Expired TLS certificate detected"
+          description: "{{ $value }} expired TLS certificate(s) detected by Zeek. Renew certificates immediately."
+
+      - alert: ZeekRogueMQTTClient
+        expr: zeek_unknown_mqtt_clients > 0
+        for: 2m
+        labels:
+          severity: critical
+          domain: security
+        annotations:
+          summary: "Unknown MQTT client detected"
+          description: "{{ $value }} unknown MQTT client(s) connected to the broker. This may indicate unauthorized IoT device access."
+
+      - alert: ZeekHighAnomalyRate
+        expr: sum(zeek:anomalies:rate_5m) > 10
+        for: 5m
+        labels:
+          severity: critical
+          domain: security
+        annotations:
+          summary: "High Zeek anomaly detection rate"
+          description: "Zeek is detecting anomalies at a rate of {{ $value }}/s. Multiple security events may be occurring simultaneously."
+
+      - alert: ZeekServiceDown
+        expr: up{service="zeek-network-service"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          domain: security
+        annotations:
+          summary: "Zeek network monitoring service is down"
+          description: "The zeek-network-service is unreachable. Network security monitoring is offline."

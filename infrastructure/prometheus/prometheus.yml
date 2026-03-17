@@ -7,8 +7,16 @@ global:
   evaluation_interval: 15s
   scrape_timeout: 10s
 
+# AlertManager integration (Epic 79, Story 79.3)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
 rule_files:
   - alerts.yml
+  - sla-rules.yml
+  - zeek-alerts.yml
 
 scrape_configs:
   # --- Self-monitoring ---
@@ -17,6 +25,14 @@ scrape_configs:
       - targets: ['localhost:9090']
         labels:
           group: 'monitoring'
+
+  # --- AlertManager ---
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']
+        labels:
+          group: 'monitoring'
+          service: 'alertmanager'
 
   # --- Infrastructure exporters ---
   - job_name: 'postgres-exporter'
@@ -111,6 +127,12 @@ scrape_configs:
           service: 'log-aggregator'
           group: 'data-collectors'
           tier: '3'
+      - targets:
+          - 'homeiq-zeek-network-service:8048'
+        labels:
+          service: 'zeek-network-service'
+          group: 'data-collectors'
+          tier: '2'
 
   # --- Group 3: ML Engine ---
   # Model inference, embedding generation, and training.

@@ -1,0 +1,67 @@
+# AlertManager configuration for HomeIQ
+# Epic 79, Story 79.3: AlertManager Configuration
+#
+# Routes alerts from Prometheus to admin-api webhook endpoints.
+# Critical alerts repeat every 30 minutes; warnings repeat every 4 hours.
+
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'service', 'tier']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'default-webhook'
+  routes:
+    # Critical alerts — shorter repeat interval, immediate attention
+    - match:
+        severity: critical
+      receiver: 'critical-webhook'
+      repeat_interval: 30m
+      continue: false
+
+    # Security domain alerts — dedicated receiver
+    - match:
+        domain: security
+      receiver: 'security-webhook'
+      group_by: ['alertname', 'domain']
+      repeat_interval: 1h
+      continue: false
+
+    # Warning alerts — standard routing
+    - match:
+        severity: warning
+      receiver: 'default-webhook'
+      repeat_interval: 4h
+
+receivers:
+  - name: 'default-webhook'
+    webhook_configs:
+      - url: 'http://admin-api:8004/api/alerts/webhook'
+        send_resolved: true
+
+  - name: 'critical-webhook'
+    webhook_configs:
+      - url: 'http://admin-api:8004/api/alerts/webhook'
+        send_resolved: true
+
+  - name: 'security-webhook'
+    webhook_configs:
+      - url: 'http://admin-api:8004/api/alerts/webhook'
+        send_resolved: true
+
+# Inhibition rules — suppress lower-severity alerts when higher-severity fires
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'service']
+
+  # Suppress all service-specific alerts when the entire tier is breaching SLA
+  - source_match:
+      alertname: 'Tier1SLABreach'
+    target_match:
+      severity: 'warning'
+    equal: ['service']

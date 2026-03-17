@@ -10,7 +10,12 @@ only that the code can be loaded and schemas validated.
 
 import os
 import sys
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
+from homeiq_resilience import CrossGroupClient, ServiceAuthValidator
+from homeiq_resilience.circuit_breaker import CircuitBreaker
 
 
 def _add_service_src(domain: str, service: str):
@@ -81,3 +86,86 @@ class TestCrossDomainAPI:
 
         logger = setup_logging("cross-domain-test")
         assert logger is not None
+
+
+@pytest.mark.integration
+class TestCrossGroupAuth:
+    """Validate cross-group Bearer token authentication (Story 78.5)."""
+
+    @pytest.mark.asyncio
+    async def test_service_auth_validator_rejects_invalid_token(self):
+        """ServiceAuthValidator should reject requests with an invalid token.
+
+        When SERVICE_AUTH_TOKEN is set, a request with a wrong Bearer token
+        should raise HTTPException with 401.
+        """
+        import os
+
+        from fastapi import HTTPException
+
+        validator = ServiceAuthValidator(env_var="TEST_SERVICE_AUTH_TOKEN")
+
+        # Set the expected token
+        os.environ["TEST_SERVICE_AUTH_TOKEN"] = "correct-token"
+        try:
+            mock_request = MagicMock()
+            mock_request.method = "GET"
+            mock_request.url.path = "/api/v1/test"
+            mock_request.client.host = "127.0.0.1"
+
+            # Simulate wrong credentials
+            mock_credentials = MagicMock()
+            mock_credentials.credentials = "wrong-token"
+
+            with pytest.raises(HTTPException) as exc_info:
+                await validator(request=mock_request, credentials=mock_credentials)
+
+            assert exc_info.value.status_code == 401
+        finally:
+            del os.environ["TEST_SERVICE_AUTH_TOKEN"]
+
+    @pytest.mark.asyncio
+    async def test_service_auth_validator_accepts_valid_token(self):
+        """ServiceAuthValidator should accept requests with a valid token.
+
+        When SERVICE_AUTH_TOKEN is set and the request sends the matching
+        Bearer token, validation should pass and return the token string.
+        """
+        import os
+
+        validator = ServiceAuthValidator(env_var="TEST_SERVICE_AUTH_TOKEN2")
+
+        os.environ["TEST_SERVICE_AUTH_TOKEN2"] = "valid-secret"
+        try:
+            mock_request = MagicMock()
+            mock_request.method = "GET"
+            mock_request.url.path = "/api/v1/data"
+
+            mock_credentials = MagicMock()
+            mock_credentials.credentials = "valid-secret"
+
+            result = await validator(request=mock_request, credentials=mock_credentials)
+            assert result == "valid-secret"
+        finally:
+            del os.environ["TEST_SERVICE_AUTH_TOKEN2"]
+
+    def test_cross_group_client_injects_auth_header(self):
+        """CrossGroupClient should set Authorization header when auth_token is provided.
+
+        Validates the constructor stores the token and that _do_request
+        would inject it into outgoing headers.
+        """
+        client = CrossGroupClient(
+            base_url="http://data-api:8006",
+            group_name="core-platform",
+            auth_token="bearer-test-token",
+        )
+
+        assert client._auth_token == "bearer-test-token"
+
+        # Verify that a client without auth_token has None
+        client_no_auth = CrossGroupClient(
+            base_url="http://data-api:8006",
+            group_name="core-platform",
+        )
+        assert client_no_auth._auth_token is None

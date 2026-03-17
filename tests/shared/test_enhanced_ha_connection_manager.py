@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 # Import module under test
-from enhanced_ha_connection_manager import (
+from homeiq_ha.enhanced_ha_connection_manager import (
     CircuitBreaker,
     CircuitBreakerState,
     ConnectionType,

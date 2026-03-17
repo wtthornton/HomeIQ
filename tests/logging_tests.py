@@ -10,17 +10,24 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-# Add shared directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../shared'))
+# Add shared library source directories to path
+_project_root = os.path.join(os.path.dirname(__file__), '..')
+for _lib_src in [
+    os.path.join(_project_root, 'libs', 'homeiq-observability', 'src'),
+    os.path.join(_project_root, 'libs', 'homeiq-ha', 'src'),
+    os.path.join(_project_root, 'libs', 'homeiq-data', 'src'),
+]:
+    if _lib_src not in sys.path:
+        sys.path.insert(0, _lib_src)
 
-from shared.correlation_middleware import (
+from homeiq_observability.correlation_middleware import (
     correlation_context,
     extract_correlation_id,
     propagate_correlation_id,
     with_correlation_id,
 )
-from shared.log_validator import LogValidator, validate_log_consistency, validate_log_format
-from shared.logging_config import (
+from homeiq_observability.log_validator import LogValidator, validate_log_consistency, validate_log_format
+from homeiq_observability.logging_config import (
     StructuredFormatter,
     generate_correlation_id,
     get_correlation_id,

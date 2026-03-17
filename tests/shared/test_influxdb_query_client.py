@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 # Import module under test
-from influxdb_query_client import InfluxDBQueryClient
+from homeiq_data.influxdb_query_client import InfluxDBQueryClient
 
 # ============================================================================
 # Initialization Tests

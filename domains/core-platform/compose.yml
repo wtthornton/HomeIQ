@@ -419,6 +419,41 @@ services:
 
   # --- Monitoring infrastructure ---
 
+  # --- AlertManager (Epic 79, Story 79.3) ---
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: homeiq-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ../../infrastructure/alertmanager:/etc/alertmanager:ro
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - homeiq-network
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.5'
+        reservations:
+          memory: 32M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=alertmanager,group=core-platform,environment=production"
+
   prometheus:
     image: prom/prometheus:v3.2.1
     container_name: homeiq-prometheus
@@ -429,6 +464,8 @@ services:
       - prometheus_data:/prometheus
       - ../../infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ../../infrastructure/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ../../infrastructure/prometheus/sla-rules.yml:/etc/prometheus/sla-rules.yml:ro
+      - ../../infrastructure/prometheus/zeek-alerts.yml:/etc/prometheus/zeek-alerts.yml:ro
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=30d'
@@ -437,6 +474,8 @@ services:
       influxdb:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+      alertmanager:
         condition: service_healthy
     networks:
       - homeiq-network
