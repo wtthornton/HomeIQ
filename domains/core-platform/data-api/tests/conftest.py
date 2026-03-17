@@ -18,7 +18,7 @@ os.environ.setdefault("DATA_API_ALLOW_ANONYMOUS", "true")
 
 # Load path_setup dynamically
 def _load_add_service_src():
-    repo_root = Path(__file__).resolve().parents[3]
+    repo_root = Path(__file__).resolve().parents[4]
     path_setup = repo_root / "tests" / "path_setup.py"
     spec = importlib.util.spec_from_file_location("repo_tests.path_setup", path_setup)
     if spec is None or spec.loader is None:
