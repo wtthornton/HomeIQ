@@ -271,7 +271,6 @@ cat > "$REPORTS_DIR/test-summary.md" << EOF
 ## Docker Environment
 - **InfluxDB**: http://localhost:8086
 - **WebSocket Ingestion**: http://localhost:8001
-- **Enrichment Pipeline**: http://localhost:8002
 - **Admin API**: http://localhost:8004
 - **Health Dashboard**: http://localhost:3000
 - **Data Retention**: http://localhost:8080

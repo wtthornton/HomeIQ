@@ -1,16 +1,16 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * Database Migration E2E Tests
- * Validates behavior during and after the SQLite-to-PostgreSQL migration.
+ * Database Backend E2E Tests
+ * Validates database connectivity, API response consistency, and failure handling.
  *
  * Tests cover:
- *   - Health endpoints reporting the correct database backend
- *   - API response consistency regardless of backend
+ *   - Health endpoints reporting the correct database backend (PostgreSQL)
+ *   - API response consistency
  *   - Graceful handling of database connection failures
  *
- * These tests are designed to run against either the SQLite or PostgreSQL
- * backend, verifying that the API contract is stable across both.
+ * Note: SQLite backend was removed in Epic 0. The system runs exclusively on
+ * PostgreSQL 17. These tests verify the PostgreSQL-only API contract.
  */
 
 const DATA_PORT = 8006;
@@ -21,7 +21,7 @@ const ADMIN_BASE = `http://localhost:${ADMIN_PORT}`;
 const API_KEY = process.env.ADMIN_API_KEY || process.env.API_KEY || '';
 const authHeaders = API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {};
 
-test.describe('Database Migration Tests', () => {
+test.describe('Database Backend Tests', () => {
 
   // ---------- Backend detection ----------
 
@@ -46,7 +46,7 @@ test.describe('Database Migration Tests', () => {
 
         if (backendIndicators.length > 0) {
           const backend = backendIndicators[0];
-          expect(['postgresql', 'postgres', 'sqlite', 'sqlite3']).toContain(
+          expect(['postgresql', 'postgres']).toContain(
             backend.toLowerCase()
           );
         }
@@ -58,7 +58,6 @@ test.describe('Database Migration Tests', () => {
             (d: { name: string }) =>
               d.name === 'database' ||
               d.name === 'postgresql' ||
-              d.name === 'sqlite' ||
               d.name === 'postgres'
           );
           if (dbDep) {
@@ -90,7 +89,7 @@ test.describe('Database Migration Tests', () => {
 
   // ---------- API response consistency ----------
 
-  test.describe('API Response Consistency (Backend-Agnostic)', () => {
+  test.describe('API Response Consistency', () => {
 
     test('events endpoint returns consistent structure', async ({ request }) => {
       const response = await request.get(`${DATA_BASE}/api/v1/events?limit=10`);
@@ -164,7 +163,7 @@ test.describe('Database Migration Tests', () => {
       }
     });
 
-    test('pagination works consistently across backends', async ({ request }) => {
+    test('pagination works consistently', async ({ request }) => {
       // Fetch page 1
       const page1 = await request.get(`${DATA_BASE}/api/v1/events?limit=3&offset=0`);
       expect(page1.ok(), 'Data API should be available').toBe(true);
@@ -282,7 +281,7 @@ test.describe('Database Migration Tests', () => {
 
   // ---------- Migration-specific scenarios ----------
 
-  test.describe('Migration Transition Scenarios', () => {
+  test.describe('API Contract Stability', () => {
 
     test('API response content-type is always application/json', async ({ request }) => {
       const endpoints = [
@@ -318,7 +317,7 @@ test.describe('Database Migration Tests', () => {
       }
     });
 
-    test('numeric values maintain precision across backends', async ({ request }) => {
+    test('numeric values maintain precision', async ({ request }) => {
       const response = await request.get(`${ADMIN_BASE}/api/v1/stats`, {
         headers: authHeaders,
       });

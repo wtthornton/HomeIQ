@@ -41,9 +41,9 @@ test.describe('Database Health Tests', () => {
         if (data.dependencies) {
           const dbDep = Array.isArray(data.dependencies)
             ? data.dependencies.find((d: { name: string }) =>
-                d.name === 'database' || d.name === 'postgresql' || d.name === 'sqlite'
+                d.name === 'database' || d.name === 'postgresql'
               )
-            : data.dependencies.database || data.dependencies.postgresql || data.dependencies.sqlite;
+            : data.dependencies.database || data.dependencies.postgresql;
           if (dbDep) {
             expect(['healthy', 'connected', 'ok']).toContain(
               typeof dbDep === 'string' ? dbDep : dbDep.status

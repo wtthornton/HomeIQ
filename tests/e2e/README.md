@@ -47,7 +47,6 @@ docker-compose ps
 # Check service health
 curl http://localhost:8086/health    # InfluxDB
 curl http://localhost:8001/health    # WebSocket Ingestion
-curl http://localhost:8002/health    # Enrichment Pipeline
 curl http://localhost:8004/api/v1/health  # Admin API
 curl http://localhost:3000           # Health Dashboard
 ```
@@ -398,7 +397,6 @@ Tests use the following endpoints (configurable in `docker-deployment.config.ts`
 - **Health Dashboard**: http://localhost:3000
 - **InfluxDB**: http://localhost:8086
 - **WebSocket Ingestion**: http://localhost:8001
-- **Enrichment Pipeline**: http://localhost:8002
 - **Admin API**: http://localhost:8004
 - **Data Retention**: http://localhost:8080
 

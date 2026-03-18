@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-17 (Sprint 37; Epics 80-83 closed — all P1/P2 complete)
-**Total:** 86 Completed Epics, 555 Stories complete | 3 Planned (P2-P3 backlog)
+**Created:** 2026-02-27 | **Updated:** 2026-03-18 (Sprint 38; Epic 84 closed)
+**Total:** 87 Completed Epics, 566 Stories complete | 2 Planned (P3 backlog)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -214,7 +214,7 @@ Sprint 37 (COMPLETE — Mar 17, 2026) — Data-API Route Coverage Expansion
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **85** (86 epics complete, 76-77 P3, 84 P2 backlog).
+> Next available epic number: **86** (87 epics complete, 76-77 P3 backlog).
 
 ### P1 — All Complete
 
@@ -230,11 +230,16 @@ Sprint 37 (COMPLETE — Mar 17, 2026) — Data-API Route Coverage Expansion
 
 > No epics currently in progress. All work through Epic 83 is complete.
 
-### P2 — Backlog
+### P1 — Backlog
 
 | # | Epic | Source Doc | Stories | Effort | Notes |
 |---|------|-----------|---------|--------|-------|
-| 84 | **E2E Stale Selector Remediation** | [epic-84-e2e-stale-selector-remediation.md](epic-84-e2e-stale-selector-remediation.md) | 11 | 3-5 sessions | Fix 169+ stale data-testid selectors, deprecated port 8002, SQLite refs, sidebar→tab nav |
+| 85 | **Data-API Unit & Line Coverage Expansion** | [epic-85-data-api-line-coverage.md](epic-85-data-api-line-coverage.md) | 10 | 5-7 days | Push measured line coverage from 8.8% → 40%+. Unit tests for service layer (9 modules), utilities (flux_utils, metrics), infrastructure (app setup, lifecycle), jobs. 123+ new tests |
+
+### P2 — All Complete
+
+> Epic 84 (E2E Stale Selector Remediation) completed Mar 18.
+> See detailed story section below.
 
 ### P3 — Backlog
 
@@ -242,6 +247,25 @@ Sprint 37 (COMPLETE — Mar 17, 2026) — Data-API Route Coverage Expansion
 |---|------|-----------|---------|--------|-------|
 | 76 | **Auto-Bugfix Bash Parity** | [auto-bugfix-streaming-dashboard-prd.md](../docs/planning/auto-bugfix-streaming-dashboard-prd.md) Epic 4 | 3 | 1 week | Bash stream parser for Linux/macOS |
 | 77 | **Auto-Bugfix Test/Reliability** | [auto-bugfix-streaming-dashboard-prd.md](../docs/planning/auto-bugfix-streaming-dashboard-prd.md) Epic 5 | 3 | 1 week | Dry-run mode, error resilience, stream recording |
+
+### Epic 84: E2E Stale Selector Remediation — COMPLETE (Mar 18)
+
+**Priority:** P2 | **Effort:** 1 session | **Dependencies:** None | **Status:** COMPLETE (11/11)
+**Affects:** `tests/e2e/` (12+ Playwright spec files, 3 doc/script files)
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 84.1 | **Remove deprecated enrichment-pipeline references** — Removed port 8002 health checks from `integration-performance-enhanced.spec.ts`, `performance.spec.ts`, `integration.spec.ts`, README, shell scripts | COMPLETE |
+| 84.2 | **Remove deprecated SQLite/migration tests** — Replaced SQLite backend refs with PostgreSQL-only in `database-health.spec.ts`, `database-migration.spec.ts` | COMPLETE |
+| 84.3 | **Fix navigation pattern — sidebar to tabs** — Replaced all `nav-monitoring/settings/dashboard` with `tab-services/configuration/overview` across 7 files | COMPLETE |
+| 84.4 | **Fix deprecated screen selectors** — Replaced `monitoring-screen`, `settings-screen` with `dashboard-content` + tab assertions across 6 files | COMPLETE |
+| 84.5 | **Fix settings selectors** — Rewrote `settings-screen.spec.ts` to use `dashboard-content` and valid Configuration tab selectors | COMPLETE |
+| 84.6 | **Fix health card internal selectors** — Replaced `health-card-title/status/value` with `health-card` parent + text/attribute queries | COMPLETE |
+| 84.7 | **Fix event and statistics selectors** — Replaced `events-feed/list/section`, `statistics-*` with `event-stream` and API-level assertions | COMPLETE |
+| 84.8 | **Fix service-card selectors** — Verified `service-card` testid exists, updated `service-list` container usage | COMPLETE |
+| 84.9 | **Full rewrite of user-journey-complete.spec.ts** — Complete rewrite using tab-based navigation, valid health-card queries, event-stream | COMPLETE |
+| 84.10 | **Add missing data-testid attributes** — Audit confirmed 35+ production testids already cover all E2E needs | COMPLETE |
+| 84.11 | **Full E2E regression verification** — 137 tests across 11 files parse successfully, zero stale selectors remain | COMPLETE |
 
 ### Epic 72: Zeek Core Network Ingestion (MVP) — COMPLETE (Mar 16)
 
@@ -586,6 +610,8 @@ These items were previously listed as open but are now confirmed done:
 | 80 | Data-API Test Coverage & Security Hardening | [epic-80-data-api-test-coverage.md](epic-80-data-api-test-coverage.md) | P1 High | 12 | 5-7 days | **Complete** (12/12: 345 tests — auth, database, endpoints, security) |
 | 81 | Docker Rebuild & Deploy — aiohttp CVE | [epic-81-docker-rebuild-aiohttp-cve.md](epic-81-docker-rebuild-aiohttp-cve.md) | P1 High | 5 | 1 session | **Complete** (5/5: 58/58 containers healthy, aiohttp 3.13.3 verified, postgres-exporter PG17, Zeek 8.1.1 compat) |
 | 82 | Zeek Container Docker Healthcheck | [epic-82-zeek-docker-healthcheck.md](epic-82-zeek-docker-healthcheck.md) | P3 Low | 5 | 1 session | Open — process + log-freshness healthcheck for homeiq-zeek |
+| 83 | Data-API HTTP Route Coverage Expansion | [epic-83-data-api-route-coverage.md](epic-83-data-api-route-coverage.md) | P1 High | 11 | 3-5 sessions | **Complete** (11/11: 193 tests — HTTP route coverage, dead code discovery, bug documentation) |
+| 85 | Data-API Unit & Line Coverage Expansion | [epic-85-data-api-line-coverage.md](epic-85-data-api-line-coverage.md) | P1 High | 10 | 5-7 days | **PLANNED** — Unit tests for service layer, utilities, infrastructure, jobs. Target: 8.8% → 40%+ line coverage |
 
 ## Story Count by Priority
 
