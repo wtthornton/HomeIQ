@@ -70,8 +70,8 @@ export default defineConfig({
     },
   }),
   
-  /* Test timeout */
-  timeout: 30 * 1000,
+  /* Test timeout — 60s accommodates AI/OpenAI response latency (Epic 89.2) */
+  timeout: 60 * 1000,
   
   expect: {
     /* Timeout for expect() assertions */

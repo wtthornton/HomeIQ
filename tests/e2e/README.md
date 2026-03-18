@@ -1,6 +1,26 @@
-# HA Ingestor E2E Test Suite
+# HomeIQ E2E Test Suite
 
-This directory contains comprehensive end-to-end tests for the HA Ingestor system using Playwright. The tests are designed to run against the local Docker deployment and cover all aspects of the system including UI functionality, service integration, performance, and visual regression.
+Comprehensive end-to-end tests using Playwright, run against the local Docker deployment.
+
+## Test Matrix (Epic 89.5 — updated 2026-03-18)
+
+| Category | Spec Files | Tests (approx) | CI Gate | Timeout |
+|----------|-----------|----------------|---------|---------|
+| **AI Automation UI** | 34 | 80+ | Yes (smoke/integration) | 60s |
+| **Health Dashboard** | 26 | 60+ | Yes (smoke) | 30s |
+| **Root-level specs** | 11 | 40+ | Yes | 60s |
+| **API Integration** | 3 | 15+ | Yes | 90s |
+| **Visual Regression** | 1 | 14 | Yes (2% tolerance) | 30s |
+| **Ask AI (live)** | 3 | 33 | No (quarantined) | 90-120s |
+| **Total** | **93** | **~356** | | |
+
+### CI Behavior
+
+- **Main gate:** All specs except quarantined live-AI tests (see [FLAKY_TESTS.md](FLAKY_TESTS.md))
+- **Quarantined:** `ask-ai-complete`, `ask-ai-to-ha-automation`, `ask-ai-debug` — require `AI_SERVICES_AVAILABLE=1`
+- **Pass-rate threshold:** 95% (warning if below)
+- **Retries on CI:** 2 per test
+- **Workers on CI:** 1 (sequential for stability)
 
 ## Test Structure
 

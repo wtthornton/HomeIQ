@@ -136,11 +136,36 @@ jobs:
         run: |
           npx playwright test health-dashboard --config health-dashboard/playwright.config.ts --project=chromium --grep "@smoke" --reporter=list
 
-      - name: Run Playwright tests
+      - name: Run Playwright tests (excluding live-AI quarantined tests)
         if: steps.check-e2e.outputs.has_tests == 'true'
         working-directory: tests/e2e
         run: |
-          npx playwright test --reporter=html
+          npx playwright test \
+            --ignore-pattern="ask-ai-complete.spec.ts" \
+            --ignore-pattern="ask-ai-to-ha-automation.spec.ts" \
+            --ignore-pattern="ask-ai-debug.spec.ts" \
+            --reporter=html,json
+
+      - name: E2E pass-rate check (Epic 89.5)
+        if: always() && steps.check-e2e.outputs.has_tests == 'true'
+        working-directory: tests/e2e
+        run: |
+          if [ -f "test-results/results.json" ]; then
+            TOTAL=$(jq '.stats.expected // 0' test-results/results.json)
+            PASSED=$(jq '.stats.expected // 0' test-results/results.json)
+            FAILED=$(jq '.stats.unexpected // 0' test-results/results.json)
+            SKIPPED=$(jq '.stats.skipped // 0' test-results/results.json)
+            if [ "$TOTAL" -gt 0 ]; then
+              PASS_RATE=$(( (TOTAL - FAILED) * 100 / TOTAL ))
+              echo "### E2E Pass Rate: ${PASS_RATE}%" >> $GITHUB_STEP_SUMMARY
+              echo "- Passed: $PASSED | Failed: $FAILED | Skipped: $SKIPPED" >> $GITHUB_STEP_SUMMARY
+              if [ "$PASS_RATE" -lt 95 ]; then
+                echo "::warning::E2E pass rate ${PASS_RATE}% is below 95% threshold"
+              fi
+            fi
+          else
+            echo "No JSON results found — skipping pass-rate check"
+          fi
 
       - name: Upload Playwright report
         if: always() && steps.check-e2e.outputs.has_tests == 'true'

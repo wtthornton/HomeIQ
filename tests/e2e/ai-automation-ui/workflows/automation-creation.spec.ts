@@ -14,11 +14,10 @@
  * - Deploy the approved automation to Home Assistant
  * - Verify the deployment appears in the Deployed view
  *
- * WHAT OLD TESTS MISSED:
- * - Each step was a separate test that could pass independently, never testing the flow
- * - Assertions like `expect(hasCard || hasEmpty).toBe(true)` masked real failures
- * - "Verify deployment" just checked for card or empty state (always passes)
- * - No console error detection
+ * FIXED (Epic 89.1):
+ * - Step 5: replaced loose `hasCards || hasEmpty || stillLoading` with proper
+ *   Playwright `.or()` assertion that fails if nothing renders
+ * - Removed `.catch(() => {})` that silently swallowed container wait failures
  */
 
 import { test, expect } from '@playwright/test';
@@ -40,11 +39,12 @@ test.describe('Automation Creation Workflow - From idea to deployment', () => {
       await waitForLoadingComplete(page);
 
       // After clicking Draft tab, should see draft cards or empty state
-      const cards = page.locator('[data-testid="suggestion-card"]');
+      const cards = page.locator('[data-testid="suggestion-card"]').first();
       const emptyState = page.getByText(/no.*suggestions/i).first();
-      const hasCards = await cards.first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasEmpty = await emptyState.isVisible({ timeout: 2000 }).catch(() => false);
-      expect(hasCards || hasEmpty).toBe(true);
+      await expect(
+        cards.or(emptyState),
+        'Draft tab should show suggestion cards or empty state'
+      ).toBeVisible({ timeout: 5000 });
     }
   });
 
@@ -112,20 +112,15 @@ test.describe('Automation Creation Workflow - From idea to deployment', () => {
     await deployedTab.click();
     await waitForLoadingComplete(page);
 
-    // Deployed page: data-testid="deployed-container", cards "deployed-automation", empty "No Deployed Automations Yet"
-    const container = page.locator('[data-testid="deployed-container"]');
-    await container.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
-
-    const deployedCards = page.locator('[data-testid="deployed-automation"], [data-testid="suggestion-card"]');
+    // Deployed page should show one of: cards, empty state, or the container
+    const deployedCards = page.locator('[data-testid="deployed-automation"], [data-testid="suggestion-card"]').first();
     const emptyState = page.getByText(/No Deployed Automations Yet|no.*suggestions|no automations/i).first();
-    const loading = page.getByText(/Loading deployed automations/i);
-    const hasCards = await deployedCards.first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasEmpty = await emptyState.isVisible({ timeout: 5000 }).catch(() => false);
-    const stillLoading = await loading.isVisible({ timeout: 2000 }).catch(() => false);
-    expect(
-      hasCards || hasEmpty || stillLoading,
-      'Deployed tab should show list, empty state, or loading'
-    ).toBe(true);
+    const container = page.locator('[data-testid="deployed-container"]');
+
+    await expect(
+      deployedCards.or(emptyState).or(container),
+      'Deployed tab should show deployed cards, empty state, or container'
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test('no console errors during the creation workflow', async ({ page }) => {

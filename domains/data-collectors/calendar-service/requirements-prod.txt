@@ -4,7 +4,7 @@ python-dotenv>=1.0.1,<2.0.0
 influxdb3-python>=0.3.0,<1.0.0
 aiohttp>=3.13.3,<4.0.0  # CVE-2025-69223..69230 fix — min 3.13.3
 websockets>=10.0,<16.0  # Required for shared.enhanced_ha_connection_manager
-pydantic-settings>=2.0.0,<3.0.0  # Required for BaseSettings
+pydantic-settings>=2.6.0,<3.0.0  # Required for BaseSettings
 
 # HomeIQ shared libraries (installed from libs/ in Docker)
 homeiq-observability>=1.0.0

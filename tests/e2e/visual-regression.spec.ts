@@ -3,7 +3,7 @@ import { setupAuthenticatedSession } from '../shared/helpers/auth-helpers';
 import { waitForLoadingComplete } from '../shared/helpers/wait-helpers';
 
 /**
- * Visual Regression Tests (Story 59.6)
+ * Visual Regression Tests (Story 59.6, stabilized Epic 89.4)
  *
  * Aligned with health-dashboard: tab-based hash routing (#overview, #services, #configuration),
  * and selectors that exist in the app (dashboard-root, dashboard-content, health-card).
@@ -13,14 +13,19 @@ import { waitForLoadingComplete } from '../shared/helpers/wait-helpers';
  *
  * Update baselines: npx playwright test visual-regression.spec.ts --update-snapshots
  * Review diffs:     npx playwright show-report
- * Tolerance:        5% pixel difference (maxDiffPixelRatio: 0.05)
+ * Tolerance:        2% pixel difference (maxDiffPixelRatio: 0.02)
  */
+
+/** Standard snapshot options — pin tolerance across all screenshots */
+const SNAPSHOT_OPTS = { maxDiffPixelRatio: 0.02 } as const;
 
 async function waitForDashboardStable(page: import('@playwright/test').Page) {
   await page.locator('[data-testid="dashboard-root"]').waitFor({ state: 'visible', timeout: 15000 });
   await page.locator('[data-testid="dashboard-content"]').waitFor({ state: 'visible', timeout: 10000 });
   // No fixed sleep: wait for loading to settle (spinner hidden if present)
   await waitForLoadingComplete(page, '[data-testid="loading"], [aria-label="Loading"]', 5000);
+  // Wait for fonts to load to prevent woff2 download flakiness causing pixel diffs
+  await page.evaluate(() => document.fonts.ready);
 }
 
 test.describe('Visual Regression Tests', () => {
@@ -35,18 +40,18 @@ test.describe('Visual Regression Tests', () => {
     await page.waitForLoadState('domcontentloaded');
     await waitForDashboardStable(page);
 
-    await expect(page).toHaveScreenshot('dashboard-full.png');
+    await expect(page).toHaveScreenshot('dashboard-full.png', SNAPSHOT_OPTS);
 
     // Header has md:hidden so only visible on small viewports; skip screenshot when hidden
     const header = page.locator('[data-testid="dashboard-header"]');
     if (await header.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await expect(header).toHaveScreenshot('dashboard-header.png');
+      await expect(header).toHaveScreenshot('dashboard-header.png', SNAPSHOT_OPTS);
     }
 
     // Health cards: app uses [data-testid="health-card"] on CoreSystemCard (Overview)
     const healthCard = page.locator('[data-testid="health-card"]').first();
     if (await healthCard.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(healthCard).toHaveScreenshot('dashboard-health-card.png');
+      await expect(healthCard).toHaveScreenshot('dashboard-health-card.png', SNAPSHOT_OPTS);
     }
     // statistics-chart and events-feed do not exist in app; skipped until components expose testids
   });
@@ -58,11 +63,11 @@ test.describe('Visual Regression Tests', () => {
     await page.waitForLoadState('domcontentloaded');
     await waitForDashboardStable(page);
 
-    await expect(page).toHaveScreenshot('monitoring-full.png');
+    await expect(page).toHaveScreenshot('monitoring-full.png', SNAPSHOT_OPTS);
 
     const serviceList = page.locator('[data-testid="service-list"]').first();
     if (await serviceList.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(serviceList).toHaveScreenshot('monitoring-services.png');
+      await expect(serviceList).toHaveScreenshot('monitoring-services.png', SNAPSHOT_OPTS);
     }
   });
 
@@ -73,10 +78,10 @@ test.describe('Visual Regression Tests', () => {
     await page.waitForLoadState('domcontentloaded');
     await waitForDashboardStable(page);
 
-    await expect(page).toHaveScreenshot('settings-full.png');
+    await expect(page).toHaveScreenshot('settings-full.png', SNAPSHOT_OPTS);
 
     const content = page.locator('[data-testid="dashboard-content"]');
-    await expect(content).toHaveScreenshot('settings-content.png');
+    await expect(content).toHaveScreenshot('settings-content.png', SNAPSHOT_OPTS);
   });
 
   test('Navigation component visual consistency', async ({ page }) => {
@@ -86,7 +91,7 @@ test.describe('Visual Regression Tests', () => {
 
     const navigation = page.getByRole('navigation', { name: /dashboard/i });
     if (await navigation.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(navigation).toHaveScreenshot('navigation.png');
+      await expect(navigation).toHaveScreenshot('navigation.png', SNAPSHOT_OPTS);
     }
   });
 
@@ -100,9 +105,9 @@ test.describe('Visual Regression Tests', () => {
     if (cardCount === 0) return;
 
     const firstCard = healthCards.first();
-    await expect(firstCard).toHaveScreenshot('health-card-first.png');
+    await expect(firstCard).toHaveScreenshot('health-card-first.png', SNAPSHOT_OPTS);
     await firstCard.hover();
-    await expect(firstCard).toHaveScreenshot('health-card-hover.png');
+    await expect(firstCard).toHaveScreenshot('health-card-hover.png', SNAPSHOT_OPTS);
   });
 
   test('Mobile responsive design visual consistency', async ({ page }) => {
@@ -112,14 +117,14 @@ test.describe('Visual Regression Tests', () => {
     await page.locator('[data-testid="dashboard-root"]').waitFor({ state: 'visible', timeout: 15000 });
     await waitForLoadingComplete(page, '[data-testid="loading"], [aria-label="Loading"]', 5000);
 
-    await expect(page).toHaveScreenshot('mobile-dashboard.png');
+    await expect(page).toHaveScreenshot('mobile-dashboard.png', SNAPSHOT_OPTS);
 
     const mobileMenu = page.locator('[data-testid="dashboard-header"] button');
     if (await mobileMenu.first().isVisible({ timeout: 2000 }).catch(() => false)) {
       await mobileMenu.first().click();
       await new Promise(r => setTimeout(r, 500));
       try {
-        await expect(page).toHaveScreenshot('mobile-navigation-menu.png');
+        await expect(page).toHaveScreenshot('mobile-navigation-menu.png', SNAPSHOT_OPTS);
       } catch {
         // Menu click may navigate or close overlay; skip this snapshot if page unavailable
       }
@@ -128,7 +133,7 @@ test.describe('Visual Regression Tests', () => {
     try {
       await page.goto('/#services');
       await page.locator('[data-testid="dashboard-root"]').waitFor({ state: 'visible', timeout: 10000 });
-      await expect(page).toHaveScreenshot('mobile-monitoring.png');
+      await expect(page).toHaveScreenshot('mobile-monitoring.png', SNAPSHOT_OPTS);
     } catch {
       // Session may close on navigation in some envs; mobile-dashboard baseline is still valid
     }
@@ -136,7 +141,7 @@ test.describe('Visual Regression Tests', () => {
     try {
       await page.goto('/#configuration');
       await page.locator('[data-testid="dashboard-root"]').waitFor({ state: 'visible', timeout: 10000 });
-      await expect(page).toHaveScreenshot('mobile-settings.png');
+      await expect(page).toHaveScreenshot('mobile-settings.png', SNAPSHOT_OPTS);
     } catch {
       // Session may close; skip if page unavailable
     }
@@ -148,12 +153,12 @@ test.describe('Visual Regression Tests', () => {
     await page.goto('/#overview');
     await waitForDashboardStable(page);
 
-    await expect(page).toHaveScreenshot('tablet-dashboard.png');
+    await expect(page).toHaveScreenshot('tablet-dashboard.png', SNAPSHOT_OPTS);
 
     try {
       await page.goto('/#services');
       await page.locator('[data-testid="dashboard-root"]').waitFor({ state: 'visible', timeout: 10000 });
-      await expect(page).toHaveScreenshot('tablet-monitoring.png');
+      await expect(page).toHaveScreenshot('tablet-monitoring.png', SNAPSHOT_OPTS);
     } catch {
       // Session may close after first screenshot in some envs; tablet-dashboard baseline is still valid
     }
@@ -169,7 +174,7 @@ test.describe('Visual Regression Tests', () => {
       await themeToggle.click();
       await page.locator('[data-testid="dashboard-content"]').waitFor({ state: 'visible', timeout: 5000 });
       try {
-        await expect(page).toHaveScreenshot('dark-theme-dashboard.png');
+        await expect(page).toHaveScreenshot('dark-theme-dashboard.png', SNAPSHOT_OPTS);
       } catch {
         // Session may close during screenshot in some envs
       }
@@ -178,7 +183,7 @@ test.describe('Visual Regression Tests', () => {
     try {
       await page.goto('/#services');
       await page.locator('[data-testid="dashboard-root"]').waitFor({ state: 'visible', timeout: 10000 });
-      await expect(page).toHaveScreenshot('dark-theme-monitoring.png');
+      await expect(page).toHaveScreenshot('dark-theme-monitoring.png', SNAPSHOT_OPTS);
     } catch {
       // Session may close; dark-theme-dashboard baseline may still be valid
     }
@@ -186,7 +191,7 @@ test.describe('Visual Regression Tests', () => {
     try {
       await page.goto('/#configuration');
       await page.locator('[data-testid="dashboard-root"]').waitFor({ state: 'visible', timeout: 10000 });
-      await expect(page).toHaveScreenshot('dark-theme-settings.png');
+      await expect(page).toHaveScreenshot('dark-theme-settings.png', SNAPSHOT_OPTS);
     } catch {
       // Session may close; skip if page unavailable
     }
@@ -202,11 +207,11 @@ test.describe('Visual Regression Tests', () => {
 
     const skeleton = page.locator('[data-testid="skeleton-card"], [data-testid="loading"], [aria-label="Loading"]').first();
     if (await skeleton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(page).toHaveScreenshot('loading-state.png');
+      await expect(page).toHaveScreenshot('loading-state.png', SNAPSHOT_OPTS);
     }
 
     await page.locator('[data-testid="dashboard-root"]').waitFor({ state: 'visible', timeout: 15000 });
-    await expect(page).toHaveScreenshot('loaded-state.png');
+    await expect(page).toHaveScreenshot('loaded-state.png', SNAPSHOT_OPTS);
   });
 
   test('Error states visual consistency', async ({ page }) => {
@@ -217,10 +222,10 @@ test.describe('Visual Regression Tests', () => {
 
     const errorState = page.locator('[data-testid="error-state"]');
     if (await errorState.isVisible({ timeout: 10000 }).catch(() => false)) {
-      await expect(page).toHaveScreenshot('error-state.png');
+      await expect(page).toHaveScreenshot('error-state.png', SNAPSHOT_OPTS);
       const errorMessage = page.locator('[data-testid="error-message"]');
       if (await errorMessage.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await expect(errorMessage).toHaveScreenshot('error-message.png');
+        await expect(errorMessage).toHaveScreenshot('error-message.png', SNAPSHOT_OPTS);
       }
     }
     // If app does not show error-state on health abort, skip screenshots (no hang)
@@ -236,7 +241,7 @@ test.describe('Visual Regression Tests', () => {
       await settingsButton.click();
       const modal = page.locator('[data-testid="settings-modal"]');
       await modal.waitFor({ state: 'visible', timeout: 3000 });
-      await expect(modal).toHaveScreenshot('settings-modal.png');
+      await expect(modal).toHaveScreenshot('settings-modal.png', SNAPSHOT_OPTS);
       await page.locator('[data-testid="close-modal"]').click();
     }
 
@@ -245,7 +250,7 @@ test.describe('Visual Regression Tests', () => {
       await exportButton.click();
       const exportDialog = page.locator('[data-testid="export-dialog"]');
       await exportDialog.waitFor({ state: 'visible', timeout: 3000 });
-      await expect(exportDialog).toHaveScreenshot('export-dialog.png');
+      await expect(exportDialog).toHaveScreenshot('export-dialog.png', SNAPSHOT_OPTS);
     }
   });
 
@@ -256,7 +261,7 @@ test.describe('Visual Regression Tests', () => {
 
     const thresholdConfig = page.locator('[data-testid="threshold-config"]');
     if (await thresholdConfig.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(thresholdConfig).toHaveScreenshot('form-elements.png');
+      await expect(thresholdConfig).toHaveScreenshot('form-elements.png', SNAPSHOT_OPTS);
     }
   });
 
@@ -268,7 +273,7 @@ test.describe('Visual Regression Tests', () => {
     // App does not expose statistics-chart testid; use activity-section or rag-status-section if present
     const activitySection = page.locator('[data-testid="activity-section"]').first();
     if (await activitySection.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(activitySection).toHaveScreenshot('overview-activity.png');
+      await expect(activitySection).toHaveScreenshot('overview-activity.png', SNAPSHOT_OPTS);
     }
   });
 });

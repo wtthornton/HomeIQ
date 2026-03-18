@@ -33,6 +33,13 @@ repos:
         files: (Dockerfile|requirements.*\.txt)$
         pass_filenames: false
 
+      - id: pip-audit-base
+        name: Audit base dependencies for CVEs (Epic 88.3)
+        entry: pip-audit --requirement requirements-base.txt --desc --skip-editable
+        language: system
+        files: requirements-base\.txt$
+        pass_filenames: false
+
       - id: no-secrets
         name: Check for hardcoded secrets
         entry: python scripts/check-secrets.py

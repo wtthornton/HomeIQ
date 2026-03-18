@@ -5,7 +5,7 @@
 
 # Core dependencies
 pydantic>=2.9.0,<3.0.0  # Stable Pydantic v2 (November 2025)
-pydantic-settings>=2.5.0,<3.0.0  # Compatible with Pydantic v2
+pydantic-settings>=2.6.0,<3.0.0  # Compatible with Pydantic v2
 
 # Data processing
 pandas>=2.2.0,<3.0.0  # Stable pandas 2.x (November 2025)

@@ -1,7 +1,7 @@
 # Energy Correlator Service Dependencies
 # Updated to latest stable 2025 versions
 
-fastapi>=0.115.0
+fastapi>=0.115.0,<1.0.0
 uvicorn>=0.32.0
 influxdb-client>=1.49.0,<2.0.0  # Latest stable (2025 - Epic 41)
 python-dotenv>=1.0.0,<2.0.0  # Phase 2: standardized

@@ -14,11 +14,10 @@
  * - Generate new blueprint suggestions on demand
  * - Accept or decline blueprint suggestions
  *
- * WHAT OLD TESTS MISSED:
- * - Tests used long fallback chains (hasStats || hasEmpty || hasNoBlueprints || hasCards || hasError)
- *   which always passed regardless of page state
- * - Page object test just aggregated booleans without testing any specific behavior
- * - No console error detection
+ * FIXED (Epic 89.1):
+ * - Replaced `expect(typeof hasScore).toBe('boolean')` (always true) with real assertion
+ * - Replaced loose OR fallback chains with Playwright `.or()` assertions
+ * - `if (count > 0)` paths now assert meaningful state when cards exist
  */
 
 import { test, expect } from '@playwright/test';
@@ -38,19 +37,17 @@ test.describe('Blueprint Suggestions - What blueprint-based automations are sugg
   });
 
   test('page displays blueprint suggestions, a generate button, or an empty state', async ({ page }) => {
-    // One of these meaningful states should be present
-    const generateBtn = page.getByRole('button', { name: /Generate/i });
+    // One of these meaningful states must be present
+    const generateBtn = page.getByRole('button', { name: /Generate/i }).first();
     const suggestionsText = page.getByText(/Blueprint|Total|Score/i).first();
     const emptyState = page.getByText(/No suggestions found|No Blueprint Suggestions/i).first();
     const errorState = page.getByText(/error|failed|unavailable/i).first();
 
-    const hasGenerate = await generateBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    const hasSuggestions = await suggestionsText.isVisible({ timeout: 3000 }).catch(() => false);
-    const hasEmpty = await emptyState.isVisible({ timeout: 2000 }).catch(() => false);
-    const hasError = await errorState.isVisible({ timeout: 2000 }).catch(() => false);
-
-    // At least one meaningful state should be displayed
-    expect(hasGenerate || hasSuggestions || hasEmpty || hasError).toBe(true);
+    // Use .or() chain so the assertion fails if NONE are visible
+    await expect(
+      generateBtn.or(suggestionsText).or(emptyState).or(errorState),
+      'Page should show generate button, suggestions, empty state, or error state'
+    ).toBeVisible({ timeout: 8000 });
   });
 
   test('generate button opens the suggestion generation form', async ({ page }) => {
@@ -61,12 +58,11 @@ test.describe('Blueprint Suggestions - What blueprint-based automations are sugg
 
       // Either a form appears or suggestions start generating
       const formOrLoading = page.locator('form, [class*="generate"], text=/Loading|Generating/i').first();
-      const hasForm = await formOrLoading.isVisible({ timeout: 5000 }).catch(() => false);
-      expect(typeof hasForm).toBe('boolean');
+      await expect(formOrLoading, 'Generate should show a form or loading state').toBeVisible({ timeout: 5000 });
     }
   });
 
-  test('suggestion cards display score and use case when available', async ({ page }) => {
+  test('suggestion cards display title and action buttons when available', async ({ page }) => {
     const cards = page.locator('div').filter({
       has: page.locator('h3'),
     }).filter({
@@ -78,14 +74,22 @@ test.describe('Blueprint Suggestions - What blueprint-based automations are sugg
       const firstCard = cards.first();
       await expect(firstCard).toBeVisible();
 
-      // Card should have a title
+      // Card must have a title
       const title = firstCard.locator('h3').first();
-      await expect(title).toBeVisible();
+      await expect(title, 'Blueprint card should have a title').toBeVisible();
+      const titleText = await title.textContent();
+      expect(titleText?.trim().length, 'Title should not be empty').toBeGreaterThan(0);
 
-      // Card should show a score
+      // Card should have Accept or Decline button
+      const actionButton = firstCard.locator('button:has-text("Accept"), button:has-text("Decline")').first();
+      await expect(actionButton, 'Blueprint card should have Accept or Decline button').toBeVisible();
+
+      // Score is optional but if present, should show a percentage
       const score = firstCard.locator('text=/Score:.*\\d+%/').first();
-      const hasScore = await score.isVisible().catch(() => false);
-      expect(typeof hasScore).toBe('boolean');
+      if (await score.isVisible({ timeout: 1000 }).catch(() => false)) {
+        const scoreText = await score.textContent();
+        expect(scoreText, 'Score should contain a percentage').toMatch(/\d+%/);
+      }
     }
   });
 

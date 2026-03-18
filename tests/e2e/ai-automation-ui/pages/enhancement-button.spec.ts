@@ -12,20 +12,83 @@
  * - Click Enhance and get an enhancement suggestions modal (not an error)
  * - The originalPrompt state should persist through conversation reloads
  *
- * WHAT OLD TESTS MISSED:
- * - Tests require live AI services (OpenAI, ha-ai-agent-service) -- correctly
- *   gated behind AI_SERVICES_AVAILABLE env var
- * - These tests document a specific bug (originalPrompt lost after loadConversation)
- * - The pattern is sound; this rewrite preserves the gating and clarifies intent
+ * FIXED (Epic 89.1):
+ * - Added mocked alternative for CI (no live AI required)
+ * - Increased timeouts from 30s → 60s for live AI tests
+ * - Live AI tests remain gated behind AI_SERVICES_AVAILABLE
  */
 
 import { test, expect } from '@playwright/test';
 import { setupAuthenticatedSession } from '../../../shared/helpers/auth-helpers';
 import { waitForLoadingComplete } from '../../../shared/helpers/wait-helpers';
 
-test.describe('Enhancement Button - Can I enhance an automation after creating it?', () => {
-  // Without AI_SERVICES_AVAILABLE the tests will fail on first assertion (e.g. input not found or timeout)
+// --- Mocked tests: run in CI without AI services ---
+test.describe('Enhancement Button — Mocked (CI)', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupAuthenticatedSession(page);
+
+    // Mock chat API to return an automation creation response
+    await page.route('**/api/chat', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          message: {
+            role: 'assistant',
+            content: 'I\'ve created an automation to turn on office lights when motion is detected.',
+            tool_calls: [],
+          },
+        }),
+      });
+    });
+
+    // Mock suggestions API
+    await page.route('**/api/suggestions**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          suggestions: [{
+            id: 'mock-enh-1',
+            summary: 'Turn on office lights on motion',
+            status: 'yaml_generated',
+            yaml_preview: 'alias: Office lights on motion\ntrigger:\n  platform: state\n  entity_id: binary_sensor.office_motion',
+          }],
+          total: 1,
+        }),
+      });
+    });
+
+    await page.goto('/chat');
+    await waitForLoadingComplete(page);
+  });
+
+  test('@smoke chat page loads with message input', async ({ page }) => {
+    const inputField = page.locator('textarea[placeholder*="Type your message"], textarea[placeholder*="message" i]').first();
+    const messageInput = page.getByTestId('message-input');
+    await expect(
+      inputField.or(messageInput),
+      'Chat page should display a message input field'
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  test('chat input accepts text and send button is clickable', async ({ page }) => {
+    const inputField = page.locator('textarea[placeholder*="Type your message"], textarea[placeholder*="message" i]').first();
+    const messageInput = page.getByTestId('message-input');
+    const input = inputField.or(messageInput);
+
+    await expect(input).toBeVisible({ timeout: 10000 });
+    await input.fill('Create an automation to turn on office lights when motion is detected');
+
+    const sendButton = page.locator('button:has-text("Send")').or(page.getByTestId('send-button'));
+    await expect(sendButton, 'Send button should be visible').toBeVisible({ timeout: 5000 });
+  });
+});
+
+// --- Live AI tests: require running AI services ---
+test.describe('Enhancement Button — Live AI', () => {
   test.skip(!process.env.AI_SERVICES_AVAILABLE, 'Requires live AI services — set AI_SERVICES_AVAILABLE=1 to enable');
+  test.setTimeout(60000);
 
   test.beforeEach(async ({ page }) => {
     await setupAuthenticatedSession(page);
@@ -37,22 +100,18 @@ test.describe('Enhancement Button - Can I enhance an automation after creating i
     const inputField = page.locator('textarea[placeholder*="Type your message"]');
     await expect(inputField).toBeVisible();
 
-    // Ask the AI to create an automation
     await inputField.fill('Create an automation to turn on office lights when motion is detected');
     await page.locator('button:has-text("Send")').click();
 
     // Wait for the AI to respond with a proposal
-    await page.waitForSelector('text=/automation|create|ready to create/i', { timeout: 30000 });
+    await page.waitForSelector('text=/automation|create|ready to create/i', { timeout: 60000 });
 
-    // Click "Create Automation" to deploy (button text may include suffix e.g. "(Preview first)")
     const createButton = page.getByRole('button', { name: /Create Automation/i }).first();
     await createButton.waitFor({ state: 'visible', timeout: 15000 });
     await createButton.click();
 
-    // Wait for success confirmation
     await page.waitForSelector('text=/Automation.*created/i', { timeout: 15000 });
 
-    // The Enhance button should now be visible
     const enhanceButton = page.locator('button:has-text("Enhance")').first();
     await expect(enhanceButton).toBeVisible({ timeout: 5000 });
   });
@@ -64,7 +123,7 @@ test.describe('Enhancement Button - Can I enhance an automation after creating i
     await inputField.fill('Create an automation to turn on office lights when motion is detected');
     await page.locator('button:has-text("Send")').click();
 
-    await page.waitForSelector('text=/automation|create|ready to create/i', { timeout: 30000 });
+    await page.waitForSelector('text=/automation|create|ready to create/i', { timeout: 60000 });
 
     const createButton = page.getByRole('button', { name: /Create Automation/i }).first();
     await createButton.waitFor({ state: 'visible', timeout: 15000 });
@@ -72,7 +131,6 @@ test.describe('Enhancement Button - Can I enhance an automation after creating i
 
     await page.waitForSelector('text=/Automation.*created/i', { timeout: 15000 });
 
-    // Click the Enhance button
     const enhanceButton = page.locator('button:has-text("Enhance")').first();
     await expect(enhanceButton).toBeVisible({ timeout: 5000 });
     await enhanceButton.click();
@@ -83,12 +141,10 @@ test.describe('Enhancement Button - Can I enhance an automation after creating i
 
     const result = await Promise.race([
       errorToast.waitFor({ state: 'visible', timeout: 3000 }).then(() => 'error' as const),
-      enhancementModal.waitFor({ state: 'visible', timeout: 5000 }).then(() => 'modal' as const),
-      page.waitForTimeout(5000).then(() => 'timeout' as const),
+      enhancementModal.waitFor({ state: 'visible', timeout: 10000 }).then(() => 'modal' as const),
     ]).catch(() => 'timeout' as const);
 
-    // Enhancement should succeed (modal appears) -- not fail with an error
-    expect(result).toBe('modal');
+    expect(result, 'Enhancement modal should open without "Original prompt is required" error').toBe('modal');
   });
 
   test('enhance button works after preview was opened first', async ({ page }) => {
@@ -98,7 +154,7 @@ test.describe('Enhancement Button - Can I enhance an automation after creating i
     await inputField.fill('Create an automation to turn on office lights when motion is detected');
     await page.locator('button:has-text("Send")').click();
 
-    await page.waitForSelector('text=/automation|create|ready to create/i', { timeout: 30000 });
+    await page.waitForSelector('text=/automation|create|ready to create/i', { timeout: 60000 });
 
     // Open preview first (this sets originalPrompt in the UI state)
     const previewButton = page.locator('button:has-text("Preview Automation")').first();
@@ -127,7 +183,6 @@ test.describe('Enhancement Button - Can I enhance an automation after creating i
     await enhanceButton.click();
 
     const enhancementModal = page.locator('text=/Enhancement Suggestions/i');
-    await enhancementModal.waitFor({ state: 'visible', timeout: 5000 });
-    await expect(enhancementModal).toBeVisible();
+    await expect(enhancementModal).toBeVisible({ timeout: 10000 });
   });
 });

@@ -95,10 +95,17 @@ function Invoke-ClaudeStream {
             $claudeArgs += @("--allowedTools", $AllowedTools)
         }
 
-        # Create stream log directory
+        # Create stream log directory and auto-cleanup logs older than 7 days
         $streamLogDir = Join-Path $ProjectRoot "scripts/.stream-logs"
         if (-not (Test-Path $streamLogDir)) {
             New-Item -ItemType Directory -Path $streamLogDir -Force | Out-Null
+        }
+        try {
+            Get-ChildItem -Path $streamLogDir -Filter "*.jsonl" -ErrorAction SilentlyContinue |
+                Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } |
+                Remove-Item -Force -ErrorAction SilentlyContinue
+        } catch {
+            # Non-critical — don't fail the pipeline if cleanup fails
         }
         $streamLogFile = Join-Path $streamLogDir "$($Branch -replace '[/\\:]', '-')-step$StepNumber.jsonl"
 
