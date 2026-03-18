@@ -84,9 +84,11 @@ jobs:
           AI_SERVICES_AVAILABLE=1
           EOF
 
-          # Create shared network and volumes expected by domain compose files
+          # Create shared network and external volumes expected by domain compose files
           docker network create homeiq-network 2>/dev/null || true
           docker volume create homeiq-core-platform_homeiq_logs 2>/dev/null || true
+          docker volume create homeiq-ml-engine_ai_automation_data 2>/dev/null || true
+          docker volume create homeiq-ml-engine_ai_automation_models 2>/dev/null || true
 
           # Start only the domains needed for Ask AI tests (avoids volume
           # conflicts from including all 9 domains via root compose).
