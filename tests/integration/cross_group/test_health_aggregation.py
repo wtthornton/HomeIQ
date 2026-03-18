@@ -66,11 +66,33 @@ def _find_python_files(service_dir: str) -> list[str]:
 
 
 def _file_mentions_health_endpoint(filepath: str) -> bool:
-    """Check if a Python file defines a /health route."""
+    """Check if a Python file defines or delegates a /health route.
+
+    Services may define the route explicitly (``"/health"``) or delegate
+    to the shared ``StandardHealthCheck`` from homeiq-resilience.
+    """
     try:
         with open(filepath, encoding="utf-8", errors="ignore") as f:
             content = f.read()
-        return '"/health"' in content or "'/health'" in content
+        return (
+            '"/health"' in content
+            or "'/health'" in content
+            or "StandardHealthCheck" in content
+        )
+    except OSError:
+        return False
+
+
+def _file_has_status_field(filepath: str) -> bool:
+    """Check if a file contains a 'status' field or delegates to StandardHealthCheck."""
+    try:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+        return (
+            '"status"' in content
+            or "'status'" in content
+            or "StandardHealthCheck" in content
+        )
     except OSError:
         return False
 
@@ -119,7 +141,8 @@ class TestHealthAggregation:
         """Services with /health should return {\"status\": ...} in response.
 
         Scans source files for health endpoint handlers and checks that
-        they include a 'status' key in the response dict.
+        they include a 'status' key in the response dict — either directly
+        or via the shared ``StandardHealthCheck`` which guarantees it.
         """
         base = os.path.join(os.getcwd(), "domains")
         services_with_health = []
@@ -128,20 +151,16 @@ class TestHealthAggregation:
             for svc in services:
                 svc_dir = os.path.join(base, group, svc)
                 py_files = _find_python_files(svc_dir)
-                for f in py_files:
-                    if _file_mentions_health_endpoint(f):
-                        services_with_health.append(f"{group}/{svc}")
-                        try:
-                            with open(f, encoding="utf-8", errors="ignore") as fh:
-                                content = fh.read()
-                            # Check that "status" appears near the health endpoint
-                            assert '"status"' in content or "'status'" in content, (
-                                f"{group}/{svc} health endpoint should return "
-                                f"a 'status' field in its response"
-                            )
-                        except OSError:
-                            pass
-                        break
+                health_files = [f for f in py_files if _file_mentions_health_endpoint(f)]
+                if health_files:
+                    services_with_health.append(f"{group}/{svc}")
+                    # At least one health-defining file must contain
+                    # a 'status' field or delegate to StandardHealthCheck
+                    has_status = any(_file_has_status_field(f) for f in health_files)
+                    assert has_status, (
+                        f"{group}/{svc} health endpoint should return "
+                        f"a 'status' field in its response"
+                    )
 
         # At least core services should have health endpoints
         assert len(services_with_health) >= 3, (

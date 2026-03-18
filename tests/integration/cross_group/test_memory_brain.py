@@ -39,25 +39,26 @@ def _make_memory(
     embedding: list[float] | None = None,
 ) -> Memory:
     """Create a Memory instance for testing without database."""
-    m = Memory.__new__(Memory)
-    m.id = id
-    m.content = content
-    m.memory_type = memory_type
-    m.confidence = confidence
-    m.source_channel = SourceChannel.IMPLICIT
-    m.source_service = "test"
-    m.entity_ids = None
-    m.area_ids = None
-    m.domain = domain
-    m.tags = None
-    m.embedding = embedding or [0.1] * 384
-    m.created_at = updated_at or datetime.now(UTC)
-    m.updated_at = updated_at or datetime.now(UTC)
-    m.last_accessed = None
-    m.access_count = 0
-    m.superseded_by = None
-    m.metadata_ = None
-    return m
+    now = updated_at or datetime.now(UTC)
+    return Memory(
+        id=id,
+        content=content,
+        memory_type=memory_type,
+        confidence=confidence,
+        source_channel=SourceChannel.IMPLICIT,
+        source_service="test",
+        entity_ids=None,
+        area_ids=None,
+        domain=domain,
+        tags=None,
+        embedding=embedding or [0.1] * 384,
+        created_at=now,
+        updated_at=now,
+        last_accessed=None,
+        access_count=0,
+        superseded_by=None,
+        metadata_=None,
+    )
 
 
 @pytest.mark.integration

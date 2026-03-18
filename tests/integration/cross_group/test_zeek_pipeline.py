@@ -10,8 +10,10 @@ Tests the REAL parser and model code with mocked I/O dependencies.
 from __future__ import annotations
 
 import json
+import sys
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -19,6 +21,14 @@ import pytest
 # Zeek service imports are done inside tests to handle sys.path
 # These are imported at module level from the shared libs
 from homeiq_resilience import CircuitBreaker
+
+# Add zeek-network-service src for models/services imports
+_ZEEK_SRC = str(
+    Path(__file__).resolve().parents[3]
+    / "domains" / "data-collectors" / "zeek-network-service" / "src"
+)
+if _ZEEK_SRC not in sys.path:
+    sys.path.insert(0, _ZEEK_SRC)
 
 
 def _make_conn_log_entry(

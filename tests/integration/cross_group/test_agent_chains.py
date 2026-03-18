@@ -10,6 +10,9 @@ Tests the REAL client/library code paths with mocked HTTP transports.
 from __future__ import annotations
 
 import asyncio
+import importlib.util
+import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -17,6 +20,25 @@ import pytest
 
 from homeiq_resilience import CircuitBreaker, CircuitOpenError, CrossGroupClient
 from homeiq_resilience.circuit_breaker import CircuitState
+
+# Import confidence_scorer directly by file path to avoid namespace collision
+# with zeek-network-service's identically-named ``services/`` package.
+_PA_SRC = (
+    Path(__file__).resolve().parents[3]
+    / "domains" / "energy-analytics" / "proactive-agent-service" / "src"
+)
+_mod_name = "pa_confidence_scorer"
+_cs_spec = importlib.util.spec_from_file_location(
+    _mod_name,
+    str(_PA_SRC / "services" / "confidence_scorer.py"),
+)
+_confidence_scorer = importlib.util.module_from_spec(_cs_spec)
+sys.modules[_mod_name] = _confidence_scorer  # register before exec for @dataclass
+_cs_spec.loader.exec_module(_confidence_scorer)
+
+ActionScore = _confidence_scorer.ActionScore
+ConfidenceScorer = _confidence_scorer.ConfidenceScorer
+SAFETY_BLOCKED_DOMAINS = _confidence_scorer.SAFETY_BLOCKED_DOMAINS
 
 
 @pytest.mark.integration
@@ -97,12 +119,6 @@ class TestAgentChains:
         Validates the confidence/risk scoring model contract used by
         proactive-agent-service for action decisions.
         """
-        from services.confidence_scorer import (
-            ActionScore,
-            ConfidenceScorer,
-            SAFETY_BLOCKED_DOMAINS,
-        )
-
         scorer = ConfidenceScorer()
 
         # Score a safe light action
@@ -179,10 +195,6 @@ class TestAgentChains:
         containing the three restricted domains, and that scoring them
         returns confidence=0 and risk_level=critical.
         """
-        from services.confidence_scorer import (
-            ConfidenceScorer,
-            SAFETY_BLOCKED_DOMAINS,
-        )
 
         # Verify the blocked domains set
         assert "lock" in SAFETY_BLOCKED_DOMAINS

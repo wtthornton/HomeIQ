@@ -24,15 +24,12 @@ _LIB_PATHS = [
     _project_root / "libs" / "homeiq-memory" / "src",
 ]
 
-# Domain service source paths used by specific test files
-_SERVICE_PATHS = [
-    # Zeek pipeline tests (Story 78.2)
-    _project_root / "domains" / "data-collectors" / "zeek-network-service" / "src",
-    # Agent chain tests (Story 78.3) — proactive-agent-service
-    _project_root / "domains" / "energy-analytics" / "proactive-agent-service" / "src",
-]
+# NOTE: Domain service src paths (zeek-network-service, proactive-agent-service)
+# are NOT added globally because they share package names (models/, services/)
+# which causes namespace collisions.  Each test file adds its own path via the
+# ``service_src_path`` fixture below.
 
-for p in _LIB_PATHS + _SERVICE_PATHS:
+for p in _LIB_PATHS:
     p_str = str(p)
     if p.is_dir() and p_str not in sys.path:
         sys.path.insert(0, p_str)

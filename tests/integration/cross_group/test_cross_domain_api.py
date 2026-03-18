@@ -31,11 +31,11 @@ class TestCrossDomainAPI:
 
     def test_automation_core_imports_data_client(self):
         """automation-core services should be able to import homeiq_data client."""
-        from homeiq_data import DataAPIClient  # noqa: F401
+        from homeiq_data import StandardDataAPIClient  # noqa: F401
 
     def test_ml_engine_imports_data_client(self):
         """ml-engine services should be able to import homeiq_data client."""
-        from homeiq_data import DataAPIClient  # noqa: F401
+        from homeiq_data import StandardDataAPIClient  # noqa: F401
 
     def test_automation_services_use_bearer_auth_pattern(self):
         """Automation-core services that call data-api must support api_key param.
@@ -45,12 +45,12 @@ class TestCrossDomainAPI:
         """
         import inspect
 
-        from homeiq_data import DataAPIClient
+        from homeiq_data import StandardDataAPIClient
 
-        sig = inspect.signature(DataAPIClient.__init__)
+        sig = inspect.signature(StandardDataAPIClient.__init__)
         params = list(sig.parameters.keys())
         assert "api_key" in params, (
-            "DataAPIClient must accept api_key parameter for Bearer auth"
+            "StandardDataAPIClient must accept api_key parameter for Bearer auth"
         )
 
     def test_resilience_cross_group_client_available(self):
@@ -68,7 +68,7 @@ class TestCrossDomainAPI:
         cb = CircuitBreaker(
             failure_threshold=5,
             recovery_timeout=30,
-            service_name="data-api",
+            name="data-api",
         )
         assert cb is not None
 
