@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
 **Created:** 2026-02-27 | **Updated:** 2026-03-17 (Sprint 37; Epics 80-83 closed — all P1/P2 complete)
-**Total:** 86 Completed Epics, 555 Stories complete | 2 Planned (P3 backlog)
+**Total:** 86 Completed Epics, 555 Stories complete | 3 Planned (P2-P3 backlog)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -214,7 +214,7 @@ Sprint 37 (COMPLETE — Mar 17, 2026) — Data-API Route Coverage Expansion
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **84** (86 epics complete, 76-77 in P3 backlog). All P1/P2 complete.
+> Next available epic number: **85** (86 epics complete, 76-77 P3, 84 P2 backlog).
 
 ### P1 — All Complete
 
@@ -229,6 +229,12 @@ Sprint 37 (COMPLETE — Mar 17, 2026) — Data-API Route Coverage Expansion
 ### In Progress
 
 > No epics currently in progress. All work through Epic 83 is complete.
+
+### P2 — Backlog
+
+| # | Epic | Source Doc | Stories | Effort | Notes |
+|---|------|-----------|---------|--------|-------|
+| 84 | **E2E Stale Selector Remediation** | [epic-84-e2e-stale-selector-remediation.md](epic-84-e2e-stale-selector-remediation.md) | 11 | 3-5 sessions | Fix 169+ stale data-testid selectors, deprecated port 8002, SQLite refs, sidebar→tab nav |
 
 ### P3 — Backlog
 
