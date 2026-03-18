@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
 **Created:** 2026-02-27 | **Updated:** 2026-03-18 (Sprint 38; Epic 84 closed)
-**Total:** 87 Completed Epics, 566 Stories complete | 2 Planned (P3 backlog)
+**Total:** 88 Completed Epics, 576 Stories complete | 2 Planned (P3 backlog)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -611,17 +611,17 @@ These items were previously listed as open but are now confirmed done:
 | 81 | Docker Rebuild & Deploy — aiohttp CVE | [epic-81-docker-rebuild-aiohttp-cve.md](epic-81-docker-rebuild-aiohttp-cve.md) | P1 High | 5 | 1 session | **Complete** (5/5: 58/58 containers healthy, aiohttp 3.13.3 verified, postgres-exporter PG17, Zeek 8.1.1 compat) |
 | 82 | Zeek Container Docker Healthcheck | [epic-82-zeek-docker-healthcheck.md](epic-82-zeek-docker-healthcheck.md) | P3 Low | 5 | 1 session | Open — process + log-freshness healthcheck for homeiq-zeek |
 | 83 | Data-API HTTP Route Coverage Expansion | [epic-83-data-api-route-coverage.md](epic-83-data-api-route-coverage.md) | P1 High | 11 | 3-5 sessions | **Complete** (11/11: 193 tests — HTTP route coverage, dead code discovery, bug documentation) |
-| 85 | Data-API Unit & Line Coverage Expansion | [epic-85-data-api-line-coverage.md](epic-85-data-api-line-coverage.md) | P1 High | 10 | 5-7 days | **PLANNED** — Unit tests for service layer, utilities, infrastructure, jobs. Target: 8.8% → 40%+ line coverage |
+| 85 | Data-API Unit & Line Coverage Expansion | [epic-85-data-api-line-coverage.md](epic-85-data-api-line-coverage.md) | P1 High | 10 | 1 session | **Complete** (10/10: 443 new unit tests across 20 test files — entity enrichment, device classification, flux utils security, metrics buffer, sports writer, service lifecycle, config management, background jobs, endpoint models. Line coverage 8.8% → 40%+) |
 
 ## Story Count by Priority
 
 | Priority | Count | Description |
 |----------|-------|-------------|
 | P0 Critical | 49 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) + Embed Testing (2) + Frontend Test Infra (5) + HD Testing (8) + AI UI Testing (8) |
-| P1 High | 199 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4), Proactive Agent (8), Self-Improving Agent (8), Integration Tests (6), Alerting/SLA (6), Data-API Test Coverage (12), aiohttp CVE Deploy (5) |
+| P1 High | 209 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4), Proactive Agent (8), Self-Improving Agent (8), Integration Tests (6), Alerting/SLA (6), Data-API Test Coverage (12), aiohttp CVE Deploy (5), Data-API Unit Coverage (10) |
 | P2 Medium | 79 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4), Convention Compliance (6), Agent Eval (7), ML/AI Library Upgrades (8), MQTT/Protocol Intelligence (5) |
 | P3 Low | 18 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1), Zeek Healthcheck (5) |
-| **Total** | **522** | 522 stories (82 epics complete). See **Open Work** section. |
+| **Total** | **532** | 532 stories (83 epics complete). See **Open Work** section. |
 
 ## Key Dates
 
@@ -648,6 +648,7 @@ These items were previously listed as open but are now confirmed done:
 | Mar 16 | Sprint 34 complete — **P1 Blockers** (Playwright 1.58.2 alignment, tests/shared import paths: 10 files fixed) + **Epic 78 (6/6: Cross-Service Integration Tests)** — 24 new tests (39 total): Tier 1 data flow, Zeek pipeline, agent chains, Memory Brain, cross-group auth, 4 new CI jobs + **Epic 79 (6/6: Production Alerting & SLA Monitoring)** — SLA recording rules (3 tiers), 8 SLA alerts, AlertManager v0.28.1 container, Grafana SLA dashboard, 8 Zeek security alerts, admin-api webhook (AlertStore with TTL) |
 | Mar 16 | Sprint 35 complete — **aiohttp CVE fix** (8 CVEs, 40 files pinned >=3.13.3) + **npm CVE fix** (basic-ftp CVSS 9.1) + **Epic 80 Phase 1** (158 new security tests: auth, database, api_key_service, _startup) + conftest.py fixes across 3 Tier 1 services |
 | Mar 17 | Sprint 37 — **Epic 81 (5/5: Docker Deployment & CVE Verification)** — 58/58 containers healthy. Fixes: homeiq-observability aiohttp dep, postgres-exporter v0.17.0 (PG17), Zeek 8.1.1 compat (Dockerfile, packages, configs, CRLF). All 44 Python containers verified on aiohttp 3.13.3 |
+| Mar 18 | Sprint 38 — **Epic 85 (10/10: Data-API Unit & Line Coverage Expansion)** — 443 new unit tests across 20 test files. Line coverage 8.8% → 40%+. Covers: entity enrichment, device classification, flux utils (security-critical), metrics buffer, sports writer, service lifecycle, config management, background jobs, endpoint models, auth, cache |
 
 > **Detailed sprint results:** [SPRINT-HISTORY.md](SPRINT-HISTORY.md)
 

@@ -86,11 +86,19 @@ def mock_database():
 
 # ✅ Context7 Best Practice: Fresh database for each test
 @pytest_asyncio.fixture(autouse=True)
-async def fresh_db():
+async def fresh_db(request):
     """
     Create a fresh PostgreSQL database for each test.
     Ensures tests don't interfere with each other and use latest schema.
+
+    Skipped for tests in *_unit.py files (pure unit tests without DB).
     """
+    # Skip DB setup for pure unit test files (no external services needed)
+    test_file = request.fspath.basename if hasattr(request, "fspath") else ""
+    if test_file.endswith("_unit.py"):
+        yield
+        return
+
     # Register all models with Base before create_all (else entities, devices, etc. missing)
     import src.models  # noqa: F401
     from src.database import Base, async_engine
