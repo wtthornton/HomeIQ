@@ -1,7 +1,7 @@
 # Epic 86: Zeek 8.x Native Telemetry & Capture Health Dashboard
 
 <!-- docsmcp:start:metadata -->
-**Status:** Proposed
+**Status:** COMPLETE (Sprint 39, Mar 18 2026)
 **Priority:** P2 — Medium
 **Estimated LOE:** ~1 week (1 developer)
 **Dependencies:** Epic 79 (Production Alerting & SLA — COMPLETE), Epic 72 (Zeek Core Network Ingestion — COMPLETE), Epic 82 (Zeek Container Docker Healthcheck — COMPLETE)
@@ -34,14 +34,14 @@ Today, Epic 79's zeek-alerts.yml monitors the zeek-network-service Python applic
 <!-- docsmcp:start:acceptance-criteria -->
 ## Acceptance Criteria
 
-- [ ] Zeek process exposes Prometheus metrics on port 9911 via `@load frameworks/telemetry`
-- [ ] Prometheus scrapes Zeek telemetry endpoint at 30s interval with correct labels
-- [ ] Recording rules compute 5m rolling averages for packet drops and event queue depth
-- [ ] Alert rules fire on packet drop rate >0.1% and event queue depth >10000
-- [ ] Grafana dashboard displays Zeek capture health panels (packets received/dropped/memory/event queue/connections)
-- [ ] Dashboard is auto-provisioned alongside existing SLA dashboard
-- [ ] All changes work with Zeek's `network_mode: host` constraint
-- [ ] zeek-alerts.yml updated to include capture-level alert rules
+- [x] Zeek process exposes Prometheus metrics on port 9911 via `@load frameworks/telemetry`
+- [x] Prometheus scrapes Zeek telemetry endpoint at 30s interval with correct labels
+- [x] Recording rules compute 5m rolling averages for packet drops and event queue depth
+- [x] Alert rules fire on packet drop rate >0.1% and event queue depth >10000
+- [x] Grafana dashboard displays Zeek capture health panels (packets received/dropped/memory/event queue/connections)
+- [x] Dashboard is auto-provisioned alongside existing SLA dashboard
+- [x] All changes work with Zeek's `network_mode: host` constraint
+- [x] zeek-alerts.yml updated to include capture-level alert rules
 
 <!-- docsmcp:end:acceptance-criteria -->
 

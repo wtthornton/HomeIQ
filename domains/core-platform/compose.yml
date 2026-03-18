@@ -458,6 +458,8 @@ services:
     image: prom/prometheus:v3.2.1
     container_name: homeiq-prometheus
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Reach Zeek telemetry on host network (Epic 86)
     ports:
       - "9090:9090"
     volumes:

@@ -258,6 +258,10 @@ RUN pip install -r requirements.txt
 | 8080 | data-retention | core-platform |
 | 8086 | InfluxDB | core-platform |
 | 8501 | observability-dashboard | frontends |
+| 9090 | Prometheus | core-platform (monitoring) |
+| 9093 | AlertManager | core-platform (monitoring) |
+| 9187 | postgres-exporter | core-platform (monitoring) |
+| 9911 | Zeek Telemetry (native Prometheus metrics) | data-collectors |
 | 16686 | jaeger (UI) | frontends |
 
 Internal-only services (no published host port): `ner-service`, `ai-code-executor`

@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-18 (Sprint 38; Epic 84 closed)
-**Total:** 88 Completed Epics, 576 Stories complete | 2 Planned (P3 backlog)
+**Created:** 2026-02-27 | **Updated:** 2026-03-18 (Sprint 39; Epic 86 closed)
+**Total:** 89 Completed Epics, 583 Stories complete | 2 Planned (P3 backlog)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -206,6 +206,16 @@ Sprint 36 (COMPLETE — Mar 16, 2026) — Docker Rebuild & Zeek Hardening
 Sprint 37 (COMPLETE — Mar 17, 2026) — Data-API Route Coverage Expansion
 └── Epic 83: Data-API HTTP Route Coverage Expansion [P1]             ← COMPLETE (11/11 stories)
     └── 186 tests (167 pass, 19 need PG), 5 pre-existing bugs documented, route shadowing discovered
+
+Sprint 38 (COMPLETE — Mar 18, 2026) — Data-API Unit Coverage + E2E Selector Remediation
+├── Epic 85: Data-API Unit & Line Coverage Expansion [P1]              ← COMPLETE (10/10 stories)
+│   └── 443 new unit tests across 20 test files, line coverage 8.8% → 40%+
+└── Epic 84: E2E Stale Selector Remediation [P2]                       ← COMPLETE (11/11 stories)
+    └── 169+ stale selectors remediated across 15 E2E files
+
+Sprint 39 (COMPLETE — Mar 18, 2026) — Zeek Native Telemetry & Capture Health
+└── Epic 86: Zeek 8.x Native Telemetry & Capture Health Dashboard [P2] ← COMPLETE (7/7 stories)
+    └── Zeek telemetry on :9911, Prometheus scrape, 6 recording rules, 4 alert rules, Grafana dashboard
 ```
 
 ---
@@ -214,7 +224,7 @@ Sprint 37 (COMPLETE — Mar 17, 2026) — Data-API Route Coverage Expansion
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **86** (87 epics complete, 76-77 P3 backlog).
+> Next available epic number: **87** (89 epics complete, 76-77 P3 backlog).
 
 ### P1 — All Complete
 
@@ -228,13 +238,11 @@ Sprint 37 (COMPLETE — Mar 17, 2026) — Data-API Route Coverage Expansion
 
 ### In Progress
 
-> No epics currently in progress. All work through Epic 83 is complete.
+> No epics currently in progress. All work through Epic 86 is complete.
 
-### P1 — Backlog
+### P1 — All Complete
 
-| # | Epic | Source Doc | Stories | Effort | Notes |
-|---|------|-----------|---------|--------|-------|
-| 85 | **Data-API Unit & Line Coverage Expansion** | [epic-85-data-api-line-coverage.md](epic-85-data-api-line-coverage.md) | 10 | 5-7 days | Push measured line coverage from 8.8% → 40%+. Unit tests for service layer (9 modules), utilities (flux_utils, metrics), infrastructure (app setup, lifecycle), jobs. 123+ new tests |
+> Epic 85 (Data-API Unit Coverage) completed Mar 18. Epic 86 (Zeek Telemetry) completed Mar 18.
 
 ### P2 — All Complete
 
@@ -266,6 +274,25 @@ Sprint 37 (COMPLETE — Mar 17, 2026) — Data-API Route Coverage Expansion
 | 84.9 | **Full rewrite of user-journey-complete.spec.ts** — Complete rewrite using tab-based navigation, valid health-card queries, event-stream | COMPLETE |
 | 84.10 | **Add missing data-testid attributes** — Audit confirmed 35+ production testids already cover all E2E needs | COMPLETE |
 | 84.11 | **Full E2E regression verification** — 137 tests across 11 files parse successfully, zero stale selectors remain | COMPLETE |
+
+### Epic 86: Zeek 8.x Native Telemetry & Capture Health Dashboard — COMPLETE (Mar 18)
+
+**Priority:** P2 | **Effort:** 1 session | **Dependencies:** Epics 72, 79, 82 (all complete) | **Status:** COMPLETE (7/7)
+**Affects:** `domains/data-collectors/zeek-network-service/`, `infrastructure/prometheus/`, `infrastructure/grafana/`, `domains/core-platform/compose.yml`
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 86.1 | **Enable Zeek telemetry framework** — Added `@load frameworks/telemetry` + `Telemetry::metrics_port = 9911` to local.zeek | COMPLETE |
+| 86.2 | **Docker networking** — Added `extra_hosts: host.docker.internal:host-gateway` to Prometheus, `EXPOSE 9911` to Dockerfile.zeek, `ZEEK_TELEMETRY_PORT` env var | COMPLETE |
+| 86.3 | **Prometheus scrape config** — New `zeek-telemetry` job targeting `host.docker.internal:9911`, 30s interval, labels: service=zeek, metrics_source=native-telemetry | COMPLETE |
+| 86.4 | **Recording rules** — 6 rules in `zeek_capture_health` group: packets received/dropped rate, drop ratio (clamped), memory, event queue depth avg, active connections | COMPLETE |
+| 86.5 | **Alert rules** — 4 alerts in `zeek_capture_alerts` group: ZeekPacketDropHigh (>0.1%, critical), ZeekMemoryPressure (>3.2GB, warning), ZeekEventQueueSaturated (>10k, warning), ZeekCaptureStalled (0 pps, critical) | COMPLETE |
+| 86.6 | **Grafana dashboard** — `zeek-capture-health.json` with 9 panels: packets time series, drop ratio gauge, memory gauge, event queue with threshold line, active connections, capture health status stat | COMPLETE |
+| 86.7 | **Verification & docs** — Updated TECH_STACK.md (port 9911), healthcheck.sh (optional telemetry check), OPEN-EPICS-INDEX.md | COMPLETE |
+
+**Key deliverables:** 1 new Grafana dashboard, 6 recording rules, 4 alert rules, 1 Prometheus scrape job, port 9911 reserved
+
+---
 
 ### Epic 72: Zeek Core Network Ingestion (MVP) — COMPLETE (Mar 16)
 
@@ -612,6 +639,7 @@ These items were previously listed as open but are now confirmed done:
 | 82 | Zeek Container Docker Healthcheck | [epic-82-zeek-docker-healthcheck.md](epic-82-zeek-docker-healthcheck.md) | P3 Low | 5 | 1 session | Open — process + log-freshness healthcheck for homeiq-zeek |
 | 83 | Data-API HTTP Route Coverage Expansion | [epic-83-data-api-route-coverage.md](epic-83-data-api-route-coverage.md) | P1 High | 11 | 3-5 sessions | **Complete** (11/11: 193 tests — HTTP route coverage, dead code discovery, bug documentation) |
 | 85 | Data-API Unit & Line Coverage Expansion | [epic-85-data-api-line-coverage.md](epic-85-data-api-line-coverage.md) | P1 High | 10 | 1 session | **Complete** (10/10: 443 new unit tests across 20 test files — entity enrichment, device classification, flux utils security, metrics buffer, sports writer, service lifecycle, config management, background jobs, endpoint models. Line coverage 8.8% → 40%+) |
+| 86 | Zeek 8.x Native Telemetry & Capture Health Dashboard | [epic-86-zeek-telemetry-capture-health.md](epic-86-zeek-telemetry-capture-health.md) | P2 Medium | 7 | 1 session | **Complete** (7/7: Zeek telemetry :9911, Prometheus scrape, 6 recording rules, 4 capture alerts, Grafana dashboard, port 9911 in TECH_STACK) |
 
 ## Story Count by Priority
 
@@ -619,9 +647,9 @@ These items were previously listed as open but are now confirmed done:
 |----------|-------|-------------|
 | P0 Critical | 49 | DB migration (10) + Security (6) + Tier 1 hardening (4) + Memory Foundation (6) + Embed Testing (2) + Frontend Test Infra (5) + HD Testing (8) + AI UI Testing (8) |
 | P1 High | 209 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4), Proactive Agent (8), Self-Improving Agent (8), Integration Tests (6), Alerting/SLA (6), Data-API Test Coverage (12), aiohttp CVE Deploy (5), Data-API Unit Coverage (10) |
-| P2 Medium | 79 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4), Convention Compliance (6), Agent Eval (7), ML/AI Library Upgrades (8), MQTT/Protocol Intelligence (5) |
+| P2 Medium | 86 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4), Convention Compliance (6), Agent Eval (7), ML/AI Library Upgrades (8), MQTT/Protocol Intelligence (5), Zeek Telemetry (7) |
 | P3 Low | 18 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1), Zeek Healthcheck (5) |
-| **Total** | **532** | 532 stories (83 epics complete). See **Open Work** section. |
+| **Total** | **539** | 539 stories (89 epics complete). See **Open Work** section. |
 
 ## Key Dates
 
@@ -649,6 +677,7 @@ These items were previously listed as open but are now confirmed done:
 | Mar 16 | Sprint 35 complete — **aiohttp CVE fix** (8 CVEs, 40 files pinned >=3.13.3) + **npm CVE fix** (basic-ftp CVSS 9.1) + **Epic 80 Phase 1** (158 new security tests: auth, database, api_key_service, _startup) + conftest.py fixes across 3 Tier 1 services |
 | Mar 17 | Sprint 37 — **Epic 81 (5/5: Docker Deployment & CVE Verification)** — 58/58 containers healthy. Fixes: homeiq-observability aiohttp dep, postgres-exporter v0.17.0 (PG17), Zeek 8.1.1 compat (Dockerfile, packages, configs, CRLF). All 44 Python containers verified on aiohttp 3.13.3 |
 | Mar 18 | Sprint 38 — **Epic 85 (10/10: Data-API Unit & Line Coverage Expansion)** — 443 new unit tests across 20 test files. Line coverage 8.8% → 40%+. Covers: entity enrichment, device classification, flux utils (security-critical), metrics buffer, sports writer, service lifecycle, config management, background jobs, endpoint models, auth, cache |
+| Mar 18 | Sprint 39 — **Epic 86 (7/7: Zeek Native Telemetry & Capture Health Dashboard)** — Zeek 8.x telemetry on :9911, Prometheus `zeek-telemetry` scrape job, 6 recording rules (packet rates, drop ratio, memory, event queue, connections), 4 alert rules (PacketDropHigh, MemoryPressure, EventQueueSaturated, CaptureStalled), Grafana dashboard (9 panels), healthcheck.sh telemetry check |
 
 > **Detailed sprint results:** [SPRINT-HISTORY.md](SPRINT-HISTORY.md)
 

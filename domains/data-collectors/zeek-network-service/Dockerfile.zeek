@@ -23,6 +23,9 @@ RUN chmod +x /usr/local/bin/healthcheck.sh
 HEALTHCHECK --interval=60s --timeout=10s --retries=3 --start-period=120s \
     CMD /usr/local/bin/healthcheck.sh
 
+# Zeek telemetry port — Prometheus metrics (Epic 86, no effect with host networking but documents the contract)
+EXPOSE 9911
+
 # Log output directory (zeek 8.1.1 runs as root; network capture requires CAP_NET_RAW)
 RUN mkdir -p /zeek/logs
 WORKDIR /zeek

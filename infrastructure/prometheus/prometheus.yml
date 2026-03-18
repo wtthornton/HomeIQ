@@ -134,6 +134,22 @@ scrape_configs:
           group: 'data-collectors'
           tier: '2'
 
+  # --- Zeek Native Telemetry (Epic 86) ---
+  # Captures Zeek engine-level metrics (packets, drops, memory, event queue).
+  # Separate from data-collectors job because Zeek runs on host network.
+  - job_name: 'zeek-telemetry'
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - 'host.docker.internal:9911'
+        labels:
+          service: 'zeek'
+          group: 'data-collectors'
+          tier: '2'
+          metrics_source: 'native-telemetry'
+
   # --- Group 3: ML Engine ---
   # Model inference, embedding generation, and training.
   - job_name: 'ml-engine'

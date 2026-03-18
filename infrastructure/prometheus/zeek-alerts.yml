@@ -29,6 +29,99 @@ groups:
         expr: |
           sum(rate(zeek_dns_queries_total[5m]))
 
+  # --- Zeek Capture Health Recording Rules (Epic 86, Story 86.4) ---
+  - name: zeek_capture_health
+    interval: 15s
+    rules:
+      # Packet receive rate (5-minute rolling)
+      - record: zeek:packets:received_rate_5m
+        expr: |
+          rate(zeek_packets_received_total[5m])
+
+      # Packet drop rate (5-minute rolling)
+      - record: zeek:packets:dropped_rate_5m
+        expr: |
+          rate(zeek_packets_dropped_total[5m])
+
+      # Packet drop ratio — safe against division by zero (NaN when no traffic)
+      - record: zeek:packets:drop_ratio_5m
+        expr: |
+          clamp_max(
+            zeek:packets:dropped_rate_5m
+            / (zeek:packets:received_rate_5m + zeek:packets:dropped_rate_5m),
+            1
+          )
+
+      # Memory usage (alias for consistent naming)
+      - record: zeek:memory:usage_bytes
+        expr: |
+          zeek_memory_usage_bytes
+
+      # Event queue depth average (5-minute rolling)
+      - record: zeek:event_queue:depth_avg_5m
+        expr: |
+          avg_over_time(zeek_event_queue_length[5m])
+
+      # Active connections (alias for consistent naming)
+      - record: zeek:connections:active_total
+        expr: |
+          zeek_active_connections
+
+  # --- Zeek Capture Health Alerts (Epic 86, Story 86.5) ---
+  - name: zeek_capture_alerts
+    rules:
+      - alert: ZeekPacketDropHigh
+        expr: zeek:packets:drop_ratio_5m > 0.001
+        for: 5m
+        labels:
+          severity: critical
+          domain: security
+          service: zeek
+          tier: "2"
+          group: data-collectors
+        annotations:
+          summary: "Zeek packet drop ratio exceeds 0.1%"
+          description: "Zeek is dropping {{ $value | humanizePercentage }} of packets. Network security monitoring may have analysis gaps."
+          runbook_url: "https://docs.zeek.org/en/current/frameworks/telemetry.html"
+
+      - alert: ZeekMemoryPressure
+        expr: zeek:memory:usage_bytes > 3.2e9
+        for: 5m
+        labels:
+          severity: warning
+          service: zeek
+          tier: "2"
+          group: data-collectors
+        annotations:
+          summary: "Zeek memory usage exceeds 80% of 4GB limit"
+          description: "Zeek process is using {{ $value | humanize1024 }}B of memory (limit: 4GB). Consider increasing container memory or optimizing scripts."
+
+      - alert: ZeekEventQueueSaturated
+        expr: zeek:event_queue:depth_avg_5m > 10000
+        for: 2m
+        labels:
+          severity: warning
+          service: zeek
+          tier: "2"
+          group: data-collectors
+        annotations:
+          summary: "Zeek event queue depth exceeds 10,000"
+          description: "Zeek event queue averaging {{ $value }} pending events. Processing may be falling behind capture rate."
+
+      - alert: ZeekCaptureStalled
+        expr: zeek:packets:received_rate_5m == 0
+        for: 2m
+        labels:
+          severity: critical
+          domain: security
+          service: zeek
+          tier: "2"
+          group: data-collectors
+        annotations:
+          summary: "Zeek is not receiving any packets"
+          description: "Zeek packet receive rate has been 0 for 2+ minutes. Capture interface may be down or misconfigured."
+          runbook_url: "https://docs.zeek.org/en/current/frameworks/telemetry.html"
+
   # --- Zeek Security Alerts ---
   - name: zeek_security_alerts
     rules:

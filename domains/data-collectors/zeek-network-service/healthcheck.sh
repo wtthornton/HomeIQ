@@ -1,5 +1,5 @@
 #!/bin/sh
-# Zeek Docker healthcheck — process alive + log freshness
+# Zeek Docker healthcheck — process alive + log freshness + telemetry
 # No community Zeek Docker image implements a healthcheck (as of Mar 2026);
 # this is a HomeIQ-original pattern for standalone-mode Zeek.
 
@@ -10,3 +10,7 @@ pgrep -x zeek > /dev/null 2>&1 || exit 1
 # (2x the 5-min rotation interval configured in local.zeek for safety margin)
 # During startup, no logs exist yet — the 120s start_period covers this window.
 test -n "$(find /zeek/logs -name '*.log' -mmin -10 2>/dev/null)" || exit 1
+
+# Phase 3 (optional): Telemetry endpoint responsive (Epic 86)
+# Non-blocking — if telemetry is down, Zeek may still be capturing packets.
+curl --max-time 2 -sf http://localhost:9911/metrics > /dev/null 2>&1 || true

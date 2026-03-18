@@ -397,6 +397,7 @@ services:
     environment:
       - ZEEK_INTERFACE=${ZEEK_INTERFACE:-eth0}
       - ZEEK_BPF_FILTER=not net 172.18.0.0/16  # Exclude homeiq-network bridge
+      - ZEEK_TELEMETRY_PORT=9911
     deploy:
       resources:
         limits:
