@@ -335,16 +335,9 @@ Pages like ConversationalDashboard manually implement polling with `setInterval`
 
 **Fix**: Migrate the remaining pages (ConversationalDashboard, Synergies, Patterns, Deployed) to use React Query for server state. This eliminates manual polling, loading/error state management, and provides automatic caching.
 
-### ARCH-04: AFRAME Stub Triplicated [LOW]
+### ARCH-04: AFRAME Stub Triplicated [RESOLVED]
 
-The AFRAME global stub is defined in 3 places:
-1. `index.html:8-14` - Inline script
-2. `vite.config.ts:8-31` - Plugin that injects script
-3. `src/main.tsx:5-16` - Runtime assignment
-
-This exists to suppress errors from `react-force-graph` which depends on AFRAME/THREE.js.
-
-**Fix**: Keep only one -- the `main.tsx` runtime assignment is sufficient since it runs before any component code. Remove from `index.html` and the Vite plugin.
+**Resolved 2026-03-18**: Replaced `react-force-graph` (which bundled 3D/AR/VR + three.js + aframe) with `react-force-graph-2d` (2D-only, no three.js/aframe dependency). Removed `three-global.ts`, `aframe-stub.js`, and all THREE/AFRAME workarounds. The original `THREE is not defined` crash at startup is fixed.
 
 ### ARCH-05: Dual Design System Approach [MEDIUM]
 

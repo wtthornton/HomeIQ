@@ -1,6 +1,3 @@
-// AFRAME stub loaded via /aframe-stub.js in index.html (runs before modules)
-// THREE.js preload for react-force-graph - must run before any graph component
-import './three-global';
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'

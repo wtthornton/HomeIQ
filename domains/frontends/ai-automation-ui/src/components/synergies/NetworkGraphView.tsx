@@ -5,11 +5,12 @@
  * Phase 3: Interactive Network Graph
  */
 
-import React, { useState, useMemo, useCallback, useRef, Component, ErrorInfo, ReactNode, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useRef, Component, ErrorInfo, ReactNode, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { SynergyOpportunity } from '../../types';
 
-// AFRAME stub is defined once in main.tsx (global entry point)
+// Lazy-load the 2D-only force graph (no THREE.js / aframe dependency)
+const ForceGraph2DLazy = React.lazy(() => import('react-force-graph-2d'));
 
 // Error Boundary Component for graph rendering errors
 class GraphErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean; error: Error | null }> {
@@ -33,131 +34,6 @@ class GraphErrorBoundary extends Component<{ children: ReactNode; fallback: Reac
     return this.props.children;
   }
 }
-
-// Dynamic import with state management and timeout
-let ForceGraph2DComponent: any = null;
-let loadPromise: Promise<any> | null = null;
-let retryCount = 0;
-const MAX_RETRIES = 2;
-const LOAD_TIMEOUT_MS = 30000; // 30 seconds timeout
-
-/**
- * Creates a timeout promise that rejects after specified milliseconds
- */
-const createTimeout = (ms: number): Promise<never> => {
-  return new Promise((_, reject) => {
-    setTimeout(() => reject(new Error(`Load timeout after ${ms}ms`)), ms);
-  });
-};
-
-/**
- * Sets up THREE.js with extensible Proxy wrapper
- */
-const setupTHREE = async (): Promise<void> => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    // Remove existing THREE if it exists
-    if ((window as any).THREE) {
-      delete (window as any).THREE;
-    }
-    
-    // Load THREE.js fresh
-    const THREE = await import('three');
-    const THREE_export = THREE as any;
-    
-    // Create an extensible wrapper using Proxy to allow property additions
-    // This ensures react-force-graph can add ColladaLoader and other loaders
-    (window as any).THREE = new Proxy(THREE_export, {
-      get(target, prop) {
-        return (target as any)[prop];
-      },
-      set(target, prop, value) {
-        (target as any)[prop] = value;
-        return true;
-      },
-      defineProperty(target, prop, descriptor) {
-        return Reflect.defineProperty(target, prop, descriptor);
-      },
-      has(target, prop) {
-        return prop in target;
-      },
-      ownKeys(target) {
-        return Reflect.ownKeys(target);
-      }
-    });
-  } catch (err) {
-    console.warn('[NetworkGraphView] Failed to load THREE.js:', err);
-    // Continue anyway - react-force-graph might handle it
-  }
-};
-
-/**
- * Loads react-force-graph with timeout and error handling
- */
-const loadForceGraph = async (): Promise<any> => {
-  // Return cached component if already loaded
-  if (ForceGraph2DComponent) {
-    return ForceGraph2DComponent;
-  }
-  
-  // Setup prerequisites (AFRAME stub in main.tsx)
-  await setupTHREE();
-  
-  // If there's already a load in progress, return that promise
-  if (loadPromise) {
-    return loadPromise;
-  }
-  
-  // Create load promise with timeout
-  loadPromise = Promise.race([
-    import('react-force-graph').then((module: any) => {
-      if (!module || !module.ForceGraph2D) {
-        throw new Error('ForceGraph2D component not found in react-force-graph module');
-      }
-      ForceGraph2DComponent = module.ForceGraph2D;
-      retryCount = 0; // Reset retry count on success
-      return ForceGraph2DComponent;
-    }),
-    createTimeout(LOAD_TIMEOUT_MS)
-  ]).catch((error: any) => {
-    const errorMessage = error?.message || String(error);
-    
-    // Suppress AFRAME-related errors as we don't use 3D graphs
-    if (errorMessage.includes('AFRAME')) {
-      console.warn('[NetworkGraphView] AFRAME error suppressed (expected for 2D graphs):', errorMessage);
-      // Retry if under max retries
-      if (retryCount < MAX_RETRIES) {
-        retryCount++;
-        loadPromise = null;
-        return loadForceGraph();
-      }
-    }
-    
-    // Handle THREE-related errors
-    if (errorMessage.includes('THREE') || errorMessage.includes('three') || 
-        errorMessage.includes('ColladaLoader') || errorMessage.includes('not extensible') ||
-        errorMessage.includes('extensible')) {
-      console.warn('[NetworkGraphView] THREE.js error detected, attempting to reload:', errorMessage);
-      // Retry if under max retries
-      if (retryCount < MAX_RETRIES) {
-        retryCount++;
-        loadPromise = null;
-        return setupTHREE().then(() => loadForceGraph());
-      }
-    }
-    
-    // Reset promise and throw error
-    console.error('[NetworkGraphView] Failed to load react-force-graph:', error);
-    loadPromise = null;
-    retryCount = 0;
-    throw error;
-  });
-  
-  return loadPromise;
-};
 
 interface NetworkGraphViewProps {
   synergies: SynergyOpportunity[];
@@ -196,9 +72,6 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
   const [filterArea, setFilterArea] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [graphLoaded, setGraphLoaded] = useState(false);
-  const [ForceGraph2D, setForceGraph2D] = useState<any>(null);
   const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [graphWidth, setGraphWidth] = useState(800);
@@ -217,40 +90,6 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
     return () => window.removeEventListener('resize', updateWidth);
   }, []);
 
-  // Load the graph component on mount
-  useEffect(() => {
-    let isMounted = true;
-    const loadGraph = async () => {
-      
-      try {
-        const GraphComponent = await loadForceGraph();
-        
-        // Only update state if component is still mounted
-        if (isMounted) {
-          setForceGraph2D(() => GraphComponent);
-          setGraphLoaded(true);
-          setLoadError(null);
-        }
-      } catch (err: any) {
-        console.error('[NetworkGraphView] Error loading ForceGraph2D:', err);
-        
-        // Only update state if component is still mounted
-        if (isMounted) {
-          const errorMessage = err?.message || 'Failed to load network graph library';
-          setLoadError(errorMessage);
-          setGraphLoaded(false);
-        }
-      }
-    };
-    
-    loadGraph();
-    
-    // Cleanup function to prevent state updates after unmount
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-  
   // Transform synergies into graph format
   const { nodes, links } = useMemo(() => {
     const nodeMap = new Map<string, GraphNode>();
@@ -513,40 +352,12 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
         ref={containerRef}
         className={`relative rounded-xl overflow-hidden ${darkMode ? 'bg-gray-900' : 'bg-gray-100'} shadow-lg`}
       >
-        {loadError ? (
-          <div className="flex items-center justify-center h-[600px]">
-            <div className={`text-center p-6 rounded-xl ${darkMode ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-700'}`}>
-              <div className="text-4xl mb-4">⚠️</div>
-              <h3 className="text-lg font-semibold mb-2">Failed to load network graph</h3>
-              <p className="text-sm mb-4">{loadError}</p>
-              <button
-                onClick={() => {
-                  setLoadError(null);
-                  window.location.reload();
-                }}
-                className={`px-4 py-2 rounded-xl text-sm font-medium ${
-                  darkMode
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-blue-500 hover:bg-blue-600 text-white'
-                }`}
-              >
-                Retry
-              </button>
-            </div>
-          </div>
-        ) : filteredData.nodes.length === 0 ? (
+        {filteredData.nodes.length === 0 ? (
           <div className="flex items-center justify-center h-[600px]">
             <div className={`text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               <div className="text-4xl mb-4">📊</div>
               <p className="text-lg font-medium mb-2">No data to display</p>
               <p className="text-sm">No synergies available for network graph visualization.</p>
-            </div>
-          </div>
-        ) : !graphLoaded || !ForceGraph2D ? (
-          <div className="flex items-center justify-center h-[600px]">
-            <div className={`text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p>Loading network graph...</p>
             </div>
           </div>
         ) : (
@@ -571,7 +382,15 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
               </div>
             }
           >
-            <ForceGraph2D
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-[600px]">
+                <div className={`text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p>Loading network graph...</p>
+                </div>
+              </div>
+            }>
+            <ForceGraph2DLazy
               ref={graphRef}
               graphData={filteredData}
               nodeLabel={(node: any) => {
@@ -602,6 +421,7 @@ export const NetworkGraphView: React.FC<NetworkGraphViewProps> = ({
               width={graphWidth}
               height={600}
             />
+            </Suspense>
           </GraphErrorBoundary>
         )}
       </div>

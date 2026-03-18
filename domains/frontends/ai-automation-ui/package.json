@@ -29,7 +29,7 @@
     "react": "^19.2.4",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.4",
-    "react-force-graph": "^1.48.1",
+    "react-force-graph-2d": "^1.29.1",
     "react-hot-toast": "^2.5.1",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^6.30.2",
@@ -37,7 +37,6 @@
     "rehype-highlight": "^7.0.2",
     "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",
-    "three": "^0.181.2",
     "zustand": "^5.0.9"
   },
   "devDependencies": {

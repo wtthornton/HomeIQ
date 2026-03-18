@@ -51,6 +51,7 @@
 
 ### Fixed
 
+- **fix ai-automation-ui blank page — replace react-force-graph with react-force-graph-2d to eliminate THREE.js crash** — Bill Thornton
 - **resolve 19 test failures — align tests with deployed API contracts** (a8c4910) - Bill Thornton
 - **Zeek 8.1.1 compatibility — config, packages, and MQTT analyzer** (caabd71) - Bill Thornton
 - **Docker deployment fixes — aiohttp dep, postgres-exporter PG17, Zeek build** (deb86db) - Bill Thornton

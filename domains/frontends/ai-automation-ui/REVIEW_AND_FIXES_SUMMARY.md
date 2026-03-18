@@ -67,7 +67,7 @@ Comprehensive review and enhancement of the ai-automation-ui service using AI qu
 
 **Changes:**
 - Added browser environment checks before DOM manipulation
-- Improved error handling for THREE.js loading
+- Replaced `react-force-graph` with `react-force-graph-2d` (eliminates THREE.js/aframe dependency entirely)
 - Added security comments for XSS prevention
 
 **Security Impact:** LOW - Prevents SSR errors and improves error handling

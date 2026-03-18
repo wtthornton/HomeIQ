@@ -59,7 +59,7 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
           query: ['@tanstack/react-query'],
-          'force-graph': ['react-force-graph', 'three'],
+          'force-graph': ['react-force-graph-2d'],
           charts: ['chart.js'],
           markdown: ['react-markdown', 'react-syntax-highlighter', 'highlight.js'],
           animation: ['framer-motion'],
@@ -71,12 +71,8 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['react-force-graph', 'three']
+    include: ['react-force-graph-2d']
   },
-  define: {
-    ...(process.env.NODE_ENV !== 'test' && {
-      'global.AFRAME': 'window.AFRAME'
-    })
-  }
+  define: {}
 })
 
