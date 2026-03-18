@@ -16,7 +16,7 @@ import pytest
 
 # Ensure src is importable
 _service_root = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_service_root / "src"))
+sys.path.insert(0, str(_service_root))
 
 from fastapi.testclient import TestClient
 
@@ -78,6 +78,10 @@ def client():
     mock_rec = _mock_recommender()
     mock_store = _mock_feedback_store()
 
+    # Import app first to ensure src.api.routes is in sys.modules
+    # before patch() tries to resolve the dotted path.
+    from src.main import app
+
     with patch("src.api.routes._recommender", mock_rec), \
          patch("src.api.routes._feedback_store", mock_store), \
          patch("src.api.routes._memory_client", None), \
@@ -85,7 +89,6 @@ def client():
          patch("src.api.routes.init_memory_client", new_callable=AsyncMock), \
          patch("src.api.routes.load_model", return_value=True):
 
-        from src.main import app
         yield TestClient(app, raise_server_exceptions=False)
 
 

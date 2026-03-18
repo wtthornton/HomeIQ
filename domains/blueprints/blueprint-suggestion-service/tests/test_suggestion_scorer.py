@@ -253,7 +253,7 @@ class TestFullScoring:
             # Replace with our mock
             self.scorer.device_matcher = self.mock_device_matcher
 
-        yield
+            yield
         patch.stopall()
 
     def test_score_in_range(self):
