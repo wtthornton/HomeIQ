@@ -2,13 +2,13 @@
 name: tapps-memory
 description: >-
   Manage shared project memory for cross-session knowledge persistence.
-  20 actions: save, search, consolidate, federation, and more.
+  23 actions: save, search, consolidate, federation, and more.
 mcp_tools:
   - tapps_memory
   - tapps_session_notes
 ---
 
-Manage shared project memory using TappsMCP (20 actions):
+Manage shared project memory using TappsMCP (23 actions):
 
 **Core CRUD:** save, save_bulk, get, list, delete
 **Search:** search (ranked BM25 with composite scoring)
@@ -16,6 +16,7 @@ Manage shared project memory using TappsMCP (20 actions):
 **Consolidation:** consolidate (merge related entries), unconsolidate (undo)
 **Import/export:** import (JSON), export (JSON or Markdown)
 **Federation:** federate_register, federate_publish, federate_subscribe, federate_sync, federate_search, federate_status
+**Maintenance:** index_session (index session notes), validate (check store integrity), maintain (GC + consolidation + contradiction detection)
 
 Steps:
 1. Determine the action from the list above
