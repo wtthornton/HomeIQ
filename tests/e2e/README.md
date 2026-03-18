@@ -2,7 +2,7 @@
 
 Comprehensive end-to-end tests using Playwright, run against the local Docker deployment.
 
-## Test Matrix (Epic 89.5 — updated 2026-03-18)
+## Test Matrix (Epic 90 — updated 2026-03-18)
 
 | Category | Spec Files | Tests (approx) | CI Gate | Timeout |
 |----------|-----------|----------------|---------|---------|
@@ -11,16 +11,27 @@ Comprehensive end-to-end tests using Playwright, run against the local Docker de
 | **Root-level specs** | 11 | 40+ | Yes | 60s |
 | **API Integration** | 3 | 15+ | Yes | 90s |
 | **Visual Regression** | 1 | 14 | Yes (2% tolerance) | 30s |
-| **Ask AI (live)** | 3 | 33 | No (quarantined) | 90-120s |
-| **Total** | **93** | **~356** | | |
+| **Ask AI (live)** | 3 | 40 | Separate job (`test-live-ai.yml`) | 120-180s |
+| **Backend Integration (Epic 90)** | 3 | 29 | Yes (pytest) | 120s |
+| **Blueprint Service Tests (Epic 90)** | 4 | 107 | Yes (pytest) | 30s |
+| **Total** | **100** | **~500+** | | |
 
 ### CI Behavior
 
 - **Main gate:** All specs except quarantined live-AI tests (see [FLAKY_TESTS.md](FLAKY_TESTS.md))
+- **Live AI gate:** `test-live-ai.yml` — manual + nightly, runs quarantined Ask AI specs with live OpenAI
 - **Quarantined:** `ask-ai-complete`, `ask-ai-to-ha-automation`, `ask-ai-debug` — require `AI_SERVICES_AVAILABLE=1`
 - **Pass-rate threshold:** 95% (warning if below)
 - **Retries on CI:** 2 per test
 - **Workers on CI:** 1 (sequential for stability)
+
+### Epic 90 Additions
+
+- **YAML content verification:** All 14 `ask-ai-to-ha-automation` tests now validate YAML structure (trigger platform, action services, entity IDs) — see [ASK_AI_YAML_VERIFICATION.md](ASK_AI_YAML_VERIFICATION.md)
+- **Reliability fixes:** `ask-ai-complete` split into Fast (UI) / Slow (OpenAI) groups with resilient wait patterns
+- **Test cleanup:** `helpers/test-cleanup.ts` provides automation tracking + HA API cleanup
+- **Backend integration:** 29 new Python integration tests (chat pipeline, validation service, hybrid flow)
+- **Predictive services:** 107 new unit tests for blueprint-suggestion-service and rule-recommendation-ml
 
 ## Test Structure
 

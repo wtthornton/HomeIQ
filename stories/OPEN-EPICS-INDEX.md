@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
 **Created:** 2026-02-27 | **Updated:** 2026-03-18 (Sprint 39; Epics 76-77 closed Won't Do, Epics 87-89 planned)
-**Total:** 89 Completed Epics, 583 Stories complete | 2 Closed Won't Do | 3 Planned (P2)
+**Total:** 90 Completed Epics, 593 Stories complete | 2 Closed Won't Do | 0 Planned
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -216,6 +216,15 @@ Sprint 38 (COMPLETE — Mar 18, 2026) — Data-API Unit Coverage + E2E Selector 
 Sprint 39 (COMPLETE — Mar 18, 2026) — Zeek Native Telemetry & Capture Health
 └── Epic 86: Zeek 8.x Native Telemetry & Capture Health Dashboard [P2] ← COMPLETE (7/7 stories)
     └── Zeek telemetry on :9911, Prometheus scrape, 6 recording rules, 4 alert rules, Grafana dashboard
+
+Sprint 40 (COMPLETE — Mar 18, 2026) — E2E Stability, CVE Hardening, Data-API Coverage
+├── Epic 87: Data-API Coverage Expansion Phase 2 [P2]                     ← COMPLETE (6/6 stories)
+├── Epic 88: Dependency CVE Sweep & Hardening [P2]                        ← COMPLETE (4/4 stories)
+└── Epic 89: E2E Test Stability & Green CI [P2]                           ← COMPLETE (5/5 stories)
+
+Sprint 41 (COMPLETE — Mar 18, 2026) — Ask AI → HA YAML E2E Pipeline
+└── Epic 90: Ask AI → HA YAML E2E Pipeline [P1]                          ← COMPLETE (10/10 stories)
+    └── 7 backend integration tests + 14 YAML-asserted E2E tests + 107 blueprint service tests + CI workflow + cleanup harness + docs
 ```
 
 ---
@@ -224,25 +233,19 @@ Sprint 39 (COMPLETE — Mar 18, 2026) — Zeek Native Telemetry & Capture Health
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **90** (92 epics complete, 76-77 closed won't-do). All P2 epics done.
+> Next available epic number: **91** (90 epics complete, 76-77 closed won't-do).
 
-### P1 — All Complete
+### P1 — Planned
 
-> All former P1 epics (58, 59, 62, 63, 65, 66, 67, 68, 70, 73) are now complete.
-> See the Execution History and detailed story sections below.
-
-### P2 — All Complete
-
-> All former P2 epics (64, 69, 71, 74, 75) are now complete.
-> See the Execution History and detailed story sections below.
+> No epics currently planned. Next epic number: **91**.
 
 ### In Progress
 
-> No epics currently in progress. All planned epics (87-89) complete. No open work remaining.
+> No epics currently in progress.
 
 ### P1 — All Complete
 
-> Epics 85-86 completed Mar 18. Epic 89 (E2E Stability) completed Mar 18.
+> Epics 85-86 completed Mar 18. Epic 89 (E2E Stability) completed Mar 18. Epic 90 (Ask AI YAML E2E Pipeline) completed Mar 18.
 
 ### P2 — All Complete
 
@@ -306,6 +309,37 @@ Sprint 39 (COMPLETE — Mar 18, 2026) — Zeek Native Telemetry & Capture Health
 | 89.3 | **Add flaky test quarantine** — Created `FLAKY_TESTS.md` registry. Excluded `ask-ai-complete`, `ask-ai-to-ha-automation`, `ask-ai-debug` from main CI gate via `--ignore-pattern`. Live AI tests gated behind `AI_SERVICES_AVAILABLE=1`. | COMPLETE |
 | 89.4 | **Visual regression stability** — Added `document.fonts.ready` wait to prevent woff2 flakiness. Pinned `maxDiffPixelRatio: 0.02` (2%) across all 27 screenshot assertions via `SNAPSHOT_OPTS` constant. | COMPLETE |
 | 89.5 | **Green CI baseline & metrics** — Added pass-rate check step to CI (warns if < 95%). Added JSON reporter. Updated `tests/e2e/README.md` with test matrix table (93 specs, ~356 tests). | COMPLETE |
+
+### Epic 90: Ask AI → HA YAML E2E Pipeline — COMPLETE (Mar 18)
+
+**Priority:** P1 | **Effort:** 1 session | **Dependencies:** Epics 53, 84, 89 (all complete) | **Status:** COMPLETE (10/10)
+**Affects:** `tests/e2e/`, `tests/integration/`, `domains/blueprints/`, `.github/workflows/`
+**Goal:** End-to-end testing from Ask AI prompt → YAML generation → validation → HA deployment → YAML retrieval & structural verification. Un-quarantined live AI tests with reliability patterns. Added YAML content verification layer.
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 90.1 | **Backend integration test: chat → YAML round-trip** — `tests/integration/test_ask_ai_yaml_pipeline.py` (7 tests). HTTP POST to `/api/v1/chat`, asserts `preview_automation_from_prompt` tool_call, parses YAML, validates trigger/action structure. 5 prompt categories: presence, time, device-state, multi-domain, scene. + 2 API contract tests. | COMPLETE |
+| 90.2 | **YAML retrieval & structural validation helper** — `tests/e2e/helpers/yaml-validator.ts`. Exports: `fetchAndValidateAutomationYAML`, `assertTriggerPlatform`, `assertActionService`, `assertEntityIds`, `assertAutomationEnabled` + TypeScript interfaces for HA automation config. | COMPLETE |
+| 90.3 | **Add YAML content assertions to E2E** — All 14 tests in `ask-ai-to-ha-automation.spec.ts` now call `fetchAndValidateAutomationYAML` after automation creation. Prompt-specific assertions: presence→state trigger, time→time trigger, scene→scene.turn_on, multi-domain→multiple action services. | COMPLETE |
+| 90.4 | **Fix ask-ai-complete reliability** — Split 26 tests into Fast (4 UI-only, 30s) and Slow (22 OpenAI, 120s) groups. All `waitForToast` → 45-60s. `expect.poll()` for async state. `test.slow()` + retries=2 for OpenAI tests. | COMPLETE |
+| 90.5 | **Test isolation & cleanup harness** — `tests/e2e/helpers/test-cleanup.ts`. `AutomationTracker` class with `track(id)` + `cleanup(request)` via HA API DELETE. `healthGate(request)` for beforeAll skip-if-down. `snapshotAutomationIds` + `verifyNoLeakedAutomations`. | COMPLETE |
+| 90.6 | **Un-quarantine live AI tests for CI** — `.github/workflows/test-live-ai.yml`. Manual + nightly (3:00 UTC). Docker stack startup, retries=2, workers=1, timeout=180s. Pass-rate JSON artifact + GitHub job summary. `FLAKY_TESTS.md` updated. | COMPLETE |
+| 90.7 | **YAML validation service integration tests** — `tests/integration/test_yaml_validation_service.py` (15 tests). All 6 stages: syntax error, schema (missing trigger/action), normalization (triggers→trigger, initial_state), safety (lock/alarm warnings), style (Jinja2), edge cases (empty, non-dict). | COMPLETE |
+| 90.8 | **Predictive suggestion service tests** — 4 files, 107 tests. Blueprint suggestion: 35 scorer tests (weights, complexity, fallback) + 15 API tests. Rule recommendation: 30 model tests (collaborative, device-based, popular, cold-start, save/load, pickle security) + 27 API tests. | COMPLETE |
+| 90.9 | **Hybrid Flow integration test** — `tests/integration/test_hybrid_flow_pipeline.py` (7 tests). Plan → Validate → Compile pipeline. Determinism proof: 3 identical compile calls → identical YAML. Cross-service validation: compiled YAML → yaml-validation-service. | COMPLETE |
+| 90.10 | **E2E regression suite & documentation** — Created `ASK_AI_YAML_VERIFICATION.md` (test matrix: 5 categories × 3 levels). Updated `ASK_AI_TEST_STATUS.md` (archived Oct 2025 data). Updated `README.md` test matrix (500+ tests). Updated `FLAKY_TESTS.md` with CI job reference. | COMPLETE |
+
+**Key deliverables:** Backend integration tests (HTTP-level, no UI), YAML content validator helper, structural assertions on every created automation, test cleanup harness, un-quarantined live AI CI job, predictive suggestion test coverage, hybrid flow determinism verification.
+
+**Architecture notes:**
+- Two automation paths exist: **GUI** (ha-ai-agent-service:8030 → GPT picks entities/YAML) and **CLI** (ai-automation-service-new:8036 → deterministic template compilation). Both must be tested.
+- Validation chain has 3 strategies (YAML service → AI automation service → basic fallback). Tests must verify all 3.
+- `yaml-validation-service` does 6-stage validation: syntax → schema → referential integrity → service schema → safety → maintainability.
+- The `preview_automation_from_prompt` tool stores pending previews in conversation state — the approval flow requires multi-turn conversation testing.
+- Blueprint suggestion scoring weights sum to 0.80, not 1.0 — Story 90.8 should fix this.
+- Rule-recommendation-ml uses insecure pickle deserialization and loses feedback on restart — Story 90.8 should document/flag these.
+
+---
 
 ### Epic 84: E2E Stale Selector Remediation — COMPLETE (Mar 18)
 
@@ -694,6 +728,7 @@ These items were previously listed as open but are now confirmed done:
 | 87 | Data-API Coverage Expansion Phase 2 | *(this file)* | P2 Medium | 6 | 1-2 weeks | **Planned** — 40% → 60%+ line coverage, 4 zero-coverage modules + memory consolidation deep paths |
 | 88 | Dependency CVE Sweep & Hardening | *(this file)* | P2 Medium | 4 | 3-5 days | **Planned** — Full audit of 75 requirements files, pip-audit hook, KNOWN-VULNERABILITIES.md |
 | 89 | E2E Test Stability & Green CI | *(this file)* | P2 Medium | 5 | 1 week | **Planned** — Fix 4 AI UI failures, Ask AI timeouts, flaky quarantine, green baseline across 93 specs |
+| 90 | Ask AI → HA YAML E2E Pipeline | [epic-90-ask-ai-yaml-e2e.md](epic-90-ask-ai-yaml-e2e.md) | P1 High | 10 | 2-3 weeks | **Complete** (10/10: 7 backend integration tests, 14 YAML-asserted E2E tests, 107 blueprint service tests, reliability fixes, CI workflow, cleanup harness, docs) |
 
 ## Story Count by Priority
 
@@ -703,7 +738,7 @@ These items were previously listed as open but are now confirmed done:
 | P1 High | 209 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4), Proactive Agent (8), Self-Improving Agent (8), Integration Tests (6), Alerting/SLA (6), Data-API Test Coverage (12), aiohttp CVE Deploy (5), Data-API Unit Coverage (10) |
 | P2 Medium | 101 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4), Convention Compliance (6), Agent Eval (7), ML/AI Library Upgrades (8), MQTT/Protocol Intelligence (5), Zeek Telemetry (7), Data-API Coverage Ph2 (6), CVE Sweep (4), E2E Stability (5) |
 | P3 Low | 12 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
-| **Total** | **598** | 583 complete + 15 planned stories (89 epics complete, 2 closed won't-do, 3 planned). See **Open Work** for Epics 87-89. |
+| **Total** | **608** | 593 complete + 15 planned stories (90 epics complete, 2 closed won't-do). |
 
 ## Key Dates
 
@@ -732,6 +767,7 @@ These items were previously listed as open but are now confirmed done:
 | Mar 17 | Sprint 37 — **Epic 81 (5/5: Docker Deployment & CVE Verification)** — 58/58 containers healthy. Fixes: homeiq-observability aiohttp dep, postgres-exporter v0.17.0 (PG17), Zeek 8.1.1 compat (Dockerfile, packages, configs, CRLF). All 44 Python containers verified on aiohttp 3.13.3 |
 | Mar 18 | Sprint 38 — **Epic 85 (10/10: Data-API Unit & Line Coverage Expansion)** — 443 new unit tests across 20 test files. Line coverage 8.8% → 40%+. Covers: entity enrichment, device classification, flux utils (security-critical), metrics buffer, sports writer, service lifecycle, config management, background jobs, endpoint models, auth, cache |
 | Mar 18 | Sprint 39 — **Epic 86 (7/7: Zeek Native Telemetry & Capture Health Dashboard)** — Zeek 8.x telemetry on :9911, Prometheus `zeek-telemetry` scrape job, 6 recording rules (packet rates, drop ratio, memory, event queue, connections), 4 alert rules (PacketDropHigh, MemoryPressure, EventQueueSaturated, CaptureStalled), Grafana dashboard (9 panels), healthcheck.sh telemetry check |
+| Mar 18 | Sprint 41 — **Epic 90 (10/10: Ask AI → HA YAML E2E Pipeline)** — 7 backend integration tests (chat→YAML, validation service, hybrid flow), 14 YAML-asserted E2E tests, 107 blueprint service tests (suggestion scorer + rule-recommendation-ml), ask-ai-complete reliability fix (fast/slow split, resilient waits), test cleanup harness, `test-live-ai.yml` CI workflow, YAML verification matrix docs. Total new tests: ~160 |
 
 > **Detailed sprint results:** [SPRINT-HISTORY.md](SPRINT-HISTORY.md)
 

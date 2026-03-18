@@ -27,6 +27,14 @@
 import { test, expect } from '@playwright/test';
 import { AskAIPage } from './page-objects/AskAIPage';
 import { DeployedPage } from './page-objects/DeployedPage';
+import {
+  fetchAndValidateAutomationYAML,
+  assertTriggerPlatform,
+  assertActionService,
+  assertEntityIds,
+  assertAutomationEnabled,
+  HAAutomationConfig,
+} from './helpers/yaml-validator';
 
 // Backend deploy service (proxied through ha-ai-agent-service)
 const DEPLOY_API = 'http://localhost:8018/api/deploy/automations';
@@ -141,6 +149,15 @@ test.describe('Ask AI → HA Automation (Presence-Based)', () => {
 
     await verifyAutomationInAPI(request, automationId, beforeIds, page);
     await verifyAutomationInUI(page, automationId);
+
+    // YAML content assertions (Story 90.3)
+    if (automationId) {
+      const config = await fetchAndValidateAutomationYAML(request, automationId);
+      assertTriggerPlatform(config, 'state');
+      assertEntityIds(config, ['binary_sensor', 'light']);
+      assertActionService(config, 'light.turn_on');
+      console.log(`✅ YAML validated for presence automation: trigger=state, entities include sensor+light`);
+    }
   });
 
   test('Bar presence → bar lights automation', async ({ page, request }) => {
@@ -176,6 +193,15 @@ test.describe('Ask AI → HA Automation (Presence-Based)', () => {
 
     await verifyAutomationInAPI(request, automationId, beforeIds, page);
     await verifyAutomationInUI(page, automationId);
+
+    // YAML content assertions (Story 90.3)
+    if (automationId) {
+      const config = await fetchAndValidateAutomationYAML(request, automationId);
+      assertTriggerPlatform(config, 'state');
+      assertEntityIds(config, ['binary_sensor']);
+      assertActionService(config, 'light.turn_on');
+      console.log(`✅ YAML validated for bar presence automation: trigger=state, light action`);
+    }
   });
 });
 
@@ -218,6 +244,15 @@ test.describe('Ask AI → HA Automation (Switches & Fan)', () => {
     console.log(`✅ Fan auto-off automation created: ${automationId}`);
 
     await verifyAutomationInAPI(request, automationId, beforeIds, page);
+
+    // YAML content assertions (Story 90.3)
+    if (automationId) {
+      const config = await fetchAndValidateAutomationYAML(request, automationId);
+      assertTriggerPlatform(config, 'state');
+      assertActionService(config, 'turn_off');
+      assertEntityIds(config, ['switch', 'binary_sensor']);
+      console.log(`✅ YAML validated for fan auto-off: trigger=state, switch turn_off action`);
+    }
   });
 
   test('Roborock DND at bedtime', async ({ page, request }) => {
@@ -252,6 +287,15 @@ test.describe('Ask AI → HA Automation (Switches & Fan)', () => {
     console.log(`✅ Roborock DND automation created: ${automationId}`);
 
     await verifyAutomationInAPI(request, automationId, beforeIds, page);
+
+    // YAML content assertions (Story 90.3)
+    if (automationId) {
+      const config = await fetchAndValidateAutomationYAML(request, automationId);
+      assertTriggerPlatform(config, 'time');
+      assertActionService(config, 'switch.turn_on');
+      assertEntityIds(config, ['switch']);
+      console.log(`✅ YAML validated for Roborock DND: trigger=time, switch actions`);
+    }
   });
 });
 
@@ -295,6 +339,15 @@ test.describe('Ask AI → HA Automation (Media & TV)', () => {
 
     await verifyAutomationInAPI(request, automationId, beforeIds, page);
     await verifyAutomationInUI(page, automationId);
+
+    // YAML content assertions (Story 90.3)
+    if (automationId) {
+      const config = await fetchAndValidateAutomationYAML(request, automationId);
+      assertTriggerPlatform(config, 'state');
+      assertEntityIds(config, ['media_player']);
+      assertActionService(config, 'light.turn_on');
+      console.log(`✅ YAML validated for movie mode: trigger=state on media_player, light action`);
+    }
   });
 
   test('Office TV standby → nightlight mode', async ({ page, request }) => {
@@ -329,6 +382,15 @@ test.describe('Ask AI → HA Automation (Media & TV)', () => {
     console.log(`✅ TV nightlight automation created: ${automationId}`);
 
     await verifyAutomationInAPI(request, automationId, beforeIds, page);
+
+    // YAML content assertions (Story 90.3)
+    if (automationId) {
+      const config = await fetchAndValidateAutomationYAML(request, automationId);
+      assertTriggerPlatform(config, 'state');
+      assertEntityIds(config, ['media_player']);
+      assertActionService(config, 'switch.turn_on');
+      console.log(`✅ YAML validated for TV nightlight: trigger=state on media_player, switch action`);
+    }
   });
 });
 
@@ -372,6 +434,15 @@ test.describe('Ask AI → HA Automation (Outdoor & Security)', () => {
 
     await verifyAutomationInAPI(request, automationId, beforeIds, page);
     await verifyAutomationInUI(page, automationId);
+
+    // YAML content assertions (Story 90.3)
+    if (automationId) {
+      const config = await fetchAndValidateAutomationYAML(request, automationId);
+      assertTriggerPlatform(config, 'state');
+      assertEntityIds(config, ['binary_sensor', 'light']);
+      assertActionService(config, 'light.turn_on');
+      console.log(`✅ YAML validated for outdoor motion: trigger=state, light actions`);
+    }
   });
 
   test('Garage door opened → garage lights + notification', async ({ page, request }) => {
@@ -406,6 +477,15 @@ test.describe('Ask AI → HA Automation (Outdoor & Security)', () => {
     console.log(`✅ Garage door automation created: ${automationId}`);
 
     await verifyAutomationInAPI(request, automationId, beforeIds, page);
+
+    // YAML content assertions (Story 90.3)
+    if (automationId) {
+      const config = await fetchAndValidateAutomationYAML(request, automationId);
+      assertTriggerPlatform(config, 'state');
+      assertEntityIds(config, ['binary_sensor', 'light']);
+      assertActionService(config, 'light.turn_on');
+      console.log(`✅ YAML validated for garage door: trigger=state, light actions`);
+    }
   });
 
   test('Front door chime + motion → hallway lights', async ({ page, request }) => {
@@ -440,6 +520,15 @@ test.describe('Ask AI → HA Automation (Outdoor & Security)', () => {
     console.log(`✅ Front door automation created: ${automationId}`);
 
     await verifyAutomationInAPI(request, automationId, beforeIds, page);
+
+    // YAML content assertions (Story 90.3)
+    if (automationId) {
+      const config = await fetchAndValidateAutomationYAML(request, automationId);
+      assertTriggerPlatform(config, 'state');
+      assertEntityIds(config, ['binary_sensor', 'light']);
+      assertActionService(config, 'light.turn_on');
+      console.log(`✅ YAML validated for front door: trigger=state, light actions`);
+    }
   });
 });
 
@@ -483,6 +572,15 @@ test.describe('Ask AI → HA Automation (Scenes & Time-Based)', () => {
 
     await verifyAutomationInAPI(request, automationId, beforeIds, page);
     await verifyAutomationInUI(page, automationId);
+
+    // YAML content assertions (Story 90.3)
+    if (automationId) {
+      const config = await fetchAndValidateAutomationYAML(request, automationId);
+      assertTriggerPlatform(config, 'time');
+      assertActionService(config, 'scene.turn_on');
+      assertActionService(config, 'switch.turn_on');
+      console.log(`✅ YAML validated for bedtime: trigger=time, scene+switch actions`);
+    }
   });
 
   test('Sunset → outdoor lighting scene', async ({ page, request }) => {
@@ -517,6 +615,15 @@ test.describe('Ask AI → HA Automation (Scenes & Time-Based)', () => {
     console.log(`✅ Sunset lighting automation created: ${automationId}`);
 
     await verifyAutomationInAPI(request, automationId, beforeIds, page);
+
+    // YAML content assertions (Story 90.3)
+    if (automationId) {
+      const config = await fetchAndValidateAutomationYAML(request, automationId);
+      assertTriggerPlatform(config, 'sun');
+      assertActionService(config, 'scene.turn_on');
+      assertActionService(config, 'light.turn_on');
+      console.log(`✅ YAML validated for sunset lighting: trigger=sun, scene+light actions`);
+    }
   });
 });
 
@@ -560,6 +667,17 @@ test.describe('Ask AI → HA Automation (Multi-Domain)', () => {
 
     await verifyAutomationInAPI(request, automationId, beforeIds, page);
     await verifyAutomationInUI(page, automationId);
+
+    // YAML content assertions (Story 90.3)
+    if (automationId) {
+      const config = await fetchAndValidateAutomationYAML(request, automationId);
+      assertTriggerPlatform(config, 'state');
+      assertEntityIds(config, ['person']);
+      assertActionService(config, 'light.turn_off');
+      assertActionService(config, 'switch.turn_off');
+      assertActionService(config, 'media_player.turn_off');
+      console.log(`✅ YAML validated for away mode: trigger=state on person, multi-domain turn_off`);
+    }
   });
 
   test('Approve creates permanent welcome-home automation', async ({ page, request }) => {
@@ -600,6 +718,17 @@ test.describe('Ask AI → HA Automation (Multi-Domain)', () => {
 
     await verifyAutomationInAPI(request, automationId, beforeIds, page);
     await verifyAutomationInUI(page, automationId);
+
+    // YAML content assertions (Story 90.3)
+    if (automationId) {
+      const config = await fetchAndValidateAutomationYAML(request, automationId);
+      assertTriggerPlatform(config, 'state');
+      assertEntityIds(config, ['person']);
+      assertActionService(config, 'light.turn_on');
+      assertActionService(config, 'scene.turn_on');
+      assertAutomationEnabled(config);
+      console.log(`✅ YAML validated for welcome-home: trigger=state on person, light+scene+fan actions, enabled`);
+    }
   });
 });
 
@@ -657,6 +786,15 @@ test.describe('Ask AI → HA Automation (Lifecycle Verification)', () => {
       expect(match, `Automation ${automationId} should exist in list`).toBeTruthy();
       expect(match.state).toMatch(/off|disabled/i);
       console.log(`✅ Test automation ${automationId} is disabled (state: ${match.state})`);
+    }
+
+    // YAML content assertions (Story 90.3)
+    if (automationId) {
+      const config = await fetchAndValidateAutomationYAML(request, automationId);
+      assertTriggerPlatform(config, 'state');
+      assertEntityIds(config, ['binary_sensor', 'switch']);
+      assertActionService(config, 'switch.turn_on');
+      console.log(`✅ YAML validated for lifecycle test: trigger=state, switch action`);
     }
   });
 });

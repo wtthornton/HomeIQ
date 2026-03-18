@@ -1,0 +1,208 @@
+name: Live AI E2E Tests
+
+# Epic 90, Story 90.6: Un-quarantine live AI tests.
+# Runs ask-ai-to-ha-automation and ask-ai-complete specs against Docker stack
+# with live OpenAI. Manual trigger + nightly schedule.
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_filter:
+        description: 'Test file filter (e.g., ask-ai-complete, ask-ai-to-ha-automation, or blank for all)'
+        required: false
+        default: ''
+  schedule:
+    # Run nightly at 3:00 AM UTC
+    - cron: '0 3 * * *'
+
+env:
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  live-ai-tests:
+    name: Live AI E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: homeiq
+          POSTGRES_PASSWORD: homeiq_test
+          POSTGRES_DB: homeiq_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize PostgreSQL schemas
+        run: |
+          PGPASSWORD=homeiq_test psql -h localhost -U homeiq -d homeiq_test \
+            -f infrastructure/postgres/init-schemas.sql
+        continue-on-error: true
+
+      - name: Start Docker stack
+        run: |
+          # Create .env file with required secrets
+          cat > .env <<'ENVEOF'
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          HOME_ASSISTANT_URL=${{ secrets.HOME_ASSISTANT_URL }}
+          HOME_ASSISTANT_TOKEN=${{ secrets.HOME_ASSISTANT_TOKEN }}
+          POSTGRES_USER=homeiq
+          POSTGRES_PASSWORD=homeiq_test
+          API_KEY=${{ secrets.API_KEY }}
+          ENVEOF
+
+          # Start core services + automation-core domain
+          docker compose -f docker-compose.yml up -d \
+            --wait --wait-timeout 180
+        env:
+          AI_SERVICES_AVAILABLE: '1'
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          HOME_ASSISTANT_URL: ${{ secrets.HOME_ASSISTANT_URL }}
+          HOME_ASSISTANT_TOKEN: ${{ secrets.HOME_ASSISTANT_TOKEN }}
+
+      - name: Wait for services to be healthy
+        run: |
+          echo "Waiting for ha-ai-agent-service..."
+          timeout 180 bash -c 'until curl -sf http://localhost:8030/health; do sleep 5; done' || {
+            echo "::error::ha-ai-agent-service did not become healthy within 180s"
+            docker compose logs ha-ai-agent-service --tail=50
+            exit 1
+          }
+          echo "ha-ai-agent-service is healthy"
+
+          echo "Waiting for yaml-validation-service..."
+          timeout 60 bash -c 'until curl -sf http://localhost:8037/health; do sleep 5; done' || {
+            echo "::warning::yaml-validation-service not ready (non-blocking)"
+          }
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: tests/e2e/package-lock.json
+
+      - name: Install E2E dependencies
+        working-directory: tests/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run Live AI E2E tests
+        working-directory: tests/e2e
+        env:
+          AI_SERVICES_AVAILABLE: '1'
+          HOME_ASSISTANT_URL: ${{ secrets.HOME_ASSISTANT_URL }}
+          HOME_ASSISTANT_TOKEN: ${{ secrets.HOME_ASSISTANT_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          TEST_FILTER="${{ github.event.inputs.test_filter }}"
+
+          if [ -n "$TEST_FILTER" ]; then
+            npx playwright test "$TEST_FILTER" \
+              --retries=2 \
+              --workers=1 \
+              --timeout=180000 \
+              --reporter=list,json,html \
+              --output=test-results/
+          else
+            npx playwright test \
+              ask-ai-to-ha-automation.spec.ts \
+              ask-ai-complete.spec.ts \
+              --retries=2 \
+              --workers=1 \
+              --timeout=180000 \
+              --reporter=list,json,html \
+              --output=test-results/
+          fi
+
+      - name: Calculate pass rate
+        if: always()
+        working-directory: tests/e2e
+        run: |
+          if [ -f test-results.json ]; then
+            TOTAL=$(jq '.stats.expected + .stats.unexpected + .stats.flaky' test-results.json 2>/dev/null || echo 0)
+            PASSED=$(jq '.stats.expected' test-results.json 2>/dev/null || echo 0)
+            FLAKY=$(jq '.stats.flaky' test-results.json 2>/dev/null || echo 0)
+            FAILED=$(jq '.stats.unexpected' test-results.json 2>/dev/null || echo 0)
+
+            if [ "$TOTAL" -gt 0 ]; then
+              RATE=$(echo "scale=1; ($PASSED + $FLAKY) * 100 / $TOTAL" | bc)
+            else
+              RATE="0.0"
+            fi
+
+            echo "## Live AI E2E Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Total Tests | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+            echo "| Flaky (passed on retry) | $FLAKY |" >> $GITHUB_STEP_SUMMARY
+            echo "| Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Pass Rate** | **${RATE}%** |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run: \`${{ github.run_id }}\` | Branch: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+
+            # Save pass rate as JSON artifact
+            cat > test-results/pass-rate.json <<EOF
+            {
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+              "run_id": "${{ github.run_id }}",
+              "branch": "${{ github.ref_name }}",
+              "total": $TOTAL,
+              "passed": $PASSED,
+              "flaky": $FLAKY,
+              "failed": $FAILED,
+              "pass_rate": $RATE
+            }
+          EOF
+          else
+            echo "## Live AI E2E Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No test results JSON found." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-ai-test-results
+          path: |
+            tests/e2e/test-results/
+            tests/e2e/playwright-report/
+            tests/e2e/test-results.json
+          retention-days: 30
+
+      - name: Upload pass rate artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-ai-pass-rate
+          path: tests/e2e/test-results/pass-rate.json
+          retention-days: 90
+
+      - name: Collect Docker logs on failure
+        if: failure()
+        run: |
+          docker compose logs --tail=100 > docker-logs.txt 2>&1
+        continue-on-error: true
+
+      - name: Upload Docker logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-logs
+          path: docker-logs.txt
+          retention-days: 7

@@ -19,8 +19,8 @@ They are skipped in CI by default via `test.skip(!process.env.AI_SERVICES_AVAILA
 | File | Test | Reason | Date Added |
 |------|------|--------|------------|
 | `ai-automation-ui/pages/enhancement-button.spec.ts` | Enhancement Button — Live AI (3 tests) | Requires live OpenAI + ha-ai-agent-service | 2026-03-18 |
-| `ask-ai-complete.spec.ts` | All tests (19 tests) | Full OpenAI round-trips, 90s timeout | 2026-03-18 |
-| `ask-ai-to-ha-automation.spec.ts` | All tests (12 tests) | Full pipeline: OpenAI + HA automation creation, 120s timeout | 2026-03-18 |
+| `ask-ai-complete.spec.ts` | All tests (19 tests) | Full OpenAI round-trips, 90s timeout — **Epic 90.4 reliability fixes applied, tracked in `test-live-ai.yml` CI job** | 2026-03-18 |
+| `ask-ai-to-ha-automation.spec.ts` | All tests (12 tests) | Full pipeline: OpenAI + HA automation creation, 120s timeout — **Epic 90.3 YAML assertions added, tracked in `test-live-ai.yml` CI job** | 2026-03-18 |
 | `ask-ai-debug.spec.ts` | Debug tests (2 tests) | Debugging utility, not for CI | 2026-03-18 |
 
 ### Intermittent Failures
@@ -28,6 +28,15 @@ They are skipped in CI by default via `test.skip(!process.env.AI_SERVICES_AVAILA
 | File | Test | Symptom | Root Cause | Date Added |
 |------|------|---------|------------|------------|
 | `visual-regression.spec.ts` | Dark/mobile/tablet snapshots | Missing baselines | Baselines not yet generated (Epic 89.4) | 2026-03-18 |
+
+## CI Job for Live AI Tests
+
+The `test-live-ai.yml` workflow (Epic 90, Story 90.6) runs quarantined Ask AI tests against the Docker stack with live OpenAI:
+- **Trigger:** Manual (`workflow_dispatch`) + nightly at 3:00 AM UTC
+- **Tests:** `ask-ai-to-ha-automation.spec.ts` + `ask-ai-complete.spec.ts`
+- **Config:** retries=2, workers=1, timeout=180s
+- **Artifacts:** HTML report, JSON results, pass-rate trend data
+- **Un-quarantine criteria:** 5+ consecutive green runs in this workflow
 
 ## How to Run Quarantined Tests Locally
 
