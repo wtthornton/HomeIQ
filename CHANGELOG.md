@@ -17,6 +17,33 @@
 
 ### Fixed
 
+- **test-live-ai workflow — secrets check, domain-scoped compose** (0be4030) - Bill Thornton
+- **resolve 3 Epic 90 blueprint test failures** (d8a2f91) - Bill Thornton
+- **resolve ai-automation-ui blank page — THREE.js crash at startup** (6e373f9) - Bill Thornton
+- **Epic 84 — remediate 169+ stale E2E selectors across 15 files** (e670d4a) - Bill Thornton
+- **resolve 19 test failures — align tests with deployed API contracts** (a8c4910) - Bill Thornton
+- **Zeek 8.1.1 compatibility — config, packages, and MQTT analyzer** (caabd71) - Bill Thornton
+- **Docker deployment fixes — aiohttp dep, postgres-exporter PG17, Zeek build** (deb86db) - Bill Thornton
+- **pin aiohttp>=3.13.3 across all 40 requirements files (8 CVEs)** (5b6572a) - Bill Thornton
+- **resolve critical basic-ftp path traversal CVE (GHSA-5rq4-664w-9x2c)** (8c09b52) - Bill Thornton
+- **Memory Brain — embedding dimension mismatch and domain field gaps** (e352a69) - Bill Thornton
+
+
+### Added
+
+- **Epic 90 — Ask AI → HA YAML E2E pipeline (10/10 stories, ~160 new tests)** (aa5b28c) - Bill Thornton
+- **Epics 87-89 — E2E stability, CVE hardening, data-api coverage expansion** (a4ffc71) - Bill Thornton
+- **Epic 86 — Zeek 8.x native telemetry & capture health dashboard** (f77e8eb) - Bill Thornton
+- **Epic 85 — data-api unit test expansion (443 tests, 8.8% → 40% coverage)** (71b77f7) - Bill Thornton
+- **Epic 83 Data-API HTTP route coverage — 186 tests across 5 files** (af1be3a) - Bill Thornton
+- **Epic 82 Zeek Docker healthcheck — stories 82.1-82.3** (a0989f1) - Bill Thornton
+- **Sprint 34 — Epics 78-79 Cross-Service Integration Tests & Production Alerting** (0479e85) - Bill Thornton
+- **Sprint 33 — Epic 75 Zeek Anomaly Detection & Security Baseline (7/7 stories)** (39f3996) - Bill Thornton
+- **Sprint 28 — Epics 64 + 69 (Convention Compliance, Eval Feedback Loop)** (5ddaa11) - Bill Thornton
+- **Sprint 26-27 — Epics 66-70 (AI Classification, Validation Loop, Autonomous Agent, Self-Improving Agent)** (23f1587) - Bill Thornton
+
+### Fixed
+
 - **resolve 3 Epic 90 blueprint test failures** (d8a2f91) - Bill Thornton
 - **resolve ai-automation-ui blank page — THREE.js crash at startup** (6e373f9) - Bill Thornton
 - **Epic 84 — remediate 169+ stale E2E selectors across 15 files** (e670d4a) - Bill Thornton
