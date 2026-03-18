@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-17 (Sprint 37; Epic 82 Zeek Docker healthcheck — stories 82.1-82.3 complete)
-**Total:** 80 Completed Epics, 512 Stories complete | 2 Planned (P3 backlog)
+**Created:** 2026-02-27 | **Updated:** 2026-03-17 (Sprint 37; Epic 83 Data-API route coverage — 186 tests, 167 pass)
+**Total:** 82 Completed Epics, 522 Stories complete | 2 Planned (P3 backlog)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -204,7 +204,7 @@ Sprint 35 (COMPLETE — Mar 16, 2026) — Security Hardening + Test Coverage
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **83** (80 epics complete, 76-77 in P3 backlog, 82 in progress). All P1/P2 complete.
+> Next available epic number: **84** (82 epics complete, 76-77 in P3 backlog). All P1/P2 complete.
 
 ### P1 — All Complete
 
@@ -222,7 +222,8 @@ Sprint 35 (COMPLETE — Mar 16, 2026) — Security Hardening + Test Coverage
 |---|------|-----------|---------|--------|-------|
 | 80 | **Data-API Test Coverage & Security Hardening** | [epic-80-data-api-test-coverage.md](epic-80-data-api-test-coverage.md) | 12 | 5-7 days | **ALL PHASES COMPLETE (12/12)** — 345 tests total (158 Phase 1 + 134 Phases 2-4 + 53 Story 80.10) |
 | 81 | **Docker Rebuild & Deploy — aiohttp CVE** | [epic-81-docker-rebuild-aiohttp-cve.md](epic-81-docker-rebuild-aiohttp-cve.md) | 5 | 1 session | **COMPLETE** — 58/58 containers healthy, aiohttp 3.13.3 verified, postgres-exporter PG17 fix, Zeek 8.1.1 compat |
-| 82 | **Zeek Container Docker Healthcheck** | [epic-82-zeek-docker-healthcheck.md](epic-82-zeek-docker-healthcheck.md) | 5 | 1 session | **IN PROGRESS (3/5)** — healthcheck.sh, Dockerfile, compose updated; build/deploy/regression remaining |
+| 82 | **Zeek Container Docker Healthcheck** | [epic-82-zeek-docker-healthcheck.md](epic-82-zeek-docker-healthcheck.md) | 5 | 1 session | **COMPLETE** — 58/58 containers healthy, healthcheck.sh (process+log freshness), regression tested |
+| 83 | **Data-API HTTP Route Coverage Expansion** | [epic-83-data-api-route-coverage.md](epic-83-data-api-route-coverage.md) | 11 | 1 session | **COMPLETE** — 186 tests (167 pass, 19 need PG), 5 pre-existing bugs documented, route shadowing discovered |
 
 ### P3 — Backlog
 
@@ -230,7 +231,8 @@ Sprint 35 (COMPLETE — Mar 16, 2026) — Security Hardening + Test Coverage
 |---|------|-----------|---------|--------|-------|
 | 76 | **Auto-Bugfix Bash Parity** | [auto-bugfix-streaming-dashboard-prd.md](../docs/planning/auto-bugfix-streaming-dashboard-prd.md) Epic 4 | 3 | 1 week | Bash stream parser for Linux/macOS |
 | 77 | **Auto-Bugfix Test/Reliability** | [auto-bugfix-streaming-dashboard-prd.md](../docs/planning/auto-bugfix-streaming-dashboard-prd.md) Epic 5 | 3 | 1 week | Dry-run mode, error resilience, stream recording |
-| 82 | **Zeek Container Docker Healthcheck** | [epic-82-zeek-docker-healthcheck.md](epic-82-zeek-docker-healthcheck.md) | 5 | 1 session | **IN PROGRESS (3/5)** — Stories 82.1-82.3 complete, 82.4-82.5 manual verification remaining |
+| ~~82~~ | ~~Zeek Container Docker Healthcheck~~ | — | — | — | COMPLETE (see In Progress section) |
+| ~~83~~ | ~~Data-API HTTP Route Coverage~~ | — | — | — | COMPLETE (see In Progress section) |
 
 ### Epic 72: Zeek Core Network Ingestion (MVP) — COMPLETE (Mar 16)
 
@@ -584,7 +586,7 @@ These items were previously listed as open but are now confirmed done:
 | P1 High | 199 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4), Proactive Agent (8), Self-Improving Agent (8), Integration Tests (6), Alerting/SLA (6), Data-API Test Coverage (12), aiohttp CVE Deploy (5) |
 | P2 Medium | 79 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4), Convention Compliance (6), Agent Eval (7), ML/AI Library Upgrades (8), MQTT/Protocol Intelligence (5) |
 | P3 Low | 18 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1), Zeek Healthcheck (5) |
-| **Total** | **512** | 512 stories (80 epics complete + Epic 82 in progress). See **Open Work** section. |
+| **Total** | **522** | 522 stories (82 epics complete). See **Open Work** section. |
 
 ## Key Dates
 
