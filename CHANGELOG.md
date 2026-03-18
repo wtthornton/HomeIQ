@@ -25,6 +25,7 @@
 
 ### Fixed
 
+- **Resolve 19 test failures — align tests with deployed API contracts** (a8c4910) - Bill Thornton
 - **Zeek 8.1.1 compatibility — config, packages, and MQTT analyzer** (caabd71) - Bill Thornton
 - **Docker deployment fixes — aiohttp dep, postgres-exporter PG17, Zeek build** (deb86db) - Bill Thornton
 - **pin aiohttp>=3.13.3 across all 40 requirements files (8 CVEs)** (5b6572a) - Bill Thornton
