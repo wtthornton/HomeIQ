@@ -1,6 +1,6 @@
 # Epic 83: Data-API HTTP Route Coverage Expansion
 
-**Priority:** P1 Critical | **Effort:** 3-5 sessions | **Dependencies:** Epic 80 (complete) | **Status:** IN PROGRESS
+**Priority:** P1 Critical | **Effort:** 3-5 sessions | **Dependencies:** Epic 80 (complete) | **Status:** COMPLETE (11/11 stories)
 **Affects:** `domains/core-platform/data-api/` (Tier 1 critical service)
 
 ## Background
