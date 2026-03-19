@@ -64,7 +64,7 @@ export const AutomationProposal: React.FC<AutomationProposalProps> = ({
   };
 
   return (
-    <div className="space-y-3 mt-2" role="region" aria-label="Automation proposal details">
+    <div className="space-y-3 mt-2" role="region" aria-label="Automation proposal details" data-testid="automation-proposal">
       {sections.map((section, index) => (
         <motion.div
           key={index}

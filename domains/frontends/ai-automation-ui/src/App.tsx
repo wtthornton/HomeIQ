@@ -160,6 +160,7 @@ export const App: React.FC = () => {
                   />
 
                   {/* Legacy redirects */}
+                  <Route path="/ask-ai" element={<Navigate to="/chat" replace />} />
                   <Route path="/ha-agent" element={<Navigate to="/chat" replace />} />
                   <Route path="/deployed" element={<Navigate to="/automations" replace />} />
                   <Route path="/discovery" element={<Navigate to="/explore" replace />} />

@@ -260,6 +260,7 @@ export const CTAActionButtons: React.FC<CTAActionButtonsProps> = ({
             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
         } ${isCreating || !hasYaml || !extractedAlias || (validationResult && !validationResult.valid) || isValidating ? 'cursor-not-allowed' : 'cursor-pointer'} shadow-md hover:shadow-lg`}
         aria-label="Create automation"
+        data-testid="cta-create-button"
         aria-busy={isCreating || isValidating}
         aria-disabled={
           isCreating ||

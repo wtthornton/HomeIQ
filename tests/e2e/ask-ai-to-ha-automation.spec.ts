@@ -20,7 +20,7 @@
  *   - Person: Bill Thornton (home/away tracking)
  *
  * Prerequisites: Docker stack running (ai-automation-ui :3001,
- *   ha-ai-agent-service :8018, ai-automation-service-new :8036, HA instance).
+ *   ha-ai-agent-service :8030, ai-automation-service-new :8036, HA instance).
  *   Requires OPENAI_API_KEY in the backend environment.
  */
 
@@ -37,7 +37,7 @@ import {
 } from './helpers/yaml-validator';
 
 // Backend deploy service (proxied through ha-ai-agent-service)
-const DEPLOY_API = 'http://localhost:8018/api/deploy/automations';
+const DEPLOY_API = 'http://localhost:8030/api/deploy/automations';
 
 /**
  * Helper: snapshot current automation IDs from the deploy API
@@ -111,7 +111,6 @@ async function verifyAutomationInUI(
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Ask AI → HA Automation (Presence-Based)', () => {
-  test.setTimeout(120_000);
 
   test('Office presence → lights + fan automation', async ({ page, request }) => {
     const askAI = new AskAIPage(page);
@@ -210,7 +209,6 @@ test.describe('Ask AI → HA Automation (Presence-Based)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Ask AI → HA Automation (Switches & Fan)', () => {
-  test.setTimeout(120_000);
 
   test('Office fan auto-off when unoccupied', async ({ page, request }) => {
     const askAI = new AskAIPage(page);
@@ -304,7 +302,6 @@ test.describe('Ask AI → HA Automation (Switches & Fan)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Ask AI → HA Automation (Media & TV)', () => {
-  test.setTimeout(120_000);
 
   test('Movie mode: dim lights when Frame TV starts playing', async ({ page, request }) => {
     const askAI = new AskAIPage(page);
@@ -399,7 +396,6 @@ test.describe('Ask AI → HA Automation (Media & TV)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Ask AI → HA Automation (Outdoor & Security)', () => {
-  test.setTimeout(120_000);
 
   test('Outdoor motion → porch + front house lights at night', async ({ page, request }) => {
     const askAI = new AskAIPage(page);
@@ -537,7 +533,6 @@ test.describe('Ask AI → HA Automation (Outdoor & Security)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Ask AI → HA Automation (Scenes & Time-Based)', () => {
-  test.setTimeout(120_000);
 
   test('Bedtime scene activation', async ({ page, request }) => {
     const askAI = new AskAIPage(page);
@@ -632,7 +627,6 @@ test.describe('Ask AI → HA Automation (Scenes & Time-Based)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Ask AI → HA Automation (Multi-Domain)', () => {
-  test.setTimeout(120_000);
 
   test('Away mode: Bill leaves → shut everything down', async ({ page, request }) => {
     const askAI = new AskAIPage(page);
@@ -737,7 +731,6 @@ test.describe('Ask AI → HA Automation (Multi-Domain)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Ask AI → HA Automation (Lifecycle Verification)', () => {
-  test.setTimeout(120_000);
 
   test('Test automation is created in disabled state', async ({ page, request }) => {
     const askAI = new AskAIPage(page);

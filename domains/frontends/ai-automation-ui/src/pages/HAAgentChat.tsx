@@ -676,6 +676,7 @@ export const HAAgentChat: React.FC = () => {
             </div>
             <button
               onClick={handleNewConversation}
+              data-testid="new-chat"
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 darkMode
                   ? 'bg-gray-700 text-white hover:bg-gray-600'

@@ -1,8 +1,8 @@
 /**
- * Page Object Model for Ask AI Tab
- * 
+ * Page Object Model for Ask AI / Chat Tab
+ *
  * Natural language query interface for creating automations
- * URL: http://localhost:3001/ask-ai
+ * URL: http://localhost:3001/chat
  */
 
 import { Page, Locator, expect } from '@playwright/test';
@@ -11,40 +11,40 @@ export class AskAIPage {
   constructor(public page: Page) {}
 
   /**
-   * Navigate to Ask AI page
+   * Navigate to Chat page
    */
   async goto() {
-    await this.page.goto('http://localhost:3001/ask-ai');
+    await this.page.goto('http://localhost:3001/chat');
     // Wait for page to be ready
     await this.page.waitForLoadState('networkidle');
   }
 
   /**
-   * Get the query input field
+   * Get the query input field (textarea in HAAgentChat)
    */
   getQueryInput(): Locator {
-    return this.page.locator('input[placeholder*="Ask me about"]');
+    return this.page.locator('[data-testid="message-input"]');
   }
 
   /**
    * Get the Send button
    */
   getSendButton(): Locator {
-    return this.page.getByRole('button', { name: /send/i });
+    return this.page.locator('[data-testid="send-button"]');
   }
 
   /**
-   * Get the Clear Chat button
+   * Get the New Chat button (replaces old Clear Chat)
    */
   getClearButton(): Locator {
-    return this.page.getByRole('button', { name: /clear/i });
+    return this.page.getByRole('button', { name: /new chat/i });
   }
 
   /**
    * Get sidebar toggle button
    */
   getSidebarToggle(): Locator {
-    return this.page.locator('button[title="Toggle Examples"]');
+    return this.page.locator('button[title="Toggle sidebar"]');
   }
 
   /**
@@ -61,30 +61,36 @@ export class AskAIPage {
    * @param timeout - Max wait time in ms (default 60s for OpenAI)
    */
   async waitForResponse(timeout = 60000): Promise<void> {
-    // Strategy: Wait for message count to increase (most reliable)
+    // Strategy: Wait for loading to appear then disappear, or message count to increase
     const initialCount = await this.getMessageCount();
     const startTime = Date.now();
-    
-    // Poll for new messages
+
+    // Poll for new assistant messages
     while (Date.now() - startTime < timeout) {
       const currentCount = await this.getMessageCount();
       if (currentCount > initialCount) {
-        // New message appeared, wait a bit more for it to fully render
-        await this.page.waitForTimeout(1000);
-        return;
+        // New message appeared — wait for loading to finish
+        const loadingVisible = await this.page
+          .locator('[data-testid="chat-loading"]')
+          .isVisible()
+          .catch(() => false);
+        if (!loadingVisible) {
+          // Response fully rendered
+          await this.page.waitForTimeout(500);
+          return;
+        }
       }
-      // Check every 500ms
       await this.page.waitForTimeout(500);
     }
-    
-    // If we get here, timeout occurred but don't throw - let test assertions handle it
+
+    // Timeout — let test assertions handle it
   }
 
   /**
-   * Get all message bubbles
+   * Get all chat message bubbles (excludes loading indicators)
    */
   getMessages(): Locator {
-    return this.page.locator('[class*="rounded-lg"][class*="shadow"]');
+    return this.page.locator('[data-testid="chat-message"]');
   }
 
   /**
@@ -102,13 +108,10 @@ export class AskAIPage {
   }
 
   /**
-   * Get all suggestion cards in the last AI response
+   * Get all suggestion cards (DeviceSuggestions component)
    */
   getSuggestionCards(): Locator {
-    // Suggestions are rendered inside AI message bubbles
-    return this.page.locator('[data-testid="suggestion-card"], [class*="border-t"][class*="pt-3"]').filter({
-      has: this.page.locator('button:has-text("Test"), button:has-text("Approve")')
-    });
+    return this.page.locator('[data-testid="suggestion-card"]');
   }
 
   /**
@@ -119,32 +122,31 @@ export class AskAIPage {
   }
 
   /**
-   * Click Test button on a suggestion
+   * Click the Create Automation button on a suggestion card
    * @param index - Suggestion index (0-based)
    */
   async testSuggestion(index: number): Promise<void> {
     const suggestion = this.getSuggestionCards().nth(index);
-    const testButton = suggestion.locator('button', { hasText: 'Test' });
-    await testButton.click();
+    const createButton = suggestion.locator('button', { hasText: /create/i });
+    await createButton.click();
   }
 
   /**
-   * Click Approve button on a suggestion
-   * @param index - Suggestion index (0-based)
+   * Click the Create Automation CTA button (for approve flow)
+   * The CTA button creates a permanent automation from the AI proposal
    */
-  async approveSuggestion(index: number): Promise<void> {
-    const suggestion = this.getSuggestionCards().nth(index);
-    const approveButton = suggestion.locator('button', { hasText: 'Approve' });
-    await approveButton.click();
+  async approveSuggestion(_index: number): Promise<void> {
+    const ctaButton = this.page.locator('button[aria-label="Create automation"]');
+    await ctaButton.click();
   }
 
   /**
-   * Click Reject button on a suggestion
+   * Click Reject/dismiss on a suggestion
    * @param index - Suggestion index (0-based)
    */
   async rejectSuggestion(index: number): Promise<void> {
     const suggestion = this.getSuggestionCards().nth(index);
-    const rejectButton = suggestion.locator('button', { hasText: 'Reject' });
+    const rejectButton = suggestion.locator('button', { hasText: /reject|dismiss|remove/i });
     await rejectButton.click();
   }
 
@@ -163,10 +165,10 @@ export class AskAIPage {
    * @param timeout - Max wait time in ms
    */
   async waitForToast(text: string | RegExp, type?: 'success' | 'error' | 'info' | 'loading', timeout = 10000): Promise<void> {
-    const toastSelector = type 
-      ? `[role="status"]:has-text("${text instanceof RegExp ? text.source : text}")` 
+    const toastSelector = type
+      ? `[role="status"]:has-text("${text instanceof RegExp ? text.source : text}")`
       : `text=${text instanceof RegExp ? text.source : text}`;
-    
+
     await this.page.waitForSelector(toastSelector, { timeout, state: 'visible' });
   }
 
@@ -175,10 +177,10 @@ export class AskAIPage {
    * @param text - Text to search for
    */
   async isToastVisible(text: string | RegExp): Promise<boolean> {
-    const selector = text instanceof RegExp 
-      ? `text=${text.source}` 
+    const selector = text instanceof RegExp
+      ? `text=${text.source}`
       : `text="${text}"`;
-    
+
     try {
       const element = await this.page.locator(selector).first();
       return await element.isVisible();
@@ -188,23 +190,23 @@ export class AskAIPage {
   }
 
   /**
-   * Get example queries from sidebar
+   * Get conversation items from sidebar
    */
-  getExampleQueries(): Locator {
-    return this.page.locator('button[class*="bg-gray"]').filter({ hasText: /turn|flash|alert|dim|coffee/i });
+  getConversationItems(): Locator {
+    return this.page.locator('[role="option"]');
   }
 
   /**
-   * Click an example query
-   * @param index - Example index (0-based)
+   * Click a conversation in the sidebar
+   * @param index - Conversation index (0-based)
    */
-  async clickExample(index: number): Promise<void> {
-    const examples = this.getExampleQueries();
-    await examples.nth(index).click();
+  async clickConversation(index: number): Promise<void> {
+    const conversations = this.getConversationItems();
+    await conversations.nth(index).click();
   }
 
   /**
-   * Clear the chat
+   * Clear the chat (clicks New Chat button)
    */
   async clearChat(): Promise<void> {
     await this.getClearButton().click();
@@ -221,8 +223,10 @@ export class AskAIPage {
    * Check if loading indicator is visible
    */
   async isLoading(): Promise<boolean> {
-    const loadingDots = this.page.locator('.animate-bounce');
-    return await loadingDots.first().isVisible().catch(() => false);
+    return await this.page
+      .locator('[data-testid="chat-loading"]')
+      .isVisible()
+      .catch(() => false);
   }
 
   /**
@@ -231,19 +235,15 @@ export class AskAIPage {
    */
   async getSuggestionDescription(index: number): Promise<string> {
     const suggestion = this.getSuggestionCards().nth(index);
-    // Description is in the main text content
-    const description = await suggestion.locator('[class*="description"], p, div').first().textContent();
+    const description = await suggestion.locator('p').first().textContent();
     return description?.trim() || '';
   }
 
   /**
    * Verify no Home Assistant commands were executed
-   * This checks that lights/devices didn't change state
-   * @param expectedState - Expected device state (should remain unchanged)
+   * Checks that no error toasts appeared during query submission
    */
   async verifyNoDeviceExecution(): Promise<void> {
-    // This would need integration with actual HA API to verify
-    // For now, we verify no error toasts and successful suggestion generation
     const errorToast = await this.isToastVisible(/error|failed/i);
     expect(errorToast).toBe(false);
   }
@@ -256,5 +256,18 @@ export class AskAIPage {
     const match = toastText.match(/automation\.(test_)?[\w_]+/);
     return match ? match[0] : null;
   }
-}
 
+  /**
+   * Get the Create Automation CTA button
+   */
+  getCreateAutomationButton(): Locator {
+    return this.page.locator('button[aria-label="Create automation"]');
+  }
+
+  /**
+   * Get automation proposal section
+   */
+  getAutomationProposal(): Locator {
+    return this.page.locator('[role="region"][aria-label="Automation proposal details"]');
+  }
+}

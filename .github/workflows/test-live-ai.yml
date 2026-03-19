@@ -128,6 +128,7 @@ jobs:
           HOME_ASSISTANT_URL: ${{ secrets.HOME_ASSISTANT_URL }}
           HOME_ASSISTANT_TOKEN: ${{ secrets.HOME_ASSISTANT_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results.json
         run: |
           TEST_FILTER="${{ github.event.inputs.test_filter }}"
 
@@ -178,6 +179,7 @@ jobs:
             echo "Run: \`${{ github.run_id }}\` | Branch: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
 
             # Save pass rate as JSON artifact
+            mkdir -p test-results
             cat > test-results/pass-rate.json <<EOF
             {
               "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",

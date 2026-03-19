@@ -28,8 +28,8 @@ test.describe('Fast — UI Only', () => {
 
   test.describe('Page Load and Navigation', () => {
     test('Ask AI page loads successfully', async ({ page }) => {
-      // Verify page loaded
-      await expect(page).toHaveTitle(/HA AutomateAI/i);
+      // Verify page loaded (title set by TitleUpdater in App.tsx)
+      await expect(page).toHaveTitle(/Chat.*HomeIQ|HomeIQ/i);
 
       // Verify main elements present
       await expect(askAI.getQueryInput()).toBeVisible();
@@ -37,50 +37,43 @@ test.describe('Fast — UI Only', () => {
       await expect(askAI.getClearButton()).toBeVisible();
     });
 
-    test('Sidebar examples are visible', async () => {
+    test('Conversation sidebar is visible', async () => {
       // Toggle sidebar open
       await askAI.toggleSidebar();
 
-      // Verify examples present
-      const examples = askAI.getExampleQueries();
-      const count = await examples.count();
-      expect(count).toBeGreaterThan(0);
+      // Verify conversation list container is present
+      const conversationList = askAI.page.locator('[role="listbox"][aria-label="Conversations"]');
+      await expect(conversationList).toBeVisible();
     });
 
-    test('Can click example query to populate input', async () => {
-      // Open sidebar
-      await askAI.toggleSidebar();
+    test('New Chat button creates fresh conversation', async () => {
+      // Click New Chat button
+      await askAI.clearChat();
 
-      // Click first example
-      await askAI.clickExample(0);
-
-      // Verify input populated
+      // Verify input is cleared and ready for new conversation
       const inputValue = await askAI.getQueryInput().inputValue();
-      expect(inputValue.length).toBeGreaterThan(0);
+      expect(inputValue.length).toBe(0);
     });
   });
 
   test.describe('User Experience and Feedback', () => {
     test('Error messages are user-friendly', async () => {
       // Verify send button is disabled with empty input
-      const isButtonDisabled = await askAI.getSendButton().isDisabled();
-      expect(isButtonDisabled).toBe(true);
+      // SendButton uses aria-disabled attribute
+      const sendButton = askAI.getSendButton();
+      await expect(sendButton).toHaveAttribute('aria-disabled', 'true');
 
       // Fill invalid/empty query (just spaces)
       await askAI.getQueryInput().fill('   ');
 
       // Button should still be disabled
-      const stillDisabled = await askAI.getSendButton().isDisabled();
-      expect(stillDisabled).toBe(true);
+      await expect(sendButton).toHaveAttribute('aria-disabled', 'true');
     });
   });
 });
 
 test.describe('Slow — OpenAI Round-Trip', () => {
   let askAI: AskAIPage;
-
-  // Retry OpenAI-dependent tests up to 2 times
-  test.describe.configure({ retries: 2 });
 
   test.beforeEach(async ({ page }) => {
     askAI = new AskAIPage(page);
@@ -90,7 +83,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
   test.describe('Query Submission - No Execution (Bug Fix)', () => {
     test('Submitting query does NOT execute HA commands', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       // CRITICAL TEST: Verify fix for immediate execution bug
       // Before fix: Query would turn on lights immediately
@@ -122,7 +114,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
 
     test('Query extracts entities using pattern matching (not HA API)', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const query = 'Flash the office lights when the front door opens';
 
@@ -145,7 +136,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
 
     test('Multiple queries do not execute HA commands', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const queries = [
         'Turn on the living room lights',
@@ -175,7 +165,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
   test.describe('Test Button - Execution Enhancement', () => {
     test('Test button creates and executes automation in HA', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       // CRITICAL TEST: Verify test button enhancement
       // Test button should: validate, create, trigger, disable automation
@@ -205,7 +194,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
 
     test('Test button shows detailed feedback on success', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const query = 'Flash the office lights red';
 
@@ -230,7 +218,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
 
     test('Test button handles validation failures gracefully', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       // This test would require mocking the backend to return validation error
       // For now, we test that the UI handles errors properly
@@ -259,7 +246,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
 
     test('Can test multiple suggestions sequentially', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const query = 'Flash the office lights when door opens';
 
@@ -288,29 +274,26 @@ test.describe('Slow — OpenAI Round-Trip', () => {
   test.describe('Approve Button - Automation Creation', () => {
     test('Approve button creates permanent automation', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const query = 'Turn on the office lights at sunset';
 
       // Submit query
       await askAI.submitQuery(query);
       await askAI.waitForResponse(60000);
-      await askAI.waitForToast(/Found.*automation suggestion/i, undefined, 45000);
 
-      // Approve first suggestion
+      // Wait for AI response with automation proposal
+      const messageCount = await askAI.getMessageCount();
+      expect(messageCount).toBeGreaterThan(0);
+
+      // Click Create Automation CTA (approve flow)
       await askAI.approveSuggestion(0);
 
-      // Verify success toast
-      await askAI.waitForToast(/automation approved|YAML generated/i, undefined, 45000);
-
-      // Verify suggestion removed from list
-      const newSuggestionCount = await askAI.getSuggestionCount();
-      expect(newSuggestionCount).toBeLessThan(await askAI.getSuggestionCount() || 0);
+      // Verify success toast (automation created)
+      await askAI.waitForToast(/automation created|automation approved|YAML generated/i, undefined, 45000);
     });
 
     test('Approve workflow is separate from test workflow', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const query = 'Turn on the living room lights';
 
@@ -334,7 +317,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
   test.describe('Reject Button - Suggestion Management', () => {
     test('Reject button removes suggestion from view', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const query = 'Dim the bedroom lights at night';
 
@@ -361,7 +343,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
   test.describe('User Experience and Feedback', () => {
     test('Loading indicators appear during processing', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const query = 'Turn on all lights in the house';
 
@@ -385,7 +366,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
 
     test('Clear chat button works correctly', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       // Submit a few queries
       await askAI.submitQuery('Turn on lights');
@@ -416,7 +396,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
   test.describe('Complex Queries and Edge Cases', () => {
     test('Handles complex multi-device queries', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const complexQuery = 'Flash all office lights in sequence red, blue, green when both front and garage doors open at night';
 
@@ -441,7 +420,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
 
     test('Handles queries with timing and conditions', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const queries = [
         'Turn on lights at sunset',
@@ -469,7 +447,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
 
     test('Handles queries with colors and patterns', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const query = 'Flash office lights red for front door, blue for back door';
 
@@ -488,7 +465,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
   test.describe('OpenAI Integration (Not HA AI)', () => {
     test('Uses OpenAI for suggestion generation', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       // This verifies the system uses OpenAI GPT-4o-mini, not HA Conversation AI
       const query = 'Create a creative lighting scene for movie night';
@@ -514,7 +490,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
 
     test('Generates diverse suggestions for same query', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const query = 'Automate my office lights';
 
@@ -544,7 +519,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
   test.describe('Regression Tests for Bug Fixes', () => {
     test('BUG FIX: Query submission no longer executes HA commands', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       // Critical regression test for immediate execution bug
       // See: implementation/ASK_AI_IMMEDIATE_EXECUTION_FIX.md
@@ -581,7 +555,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
 
     test('ENHANCEMENT: Test button executes and disables automation', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       // Regression test for test button enhancement
       // See: implementation/ASK_AI_TEST_EXECUTION_ENHANCEMENT.md
@@ -609,7 +582,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
   test.describe('Performance and Reliability', () => {
     test('Query submission completes within reasonable time', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const query = 'Turn on the kitchen lights';
       const startTime = Date.now();
@@ -627,7 +599,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
 
     test('Test execution completes within reasonable time', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const query = 'Turn on the lights';
 
@@ -651,7 +622,6 @@ test.describe('Slow — OpenAI Round-Trip', () => {
 
     test('Page remains responsive during long operations', async () => {
       test.slow();
-      test.setTimeout(120_000);
 
       const query = 'Create complex automation with multiple conditions';
 
