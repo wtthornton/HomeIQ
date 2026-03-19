@@ -78,6 +78,7 @@ jobs:
           docker compose \
             -f domains/core-platform/compose.yml \
             -f domains/automation-core/compose.yml \
+            -f domains/frontends/compose.yml \
             --env-file .env \
             up -d
         env:
@@ -91,7 +92,7 @@ jobs:
           echo "Waiting for ha-ai-agent-service..."
           timeout 180 bash -c 'until curl -sf http://localhost:8030/health; do sleep 5; done' || {
             echo "::error::ha-ai-agent-service did not become healthy within 180s"
-            docker compose -f domains/core-platform/compose.yml -f domains/automation-core/compose.yml --env-file .env logs ha-ai-agent-service --tail=50
+            docker compose -f domains/core-platform/compose.yml -f domains/automation-core/compose.yml -f domains/frontends/compose.yml --env-file .env logs ha-ai-agent-service --tail=50
             exit 1
           }
           echo "ha-ai-agent-service is healthy"
@@ -220,6 +221,7 @@ jobs:
           docker compose \
             -f domains/core-platform/compose.yml \
             -f domains/automation-core/compose.yml \
+            -f domains/frontends/compose.yml \
             --env-file .env \
             logs --tail=100 > docker-logs.txt 2>&1
         continue-on-error: true
