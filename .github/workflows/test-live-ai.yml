@@ -135,16 +135,16 @@ jobs:
             npx playwright test "$TEST_FILTER" \
               --retries=2 \
               --workers=1 \
-              --timeout=180000 \
+              --timeout=60000 \
               --reporter=list,json,html \
               --output=test-results/
           else
             npx playwright test \
               ask-ai-to-ha-automation.spec.ts \
               ask-ai-complete.spec.ts \
-              --retries=2 \
+              --retries=1 \
               --workers=1 \
-              --timeout=180000 \
+              --timeout=60000 \
               --reporter=list,json,html \
               --output=test-results/
           fi
