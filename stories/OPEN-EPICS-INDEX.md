@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
 **Created:** 2026-02-27 | **Updated:** 2026-03-18 (Sprint 39; Epics 76-77 closed Won't Do, Epics 87-89 planned)
-**Total:** 90 Completed Epics, 593 Stories complete | 2 Closed Won't Do | 0 Planned
+**Total:** 90 Completed Epics, 593 Stories complete | 2 Closed Won't Do | 2 Planned
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -233,11 +233,14 @@ Sprint 41 (COMPLETE — Mar 18, 2026) — Ask AI → HA YAML E2E Pipeline
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **91** (90 epics complete, 76-77 closed won't-do).
+> Next available epic number: **93** (90 epics complete, 76-77 closed won't-do, 91-92 planned).
 
-### P1 — Planned
+### P2 — Planned
 
-> No epics currently planned. Next epic number: **91**.
+| # | Epic | Stories | Effort | Notes |
+|---|------|---------|--------|-------|
+| 91 | **Memory Consolidation Research — TappsMCP vs homeiq-memory** | 6 | 1-2 weeks | Research whether to consolidate onto TappsMCP's `tapps_memory` or keep homeiq-memory for runtime. Feature matrix, gap analysis, runtime assessment, POC bridge, ADR. |
+| 92 | **Live AI E2E Tests — 0% to 100% Pass Rate** | 10 | 1-2 weeks | Fix all 40 Ask AI E2E tests: route/port/selector mismatches, page object updates, data-testid attrs, Fast UI tests, Slow OpenAI tests, lifecycle tests, full pipeline tests, green CI. Iterative fix-deploy-retest. |
 
 ### In Progress
 
