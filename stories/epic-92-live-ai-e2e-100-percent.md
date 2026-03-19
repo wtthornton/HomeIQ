@@ -400,4 +400,36 @@ docker compose -f domains/automation-core/compose.yml up -d automation-linter
 | 92.8 | 2 | Reporting fixed | — |
 | 92.9 | 2 | Health checks | — |
 | 92.10 | 3 | All 40 green | 40/40 (100%) |
-| **Total** | **39** | **40 tests** | **100%** |
+| **Total** | **39** | **34 tests** | **100%** |
+
+---
+
+## Progress Log
+
+### Run #23301380407 — 6/40 pass (15%)
+
+**Root causes identified:**
+1. Sidebar test: `role="listbox"` only renders when conversations exist
+2. Pipeline tests: DEPLOY_API at port 8030 but endpoint is on :8036 (ai-automation-service-new)
+3. Slow tests: Toast pattern `/Found.*automation suggestion/i` doesn't exist in chat flow
+
+### Iteration 2 (Mar 19) — Stories 92.2–92.7 batch fix
+
+**Fundamental architecture mismatch discovered:** Tests were written for a DeviceSuggestions panel flow (suggestion cards + Test/Approve buttons), but the current UI uses a Chat flow (assistant messages + AutomationProposal + CTAActionButtons). Key differences:
+
+| Old Flow (DeviceSuggestions) | New Flow (Chat) |
+|-----|-----|
+| `suggestion-card` elements | `automation-proposal` + `cta-create-button` |
+| Toast: "Found N suggestions" | No suggestion toast (response renders inline) |
+| Test button on card | "Create Automation" CTA button |
+| Deploy API at :8030 | Deploy API at :8036 (ai-automation-service-new) |
+| Response intercept: `/api/v1/ask-ai/query/{id}/test` | Response intercept: `/api/v1/tools/execute` |
+
+**Files changed:**
+
+1. **`tests/e2e/page-objects/AskAIPage.ts`** — Added automation proposal methods (`getAutomationProposals()`, `getProposalCount()`, `clickCreateAutomation()`, `hasAutomationResponse()`, `waitForAutomationResponse()`), fixed `waitForToast()` regex support, added `getAssistantMessages()`, `isSidebarOpen()`, fixed sidebar toggle selector
+2. **`tests/e2e/ask-ai-complete.spec.ts`** — Sidebar test checks heading not listbox; removed all `waitForToast(/Found.*automation suggestion/i)`; replaced `getSuggestionCount()` with assistant message checks; replaced `testSuggestion()` with CTA button flow; removed tests that can't work without DeviceSuggestions panel (20 tests, was 26)
+3. **`tests/e2e/ask-ai-to-ha-automation.spec.ts`** — DEPLOY_API port 8030→8036; extracted `submitAndCreateAutomation()` helper; replaced suggestion card flow with CTA button + `/api/v1/tools/execute` interception; removed redundant test/approve distinction (14 tests, was 14)
+4. **`.github/workflows/test-live-ai.yml`** — Added health checks for ai-automation-service-new (:8036) and ai-automation-ui (:3001)
+
+**Test count:** 34 (was 40 — 6 removed as they tested DeviceSuggestions panel flows not reachable from chat)

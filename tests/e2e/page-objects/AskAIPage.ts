@@ -41,10 +41,11 @@ export class AskAIPage {
   }
 
   /**
-   * Get sidebar toggle button
+   * Get sidebar toggle button (hamburger menu or close button)
    */
   getSidebarToggle(): Locator {
-    return this.page.locator('button[title="Toggle sidebar"]');
+    // ConversationSidebar: mobile toggle "☰" or close "✕" button
+    return this.page.locator('button:has-text("☰"), button:has-text("✕")').first();
   }
 
   /**
@@ -57,11 +58,10 @@ export class AskAIPage {
   }
 
   /**
-   * Wait for AI response
+   * Wait for AI response (assistant message to appear and loading to finish)
    * @param timeout - Max wait time in ms (default 60s for OpenAI)
    */
   async waitForResponse(timeout = 60000): Promise<void> {
-    // Strategy: Wait for loading to appear then disappear, or message count to increase
     const initialCount = await this.getMessageCount();
     const startTime = Date.now();
 
@@ -94,10 +94,24 @@ export class AskAIPage {
   }
 
   /**
+   * Get only assistant messages
+   */
+  getAssistantMessages(): Locator {
+    return this.page.locator('[data-testid="chat-message"][data-role="assistant"]');
+  }
+
+  /**
    * Get the last message
    */
   getLastMessage(): Locator {
     return this.getMessages().last();
+  }
+
+  /**
+   * Get the last assistant message
+   */
+  getLastAssistantMessage(): Locator {
+    return this.getAssistantMessages().last();
   }
 
   /**
@@ -108,14 +122,81 @@ export class AskAIPage {
   }
 
   /**
-   * Get all suggestion cards (DeviceSuggestions component)
+   * Get assistant message count
+   */
+  async getAssistantMessageCount(): Promise<number> {
+    return await this.getAssistantMessages().count();
+  }
+
+  // ── Automation Proposals (chat flow) ──────────────────────────────────
+
+  /**
+   * Get all automation proposal sections rendered in assistant messages
+   */
+  getAutomationProposals(): Locator {
+    return this.page.locator('[data-testid="automation-proposal"]');
+  }
+
+  /**
+   * Get automation proposal count
+   */
+  async getProposalCount(): Promise<number> {
+    return await this.getAutomationProposals().count();
+  }
+
+  /**
+   * Get the Create Automation CTA button(s)
+   */
+  getCreateAutomationButtons(): Locator {
+    return this.page.locator('[data-testid="cta-create-button"]');
+  }
+
+  /**
+   * Click the first visible Create Automation CTA button
+   */
+  async clickCreateAutomation(): Promise<void> {
+    const ctaButton = this.getCreateAutomationButtons().first();
+    await ctaButton.scrollIntoViewIfNeeded();
+    await ctaButton.click();
+  }
+
+  /**
+   * Check if the AI responded with automation content (proposal or YAML)
+   */
+  async hasAutomationResponse(): Promise<boolean> {
+    const proposalCount = await this.getProposalCount();
+    if (proposalCount > 0) return true;
+
+    // Also check for Preview Automation buttons (YAML detected in message)
+    const previewButtons = await this.page
+      .locator('button:has-text("Preview Automation")')
+      .count();
+    return previewButtons > 0;
+  }
+
+  /**
+   * Wait for an automation response (proposal or CTA button to appear)
+   * @param timeout - Max wait time in ms
+   */
+  async waitForAutomationResponse(timeout = 60000): Promise<void> {
+    // Wait for either an automation proposal or a CTA create button
+    await this.page
+      .locator('[data-testid="automation-proposal"], [data-testid="cta-create-button"], button:has-text("Preview Automation")')
+      .first()
+      .waitFor({ state: 'visible', timeout });
+  }
+
+  // ── Suggestion Cards (DeviceSuggestions panel) ────────────────────────
+
+  /**
+   * Get all suggestion cards (DeviceSuggestions panel — requires device selection)
    */
   getSuggestionCards(): Locator {
     return this.page.locator('[data-testid="suggestion-card"]');
   }
 
   /**
-   * Get suggestion count from last response
+   * Get suggestion count (from DeviceSuggestions panel)
    */
   async getSuggestionCount(): Promise<number> {
     return await this.getSuggestionCards().count();
@@ -133,11 +214,10 @@ export class AskAIPage {
 
   /**
    * Click the Create Automation CTA button (for approve flow)
-   * The CTA button creates a permanent automation from the AI proposal
+   * Works with both chat CTA buttons and suggestion card approve buttons
    */
   async approveSuggestion(_index: number): Promise<void> {
-    const ctaButton = this.page.locator('button[aria-label="Create automation"]');
-    await ctaButton.click();
+    await this.clickCreateAutomation();
   }
 
   /**
@@ -150,26 +230,32 @@ export class AskAIPage {
     await rejectButton.click();
   }
 
+  // ── Toasts ────────────────────────────────────────────────────────────
+
   /**
    * Get toast notifications
    */
   getToasts(): Locator {
-    // react-hot-toast creates div elements for toasts
     return this.page.locator('[role="status"], [class*="toast"]');
   }
 
   /**
-   * Wait for toast with specific text
-   * @param text - Text to search for in toast
-   * @param type - 'success' | 'error' | 'info' | 'loading'
+   * Wait for toast with specific text (supports regex)
+   * @param text - Text or regex to match
+   * @param type - Optional toast type filter
    * @param timeout - Max wait time in ms
    */
   async waitForToast(text: string | RegExp, type?: 'success' | 'error' | 'info' | 'loading', timeout = 10000): Promise<void> {
-    const toastSelector = type
-      ? `[role="status"]:has-text("${text instanceof RegExp ? text.source : text}")`
-      : `text=${text instanceof RegExp ? text.source : text}`;
-
-    await this.page.waitForSelector(toastSelector, { timeout, state: 'visible' });
+    if (text instanceof RegExp) {
+      // Use locator filter for regex matching
+      const locator = this.getToasts().filter({ hasText: text });
+      await locator.first().waitFor({ state: 'visible', timeout });
+    } else {
+      const selector = type
+        ? `[role="status"]:has-text("${text}")`
+        : `text="${text}"`;
+      await this.page.waitForSelector(selector, { timeout, state: 'visible' });
+    }
   }
 
   /**
@@ -177,17 +263,18 @@ export class AskAIPage {
    * @param text - Text to search for
    */
   async isToastVisible(text: string | RegExp): Promise<boolean> {
-    const selector = text instanceof RegExp
-      ? `text=${text.source}`
-      : `text="${text}"`;
-
     try {
-      const element = await this.page.locator(selector).first();
-      return await element.isVisible();
+      if (text instanceof RegExp) {
+        const locator = this.getToasts().filter({ hasText: text });
+        return await locator.first().isVisible();
+      }
+      return await this.page.locator(`text="${text}"`).first().isVisible();
     } catch {
       return false;
     }
   }
+
+  // ── Sidebar ───────────────────────────────────────────────────────────
 
   /**
    * Get conversation items from sidebar
@@ -213,11 +300,23 @@ export class AskAIPage {
   }
 
   /**
-   * Toggle sidebar
+   * Toggle sidebar open/closed
    */
   async toggleSidebar(): Promise<void> {
     await this.getSidebarToggle().click();
   }
+
+  /**
+   * Check if sidebar is open (heading "Conversations" visible)
+   */
+  async isSidebarOpen(): Promise<boolean> {
+    return await this.page
+      .locator('h2:has-text("Conversations")')
+      .isVisible()
+      .catch(() => false);
+  }
+
+  // ── Loading & state ───────────────────────────────────────────────────
 
   /**
    * Check if loading indicator is visible
@@ -230,7 +329,7 @@ export class AskAIPage {
   }
 
   /**
-   * Get suggestion description
+   * Get suggestion description (from DeviceSuggestions panel)
    * @param index - Suggestion index (0-based)
    */
   async getSuggestionDescription(index: number): Promise<string> {
@@ -258,16 +357,16 @@ export class AskAIPage {
   }
 
   /**
-   * Get the Create Automation CTA button
+   * Get the Create Automation CTA button (first visible)
    */
   getCreateAutomationButton(): Locator {
-    return this.page.locator('button[aria-label="Create automation"]');
+    return this.page.locator('[data-testid="cta-create-button"]').first();
   }
 
   /**
-   * Get automation proposal section
+   * Get automation proposal section (first visible)
    */
   getAutomationProposal(): Locator {
-    return this.page.locator('[role="region"][aria-label="Automation proposal details"]');
+    return this.page.locator('[data-testid="automation-proposal"]').first();
   }
 }

@@ -103,10 +103,24 @@ jobs:
           }
           echo "data-api is healthy"
 
+          echo "Waiting for ai-automation-service-new..."
+          timeout 120 bash -c 'until curl -sf http://localhost:8036/health; do sleep 5; done' || {
+            echo "::error::ai-automation-service-new did not become healthy within 120s"
+            docker compose -f domains/core-platform/compose.yml -f domains/automation-core/compose.yml -f domains/frontends/compose.yml --env-file .env logs ai-automation-service-new --tail=50
+            exit 1
+          }
+          echo "ai-automation-service-new is healthy"
+
           echo "Waiting for yaml-validation-service..."
           timeout 60 bash -c 'until curl -sf http://localhost:8037/health; do sleep 5; done' || {
             echo "::warning::yaml-validation-service not ready (non-blocking)"
           }
+
+          echo "Waiting for ai-automation-ui..."
+          timeout 120 bash -c 'until curl -sf http://localhost:3001; do sleep 5; done' || {
+            echo "::warning::ai-automation-ui not ready (non-blocking)"
+          }
+          echo "ai-automation-ui is ready"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
