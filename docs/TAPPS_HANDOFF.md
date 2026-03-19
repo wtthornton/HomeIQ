@@ -5,66 +5,63 @@
 
 ## Task
 
-**Objective:** Epic 82 — Zeek Container Docker Healthcheck (Stories 82.1-82.3)
-**Started:** 2026-03-17T00:00:00Z
+**Objective:** Epic 92 — Live AI E2E Tests: 0% to 100% Pass Rate (10 stories, 39 pts)
+**Started:** 2026-03-19T00:00:00Z
 
 ---
 
 ## Stage: Discover
 
-**Completed:** 2026-03-17T00:01:00Z
-**Tools called:** tapps_session_start (quick), file reads
+**Completed:** 2026-03-19T00:01:00Z
+**Tools called:** tapps_session_start (via hook), file reads, git log
 
 **Findings:**
-- `homeiq-zeek` is the only container (of 58) without a Docker healthcheck
-- Zeek runs standalone mode (`zeek -i af_packet::eth0`), no zeekctl — healthcheck must use OS-level signals
-- `pgrep`, `find`, `sh` available in `zeek/zeek:8.1.1` base image; `curl` is NOT installed
-- Two health signals: process alive (`pgrep -x zeek`) + log freshness (`find /zeek/logs *.log -mmin -10`)
+- Baseline: 0/40 pass (Run #23277588788) — all tests fail on route/selector mismatches
+- Iteration 1 (commit 43927148): Fixed infrastructure — routes, ports, timeouts, JSON reporter
+- Iteration 2 (commit 4a3e5d9a): Fundamental architecture mismatch — tests written for DeviceSuggestions panel but UI uses Chat flow. Rewrote 20 tests, removed 6 incompatible tests (40→34)
+- Second baseline: 6/40 pass (15%, Run #23301380407)
+- Story 92.9: automation-linter health endpoint already works via `StandardHealthCheck` — just needs adding to workflow
 
 **Decisions:**
-- Two-phase shell healthcheck (no HTTP, no extra packages)
-- 60s interval (2x standard) + 120s start period (Zeek init is slow) + 10-min log freshness window (2x rotation)
+- Add automation-linter (:8016) to workflow health checks as non-blocking (warning, not error)
+- Trigger manual workflow run to validate all iteration 1-3 fixes
+- Defer 92.9.3 (profiles exclusion) — linter may be useful for pipeline tests
+- Stories 92.4-92.7 validation depends on workflow run results
 
 ---
 
 ## Stage: Develop
 
-**Completed:** 2026-03-17T00:05:00Z
-**Tools called:** Write, Edit, Bash (LF verification)
-
-**Files created:**
-- `domains/data-collectors/zeek-network-service/healthcheck.sh` — POSIX shell, Unix LF line endings verified
+**Completed:** 2026-03-19T00:05:00Z
+**Tools called:** Edit, Write
 
 **Files modified:**
-- `domains/data-collectors/zeek-network-service/Dockerfile.zeek` — COPY + chmod + HEALTHCHECK instruction
-- `domains/data-collectors/compose.yml` — healthcheck block on zeek service, service_healthy dependency
-- `stories/epic-82-zeek-docker-healthcheck.md` — Stories 82.1-82.3 marked COMPLETE
-- `stories/OPEN-EPICS-INDEX.md` — Epic 82 moved to In Progress (3/5)
-- `CHANGELOG.md` — Epic 82 entry added
+- `.github/workflows/test-live-ai.yml` — Added automation-linter (:8016) health check with 60s timeout (non-blocking)
+- `stories/epic-92-live-ai-e2e-100-percent.md` — Marked 92.9 tasks 1/2/4 complete, added iteration 3 progress log
 
 ---
 
 ## Stage: Validate
 
-**Completed:** 2026-03-17T00:06:00Z
-**Tools called:** tapps_validate_config (path issue — Docker MCP), manual review
+**Completed:** 2026-03-19T00:06:00Z
+**Tools called:** Manual review, workflow dispatch
 
 **Findings:**
-- Dockerfile structure correct: COPY before HEALTHCHECK, chmod +x applied
-- Compose healthcheck matches epic spec (interval=60s, timeout=10s, retries=3, start_period=120s)
-- depends_on changed from service_started → service_healthy
-- healthcheck.sh has Unix LF line endings (verified with `file` command)
+- automation-linter compose healthcheck already uses `python urllib` (stdlib) — no curl dependency needed
+- Port mapping verified: 8016 (external) → 8020 (internal)
+- Workflow health check block is consistent with existing service checks (timeout, non-blocking pattern)
+- Manual workflow run triggered via `gh workflow run test-live-ai.yml`
 
 ---
 
 ## Stage: Verify
 
-**Completed:** 2026-03-17T00:08:00Z
+**Completed:** 2026-03-19T00:08:00Z
 
 **Result:**
-- Stories 82.1, 82.2, 82.3: COMPLETE
-- Stories 82.4 (build/deploy), 82.5 (regression test): TODO (manual verification)
-- OPEN-EPICS-INDEX.md updated: Epic 82 in progress, next epic number → 83
-- CHANGELOG.md updated with Epic 82 entry
+- Story 92.9: 3/4 tasks complete (92.9.3 deferred)
+- Stories 92.1-92.3, 92.8: Previously complete (iterations 1-2)
+- Stories 92.4-92.7: Awaiting workflow run results for validation
+- Story 92.10: Blocked on 92.4-92.9 completion
 
-**Final status:** IN PROGRESS — 3/5 stories complete, 2 manual verification stories remaining
+**Final status:** IN PROGRESS — 5/10 stories substantially complete, workflow run pending for validation
