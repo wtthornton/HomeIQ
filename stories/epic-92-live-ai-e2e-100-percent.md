@@ -4,7 +4,7 @@
 **Effort:** 1-2 weeks (iterative fix-deploy-retest cycles)
 **Sprint:** 42
 **Baseline:** Run #23277588788 — 0/40 pass (0%), all tests timeout or selector mismatch
-**Workflow:** `.github/workflows/test-live-ai.yml` (manual dispatch + nightly 3 AM UTC)
+**Runner:** `tests/e2e/run-ask-ai-tests.ps1` (local Docker stack, no CI)
 **Depends on:** Epic 90 (Ask AI YAML E2E Pipeline — COMPLETE)
 
 ## Problem Statement
@@ -460,3 +460,19 @@ docker compose -f domains/automation-core/compose.yml up -d automation-linter
 3. **`.github/workflows/test-live-ai.yml`** — automation-linter health check (from iteration 3).
 
 **Expected result:** ask-ai-complete: 20/20 pass (was 16/20). ask-ai-to-ha-automation: 14 skipped (was 14 failed) when HA context unavailable, 14/14 pass when HA reachable.
+
+### Iteration 5 (Mar 19) — Pivot to local-only E2E
+
+**Decision:** GitHub Actions CI is fundamentally unsuitable for these tests:
+- 26 containers require 13.9 GB RAM; runner has 7 GB
+- No real HA instance reachable from GitHub runners
+- OpenAI round-trips add ~35s per test, 60-min job timeout barely sufficient
+- Build time for 26 containers from source is prohibitive
+
+**Changes:**
+1. **Deleted** `.github/workflows/test-live-ai.yml` — CI workflow removed entirely
+2. **Created** `tests/e2e/ask-ai.config.ts` — local Playwright config targeting localhost:3001
+3. **Created** `tests/e2e/run-ask-ai-tests.ps1` — PowerShell runner with pre-flight health checks
+4. **Updated** `tests/e2e/package.json` — added `test:ask-ai`, `test:ask-ai:complete`, `test:ask-ai:automation`, `test:ask-ai:headed`, `test:ask-ai:ui` npm scripts
+
+**New approach:** Tests run against the already-running local Docker stack (64 containers, real HA, real OpenAI). No CI spin-up needed.

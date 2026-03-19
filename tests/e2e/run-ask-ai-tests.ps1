@@ -1,114 +1,58 @@
-# Ask AI E2E Test Runner (PowerShell)
+# Ask AI E2E Test Runner - Local Docker Stack
 #
-# Runs comprehensive E2E tests for Ask AI feature
-# Tests query submission, test execution, approval workflow, and bug fixes
+# Usage:
+#   .\tests\e2e\run-ask-ai-tests.ps1              # Run all
+#   .\tests\e2e\run-ask-ai-tests.ps1 -Complete     # Only ask-ai-complete
+#   .\tests\e2e\run-ask-ai-tests.ps1 -Automation   # Only ask-ai-to-ha-automation
+#   .\tests\e2e\run-ask-ai-tests.ps1 -Headed       # Headed browser
+#   .\tests\e2e\run-ask-ai-tests.ps1 -UI           # Playwright UI mode
+
+param(
+    [switch]$Complete,
+    [switch]$Automation,
+    [switch]$Headed,
+    [switch]$UI
+)
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Ask AI E2E Test Suite" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host ""
+Write-Host "Ask AI E2E Tests - Local Docker Stack" -ForegroundColor Blue
 
-# Check if services are running
-Write-Host "📋 Checking service health..." -ForegroundColor Yellow
-
-function Test-Service {
-    param(
-        [string]$Name,
-        [string]$Url
-    )
-    
+# Pre-flight: check required services
+$failed = $false
+@(
+    @{N="ai-automation-ui";      U="http://localhost:3001";        R=$true},
+    @{N="ha-ai-agent-service";   U="http://localhost:8030/health"; R=$true},
+    @{N="ai-automation-service"; U="http://localhost:8036/health"; R=$true}
+) | ForEach-Object {
     try {
-        $response = Invoke-WebRequest -Uri $Url -Method Get -TimeoutSec 5 -UseBasicParsing
-        if ($response.StatusCode -eq 200) {
-            Write-Host "✓ $Name is healthy" -ForegroundColor Green
-            return $true
-        }
+        Invoke-WebRequest -Uri $_.U -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop | Out-Null
+        Write-Host "  [OK] $($_.N)" -ForegroundColor Green
     } catch {
-        Write-Host "✗ $Name is not responding" -ForegroundColor Red
-        return $false
+        if ($_.R) { Write-Host "  [FAIL] $($_.N)" -ForegroundColor Red; $script:failed = $true }
+        else      { Write-Host "  [WARN] $($_.N)" -ForegroundColor Yellow }
     }
 }
 
-# Check AI Automation UI
-if (-not (Test-Service "AI Automation UI" "http://localhost:3001")) {
-    Write-Host "ERROR: AI Automation UI (port 3001) is not running" -ForegroundColor Red
-    Write-Host "Start it with: docker-compose up -d ai-automation-ui"
+if ($failed) {
+    Write-Host "Required services not running. Start the stack first." -ForegroundColor Red
     exit 1
 }
 
-# Check AI Automation Service
-if (-not (Test-Service "AI Automation Service" "http://localhost:8018/health")) {
-    Write-Host "WARNING: AI Automation Service (port 8018) is not responding" -ForegroundColor Yellow
-    Write-Host "Some tests may fail. Start it with: docker-compose up -d ai-automation-service"
-}
-
-# Check Home Assistant (optional)
-try {
-    $haResponse = Invoke-WebRequest -Uri "http://192.168.1.86:8123/api/" -Method Get -TimeoutSec 3 -UseBasicParsing
-    Write-Host "✓ Home Assistant is reachable" -ForegroundColor Green
-} catch {
-    Write-Host "⚠  Home Assistant is not reachable (test automations won't execute)" -ForegroundColor Yellow
-}
-
-Write-Host ""
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Running Ask AI E2E Tests" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Change to test directory
-Set-Location -Path "$PSScriptRoot"
+Push-Location tests/e2e
+$testArgs = @("playwright", "test", "--config=ask-ai.config.ts")
 
-# Install dependencies if needed
-if (-not (Test-Path "node_modules")) {
-    Write-Host "📦 Installing test dependencies..." -ForegroundColor Yellow
-    npm install
-}
+if ($Complete)   { $testArgs += "ask-ai-complete.spec.ts" }
+if ($Automation) { $testArgs += "ask-ai-to-ha-automation.spec.ts" }
+if ($Headed)     { $testArgs += "--headed" }
+if ($UI)         { $testArgs += "--ui" }
 
-# Run tests
-Write-Host "🧪 Running tests..." -ForegroundColor Yellow
-Write-Host ""
+npx @testArgs
+$exitCode = $LASTEXITCODE
+Pop-Location
 
-# Default: Run all Ask AI tests
-$TestFile = if ($args.Count -gt 0) { $args[0] } else { "ask-ai-complete.spec.ts" }
-
-$playwrightArgs = @(
-    "playwright", "test", $TestFile,
-    "--reporter=html",
-    "--reporter=list",
-    "--output=test-results/ask-ai"
-)
-
-# Add any additional arguments
-if ($args.Count -gt 1) {
-    $playwrightArgs += $args[1..($args.Count-1)]
-}
-
-npx @playwrightArgs
-
-$TestExitCode = $LASTEXITCODE
-
-Write-Host ""
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Test Results" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host ""
-
-if ($TestExitCode -eq 0) {
-    Write-Host "✅ All tests passed!" -ForegroundColor Green
-} else {
-    Write-Host "❌ Some tests failed" -ForegroundColor Red
-}
-
-Write-Host ""
-Write-Host "📊 View detailed results:"
-Write-Host "   npx playwright show-report"
-Write-Host ""
-Write-Host "🎥 Screenshots and videos (on failure):"
-Write-Host "   test-results/ask-ai/"
-Write-Host ""
-
-exit $TestExitCode
-
+if ($exitCode -eq 0) { Write-Host "All tests passed!" -ForegroundColor Green }
+else { Write-Host "Some tests failed. Run: npx playwright show-report test-results/ask-ai-html-report" -ForegroundColor Yellow }
+exit $exitCode

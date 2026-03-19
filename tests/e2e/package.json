@@ -19,8 +19,14 @@
     "test:headed": "playwright test --config=docker-deployment.config.ts --headed",
     "test:report": "playwright show-report",
     "install:browsers": "playwright install --with-deps",
+    "test:ask-ai": "playwright test --config=ask-ai.config.ts",
+    "test:ask-ai:complete": "playwright test ask-ai-complete.spec.ts --config=ask-ai.config.ts",
+    "test:ask-ai:automation": "playwright test ask-ai-to-ha-automation.spec.ts --config=ask-ai.config.ts",
+    "test:ask-ai:headed": "playwright test --config=ask-ai.config.ts --headed",
+    "test:ask-ai:ui": "playwright test --config=ask-ai.config.ts --ui",
     "run:bash": "./run-docker-tests.sh",
-    "run:powershell": "powershell -ExecutionPolicy Bypass -File run-docker-tests.ps1"
+    "run:powershell": "powershell -ExecutionPolicy Bypass -File run-docker-tests.ps1",
+    "run:ask-ai": "powershell -ExecutionPolicy Bypass -File run-ask-ai-tests.ps1"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2"
