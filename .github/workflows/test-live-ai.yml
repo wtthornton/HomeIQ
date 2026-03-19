@@ -25,30 +25,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: homeiq
-          POSTGRES_PASSWORD: homeiq_test
-          POSTGRES_DB: homeiq_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+    # PostgreSQL is provided by core-platform compose (homeiq-postgres container)
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Initialize PostgreSQL schemas
-        run: |
-          PGPASSWORD=homeiq_test psql -h localhost -U homeiq -d homeiq_test \
-            -f infrastructure/postgres/init-schemas.sql
-        continue-on-error: true
 
       - name: Check required secrets
         run: |
