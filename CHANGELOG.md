@@ -4,6 +4,35 @@
 
 ### Added
 
+- **Epic 92 — Live AI E2E Tests 0% to 100% Pass Rate (10 stories, 39 pts)** (9037812) - Bill Thornton
+- **Epic 90 — Ask AI → HA YAML E2E pipeline (10/10 stories, ~160 new tests)** (aa5b28c) - Bill Thornton
+- **Epics 87-89 — E2E stability, CVE hardening, data-api coverage expansion** (a4ffc71) - Bill Thornton
+- **Epic 86 — Zeek 8.x native telemetry & capture health dashboard** (f77e8eb) - Bill Thornton
+- **Epic 85 — data-api unit test expansion (443 tests, 8.8% → 40% coverage)** (71b77f7) - Bill Thornton
+- **Epic 83 Data-API HTTP route coverage — 186 tests across 5 files** (af1be3a) - Bill Thornton
+- **Epic 82 Zeek Docker healthcheck — stories 82.1-82.3** (a0989f1) - Bill Thornton
+
+### Fixed
+
+- **baseline run — 0 retries, 2 workers, 30s timeout** (2505d22) - Bill Thornton
+- **reduce test timeout to 60s and retries to 1 for baseline run** (5def8ea) - Bill Thornton
+- **increase job timeout to 60min for full test suite with retries** (9805e97) - Bill Thornton
+- **add frontends domain — E2E tests need ai-automation-ui on port 3001** (9836d42) - Bill Thornton
+- **replace --wait with targeted health checks in CI** (8b9eee8) - Bill Thornton
+- **remove services.postgres — core-platform compose provides it** (9cb05ce) - Bill Thornton
+- **pre-create ml-engine external volumes for automation-core in CI** (ecb3795) - Bill Thornton
+- **create external network/volumes before docker compose up** (605998b) - Bill Thornton
+- **test-live-ai workflow — secrets check, domain-scoped compose** (0be4030) - Bill Thornton
+- **resolve 3 Epic 90 blueprint test failures** (d8a2f91) - Bill Thornton
+- **resolve ai-automation-ui blank page — THREE.js crash at startup** (6e373f9) - Bill Thornton
+- **Epic 84 — remediate 169+ stale E2E selectors across 15 files** (e670d4a) - Bill Thornton
+- **resolve 19 test failures — align tests with deployed API contracts** (a8c4910) - Bill Thornton
+- **Zeek 8.1.1 compatibility — config, packages, and MQTT analyzer** (caabd71) - Bill Thornton
+- **Docker deployment fixes — aiohttp dep, postgres-exporter PG17, Zeek build** (deb86db) - Bill Thornton
+
+
+### Added
+
 - **Epic 90 — Ask AI → HA YAML E2E pipeline (10/10 stories, ~160 new tests)** (aa5b28c) - Bill Thornton
 - **Epics 87-89 — E2E stability, CVE hardening, data-api coverage expansion** (a4ffc71) - Bill Thornton
 - **Epic 86 — Zeek 8.x native telemetry & capture health dashboard** (f77e8eb) - Bill Thornton
