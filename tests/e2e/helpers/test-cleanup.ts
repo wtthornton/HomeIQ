@@ -26,7 +26,7 @@ import { expect, APIRequestContext } from '@playwright/test';
 
 // --- Configuration ---
 
-const HA_URL = process.env.HOME_ASSISTANT_URL || 'http://192.168.1.86:8123';
+const HA_URL = (process.env.HOME_ASSISTANT_URL || 'http://192.168.1.86:8123').replace(/\/+$/, '');
 const HA_TOKEN = process.env.HOME_ASSISTANT_TOKEN || '';
 const HA_AGENT_URL = process.env.HA_AGENT_URL || 'http://localhost:8030';
 const DEPLOY_URL = process.env.DEPLOY_SERVICE_URL || 'http://localhost:8018';

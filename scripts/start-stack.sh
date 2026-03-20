@@ -77,6 +77,10 @@ wait_for_health() {
 start_domain() {
   local domain="$1"
   local compose_file="$PROJECT_ROOT/domains/$domain/compose.yml"
+  local env_file_flag=""
+  if [[ -f "$PROJECT_ROOT/.env" ]]; then
+    env_file_flag="--env-file $PROJECT_ROOT/.env"
+  fi
 
   if [[ ! -f "$compose_file" ]]; then
     echo -e "${RED}[ERROR]${NC} Compose file not found: $compose_file"
@@ -84,7 +88,7 @@ start_domain() {
   fi
 
   log_info "Starting $domain..."
-  docker compose -f "$compose_file" --profile production up -d
+  docker compose -f "$compose_file" $env_file_flag --profile production up -d
   log_ok "$domain started."
 }
 

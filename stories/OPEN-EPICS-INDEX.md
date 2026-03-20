@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
 **Created:** 2026-02-27 | **Updated:** 2026-03-19 (Epic 97 complete, Epics 93+94+97 committed)
-**Total:** 93 Completed Epics, 609 Stories complete | 2 Closed Won't Do | 5 Planned (1 P1, 2 P2, 2 P3)
+**Total:** 93 Completed Epics, 609 Stories complete | 3 Closed/Archived | 4 Planned (1 P1, 1 P2, 2 P3)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -255,7 +255,7 @@ Sprint 41 (COMPLETE — Mar 18, 2026) — Ask AI → HA YAML E2E Pipeline
 | # | Epic | Stories | Effort | Sprint | Notes |
 |---|------|---------|--------|--------|-------|
 | 96 | **Proactive Predictive Automation** | 8 | 2-3 weeks | 46+ | Wire existing services (proactive-agent, energy-forecasting, activity-recognition) for pattern detection, energy optimization, anomaly alerts. 2026 differentiator. Demoted from P1: high value but largest effort, no dependencies blocked. |
-| 98 | **Local LLM Fallback via Ollama** | 5 | 1 week | 46+ | Ollama container with Qwen 3 7B for cloud outage resilience. 3-tier fallback (GPT → Claude → local). Simplified prompt, quality benchmarking, degraded mode UX. Depends on Epic 97. |
+| ~~98~~ | ~~Local LLM Fallback via Ollama~~ | — | — | — | **Archived 2026-03-19.** See Closed — Won't Do. |
 
 ### P3 — Backlog
 
@@ -282,6 +282,7 @@ Sprint 41 (COMPLETE — Mar 18, 2026) — Ask AI → HA YAML E2E Pipeline
 |---|------|----------|------|-----------|
 | 76 | **Auto-Bugfix Bash Parity** | **Closed — Won't Do** | 2026-03-18 | `auto-bugfix.sh` is a thin wrapper that delegates to PowerShell; `pwsh` is available on Linux/macOS. Native bash JSON stream parsing (jq/python3) would double maintenance burden for near-zero audience. If Linux-native is ever needed, a Python CLI wrapper is the better path. |
 | 77 | **Auto-Bugfix Test/Reliability** | **Closed — Won't Do** | 2026-03-18 | Dry-run mode has limited ROI (pipeline already supports `--bugs 1`). Error resilience only matters if Epic 76 ships. Stream recording (Story 5.3) was the only high-value item — extracted into Epic 87 Story 87.3. |
+| 98 | **Local LLM Fallback via Ollama** | **Archived** | 2026-03-19 | Epic 97 delivered Claude as a second provider with circuit-breaker fallback — two cloud providers cover resilience needs. Local Ollama adds operational complexity (7B model quality, GPU requirements, prompt simplification) for marginal outage coverage. Revisit only if dual-cloud proves insufficient. |
 
 ### P2 — Next Up (Higher-Value Alternatives)
 

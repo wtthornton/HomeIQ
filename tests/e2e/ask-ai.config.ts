@@ -1,4 +1,21 @@
 import { defineConfig, devices } from '@playwright/test';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Load .env from project root so HOME_ASSISTANT_TOKEN is available to yaml-validator
+const envPath = path.resolve(__dirname, '../../.env');
+if (fs.existsSync(envPath)) {
+  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx > 0) {
+      const key = trimmed.slice(0, eqIdx);
+      const value = trimmed.slice(eqIdx + 1).replace(/^["']|["']$/g, '');
+      if (!process.env[key]) process.env[key] = value;
+    }
+  }
+}
 
 /**
  * Playwright config for Ask AI E2E tests.
@@ -51,8 +68,8 @@ export default defineConfig({
   // Tests hit the already-running Docker stack — no webServer needed
   webServer: undefined,
 
-  // OpenAI round-trips take 30-40s; slow tests triple to 180s
-  timeout: 60_000,
+  // OpenAI round-trips take 30-40s; multi-round tests need up to 4 minutes
+  timeout: 120_000,
 
   expect: {
     timeout: 10_000,

@@ -131,6 +131,11 @@ fi
 validate_domain "$DOMAIN"
 
 COMPOSE_FILE="$PROJECT_ROOT/domains/$DOMAIN/compose.yml"
+ENV_FILE="$PROJECT_ROOT/.env"
+ENV_FILE_FLAG=""
+if [[ -f "$ENV_FILE" ]]; then
+  ENV_FILE_FLAG="--env-file $ENV_FILE"
+fi
 
 if [[ ! -f "$COMPOSE_FILE" ]]; then
   echo -e "${RED}[ERROR]${NC} Compose file not found: $COMPOSE_FILE"
@@ -141,33 +146,34 @@ case "$COMMAND" in
   start)
     echo -e "${GREEN}[START]${NC} Starting $DOMAIN..."
     "$SCRIPT_DIR/ensure-network.sh"
-    docker compose -f "$COMPOSE_FILE" --profile production up -d ${SERVICE:+"$SERVICE"}
+    docker compose -f "$COMPOSE_FILE" $ENV_FILE_FLAG --profile production up -d ${SERVICE:+"$SERVICE"}
     echo -e "${GREEN}[OK]${NC} $DOMAIN started."
     ;;
   stop)
     echo -e "${YELLOW}[STOP]${NC} Stopping $DOMAIN..."
-    docker compose -f "$COMPOSE_FILE" --profile production down
+    docker compose -f "$COMPOSE_FILE" $ENV_FILE_FLAG --profile production down
     echo -e "${GREEN}[OK]${NC} $DOMAIN stopped."
     ;;
   restart)
     echo -e "${YELLOW}[RESTART]${NC} Restarting $DOMAIN..."
     "$SCRIPT_DIR/ensure-network.sh"
-    docker compose -f "$COMPOSE_FILE" --profile production restart ${SERVICE:+"$SERVICE"}
+    docker compose -f "$COMPOSE_FILE" $ENV_FILE_FLAG --profile production down
+    docker compose -f "$COMPOSE_FILE" $ENV_FILE_FLAG --profile production up -d ${SERVICE:+"$SERVICE"}
     echo -e "${GREEN}[OK]${NC} $DOMAIN restarted."
     ;;
   status)
-    docker compose -f "$COMPOSE_FILE" --profile production ps
+    docker compose -f "$COMPOSE_FILE" $ENV_FILE_FLAG --profile production ps
     ;;
   logs)
     if [[ -n "$SERVICE" ]]; then
-      docker compose -f "$COMPOSE_FILE" logs -f "$SERVICE"
+      docker compose -f "$COMPOSE_FILE" $ENV_FILE_FLAG logs -f "$SERVICE"
     else
-      docker compose -f "$COMPOSE_FILE" logs -f
+      docker compose -f "$COMPOSE_FILE" $ENV_FILE_FLAG logs -f
     fi
     ;;
   build)
     echo -e "${GREEN}[BUILD]${NC} Building $DOMAIN images..."
-    docker compose -f "$COMPOSE_FILE" --profile production build ${SERVICE:+"$SERVICE"}
+    docker compose -f "$COMPOSE_FILE" $ENV_FILE_FLAG --profile production build ${SERVICE:+"$SERVICE"}
     echo -e "${GREEN}[OK]${NC} $DOMAIN images built."
     ;;
   *)
