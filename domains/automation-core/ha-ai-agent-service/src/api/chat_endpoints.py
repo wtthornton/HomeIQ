@@ -30,6 +30,7 @@ from ..utils.performance_tracker import (
 )
 from .dependencies import (
     get_conversation_service,
+    get_llm_router,
     get_memory_extractor,
     get_openai_client,
     get_prompt_assembly_service,
@@ -282,6 +283,140 @@ async def _run_openai_loop(
     return result
 
 
+async def _run_anthropic_loop(
+    *,
+    conversation_id: str,
+    request_message: str,
+    system_prompt: str,
+    messages: list[dict],
+    llm_router,
+    tool_service,
+    conversation_service,
+    tools: list,
+    entity_context: str | None = None,
+    max_iterations: int = 10,
+) -> LoopResult:
+    """Run the iterative LLM tool-call loop via the Anthropic provider.
+
+    Epic 97: Mirrors _run_openai_loop() but routes through LLMRouter
+    which handles Anthropic API calls with prompt caching.
+    """
+    result = LoopResult()
+    # Conversation messages (skip system — passed separately to LLMRouter)
+    conv_messages = [m for m in messages if m.get("role") != "system"]
+
+    while result.iterations < max_iterations:
+        result.iterations += 1
+        logger.info(
+            "[Anthropic Loop] Conversation %s: Iteration %d/%d",
+            conversation_id,
+            result.iterations,
+            max_iterations,
+        )
+
+        api_call_id = start_tracking("anthropic_api_call", {
+            "iteration": result.iterations,
+            "message_count": len(conv_messages),
+        })
+        result.openai_call_ids.append(api_call_id)
+
+        try:
+            llm_response = await llm_router.chat_completion(
+                system_prompt=system_prompt,
+                messages=conv_messages,
+                tools=tools,
+                max_tokens=4096,
+                temperature=0.7,
+                enable_caching=True,
+                entity_context=entity_context,
+                user_message=request_message,
+            )
+        except Exception as e:
+            logger.error("Anthropic API error: %s", e)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="LLM API error. Please try again later.",
+            ) from e
+
+        result.assistant_content = llm_response.content or ""
+        tokens_used = llm_response.usage.total_tokens
+        result.total_tokens += tokens_used
+
+        end_tracking(api_call_id, {
+            "tokens_used": tokens_used,
+            "input_tokens": llm_response.usage.input_tokens,
+            "output_tokens": llm_response.usage.output_tokens,
+            "cached_tokens": llm_response.cached_tokens,
+            "has_tool_calls": bool(llm_response.tool_calls),
+            "tool_calls_count": len(llm_response.tool_calls) if llm_response.tool_calls else 0,
+        })
+
+        # Add assistant message to conversation
+        if result.assistant_content or not llm_response.tool_calls:
+            await conversation_service.add_message(
+                conversation_id, "assistant",
+                result.assistant_content or "[Processing...]",
+            )
+
+        # Execute tool calls if any
+        if llm_response.tool_calls:
+            # Build function_call-like items for execute_tool_calls
+            # The existing execute_tool_calls expects items with .name, .arguments, .call_id
+            from types import SimpleNamespace
+
+            fc_items = [
+                SimpleNamespace(
+                    name=tc.name,
+                    arguments=tc.arguments,
+                    call_id=tc.id,
+                )
+                for tc in llm_response.tool_calls
+            ]
+
+            tool_results = await execute_tool_calls(
+                fc_items,
+                conversation_id,
+                result.iterations,
+                tool_service,
+                conversation_service,
+                result.tool_calls,
+                result.tool_execution_ids,
+            )
+
+            # Build tool result messages for the next iteration
+            # Append assistant message with tool_use blocks
+            assistant_msg: dict = {"role": "assistant", "content": result.assistant_content}
+            assistant_msg["tool_calls"] = [
+                {
+                    "id": tc.id,
+                    "function": {"name": tc.name, "arguments": tc.arguments},
+                }
+                for tc in llm_response.tool_calls
+            ]
+            conv_messages.append(assistant_msg)
+
+            # Append tool results
+            for tr in tool_results:
+                conv_messages.append({
+                    "role": "tool",
+                    "tool_call_id": tr.get("call_id", ""),
+                    "content": tr.get("output", ""),
+                })
+            continue
+
+        # No tool calls — final response
+        break
+
+    if result.iterations >= max_iterations:
+        logger.warning(
+            "[Anthropic Loop] Conversation %s: Reached max iterations (%d)",
+            conversation_id,
+            max_iterations,
+        )
+
+    return result
+
+
 @router.post("/chat", response_model=ChatResponse)
 @(
     trace_session(agent_name="ha-ai-agent", sink=_eval_sink, model="gpt-4o")
@@ -297,6 +432,7 @@ async def chat(
     openai_client=Depends(get_openai_client),  # noqa: B008
     tool_service=Depends(get_tool_service),  # noqa: B008
     memory_extractor=Depends(get_memory_extractor),  # noqa: B008
+    llm_router=Depends(get_llm_router),  # noqa: B008
 ):
     """
     Chat endpoint for interacting with the HA AI Agent.
@@ -404,21 +540,45 @@ async def chat(
 
         # Get tool schemas and run the loop
         tools = get_tool_schemas()
-        logger.info(
-            "[Chat] Conversation %s: Using model=%s",
-            conversation_id,
-            settings.openai_model,
+        use_anthropic = (
+            settings.llm_provider == "anthropic" and llm_router is not None
         )
 
-        loop_result = await _run_openai_loop(
-            conversation_id=conversation_id,
-            request_message=request.message,
-            prompt_assembly_service=prompt_assembly_service,
-            openai_client=openai_client,
-            tool_service=tool_service,
-            conversation_service=conversation_service,
-            tools=tools,
-        )
+        if use_anthropic:
+            # Epic 97: Anthropic provider path with prompt caching
+            model_name = settings.anthropic_model
+            logger.info(
+                "[Chat] Conversation %s: Using provider=anthropic, model=%s",
+                conversation_id,
+                model_name,
+            )
+            system_prompt = system_msg.get("content", "")
+            loop_result = await _run_anthropic_loop(
+                conversation_id=conversation_id,
+                request_message=request.message,
+                system_prompt=system_prompt,
+                messages=messages,
+                llm_router=llm_router,
+                tool_service=tool_service,
+                conversation_service=conversation_service,
+                tools=tools,
+            )
+        else:
+            model_name = settings.openai_model
+            logger.info(
+                "[Chat] Conversation %s: Using provider=openai, model=%s",
+                conversation_id,
+                model_name,
+            )
+            loop_result = await _run_openai_loop(
+                conversation_id=conversation_id,
+                request_message=request.message,
+                prompt_assembly_service=prompt_assembly_service,
+                openai_client=openai_client,
+                tool_service=tool_service,
+                conversation_service=conversation_service,
+                tools=tools,
+            )
 
         # Build response
         final_content = loop_result.assistant_content or ""
@@ -433,8 +593,9 @@ async def chat(
             conversation_id=conversation_id,
             tool_calls=loop_result.tool_calls,
             metadata={
-                "model": openai_client.model,
-                "reasoning_effort": openai_client.reasoning_effort,
+                "provider": "anthropic" if use_anthropic else "openai",
+                "model": model_name,
+                "reasoning_effort": getattr(openai_client, "reasoning_effort", None),
                 "tokens_used": loop_result.total_tokens,
                 "response_time_ms": response_time_ms,
                 "token_breakdown": token_counts,

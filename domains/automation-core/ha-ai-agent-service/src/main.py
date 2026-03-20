@@ -30,6 +30,7 @@ from .services.memory_extractor import MemoryExtractor
 # Story 33.2: Memory injection imports (conditionally loaded)
 memory_injector = None  # MemoryInjector -- initialized in lifespan if enabled
 memory_search = None  # MemorySearch -- initialized in lifespan if enabled
+from .services.llm_router import LLMRouter
 from .services.openai_client import OpenAIClient
 from .services.prompt_assembly_service import PromptAssemblyService
 from .services.tool_service import ToolService
@@ -58,6 +59,7 @@ tool_service: ToolService | None = None
 conversation_service: ConversationService | None = None
 prompt_assembly_service: PromptAssemblyService | None = None
 openai_client: OpenAIClient | None = None
+llm_router: LLMRouter | None = None
 memory_extractor: MemoryExtractor | None = None  # Story 30.1
 memory_client = None  # MemoryClient -- initialized in lifespan if enabled
 memory_search = None  # MemorySearch -- initialized in lifespan if enabled (Story 33.2)
@@ -145,7 +147,7 @@ def _build_clients() -> tuple:
 async def _startup_services() -> None:
     """Initialize all service components during startup."""
     global context_builder, tool_service, conversation_service
-    global prompt_assembly_service, openai_client, group_health
+    global prompt_assembly_service, openai_client, llm_router, group_health
     global memory_extractor, memory_client, memory_search, memory_injector
 
     # Initialize database
@@ -181,6 +183,25 @@ async def _startup_services() -> None:
     oc = OpenAIClient(settings)
     logger.info("OpenAI client initialized")
     openai_client = oc
+
+    # Epic 97: Initialize LLM Router for Anthropic provider support
+    lr: LLMRouter | None = None
+    if settings.llm_provider == "anthropic" or (
+        settings.llm_fallback_provider == "anthropic"
+    ):
+        try:
+            lr = LLMRouter(settings)
+            llm_router = lr
+            logger.info(
+                "LLM Router initialized: primary=%s, fallback=%s",
+                settings.llm_provider,
+                settings.llm_fallback_provider or "none",
+            )
+        except Exception as e:
+            logger.warning("LLM Router initialization failed: %s", e)
+            lr = None
+    else:
+        logger.info("LLM Router not needed (provider=%s)", settings.llm_provider)
 
     # Story 30.1: Initialize memory extraction if enabled
     # Story 33.2: Initialize memory injection for LLM prompts
@@ -245,7 +266,7 @@ async def _startup_services() -> None:
     set_services(
         settings=settings, conversation_service=cs,
         prompt_assembly_service=pas, openai_client=oc, tool_service=ts,
-        memory_extractor=memory_extractor,
+        memory_extractor=memory_extractor, llm_router=lr,
     )
     logger.info("HA AI Agent Service started successfully")
 
@@ -253,7 +274,7 @@ async def _startup_services() -> None:
 async def _shutdown_services() -> None:
     """Run cleanup tasks on shutdown."""
     global context_builder, tool_service, conversation_service
-    global prompt_assembly_service, openai_client, group_health
+    global prompt_assembly_service, openai_client, llm_router, group_health
     global memory_extractor, memory_client, memory_search, memory_injector
 
     if conversation_service:
@@ -292,6 +313,7 @@ async def _shutdown_services() -> None:
     conversation_service = None
     prompt_assembly_service = None
     openai_client = None
+    llm_router = None
     memory_extractor = None
     memory_client = None
     memory_search = None  # Story 33.2

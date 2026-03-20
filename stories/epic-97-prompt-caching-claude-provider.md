@@ -43,15 +43,15 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
 
 ### Tasks
 
-- [ ] **97.1.1** Add `anthropic>=0.40.0` to `requirements.txt`
-- [ ] **97.1.2** Add settings to `config.py`:
+- [x] **97.1.1** Add `anthropic>=0.40.0` to `requirements.txt`
+- [x] **97.1.2** Add settings to `config.py`:
   ```python
   anthropic_api_key: SecretStr | None = None
   anthropic_model: str = "claude-sonnet-4-6"  # Default to cost-effective model
   llm_provider: str = "openai"  # "openai" or "anthropic"
   llm_fallback_provider: str | None = "openai"  # Fallback if primary fails
   ```
-- [ ] **97.1.3** Create `src/clients/anthropic_client.py`:
+- [x] **97.1.3** Create `src/clients/anthropic_client.py`:
   ```python
   class AnthropicLLMClient:
       """Claude LLM client with prompt caching support."""
@@ -73,11 +73,11 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
           """
           ...
   ```
-- [ ] **97.1.4** Translate between OpenAI message format (used throughout HomeIQ) and Anthropic format:
+- [x] **97.1.4** Translate between OpenAI message format (used throughout HomeIQ) and Anthropic format:
   - OpenAI `{"role": "system", "content": "..."}` → Anthropic `system` parameter
   - OpenAI tool calling format → Anthropic tool use format
   - Anthropic `tool_use` blocks → OpenAI `tool_calls` format (for downstream processing)
-- [ ] **97.1.5** Create `LLMResponse` dataclass (provider-agnostic):
+- [x] **97.1.5** Create `LLMResponse` dataclass (provider-agnostic):
   ```python
   @dataclass
   class LLMResponse:
@@ -88,14 +88,14 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
       provider: str  # "openai" or "anthropic"
       cached_tokens: int  # Prompt cache hit tokens
   ```
-- [ ] **97.1.6** Add unit tests with mocked Anthropic API
+- [x] **97.1.6** Add unit tests with mocked Anthropic API
 
 ### Acceptance Criteria
 
-- [ ] Claude API call succeeds with system prompt + user message
-- [ ] Tool calling works (preview/create/suggest automation tools)
-- [ ] Response is normalized to `LLMResponse` format
-- [ ] OpenAI message format transparently translated to/from Anthropic
+- [x]Claude API call succeeds with system prompt + user message
+- [x]Tool calling works (preview/create/suggest automation tools)
+- [x]Response is normalized to `LLMResponse` format
+- [x]OpenAI message format transparently translated to/from Anthropic
 
 ---
 
@@ -106,7 +106,7 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
 
 ### Tasks
 
-- [ ] **97.2.1** Identify cache breakpoints in the prompt assembly pipeline:
+- [x] **97.2.1** Identify cache breakpoints in the prompt assembly pipeline:
   ```
   ┌─────────────────────────────┐
   │  System Prompt (Sections 0-9) │  ← CACHE BREAKPOINT 1 (stable across all requests)
@@ -122,7 +122,7 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
   │  User Message                 │
   └─────────────────────────────┘
   ```
-- [ ] **97.2.2** Add `cache_control: {"type": "ephemeral"}` to system prompt content blocks:
+- [x] **97.2.2** Add `cache_control: {"type": "ephemeral"}` to system prompt content blocks:
   ```python
   system = [
       {
@@ -137,17 +137,17 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
       }
   ]
   ```
-- [ ] **97.2.3** Track cache hit rate in `LLMResponse.cached_tokens`
-- [ ] **97.2.4** Log cache performance: `"Prompt cache: {cached_tokens}/{total_input_tokens} tokens cached ({pct}%)"`
-- [ ] **97.2.5** Add metrics: `homeiq_llm_cache_hit_tokens_total`, `homeiq_llm_cache_miss_tokens_total`
-- [ ] **97.2.6** Unit tests: verify cache_control blocks are set correctly in API calls
+- [x] **97.2.3** Track cache hit rate in `LLMResponse.cached_tokens`
+- [x] **97.2.4** Log cache performance: `"Prompt cache: {cached_tokens}/{total_input_tokens} tokens cached ({pct}%)"`
+- [x] **97.2.5** Add metrics: `homeiq_llm_cache_hit_tokens_total`, `homeiq_llm_cache_miss_tokens_total`
+- [x] **97.2.6** Unit tests: verify cache_control blocks are set correctly in API calls
 
 ### Acceptance Criteria
 
-- [ ] First request: 0% cache hit (cold cache)
-- [ ] Second request (same conversation): ≥80% cache hit on system prompt
-- [ ] Subsequent requests: ≥90% cache hit on system + entity context
-- [ ] Cache hit rate logged and available in Prometheus metrics
+- [x]First request: 0% cache hit (cold cache)
+- [x]Second request (same conversation): ≥80% cache hit on system prompt
+- [x]Subsequent requests: ≥90% cache hit on system + entity context
+- [x]Cache hit rate logged and available in Prometheus metrics
 
 ---
 
@@ -158,7 +158,7 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
 
 ### Tasks
 
-- [ ] **97.3.1** Create `src/services/llm_router.py`:
+- [x] **97.3.1** Create `src/services/llm_router.py`:
   ```python
   class LLMRouter:
       """Routes LLM calls to configured provider with fallback."""
@@ -183,17 +183,17 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
                   return await self.fallback.chat_completion(**kwargs)
               raise
   ```
-- [ ] **97.3.2** Wire `LLMRouter` into `prompt_assembly_service.py` (replace direct OpenAI client usage)
-- [ ] **97.3.3** Support env var override: `LLM_PROVIDER=anthropic` to switch without config change
-- [ ] **97.3.4** Add health check: `/api/v1/health` reports primary and fallback provider status
-- [ ] **97.3.5** Add unit tests: primary fails → fallback activates; circuit breaker opens/closes
+- [x] **97.3.2** Wire `LLMRouter` into `prompt_assembly_service.py` (replace direct OpenAI client usage)
+- [x] **97.3.3** Support env var override: `LLM_PROVIDER=anthropic` to switch without config change
+- [x] **97.3.4** Add health check: `/api/v1/health` reports primary and fallback provider status
+- [x] **97.3.5** Add unit tests: primary fails → fallback activates; circuit breaker opens/closes
 
 ### Acceptance Criteria
 
-- [ ] `LLM_PROVIDER=anthropic` → Claude is primary, GPT-5.2 is fallback
-- [ ] Primary provider 3 failures → circuit breaker opens → fallback activates
-- [ ] Primary recovers → circuit breaker half-opens → back to primary
-- [ ] Health endpoint shows both provider statuses
+- [x]`LLM_PROVIDER=anthropic` → Claude is primary, GPT-5.2 is fallback
+- [x]Primary provider 3 failures → circuit breaker opens → fallback activates
+- [x]Primary recovers → circuit breaker half-opens → back to primary
+- [x]Health endpoint shows both provider statuses
 
 ---
 
@@ -204,7 +204,7 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
 
 ### Tasks
 
-- [ ] **97.4.1** Create `src/utils/tool_translator.py`:
+- [x] **97.4.1** Create `src/utils/tool_translator.py`:
   ```python
   def openai_tools_to_anthropic(tools: list[dict]) -> list[dict]:
       """Convert OpenAI function calling schema to Anthropic tool use schema."""
@@ -216,19 +216,19 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
       """Convert Anthropic tool_use response to OpenAI tool_calls format."""
       ...
   ```
-- [ ] **97.4.2** Translate HomeIQ's 3 tools (`HA_TOOLS` in `tool_schemas.py`):
+- [x] **97.4.2** Translate HomeIQ's 3 tools (`HA_TOOLS` in `tool_schemas.py`):
   - `preview_automation_from_prompt`
   - `create_automation_from_prompt`
   - `suggest_automation_enhancements`
-- [ ] **97.4.3** Handle tool result submission: Anthropic requires `tool_result` blocks, OpenAI uses `tool` role messages
-- [ ] **97.4.4** Add round-trip tests: OpenAI format → Anthropic format → call → response → OpenAI format
+- [x] **97.4.3** Handle tool result submission: Anthropic requires `tool_result` blocks, OpenAI uses `tool` role messages
+- [x] **97.4.4** Add round-trip tests: OpenAI format → Anthropic format → call → response → OpenAI format
 
 ### Acceptance Criteria
 
-- [ ] All 3 HomeIQ tools work with Claude (preview, create, suggest)
-- [ ] Tool call arguments are correctly parsed from Claude responses
-- [ ] Tool results are correctly submitted back to Claude for follow-up
-- [ ] Multi-step tool calling works (preview → approval → create)
+- [x]All 3 HomeIQ tools work with Claude (preview, create, suggest)
+- [x]Tool call arguments are correctly parsed from Claude responses
+- [x]Tool results are correctly submitted back to Claude for follow-up
+- [x]Multi-step tool calling works (preview → approval → create)
 
 ---
 
@@ -239,15 +239,15 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
 
 ### Tasks
 
-- [ ] **97.5.1** Create benchmark script: `scripts/benchmark_llm_providers.py`
+- [x] **97.5.1** Create benchmark script: `scripts/benchmark_llm_providers.py`
   - 20 representative automation prompts (simple, complex, multi-entity, sports, motion)
   - Run each through both providers
   - Compare: token usage, cost, cache hit rate, response quality, YAML validity
-- [ ] **97.5.2** Quality scoring:
+- [x] **97.5.2** Quality scoring:
   - YAML validation pass rate (via yaml-validation-service)
   - Entity resolution accuracy (correct entity_ids used)
   - Instruction following (preview before create, no direct execution)
-- [ ] **97.5.3** Cost comparison:
+- [x] **97.5.3** Cost comparison:
   ```
   | Provider        | Avg Input Tokens | Avg Output Tokens | Cost/Request | Cache Savings |
   |-----------------|------------------|-------------------|--------------|---------------|
@@ -255,15 +255,15 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
   | Claude Sonnet   |       ?          |        ?          |      ?       |      ?%       |
   | Claude (cached) |       ?          |        ?          |      ?       |      ?%       |
   ```
-- [ ] **97.5.4** Write results to `docs/LLM_BENCHMARK.md`
-- [ ] **97.5.5** Recommend default provider based on results
+- [x] **97.5.4** Write results to `docs/LLM_BENCHMARK.md`
+- [x] **97.5.5** Recommend default provider based on results
 
 ### Acceptance Criteria
 
-- [ ] 20 prompts tested on both providers
-- [ ] Cost comparison shows ≥50% savings with Claude prompt caching
-- [ ] Quality comparison shows no significant degradation
-- [ ] Recommendation documented with data
+- [x]20 prompts tested on both providers
+- [x]Cost comparison shows ≥50% savings with Claude prompt caching
+- [x]Quality comparison shows no significant degradation
+- [x]Recommendation documented with data
 
 ---
 
@@ -274,7 +274,7 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
 
 ### Tasks
 
-- [ ] **97.6.1** Add complexity detection in `prompt_assembly_service.py`:
+- [x] **97.6.1** Add complexity detection in `prompt_assembly_service.py`:
   ```python
   def _is_complex_automation(self, user_message: str) -> bool:
       """Detect if automation request is complex enough for extended thinking."""
@@ -287,7 +287,7 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
       ]
       return sum(indicators) >= 2
   ```
-- [ ] **97.6.2** Enable `thinking` parameter for complex automations:
+- [x] **97.6.2** Enable `thinking` parameter for complex automations:
   ```python
   if self._is_complex_automation(user_message):
       response = await self.anthropic_client.chat_completion(
@@ -295,16 +295,16 @@ HA 2026.3 already uses Anthropic prompt caching — it's proven in the HA ecosys
           thinking={"type": "enabled", "budget_tokens": 4096}
       )
   ```
-- [ ] **97.6.3** Parse thinking blocks from response (log for debugging, don't show to user)
-- [ ] **97.6.4** Compare quality: complex automations with vs without thinking (accuracy of YAML, entity resolution, trigger logic)
-- [ ] **97.6.5** Add unit tests: complexity detection, thinking block parsing
+- [x] **97.6.3** Parse thinking blocks from response (log for debugging, don't show to user)
+- [x] **97.6.4** Compare quality: complex automations with vs without thinking (accuracy of YAML, entity resolution, trigger logic)
+- [x] **97.6.5** Add unit tests: complexity detection, thinking block parsing
 
 ### Acceptance Criteria
 
-- [ ] Simple requests ("turn on office lights at sunset") → no extended thinking (saves tokens)
-- [ ] Complex requests ("if motion in office and it's after sunset, turn on lights unless they're already on, and also set temperature to 72") → extended thinking enabled
-- [ ] Thinking blocks logged for debugging but not shown in UI
-- [ ] Quality improvement measurable on complex automation benchmark set
+- [x]Simple requests ("turn on office lights at sunset") → no extended thinking (saves tokens)
+- [x]Complex requests ("if motion in office and it's after sunset, turn on lights unless they're already on, and also set temperature to 72") → extended thinking enabled
+- [x]Thinking blocks logged for debugging but not shown in UI
+- [x]Quality improvement measurable on complex automation benchmark set
 
 ---
 

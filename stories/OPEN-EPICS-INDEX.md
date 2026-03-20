@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-19 (Epic 97 in progress, Epics 93+94 committed)
-**Total:** 92 Completed Epics, 603 Stories complete | 2 Closed Won't Do | 6 Planned (2 P1, 2 P2, 2 P3)
+**Created:** 2026-02-27 | **Updated:** 2026-03-19 (Epic 97 complete, Epics 93+94+97 committed)
+**Total:** 93 Completed Epics, 609 Stories complete | 2 Closed Won't Do | 5 Planned (1 P1, 2 P2, 2 P3)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -247,7 +247,7 @@ Sprint 41 (COMPLETE — Mar 18, 2026) — Ask AI → HA YAML E2E Pipeline
 | # | Epic | Stories | Effort | Sprint | Notes |
 |---|------|---------|--------|--------|-------|
 | 94 | **Prompt Sections to Config Files** | 5 | 3-4 days | 43 | ✅ **COMPLETE** — 13 section files extracted from 1033-line SYSTEM_PROMPT, YAML config with ordering/enable/disable, PromptLoader class with variable substitution ({ha_version} etc.), env var overrides (PROMPT_VAR_*), graceful fallback to constant, 21 tests (byte-identical regression, ordering, disabled sections, variables, token budget), PROMPT_ASSEMBLY.md docs. |
-| 97 | **Prompt Caching & Claude Provider** | 6 | 1-2 weeks | 44 | 🚧 **IN PROGRESS** — Stories 97.1-97.4, 97.6 implemented: AnthropicLLMClient with cache_control breakpoints, LLMRouter with CircuitBreaker fallback, tool schema translator (OpenAI↔Anthropic), extended thinking for complex automations, LLMResponse dataclass, 40+ tests. Story 97.5 benchmark script created. |
+| 97 | **Prompt Caching & Claude Provider** | 6 | 1-2 weeks | 44 | ✅ **COMPLETE** — AnthropicLLMClient with cache_control breakpoints (2 cache BPs: system prompt + entity context), LLMRouter with CircuitBreaker fallback, bidirectional tool schema translator (OpenAI↔Anthropic), extended thinking for complex automations, LLMResponse dataclass, provider selection wired into chat handler (LLM_PROVIDER=anthropic activates), benchmark script, 54 tests. |
 | 95 | **Consume HA MCP Servers** | 7 | 1-2 weeks | 45 | Replace custom HomeAssistantClient with MCP protocol. MCPClient infra, HA MCP server evaluation, adapter, shadow mode, switchover, Docker deploy, data-collector audit. Demoted from P0: current client works, MCP is modernization not a fix. |
 
 ### P2 — Planned

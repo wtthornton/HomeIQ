@@ -12,6 +12,7 @@ from fastapi import HTTPException
 
 from ..config import Settings
 from ..services.conversation_service import ConversationService
+from ..services.llm_router import LLMRouter
 from ..services.openai_client import OpenAIClient
 from ..services.prompt_assembly_service import PromptAssemblyService
 from ..services.tool_service import ToolService
@@ -21,6 +22,7 @@ _settings: Settings | None = None
 _conversation_service: ConversationService | None = None
 _prompt_assembly_service: PromptAssemblyService | None = None
 _openai_client: OpenAIClient | None = None
+_llm_router: LLMRouter | None = None
 _tool_service: ToolService | None = None
 _memory_extractor: Any | None = None
 
@@ -32,14 +34,16 @@ def set_services(
     openai_client: OpenAIClient,
     tool_service: ToolService,
     memory_extractor: Any | None = None,
+    llm_router: LLMRouter | None = None,
 ):
     """Set service instances (called from main.py during startup)"""
     global _settings, _conversation_service, _prompt_assembly_service
-    global _openai_client, _tool_service, _memory_extractor
+    global _openai_client, _tool_service, _memory_extractor, _llm_router
     _settings = settings
     _conversation_service = conversation_service
     _prompt_assembly_service = prompt_assembly_service
     _openai_client = openai_client
+    _llm_router = llm_router
     _tool_service = tool_service
     _memory_extractor = memory_extractor
 
@@ -77,6 +81,11 @@ def get_tool_service() -> ToolService:
     if not _tool_service:
         raise HTTPException(status_code=503, detail="Service not ready")
     return _tool_service
+
+
+def get_llm_router() -> LLMRouter | None:
+    """Get LLM router instance (may be None if Anthropic not configured)"""
+    return _llm_router
 
 
 def get_memory_extractor() -> Any | None:
