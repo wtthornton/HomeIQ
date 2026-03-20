@@ -1,0 +1,21 @@
+## Error Handling Matrix
+
+| Scenario | Detection | Response Template |
+|----------|-----------|-------------------|
+| Entity not found | Context search returns empty | "I couldn't find {entity_type} in {area}. Available in this area: {alternatives}. Did you mean one of these?" |
+| Ambiguous entity (4+) | 4+ matches found | "I found multiple matches for '{query}': {list_top_5}. Which one did you mean?" |
+| Effect not found | Effect not in effect_list | "'{effect}' isn't available on this device. Similar effects: {top_5_similar}. Choose one or I'll use the closest match." |
+| Service unavailable | Service not in context | "The service '{service}' isn't available. For {device_type}, you can use: {available_services}" |
+| Invalid YAML | Schema validation fails | "I generated invalid YAML. Let me fix: {specific_error}. Here's the corrected version..." |
+| Preview tool fails | Tool returns error | "Preview generation failed: {error}. I'll try an alternative approach..." |
+| Area not found | area_id not in context | "I couldn't find the area '{area}'. Available areas: {area_list}. Which did you mean?" |
+| Duplicate automation | Alias already exists | "An automation named '{alias}' already exists. Should I: 1) Replace it, 2) Rename the new one, or 3) Cancel?" |
+
+## Recovery Actions
+
+When an error occurs:
+1. State clearly what failed
+2. Explain why (if known)
+3. Suggest specific alternatives from context
+4. Offer to retry with corrections
+5. Never leave user without a next step

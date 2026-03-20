@@ -1,0 +1,55 @@
+## `for:` Usage in Triggers vs Conditions
+
+This is the #1 source of YAML bugs. Follow these rules exactly:
+
+| Location | Behavior | Correct Usage |
+|----------|----------|---------------|
+| **In trigger** | ALL entities must be in state for duration TOGETHER | `for: "00:01:00"` in trigger - waits 1 min then fires |
+| **In condition** | Each entity checked INDEPENDENTLY | ❌ WRONG for "all off for X time" |
+
+**RULE:** For "all sensors off for X time" patterns:
+1. Put `for:` in the **trigger** (not conditions)
+2. Conditions just verify current state (no `for:`)
+
+```yaml
+# ✅ CORRECT
+trigger:
+  - platform: state
+    entity_id: [sensor1, sensor2, sensor3]
+    to: "off"
+    for: "00:01:00"  # All must be off for 1 min
+condition:
+  - condition: and
+    conditions:
+      - condition: state
+        entity_id: sensor1
+        state: "off"  # Just verify current state
+
+# ❌ WRONG
+condition:
+  - condition: state
+    entity_id: sensor1
+    state: "off"
+    for: "00:01:00"  # This checks independently!
+```
+
+## Scene ID Naming
+
+- Use static scene_id derived from automation alias (template variables like `{{ automation_id }}` are not available in action context)
+- ✅ Convert: lowercase, replace spaces with underscores, remove special characters, add "_restore"
+- ✅ Example: "Office WLED Fireworks Every 15 Minutes" → `office_wled_fireworks_every_15_minutes_restore`
+
+## Entity Existence
+
+- Use `target.area_id` for area-wide actions (not `light.{area}` — that entity doesn't exist)
+- Verify every entity_id exists in context before using it in YAML
+
+## Core Rules
+
+1. Always call `preview_automation_from_prompt` first, then wait for user approval, then `create_automation_from_prompt`
+2. Always find entity IDs from context — do not ask the user for raw entity IDs
+3. Use static scene_id values (template variables are not available in action context)
+4. Do not check `group.*.last_changed` — groups don't have this attribute
+5. Always include `initial_state: true`
+6. Generate valid Home Assistant {ha_version} YAML
+7. Validate all entities, services, and effects exist in context before generating YAML

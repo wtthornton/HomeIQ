@@ -1,7 +1,7 @@
 # HomeIQ — Open Epics & Stories Index
 
-**Created:** 2026-02-27 | **Updated:** 2026-03-18 (Sprint 39; Epics 76-77 closed Won't Do, Epics 87-89 planned)
-**Total:** 90 Completed Epics, 593 Stories complete | 2 Closed Won't Do | 2 Planned
+**Created:** 2026-02-27 | **Updated:** 2026-03-19 (Epic 94 complete, Epic 93 complete)
+**Total:** 92 Completed Epics, 603 Stories complete | 2 Closed Won't Do | 6 Planned (2 P1, 2 P2, 2 P3)
 
 > **IMPORTANT FOR AGENTS:** This is the **single source of truth** for all epic tracking.
 > Before creating new epics, check this index for duplicates or superseded work.
@@ -233,14 +233,36 @@ Sprint 41 (COMPLETE — Mar 18, 2026) — Ask AI → HA YAML E2E Pipeline
 
 > These epics are defined in planning docs but have **no commits yet**.
 > They are listed in recommended execution order.
-> Next available epic number: **93** (90 epics complete, 76-77 closed won't-do, 91-92 planned).
+> Next available epic number: **99** (92 epics complete, 76-77 closed won't-do, 91-92/95-98 planned).
+> **Priority review:** 2026-03-19 — restacked based on safety impact, cost ROI, dependencies.
+
+### P0 — Complete
+
+| # | Epic | Stories | Effort | Sprint | Notes |
+|---|------|---------|--------|--------|-------|
+| 93 | **Entity Safety Blacklisting** | 5 | 2 days | 43 | ✅ **COMPLETE** — Defence-in-depth: `entity_blacklist.yaml` config + `EntityBlacklist` class, context filtering in `enhanced_context_builder.py`, validation rejection in `yaml-validation-service` Stage 5 (errors not warnings), system prompt updated (blocked not warned), admin override via env var + `X-Safety-Override` header, docs + 44 tests. |
+
+### P1 — Planned
+
+| # | Epic | Stories | Effort | Sprint | Notes |
+|---|------|---------|--------|--------|-------|
+| 94 | **Prompt Sections to Config Files** | 5 | 3-4 days | 43 | ✅ **COMPLETE** — 13 section files extracted from 1033-line SYSTEM_PROMPT, YAML config with ordering/enable/disable, PromptLoader class with variable substitution ({ha_version} etc.), env var overrides (PROMPT_VAR_*), graceful fallback to constant, 21 tests (byte-identical regression, ordering, disabled sections, variables, token budget), PROMPT_ASSEMBLY.md docs. |
+| 97 | **Prompt Caching & Claude Provider** | 6 | 1-2 weeks | 44 | Add Claude/Anthropic as LLM provider with prompt caching (~90% token cost reduction). Provider selection, fallback, tool translation, benchmarking, extended thinking. Prereq for Epic 98. |
+| 95 | **Consume HA MCP Servers** | 7 | 1-2 weeks | 45 | Replace custom HomeAssistantClient with MCP protocol. MCPClient infra, HA MCP server evaluation, adapter, shadow mode, switchover, Docker deploy, data-collector audit. Demoted from P0: current client works, MCP is modernization not a fix. |
 
 ### P2 — Planned
 
+| # | Epic | Stories | Effort | Sprint | Notes |
+|---|------|---------|--------|--------|-------|
+| 96 | **Proactive Predictive Automation** | 8 | 2-3 weeks | 46+ | Wire existing services (proactive-agent, energy-forecasting, activity-recognition) for pattern detection, energy optimization, anomaly alerts. 2026 differentiator. Demoted from P1: high value but largest effort, no dependencies blocked. |
+| 98 | **Local LLM Fallback via Ollama** | 5 | 1 week | 46+ | Ollama container with Qwen 3 7B for cloud outage resilience. 3-tier fallback (GPT → Claude → local). Simplified prompt, quality benchmarking, degraded mode UX. Depends on Epic 97. |
+
+### P3 — Backlog
+
 | # | Epic | Stories | Effort | Notes |
 |---|------|---------|--------|-------|
-| 91 | **Memory Consolidation Research — TappsMCP vs homeiq-memory** | 6 | 1-2 weeks | Research whether to consolidate onto TappsMCP's `tapps_memory` or keep homeiq-memory for runtime. Feature matrix, gap analysis, runtime assessment, POC bridge, ADR. |
-| 92 | **Live AI E2E Tests — 0% to 100% Pass Rate** | 10 | 1-2 weeks | Fix all 40 Ask AI E2E tests: route/port/selector mismatches, page object updates, data-testid attrs, Fast UI tests, Slow OpenAI tests, lifecycle tests, full pipeline tests, green CI. Iterative fix-deploy-retest. |
+| 92 | **Live AI E2E Tests — 0% to 100% Pass Rate** | 10 | 1-2 weeks | Local-only E2E already passing (19/19, commit a6bbce96). Live CI tests are nice-to-have. Root causes documented. Defer until after feature epics. |
+| 91 | **Memory Consolidation Research — TappsMCP vs homeiq-memory** | 6 | 1-2 weeks | Pure research — homeiq-memory works fine at runtime, TappsMCP serves dev-time scope. No user-facing impact. Defer. |
 
 ### In Progress
 

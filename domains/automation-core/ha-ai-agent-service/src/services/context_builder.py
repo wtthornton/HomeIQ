@@ -16,7 +16,7 @@ from sqlalchemy import select
 
 from ..config import Settings
 from ..database import ContextCache, get_session
-from ..prompts.system_prompt import SYSTEM_PROMPT
+from ..prompts.prompt_loader import PromptLoader
 
 if TYPE_CHECKING:
     from homeiq_memory import MemoryInjector
@@ -45,6 +45,7 @@ class ContextBuilder:
             memory_injector: Optional MemoryInjector for memory context (Story 33.2)
         """
         self.settings = settings
+        self._prompt_loader = PromptLoader()
         self._initialized = False
         self._entity_inventory_service = None
         self._devices_summary_service = None
@@ -280,8 +281,8 @@ class ContextBuilder:
             if hasattr(self, '_enhanced_context_builder') and self._enhanced_context_builder:
                 entity_inventory = await self._enhanced_context_builder.build_area_entity_context()
                 if entity_inventory and "Unavailable" not in entity_inventory:
-                    # Truncate to keep within token budget (already limited to 10 entities/domain/area)
-                    max_entity_chars = 6000 if not skip_truncation else 999999
+                    # Truncate to keep within token budget (limited to 20 entities/domain/area, 5 scenes/area)
+                    max_entity_chars = 24000 if not skip_truncation else 999999
                     if len(entity_inventory) > max_entity_chars:
                         entity_inventory = entity_inventory[:max_entity_chars] + "\n... (truncated for token efficiency)"
                     context_parts.append(f"\n{entity_inventory}")
@@ -336,10 +337,13 @@ class ContextBuilder:
         """
         Get the base system prompt for the OpenAI agent.
 
+        Loads from config-driven section files via PromptLoader.
+        Falls back to the SYSTEM_PROMPT constant if section files are missing.
+
         Returns:
             System prompt string defining agent role and behavior
         """
-        return SYSTEM_PROMPT
+        return self._prompt_loader.load()
 
     async def get_device_state_context(
         self,

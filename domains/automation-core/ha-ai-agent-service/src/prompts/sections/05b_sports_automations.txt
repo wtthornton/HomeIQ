@@ -1,0 +1,196 @@
+## Sports Automations: Use Sensor Triggers (Not Fixed Times)
+
+Sports games have variable start times that change. Always use Team Tracker sensor state changes as triggers instead of fixed time triggers.
+
+### Team Tracker State Values
+- `PRE` - Game is scheduled but not started (pre-game)
+- `IN` - Game is in progress (live)
+- `POST` - Game has ended
+- `NOT_FOUND` - No game scheduled
+
+### Correct Trigger Patterns
+
+**Game Start Trigger (PRE → IN):**
+```yaml
+trigger:
+  - platform: state
+    entity_id: sensor.vgk_team_tracker  # or any team_tracker sensor
+    from: "PRE"
+    to: "IN"
+```
+
+**Pre-Game Trigger (15 minutes before):**
+```yaml
+trigger:
+  - platform: template
+    value_template: >
+      {{ states('sensor.vgk_team_tracker') == 'PRE' and
+         state_attr('sensor.vgk_team_tracker', 'kickoff_in') is not none and
+         'minutes' in state_attr('sensor.vgk_team_tracker', 'kickoff_in') and
+         (state_attr('sensor.vgk_team_tracker', 'kickoff_in') | regex_findall('\d+') | first | int(0)) <= 15 }}
+```
+
+**Game End Trigger (IN → POST):**
+```yaml
+trigger:
+  - platform: state
+    entity_id: sensor.vgk_team_tracker
+    from: "IN"
+    to: "POST"
+```
+
+**Team Wins Trigger:**
+```yaml
+trigger:
+  - platform: state
+    entity_id: sensor.vgk_team_tracker
+    to: "POST"
+condition:
+  - condition: template
+    value_template: "{{ state_attr('sensor.vgk_team_tracker', 'team_winner') == true }}"
+```
+
+### Kickoff X Seconds Before (Using date Attribute)
+
+Team Tracker sensors have a `date` attribute (kickoff time in UTC). Use `time_pattern` seconds tick + template condition to hit the window:
+
+```yaml
+trigger:
+  - platform: time_pattern
+    seconds: "/1"
+condition:
+  - condition: state
+    entity_id: sensor.super_bowl_sea  # or team sensor
+    state: "PRE"
+  - condition: template
+    value_template: >
+      {% set kickoff = as_datetime(state_attr('sensor.super_bowl_sea','date')) %}
+      {% if kickoff is none %} false
+      {% else %}
+        {% set t = now() %}
+        {{ t >= (kickoff - timedelta(seconds=15)) and t <= (kickoff + timedelta(seconds=15)) }}
+      {% endif %}
+```
+
+Use helper toggles (input_boolean) to prevent multiple fires: `input_boolean.super_bowl_kickoff_flashed`, etc.
+
+### Score Increase Trigger
+
+When user wants "flash lights when [team] scores", trigger on sensor state change and check team_score increased:
+
+```yaml
+trigger:
+  - platform: state
+    entity_id: sensor.super_bowl_sea  # team sensor
+condition:
+  - condition: state
+    entity_id: sensor.super_bowl_sea
+    state: "IN"
+  - condition: template
+    value_template: >
+      {% set old = trigger.from_state.attributes.team_score | int(0) if trigger.from_state else 0 %}
+      {% set new = trigger.to_state.attributes.team_score | int(0) if trigger.to_state else 0 %}
+      {{ new > old }}
+```
+
+### Game Over with Winner Detection
+
+When game ends (POST), pick winner: prefer `team_winner` attribute; fallback to score comparison:
+
+```yaml
+trigger:
+  - platform: state
+    entity_id:
+      - sensor.super_bowl_sea
+      - sensor.super_bowl_ne
+    to: "POST"
+condition:
+  - condition: state
+    entity_id: input_boolean.super_bowl_game_over_fired
+    state: "off"
+# In variables:
+# sea_winner: state_attr('sensor.super_bowl_sea','team_winner')
+# ne_winner: state_attr('sensor.super_bowl_ne','team_winner')
+# If team_winner not none: use it; else compare team_score vs opponent_score
+```
+
+### Helper Creation Guidance
+
+For kickoff and game-over automations that must fire only once:
+1. Create helpers: `input_boolean.{event}_flashed`, `input_boolean.{event}_game_over_fired`
+2. Condition: state "off" before firing
+3. First action: turn_on the helper
+4. Optional: reset automation (e.g., for: "00:10:00" on helper) to reset for next game
+
+### Team Colors for Lighting
+Team Tracker sensors have `team_colors` attribute (array of 2 hex codes).
+Use these for lighting automations:
+
+```yaml
+action:
+  - service: light.turn_on
+    target:
+      area_id: living_room
+    data:
+      # Convert hex to RGB: #B4975A → [180, 151, 90]
+      rgb_color: [180, 151, 90]  # VGK Gold
+```
+
+### WLED vs Hue Device Resolution
+
+**When to use WLED:**
+- Effect support needed (e.g. `effect_list` includes "Dancing Shadows", "Fire", "Rainbow")
+- Ambient/atmosphere: effect + rgb_color together (e.g. `effect: "Dancing Shadows"` with `rgb_color`)
+- Use `effect:` + `brightness_pct` + `rgb_color` for WLED entities
+
+**When to use Hue:**
+- Per-entity independent flashing (each light flashes separately with delays)
+- Hue individual lights: use explicit entity_id list, not Hue groups, for score flashes
+- Hue groups: only for synchronized on/off or scene changes, not rapid flashing
+
+**Entity resolution rules:**
+- Check device capabilities: if `effect_list` present, treat as WLED; prefer WLED for effect-based automations
+- Hue groups (`is_hue_group: true`): use for "all lights" on/off; avoid for rapid flash loops
+- Hue individual lights: use for flash sequences (delay 120–180ms between updates)
+
+**Area vs explicit entity_id:**
+- Use `area_id` when targeting a room generically
+- Use explicit `entity_id` list when user specifies WLED vs Hue or device lists (e.g. "WLED strip" vs "Hue bulbs")
+- Combine both: `entity_id` for WLED list, separate `entity_id` for Hue list, in parallel actions if needed
+
+### Parameterized Sports-Lights Blueprint (Optional)
+
+When user wants a full game-day setup, you can generate 5 automations from a single parameterized pattern:
+
+**Blueprint parameters:**
+- `team_sensors`: entity_ids for both team trackers (e.g. sensor.super_bowl_sea, sensor.super_bowl_ne)
+- `wled_entities`: list of WLED light entity_ids (for effect + color)
+- `hue_entities`: list of Hue individual light entity_ids (for per-entity flash)
+- `team_a_colors`, `team_b_colors`: RGB arrays or hex codes
+- `helper_prefix`: prefix for helpers (e.g. super_bowl_ → input_boolean.super_bowl_kickoff_flashed)
+
+**Generated automations:**
+1. Kickoff (time_pattern + date + timedelta; helper: {prefix}_kickoff_flashed)
+2. Team A score flash (state trigger, team_score increase)
+3. Team B score flash (state trigger, team_score increase)
+4. Game over (POST trigger, winner detection; helper: {prefix}_game_over_fired)
+5. Reset helpers (resets both helpers for next game)
+
+Document this in the response so user can apply parameters.
+
+### Response Format for Sports Automations
+
+When presenting sports automations, be SPECIFIC about the trigger:
+
+**✅ CORRECT:**
+"When the VGK game **starts** (sensor changes from PRE to IN), your Living Room lights will turn VGK gold."
+
+**❌ WRONG:**
+"At 6:45 PM (fixed time), your Living Room lights will turn blue."
+
+### If Proactive Suggestion Mentions Fixed Time
+
+If a proactive suggestion mentions a specific time (e.g., "at 7:00 PM"), DO NOT create a time-based trigger.
+Instead:
+1. Use the Team Tracker sensor state change as the trigger
+2. Inform user: "I've set this to trigger when the game actually starts (sensor state change) rather than a fixed time, since game times can change."

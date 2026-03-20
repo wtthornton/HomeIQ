@@ -1,0 +1,211 @@
+## Time Pattern Triggers
+
+### Syntax Reference
+
+| Pattern | Meaning | Triggers At |
+|---------|---------|-------------|
+| `"/15"` | Every 15 min from start of hour | :00, :15, :30, :45 |
+| `"*/15"` | Same as "/15" (CRON syntax) | :00, :15, :30, :45 |
+| `"0"` | Fixed minute value | :00 only |
+| `"0,30"` | Multiple fixed values | :00, :30 |
+| `hours: "/2"` | Every 2 hours from midnight | 00:00, 02:00, 04:00... |
+| `hours: "9-17"` | Range (business hours) | Every hour 9 AM - 5 PM |
+
+### Examples
+
+```yaml
+# Every 15 minutes
+trigger:
+  - platform: time_pattern
+    minutes: "/15"
+
+# Every hour at :00
+trigger:
+  - platform: time_pattern
+    minutes: "0"
+
+# Every day at specific time
+trigger:
+  - platform: time
+    at: "07:00:00"
+
+# Every 2 hours
+trigger:
+  - platform: time_pattern
+    hours: "/2"
+```
+
+## State Restoration Pattern
+
+When user requests "return to original state", "restore previous state", or "back to original":
+
+```yaml
+action:
+  # 1. Capture current state
+  - service: scene.create
+    data:
+      scene_id: {alias_lowercase_underscores}_restore
+      snapshot_entities:
+        - light.entity_1  # From context
+        - light.entity_2  # From context
+
+  # 2. Perform desired action
+  - service: light.turn_on
+    target:
+      area_id: office
+    data:
+      rgb_color: [255, 0, 0]
+      brightness: 255
+
+  # 3. Wait
+  - delay: "00:00:01"
+
+  # 4. Restore state
+  - service: scene.turn_on
+    target:
+      entity_id: scene.{alias_lowercase_underscores}_restore
+```
+
+**IMPORTANT: Scene Pre-Creation**
+
+To prevent "Unknown entity" warnings in Home Assistant UI, scenes created via `scene.create` are automatically pre-created before automation deployment using the current state of `snapshot_entities`. This ensures:
+
+1. ✅ Scene entity exists when automation is deployed (eliminates UI warnings)
+2. ✅ Scene has initial state captured from current entity states
+3. ✅ Automation works correctly at runtime (scene.create updates the scene with new state if needed)
+4. ✅ No manual scene creation required
+
+**You don't need to manually create scenes** - the system handles this automatically. Just use `scene.create` in your automation actions and the corresponding `scene.turn_on` to restore state.
+
+**Entity Availability:**
+- **Before generating YAML**: Verify entities in `snapshot_entities` are available (state is not "unavailable" or "unknown")
+- **If entities unavailable**: The system will still create the automation, but scene pre-creation may show warnings in UI
+- **Automation will work**: Scene will be created dynamically at runtime when entities become available
+- **Best practice**: Use entities that are currently available for scene snapshots to avoid UI warnings
+
+**Note:** If scene pre-creation fails (e.g., entities unavailable), the automation will still work - the scene will be created dynamically when the automation runs. The UI warning may appear, but this is a false positive that won't affect functionality. However, to avoid user confusion, prefer to use entities that are currently available.
+
+## Continuous Occupancy Detection
+
+For "X minutes continuously occupied" patterns:
+
+```yaml
+# ✅ CORRECT: Use condition: state with for:
+condition:
+  - condition: or
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.motion_1
+        state: "on"
+        for: "01:30:00"  # 90 minutes
+      - condition: state
+        entity_id: binary_sensor.motion_2
+        state: "on"
+        for: "01:30:00"
+
+# ❌ WRONG: Template accessing group.last_changed
+condition:
+  - condition: template
+    value_template: >
+      {{ (now() - states.group.sensors.last_changed).total_seconds() > 5400 }}
+```
+
+**When user mentions groups:** Expand to individual entities from context.
+
+## Motion-Based Dimming Pattern
+
+```yaml
+alias: "Motion-based dimming lights"
+description: "Turn lights on with motion, dim off after no motion"
+initial_state: true
+mode: restart
+trigger:
+  # Motion detected
+  - platform: state
+    entity_id:
+      - binary_sensor.motion_1
+      - binary_sensor.motion_2
+    to: "on"
+  # All sensors off for timeout
+  - platform: state
+    entity_id:
+      - binary_sensor.motion_1
+      - binary_sensor.motion_2
+    to: "off"
+    for: "00:01:00"
+
+condition: []
+
+action:
+  - choose:
+      # Motion detected → full brightness
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: state
+                entity_id: binary_sensor.motion_1
+                state: "on"
+              - condition: state
+                entity_id: binary_sensor.motion_2
+                state: "on"
+        sequence:
+          - service: light.turn_on
+            target:
+              area_id: office
+            data:
+              brightness: 255
+
+      # All off → dim to off
+      - conditions:
+          - condition: and
+            conditions:
+              - condition: state
+                entity_id: binary_sensor.motion_1
+                state: "off"
+              - condition: state
+                entity_id: binary_sensor.motion_2
+                state: "off"
+        sequence:
+          - repeat:
+              count: 7  # ceil(255/40)
+              sequence:
+                - service: light.turn_on
+                  target:
+                    area_id: office
+                  data:
+                    brightness_step: -40
+                    transition: 2
+                - delay: "00:00:03"
+          - service: light.turn_off
+            target:
+              area_id: office
+```
+
+## Color Reference
+
+| Color | RGB | HS |
+|-------|-----|-----|
+| Red | `[255, 0, 0]` | `[0, 100]` |
+| Green | `[0, 255, 0]` | `[120, 100]` |
+| Blue | `[0, 0, 255]` | `[240, 100]` |
+| Yellow | `[255, 255, 0]` | `[60, 100]` |
+| Cyan | `[0, 255, 255]` | `[180, 100]` |
+| Magenta | `[255, 0, 255]` | `[300, 100]` |
+| White | `[255, 255, 255]` | - |
+| Warm White | - | `color_temp: 370` |
+| Cool White | - | `color_temp: 200` |
+
+## Blink Pattern
+
+```yaml
+- service: light.turn_on
+  target:
+    area_id: office
+  data:
+    rgb_color: [255, 0, 0]
+    brightness: 255
+- delay: "00:00:01"
+- service: light.turn_off
+  target:
+    area_id: office
+```

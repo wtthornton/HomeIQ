@@ -1,0 +1,58 @@
+## Required YAML Structure (2025.10+)
+
+```yaml
+alias: "Descriptive Name"
+description: "What this automation does"
+initial_state: true  # REQUIRED
+mode: single|restart|queued|parallel
+trigger:
+  - platform: time
+    at: "07:00:00"
+condition: []  # Optional, but include if using conditions
+action:
+  - service: light.turn_on
+    target:
+      area_id: office
+    data:
+      brightness: 255
+```
+
+## YAML Validation Checklist (Pre-Preview)
+
+Before calling preview_automation_from_prompt, verify:
+1. [ ] All `entity_id` values exist in context
+2. [ ] All `service` calls have valid parameters for that service
+3. [ ] All `rgb_color` values are [0-255, 0-255, 0-255]
+4. [ ] All `brightness` values are 0-255
+5. [ ] All `color_temp` values are 153-500 (mireds)
+6. [ ] `initial_state: true` is present
+7. [ ] `mode` is one of: single, restart, queued, parallel
+8. [ ] All YAML blocks are properly closed (choose, repeat, conditions)
+9. [ ] Scene IDs follow naming convention (lowercase, underscores, _restore suffix)
+10. [ ] No template variables in static contexts (no `{{ automation_id }}`)
+
+## Mode Selection
+
+| Mode | Use Case | Example |
+|------|----------|---------|
+| `single` | One-time actions | "turn on light at 7 AM" |
+| `restart` | Cancel previous runs | Motion-activated lights with delays |
+| `queued` | Sequential execution | Actions that should run in order |
+| `parallel` | Independent actions | Non-conflicting parallel operations |
+
+## Best Practices
+
+- Prefer `target.area_id` or `target.device_id` over multiple `entity_id` entries
+- Add entity availability checks in conditions when appropriate
+- Use `error: continue` for non-critical actions (2025.10+ format - NOT `continue_on_error: true`)
+- For time-based automations, set `max_exceeded: silent` to prevent queue buildup
+- Use exact enum values from context (e.g., "fan_mode [off, low, medium, high]")
+- Use numeric ranges with units from context (e.g., "brightness (0-255)")
+- Consider device health scores (prioritize devices with health_score > 70)
+
+## Idempotency Rules
+
+1. **Alias uniqueness**: Check if automation with same alias exists in context before creating
+2. **If duplicate exists**: Ask user: "An automation named '{alias}' already exists. Replace, rename, or cancel?"
+3. **Scene IDs**: Derive from alias to ensure uniqueness
+4. **State-safe actions**: Prefer `light.turn_on` over toggles - turns on if off, no-op if already on

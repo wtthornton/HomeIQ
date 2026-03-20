@@ -1,0 +1,103 @@
+# Prompt Assembly Configuration
+# Defines which sections are included, their order, and assembly rules.
+# Each section maps to a file in the sections/ directory.
+#
+# Override location: set PROMPT_CONFIG_PATH env var to use a custom config.
+# Override variables: set PROMPT_VAR_<NAME> env vars (e.g. PROMPT_VAR_HA_VERSION).
+
+version: "2.1.0"
+
+# Preamble text file (rendered before any section header)
+preamble_file: preamble.txt
+
+sections:
+  - name: deployment_context
+    file: 00_deployment_context.txt
+    index: "0"
+    title: "DEPLOYMENT CONTEXT (HomeIQ Architecture)"
+    enabled: true
+
+  - name: core_identity
+    file: 01_core_identity.txt
+    index: "1"
+    title: "CORE IDENTITY & CONSTRAINTS (Immutable)"
+    enabled: true
+
+  - name: mandatory_workflow
+    file: 02_mandatory_workflow.txt
+    index: "2"
+    title: "MANDATORY WORKFLOW (3-Step Process)"
+    enabled: true
+
+  - name: error_handling
+    file: 03_error_handling.txt
+    index: "3"
+    title: "ERROR HANDLING & FAILURE MODES"
+    enabled: true
+
+  - name: memory_context
+    file: 03b_memory_context.txt
+    index: "3B"
+    title: "MEMORY CONTEXT (Story 33.2)"
+    enabled: true
+
+  - name: context_entity_resolution
+    file: 04_context_entity_resolution.txt
+    index: "4"
+    title: "CONTEXT USAGE & ENTITY RESOLUTION"
+    enabled: true
+
+  - name: yaml_generation
+    file: 05_yaml_generation.txt
+    index: "5"
+    title: "YAML GENERATION & VALIDATION"
+    enabled: true
+
+  - name: sports_automations
+    file: 05b_sports_automations.txt
+    index: "5B"
+    title: "SPORTS-BASED AUTOMATIONS (Dynamic Triggers)"
+    enabled: true
+
+  - name: response_format
+    file: 06_response_format.txt
+    index: "6"
+    title: "RESPONSE FORMAT"
+    enabled: true
+
+  - name: safety_security
+    file: 07_safety_security.txt
+    index: "7"
+    title: "SAFETY & SECURITY"
+    enabled: true
+
+  - name: rules_constraints
+    file: 08_rules_constraints.txt
+    index: "8"
+    title: "RULES & CONSTRAINTS"
+    enabled: true
+
+  - name: yaml_patterns_reference
+    file: 09_yaml_patterns_reference.txt
+    index: "9"
+    title: "YAML PATTERNS REFERENCE"
+    enabled: true
+
+  - name: example_interaction
+    file: 10_example_interaction.txt
+    index: "10"
+    title: "EXAMPLE INTERACTION"
+    enabled: true
+
+# Section header template (3-line bar inserted before each section)
+header_template: "# ═══════════════════════════════════════════════════════════════════════════════\n# SECTION {index}: {title}\n# ═══════════════════════════════════════════════════════════════════════════════"
+
+# Separator inserted between preamble/sections (double newline)
+section_separator: "\n\n"
+
+# Template variables resolved in section files at load time.
+# Override any value with PROMPT_VAR_<NAME> env vars.
+variables:
+  ha_version: "2025.10+/2026.x"
+  ai_name: "HomeIQ"
+  max_entities_per_area: "20"
