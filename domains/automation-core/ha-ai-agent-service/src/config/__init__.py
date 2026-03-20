@@ -106,6 +106,24 @@ class Settings(BaseServiceSettings):
         description="Weather API Service URL for weather data",
     )
 
+    # Anthropic Configuration (Epic 97: Prompt Caching & Claude Provider)
+    anthropic_api_key: SecretStr | None = Field(
+        default=None,
+        description="Anthropic API key for Claude-based automation generation",
+    )
+    anthropic_model: str = Field(
+        default="claude-sonnet-4-6",
+        description="Anthropic model for automation generation",
+    )
+    llm_provider: str = Field(
+        default="openai",
+        description="Primary LLM provider: 'openai' or 'anthropic'",
+    )
+    llm_fallback_provider: str | None = Field(
+        default="openai",
+        description="Fallback LLM provider if primary fails (None to disable)",
+    )
+
     # OpenAI Configuration
     openai_api_key: SecretStr = Field(
         default="",

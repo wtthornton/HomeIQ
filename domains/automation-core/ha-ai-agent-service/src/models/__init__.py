@@ -6,10 +6,14 @@ from .automation_models import (
     AutomationPreviewResponse,
     ValidationResult,
 )
+from .llm_models import LLMResponse, TokenUsage, ToolCall
 
 __all__ = [
     "AutomationPreview",
     "AutomationPreviewRequest",
     "AutomationPreviewResponse",
+    "LLMResponse",
+    "TokenUsage",
+    "ToolCall",
     "ValidationResult",
 ]
