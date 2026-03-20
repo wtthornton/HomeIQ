@@ -1,0 +1,25 @@
+# Entity Safety Blacklist — Epic 93
+# Entities/domains listed here are filtered from AI context and rejected in validation.
+# Override with ENTITY_BLACKLIST_OVERRIDE=domain1,domain2 env var for admin access.
+
+blocked_domains:
+  - lock              # Door locks
+  - alarm_control_panel  # Security alarms
+
+blocked_entities: []
+  # Add specific entity_ids here, e.g.:
+  # - cover.garage_door
+  # - switch.main_water_valve
+
+blocked_services:
+  - lock.lock
+  - lock.unlock
+  - alarm_control_panel.alarm_arm_away
+  - alarm_control_panel.alarm_arm_home
+  - alarm_control_panel.alarm_disarm
+
+# Entities that produce warnings but aren't blocked
+warn_domains:
+  - cover             # Garage doors, blinds
+  - siren             # Sirens
+  - valve             # Water valves

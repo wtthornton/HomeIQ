@@ -18,6 +18,7 @@ The HA AI Agent Service is a full-featured conversational AI agent that enables 
 - **Conversation Management**: PostgreSQL-backed conversation persistence with message history, state management, and TTL-based cleanup
 - **Token Management**: Intelligent token counting and budget enforcement with conversation history truncation
 - **Health Monitoring**: Comprehensive health checks for all dependencies
+- **Entity Safety Blacklist** (Epic 93): Security-sensitive entities (locks, alarms) are blocked from AI automation. See [docs/ENTITY_SAFETY.md](docs/ENTITY_SAFETY.md) for config, override, and admin guide.
 
 ## Epic AI-20: HA AI Agent Service - Completion & Production Readiness ✅ **COMPLETE**
 

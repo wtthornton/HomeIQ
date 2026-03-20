@@ -14,11 +14,28 @@ Epic 51, Story 51.2: Implement Multi-Stage Validation Pipeline
 
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import yaml
 
 logger = logging.getLogger(__name__)
+
+_BLACKLIST_PATH = Path(__file__).parent / "entity_blacklist.yaml"
+
+
+def _load_blacklist(config_path: Path | None = None) -> dict[str, Any]:
+    """Load entity blacklist YAML config (Epic 93)."""
+    path = config_path or _BLACKLIST_PATH
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return yaml.safe_load(fh) or {}
+    except FileNotFoundError:
+        logger.warning("Entity blacklist not found at %s — safety blocking disabled", path)
+        return {}
+    except Exception:
+        logger.exception("Failed to load entity blacklist")
+        return {}
 
 
 @dataclass
@@ -50,7 +67,8 @@ class ValidationPipeline:
         self,
         data_api_client=None,
         ha_client=None,
-        validation_level: str = "moderate"  # strict, moderate, permissive
+        validation_level: str = "moderate",  # strict, moderate, permissive
+        safety_override: bool = False,
     ):
         """
         Initialize validation pipeline.
@@ -59,10 +77,22 @@ class ValidationPipeline:
             data_api_client: Data API client for entity/area queries (optional)
             ha_client: Home Assistant client for service validation (optional)
             validation_level: Validation strictness level
+            safety_override: If True, blocked entities produce warnings instead
+                of errors (admin bypass via X-Safety-Override header).
         """
         self.data_api_client = data_api_client
         self.ha_client = ha_client
         self.validation_level = validation_level
+        self.safety_override = safety_override
+
+        # Epic 93: Load entity blacklist for Stage 5 enforcement
+        bl = _load_blacklist()
+        self._blocked_domains: set[str] = set(bl.get("blocked_domains") or [])
+        self._blocked_entities: set[str] = {
+            e.lower() for e in (bl.get("blocked_entities") or [])
+        }
+        self._blocked_services: set[str] = set(bl.get("blocked_services") or [])
+        self._warn_domains: set[str] = set(bl.get("warn_domains") or [])
 
     async def validate(
         self,
@@ -151,9 +181,13 @@ class ValidationPipeline:
 
             result.warnings.extend(service_result.get("warnings", []))
 
-        # Stage 5: Safety Checks
+        # Stage 5: Safety Checks (Epic 93: blocked entities → errors, not just warnings)
         safety_result = self._validate_safety(data)
-        if not safety_result["valid"]:
+        if safety_result.get("errors"):
+            result.errors.extend(safety_result["errors"])
+            result.valid = False
+            result.score = max(0.0, result.score - 30.0)
+        if safety_result.get("warnings"):
             result.warnings.extend(safety_result["warnings"])
             result.score = max(0.0, result.score - 10.0)
 
@@ -478,122 +512,94 @@ class ValidationPipeline:
 
     def _validate_safety(self, data: dict[str, Any]) -> dict[str, Any]:
         """
-        Stage 5: Safety checks (Epic 51.10: Enhanced critical device validation).
+        Stage 5: Safety checks (Epic 51.10 + Epic 93 enforcement).
 
-        Identifies:
-        - Critical devices (locks, alarms, heating, doors/windows)
-        - Risky automation patterns
-        - Safety scoring algorithm
+        Epic 93 change: blocked entities/services now produce **errors**
+        (valid=False) instead of just warnings.  Admin bypass is available
+        via ``safety_override=True`` on the pipeline (X-Safety-Override header).
 
         Returns:
-            Dictionary with valid flag, warnings, and safety score
+            Dictionary with valid flag, errors, warnings, and safety score
         """
-        warnings = []
-        safety_score = 100.0  # Start with perfect score, deduct for risks
+        errors: list[str] = []
+        warnings: list[str] = []
+        safety_score = 100.0
 
-        # Extract entities and services
         entity_ids = self._extract_entity_ids(data)
         services = self._extract_services(data)
 
-        # Critical device domains (Epic 51.10)
+        # ── Epic 93: Hard-block blacklisted entities ──────────────────
+        blocked_entity_hits: list[str] = []
+        for entity_id in entity_ids:
+            eid_lower = entity_id.lower()
+            domain = eid_lower.split(".")[0] if "." in eid_lower else ""
+            if eid_lower in self._blocked_entities or domain in self._blocked_domains:
+                blocked_entity_hits.append(entity_id)
+
+        blocked_service_hits: list[str] = []
+        for service in services:
+            if service in self._blocked_services:
+                blocked_service_hits.append(service)
+
+        if blocked_entity_hits or blocked_service_hits:
+            all_blocked = blocked_entity_hits + blocked_service_hits
+            msg = (
+                "BLOCKED: Automation targets security-sensitive "
+                f"entity/service: {', '.join(all_blocked)}. "
+                "Lock and alarm automations must be created directly in Home Assistant."
+            )
+            if self.safety_override:
+                warnings.append(f"⚠️ SAFETY OVERRIDE — {msg}")
+            else:
+                errors.append(f"❌ {msg}")
+                safety_score -= 50.0
+
+        # ── Warn-domain annotations (covers, sirens, valves) ─────────
+        for entity_id in entity_ids:
+            domain = entity_id.split(".")[0] if "." in entity_id else ""
+            if domain in self._warn_domains:
+                warnings.append(
+                    f"⚠️ CAUTION: Entity '{entity_id}' is a {domain} device. "
+                    "Review automation carefully before deployment."
+                )
+                safety_score -= 5.0
+
+        # ── Legacy critical-domain scoring (non-blocked) ─────────────
         critical_domains = {
-            "lock": {"risk_level": "high", "description": "Door locks"},
-            "alarm_control_panel": {"risk_level": "high", "description": "Security alarms"},
             "climate": {"risk_level": "medium", "description": "Heating/cooling systems"},
             "cover": {"risk_level": "medium", "description": "Doors/windows"},
             "switch": {"risk_level": "low", "description": "Switches (if critical)"},
         }
-
-        # Critical services (Epic 51.10)
         critical_services = {
-            "lock.lock": {"risk_level": "high", "description": "Lock doors"},
-            "lock.unlock": {"risk_level": "high", "description": "Unlock doors"},
-            "alarm_control_panel.alarm_arm_away": {"risk_level": "high", "description": "Arm alarm (away)"},
-            "alarm_control_panel.alarm_arm_home": {"risk_level": "high", "description": "Arm alarm (home)"},
-            "alarm_control_panel.alarm_disarm": {"risk_level": "high", "description": "Disarm alarm"},
             "climate.set_temperature": {"risk_level": "medium", "description": "Set temperature"},
             "cover.open_cover": {"risk_level": "medium", "description": "Open doors/windows"},
             "cover.close_cover": {"risk_level": "medium", "description": "Close doors/windows"},
         }
 
-        # Check for critical entities
-        critical_entities = []
         for entity_id in entity_ids:
             if "." in entity_id:
                 domain = entity_id.split(".")[0]
                 if domain in critical_domains:
                     risk_info = critical_domains[domain]
-                    critical_entities.append({
-                        "entity_id": entity_id,
-                        "risk_level": risk_info["risk_level"],
-                        "description": risk_info["description"]
-                    })
-
-                    # Deduct safety score based on risk level
-                    if risk_info["risk_level"] == "high":
-                        safety_score -= 20.0
-                    elif risk_info["risk_level"] == "medium":
+                    if risk_info["risk_level"] == "medium":
                         safety_score -= 10.0
                     else:
                         safety_score -= 5.0
 
-        if critical_entities:
-            high_risk = [e for e in critical_entities if e["risk_level"] == "high"]
-            medium_risk = [e for e in critical_entities if e["risk_level"] == "medium"]
-
-            if high_risk:
-                warnings.append(
-                    f"⚠️ HIGH RISK: Critical devices detected: {', '.join([e['entity_id'] for e in high_risk])}. "
-                    f"Review automation carefully before deployment."
-                )
-            if medium_risk:
-                warnings.append(
-                    f"⚠️ MEDIUM RISK: Important devices detected: {', '.join([e['entity_id'] for e in medium_risk])}. "
-                    f"Ensure automation behavior is correct."
-                )
-
-        # Check for critical services
-        critical_services_used = []
         for service in services:
             if service in critical_services:
                 risk_info = critical_services[service]
-                critical_services_used.append({
-                    "service": service,
-                    "risk_level": risk_info["risk_level"],
-                    "description": risk_info["description"]
-                })
-
-                # Deduct safety score
-                if risk_info["risk_level"] == "high":
-                    safety_score -= 25.0
-                elif risk_info["risk_level"] == "medium":
+                if risk_info["risk_level"] == "medium":
                     safety_score -= 15.0
 
-        if critical_services_used:
-            high_risk_services = [s for s in critical_services_used if s["risk_level"] == "high"]
-            medium_risk_services = [s for s in critical_services_used if s["risk_level"] == "medium"]
-
-            if high_risk_services:
-                warnings.append(
-                    f"⚠️ HIGH RISK: Critical services used: {', '.join([s['service'] for s in high_risk_services])}. "
-                    f"These operations affect security and safety. Admin approval recommended."
-                )
-            if medium_risk_services:
-                warnings.append(
-                    f"⚠️ MEDIUM RISK: Important services used: {', '.join([s['service'] for s in medium_risk_services])}. "
-                    f"Review automation behavior."
-                )
-
-        # Check for risky patterns (Epic 51.10)
+        # ── Risky pattern detection (Epic 51.10) ─────────────────────
         risky_patterns = self._detect_risky_patterns(data, entity_ids, services)
         if risky_patterns:
             warnings.extend(risky_patterns)
             safety_score -= len(risky_patterns) * 10.0
 
-        # Ensure safety score doesn't go below 0
         safety_score = max(0.0, safety_score)
 
-        # Add safety score to warnings if below threshold
         if safety_score < 70.0:
             warnings.append(
                 f"⚠️ Safety Score: {safety_score:.1f}/100.0 (Low - review automation carefully)"
@@ -603,10 +609,12 @@ class ValidationPipeline:
                 f"ℹ️ Safety Score: {safety_score:.1f}/100.0 (Moderate - review recommended)"
             )
 
+        is_valid = len(errors) == 0
         return {
-            "valid": True,  # Safety checks are warnings, not errors
+            "valid": is_valid,
+            "errors": errors,
             "warnings": warnings,
-            "safety_score": safety_score
+            "safety_score": safety_score,
         }
 
     def _detect_risky_patterns(

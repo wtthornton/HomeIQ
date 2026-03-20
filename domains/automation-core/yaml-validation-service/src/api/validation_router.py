@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from ..clients.data_api_client import DataAPIClient
@@ -36,7 +36,10 @@ class ValidationResponse(BaseModel):
 
 
 @router.post("/validate", response_model=ValidationResponse)
-async def validate_yaml(request: ValidationRequest) -> ValidationResponse:
+async def validate_yaml(
+    request: ValidationRequest,
+    x_safety_override: str | None = Header(None, alias="X-Safety-Override"),
+) -> ValidationResponse:
     """
     Validate Home Assistant automation YAML.
 
@@ -68,11 +71,15 @@ async def validate_yaml(request: ValidationRequest) -> ValidationResponse:
                     "not configured -- skipping service checks"
                 )
 
+        # Epic 93: Admin safety override via X-Safety-Override header
+        safety_override = (x_safety_override or "").lower() == "true"
+
         # Create validation pipeline
         pipeline = ValidationPipeline(
             data_api_client=data_api_client,
             ha_client=ha_client,
-            validation_level=settings.validation_level
+            validation_level=settings.validation_level,
+            safety_override=safety_override,
         )
 
         # Validate

@@ -387,6 +387,33 @@ light.turn_off:
     data:
       transition: float - Transition duration in seconds
 
+switch.turn_on:
+    target: entity_id, area_id, device_id
+
+switch.turn_off:
+    target: entity_id, area_id, device_id
+
+fan.turn_on:
+    target: entity_id, area_id, device_id
+    data:
+      speed: string - Fan speed
+      percentage: int (0-100) - Speed percentage
+
+fan.turn_off:
+    target: entity_id, area_id, device_id
+
+media_player.turn_on:
+    target: entity_id, area_id, device_id
+
+media_player.turn_off:
+    target: entity_id, area_id, device_id
+
+media_player.media_play:
+    target: entity_id
+
+media_player.media_pause:
+    target: entity_id
+
 scene.create:
     target: N/A
     data:
@@ -399,7 +426,12 @@ scene.turn_on:
 
 automation.trigger:
     target:
-      entity_id: string - Automation entity ID"""
+      entity_id: string - Automation entity ID
+
+notify.persistent_notification:
+    data:
+      message: string (required) - Notification message
+      title: string - Notification title"""
 
         await self.context_builder._set_cached_value(
             self._cache_key, fallback_services, self._cache_ttl

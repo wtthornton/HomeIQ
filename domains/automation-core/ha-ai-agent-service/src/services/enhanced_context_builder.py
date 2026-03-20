@@ -18,6 +18,7 @@ from collections import defaultdict
 from ..clients.data_api_client import DataAPIClient
 from ..clients.ha_client import HomeAssistantClient
 from ..config import Settings
+from ..config.entity_blacklist import EntityBlacklist
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +32,15 @@ class EnhancedContextBuilder:
     - Binary sensors (motion, presence, occupancy)
     - Existing automations (for duplicate detection)
     - Trigger platform reference
+
+    Epic 93: Security-sensitive entities (locks, alarms) are filtered
+    from context so the LLM cannot reference them in generated YAML.
     """
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, blacklist: EntityBlacklist | None = None):
         """Initialize enhanced context builder."""
         self.settings = settings
+        self.blacklist = blacklist or EntityBlacklist()
         self.ha_client = HomeAssistantClient(
             ha_url=settings.ha_url,
             access_token=settings.ha_token.get_secret_value()
@@ -81,10 +86,16 @@ class EnhancedContextBuilder:
             area_domain_entities: dict[str, dict[str, list[dict]]] = defaultdict(
                 lambda: defaultdict(list)
             )
+            filtered_count = 0
 
             for entity in entities:
                 entity_id = entity.get("entity_id", "")
                 domain = entity.get("domain", "unknown")
+
+                # Epic 93: Skip blocked entities (locks, alarms, etc.)
+                if self.blacklist.is_blocked(entity_id):
+                    filtered_count += 1
+                    continue
 
                 # Resolve area_id (from entity or device)
                 area_id = entity.get("area_id")
@@ -138,7 +149,7 @@ class EnhancedContextBuilder:
                 parts.append(f"\n{area_name} (area_id: {area_id}):")
 
                 # Prioritize critical domains for automation
-                priority_domains = ["light", "binary_sensor", "switch", "sensor", "climate", "cover"]
+                priority_domains = ["light", "binary_sensor", "switch", "fan", "media_player", "scene", "person", "sensor", "climate", "cover"]
                 sorted_domains = sorted(
                     domains.keys(),
                     key=lambda d: (priority_domains.index(d) if d in priority_domains else 99, d)
@@ -146,9 +157,11 @@ class EnhancedContextBuilder:
 
                 for domain in sorted_domains:
                     domain_entities = domains[domain]
+                    # Scenes are verbose — limit to 5 per area; other domains get 20
+                    max_per_domain = 5 if domain == "scene" else 20
                     parts.append(f"  {domain} ({len(domain_entities)}):")
 
-                    for entity in domain_entities[:10]:  # Limit per domain
+                    for entity in domain_entities[:max_per_domain]:  # Limit per domain
                         entity_id = entity["entity_id"]
                         friendly_name = entity["friendly_name"]
                         state = entity["state"]
@@ -157,6 +170,10 @@ class EnhancedContextBuilder:
                         if friendly_name and friendly_name != entity_id:
                             line += f' "{friendly_name}"'
                         line += f" (state: {state})"
+
+                        # Epic 93: Annotate warn_domain entities
+                        if self.blacklist.is_warned(entity_id):
+                            line += " [⚠️ SAFETY WARNING: review before automating]"
 
                         # Add device_class for binary_sensor
                         if domain == "binary_sensor" and entity.get("device_class"):
@@ -169,8 +186,15 @@ class EnhancedContextBuilder:
 
                         parts.append(line)
 
-                    if len(domain_entities) > 10:
-                        parts.append(f"    ... and {len(domain_entities) - 10} more")
+                    if len(domain_entities) > max_per_domain:
+                        parts.append(f"    ... and {len(domain_entities) - max_per_domain} more")
+
+            # Epic 93: Append filtered-entity notice
+            if filtered_count > 0:
+                parts.append(
+                    f"\n[FILTERED] {filtered_count} security-sensitive entities "
+                    "filtered (locks, alarms). Use HomeIQ Admin to manage these devices."
+                )
 
             return "\n".join(parts)
 
@@ -223,6 +247,10 @@ class EnhancedContextBuilder:
                     continue
 
                 entity_id = entity.get("entity_id", "")
+
+                # Epic 93: Skip blocked binary sensors (defensive)
+                if self.blacklist.is_blocked(entity_id):
+                    continue
                 attributes = entity.get("attributes", {}) or {}
                 # Check device_class at top level (data-api format) AND in attributes (HA state format)
                 device_class = entity.get("device_class") or attributes.get("device_class", "")

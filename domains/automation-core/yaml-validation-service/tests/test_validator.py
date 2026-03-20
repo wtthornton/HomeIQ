@@ -117,7 +117,7 @@ action:
         assert "light.living_room" not in services
     
     def test_safety_validation_critical_devices(self, validator):
-        """Test safety validation detects critical devices (Epic 51.10)."""
+        """Test safety validation rejects blocked devices (Epic 93)."""
         data = {
             "trigger": [
                 {
@@ -134,11 +134,12 @@ action:
                 }
             ]
         }
-        
+
         result = validator._validate_safety(data)
-        
-        assert result["valid"] is True  # Safety checks are warnings
-        assert len(result["warnings"]) > 0
-        assert any("lock" in warning.lower() or "critical" in warning.lower() for warning in result["warnings"])
+
+        # Epic 93: lock/alarm entities are now hard-blocked (errors, not warnings)
+        assert result["valid"] is False
+        assert len(result["errors"]) > 0
+        assert any("BLOCKED" in error for error in result["errors"])
         assert "safety_score" in result
-        assert result["safety_score"] < 100.0  # Should deduct for critical devices
+        assert result["safety_score"] < 100.0

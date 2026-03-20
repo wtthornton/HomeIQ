@@ -20,8 +20,8 @@ from .entity_resolution.entity_resolution_service import EntityResolutionService
 
 logger = logging.getLogger(__name__)
 
-# Token budget for GPT-4o (128k context, but we reserve space for response)
-MAX_INPUT_TOKENS = 16_000  # Conservative limit for input tokens
+# Token budget for GPT models (128k+ context, reserve space for response)
+MAX_INPUT_TOKENS = 32_000  # Increased from 16k — richer entity context improves automation accuracy
 RESERVED_RESPONSE_TOKENS = 4_096  # Reserve space for response
 
 
