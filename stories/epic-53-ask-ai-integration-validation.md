@@ -1,7 +1,7 @@
 # Epic 53: Ask AI Integration Validation
 
 **Created:** 2026-03-11 | **Priority:** P1 | **Sprint:** 17 (Backlog)
-**Status:** OPEN
+**Status:** COMPLETE (2026-03-11 — tracked in `stories/OPEN-EPICS-INDEX.md` Sprint 17; schema doc, HA helper, full-flow test, CI decision)
 **Scope:** End-to-end integration tests that run Ask AI against real Docker endpoints, verify all debug/response data, and validate automations exist in Home Assistant via HA/deploy API
 
 ## Objective

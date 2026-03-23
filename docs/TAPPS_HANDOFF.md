@@ -65,3 +65,16 @@
 - Story 92.10: Blocked on 92.4-92.9 completion
 
 **Final status:** IN PROGRESS — 5/10 stories substantially complete, workflow run pending for validation
+
+---
+
+## Session note (2026-03-23)
+
+**Context:** `OPEN-EPICS-INDEX.md` lists Epic 92 under **P3 backlog** (defer after feature epics). This handoff describes **optional** live-AI CI work, not a committed sprint epic.
+
+**Next agent checklist:**
+1. Run or inspect latest `.github/workflows/test-live-ai.yml` (or Actions UI) for pass/fail on stories **92.4–92.7**.
+2. Update `stories/epic-92-live-ai-e2e-100-percent.md` checkboxes and this file with results.
+3. When 92.4–92.9 are validated, unblock **92.10** (index/docs sweep).
+
+**Epic 92.9.3** remains deferred (profiles exclusion) per Discover stage decision above.

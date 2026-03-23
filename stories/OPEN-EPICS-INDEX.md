@@ -266,7 +266,7 @@ Sprint 41 (COMPLETE — Mar 18, 2026) — Ask AI → HA YAML E2E Pipeline
 
 ### In Progress
 
-> No epics currently in progress.
+> No epics formally in active sprint. **Epic 92** (P3) has partial CI/hard-off work documented in `docs/TAPPS_HANDOFF.md` and `stories/epic-92-live-ai-e2e-100-percent.md` — next step is validate `test-live-ai.yml` results for stories 92.4–92.7 before marking progress complete.
 
 ### P1 — All Complete
 
@@ -751,9 +751,9 @@ These items were previously listed as open but are now confirmed done:
 | 83 | Data-API HTTP Route Coverage Expansion | [epic-83-data-api-route-coverage.md](epic-83-data-api-route-coverage.md) | P1 High | 11 | 3-5 sessions | **Complete** (11/11: 193 tests — HTTP route coverage, dead code discovery, bug documentation) |
 | 85 | Data-API Unit & Line Coverage Expansion | [epic-85-data-api-line-coverage.md](epic-85-data-api-line-coverage.md) | P1 High | 10 | 1 session | **Complete** (10/10: 443 new unit tests across 20 test files — entity enrichment, device classification, flux utils security, metrics buffer, sports writer, service lifecycle, config management, background jobs, endpoint models. Line coverage 8.8% → 40%+) |
 | 86 | Zeek 8.x Native Telemetry & Capture Health Dashboard | [epic-86-zeek-telemetry-capture-health.md](epic-86-zeek-telemetry-capture-health.md) | P2 Medium | 7 | 1 session | **Complete** (7/7: Zeek telemetry :9911, Prometheus scrape, 6 recording rules, 4 capture alerts, Grafana dashboard, port 9911 in TECH_STACK) |
-| 87 | Data-API Coverage Expansion Phase 2 | *(this file)* | P2 Medium | 6 | 1-2 weeks | **Planned** — 40% → 60%+ line coverage, 4 zero-coverage modules + memory consolidation deep paths |
-| 88 | Dependency CVE Sweep & Hardening | *(this file)* | P2 Medium | 4 | 3-5 days | **Planned** — Full audit of 75 requirements files, pip-audit hook, KNOWN-VULNERABILITIES.md |
-| 89 | E2E Test Stability & Green CI | *(this file)* | P2 Medium | 5 | 1 week | **Planned** — Fix 4 AI UI failures, Ask AI timeouts, flaky quarantine, green baseline across 93 specs |
+| 87 | Data-API Coverage Expansion Phase 2 | *(this file)* | P2 Medium | 6 | 1 session | **Complete** (6/6: Mar 18 — docker_service/docker_endpoints, metrics/hygiene, auto-bugfix stream cleanup, memory_consolidation, automation_analytics, cov-fail-under=60) |
+| 88 | Dependency CVE Sweep & Hardening | *(this file)* | P2 Medium | 4 | 1 session | **Complete** (4/4: Mar 18 — audit 81 requirements, pin spreads, pip-audit pre-commit hook, docs/KNOWN-VULNERABILITIES.md) |
+| 89 | E2E Test Stability & Green CI | *(this file)* | P2 Medium | 5 | 1 week | **Complete** (5/5: Mar 18 — AI UI fixes, Ask AI timeouts, FLAKY_TESTS + ignore-pattern, visual regression stability, green CI baseline) |
 | 90 | Ask AI → HA YAML E2E Pipeline | [epic-90-ask-ai-yaml-e2e.md](epic-90-ask-ai-yaml-e2e.md) | P1 High | 10 | 2-3 weeks | **Complete** (10/10: 7 backend integration tests, 14 YAML-asserted E2E tests, 107 blueprint service tests, reliability fixes, CI workflow, cleanup harness, docs) |
 
 ## Story Count by Priority
@@ -764,7 +764,7 @@ These items were previously listed as open but are now confirmed done:
 | P1 High | 209 | Quality, testing, deployment, browser review, TAPPS, Docker, Memory (18), Pattern Detection (10), React 19 (3), ML Feedback (1), Memory Metrics (2), Obs Dashboard Testing (4), Proactive Agent (8), Self-Improving Agent (8), Integration Tests (6), Alerting/SLA (6), Data-API Test Coverage (12), aiohttp CVE Deploy (5), Data-API Unit Coverage (10) |
 | P2 Medium | 101 | Framework upgrades, feature integrations, Trust model (7), ML Upgrades (8), React Compiler (2), ML Models (5), Memory Tuning (4), Convention Compliance (6), Agent Eval (7), ML/AI Library Upgrades (8), MQTT/Protocol Intelligence (5), Zeek Telemetry (7), Data-API Coverage Ph2 (6), CVE Sweep (4), E2E Stability (5) |
 | P3 Low | 12 | ML model training, placeholder implementations, Seasonal/Frequency detectors (3), Prophet (1), Pattern Fusion (1), Memory Dashboard (1) |
-| **Total** | **608** | 593 complete + 15 planned stories (90 epics complete, 2 closed won't-do). |
+| **Total** | **609** | Aligns with index header: 609 stories complete across 93 epics; 4 planned epics (95, 96, 91, 92); closed won't-do 76, 77; archived 98. |
 
 ## Key Dates
 
