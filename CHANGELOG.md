@@ -1,6 +1,39 @@
 # Changelog
 
-## [Unreleased] - 2026-03-20
+## [Unreleased] - 2026-03-23
+
+### Added
+
+- **feat(llm): Wire LLMRouter into chat handler — Anthropic provider live** (c3a460a) - Bill Thornton
+- **feat(llm): Epic 97 — Prompt Caching & Claude Provider (6/6 stories, 54 tests)** (d438f64) - Bill Thornton
+- **feat(prompts): Epic 94 — Prompt Sections to Config Files (5/5 stories, 21 tests)** (71d7f37) - Bill Thornton
+- **feat(safety): Epic 93 — Entity Safety Blacklisting (5/5 stories, 44 tests)** (f26dd31) - Bill Thornton
+- **Epic 92 — Live AI E2E Tests 0% to 100% Pass Rate (10 stories, 39 pts)** (9037812) - Bill Thornton
+- **Epic 90 — Ask AI → HA YAML E2E pipeline (10/10 stories, ~160 new tests)** (aa5b28c) - Bill Thornton
+- **Epics 87-89 — E2E stability, CVE hardening, data-api coverage expansion** (a4ffc71) - Bill Thornton
+- **Epic 86 — Zeek 8.x native telemetry & capture health dashboard** (f77e8eb) - Bill Thornton
+- **Epic 85 — data-api unit test expansion (443 tests, 8.8% → 40% coverage)** (71b77f7) - Bill Thornton
+
+### Fixed
+
+- **fix(e2e): Epic 92 — pivot to local-only E2E, 19/19 pass** (a6bbce9) - Bill Thornton
+- **fix(e2e): Epic 92 iteration 3-4 — fix timeouts, sidebar, graceful HA skip** (3f064e1) - Bill Thornton
+- **fix(e2e): Epic 92 iteration 2 — fix chat flow architecture mismatch** (4a3e5d9) - Bill Thornton
+- **fix(e2e): Epic 92.1–92.9 — fix Live AI E2E test infrastructure and selectors** (4392714) - Bill Thornton
+- **baseline run — 0 retries, 2 workers, 30s timeout** (2505d22) - Bill Thornton
+- **reduce test timeout to 60s and retries to 1 for baseline run** (5def8ea) - Bill Thornton
+- **increase job timeout to 60min for full test suite with retries** (9805e97) - Bill Thornton
+- **add frontends domain — E2E tests need ai-automation-ui on port 3001** (9836d42) - Bill Thornton
+- **replace --wait with targeted health checks in CI** (8b9eee8) - Bill Thornton
+- **remove services.postgres — core-platform compose provides it** (9cb05ce) - Bill Thornton
+- **pre-create ml-engine external volumes for automation-core in CI** (ecb3795) - Bill Thornton
+- **create external network/volumes before docker compose up** (605998b) - Bill Thornton
+- **test-live-ai workflow — secrets check, domain-scoped compose** (0be4030) - Bill Thornton
+- **resolve 3 Epic 90 blueprint test failures** (d8a2f91) - Bill Thornton
+- **resolve ai-automation-ui blank page — THREE.js crash at startup** (6e373f9) - Bill Thornton
+- **Epic 84 — remediate 169+ stale E2E selectors across 15 files** (e670d4a) - Bill Thornton
+- **resolve 19 test failures — align tests with deployed API contracts** (a8c4910) - Bill Thornton
+
 
 ### Added
 
