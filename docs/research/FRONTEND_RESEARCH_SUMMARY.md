@@ -112,7 +112,7 @@ def live_metrics():
 ```
 
 **Impact on HomeIQ:**
-- **Files affected:** `observability-dashboard/src/pages/real_time_monitoring.py`, `service_performance.py`
+- **Files affected:** `observability-dashboard/src/dashboard_pages/real_time_monitoring.py`, `service_performance.py`
 - **Upgrade required:** Streamlit 1.37+ (from current, unclear version)
 - **No new dependencies:** `@st.fragment` is built-in
 

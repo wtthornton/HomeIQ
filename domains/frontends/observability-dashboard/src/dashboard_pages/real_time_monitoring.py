@@ -122,8 +122,9 @@ def _auto_refresh_fragment(refresh_interval: int) -> None:
     @st.fragment(run_every=timedelta(seconds=refresh_interval))
     def _poll_traces() -> None:
         try:
+            client: JaegerClient = st.session_state.jaeger_client
             traces = run_async_safe(
-                _get_latest_traces(limit=50, lookback_minutes=5),
+                _get_latest_traces(client, limit=50, lookback_minutes=5),
                 timeout=30.0,
             )
         except Exception as e:
@@ -141,10 +142,12 @@ def _auto_refresh_fragment(refresh_interval: int) -> None:
     _poll_traces()
 
 
-async def _get_latest_traces(limit: int = 50, lookback_minutes: int = 5) -> list[Trace]:
+async def _get_latest_traces(
+    client: JaegerClient,
+    limit: int = 50,
+    lookback_minutes: int = 5,
+) -> list[Trace]:
     """Get latest traces from Jaeger."""
-    client: JaegerClient = st.session_state.jaeger_client
-
     end_time = datetime.now(UTC)
     start_time = end_time - timedelta(minutes=lookback_minutes)
 

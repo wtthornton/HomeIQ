@@ -1,6 +1,6 @@
 # 2026 Deployment Best Practices: Quick Reference
 
-**For:** HomeIQ Project (50 microservices)
+**For:** HomeIQ Project (~58 prod-profile containers / 62 Compose definitions — use [docs/deployment/DEPLOYMENT_QUICK_REFERENCE.md](../deployment/DEPLOYMENT_QUICK_REFERENCE.md) as canonical)
 **Date:** February 23, 2026
 **Status:** Research Complete
 

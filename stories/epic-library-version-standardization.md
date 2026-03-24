@@ -17,7 +17,7 @@ source: docs/planning/sqlite-to-postgresql-migration-plan.md (embedded in migrat
 
 ## Summary
 
-Standardize library versions across all 50 microservices to resolve dependency conflicts, enable PostgreSQL migration, and eliminate version drift. Executed in 4 phases across 40+ `requirements.txt` files.
+Standardize library versions across all domain services to resolve dependency conflicts, enable PostgreSQL migration, and eliminate version drift. Executed in 4 phases across 40+ `requirements.txt` files. (Scale: see docs/architecture/service-groups.md.)
 
 ### Target Versions
 

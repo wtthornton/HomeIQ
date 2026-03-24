@@ -9,7 +9,7 @@
 ## 🎯 Quick Reference
 
 ### Project Type
-- **Architecture:** 50 microservices in 9 domain groups (`domains/<group>/`)
+- **Architecture:** ~58 production containers / 62 Compose definitions in 9 domain groups (`domains/<group>/`) — see `docs/architecture/service-groups.md`
 - **Tech Stack:** Python 3.12+, React 18, FastAPI, TypeScript 5.x
 - **Databases:** InfluxDB 2.7 (time-series), PostgreSQL 17 (metadata)
 - **Deployment:** Docker Compose; domain-specific compose files under `domains/<group>/compose.yml`
@@ -19,7 +19,7 @@
 1. **Documentation:** Use [docs/README.md](../docs/README.md) as the single doc index.
 2. **Architecture:** Epic 31 — no enrichment-pipeline; events flow websocket-ingestion → InfluxDB (direct). See `.cursor/rules/epic-31-architecture.mdc`.
 3. **Shared libs:** Use `libs/` (e.g. homeiq-observability for logging); follow patterns in existing services.
-4. **NEVER commit secrets** — use `infrastructure/.env` (gitignored).
+4. **NEVER commit secrets** — use repository root `.env` (gitignored; copy from `infrastructure/env.example`). Service-specific files like `infrastructure/.env.websocket` may still exist for legacy paths.
 5. **FOLLOW conventions** in `docs/architecture/coding-standards.md` and `.cursor/rules/`.
 
 ---
@@ -28,7 +28,7 @@
 
 ```
 HomeIQ/
-├── domains/                       # 9 domain groups, 50 services
+├── domains/                       # 9 domain groups (~58 prod / 62 compose — see docs/architecture/service-groups.md)
 │   ├── core-platform/             # data-api, admin-api, websocket-ingestion, health-dashboard
 │   ├── data-collectors/           # weather, sports, carbon, air-quality, calendar, smart-meter
 │   ├── ml-engine/                 # OpenVINO, NER, RAG, device-intelligence
@@ -39,7 +39,7 @@ HomeIQ/
 │   ├── pattern-analysis/          # Behavioral patterns, synergy
 │   └── frontends/                 # AI Automation UI, observability
 ├── libs/                          # Shared libraries (homeiq-patterns, homeiq-resilience, etc.)
-├── infrastructure/                # Docker, env configs (e.g. infrastructure/.env)
+├── infrastructure/                # Env templates, Postgres/Prometheus config (root `.env` is primary)
 ├── docs/                          # Index: docs/README.md
 ├── implementation/                # Status reports, session notes (not reference docs)
 ├── tests/                         # E2E (Playwright), pytest

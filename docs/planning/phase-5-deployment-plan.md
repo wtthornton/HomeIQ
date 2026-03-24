@@ -30,6 +30,8 @@
 > 3. Rollout tiers to include new domain services
 > 4. Monitoring section to leverage Epic 56 structured logging + ops scripts
 > 5. Timeline — schedule a new deployment window
+>
+> **2026-03-23 — Canonical scale:** [Service groups](../architecture/service-groups.md) documents **62** Compose definitions and **~58** running containers with `--profile production` (via `start-stack`). Counts elsewhere in this file may reflect older snapshots (e.g. 51+); use service-groups + `domains/*/compose.yml` as source of truth.
 
 ---
 
@@ -70,8 +72,8 @@ Phase 5 is the production deployment of **56 completed epics** across **51+ micr
 
 ### Key Metrics
 
-- **Service Count:** 51 microservices + 5 frontends (56 total containers)
-- **Tested Status:** 51/51 services healthy (redeployed Mar 6, 2026)
+- **Service Count:** ~58 production-profile containers (62 Compose definitions — [service-groups](../architecture/service-groups.md)); historical lines below may say “51+ services”
+- **Tested Status:** Full-stack health per your last redeploy (e.g. 51/51 at Mar 6, 2026 snapshot — re-verify against current compose)
 - **Test Coverage:** 662 frontend tests + 704+ Python tests, 70 Python files validated (ruff + bandit clean)
 - **Docker:** 28 Dockerfiles hardened, UID 1001, multi-stage builds, all shared libs wired
 - **Database:** PostgreSQL 17 ready, Alembic migrations for 13 services
@@ -227,7 +229,7 @@ npx playwright test
 time docker buildx bake full
 
 # Expected output:
-# ✅ 51 microservices built
+# ✅ Full stack built (~58 prod-profile containers / 62 compose definitions)
 # ✅ 5 frontends built (incl. voice-gateway, jaeger)
 # ✅ No layer cache misses on critical layers
 # ✅ Image registry push (if using private registry)
@@ -973,7 +975,7 @@ Hi team,
 Phase 5 (Production Deployment) is scheduled for:
 - Date: [TBD Day 1-3]
 - Window: 9 PM - 6 AM (off-peak)
-- Services: All 51 microservices + 5 frontends (56 containers total)
+- Services: Full stack (~58 prod-profile / 62 compose — [service-groups](../architecture/service-groups.md))
 - Expected Duration: 3-4 hours deployment, 24-48 hours validation
 
 What's being deployed (56 epics, 357 stories):
@@ -1035,7 +1037,7 @@ Monitoring continues through Day 3 and Day 4-5
 ```
 Subject: Phase 5 Deployment Complete ✅
 
-All 51 microservices and 5 frontends deployed successfully!
+Full stack deployed successfully (see [service-groups](../architecture/service-groups.md) for current counts).
 
 Deployment Results:
 ✅ Duration: 2.5 hours (on schedule)

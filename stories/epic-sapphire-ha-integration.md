@@ -22,7 +22,7 @@ type: feature
 HomeIQ excels at **data ingestion, analytics, and automation lifecycle management** but lacks
 capabilities that Sapphire handles well: direct device control, voice interaction, phone
 notifications, and scheduled AI tasks. Sapphire is a single-process monolith (~44K lines)
-while HomeIQ is 50 microservices — the patterns need adaptation, not direct porting.
+while HomeIQ is a multi-service stack (~58 prod-profile containers) — the patterns need adaptation, not direct porting.
 
 ### Gap Summary (from detailed comparison)
 

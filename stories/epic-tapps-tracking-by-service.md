@@ -15,7 +15,7 @@ type: quality
 **Duration:** 3–4 weeks
 **Risk Level:** Low
 **Source:** [TAPPS Tool Priority](docs/TAPPS_TOOL_PRIORITY.md), TappsMCP pipeline
-**Affects:** All 9 domain groups (50 services) + libs (5 packages)
+**Affects:** All 9 domain groups (~58 prod / 62 compose) + libs (5 packages)
 
 ## Context
 
@@ -27,7 +27,7 @@ HomeIQ uses TappsMCP for quality gates, scoring, and security scanning. To impro
 - Enforce Tier 1 services (websocket-ingestion, data-api, admin-api, health-dashboard) at score ≥80; others at ≥70.
 - Produce a rollup view (e.g. `docs/` or `implementation/`) for at-a-glance status.
 
-**Reference:** [Service Groups](docs/architecture/service-groups.md) — 9 domains, 50 services.
+**Reference:** [Service Groups](docs/architecture/service-groups.md) — 9 domains; ~58 prod-profile containers / 62 Compose definitions.
 
 ---
 

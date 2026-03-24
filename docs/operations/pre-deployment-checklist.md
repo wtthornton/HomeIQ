@@ -126,7 +126,7 @@ file backups/phase5-pre-deployment-*.sql | grep -q "ASCII text"
 
 ## Post-Deployment
 
-- [ ] All 50 services healthy (100%)
+- [ ] All production-profile services healthy (100% — see [service-groups](../architecture/service-groups.md))
 - [ ] All tests passing (100%)
 - [ ] Error rate < 0.5%
 - [ ] Backups verified post-deployment

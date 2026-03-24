@@ -253,7 +253,7 @@ Or for the synchronous API: use `_engines.setdefault(...)` with a factory, which
 ### Finding 5 — Blocking File I/O on Event Loop in RAGContextService [MEDIUM] — Open (non-blocking)
 
 **File:** `libs/homeiq-patterns/src/homeiq_patterns/rag_context_service.py:118`
-**Risk:** `corpus_path.read_text()` is synchronous blocking I/O called from within an async context. Under load, this stalls the event loop for all 50 services that share this code path.
+**Risk:** `corpus_path.read_text()` is synchronous blocking I/O called from within an async context. Under load, this stalls the event loop for all services that share this code path.
 
 **Fix:**
 ```python

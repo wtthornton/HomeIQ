@@ -18,7 +18,7 @@ Operational scripts for deploying, managing, and monitoring the HomeIQ stack.
 
 | Script | Purpose | When to Use |
 |--------|---------|-------------|
-| `domain.sh` / `domain.ps1` | Per-domain Docker Compose helper (start, stop, restart, status, logs, build) | Day-to-day domain management |
+| `domain.sh` / `domain.ps1` | Per-domain Docker Compose helper (start, stop, restart, status, logs, build); passes repo-root `.env` for Compose interpolation (same as `start-stack`) | Day-to-day domain management |
 | `start-stack.sh` / `start-stack.ps1` | Start all 9 domains in dependency order with health polling | Full stack startup |
 | `ensure-network.sh` / `ensure-network.ps1` | Create the `homeiq-network` Docker bridge if it doesn't exist | Called automatically by other scripts; run manually if network issues occur |
 | `deploy-phase-5.sh` | Tiered production deployment with health gates and smoke tests | Production deployments |

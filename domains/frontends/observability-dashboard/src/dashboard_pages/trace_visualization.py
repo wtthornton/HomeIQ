@@ -173,21 +173,21 @@ def _get_services_safe() -> list[Service]:
     Returns:
         List of services from Jaeger
     """
+    client: JaegerClient = st.session_state.jaeger_client
     try:
-        return run_async_safe(_get_services(), timeout=30.0)
+        return run_async_safe(_get_services(client), timeout=30.0)
     except Exception as e:
         st.error(f"Error getting services: {e}")
         return []
 
 
-async def _get_services() -> list[Service]:
+async def _get_services(client: JaegerClient) -> list[Service]:
     """
     Get list of services from Jaeger.
 
     Returns:
         List of Service objects
     """
-    client: JaegerClient = st.session_state.jaeger_client
     return await client.get_services()
 
 
@@ -211,9 +211,10 @@ def _query_traces_safe(
     Returns:
         List of Trace objects
     """
+    client: JaegerClient = st.session_state.jaeger_client
     try:
         return run_async_safe(
-            _query_traces(service, start_time, end_time, limit, trace_id),
+            _query_traces(client, service, start_time, end_time, limit, trace_id),
             timeout=60.0,
         )
     except Exception as e:
@@ -222,6 +223,7 @@ def _query_traces_safe(
 
 
 async def _query_traces(
+    client: JaegerClient,
     service: str | None = None,
     start_time: datetime | None = None,
     end_time: datetime | None = None,
@@ -241,8 +243,6 @@ async def _query_traces(
     Returns:
         List of Trace objects
     """
-    client: JaegerClient = st.session_state.jaeger_client
-
     if trace_id:
         # Get specific trace
         trace = await client.get_trace(trace_id)

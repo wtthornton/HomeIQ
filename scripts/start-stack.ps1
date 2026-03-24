@@ -62,8 +62,14 @@ function Start-Domain {
         return
     }
 
+    $envFile = Join-Path -Path $ProjectRoot -ChildPath ".env"
+    $envFileArgs = @()
+    if (Test-Path $envFile) {
+        $envFileArgs = @("--env-file", $envFile)
+    }
+
     Write-Host "[INFO] Starting $DomainName..." -ForegroundColor Cyan
-    & docker compose -f $composeFile --profile production up -d --pull always --force-recreate
+    & docker compose -f $composeFile @envFileArgs --profile production up -d --build --pull always --force-recreate
     Write-Host "[OK] $DomainName started." -ForegroundColor Green
 }
 

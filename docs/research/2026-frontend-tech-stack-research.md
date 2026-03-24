@@ -362,7 +362,7 @@ Using WebSockets + async would require rewriting Streamlit app as FastAPI (compl
 
 ```
 Phase 1: Audit (2 days)
-- grep -n "time.sleep" domains/frontends/observability-dashboard/src/pages/*.py
+- grep -n "time.sleep" domains/frontends/observability-dashboard/src/dashboard_pages/*.py
 - Identify blocking calls
 - Check refresh requirements (Jaeger API calls, InfluxDB queries)
 
@@ -387,8 +387,8 @@ Phase 3: Optimize (3 days)
 ```
 
 ### Key Files to Update
-- **observability-dashboard/src/pages/real_time_monitoring.py**
-- **observability-dashboard/src/pages/service_performance.py**
+- **observability-dashboard/src/dashboard_pages/real_time_monitoring.py**
+- **observability-dashboard/src/dashboard_pages/service_performance.py**
 - **observability-dashboard/src/main.py** (if refresh logic exists)
 - **observability-dashboard/requirements.txt** → upgrade streamlit
 

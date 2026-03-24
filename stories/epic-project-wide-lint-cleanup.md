@@ -15,7 +15,7 @@ type: quality
 **Duration:** 1-2 weeks
 **Risk Level:** Low
 **Source:** [TAPPS Quality Baseline](../reports/quality/TAPPS_BASELINE.md)
-**Affects:** All 9 domain groups (50 services)
+**Affects:** All 9 domain groups (all Compose services — see docs/architecture/service-groups.md)
 
 ## Context
 

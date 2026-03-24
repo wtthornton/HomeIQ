@@ -300,7 +300,7 @@ Actual Outcome:
 | Phase 6 post-deployment validation | Epic 8, Stories 7-8 |
 | 6 npm vulnerabilities (react-force-graph) | Epic 5, Story 2 (reassessed during React 19) |
 | automation-linter future roadmap | Out of scope (product roadmap, not engineering debt) |
-| **TAPPS quality tracking by service (50 services + 5 libs)** | **Epic 15, Stories 0-11** |
+| **TAPPS quality tracking by service (~58 prod / 62 compose + 5 libs)** | **Epic 15, Stories 0-11** |
 | **Shared library standardization (~7,400 dup lines)** | **Epics 12-14** |
 | Health check boilerplate (38 services, 8+ status variants) | Epic 12, Story 1 |
 | FastAPI app factory duplication (34 services) | Epic 12, Story 2 |

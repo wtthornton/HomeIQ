@@ -12,9 +12,9 @@ source: phase-5-deployment-plan.md, rebuild-status.md
 **Status:** Open
 **Priority:** High (P1)
 **Duration:** 2 weeks (5-day rollout + 5-day validation)
-**Risk Level:** High — 50 microservices + 3 frontends deployed to production
+**Risk Level:** High — full stack (~58 prod-profile containers / 62 compose) + frontends deployed to production
 **Predecessor:** Epics frontend-security-hardening, backend-completion (Story 6.5)
-**Affects:** All 50 services + 3 frontends + infrastructure
+**Affects:** All production-profile services + frontends + infrastructure
 
 ## Context
 
@@ -132,7 +132,7 @@ observability-dashboard (:8501), Jaeger (:16686)
 **Priority:** Critical | **Estimate:** 2 days (monitoring) | **Risk:** Low
 
 **Acceptance Criteria:**
-- [ ] All 50 services healthy continuously for 48 hours
+- [ ] All production-profile services healthy continuously for 48 hours
 - [ ] No error rate spikes (< 1% error rate across all services)
 - [ ] API latency within targets (data-api < 100ms p95, dashboard < 2s load)
 - [ ] Data integrity verified: InfluxDB zero data loss, PostgreSQL zero corruption

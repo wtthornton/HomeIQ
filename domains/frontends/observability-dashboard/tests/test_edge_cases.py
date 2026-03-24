@@ -13,8 +13,8 @@ _st_mock = MagicMock()
 _st_mock.fragment = lambda run_every=None: (lambda f: f)
 sys.modules.setdefault("streamlit", _st_mock)
 
-from pages.service_performance import _calculate_service_metrics
-from pages.trace_visualization import _create_dependency_graph, _create_timeline_chart
+from dashboard_pages.service_performance import _calculate_service_metrics
+from dashboard_pages.trace_visualization import _create_dependency_graph, _create_timeline_chart
 
 
 def _setup_client(client: JaegerClient, mock_get) -> None:

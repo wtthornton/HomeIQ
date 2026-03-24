@@ -92,7 +92,7 @@ Replace `time.sleep()` blocking calls with Streamlit 1.37's `@st.fragment` decor
 ### Stories
 
 **Story 2.1: Audit Streamlit for `time.sleep()` Usage**
-- Grep for `time.sleep()` in observability-dashboard `src/pages/*.py`
+- Grep for `time.sleep()` in observability-dashboard `src/dashboard_pages/*.py`
 - Identify blocking calls and their purpose (refresh interval? data polling?)
 - Document each usage with context and required refresh rate
 - Effort: 1 hour

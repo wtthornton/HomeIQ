@@ -8,8 +8,8 @@
 
 ## 🎯 Quick Reference
 
-**What is HomeIQ?** AI-powered Home Assistant intelligence platform — **51 microservices** in **9 domain groups** (plus InfluxDB/PostgreSQL).
-**Deployment:** Single NUC, Docker Compose, local network. Services live under `domains/<group>/`.
+**What is HomeIQ?** AI-powered Home Assistant intelligence platform — **~58 containers** (`--profile production`) across **9 domain groups**; **62** Compose service definitions. Services live under `domains/<group>/`.
+**Deployment:** Single NUC, Docker Compose domain scripts (`start-stack`, `domain.ps1` / `domain.sh`), local network. **`.env` at repository root** (copy from `infrastructure/env.example`).
 **Architecture:** Hybrid DB (InfluxDB time-series + PostgreSQL 17 metadata), Epic 31 direct writes (no enrichment-pipeline).
 **Languages:** Python 3.12+ (backend), TypeScript/React 18 (frontend)
 **Home Assistant:** External (e.g. `192.168.1.86:8123`), WebSocket connection
@@ -50,7 +50,7 @@ See AGENTS.md for the full tool reference.
 
 ```
 HomeIQ/
-├── domains/               # 9 domain groups, 50 microservices
+├── domains/               # 9 domain groups (~58 prod containers; 62 compose definitions)
 │   ├── core-platform/     # data-api, admin-api, websocket-ingestion, health-dashboard, etc.
 │   ├── data-collectors/   # weather, sports, carbon, air-quality, calendar, smart-meter, etc.
 │   ├── ml-engine/         # OpenVINO, NER, OpenAI, RAG, device-intelligence, etc.
@@ -79,9 +79,9 @@ HomeIQ/
 
 ## 🏗️ System Architecture
 
-### 38 Active Microservices Overview
+### Production stack overview
 
-**Note:** Plus InfluxDB and Jaeger infrastructure = 40 total containers in production
+**Note:** Full `start-stack` + `--profile production` runs **~58** application containers (see `docs/architecture/service-groups.md`). The breakdown below is a **logical map**, not an exhaustive container list.
 
 **Web Layer (2 services):**
 - Health Dashboard (React) - Port 3000
@@ -199,18 +199,20 @@ max_retries = 3                  # Retry on network errors
 git clone https://github.com/wtthornton/HomeIQ.git
 cd HomeIQ
 
-# 2. Configure environment
+# 2. Configure environment (repo root)
 cp infrastructure/env.example .env
 # Edit .env with your HA details:
 # - HA_HTTP_URL=http://192.168.1.86:8123  # Your Home Assistant IP
 # - HA_WS_URL=ws://192.168.1.86:8123/api/websocket
 # - HA_TOKEN=your-long-lived-access-token
 
-# 3. Start services (all run on single NUC)
-docker compose up -d
+# 3. Start services (ordered domains — do not use bare `docker compose up` for daily use)
+./scripts/start-stack.sh          # Linux/Mac
+# Windows: .\scripts\start-stack.ps1
 
-# 4. Verify deployment
-./scripts/verify-deployment.sh
+# 4. Verify deployment (from repo root)
+./scripts/verify-deployment.sh    # Linux/Mac
+# Windows: .\scripts\verify-deployment.ps1
 ```
 
 ### Running Services Locally
@@ -756,7 +758,7 @@ alembic upgrade head
 
 ### API Authentication
 
-- HA Long-Lived Access Token (configured in infrastructure/.env)
+- HA Long-Lived Access Token (configured in repository root `.env`)
 - Internal service-to-service calls (no auth)
 - External API keys (OpenAI, Weather, etc.)
 
@@ -782,7 +784,7 @@ alembic upgrade head
 docker compose logs [service-name]
 
 # Check environment variables
-cat infrastructure/.env
+cat .env   # repository root
 
 # Verify dependencies
 docker compose ps
@@ -864,5 +866,5 @@ docker compose logs websocket-ingestion
 
 **Change Log v5.1.0:**
 - Documentation index: use docs/README.md (removed reference to nonexistent DOCUMENTATION_INDEX / PORT_MAPPING_REFERENCE)
-- Repository structure updated to domains/ layout (9 groups, 50 services)
+- Repository structure updated to domains/ layout (9 groups; ~58 prod containers / 62 compose definitions)
 - Finding Documentation table aligned with docs/README.md and deployment runbook paths

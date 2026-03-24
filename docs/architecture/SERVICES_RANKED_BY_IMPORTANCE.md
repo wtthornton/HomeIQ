@@ -1,13 +1,13 @@
 # HomeIQ Services Ranked by Importance
 
-**Last Updated:** February 27, 2026
+**Last Updated:** March 23, 2026
 **Purpose:** Comprehensive ranking of all services by criticality to system operation
 
 ---
 
 ## Overview
 
-HomeIQ consists of **50 microservices** organized into a layered architecture. This document ranks services by their importance to system operation, helping teams prioritize monitoring, deployment, and incident response.
+HomeIQ runs **~58 containers** under Docker Compose **`--profile production`** (see [Service Groups](./service-groups.md)); **62** services are defined across the nine domain compose files (including `development` / `test` entries). This document ranks workloads by importance to system operation for monitoring, deployment, and incident response. Tier counts below are **operational groupings** and do not need to sum to 58.
 
 ---
 
@@ -15,17 +15,17 @@ HomeIQ consists of **50 microservices** organized into a layered architecture. T
 
 Services are organized into **9 independently deployable domain groups** based on deployment criticality and domain boundaries. For the canonical reference, see [Service Groups Architecture](./service-groups.md).
 
-| # | Domain | Count | Services | Compose File |
-|---|--------|-------|----------|--------------|
-| 1 | **core-platform** | 6 | influxdb, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention | `domains/core-platform/compose.yml` |
-| 2 | **data-collectors** | 8 | weather-api, smart-meter, sports-api, air-quality, carbon-intensity, electricity-pricing, calendar, log-aggregator | `domains/data-collectors/compose.yml` |
-| 3 | **ml-engine** | 10 | openvino-service, ml-service, ner-service, openai-service, rag-service, ai-core-service, ai-training-service, device-intelligence-service, nlp-fine-tuning, model-prep | `domains/ml-engine/compose.yml` |
-| 4 | **automation-core** | 7 | ha-ai-agent, ai-automation-service-new, ai-query, automation-linter, yaml-validation, ai-code-executor, automation-trace | `domains/automation-core/compose.yml` |
-| 5 | **blueprints** | 4 | blueprint-index, blueprint-suggestion, rule-recommendation-ml, automation-miner | `domains/blueprints/compose.yml` |
-| 6 | **energy-analytics** | 3 | energy-correlator, energy-forecasting, proactive-agent | `domains/energy-analytics/compose.yml` |
+| # | Domain | Count (prod) | Services | Compose File |
+|---|--------|--------------|----------|--------------|
+| 1 | **core-platform** | 11 | influxdb, postgres, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention, alertmanager, prometheus, grafana, postgres-exporter | `domains/core-platform/compose.yml` |
+| 2 | **data-collectors** | 10 | weather-api, smart-meter, sports-api, air-quality, carbon-intensity, electricity-pricing, calendar, log-aggregator, zeek, zeek-network-service | `domains/data-collectors/compose.yml` |
+| 3 | **ml-engine** | 8 | openvino-service, ml-service, ner-service, openai-service, rag-service, ai-core-service, ai-training-service, device-intelligence-service (+ `model-prep` dev one-shot) | `domains/ml-engine/compose.yml` |
+| 4 | **automation-core** | 8 | ha-ai-agent-service, ai-automation-service-new, ai-query-service, yaml-validation-service, automation-linter, ai-code-executor, automation-trace-service, ha-device-control | `domains/automation-core/compose.yml` |
+| 5 | **blueprints** | 4 | blueprint-index, blueprint-suggestion-service, rule-recommendation-ml, automation-miner | `domains/blueprints/compose.yml` |
+| 6 | **energy-analytics** | 3 | energy-correlator, energy-forecasting, proactive-agent-service | `domains/energy-analytics/compose.yml` |
 | 7 | **device-management** | 8 | device-health-monitor, device-context-classifier, device-setup-assistant, device-database-client, device-recommender, activity-recognition, activity-writer, ha-setup-service | `domains/device-management/compose.yml` |
 | 8 | **pattern-analysis** | 2 | ai-pattern-service, api-automation-edge | `domains/pattern-analysis/compose.yml` |
-| 9 | **frontends** | 4 | ai-automation-ui, observability-dashboard, health-dashboard, jaeger | `domains/frontends/compose.yml` |
+| 9 | **frontends** | 4 | jaeger, observability-dashboard, ai-automation-ui, voice-gateway | `domains/frontends/compose.yml` |
 
 **Dependency flow:** core-platform --> (data-collectors | ml-engine | device-management | pattern-analysis) --> (automation-core | blueprints | energy-analytics) --> frontends
 
@@ -379,4 +379,4 @@ In `docker-compose.yml`, some services use a different **host** port to avoid co
 ---
 
 **Maintained by:** HomeIQ DevOps Team
-**Last Updated:** February 27, 2026
+**Last Updated:** March 23, 2026

@@ -4,7 +4,7 @@ priority: high
 status: open
 estimated_duration: 3-4 weeks
 risk_level: medium
-source: Architecture review of 50 microservices (2026-03-01)
+source: Architecture review of full domain stack (2026-03-01; counts: service-groups.md)
 ---
 
 # Epic 12: Core Service Bootstrap Standardization

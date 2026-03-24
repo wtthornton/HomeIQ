@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-Phase 5 production deployment validation is complete. All 60 epics (376 stories) have been deployed across 51 microservices + 5 frontends. Test suites confirm code quality and functionality are intact post-deployment.
+Phase 5 production deployment validation is complete. All 60 epics (376 stories) have been deployed across the full stack (**~58 production-profile containers** today; **62** Compose service definitions — see [service-groups](../architecture/service-groups.md)). Historical text below may say “51 microservices + 5 frontends”; treat current scale from service-groups as canonical. Test suites confirm code quality and functionality are intact post-deployment.
 
 ## Validation Results
 
@@ -56,7 +56,7 @@ These tests require the Docker stack to be running and are validated during actu
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| Services | 51 microservices + 5 frontends | All deployed (Stories 61.4-61.5 verified 43/43) |
+| Services | Full stack (~58 prod / 62 compose definitions) | All deployed (Stories 61.4-61.5 verified 43/43) |
 | PostgreSQL 17 | 8/8 schemas | core, automation, agent, blueprints, energy, devices, patterns, rag |
 | InfluxDB 2.8.0 | Healthy | Time-series data accessible |
 | Prometheus v3.2.1 | Healthy | 15 alert rules configured |

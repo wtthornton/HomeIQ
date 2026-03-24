@@ -2,11 +2,13 @@
 
 **Status:** Ready for execution | **Target Date:** Week of March 5, 2026
 
+**2026-03-23:** Canonical scale is **~58** production-profile containers / **62** Compose definitions — [service-groups](../architecture/service-groups.md). Prefer `./scripts/start-stack.sh` and **`--profile production`** on any manual `docker compose -f domains/...` commands below.
+
 ---
 
 ## 5-Minute Overview
 
-**What:** Deploy all 50 microservices + 3 frontends to production
+**What:** Deploy full stack (~58 prod-profile containers + domain compose files) to production
 **When:** Tuesday-Thursday, 9 PM - 6 AM (off-peak)
 **Duration:** 3-4 hours deployment + 48 hours validation
 **Risk:** LOW (comprehensive backups, tiered rollback, 4 go/no-go gates)
@@ -45,7 +47,7 @@ docker exec influxdb influx export --file backups/phase5-pre-*.ndjson
 
 ```bash
 # 1. Deploy core-platform
-docker compose -f domains/core-platform/compose.yml up -d --pull always
+docker compose -f domains/core-platform/compose.yml --profile production up -d --pull always
 
 # 2. Health checks
 curl -f http://localhost:8001/health  # websocket-ingestion
@@ -62,10 +64,10 @@ pytest tests/smoke/tier1_health.py -v
 
 ```bash
 # 1. Deploy health-dashboard + data-retention
-docker compose -f domains/core-platform/compose.yml up -d health-dashboard data-retention
+docker compose -f domains/core-platform/compose.yml --profile production up -d health-dashboard data-retention
 
 # 2. Deploy all data-collectors
-docker compose -f domains/data-collectors/compose.yml up -d
+docker compose -f domains/data-collectors/compose.yml --profile production up -d
 
 # 3. Health checks: 12/12 should be healthy
 docker ps | grep -E "health-dashboard|data-retention|weather|smart-meter|sports|calendar|carbon|electricity|air-quality|log-aggregator"
@@ -77,7 +79,7 @@ docker ps | grep -E "health-dashboard|data-retention|weather|smart-meter|sports|
 
 ```bash
 # 1. Deploy ml-engine
-docker compose -f domains/ml-engine/compose.yml up -d
+docker compose -f domains/ml-engine/compose.yml --profile production up -d
 
 # 2. Wait for model loading (5-10 min - NORMAL)
 sleep 30 && docker logs openvino-service | tail -20
@@ -92,24 +94,24 @@ done
 
 ```bash
 # Tier 4: Automation Core
-docker compose -f domains/automation-core/compose.yml up -d
+docker compose -f domains/automation-core/compose.yml --profile production up -d
 
 # Tier 5: Blueprints
-docker compose -f domains/blueprints/compose.yml up -d
+docker compose -f domains/blueprints/compose.yml --profile production up -d
 
 # Tier 6: Energy Analytics
-docker compose -f domains/energy-analytics/compose.yml up -d
+docker compose -f domains/energy-analytics/compose.yml --profile production up -d
 
 # Tier 7: Device Management
-docker compose -f domains/device-management/compose.yml up -d
+docker compose -f domains/device-management/compose.yml --profile production up -d
 
 # Tier 8: Pattern Analysis
-docker compose -f domains/pattern-analysis/compose.yml up -d
+docker compose -f domains/pattern-analysis/compose.yml --profile production up -d
 
 # Tier 9: Frontends
-docker compose -f domains/frontends/compose.yml up -d
+docker compose -f domains/frontends/compose.yml --profile production up -d
 
-# ✅ Gate 4 Check: All 50 services healthy? → Deployment complete
+# ✅ Gate 4 Check: All production-profile services healthy? → Deployment complete
 ```
 
 ---
@@ -129,7 +131,7 @@ DEPLOYMENT (Day 2)
   ✅ Tier 2 (Hour 2): 12/12 data services healthy
   ✅ Tier 3 (Hour 3-4): 9/9 ML services healthy
   ✅ Tiers 4-9 (Hour 5-6): 26/26 remaining services healthy
-  ✅ All 50 services responding to /health
+  ✅ All production-profile services responding to /health
 
 VALIDATION (Day 3)
   ✅ Integration tests: ALL PASS
@@ -154,7 +156,7 @@ MONITORING (Day 4-5)
 
 ```bash
 # 1. Restart service (2-5 min)
-docker compose -f domains/ml-engine/compose.yml up -d ai-core-service
+docker compose -f domains/ml-engine/compose.yml --profile production up -d ai-core-service
 
 # 2. Check health
 curl -f http://localhost:8018/health
@@ -162,21 +164,21 @@ curl -f http://localhost:8018/health
 # 3. If still broken: Rollback that service
 git checkout HEAD~1 -- domains/ml-engine/ai-core-service/Dockerfile
 docker buildx bake ai-core-service
-docker compose -f domains/ml-engine/compose.yml up -d ai-core-service
+docker compose -f domains/ml-engine/compose.yml --profile production up -d ai-core-service
 ```
 
 ### Entire Domain Down? (e.g., all ml-engine)
 
 ```bash
 # 1. Stop domain (5-15 min)
-docker compose -f domains/ml-engine/compose.yml down
+docker compose -f domains/ml-engine/compose.yml --profile production down
 
 # 2. Revert changes
 git checkout HEAD~1 -- domains/ml-engine/
 
 # 3. Rebuild and restart
 docker buildx bake ml-engine
-docker compose -f domains/ml-engine/compose.yml up -d
+docker compose -f domains/ml-engine/compose.yml --profile production up -d
 
 # 4. Verify: All services healthy?
 ```
@@ -233,7 +235,7 @@ scripts/pre-deployment-health-check.sh
 | Metric | Target | Go Threshold |
 |---|---|---|
 | **Uptime** | 99.9% | ✅ 100% |
-| **Services Healthy** | 50/50 | ✅ All responding |
+| **Services Healthy** | All prod-profile | ✅ All responding |
 | **Error Rate** | <0.5% | ✅ <1% OK |
 | **API Response Time** | <100ms p95 | ✅ <baseline+10% |
 | **Test Pass Rate** | 100% | ✅ 704/704 |
@@ -315,7 +317,7 @@ When all checks pass:
 
 Date: [Date]
 Duration: [HH:MM]
-Services: 50/50 healthy
+Services: all production-profile healthy
 Tests: 704/704 passing
 Errors: <0.5%
 

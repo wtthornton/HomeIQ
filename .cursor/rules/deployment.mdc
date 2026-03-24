@@ -7,7 +7,9 @@ description: Docker service deployment guidelines and best practices
 
 ## Quick Reference
 
-**Recommended:** Use the deployment script for all service deployments:
+**Full stack (all domains):** Use `./scripts/start-stack.sh` or `.\scripts\start-stack.ps1` with **`--profile production`** (wired in the scripts). Do not rely on bare `docker compose up` from the repo root for day-to-day use — see `docs/deployment/DEPLOYMENT_QUICK_REFERENCE.md`.
+
+**Single service or hotfix:** Use `deploy-service.ps1`:
 
 ```powershell
 # Deploy single service (recommended)

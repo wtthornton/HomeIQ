@@ -2,6 +2,10 @@
 Async helper utilities for Streamlit pages.
 
 Provides safe async execution helpers that work with Streamlit's execution model.
+
+When a thread pool is used (event loop already running), coroutines run off the
+main Streamlit thread: do not read ``st.session_state`` inside the coroutine;
+pass values (e.g. ``JaegerClient``) in from the caller on the main thread.
 """
 
 import asyncio

@@ -1,13 +1,13 @@
 # Services Architecture Quick Reference
 
-**Last Updated:** February 27, 2026 (Phase 5: Service Groups + Resilience, PostgreSQL-only)
+**Last Updated:** March 23, 2026 (Phase 5: Service Groups + Resilience, PostgreSQL-only)
 **Purpose:** Quick reference for developers working on services
 
 ---
 
 ## Services Overview
 
-**Total Services:** 50 microservices organized into **9 domain groups** and 7 criticality tiers
+**Total services:** **~58** containers with **`--profile production`**; **62** Compose definitions across 9 domain groups (see [service-groups.md](./service-groups.md)). Organized into **7 criticality tiers** in [SERVICES_RANKED_BY_IMPORTANCE.md](./SERVICES_RANKED_BY_IMPORTANCE.md).
 
 For detailed documentation, see:
 - **[Service Groups Architecture](./service-groups.md)** - Canonical reference for the 9-domain structure
@@ -20,20 +20,20 @@ For detailed documentation, see:
 HomeIQ services are organized into 9 independently deployable domain groups:
 
 ```
-                         ┌──────────────────────┐
-                         │  1. core-platform (6) │
-                         └──────────┬───────────┘
+                         ┌────────────────────────┐
+                         │  1. core-platform (11) │
+                         └──────────┬─────────────┘
                                     │
          ┌──────────────┬───────────┼───────────┐
          │              │           │            │
          ▼              ▼           ▼            ▼
   2. data-        3. ml-engine  7. device-   8. pattern-
-  collectors (8)     (10)       mgmt (8)     analysis (2)
+  collectors (10)    (8)        mgmt (8)     analysis (2)
                      │
           ┌──────────┼──────────┐
           ▼          ▼          ▼
    4. automation- 5. blue-  6. energy-
-     core (7)     prints(4) analytics(3)
+     core (8)     prints(4) analytics(3)
           │
           ▼
      9. frontends (4)
@@ -41,21 +41,23 @@ HomeIQ services are organized into 9 independently deployable domain groups:
 
 ### Group Deployment Commands
 
+Prefer `./scripts/start-stack.sh` or `.\scripts\start-stack.ps1`. For manual Compose, use **`--profile production`** so profile-gated collectors start.
+
 ```bash
-# Full stack (all groups via root compose)
-docker compose up -d
+# Full stack (merged project; optional — see DEPLOYMENT_QUICK_REFERENCE)
+docker compose --profile production up -d
 
-# Core only (minimal data pipeline)
-docker compose -f domains/core-platform/compose.yml up -d
+# Core only
+docker compose -f domains/core-platform/compose.yml --profile production up -d
 
-# Core + collectors (data pipeline with enrichment)
-docker compose -f domains/core-platform/compose.yml -f domains/data-collectors/compose.yml up -d
+# Core + collectors
+docker compose -f domains/core-platform/compose.yml -f domains/data-collectors/compose.yml --profile production up -d
 
 # Core + ML + automation (AI features)
-docker compose -f domains/core-platform/compose.yml -f domains/ml-engine/compose.yml -f domains/automation-core/compose.yml up -d
+docker compose -f domains/core-platform/compose.yml -f domains/ml-engine/compose.yml -f domains/automation-core/compose.yml --profile production up -d
 
 # Single group rebuild
-docker compose -f domains/ml-engine/compose.yml up -d --build
+docker compose -f domains/ml-engine/compose.yml --profile production up -d --build
 ```
 
 For complete deployment commands per group, see the [Service Groups Architecture](./service-groups.md) and [Deployment Runbook](../deployment/DEPLOYMENT_RUNBOOK.md).
@@ -473,7 +475,7 @@ HA → websocket-ingestion → enrichment-pipeline → InfluxDB
 
 ---
 
-**Last Updated:** February 27, 2026
+**Last Updated:** March 23, 2026
 **Epic Context:** Post-Epic 31 (enrichment-pipeline deprecated), Phase 5 (Service Groups + Resilience), PostgreSQL-only (SQLite removed)
-**Service Count:** 50 microservices across 9 domain groups and 7 criticality tiers
+**Service count:** ~58 containers (production profile); 62 Compose definitions — see [service-groups.md](./service-groups.md)
 

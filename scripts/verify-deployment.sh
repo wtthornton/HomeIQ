@@ -2,6 +2,8 @@
 
 # Deployment Verification Script
 # This script verifies that all components are working correctly after deployment
+#
+# Run from the repository root. Admin API is expected on port 8004 (see domains/core-platform/admin-api).
 
 set -e  # Exit on any error
 
@@ -67,7 +69,7 @@ test_dashboard() {
     echo "Testing dashboard API integration..."
     
     # Test enhanced health endpoint
-    health_response=$(curl -s "http://localhost:8003/api/v1/health" 2>/dev/null)
+    health_response=$(curl -s "http://localhost:8004/api/v1/health" 2>/dev/null)
     if echo "$health_response" | jq -e '.dependencies' > /dev/null 2>&1; then
         print_status 0 "Enhanced health endpoint returns dependency information"
     else
@@ -76,7 +78,7 @@ test_dashboard() {
     fi
     
     # Test stats endpoint
-    stats_response=$(curl -s "http://localhost:8003/api/v1/stats" 2>/dev/null)
+    stats_response=$(curl -s "http://localhost:8004/api/v1/stats" 2>/dev/null)
     if echo "$stats_response" | jq -e '.metrics' > /dev/null 2>&1; then
         print_status 0 "Stats endpoint returns metrics information"
     else
@@ -113,14 +115,14 @@ verify_types() {
     echo "Verifying TypeScript types..."
     
     # Check if health types are properly defined
-    if grep -q "ServiceHealthResponse" services/health-dashboard/src/types/health.ts; then
+    if grep -q "ServiceHealthResponse" domains/core-platform/health-dashboard/src/types/health.ts; then
         print_status 0 "ServiceHealthResponse type is defined"
     else
         echo -e "${RED}❌ ServiceHealthResponse type is missing${NC}"
         exit 1
     fi
     
-    if grep -q "DependencyHealth" services/health-dashboard/src/types/health.ts; then
+    if grep -q "DependencyHealth" domains/core-platform/health-dashboard/src/types/health.ts; then
         print_status 0 "DependencyHealth type is defined"
     else
         echo -e "${RED}❌ DependencyHealth type is missing${NC}"
@@ -130,20 +132,20 @@ verify_types() {
 
 # Main verification process
 echo "1. Verifying service health..."
-test_endpoint "http://localhost:8003/health" "status" "healthy"
-test_endpoint "http://localhost:8003/api/health" "status" "healthy"
+test_endpoint "http://localhost:8004/health" "status" "healthy"
+test_endpoint "http://localhost:8004/api/health" "status" "healthy"
 
 echo ""
 echo "2. Verifying enhanced health endpoint..."
-test_endpoint "http://localhost:8003/api/v1/health" "status" "healthy"
+test_endpoint "http://localhost:8004/api/v1/health" "status" "healthy"
 
 echo ""
 echo "3. Verifying stats endpoint..."
-test_endpoint "http://localhost:8003/api/v1/stats" "timestamp" ""
+test_endpoint "http://localhost:8004/api/v1/stats" "timestamp" ""
 
 echo ""
 echo "4. Verifying alerts endpoint..."
-test_endpoint "http://localhost:8003/api/v1/alerts" "" ""
+test_endpoint "http://localhost:8004/api/v1/alerts" "" ""
 
 echo ""
 echo "5. Verifying dashboard..."

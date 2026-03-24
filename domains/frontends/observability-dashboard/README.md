@@ -25,7 +25,7 @@ The Observability Dashboard provides internal/admin dashboards for:
 domains/frontends/observability-dashboard/
 ├── src/
 │   ├── main.py                 # Streamlit app entry point
-│   ├── pages/                  # Dashboard pages
+│   ├── dashboard_pages/        # Dashboard views (not Streamlit ``pages/`` multipage)
 │   │   ├── trace_visualization.py
 │   │   ├── automation_debugging.py
 │   │   ├── service_performance.py

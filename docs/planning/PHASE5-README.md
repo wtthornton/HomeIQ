@@ -19,21 +19,11 @@ This directory contains all documentation and tools needed to deploy Phase 5 (pr
 
 ## What's Being Deployed
 
-### Services: 50 Microservices + 3 Frontends
+### Services (canonical counts)
 
-| Group | Count | Services | Status |
-|---|---|---|---|
-| **Core Platform** | 6 | websocket-ingestion, data-api, admin-api, health-dashboard, data-retention, ha-simulator | ✅ Ready |
-| **Data Collectors** | 8 | weather, smart-meter, sports, air-quality, carbon, electricity, calendar, log-aggregator | ✅ Ready |
-| **ML Engine** | 9 | openvino, ml, ner, openai, rag, ai-core, training, device-intel, model-prep | ✅ Ready |
-| **Automation Core** | 7 | ha-ai-agent, ai-automation, query, yaml-validation, linter, code-executor, traces | ✅ Ready |
-| **Blueprints** | 4 | blueprint-index, suggestion, rule-recommendation, automation-miner | ✅ Ready |
-| **Energy Analytics** | 3 | energy-correlator, energy-forecasting, proactive-agent | ✅ Ready |
-| **Device Management** | 8 | health-monitor, classifier, setup, db-client, recommender, activity, activity-writer, ha-setup | ✅ Ready |
-| **Pattern Analysis** | 2 | ai-pattern, api-automation-edge | ✅ Ready |
-| **Frontends** | 3 | health-dashboard, ai-automation-ui, observability-dashboard | ✅ Ready |
+**Source of truth:** [Service groups](../architecture/service-groups.md) — **62** Compose definitions, **~58** containers with `--profile production` (health-dashboard is under core-platform; frontends compose includes Jaeger, observability UI, AI UI, voice-gateway).
 
-**Total:** 50 services + 3 frontends = **53 deployable units**
+The Phase 5 package deploys **all domain groups** via `scripts/start-stack` / `--profile production`. Historical planning tables that listed “50 services + 3 frontends” are superseded by that document.
 
 ### Library Upgrades Included
 
@@ -79,7 +69,7 @@ This directory contains all documentation and tools needed to deploy Phase 5 (pr
 | **Hour 6** | Tier 9 | frontends (dashboards, Jaeger) | 3 |
 
 ### Validation (Day 3)
-- Full health check (50/50 services)
+- Full health check (all production-profile services)
 - Integration tests (all pass)
 - E2E tests (Playwright)
 - Error rate verification (<0.5%)
@@ -119,7 +109,7 @@ This directory contains all documentation and tools needed to deploy Phase 5 (pr
 - [ ] No cascading failures
 
 **Gate 4: Full System Health (48 hours)**
-- [ ] All 50 services healthy (100%)
+- [ ] All production-profile services healthy (100%)
 - [ ] Error rate <0.5%
 - [ ] Response time within baseline
 - [ ] Zero unplanned restarts
@@ -191,7 +181,7 @@ Health Dashboard: http://localhost:3000
 
 | Metric | Target | Alert |
 |---|---|---|
-| Services Healthy | 50/50 | <50/50 = problem |
+| Services Healthy | All prod-profile | Any sustained unhealthy = problem |
 | Error Rate | <0.5% | >5% = escalate |
 | Response Time | <100ms p95 | >2x baseline = investigate |
 | Uptime | 99.9%+ | Any service down >2 min |
@@ -290,7 +280,7 @@ Health Dashboard: http://localhost:3000
 ## Success Definition
 
 **Deployment is successful when:**
-1. ✅ All 50 services healthy (responding to /health)
+1. ✅ All production-profile services healthy (responding to /health)
 2. ✅ All 704+ tests passing
 3. ✅ Error rate <0.5%
 4. ✅ Zero data loss

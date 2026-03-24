@@ -1,6 +1,6 @@
 # HomeIQ Documentation
 
-**Last Updated:** March 4, 2026
+**Last Updated:** March 23, 2026
 
 This is the **single index** for project documentation. Use it for correct paths; avoid creating duplicate guides at root.
 

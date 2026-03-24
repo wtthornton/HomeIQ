@@ -1,6 +1,6 @@
 # TappsMCP Tool Priority for HomeIQ
 
-**Last Updated:** March 11, 2026  
+**Last Updated:** March 23, 2026  
 **Purpose:** Recommended tool order and rationale for using TappsMCP in the HomeIQ project
 
 **MCP setup:** In this project TappsMCP is provided by **tapps-mcp** via direct stdio (not the legacy Docker MCP Toolkit gateway). Use `.cursor/mcp.json` (IDE) and `.mcp.json` (headless/auto-bugfix) with the `tapps-mcp` entry. Tools are exposed as `mcp__tapps-mcp__tapps_*`. See [.cursor/MCP_SETUP_INSTRUCTIONS.md](../.cursor/MCP_SETUP_INSTRUCTIONS.md).
@@ -23,7 +23,7 @@ Use this order when running TappsMCP tools in HomeIQ:
 | 8 | **Before declaring done (multi-file)** | `tapps_validate_changed()` | Score + gate + security on all changed files. |
 | 9 | Before done (per-file gate) | `tapps_quality_gate(file_path='...')` | Enforce preset; critical services need ≥80. |
 | 10 | Auth/API/secrets/input handling | `tapps_security_scan(file_path='...')` | Bandit + secret detection. |
-| 11 | After editing Docker/compose/infra | `tapps_validate_config(file_path='...')` | WebSocket/MQTT/InfluxDB best practices. |
+| 11 | After editing Docker/compose/infra | `tapps_validate_config(file_path='...')` | WebSocket/MQTT/InfluxDB best practices. **Note:** Root `docker-compose.yml` uses Compose **`include:`** only (no top-level `services:`) — validators may report a false “missing services” finding; validate **`domains/<group>/compose.yml`** files instead. |
 | 12 | **Final step before "done"** | `tapps_checklist(task_type='...')` | Verifies no required step was skipped. |
 
 **Optional / situational:** `tapps_dependency_scan` (releases, new deps), `tapps_dependency_graph` (refactors, import issues), `tapps_dead_code` (refactors), `tapps_report` (summaries), `tapps_memory` (cross-session decisions), `tapps_session_notes` (session-only notes).
@@ -42,7 +42,7 @@ HomeIQ has characteristics that shape which tools matter most:
 
 | Factor | Implication |
 |--------|-------------|
-| **50 microservices** | Batch validation (`tapps_validate_changed`) matters more than single-file checks |
+| **~58 containers / 62 Compose services** | Batch validation (`tapps_validate_changed`) matters more than single-file checks |
 | **1700+ Python files** | Quick feedback loops (`tapps_quick_check`) keep sessions efficient |
 | **Docker-heavy** | Config validation (`tapps_validate_config`) is essential for compose/Dockerfile changes |
 | **Tier 1 critical services** | websocket-ingestion, data-api, admin-api, health-dashboard need stricter gates (score ≥80) |
@@ -51,7 +51,7 @@ HomeIQ has characteristics that shape which tools matter most:
 
 ### Evaluation summary
 
-- **Scale:** ~1,760 Python files across 9 domain groups and 50 microservices make batch validation (`tapps_validate_changed`) and quick per-file feedback (`tapps_quick_check`) essential; single-file-only workflows do not scale.
+- **Scale:** ~1,760 Python files across 9 domain groups and **~58** production containers (**62** Compose definitions) make batch validation (`tapps_validate_changed`) and quick per-file feedback (`tapps_quick_check`) essential; single-file-only workflows do not scale.
 - **Tech stack:** Python with FastAPI, aiohttp, Flask, pytest. Always run `tapps_lookup_docs` before using these (and InfluxDB, Pydantic, etc.) to avoid wrong APIs.
 - **Critical path:** Tier 1 services (websocket-ingestion, data-api, admin-api, health-dashboard) are the event and query backbone; use `tapps_impact_analysis` before changing shared code and enforce score ≥80 for these.
 - **Infrastructure:** Docker and many compose files mean `tapps_validate_config` is required when changing Dockerfile or compose; config validation catches deployment and connectivity issues early.

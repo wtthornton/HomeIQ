@@ -12,8 +12,8 @@
 
 | Metric | Target | Actual | Status |
 |---|---|---|---|
-| Services Deployed | 50 + 3 frontends | ___ | [ ] Pass / [ ] Fail |
-| Services Healthy | 50/50 | ___/50 | [ ] Pass / [ ] Fail |
+| Services Deployed | Full stack (see service-groups.md) | ___ | [ ] Pass / [ ] Fail |
+| Services Healthy | All prod-profile | ___ / expected | [ ] Pass / [ ] Fail |
 | Test Pass Rate | 100% | ___% | [ ] Pass / [ ] Fail |
 | Error Rate | <0.5% | ___% | [ ] Pass / [ ] Fail |
 | Deployment Duration | <4 hours | ___ | [ ] Pass / [ ] Fail |
@@ -115,7 +115,7 @@
 
 ### 24-Hour Check (Day 3 Morning)
 
-- [ ] All 50 services healthy
+- [ ] All production-profile services healthy (~58 containers when using `start-stack` + `--profile production`)
 - [ ] All frontends loading correctly
 - [ ] Data flows working (HA -> ingestion -> InfluxDB -> data-api)
 - [ ] No error spikes in logs

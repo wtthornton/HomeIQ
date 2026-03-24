@@ -58,7 +58,8 @@ def show() -> None:
 
         # Service selection
         try:
-            services = run_async_safe(_get_services(), timeout=30.0)
+            _client: JaegerClient = st.session_state.jaeger_client
+            services = run_async_safe(_get_services(_client), timeout=30.0)
             service_names = [s.name for s in services] if services else []
         except Exception as e:
             st.error(f"Failed to load services: {e}")
@@ -70,8 +71,9 @@ def show() -> None:
         with st.spinner("Loading performance data..."):
             try:
                 services_to_query = selected_services if selected_services else service_names
+                _client: JaegerClient = st.session_state.jaeger_client
                 all_traces = run_async_safe(
-                    _query_all_services(services_to_query, start_time, end_time),
+                    _query_all_services(_client, services_to_query, start_time, end_time),
                     timeout=60.0,
                 )
 
@@ -139,8 +141,9 @@ def show() -> None:
         # Service dependency health
         st.subheader("Service Dependency Health")
         try:
+            _client: JaegerClient = st.session_state.jaeger_client
             deps = run_async_safe(
-                st.session_state.jaeger_client.get_dependencies(
+                _client.get_dependencies(
                     start_time=start_time,
                     end_time=end_time,
                 ),
@@ -156,17 +159,18 @@ def show() -> None:
         st.info("👆 Click 'Load Performance Data' to analyze service performance")
 
 
-async def _get_services() -> list[Service]:
+async def _get_services(client: JaegerClient) -> list[Service]:
     """Get list of services from Jaeger."""
-    client: JaegerClient = st.session_state.jaeger_client
     return await client.get_services()
 
 
 async def _query_all_services(
-    services: list[str], start_time: datetime, end_time: datetime
+    client: JaegerClient,
+    services: list[str],
+    start_time: datetime,
+    end_time: datetime,
 ) -> list[Trace]:
     """Query traces for all services in parallel using asyncio.gather."""
-    client: JaegerClient = st.session_state.jaeger_client
     results = await asyncio.gather(
         *[
             client.get_traces(service=s, start_time=start_time, end_time=end_time, limit=100)

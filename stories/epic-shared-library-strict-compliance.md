@@ -15,7 +15,7 @@ type: quality
 **Duration:** 1-2 weeks
 **Risk Level:** Low
 **Source:** [TAPPS Quality Baseline](../reports/quality/TAPPS_BASELINE.md)
-**Affects:** libs/ (5 shared packages used by all 50 services)
+**Affects:** libs/ (5 shared packages used across all domain services)
 
 ## Context
 

@@ -7,7 +7,7 @@
 
 ## Problem Statement
 
-HomeIQ has 50 microservices generating rich intelligence — pattern detection (21 synergy detectors), energy correlations, activity recognition, device health scoring, blueprint matching, and proactive suggestions. Each subsystem produces insights that are **consumed once and forgotten**.
+HomeIQ has ~58 production-profile containers (62 Compose definitions) generating rich intelligence — pattern detection (21 synergy detectors), energy correlations, activity recognition, device health scoring, blueprint matching, and proactive suggestions. Each subsystem produces insights that are **consumed once and forgotten**.
 
 **The core gap:** HomeIQ has a nervous system without a brain.
 

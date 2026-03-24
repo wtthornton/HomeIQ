@@ -23,7 +23,7 @@
 #
 # Domain dependency order (start in this order for clean startup):
 #   1. core-platform      (influxdb, data-api, websocket, admin, dashboard, retention, ha-simulator)
-#   2. data-collectors    (weather, smart-meter, sports, air-quality, carbon, electricity, calendar, log-aggregator)
+#   2. data-collectors    (weather, smart-meter, sports, air-quality, carbon, electricity, calendar, log-aggregator, zeek, zeek-network-service)
 #   3. ml-engine          (openvino, ml, ner, openai, rag, ai-core, training, device-intel, model-prep)
 #   4. automation-core    (ha-ai-agent, ai-automation, query, yaml-validation, linter, code-executor, traces)
 #   5. blueprints         (blueprint-index, blueprint-suggestion, rule-recommendation, automation-miner)

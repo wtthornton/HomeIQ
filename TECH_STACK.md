@@ -1,6 +1,6 @@
 # HomeIQ Tech Stack
 
-**Last Updated:** March 6, 2026
+**Last Updated:** March 23, 2026
 **Source of Truth:** Actual `requirements.txt`, `package.json`, and `Dockerfile` files in the codebase
 
 ---
@@ -184,21 +184,21 @@ RUN pip install -r requirements.txt
 
 ## Service Count
 
-**50 deployable services** across 9 domain groups.
-**AI Tier Classification:** See [docs/architecture/ai-agent-classification.md](docs/architecture/ai-agent-classification.md) — 1 True Agent (T1), 5 LLM Wrappers (T2), 14 ML Inference (T3), 31 Non-AI (T4).
+**~58 containers** with Docker Compose **`--profile production`** (as used by `scripts/start-stack`); **62** `services:` definitions across nine `domains/*/compose.yml` files (includes `development` / `test` profiles and one-shot jobs). Canonical table: [docs/architecture/service-groups.md](docs/architecture/service-groups.md).
 
-| # | Domain | Count | Notes |
-|---|--------|-------|-------|
-| 1 | core-platform | 6 | Includes InfluxDB |
-| 2 | data-collectors | 8 | Stateless external API fetchers |
-| 3 | ml-engine | 9 | Includes ner-service and openai-service (built from archive) |
-| 4 | automation-core | 7 | Core automation engine |
+**AI Tier Classification:** See [docs/architecture/ai-agent-classification.md](docs/architecture/ai-agent-classification.md) — counts there describe agent/ML roles, not raw container count.
+
+| # | Domain | Count (prod) | Notes |
+|---|--------|--------------|-------|
+| 1 | core-platform | 11 | InfluxDB, PostgreSQL, data plane, health-dashboard, Prometheus/Grafana stack |
+| 2 | data-collectors | 10 | External API fetchers + Zeek + zeek-network-service |
+| 3 | ml-engine | 8 | `model-prep` is `development` one-shot only |
+| 4 | automation-core | 8 | NL→YAML, validation, traces, ha-device-control |
 | 5 | blueprints | 4 | Blueprint discovery and suggestions |
 | 6 | energy-analytics | 3 | Energy intelligence |
 | 7 | device-management | 8 | Device lifecycle |
-| 8 | pattern-analysis | 2 | Behavioral pattern detection |
-| 9 | frontends | 3 | UIs (ai-automation-ui, observability-dashboard, health-dashboard) |
-| — | infrastructure | — | Jaeger (in frontends compose), InfluxDB (in core-platform compose) |
+| 8 | pattern-analysis | 2 | ai-pattern-service, api-automation-edge |
+| 9 | frontends | 4 | Jaeger, observability-dashboard, ai-automation-ui, voice-gateway |
 
 > **Note:** `ha-simulator` is available under the `development` Docker Compose profile. `nlp-fine-tuning` and `model-prep` are offline/one-shot training tools, not deployed services.
 

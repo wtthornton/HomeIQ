@@ -141,7 +141,7 @@
 | Day 2 | Tier 3 (ML/AI) | ai-core, openvino, ml-service, rag-service, etc. | 15min stable |
 | Day 3 | Tiers 4-8 (Domain Services) | 24 services across 5 domains | Cross-group auth verified |
 | Day 4 | Tier 9 (Frontends) | health-dashboard, ai-automation-ui, observability | All UIs accessible |
-| Day 5-6 | Post-deployment monitoring | All 50 services | 48h stable, <1% error rate |
+| Day 5-6 | Post-deployment monitoring | Full stack (prod profile) | 48h stable, <1% error rate |
 
 **Go/No-Go Checklist:**
 - [ ] All 33 health endpoints responding 200 OK

@@ -21,6 +21,12 @@ git checkout -b feature/your-feature-name
 - **Tests** — add tests for new features, run `pytest` before submitting
 - **Docker** — test your changes build with `docker compose build <service-name>`
 
+### Local full stack (optional)
+
+- Copy `infrastructure/env.example` to **`.env` in the repo root** (Compose and `start-stack` expect this path).
+- Start everything: `./scripts/start-stack.sh` or `.\scripts\start-stack.ps1` (ordered domains + `--profile production`).
+- Do not use bare `docker compose up` from the repo root for routine work — see [docs/deployment/DEPLOYMENT_QUICK_REFERENCE.md](docs/deployment/DEPLOYMENT_QUICK_REFERENCE.md).
+
 ### Docker Security Requirements
 
 All Docker images must follow these security practices:

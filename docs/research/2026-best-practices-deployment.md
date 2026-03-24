@@ -3,7 +3,7 @@
 **Date:** February 23, 2026
 **Version:** 1.0
 **Status:** Research Complete
-**Project Context:** HomeIQ (50 microservices, 9 domain groups, 5 shared libraries)
+**Project Context:** HomeIQ (~58 prod-profile containers / 62 Compose definitions, 9 domain groups, 5 shared libraries)
 
 ---
 

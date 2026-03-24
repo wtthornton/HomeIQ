@@ -16,7 +16,7 @@ from homeiq_resilience import ServiceLifespan, create_app
 from .api.chat_endpoints import router as chat_router
 from .api.conversation_endpoints import router as conversation_router
 from .api.core_endpoints import router as core_router
-from .api.dependencies import set_services
+from .api.dependencies import clear_services, set_services
 from .api.device_suggestions_endpoints import router as device_suggestions_router
 from .api.health_endpoints import router as health_router
 from .clients.data_api_client import DataAPIClient
@@ -76,6 +76,15 @@ def _get_secret(field: object) -> str | None:
     if field is None:
         return None
     return field.get_secret_value()
+
+
+def _validate_llm_credentials() -> None:
+    """Fail fast when chat cannot start (avoids 'healthy' container with broken /api/v1/*)."""
+    if not settings.openai_api_key.get_secret_value().strip():
+        raise ValueError(
+            "OPENAI_API_KEY is required for ha-ai-agent-service. "
+            "Add it to the project .env and restart this container."
+        )
 
 
 async def _init_group_health() -> object:
@@ -149,6 +158,8 @@ async def _startup_services() -> None:
     global context_builder, tool_service, conversation_service
     global prompt_assembly_service, openai_client, llm_router, group_health
     global memory_extractor, memory_client, memory_search, memory_injector
+
+    _validate_llm_credentials()
 
     # Initialize database
     db_ok = await init_database(settings.database_url)
@@ -320,12 +331,14 @@ async def _shutdown_services() -> None:
     memory_injector = None  # Story 33.2
     group_health = None
 
+    clear_services()
+
 
 # ---------------------------------------------------------------------------
 # Lifespan (ServiceLifespan)
 # ---------------------------------------------------------------------------
 
-lifespan = ServiceLifespan(settings.service_name)
+lifespan = ServiceLifespan(settings.service_name, graceful=False)
 lifespan.on_startup(_startup_services, name="services")
 lifespan.on_shutdown(_shutdown_services, name="services")
 

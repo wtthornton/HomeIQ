@@ -58,7 +58,7 @@ These files will be moved to `docs/archive/` in the next cleanup phase.
 - 3,033 total lines spread across files
 
 ### After (Consolidated)
-- 1 comprehensive API reference covering all 50 services
+- 1 comprehensive API reference covering all domain services (~58 prod-profile containers — see [service-groups](../architecture/service-groups.md))
 - Zero duplication
 - Consistent structure
 - Clear single source of truth

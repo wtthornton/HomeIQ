@@ -551,7 +551,7 @@ Complete mapping of services to domain groups for verification:
 | 51 | jaeger | (external image) | N/A -- documented in frontends README | frontends |
 | 52 | health-dashboard | (see row 4) | Deployed with core-platform, documented in frontends README | core-platform |
 
-**Total moved:** 49 service directories (50 services minus influxdb external, minus jaeger external, health-dashboard counted once)
+**Total moved:** 49 service directories (restructure snapshot; current Compose scale: docs/architecture/service-groups.md)
 
 ---
 

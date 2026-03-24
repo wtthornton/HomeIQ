@@ -88,7 +88,7 @@ start_domain() {
   fi
 
   log_info "Starting $domain..."
-  docker compose -f "$compose_file" $env_file_flag --profile production up -d
+  docker compose -f "$compose_file" $env_file_flag --profile production up -d --build --pull always --force-recreate
   log_ok "$domain started."
 }
 

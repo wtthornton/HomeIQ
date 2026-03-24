@@ -8,7 +8,7 @@
 
 ## Overview
 
-The HomeIQ deployment pipeline is a comprehensive CI/CD system that automates the build, test, validation, and deployment of 50 microservices to production. The pipeline implements 2025 best practices including quality gates, automated rollback, deployment tracking, and comprehensive notifications.
+The HomeIQ deployment pipeline is a comprehensive CI/CD system that automates the build, test, validation, and deployment of the full platform (**~58 containers** with production profile; **62** Compose service definitions) to production. The pipeline implements 2025 best practices including quality gates, automated rollback, deployment tracking, and comprehensive notifications.
 
 ## Pipeline Architecture
 
@@ -102,7 +102,7 @@ python scripts/deployment/validate-deployment.py --post-deployment
 
 **File:** `scripts/deployment/health-check.sh`
 
-**Purpose:** Comprehensive health checks for all 50 services
+**Purpose:** Comprehensive health checks for all production-profile services (~58 containers; see [service-groups](../architecture/service-groups.md))
 
 **Features:**
 - Health endpoint verification for all services

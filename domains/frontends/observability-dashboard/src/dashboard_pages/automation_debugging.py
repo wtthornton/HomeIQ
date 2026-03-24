@@ -69,8 +69,10 @@ def show() -> None:
     if st.button("🔍 Query Automation Traces", type="primary"):
         with st.spinner("Querying automation traces..."):
             try:
+                client: JaegerClient = st.session_state.jaeger_client
                 traces = run_async_safe(
                     _query_automation_traces(
+                        client,
                         automation_id=automation_id if automation_id else None,
                         home_id=home_id if home_id else None,
                         correlation_id=correlation_id if correlation_id else None,
@@ -144,6 +146,7 @@ def show() -> None:
 
 
 async def _query_automation_traces(
+    client: JaegerClient,
     automation_id: str | None = None,
     home_id: str | None = None,
     correlation_id: str | None = None,
@@ -151,8 +154,6 @@ async def _query_automation_traces(
     end_time: datetime | None = None,
 ) -> list[Trace]:
     """Query automation traces from Jaeger."""
-    client = st.session_state.jaeger_client
-
     traces = await client.get_traces(
         service="ai-automation-service",
         start_time=start_time,

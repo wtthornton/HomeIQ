@@ -1,7 +1,9 @@
 # HomeIQ Deployment — Single Configuration
 
-**Last Updated:** March 11, 2026  
+**Last Updated:** March 23, 2026  
 **Status:** Canonical reference for local deployment
+
+**Scale (March 2026):** Nine `domains/*/compose.yml` files define **62** Compose services. A full `start-stack` run with **`--profile production`** starts **~58** containers (excludes `development` and `test` profile services such as `ha-simulator`, `model-prep`, and HA test fixtures). See [Service Groups Architecture](../architecture/service-groups.md).
 
 ---
 
@@ -15,6 +17,8 @@ HomeIQ uses **domain-based deployment** with **production profile** as the singl
 | `./scripts/start-stack.sh` (Linux/Mac) | `docker compose --profile production up -d` from root |
 | `.\scripts\domain.ps1 start <domain>` | Root compose — creates orphan "homeiq" project |
 | `./scripts/domain.sh start <domain>` | |
+
+**Windows:** `start-stack.ps1` and `domain.ps1` pass **`--env-file`** with the repository root **`.env`** to Docker Compose so `${VAR}` interpolation matches Linux (`domain.sh` / `start-stack.sh`). Keep your real config in **`.env` at the repository root** (copy from `infrastructure/env.example`).
 
 ---
 
@@ -93,7 +97,9 @@ Running `docker compose up -d` from the project root:
 
 ## Required Environment Variables
 
-Copy `infrastructure/env.example` to `.env` and set at minimum:
+Copy `infrastructure/env.example` to **`.env` in the repository root** (same directory as `docker-compose.yml`). Individual services also reference `../../.env` via `env_file` in Compose.
+
+Set at minimum:
 
 | Variable | Purpose |
 |----------|---------|

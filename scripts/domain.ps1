@@ -95,37 +95,44 @@ if (-not (Test-Path $ComposeFile)) {
     exit 1
 }
 
+# Interpolate ${VAR} in Compose from repo-root .env (matches start-stack.sh / Linux behavior)
+$RootEnvFile = Join-Path -Path $ProjectRoot -ChildPath ".env"
+$EnvFileArgs = @()
+if (Test-Path $RootEnvFile) {
+    $EnvFileArgs = @("--env-file", $RootEnvFile)
+}
+
 switch ($Command) {
     "start" {
         Write-Host "[START] Starting $Domain..." -ForegroundColor Green
         & "$ScriptDir\ensure-network.ps1"
-        docker compose -f $ComposeFile --profile production up -d
+        docker compose -f $ComposeFile @EnvFileArgs --profile production up -d
         Write-Host "[OK] $Domain started." -ForegroundColor Green
     }
     "stop" {
         Write-Host "[STOP] Stopping $Domain..." -ForegroundColor Yellow
-        docker compose -f $ComposeFile --profile production down
+        docker compose -f $ComposeFile @EnvFileArgs --profile production down
         Write-Host "[OK] $Domain stopped." -ForegroundColor Green
     }
     "restart" {
         Write-Host "[RESTART] Restarting $Domain..." -ForegroundColor Yellow
         & "$ScriptDir\ensure-network.ps1"
-        docker compose -f $ComposeFile --profile production restart
+        docker compose -f $ComposeFile @EnvFileArgs --profile production restart
         Write-Host "[OK] $Domain restarted." -ForegroundColor Green
     }
     "status" {
-        docker compose -f $ComposeFile --profile production ps
+        docker compose -f $ComposeFile @EnvFileArgs --profile production ps
     }
     "logs" {
         if ($Service) {
-            docker compose -f $ComposeFile --profile production logs -f $Service
+            docker compose -f $ComposeFile @EnvFileArgs --profile production logs -f $Service
         } else {
-            docker compose -f $ComposeFile --profile production logs -f
+            docker compose -f $ComposeFile @EnvFileArgs --profile production logs -f
         }
     }
     "build" {
         Write-Host "[BUILD] Building $Domain images..." -ForegroundColor Green
-        docker compose -f $ComposeFile --profile production build
+        docker compose -f $ComposeFile @EnvFileArgs --profile production build
         Write-Host "[OK] $Domain images built." -ForegroundColor Green
     }
     default {

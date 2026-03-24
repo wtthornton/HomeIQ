@@ -116,10 +116,10 @@ HomeIQ: Created automation. Want to add conditions or additional actions?
 git clone https://github.com/wtthornton/HomeIQ.git
 cd HomeIQ
 
-# Copy and configure environment
-cp infrastructure/env.example infrastructure/.env
+# Copy and configure environment (Compose loads .env from the repo root)
+cp infrastructure/env.example .env
 
-# Edit infrastructure/.env with your settings:
+# Edit .env with your settings:
 #   HA_HTTP_URL=http://YOUR_HA_IP:8123
 #   HA_WS_URL=ws://YOUR_HA_IP:8123/api/websocket
 #   HA_TOKEN=your-long-lived-access-token
@@ -128,11 +128,12 @@ cp infrastructure/env.example infrastructure/.env
 ./scripts/start-stack.sh      # Linux/Mac
 .\scripts\start-stack.ps1     # Windows
 
-# Alternative: merge all into one project
+# Optional: single merged Compose project (CI or flat Docker Desktop list — not recommended for daily use)
 # docker compose --profile production up -d
 
-# Verify deployment
-./scripts/verify-deployment.sh
+# Verify deployment (run from repo root)
+./scripts/verify-deployment.sh           # Linux/Mac
+.\scripts\verify-deployment.ps1          # Windows
 ```
 
 ### First Steps
@@ -150,13 +151,13 @@ Deploy only the groups you need:
 
 ```bash
 # Core only (data pipeline + dashboard)
-docker compose -f domains/core-platform/compose.yml up -d
+docker compose -f domains/core-platform/compose.yml --profile production up -d
 
-# Core + data collectors
+# Core + data collectors (include production-profile collectors: air-quality, carbon, etc.)
 docker compose -f domains/core-platform/compose.yml \
-               -f domains/data-collectors/compose.yml up -d
+               -f domains/data-collectors/compose.yml --profile production up -d
 
-# Full stack (all 50 services, grouped by domain in Docker Desktop)
+# Full stack (~58 production-profile containers, grouped by domain in Docker Desktop)
 ./scripts/start-stack.sh      # Linux/Mac
 .\scripts\start-stack.ps1     # Windows
 ```
@@ -165,7 +166,7 @@ docker compose -f domains/core-platform/compose.yml \
 
 ## Architecture
 
-HomeIQ runs **50 microservices** organized into **9 domain groups** across 7 criticality tiers, designed for single-home deployment on resource-constrained hardware.
+HomeIQ runs **~58 application containers** (Docker Compose `--profile production` via `start-stack`) across **9 domain groups**, with **62 service definitions** in domain `compose.yml` files (the extra definitions are `development` / `test` profiles and one-shot jobs). Designed for single-home deployment on resource-constrained hardware.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -184,11 +185,14 @@ HomeIQ runs **50 microservices** organized into **9 domain groups** across 7 cri
 │    data-api · admin-api · data-retention                │
 ├─────────────────────────────────────────────────────────┤
 │  Data Layer                                             │
-│    InfluxDB 2.7 (events, metrics)                       │
+│    InfluxDB 2.8 (events, metrics)                       │
 │    PostgreSQL 17 (metadata, schema-per-domain)          │
 ├─────────────────────────────────────────────────────────┤
-│  Enrichment Services                                    │
-│    Weather · Energy · Air Quality · Sports · Calendar   │
+│  Monitoring (core-platform)                             │
+│    Prometheus · Grafana · Alertmanager                  │
+├─────────────────────────────────────────────────────────┤
+│  Data collectors & enrichment                           │
+│    Weather · Energy · Air Quality · Sports · Calendar · Zeek │
 └─────────────────────────────────────────────────────────┘
                           ▲
                  ┌────────┴────────┐
@@ -210,17 +214,17 @@ HomeIQ runs **50 microservices** organized into **9 domain groups** across 7 cri
 
 ## Domain Groups
 
-| # | Domain | Services | Purpose |
-|---|--------|----------|---------|
-| 1 | **core-platform** | 6 | Data backbone — InfluxDB, data-api, websocket-ingestion, admin-api, dashboard, retention |
-| 2 | **data-collectors** | 8 | Stateless data fetchers — weather, energy, sports, air quality, calendar, logs |
-| 3 | **ml-engine** | 10 | ML inference and training — OpenVINO, NER, OpenAI, RAG, device-intelligence |
-| 4 | **automation-core** | 7 | Automation engine — NL to YAML, entity resolution, validation, deployment |
+| # | Domain | Services (production profile) | Purpose |
+|---|--------|------------------------------|---------|
+| 1 | **core-platform** | 11 | Data backbone — InfluxDB, PostgreSQL, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention, Prometheus, Grafana, Alertmanager, postgres-exporter |
+| 2 | **data-collectors** | 10 | Stateless fetchers + network — weather, smart-meter, sports, air-quality, carbon-intensity, electricity-pricing, calendar, log-aggregator, zeek, zeek-network-service |
+| 3 | **ml-engine** | 8 | ML inference and training — OpenVINO, ML, NER, OpenAI, RAG, ai-core, ai-training, device-intelligence (`model-prep` is `development` one-shot) |
+| 4 | **automation-core** | 8 | Automation engine — ha-ai-agent, ai-automation, query, YAML validation, linter, code-executor, trace service, ha-device-control |
 | 5 | **blueprints** | 4 | Blueprint discovery, indexing, ML recommendations |
 | 6 | **energy-analytics** | 3 | Energy correlator, forecasting, proactive agent |
-| 7 | **device-management** | 8 | Device health, setup, classification, activity recognition |
-| 8 | **pattern-analysis** | 2 | Behavioral patterns, synergy detection |
-| 9 | **frontends** | 4 | AI automation UI, observability dashboard, health dashboard, Jaeger |
+| 7 | **device-management** | 8 | Device health, setup, classification, activity recognition, ha-setup |
+| 8 | **pattern-analysis** | 2 | Behavioral patterns, api-automation-edge |
+| 9 | **frontends** | 4 | Jaeger, observability dashboard, AI automation UI, voice-gateway (health-dashboard lives in core-platform) |
 
 Each domain group has its own `compose.yml` under `domains/<group>/` and can be deployed independently. See [Service Groups Architecture](docs/architecture/service-groups.md) for dependency graph and deployment commands.
 
@@ -274,14 +278,14 @@ Each domain group has its own `compose.yml` under `domains/<group>/` and can be 
 
 | Metric | Value |
 |--------|-------|
-| **Services** | 50 microservices across 9 domain groups |
+| **Services** | ~58 containers with `start-stack` + `--profile production`; 62 Compose definitions (incl. test/dev) |
 | **Target Hardware** | Intel NUC (i3/i5, 8–16 GB RAM) |
 | **Memory Footprint** | ~8–10 GB (optimized) |
 | **Optimized For** | Single home, 50–100 devices |
 | **Backend** | Python 3.12, FastAPI 0.115–0.124, Pydantic 2.x |
 | **Frontend** | React 18.3, TypeScript 5.9, Vite 6.4, Tailwind CSS 3.4 |
 | **AI/ML** | Sentence-Transformers 3.3, OpenAI GPT-4o-mini, scikit-learn |
-| **Databases** | InfluxDB 2.7.12 (time-series), PostgreSQL 17 (metadata) |
+| **Databases** | InfluxDB 2.8.x (time-series), PostgreSQL 17 (metadata) |
 | **Observability** | OpenTelemetry, Jaeger 1.75, Prometheus, Grafana |
 | **Tests** | 704+ tests, Playwright E2E, pytest-asyncio |
 

@@ -4,7 +4,7 @@ priority: medium
 status: open
 estimated_duration: 1-2 weeks
 risk_level: low
-source: Architecture review of 50 microservices (2026-03-01)
+source: Architecture review of full domain stack (2026-03-01; counts: service-groups.md)
 ---
 
 # Epic 14: Background Processing Standardization

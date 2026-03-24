@@ -69,13 +69,16 @@ def main() -> None:
 
     # Route to appropriate page
     if page == "🔍 Traces":
-        from pages import trace_visualization
+        from dashboard_pages import trace_visualization
+
         trace_visualization.show()
     elif page == "⚡ Performance":
-        from pages import service_performance
+        from dashboard_pages import service_performance
+
         service_performance.show()
     elif page == "📡 Live":
-        from pages import real_time_monitoring
+        from dashboard_pages import real_time_monitoring
+
         real_time_monitoring.show()
 
 

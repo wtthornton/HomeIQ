@@ -1,6 +1,6 @@
 # HomeIQ Deployment Runbook
 
-**Last Updated:** March 11, 2026
+**Last Updated:** March 23, 2026
 **Status:** Active
 **Version:** 2.6
 
@@ -22,7 +22,7 @@ This runbook provides step-by-step instructions for deploying HomeIQ to producti
 
 HomeIQ is an AI-powered Home Assistant intelligence platform that captures, enriches, and stores Home Assistant events with multi-source data enrichment, providing real-time monitoring, advanced analytics, conversational AI automation, and production-ready deployment capabilities.
 
-**Deployment Model:** Single NUC deployment - all 50 microservices (organized into 9 domain groups) run on one machine, connecting to Home Assistant on the local network (typically `192.168.1.86:8123`).
+**Deployment Model:** Single NUC deployment — **~58 application containers** with `scripts/start-stack` and **`--profile production`** (9 domain groups), plus **62** Compose service definitions including optional `development` / `test` profiles. Connects to Home Assistant on the local network (typically `192.168.1.86:8123`). See [Service Groups Architecture](../architecture/service-groups.md) for the full table.
 
 For the full group architecture, see [Service Groups Architecture](../architecture/service-groups.md).
 
@@ -74,7 +74,7 @@ For complete service ranking and deployment priority, see **[Services Ranked by 
 
 ### Services Deployed
 
-HomeIQ deploys **50 microservices** organized into **7 tiers by criticality** (see [Services Ranked by Importance](../architecture/SERVICES_RANKED_BY_IMPORTANCE.md)). Below are the key service categories:
+HomeIQ deploys **~58 containers** (production profile) organized into **7 tiers by criticality** (see [Services Ranked by Importance](../architecture/SERVICES_RANKED_BY_IMPORTANCE.md)). The tier document uses operational groupings; the authoritative per-domain list is [service-groups.md](../architecture/service-groups.md). Below are the key service categories:
 
 #### 🗄️ Infrastructure Services
 

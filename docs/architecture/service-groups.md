@@ -1,6 +1,6 @@
 # Service Groups Architecture
 
-**Last Updated:** February 27, 2026
+**Last Updated:** March 23, 2026
 **Status:** Active
 **Epic Reference:** Domain Architecture Restructuring (Epics 1-5 Complete)
 **Approach:** 9-domain structure (extended from Option C -- Criticality + Domain Hybrid)
@@ -10,41 +10,43 @@
 
 ## Overview
 
-HomeIQ's 50 microservices are organized into **9 independently deployable domain groups** under `domains/`. The original 6-group plan was extended to 9 by splitting `automation-intelligence` (16 services -- too large for single-team ownership) into 4 sub-domains: **automation-core**, **blueprints**, **energy-analytics**, and **pattern-analysis**. No group exceeds 10 services.
+HomeIQ is organized into **9 independently deployable domain groups** under `domains/`. The nine-group layout split the former `automation-intelligence` domain into **automation-core**, **blueprints**, **energy-analytics**, and **pattern-analysis**.
 
-| # | Domain | Services | Purpose | Deploy Cadence |
-|---|--------|----------|---------|----------------|
-| 1 | **core-platform** | 6 | Data backbone -- if down, everything is down | Low |
-| 2 | **data-collectors** | 8 | Stateless data fetchers from external APIs | Medium |
-| 3 | **ml-engine** | 10 | ML model inference, embeddings, training | Frequent |
-| 4 | **automation-core** | 7 | Core automation engine -- NL to YAML pipeline | High |
-| 5 | **blueprints** | 4 | Blueprint discovery and ML recommendations | Medium |
-| 6 | **energy-analytics** | 3 | Energy intelligence, forecasting, proactive agent | Medium |
-| 7 | **device-management** | 8 | Device lifecycle, health, activity recognition | Medium |
-| 8 | **pattern-analysis** | 2 | Behavioral pattern detection and synergy analysis | Low |
-| 9 | **frontends** | 4 | User-facing UIs and observability tooling | High |
+**Counts:** There are **62** `services:` entries across the nine `domains/*/compose.yml` files. With **`--profile production`** (as used by `scripts/start-stack.sh` / `start-stack.ps1`), **~58 containers** run: exclude `development` (e.g. `ha-simulator`, one-shot `model-prep`) and `test` (`home-assistant-test`, `websocket-ingestion-test`). See [Deployment Quick Reference](../deployment/DEPLOYMENT_QUICK_REFERENCE.md).
 
-**Total:** 50 deployed services across 9 domains.
+| # | Domain | Services (production profile) | Compose definitions | Purpose | Deploy Cadence |
+|---|--------|------------------------------|---------------------|---------|----------------|
+| 1 | **core-platform** | 11 | 14 | Data backbone + observability stack | Low |
+| 2 | **data-collectors** | 10 | 10 | External API fetchers + Zeek network pipeline | Medium |
+| 3 | **ml-engine** | 8 | 9 | ML inference and training (`model-prep` = dev one-shot) | Frequent |
+| 4 | **automation-core** | 8 | 8 | NL to YAML, validation, traces, device control | High |
+| 5 | **blueprints** | 4 | 4 | Blueprint discovery and ML recommendations | Medium |
+| 6 | **energy-analytics** | 3 | 3 | Energy intelligence, forecasting, proactive agent | Medium |
+| 7 | **device-management** | 8 | 8 | Device lifecycle, health, activity recognition | Medium |
+| 8 | **pattern-analysis** | 2 | 2 | Pattern detection, api-automation-edge | Low |
+| 9 | **frontends** | 4 | 4 | Jaeger, observability UI, AI UI, voice-gateway | High |
+
+**Note:** **health-dashboard** (:3000) is defined only under **core-platform**, not under `frontends/compose.yml`.
 
 ---
 
 ## Dependency Graph
 
 ```
-                         ┌──────────────────────┐
-                         │  1. core-platform (6) │
-                         └──────────┬───────────┘
+                         ┌────────────────────────┐
+                         │  1. core-platform (11) │
+                         └──────────┬─────────────┘
                                     │
-         ┌──────────────┬───────────┼───────────┐
-         │              │           │            │
-         ▼              ▼           ▼            ▼
+         ┌──────────────┬───────────┼──────────────┐
+         │              │           │              │
+         ▼              ▼           ▼              ▼
   2. data-        3. ml-engine  7. device-   8. pattern-
-  collectors (8)     (10)       mgmt (8)     analysis (2)
+  collectors (10)   (8)        mgmt (8)     analysis (2)
                      │
           ┌──────────┼──────────┐
           ▼          ▼          ▼
    4. automation- 5. blue-  6. energy-
-     core (7)     prints(4) analytics(3)
+     core (8)     prints(4) analytics(3)
           │
           ▼
      9. frontends (4)
@@ -54,18 +56,25 @@ HomeIQ's 50 microservices are organized into **9 independently deployable domain
 
 ---
 
-## Group 1: core-platform (6 services)
+## Group 1: core-platform (11 services with `--profile production`)
 
-**Purpose:** The data backbone. If this is down, everything is down. Deployed rarely, tested heavily, always-on high availability.
+**Purpose:** The data backbone. If this is down, everything is down. Includes PostgreSQL metadata, the health dashboard, and the Prometheus/Grafana/Alertmanager stack. Deployed rarely, tested heavily, always-on high availability.
 
 | Service | Port | Role |
 |---------|------|------|
 | influxdb | 8086 | Time-series database -- all sensor/event data |
+| postgres | 5432 | PostgreSQL 17 -- metadata, schema-per-domain |
 | data-api | 8006 | Central query hub -- every service reads through this |
 | websocket-ingestion | 8001 | Primary HA event capture, direct InfluxDB writer |
 | admin-api | 8004 | System control plane, health checks, config |
 | health-dashboard | 3000 | Primary user UI (React/Vite) |
 | data-retention | 8080 | Data lifecycle -- cleanup, compression, rotation |
+| alertmanager | 9093 | Alert routing (Prometheus) |
+| prometheus | 9090 | Metrics collection and alerting rules |
+| grafana | 3002 | Dashboards (maps host 3002 → container 3000) |
+| postgres-exporter | 9187 | PostgreSQL metrics for Prometheus |
+
+**Also in compose (not production profile):** `ha-simulator` (`development`), `home-assistant-test` + `websocket-ingestion-test` (`test`).
 
 **Compose file:** `domains/core-platform/compose.yml`
 **Env file:** `domains/core-platform/compose.env.example`
@@ -73,9 +82,10 @@ HomeIQ's 50 microservices are organized into **9 independently deployable domain
 **Depended on by:** All other groups
 
 **Volumes:**
-- `influxdb_data` -- InfluxDB persistent storage
+- `influxdb_data` / `influxdb_config` -- InfluxDB persistent storage
 - `postgres_data` -- PostgreSQL metadata database
-- `data_retention_data` -- Retention state
+- `prometheus_data` / `grafana_data` -- Monitoring stack
+- `data_retention_backups` -- Retention / backup state
 
 **Key environment variables:**
 - `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, `INFLUXDB_BUCKET`
@@ -85,11 +95,11 @@ HomeIQ's 50 microservices are organized into **9 independently deployable domain
 
 **Deploy commands:**
 ```bash
-# Start core platform only
-docker compose -f domains/core-platform/compose.yml up -d
+# Start core platform only (includes monitoring stack)
+docker compose -f domains/core-platform/compose.yml --profile production up -d
 
 # Rebuild and start
-docker compose -f domains/core-platform/compose.yml up -d --build
+docker compose -f domains/core-platform/compose.yml --profile production up -d --build
 
 # View logs
 docker compose -f domains/core-platform/compose.yml logs -f
@@ -101,24 +111,28 @@ curl http://localhost:8001/health   # websocket-ingestion
 curl http://localhost:8004/health   # admin-api
 curl http://localhost:3000          # health-dashboard
 curl http://localhost:8080/health   # data-retention
+curl http://localhost:9090/-/healthy  # prometheus
+curl http://localhost:3002/api/health # grafana (host port)
 ```
 
 ---
 
-## Group 2: data-collectors (8 services)
+## Group 2: data-collectors (10 services)
 
-**Purpose:** Stateless data fetchers. Each service polls an external API on a schedule and writes to InfluxDB. Independently restartable, no cross-dependencies.
+**Purpose:** Stateless data fetchers plus optional Zeek network visibility. Collectors poll external APIs (or HA) on a schedule and write to InfluxDB. **air-quality**, **carbon-intensity**, **electricity-pricing**, and **calendar** require Compose **`--profile production`** (enabled by `start-stack`).
 
 | Service | Port | External Source |
 |---------|------|-----------------|
 | weather-api | 8009 | OpenWeatherMap |
-| smart-meter-service | 8014 | Home Assistant power entities |
+| smart-meter | 8014 | Home Assistant power entities |
 | sports-api | 8005 | ESPN / HA Team Tracker |
-| air-quality-service | 8012 | OpenWeatherMap AQI |
-| carbon-intensity-service | 8010 | WattTime |
-| electricity-pricing-service | 8011 | Energy pricing provider |
-| calendar-service | 8013 | HA calendar entities |
+| air-quality | 8012 | OpenWeatherMap AQI |
+| carbon-intensity | 8010 | WattTime |
+| electricity-pricing | 8011 | Energy pricing provider (e.g. Awattar) |
+| calendar | 8013 | HA calendar entities |
 | log-aggregator | 8015 | Docker socket / service logs |
+| zeek | (host network) | Packet capture / Zeek logs |
+| zeek-network-service | 8048 | Zeek log parser → InfluxDB / data-api |
 
 **Compose file:** `domains/data-collectors/compose.yml`
 **Env file:** `domains/data-collectors/compose.env.example`
@@ -139,14 +153,14 @@ Scheduled fetch --> transform --> InfluxDB write
 
 **Deploy commands:**
 ```bash
-# Start all collectors
-docker compose -f domains/data-collectors/compose.yml up -d
+# Start all collectors (include profile-gated services)
+docker compose -f domains/data-collectors/compose.yml --profile production up -d
 
 # Start a single collector
-docker compose -f domains/data-collectors/compose.yml up -d weather-api
+docker compose -f domains/data-collectors/compose.yml --profile production up -d weather-api
 
 # Restart a failing collector (no impact on others)
-docker compose -f domains/data-collectors/compose.yml restart smart-meter-service
+docker compose -f domains/data-collectors/compose.yml restart smart-meter
 
 # Health checks
 for port in 8009 8014 8005 8012 8010 8011 8013 8015; do
@@ -156,22 +170,21 @@ done
 
 ---
 
-## Group 3: ml-engine (10 services)
+## Group 3: ml-engine (8 running + 1 dev one-shot)
 
-**Purpose:** All ML model inference, embedding generation, and training. Heaviest compute requirements (GPU/high memory). Changes driven by model updates, not feature work.
+**Purpose:** ML model inference, embedding generation, and training. Heaviest compute requirements (GPU/high memory). Changes driven by model updates, not feature work.
 
 | Service | Port | Role |
 |---------|------|------|
 | ai-core-service | 8018 | ML orchestrator -- routes to inference backends |
 | openvino-service | 8026 | Transformer embeddings, semantic search, reranking |
 | ml-service | 8025 | Classical ML -- clustering, anomaly detection |
-| ner-service | (internal 8031) | BERT-based Named Entity Recognition |
-| openai-service | 8020 | OpenAI API client wrapper (GPT-5.2-codex) |
+| ner-service | 8031 | BERT-based Named Entity Recognition |
+| openai-service | 8020 | OpenAI API client wrapper |
 | rag-service | 8027 | Retrieval-Augmented Generation + vector search |
 | ai-training-service | 8033 | Soft prompt training, model fine-tuning |
-| device-intelligence-service | 8028 | 6,000+ device capability mapping (ML models) |
-| nlp-fine-tuning | (offline) | NLP model fine-tuning |
-| model-prep | (one-shot) | HuggingFace model download/cache |
+| device-intelligence-service | 8028 | Device capability mapping (ML models) |
+| model-prep | (one-shot) | HuggingFace model download/cache -- **`profiles: [development]`** only |
 
 **Compose file:** `domains/ml-engine/compose.yml`
 **Env file:** `domains/ml-engine/compose.env.example`
@@ -202,14 +215,14 @@ openai-service (LLM)
 
 **Deploy commands:**
 ```bash
-# Start ML engine
-docker compose -f domains/ml-engine/compose.yml up -d
+# Start ML engine (production runtime services)
+docker compose -f domains/ml-engine/compose.yml --profile production up -d
 
-# Pre-download models first (recommended on first deploy)
-docker compose -f domains/ml-engine/compose.yml run model-prep
+# Pre-download models first (recommended on first deploy; development profile)
+docker compose -f domains/ml-engine/compose.yml --profile development run --rm model-prep
 
 # Rebuild after model library upgrade
-docker compose -f domains/ml-engine/compose.yml up -d --build openvino-service ml-service
+docker compose -f domains/ml-engine/compose.yml --profile production up -d --build openvino-service ml-service
 
 # Health checks
 curl http://localhost:8018/health   # ai-core-service
@@ -369,22 +382,19 @@ curl http://localhost:8041/health   # api-automation-edge
 
 ---
 
-## Domain 9: frontends (5 services)
+## Domain 9: frontends (4 services in this compose file)
 
-**Purpose:** User-facing UIs and observability tooling. Fast iteration, independent build pipelines (Node/React vs Python).
+**Purpose:** Observability UI, AI automation UI, and voice gateway. **health-dashboard** (:3000) is **not** in this file — it is deployed from **core-platform** (`domains/core-platform/compose.yml`).
 
 | Service | Port | Role |
 |---------|------|------|
-| ai-automation-ui | 3001 | AI automation web UI (React) |
-| observability-dashboard | 8501 | Monitoring dashboard (Streamlit) |
-| health-dashboard | 3000 | Primary system monitoring UI (React/Vite) |
 | jaeger | 16686 | Distributed tracing UI |
+| observability-dashboard | 8501 | Monitoring dashboard (Streamlit) |
+| ai-automation-ui | 3001 | AI automation web UI (React) |
 | voice-gateway | 8047 | Voice input/output gateway (STT/TTS) |
 
 **Compose file:** `domains/frontends/compose.yml`
 **Depends on:** Domain 1 (admin-api, data-api), Domain 4 (automation endpoints)
-
-**Note:** `health-dashboard` is developed with frontends but deployed with core-platform (Domain 1) for availability. It also appears in `domains/core-platform/compose.yml`.
 
 **Deploy commands:**
 ```bash
@@ -484,31 +494,33 @@ All cross-group HTTP calls use `libs/homeiq-resilience/CrossGroupClient` with ci
 
 ### Common deployment profiles:
 
+**Prefer:** `./scripts/start-stack.sh` or `.\scripts\start-stack.ps1` (ordered domains + `--profile production`). See [Deployment Quick Reference](../deployment/DEPLOYMENT_QUICK_REFERENCE.md).
+
 ```bash
-# Full stack (all groups)
-docker compose up -d
+# Full stack (all groups) — same as start-stack, merged project name "homeiq"
+docker compose --profile production up -d
 
-# Core only (minimal system -- data pipeline + dashboard)
-docker compose -f domains/core-platform/compose.yml up -d
+# Core only (data pipeline + dashboard + monitoring)
+docker compose -f domains/core-platform/compose.yml --profile production up -d
 
-# Core + collectors (data pipeline with enrichment)
-docker compose -f domains/core-platform/compose.yml -f domains/data-collectors/compose.yml up -d
+# Core + collectors (include profile-gated collectors)
+docker compose -f domains/core-platform/compose.yml -f domains/data-collectors/compose.yml --profile production up -d
 
 # Core + ML + automation (AI features without device management)
-docker compose -f domains/core-platform/compose.yml -f domains/ml-engine/compose.yml -f domains/automation-core/compose.yml up -d
+docker compose -f domains/core-platform/compose.yml -f domains/ml-engine/compose.yml -f domains/automation-core/compose.yml --profile production up -d
 
 # Core + devices (device management without AI)
-docker compose -f domains/core-platform/compose.yml -f domains/device-management/compose.yml up -d
+docker compose -f domains/core-platform/compose.yml -f domains/device-management/compose.yml --profile production up -d
 
 # Core + all backends (everything except frontends)
 docker compose -f domains/core-platform/compose.yml -f domains/data-collectors/compose.yml \
-  -f domains/ml-engine/compose.yml -f domains/automation-core/compose.yml -f domains/device-management/compose.yml up -d
+  -f domains/ml-engine/compose.yml -f domains/automation-core/compose.yml -f domains/device-management/compose.yml --profile production up -d
 ```
 
 ### Startup order (recommended):
 
 ```
-1. core-platform      (must be first -- provides InfluxDB, data-api)
+1. core-platform      (must be first -- provides InfluxDB, PostgreSQL, data-api)
 2. data-collectors    (can start in parallel with 3, 7, 8)
 3. ml-engine          (can start in parallel with 2, 7, 8)
 4. device-management  (can start in parallel with 2, 3)

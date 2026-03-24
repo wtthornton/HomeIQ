@@ -8,6 +8,8 @@ import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
+from .dependencies import chat_dependencies_ready
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
@@ -49,6 +51,18 @@ async def health_check() -> dict:
             result["dependencies"]["openai"] = {"status": "configured"}
         else:
             result["dependencies"]["openai"] = {"status": "not-configured"}
+
+        # Chat/conversation APIs require full startup (set_services), not only group_health
+        if not chat_dependencies_ready():
+            result["dependencies"]["chat_api"] = {
+                "status": "not-initialized",
+                "hint": (
+                    "Startup did not finish wiring chat services. "
+                    "Set OPENAI_API_KEY (and other LLM env vars) or check container logs for errors."
+                ),
+            }
+            result["status"] = "unhealthy"
+            return JSONResponse(content=result, status_code=503)
 
         status_code = 503 if result["status"] == "unhealthy" else 200
         return JSONResponse(content=result, status_code=status_code)
