@@ -1,18 +1,6 @@
 name: Docker Build and Test
 
 on:
-  push:
-    branches: [ master, main, develop ]
-    paths:
-      - 'domains/**'
-      - 'docker-compose.yml'
-      - '.github/workflows/docker-build.yml'
-  pull_request:
-    branches: [ master, main, develop ]
-    paths:
-      - 'domains/**'
-      - 'docker-compose.yml'
-      - '.github/workflows/docker-build.yml'
   workflow_dispatch:
 
 env:

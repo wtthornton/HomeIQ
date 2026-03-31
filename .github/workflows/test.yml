@@ -6,15 +6,7 @@ name: E2E & Integration Tests
 # The monolithic python-tests matrix was removed on 2026-02-25 (CI/CD Phase 3, step 3.7).
 
 on:
-  pull_request:
-    branches:
-      - main
-      - master
-  push:
-    branches:
-      - main
-      - master
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:
 
 env:
   PYTHON_VERSION: '3.11'

@@ -1,19 +1,6 @@
 name: Docker Security Scan
 
 on:
-  push:
-    branches: [ main, master, develop ]
-    paths:
-      - 'domains/**/Dockerfile'
-      - '.github/workflows/docker-security-scan.yml'
-  pull_request:
-    branches: [ main, master, develop ]
-    paths:
-      - 'domains/**/Dockerfile'
-      - '.github/workflows/docker-security-scan.yml'
-  schedule:
-    # Run weekly security scan
-    - cron: '0 0 * * 0'
   workflow_dispatch:
 
 jobs:

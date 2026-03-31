@@ -1,32 +1,6 @@
 name: "CI — ML Engine"
 
 on:
-  push:
-    paths:
-      - 'domains/ml-engine/openvino-service/**'
-      - 'domains/ml-engine/ml-service/**'
-      - 'domains/ml-engine/ai-core-service/**'
-      - 'domains/ml-engine/ai-training-service/**'
-      - 'domains/ml-engine/device-intelligence-service/**'
-      - 'domains/ml-engine/rag-service/**'
-      - 'domains/ml-engine/model-prep/**'
-      - 'domains/ml-engine/compose.yml'
-      - 'libs/**'
-      - '.github/workflows/ci-ml.yml'
-      - '.github/workflows/reusable-group-ci.yml'
-  pull_request:
-    paths:
-      - 'domains/ml-engine/openvino-service/**'
-      - 'domains/ml-engine/ml-service/**'
-      - 'domains/ml-engine/ai-core-service/**'
-      - 'domains/ml-engine/ai-training-service/**'
-      - 'domains/ml-engine/device-intelligence-service/**'
-      - 'domains/ml-engine/rag-service/**'
-      - 'domains/ml-engine/model-prep/**'
-      - 'domains/ml-engine/compose.yml'
-      - 'libs/**'
-      - '.github/workflows/ci-ml.yml'
-      - '.github/workflows/reusable-group-ci.yml'
   workflow_dispatch: {}
 
 permissions:

@@ -3,12 +3,7 @@
 name: CodeQL Analysis
 
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
-  schedule:
-    - cron: "30 6 * * 1"  # Monday 6:30 UTC
+  workflow_dispatch:
 
 permissions:
   security-events: write

@@ -1,34 +1,6 @@
 name: "CI — Device Management"
 
 on:
-  push:
-    paths:
-      - 'domains/device-management/device-health-monitor/**'
-      - 'domains/device-management/device-context-classifier/**'
-      - 'domains/device-management/device-setup-assistant/**'
-      - 'domains/device-management/device-database-client/**'
-      - 'domains/device-management/device-recommender/**'
-      - 'domains/device-management/activity-recognition/**'
-      - 'domains/device-management/activity-writer/**'
-      - 'domains/device-management/ha-setup-service/**'
-      - 'domains/device-management/compose.yml'
-      - 'libs/**'
-      - '.github/workflows/ci-devices.yml'
-      - '.github/workflows/reusable-group-ci.yml'
-  pull_request:
-    paths:
-      - 'domains/device-management/device-health-monitor/**'
-      - 'domains/device-management/device-context-classifier/**'
-      - 'domains/device-management/device-setup-assistant/**'
-      - 'domains/device-management/device-database-client/**'
-      - 'domains/device-management/device-recommender/**'
-      - 'domains/device-management/activity-recognition/**'
-      - 'domains/device-management/activity-writer/**'
-      - 'domains/device-management/ha-setup-service/**'
-      - 'domains/device-management/compose.yml'
-      - 'libs/**'
-      - '.github/workflows/ci-devices.yml'
-      - '.github/workflows/reusable-group-ci.yml'
   workflow_dispatch: {}
 
 permissions:

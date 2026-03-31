@@ -3,9 +3,6 @@
 name: TappsMCP Quality Gate
 
 on:
-  pull_request:
-    paths:
-      - "**.py"
   workflow_dispatch:
     inputs:
       preset:

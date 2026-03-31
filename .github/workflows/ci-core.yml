@@ -1,28 +1,7 @@
 name: "CI — Core Platform"
 
+# Manual only — see workflows/README.md (was: push/PR + libs/** fan-out).
 on:
-  push:
-    paths:
-      - 'domains/core-platform/websocket-ingestion/**'
-      - 'domains/core-platform/data-api/**'
-      - 'domains/core-platform/admin-api/**'
-      - 'domains/core-platform/health-dashboard/**'
-      - 'domains/core-platform/data-retention/**'
-      - 'domains/core-platform/compose.yml'
-      - 'libs/**'
-      - '.github/workflows/ci-core.yml'
-      - '.github/workflows/reusable-group-ci.yml'
-  pull_request:
-    paths:
-      - 'domains/core-platform/websocket-ingestion/**'
-      - 'domains/core-platform/data-api/**'
-      - 'domains/core-platform/admin-api/**'
-      - 'domains/core-platform/health-dashboard/**'
-      - 'domains/core-platform/data-retention/**'
-      - 'domains/core-platform/compose.yml'
-      - 'libs/**'
-      - '.github/workflows/ci-core.yml'
-      - '.github/workflows/reusable-group-ci.yml'
   workflow_dispatch: {}
 
 permissions:

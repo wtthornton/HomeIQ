@@ -1,11 +1,7 @@
 name: Update Documentation on Merge to Master
 
 on:
-  push:
-    branches:
-      - master
-      - main
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:
 
 env:
   PYTHON_VERSION: '3.10'
@@ -15,9 +11,7 @@ jobs:
     name: Update Documentation
     runs-on: ubuntu-latest
     
-    # Run on push to master/main (will check for merge commits in the script)
-    # Skip if this is a documentation-only commit to avoid loops
-    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')
+    if: github.event_name == 'workflow_dispatch'
     
     permissions:
       contents: write  # Required to commit changes

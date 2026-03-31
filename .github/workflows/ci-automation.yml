@@ -1,32 +1,6 @@
 name: "CI — Automation Core"
 
 on:
-  push:
-    paths:
-      - 'domains/automation-core/ha-ai-agent-service/**'
-      - 'domains/automation-core/ai-automation-service-new/**'
-      - 'domains/automation-core/ai-query-service/**'
-      - 'domains/automation-core/automation-linter/**'
-      - 'domains/automation-core/yaml-validation-service/**'
-      - 'domains/automation-core/ai-code-executor/**'
-      - 'domains/automation-core/automation-trace-service/**'
-      - 'domains/automation-core/compose.yml'
-      - 'libs/**'
-      - '.github/workflows/ci-automation.yml'
-      - '.github/workflows/reusable-group-ci.yml'
-  pull_request:
-    paths:
-      - 'domains/automation-core/ha-ai-agent-service/**'
-      - 'domains/automation-core/ai-automation-service-new/**'
-      - 'domains/automation-core/ai-query-service/**'
-      - 'domains/automation-core/automation-linter/**'
-      - 'domains/automation-core/yaml-validation-service/**'
-      - 'domains/automation-core/ai-code-executor/**'
-      - 'domains/automation-core/automation-trace-service/**'
-      - 'domains/automation-core/compose.yml'
-      - 'libs/**'
-      - '.github/workflows/ci-automation.yml'
-      - '.github/workflows/reusable-group-ci.yml'
   workflow_dispatch: {}
 
 permissions:

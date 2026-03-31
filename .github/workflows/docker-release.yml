@@ -1,9 +1,6 @@
 name: Docker Release to GitHub Container Registry
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'  # Semantic version tags (e.g., v1.2.3)
   workflow_dispatch:
     inputs:
       version:

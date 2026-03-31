@@ -1,22 +1,6 @@
 name: "CI — Frontends"
 
 on:
-  push:
-    paths:
-      - 'domains/frontends/observability-dashboard/**'
-      - 'domains/frontends/ai-automation-ui/**'
-      - 'domains/frontends/compose.yml'
-      - 'libs/**'
-      - '.github/workflows/ci-frontends.yml'
-      - '.github/workflows/reusable-group-ci.yml'
-  pull_request:
-    paths:
-      - 'domains/frontends/observability-dashboard/**'
-      - 'domains/frontends/ai-automation-ui/**'
-      - 'domains/frontends/compose.yml'
-      - 'libs/**'
-      - '.github/workflows/ci-frontends.yml'
-      - '.github/workflows/reusable-group-ci.yml'
   workflow_dispatch: {}
 
 permissions:

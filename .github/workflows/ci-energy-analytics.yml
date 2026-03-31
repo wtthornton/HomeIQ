@@ -1,24 +1,6 @@
 name: "CI — Energy Analytics"
 
 on:
-  push:
-    paths:
-      - 'domains/energy-analytics/energy-correlator/**'
-      - 'domains/energy-analytics/energy-forecasting/**'
-      - 'domains/energy-analytics/proactive-agent-service/**'
-      - 'domains/energy-analytics/compose.yml'
-      - 'libs/**'
-      - '.github/workflows/ci-energy-analytics.yml'
-      - '.github/workflows/reusable-group-ci.yml'
-  pull_request:
-    paths:
-      - 'domains/energy-analytics/energy-correlator/**'
-      - 'domains/energy-analytics/energy-forecasting/**'
-      - 'domains/energy-analytics/proactive-agent-service/**'
-      - 'domains/energy-analytics/compose.yml'
-      - 'libs/**'
-      - '.github/workflows/ci-energy-analytics.yml'
-      - '.github/workflows/reusable-group-ci.yml'
   workflow_dispatch: {}
 
 permissions:

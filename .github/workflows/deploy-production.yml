@@ -1,14 +1,6 @@
 name: Deploy to Production
 
 on:
-  push:
-    branches: [ main, master ]
-    paths:
-      - 'domains/**'
-      - 'docker-compose.yml'
-      - '.github/workflows/deploy-production.yml'
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       skip_tests:

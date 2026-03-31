@@ -4,21 +4,6 @@ name: "Embedding Regression Tests"
 # This workflow validates embedding consistency across sentence-transformers versions.
 
 on:
-  push:
-    paths:
-      - 'tests/ml/**'
-      - 'scripts/generate_reference_embeddings.py'
-      - 'domains/ml-engine/openvino-service/requirements.txt'
-      - 'libs/homeiq-memory/pyproject.toml'
-      - '.github/workflows/embedding-regression.yml'
-  pull_request:
-    paths:
-      - 'tests/ml/**'
-      - 'scripts/generate_reference_embeddings.py'
-      - 'domains/ml-engine/openvino-service/**'
-      - 'domains/ml-engine/model-prep/**'
-      - 'libs/homeiq-memory/**'
-      - '.github/workflows/embedding-regression.yml'
   workflow_dispatch:
     inputs:
       run_full_tests:

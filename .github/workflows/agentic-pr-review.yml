@@ -4,8 +4,7 @@
 name: Agentic PR Quality Review
 
 on:
-  pull_request:
-    types: [opened, synchronize]
+  workflow_dispatch:
 
 permissions:
   contents: read

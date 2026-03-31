@@ -1,34 +1,6 @@
 name: "CI — Data Collectors"
 
 on:
-  push:
-    paths:
-      - 'domains/data-collectors/weather-api/**'
-      - 'domains/data-collectors/smart-meter-service/**'
-      - 'domains/data-collectors/sports-api/**'
-      - 'domains/data-collectors/air-quality-service/**'
-      - 'domains/data-collectors/carbon-intensity-service/**'
-      - 'domains/data-collectors/electricity-pricing-service/**'
-      - 'domains/data-collectors/calendar-service/**'
-      - 'domains/data-collectors/log-aggregator/**'
-      - 'domains/data-collectors/compose.yml'
-      - 'libs/**'
-      - '.github/workflows/ci-collectors.yml'
-      - '.github/workflows/reusable-group-ci.yml'
-  pull_request:
-    paths:
-      - 'domains/data-collectors/weather-api/**'
-      - 'domains/data-collectors/smart-meter-service/**'
-      - 'domains/data-collectors/sports-api/**'
-      - 'domains/data-collectors/air-quality-service/**'
-      - 'domains/data-collectors/carbon-intensity-service/**'
-      - 'domains/data-collectors/electricity-pricing-service/**'
-      - 'domains/data-collectors/calendar-service/**'
-      - 'domains/data-collectors/log-aggregator/**'
-      - 'domains/data-collectors/compose.yml'
-      - 'libs/**'
-      - '.github/workflows/ci-collectors.yml'
-      - '.github/workflows/reusable-group-ci.yml'
   workflow_dispatch: {}
 
 permissions:
