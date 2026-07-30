@@ -109,9 +109,9 @@
     "ask": [],
     "defaultMode": "bypassPermissions",
     "additionalDirectories": [
-      "c:\\cursor\\HomeIQ",
-      "C:\\cursor\\HomeIQ\\.git\\hooks",
-      "c:\\cursor\\HomeIQ\\shared"
+      "/home/wtthornton/code/HomeIQ",
+      "/home/wtthornton/code/HomeIQ/.git/hooks",
+      "/home/wtthornton/code/HomeIQ/libs"
     ]
   }
 }

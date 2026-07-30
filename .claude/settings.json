@@ -4,7 +4,23 @@
       "Bash(egrep:*)",
       "mcp__tapps-mcp__*",
       "mcp__tapps-mcp",
-      "mcp__playwright__*"
+      "mcp__playwright__*",
+      "mcp__nlt-build",
+      "mcp__nlt-build__*",
+      "mcp__nlt-memory",
+      "mcp__nlt-memory__*",
+      "mcp__nlt-setup",
+      "mcp__nlt-setup__*",
+      "mcp__nlt-code-quality",
+      "mcp__nlt-code-quality__*",
+      "mcp__nlt-platform-admin",
+      "mcp__nlt-platform-admin__*",
+      "mcp__nlt-linear-issues",
+      "mcp__nlt-linear-issues__*",
+      "mcp__nlt-project-docs",
+      "mcp__nlt-project-docs__*",
+      "mcp__nlt-release-ship",
+      "mcp__nlt-release-ship__*"
     ],
     "deny": [
       "Bash(rm -rf *)",
@@ -21,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-session-start.ps1"
+            "command": ".claude/hooks/tapps-session-start.sh"
           }
         ]
       },
@@ -30,38 +46,95 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-session-compact.ps1"
+            "command": ".claude/hooks/tapps-session-compact.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/tapps-memory-auto-recall.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/tapps-memory-auto-recall.sh"
           }
         ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "Edit|Write|MultiEdit",
+        "if": "Edit(**/*.py) | Write(**/*.py) | MultiEdit(**/*.py)",
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-post-edit.ps1"
+            "command": ".claude/hooks/tapps-post-edit.sh"
           }
         ]
       },
       {
-        "matcher": "mcp__tapps-mcp__tapps_validate_changed",
+        "matcher": "mcp__nlt-build__tapps_validate_changed",
+        "if": "mcp__nlt-build__tapps_validate_changed",
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-post-validate.ps1",
+            "command": ".claude/hooks/tapps-post-validate.sh",
             "timeout": 10
           }
         ]
       },
       {
-        "matcher": "mcp__tapps-mcp__tapps_report",
+        "matcher": "mcp__nlt-build__tapps_report",
+        "if": "mcp__nlt-build__tapps_report",
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-post-report.ps1",
+            "command": ".claude/hooks/tapps-post-report.sh",
             "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__nlt-linear-issues__docs_validate_linear_issue",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/tapps-post-docs-validate.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__nlt-linear-issues__tapps_linear_snapshot_get",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/tapps-post-linear-snapshot-get.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__plugin_linear_linear__list_issues",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/tapps-post-linear-list.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__.*__tapps_session_start",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/tapps-post-session-start.sh"
           }
         ]
       }
@@ -71,7 +144,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-stop.ps1"
+            "command": ".claude/hooks/tapps-stop.sh"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/tapps-memory-auto-capture.sh"
           }
         ]
       }
@@ -81,7 +162,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-task-completed.ps1"
+            "command": ".claude/hooks/tapps-task-completed.sh"
           }
         ]
       }
@@ -91,7 +172,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-pre-compact.ps1"
+            "command": ".claude/hooks/tapps-pre-compact.sh"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/tapps-memory-auto-recall.sh"
           }
         ]
       }
@@ -101,7 +190,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-subagent-start.ps1"
+            "command": ".claude/hooks/tapps-subagent-start.sh"
           }
         ]
       }
@@ -111,7 +200,46 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/tapps-subagent-stop.ps1"
+            "command": ".claude/hooks/tapps-subagent-stop.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/tapps-user-prompt-submit.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "mcp__plugin_linear_linear__save_issue",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/tapps-pre-linear-write.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__plugin_linear_linear__list_issues",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/tapps-pre-linear-list.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__(nlt-build|nlt-memory|nlt-setup|nlt-code-quality|nlt-platform-admin|tapps-mcp)__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/tapps-pre-session-start-gate.sh"
           }
         ]
       }

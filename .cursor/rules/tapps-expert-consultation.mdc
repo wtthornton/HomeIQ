@@ -1,30 +1,23 @@
 ---
 description: >-
-  TappsMCP domain expert consultation — use when needing
-  guidance on security, performance, architecture, testing,
-  or other domain-specific best practices.
+  TappsMCP library documentation lookup - use when needing
+  documentation, API references, or usage examples for
+  external libraries and frameworks.
 ---
 
-# Expert Consultation
+# Library Documentation Lookup
 
-Call `tapps_consult_expert(question)` for domain guidance.
-
-## Available Expert Domains
-
-- security, performance, architecture, testing
-- documentation, accessibility, devops, database
-- api, frontend, backend, data-science
-- ml, cloud, mobile, embedded
+Call `tapps_lookup_docs(library, topic)` to look up library documentation.
 
 ## Usage
 
-Provide a clear question and optionally specify the domain:
+Provide the library name and an optional topic:
 
 ```
-tapps_consult_expert(
-    question="How should I handle auth tokens?",
-    domain="security"
+tapps_lookup_docs(
+    library="httpx",
+    topic="async client"
 )
 ```
 
-Returns RAG-backed expert guidance with confidence scores.
+Returns documentation excerpts and API references for the specified library.

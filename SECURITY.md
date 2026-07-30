@@ -1,4 +1,4 @@
-<!-- tapps-generated: v1.10.0 -->
+<!-- tapps-generated: v3.12.52 -->
 # Security Policy
 
 ## Supported Versions
@@ -36,7 +36,6 @@ This project uses automated security scanning:
 - **Secret scanning** — detection of hardcoded API keys, tokens, and passwords
 - **pip-audit** — dependency vulnerability scanning against the PyPI advisory database
 - **CodeQL** — GitHub's semantic code analysis engine
-- **Dependabot** — automated dependency updates with grouped security patches
 
 ## Scope
 

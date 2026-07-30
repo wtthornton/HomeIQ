@@ -6,7 +6,7 @@ analysis. The following standards are enforced during PR review.
 ## Code Quality Standards
 
 All Python files must meet TappsMCP scoring thresholds:
-- Overall score: >= 70 (development), >= 80 (staging), >= 90 (production)
+- Overall score: >= 70 (standard), >= 80 (strict), >= 75 (framework)
 - No individual category score below 50
 
 ### Scoring Categories
@@ -54,3 +54,10 @@ Flag the following as non-blocking warnings:
 This `BUGBOT.md` applies to all files in `.cursor/` and subdirectories.
 Place a subdirectory `BUGBOT.md` to override these rules for specific
 sub-packages with different thresholds.
+
+## Cross-Project Write Boundary
+
+BugBot must not file issues, leave comments, or trigger automation in any
+project other than the one this PR belongs to. Reads across projects are
+fine. If a finding implies a change in another repo or tracker project,
+flag it in this PR's review instead of acting on it directly.

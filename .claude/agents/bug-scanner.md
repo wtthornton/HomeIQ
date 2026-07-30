@@ -3,7 +3,7 @@ name: bug-scanner
 description: >-
   Finds real bugs in Python codebases for the auto-bugfix pipeline.
   Use proactively when asked to audit, scan, or find bugs in the HomeIQ project.
-tools: Read, Grep, Glob, mcp__tapps-mcp__tapps_security_scan, mcp__tapps-mcp__tapps_quick_check
+tools: Read, Grep, Glob, mcp__nlt-build__tapps_security_scan, mcp__nlt-build__tapps_quick_check
 model: haiku
 maxTurns: 20
 permissionMode: default

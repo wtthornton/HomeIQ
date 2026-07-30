@@ -254,6 +254,15 @@ phase2_results_*.json
 .tapps-mcp/tool-versions.json
 .tapps-mcp/memory/*.db-shm
 .tapps-mcp/memory/*.db-wal
+.tapps-mcp/call-graph-index.json
+.tapps-mcp/loop-metrics.jsonl
+.tapps-mcp/.brain-tools-list.full.json
+.tapps-mcp/.context7-probe-marker
+.tapps-mcp/.tapps-session-id
+.tapps-mcp/.session-start-*
+.tapps-mcp/.linear-validate-sentinel
+.tapps-mcp/.linear-snapshot-sentinel-*
+.tapps-mcp/*.jsonl
 
 # ML model binaries (regenerated at deploy time)
 *.pkl

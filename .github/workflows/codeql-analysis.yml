@@ -3,6 +3,8 @@
 name: CodeQL Analysis
 
 on:
+  pull_request:
+    branches: [main, master]
   workflow_dispatch:
 
 permissions:
@@ -17,7 +19,7 @@ jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -31,7 +33,7 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-          queries: +security-extended
+          queries: security-and-quality
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3

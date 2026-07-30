@@ -5,7 +5,8 @@ model: claude-haiku-4-5-20251001
 description: >-
   Look up when to use each TappsMCP tool. Full tool reference with per-tool
   guidance for session start, scoring, validation, checklist, docs, experts, and more.
-allowed-tools: mcp__tapps-mcp__tapps_server_info
+  Use when you need guidance on which TappsMCP tool to call for a given situation.
+allowed-tools: mcp__nlt-setup__tapps_server_info
 argument-hint: "[tool-name or 'all']"
 ---
 
@@ -32,23 +33,25 @@ provide the full tool reference from this skill.
 | Tool | When to use it |
 |------|----------------|
 | **tapps_lookup_docs** | Before writing code using an external library |
-| **tapps_consult_expert** | Domain-specific decisions (security, testing, APIs, etc.) |
-| **tapps_research** | Combined expert + docs in one call |
-| **tapps_list_experts** | See which expert domains exist |
 
 ## Project & memory
-| Tool | When to use it |
+| Tool / path | When to use it |
 |------|----------------|
-| **tapps_project_profile** | When you need project context (tech stack, type) |
-| **tapps_memory** | Session start: search past decisions. Session end: save learnings |
-| **tapps_session_notes** | Key decisions during session - promote to memory for persistence |
+| **`tapps-mcp memory` CLI** | Save/search/get architectural or pattern decisions (`memory save`, `search`, `get`) |
+| **tapps_session_notes** | Session-local notes during the chat |
+| **tapps-handoff-session / tapps-continue-session** | Cross-chat transfer via `.tapps-mcp/session-handoff.md` |
+| **tapps_session_start** | `brain_bridge_health` before memory writes; hooks auto-recall |
 
 ## Validation & analysis
 | Tool | When to use it |
 |------|----------------|
 | **tapps_security_scan** | Security-sensitive changes or before security review |
 | **tapps_validate_config** | When adding/changing Dockerfile, docker-compose, infra |
-| **tapps_impact_analysis** | Before modifying a file's public API |
+| **tapps_impact_analysis** | Module-level import blast radius before API or layout changes |
+| **tapps_call_graph** | Before editing a function — `query=callers|callees|chain|all`; stale cache auto-rebuilds on first use |
+| **tapps_impact_analysis** | Module blast radius, or symbol-level with `symbol=` + `granularity=symbol|both` |
+| **tapps_diff_impact** | After Python edits — ranked affected tests for changed files |
+| **tapps_validate_changed** | `include_impact=true` (default) refreshes cache via diff_impact |
 | **tapps_dead_code** | Find unused code during refactoring |
 | **tapps_dependency_scan** | Check for CVEs before releases |
 | **tapps_dependency_graph** | Understand module dependencies, circular imports |
@@ -56,9 +59,19 @@ provide the full tool reference from this skill.
 ## Pipeline & init
 | Tool | When to use it |
 |------|----------------|
-| **tapps_init** | Pipeline bootstrap (once per project) - creates AGENTS.md, rules, hooks. **CLI fallback:** `tapps-mcp upgrade --force --host auto` then `tapps-mcp doctor` |
+| **tapps_init** | Pipeline bootstrap (once per project) - creates AGENTS.md, rules, hooks, MCP config (default). **CLI fallback:** `tapps-mcp upgrade --force --host auto` then `tapps-mcp doctor` |
 | **tapps_upgrade** | After TappsMCP version update - refreshes generated files |
 | **tapps_doctor** | Diagnose configuration issues |
 | **tapps_set_engagement_level** | Change enforcement intensity (high/medium/low) |
 
-Use `tapps_server_info` for the latest recommended workflow string.
+## Planning, metrics & audit
+| Tool | When to use it |
+|------|----------------|
+| **tapps_decompose** | Break a vague task into ordered, verifiable TAPPS tool-call steps before starting |
+| **tapps_pipeline** | Show TAPPS pipeline stage progress and the next recommended tool call |
+| **tapps_audit_campaign** | Plan, dispatch, or convert a file-scope audit campaign to a fix plan |
+| **tapps_usage** | Session gap report: tools called vs pipeline expectations (edits without validation, libraries used without lookup_docs) |
+| **tapps_dashboard** | Metrics dashboard: usage, gate pass rate, and trends |
+| **tapps_stats** | Per-tool usage statistics: call counts, success rates, latency percentiles |
+
+For function-level refactors use `/tapps-refactor`. Call `tapps_server_info` for the latest recommended workflow string.

@@ -2,7 +2,8 @@
 name: tapps-engagement
 description: >-
   Change the TappsMCP enforcement intensity (high, medium, or low).
-  Controls which quality tools are mandatory vs optional.
+  Controls which quality tools are mandatory vs optional. Use when you want
+  to switch between strict, balanced, or advisory enforcement modes.
 mcp_tools:
   - tapps_set_engagement_level
 ---

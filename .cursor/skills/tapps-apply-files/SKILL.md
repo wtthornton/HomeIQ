@@ -1,8 +1,9 @@
 ---
 name: tapps-apply-files
 description: >-
-  Apply file operations from a TappsMCP content-return response.
-  Used when the MCP server runs in Docker and cannot write files directly.
+  Apply file operations from a TappsMCP content-return response. Use when
+  a TappsMCP or DocsMCP tool returns content_return: true with a file_manifest
+  because the server runs in Docker and cannot write files directly.
 mcp_tools: []
 ---
 

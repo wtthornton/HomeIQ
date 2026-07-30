@@ -2,12 +2,27 @@
   "hooks": {
     "beforeMCPExecution": [
       {
-        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/tapps-before-mcp.ps1"
+        "command": ".cursor/hooks/tapps-before-mcp.sh"
       }
     ],
     "afterFileEdit": [
       {
-        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/tapps-after-edit.ps1"
+        "command": ".cursor/hooks/tapps-after-edit.sh"
+      }
+    ],
+    "stop": [
+      {
+        "command": ".cursor/hooks/tapps-stop.sh"
+      }
+    ],
+    "sessionStart": [
+      {
+        "command": ".cursor/hooks/tapps-memory-auto-recall.sh"
+      }
+    ],
+    "preCompact": [
+      {
+        "command": ".cursor/hooks/tapps-memory-auto-recall.sh"
       }
     ]
   },

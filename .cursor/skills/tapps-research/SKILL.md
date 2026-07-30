@@ -1,18 +1,17 @@
 ---
 name: tapps-research
 description: >-
-  Research a technical question using domain experts and library documentation.
-  Combines expert consultation with docs lookup for comprehensive answers.
+  Look up library documentation and research best practices
+  for the technologies used in this project. Use when writing code that uses
+  an external library or when you need API reference or version-specific guidance.
 mcp_tools:
-  - tapps_research
-  - tapps_consult_expert
   - tapps_lookup_docs
 ---
 
-Research a technical question using TappsMCP:
+Look up library documentation using TappsMCP:
 
-1. Call `tapps_research` with the question to get expert + docs in one call
-2. If confidence is below 0.7, call `tapps_lookup_docs` directly for the relevant library
-3. If the question spans multiple domains, call `tapps_consult_expert` per domain
-4. Synthesize findings into a clear, actionable answer
-5. Include confidence scores and suggest follow-up research if needed
+1. Call `tapps_lookup_docs` with the library name and topic
+2. If coverage is incomplete, call `tapps_lookup_docs` with a more specific topic
+3. Synthesize findings into a clear, actionable answer with code examples
+4. Include API signatures and usage patterns from the documentation
+5. Suggest follow-up lookups if additional coverage is needed
