@@ -1,16 +1,128 @@
 {
   "mcpServers": {
-    "tapps-mcp": {
+    "nlt-build": {
       "type": "stdio",
-      "command": "uv",
-      "args": ["--directory", "C:\\cursor\\TappMCP", "run", "--no-sync", "tapps-mcp", "serve"],
-      "env": { "TAPPS_MCP_PROJECT_ROOT": ".", "TAPPS_MCP_CONTEXT7_API_KEY": "ctx7sk-534b7c8b-6e58-4019-8206-a084b4939e1e" }
+      "command": "/home/wtthornton/.local/bin/tapps-mcp",
+      "args": [
+        "serve",
+        "--profile",
+        "nlt-build"
+      ],
+      "env": {
+        "TAPPS_MCP_PROJECT_ROOT": ".",
+        "TAPPS_MCP_CONTEXT7_API_KEY": "${TAPPS_MCP_CONTEXT7_API_KEY}",
+        "TAPPS_MCP_MEMORY_BRAIN_HTTP_URL": "http://localhost:8080",
+        "TAPPS_MCP_MEMORY_BRAIN_AUTH_TOKEN": "${TAPPS_BRAIN_AUTH_TOKEN}",
+        "TAPPS_BRAIN_PROFILE": "full",
+        "TAPPS_METRICS_STORAGE": "dual",
+        "TAPPS_MCP_MEMORY_BRAIN_PROJECT_ID": "homeiq"
+      },
+      "instructions": "Code quality scoring (0-100 across 7 categories), security scanning (Bandit + secret detection), quality gates (pass/fail against configurable presets), documentation lookup, domain expert consultation, and project profiling for Python projects."
     },
-    "docs-mcp": {
+    "nlt-memory": {
       "type": "stdio",
-      "command": "uv",
-      "args": ["--directory", "C:\\cursor\\TappMCP", "run", "--no-sync", "docsmcp", "serve"],
-      "env": { "DOCS_MCP_PROJECT_ROOT": "." }
+      "command": "/home/wtthornton/.local/bin/tapps-mcp",
+      "args": [
+        "serve",
+        "--profile",
+        "nlt-memory"
+      ],
+      "env": {
+        "TAPPS_MCP_PROJECT_ROOT": ".",
+        "TAPPS_MCP_MEMORY_BRAIN_HTTP_URL": "http://localhost:8080",
+        "TAPPS_MCP_MEMORY_BRAIN_AUTH_TOKEN": "${TAPPS_BRAIN_AUTH_TOKEN}",
+        "TAPPS_BRAIN_PROFILE": "full",
+        "TAPPS_METRICS_STORAGE": "dual",
+        "TAPPS_MCP_CONTEXT7_API_KEY": "${TAPPS_MCP_CONTEXT7_API_KEY}",
+        "TAPPS_MCP_MEMORY_BRAIN_PROJECT_ID": "homeiq"
+      },
+      "instructions": "Code quality scoring (0-100 across 7 categories), security scanning (Bandit + secret detection), quality gates (pass/fail against configurable presets), documentation lookup, domain expert consultation, and project profiling for Python projects."
+    },
+    "nlt-setup": {
+      "type": "stdio",
+      "command": "/home/wtthornton/.local/bin/tapps-mcp",
+      "args": [
+        "serve",
+        "--profile",
+        "nlt-setup"
+      ],
+      "env": {
+        "TAPPS_MCP_PROJECT_ROOT": ".",
+        "TAPPS_MCP_MEMORY_BRAIN_HTTP_URL": "http://localhost:8080",
+        "TAPPS_MCP_MEMORY_BRAIN_AUTH_TOKEN": "${TAPPS_BRAIN_AUTH_TOKEN}",
+        "TAPPS_BRAIN_PROFILE": "full",
+        "TAPPS_METRICS_STORAGE": "dual",
+        "TAPPS_MCP_CONTEXT7_API_KEY": "${TAPPS_MCP_CONTEXT7_API_KEY}",
+        "TAPPS_MCP_MEMORY_BRAIN_PROJECT_ID": "homeiq"
+      },
+      "instructions": "Code quality scoring (0-100 across 7 categories), security scanning (Bandit + secret detection), quality gates (pass/fail against configurable presets), documentation lookup, domain expert consultation, and project profiling for Python projects."
+    },
+    "nlt-linear-issues": {
+      "type": "stdio",
+      "command": "/home/wtthornton/.local/bin/tapps-platform",
+      "args": [
+        "serve",
+        "--profile",
+        "nlt-linear-issues"
+      ],
+      "env": {
+        "TAPPS_MCP_PROJECT_ROOT": ".",
+        "TAPPS_MCP_MEMORY_BRAIN_HTTP_URL": "http://localhost:8080",
+        "TAPPS_MCP_MEMORY_BRAIN_AUTH_TOKEN": "${TAPPS_BRAIN_AUTH_TOKEN}",
+        "TAPPS_BRAIN_PROFILE": "full",
+        "TAPPS_METRICS_STORAGE": "dual",
+        "TAPPS_MCP_CONTEXT7_API_KEY": "${TAPPS_MCP_CONTEXT7_API_KEY}",
+        "TAPPS_MCP_MEMORY_BRAIN_PROJECT_ID": "homeiq"
+      },
+      "instructions": "Code quality scoring (0-100 across 7 categories), security scanning (Bandit + secret detection), quality gates (pass/fail against configurable presets), documentation lookup, domain expert consultation, and project profiling for Python projects."
+    },
+    "nlt-project-docs": {
+      "type": "stdio",
+      "command": "/home/wtthornton/.local/bin/docsmcp",
+      "args": [
+        "serve",
+        "--profile",
+        "nlt-project-docs"
+      ],
+      "env": {
+        "DOCS_MCP_PROJECT_ROOT": ".",
+        "TAPPS_BRAIN_PROFILE": "agent_brain"
+      },
+      "instructions": "Documentation MCP: epic/story/prompt generators, artifact validation, and planning helpers for Markdown docs in this repo."
+    },
+    "nlt-release-ship": {
+      "type": "stdio",
+      "command": "/home/wtthornton/.local/bin/tapps-platform",
+      "args": [
+        "serve",
+        "--profile",
+        "nlt-release-ship"
+      ],
+      "env": {
+        "TAPPS_MCP_PROJECT_ROOT": ".",
+        "TAPPS_MCP_MEMORY_BRAIN_HTTP_URL": "http://localhost:8080",
+        "TAPPS_MCP_MEMORY_BRAIN_AUTH_TOKEN": "${TAPPS_BRAIN_AUTH_TOKEN}",
+        "TAPPS_BRAIN_PROFILE": "full",
+        "TAPPS_METRICS_STORAGE": "dual",
+        "TAPPS_MCP_CONTEXT7_API_KEY": "${TAPPS_MCP_CONTEXT7_API_KEY}",
+        "TAPPS_MCP_MEMORY_BRAIN_PROJECT_ID": "homeiq"
+      },
+      "instructions": "Code quality scoring (0-100 across 7 categories), security scanning (Bandit + secret detection), quality gates (pass/fail against configurable presets), documentation lookup, domain expert consultation, and project profiling for Python projects."
+    },
+    "agentforge": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "/home/wtthornton/code/AgentForge/clients/agentforge-mcp",
+        "agentforge-mcp"
+      ],
+      "env": {
+        "AGENTFORGE_URL": "http://localhost:8010",
+        "AGENTFORGE_PROJECT_SLUG": "homeiq",
+        "AGENTFORGE_LOAD_DOTENV": "1",
+        "AGENTFORGE_MCP_PROFILE": "runtime"
+      }
     }
   }
 }
