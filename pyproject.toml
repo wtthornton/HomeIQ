@@ -15,6 +15,13 @@ members = [
     "libs/homeiq-memory",
 ]
 
+# Members that other members depend on must be resolved from the workspace
+# rather than PyPI. homeiq-data requires homeiq-resilience, and homeiq-memory
+# requires homeiq-data.
+[tool.uv.sources]
+homeiq-resilience = { workspace = true }
+homeiq-data = { workspace = true }
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
