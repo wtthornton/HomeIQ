@@ -89,7 +89,7 @@ class ClarificationService:
         Args:
             query: Natural language query.
             entities: Extracted entities from the entity-extraction step.
-            db: Database session (reserved for future persistence).
+            _db: Database session (reserved for future persistence; unused).
 
         Returns:
             Dictionary with ``needed``, ``session_id``, ``questions``,

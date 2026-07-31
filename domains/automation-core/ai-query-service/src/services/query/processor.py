@@ -93,7 +93,7 @@ class QueryProcessor:
                 clarification_result = await self.clarification_service.detect_clarification_needs(
                     query=query,
                     entities=entities,
-                    db=db
+                    _db=db
                 )
                 logger.info(f"🔍 Clarification check: needed={clarification_result.get('needed', False)}")
 
