@@ -216,6 +216,20 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
+def _evict_rate_limit_entry(key: str) -> None:
+    """Drop a bucket and its lock together.
+
+    The lock dict grows on the same path as the bucket dict, so evicting only
+    the bucket leaves the lock behind forever and the bucket cap stops bounding
+    memory. A lock that is currently held is left in place and collected on a
+    later pass, so an in-flight request keeps the object it is waiting on.
+    """
+    _rate_limit_buckets.pop(key, None)
+    lock = _rate_limit_locks.get(key)
+    if lock is not None and not lock.locked():
+        del _rate_limit_locks[key]
+
+
 async def start_rate_limit_cleanup():
     """Background task to clean up inactive rate limit buckets."""
     global _cleanup_task  # noqa: PLW0603
@@ -234,7 +248,7 @@ async def start_rate_limit_cleanup():
                 ]
 
                 for key in inactive_keys:
-                    del _rate_limit_buckets[key]
+                    _evict_rate_limit_entry(key)
 
                 if inactive_keys:
                     logger.debug(
@@ -248,11 +262,21 @@ async def start_rate_limit_cleanup():
                     )
                     to_remove = len(_rate_limit_buckets) - MAX_RATE_LIMIT_BUCKETS
                     for key, _ in sorted_buckets[:to_remove]:
-                        del _rate_limit_buckets[key]
+                        _evict_rate_limit_entry(key)
                     logger.warning(
                         "Rate limit bucket limit reached, removed %d oldest buckets",
                         to_remove,
                     )
+
+                # Locks can outlive their bucket when they were held during an
+                # eviction; drop any that no longer have one.
+                orphaned_locks = [
+                    key
+                    for key, lock in _rate_limit_locks.items()
+                    if key not in _rate_limit_buckets and not lock.locked()
+                ]
+                for key in orphaned_locks:
+                    del _rate_limit_locks[key]
 
             except Exception:
                 logger.exception("Error in rate limit cleanup")

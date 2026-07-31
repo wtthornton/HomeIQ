@@ -147,7 +147,13 @@ class EntityExtractor:
         except CircuitOpenError:
             logger.warning("AI FALLBACK: Data-api circuit open -- returning empty entities")
             return []
-        except (httpx.HTTPError, Exception) as e:
+        except (httpx.HTTPError, ValueError) as e:
+            # Transport failures and undecodable bodies are expected and
+            # degrade to no entities. ValueError covers json.JSONDecodeError.
+            # Anything else (AttributeError on an unexpected response shape,
+            # for example) is a real defect and must not be disguised as a
+            # data-api outage -- this was `except (httpx.HTTPError, Exception)`,
+            # which is just `except Exception` since HTTPError derives from it.
             logger.warning("Failed to fetch entities from data-api: %s", e)
             return []
 
