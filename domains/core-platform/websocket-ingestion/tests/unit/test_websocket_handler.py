@@ -31,27 +31,27 @@ class TestWebSocketConnection:
         mock_websocket.client = MagicMock()
         mock_websocket.client.host = "127.0.0.1"
         mock_websocket.accept = AsyncMock()
-        mock_websocket.receive_text = AsyncMock(return_value='{"type": "ping"}')
+        # Deliver one message then disconnect so the handler's receive loop
+        # terminates on its own. A wait_for timeout cannot end this loop: every
+        # await in it resolves immediately, so control never returns to the
+        # event loop and the timer never fires.
+        mock_websocket.receive_text = AsyncMock(
+            side_effect=['{"type": "ping"}', WebSocketDisconnect()]
+        )
         mock_websocket.send_json = AsyncMock()
-        
+
         # Mock rate limiter and validation functions
         with patch('src.api.routers.websocket.get_rate_limiter') as mock_rate_limiter, \
              patch('src.api.routers.websocket.validate_message_size', return_value=(True, None)), \
              patch('src.api.routers.websocket.validate_message_json', return_value=(True, {"type": "ping"}, None)):
-            
+
             mock_limiter = MagicMock()
             mock_limiter.check_rate_limit = MagicMock(return_value=(True, None))
             mock_limiter.reset = MagicMock()
             mock_rate_limiter.return_value = mock_limiter
-            
-            # Run handler (will loop until we break it)
-            try:
-                # Use asyncio.wait_for to prevent infinite loop
-                await asyncio.wait_for(websocket_endpoint(mock_websocket), timeout=0.1)
-            except TimeoutError:
-                # Expected - handler runs in loop
-                pass
-            
+
+            await websocket_endpoint(mock_websocket)
+
             # Verify connection was accepted
             assert mock_websocket.accept.called
 
@@ -115,32 +115,31 @@ class TestPingPongMessages:
         mock_websocket.client = MagicMock()
         mock_websocket.client.host = "127.0.0.1"
         mock_websocket.accept = AsyncMock()
-        mock_websocket.receive_text = AsyncMock(return_value='{"type": "ping"}')
+        mock_websocket.receive_text = AsyncMock(
+            side_effect=['{"type": "ping"}', WebSocketDisconnect()]
+        )
         mock_websocket.send_json = AsyncMock()
-        
+
         with patch('src.api.routers.websocket.get_rate_limiter') as mock_rate_limiter, \
              patch('src.api.routers.websocket.validate_message_size', return_value=(True, None)), \
              patch('src.api.routers.websocket.validate_message_json', return_value=(True, {"type": "ping"}, None)):
-            
+
             mock_limiter = MagicMock()
             mock_limiter.check_rate_limit = MagicMock(return_value=(True, None))
             mock_limiter.reset = MagicMock()
             mock_rate_limiter.return_value = mock_limiter
-            
-            try:
-                await asyncio.wait_for(websocket_endpoint(mock_websocket), timeout=0.1)
-            except TimeoutError:
-                pass
-            
-            # Verify pong was sent
-            assert mock_websocket.send_json.called
-            # Check that pong message was sent
-            call_args = mock_websocket.send_json.call_args_list
-            pong_sent = any(
-                call[0][0].get("type") == "pong" if call[0] else False
-                for call in call_args
-            )
-            assert pong_sent or len(call_args) > 0  # At least some message was sent
+
+            await websocket_endpoint(mock_websocket)
+
+            # A pong must actually be sent. The previous assertion was
+            # `pong_sent or len(call_args) > 0`, which any sent message
+            # satisfied — including the welcome frame — so it never tested pong.
+            sent_types = [
+                call.args[0].get("type")
+                for call in mock_websocket.send_json.call_args_list
+                if call.args
+            ]
+            assert "pong" in sent_types
 
     @pytest.mark.asyncio
     async def test_pong_contains_timestamp(self):
@@ -171,23 +170,25 @@ class TestSubscriptionMessages:
         mock_websocket.client = MagicMock()
         mock_websocket.client.host = "127.0.0.1"
         mock_websocket.accept = AsyncMock()
-        mock_websocket.receive_text = AsyncMock(return_value='{"type": "subscribe", "channels": ["events"]}')
+        mock_websocket.receive_text = AsyncMock(
+            side_effect=[
+                '{"type": "subscribe", "channels": ["events"]}',
+                WebSocketDisconnect(),
+            ]
+        )
         mock_websocket.send_json = AsyncMock()
-        
+
         with patch('src.api.routers.websocket.get_rate_limiter') as mock_rate_limiter, \
              patch('src.api.routers.websocket.validate_message_size', return_value=(True, None)), \
              patch('src.api.routers.websocket.validate_message_json', return_value=(True, {"type": "subscribe", "channels": ["events"]}, None)):
-            
+
             mock_limiter = MagicMock()
             mock_limiter.check_rate_limit = MagicMock(return_value=(True, None))
             mock_limiter.reset = MagicMock()
             mock_rate_limiter.return_value = mock_limiter
-            
-            try:
-                await asyncio.wait_for(websocket_endpoint(mock_websocket), timeout=0.1)
-            except TimeoutError:
-                pass
-            
+
+            await websocket_endpoint(mock_websocket)
+
             # Verify subscription message was sent
             assert mock_websocket.send_json.called
 

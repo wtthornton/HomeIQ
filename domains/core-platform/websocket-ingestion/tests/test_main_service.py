@@ -34,27 +34,42 @@ def mock_shared_modules():
 
 @pytest.fixture
 def mock_env_vars(monkeypatch):
-    """Set up mock environment variables"""
-    monkeypatch.setenv('HA_HTTP_URL', 'http://test:8123')
-    monkeypatch.setenv('HA_WS_URL', 'ws://test:8123/api/websocket')
-    monkeypatch.setenv('HA_TOKEN', 'test-token')
-    monkeypatch.setenv('ENABLE_HOME_ASSISTANT', 'false')  # Disable HA for unit tests
-    monkeypatch.setenv('INFLUXDB_URL', 'http://test-influxdb:8086')
-    monkeypatch.setenv('INFLUXDB_TOKEN', 'test-token')
-    monkeypatch.setenv('INFLUXDB_ORG', 'test-org')
-    monkeypatch.setenv('INFLUXDB_BUCKET', 'test-bucket')
-    monkeypatch.setenv('MAX_WORKERS', '5')
-    monkeypatch.setenv('PROCESSING_RATE_LIMIT', '500')
-    monkeypatch.setenv('BATCH_SIZE', '50')
-    monkeypatch.setenv('BATCH_TIMEOUT', '2.5')
-    monkeypatch.setenv('MAX_MEMORY_MB', '512')
+    """Point the service config at test values.
+
+    src.config builds its `settings` singleton at import time, so setting
+    environment variables here only takes effect if this module happens to be
+    the first to import it. Patch the singleton's attributes directly instead,
+    which holds regardless of collection order.
+    """
+    from pydantic import SecretStr
+    from src.config import settings
+
+    overrides = {
+        'ha_http_url': 'http://test:8123',
+        'ha_ws_url': 'ws://test:8123/api/websocket',
+        'ha_token': 'test-token',
+        'enable_home_assistant': False,  # Disable HA for unit tests
+        'influxdb_url': 'http://test-influxdb:8086',
+        # influxdb_token is a SecretStr on BaseServiceSettings; a bare str
+        # breaks callers that do .get_secret_value()
+        'influxdb_token': SecretStr('test-token'),
+        'influxdb_org': 'test-org',
+        'influxdb_bucket': 'test-bucket',
+        'max_workers': 5,
+        'processing_rate_limit': 500,
+        'batch_size': 50,
+        'batch_timeout': 2.5,
+        'max_memory_mb': 512,
+    }
+    for name, value in overrides.items():
+        monkeypatch.setattr(settings, name, value, raising=False)
 
 
 class TestWebSocketIngestionService:
     """Test WebSocketIngestionService class"""
 
     @pytest.fixture
-    def service(self, _mock_env_vars, _mock_shared_modules):
+    def service(self, mock_env_vars, mock_shared_modules):
         """Create service instance with mocked dependencies"""
         from src.main import WebSocketIngestionService
         
@@ -261,84 +276,35 @@ class TestWebSocketIngestionService:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_on_connect(self, service):
-        """Test on_connect handler"""
-        mock_manager = AsyncMock()
-        mock_manager._subscribe_to_events = AsyncMock()
-        mock_manager.discovery_service = Mock()
-        mock_manager.discovery_service.discover_all = AsyncMock()
-        mock_manager.client = Mock()
-        mock_manager.client.websocket = Mock()
-        mock_manager.client.is_connected = True
-        mock_manager.client.is_authenticated = True
-        
-        service.connection_manager = mock_manager
-        
-        await service._on_connect()
-        
-        # Verify subscription was called
-        mock_manager._subscribe_to_events.assert_called_once()
+    async def test_on_connect_logs_connection(self, service):
+        """The service on_connect callback reports the connection.
+
+        Event subscription and discovery are ConnectionManager's job (see
+        ConnectionManager._on_connect); this callback only reports. It is wired
+        as the external on_connect in _startup.py.
+        """
+        with patch('src._event_handlers.log_with_context') as mock_log:
+            await service._on_connect()
+
+        mock_log.assert_called_once()
+        args, kwargs = mock_log.call_args
+        assert args[1] == "INFO"
+        assert kwargs["operation"] == "ha_connection"
+        assert kwargs["status"] == "connected"
 
     @pytest.mark.asyncio
-    async def test_on_connect_with_subscription_error(self, service):
-        """Test on_connect handler when subscription fails"""
-        mock_manager = AsyncMock()
-        mock_manager._subscribe_to_events = AsyncMock(side_effect=Exception("Subscription failed"))
-        mock_manager.discovery_service = Mock()
-        mock_manager.discovery_service.discover_all = AsyncMock()
-        mock_manager.client = Mock()
-        mock_manager.client.websocket = Mock()
-        mock_manager.client.is_connected = True
-        mock_manager.client.is_authenticated = True
-        
-        service.connection_manager = mock_manager
-        
-        # Should not raise exception (errors are logged)
-        await service._on_connect()
-        
-        # Verify subscription was attempted
-        mock_manager._subscribe_to_events.assert_called_once()
+    async def test_on_connect_does_not_touch_connection_manager(self, service):
+        """The callback must not drive subscription itself.
 
-    @pytest.mark.asyncio
-    async def test_on_connect_with_discovery_error(self, service):
-        """Test on_connect handler when discovery fails"""
+        Guards against reintroducing the duplicate-subscription path that this
+        test previously asserted, which would subscribe twice per connect.
+        """
         mock_manager = AsyncMock()
-        mock_manager._subscribe_to_events = AsyncMock()
-        mock_manager.discovery_service = Mock()
-        mock_manager.discovery_service.discover_all = AsyncMock(side_effect=Exception("Discovery failed"))
-        mock_manager.client = Mock()
-        mock_manager.client.websocket = Mock()
-        mock_manager.client.is_connected = True
-        mock_manager.client.is_authenticated = True
-        
         service.connection_manager = mock_manager
-        
-        # Should not raise exception (errors are logged)
-        await service._on_connect()
-        
-        # Verify both subscription and discovery were attempted
-        mock_manager._subscribe_to_events.assert_called_once()
-        mock_manager.discovery_service.discover_all.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_on_connect_without_websocket(self, service):
-        """Test on_connect handler when websocket is not ready"""
-        mock_manager = AsyncMock()
-        mock_manager._subscribe_to_events = AsyncMock()
-        mock_manager.discovery_service = Mock()
-        mock_manager.discovery_service.discover_all = AsyncMock()
-        mock_manager.client = Mock()
-        mock_manager.client.websocket = None  # No websocket
-        mock_manager.client.is_connected = False
-        mock_manager.client.is_authenticated = False
-        
-        service.connection_manager = mock_manager
-        
-        # Should not raise exception
         await service._on_connect()
-        
-        # Verify subscription was attempted
-        mock_manager._subscribe_to_events.assert_called_once()
+
+        mock_manager._subscribe_to_events.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_on_connect_no_connection_manager(self, service):
