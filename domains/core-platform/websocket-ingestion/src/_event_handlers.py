@@ -120,8 +120,13 @@ class EventHandlerMixin:
                 publisher = getattr(self, "house_status_publisher", None)  # type: ignore[attr-defined]
                 if publisher is not None:
                     await publisher.broadcast(delta)
-        except Exception:
-            logger.debug("House status aggregation error", exc_info=True)
+        except Exception as e:
+            log_error_with_context(
+                logger, "House status aggregation failed", e,
+                operation="house_status_aggregation",
+                correlation_id=get_correlation_id() or generate_correlation_id(),
+                entity_id=entity_id,
+            )
 
     async def _write_event_to_influxdb(self, event_data: dict[str, Any]) -> None:
         """Write a single event to InfluxDB via the batch writer."""
