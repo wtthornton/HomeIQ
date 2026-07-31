@@ -1,0 +1,71 @@
+# Audit one HomeIQ service, then roll the findings into a ship/block decision.
+#
+# Source is passed IN by the caller — AgentForge containers cannot see the HomeIQ
+# working tree. Use scripts/af_audit_service.py to collect files and kick this off.
+name: homeiq-service-audit
+spec_version: 2
+
+inputs:
+  - name: service_path
+    description: "Repo-relative path of the audited service, e.g. domains/core-platform/data-api"
+  - name: source
+    description: "Concatenated file contents to audit, each preceded by a === FILE: <path> === marker"
+
+nodes:
+  audit:
+    kind: task
+    agent: homeiq-service-auditor
+    inputs:
+      service_path: $service_path
+      source: $source
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      additionalProperties: false
+      required: [assessment_status, confidence, build_summary, reason, spend_usd, score, pass, converge, findings]
+      properties:
+        assessment_status: {type: string, enum: [complete, needs_revision, blocked, skipped]}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        build_summary: {type: string}
+        reason: {type: string}
+        spend_usd: {type: number, minimum: 0}
+        score: {type: number, minimum: 0, maximum: 100}
+        pass: {type: boolean}
+        converge: {type: boolean}
+        findings:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [severity, location, defect, consequence]
+            properties:
+              severity: {type: string, enum: [high, medium, low]}
+              location: {type: string}
+              defect: {type: string}
+              consequence: {type: string}
+
+  decide:
+    kind: task
+    agent: homeiq-audit-aggregator
+    depends_on: [audit]
+    inputs:
+      service_path: $service_path
+      audit: $audit
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      additionalProperties: false
+      required: [assessment_status, confidence, build_summary, reason, spend_usd, decision, blocking_findings]
+      properties:
+        assessment_status: {type: string, enum: [complete, needs_revision, blocked, skipped]}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        build_summary: {type: string}
+        reason: {type: string}
+        spend_usd: {type: number, minimum: 0}
+        decision: {type: string, enum: [ship, block]}
+        blocking_findings:
+          type: array
+          items: {type: string}
+
+output: decide
+on_error: fail
