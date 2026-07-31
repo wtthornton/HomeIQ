@@ -42,7 +42,7 @@ class BackupInfo:
             "error_message": self.error_message
         }
 
-ALLOWED_CONFIG_FILES = {"config.yaml", ".env", "influxdb.conf"}
+ALLOWED_CONFIG_FILES = {"config.yaml", "influxdb.conf"}
 
 
 def _safe_extract(tar: tarfile.TarFile, path: str | Path) -> None:
@@ -260,10 +260,9 @@ class BackupRestoreService:
             config_dir = backup_path / "config"
             config_dir.mkdir(exist_ok=True)
 
-            # Copy configuration files
+            # Copy configuration files (secrets must not be backed up unencrypted)
             config_files = [
                 "/app/config.yaml",
-                "/app/.env",
                 "/etc/influxdb/influxdb.conf"
             ]
 

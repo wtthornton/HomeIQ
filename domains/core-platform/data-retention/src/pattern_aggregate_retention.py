@@ -118,22 +118,22 @@ class PatternAggregateRetention:
                     'note': 'Mock operation - no InfluxDB client'
                 }
 
-            # In production, this would delete data older than cutoff_date
-            # For safety, logging the operation rather than actual deletion
-            logger.info(f"Would delete data older than {cutoff_date.isoformat()} from {config.bucket_name}")
+            # Delete data older than cutoff_date using InfluxDB delete API
+            logger.info(f"Deleting data older than {cutoff_date.isoformat()} from {config.bucket_name}")
 
-            # Actual implementation would use InfluxDB delete API:
-            # self.influxdb_client.delete(
-            #     bucket=config.bucket_name,
-            #     start='1970-01-01T00:00:00Z',
-            #     stop=cutoff_date.isoformat()
-            # )
+            self.influxdb_client.delete(
+                bucket=config.bucket_name,
+                start='1970-01-01T00:00:00Z',
+                stop=cutoff_date.isoformat()
+            )
+
+            logger.info(f"Successfully deleted expired data from {config.bucket_name} before {cutoff_date.isoformat()}")
 
             return {
                 'success': True,
-                'records_deleted': 0,  # Would be actual count in production
+                'records_deleted': None,  # InfluxDB delete API doesn't return record count
                 'cutoff_date': cutoff_date.isoformat(),
-                'note': 'Dry run - actual deletion commented for safety'
+                'bucket': config.bucket_name
             }
 
         except Exception as e:
