@@ -94,6 +94,10 @@ async def list_devices(
 
     Returns devices with their metadata, optionally filtered by manufacturer, model, or area.
     """
+    # Only the upstream call is guarded. Building the response from `response`
+    # sits outside the try so a bug there (a bad field access, an unexpected
+    # payload shape) surfaces as a real error instead of being reported as a
+    # Device Intelligence outage and hidden behind the InfluxDB fallback.
     try:
         device_intelligence_client = get_device_intelligence_client()
         response = await device_intelligence_client.get_devices(
@@ -102,6 +106,11 @@ async def list_devices(
             model=model,
             area_id=area_id
         )
+    except Exception as e:
+        logger.warning(f"Device Intelligence unavailable, falling back to InfluxDB: {e}")
+        response = None
+
+    if response is not None:
         devices = [
             DeviceResponse(
                 device_id=device.get("device_id", ""),
@@ -120,35 +129,34 @@ async def list_devices(
             count=response.get("count", len(devices)),
             limit=response.get("limit", limit)
         )
-    except Exception as e:
-        logger.warning(f"Device Intelligence unavailable, falling back to InfluxDB: {e}")
-        filters = {}
-        if manufacturer:
-            filters["manufacturer"] = manufacturer
-        if model:
-            filters["model"] = model
-        if area_id:
-            filters["area_id"] = area_id
-        query = _build_devices_query(filters, limit)
-        records = await influxdb_client.query(query)
-        devices = [
-            DeviceResponse(
-                device_id=record.get("device_id", ""),
-                name=record.get("name", "Unknown"),
-                manufacturer=record.get("manufacturer", "Unknown"),
-                model=record.get("model", "Unknown"),
-                sw_version=record.get("sw_version"),
-                area_id=record.get("area_id"),
-                entity_count=record.get("entity_count", 0),
-                timestamp=record.get("time", datetime.now().isoformat())
-            )
-            for record in records
-        ]
-        return DevicesListResponse(
-            devices=devices,
-            count=len(devices),
-            limit=limit
+
+    filters = {}
+    if manufacturer:
+        filters["manufacturer"] = manufacturer
+    if model:
+        filters["model"] = model
+    if area_id:
+        filters["area_id"] = area_id
+    query = _build_devices_query(filters, limit)
+    records = await influxdb_client.query(query)
+    devices = [
+        DeviceResponse(
+            device_id=record.get("device_id", ""),
+            name=record.get("name", "Unknown"),
+            manufacturer=record.get("manufacturer", "Unknown"),
+            model=record.get("model", "Unknown"),
+            sw_version=record.get("sw_version"),
+            area_id=record.get("area_id"),
+            entity_count=record.get("entity_count", 0),
+            timestamp=record.get("time", datetime.now().isoformat())
         )
+        for record in records
+    ]
+    return DevicesListResponse(
+        devices=devices,
+        count=len(devices),
+        limit=limit
+    )
 
 
 @router.get("/api/devices/{device_id}", response_model=DeviceResponse)
@@ -162,15 +170,24 @@ async def get_device(device_id: str):
     Returns:
         Device details
     """
+    # As in list_devices, only the upstream call is guarded so that response
+    # handling bugs are not misreported as a Device Intelligence outage.
+    device_data = None
+    upstream_available = True
     try:
         device_intelligence_client = get_device_intelligence_client()
         device_data = await device_intelligence_client.get_device_by_id(device_id)
+    except Exception as e:
+        logger.warning(f"Device Intelligence unavailable for {device_id}, falling back to InfluxDB: {e}")
+        upstream_available = False
+
+    if upstream_available:
         if not device_data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Device {device_id} not found"
             )
-        device = DeviceResponse(
+        return DeviceResponse(
             device_id=device_data.get("device_id", device_id),
             name=device_data.get("name", "Unknown"),
             manufacturer=device_data.get("manufacturer", "Unknown"),
@@ -180,29 +197,25 @@ async def get_device(device_id: str):
             entity_count=device_data.get("entity_count", 0),
             timestamp=device_data.get("timestamp", datetime.now().isoformat())
         )
-        return device
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.warning(f"Device Intelligence unavailable for {device_id}, falling back to InfluxDB: {e}")
-        query = _build_devices_query({"device_id": device_id}, limit=1)
-        records = await influxdb_client.query(query)
-        if not records:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Device {device_id} not found"
-            ) from None
-        record = records[0]
-        return DeviceResponse(
-            device_id=record.get("device_id", device_id),
-            name=record.get("name", "Unknown"),
-            manufacturer=record.get("manufacturer", "Unknown"),
-            model=record.get("model", "Unknown"),
-            sw_version=record.get("sw_version"),
-            area_id=record.get("area_id"),
-            entity_count=record.get("entity_count", 0),
-            timestamp=record.get("time", datetime.now().isoformat())
-        )
+
+    query = _build_devices_query({"device_id": device_id}, limit=1)
+    records = await influxdb_client.query(query)
+    if not records:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Device {device_id} not found"
+        ) from None
+    record = records[0]
+    return DeviceResponse(
+        device_id=record.get("device_id", device_id),
+        name=record.get("name", "Unknown"),
+        manufacturer=record.get("manufacturer", "Unknown"),
+        model=record.get("model", "Unknown"),
+        sw_version=record.get("sw_version"),
+        area_id=record.get("area_id"),
+        entity_count=record.get("entity_count", 0),
+        timestamp=record.get("time", datetime.now().isoformat())
+    )
 
 
 @router.get("/api/entities", response_model=EntitiesListResponse)
