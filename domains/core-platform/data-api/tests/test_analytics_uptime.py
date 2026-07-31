@@ -30,12 +30,12 @@ def test_calculate_service_uptime_returns_100():
 
 def test_calculate_service_uptime_handles_errors():
     """Test that uptime calculation handles errors gracefully"""
-    # SERVICE_START_TIME=None causes TypeError on (datetime.now(UTC) - None), caught and returns None
+    # SERVICE_START_TIME=None raises TypeError on (datetime.now(UTC) - None)
     with patch('src.main.SERVICE_START_TIME', None):
         uptime = calculate_service_uptime()
 
-        # Should return None on error
-        assert uptime is None
+        # A failed calculation must not report perfect availability
+        assert uptime == 0.0
 
 
 def test_calculate_service_uptime_recent_start():

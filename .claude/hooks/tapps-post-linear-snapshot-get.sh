@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.52
+# tapps-mcp-hook-version: 3.12.55
 # tapps-mcp-hook-content-sha: 5a2c3acd
 # TappsMCP PostToolUse hook — Linear cache-gate sentinel writer (TAP-1224)
 # Writes a per-(team, project, state, label, limit) sentinel on BOTH

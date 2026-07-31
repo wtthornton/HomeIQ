@@ -1,6 +1,19 @@
 name: "CI — Energy Analytics"
 
 on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'domains/energy-analytics/**'
+      - 'libs/**'
+      - '.github/workflows/ci-energy-analytics.yml'
+      - '.github/workflows/reusable-group-ci.yml'
+  pull_request:
+    paths:
+      - 'domains/energy-analytics/**'
+      - 'libs/**'
+      - '.github/workflows/ci-energy-analytics.yml'
+      - '.github/workflows/reusable-group-ci.yml'
   workflow_dispatch: {}
 
 permissions:

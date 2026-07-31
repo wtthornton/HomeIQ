@@ -280,3 +280,7 @@ phase2_results_*.json
 # ML model binaries (regenerated at deploy time)
 *.pkl
 !**/tests/**/*.pkl
+.tapps-mcp/backups/
+.tapps-mcp/hook-backups/
+.tapps-mcp/.lookup-docs-events.jsonl
+.tapps-mcp/test-edges-index.json

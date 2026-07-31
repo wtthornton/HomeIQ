@@ -1,13 +1,60 @@
 """
 Tests for Discovery Service
+
+Discovery uses the message-routing pattern: a command goes out over the
+WebSocket, a Future is registered in ``pending_responses``, and the connection
+manager's listen loop resolves it via ``handle_message_result``. The
+``FakeHomeAssistant`` harness below stands in for that listen loop so tests
+exercise the real routing path rather than reading the socket directly.
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
-from aiohttp import WSMsgType
 from src.discovery_service import DiscoveryService
+
+
+class FakeHomeAssistant:
+    """Canned-response WebSocket that replies through discovery's message routing."""
+
+    def __init__(self, service: DiscoveryService):
+        self.service = service
+        self.commands: list[dict] = []
+        self._replies: dict[str, dict] = {}
+        self._tasks: list[asyncio.Task] = []
+        self.websocket = AsyncMock()
+        self.websocket.send_json = self._send_json
+
+    def on(self, command_type: str, *, result=None, success: bool = True, error=None):
+        """Register the reply for a command type. Unregistered types get no reply."""
+        self._replies[command_type] = {"result": result, "success": success, "error": error}
+        return self
+
+    async def _send_json(self, command: dict):
+        self.commands.append(command)
+        reply = self._replies.get(command["type"])
+        if reply is not None:
+            self._tasks.append(asyncio.create_task(self._respond(command["id"], reply)))
+
+    async def _respond(self, message_id: int, reply: dict):
+        # _wait_for_response registers its Future only after send_json returns,
+        # so yield until the pending entry appears before resolving it.
+        for _ in range(100):
+            if message_id in self.service.pending_responses:
+                break
+            await asyncio.sleep(0)
+
+        payload = {"id": message_id, "type": "result", "success": reply["success"]}
+        if reply["success"]:
+            payload["result"] = reply["result"]
+        else:
+            payload["error"] = reply["error"] or {"message": "Unknown error"}
+        self.service.handle_message_result(payload)
+
+    def command_of(self, command_type: str) -> dict:
+        """Return the first command of the given type that was sent."""
+        return next(c for c in self.commands if c["type"] == command_type)
 
 
 class TestDiscoveryService:
@@ -17,28 +64,31 @@ class TestDiscoveryService:
         """Set up test fixtures"""
         self.service = DiscoveryService()
 
+    @pytest.fixture(autouse=True)
+    def _block_http_fallbacks(self, monkeypatch):
+        """Keep the HTTP fallbacks off the network regardless of ambient HA_TOKEN."""
+        monkeypatch.setattr(self.service, "_discover_devices_http", AsyncMock(return_value=[]))
+        monkeypatch.setattr(self.service, "_discover_entities_http", AsyncMock(return_value=[]))
+        monkeypatch.setattr(self.service, "discover_services", AsyncMock(return_value={}))
+        monkeypatch.setattr(self.service, "store_discovery_results", AsyncMock(return_value=None))
+
     def test_initialization(self):
         """Test service initialization"""
-        assert self.service.message_id_counter == 1000
+        assert self.service.message_id_manager is not None
         assert isinstance(self.service.pending_responses, dict)
         assert len(self.service.pending_responses) == 0
 
-    def test_get_next_id(self):
-        """Test message ID generation"""
-        first_id = self.service._get_next_id()
-        second_id = self.service._get_next_id()
+    @pytest.mark.asyncio
+    async def test_get_next_id_strictly_increasing(self):
+        """Message IDs come from the shared manager and must strictly increase"""
+        first_id = await self.service._get_next_id()
+        second_id = await self.service._get_next_id()
 
-        assert first_id == 1001
-        assert second_id == 1002
         assert second_id > first_id
 
     @pytest.mark.asyncio
     async def test_discover_devices_success(self):
         """Test successful device discovery"""
-        # Mock WebSocket
-        mock_ws = AsyncMock()
-
-        # Mock response
         mock_devices = [
             {
                 "id": "device1",
@@ -53,89 +103,86 @@ class TestDiscoveryService:
                 "model": "Caseta"
             }
         ]
+        ha = FakeHomeAssistant(self.service).on(
+            "config/device_registry/list", result=mock_devices
+        )
 
-        mock_response = MagicMock()
-        mock_response.type = WSMsgType.TEXT
-        mock_response.json.return_value = {
-            "id": 1001,
-            "type": "result",
-            "success": True,
-            "result": mock_devices
-        }
+        devices = await self.service.discover_devices(ha.websocket)
 
-        mock_ws.receive.return_value = mock_response
-
-        # Test discover_devices
-        devices = await self.service.discover_devices(mock_ws)
-
-        # Assertions
         assert len(devices) == 2
         assert devices[0]["name"] == "Living Room Light"
         assert devices[1]["name"] == "Bedroom Switch"
-        assert mock_ws.send_json.called
 
-        # Check command sent
-        call_args = mock_ws.send_json.call_args
-        command = call_args[0][0]
-        assert command["type"] == "config/device_registry/list"
+        command = ha.command_of("config/device_registry/list")
         assert "id" in command
+
+        # Routing state is cleaned up once the response lands
+        assert self.service.pending_responses == {}
+
+    @pytest.mark.asyncio
+    async def test_discover_devices_caches_metadata(self):
+        """Device discovery populates the area and metadata caches (Epic 23.2/23.5)"""
+        ha = FakeHomeAssistant(self.service).on(
+            "config/device_registry/list",
+            result=[{
+                "id": "device1",
+                "name": "Living Room Light",
+                "area_id": "living_room",
+                "manufacturer": "Philips",
+                "model": "Hue Bulb",
+                "sw_version": "1.2.3",
+            }],
+        )
+
+        await self.service.discover_devices(ha.websocket)
+
+        assert self.service.device_to_area["device1"] == "living_room"
+        assert self.service.device_metadata["device1"]["manufacturer"] == "Philips"
+        assert self.service.device_metadata["device1"]["sw_version"] == "1.2.3"
 
     @pytest.mark.asyncio
     async def test_discover_devices_empty_response(self):
         """Test device discovery with empty response"""
-        mock_ws = AsyncMock()
+        ha = FakeHomeAssistant(self.service).on("config/device_registry/list", result=[])
 
-        mock_response = MagicMock()
-        mock_response.type = WSMsgType.TEXT
-        mock_response.json.return_value = {
-            "id": 1001,
-            "type": "result",
-            "success": True,
-            "result": []
-        }
+        devices = await self.service.discover_devices(ha.websocket)
 
-        mock_ws.receive.return_value = mock_response
-
-        devices = await self.service.discover_devices(mock_ws)
-
-        assert len(devices) == 0
-        assert isinstance(devices, list)
+        assert devices == []
 
     @pytest.mark.asyncio
     async def test_discover_devices_failure(self):
         """Test device discovery failure"""
-        mock_ws = AsyncMock()
+        ha = FakeHomeAssistant(self.service).on(
+            "config/device_registry/list",
+            success=False,
+            error={"message": "Permission denied"},
+        )
 
-        mock_response = MagicMock()
-        mock_response.type = WSMsgType.TEXT
-        mock_response.json.return_value = {
-            "id": 1001,
-            "type": "result",
-            "success": False,
-            "error": {"message": "Permission denied"}
-        }
+        devices = await self.service.discover_devices(ha.websocket)
 
-        mock_ws.receive.return_value = mock_response
-
-        devices = await self.service.discover_devices(mock_ws)
-
-        assert len(devices) == 0
+        assert devices == []
 
     @pytest.mark.asyncio
-    async def test_discover_devices_timeout(self):
-        """Test device discovery timeout"""
-        mock_ws = AsyncMock()
-        mock_ws.receive.side_effect = TimeoutError()
+    async def test_discover_devices_no_response_falls_back(self, monkeypatch):
+        """A timed-out response yields an empty list rather than raising"""
+        monkeypatch.setattr(self.service, "_wait_for_response", AsyncMock(return_value=None))
+        ha = FakeHomeAssistant(self.service)
 
-        devices = await self.service.discover_devices(mock_ws)
+        devices = await self.service.discover_devices(ha.websocket)
 
-        assert len(devices) == 0
+        assert devices == []
+        self.service._discover_devices_http.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_discover_devices_without_transport(self):
+        """No websocket and no connection manager means nothing to send on"""
+        devices = await self.service.discover_devices()
+
+        assert devices == []
 
     @pytest.mark.asyncio
     async def test_discover_entities_success(self):
         """Test successful entity discovery"""
-        mock_ws = AsyncMock()
-
         mock_entities = [
             {
                 "entity_id": "light.living_room",
@@ -148,34 +195,20 @@ class TestDiscoveryService:
                 "device_id": "device2"
             }
         ]
+        ha = FakeHomeAssistant(self.service).on(
+            "config/entity_registry/list", result=mock_entities
+        )
 
-        mock_response = MagicMock()
-        mock_response.type = WSMsgType.TEXT
-        mock_response.json.return_value = {
-            "id": 1001,
-            "type": "result",
-            "success": True,
-            "result": mock_entities
-        }
-
-        mock_ws.receive.return_value = mock_response
-
-        entities = await self.service.discover_entities(mock_ws)
+        entities = await self.service.discover_entities(ha.websocket)
 
         assert len(entities) == 2
         assert entities[0]["entity_id"] == "light.living_room"
         assert entities[1]["entity_id"] == "switch.bedroom"
-
-        # Check command sent
-        call_args = mock_ws.send_json.call_args
-        command = call_args[0][0]
-        assert command["type"] == "config/entity_registry/list"
+        assert ha.command_of("config/entity_registry/list")["type"] == "config/entity_registry/list"
 
     @pytest.mark.asyncio
     async def test_discover_config_entries_success(self):
         """Test successful config entries discovery"""
-        mock_ws = AsyncMock()
-
         mock_entries = [
             {
                 "entry_id": "entry1",
@@ -190,114 +223,78 @@ class TestDiscoveryService:
                 "state": "loaded"
             }
         ]
+        ha = FakeHomeAssistant(self.service).on("config_entries/list", result=mock_entries)
 
-        mock_response = MagicMock()
-        mock_response.type = WSMsgType.TEXT
-        mock_response.json.return_value = {
-            "id": 1001,
-            "type": "result",
-            "success": True,
-            "result": mock_entries
-        }
-
-        mock_ws.receive.return_value = mock_response
-
-        entries = await self.service.discover_config_entries(mock_ws)
+        entries = await self.service.discover_config_entries(ha.websocket)
 
         assert len(entries) == 2
         assert entries[0]["title"] == "Philips Hue"
         assert entries[1]["domain"] == "nest"
+        assert ha.command_of("config_entries/list")["type"] == "config_entries/list"
 
-        # Check command sent
-        call_args = mock_ws.send_json.call_args
-        command = call_args[0][0]
-        assert command["type"] == "config_entries/list"
+    @pytest.mark.asyncio
+    async def test_discover_config_entries_failure(self):
+        """A failed config entries command returns an empty list"""
+        ha = FakeHomeAssistant(self.service).on(
+            "config_entries/list", success=False, error={"message": "nope"}
+        )
+
+        entries = await self.service.discover_config_entries(ha.websocket)
+
+        assert entries == []
 
     @pytest.mark.asyncio
     async def test_discover_all_success(self):
         """Test complete discovery of all registries"""
-        mock_ws = AsyncMock()
+        ha = (
+            FakeHomeAssistant(self.service)
+            .on("config/device_registry/list", result=[{"id": "dev1", "name": "Device 1"}])
+            .on("config/entity_registry/list", result=[{"entity_id": "light.test"}])
+            .on("config_entries/list", result=[{"entry_id": "entry1", "title": "Test"}])
+        )
 
-        # Setup mock responses for all three commands
-        responses = [
-            # Devices response
-            MagicMock(
-                type=WSMsgType.TEXT,
-                json=lambda: {
-                    "id": 1001,
-                    "type": "result",
-                    "success": True,
-                    "result": [{"id": "dev1", "name": "Device 1"}]
-                }
-            ),
-            # Entities response
-            MagicMock(
-                type=WSMsgType.TEXT,
-                json=lambda: {
-                    "id": 1002,
-                    "type": "result",
-                    "success": True,
-                    "result": [{"entity_id": "light.test"}]
-                }
-            ),
-            # Config entries response
-            MagicMock(
-                type=WSMsgType.TEXT,
-                json=lambda: {
-                    "id": 1003,
-                    "type": "result",
-                    "success": True,
-                    "result": [{"entry_id": "entry1", "title": "Test"}]
-                }
-            )
-        ]
+        result = await self.service.discover_all(ha.websocket, store=False)
 
-        mock_ws.receive.side_effect = responses
-
-        result = await self.service.discover_all(mock_ws)
-
-        assert "devices" in result
-        assert "entities" in result
-        assert "config_entries" in result
         assert len(result["devices"]) == 1
         assert len(result["entities"]) == 1
         assert len(result["config_entries"]) == 1
+        assert "services" in result
+        self.service.store_discovery_results.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_discover_all_stores_when_requested(self):
+        """discover_all persists results when store=True"""
+        ha = (
+            FakeHomeAssistant(self.service)
+            .on("config/device_registry/list", result=[{"id": "dev1"}])
+            .on("config/entity_registry/list", result=[{"entity_id": "light.test"}])
+            .on("config_entries/list", result=[])
+        )
+
+        await self.service.discover_all(ha.websocket, store=True)
+
+        self.service.store_discovery_results.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_discover_all_partial_failure(self):
         """Test discovery with partial failures"""
-        mock_ws = AsyncMock()
+        ha = (
+            FakeHomeAssistant(self.service)
+            .on("config/device_registry/list", result=[{"id": "dev1"}])
+            .on("config/entity_registry/list", success=False, error={"message": "boom"})
+            .on("config_entries/list", success=False, error={"message": "boom"})
+        )
 
-        # First command succeeds, others timeout
-        responses = [
-            MagicMock(
-                type=WSMsgType.TEXT,
-                json=lambda: {
-                    "id": 1001,
-                    "type": "result",
-                    "success": True,
-                    "result": [{"id": "dev1"}]
-                }
-            )
-        ]
-
-        mock_ws.receive.side_effect = responses + [TimeoutError()] * 2
-
-        result = await self.service.discover_all(mock_ws)
+        result = await self.service.discover_all(ha.websocket, store=False)
 
         # Should still return results even with partial failures
-        assert "devices" in result
-        assert "entities" in result
-        assert "config_entries" in result
         assert len(result["devices"]) == 1
-        assert len(result["entities"]) == 0  # Failed
-        assert len(result["config_entries"]) == 0  # Failed
+        assert result["entities"] == []
+        assert result["config_entries"] == []
 
     @pytest.mark.asyncio
     async def test_wait_for_response_success(self):
-        """Test waiting for response with correct message ID"""
-        mock_ws = AsyncMock()
-
+        """Test waiting for a response routed in by the listen loop"""
         expected_response = {
             "id": 100,
             "type": "result",
@@ -305,98 +302,83 @@ class TestDiscoveryService:
             "result": []
         }
 
-        mock_msg = MagicMock()
-        mock_msg.type = WSMsgType.TEXT
-        mock_msg.json.return_value = expected_response
+        async def deliver():
+            while 100 not in self.service.pending_responses:
+                await asyncio.sleep(0)
+            self.service.handle_message_result(expected_response)
 
-        mock_ws.receive.return_value = mock_msg
+        asyncio.create_task(deliver())
 
-        response = await self.service._wait_for_response(mock_ws, 100, timeout=1.0)
+        response = await self.service._wait_for_response(None, 100, timeout=1.0)
 
         assert response == expected_response
+        assert self.service.pending_responses == {}
 
     @pytest.mark.asyncio
     async def test_wait_for_response_timeout(self):
-        """Test waiting for response with timeout"""
-        mock_ws = AsyncMock()
-        mock_ws.receive.side_effect = TimeoutError()
+        """Timing out returns None rather than raising"""
+        response = await self.service._wait_for_response(None, 100, timeout=0.05)
 
-        with pytest.raises(asyncio.TimeoutError):
-            await self.service._wait_for_response(mock_ws, 100, timeout=0.1)
+        assert response is None
 
     @pytest.mark.asyncio
     async def test_wait_for_response_wrong_id(self):
-        """Test waiting for response when wrong message ID received first"""
-        mock_ws = AsyncMock()
+        """A message for a different ID must not resolve this request"""
 
-        # First message has wrong ID, second has correct ID
-        wrong_msg = MagicMock()
-        wrong_msg.type = WSMsgType.TEXT
-        wrong_msg.json.return_value = {"id": 99, "type": "result"}
+        async def deliver():
+            while 100 not in self.service.pending_responses:
+                await asyncio.sleep(0)
+            # Wrong ID is not routed anywhere
+            assert self.service.handle_message_result({"id": 99, "type": "result"}) is False
+            self.service.handle_message_result(
+                {"id": 100, "type": "result", "success": True}
+            )
 
-        correct_msg = MagicMock()
-        correct_msg.type = WSMsgType.TEXT
-        correct_msg.json.return_value = {"id": 100, "type": "result", "success": True}
+        asyncio.create_task(deliver())
 
-        mock_ws.receive.side_effect = [wrong_msg, correct_msg]
-
-        response = await self.service._wait_for_response(mock_ws, 100, timeout=2.0)
+        response = await self.service._wait_for_response(None, 100, timeout=2.0)
 
         assert response["id"] == 100
         assert response["success"] is True
 
+    def test_handle_message_result_ignores_non_result_messages(self):
+        """Only `result` messages are routed to pending discovery requests"""
+        assert self.service.handle_message_result(
+            {"id": 1, "type": "event", "event": {}}
+        ) is False
+
     @pytest.mark.asyncio
     async def test_subscribe_to_device_registry_events_success(self):
         """Test subscribing to device registry events"""
-        mock_ws = AsyncMock()
+        ha = FakeHomeAssistant(self.service).on("subscribe_events", result=None)
 
-        mock_response = MagicMock()
-        mock_response.type = WSMsgType.TEXT
-        mock_response.json.return_value = {
-            "id": 1001,
-            "type": "result",
-            "success": True,
-            "result": None
-        }
-
-        mock_ws.receive.return_value = mock_response
-
-        result = await self.service.subscribe_to_device_registry_events(mock_ws)
+        result = await self.service.subscribe_to_device_registry_events(ha.websocket)
 
         assert result is True
-        assert mock_ws.send_json.called
-
-        # Verify subscription command
-        call_args = mock_ws.send_json.call_args
-        command = call_args[0][0]
-        assert command["type"] == "subscribe_events"
+        command = ha.command_of("subscribe_events")
         assert command["event_type"] == "device_registry_updated"
 
     @pytest.mark.asyncio
     async def test_subscribe_to_entity_registry_events_success(self):
         """Test subscribing to entity registry events"""
-        mock_ws = AsyncMock()
+        ha = FakeHomeAssistant(self.service).on("subscribe_events", result=None)
 
-        mock_response = MagicMock()
-        mock_response.type = WSMsgType.TEXT
-        mock_response.json.return_value = {
-            "id": 1001,
-            "type": "result",
-            "success": True,
-            "result": None
-        }
-
-        mock_ws.receive.return_value = mock_response
-
-        result = await self.service.subscribe_to_entity_registry_events(mock_ws)
+        result = await self.service.subscribe_to_entity_registry_events(ha.websocket)
 
         assert result is True
-
-        # Verify subscription command
-        call_args = mock_ws.send_json.call_args
-        command = call_args[0][0]
-        assert command["type"] == "subscribe_events"
+        command = ha.command_of("subscribe_events")
         assert command["event_type"] == "entity_registry_updated"
+
+    @pytest.mark.asyncio
+    async def test_subscribe_to_device_registry_events_failure(self):
+        """A rejected subscription reports failure"""
+        ha = FakeHomeAssistant(self.service).on(
+            "subscribe_events", success=False, error={"message": "denied"}
+        )
+
+        result = await self.service.subscribe_to_device_registry_events(ha.websocket)
+
+        assert result is False
 
     @pytest.mark.asyncio
     async def test_handle_device_registry_event(self):
@@ -466,4 +448,3 @@ class TestDiscoveryService:
 
         # Should handle gracefully
         assert result is True
-

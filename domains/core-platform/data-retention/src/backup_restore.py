@@ -43,6 +43,12 @@ class BackupInfo:
         }
 
 ALLOWED_CONFIG_FILES = {"config.yaml", "influxdb.conf"}
+BLOCKED_FILE_PATTERNS = {".env", ".env.local", ".env.production", ".env.staging", ".env.test"}
+
+
+def _is_secret_file(filename: str) -> bool:
+    """Check if a filename matches secret file patterns that must never be backed up."""
+    return filename in BLOCKED_FILE_PATTERNS or filename.startswith('.env.')
 
 
 def _safe_extract(tar: tarfile.TarFile, path: str | Path) -> None:
@@ -260,7 +266,7 @@ class BackupRestoreService:
             config_dir = backup_path / "config"
             config_dir.mkdir(exist_ok=True)
 
-            # Copy configuration files (secrets must not be backed up unencrypted)
+            # Whitelist only safe configuration files (never backup unencrypted secrets)
             config_files = [
                 "/app/config.yaml",
                 "/etc/influxdb/influxdb.conf"
@@ -269,6 +275,15 @@ class BackupRestoreService:
             copied_files = []
             for config_file in config_files:
                 config_path = Path(config_file)
+
+                # Validate filename is in whitelist and not a secret file
+                if _is_secret_file(config_path.name):
+                    logger.warning(f"Refusing to backup secret file: {config_file}")
+                    continue
+                if config_path.name not in ALLOWED_CONFIG_FILES:
+                    logger.warning(f"Refusing to backup non-whitelisted config: {config_file}")
+                    continue
+
                 if config_path.exists():
                     dest_file = config_dir / config_path.name
                     shutil.copy2(config_file, dest_file)

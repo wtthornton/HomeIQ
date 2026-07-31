@@ -7,7 +7,6 @@ import sys
 from typing import Any
 
 from fastapi import HTTPException
-from fastapi.responses import JSONResponse
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from . import __version__
@@ -66,6 +65,14 @@ health = StandardHealthCheck(
     service_name=settings.service_name,
     version=SERVICE_VERSION,
 )
+
+
+async def _writer_ready() -> bool:
+    """The writer is the service's reason to exist; report it in /health."""
+    return activity_writer is not None
+
+
+health.register_check("writer", _writer_ready)
 
 
 # ---------------------------------------------------------------------------

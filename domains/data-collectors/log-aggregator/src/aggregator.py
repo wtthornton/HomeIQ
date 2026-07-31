@@ -26,7 +26,9 @@ class LogAggregator:
     def __init__(self) -> None:
         """Initialize the log aggregator with Docker client and in-memory log storage."""
         self.log_directory = settings.log_directory_path
-        self.log_directory.mkdir(exist_ok=True)
+        # parents=True: the configured directory is /app/logs by default, and
+        # outside a container its parent will not exist either.
+        self.log_directory.mkdir(parents=True, exist_ok=True)
         self.aggregated_logs: list[dict[str, Any]] = []
         self.max_logs = settings.max_logs_memory
         self.collection_interval = settings.collection_interval

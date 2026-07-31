@@ -98,7 +98,7 @@ class StatsEndpoints:
     def _get_all_stats(self, *, period: str, service: str | None) -> dict[str, Any]:
         service_stats = self._get_service_stats(service=service)
         metrics = self._get_metrics(limit=100)
-        trends = self._build_trends(period=period)
+        trends = self._build_trends()
         alerts = self._get_alerts(limit=5)
 
         return {
@@ -195,7 +195,7 @@ class StatsEndpoints:
             ]
         return [alert.to_dict() for alert in alerts][:limit]
 
-    def _build_trends(self, *, _period: str) -> list[dict[str, Any]]:
+    def _build_trends(self) -> list[dict[str, Any]]:
         window = 5
         now = datetime.now(UTC)
         trends: list[dict[str, Any]] = []

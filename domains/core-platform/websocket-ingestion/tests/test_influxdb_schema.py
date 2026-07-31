@@ -24,7 +24,8 @@ class TestInfluxDBSchema:
         """Test schema initialization"""
         assert self.schema.MEASUREMENT_EVENTS == "home_assistant_events"
         assert self.schema.MEASUREMENT_WEATHER == "weather_data"
-        assert self.schema.MEASUREMENT_SUMMARY == "event_summaries"
+        assert self.schema.MEASUREMENT_SPORTS == "sports_data"
+        assert self.schema.MEASUREMENT_SYSTEM == "system_metrics"
 
         assert self.schema.TAG_ENTITY_ID == "entity_id"
         assert self.schema.TAG_DOMAIN == "domain"
@@ -32,10 +33,10 @@ class TestInfluxDBSchema:
         assert self.schema.TAG_AREA == "area"
         assert self.schema.TAG_LOCATION == "location"
 
-        assert self.schema.FIELD_STATE == "state"
-        assert self.schema.FIELD_OLD_STATE == "old_state"
+        assert self.schema.FIELD_STATE == "state_value"
+        assert self.schema.FIELD_OLD_STATE == "previous_state"
         assert self.schema.FIELD_ATTRIBUTES == "attributes"
-        assert self.schema.FIELD_TEMPERATURE == "temperature"
+        assert self.schema.FIELD_TEMPERATURE == "weather_temp"
 
     def test_create_event_point_basic(self):
         """Test creating basic event point"""
@@ -64,10 +65,10 @@ class TestInfluxDBSchema:
             assert point._tags["device_class"] == "temperature"
             assert "area" in point._tags
             assert point._tags["area"] == "living_room"
-            assert "state" in point._fields
-            assert point._fields["state"] == "20.5"
-            assert "old_state" in point._fields
-            assert point._fields["old_state"] == "19.8"
+            assert "state_value" in point._fields
+            assert point._fields["state_value"] == "20.5"
+            assert "previous_state" in point._fields
+            assert point._fields["previous_state"] == "19.8"
         else:
             # Test without InfluxDB Point
             assert point is None
@@ -99,12 +100,12 @@ class TestInfluxDBSchema:
             assert point._name == "home_assistant_events"
             assert "location" in point._tags
             assert point._tags["location"] == "London"
-            assert "temperature" in point._fields
-            assert point._fields["temperature"] == 15.2
-            assert "humidity" in point._fields
-            assert point._fields["humidity"] == 65
-            assert "pressure" in point._fields
-            assert point._fields["pressure"] == 1013.25
+            assert "weather_temp" in point._fields
+            assert point._fields["weather_temp"] == 15.2
+            assert "weather_humidity" in point._fields
+            assert point._fields["weather_humidity"] == 65
+            assert "weather_pressure" in point._fields
+            assert point._fields["weather_pressure"] == 1013.25
             assert "wind_speed" in point._fields
             assert point._fields["wind_speed"] == 3.5
             assert "weather_description" in point._fields
@@ -145,12 +146,12 @@ class TestInfluxDBSchema:
             assert point._tags["location"] == "London"
             assert "weather_condition" in point._tags
             assert point._tags["weather_condition"] == "Clear"
-            assert "temperature" in point._fields
-            assert point._fields["temperature"] == 15.2
-            assert "humidity" in point._fields
-            assert point._fields["humidity"] == 65
-            assert "pressure" in point._fields
-            assert point._fields["pressure"] == 1013.25
+            assert "weather_temp" in point._fields
+            assert point._fields["weather_temp"] == 15.2
+            assert "weather_humidity" in point._fields
+            assert point._fields["weather_humidity"] == 65
+            assert "weather_pressure" in point._fields
+            assert point._fields["weather_pressure"] == 1013.25
             assert "wind_speed" in point._fields
             assert point._fields["wind_speed"] == 3.5
             assert "weather_description" in point._fields
@@ -201,26 +202,30 @@ class TestInfluxDBSchema:
         """Test getting retention policies"""
         policies = self.schema.get_retention_policies()
 
-        assert len(policies) == 3
+        # One policy per measurement bucket
+        assert len(policies) == 4
+        assert [p["name"] for p in policies] == [
+            "home_assistant_events",
+            "weather_data",
+            "sports_data",
+            "system_metrics",
+        ]
 
-        # Check raw data policy
-        raw_policy = policies[0]
-        assert raw_policy["name"] == "raw_data_1y"
-        assert raw_policy["duration"] == "365d"
-        assert raw_policy["shard_duration"] == "7d"
-        assert raw_policy["replication"] == 1
+        by_name = {p["name"]: p for p in policies}
 
-        # Check hourly summary policy
-        hourly_policy = policies[1]
-        assert hourly_policy["name"] == "hourly_summary_2y"
-        assert hourly_policy["duration"] == "730d"
-        assert hourly_policy["shard_duration"] == "30d"
+        events_policy = by_name["home_assistant_events"]
+        assert events_policy["duration"] == "365d"
+        assert events_policy["shard_duration"] == "7d"
+        assert events_policy["replication"] == 1
 
-        # Check daily summary policy
-        daily_policy = policies[2]
-        assert daily_policy["name"] == "daily_summary_5y"
-        assert daily_policy["duration"] == "1825d"
-        assert daily_policy["shard_duration"] == "90d"
+        assert by_name["weather_data"]["duration"] == "180d"
+        assert by_name["weather_data"]["shard_duration"] == "30d"
+
+        assert by_name["sports_data"]["duration"] == "90d"
+        assert by_name["sports_data"]["shard_duration"] == "30d"
+
+        assert by_name["system_metrics"]["duration"] == "30d"
+        assert by_name["system_metrics"]["shard_duration"] == "7d"
 
     def test_get_schema_validation_rules(self):
         """Test getting schema validation rules"""
@@ -236,7 +241,7 @@ class TestInfluxDBSchema:
         assert "domain" in rules["required_tags"]
 
         # Check required fields
-        assert "state" in rules["required_fields"]
+        assert "state_value" in rules["required_fields"]
 
         # Check tag patterns
         assert "entity_id" in rules["tag_patterns"]
@@ -244,9 +249,9 @@ class TestInfluxDBSchema:
         assert "device_class" in rules["tag_patterns"]
 
         # Check field types
-        assert "state" in rules["field_types"]
-        assert "temperature" in rules["field_types"]
-        assert "humidity" in rules["field_types"]
+        assert "state_value" in rules["field_types"]
+        assert "weather_temp" in rules["field_types"]
+        assert "weather_humidity" in rules["field_types"]
 
     def test_validate_point_valid(self):
         """Test validating valid point"""
@@ -257,7 +262,7 @@ class TestInfluxDBSchema:
         point = Point("home_assistant_events")
         point = point.tag("entity_id", "sensor.temperature")
         point = point.tag("domain", "sensor")
-        point = point.field("state", "20.5")
+        point = point.field("state_value", "20.5")
 
         is_valid, errors = self.schema.validate_point(point)
 
@@ -272,7 +277,7 @@ class TestInfluxDBSchema:
         # Create point missing required tag
         point = Point("home_assistant_events")
         point = point.tag("domain", "sensor")  # Missing entity_id
-        point = point.field("state", "20.5")
+        point = point.field("state_value", "20.5")
 
         is_valid, errors = self.schema.validate_point(point)
 
@@ -293,7 +298,7 @@ class TestInfluxDBSchema:
         is_valid, errors = self.schema.validate_point(point)
 
         assert not is_valid
-        assert any("Missing required field: state" in error for error in errors)
+        assert "Missing required field: state_value" in errors
 
     def test_validate_point_invalid_tag_pattern(self):
         """Test validating point with invalid tag pattern"""

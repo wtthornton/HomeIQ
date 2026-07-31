@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.52
+# tapps-mcp-hook-version: 3.12.55
 # tapps-mcp-hook-content-sha: 319e1ea6
 # TappsMCP SessionStart hook (startup/resume)
 # Directs the agent to call tapps_session_start as the first MCP action.

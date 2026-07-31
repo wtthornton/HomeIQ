@@ -1,6 +1,6 @@
 ---
-description: PowerShell command guidelines - CRITICAL rules for Windows environments
-alwaysApply: true
+description: PowerShell command guidelines - CRITICAL rules for Windows environments. Request this rule only when working on a Windows host or authoring .ps1 scripts; this repo's primary dev/deploy target is Linux.
+alwaysApply: false
 ---
 
 # PowerShell Command Guidelines

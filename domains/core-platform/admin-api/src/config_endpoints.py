@@ -79,6 +79,9 @@ class ConfigEndpoints:
                         all_config[service_name] = config
                     return all_config
 
+            except HTTPException:
+                # Deliberate status (e.g. the 403 above) must not be masked as a 500
+                raise
             except Exception as e:
                 logger.error(f"Error getting configuration: {e}")
                 return JSONResponse(

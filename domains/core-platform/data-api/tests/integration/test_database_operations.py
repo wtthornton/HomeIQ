@@ -26,16 +26,21 @@ class TestDatabaseOperations:
         """Test database connection is working"""
         assert test_db is not None
         # Simple query to verify connection
-        result = await test_db.execute("SELECT 1")
+        from sqlalchemy import text
+
+        result = await test_db.execute(text("SELECT 1"))
         assert result.scalar() == 1
 
     async def test_schema_exists(self, test_db: AsyncSession):
         """Test that all required tables exist"""
         # Check for Device table
         from sqlalchemy import inspect
-        inspector = inspect(test_db.bind)
-        tables = inspector.get_table_names()
-        
+
+        conn = await test_db.connection()
+        tables = await conn.run_sync(
+            lambda sync_conn: inspect(sync_conn).get_table_names()
+        )
+
         assert "devices" in tables or "device" in tables
         # Add more table checks as needed
 
@@ -146,16 +151,16 @@ class TestSchemaMigrations:
     async def test_migration_columns_exist(self, test_db: AsyncSession):
         """Test that migration-added columns exist"""
         from sqlalchemy import inspect
-        
-        inspector = inspect(test_db.bind)
-        
-        # Check for specific columns added by migrations
-        # Adjust based on actual migration history
-        # Example: Check for a column added in a migration
-        columns = [col["name"] for col in inspector.get_columns("devices")]
-        # Add assertions based on expected columns
-        
-        assert True  # Placeholder - adjust based on actual schema
+
+        conn = await test_db.connection()
+        columns = await conn.run_sync(
+            lambda sync_conn: [c["name"] for c in inspect(sync_conn).get_columns("devices")]
+        )
+
+        # Columns the timezone migration relies on must be present
+        assert "device_id" in columns
+        assert "last_seen" in columns
+        assert "created_at" in columns
 
     async def test_migration_data_integrity(self, test_db: AsyncSession):
         """Test that migrations preserve data integrity"""

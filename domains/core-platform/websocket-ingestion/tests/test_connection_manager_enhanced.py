@@ -90,25 +90,22 @@ class TestConnectionManagerEnhanced:
         assert 3.6 <= delays[2] <= 4.4
 
     def test_calculate_delay_max_delay(self):
-        """Backoff is capped at max_delay before jitter is applied.
+        """max_delay is a hard ceiling on the returned delay, jitter included.
 
-        max_delay bounds the exponential term, then ±jitter_range is added, so
-        the returned delay sits in [max_delay*(1-j), max_delay*(1+j)]. random()
-        is pinned to both extremes rather than sampled: the previous version
-        asserted `delay <= max_delay`, which the +10% jitter violated on
-        roughly half of all runs.
+        The exponential term is capped at max_delay and ±jitter_range is added,
+        but the result is clamped again so positive jitter can never push the
+        delay past the configured maximum. random() is pinned to both extremes
+        rather than sampled, so the bound is checked deterministically.
         """
         self.connection_manager.current_retry_count = 20
         max_delay = self.connection_manager.max_delay
         jitter = self.connection_manager.jitter_range
 
-        # random() == 1.0 -> maximum positive jitter
+        # random() == 1.0 -> maximum positive jitter, clamped back to the ceiling
         with patch("src.connection_manager.random.random", return_value=1.0):
-            assert self.connection_manager._calculate_delay() == pytest.approx(
-                max_delay * (1 + jitter)
-            )
+            assert self.connection_manager._calculate_delay() == pytest.approx(max_delay)
 
-        # random() == 0.0 -> maximum negative jitter
+        # random() == 0.0 -> maximum negative jitter, stays below the ceiling
         with patch("src.connection_manager.random.random", return_value=0.0):
             assert self.connection_manager._calculate_delay() == pytest.approx(
                 max_delay * (1 - jitter)
@@ -292,10 +289,10 @@ class TestConnectionManagerEnhanced:
         error_context = recent_errors[0]["context"]
         assert error_context["base_url"] == "ws://test-ha:8123/api/websocket"
         assert error_context["retry_count"] == 3
-        # NOTE: _connect increments connection_attempts to 6, then reports
-        # `connection_attempts + 1` in the error context, so a 6th attempt is
-        # logged as 7. Pinned as-is; the off-by-one is worth a separate fix.
-        assert error_context["connection_attempt"] == 7
+        # _connect increments connection_attempts to 6 and reports that same
+        # number: the attempt that actually failed.
+        assert error_context["connection_attempt"] == 6
+        assert error_context["connection_attempt"] == self.connection_manager.connection_attempts
 
 
 class TestConnectionManagerOnConnect:

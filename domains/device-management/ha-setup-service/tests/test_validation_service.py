@@ -62,7 +62,7 @@ async def test_detect_missing_area_assignments(validation_service, mock_entities
 
 
 @pytest.mark.asyncio
-async def test_detect_incorrect_area_assignments(validation_service, _mock_entities, mock_areas):
+async def test_detect_incorrect_area_assignments(validation_service, mock_areas):
     """Test detection of incorrect area assignments"""
     # Create entity with incorrect area
     entities_with_incorrect = [

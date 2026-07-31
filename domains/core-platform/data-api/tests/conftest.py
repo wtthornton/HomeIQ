@@ -100,11 +100,22 @@ async def fresh_db(request):
         return
 
     # Register all models with Base before create_all (else entities, devices, etc. missing)
+    import src.database as database
     import src.models  # noqa: F401
-    from src.database import Base, async_engine
+    from src.database import Base, init_db
+
+    # `async_engine` is a module-level alias that starts as None and is only
+    # populated by init_db(). Reference it through the module (not a
+    # from-import, which would bind None at import time) and initialize first.
+    if database.async_engine is None:
+        initialized = await init_db()
+        if not initialized or database.async_engine is None:
+            pytest.skip("PostgreSQL not available for data-api tests")
+
+    engine = database.async_engine
 
     # Drop all tables first, then create fresh schema
-    async with async_engine.begin() as conn:
+    async with engine.begin() as conn:
         # Drop all tables (if they exist)
         await conn.run_sync(Base.metadata.drop_all)
         # Create all tables with latest schema
@@ -113,10 +124,20 @@ async def fresh_db(request):
     yield
 
     # Cleanup: Delete all data but keep table structure
-    async with async_engine.begin() as conn:
+    async with engine.begin() as conn:
         # Delete all rows from all tables
         for table in reversed(Base.metadata.sorted_tables):
             await conn.execute(table.delete())
+
+    # Each test runs on its own event loop, but the engine is created once and
+    # its pool caches asyncpg connections bound to the loop that opened them.
+    # Dispose so the next test opens fresh connections on its own loop
+    # ("attached to a different loop" / "Event loop is closed" otherwise).
+    # Re-read from the module: a test may have called init_db() and swapped it.
+    current_engine = database.async_engine or engine
+    await current_engine.dispose()
+    if current_engine is not engine:
+        await engine.dispose()
 
 
 # ✅ Context7 Best Practice: Shared test data fixtures
@@ -166,3 +187,18 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "database: Tests requiring database access")
     config.addinivalue_line("markers", "api: API endpoint tests")
 
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Clear the shared rate-limiter buckets between tests.
+
+    The limiter is a singleton on the module-level DataAPIService, so token
+    consumption accumulates across the whole session and later tests start
+    getting 429s purely because earlier ones used up the budget.
+    """
+    from src.main import data_api_service
+
+    data_api_service.rate_limiter._buckets.clear()
+    yield
+    data_api_service.rate_limiter._buckets.clear()

@@ -42,6 +42,37 @@ def _reload_database_module():
             del sys.modules[key]
 
 
+@pytest.fixture(autouse=True)
+def _restore_database_module():
+    """Put the original src.database module object back after each test.
+
+    These tests drop src.database from sys.modules so its module-level code
+    re-runs under patched env/DatabaseManager. The *same* object must be
+    restored afterwards, not a fresh import: src.main and the endpoint modules
+    already hold references to the original module's `db` / `get_db`, so a
+    replacement module leaves the app pointing at an engine nothing
+    initializes. Without this, later tests fail with "object MagicMock can't be
+    used in 'await' expression" or spurious 500s.
+    """
+    import src
+
+    original = sys.modules.get("src.database")
+    yield
+    if original is not None:
+        sys.modules["src.database"] = original
+        # `import src.database` resolves through the parent package attribute,
+        # so restoring sys.modules alone still hands out the replacement module.
+        src.database = original
+        # These tests run init_db() against a patched `db`, which assigns the
+        # mock engine/session_maker onto the module globals. patch() restores
+        # `db` but not those globals, so clear them and let the autouse
+        # `fresh_db` fixture re-initialize against the real database.
+        original.async_engine = None
+        original.AsyncSessionLocal = None
+    else:
+        sys.modules.pop("src.database", None)
+
+
 def _make_mock_db_manager():
     """Return a MagicMock shaped like homeiq_data.DatabaseManager."""
     mock_db = MagicMock()
@@ -271,6 +302,8 @@ class TestInitDbSuccess:
         with patch("src.database.db", mock_db):
             await init_db()
 
+        # init_db() sets the global on whichever module object owns it
+        db_module = sys.modules["src.database"]
         assert db_module.async_engine is fake_engine
 
     @pytest.mark.asyncio
@@ -288,6 +321,7 @@ class TestInitDbSuccess:
         with patch("src.database.db", mock_db):
             await init_db()
 
+        db_module = sys.modules["src.database"]
         assert db_module.AsyncSessionLocal is fake_session_maker
 
 

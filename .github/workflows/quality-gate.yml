@@ -4,6 +4,9 @@
 name: Quality Gate
 
 on:
+  push:
+    branches: [master, main]
+  pull_request:
   workflow_dispatch:
     inputs:
       preset:

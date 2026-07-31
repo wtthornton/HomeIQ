@@ -26,13 +26,17 @@ class TestBoundaryConditions:
         from src.event_queue import EventQueue
         
         queue = EventQueue(maxsize=1)
-        
+
         # Add one event (at capacity)
-        await queue.put({"event_id": 1})
-        assert queue.qsize() == 1
-        
+        assert await queue.put({"event_id": 1}) is True
+        assert queue.queue.qsize() == 1
+
         # Queue should be at capacity
-        assert queue.qsize() == queue.max_size
+        assert queue.queue.qsize() == queue.maxsize
+
+        # The next event overflows rather than blocking
+        assert await queue.put({"event_id": 2}) is False
+        assert queue.overflow_events == 1
 
     @pytest.mark.asyncio
     async def test_batch_processor_zero_batch_size(self):
@@ -104,14 +108,17 @@ class TestEmptyDataHandling:
         THEN: Should handle empty write gracefully
         """
         from src.influxdb_batch_writer import InfluxDBBatchWriter
-        
-        writer = InfluxDBBatchWriter(connection_manager=MagicMock())
-        
-        # Write empty batch
-        with patch.object(writer.client, 'write_api', new_callable=MagicMock):
-            # Should handle empty batch without error
-            await writer.write_batch([])
-            assert writer is not None
+
+        manager = MagicMock()
+        manager.write_points = AsyncMock(return_value=True)
+        writer = InfluxDBBatchWriter(connection_manager=manager)
+
+        # An empty batch short-circuits before touching InfluxDB
+        await writer._process_batch_with_metrics([])
+
+        manager.write_points.assert_not_awaited()
+        assert writer.total_batches_written == 0
+        assert writer.total_points_failed == 0
 
     @pytest.mark.asyncio
     async def test_empty_discovery_cache(self):
@@ -121,15 +128,19 @@ class TestEmptyDataHandling:
         THEN: Should return empty dict/list
         """
         from src.discovery_service import DiscoveryService
-        from src.http_client import SimpleHTTPClient
-        
-        http_client = SimpleHTTPClient(enrichment_url="http://localhost:8123")
-        discovery = DiscoveryService(http_client=http_client)
-        
-        # Get entities from empty cache
-        entities = discovery.get_cached_entities()
-        assert isinstance(entities, dict)
-        assert len(entities) == 0
+
+        discovery = DiscoveryService()
+
+        # A fresh service has no mappings and reports no lookups
+        stats = discovery.get_cache_statistics()
+        assert stats["entity_to_device_mappings"] == 0
+        assert stats["device_to_area_mappings"] == 0
+        assert stats["device_metadata_entries"] == 0
+        assert stats["cache_age_minutes"] is None
+
+        assert discovery.get_device_id("light.missing") is None
+        assert discovery.get_area_id("light.missing") is None
+        assert discovery.get_device_metadata("missing") is None
 
 
 class TestNullNoneHandling:
@@ -364,16 +375,20 @@ class TestConcurrencyEdgeCases:
         manager.on_disconnect = AsyncMock()
         manager.on_message = AsyncMock()
         manager.on_event = AsyncMock()
-        
-        # Rapid connect/disconnect (mocked)
-        with patch.object(manager.client, 'connect', new_callable=AsyncMock):
-            with patch.object(manager.client, 'disconnect', new_callable=AsyncMock):
-                # Should handle rapid cycles
-                await manager.client.connect()
-                await manager.client.disconnect()
-                await manager.client.connect()
-                
-                assert manager is not None
+
+        # The client is created lazily on first connect
+        manager.client = MagicMock()
+        manager.client.connect = AsyncMock(side_effect=[True, False, True])
+        manager.client.disconnect = AsyncMock()
+
+        # Rapid cycles keep the counters coherent rather than crashing
+        assert await manager._connect() is True
+        assert await manager._connect() is False
+        assert await manager._connect() is True
+
+        assert manager.connection_attempts == 3
+        assert manager.successful_connections == 2
+        assert manager.failed_connections == 1
 
 
 class TestMemoryEdgeCases:

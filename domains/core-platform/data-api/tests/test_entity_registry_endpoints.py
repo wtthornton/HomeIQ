@@ -15,7 +15,19 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
-from src.database import AsyncSessionLocal, init_db
+import src.database as _database
+from src.database import init_db
+
+
+def AsyncSessionLocal():  # noqa: N802
+    """Resolve the session factory at call time.
+
+    src.database exposes AsyncSessionLocal as a module-level alias that
+    starts as None and is only populated by init_db(); a module-level
+    from-import would capture None permanently.
+    """
+    return _database.AsyncSessionLocal()
+
 from src.main import app
 from src.models import Device, Entity
 

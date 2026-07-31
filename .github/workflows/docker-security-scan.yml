@@ -1,7 +1,13 @@
 name: Docker Security Scan
 
 on:
-  workflow_dispatch:
+  pull_request:
+    paths:
+      - '**/Dockerfile*'
+      - '.github/workflows/docker-security-scan.yml'
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch: {}
 
 jobs:
   scan-images:

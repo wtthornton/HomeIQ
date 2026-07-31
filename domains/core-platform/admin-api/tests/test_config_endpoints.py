@@ -4,6 +4,7 @@ Tests for configuration endpoints
 
 from unittest.mock import patch
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from src.config_endpoints import ConfigEndpoints
 
@@ -14,7 +15,11 @@ class TestConfigEndpoints:
     def setup_method(self):
         """Set up test fixtures"""
         self.config_endpoints = ConfigEndpoints()
-        self.client = TestClient(self.config_endpoints.router)
+        # Mount the router on a FastAPI app: TestClient(router) skips the
+        # app-level middleware that populates fastapi_middleware_astack.
+        app = FastAPI()
+        app.include_router(self.config_endpoints.router)
+        self.client = TestClient(app)
 
     def test_init(self):
         """Test ConfigEndpoints initialization"""

@@ -70,8 +70,10 @@ jobs:
 
       - name: Install shared libraries
         run: |
+          # No `|| true`: a shared library that fails to install must fail the
+          # job here, not surface later as confusing import errors in tests.
           for lib in libs/homeiq-*/; do
-            pip install "$lib" 2>/dev/null || true
+            pip install "$lib"
           done
 
       - name: Check if service has requirements
@@ -87,7 +89,7 @@ jobs:
         if: steps.check-requirements.outputs.has_requirements == 'true'
         run: |
           pip install -r domains/${{ inputs.domain_dir }}/${{ matrix.service }}/requirements.txt
-          pip install pytest pytest-asyncio pytest-timeout 2>/dev/null || true
+          pip install pytest pytest-asyncio pytest-timeout
 
       - name: Initialize PostgreSQL schemas
         run: |
@@ -112,6 +114,10 @@ jobs:
           pytest tests/ -v --timeout=300
         env:
           POSTGRES_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
+          # data-api's conftest reads TEST_DATABASE_URL; without it the tests
+          # fell back to a hardcoded localhost URL with the wrong password.
+          TEST_DATABASE_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
+          DATABASE_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
 
       - name: Test Alembic migrations
         if: hashFiles(format('{0}/alembic.ini', format('domains/{0}/{1}', inputs.domain_dir, matrix.service))) != ''

@@ -19,6 +19,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# homeiq_data.auth pulls in a web framework and crypto stack that pure-data
+# consumers do not need. Install homeiq-data[auth] to use AuthManager.
+auth = [
+    "fastapi>=0.110",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+]
 postgres = [
     "psycopg[binary]>=3.2.0",
 ]

@@ -47,8 +47,8 @@ def test_root_endpoint() -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert data["service"] == "HA Setup & Recommendation Service"
-    assert "endpoints" in data
-    assert "features" in data
+    assert data["status"] == "running"
+    assert data["version"] == "1.0.0"
 
 
 # ---------------------------------------------------------------------------
@@ -58,11 +58,11 @@ def test_root_endpoint() -> None:
 
 def test_verify_api_key_no_key_configured() -> None:
     """verify_api_key raises 503 when no API key configured."""
-    from src.main import verify_api_key
+    from src.auth import verify_api_key
 
     import asyncio
 
-    with patch("src.main._api_key", ""):
+    with patch("src.auth._api_key", ""):
         with pytest.raises(Exception) as exc_info:
             asyncio.get_event_loop().run_until_complete(verify_api_key("test-key"))
         assert "503" in str(exc_info.value.status_code)
@@ -70,11 +70,11 @@ def test_verify_api_key_no_key_configured() -> None:
 
 def test_verify_api_key_wrong_key() -> None:
     """verify_api_key raises 403 with wrong key."""
-    from src.main import verify_api_key
+    from src.auth import verify_api_key
 
     import asyncio
 
-    with patch("src.main._api_key", "correct-key"):
+    with patch("src.auth._api_key", "correct-key"):
         with pytest.raises(Exception) as exc_info:
             asyncio.get_event_loop().run_until_complete(verify_api_key("wrong-key"))
         assert "403" in str(exc_info.value.status_code)
@@ -82,11 +82,11 @@ def test_verify_api_key_wrong_key() -> None:
 
 def test_verify_api_key_correct_key() -> None:
     """verify_api_key returns key when correct."""
-    from src.main import verify_api_key
+    from src.auth import verify_api_key
 
     import asyncio
 
-    with patch("src.main._api_key", "my-secret"):
+    with patch("src.auth._api_key", "my-secret"):
         result = asyncio.get_event_loop().run_until_complete(verify_api_key("my-secret"))
         assert result == "my-secret"
 
@@ -98,7 +98,7 @@ def test_verify_api_key_correct_key() -> None:
 
 def test_apply_fix_request_model() -> None:
     """ApplyFixRequest validates fields."""
-    from src.main import ApplyFixRequest
+    from src.routes_validation import ApplyFixRequest
 
     req = ApplyFixRequest(entity_id="light.office", area_id="office")
     assert req.entity_id == "light.office"
@@ -107,7 +107,7 @@ def test_apply_fix_request_model() -> None:
 
 def test_bulk_fix_request_model() -> None:
     """BulkFixRequest validates fixes list."""
-    from src.main import BulkFixRequest
+    from src.routes_validation import BulkFixRequest
 
     req = BulkFixRequest(fixes=[{"entity_id": "light.x", "area_id": "y"}])
     assert len(req.fixes) == 1

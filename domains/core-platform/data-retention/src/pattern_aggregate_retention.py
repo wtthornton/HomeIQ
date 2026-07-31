@@ -66,6 +66,7 @@ class PatternAggregateRetention:
 
         results = {}
         start_time = datetime.now()
+        all_succeeded = True
 
         for policy_name, config in self.retention_policies.items():
             if not config.cleanup_enabled:
@@ -75,19 +76,22 @@ class PatternAggregateRetention:
             try:
                 result = await self._cleanup_bucket(config)
                 results[policy_name] = result
+                if not result.get('success', False):
+                    all_succeeded = False
             except Exception as e:
                 logger.error(f"Error cleaning up {policy_name}: {e}", exc_info=True)
                 results[policy_name] = {
                     'success': False,
                     'error': str(e)
                 }
+                all_succeeded = False
 
         duration = (datetime.now() - start_time).total_seconds()
 
         logger.info(f"Pattern aggregate cleanup completed in {duration:.2f}s")
 
         return {
-            'success': True,
+            'success': all_succeeded,
             'duration_seconds': duration,
             'results': results,
             'timestamp': datetime.now().isoformat()

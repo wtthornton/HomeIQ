@@ -1,57 +1,43 @@
 # Session handoff
-**Updated:** 2026-07-31T16:42:15Z
-**Git:** d18484b9
+**Updated:** 2026-07-31T21:57:47Z
+**Git:** 33672a64
 **Linear P0:** none
 
 ## Done
-- ✅ **InfluxDB Retention Delete Verification** (P0 Part 1)
-  - Created comprehensive test suite: 15 tests, 82% coverage
-  - Verified delete code uncommented in PR #68 correctly calls InfluxDB delete API
-  - Confirmed bucket/predicate/time-range targeting: `start='1970-01-01T00:00:00Z'`, `stop=cutoff_date` (90d daily, 365d weekly)
-  - Tested mock mode, real client with mocked delete, cutoff calculations, error handling, partial failures
-  - All tests pass ✅
-
-- ✅ **Scheduled Pattern Aggregate Retention Cleanup**
-  - Wired up to scheduler in main.py: daily at 06:00 AM
-  - Now executes automatically instead of remaining dormant
-  - Scheduled after other Epic 2 operations (downsampling, archival, view refresh)
-
-- ✅ **Credential Rotation Runbook Documented**
-  - Production checklist: test against throwaway InfluxDB bucket before production deployment
-  - Detailed steps for InfluxDB API token rotation, service updates, verification
-  - Safe archive purging after credentials rotated (removal of `/backups/*.tar.gz`)
-  - Rollback plan if issues discovered post-deployment
+- websocket-ingestion: **512 passed** (was 36 failed + 7 errors); suite 216s to 17.5s.
+- admin-api: **370 passed** (was uncollectable, 0 tests runnable).
+- data-api: **1255 passed, 0 masked skips** (was 92 failed + 60 errors).
+- Collection errors fixed in 6 services: `pytest.ini` had `pythonpath = . ../..` but services sit 3 levels deep, so repo-root `tests.path_setup` never resolved. ml-service also needed the importlib loader (its own `tests/__init__.py` shadows the repo-root package).
+- ~15 prod bugs fixed: `/events/{event_id}` shadowed 4 static routes (unreachable in prod); incomplete `DateTime(timezone=True)` migration on 3 data-api models; config 403 masked as 500; `timer_id.split("_")[0]` truncated metric labels; `timedelta` used but never imported (latent NameError); `/app/logs` mkdir at import time; uptime returning 100% from an except handler; `init-schemas.sql` hardcoded `ALTER DATABASE homeiq` so search_path was never set in CI.
+- CI: **1 to 18 workflows automatic**. Repo is PUBLIC and all jobs are `ubuntu-latest`, so Actions is free/unmetered — the README's "~$70+/mo" premise was wrong and had left 5 PRs merged unvalidated.
+- CI wiring: CI set `POSTGRES_URL` but data-api reads `TEST_DATABASE_URL`; removed `|| true` that swallowed lib-install failures.
+- TAPPS: 16/16 gates pass, 0 security issues.
 
 ## Open
-- admin-api #71 merged without ever running its tests — collection fails outside Docker (hardcoded /app paths, missing passlib/jose). Import check + ruff + inspection only
-- 36 websocket tests fail: error_scenarios (12), discovery_service (12), influxdb_schema (7), edge_cases (4), batch_writer (1). Assert on refactored-away internals (write_batch, qsize, .client, _authenticate, MEASUREMENT_SUMMARY). No green baseline
-- No CI validated any of the 5 merged PRs — workflows are workflow_dispatch-only (0e8cb770)
-- Prod issues found but left out of test-only #70: ConnectionManager._on_connect does not guard `await self._subscribe_to_events()`; _connect reports `connection_attempts + 1` after incrementing
-- health_check.py wraps its event-rate calc in `except Exception: pass` — that hid the datetime bug fixed in #70
+- **`ruff format --check` fails on ~85% of files in every service** and runs BEFORE tests in `reusable-group-ci.yml`, so every domain job fails at step 1. Sole blocker to green CI.
+- **Nothing committed** — 133 changed paths in the working tree.
+- Services beyond the 4 repaired are unverified; local failures are mostly deps that CI installs.
+- Prod InfluxDB credential rotation still not executed (needs prod tokens + `/backups/`).
+- `ai-automation-ui/tests/components/test_LoadingSpinner.py` imports a `.tsx` as Python (body `assert True`); deletion denied, will fail that domain.
+- `admin-api/src/stats_endpoints.py` is dead code (prod uses the shared-lib class); flagged only.
 
-## Next (P0 → Production)
-- Execute credential rotation in production environment (use runbook at `domains/core-platform/data-retention/docs/INFLUXDB_RETENTION_AND_CREDENTIAL_ROTATION.md`):
-  1. Create throwaway test bucket in staging InfluxDB
-  2. Write old (95d) and new (30d) test data
-  3. Run pattern_aggregate_retention cleanup against test bucket, confirm old data deleted
-  4. Rotate InfluxDB API tokens (invalidate old, issue new) and update all services
-  5. Rotate other exposed secrets if present in `.env`
-  6. Purge old backup archives from `/backups/`
-  7. Monitor first scheduled run (06:00 AM) in logs
+## Next (P0)
+- Commit the test/CI fixes as one reviewable commit FIRST, then run `ruff format` over `domains/` and `libs/` as a separate mechanical commit — the format pass rewrites hundreds of files and would otherwise bury the fixes. That unblocks the CI format gate.
 
 ## Blockers
-- None — production execution is operational/runbook-based, not code-dependent
+- none
 
 ## Changed files
-- domains/core-platform/data-retention/tests/test_pattern_aggregate_retention.py (new)
-- domains/core-platform/data-retention/src/main.py (schedule call added)
-- domains/core-platform/data-retention/docs/INFLUXDB_RETENTION_AND_CREDENTIAL_ROTATION.md (new, comprehensive runbook)
+- `.github/workflows/` (9 ci-*.yml + reusable-group-ci, quality-gate, test, codeql, docker-*, README)
+- `domains/core-platform/{websocket-ingestion,admin-api,data-api}/`
+- `domains/{blueprints/blueprint-index,data-collectors/log-aggregator,device-management/*}/`
+- `libs/homeiq-observability/.../logging_service.py`, `infrastructure/postgres/init-schemas.sql`, `CONTRIBUTING.md`, 6 `pytest.ini`
 
 ## Verify
-- `cd domains/core-platform/data-retention && PYTHONPATH=../../tests:src uv run --with pytest --with pytest-asyncio python -m pytest tests/test_pattern_aggregate_retention.py -v` — 15 passed ✅
-- `git log master --oneline -2` — d18484b9 on top, b79bd460 below
+- `cd domains/core-platform/websocket-ingestion && pytest tests/ -q` (expect 512)
+- `cd domains/core-platform/admin-api && pytest tests/ -q` (expect 370)
+- data-api needs postgres on a spare port (5432 is taken by other projects): `docker run -d --rm --name homeiq-ci-pg -e POSTGRES_USER=homeiq -e POSTGRES_PASSWORD=homeiq_test -e POSTGRES_DB=homeiq_test -p 5439:5432 postgres:17-alpine`; load `infrastructure/postgres/init-schemas.sql`; then `TEST_DATABASE_URL="postgresql+asyncpg://homeiq:homeiq_test@localhost:5439/homeiq_test" pytest tests/ -q` (expect 1255). Stop the container after.
+- `uvx ruff format --check domains/core-platform/data-api/`
 
-## Success criterion (P0)
-✅ **COMPLETE** — InfluxDB retention delete now testable + verified safe targeting (time range, buckets).
-✅ **COMPLETE** — Comprehensive production runbook documented for credential rotation and archive purging.
-**Remaining**: Execution in production environment following runbook (operational task).
+## Success criterion
+- A core-platform PR runs `ci-core` to completion: format gate, lint gate, and all three core-platform suites green.

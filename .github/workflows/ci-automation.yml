@@ -1,6 +1,19 @@
 name: "CI — Automation Core"
 
 on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'domains/automation-core/**'
+      - 'libs/**'
+      - '.github/workflows/ci-automation.yml'
+      - '.github/workflows/reusable-group-ci.yml'
+  pull_request:
+    paths:
+      - 'domains/automation-core/**'
+      - 'libs/**'
+      - '.github/workflows/ci-automation.yml'
+      - '.github/workflows/reusable-group-ci.yml'
   workflow_dispatch: {}
 
 permissions:

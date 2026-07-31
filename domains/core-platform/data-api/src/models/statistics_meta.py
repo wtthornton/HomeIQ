@@ -5,7 +5,7 @@ Tracks which entities are eligible for statistics aggregation.
 Based on Home Assistant's statistics_meta table pattern.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, Column, DateTime, Index, String
 
@@ -32,11 +32,11 @@ class StatisticsMeta(Base):
     has_sum = Column(Boolean, default=False)  # Can calculate sum (total_increasing entities)
 
     # Reset tracking (for total_increasing entities)
-    last_reset = Column(DateTime)  # Last reset timestamp (if applicable)
+    last_reset = Column(DateTime(timezone=True))  # Last reset timestamp (if applicable)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     def __repr__(self):
         return f"<StatisticsMeta(statistic_id='{self.statistic_id}', state_class='{self.state_class}')>"

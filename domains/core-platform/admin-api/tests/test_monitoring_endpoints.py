@@ -11,9 +11,18 @@ from src.monitoring_endpoints import MonitoringEndpoints
 
 @pytest.fixture
 def mock_auth_manager():
-    """Create mock auth manager."""
+    """Create mock auth manager.
+
+    get_current_user is a real async function, not an AsyncMock: FastAPI
+    introspects a dependency's signature, and AsyncMock's (*args, **kwargs)
+    would be read as two required query params (every request 422s).
+    """
     auth_manager = Mock(spec=AuthManager)
-    auth_manager.get_current_user = AsyncMock(return_value={"user_id": "test_user"})
+
+    async def get_current_user():
+        return {"user_id": "test_user"}
+
+    auth_manager.get_current_user = get_current_user
     return auth_manager
 
 
@@ -590,7 +599,7 @@ class TestMonitoringEndpoints:
         assert data["success"] is True
         assert data["data"]["format"] == "csv"
         assert "csv_data" in data["data"]
-        assert "timestamp,level,service,message" in data["data"]["csv_data"]
+        assert "timestamp,level,service,component,message" in data["data"]["csv_data"]
 
     @patch('src.monitoring_endpoints.metrics_service')
     def test_export_metrics_json(self, mock_metrics_service, client):

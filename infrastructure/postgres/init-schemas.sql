@@ -23,8 +23,18 @@ BEGIN
 END
 $$;
 
--- Set default search_path for the application user
-ALTER DATABASE homeiq SET search_path TO public, core, automation, agent, blueprints, energy, devices, patterns, rag;
+-- Set default search_path for the application user.
+-- Target the connected database rather than a hardcoded name: CI initializes
+-- `homeiq_test`, where `ALTER DATABASE homeiq` errored and left search_path unset.
+DO $$
+BEGIN
+    EXECUTE format(
+        'ALTER DATABASE %I SET search_path TO public, core, automation, agent, '
+        'blueprints, energy, devices, patterns, rag',
+        current_database()
+    );
+END
+$$;
 
 -- =============================================================================
 -- Agent schema tables (ha-ai-agent-service)
