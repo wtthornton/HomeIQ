@@ -89,7 +89,9 @@ class TestWaitForRun:
     """The run poll nests state under 'run'; outputs live on a separate endpoint.
 
     Getting this wrong produced state=None and a spurious failure, so it is
-    pinned here against the shapes observed from AgentForge 4.56.1.
+    pinned here against the shapes observed from AgentForge 4.56.1, re-verified
+    unchanged against 4.56.2. If a future AF upgrade moves these, this test
+    fails loudly instead of the collector silently reporting a bogus state.
     """
 
     def test_reads_nested_run_state_and_fetches_outputs(self, monkeypatch):
