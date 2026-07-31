@@ -1,41 +1,41 @@
 # Session handoff
-**Updated:** 2026-07-31T02:48:00Z
-**Git:** ccae1545 (merged to master)
+**Updated:** 2026-07-31T15:03:28Z
+**Git:** b79bd460
 **Linear P0:** none
 
 ## Done
-- Bootstrapped HomeIQ as AgentForge Pattern A consumer (PR #66)
-- Ran baseline audit sweep over 4 real services: 8 findings, all verified real against source
-- Fixed critical TypeError in ai-query-service breaking every query request (PR #67)
-- Fixed two high-severity security bugs in data-retention service (pattern_aggregate_retention.py + backup_restore.py)
-  - cleanup deletion now actually runs (was commented out)
-  - .env secrets excluded from backup archives (was persisted unencrypted)
-- All PRs pushed to GitHub
+- All 5 open PRs merged to master, branches deleted: #66 (AgentForge Pattern A), #67 (ai-query TypeError breaking every query), #69 (websocket house-status, HIGH), #70 (test suite repair), #71 (medium/low audit findings)
+- AgentForge baseline audit fully closed — all 8 findings across 4 services
+- Websocket-ingestion suite: 100 failed / 313 passed / 38 errors -> 36 failed / 434 passed; the module that hung forever now runs in 0.32s
+- #71: ai-query unbounded _rate_limit_locks leak, over-broad `except (httpx.HTTPError, Exception)`, admin-api fallback masking response bugs, removed orphaned analyze_review.py
+- Submodule home-assistant-datasets 2bb8e15a -> 77bd7c8e (v5.0.1); verified reachable from origin/main before moving pointer
+
+## Open
+- InfluxDB retention delete enabled in #68 but has NEVER executed against a real instance — was a commented-out dry-run before that PR
+- Pre-existing `/backups/*.tar.gz` still contain unencrypted `.env`; #68 only stopped NEW backups from capturing secrets
+- admin-api #71 merged without ever running its tests — collection fails outside Docker (hardcoded /app paths, missing passlib/jose). Import check + ruff + inspection only
+- 36 websocket tests fail: error_scenarios (12), discovery_service (12), influxdb_schema (7), edge_cases (4), batch_writer (1). Assert on refactored-away internals (write_batch, qsize, .client, _authenticate, MEASUREMENT_SUMMARY). No green baseline
+- No CI validated any of the 5 merged PRs — workflows are workflow_dispatch-only (0e8cb770)
+- Prod issues found but left out of test-only #70: ConnectionManager._on_connect does not guard `await self._subscribe_to_events()`; _connect reports `connection_attempts + 1` after incrementing
+- health_check.py wraps its event-rate calc in `except Exception: pass` — that hid the datetime bug fixed in #70
+- `.tapps-mcp/compaction-marker.json` should be gitignored alongside pre-compact-context.json
 
 ## Next (P0)
-All 4 HIGH-severity audit findings are now fixed. #68 merged; #67 and #69 open.
-
-Two operational follow-ups from the #68 merge need infra access, neither started:
-1. Exercise the now-live InfluxDB delete in pattern_aggregate_retention.py against a NON-PRODUCTION bucket before it runs on real data. It is enabled on master but has never executed.
-2. Rotate any credentials present in pre-existing /backups/*.tar.gz — those archives still contain .env from before the fix.
-
-Merge #67 (ai-query HIGH — every query/refine request 500s until it lands) and #69 (websocket house-status visibility).
-
-Remaining audit findings, all MEDIUM/LOW, none started:
-- ai-query-service: unbounded `_rate_limit_locks` growth in api/middlewares.py; redundant `except (httpx.HTTPError, Exception)` swallow in query/entity_extractor.py
-- admin-api: MEDIUM in devices_endpoints.py try blocks; LOW in analyze_review.py (audit verdict was still "ship")
+- Verify the InfluxDB retention delete before the next cycle runs it unsupervised. Untested destructive code on a timer: the delete in pattern_aggregate_retention.py `_cleanup_bucket` was a no-op dry-run until #68 uncommented it, so the real path has never executed once. Exercise it against a throwaway bucket first and confirm bucket/predicate/time-range targeting, since deletions are irreversible. Immediately after, rotate the credentials exposed in existing `/backups/*.tar.gz` and purge those archives — rotation is required because the secrets sat in artifacts that may have been copied off-box.
 
 ## Blockers
 - none
 
+## Changed files
+- domains/core-platform/websocket-ingestion/tests/ (~10 modules)
+- domains/automation-core/ai-query-service/src/api/middlewares.py
+- domains/automation-core/ai-query-service/src/services/query/entity_extractor.py
+- domains/core-platform/admin-api/src/devices_endpoints.py
+
 ## Verify
-- Baseline audit sweep findings: reports/af-audit-baseline.json
-- data-retention tests: `5 failed, 33 passed` — all 5 failures are PRE-EXISTING, confirmed identical on baseline and fix branch. Causes: test_cleanup_old_backups mock lacks Python 3.13 `follow_symlinks` kwarg; test_backup_config/test_restore_config patch `os.path.exists` while src calls `Path.exists`. Worth a separate fix.
-- Repo CI is workflow_dispatch-only (0e8cb770), so PRs merge with ZERO automated checks. Run tests locally before merging anything.
-- Test invocation needs `PYTHONPATH=<repo root>` — pytest.ini `pythonpath = . ../..` is one level short of the root `tests/path_setup.py` that conftest imports. Affects data-retention AND websocket-ingestion.
-- websocket-ingestion suite: baseline 100 failed / 313 passed / 38 errors; with #69 it is 99 failed / 314 passed / 38 errors (zero regressions). That service has NO green baseline — the ~99 failures deserve their own cleanup epic.
-- `tests/unit/test_websocket_handler.py` HANGS indefinitely (SIGTERM at 600s). Excluded from all runs. Needs investigation.
-- `test_calculate_delay_max_delay` is FLAKY by construction: `_calculate_delay` adds ±10% jitter via random.random() and the test asserts `delay <= max_delay`, so it fails ~50% of runs. Don't chase it as a regression.
+- `git log master --oneline -8` — b79bd460 on top, 5 PR merges below, clean tree
+- `cd domains/core-platform/websocket-ingestion && uv run --with pytest --with pytest-asyncio --with pytest-timeout --with aiohttp --with fastapi --with httpx python -m pytest tests/ -q --timeout=60` — expect 36 failed / 434 passed
+- admin-api needs a container run; its tests cannot collect on the host
 
 ## Success criterion
-All 4 services validated by baseline audit; high-severity bugs fixed; ready for release pipeline.
+- InfluxDB retention delete executed once against a non-production target with targeting confirmed, and credentials in existing backup archives rotated with archives purged.

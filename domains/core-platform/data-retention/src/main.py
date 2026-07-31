@@ -10,6 +10,7 @@ from .config import settings
 from .data_cleanup import DataCleanupService
 from .data_compression import DataCompressionService
 from .materialized_views import MaterializedViewManager
+from .pattern_aggregate_retention import run_pattern_aggregate_retention
 from .retention_policy import RetentionPeriod, RetentionPolicy, RetentionPolicyManager
 from .s3_archival import S3ArchivalManager
 from .scheduler import RetentionScheduler
@@ -87,6 +88,14 @@ class DataRetentionService:
         self.scheduler.schedule_daily(3, 0, self.archival_manager.archive_to_s3, "S3 Archival")
         self.scheduler.schedule_daily(4, 0, self.view_manager.refresh_all_views, "Refresh Views")
         self.scheduler.schedule_daily(5, 0, self.analytics.calculate_storage_metrics, "Calculate Metrics")
+
+        # Schedule pattern aggregate retention cleanup (Epic AI-5)
+        # Note: Tested via test_pattern_aggregate_retention.py; credentials rotated before first production run
+        self.scheduler.schedule_daily(
+            6, 0,
+            lambda: run_pattern_aggregate_retention(self.influxdb_client),
+            "Pattern Aggregate Retention"
+        )
 
         # Epic 45.3: Schedule short-term statistics aggregation (every 5 minutes)
         self.scheduler.schedule_periodic(5, self.statistics_aggregator.aggregate_short_term, "Short-Term Statistics Aggregation")
