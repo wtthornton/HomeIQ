@@ -264,6 +264,19 @@ phase2_results_*.json
 .tapps-mcp/.linear-snapshot-sentinel-*
 .tapps-mcp/*.jsonl
 
+# Machine-local caches (content hashes / project profile) — not shared state.
+# .tapps-mcp/memory/ stays tracked.
+.tapps-mcp/af-publish-cache.json
+.tapps-mcp/profile-cache.json
+
+# AgentForge kit skills/rules are absolute symlinks into a local AgentForge
+# clone, created per-machine by install_kit.sh. Committing them would leave
+# every other clone with dangling links. See docs/AF-INTEGRATION.md § Setup.
+.claude/skills/af-*
+.claude/rules/af-integration.mdc
+.cursor/skills/af-*
+.cursor/rules/af-integration.mdc
+
 # ML model binaries (regenerated at deploy time)
 *.pkl
 !**/tests/**/*.pkl

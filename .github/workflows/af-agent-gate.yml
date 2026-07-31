@@ -1,0 +1,69 @@
+name: "AF — Agent Spec Gate"
+
+# Manual only — see workflows/README.md (cost-controlled mode).
+#
+# REQUIRES A REACHABLE AGENTFORGE. The content gate is served by AgentForge
+# (POST /agents/diagnose-content); there is no offline equivalent, and the kit
+# explicitly forbids re-implementing conformance rules locally. A GitHub-hosted
+# runner cannot see a developer's localhost:8010 — run this on a self-hosted
+# runner on the AF host, or pass a reachable agentforge_url.
+on:
+  workflow_dispatch:
+    inputs:
+      agentforge_url:
+        description: "Base URL of a reachable AgentForge API (agentforge-api)"
+        required: true
+        default: "http://localhost:8010"
+      runner:
+        description: "Runner label — use a self-hosted label when AF is on localhost"
+        required: true
+        default: "self-hosted"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: af-agent-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Preflight — AgentForge reachable
+        run: |
+          if ! curl -fsS --max-time 10 "${{ inputs.agentforge_url }}/health" -o /tmp/af_health.json; then
+            echo "::error::AgentForge unreachable at ${{ inputs.agentforge_url }}."
+            echo "The agent content gate is served by AgentForge and has no offline mode."
+            echo "Use a self-hosted runner on the AF host, or pass a reachable agentforge_url."
+            exit 1
+          fi
+          python -c "import json;print('AF version:', json.load(open('/tmp/af_health.json'))['version'])"
+
+      - name: Checkout AgentForge (kit source)
+        uses: actions/checkout@v4
+        with:
+          repository: wtthornton/AgentForge
+          path: .agentforge-kit
+          token: ${{ secrets.AGENTFORGE_REPO_TOKEN }}
+
+      - name: Install kit deps
+        run: pip install httpx pyyaml
+
+      - name: Gate agent specs
+        env:
+          AGENTFORGE_URL: ${{ inputs.agentforge_url }}
+          # Project bearer (afp_*). Repo secret — never the operator's key.
+          AGENTFORGE_API_KEY: ${{ secrets.AGENTFORGE_API_KEY }}
+        run: |
+          python .agentforge-kit/clients/agentforge-integration-kit/scripts/af_publish.py \
+            --slug homeiq \
+            --layout scout \
+            --repo-root . \
+            --check-only

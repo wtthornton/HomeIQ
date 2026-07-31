@@ -472,3 +472,34 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 <!-- END: karpathy-guidelines -->
+
+## AgentForge integration
+
+This project consumes AgentForge (local Docker stack, http://localhost:8010)
+via the `agentforge` MCP server in `.mcp.json` / `.cursor/mcp.json`.
+
+**Integration pattern:** Pattern A — HTTP publish (project slug: `homeiq`)
+
+**Prefer MCP runtime tools over hand-writing prompts:**
+
+- `health()` — troubleshoot brain sidecar + service version
+- `list_workflows()` — discover workflows and inputs
+- `invoke_task(prompt, config_hint=None)` — run an AgentForge agent
+- `run_workflow(name, inputs, dry_run=True)` — validate before LLM cost
+- `get_workflow_run(run_id)` — per-node status + total cost
+
+**Publish (Pattern A):** agents and workflows live under
+`agentforge/projects/homeiq/{agents,workflows}/`. Use the `af-publish`
+skill or `af_publish.py --slug homeiq --layout scout`. Publish agents
+**before** workflows — workflows resolve `agent:` references at load time
+and return 422 if reversed.
+
+**Port 8010 is pinned** (`agentforge-api`). Do not use `:8001`
+(`agentforge-main`) — the same slug can show different published versions
+on each instance.
+
+**Platform purity:** HomeIQ domain models, Home Assistant clients, database
+access, and credentials stay in this repo — never in AgentForge platform code.
+
+Decision record: [docs/AF-INTEGRATION.md](docs/AF-INTEGRATION.md).
+Canonical guide: [CONNECTING_PROJECTS.md](https://github.com/wtthornton/AgentForge/blob/main/docs/CONNECTING_PROJECTS.md).
