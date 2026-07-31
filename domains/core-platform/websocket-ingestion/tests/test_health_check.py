@@ -3,7 +3,7 @@ Unit tests for HealthCheckHandler - Critical monitoring component
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
 import pytest
@@ -192,7 +192,7 @@ class TestHealthCheckHandlerWithSubscription:
         mock_subscription = Mock()
         mock_subscription.is_subscribed = True
         mock_subscription.total_events_received = 100
-        mock_subscription.subscription_start_time = datetime.now() - timedelta(minutes=10)
+        mock_subscription.subscription_start_time = datetime.now(UTC) - timedelta(minutes=10)
 
         def get_subscription_status():
             return {
@@ -200,7 +200,7 @@ class TestHealthCheckHandlerWithSubscription:
                 "active_subscriptions": 1,
                 "total_events_received": 100,
                 "events_by_type": {"state_changed": 90, "service_registered": 10},
-                "last_event_time": datetime.now().isoformat(),
+                "last_event_time": datetime.now(UTC).isoformat(),
                 "subscription_start_time": mock_subscription.subscription_start_time.isoformat()
             }
 
@@ -268,7 +268,7 @@ class TestHealthCheckHandlerWithSubscription:
         mock_subscription = Mock()
         mock_subscription.is_subscribed = True
         mock_subscription.total_events_received = 0
-        mock_subscription.subscription_start_time = datetime.now() - timedelta(seconds=120)
+        mock_subscription.subscription_start_time = datetime.now(UTC) - timedelta(seconds=120)
 
         def get_subscription_status():
             return {
@@ -314,8 +314,8 @@ class TestHealthCheckHandlerWithHistoricalCounter:
                 "active_subscriptions": 1,
                 "total_events_received": 50,  # Current session
                 "events_by_type": {"state_changed": 50},
-                "last_event_time": datetime.now().isoformat(),
-                "subscription_start_time": (datetime.now() - timedelta(minutes=1)).isoformat()
+                "last_event_time": datetime.now(UTC).isoformat(),
+                "subscription_start_time": (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
             }
 
         mock_subscription.get_subscription_status = get_subscription_status
@@ -357,8 +357,8 @@ class TestHealthCheckHandlerWithHistoricalCounter:
                 "active_subscriptions": 1,
                 "total_events_received": 50,
                 "events_by_type": {"state_changed": 50},
-                "last_event_time": datetime.now().isoformat(),
-                "subscription_start_time": (datetime.now() - timedelta(minutes=1)).isoformat()
+                "last_event_time": datetime.now(UTC).isoformat(),
+                "subscription_start_time": (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
             }
 
         mock_subscription.get_subscription_status = get_subscription_status
@@ -439,8 +439,8 @@ class TestHealthCheckHandlerEventRate:
         mock_manager.failed_connections = 0
 
         # Simulate 100 events over 10 minutes = 10 events/min
-        start_time = datetime.now() - timedelta(minutes=10)
-        last_event_time = datetime.now()
+        start_time = datetime.now(UTC) - timedelta(minutes=10)
+        last_event_time = datetime.now(UTC)
 
         mock_subscription = Mock()
         mock_subscription.is_subscribed = True

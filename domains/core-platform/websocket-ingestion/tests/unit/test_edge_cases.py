@@ -25,7 +25,7 @@ class TestBoundaryConditions:
         """
         from src.event_queue import EventQueue
         
-        queue = EventQueue(max_size=1)
+        queue = EventQueue(maxsize=1)
         
         # Add one event (at capacity)
         await queue.put({"event_id": 1})
@@ -45,8 +45,7 @@ class TestBoundaryConditions:
         
         processor = BatchProcessor(
             batch_size=0,  # Edge case
-            batch_timeout=1.0,
-            max_queue_size=10
+            batch_timeout=1.0
         )
         
         # Should still be able to add events (may process immediately)
@@ -67,7 +66,6 @@ class TestBoundaryConditions:
             processor = BatchProcessor(
                 batch_size=10,
                 batch_timeout=-1.0,  # Edge case
-                max_queue_size=10
             )
             # If it doesn't raise, should still be functional
             assert processor is not None
@@ -90,8 +88,7 @@ class TestEmptyDataHandling:
         
         processor = BatchProcessor(
             batch_size=10,
-            batch_timeout=1.0,
-            max_queue_size=10
+            batch_timeout=1.0
         )
         
         # Process empty batch (should not crash)
@@ -108,12 +105,7 @@ class TestEmptyDataHandling:
         """
         from src.influxdb_batch_writer import InfluxDBBatchWriter
         
-        writer = InfluxDBBatchWriter(
-            url="http://localhost:8086",
-            token="token",
-            org="org",
-            bucket="bucket"
-        )
+        writer = InfluxDBBatchWriter(connection_manager=MagicMock())
         
         # Write empty batch
         with patch.object(writer.client, 'write_api', new_callable=MagicMock):
@@ -131,7 +123,7 @@ class TestEmptyDataHandling:
         from src.discovery_service import DiscoveryService
         from src.http_client import SimpleHTTPClient
         
-        http_client = SimpleHTTPClient(base_url="http://localhost:8123", token="token")
+        http_client = SimpleHTTPClient(enrichment_url="http://localhost:8123")
         discovery = DiscoveryService(http_client=http_client)
         
         # Get entities from empty cache
@@ -154,8 +146,7 @@ class TestNullNoneHandling:
         
         processor = BatchProcessor(
             batch_size=10,
-            batch_timeout=1.0,
-            max_queue_size=10
+            batch_timeout=1.0
         )
         
         # Try to add None event (should handle gracefully)
@@ -176,7 +167,7 @@ class TestNullNoneHandling:
         """
         from src.entity_filter import EntityFilter
         
-        filter_obj = EntityFilter(include_patterns=["*"], exclude_patterns=[])
+        filter_obj = EntityFilter(config={"mode": "exclude", "patterns": []})
         
         # Filter event with None entity_id
         result = filter_obj.should_include({"entity_id": None, "domain": "test"})
@@ -198,8 +189,7 @@ class TestTimestampEdgeCases:
         
         processor = BatchProcessor(
             batch_size=10,
-            batch_timeout=1.0,
-            max_queue_size=10
+            batch_timeout=1.0
         )
         
         # Add event with future timestamp
@@ -222,8 +212,7 @@ class TestTimestampEdgeCases:
         
         processor = BatchProcessor(
             batch_size=10,
-            batch_timeout=1.0,
-            max_queue_size=10
+            batch_timeout=1.0
         )
         
         # Add event with very old timestamp
@@ -246,8 +235,7 @@ class TestTimestampEdgeCases:
         
         processor = BatchProcessor(
             batch_size=10,
-            batch_timeout=1.0,
-            max_queue_size=10
+            batch_timeout=1.0
         )
         
         # Add event with timezone-naive timestamp (edge case)
@@ -274,8 +262,7 @@ class TestStringEdgeCases:
         
         processor = BatchProcessor(
             batch_size=10,
-            batch_timeout=1.0,
-            max_queue_size=10
+            batch_timeout=1.0
         )
         
         # Add event with very long entity_id
@@ -298,8 +285,7 @@ class TestStringEdgeCases:
         
         processor = BatchProcessor(
             batch_size=10,
-            batch_timeout=1.0,
-            max_queue_size=10
+            batch_timeout=1.0
         )
         
         await processor.add_event({
@@ -320,8 +306,7 @@ class TestStringEdgeCases:
         
         processor = BatchProcessor(
             batch_size=10,
-            batch_timeout=1.0,
-            max_queue_size=10
+            batch_timeout=1.0
         )
         
         # Add event with special characters
@@ -348,8 +333,7 @@ class TestConcurrencyEdgeCases:
         
         processor = BatchProcessor(
             batch_size=10,
-            batch_timeout=1.0,
-            max_queue_size=20
+            batch_timeout=1.0
         )
         
         # Add events concurrently
@@ -374,11 +358,12 @@ class TestConcurrencyEdgeCases:
         manager = ConnectionManager(
             base_url="http://localhost:8123",
             token="token",
-            on_connect=AsyncMock(),
-            on_disconnect=AsyncMock(),
-            on_message=AsyncMock(),
-            on_event=AsyncMock()
         )
+        # callbacks are attributes, not constructor args
+        manager.on_connect = AsyncMock()
+        manager.on_disconnect = AsyncMock()
+        manager.on_message = AsyncMock()
+        manager.on_event = AsyncMock()
         
         # Rapid connect/disconnect (mocked)
         with patch.object(manager.client, 'connect', new_callable=AsyncMock):
@@ -405,8 +390,7 @@ class TestMemoryEdgeCases:
         
         processor = BatchProcessor(
             batch_size=10,
-            batch_timeout=1.0,
-            max_queue_size=10
+            batch_timeout=1.0
         )
         
         # Add event with large payload
@@ -429,7 +413,7 @@ class TestMemoryEdgeCases:
         
         manager = MemoryManager(
             max_memory_mb=10,  # Low limit
-            check_interval=1.0
+            memory_check_interval=1.0
         )
         
         # Simulate high memory usage

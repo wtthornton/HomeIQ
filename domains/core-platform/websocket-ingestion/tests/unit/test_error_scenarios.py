@@ -68,11 +68,12 @@ class TestWebSocketConnectionFailures:
         manager = ConnectionManager(
             base_url="http://localhost:8123",
             token="token",
-            on_connect=AsyncMock(),
-            on_disconnect=AsyncMock(),
-            on_message=AsyncMock(),
-            on_event=AsyncMock()
         )
+        # callbacks are attributes, not constructor args
+        manager.on_connect = AsyncMock()
+        manager.on_disconnect = AsyncMock()
+        manager.on_message = AsyncMock()
+        manager.on_event = AsyncMock()
         
         with patch.object(manager.client, 'connect', new_callable=AsyncMock) as mock_connect:
             mock_connect.side_effect = [ConnectionError("First failure"), None]
@@ -100,12 +101,7 @@ class TestInfluxDBWriteFailures:
         """
         from src.influxdb_batch_writer import InfluxDBBatchWriter
         
-        writer = InfluxDBBatchWriter(
-            url="http://invalid:8086",
-            token="token",
-            org="org",
-            bucket="bucket"
-        )
+        writer = InfluxDBBatchWriter(connection_manager=MagicMock())
         
         with patch.object(writer.client, 'write_api', new_callable=MagicMock) as mock_write:
             mock_write.side_effect = Exception("Connection refused")
@@ -125,12 +121,7 @@ class TestInfluxDBWriteFailures:
         """
         from src.influxdb_batch_writer import InfluxDBBatchWriter
         
-        writer = InfluxDBBatchWriter(
-            url="http://localhost:8086",
-            token="token",
-            org="org",
-            bucket="bucket"
-        )
+        writer = InfluxDBBatchWriter(connection_manager=MagicMock())
         
         with patch.object(writer.client, 'write_api', new_callable=MagicMock) as mock_write:
             mock_write.side_effect = TimeoutError("Write timeout")
@@ -149,12 +140,7 @@ class TestInfluxDBWriteFailures:
         """
         from src.influxdb_batch_writer import InfluxDBBatchWriter
         
-        writer = InfluxDBBatchWriter(
-            url="http://localhost:8086",
-            token="token",
-            org="org",
-            bucket="bucket"
-        )
+        writer = InfluxDBBatchWriter(connection_manager=MagicMock())
         
         # Mock write to simulate partial failure
         with patch.object(writer, 'write_batch', new_callable=AsyncMock) as mock_write:
@@ -179,7 +165,7 @@ class TestDiscoveryServiceFailures:
         from src.discovery_service import DiscoveryService
         from src.http_client import SimpleHTTPClient
         
-        http_client = SimpleHTTPClient(base_url="http://localhost:8123", token="token")
+        http_client = SimpleHTTPClient(enrichment_url="http://localhost:8123")
         discovery = DiscoveryService(http_client=http_client)
         
         with patch.object(http_client, 'get', new_callable=AsyncMock) as mock_get:
@@ -201,7 +187,7 @@ class TestDiscoveryServiceFailures:
         from src.discovery_service import DiscoveryService
         from src.http_client import SimpleHTTPClient
         
-        http_client = SimpleHTTPClient(base_url="http://localhost:8123", token="token")
+        http_client = SimpleHTTPClient(enrichment_url="http://localhost:8123")
         discovery = DiscoveryService(http_client=http_client)
         
         # Pre-populate cache
@@ -229,7 +215,7 @@ class TestNetworkTimeoutScenarios:
         """
         from src.http_client import SimpleHTTPClient
         
-        client = SimpleHTTPClient(base_url="http://localhost:8123", token="token")
+        client = SimpleHTTPClient(enrichment_url="http://localhost:8123")
         
         with patch('aiohttp.ClientSession.get', new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = TimeoutError("Request timeout")
@@ -271,7 +257,7 @@ class TestQueueOverflowScenarios:
         """
         from src.event_queue import EventQueue
         
-        queue = EventQueue(max_size=10)
+        queue = EventQueue(maxsize=10)
         
         # Fill queue to capacity
         for i in range(10):
@@ -299,8 +285,7 @@ class TestQueueOverflowScenarios:
         
         processor = BatchProcessor(
             batch_size=10,
-            batch_timeout=5.0,
-            max_queue_size=20
+            batch_timeout=5.0
         )
         
         # Add events up to max queue size
@@ -322,8 +307,7 @@ class TestQueueOverflowScenarios:
         
         processor = BatchProcessor(
             batch_size=10,
-            batch_timeout=5.0,
-            max_queue_size=5  # Small queue to force drops
+            batch_timeout=5.0  # Small queue to force drops
         )
         
         # Add more events than queue can hold
@@ -353,11 +337,12 @@ class TestRetryLogic:
         manager = ConnectionManager(
             base_url="http://localhost:8123",
             token="token",
-            on_connect=AsyncMock(),
-            on_disconnect=AsyncMock(),
-            on_message=AsyncMock(),
-            on_event=AsyncMock()
         )
+        # callbacks are attributes, not constructor args
+        manager.on_connect = AsyncMock()
+        manager.on_disconnect = AsyncMock()
+        manager.on_message = AsyncMock()
+        manager.on_event = AsyncMock()
         
         # Mock consecutive failures
         with patch.object(manager.client, 'connect', new_callable=AsyncMock) as mock_connect:

@@ -44,7 +44,8 @@ class TestTokenValidator:
 
     def test_long_token(self):
         """Test validation of token that's too long"""
-        long_token = "a" * 200  # Exceeds max_length
+        # max_length was raised to 300 to accommodate JWTs, so 200 is valid now
+        long_token = "a" * 301  # Exceeds max_length
         is_valid, error_msg = self.validator.validate_token(long_token)
 
         assert is_valid is False
@@ -67,12 +68,17 @@ class TestTokenValidator:
         assert "invalid characters" in error_msg.lower()
 
     def test_token_with_hyphens(self):
-        """Test validation of token with hyphens"""
+        """Hyphens are legal token characters.
+
+        The allowed set is [a-zA-Z0-9._-]; hyphens and underscores appear in
+        base64url-encoded JWTs, which is what HA long-lived tokens are. This
+        previously asserted hyphens were rejected.
+        """
         token_with_hyphens = "abc-def-ghi-jkl-mno-pqr-stu-vwx-yz1-234"
         is_valid, error_msg = self.validator.validate_token(token_with_hyphens)
 
-        assert is_valid is False
-        assert "invalid characters" in error_msg.lower()
+        assert is_valid is True
+        assert error_msg == ""
 
     def test_minimum_length_token(self):
         """Test validation of token with minimum length"""
