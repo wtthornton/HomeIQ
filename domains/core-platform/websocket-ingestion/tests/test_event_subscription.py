@@ -18,7 +18,10 @@ class TestEventSubscriptionManager:
     def test_initialization(self):
         """Test subscription manager initialization"""
         assert self.subscription_manager.subscriptions == {}
-        assert self.subscription_manager.subscription_counter == 1
+        # Message IDs come from the centralized manager now; the local
+        # subscription_counter this used to assert on no longer exists.
+        assert self.subscription_manager.message_id_manager is not None
+        assert self.subscription_manager.subscription_handlers == {}
         assert self.subscription_manager.is_subscribed is False
         assert self.subscription_manager.total_events_received == 0
         assert self.subscription_manager.events_by_type == {}

@@ -3,10 +3,33 @@ Tests for InfluxDB Client (influxdb_wrapper.InfluxDBConnectionManager)
 """
 
 import asyncio
-from unittest.mock import Mock, patch
+import contextlib
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from src.influxdb_wrapper import InfluxDBConnectionManager
+
+
+@contextlib.contextmanager
+def mock_influx_health(status: int = 200):
+    """Patch the aiohttp probe that _test_connection performs.
+
+    _test_connection GETs {url}/health and falls back to {url}/ping using
+    aiohttp, so patching only InfluxDBClient left these tests making real
+    network calls to localhost:8086 and failing on connection refused.
+    """
+    response = MagicMock()
+    response.status = status
+    response.__aenter__ = AsyncMock(return_value=response)
+    response.__aexit__ = AsyncMock(return_value=False)
+
+    session = MagicMock()
+    session.get = MagicMock(return_value=response)
+    session.__aenter__ = AsyncMock(return_value=session)
+    session.__aexit__ = AsyncMock(return_value=False)
+
+    with patch("aiohttp.ClientSession", return_value=session):
+        yield
 
 
 class TestInfluxDBConnectionManager:
@@ -42,7 +65,7 @@ class TestInfluxDBConnectionManager:
     async def test_start_stop(self):
         """Test starting and stopping the connection manager"""
         # Mock InfluxDB client
-        with patch('src.influxdb_client.InfluxDBClient') as mock_client_class:
+        with patch('src.influxdb_wrapper.InfluxDBClient') as mock_client_class:
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 
@@ -67,7 +90,8 @@ class TestInfluxDBConnectionManager:
     @pytest.mark.asyncio
     async def test_connection_success(self):
         """Test successful connection"""
-        with patch('src.influxdb_client.InfluxDBClient') as mock_client_class:
+        with mock_influx_health(status=200), \
+             patch('src.influxdb_wrapper.InfluxDBClient') as mock_client_class:
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 
@@ -93,16 +117,14 @@ class TestInfluxDBConnectionManager:
     @pytest.mark.asyncio
     async def test_connection_failure(self):
         """Test connection failure"""
-        with patch('src.influxdb_client.InfluxDBClient') as mock_client_class:
+        with mock_influx_health(status=500), \
+             patch('src.influxdb_wrapper.InfluxDBClient') as mock_client_class:
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 
             # Mock query API for connection test
             mock_query_api = Mock()
             mock_client.query_api.return_value = mock_query_api
-
-            # Mock failed query
-            mock_query_api.query.side_effect = Exception("Connection failed")
 
             # Test connection
             success = await self.connection_manager._connect()
@@ -111,12 +133,17 @@ class TestInfluxDBConnectionManager:
             assert not self.connection_manager.is_connected
             assert self.connection_manager.successful_connections == 0
             assert self.connection_manager.failed_connections == 1
-            assert "Connection failed" in self.connection_manager.last_error
+            # _test_connection probes /health then /ping; both return 500 here.
+            # The old assertion looked for "Connection failed", which came from
+            # a query_api side_effect that the health probe short-circuits.
+            assert "health check failed with status 500" in self.connection_manager.last_error
+            assert "ping also failed" in self.connection_manager.last_error
 
     @pytest.mark.asyncio
     async def test_write_points_success(self):
         """Test successful point writing"""
-        with patch('src.influxdb_client.InfluxDBClient') as mock_client_class:
+        with mock_influx_health(status=200), \
+             patch('src.influxdb_wrapper.InfluxDBClient') as mock_client_class:
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 
@@ -147,7 +174,8 @@ class TestInfluxDBConnectionManager:
     @pytest.mark.asyncio
     async def test_write_points_failure(self):
         """Test point writing failure"""
-        with patch('src.influxdb_client.InfluxDBClient') as mock_client_class:
+        with mock_influx_health(status=200), \
+             patch('src.influxdb_wrapper.InfluxDBClient') as mock_client_class:
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 
@@ -178,7 +206,8 @@ class TestInfluxDBConnectionManager:
     @pytest.mark.asyncio
     async def test_query_data_success(self):
         """Test successful data querying"""
-        with patch('src.influxdb_client.InfluxDBClient') as mock_client_class:
+        with mock_influx_health(status=200), \
+             patch('src.influxdb_wrapper.InfluxDBClient') as mock_client_class:
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 
@@ -216,7 +245,8 @@ class TestInfluxDBConnectionManager:
     @pytest.mark.asyncio
     async def test_query_data_failure(self):
         """Test data querying failure"""
-        with patch('src.influxdb_client.InfluxDBClient') as mock_client_class:
+        with mock_influx_health(status=200), \
+             patch('src.influxdb_wrapper.InfluxDBClient') as mock_client_class:
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 

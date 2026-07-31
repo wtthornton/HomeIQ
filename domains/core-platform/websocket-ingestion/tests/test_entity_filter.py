@@ -18,7 +18,9 @@ def test_filter_exclude_mode():
     
     # Should exclude battery sensors
     assert not filter_obj.should_include({"entity_id": "sensor.device_battery"})
-    assert not filter_obj.should_include({"device_class": "battery"})
+    assert not filter_obj.should_include(
+        {"entity_id": "sensor.phone_battery", "device_class": "battery"}
+    )
     
     # Should include other entities
     assert filter_obj.should_include({"entity_id": "sensor.temperature"})
@@ -89,8 +91,12 @@ def test_filter_device_class():
     }
     filter_obj = EntityFilter(config)
     
-    assert not filter_obj.should_include({"device_class": "battery"})
-    assert filter_obj.should_include({"device_class": "temperature"})
+    assert not filter_obj.should_include(
+        {"entity_id": "sensor.phone_battery", "device_class": "battery"}
+    )
+    assert filter_obj.should_include(
+        {"entity_id": "sensor.hallway_temp", "device_class": "temperature"}
+    )
 
 
 def test_filter_area_id():
@@ -103,8 +109,12 @@ def test_filter_area_id():
     }
     filter_obj = EntityFilter(config)
     
-    assert not filter_obj.should_include({"area_id": "garage"})
-    assert filter_obj.should_include({"area_id": "living_room"})
+    assert not filter_obj.should_include(
+        {"entity_id": "light.garage_main", "area_id": "garage"}
+    )
+    assert filter_obj.should_include(
+        {"entity_id": "light.living_room_lamp", "area_id": "living_room"}
+    )
 
 
 def test_filter_statistics():
@@ -116,9 +126,11 @@ def test_filter_statistics():
     filter_obj = EntityFilter(config)
     
     # Process some events
-    filter_obj.should_include({"entity_id": "sensor.battery"})  # Filtered
+    filter_obj.should_include({"entity_id": "sensor.device_battery"})  # Filtered
     filter_obj.should_include({"entity_id": "sensor.temperature"})  # Passed
-    filter_obj.should_include({"entity_id": "sensor.battery2"})  # Filtered
+    # sensor.*_battery requires the _battery suffix, so the previous
+    # "sensor.battery2" here never matched and was counted as passed
+    filter_obj.should_include({"entity_id": "sensor.phone_battery"})  # Filtered
     
     stats = filter_obj.get_statistics()
     assert stats["filtered_count"] == 2
@@ -143,7 +155,7 @@ def test_filter_reload_config():
     }
     filter_obj = EntityFilter(config1)
     
-    assert not filter_obj.should_include({"entity_id": "sensor.battery"})
+    assert not filter_obj.should_include({"entity_id": "sensor.device_battery"})
     
     # Reload with new config
     config2 = {
@@ -152,6 +164,6 @@ def test_filter_reload_config():
     }
     filter_obj.reload_config(config2)
     
-    assert filter_obj.should_include({"entity_id": "sensor.battery"})
+    assert filter_obj.should_include({"entity_id": "sensor.device_battery"})
     assert not filter_obj.should_include({"entity_id": "light.living_room"})
 
