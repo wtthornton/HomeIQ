@@ -10,7 +10,12 @@ interface MemoryStats {
   by_confidence: { high: number; medium: number; low: number };
   recent_24h: number;
   archived: number;
-  contradictions: number;
+  /**
+   * Null from the API: the only contradiction detector is O(n^2) over
+   * embeddings, which this tab's 30s poll cannot afford. Rendered as "—"
+   * rather than 0 so an uncomputed value never reads as "none found".
+   */
+  contradictions: number | null;
 }
 
 interface MemoryEntry {
@@ -25,15 +30,6 @@ interface MemoryEntry {
   source?: string;
 }
 
-interface ConsolidationStatus {
-  last_run: string | null;
-  next_scheduled: string | null;
-  status: 'idle' | 'running' | 'error';
-  memories_processed?: number;
-  memories_archived?: number;
-  error_message?: string;
-}
-
 interface MemoryMetrics {
   counters: Record<string, number>;
   search_latency: { count: number; min: number; max: number; avg: number; p50: number; p95: number; p99: number };
@@ -45,7 +41,6 @@ const API_BASE = '/api/v1';
 export const MemoryTab: React.FC<TabProps> = ({ darkMode }) => {
   const [stats, setStats] = useState<MemoryStats | null>(null);
   const [recentMemories, setRecentMemories] = useState<MemoryEntry[]>([]);
-  const [consolidation, setConsolidation] = useState<ConsolidationStatus | null>(null);
   const [metrics, setMetrics] = useState<MemoryMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,10 +51,9 @@ export const MemoryTab: React.FC<TabProps> = ({ darkMode }) => {
     try {
       setError(null);
 
-      const [statsRes, memoriesRes, consolidationRes, metricsRes] = await Promise.allSettled([
+      const [statsRes, memoriesRes, metricsRes] = await Promise.allSettled([
         fetch(`${API_BASE}/memories/stats`),
         fetch(`${API_BASE}/memories?limit=10&sort=created_at:desc`),
-        fetch(`${API_BASE}/memories/consolidation/status`),
         fetch(`${API_BASE}/memories/metrics`)
       ]);
 
@@ -70,10 +64,6 @@ export const MemoryTab: React.FC<TabProps> = ({ darkMode }) => {
       if (memoriesRes.status === 'fulfilled' && memoriesRes.value.ok) {
         const data = await memoriesRes.value.json();
         setRecentMemories(data.memories || data.items || []);
-      }
-
-      if (consolidationRes.status === 'fulfilled' && consolidationRes.value.ok) {
-        setConsolidation(await consolidationRes.value.json());
       }
 
       if (metricsRes.status === 'fulfilled' && metricsRes.value.ok) {
@@ -253,12 +243,15 @@ export const MemoryTab: React.FC<TabProps> = ({ darkMode }) => {
           <CardContent>
             <div className="flex items-center gap-3">
               <span className="text-3xl">⚠️</span>
-              <span className={`text-3xl font-bold ${
-                (stats?.contradictions ?? 0) > 0 
-                  ? (darkMode ? 'text-yellow-400' : 'text-yellow-600')
-                  : (darkMode ? 'text-white' : 'text-gray-900')
-              }`}>
-                {stats?.contradictions ?? 0}
+              <span
+                title={stats?.contradictions == null ? 'Not computed — detection is O(n^2) over embeddings' : undefined}
+                className={`text-3xl font-bold ${
+                  (stats?.contradictions ?? 0) > 0
+                    ? (darkMode ? 'text-yellow-400' : 'text-yellow-600')
+                    : (darkMode ? 'text-white' : 'text-gray-900')
+                }`}
+              >
+                {stats?.contradictions ?? '—'}
               </span>
             </div>
           </CardContent>
@@ -379,68 +372,6 @@ export const MemoryTab: React.FC<TabProps> = ({ darkMode }) => {
         {/* Trust Scores Widget */}
         <TrustScoreWidget darkMode={darkMode} />
       </div>
-
-      {/* Consolidation Job Status */}
-      <Card className={darkMode ? 'bg-gray-800 border-gray-700' : ''}>
-        <CardHeader>
-          <CardTitle className={darkMode ? 'text-gray-300' : ''}>
-            ⚙️ Consolidation Job
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Status
-              </p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`inline-block w-2 h-2 rounded-full ${
-                  consolidation?.status === 'running' ? 'bg-blue-500 animate-pulse' :
-                  consolidation?.status === 'error' ? 'bg-red-500' : 'bg-green-500'
-                }`} />
-                <span className={`text-sm font-medium capitalize ${
-                  darkMode ? 'text-white' : 'text-gray-900'
-                }`}>
-                  {consolidation?.status ?? 'Unknown'}
-                </span>
-              </div>
-            </div>
-            <div>
-              <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Last Run
-              </p>
-              <p className={`text-sm mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {consolidation?.last_run ? formatDate(consolidation.last_run) : 'Never'}
-              </p>
-            </div>
-            <div>
-              <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Next Scheduled
-              </p>
-              <p className={`text-sm mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {consolidation?.next_scheduled ? formatDate(consolidation.next_scheduled) : 'N/A'}
-              </p>
-            </div>
-            <div>
-              <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Last Processed
-              </p>
-              <p className={`text-sm mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {consolidation?.memories_processed ?? 0} processed, {consolidation?.memories_archived ?? 0} archived
-              </p>
-            </div>
-          </div>
-          {consolidation?.error_message && (
-            <div className={`mt-4 p-3 rounded ${
-              darkMode ? 'bg-red-900/20 border border-red-700' : 'bg-red-50 border border-red-200'
-            }`}>
-              <p className={`text-sm ${darkMode ? 'text-red-300' : 'text-red-700'}`}>
-                {consolidation.error_message}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Operational Metrics */}
       {metrics && (

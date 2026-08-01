@@ -52,8 +52,9 @@ export const TeamScheduleView: React.FC<TeamScheduleViewProps> = ({
       setLoading(true);
       setError(null);
       
-      // Query team schedule from InfluxDB
-      const data = await dataApi.getTeamSchedule(teamId);
+      // season/league are forwarded so a season change actually refetches —
+      // the effect already depends on `season`, but the call ignored it.
+      const data = await dataApi.getTeamSchedule(teamId, season, league);
       
       if (data && data.games) {
         const formattedSchedule: ScheduleGame[] = data.games.map((game: any) => ({

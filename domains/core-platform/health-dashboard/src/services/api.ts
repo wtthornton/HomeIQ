@@ -746,6 +746,15 @@ class DataApiClient extends BaseApiClient {
     return this.fetchWithErrorHandling<any>(url);
   }
 
+  async getTeamSchedule(team: string, season?: number, league?: string): Promise<any> {
+    const queryParams = new URLSearchParams();
+    if (season) queryParams.append('season', season.toString());
+    if (league) queryParams.append('league', league);
+
+    const url = `/api/v1/sports/schedule/${encodeURIComponent(team)}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.fetchWithErrorHandling<any>(url);
+  }
+
   async getHaGameContext(team: string): Promise<any> {
     const encodedTeam = encodeURIComponent(team);
     return this.fetchWithErrorHandling<any>(`/api/v1/ha/game-context/${encodedTeam}`);
@@ -807,26 +816,6 @@ class AIAutomationApiClient {
   }
 
   // Analysis endpoints
-  async triggerAnalysis(params?: {
-    days?: number;
-    max_suggestions?: number;
-    min_confidence?: number;
-  }): Promise<any> {
-    const body = {
-      days: params?.days || 30,
-      max_suggestions: params?.max_suggestions || 10,
-      min_confidence: params?.min_confidence || 0.7,
-      time_of_day_enabled: true,
-      co_occurrence_enabled: true
-    };
-    
-    return this.fetchWithErrorHandling(`${this.baseUrl}/analysis/analyze-and-suggest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-  }
-
   async getAnalysisStatus(): Promise<any> {
     return this.fetchWithErrorHandling(`${this.baseUrl}/api/analysis/status`);
   }
@@ -865,14 +854,18 @@ class AIAutomationApiClient {
     return this.fetchWithErrorHandling(url, { method: 'POST' });
   }
 
+  /**
+   * Suggestion-pipeline usage totals — the only AI statistics this service
+   * actually records.
+   *
+   * Also replaces a former `getStats()` that called `/stats`, a path the
+   * service never exposed. The AIStatsData shape it fed (call_patterns,
+   * per-model ner/openai/pattern-fallback counts, direct-vs-orchestrated
+   * latency) is tracked nowhere in the backend, so it could only ever have
+   * been filled with invented zeros.
+   */
   async getUsageStats(): Promise<any> {
     return this.fetchWithErrorHandling(`${this.baseUrl}/api/suggestions/usage/stats`);
-  }
-
-  async resetUsageStats(): Promise<any> {
-    return this.fetchWithErrorHandling(`${this.baseUrl}/suggestions/usage-stats/reset`, {
-      method: 'POST'
-    });
   }
 
   // Pattern endpoints
@@ -896,56 +889,6 @@ class AIAutomationApiClient {
     return this.fetchWithErrorHandling(`${this.baseUrl}/api/patterns/stats`);
   }
 
-  async detectTimeOfDayPatterns(params?: {
-    days?: number;
-    min_occurrences?: number;
-    min_confidence?: number;
-  }): Promise<any> {
-    const queryParams = new URLSearchParams();
-    if (params?.days) queryParams.append('days', params.days.toString());
-    if (params?.min_occurrences) queryParams.append('min_occurrences', params.min_occurrences.toString());
-    if (params?.min_confidence) queryParams.append('min_confidence', params.min_confidence.toString());
-    
-    const url = `${this.baseUrl}/patterns/detect/time-of-day${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
-    return this.fetchWithErrorHandling(url, { method: 'POST' });
-  }
-
-  async detectCoOccurrencePatterns(params?: {
-    days?: number;
-    window_minutes?: number;
-    min_support?: number;
-    min_confidence?: number;
-  }): Promise<any> {
-    const queryParams = new URLSearchParams();
-    if (params?.days) queryParams.append('days', params.days.toString());
-    if (params?.window_minutes) queryParams.append('window_minutes', params.window_minutes.toString());
-    if (params?.min_support) queryParams.append('min_support', params.min_support.toString());
-    if (params?.min_confidence) queryParams.append('min_confidence', params.min_confidence.toString());
-    
-    const url = `${this.baseUrl}/patterns/detect/co-occurrence${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
-    return this.fetchWithErrorHandling(url, { method: 'POST' });
-  }
-
-  async getStats(): Promise<any> {
-    return this.fetchWithErrorHandling(`${this.baseUrl}/stats`);
-  }
-
-  async getModelComparison(): Promise<any> {
-    return this.fetchWithErrorHandling(`${this.baseUrl}/api/suggestions/models/compare`);
-  }
-
-  async generateNaturalLanguageAutomation(requestText: string, userId: string = 'default'): Promise<any> {
-    return this.fetchWithErrorHandling(`${this.baseUrl}/api/nl/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        request_text: requestText,
-        user_id: userId,
-      }),
-    });
-  }
 }
 
 /**

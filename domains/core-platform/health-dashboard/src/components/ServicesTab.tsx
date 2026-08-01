@@ -4,8 +4,6 @@ import { ServiceDetailsModal } from './ServiceDetailsModal';
 import { SkeletonCard } from './skeletons';
 import { apiService, ContainerInfo, adminApi } from '../services/api';
 import type { ServiceStatus, ServiceDefinition, ServiceGroupId } from '../types';
-import { fetchAIStats, AIStatsData } from './AIStats';
-import { aiApi } from '../services/api';
 import type { ServicesHealthResponse } from '../types/health';
 import { useAiTierManifest, getServiceTier } from '../hooks/useAiTierManifest';
 
@@ -92,8 +90,6 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
   const [selectedService, setSelectedService] = useState<{ service: ServiceStatus; icon: string } | null>(null);
   const [operatingServices, setOperatingServices] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [aiStats, setAiStats] = useState<AIStatsData | null>(null);
-  const [modelComparison, setModelComparison] = useState<any | null>(null);
 
   const loadServices = async () => {
     try {
@@ -186,51 +182,6 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
       return () => clearInterval(interval);
     }
   }, [autoRefresh]);
-
-  // Fetch AI stats when modal opens for ai-automation-service
-  useEffect(() => {
-    if (!selectedService) {
-      setAiStats(null);
-      return;
-    }
-
-    // Only fetch for ai-automation-service
-    if (selectedService.service.service !== 'ai-automation-service') {
-      setAiStats(null);
-      setModelComparison(null);
-      return;
-    }
-
-    const loadAIStats = async () => {
-      try {
-        const stats = await fetchAIStats();
-        setAiStats(stats);
-      } catch (err) {
-        console.error('Failed to load AI stats:', err);
-        setAiStats(null);
-      }
-    };
-
-    const loadModelComparison = async () => {
-      try {
-        const comparison = await aiApi.getModelComparison();
-        setModelComparison(comparison);
-      } catch (err) {
-        console.error('Failed to load model comparison:', err);
-        setModelComparison(null);
-      }
-    };
-
-    loadAIStats();
-    loadModelComparison();
-
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      loadAIStats();
-      loadModelComparison();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [selectedService]);
 
   const getServiceDefinition = (serviceName: string): ServiceDefinition => {
     const def = SERVICE_DEFINITIONS.find(
@@ -420,8 +371,6 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ darkMode }) => {
           isOpen={true}
           onClose={() => setSelectedService(null)}
           darkMode={darkMode}
-          aiStats={aiStats}
-          modelComparison={modelComparison}
         />
       )}
 
