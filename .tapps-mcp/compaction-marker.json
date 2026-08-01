@@ -1,9 +1,0 @@
-{
-  "session_id": "8793a5fe-f81a-4aac-a2f8-61c6d5bd5443",
-  "compacted_at": 1785536639.1164708,
-  "chunks": [
-    "compaction_boundary:8793a5fe-f81a-4aac-a2f8-61c6d5bd5443",
-    "compaction_trigger:auto"
-  ],
-  "indexed_in_brain": false
-}
