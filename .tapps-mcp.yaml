@@ -8,3 +8,14 @@ mcp_bundle: full
 # (skill_tier: full). Raised rather than pruned per tapps_doctor guidance.
 doctor_context_budget:
   skill_count_max: 45
+
+# Locally customized skill files — tapps_upgrade must not overwrite these.
+# The orchestration-prompt skill carries project-specific hardening added
+# 2026-08-01: standing-user-constraint encoding, a no-green-by-deletion rule
+# for Done-when, artifact-identity (built != loaded) checks, verifier-gets-the-
+# proof-command, an unverified-assumptions section, and this repo's hook gates
+# in the mechanism catalog. Drop an entry only after folding the change upstream.
+upgrade_skip_files:
+  - .claude/skills/orchestration-prompt/SKILL.md
+  - .claude/skills/orchestration-prompt/assets/prompt-template.md
+  - .claude/skills/orchestration-prompt/references/claude-feature-map.md

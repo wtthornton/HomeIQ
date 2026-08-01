@@ -32,11 +32,33 @@ frontier one on verification-friendly tasks. A good orchestration prompt makes t
 loop explicit so Claude drives itself to a *provable* finish instead of stopping at
 "good enough".
 
-Every prompt rests on six load-bearing parts. If any is missing, the loop never
-terminates, terminates without finishing, verifies only by self-report, or can't be
-cold-started by a fresh session.
+Every prompt rests on seven load-bearing parts. If any is missing, the loop never
+terminates, terminates without finishing, verifies only by self-report, violates a
+constraint the user stated hours ago, or can't be cold-started by a fresh session.
 
 ## The method
+
+### 0. Harvest the user's standing constraints *before* shaping the goal
+
+A constraint that lives only in conversation history **dies with the session**. The
+runner is a fresh context: it knows nothing the prompt does not carry. So before
+writing the goal, enumerate every standing instruction the user has given — "don't
+touch production", "read-only for now", "never force-push", "ask before spending" —
+and give each one a home in the emitted prompt.
+
+Encode each constraint in **two places**, because they do different jobs:
+
+- **Guardrails** — states the rule, so the runner knows it exists.
+- **Autonomy hard-stop** — makes it *mechanically* enforced at the moment of action,
+  so a loop optimizing for a green score cannot satisfy the goal by breaking it.
+
+The failure this prevents is specific and severe: a loop whose Done-when requires
+"system configured" will configure the *live* system to score itself done, even
+though the user said not to. **Split such goals explicitly** — "the tool is built
+and tested against fixtures" is the automatable goal; "the tool has been applied to
+production" is a hard-stop that requires authorization. If you cannot restate a
+constraint as a condition the runner can check *at the moment of action*, it is not
+yet encoded.
 
 ### 1. Pin the Goal to a *verifiable, demonstrable* done-condition
 
@@ -51,6 +73,19 @@ green by asserting success.
 - Good: "All five repos paste a `pytest` summary line showing 0 failures."
 - Good: "Zero open P1 issues — paste the final query result."
 - Weak: "The code is better" / "tests pass" (nothing in the transcript proves it).
+
+**Require at least one clause that a *count must go up*.** Every "failures = 0"
+condition is satisfiable by destruction: delete the tests, close the issues unfixed,
+weaken the assertion. Engineering discipline forbids green-by-suppression in prose,
+but the Done-when never *proves* it did not happen — so pair every
+must-reach-zero clause with a must-not-shrink one:
+
+- Instead of "0 failing tests" → "0 failing **and** ≥ N tests collected (N = today's count)".
+- Instead of "0 red endpoints" → "36/36 green, where 36 is the enumerated total".
+- Instead of "backlog empty" → "every story Done **or** Cancelled *with a reason*".
+
+If a run could satisfy the condition by removing the thing being measured, the
+condition is not finished.
 
 **Then pressure-test for *reachability*, not just verifiability.** A condition can be
 demonstrable yet impossible to satisfy without the system misbehaving. Distinguish
@@ -127,6 +162,13 @@ model ship reliable results.
   **refute** the sub-goal's proof — re-run the deterministic check (tests, lint,
   build, the actual query) rather than trust the executor's narration. Default to
   "not done" on any doubt.
+- **Hand the verifier the *proof command*, not the claim.** A fresh context cannot
+  see the executor's work, so passing it a narrative ("the endpoint now returns 200")
+  invites it to reason about plausibility instead of running anything — which is
+  self-verification wearing a disguise. Give it: the exact command to run, the
+  expected artifact, the file:line anchors, and the environment quirks it needs
+  (non-default ports, which interpreter, auth source). Its report must quote the
+  output it actually observed.
 - For high-stakes or irreversible steps, use **N independent verifiers + majority**
   (perspective-diverse where the finding can fail multiple ways: correctness,
   security, does-it-reproduce), not one. In a Workflow, this is a `parallel()` of
@@ -154,20 +196,35 @@ The point is a prompt a **brand-new session** can run with zero hand-holding.
   explicitly **adopt or override** each standing nudge (e.g. "quality pipeline runs
   at the epic gate, not per edit — this overrides the per-edit nudge"). A prompt
   that fights its own project's hooks burns its budget on diagnose loops.
-- **Deploy-freshness + smoke/health gate** (any prompt that runs against a live or
-  deployed target, not source): in Sub-goal 0, self-healing — (1) **merged ≠ live**:
-  if the target is a baked image, compare latest merged commit to the build time and
-  rebuild/redeploy (preserving overlays) if `main` is newer; make "ran against a
-  stale image" a required-fail cap. (2) **smoke before spend**: after any
-  rebuild/deploy and before the real run, hit `/health` and one cheap end-to-end
-  call to prove runtime + auth + transport.
+- **Artifact-identity + smoke/health gate** (any prompt that runs against a live or
+  deployed target, not source): in Sub-goal 0, self-healing — the loop must prove
+  **the artifact it rebuilt is the artifact the runtime actually loads.** Two
+  distinct ways that fails, both required-fail caps:
+  1. **Stale — merged ≠ live.** If the target is a baked image, compare the latest
+     merged commit to the build time and rebuild/redeploy (preserving overlays) if
+     `main` is newer.
+  2. **Divergent — built ≠ loaded.** The build tool and the runtime can address
+     *different* artifacts, so a rebuild "succeeds" and changes nothing. Classic
+     cases: a compose service declaring `build:` with no `image:` (so a separately
+     built/tagged image is never consulted), a bind mount shadowing the baked path,
+     a stale layer cache, or a running container still on the previous image id.
+     Verify by identity — compare the running container's image id to the one just
+     built, or assert a sentinel string from the new source inside the running
+     artifact — not by the build command's exit code.
+  3. **Smoke before spend:** after any rebuild/deploy and before the real run, hit
+     `/health` and one cheap end-to-end call to prove runtime + auth + transport.
 
 ## Guardrails every emitted prompt must carry
 
 - **Verifiable termination** — the Goal condition *and* a hard cap (max iterations
   or a token budget) so a stuck loop stops instead of burning quota.
+- **Standing user constraints** — every one restated as a Guardrail *and* an Autonomy
+  hard-stop (method §0); no Done-when clause is satisfiable by violating one.
+- **No green-by-deletion** — at least one Done-when clause is a count that must not
+  shrink, so the goal cannot be met by removing what is measured (method §1).
 - **Independent verification** — the sub-goal's proof is confirmed by a verifier that
-  did not produce the work (method §5), against ground truth.
+  did not produce the work (method §5), handed the *proof command* rather than the
+  claim, against ground truth.
 - **Caps must not fire on *correct* behavior** — for every required-fail cap, ask "is
   there a legitimate correct run where this still fires?" Separate *broken* from
   *correct-empty* (the gate rightly held everything) or a correct negative scores red.
@@ -232,13 +289,18 @@ no silent scope creep.
 4. Save the prompt to `prompts/<short-slug>.md`.
 5. **Completeness self-check** — every chunk names a concrete mechanism *and* model
    tier (no "may"); the loop has *both* an iteration cap and a budget; there's an
-   **independent verification** step (not self-report); any fan-out has a schema'd
-   return + per-agent contract; a memory recall+record step; an **Autonomy
-   contract**; a **bounded diagnose-don't-repeat** path; a **context-hygiene** line;
-   and the **Engineering discipline** line. For a live/deployed target, confirm
-   Sub-goal 0 has the deploy-freshness + smoke/health gate. Confirm **harness
-   compatibility**: every hook-gated tool call has its unlock/refresh step and every
-   MCP standing nudge is adopted-or-overridden. Run the **cold-start
+   **independent verification** step (not self-report) that receives the *proof
+   command* rather than the claim; any fan-out has a schema'd return + per-agent
+   contract; a memory recall+record step; an **Autonomy contract**; a **bounded
+   diagnose-don't-repeat** path; a **context-hygiene** line; a **per-iteration
+   progress line**; and the **Engineering discipline** line. Confirm **every standing
+   user constraint** (method §0) appears in *both* Guardrails and an Autonomy
+   hard-stop — and that no Done-when clause can be satisfied by violating one.
+   Confirm **at least one Done-when clause is a count that must not shrink**
+   (method §1), so the goal cannot be met by deletion. For a live/deployed target,
+   confirm Sub-goal 0 has the artifact-identity + smoke/health gate. Confirm
+   **harness compatibility**: every hook-gated tool call has its unlock/refresh step
+   and every MCP standing nudge is adopted-or-overridden. Run the **cold-start
    test**: a fresh session with nothing loaded can run it. Fix anything weak before
    saving.
 6. Tell the user exactly how to run it — the `/goal` line, the `/loop` cadence, the

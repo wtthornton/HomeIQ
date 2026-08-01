@@ -21,7 +21,8 @@ load-bearing (hard reasoning, and the independent verify/judge step).
 | **`/loop [interval] <prompt>`** | Re-runs a prompt on a timer / each turn | Polling, babysitting a build/PR | Session-bound — dies with the terminal; never your durable layer |
 | **Scheduled Routine** | Saved config run on cloud cron | "Nightly: take top backlog item, open a draft PR" | Keep a human review gate |
 | **`claude -p` + cron / CI** | Headless one-shot via external scheduler | Durable recurring runs, zero preview risk | Feature-light; no session persistence |
-| **Workflow tool** | Deterministic JS orchestration (`phase/agent/parallel/pipeline`), budget-capped, resumable, per-stage `model`/`effort` | Bounded parallel multi-repo sweeps; fan-out verify | Per-invocation, not a persistent loop |
+| **Workflow tool** | Deterministic JS orchestration (`phase/agent/parallel/pipeline`), budget-capped, resumable, per-stage `model`/`effort` | Bounded parallel multi-repo sweeps; fan-out verify | Per-invocation, not a persistent loop. Script gotchas that bite: `meta` must be a **pure literal** (no vars/calls/spreads); `Date.now()`/`Math.random()`/argless `new Date()` **throw** (they'd break resume — pass timestamps via `args`); plain JS, **not** TypeScript; top-level `return` **is** valid (the body runs in an async wrapper) so `node --check` on a `.js`/`.mjs` file reports a false "illegal return" |
+| **Issue-tracker write** (Linear/Jira/GitHub) | Creating or updating backlog items from inside the loop | Backlog-driven loops that file, close, or re-scope work as implementation reveals reality | Usually **hook-gated** (this repo: a validation sentinel < 30 min, and a cache-first read gate). Route through the owning skill, never the raw API — and re-satisfy the gate if the loop has been running longer than the sentinel TTL |
 | **Subagents** | Focused workers in isolated context, report back | 3–5 parallel research/review/**verify** tasks | Don't fan out coupled coding; declare minimal tools |
 | **Verifier subagent** | A fresh-context agent prompted to *refute* a claim, re-running the check | Confirming a sub-goal's proof independently of the executor | The whole point is a *different* context — don't reuse the executor |
 | **brain / `tapps_memory`** | Shared episodic+semantic memory (per-repo `project_id`) | Recall prior attempts; avoid rediscovery | Cross-project recall needs an explicit `project_id` |
@@ -50,7 +51,16 @@ exactly how a modest base model reaches frontier-level reliability.
 - One enormous goal → sequence narrow sub-goals.
 - Unbounded loop (no cap/budget) → always set max iterations or a token budget.
 - **Self-verification only** → add an independent, adversarial verifier.
+- **Verifier handed the claim instead of the proof command** → it reasons about
+  plausibility and never runs anything; self-verification in disguise.
 - Paying frontier rates for mechanical fan-out → tier the model per chunk.
 - Parallel agents on coupled code → sequential per-repo dispatch.
 - Vague done-condition → demonstrable, ground-truth-anchored condition.
+- **Done-when satisfiable by deletion** ("0 failures" with no floor on the count) →
+  pair every must-reach-zero clause with a must-not-shrink one.
+- **A user constraint left in chat history** → the fresh runner never sees it and
+  will violate it to score green; restate it as a Guardrail *and* a hard-stop.
+- **Trusting the build's exit code as proof the runtime changed** → verify artifact
+  *identity* (running image id vs the one just built, or a sentinel from the new
+  source found inside the running artifact).
 - Context rot (re-reading the same files each iteration) → prune + targeted grep.
