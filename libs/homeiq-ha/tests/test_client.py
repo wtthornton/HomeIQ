@@ -10,7 +10,6 @@ import json
 from typing import Any
 
 import pytest
-
 from homeiq_ha.client import HAClient
 from homeiq_ha.client.errors import (
     HAAuthError,
@@ -122,7 +121,7 @@ def test_redact_leaves_ordinary_values_alone():
 
 @pytest.mark.asyncio
 async def test_auth_failure_raises():
-    client = make_client(lambda m: None, auth_ok=False)
+    client = make_client(lambda _m: None, auth_ok=False)
     with pytest.raises(HAAuthError):
         await connect_fake(client)
 
@@ -243,7 +242,7 @@ class FakeRest(HARestClient):
         self._steps = list(steps)
         self.calls: list[tuple[str, str]] = []
 
-    async def request(self, method: str, path: str, **kwargs: Any) -> Any:
+    async def request(self, method: str, path: str, **_kwargs: Any) -> Any:
         self.calls.append((method, path))
         return self._steps.pop(0)
 
