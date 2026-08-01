@@ -1,11 +1,11 @@
 # Session handoff
-**Updated:** 2026-08-01T09:20:00Z (LIVE DEPLOY session)
+**Updated:** 2026-08-01T11:10:00Z (LIVE — full fleet)
 **Git:** master @ f09d6da7, tree clean, no other branches
 **Linear P0:** none
 
 ## 🟢 THE STACK IS LIVE against the new HA
 - HA 2026.7.4 @ `http://192.168.1.80:8123` (resolved from homeassistant.local; containers need the IP — mDNS doesn't work in Docker DNS). **User should set a DHCP reservation for 192.168.1.80.**
-- **57/58 containers healthy.** Only `ha-ai-agent-service` down — crash-loops with a clear "OPENAI_API_KEY is required" error. 🔑 **Waiting on the user's OpenAI key**; add to `.env` (`OPENAI_API_KEY=`) then `docker compose -f domains/automation-core/compose.yml --env-file .env --profile production up -d ha-ai-agent-service`.
+- ****58/58 containers healthy — full fleet green.**
 - **Event flow PROVEN end-to-end:** synthetic `sensor.homeiq_deploy_test` AND real home traffic (Family Room TV media_player events) landed in InfluxDB `home_assistant_events` bucket within seconds. Test sensor deleted afterwards.
 - **Smoke suite 8/8 passed (4/4 critical).** `validate-ha-connection.sh` 4/5 (its own WS probe tool is the warning; the service connects fine).
 
@@ -23,7 +23,7 @@
 - ha-simulator unbuildable from fresh clone (gitignored data/) — fixed f84cfbf2.
 
 ## Open / follow-ups
-1. 🔑 **OPENAI_API_KEY** from user → ha-ai-agent-service up → fleet 58/58.
+1. ~~OPENAI_API_KEY~~ DONE — key set in .env, verified live (200 on models list; agentic query through ai-query-service returns complete+suggestions).
 2. User should **revoke old HA tokens & rotate the burned shared API key** (still in git history; optional history scrub).
 3. postgres data: fresh volumes, schemas created by services + init-schemas.sql. InfluxDB org `homeiq`, bucket `home_assistant_events`, admin user `homeiq_admin` (creds in .env).
 4. Pre-existing test debt still open: proactive-agent 16F/6E, ai-training 24 DB-fixture errors, openvino health-shape rot, device-intelligence full suite (one test hangs on real MQTT connect; one test writes real model artifacts into models/ — should use tmp_path).
@@ -37,4 +37,4 @@
 - `curl http://localhost:18001/health` (websocket-ingestion), `curl http://localhost:18004/api/v1/health` (admin-api)
 
 ## Success criterion
-Met (partial→full pending OpenAI key): stack live against new HA, events verifiably in InfluxDB, smoke 8/8. Full = 58/58 after key arrives.
+MET IN FULL: 58/58 healthy, events verifiably in InfluxDB, smoke 8/8, agentic query verified end-to-end.
