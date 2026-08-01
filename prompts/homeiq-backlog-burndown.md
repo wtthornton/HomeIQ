@@ -129,6 +129,17 @@ reached; paste the artifacts for those and the current SCORE line for the rest.
 - **AgentForge reachability** (Waves 3–5): confirm the `mcp__agentforge__health` tool responds
   before authoring genes or registering the MCP server. If it is unreachable, Waves 4–5 are
   blocked — record that and move to a wave that is not.
+- **🔴 Single-writer check — do this before ANY edit.** This repo has had two Claude Code
+  sessions live at once, sharing one working tree. The failure is real and was observed on
+  2026-08-01: one session's `git checkout` moved the branch out from under the other, and a
+  commit landed on the wrong branch. Before editing anything:
+  1. `git status --short` twice, ~30 s apart. If files change between the two reads with no
+     action of yours, **another session is writing — stop and report, do not edit.**
+  2. `git log --oneline -3` — if a commit you did not author appeared since Wave 0 started,
+     the same applies.
+  3. **Never `git checkout` another branch** while an unexplained writer is active; you will
+     move the branch under them. Work on `master` and commit small.
+  A dirty tree you did not create is a hard-stop, not something to stash around.
 - **Harness compatibility** (bake in, do not fight):
   - `save_issue` is PreToolUse-gated on a `docs_validate_linear_issue` sentinel **< 30 min old**.
     Route Linear writes through the **`linear-issue` skill**; re-validate if > 30 min have passed.
