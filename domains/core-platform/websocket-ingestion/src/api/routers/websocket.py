@@ -3,7 +3,6 @@ WebSocket router for websocket-ingestion service.
 Epic 50 Story 50.2: Added security hardening (message validation, rate limiting)
 """
 
-import json
 import logging
 from datetime import UTC, datetime
 
@@ -100,72 +99,60 @@ async def websocket_endpoint(websocket: WebSocket):
                 })
                 continue
 
-            try:
-                # Epic 50 Story 50.2: Validate JSON structure
-                json_valid, message_data, json_error = validate_message_json(data)
-                if not json_valid:
-                    log_error_with_context(
-                        logger, "WebSocket message JSON validation failed", None,
-                        operation="websocket_message_validation",
-                        correlation_id=corr_id,
-                        error=json_error,
-                        message_data=data[:100]  # First 100 chars for debugging
-                    )
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": json_error,
-                        "correlation_id": corr_id
-                    })
-                    continue
-
-                log_with_context(
-                    logger, "DEBUG", "Received WebSocket message",
-                    operation="websocket_message",
-                    correlation_id=corr_id,
-                    message_type=message_data.get("type", "unknown"),
-                    message_size=len(data)
-                )
-
-                # Handle different message types
-                if message_data.get("type") == "ping":
-                    await websocket.send_json({
-                        "type": "pong",
-                        "timestamp": datetime.now(UTC).isoformat(),
-                        "correlation_id": corr_id
-                    })
-                elif message_data.get("type") == "subscribe":
-                    # Handle subscription requests
-                    channels = message_data.get("channels", [])
-                    await websocket.send_json({
-                        "type": "subscription",
-                        "status": "subscribed",
-                        "channels": channels,
-                        "correlation_id": corr_id
-                    })
-                    log_with_context(
-                        logger, "INFO", "WebSocket client subscribed to channels",
-                        operation="websocket_subscription",
-                        correlation_id=corr_id,
-                        channels=channels
-                    )
-                else:
-                    # Echo back unknown messages
-                    await websocket.send_json({
-                        "type": "echo",
-                        "original": message_data,
-                        "correlation_id": corr_id
-                    })
-
-            except json.JSONDecodeError as e:
+            # Epic 50 Story 50.2: Validate JSON structure.
+            # validate_message_json handles JSONDecodeError internally and
+            # returns (False, None, error) for malformed JSON.
+            json_valid, message_data, json_error = validate_message_json(data)
+            if not json_valid:
                 log_error_with_context(
-                    logger, "Invalid JSON in WebSocket message", e,
-                    operation="websocket_message_parse",
+                    logger, "WebSocket message JSON validation failed", None,
+                    operation="websocket_message_validation",
                     correlation_id=corr_id,
+                    error=json_error,
                     message_data=data[:100]  # First 100 chars for debugging
                 )
                 await websocket.send_json({
                     "type": "error",
-                    "message": "Invalid JSON format",
+                    "message": json_error,
+                    "correlation_id": corr_id
+                })
+                continue
+
+            log_with_context(
+                logger, "DEBUG", "Received WebSocket message",
+                operation="websocket_message",
+                correlation_id=corr_id,
+                message_type=message_data.get("type", "unknown"),
+                message_size=len(data)
+            )
+
+            # Handle different message types
+            if message_data.get("type") == "ping":
+                await websocket.send_json({
+                    "type": "pong",
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "correlation_id": corr_id
+                })
+            elif message_data.get("type") == "subscribe":
+                # Handle subscription requests
+                channels = message_data.get("channels", [])
+                await websocket.send_json({
+                    "type": "subscription",
+                    "status": "subscribed",
+                    "channels": channels,
+                    "correlation_id": corr_id
+                })
+                log_with_context(
+                    logger, "INFO", "WebSocket client subscribed to channels",
+                    operation="websocket_subscription",
+                    correlation_id=corr_id,
+                    channels=channels
+                )
+            else:
+                # Echo back unknown messages
+                await websocket.send_json({
+                    "type": "echo",
+                    "original": message_data,
                     "correlation_id": corr_id
                 })
 

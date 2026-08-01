@@ -8,7 +8,7 @@ and InfluxDB overflow configuration.
 from __future__ import annotations
 
 from homeiq_data import BaseServiceSettings
-from pydantic import Field
+from pydantic import Field, SecretStr
 
 
 class Settings(BaseServiceSettings):
@@ -30,12 +30,12 @@ class Settings(BaseServiceSettings):
     home_assistant_url: str | None = Field(default=None)
     ha_ws_url: str | None = Field(default=None)
     ha_url: str | None = Field(default=None)
-    ha_token: str | None = Field(default=None)
-    home_assistant_token: str | None = Field(default=None)
+    ha_token: SecretStr | None = Field(default=None)
+    home_assistant_token: SecretStr | None = Field(default=None)
 
     # Nabu Casa fallback
     nabu_casa_url: str | None = Field(default=None)
-    nabu_casa_token: str | None = Field(default=None)
+    nabu_casa_token: SecretStr | None = Field(default=None)
 
     enable_home_assistant: bool = Field(default=True)
 
@@ -61,7 +61,7 @@ class Settings(BaseServiceSettings):
         return self.ha_ws_url or self.ha_url
 
     @property
-    def resolved_ha_token(self) -> str | None:
+    def resolved_ha_token(self) -> SecretStr | None:
         """Return the best available HA token."""
         return self.ha_token or self.home_assistant_token
 

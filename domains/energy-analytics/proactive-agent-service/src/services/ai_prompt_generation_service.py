@@ -17,12 +17,12 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from typing import Any
 
 import httpx
 
 from ..clients.breakers import openai_breaker
+from ..config import Settings
 
 try:
     from homeiq_ha.prompt_guidance.builder import PromptBuilder
@@ -62,13 +62,16 @@ class AIPromptGenerationService:
         Initialize AI Prompt Generation Service.
 
         Args:
-            openai_api_key: OpenAI API key (defaults to env var)
+            openai_api_key: OpenAI API key (defaults to the openai_api_key setting)
             openai_model: Model to use for generation
             ha_agent_url: URL to HA AI Agent for context retrieval
             device_validation_service: Service for validating device existence
             rag_registry: Optional RAGContextRegistry for domain-specific context injection
         """
-        self.api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
+        if not openai_api_key:
+            settings_key = Settings().openai_api_key
+            openai_api_key = settings_key.get_secret_value() if settings_key else None
+        self.api_key = openai_api_key
         self.model = openai_model
         self.ha_agent_url = ha_agent_url.rstrip("/")
         self.rag_registry = rag_registry

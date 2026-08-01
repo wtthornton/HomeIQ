@@ -394,7 +394,7 @@ class ProactiveAgentLoop:
             from openai import AsyncOpenAI
 
             self._openai_client = AsyncOpenAI(
-                api_key=self.settings.openai_api_key,
+                api_key=self.settings.openai_api_key.get_secret_value(),
                 timeout=self.settings.openai_timeout,
             )
         except ImportError:

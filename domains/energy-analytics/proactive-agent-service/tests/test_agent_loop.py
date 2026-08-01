@@ -280,3 +280,61 @@ class TestPreferenceLearning:
         positive = pref.acceptance_count + pref.auto_execute_count - pref.undo_count
         rate = max(0.0, min(1.0, positive / total))
         assert rate == pytest.approx(0.4)
+
+
+# ---------------------------------------------------------------------------
+# OpenAI key secrecy (SecretStr regression)
+# ---------------------------------------------------------------------------
+
+
+class TestOpenAIKeySecret:
+    """Regression: the OpenAI key must be stored masked and unwrapped at use.
+
+    ``openai_api_key`` was a plain ``str`` on ``Settings``, so any repr/log
+    dump of the settings object leaked the raw key. It is now a ``SecretStr``;
+    the loop's ``_init_openai_client`` must unwrap it before handing it to the
+    OpenAI SDK (mirrors ai-query-service's TestBuildProcessorOpenAIKey).
+    """
+
+    def _make_loop(self, settings):
+        from src.services.agent_loop import ProactiveAgentLoop
+
+        stub = object()
+        return ProactiveAgentLoop(
+            settings=settings,
+            context_service=stub,
+            device_control_client=stub,
+            agent_client=stub,
+            confidence_scorer=stub,
+            preference_service=stub,
+            feedback_recorder=stub,
+            autonomous_executor=stub,
+        )
+
+    def test_settings_repr_does_not_leak_key(self):
+        from src.config import Settings
+
+        settings = Settings(openai_api_key="sk-super-secret")
+        assert "sk-super-secret" not in repr(settings)
+        assert "sk-super-secret" not in str(settings)
+
+    def test_init_openai_client_unwraps_secret(self, monkeypatch):
+        """The SDK must receive the real key, not the SecretStr wrapper."""
+        from src.config import Settings
+
+        captured = {}
+
+        class FakeAsyncOpenAI:
+            def __init__(self, api_key, timeout):
+                captured["api_key"] = api_key
+                captured["timeout"] = timeout
+
+        monkeypatch.setattr("openai.AsyncOpenAI", FakeAsyncOpenAI)
+
+        loop = self._make_loop(Settings(openai_api_key="sk-real-value"))
+        loop._init_openai_client()
+
+        # str(SecretStr) is "**********"; passing the wrapper straight through
+        # would authenticate with the mask instead of the key.
+        assert captured["api_key"] == "sk-real-value"
+        assert loop._openai_client is not None
