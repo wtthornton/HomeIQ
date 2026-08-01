@@ -1,68 +1,52 @@
 # Session handoff
-**Updated:** 2026-07-31T23:59:00Z
-**Git:** b6899c0b (working tree dirty — nothing committed this session)
+**Updated:** 2026-07-31T23:59:00Z (round-3 session)
+**Git:** 90962038 pushed to origin/fix/data-retention-security (tree clean except this file)
 **Linear P0:** none
 
 ## Done
-- **Baseline audit is fully closed.** All 8 findings in `reports/af-audit-baseline.json` were already fixed before this session (#67/#68/#69, #71 = 728781b7, PR #72 = b6899c0b). The prior handoff's "5 remaining findings" P0 was stale — verified file-by-file, not assumed.
-- **Re-ran the AgentForge audit** (`homeiq-service-audit`, 4 services, $1.84) → 7 *new* deeper findings. Verified each against source before fixing; the auditor was wrong or incomplete on three.
-- **Fixed all 7**, each with a regression test:
-  - ai-query-service: `openai_api_key` was never declared on `Settings` *or* `BaseServiceSettings` and `extra="ignore"` dropped it, so `settings.openai_api_key` raised AttributeError → every `POST /api/v1/query` 500'd. (Auditor claimed "raw SecretStr"; the real cause was the missing declaration. Proved with a runtime probe.) Declared + `.get_secret_value()`.
-  - data-retention: `self.influxdb_client` never assigned (AttributeError daily 06:00); no-client path returned `success: True` for a no-op; **and the delete call never matched the real API** — `InfluxDBClient` has no `.delete()`, `DeleteApi.delete` requires `predicate`. Only passed because tests used bare `MagicMock`. Wired a real client, fixed the call, offloaded it via `run_in_executor`.
-  - data-retention: `create_backup` set `success=True` even when `_backup_data/_backup_config/_backup_logs` recorded errors.
-  - admin-api: `config_endpoints.py` stubs fabricated success. `Dockerfile` runs `src.main` which mounts them, while a complete `ConfigManager` sat unused. Wired GET/PUT/schema; backup/restore/history return 501 (no backing store exists).
-  - websocket-ingestion: `UnboundLocalError` when a client disconnects during the initial `send_json`.
-  - ai-query-service: failed-query status discarded by `get_db()` rollback.
-  - ai-query-service: **removed** the private-IP auth bypass (user decision) — `request.client.host` is the immediate peer, so NAT/sidecar traffic bypassed auth.
-- **Re-audit confirms:** all 7 gone. ai-query-service **block → ship**. websocket-ingestion **ship**.
-- Added autospec guards in two places — bare `MagicMock` is precisely what let these bugs survive.
+- **Committed the round-1 work as e3c190e1** (all 7 audit fixes + regression tests, 15 files) after re-verifying every suite against the prior handoff's baselines — exact match.
+- **Fixed all 4 round-2 findings** (commit 90962038), each verified against source before touching it, each with regression tests proven to fail when the fix is stashed:
+  - data-retention HIGH — `materialized_views.py` made 8 inline synchronous `InfluxDBClient3.query/write` calls from async methods. All offloaded via `run_in_executor` (`_run_blocking` + `_write_points` helpers, same pattern as `pattern_aggregate_retention`). Note: the audit's other HIGH (`pattern_aggregate_retention.py:141-147`) was already fixed in the round-1 working tree — the auditor had read the committed tree.
+  - admin-api HIGH — `api_key_service.update_api_key` mutated `os.environ` before `_update_config_file()` ran the `allow_secret_writes` gate, so a denied write still left the rejected key live. Reordered: permission-gated file write first, env mutation only after success.
+  - ai-query-service MEDIUM — `_build_processor()` now passes `settings.data_api_key.get_secret_value()` to `EntityExtractor`, so `CrossGroupClient` sends the Authorization header.
+  - websocket-ingestion MEDIUM — `_process_batch` retries now resume from the failed handler instead of replaying the whole chain (no more duplicate writes from already-succeeded handlers).
+- **Round-3 audit: all 4 services SHIP** (`reports/af-audit-round3.json`, $2.17, exit 0). Success criterion met.
+- All touched files pass `tapps_validate_changed` (src files gate-green; test files brought to gate-green by fixing new+pre-existing lint in files touched). `tapps_checklist(bugfix)` complete.
+- Both commits pushed to the open PR #72 branch.
+
+## Suite results after round-2 fixes (vs prior baseline)
+- admin-api: **376 passed** (372 + 4 new)
+- websocket-ingestion: **515 passed** (513 + 2 new)
+- data-retention (`--ignore=tests/test_main.py`): **5 failed / 84 passed / 22 errors** (74 + 10 new; failures/errors all pre-existing)
+- ai-query-service: **6 failed / 24 passed / 1 skipped / 9 errors** (22 + 2 new; failures/errors all pre-existing)
 
 ## Open
-- **Nothing is committed.** 15 changed paths in the working tree, incl. new `ai-query-service/tests/test_middlewares.py`.
-- **Round-2 audit (`reports/af-audit-round2.json`) still BLOCKs 2 services on new, unrelated findings:**
-  1. data-retention HIGH — `materialized_views.py:99` (+ 4 more call sites) makes blocking `InfluxDBClient3.query/write` calls from async methods with no executor offload.
-  2. admin-api HIGH — `api_key_service.py:165-168` mutates `os.environ` *before* `_update_config_file()` runs the `allow_secret_writes` check, and never rolls back on PermissionError.
-  3. ai-query-service MEDIUM — `_build_processor()` constructs `EntityExtractor()` with no api_key, so `CrossGroupClient.auth_token` is None for every data-api call.
-  4. websocket-ingestion MEDIUM — `batch_processor._process_batch` retries the whole batch through handlers that already succeeded.
-- PR #72 is OPEN + MERGEABLE with **0 checks** — not merged.
-- CI gate (`.github/workflows/af-agent-gate.yml`) is `workflow_dispatch`-only; needs a self-hosted runner (AF has no offline mode) + repo secrets `AGENTFORGE_API_KEY`, `AGENTFORGE_REPO_TOKEN`. Blocked on the operator.
+- **Round-3 residual findings (non-blocking, backlog):**
+  1. websocket-ingestion MEDIUM — `config.py` / `_service_config.py`: `ha_token` / `home_assistant_token` / `nabu_casa_token` are plain `str`; `influxdb_token` in the same file uses `SecretStr`. Wrap them the same way.
+  2. websocket-ingestion LOW — `api/routers/websocket.py`: `except json.JSONDecodeError` is unreachable (parsing goes through `validate_message_json`, which returns a tuple).
+- **PR #72 is OPEN + MERGEABLE with 0 checks** — now carries both audit-fix commits; merge is the operator's call.
+- CI gate (`.github/workflows/af-agent-gate.yml`) still `workflow_dispatch`-only; needs self-hosted runner + `AGENTFORGE_API_KEY` / `AGENTFORGE_REPO_TOKEN` secrets. Blocked on operator.
 - Legacy `workflows/` directory still unresolved.
 
 ## Blockers
 - none for code work; CI gate needs operator-provisioned runner + secrets.
 
-## Pre-existing, NOT caused by this session
+## Pre-existing, NOT caused by these sessions
 - `boto3` not installed → `data-retention/tests/test_main.py` fails collection.
-- `ai-query-service/tests/test_query_router.py` `client` fixture broken → 9 errors.
-- `test_cleanup_old_backups` uses a `stat` mock incompatible with Python 3.13.
-- `ruff format --check` still fails repo-wide (per earlier handoff).
-
-## Changed files
-1. `domains/automation-core/ai-query-service/src/config.py`
-2. `domains/automation-core/ai-query-service/src/api/query_router.py`
-3. `domains/automation-core/ai-query-service/src/api/middlewares.py`
-4. `domains/automation-core/ai-query-service/tests/test_query_router.py`
-5. `domains/automation-core/ai-query-service/tests/test_middlewares.py` (new)
-6. `domains/core-platform/data-retention/src/main.py`
-7. `domains/core-platform/data-retention/src/pattern_aggregate_retention.py`
-8. `domains/core-platform/data-retention/src/backup_restore.py`
-9. `domains/core-platform/data-retention/tests/test_pattern_aggregate_retention.py`
-10. `domains/core-platform/data-retention/tests/test_backup_restore.py`
-11. `domains/core-platform/admin-api/src/config_endpoints.py`
-12. `domains/core-platform/admin-api/tests/test_config_endpoints.py`
-13. `domains/core-platform/websocket-ingestion/src/api/routers/websocket.py`
-14. `domains/core-platform/websocket-ingestion/tests/unit/test_websocket_handler.py`
+- `ai-query-service` `client` fixture broken → 9 errors (4 of them in `test_query_router.py`).
+- `test_cleanup_old_backups` `stat` mock incompatible with Python 3.13.
+- `ruff format --check` still fails repo-wide.
 
 ## Verify
-- `cd domains/core-platform/admin-api && pytest tests/ -q` — expect **372 passed**
-- `cd domains/core-platform/websocket-ingestion && pytest tests/ -q` — expect **513 passed**
-- `cd domains/core-platform/data-retention && pytest tests/ -q --ignore=tests/test_main.py` — expect **5 failed / 74 passed / 22 errors** (baseline was 6/71/22 — all remaining are pre-existing)
-- `cd domains/automation-core/ai-query-service && pytest tests/ -q` — expect **6 failed / 22 passed / 9 errors** (baseline 6/12/9)
-- Confirm the fixes are load-bearing: stash `src/api/routers/websocket.py` → `test_disconnect_during_initial_send_is_handled` fails with UnboundLocalError; stash `src/api/middlewares.py` → 6 middleware tests fail.
-- `jq -r '.results[] | "\(.service_path) \(.outcome)"' reports/af-audit-round2.json`
+- `jq -r '.results[] | "\(.service_path) \(.outcome)"' reports/af-audit-round3.json` — all four `ship`
+- Per-service pytest counts above; run from each service dir with the repo venv (`/home/wtthornton/code/HomeIQ/.venv/bin/python -m pytest tests/ -q`; system python3 has no pytest)
+- Load-bearing checks: stash `src/materialized_views.py` → 6 offload tests fail; stash `src/api_key_service.py` → 3 env-poisoning tests fail; stash `src/api/query_router.py` → key-wiring test fails; stash `src/batch_processor.py` → 2 retry tests fail
 
 ## Next (P0)
-Decide whether to commit the working tree as-is (all 7 audit fixes + tests, gates green) before starting on the round-2 findings. Then work the round-2 list above — the two HIGHs (blocking-call-in-async in `materialized_views.py`, and the `os.environ` write that precedes its own permission check in `api_key_service.py`) are the blockers.
+No mandated P0. Candidates, in rough priority order:
+1. Merge PR #72 (operator decision — 0 CI checks configured).
+2. Backlog the two round-3 residual findings (SecretStr token wrap is a quick, mechanical fix mirroring `influxdb_token`).
+3. CI gate provisioning (operator).
 
 ## Success criterion
-Round-2 HIGHs cleared so all 4 services return `ship`, with regression tests that fail without each fix.
+Met: round-2 HIGHs cleared, round-3 audit returns `ship` for all 4 services, every fix has a regression test that fails without it.
