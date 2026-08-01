@@ -25,6 +25,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from .backup import wait_until_idle
 from .recipe import Change
 
 if TYPE_CHECKING:
@@ -78,6 +79,16 @@ class Snapshot:
         )
 
 
+def _agent_ids(source: dict[str, Any]) -> list[str]:
+    """Backup destinations, normalised so a missing key equals none configured.
+
+    Baselines captured before destinations were tracked have no ``agent_ids``
+    key at all; treating that as ``[]`` keeps them comparable instead of
+    reporting a permanent difference that no restore could ever clear.
+    """
+    return [str(agent) for agent in source.get("agent_ids") or ()]
+
+
 def _project(entry: dict[str, Any], fields: tuple[str, ...]) -> dict[str, Any]:
     """Keep only the fields the agent can change.
 
@@ -116,12 +127,17 @@ async def capture(ha: HAClient) -> Snapshot:
     snapshot.backup_config = {
         "schedule": config.get("schedule"),
         "retention": config.get("retention"),
+        # Destinations are written by the backup-schedule recipe, so restore
+        # has to be able to put them back too.
+        "agent_ids": _agent_ids(config.get("create_backup") or {}),
         # Whether a key exists, never the key itself.
         "encryption_key_set": bool((config.get("create_backup") or {}).get("password")),
     }
 
-    info = await ha.ws.send_command("backup/info") or {}
-    snapshot.backup_ids = [str(b["backup_id"]) for b in info.get("backups") or []]
+    # Reading ids mid-job would miss a backup that lands moments later, which
+    # would then be invisible to `diff` and survive `restore` — leaving residue
+    # on an instance the caller was told is back at its baseline.
+    snapshot.backup_ids = list((await wait_until_idle(ha)).backup_ids)
 
     try:
         addons = await ha.ws.supervisor_api("/addons", timeout=60) or {}
@@ -187,6 +203,13 @@ async def diff(ha: HAClient, baseline: Snapshot) -> list[Change]:
                 Change("changed", f"backup_config.{name}",
                        baseline.backup_config.get(name), current.backup_config.get(name))
             )
+
+    before_agents = _agent_ids(baseline.backup_config)
+    after_agents = _agent_ids(current.backup_config)
+    if before_agents != after_agents:
+        changes.append(
+            Change("changed", "backup_config.agent_ids", before_agents, after_agents)
+        )
 
     for backup_id in set(current.backup_ids) - set(baseline.backup_ids):
         changes.append(Change("added", f"backup:{backup_id}", after=backup_id))
@@ -280,11 +303,15 @@ async def restore(ha: HAClient, baseline: Snapshot, *, strict: bool = True) -> l
         await ha.ws.send_command("config/core/update", fields=core_drift)
         reverted.append(Change("revert", "core_config", after=list(core_drift)))
 
-    backup_drift = {
+    backup_drift: dict[str, Any] = {
         name: baseline.backup_config.get(name)
         for name in ("schedule", "retention")
         if baseline.backup_config.get(name) != current.backup_config.get(name)
     }
+    # Destinations live under create_backup in the update payload, not at the
+    # top level like schedule and retention.
+    if _agent_ids(baseline.backup_config) != _agent_ids(current.backup_config):
+        backup_drift["create_backup"] = {"agent_ids": _agent_ids(baseline.backup_config)}
     if backup_drift:
         await ha.ws.send_command("backup/config/update", fields=backup_drift)
         reverted.append(Change("revert", "backup_config", after=list(backup_drift)))

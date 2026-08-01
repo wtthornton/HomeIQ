@@ -13,6 +13,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from .backup import (
+    BACKUP_TIMEOUT,
+    BackupTimeout,
+    available_agent_ids,
+    wait_for_backup,
+)
 from .recipe import (
     ApplyResult,
     Change,
@@ -61,13 +67,37 @@ class BackupScheduleRecipe(Recipe):
     ) -> None:
         self.recurrence = recurrence
         self.copies = copies
+        #: Explicit destinations. Empty means "whatever this instance offers",
+        #: resolved at run time from ``backup/agents/info``.
         self.agent_ids = agent_ids
 
     async def _config(self, ha: Any) -> dict[str, Any]:
         result = await ha.ws.send_command("backup/config/info")
         return dict((result or {}).get("config") or {})
 
-    def _drift(self, config: dict[str, Any]) -> list[Change]:
+    async def _available(self, ha: Any) -> tuple[str, ...]:
+        return self.agent_ids or await available_agent_ids(ha)
+
+    def _target_agent_ids(
+        self, config: dict[str, Any], available: tuple[str, ...]
+    ) -> tuple[str, ...]:
+        """What ``create_backup.agent_ids`` should end up as.
+
+        Explicitly named destinations are enforced. Otherwise an empty list is
+        filled from what the instance offers, and a set the owner already chose
+        is left alone.
+        """
+        if self.agent_ids:
+            return self.agent_ids
+        configured = self._configured_agent_ids(config)
+        return configured or available
+
+    @staticmethod
+    def _configured_agent_ids(config: dict[str, Any]) -> tuple[str, ...]:
+        create = config.get("create_backup") or {}
+        return tuple(str(agent) for agent in create.get("agent_ids") or ())
+
+    def _drift(self, config: dict[str, Any], available: tuple[str, ...]) -> list[Change]:
         """Drift this recipe can actually apply.
 
         The encryption key is deliberately excluded: ``backup/config/update``
@@ -77,7 +107,8 @@ class BackupScheduleRecipe(Recipe):
         """
         schedule = config.get("schedule") or {}
         retention = config.get("retention") or {}
-        create = config.get("create_backup") or {}
+        configured = self._configured_agent_ids(config)
+        target = self._target_agent_ids(config, available)
         changes: list[Change] = []
 
         if schedule.get("recurrence") != self.recurrence:
@@ -88,10 +119,13 @@ class BackupScheduleRecipe(Recipe):
             changes.append(
                 Change("set", "retention.copies", retention.get("copies"), self.copies)
             )
-        if self.agent_ids and set(create.get("agent_ids") or ()) != set(self.agent_ids):
+        # A schedule with no destination is not a backup. Home Assistant leaves
+        # automatic_backups_configured false and never writes anything, so a
+        # recipe that skipped this would report success over a home with no
+        # backups at all.
+        if set(configured) != set(target):
             changes.append(
-                Change("set", "create_backup.agent_ids",
-                       create.get("agent_ids"), list(self.agent_ids))
+                Change("set", "create_backup.agent_ids", list(configured), list(target))
             )
         return changes
 
@@ -102,13 +136,25 @@ class BackupScheduleRecipe(Recipe):
 
     async def check(self, ha: HAClient) -> CheckResult:
         config = await self._config(ha)
-        drift = self._drift(config)
+        available = await self._available(ha)
+        drift = self._drift(config, available)
         details = {
             "automatic_backups_configured": config.get("automatic_backups_configured"),
             "drift": [c.describe() for c in drift],
             "encryption_key_set": not self._needs_encryption_key(config),
+            "agent_ids": list(self._target_agent_ids(config, available)),
         }
 
+        if not self._target_agent_ids(config, available):
+            return CheckResult(
+                CheckStatus.BLOCKED_ON_HUMAN,
+                "no backup destination is available",
+                details,
+                human_action=(
+                    "Add a backup location in Settings > System > Backups. "
+                    "Home Assistant has nowhere to write a backup without one."
+                ),
+            )
         if drift:
             return CheckResult(
                 CheckStatus.NEEDS_APPLY,
@@ -129,11 +175,13 @@ class BackupScheduleRecipe(Recipe):
         return CheckResult(CheckStatus.SATISFIED, "automatic backups configured", details)
 
     async def plan(self, ha: HAClient) -> Plan:
-        return Plan(tuple(self._drift(await self._config(ha))))
+        config = await self._config(ha)
+        return Plan(tuple(self._drift(config, await self._available(ha))))
 
     async def apply(self, ha: HAClient) -> ApplyResult:
         config = await self._config(ha)
-        drift = self._drift(config)
+        available = await self._available(ha)
+        drift = self._drift(config, available)
         if not drift:
             return ApplyResult((), "already configured")
 
@@ -141,14 +189,15 @@ class BackupScheduleRecipe(Recipe):
             "schedule": {"recurrence": self.recurrence},
             "retention": {"copies": self.copies, "days": None},
         }
-        if self.agent_ids:
-            payload["create_backup"] = {"agent_ids": list(self.agent_ids)}
+        target = self._target_agent_ids(config, available)
+        if target:
+            payload["create_backup"] = {"agent_ids": list(target)}
         await ha.ws.send_command("backup/config/update", fields=payload)
         return ApplyResult(tuple(drift), f"applied {len(drift)} backup setting(s)")
 
     async def verify(self, ha: HAClient) -> VerifyResult:
         config = await self._config(ha)
-        remaining = [c.describe() for c in self._drift(config)]
+        remaining = [c.describe() for c in self._drift(config, await self._available(ha))]
         return VerifyResult(
             not remaining,
             "backup configuration matches intent"
@@ -157,6 +206,7 @@ class BackupScheduleRecipe(Recipe):
             {
                 "remaining": remaining,
                 "encryption_key_set": not self._needs_encryption_key(config),
+                "automatic_backups_configured": config.get("automatic_backups_configured"),
             },
         )
 
@@ -168,9 +218,23 @@ class FirstBackupRecipe(Recipe):
     phase = PHASE_SAFETY
     description = "At least one backup exists"
 
+    def __init__(
+        self,
+        *,
+        agent_ids: tuple[str, ...] = (),
+        timeout: float = BACKUP_TIMEOUT,
+    ) -> None:
+        #: Explicit destinations; empty resolves from ``backup/agents/info``.
+        self.agent_ids = agent_ids
+        #: How long ``verify`` waits for the backup to finish being written.
+        self.timeout = timeout
+
     async def _backups(self, ha: Any) -> list[dict[str, Any]]:
         result = await ha.ws.send_command("backup/info")
         return list((result or {}).get("backups") or [])
+
+    async def _destinations(self, ha: Any) -> tuple[str, ...]:
+        return self.agent_ids or await available_agent_ids(ha)
 
     async def check(self, ha: HAClient) -> CheckResult:
         backups = await self._backups(ha)
@@ -178,22 +242,51 @@ class FirstBackupRecipe(Recipe):
             return CheckResult(
                 CheckStatus.SATISFIED, f"{len(backups)} backup(s) exist", {"count": len(backups)}
             )
-        return CheckResult(CheckStatus.NEEDS_APPLY, "no backups exist", {"count": 0})
+        destinations = await self._destinations(ha)
+        if not destinations:
+            return CheckResult(
+                CheckStatus.BLOCKED_ON_HUMAN,
+                "no backups exist and there is nowhere to write one",
+                {"count": 0, "agent_ids": []},
+                human_action=(
+                    "Add a backup location in Settings > System > Backups. "
+                    "backup/generate needs at least one destination agent."
+                ),
+            )
+        return CheckResult(
+            CheckStatus.NEEDS_APPLY,
+            "no backups exist",
+            {"count": 0, "agent_ids": list(destinations)},
+        )
 
     async def plan(self, ha: HAClient) -> Plan:
         if await self._backups(ha):
             return Plan()
-        return Plan((Change("create", "full backup", after="1 backup"),))
+        destinations = await self._destinations(ha)
+        return Plan((Change("create", "full backup", after=list(destinations)),))
 
     async def apply(self, ha: HAClient) -> ApplyResult:
         if await self._backups(ha):
             return ApplyResult((), "a backup already exists")
-        await ha.ws.send_command("backup/generate", fields={"name": "homeiq-initial"})
+        destinations = await self._destinations(ha)
+        await ha.ws.send_command(
+            "backup/generate",
+            fields={"name": "homeiq-initial", "agent_ids": list(destinations)},
+        )
         return ApplyResult((Change("create", "full backup"),), "backup requested")
 
     async def verify(self, ha: HAClient) -> VerifyResult:
-        backups = await self._backups(ha)
-        return VerifyResult(bool(backups), f"{len(backups)} backup(s) present")
+        # backup/generate only *starts* the job. Re-reading straight away would
+        # see zero backups and fail a run that is merely still writing one.
+        try:
+            status = await wait_for_backup(ha, timeout=self.timeout)
+        except BackupTimeout as exc:
+            return VerifyResult(False, str(exc), {"count": len(exc.last.backup_ids)})
+        return VerifyResult(
+            True,
+            f"{len(status.backup_ids)} backup(s) present",
+            {"count": len(status.backup_ids)},
+        )
 
 
 # ---------------------------------------------------------------------------

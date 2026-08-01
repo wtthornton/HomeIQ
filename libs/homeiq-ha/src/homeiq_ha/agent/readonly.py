@@ -31,6 +31,7 @@ _READ_COMMANDS = frozenset(
         "auth/current_user",
         "backup/info",
         "backup/config/info",
+        "backup/agents/info",
     }
 )
 

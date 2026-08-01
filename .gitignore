@@ -284,3 +284,7 @@ phase2_results_*.json
 .tapps-mcp/hook-backups/
 .tapps-mcp/.lookup-docs-events.jsonl
 .tapps-mcp/test-edges-index.json
+
+# HA agent baselines: a capture of a real home's registries (device, area and
+# entity names). Testing artefact, never commit.
+ha-baseline*.json

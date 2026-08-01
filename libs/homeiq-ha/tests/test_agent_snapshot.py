@@ -235,9 +235,74 @@ async def test_restore_deletes_a_backup_it_did_not_start_with(sim):
     from homeiq_ha.agent.recipes import FirstBackupRecipe
 
     baseline = await capture(sim)
-    await FirstBackupRecipe().apply(sim)
+    recipe = FirstBackupRecipe()
+    await recipe.apply(sim)
+    # The job is still running here; verify is what waits for it to land.
+    assert (await recipe.verify(sim)).ok
     assert sim.state["backups"]
 
     await restore(sim, baseline)
 
+    assert await diff(sim, baseline) == []
+
+
+@pytest.mark.asyncio
+async def test_restore_puts_backup_destinations_back(sim):
+    """The schedule recipe writes create_backup.agent_ids, so restore must
+    revert it. Tracking only schedule and retention would leave the
+    destination behind on an instance reported as back at its baseline."""
+    from homeiq_ha.agent.recipes import BackupScheduleRecipe
+
+    baseline = await capture(sim)
+    await BackupScheduleRecipe(recurrence="daily", copies=7).apply(sim)
+    assert sim.state["backup_config"]["create_backup"]["agent_ids"] == ["hassio.local"]
+
+    await restore(sim, baseline)
+
+    assert sim.state["backup_config"]["create_backup"]["agent_ids"] == []
+    assert await diff(sim, baseline) == []
+
+
+@pytest.mark.asyncio
+async def test_diff_tolerates_a_baseline_without_destinations(sim):
+    """Baselines captured before destinations were tracked have no agent_ids
+    key; treating that as a permanent difference would make restore
+    unsatisfiable."""
+    baseline = await capture(sim)
+    del baseline.backup_config["agent_ids"]
+
+    assert await diff(sim, baseline) == []
+
+
+@pytest.mark.asyncio
+async def test_capture_waits_for_an_in_flight_backup(sim):
+    """A backup still being written must not slip past capture.
+
+    Recording ids mid-job would make the backup invisible to diff, so restore
+    would not delete it and it would be left behind on an instance the caller
+    was told is back at its baseline.
+    """
+    from homeiq_ha.agent.recipes import FirstBackupRecipe
+
+    baseline = await capture(sim)
+    await FirstBackupRecipe().apply(sim)
+    assert sim.state["backups"] == []  # the job has not landed yet
+
+    snapshot = await capture(sim)
+
+    assert snapshot.backup_ids == ["b1"]
+    assert [c.target for c in await diff(sim, baseline)] == ["backup:b1"]
+
+
+@pytest.mark.asyncio
+async def test_restore_removes_a_backup_that_lands_late(sim):
+    """The end-to-end version: a job started but not awaited leaves nothing."""
+    from homeiq_ha.agent.recipes import FirstBackupRecipe
+
+    baseline = await capture(sim)
+    await FirstBackupRecipe().apply(sim)
+
+    await restore(sim, baseline)
+
+    assert sim.state["backups"] == []
     assert await diff(sim, baseline) == []

@@ -6,6 +6,7 @@ proxy, not by convention. See :mod:`homeiq_ha.agent.readonly`.
 
 from __future__ import annotations
 
+from .backup import BackupTimeout
 from .engine import (
     BACKUP_PHASE,
     BackupGateNotSatisfied,
@@ -31,6 +32,7 @@ __all__ = [
     "BACKUP_PHASE",
     "ApplyResult",
     "BackupGateNotSatisfied",
+    "BackupTimeout",
     "Change",
     "CheckResult",
     "CheckStatus",

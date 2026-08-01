@@ -22,6 +22,7 @@ from homeiq_ha.agent.recipes import (
     TeamTrackerRecipe,
     default_recipes,
 )
+from homeiq_ha.client.errors import HACommandError
 
 #: Captured from the live instance on 2026-08-01, before any change.
 FRESH_INSTANCE: dict[str, Any] = {
@@ -33,6 +34,12 @@ FRESH_INSTANCE: dict[str, Any] = {
         "schedule": {"days": [], "recurrence": "never", "time": None},
     },
     "backups": [],
+    # One destination, as the live instance reports via backup/agents/info.
+    "backup_agents": [{"agent_id": "hassio.local", "name": "local"}],
+    #: Set by backup/generate; lands after `polls_until_done` reads of
+    #: backup/info, mirroring Home Assistant's asynchronous job.
+    "pending_backup": None,
+    "polls_until_done": 0,
     "core_config": {"currency": "USD", "country": "US", "time_zone": "America/Los_Angeles"},
     "areas": [
         {"area_id": "living_room", "name": "Living Room"},
@@ -54,6 +61,21 @@ class SimWs:
     def __init__(self, state: dict[str, Any]) -> None:
         self.state = state
         self.writes: list[str] = []
+        #: Every command with the fields it carried, so a test can assert on
+        #: what was actually sent rather than only on the resulting state.
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    def _advance_backup(self) -> str:
+        """Model an asynchronous backup job, one poll at a time."""
+        pending = self.state.get("pending_backup")
+        if not pending:
+            return "idle"
+        self.state["polls_until_done"] -= 1
+        if self.state["polls_until_done"] > 0:
+            return "create_backup"
+        self.state["backups"].append(pending)
+        self.state["pending_backup"] = None
+        return "idle"
 
     async def send_command(
         self,
@@ -65,11 +87,17 @@ class SimWs:
     ) -> Any:
         fields = fields or {}
         args = {**payload, **fields}
+        self.calls.append((command_type, copy.deepcopy(args)))
 
         if command_type == "backup/config/info":
             return {"config": self.state["backup_config"]}
+        if command_type == "backup/agents/info":
+            return {"agents": self.state["backup_agents"]}
         if command_type == "backup/info":
-            return {"backups": self.state["backups"], "state": "idle"}
+            # Advance first: the job lands partway through a poll loop, which is
+            # the whole behaviour verify has to cope with.
+            state = self._advance_backup()
+            return {"backups": list(self.state["backups"]), "state": state}
         if command_type == "get_config":
             return self.state["core_config"]
         if command_type.endswith("_registry/list"):
@@ -82,13 +110,33 @@ class SimWs:
         self.writes.append(command_type)
 
         if command_type == "backup/config/update":
-            self.state["backup_config"]["schedule"].update(args.get("schedule") or {})
-            self.state["backup_config"]["retention"].update(args.get("retention") or {})
-            self.state["backup_config"]["automatic_backups_configured"] = True
+            config = self.state["backup_config"]
+            config["schedule"].update(args.get("schedule") or {})
+            config["retention"].update(args.get("retention") or {})
+            config["create_backup"].update(args.get("create_backup") or {})
+            # A schedule only becomes live once it has somewhere to write to;
+            # observed on the live instance, which starts reporting
+            # next_automatic_backup the moment agent_ids is non-empty.
+            scheduled = bool(
+                config["schedule"].get("recurrence") not in (None, "never")
+                and config["create_backup"].get("agent_ids")
+            )
+            config["next_automatic_backup"] = "2026-08-02T04:56:21-07:00" if scheduled else None
+            # Home Assistant additionally withholds this until an encryption
+            # key exists, which backup/config/update cannot set.
+            config["automatic_backups_configured"] = scheduled and bool(
+                config["create_backup"].get("password")
+            )
             return None
         if command_type == "backup/generate":
-            self.state["backups"].append({"backup_id": "b1", "name": args.get("name")})
-            return {"backup_id": "b1"}
+            if not args.get("agent_ids"):
+                raise HACommandError(
+                    "backup/generate", "invalid_format", "required key not provided: agent_ids"
+                )
+            self.state["pending_backup"] = {"backup_id": "b1", "name": args.get("name")}
+            self.state["polls_until_done"] = 2
+            # Only a job handle — the backup itself does not exist yet.
+            return {"backup_job_id": "job1"}
         if command_type == "config/core/update":
             self.state["core_config"].update(args)
             return None
@@ -308,7 +356,115 @@ async def test_first_backup_reports_zero_backups(sim):
 async def test_first_backup_is_idempotent(sim):
     recipe = FirstBackupRecipe()
     assert (await recipe.apply(sim)).change_count == 1
+    # backup/generate only starts the job. verify is what waits for it to land,
+    # so idempotency is a property of the apply->verify pair, not of apply.
+    assert (await recipe.verify(sim)).ok
     assert (await recipe.apply(sim)).change_count == 0
+
+
+def _fields_of(sim: SimHA, command_type: str) -> dict[str, Any]:
+    """The fields carried by the first call to ``command_type``."""
+    return next(args for name, args in sim.ws.calls if name == command_type)
+
+
+@pytest.mark.asyncio
+async def test_first_backup_names_a_destination(sim):
+    """backup/generate needs agent_ids: a backup has to be written somewhere.
+
+    Omitting them is rejected outright, so a recipe that left them off could
+    never create the backup the whole safety phase is gated on.
+    """
+    await FirstBackupRecipe().apply(sim)
+
+    assert _fields_of(sim, "backup/generate")["agent_ids"] == ["hassio.local"]
+
+
+@pytest.mark.asyncio
+async def test_first_backup_blocks_when_there_is_nowhere_to_write(sim):
+    sim.state["backup_agents"] = []
+
+    result = await FirstBackupRecipe().check(sim)
+
+    assert result.status is CheckStatus.BLOCKED_ON_HUMAN
+    assert "nowhere to write" in result.summary
+
+
+@pytest.mark.asyncio
+async def test_first_backup_verify_waits_for_the_job_to_land(sim):
+    """apply only starts the job; the backup does not exist when it returns.
+
+    A verify that read once would report zero backups and fail a run that was
+    merely still writing one.
+    """
+    await FirstBackupRecipe().apply(sim)
+    assert sim.state["backups"] == []
+    assert sim.state["pending_backup"] is not None
+
+    result = await FirstBackupRecipe().verify(sim)
+
+    assert result.ok
+    assert result.details["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_first_backup_verify_fails_when_the_job_never_lands(sim):
+    sim.state["polls_until_done"] = 10**6
+    await FirstBackupRecipe().apply(sim)
+
+    result = await FirstBackupRecipe(timeout=0).verify(sim)
+
+    assert not result.ok
+    assert "timed out" in result.summary
+
+
+@pytest.mark.asyncio
+async def test_backup_schedule_configures_a_destination(sim):
+    """A schedule with no agent_ids is not a backup.
+
+    Home Assistant leaves automatic_backups_configured false and writes
+    nothing, so a recipe that skipped this would report success over a home
+    that has no automatic backups at all.
+    """
+    await BackupScheduleRecipe(recurrence="daily", copies=7).apply(sim)
+
+    config = sim.state["backup_config"]
+    assert config["create_backup"]["agent_ids"] == ["hassio.local"]
+    # The schedule is only live once it has a destination: confirmed against
+    # the real instance, which began reporting next_automatic_backup only
+    # after agent_ids was filled.
+    assert config["next_automatic_backup"] is not None
+
+
+@pytest.mark.asyncio
+async def test_backup_schedule_leaves_a_chosen_destination_alone(sim):
+    """A set the owner picked is theirs; only an empty one gets filled."""
+    sim.state["backup_config"]["create_backup"]["agent_ids"] = ["my.nas"]
+    recipe = BackupScheduleRecipe(recurrence="daily", copies=7)
+
+    await recipe.apply(sim)
+
+    assert sim.state["backup_config"]["create_backup"]["agent_ids"] == ["my.nas"]
+    assert (await recipe.verify(sim)).ok
+
+
+@pytest.mark.asyncio
+async def test_backup_schedule_blocks_when_no_destination_exists(sim):
+    sim.state["backup_agents"] = []
+
+    result = await BackupScheduleRecipe().check(sim)
+
+    assert result.status is CheckStatus.BLOCKED_ON_HUMAN
+    assert "no backup destination" in result.summary
+
+
+@pytest.mark.asyncio
+async def test_backup_schedule_converges_in_one_apply(sim):
+    """The second apply must be a no-op, or live runs never settle."""
+    recipe = BackupScheduleRecipe(recurrence="daily", copies=7)
+    assert (await recipe.apply(sim)).change_count == 3
+
+    assert (await recipe.apply(sim)).change_count == 0
+    assert (await recipe.verify(sim)).ok
 
 
 # --- core config ----------------------------------------------------------
