@@ -24,6 +24,7 @@ from .recipe import (
     Recipe,
     VerifyResult,
 )
+from .recipes import default_recipes
 
 __all__ = [
     "BACKUP_PHASE",
@@ -41,6 +42,7 @@ __all__ = [
     "RecipeOutcome",
     "RunReport",
     "VerifyResult",
+    "default_recipes",
     "is_read_command",
     "read_only",
 ]
