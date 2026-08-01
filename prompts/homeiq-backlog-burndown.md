@@ -276,6 +276,12 @@ Confirm each before depending on it.
   (164 entities, 19 devices), imported by **zero** services today.
 - Evidence: `docs/ha-init-agent-design.md` · `docs/operations/dashboard-triage-2026-08-01.md`
 - Narrow alternative: `prompts/close-unblocked-post-5405-work.md` (Wave 2 only)
+- **Head start for Wave 2, in `git stash`:** a subagent applied 8 of the TAP-5433
+  `/ai-automation/*` prefix fixes during the 2026-08-01 session. They were stashed rather
+  than committed because they were **never built, tested, or curled against the stack**.
+  `git stash list` → the entry naming TAP-5433. Review with `git stash show -p stash@{n}`,
+  and only `git stash pop` after you have a running stack to verify against. Treat it as an
+  unverified suggestion, not as done work — the remaining 9 families are untouched.
 - Prior learnings: `tapps_memory(action="search", query="homeiq build contexts CI MCP server genes data plane")`
 
 ## Run-as
