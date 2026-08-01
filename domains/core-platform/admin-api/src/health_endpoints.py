@@ -214,6 +214,27 @@ class HealthEndpoints:
                     detail="Failed to get services health"
                 ) from e
 
+        @self.router.get("/health/services/{service_name}", response_model=ServiceHealth)
+        async def get_service_health(service_name: str):
+            """Get health status for a single service"""
+            try:
+                services_health = await self._check_services()
+            except Exception as e:
+                logger.error("Error getting health for service %s: %s", service_name, e)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to get service health"
+                ) from e
+
+            # Kept outside the try above so a miss stays a 404 instead of
+            # being swallowed and re-raised as a 500.
+            if service_name not in services_health:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Service '{service_name}' not found"
+                )
+            return services_health[service_name]
+
         @self.router.get("/health/dependencies", response_model=dict[str, Any])
         async def get_dependencies_health():
             """Get dependencies health status"""
