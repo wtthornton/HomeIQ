@@ -9,7 +9,11 @@ from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from src.backup_restore import BackupInfo, BackupRestoreService
+from src.backup_restore import (
+    COMPONENT_ERROR_KEYS,
+    BackupInfo,
+    BackupRestoreService,
+)
 
 _skip_windows = pytest.mark.skipif(sys.platform == "win32", reason="Linux-specific paths")
 
@@ -107,6 +111,33 @@ class TestBackupRestoreService:
         assert backup_file.exists()
 
     @pytest.mark.asyncio
+    async def test_create_backup_reports_failure_when_a_component_fails(self, service):
+        """A backup missing a component must not be reported as success.
+
+        Regression: _backup_data/_backup_config/_backup_logs swallow their own
+        exceptions and record a ``*_error`` key instead of raising, so the outer
+        except in create_backup never fired and every archive came back
+        success=True -- operators only discovered the gap at restore time.
+        """
+        async def failing_backup_data(_backup_path, metadata):
+            metadata["data_error"] = "InfluxDB connection refused"
+
+        service._backup_data = failing_backup_data
+
+        backup_info = await service.create_backup(
+            backup_type="full",
+            include_data=True,
+            include_config=True,
+            include_logs=False,
+        )
+
+        assert backup_info.success is False
+        assert "InfluxDB connection refused" in backup_info.error_message
+        assert "data_error" in backup_info.error_message
+        # The archive is still written so a partial restore stays possible.
+        assert (Path(service.backup_dir) / f"{backup_info.backup_id}.tar.gz").exists()
+
+    @pytest.mark.asyncio
     async def test_create_backup_config_only(self, service):
         """Test creating a config-only backup."""
         backup_info = await service.create_backup(
@@ -131,7 +162,15 @@ class TestBackupRestoreService:
             include_logs=True
         )
 
-        assert backup_info.success is True
+        # _backup_logs walks the real /var/log, whose readability varies by
+        # machine (root-only files like boot.log make it fail locally but not in
+        # the service container). Assert the contract -- success is true exactly
+        # when no component recorded an error -- rather than a fixed outcome.
+        # Hardcoding True here is what hid the swallowed log failure.
+        component_errors = [
+            key for key in COMPONENT_ERROR_KEYS if key in backup_info.metadata
+        ]
+        assert backup_info.success is (not component_errors)
         assert backup_info.metadata["include_logs"] is True
 
     @pytest.mark.asyncio

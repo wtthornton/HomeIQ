@@ -13,13 +13,22 @@ class TestRegisterRouters:
     """Tests for register_routers function."""
 
     def test_includes_all_expected_tags(self) -> None:
-        """Verify all expected router tags are present on the app."""
-        tags = set()
-        for route in app.routes:
-            for tag in getattr(route, "tags", []):
-                tags.add(tag)
+        """Verify all expected router tags are present on the app.
+
+        Read from the OpenAPI schema rather than app.routes: FastAPI wraps
+        included routers in _IncludedRouter, so tags no longer surface on the
+        top-level route objects.
+        """
+        tags = {
+            tag
+            for path_item in app.openapi()["paths"].values()
+            for operation in path_item.values()
+            for tag in operation.get("tags", [])
+        }
         assert "Health" in tags
         assert "Docker Management" in tags
+        assert "Statistics" in tags
+        assert "Monitoring" in tags
 
     def test_register_routers_adds_routes(self) -> None:
         """Verify register_routers calls app.include_router."""
@@ -33,7 +42,20 @@ class TestRegisterRouters:
             docker_endpoints=MagicMock(),
             monitoring_endpoints=MagicMock(),
         )
-        assert mock_app.include_router.call_count == 8
+        registered_tags = {
+            tag
+            for call in mock_app.include_router.call_args_list
+            for tag in call.kwargs.get("tags", [])
+        }
+        assert {
+            "Health",
+            "Statistics",
+            "Configuration",
+            "Integrations",
+            "Docker Management",
+            "Monitoring",
+        } <= registered_tags
+        assert mock_app.include_router.call_count == len(registered_tags) + 1
 
 
 class TestRegisterRootEndpoints:
@@ -52,5 +74,7 @@ class TestRegisterRootEndpoints:
             rate_limiter=MagicMock(),
             health_endpoints=MagicMock(),
         )
-        # Should register 3 routes: /health, /, /api/info
-        assert mock_app.get.call_count == 3
+        # register_root_endpoints owns /api/info; /health and / are registered
+        # by register_public_endpoints.
+        assert mock_app.get.call_count == 1
+        assert mock_app.get.call_args_list[0].args[0] == "/api/info"

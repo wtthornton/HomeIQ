@@ -140,7 +140,10 @@ def calculate_service_uptime() -> float:
         return 100.0 if uptime_seconds > 0 else 0.0
     except Exception as e:
         logger.error(f"Error calculating uptime: {e}")
-        return 100.0
+        # 0.0, not 100.0: if uptime cannot be computed we must not report
+        # perfect availability. AnalyticsSummary.uptime is a float, so there is
+        # no "unknown" value to return — surface it as an obvious anomaly.
+        return 0.0
 
 
 _INTERVAL_RE = re.compile(r'(\d+)([mhd])')

@@ -1,3 +1,10 @@
 cursor_stop_completion_gate: warn
 linear_team: TappsCodingAgents
 linear_project: HomeIQ
+mcp_bundle: full
+
+# Skill inventory intentionally exceeds the stock ceiling of 20: 24 tapps-managed
+# skills + 6 docs skills + 11 third-party AgentForge skills, all deliberately kept
+# (skill_tier: full). Raised rather than pruned per tapps_doctor guidance.
+doctor_context_budget:
+  skill_count_max: 45

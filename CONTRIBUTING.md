@@ -38,7 +38,9 @@ All Docker images must follow these security practices:
 
 ## Quality Gate (TAPPS)
 
-Every pull request that changes Python files is automatically checked by the **TAPPS quality pipeline** via [`.github/workflows/tapps-quality.yml`](.github/workflows/tapps-quality.yml). The quality gate runs in CI and posts results directly on your PR as a comment.
+Every pull request that changes Python files is automatically checked by the **TAPPS quality pipeline** via [`.github/workflows/quality-gate.yml`](.github/workflows/quality-gate.yml). The quality gate runs in CI and posts results directly on your PR as a comment.
+
+For a deeper, artifact-producing report you can run [`.github/workflows/tapps-quality.yml`](.github/workflows/tapps-quality.yml) on demand from the **Actions** tab.
 
 **PRs with failing quality gates cannot be merged.**
 

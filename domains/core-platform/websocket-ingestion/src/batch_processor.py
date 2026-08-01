@@ -252,11 +252,18 @@ class BatchProcessor:
         Returns:
             True if batch was processed successfully, False otherwise
         """
+        # Snapshot so concurrent add/remove_batch_handler can't shift indices
+        # mid-retry. Retries resume from the handler that failed: re-running
+        # earlier handlers would write the same batch twice (e.g. duplicate
+        # InfluxDB points) whenever a later handler failed transiently.
+        handlers = list(self.batch_handlers)
+        completed = 0
+
         for attempt in range(self.retry_attempts):
             try:
-                # Call registered batch handlers
-                for handler in self.batch_handlers:
-                    await handler(batch)
+                while completed < len(handlers):
+                    await handlers[completed](batch)
+                    completed += 1
 
                 logger.debug(f"Successfully processed batch of {len(batch)} events")
                 return True

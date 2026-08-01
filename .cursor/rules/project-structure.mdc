@@ -1,6 +1,6 @@
 ---
-alwaysApply: true
-description: Project structure and file organization guidelines
+alwaysApply: false
+description: HomeIQ project structure and file organization - the domains/ layout, 9 domain groups, libs/, and where each service lives. Request when locating a service, adding a new one, or reasoning about repo layout.
 ---
 
 # HomeIQ Project Structure Guide

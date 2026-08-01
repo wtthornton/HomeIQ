@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.52
+# tapps-mcp-hook-version: 3.12.55
 # tapps-mcp-hook-content-sha: 6934aae7
 # TappsMCP PostToolUse hook — Linear gate sentinel writer (TAP-981 / TAP-1328)
 # Writes .tapps-mcp/.linear-validate-sentinel ONLY when the validate call

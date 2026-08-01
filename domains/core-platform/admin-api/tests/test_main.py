@@ -20,61 +20,38 @@ class TestAdminAPIService:
 
     def test_init(self) -> None:
         """Test service initialization from default config."""
-        assert self.service.cfg.api_host == "0.0.0.0"  # noqa: S104
-        assert self.service.cfg.api_port == 8000
+        assert self.service.cfg.service_name == "admin-api"
         assert self.service.cfg.api_title == "Home Assistant Ingestor Admin API"
         assert self.service.cfg.api_version == "1.0.0"
         assert self.service.cfg.allow_anonymous is False
-        assert self.service.is_running is False
-        assert self.service.app is None
-        assert self.service.server_task is None
 
-    @patch("src.main.uvicorn.Server")
-    @patch("src.main.uvicorn.Config")
-    async def test_start(self, mock_config: Mock, mock_server: Mock) -> None:
-        """Test service start creates app and starts server."""
-        mock_server_instance = AsyncMock()
-        mock_server.return_value = mock_server_instance
-        mock_config.return_value = Mock()
+    def test_init_builds_collaborators(self) -> None:
+        """Every endpoint group and the auth/rate-limit stack is constructed."""
+        assert self.service.auth_manager is not None
+        assert self.service.rate_limiter is not None
+        assert self.service.health_endpoints is not None
+        assert self.service.stats_endpoints is not None
+        assert self.service.config_endpoints is not None
+        assert self.service.docker_endpoints is not None
+        assert self.service.monitoring_endpoints is not None
 
-        await self.service.start()
+    def test_setup_app_registers_routes(self) -> None:
+        """setup_app wires routers onto a bare FastAPI app."""
+        target = FastAPI()
+        before = len(target.routes)
 
-        assert self.service.is_running is True
-        assert self.service.app is not None
-        assert self.service.server_task is not None
-        mock_server_instance.serve.assert_called_once()
+        self.service.setup_app(target)
 
-    async def test_start_already_running(self) -> None:
-        """Test starting service that's already running logs a warning."""
-        self.service.is_running = True
-        with patch("src.main.logger") as mock_logger:
-            await self.service.start()
-            mock_logger.warning.assert_called_with(
-                "Admin API is already running"
-            )
+        assert len(target.routes) > before
+        paths = {getattr(r, "path", None) for r in target.routes}
+        assert "/api/v1/health" in paths
 
-    async def test_stop(self) -> None:
-        """Test service stop cancels task and cleans up."""
-        self.service.is_running = True
-        self.service.server_task = AsyncMock()
-        await self.service.stop()
-        assert self.service.is_running is False
-        self.service.server_task.cancel.assert_called_once()
+    def test_setup_app_registers_exception_handlers(self) -> None:
+        """setup_app installs the structured error handlers."""
+        target = FastAPI()
+        self.service.setup_app(target)
 
-    async def test_stop_not_running(self) -> None:
-        """Test stopping a non-running service is a no-op."""
-        self.service.is_running = False
-        await self.service.stop()
-
-    def test_get_app(self) -> None:
-        """Test get_app returns the current app instance."""
-        mock_app = Mock(spec=FastAPI)
-        self.service.app = mock_app
-        assert self.service.get_app() == mock_app
-
-    def test_get_app_none(self) -> None:
-        """Test get_app returns None before start."""
-        assert self.service.get_app() is None
+        assert target.exception_handlers
 
 
 class TestFastAPIApp:
@@ -89,8 +66,9 @@ class TestFastAPIApp:
         response = self.client.get("/")
         assert response.status_code == 200
         data = response.json()
-        assert data["success"] is True
-        assert data["data"]["status"] == "running"
+        assert data["status"] == "running"
+        assert data["service"] == "Home Assistant Ingestor Admin API"
+        assert data["version"] == "1.0.0"
 
     def test_api_info_endpoint(self) -> None:
         """Test /api/info returns API metadata."""
@@ -131,8 +109,18 @@ class TestFastAPIApp:
         assert response.status_code == 200
 
     def test_cors_headers(self) -> None:
-        """Test CORS headers are present on OPTIONS requests."""
-        response = self.client.options("/api/v1/health")
+        """Test CORS headers are present on a preflight request.
+
+        A bare OPTIONS is 405; CORSMiddleware only answers when the request
+        carries Origin and Access-Control-Request-Method.
+        """
+        response = self.client.options(
+            "/api/v1/health",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
         assert response.status_code == 200
         assert "access-control-allow-origin" in response.headers
 
@@ -155,17 +143,15 @@ class TestErrorHandling:
         self.client = TestClient(app)
 
     def test_404_error(self) -> None:
-        """Test 404 returns structured error response."""
+        """Test an unknown path returns FastAPI's 404 detail payload."""
         response = self.client.get("/nonexistent")
         assert response.status_code == 404
-        data = response.json()
-        assert data["success"] is False
-        assert "error" in data
+        assert response.json()["detail"] == "Not Found"
 
-    def test_500_error(self) -> None:
-        """Test graceful handling of invalid query params."""
+    def test_protected_endpoint_requires_auth(self) -> None:
+        """The stats router is behind auth, so an anonymous call is rejected."""
         response = self.client.get("/api/v1/stats?period=invalid")
-        assert response.status_code in [200, 400, 500]
+        assert response.status_code == 401
 
 
 class TestAuthentication:

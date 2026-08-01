@@ -6,7 +6,7 @@ Tables:
 - automation_executions: Individual execution records for fast queries
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     Boolean,
@@ -40,11 +40,11 @@ class Automation(Base):
     total_errors = Column(Integer, default=0)
     avg_duration_seconds = Column(Float, default=0.0)
     success_rate = Column(Float, default=100.0)  # 0-100
-    last_triggered = Column(DateTime)
+    last_triggered = Column(DateTime(timezone=True))
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     # Relationship
     executions = relationship(
@@ -65,8 +65,8 @@ class AutomationExecution(Base):
         String, ForeignKey("automations.automation_id", ondelete="CASCADE"), index=True
     )
     run_id = Column(String, unique=True, index=True)
-    started_at = Column(DateTime, nullable=False, index=True)
-    finished_at = Column(DateTime)
+    started_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    finished_at = Column(DateTime(timezone=True))
     duration_seconds = Column(Float)
     execution_result = Column(String, index=True)  # finished_successfully, error, aborted
     trigger_type = Column(String)  # state, time, event, etc.

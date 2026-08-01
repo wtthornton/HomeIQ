@@ -14,6 +14,8 @@ class TestStatsEndpoints:
     def setup_method(self):
         """Set up test fixtures"""
         self.stats_endpoints = StatsEndpoints()
+        # StatsEndpoints.router is itself a FastAPI app, not an APIRouter,
+        # so it is handed to TestClient directly.
         self.client = TestClient(self.stats_endpoints.router)
 
     def test_init(self):

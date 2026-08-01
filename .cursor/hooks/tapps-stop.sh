@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.52
+# tapps-mcp-hook-version: 3.12.55
 # tapps-mcp-hook-content-sha: a058b1bb
 # TappsMCP Cursor stop hook — TAP-3918 loop-metrics + optional followup (TAP-3921)
 # Resolves project root from workspace_roots; transcript from agent-transcripts/.

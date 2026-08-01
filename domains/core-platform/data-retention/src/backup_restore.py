@@ -44,6 +44,17 @@ class BackupInfo:
 
 ALLOWED_CONFIG_FILES = {"config.yaml", "influxdb.conf"}
 
+# Keys the _backup_* helpers write into metadata when they fail. They record the
+# reason instead of raising so one bad component does not discard the rest of the
+# archive; create_backup reads these to decide whether the backup really succeeded.
+COMPONENT_ERROR_KEYS = ("data_error", "config_error", "log_error")
+BLOCKED_FILE_PATTERNS = {".env", ".env.local", ".env.production", ".env.staging", ".env.test"}
+
+
+def _is_secret_file(filename: str) -> bool:
+    """Check if a filename matches secret file patterns that must never be backed up."""
+    return filename in BLOCKED_FILE_PATTERNS or filename.startswith('.env.')
+
 
 def _safe_extract(tar: tarfile.TarFile, path: str | Path) -> None:
     """Safely extract tar archive, preventing path traversal (Zip Slip)."""
@@ -158,6 +169,14 @@ class BackupRestoreService:
                 # Get backup size
                 backup_size = backup_file.stat().st_size
 
+            # A helper that failed recorded the reason in metadata rather than
+            # raising, so the outer except never fires. Without this check an
+            # archive missing its data or config export was still handed back as
+            # success=True, and the gap only surfaced at restore time.
+            component_errors = {
+                key: metadata[key] for key in COMPONENT_ERROR_KEYS if key in metadata
+            }
+
             backup_info = BackupInfo(
                 backup_id=backup_id,
                 backup_type=backup_type,
@@ -165,12 +184,23 @@ class BackupRestoreService:
                 size_bytes=backup_size,
                 file_path=str(backup_file),
                 metadata=metadata,
-                success=True
+                success=not component_errors,
+                error_message="; ".join(
+                    f"{key}: {value}" for key, value in sorted(component_errors.items())
+                ) or None,
             )
 
             self.backup_history.append(backup_info)
 
-            logger.info(f"Backup created successfully: {backup_id} ({backup_size} bytes)")
+            if component_errors:
+                logger.error(
+                    "Backup %s is incomplete - %s failed: %s",
+                    backup_id,
+                    ", ".join(sorted(component_errors)),
+                    backup_info.error_message,
+                )
+            else:
+                logger.info(f"Backup created successfully: {backup_id} ({backup_size} bytes)")
             return backup_info
 
         except Exception as e:
@@ -260,7 +290,7 @@ class BackupRestoreService:
             config_dir = backup_path / "config"
             config_dir.mkdir(exist_ok=True)
 
-            # Copy configuration files (secrets must not be backed up unencrypted)
+            # Whitelist only safe configuration files (never backup unencrypted secrets)
             config_files = [
                 "/app/config.yaml",
                 "/etc/influxdb/influxdb.conf"
@@ -269,6 +299,15 @@ class BackupRestoreService:
             copied_files = []
             for config_file in config_files:
                 config_path = Path(config_file)
+
+                # Validate filename is in whitelist and not a secret file
+                if _is_secret_file(config_path.name):
+                    logger.warning(f"Refusing to backup secret file: {config_file}")
+                    continue
+                if config_path.name not in ALLOWED_CONFIG_FILES:
+                    logger.warning(f"Refusing to backup non-whitelisted config: {config_file}")
+                    continue
+
                 if config_path.exists():
                     dest_file = config_dir / config_path.name
                     shutil.copy2(config_file, dest_file)

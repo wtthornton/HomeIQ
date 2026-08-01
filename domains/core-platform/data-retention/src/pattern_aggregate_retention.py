@@ -7,9 +7,11 @@ Manages retention policies for Epic AI-5 pattern aggregates:
 - pattern_aggregates_weekly: 365 days
 """
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from functools import partial
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -27,14 +29,18 @@ class RetentionConfig:
 class PatternAggregateRetention:
     """Manage retention policies for pattern aggregates (Epic AI-5)"""
 
-    def __init__(self, influxdb_client=None):
+    def __init__(self, influxdb_client=None, influxdb_org: str | None = None):
         """
         Initialize pattern aggregate retention manager.
 
         Args:
-            influxdb_client: InfluxDB client instance
+            influxdb_client: InfluxDBClient instance (not a DeleteApi -- this
+                class calls ``.delete_api()`` on it).
+            influxdb_org: Organization the buckets live in. Passed explicitly so
+                the delete target is never inferred from ambient client state.
         """
         self.influxdb_client = influxdb_client
+        self.influxdb_org = influxdb_org
 
         # Epic AI-5 retention policies
         self.retention_policies = {
@@ -66,6 +72,7 @@ class PatternAggregateRetention:
 
         results = {}
         start_time = datetime.now()
+        all_succeeded = True
 
         for policy_name, config in self.retention_policies.items():
             if not config.cleanup_enabled:
@@ -75,19 +82,22 @@ class PatternAggregateRetention:
             try:
                 result = await self._cleanup_bucket(config)
                 results[policy_name] = result
+                if not result.get('success', False):
+                    all_succeeded = False
             except Exception as e:
                 logger.error(f"Error cleaning up {policy_name}: {e}", exc_info=True)
                 results[policy_name] = {
                     'success': False,
                     'error': str(e)
                 }
+                all_succeeded = False
 
         duration = (datetime.now() - start_time).total_seconds()
 
         logger.info(f"Pattern aggregate cleanup completed in {duration:.2f}s")
 
         return {
-            'success': True,
+            'success': all_succeeded,
             'duration_seconds': duration,
             'results': results,
             'timestamp': datetime.now().isoformat()
@@ -109,22 +119,43 @@ class PatternAggregateRetention:
             cutoff_date = datetime.now() - timedelta(days=config.retention_days)
 
             if not self.influxdb_client:
-                # Mock implementation for testing
-                logger.warning(f"Mock cleanup for {config.bucket_name} (no InfluxDB client)")
+                # A pass that deletes nothing has not succeeded. Reporting success
+                # here is what let the 90/365-day policy look enforced while no
+                # data was ever removed.
+                logger.error(
+                    "No InfluxDB client configured - cannot enforce retention for %s",
+                    config.bucket_name,
+                )
                 return {
-                    'success': True,
+                    'success': False,
                     'records_deleted': 0,
                     'cutoff_date': cutoff_date.isoformat(),
-                    'note': 'Mock operation - no InfluxDB client'
+                    'bucket': config.bucket_name,
+                    'error': 'No InfluxDB client configured',
                 }
 
             # Delete data older than cutoff_date using InfluxDB delete API
             logger.info(f"Deleting data older than {cutoff_date.isoformat()} from {config.bucket_name}")
 
-            self.influxdb_client.delete(
-                bucket=config.bucket_name,
-                start='1970-01-01T00:00:00Z',
-                stop=cutoff_date.isoformat()
+            # InfluxDBClient has no .delete(); deletes go through delete_api().
+            # DeleteApi.delete requires a predicate -- an empty one means "every
+            # series in the range", which is the intent for a whole-bucket sweep.
+            #
+            # influxdb-client v2 is synchronous, so this HTTP call is offloaded
+            # rather than run inline: a whole-bucket delete can take a long time
+            # and would otherwise block the event loop for its duration. Same
+            # pattern DataCompressionService uses for its blocking work.
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(
+                None,
+                partial(
+                    self.influxdb_client.delete_api().delete,
+                    start='1970-01-01T00:00:00Z',
+                    stop=cutoff_date.isoformat(),
+                    predicate='',
+                    bucket=config.bucket_name,
+                    org=self.influxdb_org,
+                ),
             )
 
             logger.info(f"Successfully deleted expired data from {config.bucket_name} before {cutoff_date.isoformat()}")
@@ -169,17 +200,24 @@ class PatternAggregateRetention:
         return summary
 
 
-async def run_pattern_aggregate_retention(influxdb_client=None) -> dict[str, Any]:
+async def run_pattern_aggregate_retention(
+    influxdb_client=None,
+    influxdb_org: str | None = None,
+) -> dict[str, Any]:
     """
     Run pattern aggregate retention cleanup.
 
     Args:
-        influxdb_client: InfluxDB client instance
+        influxdb_client: InfluxDBClient instance
+        influxdb_org: Organization the pattern-aggregate buckets live in
 
     Returns:
         Dict with cleanup results
     """
-    manager = PatternAggregateRetention(influxdb_client=influxdb_client)
+    manager = PatternAggregateRetention(
+        influxdb_client=influxdb_client,
+        influxdb_org=influxdb_org,
+    )
     return await manager.run_cleanup()
 
 

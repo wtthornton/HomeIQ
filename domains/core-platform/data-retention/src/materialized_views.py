@@ -6,10 +6,12 @@ NOTE: This module requires InfluxDB 3.0+ with SQL support.
 For InfluxDB 2.7, these operations are disabled to prevent SSL errors.
 """
 
+import asyncio
 import logging
 import os
 import re
 from datetime import datetime
+from functools import partial
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -49,13 +51,13 @@ class MaterializedViewManager:
             logger.warning("InfluxDB 3.0 client not available. Materialized views disabled (requires InfluxDB 3.0+ with SQL support).")
             self.enabled = False
             return
-        
+
         # Check if we're using InfluxDB 2.7 (HTTP) vs 3.0 (gRPC)
         if self.influxdb_url.startswith('http://') or self.influxdb_url.startswith('https://'):
             logger.warning("Materialized views require InfluxDB 3.0+ with gRPC. InfluxDB 2.7 detected - feature disabled.")
             self.enabled = False
             return
-        
+
         try:
             self.client = InfluxDBClient3(
                 host=self.influxdb_url,
@@ -68,6 +70,22 @@ class MaterializedViewManager:
         except Exception as e:
             logger.error(f"Failed to initialize InfluxDB 3.0 client: {e}")
             self.enabled = False
+
+    async def _run_blocking(self, func, *args, **kwargs):
+        """Run a synchronous InfluxDB call off the event loop.
+
+        InfluxDBClient3's query/write are blocking HTTP/gRPC round-trips;
+        these methods run on the service's single asyncio loop (daily
+        scheduler + POST /retention/refresh-views), so inline calls would
+        stall every other coroutine for the full query duration.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, partial(func, *args, **kwargs))
+
+    def _write_points(self, points):
+        """Synchronous point-write loop, intended to run in an executor."""
+        for point in points:
+            self.client.write(point)
 
     async def create_daily_energy_view(self):
         """Create materialized view for daily energy by device"""
@@ -96,28 +114,30 @@ class MaterializedViewManager:
         '''
 
         # Execute and store in new measurement
-        result = self.client.query(query, language='sql', mode='pandas')
+        result = await self._run_blocking(self.client.query, query, language='sql', mode='pandas')
 
         if not result.empty:
-            # Write to materialized view measurement
+            from influxdb_client_3 import Point
+
+            points = []
             for _, row in result.iterrows():
-                from influxdb_client_3 import Point
-
-                point = Point("mv_daily_energy_by_device") \
-                    .tag("entity_id", row['entity_id']) \
-                    .field("total_kwh", float(row['total_kwh'])) \
-                    .field("avg_power", float(row['avg_power'])) \
-                    .field("peak_power", float(row['peak_power'])) \
-                    .field("cost_usd", float(row['cost_usd'])) \
+                points.append(
+                    Point("mv_daily_energy_by_device")
+                    .tag("entity_id", row['entity_id'])
+                    .field("total_kwh", float(row['total_kwh']))
+                    .field("avg_power", float(row['avg_power']))
+                    .field("peak_power", float(row['peak_power']))
+                    .field("cost_usd", float(row['cost_usd']))
                     .time(row['day'])
+                )
 
-                self.client.write(point)
+            await self._run_blocking(self._write_points, points)
 
             logger.info(f"Created/updated daily energy view with {len(result)} records")
 
     async def create_hourly_room_activity_view(self):
         """Create materialized view for hourly room activity"""
-        
+
         if not self.enabled:
             logger.debug("Materialized views disabled - skipping hourly room activity view creation")
             return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
@@ -138,27 +158,30 @@ class MaterializedViewManager:
         GROUP BY area, EXTRACT(HOUR FROM time), EXTRACT(DOW FROM time)
         '''
 
-        result = self.client.query(query, language='sql', mode='pandas')
+        result = await self._run_blocking(self.client.query, query, language='sql', mode='pandas')
 
         if not result.empty:
             from influxdb_client_3 import Point
 
+            points = []
             for _, row in result.iterrows():
-                point = Point("mv_hourly_room_activity") \
-                    .tag("area", row['area']) \
-                    .field("hour", int(row['hour'])) \
-                    .field("day_of_week", int(row['day_of_week'])) \
-                    .field("motion_count", int(row['motion_count'])) \
-                    .field("occupancy_rate", float(row['occupancy_rate'])) \
+                points.append(
+                    Point("mv_hourly_room_activity")
+                    .tag("area", row['area'])
+                    .field("hour", int(row['hour']))
+                    .field("day_of_week", int(row['day_of_week']))
+                    .field("motion_count", int(row['motion_count']))
+                    .field("occupancy_rate", float(row['occupancy_rate']))
                     .time(datetime.now())
+                )
 
-                self.client.write(point)
+            await self._run_blocking(self._write_points, points)
 
             logger.info(f"Created/updated hourly room activity view with {len(result)} records")
 
     async def create_daily_carbon_summary_view(self):
         """Create materialized view for daily carbon summary"""
-        
+
         if not self.enabled:
             logger.debug("Materialized views disabled - skipping daily carbon summary view creation")
             return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
@@ -177,20 +200,23 @@ class MaterializedViewManager:
         GROUP BY DATE_TRUNC('day', time)
         '''
 
-        result = self.client.query(query, language='sql', mode='pandas')
+        result = await self._run_blocking(self.client.query, query, language='sql', mode='pandas')
 
         if not result.empty:
             from influxdb_client_3 import Point
 
+            points = []
             for _, row in result.iterrows():
-                point = Point("mv_daily_carbon_summary") \
-                    .field("avg_carbon", float(row['avg_carbon'])) \
-                    .field("min_carbon", float(row['min_carbon'])) \
-                    .field("max_carbon", float(row['max_carbon'])) \
-                    .field("avg_renewable", float(row['avg_renewable'])) \
+                points.append(
+                    Point("mv_daily_carbon_summary")
+                    .field("avg_carbon", float(row['avg_carbon']))
+                    .field("min_carbon", float(row['min_carbon']))
+                    .field("max_carbon", float(row['max_carbon']))
+                    .field("avg_renewable", float(row['avg_renewable']))
                     .time(row['day'])
+                )
 
-                self.client.write(point)
+            await self._run_blocking(self._write_points, points)
 
             logger.info(f"Created/updated daily carbon summary view with {len(result)} records")
 
@@ -228,7 +254,7 @@ class MaterializedViewManager:
                 'timestamp': datetime.now()
             }
 
-    async def query_view(self, view_name: str, filters: dict[str, Any] = None) -> list[dict]:
+    async def query_view(self, view_name: str, filters: dict[str, Any] | None = None) -> list[dict]:
         """Query materialized view (fast)"""
 
         if not self.enabled:
@@ -265,7 +291,7 @@ class MaterializedViewManager:
 
         query += " ORDER BY time DESC LIMIT 1000"
 
-        result = self.client.query(query, language='sql', mode='pandas')
+        result = await self._run_blocking(self.client.query, query, language='sql', mode='pandas')
 
         return result.to_dict('records') if not result.empty else []
 
@@ -276,7 +302,7 @@ class MaterializedViewManager:
 
         # Original complex query
         original_query = '''
-        SELECT 
+        SELECT
             entity_id,
             DATE_TRUNC('day', time) as day,
             SUM(energy_consumption) as total_kwh
@@ -288,7 +314,7 @@ class MaterializedViewManager:
 
         # Time original query
         start = time.time()
-        self.client.query(original_query, language='sql', mode='pandas')
+        await self._run_blocking(self.client.query, original_query, language='sql', mode='pandas')
         original_time = (time.time() - start) * 1000  # ms
 
         # Time materialized view query

@@ -11,16 +11,17 @@ mcp_tools:
 
 Bootstrap TappsMCP in a new or existing project:
 
-1. Call `tapps_init` to run the full bootstrap pipeline (`mcp_config` defaults true)
+1. Call `tapps_init` to run the full bootstrap pipeline (`mcp_config` defaults true; **ADR-0018 default bundle is `full`**)
 2. Check the response for `content_return: true` — if present, the server could not
    write files directly (Docker / read-only mount).  Apply the files from
    `file_manifest.files[]` using the Write tool.  See `/tapps-apply-files` for details.
 3. If files were written directly, review the created files (AGENTS.md, TECH_STACK.md, platform rules, hooks, MCP config)
-4. Confirm MCP config lists tapps-mcp only (no direct tapps-brain entry — bridge-only)
+4. Confirm MCP config lists NLT `nlt-*` servers only (no direct tapps-brain entry — bridge-only)
 5. If any issues are reported, call `tapps_doctor` to diagnose
 6. Verify that MCP config has tool auto-approval rules
 7. For shared-brain HTTP wiring, see docs/operations/CONSUMER-REPO-BRAIN-WIRING.md
 8. Confirm the project is ready for the TappsMCP quality workflow
+9. **Token-tight opt-down (optional):** `tapps-mcp mcp-bundle set developer` (or `minimal`), then reload MCP.
 
 **If `tapps_init` is not available** (server not in available MCP servers), use the CLI:
 1. Run from the project root: `tapps-mcp upgrade --force --host auto`

@@ -26,10 +26,12 @@ If unspecified, ask once.
 1. Reinstall both CLIs. Verify with `uv tool list | grep -E '(tapps-mcp|docs-mcp)'`.
 2. Restart MCP servers (exit + reopen Cursor, or reconnect). Stop on first invocation; resume after restart.
 3. `tapps_session_start(force=true)`. Confirm `server.version` matches and `install_drift.drift_detected == false`.
-4. `tapps-mcp upgrade --dry-run`. Review diff for AGENTS.md, hooks, rules, skills, .mcp.json. Pause if a customized canonical section will be overwritten.
+4. `tapps-mcp upgrade --dry-run`. Review diff + `mcp_bundle` / `mcp_bundle_note` (custom trimmed sets preserved). Pause if a customized canonical section will be overwritten.
 5. `tapps-mcp upgrade` (writes timestamped backup to `.tapps-mcp/backups/<ts>/`).
-6. `tapps-mcp doctor` AND `tapps_checklist(task_type="upgrade")`. Stop on failure.
-7. One-line summary: versions, files refreshed, doctor + checklist status, backup path.
+6. `tapps-mcp doctor` AND `tapps_checklist(task_type="upgrade")`. Stop on failure. Doctor shows eager (Claude) vs listed (Cursor).
+7. One-line summary: versions, files refreshed, bundle, doctor + checklist status, backup path.
+
+**Bundle opt-down:** `tapps-mcp mcp-bundle set developer|minimal|…` then reload MCP.
 
 **Rollback:** `tapps-mcp rollback` (only if step 5/6 reveals a regression).
 

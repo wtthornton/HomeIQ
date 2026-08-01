@@ -69,11 +69,10 @@ class TestFastAPIApp:
 
             assert response.status_code == 200
             data = response.json()
-            assert data["success"] is True
-            assert "data" in data
-            assert data["data"]["service"] == "Data API - Feature Data Hub"
-            assert data["data"]["version"] == "1.0.0"
-            assert data["data"]["status"] == "running"
+            # create_app serves `/` as a flat object; there is no success/data envelope
+            assert data["service"] == "Data API - Feature Data Hub"
+            assert data["version"] == "1.0.0"
+            assert data["status"] == "running"
 
     @pytest.mark.asyncio
     async def test_health_endpoint(self):

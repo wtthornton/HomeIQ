@@ -5,27 +5,30 @@ Story 22.1
 
 import pytest
 from sqlalchemy import text
+import src.database as _database
 from src.database import (
-    AsyncSessionLocal,
-    async_engine,
     check_db_health,
     get_db,
     init_db,
 )
 
+# `async_engine` / `AsyncSessionLocal` are module-level aliases that start as
+# None and are only populated by init_db(); resolve them through the module at
+# call time rather than binding None at import.
+
 
 @pytest.mark.asyncio
 async def test_database_engine_initialization():
     """Test that async engine is properly configured"""
-    assert async_engine is not None
-    url_str = str(async_engine.url)
+    assert _database.async_engine is not None
+    url_str = str(_database.async_engine.url)
     assert "postgresql" in url_str or "asyncpg" in url_str
 
 
 @pytest.mark.asyncio
 async def test_session_factory_creation():
     """Test that session factory creates valid sessions"""
-    async with AsyncSessionLocal() as session:
+    async with _database.AsyncSessionLocal() as session:
         assert session is not None
         # Test simple query
         result = await session.execute(text("SELECT 1"))

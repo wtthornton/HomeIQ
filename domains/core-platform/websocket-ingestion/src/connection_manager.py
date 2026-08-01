@@ -66,6 +66,7 @@ class ConnectionManager:
         self.reconnect_task: asyncio.Task | None = None
         self.listen_task: asyncio.Task | None = None
         self.periodic_discovery_task: asyncio.Task | None = None
+        self.initial_discovery_task: asyncio.Task | None = None
 
         # Event management components
         self.event_subscription = EventSubscriptionManager()
@@ -168,16 +169,17 @@ class ConnectionManager:
             # Force reset if needed
             self.state_machine.reset(ConnectionState.DISCONNECTED)
 
-        # Cancel tasks
-        if self.reconnect_task:
-            self.reconnect_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self.reconnect_task
-
-        if self.listen_task:
-            self.listen_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self.listen_task
+        # Cancel tasks (discovery tasks included, or they outlive the manager)
+        for task in (
+            self.reconnect_task,
+            self.listen_task,
+            self.periodic_discovery_task,
+            self.initial_discovery_task,
+        ):
+            if task:
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
 
         # Disconnect client
         if self.client:
@@ -238,7 +240,7 @@ class ConnectionManager:
             # Log error with categorization
             context = {
                 "base_url": self.base_url,
-                "connection_attempt": self.connection_attempts + 1,
+                "connection_attempt": self.connection_attempts,
                 "retry_count": self.current_retry_count
             }
             self.error_handler.log_error(e, context)
@@ -370,8 +372,8 @@ class ConnectionManager:
         jitter = delay * self.jitter_range * (2 * random.random() - 1)  # ±10% jitter
         final_delay = delay + jitter
 
-        # Ensure minimum delay
-        return max(final_delay, 0.1)
+        # Clamp after jitter so max_delay is a real ceiling, not a pre-jitter one
+        return min(max(final_delay, 0.1), self.max_delay)
 
     def _reset_retry_count(self):
         """Reset retry count after successful connection"""
@@ -541,12 +543,20 @@ class ConnectionManager:
         # Schedule discovery as a deferred task so the listen loop is running first.
         # The listen loop (started in connect() after _on_connect returns) is required
         # to route WebSocket responses back to discovery's pending Futures.
+        # Keep a reference: a bare create_task() may be garbage collected mid-flight.
         logger.info("🔍 Scheduling device and entity discovery (deferred until listen loop is active)...")
-        asyncio.create_task(self._run_initial_discovery())
+        self.initial_discovery_task = asyncio.create_task(self._run_initial_discovery())
 
         if self.on_connect:
             logger.info("📞 Calling external on_connect callback")
-            await self.on_connect()
+            # A failing external callback must not tear down a healthy connection:
+            # connect() treats any exception here as a connection failure.
+            try:
+                await self.on_connect()
+            except Exception as e:
+                logger.error(f"❌ External on_connect callback failed (non-fatal): {e}")
+                import traceback
+                logger.error(traceback.format_exc())
         else:
             logger.info("ℹ️  No external on_connect callback registered")
 
@@ -586,9 +596,10 @@ class ConnectionManager:
     async def _on_message(self, message: dict[str, Any]):
         """Handle incoming message"""
         try:
-            # Route result messages to discovery service first (for message routing)
-            # This allows discovery to work even when listen loop is active
-            routed = self.discovery_service.handle_message_result(message)
+            # Route result messages to discovery service first (for message routing).
+            # This allows discovery to work even when listen loop is active. The
+            # return value is advisory: the handlers below ignore non-matching types.
+            self.discovery_service.handle_message_result(message)
 
             # Handle subscription results
             await self.event_subscription.handle_subscription_result(message)

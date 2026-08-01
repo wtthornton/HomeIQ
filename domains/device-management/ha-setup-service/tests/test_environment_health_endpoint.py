@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 from fastapi.testclient import TestClient
 from src.database import get_db
 from src.health_service import HealthMonitoringService
-from src.main import app, health_services
+from src.main import app
 from src.schemas import IntegrationStatus
 
 
@@ -44,8 +44,10 @@ def test_environment_health_includes_check_details() -> None:
     monitor._store_health_metric = AsyncMock()  # type: ignore[attr-defined]
     monitor.scoring_algorithm.calculate_score = MagicMock(return_value=(95, {}))
 
-    previous_monitor = health_services.get("monitor")
-    health_services["monitor"] = monitor
+    # The service keeps the monitor on app.state (it used to live in a
+    # module-level `health_services` dict).
+    previous_monitor = getattr(app.state, "monitor", None)
+    app.state.monitor = monitor
 
     async def override_get_db() -> AsyncGenerator[AsyncMock, None]:
         yield AsyncMock()
@@ -82,7 +84,7 @@ def test_environment_health_includes_check_details() -> None:
         app.dependency_overrides.pop(get_db, None)
         app.router.lifespan_context = original_lifespan
         if previous_monitor is None:
-            health_services.pop("monitor", None)
+            app.state.__dict__.pop("monitor", None)
         else:
-            health_services["monitor"] = previous_monitor
+            app.state.monitor = previous_monitor
 

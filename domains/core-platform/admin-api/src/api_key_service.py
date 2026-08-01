@@ -156,11 +156,13 @@ class APIKeyService:
                 if not is_valid:
                     return False, f"API key validation failed for {service}"
 
-            # Update environment variable
-            os.environ[config['env_var']] = api_key
-
-            # Update config file
+            # _update_config_file owns the allow_secret_writes permission gate,
+            # so it must run before the process env is touched: mutating
+            # os.environ first left the rejected key live in the running
+            # process even when the write was denied.
             await self._update_config_file(config['env_var'], api_key)
+
+            os.environ[config['env_var']] = api_key
 
             logger.info(f"Successfully updated API key for {service}")
             return True, f"API key updated successfully for {service}"

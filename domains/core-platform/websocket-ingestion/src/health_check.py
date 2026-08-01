@@ -26,6 +26,46 @@ class HealthCheckHandler:
         """Set the historical counter for persistent totals"""
         self.historical_counter = historical_counter
 
+    @staticmethod
+    def _parse_timestamp(value: str) -> datetime:
+        """Parse an ISO timestamp, treating a naive value as UTC.
+
+        Home Assistant timestamps are not consistently timezone-qualified, and
+        subtracting a naive datetime from an aware one raises TypeError.
+        """
+        parsed = datetime.fromisoformat(value)
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+    def _calculate_event_rate(self, sub_status: dict) -> float:
+        """Events per minute across the current subscription window.
+
+        Returns 0.0 when the window cannot be determined. Malformed timestamps are
+        logged rather than silently swallowed — a bare `except: pass` here
+        previously hid a real datetime bug.
+        """
+        start_raw = sub_status.get("subscription_start_time")
+        if not start_raw:
+            return 0.0
+
+        try:
+            start_time = self._parse_timestamp(start_raw)
+            last_event_time = sub_status.get("last_event_time")
+            # With no events yet, measuring to now correctly yields a 0 rate
+            end_time = (
+                self._parse_timestamp(last_event_time)
+                if last_event_time
+                else datetime.now(UTC)
+            )
+        except (TypeError, ValueError) as e:
+            logger.warning(f"Cannot compute event rate from subscription timestamps: {e}")
+            return 0.0
+
+        duration_minutes = (end_time - start_time).total_seconds() / 60
+        if duration_minutes <= 0:
+            return 0.0
+
+        return sub_status.get("total_events_received", 0) / duration_minutes
+
     async def handle(self, _request):
         """Handle health check request - optimized for fast response (aiohttp compatibility)"""
         try:
@@ -73,28 +113,8 @@ class HealthCheckHandler:
                         "last_event_time": sub_status.get("last_event_time")
                     }
 
-                    # Calculate event rate (events per minute)
-                    # Use session events for rate calculation (current activity)
-                    session_events = sub_status.get("total_events_received", 0)
-                    event_rate = 0
-
-                    # Calculate rate based on session events and subscription duration
-                    if sub_status.get("subscription_start_time"):
-                        try:
-                            start_time = datetime.fromisoformat(sub_status["subscription_start_time"])
-                            # Use last event time if available, otherwise use current time
-                            if sub_status.get("last_event_time"):
-                                end_time = datetime.fromisoformat(sub_status["last_event_time"])
-                            else:
-                                # If no events yet, use current time to show 0 rate (correct behavior)
-                                end_time = datetime.now(UTC)
-
-                            duration_minutes = (end_time - start_time).total_seconds() / 60
-                            if duration_minutes > 0:
-                                event_rate = session_events / duration_minutes
-                        except Exception:
-                            pass
-                    # Always set event_rate_per_minute, default to 0
+                    # Calculate event rate (events per minute) from session activity
+                    event_rate = self._calculate_event_rate(sub_status)
                     health_data["subscription"]["event_rate_per_minute"] = round(event_rate, 2)
                 else:
                     health_data["subscription"] = {
@@ -194,28 +214,8 @@ class HealthCheckHandler:
                         "last_event_time": sub_status.get("last_event_time")
                     }
 
-                    # Calculate event rate (events per minute)
-                    # Use session events for rate calculation (current activity)
-                    session_events = sub_status.get("total_events_received", 0)
-                    event_rate = 0
-
-                    # Calculate rate based on session events and subscription duration
-                    if sub_status.get("subscription_start_time"):
-                        try:
-                            start_time = datetime.fromisoformat(sub_status["subscription_start_time"])
-                            # Use last event time if available, otherwise use current time
-                            if sub_status.get("last_event_time"):
-                                end_time = datetime.fromisoformat(sub_status["last_event_time"])
-                            else:
-                                # If no events yet, use current time to show 0 rate (correct behavior)
-                                end_time = datetime.now(UTC)
-
-                            duration_minutes = (end_time - start_time).total_seconds() / 60
-                            if duration_minutes > 0:
-                                event_rate = session_events / duration_minutes
-                        except Exception:
-                            pass
-                    # Always set event_rate_per_minute, default to 0
+                    # Calculate event rate (events per minute) from session activity
+                    event_rate = self._calculate_event_rate(sub_status)
                     health_data["subscription"]["event_rate_per_minute"] = round(event_rate, 2)
                 else:
                     health_data["subscription"] = {

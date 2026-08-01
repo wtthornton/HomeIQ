@@ -160,7 +160,9 @@ class PerformanceTracker:
             return
         elapsed = time.perf_counter() - start_time
         labels = labels or {}
-        labels = {"operation": timer_id.split("_")[0], **labels}
+        # timer_id is f"{operation_name}_{uuid8}"; strip only the trailing uuid
+        # segment, or a snake_case operation name is truncated at its first "_".
+        labels = {"operation": timer_id.rsplit("_", 1)[0], **labels}
         self.metrics_collector.record_timer("operation_duration_seconds", elapsed, labels)
 
     def record_event_processed(self, event_type: str, processing_time_ms: float, entity_id: str) -> None:

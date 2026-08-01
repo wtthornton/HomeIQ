@@ -45,6 +45,13 @@ async def websocket_endpoint(websocket: WebSocket):
         client_ip=websocket.client.host if websocket.client else "unknown",
     )
 
+    # Epic 50 Story 50.2: Initialize rate limiter for this connection.
+    # Bound before the try: the WebSocketDisconnect handler resets the limiter,
+    # and a client that drops during the initial send_json would otherwise hit an
+    # unbound local and raise NameError instead of handling the disconnect.
+    rate_limiter = get_rate_limiter()
+    connection_id = f"{corr_id}_{websocket.client.host if websocket.client else 'unknown'}"
+
     try:
         # Send initial connection message
         await websocket.send_json({
@@ -53,10 +60,6 @@ async def websocket_endpoint(websocket: WebSocket):
             "message": "Connected to HA Ingestor WebSocket",
             "correlation_id": corr_id
         })
-
-        # Epic 50 Story 50.2: Initialize rate limiter for this connection
-        rate_limiter = get_rate_limiter()
-        connection_id = f"{corr_id}_{websocket.client.host if websocket.client else 'unknown'}"
 
         # Keep connection alive and handle messages
         while True:

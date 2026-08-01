@@ -3,7 +3,7 @@ Service Model for Database Storage
 Epic 2025: Stores available services per domain from HA Services API
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import JSON, Column, DateTime, Index, String
 
@@ -26,7 +26,7 @@ class Service(Base):
     target = Column(JSON)  # Target entity/area specification
 
     # Timestamps
-    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_updated = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     def __repr__(self):
         return f"<Service(domain='{self.domain}', service_name='{self.service_name}', name='{self.name}')>"

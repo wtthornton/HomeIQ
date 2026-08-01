@@ -1,87 +1,64 @@
 ---
 name: continuous-learning-v2
-description: Instinct-based learning system that observes sessions via hooks, creates atomic instincts with confidence scoring, and evolves them into skills/commands/agents. v2.1 adds project-scoped instincts to prevent cross-project contamination.
+description: >-
+  Instinct-based learning system that observes sessions via hooks, creates
+  atomic instincts with confidence scoring, and evolves them into
+  skills/commands/agents. v2.1 adds project-scoped instincts. Use when setting
+  up continuous learning, tuning instincts, evolving learned behaviors, or
+  managing project vs global instinct scope.
 origin: ECC
 version: 2.1.0
 ---
 
 # Continuous Learning v2.1 - Instinct-Based Architecture
 
-An advanced learning system that turns your Claude Code sessions into reusable knowledge through atomic "instincts" - small learned behaviors with confidence scoring.
+Turns Claude Code sessions into reusable knowledge via atomic **instincts** —
+small learned behaviors with confidence scoring.
 
-**v2.1** adds **project-scoped instincts** — React patterns stay in your React project, Python conventions stay in your Python project, and universal patterns (like "always validate input") are shared globally.
+**v2.1** adds **project-scoped instincts** so framework conventions stay in the
+project that taught them, while universal patterns can still be global.
 
 ## When to Activate
 
 - Setting up automatic learning from Claude Code sessions
-- Configuring instinct-based behavior extraction via hooks
-- Tuning confidence thresholds for learned behaviors
-- Reviewing, exporting, or importing instinct libraries
-- Evolving instincts into full skills, commands, or agents
-- Managing project-scoped vs global instincts
-- Promoting instincts from project to global scope
+- Configuring instinct-based extraction via hooks
+- Tuning confidence thresholds or reviewing instinct libraries
+- Evolving instincts into skills, commands, or agents
+- Managing project vs global scope / promoting instincts
 
-## What's New in v2.1
+## Instincts (summary)
 
-| Feature | v2.0 | v2.1 |
-|---------|------|------|
-| Storage | Global (~/.claude/homunculus/) | Project-scoped (projects/<hash>/) |
-| Scope | All instincts apply everywhere | Project-scoped + global |
-| Detection | None | git remote URL / repo path |
-| Promotion | N/A | Project → global when seen in 2+ projects |
-| Commands | 4 (status/evolve/export/import) | 6 (+promote/projects) |
-| Cross-project | Contamination risk | Isolated by default |
+An instinct is one trigger -> one action, with confidence (0.3-0.9), domain tags,
+evidence, and scope (`project` default or `global`).
+
+Full YAML example and pipeline diagram:
+[references/architecture.md](references/architecture.md).
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/instinct-status` | Show all instincts (project-scoped + global) with confidence |
-| `/evolve` | Cluster related instincts into skills/commands, suggest promotions |
+| `/instinct-status` | Show instincts (project + global) with confidence |
+| `/evolve` | Cluster instincts into skills/commands; suggest promotions |
 | `/instinct-export` | Export instincts (filterable by scope/domain) |
 | `/instinct-import <file>` | Import instincts with scope control |
 | `/promote [id]` | Promote project instincts to global scope |
-| `/projects` | List all known projects and their instinct counts |
+| `/projects` | List known projects and instinct counts |
 
 ## Quick Start
 
-### 1. Enable Observation Hooks (add to `~/.claude/settings.json`)
+1. **Hooks** — wire `observe.sh` on PreToolUse/PostToolUse (plugin or
+   `~/.claude/skills/...` path). Full JSON:
+   [references/operations.md](references/operations.md#quick-start-hooks).
+2. **Dirs** — created on first use under `~/.claude/homunculus/` (global +
+   per-project hashes).
+3. **Operate** — `/instinct-status`, `/evolve`, `/promote` as needed.
 
-```json
-{
-  "hooks": {
-    "PreToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "~/.claude/skills/continuous-learning-v2/hooks/observe.sh"}]}],
-    "PostToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "~/.claude/skills/continuous-learning-v2/hooks/observe.sh"}]}]
-  }
-}
-```
+## Companions
 
-### 2. Initialize Directory Structure
+| Topic | File |
+|-------|------|
+| Architecture, instinct model, project detection, what's new | [references/architecture.md](references/architecture.md) |
+| Hooks setup, config, scope, promotion, confidence, privacy | [references/operations.md](references/operations.md) |
 
-```bash
-mkdir -p ~/.claude/homunculus/{instincts/{personal,inherited},evolved/{agents,skills,commands},projects}
-```
-
-## Scope Decision Guide
-
-| Pattern Type | Scope | Examples |
-|-------------|-------|---------|
-| Language/framework conventions | **project** | "Use React hooks", "Follow Django patterns" |
-| Code style | **project** | "Use functional style", "Prefer dataclasses" |
-| Security practices | **global** | "Validate user input", "Sanitize SQL" |
-| Tool workflow preferences | **global** | "Grep before Edit", "Read before Write" |
-
-## Configuration
-
-Edit `config.json` to control the background observer:
-
-```json
-{
-  "version": "2.1",
-  "observer": {
-    "enabled": false,
-    "run_interval_minutes": 5,
-    "min_observations_to_analyze": 20
-  }
-}
-```
+Load companions only when configuring or debugging the learning system.

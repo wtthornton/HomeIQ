@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.52
+# tapps-mcp-hook-version: 3.12.55
 # tapps-mcp-hook-content-sha: 6a781275
 # TappsMCP PreToolUse hook — session-start enforcement gate.
 # Blocks TappsMCP quality tools until tapps_session_start has actually run this

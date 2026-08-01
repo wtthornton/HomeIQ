@@ -134,7 +134,7 @@ class BlueprintParser:
             all_domains = list(set(required_domains) | trigger_domains | action_domains)
 
             # Classify use case
-            use_case = self._classify_use_case(name, description, yaml_data)
+            use_case = self._classify_use_case(name, description)
 
             # Calculate complexity
             complexity = self._calculate_complexity(triggers, actions, yaml_data.get('condition', []))
@@ -334,10 +334,16 @@ class BlueprintParser:
         self,
         name: str,
         description: str,
-        yaml_data: dict[str, Any]
     ) -> str:
-        """Classify blueprint use case based on keywords."""
-        text = f"{name} {description} {str(yaml_data)}".lower()
+        """Classify blueprint use case from its name and description.
+
+        Only the author-written text is scored. Scoring the serialized YAML
+        instead let structural fields decide the category: every HA blueprint
+        carries `domain: automation`, which handed 'convenience' a free point
+        on every blueprint, and entity ids such as `person.home_owner` added
+        further noise ('home').
+        """
+        text = f"{name} {description}".lower()
 
         scores = {category: 0 for category in self.USE_CASE_KEYWORDS}
 

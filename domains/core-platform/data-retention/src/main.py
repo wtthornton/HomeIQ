@@ -4,6 +4,7 @@ import asyncio
 
 import uvicorn
 from homeiq_observability.logging_config import setup_logging
+from influxdb_client import InfluxDBClient
 
 from .backup_restore import BackupRestoreService
 from .config import settings
@@ -44,6 +45,11 @@ class DataRetentionService:
         # Epic 45.3: Statistics aggregator
         self.statistics_aggregator: StatisticsAggregator | None = None
 
+        # Epic AI-5: InfluxDB client backing pattern-aggregate retention deletes.
+        # Built in start(); declared here so the attribute always exists -- the
+        # scheduled retention job used to reference it before any assignment.
+        self.influxdb_client: InfluxDBClient | None = None
+
         # Configuration from settings
         self.cleanup_interval_hours = settings.cleanup_interval_hours
         self.monitoring_interval_minutes = settings.monitoring_interval_minutes
@@ -52,6 +58,26 @@ class DataRetentionService:
         self.backup_dir = settings.backup_dir
 
         logger.info("Data retention service initialized")
+
+    def _build_influxdb_client(self) -> InfluxDBClient | None:
+        """Build the InfluxDB client backing retention deletes.
+
+        Returns None when no token is configured. The retention pass then
+        reports failure rather than claiming a successful cleanup it never did.
+        """
+        token = settings.influxdb_token
+        if not token:
+            logger.error(
+                "INFLUXDB_TOKEN not configured - pattern aggregate retention "
+                "cannot delete and will report failure until it is set"
+            )
+            return None
+
+        return InfluxDBClient(
+            url=settings.influxdb_url,
+            token=token.get_secret_value(),
+            org=settings.influxdb_org,
+        )
 
     async def start(self) -> None:
         """Start the data retention service."""
@@ -91,9 +117,13 @@ class DataRetentionService:
 
         # Schedule pattern aggregate retention cleanup (Epic AI-5)
         # Note: Tested via test_pattern_aggregate_retention.py; credentials rotated before first production run
+        self.influxdb_client = self._build_influxdb_client()
         self.scheduler.schedule_daily(
             6, 0,
-            lambda: run_pattern_aggregate_retention(self.influxdb_client),
+            lambda: run_pattern_aggregate_retention(
+                self.influxdb_client,
+                influxdb_org=settings.influxdb_org,
+            ),
             "Pattern Aggregate Retention"
         )
 

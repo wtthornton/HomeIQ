@@ -56,6 +56,38 @@ class TestWebSocketConnection:
             assert mock_websocket.accept.called
 
     @pytest.mark.asyncio
+    async def test_disconnect_during_initial_send_is_handled(self):
+        """
+        GIVEN: Client drops immediately after the handshake
+        WHEN: The initial send_json raises WebSocketDisconnect
+        THEN: The disconnect is handled, not turned into a NameError
+
+        Regression: rate_limiter and connection_id were bound *after* the initial
+        send_json, but the WebSocketDisconnect handler resets the limiter. A
+        client disconnecting during that first send -- routine, not adversarial --
+        hit an unbound local and raised NameError out of the ASGI handler.
+        """
+        from src.api.routers.websocket import websocket_endpoint
+
+        mock_websocket = MagicMock(spec=WebSocket)
+        mock_websocket.client = MagicMock()
+        mock_websocket.client.host = "127.0.0.1"
+        mock_websocket.accept = AsyncMock()
+        # Fail on the very first send, before the old binding site was reached.
+        mock_websocket.send_json = AsyncMock(side_effect=WebSocketDisconnect())
+        mock_websocket.receive_text = AsyncMock()
+
+        with patch('src.api.routers.websocket.get_rate_limiter') as mock_rate_limiter:
+            mock_limiter = MagicMock()
+            mock_limiter.reset = MagicMock()
+            mock_rate_limiter.return_value = mock_limiter
+
+            # Must not raise NameError.
+            await websocket_endpoint(mock_websocket)
+
+            mock_limiter.reset.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_websocket_connection_with_correlation_id(self):
         """
         GIVEN: WebSocket connection established

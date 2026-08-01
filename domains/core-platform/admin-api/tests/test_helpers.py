@@ -1,6 +1,6 @@
 """Tests for Admin API helper functions."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from src.helpers import (
@@ -119,7 +119,9 @@ class TestGatherDependencyChecks:
         mock_response.__aexit__ = AsyncMock(return_value=False)
 
         mock_session = AsyncMock()
-        mock_session.get.return_value = mock_response
+        # session.get() must return the async context manager itself, not a
+        # coroutine — check_dependency does `async with session.get(...)`.
+        mock_session.get = MagicMock(return_value=mock_response)
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=False)
 
@@ -128,6 +130,9 @@ class TestGatherDependencyChecks:
 
         assert len(results) == 3
         assert all(r["status"] == "healthy" for r in results)
+        assert {r["name"] for r in results} == {
+            "InfluxDB", "WebSocket Ingestion", "Data API",
+        }
 
     @pytest.mark.asyncio
     async def test_connection_failure(self) -> None:

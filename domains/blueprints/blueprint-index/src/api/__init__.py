@@ -1,6 +1,11 @@
-"""API routes for Blueprint Index Service."""
+"""API schemas for Blueprint Index Service.
 
-from .routes import router
+`routes` is deliberately NOT re-exported here. search/search_engine.py imports
+`..api.schemas`, which executes this module; eagerly importing `.routes` (which
+imports the search engine back) made that a circular import. Import the router
+directly: `from .api.routes import router`.
+"""
+
 from .schemas import (
     BlueprintResponse,
     BlueprintSearchRequest,
@@ -10,7 +15,6 @@ from .schemas import (
 )
 
 __all__ = [
-    "router",
     "BlueprintSearchRequest",
     "BlueprintSearchResponse",
     "BlueprintResponse",

@@ -6,12 +6,23 @@ Story 22.2
 
 import pytest
 from sqlalchemy import select
-from src.database import AsyncSessionLocal
+import src.database as _database
+
+
+def AsyncSessionLocal():  # noqa: N802
+    """Resolve the session factory at call time.
+
+    src.database exposes AsyncSessionLocal as a module-level alias that
+    starts as None and is only populated by init_db(); a module-level
+    from-import would capture None permanently.
+    """
+    return _database.AsyncSessionLocal()
+
 from src.models import Device, Entity
 
 
 @pytest.mark.asyncio
-async def test_device_creation(_fresh_db):
+async def test_device_creation():
     """Test creating a device"""
 
     async with AsyncSessionLocal() as session:
@@ -37,7 +48,7 @@ async def test_device_creation(_fresh_db):
 
 
 @pytest.mark.asyncio
-async def test_entity_with_foreign_key(_fresh_db):
+async def test_entity_with_foreign_key():
     """Test entity with foreign key to device"""
 
     async with AsyncSessionLocal() as session:
@@ -74,7 +85,7 @@ async def test_entity_with_foreign_key(_fresh_db):
 
 
 @pytest.mark.asyncio
-async def test_device_cascade_delete(_fresh_db):
+async def test_device_cascade_delete():
     """Test that deleting device cascades to entities"""
 
     async with AsyncSessionLocal() as session:
@@ -97,7 +108,7 @@ async def test_device_cascade_delete(_fresh_db):
 
 
 @pytest.mark.asyncio
-async def test_device_query_by_area(_fresh_db):
+async def test_device_query_by_area():
     """Test filtering devices by area"""
 
     async with AsyncSessionLocal() as session:

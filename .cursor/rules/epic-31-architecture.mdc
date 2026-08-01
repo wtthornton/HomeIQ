@@ -1,13 +1,11 @@
 ---
 description: Epic 31 Architecture - Current Event Flow Pattern
 globs:
-  - "services/websocket-ingestion/**"
-  - "services/enrichment-pipeline/**"
-  - "services/weather-api/**"
-  - "services/sports-data/**"
+  - "domains/core-platform/websocket-ingestion/**"
+  - "domains/data-collectors/weather-api/**"
   - "implementation/analysis/*CALL_TREE*"
   - "docs/architecture/**"
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Epic 31 Architecture Pattern

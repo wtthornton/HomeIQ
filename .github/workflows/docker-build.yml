@@ -1,7 +1,12 @@
 name: Docker Build and Test
 
 on:
-  workflow_dispatch:
+  pull_request:
+    paths:
+      - '**/Dockerfile*'
+      - 'docker-compose*.yml'
+      - '.github/workflows/docker-build.yml'
+  workflow_dispatch: {}
 
 env:
   DOCKER_BUILDKIT: 1

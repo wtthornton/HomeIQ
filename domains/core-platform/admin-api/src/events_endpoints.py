@@ -99,27 +99,6 @@ class EventsEndpoints:
                     detail="Failed to get recent events"
                 ) from e
 
-        @self.router.get("/events/{event_id}", response_model=EventData)
-        async def get_event_by_id(event_id: str):
-            """Get a specific event by ID"""
-            try:
-                event = await self._get_event_by_id(event_id)
-                if not event:
-                    return JSONResponse(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        content={"detail": f"Event {event_id} not found"},
-                    )
-                return event
-
-            except HTTPException:
-                raise
-            except Exception as e:
-                logger.error(f"Error getting event {event_id}: {e}")
-                return JSONResponse(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    content={"detail": "Failed to get event"},
-                )
-
         @self.router.post("/events/search", response_model=list[EventData])
         async def search_events(
             search: EventSearch
@@ -215,6 +194,29 @@ class EventsEndpoints:
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to get events stream"
                 ) from e
+
+        # Declared last on purpose: this catch-all would otherwise shadow the
+        # static /events/... routes above and make them unreachable (404).
+        @self.router.get("/events/{event_id}", response_model=EventData)
+        async def get_event_by_id(event_id: str):
+            """Get a specific event by ID"""
+            try:
+                event = await self._get_event_by_id(event_id)
+                if not event:
+                    return JSONResponse(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        content={"detail": f"Event {event_id} not found"},
+                    )
+                return event
+
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Error getting event {event_id}: {e}")
+                return JSONResponse(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    content={"detail": "Failed to get event"},
+                )
 
     async def _get_all_events(self, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
         """Get events from InfluxDB directly"""

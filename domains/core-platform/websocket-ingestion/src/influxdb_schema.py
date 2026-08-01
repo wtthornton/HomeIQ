@@ -442,29 +442,29 @@ class InfluxDBSchema:
         """Get retention policy definitions"""
         return [
             {
-                "name": self.RETENTION_HA_EVENTS,
-                "duration": "365d",
+                "name": self.MEASUREMENT_EVENTS,
+                "duration": self.RETENTION_HA_EVENTS,
                 "shard_duration": "7d",
                 "replication": 1,
                 "description": "Home Assistant events retention for 1 year"
             },
             {
-                "name": self.RETENTION_WEATHER_DATA,
-                "duration": "180d",
+                "name": self.MEASUREMENT_WEATHER,
+                "duration": self.RETENTION_WEATHER_DATA,
                 "shard_duration": "30d",
                 "replication": 1,
                 "description": "Weather data retention for 180 days"
             },
             {
-                "name": self.RETENTION_SPORTS_DATA,
-                "duration": "90d",
+                "name": self.MEASUREMENT_SPORTS,
+                "duration": self.RETENTION_SPORTS_DATA,
                 "shard_duration": "30d",
                 "replication": 1,
                 "description": "Sports data retention for 90 days"
             },
             {
-                "name": self.RETENTION_SYSTEM_METRICS,
-                "duration": "30d",
+                "name": self.MEASUREMENT_SYSTEM,
+                "duration": self.RETENTION_SYSTEM_METRICS,
                 "shard_duration": "7d",
                 "replication": 1,
                 "description": "System metrics retention for 30 days"

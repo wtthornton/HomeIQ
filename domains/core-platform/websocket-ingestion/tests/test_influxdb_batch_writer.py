@@ -5,15 +5,17 @@ import pytest
 from src.influxdb_batch_writer import InfluxDBBatchWriter
 
 
-@pytest.fixture
-def writer(monkeypatch):
+def _stub_schema():
+    """Stand-in schema that yields plain dicts instead of InfluxDB Points."""
     schema = SimpleNamespace()
     schema.create_event_point = lambda event: {"id": event["id"]}
     schema.create_weather_point = lambda weather, location: {"loc": location, **weather}
     schema.validate_point = lambda point: (True, [])
+    return schema
 
-    monkeypatch.setattr("influxdb_batch_writer.InfluxDBSchema", lambda: schema)
 
+@pytest.fixture
+def writer():
     manager = AsyncMock()
     manager.write_points = AsyncMock(return_value=True)
 
@@ -24,6 +26,7 @@ def writer(monkeypatch):
         max_pending_points=3,
         overflow_strategy="drop_oldest",
     )
+    batch_writer.schema = _stub_schema()
 
     return batch_writer, manager
 
@@ -41,14 +44,7 @@ async def test_backpressure_drops_oldest(writer):
 
 
 @pytest.mark.asyncio
-async def test_drop_new_strategy_rejects_point(monkeypatch):
-    schema = SimpleNamespace()
-    schema.create_event_point = lambda event: event
-    schema.create_weather_point = lambda weather, location: weather
-    schema.validate_point = lambda point: (True, [])
-
-    monkeypatch.setattr("influxdb_batch_writer.InfluxDBSchema", lambda: schema)
-
+async def test_drop_new_strategy_rejects_point():
     manager = AsyncMock()
     manager.write_points = AsyncMock(return_value=True)
 
@@ -58,6 +54,7 @@ async def test_drop_new_strategy_rejects_point(monkeypatch):
         max_pending_points=1,
         overflow_strategy="drop_new",
     )
+    batch_writer.schema = _stub_schema()
 
     assert await batch_writer.write_event({"id": 1})
     result = await batch_writer.write_event({"id": 2})

@@ -3,7 +3,8 @@
 from datetime import UTC, datetime
 
 import pytest
-from src.main import SERVICE_NAME, SERVICE_VERSION, app
+from src.config import settings
+from src.main import SERVICE_VERSION, app
 from src.service import ActivityWriterService
 from src.helpers import (
     bucket_to_reading,
@@ -296,7 +297,9 @@ async def test_health_endpoint_not_initialized() -> None:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.get("/health")
-            assert resp.status_code == 503
+            # Always HTTP 200 (load-balancer friendly); the body carries status.
+            assert resp.status_code == 200
+            assert resp.json()["status"] == "unhealthy"
     finally:
         mod.activity_writer = old
 
@@ -333,7 +336,9 @@ async def test_root_endpoint() -> None:
         resp = await client.get("/")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["service"] == "activity-writer"
+        # `/` is served by create_app, which reports the app title. The
+        # service's own root handler below it is shadowed and never runs.
+        assert data["service"] == "Activity Writer Service"
 
 
 # ---------------------------------------------------------------------------
@@ -343,5 +348,5 @@ async def test_root_endpoint() -> None:
 
 def test_service_constants() -> None:
     """Service name and version are set."""
-    assert SERVICE_NAME == "activity-writer"
+    assert settings.service_name == "activity-writer"
     assert isinstance(SERVICE_VERSION, str)

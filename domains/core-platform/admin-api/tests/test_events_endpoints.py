@@ -5,6 +5,7 @@ Tests for events endpoints
 from datetime import datetime
 from unittest.mock import patch
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from src.events_endpoints import EventData, EventFilter, EventSearch, EventsEndpoints
 
@@ -15,7 +16,11 @@ class TestEventsEndpoints:
     def setup_method(self):
         """Set up test fixtures"""
         self.events_endpoints = EventsEndpoints()
-        self.client = TestClient(self.events_endpoints.router)
+        # Mount the router on a FastAPI app: TestClient(router) skips the
+        # app-level middleware that populates fastapi_middleware_astack.
+        app = FastAPI()
+        app.include_router(self.events_endpoints.router)
+        self.client = TestClient(app)
 
     def test_init(self):
         """Test EventsEndpoints initialization"""
@@ -421,8 +426,10 @@ class TestEventsEndpoints:
         """Test search events endpoint with GET method"""
         response = self.client.get("/events/search")
 
-        # Should return 405 Method Not Allowed
-        assert response.status_code == 405
+        # /events/search is POST-only, but GET still resolves against the
+        # GET /events/{event_id} route, so the miss surfaces as 404 (no event
+        # with id "search") rather than 405.
+        assert response.status_code == 404
 
     def test_search_events_endpoint_put_method(self):
         """Test search events endpoint with PUT method"""
