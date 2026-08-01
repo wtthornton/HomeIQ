@@ -518,29 +518,19 @@ class ZigbeeBridgeManager:
             return False, f"MQTT restart failed: {str(e)}"
 
     async def _reset_coordinator(self) -> tuple[bool, str]:
-        """Attempt to reset Zigbee coordinator"""
-        try:
-            session = await get_http_session()
-            headers = {
-                "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
-            }
+        """Report that coordinator reset is not reachable from here.
 
-            # Try to reset coordinator via service call
-            payload = {"device": "coordinator"}
-            async with session.post(
-                f"{self.ha_url}/api/services/zigbee2mqtt/permit_join",
-                    headers=headers,
-                    json=payload,
-                    timeout=aiohttp.ClientTimeout(total=15)
-                ) as response:
-                    if response.status == 200:
-                        return True, "Coordinator reset initiated"
-                    else:
-                        return False, f"Failed to reset coordinator: HTTP {response.status}"
-
-        except Exception as e:
-            return False, f"Coordinator reset failed: {str(e)}"
+        This used to POST to a Zigbee2MQTT permit-join service that Home
+        Assistant does not expose and never has — so the call always 404'd and
+        this recovery action has never once run. Permit-join is also unrelated
+        to resetting a coordinator. Resetting one means restarting the Zigbee2MQTT
+        add-on or power-cycling the radio, neither of which this service can
+        reach; saying so beats returning a failure that looks transient.
+        """
+        return False, (
+            "Coordinator reset is not available through Home Assistant. "
+            "Restart the Zigbee2MQTT add-on or power-cycle the coordinator."
+        )
 
     async def _check_configuration(self) -> tuple[bool, str]:
         """Check Zigbee2MQTT configuration for issues"""

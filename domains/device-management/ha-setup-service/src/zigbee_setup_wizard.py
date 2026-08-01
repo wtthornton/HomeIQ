@@ -526,61 +526,32 @@ class Zigbee2MQTTSetupWizard:
             )
 
     async def _setup_device_pairing(self) -> SetupStepResult:
-        """Setup device pairing mode"""
-        try:
-            # Enable permit join for device pairing
-            session = await get_http_session()
-            headers = {
-                "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
-            }
+        """Surface pairing instructions.
 
-            # Enable permit join
-            payload = {"value": True}
-            async with session.post(
-                f"{self.ha_url}/api/services/zigbee2mqtt/permit_join",
-                headers=headers,
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=15)
-            ) as response:
-                if response.status == 200:
-                    return SetupStepResult(
-                        step=SetupStep.DEVICE_PAIRING,
-                        status=SetupStatus.COMPLETED,
-                        message="Device pairing mode enabled",
-                        data={
-                            "pairing_enabled": True,
-                            "instructions": [
-                                "1. Put your Zigbee device in pairing mode",
-                                "2. Device should appear in Zigbee2MQTT within 60 seconds",
-                                "3. Check the Zigbee2MQTT web interface for new devices",
-                                "4. Disable permit join after pairing is complete"
-                            ]
-                        }
-                    )
-                else:
-                    return SetupStepResult(
-                        step=SetupStep.DEVICE_PAIRING,
-                        status=SetupStatus.COMPLETED,
-                        message="Device pairing guidance provided",
-                        data={
-                            "pairing_enabled": False,
-                            "instructions": [
-                                "1. Go to Zigbee2MQTT web interface",
-                                "2. Click 'Permit join' button",
-                                "3. Put your device in pairing mode",
-                                "4. Wait for device to appear in the device list"
-                            ]
-                        }
-                    )
-
-        except Exception as e:
-            return SetupStepResult(
-                step=SetupStep.DEVICE_PAIRING,
-                status=SetupStatus.FAILED,
-                message=f"Device pairing setup failed: {str(e)}",
-                error=str(e)
-            )
+        Home Assistant exposes no permit-join service for Zigbee2MQTT — this
+        step used to POST to one and read the resulting 404 as "guidance
+        provided".
+        Permit-join lives on the Zigbee2MQTT bridge itself (an MQTT publish to
+        `zigbee2mqtt/bridge/request/permit_join`, or the Z2M frontend), which
+        this service has no connection to. Pairing is also a physical act, so
+        it is reported as a human step rather than silently claimed as done.
+        """
+        return SetupStepResult(
+            step=SetupStep.DEVICE_PAIRING,
+            status=SetupStatus.SKIPPED,
+            message="Device pairing requires a person at the Zigbee2MQTT UI",
+            data={
+                "pairing_enabled": False,
+                "requires_human": True,
+                "instructions": [
+                    "1. Go to the Zigbee2MQTT web interface",
+                    "2. Click 'Permit join'",
+                    "3. Put your Zigbee device in pairing mode",
+                    "4. Wait for the device to appear in the device list",
+                    "5. Turn 'Permit join' back off once pairing completes",
+                ],
+            },
+        )
 
     async def _optimize_network(self) -> SetupStepResult:
         """Optimize Zigbee network settings"""

@@ -6,7 +6,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, status
 
 from .zigbee_setup_wizard import SetupWizardRequest
 
