@@ -22,7 +22,7 @@
 | Phase 1 (backups) | live-audited, five defects fixed, full apply→verify→restore cycle proven |
 | Phase-1 fix set | **UNCOMMITTED** — 8 modified + 2 new files in the working tree |
 | Phases 2–6 | never exercised live (handoff names 2, 4, 5; confirm 3 and 6 from audit output, don't assume) |
-| `TAP-5428` | **DOES NOT EXIST.** The prior handoff names it as the P0. `get_issue` returns "Could not find referenced Issue." Treat every inherited issue id as unverified until `get_issue` confirms it. |
+| `TAP-5428` | **Was unallocated, now belongs to another project.** The prior handoff named it as the HomeIQ P0. At 22:05 on 2026-08-01 `get_issue` returned "Could not find referenced Issue"; by 22:16 the same day an unrelated session had allocated TAP-5428 to `Web-Store-DNA` ("AF policy mode is permissive", parent TAP-5180). TAP ids are workspace-wide sequential across projects, so a missing id is usually *not yet allocated* — and it will later be filled by whatever work claims it next. An unverified inherited id is therefore worse than merely wrong: it can silently resolve to a real issue in a project you are forbidden to write to (`agent-scope.md`). Confirm both existence **and** `project` with `get_issue` before acting. |
 
 ## Objective
 
