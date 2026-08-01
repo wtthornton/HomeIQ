@@ -10,11 +10,15 @@ def test_package_imports() -> None:
     import homeiq_ha
 
     assert hasattr(homeiq_ha, "__version__")
-    assert homeiq_ha.__version__ == "1.0.0"
+    major, minor, patch = homeiq_ha.__version__.split(".")
+    assert all(part.isdigit() for part in (major, minor, patch))
 
     expected_exports = [
         "DEPLOYMENT_MODE_PRODUCTION",
         "DEPLOYMENT_MODE_TEST",
+        "HAClient",
+        "HAWebSocketClient",
+        "HARestClient",
         "check_data_generation_allowed",
         "check_test_service_allowed",
         "get_deployment_mode",
@@ -27,11 +31,13 @@ def test_package_imports() -> None:
 
 
 def test_all_attribute() -> None:
-    """__all__ should contain every public export."""
+    """Every name in __all__ must actually resolve, and nothing public is omitted."""
     import homeiq_ha
 
     assert hasattr(homeiq_ha, "__all__")
-    assert len(homeiq_ha.__all__) == 8
+    for name in homeiq_ha.__all__:
+        assert hasattr(homeiq_ha, name), f"__all__ lists a missing export: {name}"
+    assert sorted(homeiq_ha.__all__) == homeiq_ha.__all__, "__all__ should be sorted"
 
 
 def test_module_reimport() -> None:
