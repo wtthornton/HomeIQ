@@ -8,7 +8,11 @@
 
 import type { WebSocketIngestionMetrics } from '../../types/serviceMetrics';
 
-const WEBSOCKET_INGESTION_URL = import.meta.env.VITE_WEBSOCKET_INGESTION_URL || 'http://localhost:8001';
+// Same-origin by default: nginx proxies /websocket-ingestion/ to the service.
+// A literal port cannot be right — the dashboard host port is overridable, and
+// on some hosts 8001 belongs to an unrelated stack.
+const WEBSOCKET_INGESTION_URL =
+  import.meta.env.VITE_WEBSOCKET_INGESTION_URL || '/websocket-ingestion';
 const FETCH_TIMEOUT = 5000; // 5 seconds
 
 /**

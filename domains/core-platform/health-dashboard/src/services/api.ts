@@ -111,62 +111,57 @@ const ADMIN_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const DATA_API_BASE_URL = import.meta.env.VITE_DATA_API_URL || '';  // Will use nginx routing
 
 /**
- * Get authentication headers for API requests.
- * Security: Do NOT bake API keys into the client bundle.
- * In production, nginx proxy adds auth headers.
- * In development, read from sessionStorage (set by login page) or fall back to VITE_API_KEY with a warning.
+ * Marks a 404 that means "nothing to show yet" rather than "route missing".
+ * Callers render an empty state for this instead of an outage banner.
+ */
+export class EmptyResultError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EmptyResultError';
+  }
+}
+
+/** Matches the backends' empty-dataset phrasing, e.g. "No activity data available". */
+const EMPTY_RESULT_DETAIL = /^No .* (available|found)$/i;
+
+/**
+ * Default headers for API requests.
+ *
+ * The client holds no credential. nginx injects `Authorization: Bearer ...`
+ * on every proxied API route and refuses to forward a client-supplied one, so
+ * a key here would be both redundant and readable in the shipped bundle.
  */
 function getAuthHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  // If an API key is stored in sessionStorage (set by login page), use it
-  const sessionKey = sessionStorage.getItem('api_key');
-  if (sessionKey) {
-    headers['X-API-Key'] = sessionKey;
-    return headers;
-  }
-
-  // Backward compatibility: if VITE_API_KEY is set (dev only), use it but warn
-  const envKey = import.meta.env.VITE_API_KEY;
-  if (envKey) {
-    console.warn(
-      'Security warning: VITE_API_KEY is set via environment variable and will be embedded in the client bundle. ' +
-      'This is insecure for production. Use session-based auth or nginx proxy auth instead.'
-    );
-    headers['Authorization'] = `Bearer ${envKey}`;
-    return headers;
-  }
-
-  // In production, nginx proxy handles auth - no client-side key needed
-  return headers;
+  return { 'Content-Type': 'application/json' };
 }
 
 /**
- * Add authentication headers to request options
+ * Apply the default headers to request options, stripping any credential a
+ * caller tried to attach — nginx is the only place auth is added.
  */
 function withAuthHeaders(headers: HeadersInit = {}): HeadersInit {
-  const authHeaders = getAuthHeaders();
+  const defaults = getAuthHeaders();
 
   if (headers instanceof Headers) {
-    Object.entries(authHeaders).forEach(([key, value]) => {
+    headers.delete('Authorization');
+    headers.delete('X-API-Key');
+    Object.entries(defaults).forEach(([key, value]) => {
       headers.set(key, value);
     });
     return headers;
   }
 
   if (Array.isArray(headers)) {
-    // Filter out existing auth headers and add new ones
     const filtered = headers.filter(([key]) =>
       key.toLowerCase() !== 'authorization' && key.toLowerCase() !== 'x-api-key'
     );
-    return [...filtered, ...Object.entries(authHeaders)];
+    return [...filtered, ...Object.entries(defaults)];
   }
 
+  const { Authorization: _auth, 'X-API-Key': _key, ...rest } = headers as Record<string, string>;
   return {
-    ...headers,
-    ...authHeaders,
+    ...rest,
+    ...defaults,
   };
 }
 
@@ -196,18 +191,21 @@ class BaseApiClient {
           console.error(`API Authentication Error for ${url}:`, errorMessage);
           throw new Error(errorMessage);
         }
-        // Handle backend unavailable (404/502/503)
-        if (response.status === 404 || response.status === 502 || response.status === 503) {
+        // 502/503 mean the backend really is down.
+        if (response.status === 502 || response.status === 503) {
           const errorMessage = 'Backend unavailable. Check that admin-api and data-api services are running.';
           console.error(`API Error for ${url}:`, errorMessage);
           throw new Error(errorMessage);
         }
+
         // Try to extract detailed error message from response body
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        let detail: string | undefined;
         try {
           const errorData = await response.json();
           if (errorData.detail) {
-            errorMessage = errorData.detail;
+            detail = String(errorData.detail);
+            errorMessage = detail;
           } else if (errorData.message) {
             errorMessage = errorData.message;
           } else if (typeof errorData === 'string') {
@@ -216,6 +214,20 @@ class BaseApiClient {
         } catch {
           // If response is not JSON, use status text
         }
+
+        // A 404 is ambiguous: it can mean "this route does not exist" (an
+        // outage) or "there is simply nothing to show yet" (a normal empty
+        // state). Only the latter carries a "No ... available" detail body.
+        // Conflating them painted a full red banner over an empty dataset.
+        if (response.status === 404) {
+          if (detail && EMPTY_RESULT_DETAIL.test(detail)) {
+            throw new EmptyResultError(detail);
+          }
+          const routeMissing = 'Backend unavailable. Check that admin-api and data-api services are running.';
+          console.error(`API Error for ${url}:`, routeMissing);
+          throw new Error(routeMissing);
+        }
+
         throw new Error(errorMessage);
       }
       return await response.json();
@@ -563,8 +575,11 @@ class DataApiClient extends BaseApiClient {
   async getCurrentActivity(): Promise<{ activity: string; activity_id: number; confidence: number; timestamp: string } | null> {
     try {
       return await this.fetchWithErrorHandling<any>('/api/v1/activity');
-    } catch {
-      return null;
+    } catch (error) {
+      // No activity recorded yet is a normal empty state, not a failure.
+      // Anything else is a real error and must reach the caller.
+      if (error instanceof EmptyResultError) return null;
+      throw error;
     }
   }
 
@@ -572,8 +587,9 @@ class DataApiClient extends BaseApiClient {
     try {
       const url = `/api/v1/activity/history?hours=${hours}&limit=${limit}`;
       return await this.fetchWithErrorHandling<any[]>(url);
-    } catch {
-      return [];
+    } catch (error) {
+      if (error instanceof EmptyResultError) return [];
+      throw error;
     }
   }
 

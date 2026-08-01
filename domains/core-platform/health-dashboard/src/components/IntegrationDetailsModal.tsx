@@ -120,15 +120,8 @@ export const IntegrationDetailsModal: React.FC<IntegrationDetailsModalProps> = (
         setLoading(true);
         setError(null);
         
-        // Fetch analytics - use session-based auth or nginx proxy auth
-        const headers: Record<string, string> = {};
-        const sessionKey = sessionStorage.getItem('api_key');
-        if (sessionKey) {
-          headers['Authorization'] = `Bearer ${sessionKey}`;
-        }
-        const analyticsResponse = await fetch(`/api/integrations/${platform}/analytics`, {
-          headers,
-        });
+        // nginx injects the credential; the client holds none.
+        const analyticsResponse = await fetch(`/api/integrations/${platform}/analytics`);
         if (!analyticsResponse.ok) {
           // If API endpoint doesn't exist or fails, create a default response
           setAnalytics({

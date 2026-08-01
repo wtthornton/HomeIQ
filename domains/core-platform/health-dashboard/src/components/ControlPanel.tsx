@@ -144,7 +144,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                   🔗 API Health
                 </button>
                 <button
-                  onClick={() => window.open('/api/statistics', '_blank')}
+                  onClick={() => window.open('/api/v1/stats', '_blank')}
                   className={`px-3 py-2 rounded-lg text-sm ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} transition-colors duration-200`}
                 >
                   📊 API Stats

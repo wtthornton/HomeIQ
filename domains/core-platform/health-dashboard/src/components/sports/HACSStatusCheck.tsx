@@ -35,34 +35,32 @@ export const HACSStatusCheck: React.FC<HACSStatusCheckProps> = ({ darkMode = fal
       setLoading(true);
       setError(null);
 
-      // Check via HA API through admin-api service
-      const response = await fetch('/api/v1/health/integrations');
-      
+      // data-api's config-entry list is the authoritative record of which
+      // integrations Home Assistant actually has set up. The previously called
+      // /api/v1/health/integrations was never implemented on any backend.
+      const response = await fetch('/api/integrations');
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      
-      // Find HACS integration check result
-      const hacsCheck = data.integrations?.find((i: any) => 
-        i.integration_name === 'HACS'
-      );
+      // IntegrationResponse: { entry_id, domain, title, state, version, timestamp }
+      const data: { integrations?: Array<{ domain: string; state: string }> } =
+        await response.json();
+      const entries = data.integrations ?? [];
 
-      if (hacsCheck) {
-        setStatus({
-          installed: hacsCheck.is_configured && hacsCheck.is_connected,
-          team_tracker_installed: hacsCheck.check_details?.team_tracker_installed,
-          recommendation: hacsCheck.check_details?.recommendation,
-          error: hacsCheck.error_message,
-          hacs_entities_count: hacsCheck.check_details?.hacs_entities_found ? 1 : 0
-        });
-      } else {
-        setStatus({
-          installed: false,
-          error: 'HACS status check unavailable'
-        });
-      }
+      const isLoaded = (domain: string) =>
+        entries.some((i) => i.domain === domain && i.state === 'loaded');
+
+      const hacsInstalled = isLoaded('hacs');
+      setStatus({
+        installed: hacsInstalled,
+        team_tracker_installed: isLoaded('team_tracker'),
+        hacs_entities_count: entries.filter((i) => i.domain === 'hacs').length,
+        recommendation: hacsInstalled
+          ? undefined
+          : 'Install HACS, then add the Team Tracker integration through it.',
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to check HACS status');
       setStatus({

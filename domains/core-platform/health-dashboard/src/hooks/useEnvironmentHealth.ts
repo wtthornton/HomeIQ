@@ -31,7 +31,6 @@ export function useEnvironmentHealth(): UseEnvironmentHealthReturn {
         signal,
         headers: {
           'Content-Type': 'application/json',
-          ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
         },
       });
 

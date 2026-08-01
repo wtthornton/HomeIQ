@@ -102,7 +102,6 @@ class EvaluationStore:
         self,
         influxdb_writer: InfluxDBWriter | None = None,
         db_url: str | None = None,
-        _db_path: str | None = None,
         influxdb_retention_days: int = _DEFAULT_INFLUXDB_RETENTION_DAYS,
         db_retention_days: int = _DEFAULT_DB_RETENTION_DAYS,
     ):

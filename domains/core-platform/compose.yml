@@ -289,19 +289,26 @@ services:
       dockerfile: domains/core-platform/health-dashboard/Dockerfile
       args:
         - VITE_API_BASE_URL=
-        - VITE_API_KEY=${API_KEY:-}
         - VITE_DATA_API_URL=
-        - VITE_WS_URL=ws://localhost:8001/ws
+        # Empty = same origin. nginx proxies /ws to websocket-ingestion, so the
+        # dashboard's own host:port is always right; a literal port is not,
+        # because HOMEIQ_DASHBOARD_HOST_PORT is overridable. Set only to point
+        # the SPA at a websocket-ingestion outside this proxy.
+        - VITE_WS_INGESTION_URL=${HOMEIQ_WS_INGESTION_URL:-}
         - VITE_ENVIRONMENT=production
     container_name: homeiq-dashboard
     restart: unless-stopped
     ports:
       - "${HOMEIQ_DASHBOARD_HOST_PORT:-3000}:8080"
     environment:
+      # Runtime only. nginx substitutes DASHBOARD_API_KEY into its config at
+      # container start and injects it as the Authorization header, so the
+      # credential never reaches the browser. The VITE_* values below are build
+      # -time inputs; they are kept here only for parity with the build args.
+      - DASHBOARD_API_KEY=${API_KEY:-}
       - VITE_API_BASE_URL=
-      - VITE_API_KEY=${API_KEY:-}
       - VITE_DATA_API_URL=
-      - VITE_WS_URL=ws://localhost:8001/ws
+      - VITE_WS_INGESTION_URL=${HOMEIQ_WS_INGESTION_URL:-}
       - VITE_ENVIRONMENT=production
     depends_on:
       admin-api:

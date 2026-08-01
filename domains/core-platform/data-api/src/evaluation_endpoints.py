@@ -117,7 +117,12 @@ async def _get_store():
     global _store, _store_initialized
     if _store is None:
         from homeiq_patterns.evaluation import EvaluationStore
-        _store = EvaluationStore(db_path="./data/evaluations.db")
+
+        # Evaluations persist to Postgres, the same store the rest of data-api
+        # uses. EvaluationStore resolves the DSN from POSTGRES_URL/DATABASE_URL,
+        # both of which this service already sets. The sqlite-file mode this
+        # previously reached for was never implemented.
+        _store = EvaluationStore()
     if not _store_initialized:
         await _store.initialize()
         _store_initialized = True

@@ -49,8 +49,8 @@ export function useAnalyticsData(
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   /**
-   * Fetch analytics data from the API using the shared DataApiClient
-   * which handles authentication (session key, VITE_API_KEY fallback)
+   * Fetch analytics data from the API using the shared DataApiClient.
+   * Authentication is injected by the nginx proxy, not by this client.
    */
   const fetchAnalytics = useCallback(async (): Promise<void> => {
     try {

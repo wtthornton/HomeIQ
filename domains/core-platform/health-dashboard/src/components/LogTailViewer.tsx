@@ -59,7 +59,6 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
         const response = await fetch(`/log-aggregator/api/v1/logs?${params}`, {
           headers: {
             'Content-Type': 'application/json',
-            ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
           },
         });
         if (response.ok) {
@@ -117,7 +116,6 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
       const response = await fetch(`/log-aggregator/api/v1/logs/search?${params}`, {
         headers: {
           'Content-Type': 'application/json',
-          ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
         },
       });
       if (response.ok) {
@@ -164,7 +162,6 @@ export const LogTailViewer: React.FC<LogTailViewerProps> = ({ darkMode }) => {
       const response = await fetch(`/log-aggregator/api/v1/logs?${params}`, {
         headers: {
           'Content-Type': 'application/json',
-          ...(sessionStorage.getItem('api_key') ? { 'X-API-Key': sessionStorage.getItem('api_key')! } : {}),
         },
       });
       if (response.ok) {

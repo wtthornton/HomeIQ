@@ -52,7 +52,15 @@ interface HouseStatus {
 
 // ---------- Helpers ----------
 
-const WS_BASE = import.meta.env.VITE_WS_INGESTION_URL || 'ws://localhost:8001';
+// Default to the origin serving this page: nginx proxies /ws to
+// websocket-ingestion, so the dashboard's own host and port are always correct.
+// A literal port cannot be, because the dashboard host port is overridable.
+const sameOriginWsBase = (): string =>
+  typeof window === 'undefined'
+    ? ''
+    : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
+
+const WS_BASE = import.meta.env.VITE_WS_INGESTION_URL || sameOriginWsBase();
 
 const presenceBadge = (state: string) => {
   switch (state) {

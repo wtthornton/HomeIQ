@@ -91,7 +91,8 @@ services:
     environment:
       - VITE_API_BASE_URL=http://localhost:8003/api/v1
       - VITE_DATA_API_URL=http://localhost:8006
-      - VITE_WS_URL=ws://localhost:8001/ws
+      # Empty = same origin; nginx proxies /ws to websocket-ingestion.
+      - VITE_WS_INGESTION_URL=${HOMEIQ_WS_INGESTION_URL:-}
       - VITE_ENVIRONMENT=production
     depends_on:
       admin-api:

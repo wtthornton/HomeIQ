@@ -8,6 +8,7 @@ import { EvalAlertBanner, type EvalAlertData } from './EvalAlertBanner';
 import { SummaryMatrix, type MetricScore } from './SummaryMatrix';
 import { ScoreTrendChart, type TrendData } from './ScoreTrendChart';
 import { SessionTraceViewer, type SessionTraceData } from './SessionTraceViewer';
+import { withCsrfHeader } from '../../utils/security';
 
 interface AgentInfo {
   agent_name: string;
@@ -26,9 +27,7 @@ const API_BASE = '/api/v1';
 
 async function fetchJson<T>(url: string): Promise<T | null> {
   try {
-    const res = await fetch(url, {
-      headers: { 'X-API-Key': localStorage.getItem('apiKey') || '' },
-    });
+    const res = await fetch(url);
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -92,7 +91,7 @@ export const AgentEvaluationTab: React.FC<AgentEvaluationTabProps> = ({ darkMode
     try {
       await fetch(`${API_BASE}/evaluations/${selectedAgent}/trigger`, {
         method: 'POST',
-        headers: { 'X-API-Key': localStorage.getItem('apiKey') || '' },
+        headers: withCsrfHeader({ 'Content-Type': 'application/json' }),
       });
       // Reload data after trigger
       await loadAgentData(selectedAgent, period);
@@ -104,10 +103,7 @@ export const AgentEvaluationTab: React.FC<AgentEvaluationTabProps> = ({ darkMode
   const handleAcknowledge = async (alertId: string) => {
     await fetch(`${API_BASE}/evaluations/${selectedAgent}/alerts/${alertId}/acknowledge`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': localStorage.getItem('apiKey') || '',
-      },
+      headers: withCsrfHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ by: 'dashboard-user', note: '' }),
     });
     await loadAgentData(selectedAgent, period);
