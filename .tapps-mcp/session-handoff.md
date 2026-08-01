@@ -1,47 +1,40 @@
 # Session handoff
-**Updated:** 2026-08-01T04:00:00Z (live-deployment prep session)
-**Git:** master @ f84cfbf2, all branches merged and deleted, tree clean (except this file)
+**Updated:** 2026-08-01T09:20:00Z (LIVE DEPLOY session)
+**Git:** master @ f09d6da7, tree clean, no other branches
 **Linear P0:** none
 
-## Done (this session)
-- **PR #72 merged** (audit rounds 1+2, all 4 services `ship`) and **PR #73 merged** (live-deployment prep, 4 parallel workstreams + follow-ups). master carries everything; no other branches or worktrees exist.
-- **Credential hygiene:** HA/Nabu Casa tokens (websocket-ingestion) and `openai_api_key` (proactive-agent, device-intelligence, ai-training) are `SecretStr`, unwrapped only at client-construction boundaries. Regression tests assert repr-masking and unwrap-at-use.
-- **Committed secrets sanitized:** `infrastructure/env.production` (3 real HA JWTs, MQTT creds, shared API key, weather keys) is now a placeholder template; ~30 scripts had JWT/API-key defaults stripped; leaked `API_KEY` compose fallbacks removed in 4 domains. **User must revoke the old HA tokens + rotate the shared API key** (still in git history).
-- **New-HA readiness:** zero live-code references to the previous owner's HA remain (`192.168.1.86`, committed Nabu Casa URL). Services fail loudly when unconfigured. `infrastructure/env.example` rebuilt as the single authoritative template incl. the HA_URL WS-vs-HTTP footgun doc.
-- **Deploy tooling repaired:** exec bits on 14 scripts, `start-prod.sh` → shim onto `start-stack.sh`, `domain.sh verify <domain>` implemented, smoke-test ADMIN_URL → 8004, all 9 domain compose files parse against `env.example` (verified). `docker buildx bake` requires `-f docker-bake.hcl` (root compose volumes conflict otherwise — docs still say the bare form). ha-simulator was unbuildable from a fresh clone (gitignored `data/`) — fixed with tracked empty dir (f84cfbf2).
-- **Test debt cleared:** ai-query 37P/4S/0F/0E (was 6F/9E); data-retention FULL suite 138P/0F/0E (was 5F/22E+collection fail; real src bug fixed: backup 201 was unreachable); sports-api 8P (was uncollectable; fixture names + E402 bootstrap fixed); websocket-ingestion 522P (+7); admin-api 376P; proactive-agent 84P (+2, pre-existing 16F/6E unchanged); device-intelligence + openvino conftest `parents[3]`→`parents[4]` (suites collect now).
-- Venv gained: boto3, aiosqlite, pandas, pyarrow≥18, influxdb3-python, paho-mqtt, joblib, scikit-learn.
+## 🟢 THE STACK IS LIVE against the new HA
+- HA 2026.7.4 @ `http://192.168.1.80:8123` (resolved from homeassistant.local; containers need the IP — mDNS doesn't work in Docker DNS). **User should set a DHCP reservation for 192.168.1.80.**
+- **53/54 containers healthy.** Only `ha-ai-agent-service` down — crash-loops with a clear "OPENAI_API_KEY is required" error. 🔑 **Waiting on the user's OpenAI key**; add to `.env` (`OPENAI_API_KEY=`) then `docker compose -f domains/automation-core/compose.yml --env-file .env --profile production up -d ha-ai-agent-service`.
+- **Event flow PROVEN end-to-end:** synthetic `sensor.homeiq_deploy_test` AND real home traffic (Family Room TV media_player events) landed in InfluxDB `home_assistant_events` bucket within seconds. Test sensor deleted afterwards.
+- **Smoke suite 8/8 passed (4/4 critical).** `validate-ha-connection.sh` 4/5 (its own WS probe tool is the warning; the service connects fine).
 
-## In flight at session end
-- `docker buildx bake -f docker-bake.hcl full` running in background (53 images, ~25-30 min cold). If interrupted: re-run the same command; it resumes from cache.
+## Environment facts (needed to operate this deploy)
+- Root `.env` (gitignored, mode 600) holds: HA quartet + token, fresh-generated `API_KEY`/`JWT_SECRET_KEY`/`POSTGRES_PASSWORD`/`INFLUXDB_TOKEN`/`INFLUXDB_PASSWORD`/`ADMIN_PASSWORD`/`AI_CORE_API_KEY`, `ZEEK_INTERFACE=enp87s0`, and **host-port overrides** (this box runs AgentForge/tapps/other stacks): postgres→15432, websocket→18001, admin→18004, dashboard→13000, retention→18080, carbon→18010, OTLP→14317, UI→13001. Old .env backed up at `.env.backup-pre-new-ha-20260801`.
+- Compose ports are `${HOMEIQ_*_HOST_PORT:-<documented>}` (commit b8569059). Smoke tests honor the same overrides (f09d6da7).
+- `docker buildx bake` REQUIRES `-f docker-bake.hcl` (root compose volume conflict). NOTE: several compose services have `build:` but no `image:` — bake-built images are NOT what compose runs for those; rebuild via `docker compose ... up -d --build <service>` (bit us on device-intelligence).
+- Fleet ops: `bash scripts/domain.sh start|stop|verify <domain>`; health: `bash scripts/check-service-health.sh`; smoke: `PATH=<repo>/.venv/bin:$PATH ADMIN_URL=http://localhost:18004 bash scripts/run-smoke-tests.sh --admin-url http://localhost:18004`.
 
-## 🔑 CREDENTIAL GATE — blocked on user for live deploy
-Need from the user (new HA instance is installed + logged in):
-1. **New HA base URL** (e.g. `http://<lan-ip>:8123`)
-2. **HA long-lived access token** (HA → Profile → Security → Long-Lived Access Tokens)
-3. **OpenAI API key** (required — ha-ai-agent-service refuses to boot without it)
-4. Optional: Nabu Casa URL+token, Anthropic key, weather/AirNow/WattTime/pricing keys
+## Fixed during bring-up (all committed)
+- device-intelligence crash-loop: `MQTT_BROKER=""` now means "unconfigured → Zigbee discovery off" (validator + DiscoveryService guards + 5 regression tests).
+- Smoke wrapper/script drift (`--admin-url` unsupported) fixed.
+- zeek needed `ZEEK_INTERFACE=enp87s0` (host NIC; default eth0 doesn't exist). zeek + zeek-network-service healthy after.
+- dashboard nginx crash-loops until ALL upstream services exist (ai-automation-service-new, ha-setup-service) — start order matters; it self-heals on restart once upstreams are up.
+- ha-simulator unbuildable from fresh clone (gitignored data/) — fixed f84cfbf2.
 
-## Live bring-up sequence (once credentials arrive)
-1. Copy `infrastructure/env.example` → `.env` (root `.env` exists with stale/old-HA values — REVIEW before overwrite, it is permission-blocked for reads in agent sessions). Set: HA quartet (`HA_HTTP_URL`, `HA_WS_URL`, `HA_TOKEN`, `HA_URL`=http form) + legacy `HOME_ASSISTANT_*` aliases, `OPENAI_API_KEY`, and generate strong `API_KEY`, `JWT_SECRET_KEY`, `POSTGRES_PASSWORD`, `INFLUXDB_TOKEN`/`INFLUXDB_PASSWORD`, `ADMIN_PASSWORD` (compose defaults are known-leaked values).
-2. `bash scripts/validate-ha-connection.sh` (TCP→HTTP→WS→auth→/api/states)
-3. `bash scripts/start-stack.sh` (core-platform first, health-gated, then 8 domains)
-4. `bash scripts/check-service-health.sh`; smoke: `bash scripts/run-smoke-tests.sh`
-5. Real proof: toggle an entity in HA → verify `state_changed` lands in InfluxDB via data-api; check discovery pulled entity/device registries.
-
-## Open / follow-ups (non-blocking)
-- device-intelligence full suite: unblocked at collection but a run appeared to hang after paho-mqtt install (suspected real-network MQTT attempt in a test) — killed; targeted tests pass. Also one of its tests trains a real model and writes into `models/` (worktree pollution; should use tmp_path).
-- openvino-service `test_openvino_service.py`: rotted vs `StandardHealthCheck` refactor (old bespoke health shape asserted) — needs a test-module rewrite; Tier 3, not deploy-blocking.
-- proactive-agent pre-existing 16F/6E; ai-training 24 DB-fixture errors (need live PG) — untouched.
-- `192.168.1.86` remains in tests/docs/generated caches only. Old HA tokens + shared API key remain in git history — rotate; optional history scrub.
-- No true HA→ingest→InfluxDB e2e test exists; ha-simulator is wired in dev compose but unused by CI.
-- CI gate (af-agent-gate.yml) still needs operator runner + secrets. `.github/workflows/deploy-production.yml` runs bare `docker compose up -d` from root (contradicts docs, omits `--profile production`) — fix before relying on CI deploys.
+## Open / follow-ups
+1. 🔑 **OPENAI_API_KEY** from user → ha-ai-agent-service up → fleet 54/54.
+2. User should **revoke old HA tokens & rotate the burned shared API key** (still in git history; optional history scrub).
+3. postgres data: fresh volumes, schemas created by services + init-schemas.sql. InfluxDB org `homeiq`, bucket `home_assistant_events`, admin user `homeiq_admin` (creds in .env).
+4. Pre-existing test debt still open: proactive-agent 16F/6E, ai-training 24 DB-fixture errors, openvino health-shape rot, device-intelligence full suite (one test hangs on real MQTT connect; one test writes real model artifacts into models/ — should use tmp_path).
+5. No CI e2e for HA→Influx flow (ha-simulator unused); deploy-production.yml still contradicts docs.
+6. grafana/prometheus/alertmanager up but dashboards/alerts not yet reviewed against the new install.
 
 ## Verify
-- `git log --oneline -6` — f84cfbf2 (ha-simulator), 947bf8fb (PR #73 merge), 29076310, a479c39e, 62c02838, 51f373fd
-- Suites: per-service `/home/wtthornton/code/HomeIQ/.venv/bin/python -m pytest tests/ -q` (system python3 has no pytest); counts above
-- `for d in <9 domains>; do docker compose -f domains/$d/compose.yml --env-file infrastructure/env.example config --quiet; done` — all parse
-- `grep -rn 192.168.1.86 domains/ scripts/ infrastructure/ --include='*.py' --include='*.yml' | grep -v tests/` — empty
+- `docker ps --filter name=homeiq` → 53 healthy + ha-ai-agent restarting
+- Event flow: toggle any entity in HA, then
+  `docker exec homeiq-influxdb influx query 'from(bucket: "home_assistant_events") |> range(start: -5m) |> limit(n:5)' --org homeiq --token "$INFLUXDB_TOKEN"`
+- `curl http://localhost:18001/health` (websocket-ingestion), `curl http://localhost:18004/api/v1/health` (admin-api)
 
 ## Success criterion
-Stack deploys against the new HA with `state_changed` events verifiably landing in InfluxDB, all Tier-1 health checks green.
+Met (partial→full pending OpenAI key): stack live against new HA, events verifiably in InfluxDB, smoke 8/8. Full = 54/54 after key arrives.
