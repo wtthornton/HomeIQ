@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 import sys
 import tempfile
 from datetime import UTC, datetime, timedelta
@@ -237,41 +238,53 @@ class TestBackupRestoreService:
     @pytest.mark.asyncio
     @_skip_windows
     async def test_backup_config(self, service):
-        """Test backing up configuration."""
+        """Test backing up configuration.
+
+        _backup_config copies from a hardcoded whitelist (/app/config.yaml,
+        /etc/influxdb/influxdb.conf) using Path.exists — pretend both exist
+        and verify each is copied into the backup's config dir.
+        """
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             metadata = {}
 
-            # Create mock config files
-            config_file = temp_path / "test_config.yaml"
-            config_file.write_text("test: config")
+            with (
+                patch('pathlib.Path.exists', return_value=True),
+                patch('shutil.copy2') as mock_copy,
+            ):
+                await service._backup_config(temp_path, metadata)
 
-            with patch('os.path.exists', return_value=True):
-                with patch('shutil.copy2') as mock_copy:
-                    await service._backup_config(temp_path, metadata)
-
-                    assert "config_files" in metadata
-                    mock_copy.assert_called()
+            assert metadata["config_files"] == [
+                "/app/config.yaml",
+                "/etc/influxdb/influxdb.conf",
+            ]
+            assert mock_copy.call_count == 2
 
     @pytest.mark.asyncio
     @_skip_windows
     async def test_backup_logs(self, service):
-        """Test backing up logs."""
+        """Test backing up logs.
+
+        _backup_logs walks /var/log and /app/logs and requires the found
+        files to live under those directories (relative_to). Simulate one
+        .log file in each walked directory.
+        """
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             metadata = {}
 
-            # Create mock log files
-            log_file = temp_path / "test.log"
-            log_file.write_text("test log content")
+            with (
+                patch('pathlib.Path.exists', return_value=True),
+                patch('os.walk', side_effect=lambda top: [(str(top), [], ["test.log"])]),
+                patch('shutil.copy2') as mock_copy,
+            ):
+                await service._backup_logs(temp_path, metadata)
 
-            with patch('os.path.exists', return_value=True):
-                with patch('os.walk', return_value=[(str(temp_path), [], ["test.log"])]):
-                    with patch('shutil.copy2') as mock_copy:
-                        await service._backup_logs(temp_path, metadata)
-
-                        assert "log_files" in metadata
-                        mock_copy.assert_called()
+            assert metadata["log_files"] == [
+                "/var/log/test.log",
+                "/app/logs/test.log",
+            ]
+            assert mock_copy.call_count == 2
 
     @pytest.mark.asyncio
     async def test_restore_backup_success(self, service):
@@ -318,11 +331,13 @@ class TestBackupRestoreService:
 
     @pytest.mark.asyncio
     async def test_restore_data_with_influxdb(self, service):
-        """Test restoring data with InfluxDB client."""
-        # Mock InfluxDB client
-        mock_write_api = Mock()
+        """Test restoring data with InfluxDB client.
+
+        _restore_data uses the influxdb3 client API: an awaitable
+        client.write(record=points) — there is no write_api() indirection.
+        """
         mock_client = Mock()
-        mock_client.write_api.return_value = mock_write_api
+        mock_client.write = AsyncMock()
         service.influxdb_client = mock_client
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -347,24 +362,43 @@ class TestBackupRestoreService:
 
             await service._restore_data(temp_path)
 
-            # Verify write API was called
-            mock_write_api.write.assert_called_once()
+            # Verify the client write was awaited with the restored points
+            mock_client.write.assert_awaited_once()
+            assert len(mock_client.write.await_args.kwargs["record"]) == 1
 
     @pytest.mark.asyncio
     async def test_restore_config(self, service):
-        """Test restoring configuration."""
+        """Test restoring configuration.
+
+        _restore_config only restores files on the ALLOWED_CONFIG_FILES
+        whitelist, so the backup must contain a whitelisted name.
+        """
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
 
-            # Create mock config directory
+            # Create mock config directory with a whitelisted file
             config_dir = temp_path / "config"
             config_dir.mkdir()
-            config_file = config_dir / "test_config.yaml"
+            config_file = config_dir / "config.yaml"
             config_file.write_text("test: config")
 
             with patch('shutil.copy2') as mock_copy:
                 await service._restore_config(temp_path)
-                mock_copy.assert_called()
+                mock_copy.assert_called_once_with(config_file, Path("/app/config.yaml"))
+
+    @pytest.mark.asyncio
+    async def test_restore_config_skips_non_whitelisted(self, service):
+        """Non-whitelisted config files in a backup must not be restored."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            config_dir = temp_path / "config"
+            config_dir.mkdir()
+            (config_dir / "evil.yaml").write_text("not: allowed")
+
+            with patch('shutil.copy2') as mock_copy:
+                await service._restore_config(temp_path)
+                mock_copy.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_restore_logs(self, service):
@@ -474,37 +508,19 @@ class TestBackupRestoreService:
         recent_backup = backup_dir / "recent_backup.tar.gz"
         recent_backup.write_bytes(b"test")
 
-        # Mock file modification time
+        # Set real modification times instead of mocking Path.stat: cleanup
+        # reads st_mtime from the filesystem, and a stat mock breaks on
+        # Python 3.13 where Path.exists() calls stat(follow_symlinks=...).
         old_time = (datetime.now(UTC) - timedelta(days=35)).timestamp()
         recent_time = (datetime.now(UTC) - timedelta(days=5)).timestamp()
+        os.utime(old_backup, (old_time, old_time))
+        os.utime(recent_backup, (recent_time, recent_time))
 
-        # Mock the Path.stat method
-        with patch('pathlib.Path.stat') as mock_stat:
-            def stat_side_effect():
-                mock_stat_result = Mock()
-                # Get the path from the calling context
-                import inspect
-                frame = inspect.currentframe()
-                while frame:
-                    if 'backup_file' in frame.f_locals:
-                        path_str = str(frame.f_locals['backup_file'])
-                        if 'old_backup' in path_str:
-                            mock_stat_result.st_mtime = old_time
-                        else:
-                            mock_stat_result.st_mtime = recent_time
-                        break
-                    frame = frame.f_back
-                else:
-                    mock_stat_result.st_mtime = recent_time
-                return mock_stat_result
+        deleted_count = service.cleanup_old_backups(days_to_keep=30)
 
-            mock_stat.side_effect = stat_side_effect
-
-            deleted_count = service.cleanup_old_backups(days_to_keep=30)
-
-            assert deleted_count == 1
-            assert not old_backup.exists()
-            assert recent_backup.exists()
+        assert deleted_count == 1
+        assert not old_backup.exists()
+        assert recent_backup.exists()
 
     @pytest.mark.asyncio
     async def test_backup_error_handling(self, service):

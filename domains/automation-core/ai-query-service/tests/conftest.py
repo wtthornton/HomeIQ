@@ -5,82 +5,63 @@ Epic 39, Story 39.12: Query & Automation Service Testing
 """
 
 import os
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock
 
 import pytest
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 from src.database import get_db
+from src.database.models import Base
 from src.main import app
 
 # Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
+
+# Any non-empty key passes AuthenticationMiddleware when settings.api_keys is
+# empty (the test default). Sending one keeps the auth code path exercised.
+TEST_API_KEY = "test-api-key"
 
 
 @pytest.fixture(scope="function")
 async def test_db() -> AsyncGenerator[AsyncSession, None]:
     """
-    Create a test database session using PostgreSQL.
+    Create a test database session with the real ORM schema.
 
-    Each test gets a fresh database.
-    Note: Query service uses shared database models (AskAIQuery, ClarificationSessionDB).
+    Defaults to in-memory SQLite so the suite has no external infrastructure
+    dependency; set TEST_DATABASE_URL (e.g. postgresql+asyncpg://...) for
+    integration runs against a real server. Tables come from
+    ``Base.metadata`` — the actual AskAIQuery / ClarificationSession models —
+    so the schema can never drift from src the way hand-written DDL did.
     """
-    # Use PostgreSQL for tests
-    test_url = os.environ.get(
-        "TEST_DATABASE_URL",
-        "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq_test",
-    )
+    test_url = os.environ.get("TEST_DATABASE_URL", "sqlite+aiosqlite://")
+    engine_kwargs: dict = {"echo": False}
+    if test_url.startswith("sqlite"):
+        # One shared in-memory database across all pooled connections.
+        engine_kwargs["poolclass"] = StaticPool
     engine = create_async_engine(
         test_url,
-        echo=False,
+        # Models live in the "automation" schema; map it to the default schema
+        # so SQLite (no schemas) works and PostgreSQL needs no CREATE SCHEMA.
+        execution_options={"schema_translate_map": {"automation": None}},
+        **engine_kwargs,
     )
 
-    # Create basic tables for query service (would be in shared DB in production)
     async with engine.begin() as conn:
-        # Create ask_ai_queries table (simplified for testing)
-        await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS ask_ai_queries (
-                query_id TEXT PRIMARY KEY,
-                original_query TEXT NOT NULL,
-                user_id TEXT,
-                parsed_intent TEXT,
-                extracted_entities JSONB,
-                suggestions JSONB,
-                confidence REAL,
-                processing_time_ms INTEGER,
-                failure_reason TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """))
+        await conn.run_sync(Base.metadata.create_all)
 
-        # Create clarification_sessions table (simplified for testing)
-        await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS clarification_sessions (
-                session_id TEXT PRIMARY KEY,
-                original_query_id TEXT,
-                original_query TEXT,
-                user_id TEXT,
-                questions JSONB,
-                ambiguities JSONB,
-                current_confidence REAL,
-                confidence_threshold REAL,
-                status TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """))
-    
-    # Create session factory
     async_session_maker = async_sessionmaker(
         engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
-    # Create session for test
+
     async with async_session_maker() as session:
         yield session
-    
-    # Cleanup
+
+    # Drop tables so a persistent TEST_DATABASE_URL backend stays isolated
+    # between tests (no-op cost for the throwaway in-memory default).
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
 
 
@@ -88,16 +69,20 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
 async def client(test_db: AsyncSession):
     """Create test client with database dependency override."""
     from httpx import ASGITransport, AsyncClient
-    
+
     async def override_get_db():
         return test_db
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"X-HomeIQ-API-Key": TEST_API_KEY},
+    ) as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()
 
 
@@ -159,7 +144,7 @@ def mock_openai_client():
 def mock_data_api_client():
     """Mock DataAPIClient for testing."""
     client = AsyncMock()
-    
+
     async def mock_fetch_entities(*_args, **_kwargs):
         return [
             {
@@ -175,9 +160,9 @@ def mock_data_api_client():
                 "area_id": "office"
             }
         ]
-    
+
     client.fetch_entities = mock_fetch_entities
-    
+
     async def mock_fetch_devices(*_args, **_kwargs):
         return [
             {
@@ -186,9 +171,9 @@ def mock_data_api_client():
                 "area_id": "office"
             }
         ]
-    
+
     client.fetch_devices = mock_fetch_devices
-    
+
     return client
 
 

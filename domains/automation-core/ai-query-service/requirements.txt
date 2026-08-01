@@ -33,6 +33,7 @@ opentelemetry-instrumentation-sqlalchemy>=0.45b0,<1.0.0
 # Development
 pytest>=8.3.0,<10.0.0  # Phase 2: standardized
 pytest-asyncio>=0.23.0,<2.0.0  # Phase 2: standardized
+aiosqlite>=0.20.0  # In-memory test database backend (tests/conftest.py)
 
 # HomeIQ shared libraries (installed from libs/ in Docker)
 homeiq-observability>=1.0.0
