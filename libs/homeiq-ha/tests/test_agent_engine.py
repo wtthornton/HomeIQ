@@ -108,7 +108,9 @@ class AreasRecipe(Recipe):
         )
 
     async def plan(self, ha: Any) -> Plan:
-        return Plan(tuple(Change("create area", name, after=name) for name in await self._missing(ha)))
+        return Plan(
+            tuple(Change("create area", name, after=name) for name in await self._missing(ha))
+        )
 
     async def apply(self, ha: Any) -> ApplyResult:
         created = []
@@ -119,7 +121,10 @@ class AreasRecipe(Recipe):
 
     async def verify(self, ha: Any) -> VerifyResult:
         missing = await self._missing(ha)
-        return VerifyResult(not missing, "all areas present" if not missing else f"still missing {missing}")
+        return VerifyResult(
+            not missing,
+            "all areas present" if not missing else f"still missing {missing}",
+        )
 
 
 class BackupRecipe(Recipe):
@@ -347,8 +352,9 @@ async def test_a_failed_pre_phase_backup_halts_before_applying():
 
 
 @pytest.mark.asyncio
-async def test_human_gate_is_a_hard_stop():
-    """The gate is phase 5; a phase-6 recipe after it must never run."""
+async def test_human_gate_stops_progression_to_a_later_phase():
+    """The gate is phase 5; a phase-6 recipe after it must never run, because a
+    later phase may depend on what is still blocked."""
 
     class LaterRecipe(AreasRecipe):
         name = "later.areas"
@@ -360,8 +366,49 @@ async def test_human_gate_is_a_hard_stop():
 
     assert report.halted_reason is not None
     assert "needs a person" in report.halted_reason
+    assert report.blocked_on_human == ["hacs.bootstrap"]
     assert [o.name for o in report.outcomes] == ["hacs.bootstrap"]
-    assert ha.writes == [], "work continued past a human gate"
+    assert ha.writes == [], "work continued into a later phase past a human gate"
+
+
+@pytest.mark.asyncio
+async def test_human_gate_does_not_block_independent_siblings_in_the_same_phase():
+    """Found by running the agent against a real instance: one device without
+    an area used to prevent floors and labels from ever being created. On any
+    real home something is always blocked, so that made the agent useless."""
+
+    class BlockedSibling(Recipe):
+        name = "organization.aaa_blocked"  # sorts first, so it runs first
+        phase = 3
+
+        async def check(self, _ha: Any) -> CheckResult:
+            return CheckResult(
+                CheckStatus.BLOCKED_ON_HUMAN, "needs a person", human_action="do a thing"
+            )
+
+        async def plan(self, _ha: Any) -> Plan:
+            return Plan()
+
+        async def apply(self, _ha: Any) -> ApplyResult:
+            return ApplyResult()
+
+        async def verify(self, _ha: Any) -> VerifyResult:
+            return VerifyResult(True, "")
+
+    ha = FakeHA()
+    agent = HAInitAgent([BlockedSibling(), AreasRecipe(["Kitchen"])])
+
+    report = await agent.apply(ha, phase=3, backup=_noop_backup)
+
+    # The independent sibling still did its work...
+    assert report.total_changes == 1
+    assert {o.name for o in report.outcomes} == {
+        "organization.aaa_blocked",
+        "organization.areas",
+    }
+    # ...and the gate is still reported.
+    assert report.blocked_on_human == ["organization.aaa_blocked"]
+    assert report.halted_reason is not None
 
 
 @pytest.mark.asyncio

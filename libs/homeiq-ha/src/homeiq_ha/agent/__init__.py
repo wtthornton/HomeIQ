@@ -25,6 +25,7 @@ from .recipe import (
     VerifyResult,
 )
 from .recipes import default_recipes
+from .snapshot import RestoreIncomplete, Snapshot, capture, diff, restore
 
 __all__ = [
     "BACKUP_PHASE",
@@ -40,9 +41,14 @@ __all__ = [
     "ReadOnlyViolation",
     "Recipe",
     "RecipeOutcome",
+    "RestoreIncomplete",
     "RunReport",
+    "Snapshot",
     "VerifyResult",
+    "capture",
     "default_recipes",
+    "diff",
     "is_read_command",
     "read_only",
+    "restore",
 ]

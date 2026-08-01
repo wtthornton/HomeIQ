@@ -90,7 +90,8 @@ class BackupScheduleRecipe(Recipe):
             )
         if self.agent_ids and set(create.get("agent_ids") or ()) != set(self.agent_ids):
             changes.append(
-                Change("set", "create_backup.agent_ids", create.get("agent_ids"), list(self.agent_ids))
+                Change("set", "create_backup.agent_ids",
+                       create.get("agent_ids"), list(self.agent_ids))
             )
         return changes
 
@@ -250,7 +251,9 @@ class CoreConfigRecipe(Recipe):
         drift = self._drift(await ha.ws.send_command("get_config") or {})
         return VerifyResult(
             not drift,
-            "core config matches intent" if not drift else f"still drifted: {[c.describe() for c in drift]}",
+            "core config matches intent"
+            if not drift
+            else f"still drifted: {[c.describe() for c in drift]}",
         )
 
 
@@ -285,7 +288,10 @@ class _RegistryNamesRecipe(Recipe):
 
     async def plan(self, ha: HAClient) -> Plan:
         return Plan(
-            tuple(Change("create", f"{self.registry}:{name}", after=name) for name in await self._missing(ha))
+            tuple(
+                Change("create", f"{self.registry}:{name}", after=name)
+                for name in await self._missing(ha)
+            )
         )
 
     async def apply(self, ha: HAClient) -> ApplyResult:
@@ -297,7 +303,10 @@ class _RegistryNamesRecipe(Recipe):
 
     async def verify(self, ha: HAClient) -> VerifyResult:
         missing = await self._missing(ha)
-        return VerifyResult(not missing, "all present" if not missing else f"still missing {missing}")
+        return VerifyResult(
+            not missing,
+            "all present" if not missing else f"still missing {missing}",
+        )
 
 
 class FloorsRecipe(_RegistryNamesRecipe):

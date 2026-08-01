@@ -92,10 +92,30 @@ class SimWs:
         if command_type == "config/core/update":
             self.state["core_config"].update(args)
             return None
+        if command_type == "backup/delete":
+            self.state["backups"] = [
+                b for b in self.state["backups"] if b["backup_id"] != args["backup_id"]
+            ]
+            return None
         if command_type.endswith("_registry/create"):
             key = _registry_key(command_type)
             self.state[key].append({f"{key[:-1]}_id": args["name"], "name": args["name"]})
             return self.state[key][-1]
+        if command_type.endswith("_registry/delete"):
+            key = _registry_key(command_type)
+            id_field = _registry_id_field(command_type)
+            target = args[id_field]
+            self.state[key] = [e for e in self.state[key] if e.get(id_field) != target]
+            return None
+        if command_type.endswith("_registry/update"):
+            key = _registry_key(command_type)
+            id_field = _registry_id_field(command_type)
+            target = args.pop(id_field)
+            for entry in self.state[key]:
+                if entry.get(id_field) == target:
+                    entry.update(args)
+                    return entry
+            return None
         return None
 
     async def _supervisor(self, args: dict[str, Any]) -> Any:
@@ -114,6 +134,10 @@ class SimWs:
                 if addon["slug"] == slug:
                     addon["state"] = "started"
             return None
+        if endpoint.startswith("/addons/") and endpoint.endswith("/uninstall"):
+            slug = endpoint.split("/")[2]
+            self.state["addons"] = [a for a in self.state["addons"] if a["slug"] != slug]
+            return None
         return None
 
     async def list_entities(self) -> list[dict[str, Any]]:
@@ -129,10 +153,25 @@ class SimWs:
         )
 
 
+#: registry name -> (state key, id field)
+_REGISTRIES = {
+    "area": ("areas", "area_id"),
+    "floor": ("floors", "floor_id"),
+    "label": ("labels", "label_id"),
+    "device": ("devices", "id"),
+    "entity": ("entities", "entity_id"),
+}
+
+
 def _registry_key(command_type: str) -> str:
     # config/area_registry/list -> areas
     registry = command_type.split("/")[1].removesuffix("_registry")
-    return {"area": "areas", "floor": "floors", "label": "labels", "device": "devices"}[registry]
+    return _REGISTRIES[registry][0]
+
+
+def _registry_id_field(command_type: str) -> str:
+    registry = command_type.split("/")[1].removesuffix("_registry")
+    return _REGISTRIES[registry][1]
 
 
 class SimRest:
@@ -145,6 +184,12 @@ class SimRest:
             self.writes.append(f"{method.upper()} {path}")
         if path == "/api/config/config_entries/entry":
             return self.state["config_entries"]
+        if method.upper() == "DELETE" and path.startswith("/api/config/config_entries/entry/"):
+            entry_id = path.rsplit("/", 1)[-1]
+            self.state["config_entries"] = [
+                e for e in self.state["config_entries"] if e.get("entry_id") != entry_id
+            ]
+            return {}
         return {}
 
     async def get_config_entries(self) -> list[dict[str, Any]]:
@@ -152,7 +197,9 @@ class SimRest:
 
     async def run_config_flow(self, domain: str, _steps: list[dict[str, Any]], **_c: Any) -> Any:
         self.writes.append(f"config_flow {domain}")
-        self.state["config_entries"].append({"domain": domain, "state": "loaded"})
+        self.state["config_entries"].append(
+            {"entry_id": f"entry_{domain}", "domain": domain, "state": "loaded"}
+        )
         return {"type": "create_entry"}
 
 
@@ -351,7 +398,7 @@ async def test_team_tracker_blocks_when_the_entity_id_lacks_the_marker():
     sim = SimHA(
         {
             **FRESH_INSTANCE,
-            "config_entries": [{"domain": "teamtracker", "state": "loaded"}],
+            "config_entries": [{"entry_id": "e1", "domain": "teamtracker", "state": "loaded"}],
             "entities": [{"entity_id": "sensor.nfl_las_vegas_raiders"}],
         }
     )
@@ -368,7 +415,7 @@ async def test_team_tracker_satisfied_when_the_entity_id_carries_the_marker():
     sim = SimHA(
         {
             **FRESH_INSTANCE,
-            "config_entries": [{"domain": "teamtracker", "state": "loaded"}],
+            "config_entries": [{"entry_id": "e1", "domain": "teamtracker", "state": "loaded"}],
             "entities": [{"entity_id": "sensor.team_tracker_raiders"}],
         }
     )

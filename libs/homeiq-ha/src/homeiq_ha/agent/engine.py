@@ -85,6 +85,9 @@ class RunReport:
     outcomes: list[RecipeOutcome] = field(default_factory=list)
     halted_reason: str | None = None
     reads: list[str] = field(default_factory=list)
+    #: Recipes that need a person. Recorded rather than raised so a caller can
+    #: act on them; they stop progression to later phases but not their siblings.
+    blocked_on_human: list[str] = field(default_factory=list)
 
     @property
     def total_changes(self) -> int:
@@ -241,21 +244,36 @@ class HAInitAgent:
                     )
                     return report
 
+            blocked: list[RecipeOutcome] = []
+
             for recipe in (r for r in selected if r.phase == current_phase):
                 outcome = await self._apply_one(recipe, ha)
                 report.outcomes.append(outcome)
 
                 if outcome.check.status is CheckStatus.BLOCKED_ON_HUMAN:
-                    # Rule 5: human gates are hard stops, not timeouts.
-                    report.halted_reason = (
-                        f"{recipe.name} needs a person: "
-                        f"{outcome.check.human_action or outcome.check.summary}"
-                    )
-                    return report
+                    # Rule 5: human gates are hard stops, not timeouts — but the
+                    # stop is scoped to *later phases*, not to siblings in this
+                    # one. Halting the whole phase would mean a single device
+                    # without an area prevents floors and labels from ever being
+                    # created, which is the common case on a real home and would
+                    # make the agent useless.
+                    blocked.append(outcome)
+                    continue
 
                 if not outcome.ok:
                     report.halted_reason = f"{recipe.name} failed: {outcome.error}"
                     return report
+
+            if blocked:
+                # Independent work in this phase is done; stop before the next,
+                # because a later phase may depend on what is still blocked.
+                report.blocked_on_human.extend(o.name for o in blocked)
+                report.halted_reason = "; ".join(
+                    f"{o.name} needs a person: "
+                    f"{o.check.human_action or o.check.summary}"
+                    for o in blocked
+                )
+                return report
 
             if current_phase == BACKUP_PHASE and not all(
                 o.ok for o in report.outcomes if o.phase == BACKUP_PHASE
