@@ -1,52 +1,47 @@
 # Session handoff
-**Updated:** 2026-07-31T23:59:00Z (round-3 session)
-**Git:** 90962038 pushed to origin/fix/data-retention-security (tree clean except this file)
+**Updated:** 2026-08-01T04:00:00Z (live-deployment prep session)
+**Git:** master @ f84cfbf2, all branches merged and deleted, tree clean (except this file)
 **Linear P0:** none
 
-## Done
-- **Committed the round-1 work as e3c190e1** (all 7 audit fixes + regression tests, 15 files) after re-verifying every suite against the prior handoff's baselines — exact match.
-- **Fixed all 4 round-2 findings** (commit 90962038), each verified against source before touching it, each with regression tests proven to fail when the fix is stashed:
-  - data-retention HIGH — `materialized_views.py` made 8 inline synchronous `InfluxDBClient3.query/write` calls from async methods. All offloaded via `run_in_executor` (`_run_blocking` + `_write_points` helpers, same pattern as `pattern_aggregate_retention`). Note: the audit's other HIGH (`pattern_aggregate_retention.py:141-147`) was already fixed in the round-1 working tree — the auditor had read the committed tree.
-  - admin-api HIGH — `api_key_service.update_api_key` mutated `os.environ` before `_update_config_file()` ran the `allow_secret_writes` gate, so a denied write still left the rejected key live. Reordered: permission-gated file write first, env mutation only after success.
-  - ai-query-service MEDIUM — `_build_processor()` now passes `settings.data_api_key.get_secret_value()` to `EntityExtractor`, so `CrossGroupClient` sends the Authorization header.
-  - websocket-ingestion MEDIUM — `_process_batch` retries now resume from the failed handler instead of replaying the whole chain (no more duplicate writes from already-succeeded handlers).
-- **Round-3 audit: all 4 services SHIP** (`reports/af-audit-round3.json`, $2.17, exit 0). Success criterion met.
-- All touched files pass `tapps_validate_changed` (src files gate-green; test files brought to gate-green by fixing new+pre-existing lint in files touched). `tapps_checklist(bugfix)` complete.
-- Both commits pushed to the open PR #72 branch.
+## Done (this session)
+- **PR #72 merged** (audit rounds 1+2, all 4 services `ship`) and **PR #73 merged** (live-deployment prep, 4 parallel workstreams + follow-ups). master carries everything; no other branches or worktrees exist.
+- **Credential hygiene:** HA/Nabu Casa tokens (websocket-ingestion) and `openai_api_key` (proactive-agent, device-intelligence, ai-training) are `SecretStr`, unwrapped only at client-construction boundaries. Regression tests assert repr-masking and unwrap-at-use.
+- **Committed secrets sanitized:** `infrastructure/env.production` (3 real HA JWTs, MQTT creds, shared API key, weather keys) is now a placeholder template; ~30 scripts had JWT/API-key defaults stripped; leaked `API_KEY` compose fallbacks removed in 4 domains. **User must revoke the old HA tokens + rotate the shared API key** (still in git history).
+- **New-HA readiness:** zero live-code references to the previous owner's HA remain (`192.168.1.86`, committed Nabu Casa URL). Services fail loudly when unconfigured. `infrastructure/env.example` rebuilt as the single authoritative template incl. the HA_URL WS-vs-HTTP footgun doc.
+- **Deploy tooling repaired:** exec bits on 14 scripts, `start-prod.sh` → shim onto `start-stack.sh`, `domain.sh verify <domain>` implemented, smoke-test ADMIN_URL → 8004, all 9 domain compose files parse against `env.example` (verified). `docker buildx bake` requires `-f docker-bake.hcl` (root compose volumes conflict otherwise — docs still say the bare form). ha-simulator was unbuildable from a fresh clone (gitignored `data/`) — fixed with tracked empty dir (f84cfbf2).
+- **Test debt cleared:** ai-query 37P/4S/0F/0E (was 6F/9E); data-retention FULL suite 138P/0F/0E (was 5F/22E+collection fail; real src bug fixed: backup 201 was unreachable); sports-api 8P (was uncollectable; fixture names + E402 bootstrap fixed); websocket-ingestion 522P (+7); admin-api 376P; proactive-agent 84P (+2, pre-existing 16F/6E unchanged); device-intelligence + openvino conftest `parents[3]`→`parents[4]` (suites collect now).
+- Venv gained: boto3, aiosqlite, pandas, pyarrow≥18, influxdb3-python, paho-mqtt, joblib, scikit-learn.
 
-## Suite results after round-2 fixes (vs prior baseline)
-- admin-api: **376 passed** (372 + 4 new)
-- websocket-ingestion: **515 passed** (513 + 2 new)
-- data-retention (`--ignore=tests/test_main.py`): **5 failed / 84 passed / 22 errors** (74 + 10 new; failures/errors all pre-existing)
-- ai-query-service: **6 failed / 24 passed / 1 skipped / 9 errors** (22 + 2 new; failures/errors all pre-existing)
+## In flight at session end
+- `docker buildx bake -f docker-bake.hcl full` running in background (53 images, ~25-30 min cold). If interrupted: re-run the same command; it resumes from cache.
 
-## Open
-- **Round-3 residual findings (non-blocking, backlog):**
-  1. websocket-ingestion MEDIUM — `config.py` / `_service_config.py`: `ha_token` / `home_assistant_token` / `nabu_casa_token` are plain `str`; `influxdb_token` in the same file uses `SecretStr`. Wrap them the same way.
-  2. websocket-ingestion LOW — `api/routers/websocket.py`: `except json.JSONDecodeError` is unreachable (parsing goes through `validate_message_json`, which returns a tuple).
-- **PR #72 is OPEN + MERGEABLE with 0 checks** — now carries both audit-fix commits; merge is the operator's call.
-- CI gate (`.github/workflows/af-agent-gate.yml`) still `workflow_dispatch`-only; needs self-hosted runner + `AGENTFORGE_API_KEY` / `AGENTFORGE_REPO_TOKEN` secrets. Blocked on operator.
-- Legacy `workflows/` directory still unresolved.
+## 🔑 CREDENTIAL GATE — blocked on user for live deploy
+Need from the user (new HA instance is installed + logged in):
+1. **New HA base URL** (e.g. `http://<lan-ip>:8123`)
+2. **HA long-lived access token** (HA → Profile → Security → Long-Lived Access Tokens)
+3. **OpenAI API key** (required — ha-ai-agent-service refuses to boot without it)
+4. Optional: Nabu Casa URL+token, Anthropic key, weather/AirNow/WattTime/pricing keys
 
-## Blockers
-- none for code work; CI gate needs operator-provisioned runner + secrets.
+## Live bring-up sequence (once credentials arrive)
+1. Copy `infrastructure/env.example` → `.env` (root `.env` exists with stale/old-HA values — REVIEW before overwrite, it is permission-blocked for reads in agent sessions). Set: HA quartet (`HA_HTTP_URL`, `HA_WS_URL`, `HA_TOKEN`, `HA_URL`=http form) + legacy `HOME_ASSISTANT_*` aliases, `OPENAI_API_KEY`, and generate strong `API_KEY`, `JWT_SECRET_KEY`, `POSTGRES_PASSWORD`, `INFLUXDB_TOKEN`/`INFLUXDB_PASSWORD`, `ADMIN_PASSWORD` (compose defaults are known-leaked values).
+2. `bash scripts/validate-ha-connection.sh` (TCP→HTTP→WS→auth→/api/states)
+3. `bash scripts/start-stack.sh` (core-platform first, health-gated, then 8 domains)
+4. `bash scripts/check-service-health.sh`; smoke: `bash scripts/run-smoke-tests.sh`
+5. Real proof: toggle an entity in HA → verify `state_changed` lands in InfluxDB via data-api; check discovery pulled entity/device registries.
 
-## Pre-existing, NOT caused by these sessions
-- `boto3` not installed → `data-retention/tests/test_main.py` fails collection.
-- `ai-query-service` `client` fixture broken → 9 errors (4 of them in `test_query_router.py`).
-- `test_cleanup_old_backups` `stat` mock incompatible with Python 3.13.
-- `ruff format --check` still fails repo-wide.
+## Open / follow-ups (non-blocking)
+- device-intelligence full suite: unblocked at collection but a run appeared to hang after paho-mqtt install (suspected real-network MQTT attempt in a test) — killed; targeted tests pass. Also one of its tests trains a real model and writes into `models/` (worktree pollution; should use tmp_path).
+- openvino-service `test_openvino_service.py`: rotted vs `StandardHealthCheck` refactor (old bespoke health shape asserted) — needs a test-module rewrite; Tier 3, not deploy-blocking.
+- proactive-agent pre-existing 16F/6E; ai-training 24 DB-fixture errors (need live PG) — untouched.
+- `192.168.1.86` remains in tests/docs/generated caches only. Old HA tokens + shared API key remain in git history — rotate; optional history scrub.
+- No true HA→ingest→InfluxDB e2e test exists; ha-simulator is wired in dev compose but unused by CI.
+- CI gate (af-agent-gate.yml) still needs operator runner + secrets. `.github/workflows/deploy-production.yml` runs bare `docker compose up -d` from root (contradicts docs, omits `--profile production`) — fix before relying on CI deploys.
 
 ## Verify
-- `jq -r '.results[] | "\(.service_path) \(.outcome)"' reports/af-audit-round3.json` — all four `ship`
-- Per-service pytest counts above; run from each service dir with the repo venv (`/home/wtthornton/code/HomeIQ/.venv/bin/python -m pytest tests/ -q`; system python3 has no pytest)
-- Load-bearing checks: stash `src/materialized_views.py` → 6 offload tests fail; stash `src/api_key_service.py` → 3 env-poisoning tests fail; stash `src/api/query_router.py` → key-wiring test fails; stash `src/batch_processor.py` → 2 retry tests fail
-
-## Next (P0)
-No mandated P0. Candidates, in rough priority order:
-1. Merge PR #72 (operator decision — 0 CI checks configured).
-2. Backlog the two round-3 residual findings (SecretStr token wrap is a quick, mechanical fix mirroring `influxdb_token`).
-3. CI gate provisioning (operator).
+- `git log --oneline -6` — f84cfbf2 (ha-simulator), 947bf8fb (PR #73 merge), 29076310, a479c39e, 62c02838, 51f373fd
+- Suites: per-service `/home/wtthornton/code/HomeIQ/.venv/bin/python -m pytest tests/ -q` (system python3 has no pytest); counts above
+- `for d in <9 domains>; do docker compose -f domains/$d/compose.yml --env-file infrastructure/env.example config --quiet; done` — all parse
+- `grep -rn 192.168.1.86 domains/ scripts/ infrastructure/ --include='*.py' --include='*.yml' | grep -v tests/` — empty
 
 ## Success criterion
-Met: round-2 HIGHs cleared, round-3 audit returns `ship` for all 4 services, every fix has a regression test that fails without it.
+Stack deploys against the new HA with `state_changed` events verifiably landing in InfluxDB, all Tier-1 health checks green.
