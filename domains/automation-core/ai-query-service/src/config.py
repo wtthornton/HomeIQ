@@ -1,6 +1,7 @@
 """Configuration management for AI Query Service."""
 
 from homeiq_data import BaseServiceSettings
+from pydantic import SecretStr
 
 
 class Settings(BaseServiceSettings):
@@ -8,9 +9,8 @@ class Settings(BaseServiceSettings):
 
     Inherits from BaseServiceSettings which provides: service_name,
     service_port, log_level, database_url, postgres_url, database_schema,
-    data_api_url, data_api_key, openai_api_key (SecretStr), cors_origins,
-    influxdb_url/token/org/bucket, effective_database_url property,
-    and get_cors_origins_list().
+    data_api_url, data_api_key, cors_origins, influxdb_url/token/org/bucket,
+    effective_database_url property, and get_cors_origins_list().
     """
 
     # Override base defaults
@@ -30,7 +30,12 @@ class Settings(BaseServiceSettings):
     # Device Intelligence Service
     device_intelligence_url: str = "http://device-intelligence-service:8019"
 
-    # OpenAI Configuration (openai_api_key inherited from base as SecretStr)
+    # OpenAI Configuration
+    # Declared here, not on BaseServiceSettings: the base class only carries
+    # data_api_key and influxdb_token, and its model_config sets extra="ignore",
+    # so an undeclared openai_api_key was silently dropped from the environment
+    # and every access raised AttributeError.
+    openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-5-mini"  # Better entity extraction than gpt-4o-mini
     openai_timeout: float = 30.0  # Timeout for OpenAI API calls (seconds)
 

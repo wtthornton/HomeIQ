@@ -6,6 +6,44 @@ Epic 39, Story 39.12: Query & Automation Service Testing
 
 import pytest
 from httpx import AsyncClient
+from pydantic import SecretStr
+from src.api.query_router import _build_processor
+from src.config import Settings, settings
+
+
+class TestBuildProcessorOpenAIKey:
+    """Regression: the OpenAI key must be both declared and unwrapped.
+
+    ``openai_api_key`` was never declared on ``Settings`` -- BaseServiceSettings
+    only carries ``data_api_key`` and ``influxdb_token`` -- and its model_config
+    sets ``extra="ignore"``, so the environment variable was silently dropped
+    and ``settings.openai_api_key`` raised AttributeError inside
+    ``_build_processor``. The broad ``except Exception`` in ``process_query``
+    swallowed it into a 500, so every query request failed with no usable signal.
+    """
+
+    @pytest.mark.unit
+    def test_openai_api_key_is_a_declared_field(self):
+        """extra="ignore" hides a missing declaration until attribute access."""
+        assert "openai_api_key" in Settings.model_fields
+
+    @pytest.mark.unit
+    def test_build_processor_unwraps_secret_for_openai(self, monkeypatch):
+        """The SDK must receive the real key, not the SecretStr wrapper."""
+        captured = {}
+
+        class FakeAsyncOpenAI:
+            def __init__(self, api_key, timeout):
+                captured["api_key"] = api_key
+
+        monkeypatch.setattr("openai.AsyncOpenAI", FakeAsyncOpenAI)
+        monkeypatch.setattr(settings, "openai_api_key", SecretStr("sk-real-value"))
+
+        _build_processor()
+
+        # str(SecretStr) is "**********", so passing the wrapper straight through
+        # authenticates with the mask and silently degrades to keyword matching.
+        assert captured["api_key"] == "sk-real-value"
 
 
 class TestQueryRouter:

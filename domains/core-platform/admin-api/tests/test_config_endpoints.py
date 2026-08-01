@@ -36,12 +36,34 @@ class TestConfigEndpoints:
         assert isinstance(data, dict)
 
     def test_config_endpoint_with_service(self):
-        """Test config endpoint with service parameter"""
-        response = self.client.get("/config?service=websocket-ingestion")
+        """A configured service returns its real config, with secrets masked."""
+        with patch("src.config_endpoints.config_manager") as mock_cm:
+            mock_cm.read_config.return_value = {"HA_URL": "ws://ha:8123", "HA_TOKEN": "secret"}
+            mock_cm.sanitize_config.return_value = {"HA_URL": "ws://ha:8123", "HA_TOKEN": "***"}
 
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, dict)
+            response = self.client.get("/config?service=websocket-ingestion")
+
+            assert response.status_code == 200
+            data = response.json()["websocket-ingestion"]
+            assert data["available"] is True
+            assert data["configuration"]["HA_URL"] == "ws://ha:8123"
+            # Read through ConfigManager, not fabricated.
+            mock_cm.read_config.assert_called_once_with("websocket-ingestion")
+            mock_cm.sanitize_config.assert_called_once()
+
+    def test_config_endpoint_with_service_missing_file_is_404(self):
+        """An explicitly requested service with no .env file is a 404.
+
+        Regression: this returned 200 with ``configuration: {}``, which reads as
+        'this service has no settings' rather than 'nothing was ever read'.
+        """
+        with patch("src.config_endpoints.config_manager") as mock_cm:
+            mock_cm.read_config.side_effect = FileNotFoundError("missing")
+
+            response = self.client.get("/config?service=websocket-ingestion")
+
+            assert response.status_code == 404
+            assert "No configuration file" in response.json()["detail"]
 
     def test_config_endpoint_with_include_sensitive(self):
         """Test config endpoint with include_sensitive parameter"""
@@ -67,15 +89,43 @@ class TestConfigEndpoints:
         assert isinstance(data, dict)
 
     def test_update_configuration_endpoint(self):
-        """Test update configuration endpoint"""
+        """A PUT must actually write through ConfigManager.
+
+        Regression: _apply_config_updates echoed the payload back as
+        ``status: accepted`` and persisted nothing, so an operator changing
+        production config got a 200 and no state change.
+        """
         updates = [
-            {"key": "test_key", "value": "test_value", "reason": "Test update"}
+            {"key": "HA_URL", "value": "ws://new:8123", "reason": "Test update"}
         ]
 
-        response = self.client.put("/config/websocket-ingestion", json=updates)
+        with patch("src.config_endpoints.config_manager") as mock_cm:
+            mock_cm.get_config_template.return_value = {}
+            mock_cm.write_config.return_value = {"HA_URL": "ws://new:8123"}
+            mock_cm.sanitize_config.return_value = {"HA_URL": "ws://new:8123"}
 
-        # Should handle gracefully (may return 403/500 if service is not available)
-        assert response.status_code in [200, 403, 500]
+            response = self.client.put("/config/websocket-ingestion", json=updates)
+
+            assert response.status_code == 200
+            assert response.json()["result"]["status"] == "applied"
+            mock_cm.write_config.assert_called_once_with(
+                "websocket-ingestion", {"HA_URL": "ws://new:8123"}
+            )
+
+    def test_update_configuration_rejects_sensitive_key_write(self):
+        """A blocked secret write surfaces as 403, not a fake success."""
+        updates = [{"key": "HA_TOKEN", "value": "new-secret"}]
+
+        with patch("src.config_endpoints.config_manager") as mock_cm:
+            mock_cm.get_config_template.return_value = {}
+            mock_cm.write_config.side_effect = PermissionError(
+                "Updating sensitive keys via API is disabled: HA_TOKEN"
+            )
+
+            response = self.client.put("/config/websocket-ingestion", json=updates)
+
+            assert response.status_code == 403
+            assert "HA_TOKEN" in response.json()["detail"]
 
     def test_update_configuration_endpoint_with_invalid_service(self):
         """Test update configuration endpoint with invalid service"""
@@ -119,11 +169,15 @@ class TestConfigEndpoints:
         assert "Service invalid-service not found" in data["detail"]
 
     def test_backup_configuration_endpoint(self):
-        """Test backup configuration endpoint"""
+        """Backup is 501: there is no configuration archive to read from.
+
+        Regression: this returned 200 with ``backup: {}``, so an operator taking
+        a pre-change backup believed they had one.
+        """
         response = self.client.get("/config/websocket-ingestion/backup")
 
-        # Should handle gracefully (may return 500 if service is not available)
-        assert response.status_code in [200, 500]
+        assert response.status_code == 501
+        assert "no configuration backup store" in response.json()["detail"]
 
     def test_backup_configuration_endpoint_with_invalid_service(self):
         """Test backup configuration endpoint with invalid service"""
@@ -147,8 +201,10 @@ class TestConfigEndpoints:
 
         response = self.client.post("/config/websocket-ingestion/restore", json=backup_data)
 
-        # Should handle gracefully (may return 500 if service is not available)
-        assert response.status_code in [200, 500]
+        # Regression: this echoed the posted payload back as restored=True while
+        # changing nothing -- a rollback that silently did not happen.
+        assert response.status_code == 501
+        assert "no configuration backup store" in response.json()["detail"]
 
     def test_restore_configuration_endpoint_with_invalid_service(self):
         """Test restore configuration endpoint with invalid service"""
@@ -169,18 +225,21 @@ class TestConfigEndpoints:
         assert "Service invalid-service not found" in data["detail"]
 
     def test_config_history_endpoint(self):
-        """Test config history endpoint"""
+        """History is 501: no change log is recorded anywhere.
+
+        Regression: this fabricated ``limit`` identical empty-change records, so
+        an audit of who changed what returned invented rows.
+        """
         response = self.client.get("/config/websocket-ingestion/history")
 
-        # Should handle gracefully (may return 500 if service is not available)
-        assert response.status_code in [200, 500]
+        assert response.status_code == 501
+        assert "no configuration change-history store" in response.json()["detail"]
 
     def test_config_history_endpoint_with_limit(self):
-        """Test config history endpoint with limit parameter"""
+        """The limit parameter does not conjure history either."""
         response = self.client.get("/config/websocket-ingestion/history?limit=5")
 
-        # Should handle gracefully (may return 500 if service is not available)
-        assert response.status_code in [200, 500]
+        assert response.status_code == 501
 
     def test_config_history_endpoint_with_invalid_service(self):
         """Test config history endpoint with invalid service"""

@@ -1,14 +1,30 @@
 """Tests for pattern aggregate retention manager."""
 
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, create_autospec
 
 import pytest
+from influxdb_client import InfluxDBClient
+from influxdb_client.client.delete_api import DeleteApi
 from src.pattern_aggregate_retention import (
     PatternAggregateRetention,
     RetentionConfig,
     run_pattern_aggregate_retention,
 )
+
+
+def _mock_influx_client():
+    """Return ``(client, delete_api)`` where delete is bound to the real signature.
+
+    ``create_autospec(DeleteApi)`` is deliberate: a bare ``MagicMock`` accepts any
+    call shape, which is how ``client.delete(...)`` -- a method InfluxDBClient does
+    not have, missing the required ``predicate`` -- passed this suite while being
+    broken against the real library.
+    """
+    delete_api = create_autospec(DeleteApi, instance=True)
+    client = MagicMock()
+    client.delete_api.return_value = delete_api
+    return client, delete_api
 
 
 class TestRetentionConfig:
@@ -68,24 +84,49 @@ class TestPatternAggregateRetention:
 
         assert manager.influxdb_client is mock_client
 
+    def test_influxdb_client_has_no_delete_method(self):
+        """Deletes must go through delete_api(), not the client.
+
+        The old code called ``influxdb_client.delete(bucket=, start=, stop=)``.
+        InfluxDBClient has no ``delete``, and DeleteApi.delete requires a
+        ``predicate``, so that call could only ever work against a bare
+        MagicMock -- which is exactly what the suite used.
+        """
+        assert not hasattr(InfluxDBClient, "delete")
+
+        autospecced = create_autospec(DeleteApi, instance=True)
+        with pytest.raises(TypeError):
+            autospecced.delete(
+                bucket="pattern_aggregates_daily",
+                start="1970-01-01T00:00:00Z",
+                stop="2026-01-01T00:00:00Z",
+            )
+
     @pytest.mark.asyncio
-    async def test_mock_cleanup_without_client(self):
-        """Test cleanup without InfluxDB client (mock mode)."""
+    async def test_cleanup_without_client_reports_failure(self):
+        """A pass that deletes nothing must not report success.
+
+        Regression: this returned ``success: True`` with a 'Mock operation' note,
+        so a deployment with no InfluxDB credentials looked like it was enforcing
+        the 90/365-day policy while never removing a single record.
+        """
         manager = PatternAggregateRetention()
         config = manager.retention_policies["pattern_aggregates_daily"]
 
         result = await manager._cleanup_bucket(config)
 
-        assert result["success"] is True
+        assert result["success"] is False
         assert result["records_deleted"] == 0
-        assert result["note"] == "Mock operation - no InfluxDB client"
+        assert result["error"] == "No InfluxDB client configured"
         assert "cutoff_date" in result
 
     @pytest.mark.asyncio
     async def test_cleanup_with_real_client(self):
         """Test cleanup with mocked InfluxDB client."""
-        mock_client = MagicMock()
-        manager = PatternAggregateRetention(influxdb_client=mock_client)
+        mock_client, delete_api = _mock_influx_client()
+        manager = PatternAggregateRetention(
+            influxdb_client=mock_client, influxdb_org="homeiq"
+        )
         config = manager.retention_policies["pattern_aggregates_daily"]
 
         result = await manager._cleanup_bucket(config)
@@ -96,18 +137,21 @@ class TestPatternAggregateRetention:
         assert result["records_deleted"] is None  # InfluxDB delete API doesn't return count
 
         # Verify delete was called with correct parameters
-        mock_client.delete.assert_called_once()
-        call_args = mock_client.delete.call_args
+        delete_api.delete.assert_called_once()
+        call_args = delete_api.delete.call_args
 
         assert call_args.kwargs["bucket"] == "pattern_aggregates_daily"
         assert call_args.kwargs["start"] == "1970-01-01T00:00:00Z"
+        assert call_args.kwargs["org"] == "homeiq"
+        # Empty predicate means "every series in the range" -- required by the API.
+        assert call_args.kwargs["predicate"] == ""
         # Stop date should be 90 days ago
         assert "stop" in call_args.kwargs
 
     @pytest.mark.asyncio
     async def test_cleanup_cutoff_date_calculation(self):
         """Test that cutoff dates are calculated correctly."""
-        mock_client = MagicMock()
+        mock_client, _ = _mock_influx_client()
         manager = PatternAggregateRetention(influxdb_client=mock_client)
 
         # Test daily (90 days)
@@ -134,8 +178,8 @@ class TestPatternAggregateRetention:
     @pytest.mark.asyncio
     async def test_cleanup_error_handling(self):
         """Test error handling during cleanup."""
-        mock_client = MagicMock()
-        mock_client.delete.side_effect = Exception("InfluxDB connection failed")
+        mock_client, delete_api = _mock_influx_client()
+        delete_api.delete.side_effect = Exception("InfluxDB connection failed")
 
         manager = PatternAggregateRetention(influxdb_client=mock_client)
         config = manager.retention_policies["pattern_aggregates_daily"]
@@ -149,7 +193,7 @@ class TestPatternAggregateRetention:
     @pytest.mark.asyncio
     async def test_run_cleanup_all_buckets(self):
         """Test running cleanup for all buckets."""
-        mock_client = MagicMock()
+        mock_client, delete_api = _mock_influx_client()
         manager = PatternAggregateRetention(influxdb_client=mock_client)
 
         result = await manager.run_cleanup()
@@ -166,12 +210,12 @@ class TestPatternAggregateRetention:
         assert result["results"]["pattern_aggregates_weekly"]["success"] is True
 
         # Verify delete was called twice
-        assert mock_client.delete.call_count == 2
+        assert delete_api.delete.call_count == 2
 
     @pytest.mark.asyncio
     async def test_run_cleanup_with_disabled_policy(self):
         """Test run_cleanup skips disabled policies."""
-        mock_client = MagicMock()
+        mock_client, delete_api = _mock_influx_client()
         manager = PatternAggregateRetention(influxdb_client=mock_client)
 
         # Disable the weekly policy
@@ -185,13 +229,18 @@ class TestPatternAggregateRetention:
         assert "pattern_aggregates_daily" in result["results"]
 
         # delete should be called only once
-        assert mock_client.delete.call_count == 1
+        assert delete_api.delete.call_count == 1
 
     @pytest.mark.asyncio
     async def test_run_cleanup_partial_failure(self):
-        """Test run_cleanup with partial failure."""
-        mock_client = MagicMock()
-        mock_client.delete.side_effect = [
+        """One failed bucket must fail the whole pass.
+
+        This previously asserted overall success stayed True on a partial
+        failure, which is the behaviour that let a half-broken retention run
+        report clean.
+        """
+        mock_client, delete_api = _mock_influx_client()
+        delete_api.delete.side_effect = [
             None,  # First call succeeds
             Exception("Weekly bucket error")  # Second call fails
         ]
@@ -199,7 +248,7 @@ class TestPatternAggregateRetention:
         manager = PatternAggregateRetention(influxdb_client=mock_client)
         result = await manager.run_cleanup()
 
-        assert result["success"] is True  # Overall success is True
+        assert result["success"] is False
         assert result["results"]["pattern_aggregates_daily"]["success"] is True
         assert result["results"]["pattern_aggregates_weekly"]["success"] is False
 
@@ -221,7 +270,7 @@ class TestPatternAggregateRetention:
     @pytest.mark.asyncio
     async def test_run_pattern_aggregate_retention_function(self):
         """Test the top-level async function."""
-        mock_client = MagicMock()
+        mock_client, _ = _mock_influx_client()
         result = await run_pattern_aggregate_retention(influxdb_client=mock_client)
 
         assert result["success"] is True
@@ -231,14 +280,14 @@ class TestPatternAggregateRetention:
     @pytest.mark.asyncio
     async def test_cleanup_bucket_date_range_boundaries(self):
         """Test that deletion uses correct date range boundaries."""
-        mock_client = MagicMock()
+        mock_client, delete_api = _mock_influx_client()
         manager = PatternAggregateRetention(influxdb_client=mock_client)
         config = manager.retention_policies["pattern_aggregates_daily"]
 
         await manager._cleanup_bucket(config)
 
         # Verify the parameters passed to delete
-        call_kwargs = mock_client.delete.call_args.kwargs
+        call_kwargs = delete_api.delete.call_args.kwargs
 
         # Start should always be Unix epoch
         assert call_kwargs["start"] == "1970-01-01T00:00:00Z"
@@ -259,13 +308,13 @@ class TestIntegration:
     async def test_full_cleanup_workflow(self):
         """Test the full cleanup workflow with a mock client."""
         # Create a mock client
-        mock_client = MagicMock()
+        mock_client, delete_api = _mock_influx_client()
         call_history = []
 
         def track_delete(**kwargs):
             call_history.append(kwargs)
 
-        mock_client.delete.side_effect = track_delete
+        delete_api.delete.side_effect = track_delete
 
         # Initialize and run
         manager = PatternAggregateRetention(influxdb_client=mock_client)

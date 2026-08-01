@@ -43,7 +43,7 @@ def _build_processor() -> QueryProcessor:
             from openai import AsyncOpenAI
 
             openai_client = AsyncOpenAI(
-                api_key=settings.openai_api_key,
+                api_key=settings.openai_api_key.get_secret_value(),
                 timeout=settings.openai_timeout,
             )
         except Exception:
@@ -159,6 +159,11 @@ async def process_query(
     except Exception:
         query_record.status = "failed"
         logger.exception("Failed to process query %s", query_record.id)
+        # get_db() rolls back on exception, which would discard this terminal
+        # status along with the flushed row -- leaving no durable trace of the
+        # failure to audit or alert on. Commit it first; the wrapper's rollback
+        # then has nothing left to undo.
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while processing the query.",
@@ -245,6 +250,9 @@ async def refine_query(
     except Exception:
         query_record.status = "failed"
         logger.exception("Failed to refine query %s", query_id)
+        # As in process_query: commit the terminal status before raising, or
+        # get_db()'s rollback discards it and the failure leaves no trace.
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while refining the query.",

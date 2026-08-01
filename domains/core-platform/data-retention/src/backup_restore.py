@@ -43,6 +43,11 @@ class BackupInfo:
         }
 
 ALLOWED_CONFIG_FILES = {"config.yaml", "influxdb.conf"}
+
+# Keys the _backup_* helpers write into metadata when they fail. They record the
+# reason instead of raising so one bad component does not discard the rest of the
+# archive; create_backup reads these to decide whether the backup really succeeded.
+COMPONENT_ERROR_KEYS = ("data_error", "config_error", "log_error")
 BLOCKED_FILE_PATTERNS = {".env", ".env.local", ".env.production", ".env.staging", ".env.test"}
 
 
@@ -164,6 +169,14 @@ class BackupRestoreService:
                 # Get backup size
                 backup_size = backup_file.stat().st_size
 
+            # A helper that failed recorded the reason in metadata rather than
+            # raising, so the outer except never fires. Without this check an
+            # archive missing its data or config export was still handed back as
+            # success=True, and the gap only surfaced at restore time.
+            component_errors = {
+                key: metadata[key] for key in COMPONENT_ERROR_KEYS if key in metadata
+            }
+
             backup_info = BackupInfo(
                 backup_id=backup_id,
                 backup_type=backup_type,
@@ -171,12 +184,23 @@ class BackupRestoreService:
                 size_bytes=backup_size,
                 file_path=str(backup_file),
                 metadata=metadata,
-                success=True
+                success=not component_errors,
+                error_message="; ".join(
+                    f"{key}: {value}" for key, value in sorted(component_errors.items())
+                ) or None,
             )
 
             self.backup_history.append(backup_info)
 
-            logger.info(f"Backup created successfully: {backup_id} ({backup_size} bytes)")
+            if component_errors:
+                logger.error(
+                    "Backup %s is incomplete - %s failed: %s",
+                    backup_id,
+                    ", ".join(sorted(component_errors)),
+                    backup_info.error_message,
+                )
+            else:
+                logger.info(f"Backup created successfully: {backup_id} ({backup_size} bytes)")
             return backup_info
 
         except Exception as e:

@@ -1,43 +1,68 @@
 # Session handoff
-**Updated:** 2026-07-31T21:57:47Z
-**Git:** 33672a64
+**Updated:** 2026-07-31T23:59:00Z
+**Git:** b6899c0b (working tree dirty — nothing committed this session)
 **Linear P0:** none
 
 ## Done
-- websocket-ingestion: **512 passed** (was 36 failed + 7 errors); suite 216s to 17.5s.
-- admin-api: **370 passed** (was uncollectable, 0 tests runnable).
-- data-api: **1255 passed, 0 masked skips** (was 92 failed + 60 errors).
-- Collection errors fixed in 6 services: `pytest.ini` had `pythonpath = . ../..` but services sit 3 levels deep, so repo-root `tests.path_setup` never resolved. ml-service also needed the importlib loader (its own `tests/__init__.py` shadows the repo-root package).
-- ~15 prod bugs fixed: `/events/{event_id}` shadowed 4 static routes (unreachable in prod); incomplete `DateTime(timezone=True)` migration on 3 data-api models; config 403 masked as 500; `timer_id.split("_")[0]` truncated metric labels; `timedelta` used but never imported (latent NameError); `/app/logs` mkdir at import time; uptime returning 100% from an except handler; `init-schemas.sql` hardcoded `ALTER DATABASE homeiq` so search_path was never set in CI.
-- CI: **1 to 18 workflows automatic**. Repo is PUBLIC and all jobs are `ubuntu-latest`, so Actions is free/unmetered — the README's "~$70+/mo" premise was wrong and had left 5 PRs merged unvalidated.
-- CI wiring: CI set `POSTGRES_URL` but data-api reads `TEST_DATABASE_URL`; removed `|| true` that swallowed lib-install failures.
-- TAPPS: 16/16 gates pass, 0 security issues.
+- **Baseline audit is fully closed.** All 8 findings in `reports/af-audit-baseline.json` were already fixed before this session (#67/#68/#69, #71 = 728781b7, PR #72 = b6899c0b). The prior handoff's "5 remaining findings" P0 was stale — verified file-by-file, not assumed.
+- **Re-ran the AgentForge audit** (`homeiq-service-audit`, 4 services, $1.84) → 7 *new* deeper findings. Verified each against source before fixing; the auditor was wrong or incomplete on three.
+- **Fixed all 7**, each with a regression test:
+  - ai-query-service: `openai_api_key` was never declared on `Settings` *or* `BaseServiceSettings` and `extra="ignore"` dropped it, so `settings.openai_api_key` raised AttributeError → every `POST /api/v1/query` 500'd. (Auditor claimed "raw SecretStr"; the real cause was the missing declaration. Proved with a runtime probe.) Declared + `.get_secret_value()`.
+  - data-retention: `self.influxdb_client` never assigned (AttributeError daily 06:00); no-client path returned `success: True` for a no-op; **and the delete call never matched the real API** — `InfluxDBClient` has no `.delete()`, `DeleteApi.delete` requires `predicate`. Only passed because tests used bare `MagicMock`. Wired a real client, fixed the call, offloaded it via `run_in_executor`.
+  - data-retention: `create_backup` set `success=True` even when `_backup_data/_backup_config/_backup_logs` recorded errors.
+  - admin-api: `config_endpoints.py` stubs fabricated success. `Dockerfile` runs `src.main` which mounts them, while a complete `ConfigManager` sat unused. Wired GET/PUT/schema; backup/restore/history return 501 (no backing store exists).
+  - websocket-ingestion: `UnboundLocalError` when a client disconnects during the initial `send_json`.
+  - ai-query-service: failed-query status discarded by `get_db()` rollback.
+  - ai-query-service: **removed** the private-IP auth bypass (user decision) — `request.client.host` is the immediate peer, so NAT/sidecar traffic bypassed auth.
+- **Re-audit confirms:** all 7 gone. ai-query-service **block → ship**. websocket-ingestion **ship**.
+- Added autospec guards in two places — bare `MagicMock` is precisely what let these bugs survive.
 
 ## Open
-- **`ruff format --check` fails on ~85% of files in every service** and runs BEFORE tests in `reusable-group-ci.yml`, so every domain job fails at step 1. Sole blocker to green CI.
-- **Nothing committed** — 133 changed paths in the working tree.
-- Services beyond the 4 repaired are unverified; local failures are mostly deps that CI installs.
-- Prod InfluxDB credential rotation still not executed (needs prod tokens + `/backups/`).
-- `ai-automation-ui/tests/components/test_LoadingSpinner.py` imports a `.tsx` as Python (body `assert True`); deletion denied, will fail that domain.
-- `admin-api/src/stats_endpoints.py` is dead code (prod uses the shared-lib class); flagged only.
-
-## Next (P0)
-- Commit the test/CI fixes as one reviewable commit FIRST, then run `ruff format` over `domains/` and `libs/` as a separate mechanical commit — the format pass rewrites hundreds of files and would otherwise bury the fixes. That unblocks the CI format gate.
+- **Nothing is committed.** 15 changed paths in the working tree, incl. new `ai-query-service/tests/test_middlewares.py`.
+- **Round-2 audit (`reports/af-audit-round2.json`) still BLOCKs 2 services on new, unrelated findings:**
+  1. data-retention HIGH — `materialized_views.py:99` (+ 4 more call sites) makes blocking `InfluxDBClient3.query/write` calls from async methods with no executor offload.
+  2. admin-api HIGH — `api_key_service.py:165-168` mutates `os.environ` *before* `_update_config_file()` runs the `allow_secret_writes` check, and never rolls back on PermissionError.
+  3. ai-query-service MEDIUM — `_build_processor()` constructs `EntityExtractor()` with no api_key, so `CrossGroupClient.auth_token` is None for every data-api call.
+  4. websocket-ingestion MEDIUM — `batch_processor._process_batch` retries the whole batch through handlers that already succeeded.
+- PR #72 is OPEN + MERGEABLE with **0 checks** — not merged.
+- CI gate (`.github/workflows/af-agent-gate.yml`) is `workflow_dispatch`-only; needs a self-hosted runner (AF has no offline mode) + repo secrets `AGENTFORGE_API_KEY`, `AGENTFORGE_REPO_TOKEN`. Blocked on the operator.
+- Legacy `workflows/` directory still unresolved.
 
 ## Blockers
-- none
+- none for code work; CI gate needs operator-provisioned runner + secrets.
+
+## Pre-existing, NOT caused by this session
+- `boto3` not installed → `data-retention/tests/test_main.py` fails collection.
+- `ai-query-service/tests/test_query_router.py` `client` fixture broken → 9 errors.
+- `test_cleanup_old_backups` uses a `stat` mock incompatible with Python 3.13.
+- `ruff format --check` still fails repo-wide (per earlier handoff).
 
 ## Changed files
-- `.github/workflows/` (9 ci-*.yml + reusable-group-ci, quality-gate, test, codeql, docker-*, README)
-- `domains/core-platform/{websocket-ingestion,admin-api,data-api}/`
-- `domains/{blueprints/blueprint-index,data-collectors/log-aggregator,device-management/*}/`
-- `libs/homeiq-observability/.../logging_service.py`, `infrastructure/postgres/init-schemas.sql`, `CONTRIBUTING.md`, 6 `pytest.ini`
+1. `domains/automation-core/ai-query-service/src/config.py`
+2. `domains/automation-core/ai-query-service/src/api/query_router.py`
+3. `domains/automation-core/ai-query-service/src/api/middlewares.py`
+4. `domains/automation-core/ai-query-service/tests/test_query_router.py`
+5. `domains/automation-core/ai-query-service/tests/test_middlewares.py` (new)
+6. `domains/core-platform/data-retention/src/main.py`
+7. `domains/core-platform/data-retention/src/pattern_aggregate_retention.py`
+8. `domains/core-platform/data-retention/src/backup_restore.py`
+9. `domains/core-platform/data-retention/tests/test_pattern_aggregate_retention.py`
+10. `domains/core-platform/data-retention/tests/test_backup_restore.py`
+11. `domains/core-platform/admin-api/src/config_endpoints.py`
+12. `domains/core-platform/admin-api/tests/test_config_endpoints.py`
+13. `domains/core-platform/websocket-ingestion/src/api/routers/websocket.py`
+14. `domains/core-platform/websocket-ingestion/tests/unit/test_websocket_handler.py`
 
 ## Verify
-- `cd domains/core-platform/websocket-ingestion && pytest tests/ -q` (expect 512)
-- `cd domains/core-platform/admin-api && pytest tests/ -q` (expect 370)
-- data-api needs postgres on a spare port (5432 is taken by other projects): `docker run -d --rm --name homeiq-ci-pg -e POSTGRES_USER=homeiq -e POSTGRES_PASSWORD=homeiq_test -e POSTGRES_DB=homeiq_test -p 5439:5432 postgres:17-alpine`; load `infrastructure/postgres/init-schemas.sql`; then `TEST_DATABASE_URL="postgresql+asyncpg://homeiq:homeiq_test@localhost:5439/homeiq_test" pytest tests/ -q` (expect 1255). Stop the container after.
-- `uvx ruff format --check domains/core-platform/data-api/`
+- `cd domains/core-platform/admin-api && pytest tests/ -q` — expect **372 passed**
+- `cd domains/core-platform/websocket-ingestion && pytest tests/ -q` — expect **513 passed**
+- `cd domains/core-platform/data-retention && pytest tests/ -q --ignore=tests/test_main.py` — expect **5 failed / 74 passed / 22 errors** (baseline was 6/71/22 — all remaining are pre-existing)
+- `cd domains/automation-core/ai-query-service && pytest tests/ -q` — expect **6 failed / 22 passed / 9 errors** (baseline 6/12/9)
+- Confirm the fixes are load-bearing: stash `src/api/routers/websocket.py` → `test_disconnect_during_initial_send_is_handled` fails with UnboundLocalError; stash `src/api/middlewares.py` → 6 middleware tests fail.
+- `jq -r '.results[] | "\(.service_path) \(.outcome)"' reports/af-audit-round2.json`
+
+## Next (P0)
+Decide whether to commit the working tree as-is (all 7 audit fixes + tests, gates green) before starting on the round-2 findings. Then work the round-2 list above — the two HIGHs (blocking-call-in-async in `materialized_views.py`, and the `os.environ` write that precedes its own permission check in `api_key_service.py`) are the blockers.
 
 ## Success criterion
-- A core-platform PR runs `ci-core` to completion: format gate, lint gate, and all three core-platform suites green.
+Round-2 HIGHs cleared so all 4 services return `ship`, with regression tests that fail without each fix.

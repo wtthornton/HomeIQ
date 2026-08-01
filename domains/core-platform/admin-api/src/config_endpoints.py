@@ -11,7 +11,18 @@ from fastapi import APIRouter, Body, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from .config_manager import config_manager
+
 logger = logging.getLogger(__name__)
+
+# Backup, restore, and history have no backing store: ConfigManager persists the
+# current .env.<service> only, with no archive and no change log. They previously
+# returned fabricated empty payloads, so an operator "backing up" or "rolling
+# back" configuration got a 200 and no state change. 501 until a store exists.
+_NO_BACKING_STORE = (
+    "Not implemented: no configuration {feature} store exists. "
+    "ConfigManager persists only the current .env.<service>."
+)
 
 
 class ConfigItem(BaseModel):
@@ -70,11 +81,16 @@ class ConfigEndpoints:
                 if service and service in self.service_urls:
                     # Get config for specific service
                     config = await self._get_service_config(service, include_sensitive)
+                    if not config["available"]:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"No configuration file for service {service}",
+                        )
                     return {service: config}
                 else:
                     # Get config for all services
                     all_config = {}
-                    for service_name in self.service_urls.keys():
+                    for service_name in self.service_urls:
                         config = await self._get_service_config(service_name, include_sensitive)
                         all_config[service_name] = config
                     return all_config
@@ -140,7 +156,7 @@ class ConfigEndpoints:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=str(exc),
-                )
+                ) from exc
             except Exception as e:
                 logger.error(f"Error updating configuration: {e}")
                 return JSONResponse(
@@ -246,25 +262,48 @@ class ConfigEndpoints:
                 )
 
     async def _get_service_config(self, service: str, include_sensitive: bool) -> dict[str, Any]:
-        """Get configuration for a specific service."""
+        """Get configuration for a specific service.
+
+        Reads the real .env.<service> via ConfigManager. Sensitive values are
+        always masked -- the route rejects include_sensitive=true with a 403, so
+        the flag only ever arrives false and is echoed back for the caller.
+
+        A missing file yields ``available: False`` rather than raising, so the
+        all-services listing is not failed by one unconfigured service. The
+        single-service route turns that into a 404.
+        """
+        try:
+            config = config_manager.read_config(service)
+        except FileNotFoundError:
+            return {
+                "service": service,
+                "include_sensitive": include_sensitive,
+                "available": False,
+                "configuration": {},
+            }
+
         return {
             "service": service,
             "include_sensitive": include_sensitive,
-            "configuration": {},
+            "available": True,
+            "configuration": config_manager.sanitize_config(config),
         }
 
     async def _get_config_schema(self) -> dict[str, list[ConfigItem]]:
         """Get configuration schema for all services"""
         schema = {}
-        for service_name in self.service_urls.keys():
+        for service_name in self.service_urls:
+            template = config_manager.get_config_template(service_name)
             schema[service_name] = [
                 ConfigItem(
-                    key="test_key",
-                    value="",
-                    description="Test configuration item",
-                    type="string",
-                    required=False,
+                    key=key,
+                    value=field.get("default", ""),
+                    description=field.get("description", ""),
+                    type=field.get("type", "text"),
+                    required=bool(field.get("required", False)),
+                    default=field.get("default"),
                 )
+                for key, field in template.items()
             ]
         return schema
 
@@ -309,13 +348,29 @@ class ConfigEndpoints:
             warnings=warnings
         )
 
-    async def _apply_config_updates(self, _service: str, updates: list[ConfigUpdate]) -> dict[str, Any]:
-        """Apply configuration updates to a service"""
-        payload = [update.model_dump() for update in updates]
+    async def _apply_config_updates(self, service: str, updates: list[ConfigUpdate]) -> dict[str, Any]:
+        """Apply configuration updates to a service.
+
+        Writes through ConfigManager. PermissionError (a sensitive key with
+        ADMIN_API_ALLOW_SECRET_WRITES unset) propagates -- the route maps it to
+        403 rather than reporting a write that never happened.
+        """
+        try:
+            written = config_manager.write_config(
+                service,
+                {update.key: str(update.value) for update in updates},
+            )
+        except FileNotFoundError:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No configuration file for service {service}",
+            ) from None
+
         return {
-            "status": "accepted",
-            "applied": len(payload),
-            "updates": payload,
+            "status": "applied",
+            "applied": len(updates),
+            "keys": sorted(update.key for update in updates),
+            "configuration": config_manager.sanitize_config(written),
         }
 
     async def _validate_service_config(self, service: str, config: dict[str, Any]) -> ConfigValidation:
@@ -324,32 +379,26 @@ class ConfigEndpoints:
         updates = [ConfigUpdate(key=k, value=v) for k, v in config.items()]
         return await self._validate_config_updates(service, updates)
 
-    async def _backup_service_config(self, service: str) -> dict[str, Any]:
-        """Backup service configuration"""
-        return {
-            "service": service,
-            "timestamp": datetime.now().isoformat(),
-            "backup": {},
-        }
+    async def _backup_service_config(self, _service: str) -> dict[str, Any]:
+        """Backup service configuration -- unimplemented, see _NO_BACKING_STORE."""
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail=_NO_BACKING_STORE.format(feature="backup"),
+        )
 
-    async def _restore_service_config(self, service: str, backup_data: dict[str, Any]) -> dict[str, Any]:
-        """Restore service configuration from backup"""
-        return {
-            "service": service,
-            "restored": True,
-            "backup": backup_data,
-        }
+    async def _restore_service_config(self, _service: str, _backup_data: dict[str, Any]) -> dict[str, Any]:
+        """Restore service configuration from backup -- unimplemented."""
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail=_NO_BACKING_STORE.format(feature="backup"),
+        )
 
-    async def _get_config_history(self, service: str, limit: int) -> list[dict[str, Any]]:
-        """Get configuration change history"""
-        return [
-            {
-                "service": service,
-                "timestamp": datetime.now().isoformat(),
-                "changes": {},
-            }
-            for _ in range(limit)
-        ]
+    async def _get_config_history(self, _service: str, _limit: int) -> list[dict[str, Any]]:
+        """Get configuration change history -- unimplemented."""
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail=_NO_BACKING_STORE.format(feature="change-history"),
+        )
 
     def _validate_type(self, value: Any, expected_type: str) -> bool:
         """Validate value type"""
