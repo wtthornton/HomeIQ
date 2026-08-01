@@ -176,7 +176,7 @@ Legend: 🤖 fully automatable · 🔶 automatable with one human step · 👤 m
 | 3.5 | Install **Terminal & SSH** + **Studio Code Server** add-ons | Gives the agent (and you) file access to `/config` for the YAML-only items above (recorder, http). | 🤖 |
 | 3.6 | Enable the **automation editor** (`automation: !include automations.yaml`) | **Required for HomeIQ's headline feature.** `ai-automation-service-new`, `ha-ai-agent-service` and `ai-pattern-service` all deploy automations via `POST /api/config/automation/config/{id}`, which hard-fails without it. | 🤖 (YAML) |
 | 3.7 | Add core integrations: **NWS** (better than Met.no for a US address), **AirNow** (free EPA AQI — you are in wildfire-smoke season) | Free, core, no HACS. Feeds HomeIQ's weather/air-quality services. | 🤖 |
-| 3.8 | Create a **Local Calendar** + set `CALENDAR_ENTITIES` | `calendar-service` **hard-fails at startup** without a reachable calendar entity. Local Calendar is the zero-dependency option. | 🤖 |
+| 3.8 | Create a **Local Calendar** + set `CALENDAR_ENTITIES` | `calendar-service` logs a warning and collects nothing for a calendar it cannot find (`main.py:119-120`). It does *not* hard-fail — the `ConnectionError` at `main.py:105` fires only when Home Assistant itself is unreachable. So this is "the service is inert", not "the service is down". Local Calendar is the zero-dependency option. | 🤖 |
 
 ### P4 — HomeIQ-specific enablement (quirks worth knowing)
 
