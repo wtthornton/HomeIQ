@@ -11,9 +11,8 @@ import json
 import os
 from pathlib import Path
 
-from pydantic import Field, SecretStr, field_validator
-
 from homeiq_data import BaseServiceSettings
+from pydantic import Field, SecretStr, field_validator
 
 CONFIG_FILE_ENV = "MQTT_ZIGBEE_CONFIG_PATH"
 
@@ -106,9 +105,11 @@ class Settings(BaseServiceSettings):
     )
 
     # MQTT Configuration
-    MQTT_BROKER: str = Field(
-        default="mqtt://localhost:1883",
-        description="MQTT broker URL",
+    # None/empty means "no broker configured": Zigbee discovery is disabled
+    # and the service runs on HA discovery alone.
+    MQTT_BROKER: str | None = Field(
+        default=None,
+        description="MQTT broker URL (unset disables Zigbee2MQTT discovery)",
     )
     MQTT_USERNAME: str | None = Field(default=None, description="MQTT username")
     MQTT_PASSWORD: str | None = Field(default=None, description="MQTT password")
@@ -202,10 +203,12 @@ class Settings(BaseServiceSettings):
             raise ValueError(msg)
         return v.rstrip("/")
 
-    @field_validator("MQTT_BROKER")
+    @field_validator("MQTT_BROKER", mode="before")
     @classmethod
-    def validate_mqtt_broker(cls, v: str) -> str:
-        """Validate MQTT broker URL format."""
+    def validate_mqtt_broker(cls, v: str | None) -> str | None:
+        """Validate MQTT broker URL format; empty env value means unconfigured."""
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
         if not v.startswith(("mqtt://", "mqtts://", "ws://", "wss://")):
             msg = "MQTT_BROKER must start with mqtt://, mqtts://, ws://, or wss://"
             raise ValueError(msg)

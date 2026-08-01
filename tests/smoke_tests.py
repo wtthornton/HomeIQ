@@ -7,11 +7,11 @@ Comprehensive health checks for all services before production deployment.
 import argparse
 import json
 import logging
+import os
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Tuple
 
 import requests
 
@@ -23,16 +23,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _base(env_var: str, default_port: int) -> str:
+    """Host-published base URL for a service, honoring .env port overrides."""
+    port = os.getenv(env_var, str(default_port))
+    return f"http://localhost:{port}"
+
+
 class SmokeTestRunner:
     """Run smoke tests against all HomeIQ services."""
-    
-    def __init__(self, timeout: int = 10, verbose: bool = False):
+
+    def __init__(self, timeout: int = 10, verbose: bool = False, admin_url: str | None = None):
         self.timeout = timeout
         self.verbose = verbose
         if verbose:
             logging.getLogger().setLevel(logging.DEBUG)
-        
-        # Service endpoints to test
+
+        admin_base = (admin_url or _base("HOMEIQ_ADMIN_HOST_PORT", 8004)).rstrip("/")
+
+        # Service endpoints to test; host ports honor the HOMEIQ_*_HOST_PORT
+        # overrides used on shared hosts (see infrastructure/env.example).
         self.services = {
             'influxdb': {
                 'url': 'http://localhost:8086/health',
@@ -41,13 +50,13 @@ class SmokeTestRunner:
                 'critical': True
             },
             'websocket-ingestion': {
-                'url': 'http://localhost:8001/health',
+                'url': _base("HOMEIQ_WSI_HOST_PORT", 8001) + '/health',
                 'method': 'GET',
                 'expected_status': 200,
                 'critical': True
             },
             'admin-api': {
-                'url': 'http://localhost:8004/api/v1/health',
+                'url': admin_base + '/api/v1/health',
                 'method': 'GET',
                 'expected_status': 200,
                 'critical': True
@@ -71,26 +80,26 @@ class SmokeTestRunner:
                 'critical': False
             },
             'health-dashboard': {
-                'url': 'http://localhost:3000',
+                'url': _base("HOMEIQ_DASHBOARD_HOST_PORT", 3000),
                 'method': 'GET',
                 'expected_status': 200,
                 'critical': False
             },
             'data-retention': {
-                'url': 'http://localhost:8080/health',
+                'url': _base("HOMEIQ_RETENTION_HOST_PORT", 8080) + '/health',
                 'method': 'GET',
                 'expected_status': 200,
                 'critical': False
             }
         }
-    
-    def test_endpoint(self, service_name: str, config: Dict) -> Tuple[bool, Dict]:
+
+    def test_endpoint(self, service_name: str, config: dict) -> tuple[bool, dict]:
         """Test a single service endpoint."""
         url = config['url']
         method = config['method']
         expected_status = config['expected_status']
         critical = config['critical']
-        
+
         result = {
             'service': service_name,
             'url': url,
@@ -100,19 +109,19 @@ class SmokeTestRunner:
             'error': None,
             'critical': critical
         }
-        
+
         try:
             start_time = time.time()
-            
+
             if method.upper() == 'GET':
                 response = requests.get(url, timeout=self.timeout)
             else:
                 response = requests.request(method, url, timeout=self.timeout)
-            
+
             response_time = (time.time() - start_time) * 1000
             result['response_time_ms'] = round(response_time, 2)
             result['status_code'] = response.status_code
-            
+
             if response.status_code == expected_status:
                 result['status'] = 'healthy'
                 result['passed'] = True
@@ -123,30 +132,30 @@ class SmokeTestRunner:
                 result['error'] = f"Expected {expected_status}, got {response.status_code}"
                 if self.verbose:
                     logger.warning(f"⚠️  {service_name}: {url} - {response.status_code} (expected {expected_status})")
-        
+
         except requests.exceptions.Timeout:
             result['status'] = 'timeout'
             result['error'] = f"Request timed out after {self.timeout}s"
             logger.error(f"❌ {service_name}: {url} - Timeout")
-        
+
         except requests.exceptions.ConnectionError:
             result['status'] = 'connection_error'
             result['error'] = "Connection refused - service may not be running"
             logger.error(f"❌ {service_name}: {url} - Connection refused")
-        
+
         except Exception as e:
             result['status'] = 'error'
             result['error'] = str(e)
             logger.error(f"❌ {service_name}: {url} - Error: {e}")
-        
+
         return result['passed'], result
-    
-    def run_all_tests(self) -> Dict:
+
+    def run_all_tests(self) -> dict:
         """Run all smoke tests and return results."""
         logger.info("="*80)
         logger.info("Running Smoke Tests")
         logger.info("="*80)
-        
+
         results = {
             'timestamp': datetime.now().isoformat(),
             'total_tests': len(self.services),
@@ -156,13 +165,13 @@ class SmokeTestRunner:
             'critical_failed': 0,
             'services': []
         }
-        
+
         for service_name, config in self.services.items():
             logger.info(f"Testing {service_name}...")
             passed, result = self.test_endpoint(service_name, config)
-            
+
             results['services'].append(result)
-            
+
             if passed:
                 results['passed'] += 1
                 if config['critical']:
@@ -173,15 +182,15 @@ class SmokeTestRunner:
                 if config['critical']:
                     results['critical_failed'] += 1
                 logger.warning(f"❌ {service_name}: FAILED - {result.get('error', 'Unknown error')}")
-        
+
         # Overall status
         all_critical_passed = results['critical_failed'] == 0
         all_passed = results['failed'] == 0
-        
+
         results['overall_status'] = 'pass' if all_critical_passed else 'fail'
         results['all_critical_passed'] = all_critical_passed
         results['all_passed'] = all_passed
-        
+
         logger.info("="*80)
         logger.info("Smoke Test Summary")
         logger.info("="*80)
@@ -192,7 +201,7 @@ class SmokeTestRunner:
         logger.info(f"Critical Failed: {results['critical_failed']}")
         logger.info(f"Overall Status: {results['overall_status'].upper()}")
         logger.info("="*80)
-        
+
         return results
 
 
@@ -222,12 +231,18 @@ def main():
         type=str,
         help='Save results to file (JSON format)'
     )
-    
+    parser.add_argument(
+        '--admin-url',
+        type=str,
+        default=None,
+        help='Admin API base URL (default: localhost with HOMEIQ_ADMIN_HOST_PORT or 8004)'
+    )
+
     args = parser.parse_args()
-    
-    runner = SmokeTestRunner(timeout=args.timeout, verbose=args.verbose)
+
+    runner = SmokeTestRunner(timeout=args.timeout, verbose=args.verbose, admin_url=args.admin_url)
     results = runner.run_all_tests()
-    
+
     # Save to file if requested
     if args.output_file:
         output_path = Path(args.output_file)
@@ -235,11 +250,11 @@ def main():
         with open(output_path, 'w') as f:
             json.dump(results, f, indent=2)
         logger.info(f"Results saved to {output_path}")
-    
+
     # Output in requested format
     if args.output == 'json':
         print(json.dumps(results, indent=2))
-    
+
     # Exit with appropriate code
     if results['overall_status'] == 'pass':
         sys.exit(0)

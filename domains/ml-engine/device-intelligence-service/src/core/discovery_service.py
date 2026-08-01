@@ -45,12 +45,15 @@ class DiscoveryService:
 
         # Clients - HA client will be initialized with unified connection manager
         self.ha_client = None  # Will be initialized in start() method
-        self.mqtt_client = MQTTClient(
-            settings.MQTT_BROKER,
-            settings.MQTT_USERNAME,
-            settings.MQTT_PASSWORD,
-            settings.ZIGBEE2MQTT_BASE_TOPIC
-        )
+        # No broker configured -> Zigbee2MQTT discovery disabled entirely
+        self.mqtt_client = None
+        if settings.MQTT_BROKER:
+            self.mqtt_client = MQTTClient(
+                settings.MQTT_BROKER,
+                settings.MQTT_USERNAME,
+                settings.MQTT_PASSWORD,
+                settings.ZIGBEE2MQTT_BASE_TOPIC
+            )
 
         # Parser
         self.device_parser = DeviceParser()
@@ -109,7 +112,9 @@ class DiscoveryService:
             await self._subscribe_to_registry_updates()
 
             # Connect to MQTT broker (optional - can discover HA devices without Zigbee)
-            if await self.mqtt_client.connect():
+            if self.mqtt_client is None:
+                logger.info("No MQTT broker configured - Zigbee2MQTT discovery disabled")
+            elif await self.mqtt_client.connect():
                 logger.info("Connected to MQTT broker")
                 # Register MQTT message handlers
                 self.mqtt_client.register_message_handler("devices", self._on_zigbee_devices_update)
@@ -158,7 +163,8 @@ class DiscoveryService:
         # Disconnect clients
         if self.ha_client:
             await self.ha_client.disconnect()
-        await self.mqtt_client.disconnect()
+        if self.mqtt_client:
+            await self.mqtt_client.disconnect()
 
         logger.info("Discovery service stopped")
 
@@ -293,7 +299,7 @@ class DiscoveryService:
         """Refresh Zigbee2MQTT data by requesting bridge info."""
         try:
             # Request bridge devices (this will trigger MQTT callback)
-            if self.mqtt_client.is_connected():
+            if self.mqtt_client and self.mqtt_client.is_connected():
                 base_topic = self.mqtt_client.base_topic
                 # Publish request for bridge devices
                 request_topic = f"{base_topic}/bridge/request/device/list"
