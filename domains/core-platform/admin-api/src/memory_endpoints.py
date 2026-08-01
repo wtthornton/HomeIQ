@@ -74,6 +74,32 @@ class MemoryListResponse(BaseModel):
     page_size: int
 
 
+class MemoryConfidenceBuckets(BaseModel):
+    """Counts of active memories by effective-confidence band."""
+
+    high: int = Field(0, description="Effective confidence >= 0.7")
+    medium: int = Field(0, description="Effective confidence 0.4-0.7")
+    low: int = Field(0, description="Effective confidence < 0.4")
+
+
+class MemoryStatsResponse(BaseModel):
+    """Response model for aggregate memory statistics."""
+
+    total: int
+    recent_24h: int
+    archived: int
+    by_confidence: MemoryConfidenceBuckets
+    by_type: dict[str, int]
+    contradictions: int | None = Field(
+        None,
+        description=(
+            "Not computed here. Contradiction detection is O(n^2) over embeddings "
+            "(homeiq_memory.MemoryConsolidator.detect_contradictions) and would not "
+            "survive this endpoint's 30s polling cadence. Always null."
+        ),
+    )
+
+
 class ReinforceResponse(BaseModel):
     """Response model for reinforce operation."""
 
@@ -323,6 +349,76 @@ async def list_memories(
     )
 
 
+# NOTE: every literal path below must stay ABOVE "/{memory_id}". FastAPI matches
+# in declaration order, so a literal declared after it is swallowed by the
+# parameterised route and fails int coercion with a 422 instead of serving.
+@router.get("/stats", response_model=MemoryStatsResponse)
+async def get_memory_stats() -> MemoryStatsResponse:
+    """Get aggregate statistics across active and archived memories."""
+    client = await _ensure_client_initialized()
+
+    from datetime import UTC, datetime, timedelta
+
+    from homeiq_memory import Memory, MemoryArchive, effective_confidence
+    from sqlalchemy import func, select
+
+    cutoff = datetime.now(UTC) - timedelta(hours=24)
+
+    async with client._get_session() as session:
+        memories = (await session.execute(select(Memory))).scalars().all()
+        recent_24h = (
+            await session.execute(
+                select(func.count())
+                .select_from(Memory)
+                .where(Memory.created_at >= cutoff)
+            )
+        ).scalar() or 0
+        archived = (
+            await session.execute(select(func.count()).select_from(MemoryArchive))
+        ).scalar() or 0
+
+    buckets = MemoryConfidenceBuckets()
+    by_type: dict[str, int] = {}
+    for mem in memories:
+        conf = effective_confidence(mem)
+        if conf >= 0.7:
+            buckets.high += 1
+        elif conf >= 0.4:
+            buckets.medium += 1
+        else:
+            buckets.low += 1
+
+        type_name = getattr(mem.memory_type, "value", str(mem.memory_type))
+        by_type[type_name] = by_type.get(type_name, 0) + 1
+
+    return MemoryStatsResponse(
+        total=len(memories),
+        recent_24h=recent_24h,
+        archived=archived,
+        by_confidence=buckets,
+        by_type=by_type,
+    )
+
+
+@router.get("/metrics")
+async def get_memory_metrics() -> dict:
+    """Get operational metrics for memory operations."""
+    try:
+        from homeiq_memory import memory_metrics
+
+        return {
+            "counters": memory_metrics.get_counters(),
+            "search_latency": memory_metrics.get_histogram_stats(
+                "memory_search_latency_ms"
+            ),
+            "embedding_latency": memory_metrics.get_histogram_stats(
+                "memory_embedding_latency_ms"
+            ),
+        }
+    except ImportError:
+        return {"counters": {}, "search_latency": {}, "embedding_latency": {}}
+
+
 @router.get("/{memory_id}", response_model=MemoryResponse)
 async def get_memory(memory_id: int) -> MemoryResponse:
     """Get a single memory by ID.
@@ -417,25 +513,6 @@ async def reinforce_memory(
         new_confidence=memory.confidence,
         message=f"Memory {memory_id} reinforced successfully",
     )
-
-
-@router.get("/metrics")
-async def get_memory_metrics() -> dict:
-    """Get operational metrics for memory operations."""
-    try:
-        from homeiq_memory import memory_metrics
-
-        return {
-            "counters": memory_metrics.get_counters(),
-            "search_latency": memory_metrics.get_histogram_stats(
-                "memory_search_latency_ms"
-            ),
-            "embedding_latency": memory_metrics.get_histogram_stats(
-                "memory_embedding_latency_ms"
-            ),
-        }
-    except ImportError:
-        return {"counters": {}, "search_latency": {}, "embedding_latency": {}}
 
 
 @router.post("/reindex-embeddings")

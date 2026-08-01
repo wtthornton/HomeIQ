@@ -828,17 +828,17 @@ class AIAutomationApiClient {
   }
 
   async getAnalysisStatus(): Promise<any> {
-    return this.fetchWithErrorHandling(`${this.baseUrl}/analysis/status`);
+    return this.fetchWithErrorHandling(`${this.baseUrl}/api/analysis/status`);
   }
 
   async triggerManualJob(): Promise<any> {
-    return this.fetchWithErrorHandling(`${this.baseUrl}/analysis/trigger`, {
+    return this.fetchWithErrorHandling(`${this.baseUrl}/api/analysis/trigger`, {
       method: 'POST'
     });
   }
 
   async getScheduleInfo(): Promise<any> {
-    return this.fetchWithErrorHandling(`${this.baseUrl}/analysis/schedule`);
+    return this.fetchWithErrorHandling(`${this.baseUrl}/api/analysis/schedule`);
   }
 
   // Suggestion endpoints
@@ -847,7 +847,7 @@ class AIAutomationApiClient {
     if (status) queryParams.append('status', status);
     if (limit) queryParams.append('limit', limit.toString());
     
-    const url = `${this.baseUrl}/suggestions/list${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
+    const url = `${this.baseUrl}/api/suggestions/list${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
     return this.fetchWithErrorHandling(url);
   }
 
@@ -861,12 +861,12 @@ class AIAutomationApiClient {
     if (params?.min_confidence) queryParams.append('min_confidence', params.min_confidence.toString());
     if (params?.max_suggestions) queryParams.append('max_suggestions', params.max_suggestions.toString());
     
-    const url = `${this.baseUrl}/suggestions/generate${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
+    const url = `${this.baseUrl}/api/suggestions/generate${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
     return this.fetchWithErrorHandling(url, { method: 'POST' });
   }
 
   async getUsageStats(): Promise<any> {
-    return this.fetchWithErrorHandling(`${this.baseUrl}/suggestions/usage-stats`);
+    return this.fetchWithErrorHandling(`${this.baseUrl}/api/suggestions/usage/stats`);
   }
 
   async resetUsageStats(): Promise<any> {
@@ -888,12 +888,12 @@ class AIAutomationApiClient {
     if (params?.min_confidence) queryParams.append('min_confidence', params.min_confidence.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     
-    const url = `${this.baseUrl}/patterns/list${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
+    const url = `${this.baseUrl}/api/patterns/list${queryParams.toString() ? `?${  queryParams.toString()}` : ''}`;
     return this.fetchWithErrorHandling(url);
   }
 
   async getPatternStats(): Promise<any> {
-    return this.fetchWithErrorHandling(`${this.baseUrl}/patterns/stats`);
+    return this.fetchWithErrorHandling(`${this.baseUrl}/api/patterns/stats`);
   }
 
   async detectTimeOfDayPatterns(params?: {
