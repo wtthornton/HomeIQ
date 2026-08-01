@@ -204,7 +204,7 @@ services:
     container_name: homeiq-carbon-intensity
     restart: unless-stopped
     ports:
-      - "8010:8010"
+      - "${HOMEIQ_CARBON_HOST_PORT:-8010}:8010"
     env_file:
       - ../../.env
     environment:

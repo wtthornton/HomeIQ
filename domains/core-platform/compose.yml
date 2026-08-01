@@ -52,7 +52,7 @@ services:
     container_name: homeiq-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${HOMEIQ_POSTGRES_HOST_PORT:-5432}:5432"
     command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     environment:
       - POSTGRES_DB=homeiq
@@ -147,7 +147,7 @@ services:
     container_name: homeiq-websocket
     restart: unless-stopped
     ports:
-      - "8001:8001"
+      - "${HOMEIQ_WSI_HOST_PORT:-8001}:8001"
     env_file:
       - ../../.env
     environment:
@@ -219,7 +219,7 @@ services:
     container_name: homeiq-admin
     restart: unless-stopped
     ports:
-      - "8004:8004"
+      - "${HOMEIQ_ADMIN_HOST_PORT:-8004}:8004"
     env_file:
       - ../../.env
     volumes:
@@ -296,7 +296,7 @@ services:
     container_name: homeiq-dashboard
     restart: unless-stopped
     ports:
-      - "3000:8080"
+      - "${HOMEIQ_DASHBOARD_HOST_PORT:-3000}:8080"
     environment:
       - VITE_API_BASE_URL=
       - VITE_API_KEY=${API_KEY:-}
@@ -336,7 +336,7 @@ services:
     container_name: homeiq-data-retention
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${HOMEIQ_RETENTION_HOST_PORT:-8080}:8080"
     env_file:
       - ../../.env
     environment:

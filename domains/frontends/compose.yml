@@ -8,7 +8,7 @@ services:
     restart: unless-stopped
     ports:
       - "16686:16686"  # UI
-      - "4317:4317"    # OTLP gRPC receiver
+      - "${HOMEIQ_OTLP_HOST_PORT:-4317}:4317"    # OTLP gRPC receiver
       - "4318:4318"    # OTLP HTTP receiver
     environment:
       - COLLECTOR_OTLP_ENABLED=true
@@ -90,7 +90,7 @@ services:
     container_name: homeiq-ai-automation-ui
     restart: unless-stopped
     ports:
-      - "3001:8080"
+      - "${HOMEIQ_UI_HOST_PORT:-3001}:8080"
     environment:
       - VITE_API_URL=
       # SECURITY: API key injected at runtime via nginx proxy, not baked into client
