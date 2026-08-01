@@ -1,0 +1,42 @@
+name: "CI — Dashboard API contract"
+
+# The contract sweep itself (scripts/verify-dashboard-contract.sh) needs the
+# whole stack running, so it is not a pull-request gate. What is gateable is
+# coverage: if the SPA starts calling an endpoint that no expected status is
+# asserted for, that endpoint can render red in production with nothing to
+# catch it. This job fails the build on exactly that.
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'domains/core-platform/health-dashboard/src/**'
+      - 'scripts/verify-dashboard-contract.sh'
+      - 'scripts/check-dashboard-contract-coverage.sh'
+      - '.github/workflows/ci-dashboard-contract.yml'
+  pull_request:
+    paths:
+      - 'domains/core-platform/health-dashboard/src/**'
+      - 'scripts/verify-dashboard-contract.sh'
+      - 'scripts/check-dashboard-contract-coverage.sh'
+      - '.github/workflows/ci-dashboard-contract.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-dashboard-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Contract script is valid bash
+        run: bash -n scripts/verify-dashboard-contract.sh
+
+      - name: Every dashboard endpoint has an asserted status
+        run: bash scripts/check-dashboard-contract-coverage.sh
