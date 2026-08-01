@@ -35,6 +35,7 @@ class TestBuildProcessorOpenAIKey:
         class FakeAsyncOpenAI:
             def __init__(self, api_key, timeout):
                 captured["api_key"] = api_key
+                captured["timeout"] = timeout
 
         monkeypatch.setattr("openai.AsyncOpenAI", FakeAsyncOpenAI)
         monkeypatch.setattr(settings, "openai_api_key", SecretStr("sk-real-value"))
@@ -46,9 +47,37 @@ class TestBuildProcessorOpenAIKey:
         assert captured["api_key"] == "sk-real-value"
 
 
+class TestBuildProcessorDataApiKey:
+    """Regression: the data-api key must reach the EntityExtractor.
+
+    ``_build_processor()`` constructed ``EntityExtractor()`` bare, so
+    ``CrossGroupClient`` carried ``auth_token=None``, sent no Authorization
+    header, and every entity lookup against data-api silently degraded to
+    zero extracted entities whenever data-api requires auth.
+    """
+
+    @pytest.mark.unit
+    def test_build_processor_wires_data_api_key(self, monkeypatch):
+        """The unwrapped key must land on the extractor's CrossGroupClient."""
+        monkeypatch.setattr(settings, "data_api_key", SecretStr("data-key-123"))
+
+        processor = _build_processor()
+
+        assert processor.entity_extractor._cross_client._auth_token == "data-key-123"
+
+    @pytest.mark.unit
+    def test_build_processor_without_key_leaves_token_unset(self, monkeypatch):
+        """No configured key stays None rather than becoming a masked string."""
+        monkeypatch.setattr(settings, "data_api_key", None)
+
+        processor = _build_processor()
+
+        assert processor.entity_extractor._cross_client._auth_token is None
+
+
 class TestQueryRouter:
     """Test suite for query router endpoints."""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_query_endpoint_not_implemented(self, client: AsyncClient, sample_query_request):
@@ -58,7 +87,7 @@ class TestQueryRouter:
         data = response.json()
         assert data["status"] == "pending"
         assert "query_id" in data
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_get_suggestions_not_implemented(self, client: AsyncClient):
@@ -69,7 +98,7 @@ class TestQueryRouter:
         data = response.json()
         assert data["query_id"] == query_id
         assert "suggestions" in data
-    
+
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_refine_query_not_implemented(self, client: AsyncClient):
@@ -83,16 +112,16 @@ class TestQueryRouter:
         data = response.json()
         assert data["query_id"] == query_id
         assert "status" in data
-    
+
     @pytest.mark.performance
     @pytest.mark.latency
     @pytest.mark.asyncio
     async def test_query_latency_target(self, _client: AsyncClient, _sample_query_request):
         """Test query endpoint meets <500ms P95 latency target (when implemented)."""
-        
+
         # Skip for now since endpoint is not fully implemented
         pytest.skip("Endpoint not yet fully implemented - latency test will be added after implementation")
-        
+
         # TODO: When endpoint is implemented, test latency
         # start_time = time.time()
         # response = await client.post("/api/v1/query", json=sample_query_request)

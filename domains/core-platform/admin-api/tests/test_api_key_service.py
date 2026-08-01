@@ -5,9 +5,7 @@ from dataclasses import fields
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from src.api_key_service import APIKeyInfo, APIKeyService, APIKeyStatus
-
 
 # ---------------------------------------------------------------------------
 # APIKeyStatus enum
@@ -178,7 +176,7 @@ class TestGetApiKeys:
         """A key that is set for a service with no validation_url → CONFIGURED."""
         svc = APIKeyService()
         # 'smart-meter' has no validation_url
-        def fake_getenv(key, *args):
+        def fake_getenv(key, *_args):
             if key == "METER_API_TOKEN":
                 return "sometoken123"
             return None
@@ -193,7 +191,7 @@ class TestGetApiKeys:
         """A key that passes _test_api_key → CONFIGURED."""
         svc = APIKeyService()
 
-        def fake_getenv(key, *args):
+        def fake_getenv(key, *_args):
             if key == "WEATHER_API_KEY":
                 return "a" * 32
             return None
@@ -209,7 +207,7 @@ class TestGetApiKeys:
         """A key that fails _test_api_key → INVALID."""
         svc = APIKeyService()
 
-        def fake_getenv(key, *args):
+        def fake_getenv(key, *_args):
             if key == "WEATHER_API_KEY":
                 return "a" * 32
             return None
@@ -225,7 +223,7 @@ class TestGetApiKeys:
         """masked_key field is populated (not 'Not configured') when a key exists."""
         svc = APIKeyService()
 
-        def fake_getenv(key, *args):
+        def fake_getenv(key, *_args):
             if key == "METER_API_TOKEN":
                 return "mytesttoken99"
             return None
@@ -300,6 +298,53 @@ class TestUpdateApiKey:
             success, msg = await svc.update_api_key("smart-meter", "validtoken12345")
         assert success is False
         assert "disk full" in msg
+
+    async def test_denied_secret_write_leaves_environ_untouched(self):
+        """A write denied by allow_secret_writes must not poison os.environ.
+
+        Regression: os.environ was mutated before _update_config_file ran the
+        allow_secret_writes gate, so a denied request still swapped the live
+        process key for the rejected one.
+        """
+        svc = APIKeyService()
+        svc.allow_secret_writes = False
+        with patch.dict(os.environ, {"METER_API_TOKEN": "original-token"}):
+            success, _ = await svc.update_api_key("smart-meter", "attacker-key-12345")
+            assert success is False
+            assert os.environ["METER_API_TOKEN"] == "original-token"
+
+    async def test_denied_secret_write_does_not_create_env_var(self):
+        """A denied write must not create a previously-absent env var."""
+        svc = APIKeyService()
+        svc.allow_secret_writes = False
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("METER_API_TOKEN", None)
+            success, _ = await svc.update_api_key("smart-meter", "attacker-key-12345")
+            assert success is False
+            assert "METER_API_TOKEN" not in os.environ
+
+    async def test_config_write_failure_leaves_environ_untouched(self):
+        """os.environ only changes after the config-file write succeeds."""
+        svc = APIKeyService()
+        with (
+            patch.object(svc, "_update_config_file", new=AsyncMock(side_effect=RuntimeError("disk full"))),
+            patch.dict(os.environ, {"METER_API_TOKEN": "original-token"}),
+        ):
+            success, _ = await svc.update_api_key("smart-meter", "validtoken12345")
+            assert success is False
+            assert os.environ["METER_API_TOKEN"] == "original-token"
+
+    async def test_successful_write_updates_environ(self):
+        """After a permitted config write, the env var reflects the new key."""
+        svc = APIKeyService()
+        with (
+            patch.object(svc, "_update_config_file", new=AsyncMock()) as mock_write,
+            patch.dict(os.environ, {}, clear=False),
+        ):
+            success, _ = await svc.update_api_key("smart-meter", "validtoken12345")
+            assert success is True
+            assert os.environ["METER_API_TOKEN"] == "validtoken12345"
+        mock_write.assert_awaited_once_with("METER_API_TOKEN", "validtoken12345")
 
 
 # ---------------------------------------------------------------------------

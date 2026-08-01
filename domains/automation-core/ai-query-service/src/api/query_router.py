@@ -51,7 +51,11 @@ def _build_processor() -> QueryProcessor:
 
     clarification_service = ClarificationService()
     suggestion_generator = SuggestionGenerator(openai_client=openai_client)
-    entity_extractor = EntityExtractor()
+    # Without the key, CrossGroupClient sends no Authorization header and
+    # every data-api entity lookup silently degrades to zero entities.
+    entity_extractor = EntityExtractor(
+        api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None,
+    )
 
     return QueryProcessor(
         entity_extractor=entity_extractor,

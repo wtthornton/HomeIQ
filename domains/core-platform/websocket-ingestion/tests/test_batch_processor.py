@@ -174,6 +174,67 @@ class TestBatchProcessorEventHandling:
         await third_event
 
 
+class TestBatchRetrySemantics:
+    """Retries must resume from the failed handler, not restart the chain.
+
+    Regression: on any handler exception the whole batch was replayed
+    through every registered handler, so a transient failure in a later
+    handler made earlier handlers (e.g. the InfluxDB writer) ingest the
+    same batch twice.
+    """
+
+    @pytest.mark.asyncio
+    async def test_retry_skips_handlers_that_already_succeeded(self):
+        """A succeeded handler must run exactly once per batch."""
+        processor = BatchProcessor()
+        processor.retry_delay = 0.01
+
+        calls = {"writer": 0, "flaky": 0}
+
+        async def writer(_batch):
+            calls["writer"] += 1
+
+        async def flaky(_batch):
+            calls["flaky"] += 1
+            if calls["flaky"] == 1:
+                raise RuntimeError("transient downstream failure")
+
+        processor.add_batch_handler(writer)
+        processor.add_batch_handler(flaky)
+
+        result = await processor._process_batch([{"id": 1}])
+
+        assert result is True
+        assert calls["flaky"] == 2, "failed handler should be retried"
+        assert calls["writer"] == 1, (
+            "already-succeeded handler was re-run on retry (duplicate write)"
+        )
+
+    @pytest.mark.asyncio
+    async def test_persistent_failure_exhausts_retries_and_returns_false(self):
+        """The failing handler is retried up to retry_attempts; earlier ones never re-run."""
+        processor = BatchProcessor()
+        processor.retry_delay = 0.01
+
+        calls = {"writer": 0, "broken": 0}
+
+        async def writer(_batch):
+            calls["writer"] += 1
+
+        async def broken(_batch):
+            calls["broken"] += 1
+            raise RuntimeError("permanent failure")
+
+        processor.add_batch_handler(writer)
+        processor.add_batch_handler(broken)
+
+        result = await processor._process_batch([{"id": 1}])
+
+        assert result is False
+        assert calls["broken"] == processor.retry_attempts
+        assert calls["writer"] == 1
+
+
 class TestBatchProcessorHandlers:
     """Test batch handler management"""
 
