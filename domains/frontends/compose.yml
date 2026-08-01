@@ -7,9 +7,9 @@ services:
     container_name: homeiq-jaeger
     restart: unless-stopped
     ports:
-      - "16686:16686"  # UI
+      - "${HOMEIQ_JAEGER_UI_HOST_PORT:-16686}:16686"  # UI
       - "${HOMEIQ_OTLP_HOST_PORT:-4317}:4317"    # OTLP gRPC receiver
-      - "4318:4318"    # OTLP HTTP receiver
+      - "${HOMEIQ_OTLP_HTTP_HOST_PORT:-4318}:4318"    # OTLP HTTP receiver
     environment:
       - COLLECTOR_OTLP_ENABLED=true
     networks:
