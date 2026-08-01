@@ -17,9 +17,9 @@ class Settings(BaseServiceSettings):
     service_name: str = "sports-api"
     influxdb_bucket: str = "home_assistant_events"
 
-    # Home Assistant configuration
+    # Home Assistant configuration (no default: must be configured explicitly)
     ha_http_url: str = ""
-    home_assistant_url: str = "http://192.168.1.86:8123"
+    home_assistant_url: str = ""
     ha_token: str | None = Field(default=None, alias="HA_TOKEN")
     home_assistant_token: str | None = None
 

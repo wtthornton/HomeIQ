@@ -44,7 +44,11 @@ DEFAULT_CONFIG_PATH = _determine_default_path()
 class MqttConfig(BaseModel):
     """Configuration payload for MQTT/Zigbee integrations."""
 
-    broker_url: str = Field(alias="MQTT_BROKER", description="Full MQTT broker URL including scheme and port")
+    broker_url: str | None = Field(
+        default=None,
+        alias="MQTT_BROKER",
+        description="Full MQTT broker URL including scheme and port (None when unconfigured)",
+    )
     username: str | None = Field(
         default=None,
         alias="MQTT_USERNAME",
@@ -65,8 +69,10 @@ class MqttConfig(BaseModel):
 
     @field_validator("broker_url")
     @classmethod
-    def validate_broker(cls, value: str) -> str:
-        """Ensure broker URL uses a supported scheme."""
+    def validate_broker(cls, value: str | None) -> str | None:
+        """Ensure broker URL uses a supported scheme when configured."""
+        if value is None:
+            return None
         if not value:
             raise ValueError("MQTT_BROKER cannot be empty")
         allowed_prefixes = ("mqtt://", "mqtts://", "ws://", "wss://")
@@ -121,7 +127,9 @@ def _load_config_from_disk(path: Path) -> dict[str, Any]:
 def _load_effective_config() -> dict[str, Any]:
     """Merge stored overrides with environment defaults."""
     env_defaults = {
-        "MQTT_BROKER": os.getenv("MQTT_BROKER", "mqtt://192.168.1.86:1883"),
+        # No hardcoded fallback: an unset/empty MQTT_BROKER surfaces as
+        # broker_url=None (unconfigured) instead of a stale default endpoint.
+        "MQTT_BROKER": os.getenv("MQTT_BROKER") or None,
         "MQTT_USERNAME": os.getenv("MQTT_USERNAME"),
         "MQTT_PASSWORD": os.getenv("MQTT_PASSWORD"),
         "ZIGBEE2MQTT_BASE_TOPIC": os.getenv("ZIGBEE2MQTT_BASE_TOPIC", "zigbee2mqtt"),
@@ -159,6 +167,12 @@ async def update_mqtt_config(config: MqttConfig) -> dict[str, Any]:
 
     This endpoint requires authentication. Configuration changes must be secured.
     """
+    if not config.broker_url:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="MQTT_BROKER is required",
+        )
+
     payload = config.model_dump(by_alias=True)
 
     try:

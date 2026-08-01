@@ -37,7 +37,7 @@ COMMON_VARS = {
     'INFLUXDB_ORG': 'homeiq',
     'INFLUXDB_BUCKET': 'home_assistant_events',
     'HOME_ASSISTANT_TOKEN': 'your_long_lived_access_token_here',
-    'HA_HTTP_URL': 'http://192.168.1.86:8123',
+    'HA_HTTP_URL': 'http://homeassistant.local:8123',
     'HA_TOKEN': 'your_long_lived_access_token_here',
 }
 

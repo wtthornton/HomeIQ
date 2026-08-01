@@ -8,14 +8,20 @@ It can trigger device discovery, check MQTT integration, and force device update
 
 import asyncio
 import os
+import sys
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import aiohttp
 
-# Configuration
-HA_URL = os.getenv('HA_HTTP_URL', 'http://192.168.1.86:8123')
-HA_TOKEN = os.getenv('HA_TOKEN', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmYzAxMTBmZGRiNzc0ZDNjYTJhNjg2Mjk5M2U3ZGE4MiIsImlhdCI6MTc2MDM5NjUwNSwiZXhwIjoyMDc1NzU2NTA1fQ.dngeB--Ov3TgE1iJR3VyL9tX-a99jTiiUxlrz467j1Q')
+# Configuration — no baked-in defaults; fail fast when unset
+HA_URL = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL')
+HA_TOKEN = os.getenv('HA_TOKEN')
+
+if not HA_URL:
+    sys.exit("ERROR: HA_HTTP_URL (or HOME_ASSISTANT_URL) is not set. Export your Home Assistant URL first.")
+if not HA_TOKEN:
+    sys.exit("ERROR: HA_TOKEN is not set. Export a Home Assistant long-lived access token first.")
 
 class HADeviceDiscoveryFixer:
     """Home Assistant API device discovery fixer"""

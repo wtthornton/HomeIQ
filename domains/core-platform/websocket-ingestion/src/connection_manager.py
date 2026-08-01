@@ -50,7 +50,7 @@ class ConnectionManager:
 
     Example:
         manager = ConnectionManager(
-            base_url="http://192.168.1.86:8123",
+            base_url="http://homeassistant.local:8123",
             token="your-token",
             influxdb_manager=influxdb_manager
         )

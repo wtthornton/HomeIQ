@@ -27,9 +27,13 @@ except ImportError:
     print("ERROR: paho-mqtt not installed. Install with: pip install paho-mqtt")
     sys.exit(1)
 
-# Configuration
-MQTT_BROKER = "192.168.1.86"
-MQTT_PORT = 1883
+# Configuration — no baked-in defaults; fail fast when unset
+MQTT_BROKER = os.getenv("MQTT_BROKER_HOST", "")
+MQTT_PORT = int(os.getenv("MQTT_BROKER_PORT", "1883"))
+
+if not MQTT_BROKER:
+    print("ERROR: MQTT_BROKER_HOST is not set")
+    sys.exit(1)
 BASE_TOPIC = "zigbee2mqtt"
 TOPICS_TO_TEST = [
     f"{BASE_TOPIC}/bridge/devices",

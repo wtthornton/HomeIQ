@@ -22,8 +22,12 @@ INFLUXDB_ORG="${INFLUXDB_ORG:-${INFLUXDB_ORG:-homeiq}}"
 INFLUXDB_BUCKET="${INFLUXDB_BUCKET:-home_assistant_events}"
 INFLUXDB_TOKEN="${INFLUXDB_TOKEN:-homeiq-token}"
 DATA_API_URL="${DATA_API_URL:-http://localhost:8006}"
-HA_URL="${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}}"
+HA_URL="${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}"
 HA_URL="${HA_URL%/}"
+if [ -z "$HA_URL" ]; then
+    echo "ERROR: HA_HTTP_URL (or HOME_ASSISTANT_URL) is not set" >&2
+    exit 1
+fi
 HA_TOKEN="${HOME_ASSISTANT_TOKEN:-${HA_TOKEN:-}}"
 REPORT_DIR="${REPORT_DIR:-implementation/verification}"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
@@ -184,15 +188,12 @@ else
     echo "⚠️ **HA Connection:** $HA_CONNECTED" >> "$REPORT_FILE"
 fi
 
-# Verify HA URL is production (not localhost)
-if echo "$HA_URL" | grep -q "192.168.1.86\|192.168.1"; then
-    print_success "HA URL appears to be production: $HA_URL"
-    echo "- **HA URL:** $HA_URL (production)" >> "$REPORT_FILE"
-elif echo "$HA_URL" | grep -q "localhost\|127.0.0.1"; then
+# Verify HA URL is not local/test
+if echo "$HA_URL" | grep -q "localhost\|127.0.0.1"; then
     print_error "HA URL appears to be local/test: $HA_URL"
     echo "❌ **HA URL:** $HA_URL (⚠️ LOCAL/TEST - verify this is correct)" >> "$REPORT_FILE"
 else
-    print_warning "HA URL: $HA_URL (verify this is production)"
+    print_success "HA URL: $HA_URL"
     echo "- **HA URL:** $HA_URL" >> "$REPORT_FILE"
 fi
 

@@ -105,7 +105,7 @@ services:
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - ENABLE_AUTH=true
-      - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - API_KEY=${API_KEY:-}
       - CORS_ORIGINS=http://localhost:3000,http://localhost
       - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-production}
       - OTLP_ENDPOINT=http://jaeger:4317
@@ -171,7 +171,7 @@ services:
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
       - LOG_FORMAT=json
       - LOG_OUTPUT=both
-      - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - API_KEY=${API_KEY:-}
       - WEBSOCKET_MAX_RETRIES=${WEBSOCKET_MAX_RETRIES:--1}
       - WEBSOCKET_MAX_RETRY_DELAY=${WEBSOCKET_MAX_RETRY_DELAY:-300}
       - STORE_DEVICE_HISTORY_IN_INFLUXDB=${STORE_DEVICE_HISTORY_IN_INFLUXDB:-false}
@@ -232,12 +232,12 @@ services:
       - LOG_FORMAT=json
       - API_HOST=0.0.0.0
       - API_PORT=8004
-      - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - API_KEY=${API_KEY:-}
       - ENABLE_AUTH=false
       - DOCKER_HOST=unix:///var/run/docker.sock
       - WEATHER_API_KEY=${WEATHER_API_KEY:-}
       - HA_HTTP_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
-      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
@@ -249,7 +249,7 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-adminpass}
       - WEBSOCKET_INGESTION_URL=http://websocket-ingestion:8001
       - DATA_API_URL=http://data-api:8006
-      - DEVICE_INTELLIGENCE_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - DEVICE_INTELLIGENCE_API_KEY=${API_KEY:-}
       - AI_AUTOMATION_URL=http://ai-automation-service-new:8025
       - WEATHER_SERVICE_URL=http://weather-api:8009
       - OTLP_ENDPOINT=http://jaeger:4317
@@ -289,7 +289,7 @@ services:
       dockerfile: domains/core-platform/health-dashboard/Dockerfile
       args:
         - VITE_API_BASE_URL=
-        - VITE_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+        - VITE_API_KEY=${API_KEY:-}
         - VITE_DATA_API_URL=
         - VITE_WS_URL=ws://localhost:8001/ws
         - VITE_ENVIRONMENT=production
@@ -299,7 +299,7 @@ services:
       - "3000:8080"
     environment:
       - VITE_API_BASE_URL=
-      - VITE_API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - VITE_API_KEY=${API_KEY:-}
       - VITE_DATA_API_URL=
       - VITE_WS_URL=ws://localhost:8001/ws
       - VITE_ENVIRONMENT=production
@@ -643,7 +643,7 @@ services:
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
       - LOG_FORMAT=json
       - LOG_OUTPUT=both
-      - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - API_KEY=${API_KEY:-}
       - WEBSOCKET_MAX_RETRIES=${WEBSOCKET_MAX_RETRIES:--1}
       - WEBSOCKET_MAX_RETRY_DELAY=${WEBSOCKET_MAX_RETRY_DELAY:-300}
       - STORE_DEVICE_HISTORY_IN_INFLUXDB=${STORE_DEVICE_HISTORY_IN_INFLUXDB:-false}

@@ -23,7 +23,9 @@ async def test_real_query():
     }
     
     # Get API key from environment or use default
-    api_key = os.getenv('AI_AUTOMATION_API_KEY', 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR')
+    api_key = os.getenv('AI_AUTOMATION_API_KEY')
+    if not api_key:
+        raise SystemExit('ERROR: AI_AUTOMATION_API_KEY is not set')
     
     headers = {
         "Content-Type": "application/json",

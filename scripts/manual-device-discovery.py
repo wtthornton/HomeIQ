@@ -17,8 +17,13 @@ from typing import Any, Dict, List
 import aiohttp
 
 # Configuration
-HA_URL = os.getenv('HA_HTTP_URL', 'http://192.168.1.86:8123')
-HA_TOKEN = os.getenv('HA_TOKEN', 'your_token_here')
+HA_URL = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL')
+HA_TOKEN = os.getenv('HA_TOKEN')
+
+if not HA_URL:
+    raise SystemExit('ERROR: HA_HTTP_URL (or HOME_ASSISTANT_URL) is not set')
+if not HA_TOKEN:
+    raise SystemExit('ERROR: HA_TOKEN is not set')
 DATA_API_URL = os.getenv('DATA_API_URL', 'http://localhost:8006')
 
 async def get_ha_devices(session: aiohttp.ClientSession) -> List[Dict[str, Any]]:

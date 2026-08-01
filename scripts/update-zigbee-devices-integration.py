@@ -99,8 +99,12 @@ def is_zigbee_device(device: dict) -> bool:
 async def update_device_integrations():
     """Update device integration fields for Zigbee devices"""
     # Get HA connection info
-    ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
+    ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL')
     ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
+    
+    if not ha_url:
+        print("❌ No HA URL found. Set HA_HTTP_URL or HOME_ASSISTANT_URL environment variable.")
+        return
     
     if not ha_token:
         print("❌ No HA token found. Set HA_TOKEN or HOME_ASSISTANT_TOKEN environment variable.")

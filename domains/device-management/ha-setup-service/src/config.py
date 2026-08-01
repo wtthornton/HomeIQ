@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from functools import lru_cache
 
@@ -21,8 +22,8 @@ class Settings(BaseServiceSettings):
     service_name: str = "ha-setup-service"
     service_port: int = 8020
 
-    # Home Assistant configuration
-    ha_url: str = "http://192.168.1.86:8123"
+    # Home Assistant configuration (no default: must be configured explicitly)
+    ha_url: str = ""
     ha_token: str = ""
     home_assistant_token: str = ""
 
@@ -52,6 +53,22 @@ class Settings(BaseServiceSettings):
                 or os.getenv("HOME_ASSISTANT_TOKEN")
                 or self.home_assistant_token
                 or ""
+            )
+        return self
+
+    @model_validator(mode="after")
+    def ensure_ha_url(self) -> Settings:
+        """Fall back to alternate env vars; log loudly when HA URL is unconfigured."""
+        if not self.ha_url:
+            self.ha_url = (
+                os.getenv("HA_HTTP_URL")
+                or os.getenv("HOME_ASSISTANT_URL")
+                or ""
+            ).rstrip("/")
+        if not self.ha_url:
+            logging.getLogger(__name__).error(
+                "HA URL is not configured — set HA_URL, HA_HTTP_URL, or "
+                "HOME_ASSISTANT_URL. Home Assistant requests will fail until it is set."
             )
         return self
 

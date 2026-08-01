@@ -197,20 +197,21 @@ echo "" >> "$REPORT_FILE"
 echo "### 3. Home Assistant Source Verification" >> "$REPORT_FILE"
 echo "" >> "$REPORT_FILE"
 
-HA_URL="${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}}"
+HA_URL="${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}"
 HA_URL="${HA_URL%/}"
 
-echo "- **HA URL:** $HA_URL" >> "$REPORT_FILE"
-
-if echo "$HA_URL" | grep -q "192.168.1.86\|192.168.1"; then
-    print_success "HA URL is production IP (192.168.1.86)"
-    echo "✅ **HA Source:** Production" >> "$REPORT_FILE"
-elif echo "$HA_URL" | grep -q "localhost\|127.0.0.1"; then
-    print_error "HA URL is localhost (NOT production!)"
-    echo "❌ **HA Source:** LOCALHOST - This is not production!" >> "$REPORT_FILE"
+if [ -z "$HA_URL" ]; then
+    print_error "HA_HTTP_URL (or HOME_ASSISTANT_URL) is not set"
+    echo "❌ **HA Source:** NOT CONFIGURED" >> "$REPORT_FILE"
 else
-    print_warning "HA URL: $HA_URL (verify this is production)"
-    echo "⚠️ **HA Source:** Unknown - verify manually" >> "$REPORT_FILE"
+    echo "- **HA URL:** $HA_URL" >> "$REPORT_FILE"
+    if echo "$HA_URL" | grep -q "localhost\|127.0.0.1"; then
+        print_error "HA URL is localhost (NOT production!)"
+        echo "❌ **HA Source:** LOCALHOST - This is not production!" >> "$REPORT_FILE"
+    else
+        print_success "HA URL: $HA_URL"
+        echo "✅ **HA Source:** $HA_URL" >> "$REPORT_FILE"
+    fi
 fi
 
 # Final Summary

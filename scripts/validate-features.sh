@@ -16,7 +16,11 @@ fi
 DATA_API_URL="${DATA_API_URL:-http://localhost:8006}"
 ADMIN_API_URL="${ADMIN_API_URL:-http://localhost:8003}"
 WEBSOCKET_URL="${WEBSOCKET_URL:-http://localhost:8001}"
-HA_URL="${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}}"
+HA_URL="${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}"
+if [ -z "$HA_URL" ]; then
+    echo "ERROR: HA_HTTP_URL (or HOME_ASSISTANT_URL) is not set" >&2
+    exit 1
+fi
 REPORT_DIR="${REPORT_DIR:-implementation/verification}"
 
 # Colors for output

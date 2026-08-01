@@ -17,7 +17,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 # Configuration
 AI_AUTOMATION_URL = os.getenv('AI_AUTOMATION_URL', 'http://localhost:8024')
 DATA_API_URL = os.getenv('DATA_API_URL', 'http://localhost:8006')
-API_KEY = os.getenv('API_KEY', os.getenv('HOMEIQ_API_KEY', os.getenv('AI_AUTOMATION_API_KEY', 'hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR')))
+API_KEY = os.getenv('API_KEY') or os.getenv('HOMEIQ_API_KEY') or os.getenv('AI_AUTOMATION_API_KEY')
+if not API_KEY:
+    raise SystemExit('ERROR: API_KEY (or HOMEIQ_API_KEY/AI_AUTOMATION_API_KEY) is not set')
 
 class Colors:
     """ANSI color codes"""

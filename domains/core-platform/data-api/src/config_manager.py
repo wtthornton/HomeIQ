@@ -202,7 +202,7 @@ class ConfigManager:
         Example:
             >>> manager = ConfigManager()
             >>> result = manager.validate_config("websocket", {
-            ...     "HA_URL": "ws://192.168.1.86:8123",
+            ...     "HA_URL": "ws://homeassistant.local:8123",
             ...     "HA_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
             ... })
             >>> if result['valid']:

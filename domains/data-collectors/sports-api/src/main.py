@@ -126,10 +126,13 @@ class SportsService:
         Configures HA connection, InfluxDB with fallback hostnames, cache,
         service components, and statistics counters.
         """
-        # Home Assistant configuration
-        self.ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
+        # Home Assistant configuration (no default: must be configured explicitly)
+        self.ha_url = (os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL') or '').rstrip('/')
         self.ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
-        self.ha_url = self.ha_url.rstrip('/')
+        if not self.ha_url:
+            logger.error(
+                "HA_HTTP_URL/HOME_ASSISTANT_URL not set — sports polling cannot reach Home Assistant"
+            )
         self.poll_interval = int(os.getenv('SPORTS_POLL_INTERVAL', '60'))
 
         # InfluxDB configuration with fallback hostnames

@@ -18,8 +18,6 @@ services:
       - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - RELOAD=${RELOAD:-false}
-    extra_hosts:
-      - "homeassistant:192.168.1.86"
     networks:
       - homeiq-network
     healthcheck:
@@ -59,8 +57,6 @@ services:
       - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - RELOAD=${RELOAD:-false}
-    extra_hosts:
-      - "homeassistant:192.168.1.86"
     networks:
       - homeiq-network
     healthcheck:
@@ -100,8 +96,6 @@ services:
       - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - RELOAD=${RELOAD:-false}
-    extra_hosts:
-      - "homeassistant:192.168.1.86"
     networks:
       - homeiq-network
     healthcheck:
@@ -185,8 +179,6 @@ services:
       - DEVICE_DATABASE_API_KEY=${DEVICE_DATABASE_API_KEY:-}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - RELOAD=${RELOAD:-false}
-    extra_hosts:
-      - "homeassistant:192.168.1.86"
     networks:
       - homeiq-network
     healthcheck:
@@ -311,17 +303,19 @@ services:
       - "8024:8020"
     env_file:
       - ../../.env
-      - ../../infrastructure/.env.websocket
+      # Optional legacy token file — absent on fresh clones
+      - path: ../../infrastructure/.env.websocket
+        required: false
     environment:
       - SERVICE_NAME=ha-setup-service
       - SERVICE_PORT=8020
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
       - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
       - DATABASE_SCHEMA=devices
       - DATA_API_URL=http://data-api:8006
-      - API_KEY=${API_KEY:-hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR}
+      - API_KEY=${API_KEY:-}
       - ADMIN_API_URL=http://admin-api:8004
       - HEALTH_CHECK_INTERVAL=60
       - INTEGRATION_CHECK_INTERVAL=300

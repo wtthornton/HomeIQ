@@ -60,7 +60,7 @@ chmod 600 .env.*
 
 ### Home Assistant Connection
 **Standard Environment Variables (Recommended):**
-- `HOME_ASSISTANT_URL` - Home Assistant URL (e.g., `http://192.168.1.86:8123`)
+- `HOME_ASSISTANT_URL` - Home Assistant URL (e.g., `http://homeassistant.local:8123`)
 - `HOME_ASSISTANT_TOKEN` - Long-lived access token
 
 **Nabu Casa Cloud Fallback (Optional):**
