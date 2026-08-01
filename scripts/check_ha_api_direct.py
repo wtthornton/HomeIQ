@@ -8,8 +8,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-HA_URL = os.getenv('HA_URL', 'http://192.168.1.86:8123')
+HA_URL = os.getenv('HA_URL') or os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL')
 HA_TOKEN = os.getenv('HA_TOKEN', '')
+
+if not HA_URL:
+    raise SystemExit('ERROR: HA_URL (or HA_HTTP_URL/HOME_ASSISTANT_URL) is not set')
 
 async def check_ha_api():
     headers = {"Authorization": f"Bearer {HA_TOKEN}", "Content-Type": "application/json"}

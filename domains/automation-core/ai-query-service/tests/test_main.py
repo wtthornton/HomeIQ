@@ -4,7 +4,7 @@ Unit tests for AI Query Service Main Application
 Epic 39, Story 39.12: Query & Automation Service Testing
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -23,42 +23,44 @@ class TestMainApplication:
             response = await client.get("/")
             assert response.status_code == 200
             data = response.json()
-            assert data["service"] == "ai-query-service"
+            # Root payload comes from homeiq_resilience.create_app: it echoes
+            # the app title/version and reports status "running".
+            assert data["service"] == "AI Query Service"
             assert data["version"] == "1.0.0"
-            assert data["status"] == "operational"
+            assert data["status"] == "running"
 
     @pytest.mark.asyncio
     @pytest.mark.unit
     @patch('src.main.init_db')
     @patch('src.main.setup_tracing')
-    @patch('src.main.instrument_fastapi')
-    @patch('src.main.CorrelationMiddleware')
-    async def test_lifespan_startup_success(
-        self, _mock_correlation, _mock_instrument, _mock_tracing, mock_init_db
-    ):
+    async def test_lifespan_startup_success(self, _mock_tracing, mock_init_db):
         """Test lifespan startup initializes database and observability successfully."""
-        # Mock successful initialization
-        mock_init_db.return_value = AsyncMock()
-        
-        # Mock observability
+        mock_init_db.return_value = True
+
         with patch('src.main.OBSERVABILITY_AVAILABLE', True):
-            async with lifespan(app):
+            async with lifespan.handler(app):
                 # Should complete without errors
                 pass
-        
-        mock_init_db.assert_called_once()
+
+        mock_init_db.assert_awaited_once()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
     @patch('src.main.init_db')
     async def test_lifespan_startup_database_failure(self, mock_init_db):
-        """Test lifespan startup handles database initialization failure."""
-        # Mock database failure
+        """Database init failure must not abort startup (degraded mode).
+
+        ServiceLifespan is constructed with graceful=True, so a raising
+        startup hook is logged and swallowed; init_db itself is also
+        documented to return False rather than raise. Either way the
+        service must come up degraded instead of crashing.
+        """
         mock_init_db.side_effect = Exception("Database connection failed")
-        
-        with pytest.raises(Exception, match="Database connection failed"):
-            async with lifespan(app):
-                pass
+
+        async with lifespan.handler(app):
+            pass
+
+        mock_init_db.assert_awaited_once()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -68,24 +70,24 @@ class TestMainApplication:
         self, mock_tracing, mock_init_db
     ):
         """Test lifespan startup handles observability failure gracefully."""
-        mock_init_db.return_value = AsyncMock()
+        mock_init_db.return_value = True
         mock_tracing.side_effect = Exception("Observability setup failed")
-        
+
         with patch('src.main.OBSERVABILITY_AVAILABLE', True):
             # Should not raise exception, just log warning
-            async with lifespan(app):
+            async with lifespan.handler(app):
                 pass
-        
-        mock_init_db.assert_called_once()
+
+        mock_init_db.assert_awaited_once()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
     @patch('src.main.init_db')
     async def test_lifespan_shutdown(self, mock_init_db):
         """Test lifespan shutdown completes successfully."""
-        mock_init_db.return_value = AsyncMock()
-        
-        async with lifespan(app):
+        mock_init_db.return_value = True
+
+        async with lifespan.handler(app):
             # Startup completes
             pass
         # Shutdown should complete without errors
@@ -123,8 +125,10 @@ class TestMainApplication:
     @pytest.mark.unit
     async def test_routers_included(self):
         """Test that health and query routers are included."""
-        # Check that routers are registered
-        routes = [route.path for route in app.routes]
-        assert any("/health" in path for path in routes or [])
-        assert any("/api/v1" in path for path in routes or [])
+        # FastAPI 0.140 wraps included routers in _IncludedRouter objects
+        # without a .path, so inspect the OpenAPI schema (the public surface)
+        # instead of iterating app.routes.
+        paths = app.openapi()["paths"]
+        assert "/health" in paths
+        assert any(path.startswith("/api/v1") for path in paths)
 

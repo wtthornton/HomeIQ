@@ -47,7 +47,9 @@ def mock_env_vars(monkeypatch):
     overrides = {
         'ha_http_url': 'http://test:8123',
         'ha_ws_url': 'ws://test:8123/api/websocket',
-        'ha_token': 'test-token',
+        # ha_token is a SecretStr on Settings; a bare str breaks callers
+        # that do .get_secret_value()
+        'ha_token': SecretStr('test-token'),
         'enable_home_assistant': False,  # Disable HA for unit tests
         'influxdb_url': 'http://test-influxdb:8086',
         # influxdb_token is a SecretStr on BaseServiceSettings; a bare str

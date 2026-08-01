@@ -7,7 +7,9 @@ import aiohttp
 
 
 async def test():
-    ha_url = os.getenv("HA_URL", "http://192.168.1.86:8123").rstrip("/")
+    ha_url = (os.getenv("HA_URL") or os.getenv("HA_HTTP_URL") or "").rstrip("/")
+    if not ha_url:
+        raise SystemExit("ERROR: HA_URL (or HA_HTTP_URL) is not set")
     ha_token = os.getenv("HA_TOKEN", "")
     
     print(f"HA URL: {ha_url}")

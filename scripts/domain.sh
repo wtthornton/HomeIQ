@@ -10,7 +10,9 @@
 #   logs     Tail service logs (optional: specific service name)
 #   build    Build domain images
 #   list     Print valid domain names
-#   verify   Check all running containers belong to correct Docker project group
+#   verify   With a domain: check each service's health (nonzero exit if any
+#            service is unhealthy or exited). Without a domain: check all
+#            running containers belong to the correct Docker project group.
 #
 # Always uses --profile production (air-quality, carbon-intensity, etc.).
 #
@@ -54,7 +56,8 @@ usage() {
   echo "  logs     Tail service logs (optional: specific service name)"
   echo "  build    Build domain images"
   echo "  list     Print valid domain names"
-  echo "  verify   Check all containers are in correct Docker project groups"
+  echo "  verify   Check service health for a domain (no domain: check all"
+  echo "           containers are in correct Docker project groups)"
   echo ""
   echo "Valid domains:"
   for d in "${VALID_DOMAINS[@]}"; do
@@ -99,8 +102,9 @@ if [[ "$COMMAND" == "list" ]]; then
   exit 0
 fi
 
-# Handle verify command (no domain required — checks all containers)
-if [[ "$COMMAND" == "verify" ]]; then
+# Handle verify without a domain — checks all containers' project groups.
+# With a domain, verify falls through to the per-domain health check below.
+if [[ "$COMMAND" == "verify" && -z "$DOMAIN" ]]; then
   echo -e "${GREEN}[VERIFY]${NC} Checking Docker project group assignments..."
   ERRORS=0
   # Check for orphan containers in root 'homeiq' project (from docker compose up at root)
@@ -175,6 +179,36 @@ case "$COMMAND" in
     echo -e "${GREEN}[BUILD]${NC} Building $DOMAIN images..."
     docker compose -f "$COMPOSE_FILE" $ENV_FILE_FLAG --profile production build ${SERVICE:+"$SERVICE"}
     echo -e "${GREEN}[OK]${NC} $DOMAIN images built."
+    ;;
+  verify)
+    echo -e "${GREEN}[VERIFY]${NC} Checking $DOMAIN service health..."
+    # ps --format json emits NDJSON on newer compose, a JSON array on older —
+    # normalize both to one object per line.
+    PS_JSON=$(docker compose -f "$COMPOSE_FILE" $ENV_FILE_FLAG --profile production ps -a --format json \
+      | jq -c 'if type == "array" then .[] else . end')
+    if [[ -z "$PS_JSON" ]]; then
+      echo -e "${RED}[FAIL]${NC} No containers found for $DOMAIN — is it started?"
+      exit 1
+    fi
+    ERRORS=0
+    while IFS= read -r row; do
+      [[ -z "$row" ]] && continue
+      NAME=$(echo "$row" | jq -r '.Name')
+      STATE=$(echo "$row" | jq -r '.State')
+      HEALTH=$(echo "$row" | jq -r '.Health // ""')
+      STATUS="$STATE${HEALTH:+ ($HEALTH)}"
+      if [[ "$STATE" == "running" && ( -z "$HEALTH" || "$HEALTH" == "healthy" ) ]]; then
+        echo -e "  ${GREEN}[OK]${NC} $NAME: $STATUS"
+      else
+        echo -e "  ${RED}[BAD]${NC} $NAME: $STATUS"
+        ERRORS=$((ERRORS + 1))
+      fi
+    done <<< "$PS_JSON"
+    if [[ $ERRORS -gt 0 ]]; then
+      echo -e "${RED}[FAIL]${NC} $ERRORS service(s) unhealthy or not running in $DOMAIN."
+      exit 1
+    fi
+    echo -e "${GREEN}[OK]${NC} All $DOMAIN services are running and healthy."
     ;;
   *)
     echo -e "${RED}[ERROR]${NC} Unknown command: $COMMAND"

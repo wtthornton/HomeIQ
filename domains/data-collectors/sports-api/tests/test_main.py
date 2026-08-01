@@ -2,20 +2,9 @@
 Tests for Sports API Service
 """
 
-import os
-import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
-
-# Mock homeiq_observability module before importing
-sys.modules['homeiq_observability'] = MagicMock()
-sys.modules['homeiq_observability.logging_config'] = MagicMock()
-sys.modules['homeiq_observability.logging_config'].setup_logging = MagicMock(return_value=MagicMock())
-
 from src.main import SportsService
 
 
@@ -31,7 +20,7 @@ def mock_env_vars(monkeypatch):
 
 
 @pytest.fixture
-def sports_service(_mock_env_vars):
+def sports_service(mock_env_vars):
     """Create SportsService instance"""
     return SportsService()
 
@@ -39,23 +28,6 @@ def sports_service(_mock_env_vars):
 @pytest.mark.asyncio
 async def test_fetch_team_tracker_sensors_success(sports_service):
     """Test successful fetch of Team Tracker sensors"""
-    mock_sensors = [
-        {
-            'entity_id': 'sensor.team_tracker_seahawks',
-            'state': 'IN',
-            'attributes': {
-                'sport': 'football',
-                'league': 'NFL',
-                'team_abbr': 'SEA',
-                'team_name': 'Seahawks',
-                'team_score': 14,
-                'opponent_score': 7
-            },
-            'last_updated': '2025-12-29T10:00:00Z',
-            'last_changed': '2025-12-29T10:00:00Z'
-        }
-    ]
-    
     with patch('aiohttp.ClientSession.get') as mock_get:
         mock_response = AsyncMock()
         mock_response.status = 200
@@ -64,10 +36,10 @@ async def test_fetch_team_tracker_sensors_success(sports_service):
             {'entity_id': 'sensor.other_sensor', 'state': 'on', 'attributes': {}}
         ])
         mock_get.return_value.__aenter__.return_value = mock_response
-        
+
         await sports_service.startup()
         sensors = await sports_service.fetch_team_tracker_sensors()
-        
+
         assert len(sensors) == 1
         assert sensors[0]['entity_id'] == 'sensor.team_tracker_seahawks'
         await sports_service.shutdown()
@@ -104,9 +76,9 @@ def test_parse_sensor_data(sports_service):
         'last_updated': '2025-12-29T10:00:00Z',
         'last_changed': '2025-12-29T10:00:00Z'
     }
-    
+
     parsed = sports_service.parse_sensor_data(sensor)
-    
+
     assert parsed['entity_id'] == 'sensor.team_tracker_seahawks'
     assert parsed['state'] == 'IN'
     assert parsed['sport'] == 'football'
@@ -133,12 +105,12 @@ async def test_store_in_influxdb_success(sports_service):
             'clock': '5:23'
         }
     ]
-    
+
     mock_client = MagicMock()
     sports_service.influxdb_client = mock_client
-    
+
     await sports_service.store_in_influxdb(sensors)
-    
+
     # Verify write was called
     assert mock_client.write.called
 
@@ -148,7 +120,7 @@ async def test_store_in_influxdb_no_client(sports_service):
     """Test storage when InfluxDB client is not initialized"""
     sports_service.influxdb_client = None
     sensors = [{'entity_id': 'test', 'state': 'IN'}]
-    
+
     # Should not raise error, just log warning
     await sports_service.store_in_influxdb(sensors)
 
@@ -165,21 +137,24 @@ async def test_get_current_sports_data(sports_service):
             'last_changed': '2025-12-29T10:00:00Z'
         }
     ]
-    
-    with patch.object(sports_service, 'fetch_team_tracker_sensors', return_value=mock_sensors):
-        with patch.object(sports_service, 'store_in_influxdb', new_callable=AsyncMock):
-            await sports_service.startup()
-            data = await sports_service.get_current_sports_data()
-            
-            assert len(data) == 1
-            assert data[0]['entity_id'] == 'sensor.team_tracker_seahawks'
-            await sports_service.shutdown()
+
+    with (
+        patch.object(sports_service, 'fetch_team_tracker_sensors', return_value=mock_sensors),
+        patch.object(sports_service, 'store_in_influxdb', new_callable=AsyncMock),
+    ):
+        await sports_service.startup()
+        data = await sports_service.get_current_sports_data()
+
+        assert len(data) == 1
+        assert data[0]['entity_id'] == 'sensor.team_tracker_seahawks'
+        await sports_service.shutdown()
 
 
-def test_sports_service_initialization(_mock_env_vars):
+@pytest.mark.usefixtures("mock_env_vars")
+def test_sports_service_initialization():
     """Test SportsService initialization"""
     service = SportsService()
-    
+
     assert service.ha_url == 'http://test-ha:8123'
     assert service.ha_token == 'test_token'
     assert service.influxdb_url == 'http://test-influxdb:8086'
@@ -192,7 +167,7 @@ def test_sports_service_initialization_missing_token(monkeypatch):
     monkeypatch.setenv('HA_TOKEN', 'test_token')
     # Remove INFLUXDB_TOKEN if it exists
     monkeypatch.delenv('INFLUXDB_TOKEN', raising=False)
-    
+
     with pytest.raises(ValueError, match="INFLUXDB_TOKEN required"):
         SportsService()
 

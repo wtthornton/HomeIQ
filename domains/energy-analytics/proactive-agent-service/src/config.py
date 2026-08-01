@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from homeiq_data import BaseServiceSettings
-from pydantic import Field
+from pydantic import Field, SecretStr
 
 
 class Settings(BaseServiceSettings):
@@ -53,7 +53,7 @@ class Settings(BaseServiceSettings):
     )
 
     # OpenAI Configuration (for prompt generation)
-    openai_api_key: str | None = Field(
+    openai_api_key: SecretStr | None = Field(
         default=None,
         description="OpenAI API key for prompt generation",
     )

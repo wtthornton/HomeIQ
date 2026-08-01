@@ -19,7 +19,9 @@ async def refresh_entities():
     """Fetch entity registry using HA client and store via data-api"""
     from clients.ha_client import HomeAssistantClient
     
-    ha_url = os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123').replace('ws://', 'http://').replace('wss://', 'https://').rstrip('/')
+    ha_url = (os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL') or '').replace('ws://', 'http://').replace('wss://', 'https://').rstrip('/')
+    if not ha_url:
+        raise SystemExit('ERROR: HA_HTTP_URL (or HOME_ASSISTANT_URL) is not set')
     ha_token = os.getenv('HOME_ASSISTANT_TOKEN')
     data_api_url = os.getenv('DATA_API_URL', 'http://localhost:8006')
     data_api_key = os.getenv('DATA_API_API_KEY') or os.getenv('DATA_API_KEY') or os.getenv('API_KEY')

@@ -28,7 +28,7 @@ OPTIONAL_COMPONENTS: Dict[str, bool] = {
 
 # Required Environment Variables (Epic 42.2: Pre-Flight Validation)
 REQUIRED_ENV_VARS: Dict[str, str] = {
-    'HA_HTTP_URL': 'Home Assistant HTTP URL (e.g., http://192.168.1.86:8123)',
+    'HA_HTTP_URL': 'Home Assistant HTTP URL (e.g., http://homeassistant.local:8123)',
     'HA_TOKEN': 'Home Assistant long-lived access token'
 }
 

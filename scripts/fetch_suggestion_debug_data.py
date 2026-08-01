@@ -19,7 +19,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "domains" / "automation-co
 
 # Configuration
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8018/api")
-API_KEY = os.getenv("API_KEY", "hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR")
+API_KEY = os.getenv("API_KEY", "")
+if not API_KEY:
+    raise SystemExit("ERROR: API_KEY is not set")
 
 def fetch_json(url: str, method: str = "GET", body: Optional[Dict] = None) -> Dict[str, Any]:
     """Fetch JSON from API with authentication."""

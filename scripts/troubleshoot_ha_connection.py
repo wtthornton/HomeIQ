@@ -162,9 +162,13 @@ async def main():
     print()
     
     # Get configuration from environment
-    ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
+    ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL')
     ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
-    
+
+    if not ha_url:
+        print("[FAIL] HA_HTTP_URL (or HOME_ASSISTANT_URL) is not set")
+        raise SystemExit(1)
+
     print(f"Configuration:")
     print(f"  HA_URL: {ha_url}")
     print(f"  HA_TOKEN: {'***' + ha_token[-10:] if ha_token and len(ha_token) > 10 else 'NOT SET'}")
@@ -222,7 +226,7 @@ async def main():
     if not http_result["success"]:
         print("[FAIL] Basic HTTP connection failed")
         print("   Recommendations:")
-        print("   1. Verify HA_HTTP_URL is correct (e.g., http://192.168.1.86:8123)")
+        print("   1. Verify HA_HTTP_URL is correct (e.g., http://homeassistant.local:8123)")
         print("   2. Ensure Home Assistant is running and accessible from this machine")
         print("   3. Check network connectivity and firewall rules")
     elif not ha_token:

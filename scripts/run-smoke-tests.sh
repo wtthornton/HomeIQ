@@ -5,7 +5,8 @@
 set -e  # Exit on any error
 
 # Default values
-ADMIN_URL="http://localhost:8003"
+# Admin API production port mapping is 8004 (domains/core-platform/compose.yml)
+ADMIN_URL="http://localhost:8004"
 VERBOSE=false
 JSON_OUTPUT=false
 TIMEOUT=30
@@ -56,7 +57,7 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
-            echo "  --admin-url URL    Admin API URL (default: http://localhost:8003)"
+            echo "  --admin-url URL    Admin API URL (default: http://localhost:8004)"
             echo "  --verbose          Enable verbose output"
             echo "  --json             Output results in JSON format"
             echo "  --timeout SECONDS  Test timeout in seconds (default: 30)"

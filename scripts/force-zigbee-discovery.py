@@ -14,8 +14,13 @@ from typing import Any, Dict, List
 import aiohttp
 
 # Configuration
-HA_URL = os.getenv('HA_HTTP_URL', 'http://192.168.1.86:8123')
-HA_TOKEN = os.getenv('HA_TOKEN', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmYzAxMTBmZGRiNzc0ZDNjYTJhNjg2Mjk5M2U3ZGE4MiIsImlhdCI6MTc2MDM5NjUwNSwiZXhwIjoyMDc1NzU2NTA1fQ.dngeB--Ov3TgE1iJR3VyL9tX-a99jTiiUxlrz467j1Q')
+HA_URL = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL')
+HA_TOKEN = os.getenv('HA_TOKEN')
+
+if not HA_URL:
+    raise SystemExit('ERROR: HA_HTTP_URL (or HOME_ASSISTANT_URL) is not set')
+if not HA_TOKEN:
+    raise SystemExit('ERROR: HA_TOKEN is not set')
 
 async def force_zigbee_discovery(session: aiohttp.ClientSession) -> bool:
     """Force Zigbee2MQTT to rediscover all devices"""

@@ -5,6 +5,7 @@ log_level, cors_origins, postgres_url, database_url, database_schema, etc.).
 """
 
 from homeiq_data import BaseServiceSettings
+from pydantic import SecretStr
 
 
 class Settings(BaseServiceSettings):
@@ -41,7 +42,7 @@ class Settings(BaseServiceSettings):
     model_storage_dir: str = "/app/models"
 
     # OpenAI (for synthetic data generation)
-    openai_api_key: str | None = None
+    openai_api_key: SecretStr | None = None
 
     # Override base defaults
     service_port: int = 8022

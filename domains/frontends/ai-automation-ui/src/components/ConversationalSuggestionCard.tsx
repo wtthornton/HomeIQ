@@ -544,9 +544,11 @@ export const ConversationalSuggestionCard: React.FC<Props> = memo(({
               const isSelected = device.selected !== false; // Default to true if not specified
               const effectiveEntityId = getEffectiveEntityId(device);
               const hasCustomMapping = customMappings[device.friendly_name] !== undefined;
-              // Generate Home Assistant entity URL using effective entity ID
-              const haBaseUrl = import.meta.env.VITE_HA_URL || 'http://192.168.1.86:8123';
-              const haUrl = `${haBaseUrl}/config/entities/${encodeURIComponent(effectiveEntityId)}`;
+              // Generate Home Assistant entity URL using effective entity ID.
+              // No hardcoded fallback: without VITE_HA_URL the link is disabled
+              // rather than pointing at a stale host.
+              const haBaseUrl = import.meta.env.VITE_HA_URL;
+              const haUrl = haBaseUrl ? `${haBaseUrl}/config/entities/${encodeURIComponent(effectiveEntityId)}` : null;
               
               return (
                 <div key={idx} className="flex items-center gap-1">
@@ -561,7 +563,9 @@ export const ConversationalSuggestionCard: React.FC<Props> = memo(({
                     onContextMenu={(e) => {
                       // Right-click opens HA page
                       e.preventDefault();
-                      window.open(haUrl, '_blank', 'noopener,noreferrer');
+                      if (haUrl) {
+                        window.open(haUrl, '_blank', 'noopener,noreferrer');
+                      }
                     }}
                     className="text-xs px-2 py-0.5 rounded-md font-medium transition-all cursor-pointer"
                     style={{

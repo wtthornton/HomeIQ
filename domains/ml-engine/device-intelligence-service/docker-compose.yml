@@ -4,13 +4,15 @@ services:
     ports:
       - "8028:8019"
     env_file:
-      - ../../.env
+      # Repo root .env (three levels up from this service directory)
+      - path: ../../../.env
+        required: false
     environment:
       - DEVICE_INTELLIGENCE_PORT=8019
       - DEVICE_INTELLIGENCE_HOST=0.0.0.0
       - LOG_LEVEL=INFO
-      - HA_URL=http://192.168.1.86:8123
-      - MQTT_BROKER=mqtt://192.168.1.86:1883
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
+      - MQTT_BROKER=${MQTT_BROKER:-}
       - ZIGBEE2MQTT_BASE_TOPIC=zigbee2mqtt
     volumes:
       - ./data:/app/data

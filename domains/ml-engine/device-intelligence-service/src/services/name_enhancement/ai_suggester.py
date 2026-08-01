@@ -27,7 +27,7 @@ class AINameSuggester:
         # 2025 Best Practice: GPT-5.1 with caching
         if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
             self.openai_client = AsyncOpenAI(
-                api_key=settings.OPENAI_API_KEY,
+                api_key=settings.OPENAI_API_KEY.get_secret_value(),
                 default_headers={
                     "OpenAI-Beta": "assistants=v2"  # Enable prompt caching
                 }

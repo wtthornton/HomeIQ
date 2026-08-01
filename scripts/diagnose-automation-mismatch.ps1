@@ -90,7 +90,11 @@ if (Test-Path ".env") {
     }
 }
 
-$haUrl = "http://192.168.1.86:8123"
+$haUrl = $env:HA_HTTP_URL
+if (-not $haUrl) {
+    Write-Error "HA_HTTP_URL is not set"
+    exit 1
+}
 
 if ($token) {
     try {

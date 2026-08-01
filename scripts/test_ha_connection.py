@@ -32,7 +32,10 @@ else:
     print(f"⚠️  Warning: .env file not found at {env_path}")
 
 # Get HA configuration
-HA_URL = os.getenv("HA_URL") or os.getenv("HOME_ASSISTANT_URL", "http://192.168.1.86:8123")
+HA_URL = os.getenv("HA_URL") or os.getenv("HOME_ASSISTANT_URL") or ""
+
+if not HA_URL:
+    raise SystemExit("ERROR: HA_URL (or HOME_ASSISTANT_URL) is not set")
 HA_TOKEN = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN", "")
 
 # Normalize URL (remove trailing slash)
@@ -163,7 +166,6 @@ async def test_connection():
             # Try common Docker network hostnames
             container_urls = [
                 "http://host.docker.internal:8123",
-                "http://192.168.1.86:8123",
                 "http://172.17.0.1:8123",  # Default Docker bridge gateway
             ]
             

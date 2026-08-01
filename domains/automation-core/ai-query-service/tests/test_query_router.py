@@ -80,52 +80,69 @@ class TestQueryRouter:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_query_endpoint_not_implemented(self, client: AsyncClient, sample_query_request):
-        """Test query endpoint returns placeholder response (not fully implemented yet)."""
+    async def test_query_endpoint_processes_query(self, client: AsyncClient, sample_query_request):
+        """POST /query persists a record and returns a completed response.
+
+        Data-api is unreachable in tests, so entity extraction degrades to
+        zero entities and suggestions fall back to keyword matching -- the
+        endpoint must still complete rather than 500.
+        """
         response = await client.post("/api/v1/query", json=sample_query_request)
         assert response.status_code == 201
         data = response.json()
-        assert data["status"] == "pending"
+        assert data["status"] == "complete"
         assert "query_id" in data
+        assert isinstance(data["suggestions"], list)
+        assert isinstance(data["entities"], list)
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_get_suggestions_not_implemented(self, client: AsyncClient):
-        """Test get suggestions endpoint returns placeholder response."""
-        query_id = "test-query-123"
+    async def test_get_suggestions_returns_stored_query(
+        self, client: AsyncClient, sample_query_request
+    ):
+        """GET /query/{id}/suggestions returns suggestions for a stored query."""
+        created = await client.post("/api/v1/query", json=sample_query_request)
+        query_id = created.json()["query_id"]
+
         response = await client.get(f"/api/v1/query/{query_id}/suggestions")
         assert response.status_code == 200
         data = response.json()
         assert data["query_id"] == query_id
         assert "suggestions" in data
+        assert data["total_count"] == len(data["suggestions"])
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_refine_query_not_implemented(self, client: AsyncClient):
-        """Test refine query endpoint returns placeholder response."""
-        query_id = "test-query-123"
+    async def test_get_suggestions_unknown_query_returns_404(self, client: AsyncClient):
+        """GET /query/{id}/suggestions for an unknown id is a 404."""
+        response = await client.get("/api/v1/query/no-such-query/suggestions")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_refine_query_reprocesses_stored_query(
+        self, client: AsyncClient, sample_query_request
+    ):
+        """POST /query/{id}/refine re-processes the stored query with feedback."""
+        created = await client.post("/api/v1/query", json=sample_query_request)
+        query_id = created.json()["query_id"]
+
         response = await client.post(
             f"/api/v1/query/{query_id}/refine",
-            json={"refinement": "add more details"}
+            json={"feedback": "only the ceiling lights"},
         )
         assert response.status_code == 200
         data = response.json()
         assert data["query_id"] == query_id
-        assert "status" in data
+        assert data["status"] == "complete"
 
     @pytest.mark.performance
     @pytest.mark.latency
     @pytest.mark.asyncio
-    async def test_query_latency_target(self, _client: AsyncClient, _sample_query_request):
-        """Test query endpoint meets <500ms P95 latency target (when implemented)."""
-
-        # Skip for now since endpoint is not fully implemented
-        pytest.skip("Endpoint not yet fully implemented - latency test will be added after implementation")
-
-        # TODO: When endpoint is implemented, test latency
-        # start_time = time.time()
-        # response = await client.post("/api/v1/query", json=sample_query_request)
-        # latency_ms = (time.time() - start_time) * 1000
-        # assert latency_ms < 500, f"Query latency {latency_ms}ms exceeds 500ms target"
-        # assert response.status_code in [200, 201]
+    async def test_query_latency_target(self):
+        """Test query endpoint meets <500ms P95 latency target."""
+        pytest.skip(
+            "P95 latency is not meaningful against the in-process ASGI test "
+            "transport - needs a deployed environment (perf suite)"
+        )
 

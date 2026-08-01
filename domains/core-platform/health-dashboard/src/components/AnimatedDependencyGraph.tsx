@@ -132,7 +132,7 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
     // Layer 1: External Sources (Spread horizontally across top)
     { id: 'external-apis', name: 'External APIs', icon: '🌐', type: 'external', position: { x: 60, y: 50 }, layer: 1, description: 'Air quality, carbon, pricing, electricity' },
     { id: 'espn-api', name: 'ESPN API', icon: '🏈🏒', type: 'external', position: { x: 180, y: 50 }, layer: 1, description: 'NFL/NHL game data' },
-    { id: 'home-assistant', name: 'Home Assistant', icon: '🏠', type: 'source', position: { x: 300, y: 50 }, layer: 1, description: 'External event source (192.168.1.86:8123)' },
+    { id: 'home-assistant', name: 'Home Assistant', icon: '🏠', type: 'source', position: { x: 300, y: 50 }, layer: 1, description: 'External event source' },
     { id: 'openweather', name: 'OpenWeather', icon: '☁️', type: 'external', position: { x: 420, y: 50 }, layer: 1, description: 'OpenWeatherMap API (external)' },
     
     // Layer 2: Ingestion Services (Spread horizontally, second row)

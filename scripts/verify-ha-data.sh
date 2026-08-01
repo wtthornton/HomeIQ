@@ -26,7 +26,11 @@ fi
 # Configuration
 WEBSOCKET_URL="${WEBSOCKET_URL:-http://localhost:8001}"
 DATA_API_URL="${DATA_API_URL:-http://localhost:8006}"
-HA_URL="${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}}"
+HA_URL="${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}"
+if [ -z "$HA_URL" ]; then
+    echo "ERROR: HA_HTTP_URL (or HOME_ASSISTANT_URL) is not set" >&2
+    exit 1
+fi
 # Use HOME_ASSISTANT_TOKEN from .env, fallback to HA_TOKEN
 HA_TOKEN="${HOME_ASSISTANT_TOKEN:-${HA_TOKEN:-}}"
 # Remove trailing slash from URL if present

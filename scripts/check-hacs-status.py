@@ -11,7 +11,7 @@ Usage:
     python scripts/check-hacs-status.py
 
 Environment Variables:
-    HA_HTTP_URL: Home Assistant URL (default: http://192.168.1.86:8123)
+    HA_HTTP_URL: Home Assistant URL (required)
     HA_TOKEN: Long-lived access token from Home Assistant
 """
 
@@ -37,8 +37,10 @@ class HACSDiagnostic:
     """Diagnostic tool for checking HACS and Team Tracker status"""
     
     def __init__(self):
-        self.ha_url = os.getenv('HA_HTTP_URL', 'http://192.168.1.86:8123')
+        self.ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL') or ''
         self.ha_token = os.getenv('HA_TOKEN', '')
+        if not self.ha_url:
+            raise SystemExit('ERROR: HA_HTTP_URL (or HOME_ASSISTANT_URL) is not set')
         self.timeout = aiohttp.ClientTimeout(total=10)
     
     async def check_hacs(self) -> Dict:

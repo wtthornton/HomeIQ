@@ -15,8 +15,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 load_dotenv()
 
-HA_URL = os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123').replace('ws://', 'http://').replace('wss://', 'https://').rstrip('/')
+HA_URL = (os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL') or '').replace('ws://', 'http://').replace('wss://', 'https://').rstrip('/')
 HA_TOKEN = os.getenv('HOME_ASSISTANT_TOKEN')
+
+if not HA_URL:
+    raise SystemExit('ERROR: HA_HTTP_URL (or HOME_ASSISTANT_URL) is not set')
 DATA_API_URL = os.getenv('DATA_API_URL', 'http://localhost:8006')
 DATA_API_KEY = os.getenv('DATA_API_API_KEY') or os.getenv('DATA_API_KEY') or os.getenv('API_KEY')
 

@@ -73,7 +73,7 @@ services:
       - QUERY_SERVICE_URL=http://ai-query-service:8018
       - PATTERN_SERVICE_URL=http://ai-pattern-service:8020
       - YAML_VALIDATION_SERVICE_URL=http://yaml-validation-service:8037
-      - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
@@ -177,7 +177,7 @@ services:
     environment:
       - DATA_API_URL=http://data-api:8006
       - DATA_API_KEY=${API_KEY:-}
-      - HA_URL=${HOME_ASSISTANT_URL:-http://192.168.1.86:8123}
+      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - SERVICE_PORT=8037
       - VALIDATION_LEVEL=moderate
@@ -296,8 +296,6 @@ services:
     restart: unless-stopped
     ports:
       - "8044:8020"
-    extra_hosts:
-      - "homeassistant:192.168.1.86"
     env_file:
       - ../../.env
     environment:
@@ -346,8 +344,6 @@ services:
     restart: unless-stopped
     ports:
       - "8046:8046"
-    extra_hosts:
-      - "homeassistant:192.168.1.86"
     env_file:
       - ../../.env
     environment:

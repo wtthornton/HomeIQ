@@ -2,9 +2,18 @@
 # This script checks all automations and their status
 
 param(
-    [string]$HA_URL = "http://192.168.1.86:8123",
-    [string]$HA_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmYzAxMTBmZGRiNzc0ZDNjYTJhNjg2Mjk5M2U3ZGE4MiIsImlhdCI6MTc2MDM5NjUwNSwiZXhwIjoyMDc1NzU2NTA1fQ.dngeB--Ov3TgE1iJR3VyL9tX-a99jTiiUxlrz467j1Q"
+    [string]$HA_URL = $env:HA_HTTP_URL,
+    [string]$HA_TOKEN = $env:HA_TOKEN
 )
+
+if (-not $HA_URL) {
+    Write-Error "HA_URL is not set. Pass -HA_URL or set HA_HTTP_URL."
+    exit 1
+}
+if (-not $HA_TOKEN) {
+    Write-Error "HA_TOKEN is not set. Pass -HA_TOKEN or set HA_TOKEN."
+    exit 1
+}
 
 Write-Host "🔍 Checking Home Assistant Automations..." -ForegroundColor Cyan
 Write-Host "HA URL: $HA_URL" -ForegroundColor Gray

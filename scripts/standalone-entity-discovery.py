@@ -11,8 +11,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-HA_URL = os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123').replace('https://', 'ws://').replace('http://', 'ws://')
+HA_URL = (os.getenv('HOME_ASSISTANT_URL') or '').replace('https://', 'ws://').replace('http://', 'ws://')
 HA_TOKEN = os.getenv('HOME_ASSISTANT_TOKEN')
+
+if not HA_URL:
+    raise SystemExit('ERROR: HOME_ASSISTANT_URL is not set')
 DATA_API_URL = os.getenv('DATA_API_URL', 'http://localhost:8006')
 DATA_API_KEY = os.getenv('DATA_API_API_KEY') or os.getenv('DATA_API_KEY') or os.getenv('API_KEY')
 

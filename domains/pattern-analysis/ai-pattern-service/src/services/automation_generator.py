@@ -65,7 +65,7 @@ class AutomationGenerator:
         Initialize automation generator.
 
         Args:
-            ha_url: Home Assistant URL (e.g., "http://192.168.1.86:8123")
+            ha_url: Home Assistant URL (e.g., "http://homeassistant.local:8123")
             ha_token: Home Assistant long-lived access token
             ha_version: Home Assistant version (default: 2025.1)
             blueprint_index_url: Optional Blueprint Index service URL (Phase 3)

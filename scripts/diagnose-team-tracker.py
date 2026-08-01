@@ -38,7 +38,9 @@ load_dotenv()
 # API Configuration
 DATA_API_URL = "http://localhost:8006"  # Fixed: data-api base URL
 DEVICE_INTELLIGENCE_URL = "http://localhost:3001/api/device-intelligence"
-API_KEY = "hs_P3rU9kQ2xZp6vL1fYc7bN4sTqD8mA0wR"
+API_KEY = os.getenv("API_KEY", "")
+if not API_KEY:
+    raise SystemExit("ERROR: API_KEY is not set")
 
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}",

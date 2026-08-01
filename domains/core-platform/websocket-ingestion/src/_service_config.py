@@ -29,12 +29,14 @@ class ServiceConfig:
         default_factory=lambda: settings.resolved_ha_ws_url
     )
     home_assistant_token: str | None = field(
-        default_factory=lambda: settings.resolved_ha_token
+        default_factory=lambda: settings.resolved_ha_token.get_secret_value() if settings.resolved_ha_token else None
     )
 
     # Nabu Casa fallback
     nabu_casa_url: str | None = field(default_factory=lambda: settings.nabu_casa_url)
-    nabu_casa_token: str | None = field(default_factory=lambda: settings.nabu_casa_token)
+    nabu_casa_token: str | None = field(
+        default_factory=lambda: settings.nabu_casa_token.get_secret_value() if settings.nabu_casa_token else None
+    )
 
     home_assistant_enabled: bool = field(
         default_factory=lambda: settings.enable_home_assistant

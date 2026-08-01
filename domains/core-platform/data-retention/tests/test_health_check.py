@@ -1,10 +1,13 @@
 """Tests for health check endpoints."""
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from fastapi.testclient import TestClient
 from src.api.app import app
+from src.config import settings
+
+TEST_API_KEY = "test-api-key"
 
 
 class TestHealthCheckEndpoints:
@@ -35,12 +38,17 @@ class TestHealthCheckEndpoints:
             {"name": "test_policy", "retention_period": 30}
         ]
         service.run_cleanup = AsyncMock(return_value=[{"policy": "test", "deleted": 100}])
+        # Mirrors DataRetentionService.create_backup, which returns
+        # BackupInfo.to_dict() (created_at serialized, success as bool).
         service.create_backup = AsyncMock(return_value={
             "backup_id": "test_backup",
             "backup_type": "full",
             "created_at": "2024-01-01T00:00:00Z",
             "size_bytes": 1000,
-            "status": "success"
+            "file_path": "/backups/test_backup.tar.gz",
+            "metadata": {},
+            "success": True,
+            "error_message": None
         })
         service.restore_backup = AsyncMock(return_value=True)
         service.get_backup_history.return_value = [
@@ -59,17 +67,26 @@ class TestHealthCheckEndpoints:
         return service
 
     @pytest.fixture
-    def client(self, mock_service):
-        """Create FastAPI test client with mocked service."""
-        with patch('src.main.data_retention_service', mock_service):
-            # Set the service in app state for testing
-            app.state.service = mock_service
-            yield TestClient(app)
+    def client(self, mock_service, monkeypatch):
+        """Create FastAPI test client with mocked service.
 
-    def test_health_check_success(self, client, _mock_service):
+        Routers read the service from app.state.service (set during lifespan
+        startup in production). Mutation routers additionally require the
+        X-API-Key header to match settings.data_retention_api_key.
+        """
+        monkeypatch.setattr(settings, "data_retention_api_key", TEST_API_KEY)
+        app.state.service = mock_service
+        yield TestClient(app, headers={"X-API-Key": TEST_API_KEY})
+        del app.state.service
+
+    # The detailed health handler is asserted via /api/v1/health: create_app
+    # mounts the StandardHealthCheck router first, so its own /health route
+    # shadows the duplicate /health registration in routers/health.py.
+
+    def test_health_check_success(self, client):
         """Test successful health check."""
-        response = client.get("/health")
-        
+        response = client.get("/api/v1/health")
+
         assert response.status_code == 200
         data = response.json()
         assert "status" in data
@@ -81,9 +98,9 @@ class TestHealthCheckEndpoints:
         mock_service.get_storage_alerts.return_value = [
             {"severity": "critical", "message": "Disk full"}
         ]
-        
-        response = client.get("/health")
-        
+
+        response = client.get("/api/v1/health")
+
         assert response.status_code == 200
         data = response.json()
         assert data["status"] in ["critical", "warning", "healthy"]
@@ -92,17 +109,17 @@ class TestHealthCheckEndpoints:
     def test_health_check_error(self, client, mock_service):
         """Test health check with error."""
         mock_service.get_service_status.side_effect = Exception("Test error")
-        
-        response = client.get("/health")
-        
+
+        response = client.get("/api/v1/health")
+
         assert response.status_code == 500
         data = response.json()
         assert "error" in data["detail"] or "error" in data
 
-    def test_get_statistics_success(self, client, _mock_service):
+    def test_get_statistics_success(self, client):
         """Test successful statistics request."""
         response = client.get("/stats")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "service_status" in data
@@ -111,17 +128,17 @@ class TestHealthCheckEndpoints:
     def test_get_statistics_error(self, client, mock_service):
         """Test statistics request with error."""
         mock_service.get_service_statistics.side_effect = Exception("Test error")
-        
+
         response = client.get("/stats")
-        
+
         assert response.status_code == 500
         data = response.json()
         assert "error" in data["detail"]
 
-    def test_get_policies_success(self, client, _mock_service):
+    def test_get_policies_success(self, client):
         """Test successful policies request."""
         response = client.get("/policies")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "policies" in data
@@ -137,21 +154,27 @@ class TestHealthCheckEndpoints:
             "retention_unit": "days",
             "enabled": True
         }
-        
+
         response = client.post("/policies", json=policy_data)
-        
+
         assert response.status_code == 201
         data = response.json()
         assert data["message"] == "Policy added successfully"
         mock_service.add_retention_policy.assert_called_once()
 
     def test_add_policy_error(self, client, mock_service):
-        """Test policy addition with error."""
-        mock_service.add_retention_policy.side_effect = Exception("Test error")
-        
-        policy_data = {"name": "test_policy"}
+        """Invalid policy data (ValueError from the service) maps to 400."""
+        mock_service.add_retention_policy.side_effect = ValueError("Test error")
+
+        policy_data = {
+            "name": "test_policy",
+            "description": "Bad policy",
+            "retention_period": 60,
+            "retention_unit": "days",
+            "enabled": True
+        }
         response = client.post("/policies", json=policy_data)
-        
+
         assert response.status_code == 400
         data = response.json()
         assert "error" in data["detail"]
@@ -165,9 +188,9 @@ class TestHealthCheckEndpoints:
             "retention_unit": "days",
             "enabled": False
         }
-        
+
         response = client.put("/policies", json=policy_data)
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["message"] == "Policy updated successfully"
@@ -176,16 +199,16 @@ class TestHealthCheckEndpoints:
     def test_delete_policy_success(self, client, mock_service):
         """Test successful policy deletion."""
         response = client.delete("/policies/test_policy")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["message"] == "Policy deleted successfully"
         mock_service.remove_retention_policy.assert_called_once_with("test_policy")
 
-    def test_run_cleanup_success(self, client, _mock_service):
+    def test_run_cleanup_success(self, client):
         """Test successful cleanup run."""
         response = client.post("/cleanup?policy_name=test_policy")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "results" in data
@@ -195,14 +218,14 @@ class TestHealthCheckEndpoints:
     def test_run_cleanup_error(self, client, mock_service):
         """Test cleanup run with error."""
         mock_service.run_cleanup.side_effect = Exception("Test error")
-        
+
         response = client.post("/cleanup")
-        
+
         assert response.status_code == 500
         data = response.json()
         assert "error" in data["detail"]
 
-    def test_create_backup_success(self, client, _mock_service):
+    def test_create_backup_success(self, client):
         """Test successful backup creation."""
         backup_data = {
             "backup_type": "full",
@@ -210,9 +233,9 @@ class TestHealthCheckEndpoints:
             "include_config": True,
             "include_logs": False
         }
-        
+
         response = client.post("/backup", json=backup_data)
-        
+
         assert response.status_code == 201
         data = response.json()
         assert "backup_id" in data
@@ -221,15 +244,15 @@ class TestHealthCheckEndpoints:
     def test_create_backup_error(self, client, mock_service):
         """Test backup creation with error."""
         mock_service.create_backup.side_effect = Exception("Test error")
-        
+
         backup_data = {"backup_type": "full"}
         response = client.post("/backup", json=backup_data)
-        
+
         assert response.status_code == 500
         data = response.json()
         assert "error" in data["detail"]
 
-    def test_restore_backup_success(self, client, _mock_service):
+    def test_restore_backup_success(self, client):
         """Test successful backup restore."""
         restore_data = {
             "backup_id": "test_backup",
@@ -237,47 +260,47 @@ class TestHealthCheckEndpoints:
             "restore_config": True,
             "restore_logs": False
         }
-        
+
         response = client.post("/backup/restore", json=restore_data)
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["message"] == "Backup restored successfully"
 
-    def test_restore_backup_missing_id(self, client, _mock_service):
+    def test_restore_backup_missing_id(self, client):
         """Test backup restore with missing backup ID."""
         restore_data = {"restore_data": True}
-        
+
         response = client.post("/backup/restore", json=restore_data)
-        
+
         # FastAPI validation should catch missing required field
         assert response.status_code in [422, 400]  # 422 for validation error
 
     def test_restore_backup_failed(self, client, mock_service):
         """Test failed backup restore."""
         mock_service.restore_backup = AsyncMock(return_value=False)
-        
+
         restore_data = {"backup_id": "test_backup"}
         response = client.post("/backup/restore", json=restore_data)
-        
+
         assert response.status_code == 500
         data = response.json()
         assert "error" in data["detail"]
 
-    def test_get_backup_history_success(self, client, _mock_service):
+    def test_get_backup_history_success(self, client):
         """Test successful backup history request."""
         response = client.get("/backup/backups?limit=10")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "backups" in data
         assert len(data["backups"]) == 1
         assert data["backups"][0]["backup_id"] == "test_backup"
 
-    def test_get_backup_statistics_success(self, client, _mock_service):
+    def test_get_backup_statistics_success(self, client):
         """Test successful backup statistics request."""
         response = client.get("/backup/stats")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["total_backups"] == 5
@@ -285,7 +308,7 @@ class TestHealthCheckEndpoints:
     def test_cleanup_old_backups_success(self, client, mock_service):
         """Test successful old backups cleanup."""
         response = client.delete("/backup/cleanup?days_to_keep=30")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "message" in data
@@ -295,9 +318,9 @@ class TestHealthCheckEndpoints:
     def test_cleanup_old_backups_error(self, client, mock_service):
         """Test old backups cleanup with error."""
         mock_service.cleanup_old_backups.side_effect = Exception("Test error")
-        
+
         response = client.delete("/backup/cleanup")
-        
+
         assert response.status_code == 500
         data = response.json()
         assert "error" in data["detail"]
@@ -307,17 +330,17 @@ class TestHealthCheckEndpoints:
         # Test root endpoint
         response = client.get("/")
         assert response.status_code == 200
-        
+
         # Test health endpoints (both paths)
         response = client.get("/health")
         assert response.status_code in [200, 500]  # 500 if service not initialized
-        
+
         response = client.get("/api/v1/health")
         assert response.status_code in [200, 500]
-        
+
         # Test stats endpoints
         response = client.get("/stats")
         assert response.status_code in [200, 500]
-        
+
         response = client.get("/api/v1/stats")
         assert response.status_code in [200, 500]

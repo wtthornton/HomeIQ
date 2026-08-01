@@ -12,7 +12,6 @@ memories to improve suggestion timing and relevance.
 from __future__ import annotations
 
 import logging
-import os
 from datetime import UTC, datetime
 from typing import Any
 
@@ -34,6 +33,7 @@ except ImportError:
     _MEMORY_AVAILABLE = False
 
 from ..clients.ha_agent_client import HAAgentClient
+from ..config import Settings
 from ..services.ai_prompt_generation_service import AIPromptGenerationService
 from ..services.context_analysis_service import ContextAnalysisService
 from ..services.prompt_generation_service import PromptGenerationService
@@ -86,7 +86,7 @@ class SuggestionPipelineService:
         Raises:
             PipelineInitializationError: If any required service fails to initialize
         """
-        self.use_ai_generation = use_ai_generation and os.getenv("OPENAI_API_KEY")
+        self.use_ai_generation = use_ai_generation and bool(Settings().openai_api_key)
         self.memory_search = memory_search
 
         try:

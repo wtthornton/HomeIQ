@@ -30,21 +30,20 @@ async def create_backup(request: Request, backup_request: BackupCreateRequest):
     """
     try:
         service = request.app.state.service
+        # DataRetentionService.create_backup returns BackupInfo.to_dict()
+        # (created_at already serialized to an ISO string).
         backup_info = await service.create_backup(
             backup_type=backup_request.backup_type,
             include_data=backup_request.include_data,
             include_config=backup_request.include_config,
             include_logs=backup_request.include_logs
         )
-        created_at = backup_info.created_at
-        if hasattr(created_at, "isoformat"):
-            created_at = created_at.isoformat()
         return BackupResponse(
-            backup_id=backup_info.backup_id,
-            backup_type=backup_info.backup_type,
-            created_at=created_at,
-            size_bytes=backup_info.size_bytes,
-            status="success" if backup_info.success else "failed",
+            backup_id=backup_info["backup_id"],
+            backup_type=backup_info["backup_type"],
+            created_at=backup_info["created_at"],
+            size_bytes=backup_info["size_bytes"],
+            status="success" if backup_info["success"] else "failed",
         )
     except Exception as e:
         logger.error(f"Backup creation failed: {e}", exc_info=True)

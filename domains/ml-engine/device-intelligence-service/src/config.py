@@ -11,7 +11,7 @@ import json
 import os
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 
 from homeiq_data import BaseServiceSettings
 
@@ -132,7 +132,7 @@ class Settings(BaseServiceSettings):
         default=False,
         description="Automatically generate name suggestions during device discovery",
     )
-    OPENAI_API_KEY: str | None = Field(
+    OPENAI_API_KEY: SecretStr | None = Field(
         default=None,
         description="OpenAI API key for AI name generation (optional)",
     )

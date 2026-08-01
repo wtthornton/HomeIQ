@@ -112,8 +112,12 @@ class DiscoveryService:
 
             import aiohttp
 
-            ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
+            ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL')
             ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
+
+            if not ha_url:
+                logger.error("HA_HTTP_URL/HOME_ASSISTANT_URL not set — cannot run HTTP device discovery")
+                return []
 
             if not ha_token:
                 logger.warning("⚠️  No HA token available for HTTP device discovery")
@@ -254,8 +258,12 @@ class DiscoveryService:
 
             import aiohttp
 
-            ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
+            ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL')
             ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
+
+            if not ha_url:
+                logger.error("HA_HTTP_URL/HOME_ASSISTANT_URL not set — cannot run HTTP entity discovery")
+                return []
 
             if not ha_token:
                 logger.warning("⚠️  No HA token available for HTTP entity discovery")
@@ -672,8 +680,12 @@ class DiscoveryService:
 
             import aiohttp
 
-            ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL', 'http://192.168.1.86:8123')
+            ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL')
             ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
+
+            if not ha_url:
+                logger.error("HA_HTTP_URL/HOME_ASSISTANT_URL not set — cannot discover services")
+                return {}
 
             if not ha_token:
                 logger.warning("⚠️  No HA token available for services discovery")
