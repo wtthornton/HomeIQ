@@ -40,7 +40,45 @@ After rebuild completes and all 58 containers healthy, re-run `bash scripts/veri
 
 See the Completed section above for IDs and the corrections to the original defect descriptions.
 
-#### P1.2: Clear DB Provisioning Defects
+#### P1.2: DB Provisioning Defects — ROOT-CAUSED AND FIXED IN CODE (commit `c23878c5`)
+
+Both were filed as "a table is missing." Same structural cause: `init-schemas.sql`
+is the only provisioning path wired up, and three tables plus a whole schema were
+declared in code but never added to it.
+
+**TAP-5438 — matched neither candidate the issue listed.** Not a qualification bug,
+and not ai-automation-service. `ai-pattern-service` declares six tables; only four
+were provisioned. `pattern_training_data` and `ml_models` were absent. The
+`/api/patterns/*` routes on ai-automation merely proxy to that service, so the 500s
+surfaced a layer above where they originated.
+
+**TAP-5437 — had a second blocker behind the missing schema.** homeiq-memory declares
+`embedding vector(768)` + HNSW, but the deployment ran `postgres:17-alpine`, which has
+no pgvector — so the alembic migration could not have succeeded even if something ran
+it, and nothing does. Image moved to `pgvector/pgvector:pg17` (user decision, over the
+RAG schema's JSON-embedding workaround). The 500-not-503 is because
+`MemoryClient.initialize()` probes only `SELECT 1` with `create_tables=False`: the
+client reports healthy, then the first real query hits a nonexistent table.
+
+**REQUIRED after deploy** — entrypoint scripts only run against an empty data dir, so
+the init script alone will not fix the live database:
+
+```bash
+docker exec -i homeiq-postgres psql -U homeiq -d homeiq < infrastructure/postgres/migrations/001-pattern-ml-tables.sql
+docker exec -i homeiq-postgres psql -U homeiq -d homeiq < infrastructure/postgres/migrations/002-memory-schema.sql
+# once, after the alpine -> Debian image swap (musl vs glibc collation):
+docker exec homeiq-postgres psql -U homeiq -d homeiq -c 'REINDEX DATABASE homeiq;'
+```
+
+**Not yet verified:** no psql or sqlparse locally and Docker is permission-blocked, so
+none of this SQL has been executed. Parens balance and `tapps_validate_config` passes
+on the compose change, but first application is the real test.
+
+**Superseded:** the earlier scratchpad `fix-tap-5437-memory-schema.sql` was wrong — it
+issued `CREATE EXTENSION vector` against an image without pgvector. Use the migrations
+directory instead.
+
+#### P1.2b: Remaining DB Provisioning Notes
 
 **TAP-5437 (Memory schema missing):**
 - Root cause: Alembic migration `001_create_memory_schema.py` has never run
