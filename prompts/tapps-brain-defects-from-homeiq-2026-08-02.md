@@ -108,6 +108,32 @@ real work. Worth tracing before optimising.
   noting they belong in `architectural`. `context` has a 14-day half-life, so
   they expire around 2026-08-16 unless this is fixed and they are promoted.
 
+## Also: the 4096-char cap makes handoff mirroring fail in practice
+
+`tapps_handoff_save` mirrors the handoff markdown to the brain by default
+(`mirror_brain: true`). Every realistic handoff exceeds the limit:
+
+```
+tapps_handoff_save(markdown=<8 KB handoff>)
+  -> success: true
+     file_path: ".tapps-mcp/session-handoff.md"
+     lint: { ok: true }
+     brain_mirror: {
+       error: "bad_request",
+       detail: "Value error, Value exceeds max length (7998 > 4096)."
+     }
+```
+
+The file write succeeded and the overall call reported `success: true`, so
+nothing surfaces unless you read the nested `brain_mirror` key. The practical
+result is that **brain-side handoff recall is empty across sessions** while the
+tool reports success — the same silent-failure shape as the tier bug above.
+
+4096 characters is well under a normal handoff. A session handoff carrying
+environment quirks, blockers and next steps runs 6-10 KB. Either raise the cap
+for this field, chunk the mirror, or make the partial failure a top-level
+`success: false` so the caller knows the mirror did not happen.
+
 ## Related, may or may not be yours
 
 The deployed slim profile exposes only `get, health, related, save, search` — no
