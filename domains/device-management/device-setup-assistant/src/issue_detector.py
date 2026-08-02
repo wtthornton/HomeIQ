@@ -96,7 +96,7 @@ class SetupIssueDetector:
 
             # Check 4: All entities disabled
             if entity_ids:
-                disabled_count = await self._count_disabled_entities(session, entity_ids)
+                disabled_count = await self._count_disabled_entities(entity_ids)
                 if disabled_count == len(entity_ids):
                     issues.append({
                         "type": "all_entities_disabled",
@@ -160,28 +160,22 @@ class SetupIssueDetector:
 
         return {"active": any_active, "hours_since": max_hours_since}
 
-    async def _count_disabled_entities(
-        self, session, entity_ids: list[str]
-    ) -> int:
-        """Count disabled entities"""
+    async def _count_disabled_entities(self, entity_ids: list[str]) -> int:
+        """Count disabled entities
+
+        Reads the registry through the shared client rather than issuing its own
+        REST request: the entity registry is a WebSocket command, so the previous
+        `GET /api/config/entity_registry/list` always 404'd and this returned 0 —
+        indistinguishable from "nothing is disabled".
+        """
         try:
-            registry_url = f"{self.ha_url}/api/config/entity_registry/list"
-            async with session.get(registry_url) as response:
-                if response.status == 200:
-                    registry_data = await response.json()
-                    entities = registry_data if isinstance(registry_data, list) else registry_data.get("entities", [])
-
-                    # Build a dict for O(1) lookups instead of O(N*M) scanning
-                    entity_map = {
-                        e.get("entity_id"): e for e in entities if e.get("entity_id")
-                    }
-
-                    disabled_count = 0
-                    for entity_id in entity_ids:
-                        entity_info = entity_map.get(entity_id)
-                        if entity_info and entity_info.get("disabled_by") is not None:
-                            disabled_count += 1
-                    return disabled_count
+            # Already keyed by entity_id, so no second pass is needed.
+            entity_map = await self.ha_client.get_entity_registry()
+            return sum(
+                1
+                for entity_id in entity_ids
+                if (entity_map.get(entity_id) or {}).get("disabled_by") is not None
+            )
         except Exception as e:
             logger.error(f"Error counting disabled entities: {e}")
         return 0
