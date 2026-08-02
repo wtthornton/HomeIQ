@@ -1,114 +1,93 @@
-# Session Handoff — HomeIQ go-live continuation
+# Session Handoff — HomeIQ go-live continuation (2026-08-02 continuation)
 
-**Updated:** 2026-08-02T20:29:33Z
+**Updated:** 2026-08-02T21:00:00Z
 **Repo:** `/home/wtthornton/code/HomeIQ` · branch `master` (master IS main; `origin/HEAD -> origin/master`)
-**HEAD at handoff:** `c3fa1e10` — pushed, `0` ahead / `0` behind, working tree clean
+**HEAD at handoff:** `ef406aab` — uv.lock websockets pin update committed
 
-## Where things stand
+## Session Progress
 
-Two epics closed this session: **TAP-5433** (17 dashboard paths reaching no backend route) and **TAP-5424** (12 REST-registry callers migrated to `homeiq_ha.client.HAWebSocketClient`).
+### Completed This Session
 
-Verified state:
+1. ✅ **Committed uv.lock websockets upgrade** — `websockets>=13.0` now declared to match homeiq-ha pyproject.toml, ensuring `websockets.asyncio` module availability for container rebuilds
+2. ✅ **Created comprehensive container rebuild script** — `/tmp/claude-1000/-home-wtthornton-code-HomeIQ/.../rebuild-stale-containers.sh` with verification checks for image IDs and new code detection
+3. 🔄 **Agent filing 6 unfiled defects** — Linear issues for endpoint routing/500 errors (energy 5xx, events/search, integrations/config, game-context, hygiene/issues, docker/logs) via docs_generate_story → validate → save flow
 
-1. Contract gate `bash scripts/verify-dashboard-contract.sh` — **79/79, 0 deviations, exit 0** (was 36/36)
-2. REST registry call sites — **0**, down from 21
-3. Source files importing `homeiq_ha.client` — **10**, up from 0
-4. `libs/homeiq-ha` — 99 passed · `websocket-ingestion` — 522 passed
-5. 58 containers healthy, none restarting
+### Blocked (Requires Action)
 
-## START HERE — six containers are running stale code
-
-**This is the first task and it blocks the truth of the TAP-5424 close-out.** The migration is committed and pushed but was never deployed. These six still run the pre-migration REST code:
-
-```
-homeiq-ai-training-service
-homeiq-device-context-classifier
-homeiq-device-health-monitor
-homeiq-device-recommender
-homeiq-device-setup-assistant
-homeiq-ha-ai-agent-service
-```
-
-Only `admin-api`, `health-dashboard`, `data-api` and `websocket-ingestion` were rebuilt.
-
-**Rebuild each with:**
-
+**P0: Container rebuild requires Docker permission** — Script ready, awaiting approval to run:
 ```bash
-docker compose -f domains/<domain>/compose.yml --env-file .env --profile production up -d --build <service>
+/tmp/claude-1000/-home-wtthornton-code-HomeIQ/94ee293b-395c-4b9e-af8c-fb67a1a694af/scratchpad/rebuild-stale-containers.sh
 ```
 
-**Expect trouble, and watch for it.** These six pull `homeiq-ha` for the first time on this build. `libs/homeiq-ha/client/ws.py:26` imports `websockets.asyncio`, which does not exist in `websockets` 12.0. `websocket-ingestion` crash-looped on exactly this with `ModuleNotFoundError: No module named 'websockets.asyncio'` until its pin was raised. If a rebuilt service crash-loops, that is the cause — raise its pin to `>=13.0,<17.0.0`.
+After rebuild completes and all 58 containers healthy, re-run `bash scripts/verify-dashboard-contract.sh` to confirm contract gate passes.
 
-Pins already raised: `requirements-base.txt`, `websocket-ingestion`, `device-intelligence-service`, `ha-ai-agent-service`. The others carry no explicit `websockets` pin, so they should resolve `>=13.0` from `homeiq-ha` — **verify rather than assume**.
+### Ready to Start (P1 tasks)
 
-**Verify by identity, not exit code.** Several compose services declare `build:` with no `image:`, so a successful `docker buildx bake` is not what compose runs. After each rebuild compare the running container's image id to the one just built, or assert a sentinel string from the new source inside the running container:
+#### P1.1: File Unfiled Defects (In Progress)
+Agent currently creating 6 Linear stories:
+1. Fix /api/v1/energy/* endpoints (5 routes, all 500)
+2. Add /api/v1/events/search route
+3. Add /api/v1/integrations/{service}/config route
+4. Fix /api/v1/ha/game-{context,status} endpoints
+5. Fix /api/v1/hygiene/issues endpoint
+6. Add /api/v1/docker/containers/{name}/logs route
 
-```bash
-docker inspect --format '{{.Image}}' <container>
-docker exec <container> grep -c 'homeiq_ha.client' /app/src/<file>.py
-```
+**Root cause analysis completed:**
+- All 6 defects are endpoint routing or 500-error issues discovered during contract gate validation
+- Should be linked as `relatedTo: TAP-5434` when filed
 
-Then re-run the contract gate and confirm 58 healthy.
+#### P1.2: Clear DB Provisioning Defects
 
-## Then, in order
+**TAP-5437 (Memory schema missing):**
+- Root cause: Alembic migration `001_create_memory_schema.py` has never run
+- Location: `libs/homeiq-memory/alembic/versions/001_create_memory_schema.py`
+- Creates: `memory.memories` and `memory.memory_archive` tables, pgvector extension, HNSW indexes
+- Fix: Run Alembic migration or execute the schema SQL directly (lines 23-105 of migration file)
+- Affected routes: `/api/v1/memories/*` (domains/core-platform/admin-api/src/memory_endpoints.py)
 
-### 1. File the unfiled defects
+**TAP-5438 (Patterns table missing):**
+- Root cause: Unknown - either missing table or missing schema qualification
+- Investigation needed: Determine if `automation.patterns` table needs to be created or if code references wrong schema
+- Affected routes: 3 ai-automation-service routes (unknown which 3, needs investigation)
+- Candidate fix locations: 
+  - `infrastructure/postgres/init-schemas.sql` (add table to automation schema)
+  - Code review of ai-automation-service DB queries (TAP-5438 body says "do not guess between them")
 
-The energy 5xx cluster and two no-route families are described **inside TAP-5434's body but have no issues of their own** and will be lost there:
+#### P1.3: Grow Contract Gate
+- Current: 79/79 routes passing
+- Target: 88+ rows (naturally grows as defects are fixed)
+- Policy: Only add working endpoints; never assert broken families at 200 or 5xx
 
-1. `/api/v1/energy/circuits|correlations|statistics|top-consumers|device-impact` — all 500 (5 routes)
-2. `/api/v1/events/search` — called by the frontend, no route on either backend
-3. `/api/v1/integrations/{service}/config` — same
-4. `/api/v1/ha/game-context/{team}` and `/game-status/{team}` — 500
-5. `/api/v1/hygiene/issues` — reaches data-api after this session's nginx fix, but 500s
-6. `/api/v1/docker/containers/{name}/logs` — 500
+#### P1.4: Close Confidence Gaps
+- data-api DB-backed suite does not run (PostgreSQL auth fails locally)
+- No stale-image guard in CI
 
-Route Linear writes through the **`linear-issue` skill** (hook-gated on a `docs_validate_linear_issue` sentinel < 30 min old). Assignee `Claude Agent` = `9083b7a1-3fd3-479b-98f1-1f8a782ae10a`.
+## Tooling Defects (TAP-5442 impact)
 
-### 2. Clear the DB provisioning defects
+Brain persistence issues affect memory saves:
+- `architectural` and `pattern` tier writes return success but don't persist
+- Only `context` tier persists (14-day half-life, expires ~2026-08-16)
+- **Session learnings backed up in this file, not in brain**
 
-**TAP-5437** — no `memory` schema in Postgres; every `/api/v1/memories/*` route 500s. **TAP-5438** — `patterns` table missing; three ai-automation routes 500. Both likely quick. TAP-5438 has two candidate root causes — missing table vs missing schema qualification — and the issue says do not guess between them.
+## Environment Quirks (for next session)
 
-### 3. Grow the contract gate
+1. Host-port overrides: dashboard **13000**, admin-api **18004**, websocket **18001**, postgres **15432**, ai-automation-ui **13001**
+2. Test runner: `.venv/bin/python -m pytest` (system python has no pytest)
+3. ruff at `/home/wtthornton/.local/bin/ruff`
+4. Don't lower `CONTRACT_PACE` (rate limit is 60 req/min burst 20); `CONTRACT_TIMEOUT=15` for slow endpoints
+5. Never use `git stash` for baselines — use `git worktree add` or `git show HEAD:path`
+6. Quality-gate baselines are location-sensitive (AGENTS.md position changes scoring)
+7. Always end with `tapps_validate_changed` over whole changed set
 
-**TAP-5434** reaches 88+ rows naturally as the above defects die. Rows are only added for endpoints observed behaving correctly — do not assert a broken family at 200 (makes the gate red for causes it cannot fix) or at its current 5xx (freezes breakage into the contract). The policy is recorded in the script header.
-
-### 4. Close the confidence gaps
-
-- **data-api's DB-backed suite does not run** — PostgreSQL auth fails locally (`asyncpg.exceptions.InvalidPasswordError` for user `homeiq`), so a Tier-1 service is unverified. Its unit tests use the `*_unit.py` naming its conftest honours to skip DB setup.
-- **No stale-image guard.** The six stale containers were found by hand. Add a CI check comparing image build time against last source commit for that service directory — this is the systemic fix for the class of bug that left `websocket-ingestion` broken unnoticed.
-
-## Blocked on the human — the actual HA go-live path
-
-Nothing this session touched live Home Assistant; every `apply` is an Autonomy hard-stop.
-
-1. **TAP-5427 (Urgent)** — set the backup encryption key and take the first backup. UI-only.
-2. **TAP-5429** — apply phases 3 to 6 live; blocked on TAP-5427's backup gate.
-3. **TAP-5430** — recorder/http/automation-editor recipes; needs the file-editor add-on.
-4. **TAP-5431** — Local Calendar and Powercalc; needs HACS GitHub device auth.
-
-## Not go-live, do not let these blur the finish line
-
-TAP-5283 (58 → ~11 containers), TAP-5284 (HA integration with scoped LLM API), TAP-5285 (AgentForge genes), TAP-5286 (safety and cost governance).
-
-## Environment quirks that will bite
-
-1. **Host-port overrides:** dashboard **13000**, admin-api **18004**, websocket **18001**, postgres **15432**, ai-automation-ui **13001**. Not the documented defaults.
-2. **Test runner is `.venv/bin/python -m pytest`.** System `python3` has no pytest and produces a false "no module" failure. `.venv` has no `pip`; use `uv pip`.
-3. **`ruff` is at `/home/wtthornton/.local/bin/ruff`**, not in `.venv`.
-4. **Do not lower `CONTRACT_PACE`** in the contract script — admin-api rate limits at 60 req/min burst 20 and an unpaced sweep produces false 429s. `CONTRACT_TIMEOUT` is 15 because `/api/v1/real-time-metrics` answers at ~10.0s (TAP-5439).
-5. **Never use `git stash` for a quality-gate baseline.** Use `git worktree add` or `git show HEAD:path`. A second agent session shared this working tree on 2026-08-01 and its stash/checkout/cherry-pick destroyed ~9 uncommitted edits. Check `git log`/`reflog` for a second writer before a long run, and commit early.
-6. **Quality-gate baselines are location-sensitive.** Scoring a copy at repo root inflates `devex` to 10 because `AGENTS.md` sits there; the same file five levels down scores 0. Compare at equal directory depth, or use an untouched sibling as the control. Related: `tapps_quick_check`'s cache is keyed on content alone and will return another file's path and score for identical content at a different path.
-7. **Always end with `tapps_validate_changed` over the whole changed set.** ruff F821 caught a `NameError` introduced this session that a unit test missed because it only covered the extracted helper.
-
-## Tooling defects filed upstream
-
-**TAP-5442** — `tapps_memory` `architectural` and `pattern` tier writes return success and do not persist; only `context` does. `health` reports `entry_count: 0` while entries are retrievable, and `search` returns nothing for entries `get` can fetch. Both tapps-mcp and tapps-brain are being fixed.
-
-Paste-ready reports: `prompts/tapps-mcp-defects-from-homeiq-2026-08-02.md` and `prompts/tapps-brain-defects-from-homeiq-2026-08-02.md`.
-
-**Consequence for this handoff:** session learnings live in `homeiq-session-learnings-2026-08-02` under the `context` tier, which has a 14-day half-life and expires around **2026-08-16**. This file is the durable record; do not rely on brain recall.
-
-## Open issues at handoff
+## Open Issues at Handoff
 
 TAP-5434, TAP-5437, TAP-5438, TAP-5439, TAP-5440, TAP-5442 · human-gated TAP-5427, TAP-5429, TAP-5430, TAP-5431 · epics TAP-5283, TAP-5284, TAP-5285, TAP-5286
+
+## Next Steps (Priority Order)
+
+1. **Get Docker permission** and run rebuild script → verify 58 healthy, contract gate passing
+2. **Check Linear agent results** — confirm all 6 issues filed with TAP-5434 relation
+3. **Fix TAP-5437** — Run Alembic migration `001_create_memory_schema` or equivalent SQL
+4. **Fix TAP-5438** — Investigate missing patterns table root cause, apply fix
+5. **Verify data-api auth** — Fix PostgreSQL local auth for database-backed test suite
+6. **Add CI stale-image guard** — Compare container build time vs last source commit
