@@ -2223,7 +2223,7 @@ async def link_entities_to_devices(
     try:
         import os
 
-        import aiohttp
+        from homeiq_ha.client import HAClient as SharedHAClient
 
         ha_url = os.getenv("HA_URL") or os.getenv("HA_HTTP_URL")
         ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
@@ -2253,79 +2253,50 @@ async def link_entities_to_devices(
             }
 
         linked_count = 0
-        headers = {
-            "Authorization": f"Bearer {ha_token}",
-            "Content-Type": "application/json"
-        }
 
-        async with aiohttp.ClientSession(headers=headers) as session:
-            # Get entity registry from Home Assistant
-            # HA REST API endpoint: /api/config/entity_registry/list (returns list of entities)
-            registry_url = f"{ha_url.rstrip('/')}/api/config/entity_registry/list"
-            async with session.get(registry_url) as response:
-                if response.status == 404:
-                    # HA REST API might not support this endpoint - use database matching instead
-                    logger.warning("Entity registry API endpoint not available (404), using database matching")
-                    ha_entities = {}
-                elif response.status != 200:
-                    error_text = await response.text()
-                    logger.error(f"Failed to fetch entity registry: {response.status} - {error_text}")
-                    raise HTTPException(
-                        status_code=status.HTTP_502_BAD_GATEWAY,
-                        detail=f"Failed to fetch entity registry from Home Assistant: {response.status}"
-                    )
-                else:
-                        registry_data = await response.json()
-                        # HA returns list directly, not wrapped in {"entities": [...]}
-                        ha_entities_list = registry_data if isinstance(registry_data, list) else registry_data.get("entities", [])
-                        ha_entities = {e.get("entity_id"): e for e in ha_entities_list}
-                        logger.info(f"Fetched {len(ha_entities)} entities from Home Assistant entity registry")
+        # The entity registry is a WebSocket command. This used to GET
+        # /api/config/entity_registry/list, which Home Assistant does not serve,
+        # and treated the resulting 404 as a cue to match on config_entry_id
+        # instead — reporting a linked count that looked like success while the
+        # authoritative source had never been read. A registry that cannot be
+        # read is now a 502, not a quieter answer (TAP-5424).
+        try:
+            async with SharedHAClient(ha_url, ha_token).ws as ha_ws:
+                ha_entities_list = await ha_ws.list_entities()
+        except Exception as e:
+            logger.error(f"Failed to fetch entity registry over WebSocket: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Failed to fetch entity registry from Home Assistant: {e}"
+            ) from e
 
-        # Link entities to devices
-        if not ha_entities:
-            # Fallback: Match by config_entry_id and area_id if HA API not available
-            logger.info("Using fallback matching by config_entry_id and area_id")
-            for entity in entities:
-                try:
-                    if not entity.config_entry_id:
-                        continue
+        ha_entities = {e.get("entity_id"): e for e in ha_entities_list if e.get("entity_id")}
+        logger.info(f"Fetched {len(ha_entities)} entities from Home Assistant entity registry")
 
-                    # Find devices with same config_entry_id
-                    device_query = select(Device).where(Device.config_entry_id == entity.config_entry_id)
-                    device_result = await db.execute(device_query)
-                    device = device_result.scalar_one_or_none()
+        # Link entities to devices using the registry as the single source of
+        # truth. An entity missing from it is genuinely unlinked, not a reason to
+        # guess from config_entry_id.
+        for entity in entities:
+            try:
+                ha_entity = ha_entities.get(entity.entity_id)
+                if ha_entity:
+                    device_id = ha_entity.get("device_id")
+                    if device_id:
+                        # Verify device exists
+                        device_check = await db.execute(
+                            select(Device).where(Device.device_id == device_id)
+                        )
+                        device = device_check.scalar_one_or_none()
 
-                    if device:
-                        entity.device_id = device.device_id
-                        linked_count += 1
-                        logger.debug(f"Linked entity {entity.entity_id} to device {device.device_id} via config_entry_id")
+                        if device:
+                            entity.device_id = device_id
+                            linked_count += 1
+                        else:
+                            logger.debug(f"Device {device_id} not found for entity {entity.entity_id}")
 
-                except Exception as e:
-                    logger.warning(f"Failed to link entity {entity.entity_id}: {e}")
-                    continue
-        else:
-            # Primary: Use HA entity registry data
-            for entity in entities:
-                try:
-                    ha_entity = ha_entities.get(entity.entity_id)
-                    if ha_entity:
-                        device_id = ha_entity.get("device_id")
-                        if device_id:
-                            # Verify device exists
-                            device_check = await db.execute(
-                                select(Device).where(Device.device_id == device_id)
-                            )
-                            device = device_check.scalar_one_or_none()
-
-                            if device:
-                                entity.device_id = device_id
-                                linked_count += 1
-                            else:
-                                logger.debug(f"Device {device_id} not found for entity {entity.entity_id}")
-
-                except Exception as e:
-                    logger.warning(f"Failed to link entity {entity.entity_id}: {e}")
-                    continue
+            except Exception as e:
+                logger.warning(f"Failed to link entity {entity.entity_id}: {e}")
+                continue
 
         # Commit all changes
         await db.commit()
