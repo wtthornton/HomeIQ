@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 import httpx
+from homeiq_ha.client import HAClient as SharedHAClient
+from homeiq_ha.client import HAWebSocketClient
 
 from .synthetic_area_generator import SyntheticAreaGenerator
 from .synthetic_device_generator import SyntheticDeviceGenerator
@@ -96,7 +98,8 @@ class SyntheticHomeHALoader:
             'errors': []
         }
 
-        async with httpx.AsyncClient() as client:
+        # Areas go over WebSocket (registry command); entity states stay on REST.
+        async with httpx.AsyncClient() as client, SharedHAClient(ha_url, ha_token).ws as ws:
             # Create areas
             areas = home_data.get('areas', [])
             area_map = {}
@@ -106,7 +109,7 @@ class SyntheticHomeHALoader:
                 if not area_name:
                     continue
 
-                area_id = await self.create_ha_area(client, area_name, ha_url, ha_token)
+                area_id = await self.create_ha_area(ws, area_name)
                 if area_id:
                     area_map[area_name] = area_id
                     results['areas_created'] += 1
@@ -155,44 +158,28 @@ class SyntheticHomeHALoader:
 
     async def create_ha_area(
         self,
-        client: httpx.AsyncClient,
+        ws: HAWebSocketClient,
         area_name: str,
-        ha_url: str,
-        ha_token: str
     ) -> str | None:
         """
         Create an area in Home Assistant.
 
+        The area registry is a WebSocket command. The REST path this used to POST
+        to does not exist, so every area creation failed and the loader reported
+        "Failed to create area" for all of them (TAP-5424).
+
         Args:
-            client: HTTP client
+            ws: Live Home Assistant WebSocket connection
             area_name: Name of area
-            ha_url: Home Assistant URL
-            ha_token: Authentication token
 
         Returns:
             Area ID or None if failed
         """
         try:
-            response = await client.post(
-                f"{ha_url}/api/config/area_registry/create",
-                headers={
-                    "Authorization": f"Bearer {ha_token}",
-                    "Content-Type": "application/json",
-                },
-                json={"name": area_name},
-                timeout=DEFAULT_HTTP_TIMEOUT,
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data.get("area_id")
-        except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error creating area {area_name}: {e.response.status_code} - {e.response.text}")
-            return None
-        except httpx.RequestError as e:
-            logger.error(f"Request error creating area {area_name}: {e}")
-            return None
+            area = await ws.create_area(area_name)
+            return area.get("area_id")
         except Exception as e:
-            logger.error(f"Unexpected error creating area {area_name}: {e}")
+            logger.error(f"Error creating area {area_name}: {e}")
             return None
 
     async def create_ha_entity(

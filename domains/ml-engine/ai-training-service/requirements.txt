@@ -33,3 +33,5 @@ pytest-asyncio>=0.23.0,<2.0.0  # Phase 2: standardized
 # HomeIQ shared libraries (installed from libs/ in Docker)
 homeiq-observability>=1.0.0
 homeiq-data>=1.0.0
+
+homeiq-ha>=1.0.0  # HAWebSocketClient — the area registry is WebSocket-only
