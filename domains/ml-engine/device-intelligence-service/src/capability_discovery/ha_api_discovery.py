@@ -1,6 +1,10 @@
 """
 HA API-Only Capability Discovery
 Phase 3.2: Infer capabilities from HA Entity Registry and State API
+
+The entity registry is a WebSocket-only command, so it goes through the shared
+HAWebSocketClient (TAP-5424). The State API is genuine REST and keeps its aiohttp
+session.
 """
 
 import logging
@@ -8,6 +12,8 @@ import os
 from typing import Any
 
 import aiohttp
+from homeiq_ha.client import HAClient as SharedHAClient
+from homeiq_ha.client import HAWebSocketClient
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +26,7 @@ class HACapabilityDiscoverer:
         self.ha_url = os.getenv("HA_URL") or os.getenv("HA_HTTP_URL")
         self.ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
         self._session: aiohttp.ClientSession | None = None
+        self._ws: HAWebSocketClient | None = None
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create HA API session"""
@@ -57,26 +64,15 @@ class HACapabilityDiscoverer:
         try:
             session = await self._get_session()
 
-            # Get entity registry
-            registry_url = f"{self.ha_url}/api/config/entity_registry/list"
-            async with session.get(registry_url) as response:
-                if response.status != 200:
-                    logger.warning(f"Failed to get entity registry: HTTP {response.status}")
-                    return {"capabilities": [], "features": {}}
-
-                registry_data = await response.json()
-                entities = registry_data.get("entities", [])
+            registry = await self._entity_registry()
 
             # Build capabilities from entities
             capabilities = []
             features = {}
 
             for entity_id in entity_ids:
-                # Find entity in registry
-                entity_info = next(
-                    (e for e in entities if e.get("entity_id") == entity_id),
-                    None
-                )
+                # Dict lookup rather than rescanning the registry per entity.
+                entity_info = registry.get(entity_id)
 
                 if not entity_info:
                     continue
@@ -218,8 +214,35 @@ class HACapabilityDiscoverer:
             pass
         return None
 
+    async def _entity_registry(self) -> dict[str, dict[str, Any]]:
+        """Read the entity registry over WebSocket, keyed by entity_id.
+
+        Cached across calls so discovering many devices does not repeat the auth
+        handshake; dropped on failure so the next call reconnects.
+        """
+        try:
+            if self._ws is None:
+                # The facade derives the ws:// URL from the HTTP base URL.
+                self._ws = SharedHAClient(self.ha_url, self.ha_token).ws
+                await self._ws.connect()
+            entities = await self._ws.list_entities()
+            return {e["entity_id"]: e for e in entities if e.get("entity_id")}
+        except Exception as e:
+            logger.warning(f"Failed to read the entity registry: {e}")
+            await self._close_ws()
+            return {}
+
+    async def _close_ws(self):
+        """Close and forget the WebSocket connection"""
+        if self._ws is not None:
+            try:
+                await self._ws.close()
+            finally:
+                self._ws = None
+
     async def close(self):
         """Close the session"""
+        await self._close_ws()
         if self._session and not self._session.closed:
             await self._session.close()
 

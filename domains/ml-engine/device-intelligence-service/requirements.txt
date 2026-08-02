@@ -22,7 +22,7 @@ tenacity>=8.2.0,<10.0.0  # Phase 2: standardized
 PyYAML>=6.0.1,<7.0.0  # YAML configuration files for device mappings
 
 # WebSocket client
-websockets>=12.0,<13.0.0  # Unpinned for patch updates
+websockets>=13.0,<17.0.0  # >=13.0: homeiq-ha needs websockets.asyncio (absent in 12.0)
 
 # MQTT client
 paho-mqtt>=1.6.1,<2.0.0  # Unpinned for patch updates
@@ -56,3 +56,5 @@ river>=0.21.0,<1.0.0  # River for incremental learning (10-50x faster updates, 2
 
 # Scheduling
 apscheduler>=3.10.0,<4.0.0  # Stable task scheduler (Epic 46.2: Built-in Nightly Training Scheduler)
+# HomeIQ shared libraries (installed from libs/ in Docker)
+homeiq-ha>=1.0.0  # HAWebSocketClient — the entity registry is WebSocket-only
