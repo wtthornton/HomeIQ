@@ -70,6 +70,26 @@ class TestEntityRegistryOverWebSocket:
             assert discoverer._ws is None
         ws.close.assert_awaited_once()
 
+    @pytest.mark.asyncio
+    async def test_discover_capabilities_runs_past_the_registry_read(self):
+        """Exercises the whole flow, not just the registry helper.
+
+        The first version of this migration left a later `for entity_info in
+        entities:` referring to a name the new code no longer binds. Testing
+        _entity_registry() alone could not see it; ruff's F821 did.
+        """
+        discoverer = _discoverer()
+        discoverer._get_entity_state = AsyncMock(return_value=None)
+        patcher, _ = _patched()
+
+        with patcher, patch.object(
+            type(discoverer), "_get_session", new=AsyncMock(return_value=MagicMock())
+        ):
+            result = await discoverer.discover_capabilities("dev-1", ["light.lamp"])
+
+        assert "capabilities" in result
+        assert "features" in result
+
     def test_rest_registry_path_is_gone_but_states_stay(self):
         import ast
         import inspect

@@ -97,7 +97,7 @@ class HACapabilityDiscoverer:
             # Get device class and state class from entities
             device_classes = set()
             state_classes = set()
-            for entity_info in entities:
+            for entity_info in registry.values():
                 if entity_info.get("entity_id") in entity_ids:
                     device_class = entity_info.get("device_class")
                     if device_class:
