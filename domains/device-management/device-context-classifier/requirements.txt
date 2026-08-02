@@ -5,3 +5,4 @@ pydantic>=2.9.0,<3.0.0
 
 # HomeIQ shared libraries (installed from libs/ in Docker)
 homeiq-observability>=1.0.0
+homeiq-ha>=1.0.0  # HAWebSocketClient — the entity registry is WebSocket-only

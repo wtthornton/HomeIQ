@@ -9,6 +9,8 @@ import os
 from typing import Any
 
 import aiohttp
+from homeiq_ha.client import HAClient as SharedHAClient
+from homeiq_ha.client import HAWebSocketClient
 
 from .patterns import get_device_category, match_device_pattern
 
@@ -23,6 +25,7 @@ class DeviceContextClassifier:
         self.ha_url = os.getenv("HA_URL") or os.getenv("HA_HTTP_URL")
         self.ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
         self._session: aiohttp.ClientSession | None = None
+        self._ws: HAWebSocketClient | None = None
 
         # Validate token at construction
         if not self.ha_token:
@@ -94,22 +97,10 @@ class DeviceContextClassifier:
         try:
             session = await self._get_session()
 
-            # Get entity registry
-            registry_url = f"{self.ha_url}/api/config/entity_registry/list"
-            async with session.get(registry_url) as response:
-                if response.status != 200:
-                    logger.warning("Failed to get entity registry: HTTP %d", response.status)
-                    return {
-                        "device_id": device_id,
-                        "device_type": None,
-                        "device_category": None,
-                        "confidence": 0.0,
-                        "matched_entities": 0
-                    }
-
-                # FIX: HA returns a flat list, not {"entities": [...]}
-                registry_data = await response.json()
-                entities = registry_data if isinstance(registry_data, list) else registry_data.get("entities", [])
+            # The entity registry is a WebSocket command; the REST path this used
+            # to call does not exist, so it always 404'd and every device fell out
+            # of the early return below as unclassified (TAP-5424).
+            registry = await self._entity_registry()
 
             # FIX: Extract domains unconditionally (not gated behind registry lookup)
             entity_domains = []
@@ -141,7 +132,10 @@ class DeviceContextClassifier:
                 "device_type": device_type,
                 "device_category": device_category,
                 "confidence": confidence,
-                "matched_entities": len(entity_ids)
+                # Entities that are really in the registry, not just the count of
+                # ids we were handed — the old value was len(entity_ids), which
+                # could never disagree with its input.
+                "matched_entities": sum(1 for e in entity_ids if e in registry),
             }
 
         except Exception as e:
@@ -154,7 +148,35 @@ class DeviceContextClassifier:
                 "matched_entities": 0
             }
 
+    async def _entity_registry(self) -> dict[str, dict[str, Any]]:
+        """Read the entity registry over WebSocket, keyed by entity_id.
+
+        Cached across calls so classifying many devices does not repeat the auth
+        handshake; dropped on failure so the next call reconnects rather than
+        reusing a socket the server has closed.
+        """
+        try:
+            if self._ws is None:
+                # The facade derives the ws:// URL from the HTTP base URL.
+                self._ws = SharedHAClient(self.ha_url, self.ha_token).ws
+                await self._ws.connect()
+            entities = await self._ws.list_entities()
+            return {e["entity_id"]: e for e in entities if e.get("entity_id")}
+        except Exception as e:
+            logger.warning("Failed to read the entity registry: %s", e)
+            await self._close_ws()
+            return {}
+
+    async def _close_ws(self):
+        """Close and forget the WebSocket connection."""
+        if self._ws is not None:
+            try:
+                await self._ws.close()
+            finally:
+                self._ws = None
+
     async def close(self):
-        """Close the session."""
+        """Close both transports."""
+        await self._close_ws()
         if self._session and not self._session.closed:
             await self._session.close()
