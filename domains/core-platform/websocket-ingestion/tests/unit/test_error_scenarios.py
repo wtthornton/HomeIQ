@@ -248,12 +248,9 @@ class TestDiscoveryServiceFailures:
         from src.discovery_service import DiscoveryService
 
         discovery = DiscoveryService()
-        monkeypatch.setattr(
-            discovery,
-            "_discover_devices_http",
-            AsyncMock(side_effect=ConnectionError("API unavailable")),
-        )
 
+        # No websocket and no connection manager: nothing to read the registry
+        # over, so discover_devices returns [] rather than raising.
         assert await discovery.discover_devices() == []
 
     @pytest.mark.asyncio
@@ -268,8 +265,6 @@ class TestDiscoveryServiceFailures:
         discovery = DiscoveryService()
         discovery.device_to_area["dev1"] = "kitchen"
         discovery.entity_to_device["light.kitchen"] = "dev1"
-
-        monkeypatch.setattr(discovery, "_discover_devices_http", AsyncMock(return_value=[]))
 
         assert await discovery.discover_devices() == []
         assert discovery.device_to_area["dev1"] == "kitchen"

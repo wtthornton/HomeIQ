@@ -42,16 +42,16 @@ async def discovery_service():
     yield service
 
 
-# --- discover_devices: returns list from HA WebSocket or HTTP ---
+# --- discover_devices: returns list from the HA WebSocket registry ---
 
 
 @pytest.mark.asyncio
 async def test_device_discovery(discovery_service, mock_ha_device_list):
     """discover_devices returns a list of devices from HA (HTTP/WebSocket)."""
     with patch.object(
-        DiscoveryService, "_discover_devices_http", new_callable=AsyncMock, return_value=mock_ha_device_list
+        DiscoveryService, "_discover_devices_websocket", new_callable=AsyncMock, return_value=mock_ha_device_list
     ):
-        devices = await discovery_service.discover_devices()
+        devices = await discovery_service.discover_devices(connection_manager=MagicMock())
     assert devices is not None
     assert isinstance(devices, list)
     assert len(devices) >= 1
@@ -137,24 +137,24 @@ async def test_discover_devices_and_entities_return_lists(discovery_service, moc
     mock_sess.__aexit__ = AsyncMock(return_value=None)
 
     with patch.object(
-        DiscoveryService, "_discover_devices_http", new_callable=AsyncMock, return_value=mock_ha_device_list
+        DiscoveryService, "_discover_devices_websocket", new_callable=AsyncMock, return_value=mock_ha_device_list
     ), patch("aiohttp.ClientSession", return_value=mock_sess):
-        devices = await discovery_service.discover_devices()
+        devices = await discovery_service.discover_devices(connection_manager=MagicMock())
         entities = await discovery_service.discover_entities()
     assert isinstance(devices, list) and len(devices) >= 1
     assert isinstance(entities, list) and len(entities) >= 1
 
 
-# --- Error handling: empty list when HA/HTTP fails ---
+# --- Error handling: empty list when the registry read fails ---
 
 
 @pytest.mark.asyncio
 async def test_discovery_error_handling(discovery_service):
-    """When HA device discovery fails, discover_devices returns an empty list."""
+    """When the WebSocket registry read fails, discover_devices returns an empty list."""
     with patch.object(
-        DiscoveryService, "_discover_devices_http", new_callable=AsyncMock, return_value=[]
+        DiscoveryService, "_discover_devices_websocket", new_callable=AsyncMock, return_value=[]
     ):
-        devices = await discovery_service.discover_devices()
+        devices = await discovery_service.discover_devices(connection_manager=MagicMock())
     assert isinstance(devices, list)
     assert len(devices) == 0
 

@@ -67,7 +67,6 @@ class TestDiscoveryService:
     @pytest.fixture(autouse=True)
     def _block_http_fallbacks(self, monkeypatch):
         """Keep the HTTP fallbacks off the network regardless of ambient HA_TOKEN."""
-        monkeypatch.setattr(self.service, "_discover_devices_http", AsyncMock(return_value=[]))
         monkeypatch.setattr(self.service, "_discover_entities_http", AsyncMock(return_value=[]))
         monkeypatch.setattr(self.service, "discover_services", AsyncMock(return_value={}))
         monkeypatch.setattr(self.service, "store_discovery_results", AsyncMock(return_value=None))
@@ -163,15 +162,16 @@ class TestDiscoveryService:
         assert devices == []
 
     @pytest.mark.asyncio
-    async def test_discover_devices_no_response_falls_back(self, monkeypatch):
-        """A timed-out response yields an empty list rather than raising"""
+    async def test_discover_devices_no_response_returns_empty(self, monkeypatch):
+        """A timed-out registry response yields an empty list rather than raising"""
         monkeypatch.setattr(self.service, "_wait_for_response", AsyncMock(return_value=None))
         ha = FakeHomeAssistant(self.service)
 
         devices = await self.service.discover_devices(ha.websocket)
 
+        # There is no HTTP fallback to reach for any more (TAP-5424): the REST
+        # registry path it used does not exist, so it only ever returned [].
         assert devices == []
-        self.service._discover_devices_http.assert_awaited()
 
     @pytest.mark.asyncio
     async def test_discover_devices_without_transport(self):

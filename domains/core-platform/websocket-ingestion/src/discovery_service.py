@@ -98,70 +98,15 @@ class DiscoveryService:
             logger.error(traceback.format_exc())
             return []
 
-    async def _discover_devices_http(self) -> list[dict[str, Any]]:
-        """
-        Discover devices via HTTP API (fallback when WebSocket not available)
-
-        Uses Home Assistant's HTTP API endpoint: /api/config/device_registry/list
-
-        Returns:
-            List of device dictionaries
-        """
-        try:
-            import os
-
-            import aiohttp
-
-            ha_url = os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL')
-            ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
-
-            if not ha_url:
-                logger.error("HA_HTTP_URL/HOME_ASSISTANT_URL not set — cannot run HTTP device discovery")
-                return []
-
-            if not ha_token:
-                logger.warning("⚠️  No HA token available for HTTP device discovery")
-                return []
-
-            # Normalize URL (ensure http:// not ws://)
-            ha_url = ha_url.replace('ws://', 'http://').replace('wss://', 'https://').rstrip('/')
-
-            headers = {
-                "Authorization": f"Bearer {ha_token}",
-                "Content-Type": "application/json"
-            }
-
-            logger.info(f"🔗 Fetching devices from HTTP API: {ha_url}/api/config/device_registry/list")
-
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{ha_url}/api/config/device_registry/list",
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=30)
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        devices = data.get("devices", [])
-                        logger.info(f"✅ Retrieved {len(devices)} devices via HTTP API")
-                        return devices
-                    elif response.status == 404:
-                        logger.warning("⚠️  Device Registry HTTP API not available (404) - endpoint may not exist in this HA version")
-                        return []
-                    else:
-                        error_text = await response.text()
-                        logger.error(f"❌ HTTP Device Registry API failed: HTTP {response.status} - {error_text[:200]}")
-                        return []
-        except Exception as e:
-            logger.error(f"❌ Error discovering devices via HTTP API: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            return []
-
     async def discover_devices(self, websocket: ClientWebSocketResponse | None = None, connection_manager = None) -> list[dict[str, Any]]:
         """
         Discover all devices from Home Assistant device registry
 
-        Tries WebSocket first, then falls back to HTTP API if available.
+        The device registry is a WebSocket command, so this reads it over the
+        connection this service already holds. There used to be an HTTP fallback
+        against /api/config/device_registry/list, a path Home Assistant does not
+        serve; it could only ever 404 and return [], which made a WebSocket
+        failure look like "this instance has no devices" (TAP-5424).
 
         Args:
             websocket: Optional WebSocket client (preferred method)
@@ -174,26 +119,19 @@ class DiscoveryService:
             logger.info("📱 DISCOVERING DEVICES")
             logger.info("=" * 80)
 
-            # Try WebSocket first (preferred method) - use message routing to avoid listen loop conflicts
+            # Message routing avoids conflicting with the listen loop.
             devices = []
             if connection_manager:
                 logger.info("Using WebSocket for device discovery (with message routing)")
                 devices = await self._discover_devices_websocket(websocket, connection_manager)
-                if not devices:
-                    logger.warning("WebSocket device discovery returned empty - trying HTTP API fallback")
             elif websocket:
                 logger.info("Using WebSocket for device discovery (legacy mode)")
                 devices = await self._discover_devices_websocket(websocket, None)
-                if not devices:
-                    logger.warning("WebSocket device discovery returned empty - trying HTTP API fallback")
-
-            # Fallback to HTTP API if WebSocket not available or failed
-            if not devices:
-                logger.info("Attempting HTTP API for device discovery (fallback)")
-                devices = await self._discover_devices_http()
+            else:
+                logger.error("❌ No websocket or connection manager provided")
 
             if not devices:
-                logger.warning("⚠️  Both WebSocket and HTTP API failed - no devices discovered")
+                logger.warning("⚠️  Device discovery returned no devices")
                 logger.info("💡 Device info will be available from entity registry (device_id references)")
                 return []
 
