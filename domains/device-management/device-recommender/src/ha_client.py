@@ -1,92 +1,68 @@
 """
-Home Assistant API Client for Device Recommender
-Phase 3.3: Query HA API for user's devices
+Home Assistant registry access for Device Recommender
+Phase 3.3: Query HA for the user's devices
+
+Home Assistant exposes its device and entity registries as WebSocket commands
+only — `GET /api/config/device_registry/list` has never existed. The previous
+REST implementation therefore always received a 404 and fell through to an
+entity-registry request that 404'd for the same reason, so this client reported
+"no devices" rather than reporting a failure. It now reads the registry over the
+shared WebSocket client (TAP-5424).
 """
 
 import logging
 import os
 from typing import Any
 
-import aiohttp
+from homeiq_ha.client import HAClient as SharedHAClient
+from homeiq_ha.client import HAWebSocketClient
 
 logger = logging.getLogger("device-recommender")
 
 
 class HAClient:
-    """Client for Home Assistant REST API"""
+    """Reads the Home Assistant device registry over WebSocket."""
 
     def __init__(self):
         """Initialize HA client"""
         self.ha_url = os.getenv("HA_URL") or os.getenv("HA_HTTP_URL")
         self.ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
-        self.headers = {
-            "Authorization": f"Bearer {self.ha_token}",
-            "Content-Type": "application/json"
-        } if self.ha_token else {}
-        self._session: aiohttp.ClientSession | None = None
+        self._ws: HAWebSocketClient | None = None
 
         if not self.ha_url:
             logger.warning("HA_URL / HA_HTTP_URL not set - Home Assistant integration disabled")
 
-    async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create client session"""
-        if self._session is None or self._session.closed:
-            timeout = aiohttp.ClientTimeout(total=10)
-            self._session = aiohttp.ClientSession(
-                headers=self.headers,
-                timeout=timeout,
-                raise_for_status=False
-            )
-        return self._session
+    async def _connection(self) -> HAWebSocketClient:
+        """Return a live connection, opening one on first use.
+
+        The connection is cached across calls so each request does not repeat
+        the auth handshake. `get_user_devices` drops it on failure so the next
+        call reconnects rather than reusing a socket the server has closed.
+        """
+        if self._ws is None:
+            # The facade derives the ws:// URL from the HTTP base URL.
+            self._ws = SharedHAClient(self.ha_url, self.ha_token).ws
+            await self._ws.connect()
+        return self._ws
 
     async def get_user_devices(self) -> list[dict[str, Any]]:
-        """Get user's devices from HA API"""
-        try:
-            session = await self._get_session()
-
-            # Get device registry
-            url = f"{self.ha_url}/api/config/device_registry/list"
-            async with session.get(url) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    devices = data if isinstance(data, list) else data.get("devices", [])
-                    return devices
-                elif response.status == 404:
-                    # Fallback: get from entity registry
-                    return await self._get_devices_from_entities(session)
-                else:
-                    logger.warning(f"Failed to get devices: HTTP {response.status}")
-                    return []
-        except Exception as e:
-            logger.error(f"Error getting user devices: {e}")
+        """Get user's devices from the Home Assistant device registry"""
+        if not self.ha_url or not self.ha_token:
+            logger.warning("Home Assistant is not configured - returning no devices")
             return []
 
-    async def _get_devices_from_entities(self, session: aiohttp.ClientSession) -> list[dict[str, Any]]:
-        """Get devices from entity registry as fallback"""
         try:
-            url = f"{self.ha_url}/api/config/entity_registry/list"
-            async with session.get(url) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    entities = data if isinstance(data, list) else data.get("entities", [])
-
-                    # Extract unique devices
-                    devices = {}
-                    for entity in entities:
-                        device_id = entity.get("device_id")
-                        if device_id and device_id not in devices:
-                            devices[device_id] = {
-                                "id": device_id,
-                                "name": entity.get("name", "Unknown"),
-                                "manufacturer": entity.get("manufacturer"),
-                                "model": entity.get("model")
-                            }
-                    return list(devices.values())
+            connection = await self._connection()
+            return await connection.list_devices()
         except Exception as e:
-            logger.error(f"Error getting devices from entity registry: {e}")
-        return []
+            logger.error(f"Error getting user devices: {e}")
+            await self.close()
+            return []
 
     async def close(self):
-        """Close the session"""
-        if self._session and not self._session.closed:
-            await self._session.close()
+        """Close the connection"""
+        if self._ws is not None:
+            try:
+                await self._ws.close()
+            finally:
+                self._ws = None
