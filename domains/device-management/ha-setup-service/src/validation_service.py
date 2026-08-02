@@ -10,6 +10,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import aiohttp
+from homeiq_ha.client import HAClient as SharedHAClient
+from homeiq_ha.client import HAWebSocketClient
 from pydantic import BaseModel, Field
 
 from .config import get_settings
@@ -58,6 +60,7 @@ class ValidationService:
     def __init__(self):
         self.ha_url = settings.ha_url.rstrip("/")
         self.ha_token = settings.ha_token
+        self._ws: HAWebSocketClient | None = None
         self.timeout = aiohttp.ClientTimeout(total=30)
         self.suggestion_engine = SuggestionEngine()
 
@@ -158,6 +161,26 @@ class ValidationService:
         self._cache.clear()
         logger.info("Validation cache cleared")
 
+    async def _connection(self) -> HAWebSocketClient:
+        """Return a live Home Assistant WebSocket connection, opening one on first use.
+
+        Cached so a validation pass and the fixes that follow it share one auth
+        handshake; dropped on failure so the next call reconnects.
+        """
+        if self._ws is None:
+            # The facade derives the ws:// URL from the HTTP base URL.
+            self._ws = SharedHAClient(self.ha_url, self.ha_token).ws
+            await self._ws.connect()
+        return self._ws
+
+    async def _close_ws(self):
+        """Close and forget the WebSocket connection"""
+        if self._ws is not None:
+            try:
+                await self._ws.close()
+            finally:
+                self._ws = None
+
     async def _fetch_ha_data(self) -> tuple[list[dict], list[dict], str]:
         """Fetch entities and areas from Home Assistant"""
         session = await get_http_session()
@@ -166,47 +189,15 @@ class ValidationService:
             "Content-Type": "application/json"
         }
 
-        # Fetch entities from entity registry
-        async with session.get(
-            f"{self.ha_url}/api/config/entity_registry/list",
-            headers=headers,
-            timeout=self.timeout
-        ) as response:
-            if response.status == 200:
-                entities = await response.json()
-            else:
-                logger.warning(f"Entity registry API returned {response.status}, using states API")
-                # Fallback to states API
-                async with session.get(
-                    f"{self.ha_url}/api/states",
-                    headers=headers,
-                    timeout=self.timeout
-                ) as states_response:
-                    if states_response.status == 200:
-                        states = await states_response.json()
-                        entities = [
-                            {
-                                "entity_id": s.get("entity_id"),
-                                "name": s.get("attributes", {}).get("friendly_name"),
-                                "area_id": s.get("attributes", {}).get("area_id"),
-                                "device_id": s.get("attributes", {}).get("device_id")
-                            }
-                            for s in states
-                        ]
-                    else:
-                        raise Exception(f"Failed to fetch entities: {states_response.status}")
-
-        # Fetch areas
-        async with session.get(
-            f"{self.ha_url}/api/config/area_registry/list",
-            headers=headers,
-            timeout=self.timeout
-        ) as response:
-            if response.status == 200:
-                areas = await response.json()
-            else:
-                logger.warning(f"Area registry API returned {response.status}")
-                areas = []
+        # Entities and areas are WebSocket registry commands (TAP-5424). The REST
+        # paths this used never existed, so the entity read always fell through to
+        # the states API — which carries no registry metadata (no platform, no
+        # disabled_by), quietly validating against a thinner picture than the
+        # caller believed. That fallback is removed rather than ported: a registry
+        # that cannot be read is a failure worth surfacing, not worth degrading.
+        connection = await self._connection()
+        entities = await connection.list_entities()
+        areas = await connection.list_areas()
 
         # Get HA version
         ha_version = None
@@ -319,36 +310,22 @@ class ValidationService:
             Success response with details
         """
         try:
-            session = await get_http_session()
-            headers = {
-                "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+            # config/entity_registry/update is a WebSocket command; the REST path
+            # this used to POST to does not exist, so no fix was ever applied.
+            connection = await self._connection()
+            result = await connection.update_entity(entity_id, area_id=area_id)
+            logger.info(f"Successfully updated {entity_id} to area {area_id}")
+            return {
+                "success": True,
+                "entity_id": entity_id,
+                "area_id": area_id,
+                "applied_at": datetime.now(UTC).isoformat(),
+                "result": result
             }
-
-            # Update entity registry
-            async with session.post(
-                    f"{self.ha_url}/api/config/entity_registry/update/{entity_id}",
-                    headers=headers,
-                    json={"area_id": area_id},
-                    timeout=self.timeout
-                ) as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        logger.info(f"Successfully updated {entity_id} to area {area_id}")
-                        return {
-                            "success": True,
-                            "entity_id": entity_id,
-                            "area_id": area_id,
-                            "applied_at": datetime.now(UTC).isoformat(),
-                            "result": result
-                        }
-                    else:
-                        error_text = await response.text()
-                        logger.error(f"Failed to update entity: {response.status} - {error_text}")
-                        raise Exception(f"HA API returned {response.status}: {error_text}")
 
         except Exception as e:
             logger.error(f"Error applying fix: {e}", exc_info=True)
+            await self._close_ws()
             raise
 
     async def apply_bulk_fixes(

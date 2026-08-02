@@ -23,3 +23,5 @@ httpx>=0.27.0,<0.29.0  # Phase 1: aligned
 # Shared utilities (from parent project)
 python-dotenv>=1.0.0,<2.0.0  # Phase 2: standardized
 
+
+homeiq-ha>=1.0.0  # HAWebSocketClient — the registries are WebSocket-only

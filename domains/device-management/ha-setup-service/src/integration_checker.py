@@ -12,6 +12,8 @@ import logging
 from datetime import datetime
 
 import aiohttp
+from homeiq_ha.client import HAClient as SharedHAClient
+from homeiq_ha.client import HAWebSocketClient
 from pydantic import BaseModel, Field
 
 from .config import get_settings
@@ -49,6 +51,7 @@ class IntegrationHealthChecker:
     def __init__(self):
         self.ha_url = settings.ha_url.rstrip("/")
         self.ha_token = settings.ha_token
+        self._ws: HAWebSocketClient | None = None
         self.data_api_url = settings.data_api_url
         self.timeout = aiohttp.ClientTimeout(total=10)
 
@@ -395,65 +398,33 @@ class IntegrationHealthChecker:
         - Entity registry sync
         """
         try:
-            session = await get_http_session()
-            headers = {
-                "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
-            }
+            # This check used to GET /api/config/device_registry/list and had a
+            # dedicated 404 branch recommending "Use WebSocket API for device
+            # discovery instead" — it knew the REST path was wrong and reported
+            # WARNING every time rather than reading the registry. It now does
+            # exactly what that branch advised (TAP-5424).
+            devices = await self._device_registry()
+            device_count = len(devices)
 
-            # Get device registry
-            async with session.get(
-                f"{self.ha_url}/api/config/device_registry/list",
-                    headers=headers,
-                    timeout=self.timeout
-                ) as response:
-                    if response.status == 200:
-                        devices = await response.json()
-                        device_count = len(devices)
+            # Check if HA Ingestor is syncing devices
+            ingestor_sync = await self._check_ingestor_device_sync(device_count)
 
-                        # Check if HA Ingestor is syncing devices
-                        ingestor_sync = await self._check_ingestor_device_sync(device_count)
+            status = IntegrationStatus.HEALTHY if device_count > 0 else IntegrationStatus.WARNING
 
-                        status = IntegrationStatus.HEALTHY if device_count > 0 else IntegrationStatus.WARNING
-
-                        return CheckResult(
-                            integration_name="Device Discovery",
-                            integration_type="discovery",
-                            status=status,
-                            is_configured=True,
-                            is_connected=True,
-                            check_details={
-                                "ha_device_count": device_count,
-                                "ingestor_device_count": ingestor_sync.get("count", 0),
-                                "sync_status": ingestor_sync.get("status", "unknown"),
-                                "sync_percentage": ingestor_sync.get("percentage", 0),
-                                "recommendation": "Check device integrations if count is low" if device_count < 5 else None
-                            }
-                        )
-                    elif response.status == 404:
-                        # REST API endpoint might not be available
-                        return CheckResult(
-                            integration_name="Device Discovery",
-                            integration_type="discovery",
-                            status=IntegrationStatus.WARNING,
-                            is_configured=True,
-                            is_connected=False,
-                            error_message="Device registry REST API not available",
-                            check_details={
-                                "http_status": 404,
-                                "recommendation": "Use WebSocket API for device discovery instead"
-                            }
-                        )
-                    else:
-                        return CheckResult(
-                            integration_name="Device Discovery",
-                            integration_type="discovery",
-                            status=IntegrationStatus.ERROR,
-                            is_configured=False,
-                            is_connected=False,
-                            error_message=f"Failed to get device registry: HTTP {response.status}",
-                            check_details={"http_status": response.status}
-                        )
+            return CheckResult(
+                integration_name="Device Discovery",
+                integration_type="discovery",
+                status=status,
+                is_configured=True,
+                is_connected=True,
+                check_details={
+                    "ha_device_count": device_count,
+                    "ingestor_device_count": ingestor_sync.get("count", 0),
+                    "sync_status": ingestor_sync.get("status", "unknown"),
+                    "sync_percentage": ingestor_sync.get("percentage", 0),
+                    "recommendation": "Check device integrations if count is low" if device_count < 5 else None
+                }
+            )
 
         except Exception as e:
             return CheckResult(
@@ -465,6 +436,30 @@ class IntegrationHealthChecker:
                 error_message=str(e),
                 check_details={"error_type": type(e).__name__}
             )
+
+    async def _device_registry(self) -> list[dict]:
+        """Read the device registry over WebSocket.
+
+        Cached across checks so a full integration sweep shares one auth
+        handshake; dropped on failure so the next call reconnects.
+        """
+        try:
+            if self._ws is None:
+                # The facade derives the ws:// URL from the HTTP base URL.
+                self._ws = SharedHAClient(self.ha_url, self.ha_token).ws
+                await self._ws.connect()
+            return await self._ws.list_devices()
+        except Exception:
+            await self._close_ws()
+            raise
+
+    async def _close_ws(self):
+        """Close and forget the WebSocket connection"""
+        if self._ws is not None:
+            try:
+                await self._ws.close()
+            finally:
+                self._ws = None
 
     async def _check_ingestor_device_sync(self, ha_device_count: int) -> dict:
         """Check if HA Ingestor has synced devices from HA"""
