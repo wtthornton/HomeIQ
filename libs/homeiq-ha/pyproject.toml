@@ -9,7 +9,11 @@ description = "HomeIQ Home Assistant integration: connection manager, automation
 requires-python = ">=3.11"
 dependencies = [
     "aiohttp>=3.13.3",
-    "websockets>=12.0",
+    # >=13.0, not >=12.0: client/ws.py imports websockets.asyncio.client, and the
+    # websockets/asyncio/ package does not exist in 12.0 (verified by installing
+    # both). Declaring 12.0 let consumers resolve a version that cannot import
+    # this library at all.
+    "websockets>=13.0",
     "pyyaml>=6.0",
 ]
 

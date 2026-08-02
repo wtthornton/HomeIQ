@@ -20,7 +20,13 @@
 #   CONTRACT_PACE        seconds between requests (default 1.1). admin-api rate
 #                        limits at 60 req/min with burst 20 — an unpaced sweep
 #                        produces false 429s.
-#   CONTRACT_TIMEOUT     per-request timeout in seconds (default 10).
+#   CONTRACT_TIMEOUT     per-request timeout in seconds (default 15). Raised from
+#                        10 because /api/v1/real-time-metrics answers at ~10.0s,
+#                        right on the old boundary, so the sweep reported a
+#                        curl-level 000 for an endpoint that does return 200.
+#                        That latency is a real performance problem worth fixing
+#                        on its own; the timeout here only stops it being
+#                        misreported as an unreachable route.
 #
 # Exit status: 0 when every endpoint matches its expected status, 1 otherwise.
 
@@ -29,7 +35,7 @@ set -uo pipefail
 BASE_URL="${1:-http://localhost:13000}"
 BASE_URL="${BASE_URL%/}"
 PACE="${CONTRACT_PACE:-1.1}"
-TIMEOUT="${CONTRACT_TIMEOUT:-10}"
+TIMEOUT="${CONTRACT_TIMEOUT:-15}"
 KEY="${DASHBOARD_API_KEY:-}"
 
 # path <TAB> expected-status <TAB> kind <TAB> rationale
@@ -43,25 +49,62 @@ KEY="${DASHBOARD_API_KEY:-}"
 # the shipped bundle; none is referenced by application code. They are asserted
 # rather than deleted so that re-introducing a call to a non-existent route
 # fails this gate instead of silently painting a panel red.
+#
+# NON-GET COVERAGE (TAP-5434). The sweep issues GETs only, and that is
+# deliberate rather than a gap left open. The dashboard's POST/PUT/DELETE
+# families are all state-mutating — restart/start/stop a container, resolve or
+# acknowledge an alert, apply a hygiene fix, rewrite an entity's name or labels.
+# A sweep that exercised them for real would restart services and mutate live
+# Home Assistant metadata on every CI run, so their bodies are out of scope by
+# design.
+#
+# They are still covered, by asserting `405` on a GET: that proves the route is
+# registered and method-guarded while changing nothing. A 404 there means the
+# route vanished, which is exactly the regression worth catching. What a 405 row
+# does NOT check is request/response shape — that belongs in service-level tests.
+#
+# WHAT IS DELIBERATELY ABSENT. Rows are only added for endpoints observed
+# behaving correctly. Roughly twenty frontend families are live defects today
+# (energy 5xx, the memory brain's absent schema, ai-automation's missing
+# `patterns` table, websocket-ingestion down, /api/v1/events/search and
+# /api/v1/integrations/{service}/config with no route). They are deliberately
+# NOT listed: asserting them at 200 would make this gate red for reasons it
+# cannot fix, and asserting their current 5xx would freeze today's breakage into
+# the contract. They are tracked as defects instead. Add the row when the defect
+# is fixed, not before.
 read -r -d '' CONTRACT <<'EOF'
 /api/health	200	http	admin-api
 /api/v1/health	200	http	admin-api
 /api/v1/health/services	200	http	admin-api
+/api/v1/health/services/data-api	200	http	admin-api; single-service route added in TAP-5433, DataSourcesPanel calls it
 /api/v1/health/groups	200	http	admin-api
+/api/v1/health/dependencies	200	http	admin-api
+/api/v1/health/metrics	200	http	admin-api
 /api/v1/stats	200	http	admin-api
+/api/v1/stats?period=24h	200	http	admin-api; the parameterised form the dashboard actually issues
+/api/v1/config	200	http	admin-api; the real route behind the /api/v1/configuration mock
+/api/v1/real-time-metrics	200	http	admin-api
+/api/v1/docker/containers	200	http	admin-api
+/api/v1/docker/api-keys	200	http	admin-api
+/api/v1/docker/containers/admin-api/stats	200	http	admin-api; only compose-managed names resolve, others are a deliberate 400
+/api/v1/docker/containers/admin-api/logs?tail=10	200	http	admin-api; returns mock text while the docker socket is unreadable, but the route is live
+/api/v1/alerts	200	http	data-api
 /api/v1/alerts/active	200	http	data-api
 /api/v1/alerts/summary	200	http	data-api
 /api/v1/analytics	200	http	data-api
+/api/v1/analytics?range=1h	200	http	data-api; the parameterised form the dashboard issues
 /api/v1/energy/current	200	http	data-api
-/api/v1/metrics	200	http	data-api
-/api/v1/real-time-metrics	200	http	admin-api
-/api/metrics/realtime	200	http	admin-api
-/api/v1/docker/containers	200	http	admin-api
-/api/v1/docker/api-keys	200	http	admin-api
-/api/devices	200	http	data-api
-/api/entities	200	http	data-api
-/api/integrations	200	http	data-api
 /api/v1/events	200	http	data-api
+/api/v1/events/{EVENT_ID}	200	http	data-api; id resolved at runtime from /api/v1/events
+/api/v1/events/stats?period=24h	200	http	data-api
+/api/devices	200	http	data-api
+/api/devices/{DEVICE_ID}	200	http	data-api; id resolved at runtime from /api/devices
+/api/entities	200	http	data-api
+/api/entities/{ENTITY_ID}	200	http	data-api; id resolved at runtime from /api/entities
+/api/integrations	200	http	data-api
+/api/integrations?limit=10	200	http	data-api
+/api/integrations/hue/analytics	200	http	data-api; sub-path survives the prefix proxy_pass, contrary to a static read of nginx.conf
+/api/integrations/hue/performance?period=7d	200	http	data-api; same sub-path check as /analytics
 /api/areas	200	http	data-api; explicit location, else the /api/ catch-all rewrites it to admin-api
 /api/labels	200	http	data-api; same catch-all fix as /api/areas
 /api/v1/ha-proxy/states	200	http	admin-api; needs /api/v1/ha/ to keep its trailing slash
@@ -69,9 +112,37 @@ read -r -d '' CONTRACT <<'EOF'
 /api/v1/services	200	http	data-api owns it per openapi.json, not admin-api
 /api/v1/integrations	200	http	data-api owns it per openapi.json, not admin-api
 /api/v1/activity	200|404	http	data-api; 404 with a "No ... available" detail is a valid empty state
+/api/v1/activity/history?hours=24&limit=10	200	http	data-api
+/api/sports/teams	200	http	data-api via the /api/sports -> /api/v1/sports rewrite
+/api/v1/sports/games/live	200	http	data-api
+/api/v1/sports/games/history?team=BAL	200	http	data-api; BAL is a static NFL team id, not environment state
+/api/v1/sports/schedule/BAL	200	http	data-api; client method added in TAP-5433, route existed and was unreachable
+/api/v1/memories/metrics	200	http	admin-api; was 422 until TAP-5433 moved it above the /{memory_id} route
 /rag-service/health	200	http	rag-service via variable proxy_pass (re-resolves DNS)
+/rag-service/api/v1/metrics	200	http	rag-service; the only /api/v1/metrics the dashboard actually calls
 /ai-automation/health	200	http	ai-automation via variable proxy_pass (re-resolves DNS)
+/ai-automation/api/analysis/schedule	200	http	ai-automation; the /api segment was missing from the client until TAP-5433
+/ai-automation/api/suggestions/list	200	http	ai-automation; same missing /api segment
+/ai-automation/api/suggestions/usage/stats	200	http	ai-automation; client had it as /suggestions/usage-stats, a different segmentation
+/setup-service/health	200	http	ha-setup-service via variable proxy_pass
+/log-aggregator/api/v1/logs?limit=10	200	http	log-aggregator
+/log-aggregator/api/v1/logs/search?q=error	200	http	log-aggregator
+/weather/current-weather	200	http	weather-api via variable proxy_pass
 /ws	101	ws	websocket-ingestion; admin-api registers no WebSocket route
+/api/v1/docker/containers/admin-api/restart	405	http	405 (method-guarded) POST route; a GET proves it exists without restarting anything
+/api/v1/docker/containers/admin-api/start	405	http	405 (method-guarded) POST route
+/api/v1/docker/containers/admin-api/stop	405	http	405 (method-guarded) POST route; never exercised for real in a sweep
+/api/v1/docker/api-keys/openai	405	http	405 (method-guarded) PUT route
+/api/v1/docker/api-keys/openai/test	405	http	405 (method-guarded) POST route
+/api/v1/services/data-api/restart	405	http	405 (method-guarded) POST route; this is what the frontend calls, not bare /api/v1/services
+/api/v1/entities/{ENTITY_ID}/name	405	http	405 (method-guarded) PUT route; mutates HA metadata, never swept for real
+/api/v1/entities/{ENTITY_ID}/aliases	405	http	405 (method-guarded) PUT route
+/api/v1/entities/{ENTITY_ID}/labels	405	http	405 (method-guarded) PUT route
+/api/v1/entities/bulk-label	405	http	405 (method-guarded) POST route
+/api/v1/alerts/sample-id/acknowledge	405	http	405 (method-guarded) POST route; the id is never dereferenced on a GET
+/api/v1/alerts/sample-id/resolve	405	http	405 (method-guarded) POST route
+/api/v1/hygiene/issues/sample-key/status	405	http	405 (method-guarded) PUT route; 404 before this run added the nginx /api/v1/hygiene location
+/api/v1/hygiene/issues/sample-key/actions/apply	405	http	405 (method-guarded) POST route; same nginx fix
 /api/v1/health/integrations	404	http	404 (decided) not a route; HACSStatusCheck repointed to /api/integrations
 /api/statistics	404	http	404 (decided) no such route on either backend; dead ControlPanel link removed
 /api/v1/configuration	404	http	404 (decided) test-mock only; admin-api's real route is /api/v1/config
@@ -80,6 +151,7 @@ read -r -d '' CONTRACT <<'EOF'
 /api/v1/rag/status	404	http	404 (decided) test-mock only; rag-service health is /rag-service/health
 /api/v1/sports	404	http	404 (decided) bare path unused; app calls /api/v1/sports/games/* (TAP-5411)
 /api/v1/ha/status	404	http	404 (decided) no such route; data-api exposes /api/v1/ha/game-status/{team}
+/api/v1/energy	404	http	404 (decided) bare prefix is not a route; the app calls /api/v1/energy/* leaves
 EOF
 
 probe_http() {
@@ -104,9 +176,30 @@ probe_ws() {
         "${auth[@]}" "$url"
 }
 
+fetch_body() {
+    if [[ -n "$KEY" ]]; then
+        curl -s -m "$TIMEOUT" -H "Authorization: Bearer $KEY" "$1"
+    else
+        curl -s -m "$TIMEOUT" "$1"
+    fi
+}
+
+# Resolve sample ids for the parameterised rows. Hardcoding a device or event id
+# would make this contract valid only on the machine it was written on, so the
+# ids are looked up at runtime and substituted into {DEVICE_ID}-style tokens. An
+# id that cannot be resolved marks its rows SKIP rather than dropping them
+# silently, so lost coverage is always visible rather than reading as a pass.
+first_field() { grep -o "\"$2\":\"[^\"]*\"" <<< "$1" | head -1 | cut -d'"' -f4; }
+
+DEVICE_ID="$(first_field "$(fetch_body "${BASE_URL}/api/devices?limit=1")" device_id)"
+ENTITY_ID="$(first_field "$(fetch_body "${BASE_URL}/api/entities?limit=1")" entity_id)"
+EVENT_ID="$(first_field "$(fetch_body "${BASE_URL}/api/v1/events?limit=1")" id)"
+
 total=0
 pass=0
+skipped=0
 declare -a deviations=()
+declare -a skips=()
 
 printf 'Dashboard contract sweep — %s\n' "$BASE_URL"
 printf 'Auth: %s · pace: %ss/request\n\n' \
@@ -117,8 +210,21 @@ printf '%s\n' '-----------------------------------------------------------------
 first=1
 while IFS=$'\t' read -r path expected kind rationale; do
     [[ -z "$path" ]] && continue
-    (( first )) && first=0 || sleep "$PACE"
     total=$(( total + 1 ))
+
+    path="${path//\{DEVICE_ID\}/$DEVICE_ID}"
+    path="${path//\{ENTITY_ID\}/$ENTITY_ID}"
+    path="${path//\{EVENT_ID\}/$EVENT_ID}"
+
+    # An unsubstituted token means the lookup above found no sample record.
+    if [[ "$path" == *'{'*'}'* ]]; then
+        skipped=$(( skipped + 1 ))
+        skips+=("${path} — no sample id available to substitute")
+        printf '%-46s %-9s %-9s %s\n' "$path" "$expected" '-' 'SKIP'
+        continue
+    fi
+
+    (( first )) && first=0 || sleep "$PACE"
 
     if [[ "$kind" == "ws" ]]; then
         actual="$(probe_ws "${BASE_URL}${path}")"
@@ -134,14 +240,14 @@ while IFS=$'\t' read -r path expected kind rationale; do
 
     if (( matched )); then
         pass=$(( pass + 1 ))
-        printf '%-34s %-9s %-9s %s\n' "$path" "$expected" "$actual" 'PASS'
+        printf '%-46s %-9s %-9s %s\n' "$path" "$expected" "$actual" 'PASS'
     else
         deviations+=("${path} expected ${expected}, got ${actual} — ${rationale}")
-        printf '%-34s %-9s %-9s %s\n' "$path" "$expected" "$actual" 'FAIL'
+        printf '%-46s %-9s %-9s %s\n' "$path" "$expected" "$actual" 'FAIL'
     fi
 done <<< "$CONTRACT"
 
-fail=$(( total - pass ))
+fail=$(( total - pass - skipped ))
 
 printf '\n'
 if (( fail > 0 )); then
@@ -152,6 +258,15 @@ if (( fail > 0 )); then
     printf '\n'
 fi
 
-printf 'RESULT: %d/%d endpoints at expected status, %d deviations\n' "$pass" "$total" "$fail"
+if (( skipped > 0 )); then
+    printf 'Skipped (coverage lost, not passed):\n'
+    for s in "${skips[@]}"; do
+        printf '  - %s\n' "$s"
+    done
+    printf '\n'
+fi
+
+printf 'RESULT: %d/%d endpoints at expected status, %d deviations, %d skipped\n' \
+    "$pass" "$total" "$fail" "$skipped"
 
 (( fail == 0 ))

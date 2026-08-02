@@ -9,7 +9,7 @@ python-dotenv>=1.0.0,<2.0.0
 pydantic>=2.9.0,<3.0.0
 psutil>=5.9.0,<6.0.0
 influxdb-client>=1.49.0,<2.0.0  # Latest stable (2025 - Epic 41)
-websockets>=12.0,<13.0.0
+websockets>=13.0,<17.0.0  # >=13.0: homeiq-ha needs websockets.asyncio (absent in 12.0)
 
 # HomeIQ shared libraries (installed from libs/ in Docker)
 homeiq-observability>=1.0.0
