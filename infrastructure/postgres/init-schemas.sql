@@ -10,14 +10,20 @@ CREATE SCHEMA IF NOT EXISTS agent;
 CREATE SCHEMA IF NOT EXISTS blueprints;
 CREATE SCHEMA IF NOT EXISTS energy;
 CREATE SCHEMA IF NOT EXISTS devices;
+CREATE SCHEMA IF NOT EXISTS memory;
 CREATE SCHEMA IF NOT EXISTS patterns;
 CREATE SCHEMA IF NOT EXISTS rag;
+
+-- pgvector, required by the memory schema's embedding vector(768) columns and
+-- their HNSW indexes. Provided by the pgvector/pgvector:pg17 image pinned in
+-- domains/core-platform/compose.yml; this statement fails on stock postgres.
+CREATE EXTENSION IF NOT EXISTS vector;
 
 -- Grant full access to the application user
 DO $$
 BEGIN
     EXECUTE format(
-        'GRANT ALL ON SCHEMA core, automation, agent, blueprints, energy, devices, patterns, rag TO %I',
+        'GRANT ALL ON SCHEMA core, automation, agent, blueprints, energy, devices, memory, patterns, rag TO %I',
         current_user
     );
 END
@@ -30,7 +36,7 @@ DO $$
 BEGIN
     EXECUTE format(
         'ALTER DATABASE %I SET search_path TO public, core, automation, agent, '
-        'blueprints, energy, devices, patterns, rag',
+        'blueprints, energy, devices, memory, patterns, rag',
         current_database()
     );
 END
@@ -276,6 +282,42 @@ CREATE TABLE IF NOT EXISTS synergy_feedback (
 CREATE INDEX IF NOT EXISTS ix_synergy_feedback_created_at ON synergy_feedback (created_at);
 CREATE INDEX IF NOT EXISTS ix_synergy_feedback_feedback_type ON synergy_feedback (feedback_type);
 CREATE INDEX IF NOT EXISTS ix_synergy_feedback_synergy_id ON synergy_feedback (synergy_id);
+
+-- ai-pattern-service ML tables (Stories 40.1, 40.7). These were declared in
+-- ai-pattern-service/src/database/models.py but never provisioned here, so every
+-- read through model_registry or the training-data writer hit an undefined table.
+CREATE TABLE IF NOT EXISTS pattern_training_data (
+    id SERIAL PRIMARY KEY,
+    run_id VARCHAR(36) NOT NULL,
+    pattern_type VARCHAR(50) NOT NULL,
+    device_id VARCHAR(255),
+    raw_events_summary JSON NOT NULL,
+    detected_pattern JSON NOT NULL,
+    user_action VARCHAR(20),
+    user_feedback_at TIMESTAMP,
+    confidence DOUBLE PRECISION NOT NULL,
+    ml_model_version VARCHAR(50),
+    created_at TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_pattern_training_data_run_id ON pattern_training_data (run_id);
+CREATE INDEX IF NOT EXISTS ix_pattern_training_data_pattern_type ON pattern_training_data (pattern_type);
+CREATE INDEX IF NOT EXISTS ix_pattern_training_data_user_action ON pattern_training_data (user_action);
+CREATE INDEX IF NOT EXISTS ix_pattern_training_data_created_at ON pattern_training_data (created_at);
+
+CREATE TABLE IF NOT EXISTS ml_models (
+    id SERIAL PRIMARY KEY,
+    model_name VARCHAR(100) NOT NULL,
+    version VARCHAR(50) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    metrics JSON,
+    metadata JSON,
+    trained_at TIMESTAMP NOT NULL,
+    is_active BOOLEAN NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_ml_models_model_name ON ml_models (model_name);
+CREATE INDEX IF NOT EXISTS ix_ml_models_is_active ON ml_models (is_active);
 
 -- ai-training-service tables
 CREATE TABLE IF NOT EXISTS training_runs (
@@ -962,6 +1004,75 @@ CREATE TABLE IF NOT EXISTS task_executions (
 
 CREATE INDEX IF NOT EXISTS idx_task_exec_task_started ON task_executions (task_id, started_at);
 CREATE INDEX IF NOT EXISTS idx_task_exec_status ON task_executions (status);
+
+-- =============================================================================
+-- Memory schema tables (admin-api /api/v1/memories, via libs/homeiq-memory)
+--
+-- Mirrors libs/homeiq-memory/alembic/versions/001_create_memory_schema.py, which
+-- nothing in this repo ever runs: homeiq-memory has an alembic.ini but no service
+-- invokes it, and MemoryClient.initialize() defaults to create_tables=False. The
+-- DDL therefore has to live here, the one provisioning path actually wired up.
+-- Keep this section and that migration in step (TAP-5437).
+--
+-- Note the ", public" below: CREATE EXTENSION put the vector type and the
+-- vector_cosine_ops operator class in public, and SET search_path replaces the
+-- path rather than prepending to it. Dropping public here makes vector(768) fail
+-- to resolve. Every other section can use a bare schema because it only uses
+-- built-in types from pg_catalog, which is always implicitly in scope.
+-- =============================================================================
+SET search_path TO memory, public;
+
+CREATE TABLE IF NOT EXISTS memories (
+    id BIGSERIAL PRIMARY KEY,
+    content VARCHAR(1024) NOT NULL,
+    memory_type VARCHAR(20) NOT NULL,
+    confidence FLOAT NOT NULL DEFAULT 0.5,
+    source_channel VARCHAR(20) NOT NULL,
+    source_service VARCHAR(50),
+    entity_ids TEXT[],
+    area_ids TEXT[],
+    tags TEXT[],
+    embedding vector(768),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_accessed TIMESTAMPTZ,
+    access_count INTEGER DEFAULT 0,
+    superseded_by BIGINT REFERENCES memories(id),
+    metadata JSONB,
+    CONSTRAINT chk_memory_type CHECK (
+        memory_type IN ('fact', 'preference', 'pattern', 'context', 'correction')
+    )
+);
+
+CREATE TABLE IF NOT EXISTS memory_archive (
+    id BIGSERIAL PRIMARY KEY,
+    original_id BIGINT NOT NULL,
+    content VARCHAR(1024) NOT NULL,
+    memory_type VARCHAR(20) NOT NULL,
+    confidence FLOAT NOT NULL DEFAULT 0.5,
+    source_channel VARCHAR(20) NOT NULL,
+    source_service VARCHAR(50),
+    entity_ids TEXT[],
+    area_ids TEXT[],
+    tags TEXT[],
+    embedding vector(768),
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    last_accessed TIMESTAMPTZ,
+    access_count INTEGER DEFAULT 0,
+    superseded_by BIGINT,
+    metadata JSONB,
+    archived_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    archive_reason VARCHAR(100),
+    CONSTRAINT chk_archive_memory_type CHECK (
+        memory_type IN ('fact', 'preference', 'pattern', 'context', 'correction')
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_memories_fts ON memories USING gin(to_tsvector('english', content));
+CREATE INDEX IF NOT EXISTS idx_memories_embedding ON memories USING hnsw (embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_memories_type_conf ON memories (memory_type, confidence DESC);
+CREATE INDEX IF NOT EXISTS idx_memories_entities ON memories USING gin(entity_ids);
 
 -- =============================================================================
 -- Patterns schema tables (api-automation-edge)

@@ -48,7 +48,15 @@ services:
         labels: "service=influxdb,group=core-platform,environment=production"
 
   postgres:
-    image: postgres:17-alpine
+    # pgvector/pgvector:pg17, not postgres:17-alpine — homeiq-memory declares
+    # embedding vector(768) with an HNSW index (libs/homeiq-memory/models.py:71-72,
+    # alembic/versions/001_create_memory_schema.py:26). The stock image has no
+    # pgvector, so CREATE EXTENSION vector fails and memory.memories can never be
+    # created, which is what made every /api/v1/memories route 500 (TAP-5437).
+    # This is Debian-based where the old tag was Alpine: the PGDATA volume is
+    # compatible within major 17, but glibc vs musl collation differs, so run
+    # REINDEX DATABASE homeiq once after the first start on this image.
+    image: pgvector/pgvector:pg17
     container_name: homeiq-postgres
     restart: unless-stopped
     ports:

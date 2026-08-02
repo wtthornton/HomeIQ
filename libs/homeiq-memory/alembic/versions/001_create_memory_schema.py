@@ -4,6 +4,13 @@ Revision ID: 001_create_memory_schema
 Revises: None
 Create Date: 2026-03-06
 
+NOTE (TAP-5437): nothing in the HomeIQ repo runs this migration. homeiq-memory
+ships an alembic.ini, but no service invokes `alembic upgrade` against it, and
+MemoryClient.initialize() defaults to create_tables=False. The DDL below is
+therefore duplicated in infrastructure/postgres/init-schemas.sql (memory schema
+section), which is the provisioning path actually wired up — it is mounted at
+/docker-entrypoint-initdb.d/01-schemas.sql. Change both together, or delete this
+file once alembic is genuinely wired.
 """
 
 from typing import Sequence, Union
