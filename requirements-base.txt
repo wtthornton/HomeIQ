@@ -67,7 +67,7 @@ influxdb-client>=1.49.0,<2.0.0  # Latest stable (2025) - unpinned for patch upda
 # ============================================
 # WebSocket Support (WebSocket Services)
 # ============================================
-websockets>=12.0,<13.0.0  # WebSocket client/server - unpinned for patch updates
+websockets>=13.0,<17.0.0  # >=13.0: homeiq-ha imports websockets.asyncio, absent in 12.0
 
 # ============================================
 # MQTT Support (IoT Services)

@@ -782,6 +782,19 @@ class DataApiClient extends BaseApiClient {
 /**
  * AI Automation API Client
  * Epic AI1 Story 13: AI-powered automation suggestion system
+ *
+ * Currently unreferenced, and retained deliberately (TAP-5433). Its last two
+ * consumers called `/stats` and `/api/suggestions/models/compare`, neither of
+ * which the service exposes, so both were removed along with the panels they
+ * fed. Every method left here maps to a route confirmed against the service's
+ * openapi.json.
+ *
+ * It is kept rather than deleted because these paths were all wrong in the same
+ * systematic way — nginx rewrites `/ai-automation/(.*)` to `/$1` while the
+ * routers mount under `/api`, so each call needs the `/api` segment the client
+ * used to omit. Rebuilding a panel from scratch would very likely reintroduce
+ * that. The bundle tree-shakes the whole class while nothing imports `aiApi`,
+ * so keeping it costs nothing at runtime.
  */
 class AIAutomationApiClient {
   private baseUrl: string;
