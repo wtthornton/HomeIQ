@@ -68,10 +68,29 @@ See the Completed section above for IDs and the corrections to the original defe
 
 ## Tooling Defects (TAP-5442 impact)
 
-Brain persistence issues affect memory saves:
-- `architectural` and `pattern` tier writes return success but don't persist
-- Only `context` tier persists (14-day half-life, expires ~2026-08-16)
-- **Session learnings backed up in this file, not in brain**
+**The tier theory was wrong and has been retracted.** Tier is not the discriminator.
+The real cause is a module-global brain-bridge singleton in tapps-mcp
+(`server_helpers.py:143-180`) that binds one tenant for the whole shared nlt-memory
+process. Writes land in whichever tenant the singleton happens to hold, so a read
+from another repo — or from this repo after the process re-initialized elsewhere —
+returns `found: false`. Tier-independent, intermittent. TAP-5442 has been rewritten
+and moved to the **TappsMCP Platform** project.
+
+**HomeIQ is affected.** Verified 2026-08-02:
+
+- `homeiq-session-learnings-2026-08-02` was `found: true` last session and is
+  `found: false` now — and it is a `context` tier entry, the tier that was supposed
+  to be safe. Prior-session learnings are in some other tenant, most likely
+  `nlt-ideas-scout`. Probably intact; **search by key across tenants before
+  re-recording anything**.
+- A fresh probe from this worktree did land correctly (`source_agent: homeiq-eee46954`),
+  so the tenant binding is right *at this moment* and can drift again.
+- One `get` took 30,570 ms against a 30.0s client timeout — a request waiting out
+  the timeout because its response went to another caller. Expect random ~30s stalls.
+
+**Treat this file as the only durable record.** Do not rely on brain recall, and
+verify the tenant stamp (`source_agent` / `project_id`) on read-back before trusting
+any retrieved entry.
 
 ## Environment Quirks (for next session)
 

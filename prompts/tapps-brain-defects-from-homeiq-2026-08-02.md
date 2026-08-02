@@ -1,5 +1,33 @@
 # tapps-brain: writes acknowledged but not stored (2026-08-02)
 
+> **SUPERSEDED — do not paste this anywhere.** Retained only as a record of how the
+> wrong conclusion was reached.
+>
+> **The headline below is wrong.** Tier is not the discriminator. Probe saves of
+> `architectural` and `context` were both retrievable by `get` and both returned by
+> `search`. The table in this document already contradicted the theory it argues:
+> entry 2 is `context` tier and returned the `memory_key: null` envelope this report
+> treats as the architectural-path signature. Six samples, two correlated variables,
+> no control.
+>
+> **The real cause is in tapps-mcp, not tapps-brain.** `_get_brain_bridge()` at
+> `src/tapps_mcp/server_helpers.py:143-180` is a module-global singleton built once
+> from `load_settings()` at first use. nlt-memory is one shared process serving every
+> repo on the machine, so the bridge's tenant identity is fixed at process start and
+> never re-derived. Writes land in whichever tenant the singleton holds; a read from
+> a different tenant returns `found: false`. Tier-independent and intermittent.
+> Tracked as TAP-5442 in the **TappsMCP Platform** project.
+>
+> **The one defect here that was genuinely tapps-brain's** — idempotency keys scoped
+> on `(project_id, key)` with no operation identity, so a key reused across two write
+> paths replays the wrong body and skips the second write — is **already fixed** as
+> TAP-5444, commit 5568989, migration 029.
+>
+> Also corrected: the `entry_count: 0` and empty `tier_distribution` in the health
+> payload below are not a miscount. `health` is absent from `_HTTP_BRIDGE_DISPATCH`,
+> so in HTTP-bridge mode it falls through to the in-process handler and reports an
+> empty local store — the wrong data source.
+
 Paste this into a session in the **tapps-brain** repo.
 
 ---

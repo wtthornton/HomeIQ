@@ -146,7 +146,22 @@ awkward contract.
 
 ## Note
 
-There is a separate, more serious defect in the memory backend — architectural
-and pattern tier writes return success and do not persist. That one is written up
-for the **tapps-brain** repo, not here, though the fix may involve the bridge on
-this side. It is tracked as TAP-5442 in the HomeIQ project.
+There is a separate, more serious defect in the memory path, and it is **owned by
+this repo**. It was originally written up as a tier bug — architectural and pattern
+writes returning success without persisting — and pointed at tapps-brain. That
+diagnosis was wrong. Tier is not the discriminator; probe saves of `architectural`
+and `context` were both retrievable and both returned by search.
+
+The actual cause is `_get_brain_bridge()` at `src/tapps_mcp/server_helpers.py:143-180`,
+a module-global singleton built once from `load_settings()` at first use. nlt-memory
+is one shared process serving every repo on the machine, so the bridge's tenant
+identity is fixed at process start and never re-derived per call. Writes land in
+whichever tenant the singleton holds. Two aggravating factors live here too: the
+hardcoded `"id": 1` on every JSON-RPC `tools/call` (`brain_bridge.py:1816`) makes
+responses impossible to correlate to requests, and `health` is missing from
+`_HTTP_BRIDGE_DISPATCH` so it reports the empty in-process store.
+
+Tracked as TAP-5442, now in the **TappsMCP Platform** project (moved out of HomeIQ —
+nothing in it was HomeIQ's). The one genuinely tapps-brain-owned defect from the
+original report, idempotency keys scoped on `(project_id, key)` with no operation
+identity, is already fixed as TAP-5444, commit 5568989, migration 029.
