@@ -50,17 +50,27 @@ __all__ = [
     "HAWebSocketClient",
     "redact",
     "redact_text",
+    "websocket_url",
 ]
 
 
-def _websocket_url(http_url: str) -> str:
-    """Derive the WebSocket API URL from an HTTP base URL."""
+def websocket_url(http_url: str) -> str:
+    """Derive the WebSocket API URL from an HTTP base URL.
+
+    Public because a consumer that needs a custom ``ssl_context`` has to build
+    :class:`HAWebSocketClient` directly — :class:`HAClient` does not forward one —
+    and would otherwise have to re-implement this mapping.
+    """
     base = http_url.rstrip("/")
     if base.startswith("https://"):
         return "wss://" + base[len("https://") :] + "/api/websocket"
     if base.startswith("http://"):
         return "ws://" + base[len("http://") :] + "/api/websocket"
     raise ValueError(f"Cannot derive a WebSocket URL from {http_url!r}")
+
+
+# Retained for internal callers predating the public name.
+_websocket_url = websocket_url
 
 
 class HAClient:

@@ -15,7 +15,7 @@ httpx>=0.27.0,<0.29.0  # Phase 1: aligned
 tenacity>=8.2.0,<10.0.0  # Phase 2: standardized
 
 # WebSocket Client (2025 Best Practice: Use WebSocket API for area registry)
-websockets>=12.0,<13.0  # WebSocket client for Home Assistant API
+websockets>=13.0,<17.0.0  # >=13.0: homeiq-ha needs websockets.asyncio (absent in 12.0)
 
 # Database
 sqlalchemy>=2.0.36,<2.1.0  # Phase 1: aligned
@@ -40,3 +40,5 @@ httpx>=0.27.0,<0.29.0  # Phase 1: aligned (testing)
 homeiq-patterns>=1.0.0
 homeiq-resilience>=1.0.0
 homeiq-memory>=1.0.0  # Story 30.1: Chat memory extraction
+
+homeiq-ha>=1.0.0  # HAWebSocketClient — replaces this service's own WS implementation

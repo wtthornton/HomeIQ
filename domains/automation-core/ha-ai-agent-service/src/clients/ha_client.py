@@ -6,13 +6,13 @@ Supports both REST API and WebSocket API (2025 best practice).
 """
 
 import asyncio
-import json
 import logging
 import ssl
 from typing import Any
 
 import aiohttp
-import websockets
+from homeiq_ha.client import HAWebSocketClient
+from homeiq_ha.client import websocket_url as _websocket_url
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
@@ -51,6 +51,7 @@ class HomeAssistantClient:
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         self._session: aiohttp.ClientSession | None = None
         self._ssl_context = ssl_context
+        self._ws: HAWebSocketClient | None = None
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create a reusable client session"""
@@ -67,75 +68,35 @@ class HomeAssistantClient:
             )
         return self._session
 
-    async def _websocket_command(self, command_type: str, message_id: int = 1) -> list[dict[str, Any]]:
+    async def _connection(self) -> HAWebSocketClient:
         """
-        Execute a WebSocket command against Home Assistant.
+        Return a live Home Assistant WebSocket connection, opening one on first use.
 
-        Consolidates all WebSocket registry access (area, device, entity) into
-        a single method to eliminate code duplication.
+        This replaces a hand-rolled connect/auth/send/correlate loop that was this
+        repo's second WebSocket implementation. The shared client owns the auth
+        handshake, id correlation and read loop, and raises max_size so large
+        registry listings are not truncated at the 1 MiB default (TAP-5424).
 
-        Args:
-            command_type: WebSocket command type (e.g., "config/area_registry/list")
-            message_id: Message ID for the command
-
-        Returns:
-            List of result dictionaries from the WebSocket response
-
-        Raises:
-            Exception: If WebSocket connection, authentication, or command fails
+        The connection is cached, so a caller reading several registries pays one
+        handshake instead of one per read as the old per-command connect did.
         """
-        ws_url = self.ha_url.replace('http://', 'ws://').replace('https://', 'wss://')
-        ws_url = f"{ws_url}/api/websocket"
+        if self._ws is None:
+            # The facade derives the ws:// URL from the HTTP base URL.
+            self._ws = HAWebSocketClient(
+                _websocket_url(self.ha_url),
+                self.access_token,
+                ssl_context=self._ssl_context,
+            )
+            await self._ws.connect()
+        return self._ws
 
-        try:
-            logger.debug(f"Connecting to Home Assistant WebSocket: {ws_url}")
-
-            connect_kwargs = {
-                "ping_interval": 20,
-                "ping_timeout": 10,
-                "close_timeout": 10,
-            }
-            if self._ssl_context and ws_url.startswith("wss://"):
-                connect_kwargs["ssl"] = self._ssl_context
-
-            async with websockets.connect(ws_url, **connect_kwargs) as ws:
-                # Handle authentication
-                auth_response = await asyncio.wait_for(ws.recv(), timeout=10.0)
-                auth_data = json.loads(auth_response)
-
-                if auth_data.get("type") == "auth_required":
-                    logger.debug("Authentication required, sending token...")
-                    await ws.send(json.dumps({"type": "auth", "access_token": self.access_token}))
-
-                    auth_result = await asyncio.wait_for(ws.recv(), timeout=10.0)
-                    auth_result_data = json.loads(auth_result)
-
-                    if auth_result_data.get("type") != "auth_ok":
-                        raise Exception(f"WebSocket authentication failed: {auth_result_data}")
-                    logger.debug("WebSocket authenticated")
-                elif auth_data.get("type") != "auth_ok":
-                    raise Exception(f"Unexpected WebSocket auth response: {auth_data}")
-
-                # Send command
-                await ws.send(json.dumps({"id": message_id, "type": command_type}))
-                response = await asyncio.wait_for(ws.recv(), timeout=10.0)
-                data = json.loads(response)
-
-                if data.get("id") == message_id and data.get("type") == "result":
-                    if not data.get("success", False):
-                        error = data.get("error", {})
-                        raise Exception(f"WebSocket command failed: {error.get('message', 'Unknown error')}")
-                    return data.get("result", [])
-                raise Exception(f"Unexpected WebSocket response format: {data}")
-
-        except TimeoutError as e:
-            raise Exception("WebSocket connection or response timeout") from e
-        except websockets.exceptions.InvalidStatusCode as e:
-            raise Exception(f"WebSocket connection failed: {e}") from e
-        except Exception as e:
-            if "WebSocket" in str(e):
-                raise
-            raise Exception(f"WebSocket error: {str(e)}") from e
+    async def _close_ws(self) -> None:
+        """Close and forget the WebSocket connection"""
+        if self._ws is not None:
+            try:
+                await self._ws.close()
+            finally:
+                self._ws = None
 
     @retry(
         stop=stop_after_attempt(3),
@@ -147,48 +108,18 @@ class HomeAssistantClient:
         """
         Get area registry from Home Assistant.
 
-        2025 Best Practice: Tries WebSocket API first (official method),
-        falls back to REST API if WebSocket fails.
-
         Returns:
             List of area dictionaries with keys: area_id, name, aliases, etc.
 
         Raises:
-            Exception: If both WebSocket and REST API requests fail
+            Exception: If the WebSocket command fails
         """
-        # Try WebSocket API first (2025 best practice)
         try:
-            logger.debug("Attempting to fetch area registry via WebSocket API...")
-            return await self._websocket_command("config/area_registry/list", message_id=1)
-        except Exception as ws_error:
-            logger.warning(f"⚠️ WebSocket API failed: {ws_error}")
-            logger.info("🔄 Falling back to REST API...")
-
-            # Fallback to REST API
-            try:
-                session = await self._get_session()
-                url = f"{self.ha_url}/api/config/area_registry/list"
-
-                async with session.get(url) as response:
-                    if response.status == 404:
-                        # REST endpoint not available
-                        logger.info("ℹ️ Area Registry REST API not available (404) - returning empty list")
-                        return []
-                    response.raise_for_status()
-                    data = await response.json()
-                    # Handle both list format and dict with 'areas' key
-                    if isinstance(data, dict) and "areas" in data:
-                        areas = data["areas"]
-                    elif isinstance(data, list):
-                        areas = data
-                    else:
-                        areas = []
-                    logger.info(f"✅ Fetched {len(areas)} areas from Home Assistant via REST API")
-                    return areas
-            except aiohttp.ClientError as e:
-                error_msg = f"Failed to fetch area registry (both WebSocket and REST failed): {str(e)}"
-                logger.error(f"❌ {error_msg}")
-                raise Exception(error_msg) from e
+            connection = await self._connection()
+            return await connection.list_areas()
+        except Exception:
+            await self._close_ws()
+            raise
 
     @retry(
         stop=stop_after_attempt(3),
@@ -345,48 +276,18 @@ class HomeAssistantClient:
         """
         Get entity registry from Home Assistant.
 
-        2025 Best Practice: Tries WebSocket API first (official method),
-        falls back to REST API if WebSocket fails.
-
         Returns:
             List of entity registry dictionaries with keys: entity_id, aliases, category, disabled_by, etc.
 
         Raises:
-            Exception: If both WebSocket and REST API requests fail
+            Exception: If the WebSocket command fails
         """
-        # Try WebSocket API first (2025 best practice)
         try:
-            logger.debug("Attempting to fetch entity registry via WebSocket API...")
-            return await self._websocket_command("config/entity_registry/list", message_id=3)
-        except Exception as ws_error:
-            logger.warning(f"⚠️ WebSocket API failed: {ws_error}")
-            logger.info("🔄 Falling back to REST API...")
-
-            # Fallback to REST API
-            try:
-                session = await self._get_session()
-                url = f"{self.ha_url}/api/config/entity_registry/list"
-
-                async with session.get(url) as response:
-                    if response.status == 404:
-                        # REST endpoint not available
-                        logger.info("ℹ️ Entity Registry REST API not available (404) - returning empty list")
-                        return []
-                    response.raise_for_status()
-                    data = await response.json()
-                    # Handle both list format and dict with 'entities' key
-                    if isinstance(data, dict) and "entities" in data:
-                        entities = data["entities"]
-                    elif isinstance(data, list):
-                        entities = data
-                    else:
-                        entities = []
-                    logger.info(f"✅ Fetched {len(entities)} entities from Home Assistant via REST API")
-                    return entities
-            except aiohttp.ClientError as e:
-                error_msg = f"Failed to fetch entity registry (both WebSocket and REST failed): {str(e)}"
-                logger.error(f"❌ {error_msg}")
-                raise Exception(error_msg) from e
+            connection = await self._connection()
+            return await connection.list_entities()
+        except Exception:
+            await self._close_ws()
+            raise
 
     @retry(
         stop=stop_after_attempt(3),
@@ -398,48 +299,18 @@ class HomeAssistantClient:
         """
         Get device registry from Home Assistant.
 
-        2025 Best Practice: Tries WebSocket API first (official method),
-        falls back to REST API if WebSocket fails.
-
         Returns:
             List of device dictionaries with keys: id, name, area_id, manufacturer, model, etc.
 
         Raises:
-            Exception: If both WebSocket and REST API requests fail
+            Exception: If the WebSocket command fails
         """
-        # Try WebSocket API first (2025 best practice)
         try:
-            logger.debug("Attempting to fetch device registry via WebSocket API...")
-            return await self._websocket_command("config/device_registry/list", message_id=2)
-        except Exception as ws_error:
-            logger.warning(f"⚠️ WebSocket API failed: {ws_error}")
-            logger.info("🔄 Falling back to REST API...")
-
-            # Fallback to REST API
-            try:
-                session = await self._get_session()
-                url = f"{self.ha_url}/api/config/device_registry/list"
-
-                async with session.get(url) as response:
-                    if response.status == 404:
-                        # REST endpoint not available
-                        logger.info("ℹ️ Device Registry REST API not available (404) - returning empty list")
-                        return []
-                    response.raise_for_status()
-                    data = await response.json()
-                    # Handle both list format and dict with 'devices' key
-                    if isinstance(data, dict) and "devices" in data:
-                        devices = data["devices"]
-                    elif isinstance(data, list):
-                        devices = data
-                    else:
-                        devices = []
-                    logger.info(f"✅ Fetched {len(devices)} devices from Home Assistant via REST API")
-                    return devices
-            except aiohttp.ClientError as e:
-                error_msg = f"Failed to fetch device registry (both WebSocket and REST failed): {str(e)}"
-                logger.error(f"❌ {error_msg}")
-                raise Exception(error_msg) from e
+            connection = await self._connection()
+            return await connection.list_devices()
+        except Exception:
+            await self._close_ws()
+            raise
 
     async def close(self):
         """Close HTTP client connection pool"""
