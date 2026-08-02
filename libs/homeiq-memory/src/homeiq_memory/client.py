@@ -120,14 +120,24 @@ class MemoryClient:
                 autoflush=False,
             )
 
-            async with self._engine.begin() as conn:
-                from sqlalchemy import text
+            from sqlalchemy import text
 
+            async with self._engine.begin() as conn:
                 await conn.execute(text("SELECT 1"))
 
             if create_tables:
                 async with self._engine.begin() as conn:
                     await conn.run_sync(Base.metadata.create_all)
+
+            # Probe the memory schema, not just the connection. `SELECT 1` passes
+            # whenever Postgres is reachable, so an unprovisioned schema left
+            # _available True and the first real query raised an undefined-table
+            # error that the routes surfaced as a 500. Reading from the table the
+            # routes actually use turns that into a startup failure, which callers
+            # translate to a 503 (TAP-5437). Runs after create_tables so the
+            # table-creating path still works.
+            async with self._engine.begin() as conn:
+                await conn.execute(text("SELECT 1 FROM memory.memories LIMIT 1"))
 
             self._available = True
             logger.info("MemoryClient initialized successfully")

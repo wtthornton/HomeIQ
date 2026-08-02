@@ -162,6 +162,8 @@ async def get_energy_correlations(
 
         return correlations
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error getting energy correlations: {e}")
         raise HTTPException(
@@ -371,6 +373,8 @@ async def get_device_energy_impact(
             estimated_monthly_cost=monthly_cost
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error getting device impact for {entity_id}: {e}")
         raise HTTPException(
