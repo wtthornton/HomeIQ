@@ -7,3 +7,4 @@ httpx>=0.27.0,<0.29.0  # Phase 1: aligned
 # HomeIQ shared libraries (installed from libs/ in Docker)
 homeiq-resilience>=1.0.0
 homeiq-observability>=1.0.0
+homeiq-ha>=1.0.0  # HAWebSocketClient — the entity registry is WebSocket-only

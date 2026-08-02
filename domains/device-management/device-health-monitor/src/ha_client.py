@@ -1,6 +1,11 @@
 """
 Home Assistant API Client for Device Health Monitor
 Phase 1.2: Query HA API for device states and history
+
+Two transports, deliberately. States and history are genuine REST endpoints and
+keep their aiohttp session. The entity registry is a WebSocket-only command —
+`GET /api/config/entity_registry/list` has never existed — so it goes through the
+shared HAWebSocketClient (TAP-5424).
 """
 
 import logging
@@ -8,12 +13,14 @@ from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
+from homeiq_ha.client import HAClient as SharedHAClient
+from homeiq_ha.client import HAWebSocketClient
 
 logger = logging.getLogger("device-health-monitor")
 
 
 class HAClient:
-    """Client for Home Assistant REST API"""
+    """Client for the Home Assistant states/history REST API and the WebSocket registry"""
 
     def __init__(self, ha_url: str, access_token: str, timeout: int = 10):
         """
@@ -32,6 +39,7 @@ class HAClient:
         }
         self.timeout = timeout
         self._session: aiohttp.ClientSession | None = None
+        self._ws: HAWebSocketClient | None = None
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create client session"""
@@ -123,32 +131,28 @@ class HAClient:
             Dictionary mapping entity_id to entity data
         """
         try:
-            session = await self._get_session()
-            url = f"{self.ha_url}/api/config/entity_registry/list"
-
-            async with session.get(url) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    # HA returns a flat list, not {"entities": [...]}
-                    entities = data if isinstance(data, list) else data.get('entities', [])
-                    registry_dict = {}
-                    for entity in entities:
-                        entity_id = entity.get('entity_id')
-                        if entity_id:
-                            registry_dict[entity_id] = entity
-                    return registry_dict
-                elif response.status == 404:
-                    logger.info("Entity Registry API not available (404)")
-                    return {}
-                else:
-                    logger.warning(f"Failed to get entity registry: HTTP {response.status}")
-                    return {}
+            if self._ws is None:
+                # The facade derives the ws:// URL from the HTTP base URL.
+                self._ws = SharedHAClient(self.ha_url, self.access_token).ws
+                await self._ws.connect()
+            entities = await self._ws.list_entities()
+            return {e["entity_id"]: e for e in entities if e.get("entity_id")}
         except Exception as e:
             logger.error(f"Error getting entity registry: {e}")
+            await self._close_ws()
             return {}
 
+    async def _close_ws(self):
+        """Close and forget the WebSocket connection"""
+        if self._ws is not None:
+            try:
+                await self._ws.close()
+            finally:
+                self._ws = None
+
     async def close(self):
-        """Close the session"""
+        """Close both transports"""
+        await self._close_ws()
         if self._session and not self._session.closed:
             await self._session.close()
 
