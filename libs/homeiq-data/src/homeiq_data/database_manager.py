@@ -31,7 +31,8 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING
+from time import monotonic
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -56,6 +57,9 @@ class DatabaseManager:
     async session factory, initialization with graceful degradation,
     health checks, Alembic migration support, and cleanup.
     """
+
+    #: Minimum seconds between recovery attempts after a degraded start.
+    RECOVERY_COOLDOWN_SECONDS = 5.0
 
     def __init__(
         self,
@@ -94,6 +98,14 @@ class DatabaseManager:
         self._engine: AsyncEngine | None = None
         self._session_maker: async_sessionmaker[AsyncSession] | None = None
 
+        # Degraded-start recovery. `initialize` records the arguments it was
+        # called with so a later session request can replay them; without this a
+        # service that lost the startup race to Postgres stayed degraded for the
+        # life of the process even after the database came back.
+        self._init_args: dict[str, Any] | None = None
+        self._last_recovery_attempt = 0.0
+        self._recovery_lock = asyncio.Lock()
+
         # Resolve URL: explicit param > env vars > default
         self._url = self._resolve_url(database_url)
 
@@ -124,9 +136,23 @@ class DatabaseManager:
         Returns:
             True if initialization succeeded, False if degraded.
         """
+        # Remembered so `_try_recover` can replay this exact call if the
+        # database was unreachable at startup.
+        self._init_args = {
+            "base": base,
+            "run_alembic": run_alembic,
+            "alembic_ini_path": alembic_ini_path,
+        }
+
         try:
             # Validate URL
             validate_database_url(self._url)
+
+            # A failed attempt leaves an engine behind; dispose it before
+            # replacing it so retries do not leak pools.
+            if self._engine is not None:
+                await self._engine.dispose()
+                self._engine = None
 
             # Create engine
             self._engine = create_pg_engine(
@@ -179,6 +205,42 @@ class DatabaseManager:
             self._available = False
             return False
 
+    async def _try_recover(self) -> bool:
+        """Re-attempt initialization after a degraded start.
+
+        Returns True when the manager is usable. Rate-limited by
+        ``RECOVERY_COOLDOWN_SECONDS`` so a service handling traffic while the
+        database is down does not attempt a reconnect on every request.
+
+        Never raises: ``initialize`` already swallows its own failures, and a
+        failed recovery must surface as the same RuntimeError callers already
+        handle, not as a new exception type.
+        """
+        if self._available and self._session_maker is not None:
+            return True
+
+        # initialize() was never called — nothing to replay.
+        if self._init_args is None:
+            return False
+
+        elapsed = monotonic() - self._last_recovery_attempt
+        if elapsed < self.RECOVERY_COOLDOWN_SECONDS:
+            return False
+
+        async with self._recovery_lock:
+            # Another coroutine may have recovered while we waited for the lock.
+            if self._available and self._session_maker is not None:
+                return True
+            if monotonic() - self._last_recovery_attempt < self.RECOVERY_COOLDOWN_SECONDS:
+                return False
+
+            self._last_recovery_attempt = monotonic()
+            logger.info(
+                "DatabaseManager[%s] degraded — retrying initialization",
+                self._service_name,
+            )
+            return await self.initialize(**self._init_args)
+
     async def close(self) -> None:
         """Dispose engine and clean up."""
         if self._engine:
@@ -199,7 +261,7 @@ class DatabaseManager:
         Compatible with both ``async with db.get_db()`` and FastAPI ``Depends()``.
         Raises RuntimeError if database is not available.
         """
-        if not self._available or self._session_maker is None:
+        if not await self._try_recover():
             raise RuntimeError(
                 f"Database not available for {self._service_name}. "
                 "Service is in degraded mode."
@@ -218,7 +280,7 @@ class DatabaseManager:
     @asynccontextmanager
     async def get_db_context(self) -> AsyncGenerator[AsyncSession, None]:
         """Context manager for non-FastAPI database session usage."""
-        if not self._available or self._session_maker is None:
+        if not await self._try_recover():
             raise RuntimeError(
                 f"Database not available for {self._service_name}. "
                 "Service is in degraded mode."
