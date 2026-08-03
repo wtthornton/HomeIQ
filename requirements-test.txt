@@ -43,7 +43,7 @@ faker>=22.0.0                  # Fake data generation
 freezegun>=1.4.0               # Time mocking
 
 # WebSocket Testing
-websockets>=12.0               # WebSocket client for testing
+websockets>=13.0               # >=13.0: homeiq-ha needs websockets.asyncio
 pytest-websocket>=0.0.1        # WebSocket testing utilities
 
 # Database Testing

@@ -3,7 +3,7 @@ uvicorn>=0.32.0,<1.0.0
 python-dotenv>=1.0.1,<2.0.0
 influxdb3-python>=0.3.0,<1.0.0
 aiohttp>=3.13.3,<4.0.0  # CVE-2025-69223..69230 fix — min 3.13.3
-websockets>=10.0,<16.0  # Required for shared.enhanced_ha_connection_manager
+websockets>=13.0,<16.0  # >=13.0: main.py imports homeiq_ha, which needs websockets.asyncio
 pydantic-settings>=2.6.0,<3.0.0  # Required for BaseSettings
 
 # HomeIQ shared libraries (installed from libs/ in Docker)

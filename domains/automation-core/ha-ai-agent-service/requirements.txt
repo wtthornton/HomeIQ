@@ -15,7 +15,7 @@ httpx>=0.27.0,<0.29.0  # Phase 1: aligned
 tenacity>=8.2.0,<10.0.0  # Phase 2: standardized
 
 # WebSocket Client (2025 Best Practice: Use WebSocket API for area registry)
-websockets>=13.0,<17.0.0  # >=13.0: homeiq-ha needs websockets.asyncio (absent in 12.0)
+websockets>=13.0,<18.0.0  # >=13.0: homeiq-ha needs websockets.asyncio (absent in 12.0)
 
 # Database
 sqlalchemy>=2.0.36,<2.1.0  # Phase 1: aligned

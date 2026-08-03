@@ -9,4 +9,4 @@ python-dotenv>=1.0.0,<2.0.0  # Phase 2: standardized
 pydantic>=2.9.0,<3.0.0  # Phase 1: aligned
 psutil>=7.2.1,<8.0.0  # Latest stable 7.2.1 (January 2026) - Align with base
 influxdb-client>=1.49.0,<2.0.0  # Latest stable (2025)
-websockets>=13.0,<17.0.0  # >=13.0: homeiq-ha needs websockets.asyncio (absent in 12.0)
+websockets>=13.0,<18.0.0  # >=13.0: homeiq-ha needs websockets.asyncio (absent in 12.0)

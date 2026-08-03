@@ -22,7 +22,7 @@ tenacity>=8.2.0,<10.0.0  # Phase 2: standardized
 PyYAML>=6.0.1,<7.0.0
 
 # WebSocket client
-websockets>=13.0,<17.0.0  # >=13.0: homeiq-ha needs websockets.asyncio (absent in 12.0)
+websockets>=13.0,<18.0.0  # >=13.0: homeiq-ha needs websockets.asyncio (absent in 12.0)
 
 # MQTT client
 paho-mqtt>=1.6.1,<2.0.0
