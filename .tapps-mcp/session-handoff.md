@@ -209,3 +209,48 @@ titles, but created nothing — it described the workflow rather than completing
 returned no issue IDs. The issues in this file were filed directly and verified by
 reading them back from Linear. **Treat a subagent report with no concrete IDs as
 unverified**, and confirm writes by reading the target system.
+
+---
+
+# Session 3 (2026-08-03): Docker and push blockers cleared
+
+**Updated:** 2026-08-03T22:45:00Z · **HEAD:** `4bb0455d` pushed, 0 ahead / 0 behind
+
+Both blockers recorded above were absent for this session — docker and git push both worked.
+
+## Done
+
+- **Pushed the 8 blocked commits** (`61baaaa6..4bb0455d`). Secret-scanned first: no sensitive filenames, no literal secrets, `.env` still ignored.
+- **Rebuilt all 6 stale containers.** Every one REBUILT (image id changed), healthy, and verified importing `websockets` + `homeiq_ha` *inside the container*. The staleness listed as START HERE is cleared.
+
+## Rebuilt with `--no-deps`, deliberately — read before the next rebuild
+
+The commits just pushed swap postgres to `pgvector/pgvector:pg17` in `domains/core-platform/compose.yml`, while the running container is still `postgres:17-alpine`. A plain `compose up` on anything that pulls postgres as a dependency would have silently triggered the libc-boundary migration. `--no-deps` prevented it.
+
+**Postgres is still `postgres:17-alpine`. The swap has NOT been performed.**
+
+## Still outstanding: the postgres work
+
+The memory schema and pattern ML tables exist in `init-schemas.sql` and `infrastructure/postgres/migrations/` but are **not applied to the live database**. Verified this session: `memory` schema absent, `patterns` and `memories` absent from `pg_tables`. TAP-5437 and TAP-5438 are fixed in source only.
+
+Sequence unchanged: `pg_dumpall` first, then the image swap, then `REINDEX DATABASE homeiq` (collation differs between Alpine/musl and Debian/glibc). Tier-1 data operation; needs an explicit decision and a dump target with room.
+
+## New defects found this session — NOT filed, Linear MCP was disconnected
+
+1. **Startup race latches services into permanent degraded mode.** `ai-query-service` and `automation-miner` were both `(unhealthy)` with `RuntimeError: Database not available ... Service is in degraded mode`. Not connectivity and not auth — `select 1` succeeded from inside the container while they were unhealthy. Start times: ai-query-service `22:24:37`, postgres `22:24:38`. They started before postgres accepted connections, failed DB init, and never retried. `docker restart` on both fixed them immediately.
+   Root cause: `automation-miner` (`domains/blueprints/compose.yml:137-183`) declares **no `depends_on` at all**; `ai-query-service` (`domains/automation-core/compose.yml:117-167`) has one that does not gate on postgres `service_healthy`. The fix is both a compose dependency gate and a retry instead of a permanent latch. **This recurs on every restart and is a genuine go-live risk.**
+
+2. **Committed default database password.** Both compose files carry `POSTGRES_PASSWORD:-homeiq-secure-2026` as a `${VAR:-default}` fallback, so any environment that does not set the variable ships with a known credential. For go-live this should fail closed rather than default.
+
+3. **websockets version skew.** Services pinned by an earlier session resolve `16.1.1` (`>=13.0,<17.0.0`); unpinned ones resolved `17.0.1`. Both import and run healthy, but the cap excludes a version other services actually run. Worth unifying.
+
+## Correction to a metric used earlier in this file
+
+The `58 healthy` figure was produced with `grep -c healthy`, which **also matches `(unhealthy)`**. Accurate counting needs `grep -c '(healthy)'`. That check was hiding the two degraded services above. Use the corrected form from now on.
+
+## Verified at end of session 3
+
+- Contract gate: **79/79, 0 deviations, exit 0**
+- Stack: total 58, healthy 58, unhealthy 0, none restarting — via the corrected check
+- postgres: `postgres:17-alpine`, untouched
+- git: pushed, 0 ahead / 0 behind
