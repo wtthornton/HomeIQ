@@ -254,3 +254,47 @@ The `58 healthy` figure was produced with `grep -c healthy`, which **also matche
 - Stack: total 58, healthy 58, unhealthy 0, none restarting — via the corrected check
 - postgres: `postgres:17-alpine`, untouched
 - git: pushed, 0 ahead / 0 behind
+
+---
+
+# Session 4 (2026-08-03): defect fixes + postgres precursor
+
+**Updated:** 2026-08-04T00:05:00Z
+
+## Done
+
+**1. Degraded-start latch fixed in the shared library** (`libs/homeiq-data/database_manager.py`).
+`initialize()` never raises and sets `_available = False` by design, but nothing ever re-attempted it, so a service that lost the startup race to Postgres stayed degraded for the life of the process. It now records its init arguments and `_try_recover()` replays them from both session entry points, guarded by a 5s cooldown, an `asyncio.Lock` with a re-check inside it, and engine disposal so retries do not leak pools. A failed recovery still raises the same `RuntimeError` callers already handle.
+
+**The compose fix I first proposed was wrong and is worth not repeating.** Postgres is in the `homeiq-core-platform` compose project; `automation-miner` is in `homeiq-blueprints` and `ai-query-service` in `homeiq-automation-core`. `depends_on` cannot cross compose projects, and this repo already removed cross-group `depends_on` deliberately ("Cross-group depends_on removed"). Recovery had to be application-side.
+
+5 new tests; `libs/homeiq-data` 36 passed.
+
+**2. pg_dumpall backup taken — the postgres swap is now de-risked.**
+`backups/postgres/pg_dumpall-20260803T235445Z.sql`, 2.6 MB, exit 0, clean stderr. Verified it contains `CREATE ROLE`, `CREATE DATABASE homeiq`, 9 `CREATE SCHEMA`, and the `PostgreSQL database cluster dump complete` terminator that pg_dumpall writes only on success. `backups/` is gitignored — the dump must never be committed. Host has 440G free; the cluster is 36 MB.
+
+**3. websockets pins corrected.** Caps `<17.0.0` → `<18.0.0` (five files): the cap excluded 17.0.1, which five rebuilt services already run healthily. More importantly, `calendar-service` declared `>=10.0` while `src/main.py:23` imports `homeiq_ha`, which needs `websockets.asyncio` (absent below 13.0) — safe today only because homeiq-ha's own floor constrains the resolve. That is the same latent shape that crash-looped websocket-ingestion. Floor raised to `>=13.0`. No rebuild forced; every container already satisfies its new range.
+
+## Corrected from session 3
+
+**The committed database password is NOT live.** Session 3 recorded `POSTGRES_PASSWORD:-homeiq-secure-2026` as a go-live security item. Verified: `.env` sets `POSTGRES_PASSWORD` and the running Postgres uses a different value. It is a dormant dev fallback, not an active credential. Still worth making fail-closed eventually, but it is not the severity previously implied, and it was left unchanged because removing the default would break local dev for anyone without `.env`.
+
+## Still needs a decision — the postgres image swap
+
+Unchanged and still the main outstanding item. `compose.yml` declares `pgvector/pgvector:pg17`; the container runs `postgres:17-alpine`. The `memory` schema and pattern ML tables remain absent from the live database, so TAP-5437 and TAP-5438 are fixed in source only.
+
+The backup precursor is now done, so the remaining sequence is: swap the image, start, then `REINDEX DATABASE homeiq` (mandatory — collation differs between Alpine/musl and Debian/glibc), then apply `001-pattern-ml-tables.sql` and `002-memory-schema.sql`, then verify `CREATE EXTENSION vector` succeeds.
+
+Rebuilds of unrelated services must keep using `--no-deps` until this is done, or they will trigger the swap implicitly.
+
+## Not filed
+
+The Linear MCP server is disconnected, so the three session-3 defects and this session's findings are recorded here rather than in Linear. The startup-race defect is now fixed, so only the password note and the websockets skew remain, both addressed above.
+
+## Verified at end of session 4
+
+- Contract gate: **79/79, 0 deviations, exit 0**
+- Stack: total 58, healthy 58, unhealthy 0
+- `libs/homeiq-data` 36 passed · `libs/homeiq-ha` 99 passed
+- `libs/homeiq-resilience` has 10 pre-existing collection errors (async `allow_request()` asserted without await). Untouched by this work, but it means that lib's suite is currently red.
+- postgres: `postgres:17-alpine`, untouched
