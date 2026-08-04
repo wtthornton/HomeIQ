@@ -49,8 +49,9 @@ services:
 
   postgres:
     # pgvector/pgvector:pg17, not postgres:17-alpine — homeiq-memory declares
-    # embedding vector(768) with an HNSW index (libs/homeiq-memory/models.py:71-72,
-    # alembic/versions/001_create_memory_schema.py:26). The stock image has no
+    # embedding vector(384) with an HNSW index
+    # (libs/homeiq-memory/src/homeiq_memory/models.py:115-118, and alembic
+    # revision 004_fix_embedding_dimension_384). The stock image has no
     # pgvector, so CREATE EXTENSION vector fails and memory.memories can never be
     # created, which is what made every /api/v1/memories route 500 (TAP-5437).
     # This is Debian-based where the old tag was Alpine: the PGDATA volume is

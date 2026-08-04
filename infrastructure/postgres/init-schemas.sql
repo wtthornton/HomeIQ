@@ -14,7 +14,7 @@ CREATE SCHEMA IF NOT EXISTS memory;
 CREATE SCHEMA IF NOT EXISTS patterns;
 CREATE SCHEMA IF NOT EXISTS rag;
 
--- pgvector, required by the memory schema's embedding vector(768) columns and
+-- pgvector, required by the memory schema's embedding vector(384) columns and
 -- their HNSW indexes. Provided by the pgvector/pgvector:pg17 image pinned in
 -- domains/core-platform/compose.yml; this statement fails on stock postgres.
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -1016,7 +1016,7 @@ CREATE INDEX IF NOT EXISTS idx_task_exec_status ON task_executions (status);
 --
 -- Note the ", public" below: CREATE EXTENSION put the vector type and the
 -- vector_cosine_ops operator class in public, and SET search_path replaces the
--- path rather than prepending to it. Dropping public here makes vector(768) fail
+-- path rather than prepending to it. Dropping public here makes vector(384) fail
 -- to resolve. Every other section can use a bare schema because it only uses
 -- built-in types from pg_catalog, which is always implicitly in scope.
 -- =============================================================================
@@ -1031,16 +1031,17 @@ CREATE TABLE IF NOT EXISTS memories (
     source_service VARCHAR(50),
     entity_ids TEXT[],
     area_ids TEXT[],
+    domain VARCHAR(30),
     tags TEXT[],
-    embedding vector(768),
+    embedding vector(384),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_accessed TIMESTAMPTZ,
     access_count INTEGER DEFAULT 0,
-    superseded_by BIGINT REFERENCES memories(id),
+    superseded_by BIGINT REFERENCES memories(id) ON DELETE SET NULL,
     metadata JSONB,
     CONSTRAINT chk_memory_type CHECK (
-        memory_type IN ('fact', 'preference', 'pattern', 'context', 'correction')
+        memory_type IN ('behavioral', 'preference', 'boundary', 'outcome', 'routine')
     )
 );
 
@@ -1054,8 +1055,9 @@ CREATE TABLE IF NOT EXISTS memory_archive (
     source_service VARCHAR(50),
     entity_ids TEXT[],
     area_ids TEXT[],
+    domain VARCHAR(30),
     tags TEXT[],
-    embedding vector(768),
+    embedding vector(384),
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     last_accessed TIMESTAMPTZ,
@@ -1065,7 +1067,7 @@ CREATE TABLE IF NOT EXISTS memory_archive (
     archived_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     archive_reason VARCHAR(100),
     CONSTRAINT chk_archive_memory_type CHECK (
-        memory_type IN ('fact', 'preference', 'pattern', 'context', 'correction')
+        memory_type IN ('behavioral', 'preference', 'boundary', 'outcome', 'routine')
     )
 );
 
@@ -1073,6 +1075,7 @@ CREATE INDEX IF NOT EXISTS idx_memories_fts ON memories USING gin(to_tsvector('e
 CREATE INDEX IF NOT EXISTS idx_memories_embedding ON memories USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS idx_memories_type_conf ON memories (memory_type, confidence DESC);
 CREATE INDEX IF NOT EXISTS idx_memories_entities ON memories USING gin(entity_ids);
+CREATE INDEX IF NOT EXISTS idx_memories_domain ON memories (domain);
 
 -- =============================================================================
 -- Patterns schema tables (api-automation-edge)

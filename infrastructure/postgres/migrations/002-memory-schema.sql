@@ -22,6 +22,19 @@
 -- AFTER the image swap from postgres:17-alpine, run once — Alpine is musl and the
 -- pgvector image is glibc, and text-index collation differs between them:
 --   docker exec homeiq-postgres psql -U homeiq -d homeiq -c 'REINDEX DATABASE homeiq;'
+--
+-- SCHEMA SOURCE OF TRUTH: libs/homeiq-memory/alembic/versions/. This file must
+-- reflect the final state of that chain, not just revision 001. An earlier version
+-- of this file was transcribed from 001 alone and silently omitted three later
+-- revisions, so `memory.memories` was created in a shape the ORM could not query:
+--   002_fix_memory_type_enum       — CHECK values are the MemoryType enum
+--                                    (behavioral/preference/boundary/outcome/routine),
+--                                    NOT fact/pattern/context/correction.
+--   003_add_domain_and_fix_fk      — `domain VARCHAR(30)` on both tables, indexed on
+--                                    memories; superseded_by FK gets ON DELETE SET NULL.
+--   004_fix_embedding_dimension_384 — embedding is vector(384): the default model
+--                                    all-MiniLM-L6-v2 emits 384 dims, not 768.
+-- When a new alembic revision lands, mirror it here and in init-schemas.sql.
 
 CREATE SCHEMA IF NOT EXISTS memory;
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -45,16 +58,17 @@ CREATE TABLE IF NOT EXISTS memories (
     source_service VARCHAR(50),
     entity_ids TEXT[],
     area_ids TEXT[],
+    domain VARCHAR(30),
     tags TEXT[],
-    embedding vector(768),
+    embedding vector(384),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_accessed TIMESTAMPTZ,
     access_count INTEGER DEFAULT 0,
-    superseded_by BIGINT REFERENCES memories(id),
+    superseded_by BIGINT REFERENCES memories(id) ON DELETE SET NULL,
     metadata JSONB,
     CONSTRAINT chk_memory_type CHECK (
-        memory_type IN ('fact', 'preference', 'pattern', 'context', 'correction')
+        memory_type IN ('behavioral', 'preference', 'boundary', 'outcome', 'routine')
     )
 );
 
@@ -68,8 +82,9 @@ CREATE TABLE IF NOT EXISTS memory_archive (
     source_service VARCHAR(50),
     entity_ids TEXT[],
     area_ids TEXT[],
+    domain VARCHAR(30),
     tags TEXT[],
-    embedding vector(768),
+    embedding vector(384),
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     last_accessed TIMESTAMPTZ,
@@ -79,7 +94,7 @@ CREATE TABLE IF NOT EXISTS memory_archive (
     archived_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     archive_reason VARCHAR(100),
     CONSTRAINT chk_archive_memory_type CHECK (
-        memory_type IN ('fact', 'preference', 'pattern', 'context', 'correction')
+        memory_type IN ('behavioral', 'preference', 'boundary', 'outcome', 'routine')
     )
 );
 
@@ -87,6 +102,7 @@ CREATE INDEX IF NOT EXISTS idx_memories_fts ON memories USING gin(to_tsvector('e
 CREATE INDEX IF NOT EXISTS idx_memories_embedding ON memories USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS idx_memories_type_conf ON memories (memory_type, confidence DESC);
 CREATE INDEX IF NOT EXISTS idx_memories_entities ON memories USING gin(entity_ids);
+CREATE INDEX IF NOT EXISTS idx_memories_domain ON memories (domain);
 
 RESET search_path;
 
