@@ -241,6 +241,25 @@ CREATE TABLE IF NOT EXISTS pattern_ratings (
 
 CREATE INDEX IF NOT EXISTS ix_pattern_ratings_pattern_id ON pattern_ratings (pattern_id);
 
+-- ai-pattern-service patterns table (device-level behavior patterns).
+-- Used by the scheduler at /api/analysis/status for storing detected patterns.
+-- Check-then-insert logic (lines 144-196 of src/crud/patterns.py) implies
+-- UNIQUE(pattern_type, device_id) — at most one active pattern per type per device.
+CREATE TABLE IF NOT EXISTS patterns (
+    id SERIAL PRIMARY KEY,
+    pattern_type VARCHAR NOT NULL,
+    device_id VARCHAR NOT NULL,
+    pattern_metadata JSON NOT NULL,
+    confidence DOUBLE PRECISION NOT NULL,
+    occurrences INTEGER NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (pattern_type, device_id)
+);
+
+CREATE INDEX IF NOT EXISTS ix_patterns_device_id ON patterns (device_id);
+CREATE INDEX IF NOT EXISTS ix_patterns_pattern_type ON patterns (pattern_type);
+
 CREATE TABLE IF NOT EXISTS synergy_opportunities (
     id SERIAL PRIMARY KEY,
     synergy_id VARCHAR(36) NOT NULL,
