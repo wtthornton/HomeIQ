@@ -2,12 +2,8 @@
   "mcpServers": {
     "nlt-build": {
       "type": "stdio",
-      "command": "/home/wtthornton/.local/bin/tapps-mcp",
-      "args": [
-        "serve",
-        "--profile",
-        "nlt-build"
-      ],
+      "command": "/home/wtthornton/code/HomeIQ/.claude/bin/nlt-build-serve.sh",
+      "args": [],
       "env": {
         "TAPPS_MCP_PROJECT_ROOT": ".",
         "TAPPS_MCP_CONTEXT7_API_KEY": "${TAPPS_MCP_CONTEXT7_API_KEY}",
@@ -21,12 +17,8 @@
     },
     "nlt-memory": {
       "type": "stdio",
-      "command": "/home/wtthornton/.local/bin/tapps-mcp",
-      "args": [
-        "serve",
-        "--profile",
-        "nlt-memory"
-      ],
+      "command": "/home/wtthornton/code/HomeIQ/.claude/bin/nlt-memory-serve.sh",
+      "args": [],
       "env": {
         "TAPPS_MCP_PROJECT_ROOT": ".",
         "TAPPS_MCP_MEMORY_BRAIN_HTTP_URL": "http://localhost:8080",
@@ -40,12 +32,8 @@
     },
     "nlt-setup": {
       "type": "stdio",
-      "command": "/home/wtthornton/.local/bin/tapps-mcp",
-      "args": [
-        "serve",
-        "--profile",
-        "nlt-setup"
-      ],
+      "command": "/home/wtthornton/code/HomeIQ/.claude/bin/nlt-setup-serve.sh",
+      "args": [],
       "env": {
         "TAPPS_MCP_PROJECT_ROOT": ".",
         "TAPPS_MCP_MEMORY_BRAIN_HTTP_URL": "http://localhost:8080",
@@ -59,12 +47,8 @@
     },
     "nlt-linear-issues": {
       "type": "stdio",
-      "command": "/home/wtthornton/.local/bin/tapps-platform",
-      "args": [
-        "serve",
-        "--profile",
-        "nlt-linear-issues"
-      ],
+      "command": "/home/wtthornton/code/HomeIQ/.claude/bin/nlt-linear-issues-serve.sh",
+      "args": [],
       "env": {
         "TAPPS_MCP_PROJECT_ROOT": ".",
         "TAPPS_MCP_MEMORY_BRAIN_HTTP_URL": "http://localhost:8080",
@@ -78,12 +62,8 @@
     },
     "nlt-project-docs": {
       "type": "stdio",
-      "command": "/home/wtthornton/.local/bin/docsmcp",
-      "args": [
-        "serve",
-        "--profile",
-        "nlt-project-docs"
-      ],
+      "command": "/home/wtthornton/code/HomeIQ/.claude/bin/nlt-project-docs-serve.sh",
+      "args": [],
       "env": {
         "DOCS_MCP_PROJECT_ROOT": ".",
         "TAPPS_BRAIN_PROFILE": "agent_brain"
@@ -92,12 +72,8 @@
     },
     "nlt-release-ship": {
       "type": "stdio",
-      "command": "/home/wtthornton/.local/bin/tapps-platform",
-      "args": [
-        "serve",
-        "--profile",
-        "nlt-release-ship"
-      ],
+      "command": "/home/wtthornton/code/HomeIQ/.claude/bin/nlt-release-ship-serve.sh",
+      "args": [],
       "env": {
         "TAPPS_MCP_PROJECT_ROOT": ".",
         "TAPPS_MCP_MEMORY_BRAIN_HTTP_URL": "http://localhost:8080",
