@@ -20,5 +20,9 @@ Run a parallel review-fix-validate pipeline on changed Python files:
 4. Wait for all agents to complete and collect their results
 5. Review and merge any changes
 6. Call `tapps_validate_changed` with explicit `file_paths` to verify all files pass
-7. Call `tapps_checklist(task_type="review")` for final verification
-8. Present a summary table: file | before score | after score | gate | fixes applied
+7. **Creator ≠ verifier:** the agents that *implemented* fixes must not be the sole judges.
+   Spawn a fresh review pass that did not write the fixes, then
+   `uv run tapps-mcp pipeline-mark creator-verifier`.
+8. Call `tapps_checklist(task_type="review")` for final verification — clear
+   `creator_verifier_skipped` / `contract_assertions_unverified` if present
+9. Present a summary table: file | before score | after score | gate | fixes applied

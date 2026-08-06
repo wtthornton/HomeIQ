@@ -15,10 +15,10 @@ Multi-issue Linear reads are cache-first by contract (TAP-967 audit: 5,368 `list
 
 **Core flow — every multi-issue read:**
 
-1. `tapps_linear_snapshot_get(team, project, state, label?)` first.
+1. `tapps_linear_snapshot_get(team, project, state, label?)` first. Use `state="open"`/`"closed"` as **cache buckets** only — Linear does not understand those aliases.
 2. On `cached=true`, use `data.issues` and filter in-memory — `list_issues` is NOT called.
-3. On `cached=false`, call `tapps_linear_list_issues(team, project, state, label?, limit?)` as a gate check (TAP-2010). On `ok=true`, call `linear_list_issues` with NARROW filters. On `ok=false`, follow the `hint` (re-call `snapshot_get` first).
-4. Immediately call `tapps_linear_snapshot_put(team, project, issues_json=json.dumps(issues), state, label?, limit?)` with the **same** key dimensions as the get call.
+3. On `cached=false`, call `tapps_linear_list_issues(team, project, state, label?, limit?)` as a gate check (TAP-2010). On `ok=true` for a bucket alias, call `linear_list_issues` with team/project only (**omit state**), `includeArchived=false`, then filter by `statusType` in memory. On `ok=true` for a concrete Linear state, pass that state through. On `ok=false`, follow the `hint` (re-call `snapshot_get` first).
+4. Immediately call `tapps_linear_snapshot_put(team, project, issues_json=json.dumps(issues), state, label?, limit?)` with the **same cache-bucket `state`** as the get call (e.g. still `state="open"`).
 
 **The 6-poll kickoff antipattern:** firing six `list_issues` calls (one per state x priority bucket) collapses to one `snapshot_get(state="open")` plus an in-memory filter. The 5-min open-state TTL means the next session warms instantly.
 
@@ -28,5 +28,6 @@ Multi-issue Linear reads are cache-first by contract (TAP-967 audit: 5,368 `list
 
 - `list_issues` without a prior `snapshot_get` for the same key.
 - `list_issues({})` or `list_issues({team, limit:250})` (the unfiltered scroll).
+- Passing `state="open"` or `state="closed"` to the Linear plugin `list_issues` — those are cache buckets and return zero issues.
 - Re-fetching the same narrow query 5-12 times in one turn with no intervening writes.
 - Single-issue lookup via `list_issues` filtering — use `get_issue(id)` instead.

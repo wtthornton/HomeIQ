@@ -70,7 +70,7 @@ This validates against security and operational best practices.
 
 ## Memory System
 
-`tapps_memory` provides persistent cross-session knowledge with **44 actions** (save, search, consolidate, federation, profiles, hive, health, knowledge graph, batch ops, feedback, native session memory, and more). **Tiers:** architectural (180d), pattern (60d), procedural (30d), context (14d). **Scopes:** project, branch, session. Max 1500 entries. Configure `memory_hooks` in `.tapps-mcp.yaml` for auto-recall and auto-capture.
+`tapps_memory` is **one tool** taking `action=` — **44 actions**, not 44 tools (`nlt-memory` lists 5): save, search, consolidate, federation, profiles, hive, health, knowledge graph, batch ops, feedback, session memory. **Tiers:** architectural (180d), pattern (60d), procedural (30d), context (14d). **Scopes:** project, branch, session. Max 1500 entries. Configure `memory_hooks` in `.tapps-mcp.yaml` for auto-recall and auto-capture.
 
 **Cross-session handoff:** prefer `/tapps-handoff-session` and `/tapps-continue-session` (`.tapps-mcp/session-handoff.md`); ad-hoc payloads via `tapps-mcp memory save/get`. See AGENTS.md for cross-agent and cross-project variants.
 

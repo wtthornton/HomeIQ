@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.55
+# tapps-mcp-hook-version: 3.12.65
 # tapps-mcp-hook-content-sha: 2d5236e7
 # TappsMCP UserPromptSubmit hook (TAP-975 / TAP-2000)
 # Re-surfaces pipeline state per user turn so long sessions don't drift.

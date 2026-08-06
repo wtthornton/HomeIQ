@@ -1,5 +1,5 @@
-<!-- tapps-claude-version: 3.12.55 -->
-<!-- BEGIN: tapps-obligations v3.12.55 -->
+<!-- tapps-claude-version: 3.12.65 -->
+<!-- BEGIN: tapps-obligations v3.12.65 -->
 # TAPPS Quality Pipeline
 
 This project uses the TAPPS MCP server for code quality enforcement.
@@ -63,7 +63,7 @@ You should call `tapps_validate_config(file_path)` when changing Dockerfile, doc
 
 ## Memory System
 
-`tapps_memory` provides persistent cross-session knowledge with **44 actions** (save, search, consolidate, federation, profiles, hive, health, knowledge graph, batch ops, feedback, native session memory, and more). **Tiers:** architectural (180d), pattern (60d), procedural (30d), context (14d). **Scopes:** project, branch, session. Max 1500 entries. Configure `memory_hooks` in `.tapps-mcp.yaml` for auto-recall and auto-capture.
+`tapps_memory` is **one tool** taking `action=` — **44 actions**, not 44 tools (`nlt-memory` lists 5): save, search, consolidate, federation, profiles, hive, health, knowledge graph, batch ops, feedback, session memory. **Tiers:** architectural (180d), pattern (60d), procedural (30d), context (14d). **Scopes:** project, branch, session. Max 1500 entries. Configure `memory_hooks` in `.tapps-mcp.yaml` for auto-recall and auto-capture.
 
 **Cross-session handoff:** prefer `/tapps-handoff-session` and `/tapps-continue-session` (`.tapps-mcp/session-handoff.md`). For ad-hoc payloads use `tapps-mcp memory save/get`. Cross-agent: `hive_propagate`; cross-project: federation actions.
 

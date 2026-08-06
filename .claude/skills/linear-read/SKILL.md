@@ -13,12 +13,13 @@ Multi-issue Linear reads are cache-first by contract (TAP-967 audit found 5,368 
 
 **Core flow — every multi-issue read goes through these four steps in order:**
 
-1. **`tapps_linear_snapshot_get(team, project, state, label?)` first.** Pass the same `state`, `label`, and `limit` you would pass to `list_issues`. State buckets the cache TTL (5 min for `open`/`unstarted`/`started`, 1 h for `completed`/`canceled`).
+1. **`tapps_linear_snapshot_get(team, project, state, label?)` first.** Use `state="open"` (or `"closed"`) as the **cache bucket** for TTL/keying. Those aliases are tapps-mcp cache keys — Linear does not understand them.
 2. **On `cached=true`**, use `data.issues` and filter in-memory for the rest of the user's question — `list_issues` is NOT called. Project the fields you need with a list comprehension; do not re-query.
 3. **On `cached=false`**, call `mcp__nlt-linear-issues__tapps_linear_list_issues(team, project, state, label?, limit?)` as a gate check (TAP-2010 server-side defence-in-depth).
-   - On `ok=true`: proceed to call `mcp__plugin_linear_linear__list_issues` with NARROW filters: `team`, `project`, `state`, `includeArchived=false`. Never call without filters; never call with only `team` + `limit:250`.
+   - On `ok=true` when `state` was a bucket alias (`open`/`closed`): call `mcp__plugin_linear_linear__list_issues` with NARROW filters: `team`, `project`, `includeArchived=false` — **omit `state`**. Filter the returned issues in memory (`statusType` in backlog/unstarted/started/triage for open; completed/canceled for closed). Never call without filters; never call with only `team` + `limit:250`.
+   - On `ok=true` when `state` was a concrete Linear state (`backlog`, `started`, …): pass that same concrete `state` through to the plugin.
    - On `ok=false` (gate miss): follow the `hint` — call `tapps_linear_snapshot_get` first, then re-check.
-4. **Immediately after the miss-fetch**, populate the cache via `tapps_linear_snapshot_put(team, project, issues_json=json.dumps(issues), state, label?, limit?)` using the **same** key dimensions as the get call so the keys align.
+4. **Immediately after the miss-fetch**, populate the cache via `tapps_linear_snapshot_put(team, project, issues_json=json.dumps(issues), state, label?, limit?)` using the **same cache-bucket `state`** as the get call (e.g. still `state="open"`) so the keys align. Do not cache an empty list from a mistaken `state="open"` plugin call.
 
 **The 6-poll kickoff antipattern (the single biggest source of TAP-967's call volume):**
 
@@ -26,7 +27,9 @@ A common bad pattern is firing six sequential `list_issues` calls — `(state="B
 
 ```
 snap = tapps_linear_snapshot_get(team=<team>, project=<project>, state="open")
-# on cache hit, use snap.data.issues directly; on miss, fetch once with state="open" then put.
+# on cache hit, use snap.data.issues directly.
+# on miss: list_issues(team, project, includeArchived=false)  # OMIT state — "open" is not Linear
+#          filter to open statusTypes, then snapshot_put(..., state="open")
 issues = snap.data.issues
 backlog_p1 = [i for i in issues if i["state"]["name"] == "Backlog" and i.get("priority", {}).get("value") == 1]
 in_progress = [i for i in issues if i["state"]["type"] == "started"]
@@ -51,6 +54,7 @@ Three sequential `list_issues({state: "backlog"})`, `({state: "unstarted"})`, `(
 
 - Calling `list_issues` without a prior `snapshot_get` for the same key.
 - Calling `list_issues({})` or `list_issues({team: "TAP", limit: 250})` (the unfiltered scroll — TAP-967's worst offender).
+- Passing `state="open"` or `state="closed"` to the Linear plugin `list_issues` — those are cache buckets and return zero issues.
 - Re-fetching the same narrow query 5-12 times in one assistant turn with no intervening writes (use the cache).
 - Single-issue lookup via `list_issues` filtering — use `get_issue(id)` instead.
 
@@ -58,7 +62,7 @@ Three sequential `list_issues({state: "backlog"})`, `({state: "unstarted"})`, `(
 
 - `team` — team name or ID, required for any narrow filter
 - `project` — project name, ID, or slug
-- `state` — state type (`triage`/`backlog`/`unstarted`/`started`/`completed`/`canceled`) or state name (`Backlog`/`Done`/...). The bucketed states (`open`, `closed`) are tapps-mcp cache keys, not Linear states.
+- `state` — state type (`triage`/`backlog`/`unstarted`/`started`/`completed`/`canceled`) or state name (`Backlog`/`Done`/...). The bucketed states (`open`, `closed`) are tapps-mcp cache keys, not Linear states — never pass them to the plugin.
 - `assignee` — user ID, name, email, or `me`. `null` for unassigned.
 - `parentId` — parent issue ID (e.g. `TAP-1078`)
 - `label` — label name or ID

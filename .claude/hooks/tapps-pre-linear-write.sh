@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.55
-# tapps-mcp-hook-content-sha: 95ece7e6
+# tapps-mcp-hook-version: 3.12.65
+# tapps-mcp-hook-content-sha: 697a6642
 # TappsMCP PreToolUse hook — Linear write gate (TAP-981)
 # Blocks mcp__plugin_linear_linear__save_issue if no recent
 # docs_validate_linear_issue sentinel (within 30 minutes). Bypass with
@@ -32,7 +32,7 @@ except Exception:
 TOOL=$(echo "$PARSED" | sed -n '1p')
 UPDATE_ONLY=$(echo "$PARSED" | sed -n '2p')
 case "$TOOL" in
-  mcp__plugin_linear_linear__save_issue|save_issue) ;;
+  mcp__plugin_linear_linear__save_issue|mcp__claude_ai_Linear__save_issue|save_issue) ;;
   *) exit 0 ;;
 esac
 # Update-only allow-list (TAP-981 FP reduction): save_issue calls that target

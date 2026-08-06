@@ -23,7 +23,7 @@ Work with Linear issues for AI-agent consumption. Infer intent from the user's p
 7. After all writes, call `mcp__nlt-linear-issues__tapps_linear_snapshot_invalidate(team, project)`.
 
 **Create a story** (default when prompt describes a single change/bug):
-1. Call `mcp__nlt-linear-issues__docs_generate_story` with the user's ask. Required: `title` (<=80 chars, pattern `file.py: symptom`), `files` (comma-separated, each with `:LINE-RANGE`), `acceptance_criteria` (verifiable items).
+1. Call `mcp__nlt-linear-issues__docs_generate_story` with the user's ask. Required: `title` (<=80 chars, pattern `file.py: symptom`), `files` (comma-separated, each with `:LINE-RANGE`), `acceptance_criteria` (newline-separated verifiable items — commas inside a criterion are preserved; do not comma-delimit).
 2. Default `audience="agent"` emits the 5-section Linear template (What/Where/Why/Acceptance/Refs) and round-trips through the validator.
 3. If the call returns `INPUT_INVALID`, refine the inputs per the error message and retry. Do NOT pass `audience="human"` unless the user asks for a product-review doc.
 4. Call `mcp__nlt-linear-issues__docs_save_linear_issue(title=<title>, description=<description>)` as the server-side pre-save gate (TAP-2009). If `data.ok: true`, call `mcp__plugin_linear_linear__save_issue(..., assignee="<agent-user-id-or-name>", parent_id=<epic-id-if-any>)`. If `data.ok: false`, re-validate with `docs_validate_linear_issue` per the refusal envelope's `use`/`args` fields, then retry this step.

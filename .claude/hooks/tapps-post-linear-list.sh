@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.55
-# tapps-mcp-hook-content-sha: 643764c9
+# tapps-mcp-hook-version: 3.12.65
+# tapps-mcp-hook-content-sha: 39f5ebd0
 # TappsMCP PostToolUse hook — Linear list_issues auto-populate (TAP-1412)
 # After a successful mcp__plugin_linear_linear__list_issues call, write the
 # response into .tapps-mcp-cache/linear-snapshots/<key>.json so the next
@@ -19,7 +19,7 @@ try:
 except Exception:
     sys.exit(0)
 name = d.get('tool_name') or d.get('toolName') or ''
-if name not in ('mcp__plugin_linear_linear__list_issues', 'list_issues'):
+if name not in {'list_issues', 'mcp__claude_ai_Linear__list_issues', 'mcp__plugin_linear_linear__list_issues'}:
     sys.exit(0)
 inp = d.get('tool_input') or d.get('toolInput') or {}
 team = (inp.get('team') or '').strip()

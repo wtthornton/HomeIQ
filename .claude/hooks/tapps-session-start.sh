@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.55
-# tapps-mcp-hook-content-sha: 319e1ea6
+# tapps-mcp-hook-version: 3.12.65
+# tapps-mcp-hook-content-sha: 0fd3a837
 # TappsMCP SessionStart hook (startup/resume)
 # Directs the agent to call tapps_session_start as the first MCP action.
 # TAP-1379: Short-circuits on subsequent fires within the same Claude session
@@ -24,8 +24,31 @@ fi
 # becomes a significant resource and Postgres connection leak.
 # ADR-0005: Kill stale MCP server processes to prevent zombie accumulation.
 # Also reap project-.venv launches (missing httpx/httpcore) that break nlt-memory.
+# Scoped to this project (or true orphans) — see _REAP_OWNERSHIP_GATE_BASH.
 # DO NOT REMOVE — see docs/adr/0005-mcp-server-zombie-cleanup-hook-on-session-start.md
 if command -v ps &>/dev/null && command -v awk &>/dev/null; then
+    TAPPS_REAP_ROOT=$(cd "${TAPPS_PROJECT_ROOT:-.}" 2>/dev/null && pwd -P) || TAPPS_REAP_ROOT=""
+    _tapps_pid_cwd() {
+        if [ -r "/proc/$1/cwd" ]; then
+            readlink "/proc/$1/cwd" 2>/dev/null
+        elif command -v lsof &>/dev/null; then
+            lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -n1
+        fi
+    }
+    _tapps_ppid_orphaned() {
+        [ -z "$1" ] && return 0
+        [ "$1" = "1" ] && return 0
+        kill -0 "$1" 2>/dev/null || return 0
+        case "$(ps -o comm= -p "$1" 2>/dev/null | sed 's#.*/##')" in
+            systemd|init|launchd) return 0 ;;
+        esac
+        return 1
+    }
+    _tapps_pid_reapable() {
+        _tapps_ppid=$(ps -o ppid= -p "$1" 2>/dev/null | tr -d ' ')
+        _tapps_ppid_orphaned "$_tapps_ppid" && return 0
+        [ -n "$TAPPS_REAP_ROOT" ] && [ "$(_tapps_pid_cwd "$1")" = "$TAPPS_REAP_ROOT" ]
+    }
     OLD_PIDS=$(ps -eo pid,etimes,cmd 2>/dev/null | \
         awk '$2 > 7200 && /tapps-mcp|docsmcp|tapps-platform/ && /serve/ && !/--transport http|--transport=http/ {print $1}')
     VENV_PIDS=$(ps -eo pid,cmd 2>/dev/null | \
@@ -60,10 +83,26 @@ if command -v ps &>/dev/null && command -v awk &>/dev/null; then
     echo "$VENV_PIDS"
     echo "$NLT_DUP_PIDS"
     echo "$NLT_STALE_PIDS"
-    } | sort -u | grep -E '^[0-9]+$' || true)
+    } | tr ' ' '\n' | sort -u | grep -E '^[0-9]+$' || true)
     if [ -n "$ZOMBIE_PIDS" ]; then
-        echo "[TappsMCP] Reaping stale MCP serve PIDs: $ZOMBIE_PIDS" >&2
-        echo "$ZOMBIE_PIDS" | xargs kill 2>/dev/null || true
+        OWNED_PIDS=""
+        FOREIGN_PIDS=""
+        for _tapps_pid in $ZOMBIE_PIDS; do
+            if _tapps_pid_reapable "$_tapps_pid"; then
+                OWNED_PIDS="$OWNED_PIDS $_tapps_pid"
+            else
+                FOREIGN_PIDS="$FOREIGN_PIDS $_tapps_pid"
+            fi
+        done
+        OWNED_PIDS="${OWNED_PIDS# }"
+        FOREIGN_PIDS="${FOREIGN_PIDS# }"
+        if [ -n "$FOREIGN_PIDS" ]; then
+            echo "[TappsMCP] Leaving MCP serve PIDs owned by other projects: $FOREIGN_PIDS" >&2
+        fi
+        if [ -n "$OWNED_PIDS" ]; then
+            echo "[TappsMCP] Reaping stale MCP serve PIDs: $OWNED_PIDS" >&2
+            echo "$OWNED_PIDS" | xargs kill 2>/dev/null || true
+        fi
     fi
 fi
 # TAP-1927: Pre-warm the brain tools-list cache so _negotiate_profile_locked

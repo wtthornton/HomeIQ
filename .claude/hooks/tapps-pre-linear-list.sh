@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.55
-# tapps-mcp-hook-content-sha: 69a96eb2
+# tapps-mcp-hook-version: 3.12.65
+# tapps-mcp-hook-content-sha: 5862e6ab
 # TappsMCP PreToolUse hook — Linear cache-first read gate (TAP-1224)
 # Gates raw mcp__plugin_linear_linear__list_issues calls behind a recent
 # tapps_linear_snapshot_get sentinel for the same (team, project, state,
@@ -89,7 +89,7 @@ KEY=$(echo "$PARSED" | sed -n '2p')
 CALL_TEAM=$(echo "$PARSED" | sed -n '3p')
 CALL_PROJECT=$(echo "$PARSED" | sed -n '4p')
 case "$TOOL" in
-  mcp__plugin_linear_linear__list_issues|list_issues) ;;
+  mcp__plugin_linear_linear__list_issues|mcp__claude_ai_Linear__list_issues|list_issues) ;;
   *) exit 0 ;;
 esac
 if [ -z "$KEY" ]; then

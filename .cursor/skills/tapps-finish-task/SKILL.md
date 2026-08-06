@@ -26,6 +26,16 @@ Close out the current task end-to-end. Run each step; do NOT skip one that faile
    - Re-run `tapps_checklist` until `usage_gaps.gaps` is empty **and** `complete: true`.
    Prefer lookup **before the first edit** that uses each external library in future sessions.
 
+3b. **Creator-verifier (feature/review).** Before declaring done on feature or review work,
+   spawn a **fresh** verifier context (separate review agent / Bugbot / `tapps-reviewer`)
+   that did **not** implement the change. Deterministic `tapps_validate_changed` alone is
+   scrutiny — not creator-verifier. After the verifier passes:
+   `uv run tapps-mcp pipeline-mark creator-verifier`.
+   If the work changed observable behavior, also ensure a validation contract was verified:
+   `uv run tapps-mcp pipeline-mark contract-verified` (draft via `/tapps-validation-contract` if missing).
+   Re-run `tapps_checklist` until `contract_assertions_unverified` and `creator_verifier_skipped`
+   are absent from `usage_gaps.gaps` and `complete: true`.
+
 4. **Save learnings (conditional).** If the session produced a non-obvious architectural or pattern-level decision, run `uv run tapps-mcp memory save --key <slug> --tier <architectural|pattern> --value "<decision>"` (CLI via BrainBridge). Skip for routine fixes. Brain offline → skip silently.
 5. **Report.** Emit a one-line summary: `Files validated: N pass. Checklist: <task_type> complete. Doc gaps: cleared|none. Memory saved: yes|no.`
 

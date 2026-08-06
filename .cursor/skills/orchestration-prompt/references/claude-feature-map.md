@@ -47,10 +47,32 @@ exactly how a modest base model reaches frontier-level reliability.
 
 ## Anti-patterns to encode against
 
+- **Inventing a Goal under fog** → refuse; `/tapps-wayfind` until the route is clear.
 - One enormous goal → sequence narrow sub-goals.
 - Unbounded loop (no cap/budget) → always set max iterations or a token budget.
-- **Self-verification only** → add an independent, adversarial verifier.
+- **Self-verification only** → add an independent, adversarial verifier (creator ≠ verifier).
 - Paying frontier rates for mechanical fan-out → tier the model per chunk.
-- Parallel agents on coupled code → sequential per-repo dispatch.
+- Parallel agents on coupled code → sequential per-repo dispatch (serial writes).
 - Vague done-condition → demonstrable, ground-truth-anchored condition.
 - Context rot (re-reading the same files each iteration) → prune + targeted grep.
+- **Features before a validation contract** → write behavioral assertions first when
+  changing software behavior; map sub-goals to `fulfills` IDs.
+- **Forcing attempt-1 green** → expected-fail fix loop with attempt cap; scoped fix
+  sub-goals; never weaken the contract to pass.
+- Unstructured "done" handoffs → record completed / undone / commands+exit codes / issues.
+
+## Missions → orchestration-prompt (what we steal, what we don't)
+
+Factory Missions ([architecture](https://factory.ai/news/missions-architecture)) is a
+multi-day product runtime. This skill emits **prompts**, not a Missions runner.
+Steal the control loop; skip Mission Control UI, computer-use fleets, and
+multi-day orchestrators:
+
+| Missions idea | Emit in the prompt as… |
+|---|---|
+| Validation contract before features | Validation contract table + Done-when = all IDs green |
+| Creator ≠ verifier | Fresh verifier subagent; verifier does not implement fixes |
+| Scrutiny + user-testing | Deterministic checks + behavioral smoke against assertions |
+| Serial feature execution | Serial writes / one repo at a time; parallel read-only OK |
+| Structured handoffs | Record fields: completed · undone · cmds+exits · issues |
+| Fix features after fail | Expected-fail fix loop ≤3 rounds, then escalate/stop |

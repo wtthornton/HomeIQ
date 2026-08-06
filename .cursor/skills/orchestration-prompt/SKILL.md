@@ -1,16 +1,18 @@
-<!-- BEGIN: tapps-skill orchestration-prompt v3.12.55 -->
+<!-- BEGIN: tapps-skill orchestration-prompt v3.12.65 -->
 ---
 name: orchestration-prompt
 user-invocable: true
 model: claude-sonnet-4-6
 description: >-
   Generate a ready-to-run orchestration PROMPT with an explicit Goal (verifiable
-  done-condition), a Loop (state→decide→execute→verify→repeat with termination),
-  an independent verification pass, and the right Claude Code feature + model tier
-  for each step (subagents, Workflow tool, /goal, /loop, Routines, brain memory).
-  Use whenever the user wants to orchestrate multi-step, multi-repo, autonomous, or
-  recurring work — "create a prompt to…", "orchestrate…", "make a goal for…",
-  "work the backlog", "loop until X" — even if they don't say "orchestrate".
+  done-condition), a validation contract before execution (when changing behavior),
+  a Loop (state→decide→execute→verify→fix→repeat with attempt cap), an independent
+  creator-verifier pass, and the right Claude Code feature + model tier per step
+  (subagents, Workflow tool, /goal, /loop, Routines, brain memory). Refuses foggy
+  Goals — redirects to /tapps-wayfind when decisions are still missing. Use whenever
+  the user wants to orchestrate multi-step, multi-repo, autonomous, or recurring
+  work — "create a prompt to…", "orchestrate…", "make a goal for…", "work the
+  backlog", "loop until X" — even if they don't say "orchestrate".
 argument-hint: "[free-form objective]"
 ---
 
@@ -32,11 +34,61 @@ frontier one on verification-friendly tasks. A good orchestration prompt makes t
 loop explicit so Claude drives itself to a *provable* finish instead of stopping at
 "good enough".
 
-Every prompt rests on six load-bearing parts. If any is missing, the loop never
-terminates, terminates without finishing, verifies only by self-report, or can't be
-cold-started by a fresh session.
+Every prompt rests on seven load-bearing parts. If any is missing, the loop never
+terminates, terminates without finishing, verifies only by self-report, invents a
+Goal while the route is still foggy, or can't be cold-started by a fresh session.
 
 ## The method
+
+### 0. Wayfind fog preflight (before inventing a Goal)
+
+**Do not invent a Goal while the route is still foggy.** Fog means open product /
+architecture / preference decisions that must be answered before a harness loop can
+honestly terminate. This skill emits execute loops for *clear* multi-step work;
+decision maps live in `/tapps-wayfind`.
+
+**Fog signals (any → refuse Goal invent):**
+
+- The objective is a loose idea or destination without a named, locked route.
+- An open Linear `wayfinder:map` (or map parent) still has open children **or**
+  non-empty **Not yet specified**.
+- The user cannot state Done-when without guessing undecided tradeoffs.
+
+**Clear signals (proceed):**
+
+- Destination + decisions-so-far already answer the path, **or** the journey fits
+  one session and no map is needed.
+- Remaining work is implementable (build / verify / fix), not "what should we do?"
+
+**On fog:** stop drafting. Tell the user to run `/tapps-wayfind chart <idea>` or
+`/tapps-wayfind work <map-id>`, and do **not** fill `assets/prompt-template.md`
+with a fake Goal. Resume here only after the map is clear (no open decide tickets;
+Not yet specified empty).
+
+**Cold-start wayfind resume:** before Sub-goal 0 / Loop State, recall prior
+wayfind decisions when present:
+
+```bash
+uv run tapps-mcp memory search --query "wayfind <map-id or destination>"
+```
+
+Prefer hits with `memory_group=wayfind` (or keys `wayfind:*`) — Linear remains SoT
+for map/ticket status; brain holds resume/rationale only. Fold named decisions into
+Context; never invent missing ones.
+
+### Decide-vs-execute chunk taxonomy
+
+| Chunk kind | Fog? | Handle with |
+|---|---|---|
+| **Decide** — preference, tradeoff, scope, "which approach?" | yes until locked | `/tapps-wayfind` (decision / research tickets) |
+| **Map / chart** — surface fog, wire blocking | yes | `/tapps-wayfind chart` |
+| **Execute** — code edit, migration, deploy, mechanical fan-out | no (route clear) | this skill → execution plane |
+| **Verify / judge** — refute proof, run checks | no | this skill → coordination + frontier verifier |
+| **Fix after expected-fail** — scoped gap repair | no | this skill → expected-fail fix loop |
+| **Research-to-decide** | yes | wayfind `research` tickets (not an orch Goal) |
+| **Research-to-execute** (facts for a clear build) | no | orch coordination plane OK |
+
+If a chunk is still **Decide**, do not map it to `/goal` or a Workflow — redirect.
 
 ### 1. Pin the Goal to a *verifiable, demonstrable* done-condition
 
@@ -62,11 +114,28 @@ must accept a *verified-correct negative*, e.g. "a created card passing the gate
 truth)." Otherwise the loop burns its whole budget chasing a target correct behavior
 won't produce.
 
-### 2. Decompose if the goal is large
+### 2. Decompose if the goal is large — contract before features when behavior changes
 
 Break it into **sequential sub-goals, each with its own narrow verifiable
 condition**. The loop advances one sub-goal at a time; each is a checkpoint a fresh
 context can resume from.
+
+**When the objective changes software behavior** (feature, bugfix with observable
+effect, migration), insert a **validation contract** *before* any execution
+sub-goal — the Factory Missions ordering that stops post-hoc tests from ratifying
+whatever the implementer already built:
+
+1. Write a finite checklist of **behavioral assertions** with stable IDs
+   (`VAL-…`). Each assertion is testable without reading the implementation
+   (user-visible outcome, API response, CLI exit+stdout, smoke script).
+2. Map every execution sub-goal to the assertion IDs it **fulfills**. Coverage
+   must be complete: no orphan assertions, no duplicate claims.
+3. Anchor **Done-when** to contract coverage (every ID verified by an independent
+   verifier), not to "executor says the feature is done."
+
+Skip the contract section only for pure research/triage/docs prompts where there
+is no behavioral product surface. Fog preflight (method §0) already ran — if you
+are writing a Goal, the route is clear.
 
 ### 3. Map each chunk to a plane, a mechanism, and a model tier
 
@@ -115,18 +184,25 @@ re-reading the same files. Instruct the loop to prune stale reads, prefer a targ
 grep/snippet over a full re-Read, and carry forward a compact state summary rather
 than raw transcripts — so iteration N isn't paying for iteration 1's tokens.
 
-### 5. Add an independent verification pass (the harness's biggest lever)
+### 5. Add an independent verification pass (creator ≠ verifier)
 
 Self-verification is the weakest link: the same agent that did the work judges the
 work and rationalizes its own output. The single largest quality gain in harness
-engineering is a **separate, adversarial verifier** — this is what lets a modest
-model ship reliable results.
+engineering is a **separate, adversarial verifier** — creator-verifier separation
+from Missions / Factory: the implementer has cost bias; a fresh context does not.
 
 - Put verification on the **coordination plane** as its own step: after Execute,
   spawn a **verifier subagent** (frontier tier) with a *fresh* context, prompted to
   **refute** the sub-goal's proof — re-run the deterministic check (tests, lint,
   build, the actual query) rather than trust the executor's narration. Default to
   "not done" on any doubt.
+- Prefer **two layers** when the target is runnable: **scrutiny** (lint / types /
+  tests / `tapps_validate_changed`) and **behavioral** (smoke / scripted user flow
+  against the validation-contract assertions). Scrutiny alone is not enough when
+  the contract is behavioral.
+- The verifier **reports gaps; it does not implement fixes.** The orchestrating
+  loop scopes a narrow **fix sub-goal** for a fresh executor (see expected-fail
+  fix loop below).
 - For high-stakes or irreversible steps, use **N independent verifiers + majority**
   (perspective-diverse where the finding can fail multiple ways: correctness,
   security, does-it-reproduce), not one. In a Workflow, this is a `parallel()` of
@@ -138,6 +214,9 @@ model ship reliable results.
 
 The point is a prompt a **brand-new session** can run with zero hand-holding.
 
+- **Wayfind resume first.** Cold-start State opens with a brain search for
+  `memory_group=wayfind` / `wayfind:*` keyed to the map or destination (method §0).
+  Prefer those hits over inventing Context; Linear is still SoT for open tickets.
 - **Self-bootstrap launch line.** `/goal "<condition>"` carries only the *condition*
   into a fresh session — not the prompt body. So every emitted prompt needs a
   top-of-file **"How to run (cold start)"** block with one paste-able line that
@@ -178,6 +257,8 @@ The point is a prompt a **brand-new session** can run with zero hand-holding.
 - **Autonomy, not checkpoints** — act on every reversible in-scope step; for an
   outward/irreversible step produce a reversible precursor (draft PR, staged diff)
   and keep going.
+- **Fog gate** — never invent a Goal while decide work remains; redirect to
+  `/tapps-wayfind` (method §0).
 - **Scope** — name the exact repos/paths; reads can be fleet-wide, writes go through
   the owning repo's channel.
 - **Budget** — every loop carries *both* an iteration cap and a token budget; set a
@@ -212,6 +293,23 @@ it: max **3 distinct strategies** per sub-goal, then escalate once (more capable
 model / different approach), then **stop and surface a concise diagnosis**. Repeating
 the same action on the same error is forbidden.
 
+## Expected-fail fix loop (Missions-inspired)
+
+Independent verification **almost never passes on the first attempt** for non-trivial
+work. Treat that as the design, not a crisis:
+
+1. **Record a structured handoff** before fixing: what completed, what is undone,
+   commands run + exit codes, issues found, whether procedures were followed.
+2. **Scope a narrow fix sub-goal** targeting the verifier's actionable gaps — do not
+   reopen the whole feature or weaken the validation contract to go green.
+3. **Re-execute → re-verify** (fresh verifier context again).
+4. **Attempt cap (default 3 validation rounds per sub-goal)** — override explicitly
+   in the emitted prompt when needed. After the cap: escalate once, then stop with
+   a diagnosis. If the *contract* itself is wrong, stop and ask the human — do not
+   silently rewrite Done-when to match the broken implementation.
+
+Infinite fix spirals and "green by suppression" are forbidden.
+
 ## Engineering discipline (emit in every prompt's guardrails)
 
 Produce *solutions*, not band-aids: root-cause not workarounds; **no
@@ -221,27 +319,36 @@ no silent scope creep.
 
 ## Output
 
-1. Read the workspace manifest (e.g. `fleet.md`) for the repos / Linear projects /
+1. **Fog preflight (method §0).** If foggy, refuse and point at `/tapps-wayfind` —
+   do not emit a prompt. If clear, recall `memory_group=wayfind` resume when present.
+2. Read the workspace manifest (e.g. `fleet.md`) for the repos / Linear projects /
    brain ids involved, if the project has one.
-2. Fill `assets/prompt-template.md` — keep only the sections the task needs. Always
-   keep the **"How to run (cold start)"** block, a **Sub-goal 0** for self-healing
-   preconditions, and the **Verify** step wired to an independent verifier.
-3. If any chunk is multi-stage parallel work, also write the companion
+3. Fill `assets/prompt-template.md` — keep only the sections the task needs. Always
+   keep **Prerequisites / Wayfind gate**, the **"How to run (cold start)"** block, a
+   **Sub-goal 0** for self-healing preconditions, the **Verify** step wired to an
+   independent verifier, and — when changing software behavior — a **Validation
+   contract** filled *before* execution sub-goals plus an **expected-fail fix loop**
+   with attempt cap.
+4. If any chunk is multi-stage parallel work, also write the companion
    `.claude/workflows/<slug>.js` (schema + `budget` + per-stage `model`/`effort`) and
    point Run-as at it. A single coupled item (N=1) is a `/goal` drive, not a Workflow.
-4. Save the prompt to `prompts/<short-slug>.md`.
-5. **Completeness self-check** — every chunk names a concrete mechanism *and* model
-   tier (no "may"); the loop has *both* an iteration cap and a budget; there's an
-   **independent verification** step (not self-report); any fan-out has a schema'd
-   return + per-agent contract; a memory recall+record step; an **Autonomy
-   contract**; a **bounded diagnose-don't-repeat** path; a **context-hygiene** line;
-   and the **Engineering discipline** line. For a live/deployed target, confirm
+5. Save the prompt to `prompts/<short-slug>.md`.
+6. **Completeness self-check** — fog preflight passed (or explicit redirect; no Goal
+   invent under fog); every **execute** chunk names a concrete mechanism *and* model
+   tier (no "may"); decide chunks stayed on `/tapps-wayfind`; the loop has *both* an
+   iteration cap and a budget; there's an **independent verification** step (not
+   self-report); any fan-out has a schema'd return + per-agent contract; a memory
+   recall+record step with **structured handoff** fields on fail (incl. wayfind
+   resume when `memory_group=wayfind` hits exist); an **Autonomy contract**; a
+   **bounded diagnose-don't-repeat** path; an **expected-fail fix loop** (default ≤3
+   validation rounds); a **context-hygiene** line; and the **Engineering discipline**
+   line. For software behavior changes, confirm a **validation contract** with IDs +
+   fulfills coverage before execution sub-goals. For a live/deployed target, confirm
    Sub-goal 0 has the deploy-freshness + smoke/health gate. Confirm **harness
    compatibility**: every hook-gated tool call has its unlock/refresh step and every
-   MCP standing nudge is adopted-or-overridden. Run the **cold-start
-   test**: a fresh session with nothing loaded can run it. Fix anything weak before
-   saving.
-6. Tell the user exactly how to run it — the `/goal` line, the `/loop` cadence, the
+   MCP standing nudge is adopted-or-overridden. Run the **cold-start test**: a fresh
+   session with nothing loaded can run it. Fix anything weak before saving.
+7. Tell the user exactly how to run it — the `/goal` line, the `/loop` cadence, the
    Routine schedule, or "invoke the Workflow tool `<script>`" — and from which
    session.
 
