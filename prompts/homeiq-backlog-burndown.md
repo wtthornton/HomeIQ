@@ -37,14 +37,30 @@ TAP-5431 (needs HACS GitHub device auth). Touching these burns the run.
 
 ### Why this order (measured, not assumed)
 
-- **Wave 1 is the foundation and is worse than the issue titles suggest.** All **54** service
-  build contexts are `context: ../..` — the repo root — so a one-line change anywhere busts
-  every service's Docker cache. `scripts/start-stack.sh:91` then runs
-  `up -d --build --pull always --force-recreate`, rebuilding all 54 on every start. And the
-  ten domain CI workflows (`ci-core`, `ci-devices`, `ci-ml`, `ci-automation`, `ci-collectors`,
-  `ci-pattern-analysis`, `ci-blueprints`, `ci-energy-analytics`, `ci-frontends`,
-  `ci-dashboard-contract`) trigger on **push to master/main only — none on `pull_request`**,
-  so no PR gets domain CI. Every later wave pays this tax on every iteration; fix it first.
+- **Wave 1 is the foundation, but two of its three original claims were wrong.**
+  Corrected 2026-08-10 by measurement; the surviving claim was real and is now fixed.
+  1. ~~All 54 build contexts are `context: ../..`, so a one-line change anywhere busts
+     every service's cache.~~ **Refuted.** The contexts are still 54/54 repo-root, but
+     that does not bust caches. All 52 domain Dockerfiles use *targeted* `COPY` (zero use
+     `COPY . .`), and BuildKit keys those layers on the digest of the copied paths. A file
+     added under `domains/core-platform/` — in-context, not copied by that Dockerfile —
+     left automation-miner at **16/16 layers CACHED**, with only internal steps re-running.
+     Context transfer is **50.84 kB**, because `.dockerignore` already excludes `.venv`
+     (710M) and `node_modules` (67M). Narrowing the contexts would break
+     `COPY libs/ /tmp/libs/` in 52 Dockerfiles to fix a problem that does not exist.
+     (Beware: a probe file under `docs/` proves nothing — `.dockerignore:72` excludes it.)
+  2. **Confirmed and fixed.** `scripts/start-stack.sh:91` ran
+     `up -d --build --pull always --force-recreate`, re-pulling every base image and
+     recreating all 58 containers on every start regardless of change. This — not the
+     build contexts — was the real "rebuilds all 54 on every start". Fixed in `04f78dd3`;
+     `STACK_REFRESH=1` restores the old behaviour.
+  3. ~~None of the ten domain CI workflows trigger on `pull_request`.~~ **Refuted.** All
+     ten already carried the trigger. The real defect was one layer down: **18 of the 19
+     workflows that `.github/workflows/README.md` documents as auto-running were
+     `disabled_manually` at the GitHub API level**, so the triggers could never fire.
+     Re-enabled 17 (`dependabot-auto-merge` deliberately left off — it squash-merges to
+     master). Counting triggers scores this clause green while CI is dead; count
+     `gh workflow list` **state** instead.
 - **Wave 3 gates Waves 4–7.** The MCP tool catalogue is what the genes call, what the HA
   integration exposes, and what replaces the services Wave 7 deletes.
 - **Wave 5 depends on Wave 4** — the safety gate wires a judging gene into a chromosome that
@@ -75,11 +91,19 @@ TAP-5431 (needs HACS GitHub device auth). Touching these burns the run.
 The backlog is empty when **every** wave's clause holds. A single run satisfies the waves it
 reached; paste the artifacts for those and the current SCORE line for the rest.
 
-1. **Wave 1** — `grep -rh -A1 'build:' domains/*/compose.yml | grep -c 'context: \.\./\.\.'`
-   returns **0**, **AND** `docker compose config --services` across the domain files still
-   lists **≥54 services** (so contexts were scoped, not services deleted). `start-stack.sh`
-   no longer forces `--build --pull always --force-recreate`. **≥10 domain workflows carry a
-   `pull_request:` trigger** — a count that must rise from today's 0.
+1. **Wave 1** — ✅ **met 2026-08-10.** Clause rewritten after measurement; the two original
+   metrics were proxies that scored green while the real defects were untouched.
+   - `start-stack.sh` no longer forces `--pull always --force-recreate` (`04f78dd3`), and a
+     no-change rebuild is cache-hits only. **This is the metric that mattered.**
+   - `gh workflow list --all` shows **≥18 of the 19 workflows documented as auto-running in
+     `.github/workflows/README.md` in state `active`** — not merely carrying a
+     `pull_request:` trigger. The trigger count was already 10/10 while 18 were
+     `disabled_manually`, so the old metric could not distinguish working CI from dead CI.
+     `dependabot-auto-merge` is a deliberate exception: it squash-merges to master.
+   - **Build contexts are NOT part of this clause** — see the refutation above. `context:
+     ../..` staying at 54/54 is correct, not debt: the Dockerfiles legitimately need `libs/`.
+     Only reopen this if a *measured* cache or transfer cost appears (today: 16/16 cached,
+     50.84 kB transferred).
 2. **Wave 2** — `bash scripts/verify-dashboard-contract.sh` exits 0 with **0 deviations at
    ≥88 rows** (today 36 — must rise). Each of the 17 TAP-5433 families shows a pasted
    non-404 **or** a recorded removal reason. `grep -rn 'api/config/entity_registry\|api/config/device_registry\|api/config/area_registry' domains/ --include=*.py`
@@ -280,9 +304,17 @@ Confirm each before depending on it.
 ## Context
 
 - Repo: `/home/wtthornton/code/HomeIQ` · Linear `TappsCodingAgents` / `HomeIQ` · assignee `Claude Agent`
-- Measured facts driving Wave 1: **54/54** build contexts are `../..`;
-  `scripts/start-stack.sh:91` forces `--build --pull always --force-recreate`; **0** of the ten
-  domain CI workflows trigger on `pull_request`.
+- Measured facts driving Wave 1 (**superseded 2026-08-10** — kept so the correction is
+  legible): *"**54/54** build contexts are `../..`; `scripts/start-stack.sh:91` forces
+  `--build --pull always --force-recreate`; **0** of the ten domain CI workflows trigger on
+  `pull_request`."* Only the middle fact held. Contexts are still 54/54 but cost nothing
+  measurable; the PR-trigger count was already 10/10 — the workflows were disabled at the
+  GitHub API level instead. Both original metrics were derived from static reads of the
+  YAML and never checked against a build or `gh workflow list`.
+- **Known CI blocker, not fixable from this repo:** `quality-gate` and `agentic-pr-review`
+  cannot install TappsMCP. It is absent from PyPI; its repo root is a uv workspace, not a
+  distributable; and `packages/tapps-core` fails its wheel build at every ref on a hatchling
+  `force-include` duplicate. The fix is a cross-project write (`agent-scope.md`).
 - Shared client: `libs/homeiq-ha/src/homeiq_ha/client/` — `HAWebSocketClient`, proven live
   (164 entities, 19 devices), imported by **zero** services today.
 - Evidence: `docs/ha-init-agent-design.md` · `docs/operations/dashboard-triage-2026-08-01.md`
