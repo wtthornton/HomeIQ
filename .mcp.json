@@ -1,89 +1,46 @@
 {
   "mcpServers": {
     "nlt-build": {
-      "type": "stdio",
-      "command": "/home/wtthornton/code/HomeIQ/.claude/bin/nlt-build-serve.sh",
-      "args": [],
-      "env": {
-        "TAPPS_MCP_PROJECT_ROOT": ".",
-        "TAPPS_MCP_CONTEXT7_API_KEY": "${TAPPS_MCP_CONTEXT7_API_KEY}",
-        "TAPPS_MCP_MEMORY_BRAIN_HTTP_URL": "http://localhost:8080",
-        "TAPPS_MCP_MEMORY_BRAIN_AUTH_TOKEN": "${TAPPS_BRAIN_AUTH_TOKEN}",
-        "TAPPS_BRAIN_PROFILE": "full",
-        "TAPPS_METRICS_STORAGE": "dual",
-        "TAPPS_MCP_MEMORY_BRAIN_PROJECT_ID": "homeiq"
-      },
-      "instructions": "Code quality scoring (0-100 across 7 categories), security scanning (Bandit + secret detection), quality gates (pass/fail against configurable presets), documentation lookup, domain expert consultation, and project profiling for Python projects."
+      "type": "http",
+      "url": "http://127.0.0.1:8760/mcp",
+      "headers": {
+        "X-Tapps-Project-Root": "/home/wtthornton/code/HomeIQ"
+      }
     },
     "nlt-memory": {
-      "type": "stdio",
-      "command": "/home/wtthornton/code/HomeIQ/.claude/bin/nlt-memory-serve.sh",
-      "args": [],
-      "env": {
-        "TAPPS_MCP_PROJECT_ROOT": ".",
-        "TAPPS_MCP_MEMORY_BRAIN_HTTP_URL": "http://localhost:8080",
-        "TAPPS_MCP_MEMORY_BRAIN_AUTH_TOKEN": "${TAPPS_BRAIN_AUTH_TOKEN}",
-        "TAPPS_BRAIN_PROFILE": "full",
-        "TAPPS_METRICS_STORAGE": "dual",
-        "TAPPS_MCP_CONTEXT7_API_KEY": "${TAPPS_MCP_CONTEXT7_API_KEY}",
-        "TAPPS_MCP_MEMORY_BRAIN_PROJECT_ID": "homeiq"
-      },
-      "instructions": "Code quality scoring (0-100 across 7 categories), security scanning (Bandit + secret detection), quality gates (pass/fail against configurable presets), documentation lookup, domain expert consultation, and project profiling for Python projects."
+      "type": "http",
+      "url": "http://127.0.0.1:8761/mcp",
+      "headers": {
+        "X-Tapps-Project-Root": "/home/wtthornton/code/HomeIQ"
+      }
     },
     "nlt-setup": {
-      "type": "stdio",
-      "command": "/home/wtthornton/code/HomeIQ/.claude/bin/nlt-setup-serve.sh",
-      "args": [],
-      "env": {
-        "TAPPS_MCP_PROJECT_ROOT": ".",
-        "TAPPS_MCP_MEMORY_BRAIN_HTTP_URL": "http://localhost:8080",
-        "TAPPS_MCP_MEMORY_BRAIN_AUTH_TOKEN": "${TAPPS_BRAIN_AUTH_TOKEN}",
-        "TAPPS_BRAIN_PROFILE": "full",
-        "TAPPS_METRICS_STORAGE": "dual",
-        "TAPPS_MCP_CONTEXT7_API_KEY": "${TAPPS_MCP_CONTEXT7_API_KEY}",
-        "TAPPS_MCP_MEMORY_BRAIN_PROJECT_ID": "homeiq"
-      },
-      "instructions": "Code quality scoring (0-100 across 7 categories), security scanning (Bandit + secret detection), quality gates (pass/fail against configurable presets), documentation lookup, domain expert consultation, and project profiling for Python projects."
+      "type": "http",
+      "url": "http://127.0.0.1:8762/mcp",
+      "headers": {
+        "X-Tapps-Project-Root": "/home/wtthornton/code/HomeIQ"
+      }
     },
     "nlt-linear-issues": {
-      "type": "stdio",
-      "command": "/home/wtthornton/code/HomeIQ/.claude/bin/nlt-linear-issues-serve.sh",
-      "args": [],
-      "env": {
-        "TAPPS_MCP_PROJECT_ROOT": ".",
-        "TAPPS_MCP_MEMORY_BRAIN_HTTP_URL": "http://localhost:8080",
-        "TAPPS_MCP_MEMORY_BRAIN_AUTH_TOKEN": "${TAPPS_BRAIN_AUTH_TOKEN}",
-        "TAPPS_BRAIN_PROFILE": "full",
-        "TAPPS_METRICS_STORAGE": "dual",
-        "TAPPS_MCP_CONTEXT7_API_KEY": "${TAPPS_MCP_CONTEXT7_API_KEY}",
-        "TAPPS_MCP_MEMORY_BRAIN_PROJECT_ID": "homeiq"
-      },
-      "instructions": "Code quality scoring (0-100 across 7 categories), security scanning (Bandit + secret detection), quality gates (pass/fail against configurable presets), documentation lookup, domain expert consultation, and project profiling for Python projects."
+      "type": "http",
+      "url": "http://127.0.0.1:8763/mcp",
+      "headers": {
+        "X-Tapps-Project-Root": "/home/wtthornton/code/HomeIQ"
+      }
     },
     "nlt-project-docs": {
-      "type": "stdio",
-      "command": "/home/wtthornton/code/HomeIQ/.claude/bin/nlt-project-docs-serve.sh",
-      "args": [],
-      "env": {
-        "DOCS_MCP_PROJECT_ROOT": ".",
-        "TAPPS_BRAIN_PROFILE": "agent_brain"
-      },
-      "instructions": "Documentation MCP: epic/story/prompt generators, artifact validation, and planning helpers for Markdown docs in this repo."
+      "type": "http",
+      "url": "http://127.0.0.1:8764/mcp",
+      "headers": {
+        "X-Tapps-Project-Root": "/home/wtthornton/code/HomeIQ"
+      }
     },
     "nlt-release-ship": {
-      "type": "stdio",
-      "command": "/home/wtthornton/code/HomeIQ/.claude/bin/nlt-release-ship-serve.sh",
-      "args": [],
-      "env": {
-        "TAPPS_MCP_PROJECT_ROOT": ".",
-        "TAPPS_MCP_MEMORY_BRAIN_HTTP_URL": "http://localhost:8080",
-        "TAPPS_MCP_MEMORY_BRAIN_AUTH_TOKEN": "${TAPPS_BRAIN_AUTH_TOKEN}",
-        "TAPPS_BRAIN_PROFILE": "full",
-        "TAPPS_METRICS_STORAGE": "dual",
-        "TAPPS_MCP_CONTEXT7_API_KEY": "${TAPPS_MCP_CONTEXT7_API_KEY}",
-        "TAPPS_MCP_MEMORY_BRAIN_PROJECT_ID": "homeiq"
-      },
-      "instructions": "Code quality scoring (0-100 across 7 categories), security scanning (Bandit + secret detection), quality gates (pass/fail against configurable presets), documentation lookup, domain expert consultation, and project profiling for Python projects."
+      "type": "http",
+      "url": "http://127.0.0.1:8765/mcp",
+      "headers": {
+        "X-Tapps-Project-Root": "/home/wtthornton/code/HomeIQ"
+      }
     },
     "agentforge": {
       "type": "stdio",

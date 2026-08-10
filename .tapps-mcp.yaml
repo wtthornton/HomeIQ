@@ -2,6 +2,9 @@ cursor_stop_completion_gate: warn
 linear_team: TappsCodingAgents
 linear_project: HomeIQ
 mcp_bundle: full
+# ADR-0024: use the shared localhost HTTP fleet (127.0.0.1:8760-8765) rather than
+# spawning six stdio servers per session. Matches WebStoreDNA and AgentForge.
+mcp_transport: http
 
 # Skill inventory intentionally exceeds the stock ceiling of 20: 24 tapps-managed
 # skills + 6 docs skills + 11 third-party AgentForge skills, all deliberately kept
