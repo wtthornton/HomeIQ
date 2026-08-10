@@ -88,7 +88,20 @@ start_domain() {
   fi
 
   log_info "Starting $domain..."
-  docker compose -f "$compose_file" $env_file_flag --profile production up -d --build --pull always --force-recreate
+  # `--build` alone is enough to pick up source changes: the Dockerfiles COPY
+  # specific paths, so BuildKit reuses every layer whose inputs are unchanged and
+  # a normal start is almost entirely cache hits.
+  #
+  # `--pull always` and `--force-recreate` are NOT defaults because they defeat
+  # that: the first re-fetches every base image from the registry on each start
+  # (slow, and needs the network), and the second tears down and recreates all 58
+  # containers even when nothing about them changed. Set STACK_REFRESH=1 for the
+  # old behaviour when you genuinely want fresh base images and clean containers.
+  local refresh_flags=""
+  if [[ "${STACK_REFRESH:-0}" == "1" ]]; then
+    refresh_flags="--pull always --force-recreate"
+  fi
+  docker compose -f "$compose_file" $env_file_flag --profile production up -d --build $refresh_flags
   log_ok "$domain started."
 }
 
