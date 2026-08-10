@@ -28,7 +28,11 @@ jobs:
 
       - name: Install tools
         run: |
-          pip install tapps-mcp ruff mypy bandit radon vulture
+          # TappsMCP is not published to PyPI — `pip install tapps-mcp` resolves to
+          # nothing and fails the job. Install from the public repo, pinned so CI is
+          # reproducible and an upstream change cannot silently alter a review result.
+          pip install "git+https://github.com/wtthornton/TappsMCP.git@v3.12.65"
+          pip install ruff mypy bandit radon vulture
 
       - name: Run quality analysis on changed files
         env:
