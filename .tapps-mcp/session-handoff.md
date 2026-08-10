@@ -1,45 +1,49 @@
 # Session handoff
-**Updated:** 2026-08-04T03:55:00Z
-**Git:** d670d532
-**Linear P0:** none
 
-> Sessions 1-5 detail in git log. This session was the postgres migration + schema fix.
+**Updated:** 2026-08-10T22:45:00Z
+**Git:** 884f4a22
+**Linear P0:** none verified (no `get_issue` calls — treat TAP ids as unconfirmed)
+
+> Session 8: sync review → Wave 1 backlog burndown. Theme: four defects were
+> **metrics measuring a proxy**, each reading green while the real fault went untouched.
 
 ## Done
 
-- **Postgres swap to pgvector/pgvector:pg17 complete.** PGDATA carried over intact from postgres:17-alpine — same minor 17.10. Fresh pg_dumpall taken pre-swap (`...T013641Z.sql`, 2.6 MB, verified).
-- **REINDEX DATABASE homeiq succeeded.** All 282 indexes valid, 0 invalid.
-- **CREATE EXTENSION vector (v0.8.6) succeeded** — the entire point of the swap.
-- **Migration 001 (pattern ML tables) was already applied** — clean no-op.
-- **Migration 002 (memory schema) applied.** Then discovered a four-part schema drift and fixed it.
-- **Memory schema drift fixed (commit e12c8919).** Both `init-schemas.sql` and `002-memory-schema.sql` were transcribed from alembic revision 001 only, missing 002/003/004. This left `memory.memories` with `domain` absent (the 500), `embedding vector(768)` (wrong dim), CHECK listing old enum values (readonly), and `superseded_by` lacking `ON DELETE SET NULL`. Added `003-memory-schema-align-alembic.sql` (guarded forward-migration for existing deployments) and corrected both paths. Verified fresh-deploy via throwaway pgvector container — same shape. Verified live DB: real `behavioral` row with `domain` and 384-dim embedding inserts cleanly.
-- **`/api/v1/memories` returns 200** (was 500). `/api/v1/memories/metrics` returns 200.
-- **`automation.patterns` table added (commit d670d532).** Schema: id (SERIAL PK), pattern_type/device_id (VARCHAR, UNIQUE constraint), pattern_metadata (JSON), confidence (DOUBLE PRECISION), occurrences (INTEGER), created_at/updated_at (TIMESTAMPTZ). Indexes on (device_id, pattern_type) for lookup. Resolves `/api/analysis/status` returning 500.
-- **`/api/analysis/status` returns 200** (was 500). Status: ready, patterns: 0 total, scheduler: running.
-- **Contract gate 79/79, 0 deviations, exit 0.** Stack 58/58 healthy, 0 unhealthy.
-- **Test suites: homeiq-data 36 passed, homeiq-ha 99 passed** (match prior session baseline; combined run fails at collection due to pre-existing duplicate basename, not regression).
-- **All work committed, tree clean.** 4 commits: d670d532 (patterns table), e12c8919 (postgres fix), 0c10cc10 (handoff), 63fa2781 (gitignore).
+- **Contract scanner (`2f250aa9`)** — counted backtick paths in a JSDoc block (`api.ts:782-798`) as call sites; red since Aug 1. Now strips TS comments. Also: `grep -rh` hides filenames, so the mocks/tests exclusion never excluded anything. 68→58 refs, all production sites kept. CI green.
+- **CI restored 1 → 18 working workflows.** 18 of 19 documented-auto workflows sat `disabled_manually` at the **GitHub API level** while their `pull_request:` triggers were already correct. Enabled 17; verified by real runs. Repo is PUBLIC → Actions free.
+- **`start-stack.sh` (`04f78dd3`)** — dropped forced `--pull always --force-recreate` (re-pulled every base image, recreated all 58 containers each start). `STACK_REFRESH=1` restores.
+- **`automation-miner` → 58/58 healthy.** Latched degraded since the Aug 3 postgres swap on pre-fix code (`_try_recover`, `90613386`).
+- **Wave 1 plan corrected (`f3857c15`)**; **MCP HTTP fleet committed (`884f4a22`, ADR-0024, another session's work, validated first)**.
 
 ## Open
 
-- none
+- **`quality-gate` + `agentic-pr-review` RED, parked by user.** TappsMCP uninstallable at any ref: not on PyPI; repo root is a uv workspace; `packages/tapps-core` fails its wheel build on a hatchling `force-include` duplicate (`pyproject.toml:51-52`). **`013067f7` pins the root and is wrong** — changes the error, not the outcome. Fix is cross-project.
+- **`dependabot-auto-merge` disabled** — squash-merges to master unattended.
+- **`scripts/validate-github-workflows.sh` validates 1 of 33** — exits on first warning.
+- **HomeIQ CLAUDE.md documents `pip install tapps-mcp`** — wrong as written.
 
-## Next (P0)
+## Next (P0) — Wave 2 (TAP-5433/5434/5424); plan stale 4 ways
 
-- ✅ **DONE** — `automation.patterns` table added to init-schemas.sql and created on live DB. Schema: id (SERIAL PK), pattern_type/device_id (VARCHAR, UNIQUE constraint), pattern_metadata (JSON), confidence (DOUBLE PRECISION), occurrences (INTEGER), created_at/updated_at (TIMESTAMPTZ). Both `/api/v1/memories` and `/api/analysis/status` return 200.
+1. **`git stash` head start GONE** — list empty; the 8 promised TAP-5433 fixes don't exist.
+2. **Contract is 79/79, not 36.** Target ≥88 → 9 rows away.
+3. **The 5 KNOWN_GAPS are unclosable as written** — all base-URL constants, not endpoints (`baseUrl = ... || '/ai-automation'`, `API_BASE = '/api/v1'`, `super('/rag-service')`, `super('/setup-service')`, `|| '/websocket-ingestion'`). Teach the scanner that a match with no path beyond the service prefix is a base URL.
+4. **TAP-5424 clause misleads:** 12 importer files, 2 are tests → 10 app files. ~6 app files keep REST-registry fallbacks *while* importing the shared client: `data-api/src/devices_endpoints.py` (frontier), `device-health-monitor/src/ha_client.py`, `device-recommender/src/ha_client.py`, `ha-setup-service/src/integration_checker.py`, `device-setup-assistant/src/issue_detector.py`, `websocket-ingestion/src/discovery_service.py`.
 
 ## Blockers
 
-- none
+- **Shared tree — `tapps-mcp-6c` writes here.** `git status --short` twice ~30s apart before editing; stage explicit paths, never `git add -A`.
 
 ## Verify
 
-- `git status --porcelain` — expect clean
-- `docker inspect --format '{{.Config.Image}}' homeiq-postgres` — expect `pgvector/pgvector:pg17`
-- `curl -s http://localhost:13000/api/v1/memories | jq .total` — expect 0 (DB live but empty)
-- `bash scripts/verify-dashboard-contract.sh` — expect 79/79, 0 deviations, exit 0
-- `docker ps --filter name=homeiq --format '{{.Status}}' | grep -c '(healthy)'` — expect 58
+- `git status --porcelain` clean; master == origin/master
+- `bash scripts/verify-dashboard-contract.sh` → 79/79, 0 deviations
+- `docker ps --filter name=homeiq --format '{{.Status}}' | grep -c '(healthy)'` → 58
+- `.venv/bin/python -m pytest libs/homeiq-ha -q` → 99 passed (system python3 lacks pytest)
+- `gh workflow list --all` → 18 active, dependabot-auto-merge disabled
 
-## Success criterion
+## Quirks that cost time
 
-✅ Both endpoints 200: `/api/v1/memories` (done session 6), `/api/analysis/status` (done session 7).
+- **One-service deploy needs `--env-file .env`** — else compose reads `.env` from the compose file's dir (absent) and `${POSTGRES_PASSWORD:-...}` falls back to a wrong default → runtime auth failure. `--project-directory .` is NOT the fix.
+- **Masking a secret when diffing env verifies nothing** — hash and compare.
+- **TCP connect proves reachability, not auth** — "DB unavailable" can mean `InvalidPasswordError`.
+- **`.dockerignore:72` excludes `docs/`** — a cache probe there never enters the build context.
