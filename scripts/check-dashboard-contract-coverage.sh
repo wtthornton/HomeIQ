@@ -50,12 +50,70 @@ for path in "${contract_paths[@]}"; do
     covered["$(prefix_of "$path")"]=1
 done
 
-# Paths the SPA actually calls. Template segments (${id}) are dropped, and test
-# mocks are excluded — a mock handler is not a call the app makes.
+# Strip TypeScript comments so prose cannot read as a call site. A JSDoc block
+# that names a removed endpoint in backticks is indistinguishable from a live
+# literal to a plain grep, which is what turned api.ts's AIAutomationApiClient
+# note into three phantom endpoints. Quote-aware, so a path in real code is
+# never mistaken for the start of a comment.
+strip_ts_comments() {
+    python3 - "$@" <<'PY'
+import sys
+
+
+def strip(src):
+    out = []
+    i, n = 0, len(src)
+    while i < n:
+        ch = src[i]
+        if ch in "'\"`":
+            out.append(ch)
+            i += 1
+            while i < n:
+                c = src[i]
+                if c == "\\" and i + 1 < n:
+                    out.append(src[i:i + 2])
+                    i += 2
+                    continue
+                out.append(c)
+                i += 1
+                if c == ch:
+                    break
+            continue
+        if src.startswith("//", i):
+            while i < n and src[i] != "\n":
+                i += 1
+            continue
+        if src.startswith("/*", i):
+            end = src.find("*/", i + 2)
+            i = n if end < 0 else end + 2
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+for path in sys.argv[1:]:
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        sys.stdout.write(strip(fh.read()))
+        sys.stdout.write("\n")
+PY
+}
+
+# Files whose API references count as calls the app makes. Excluded by path, not
+# by matched text: the previous `grep -rh | grep -v` filtered the matches
+# themselves, so no test or mock file was ever actually skipped.
+mapfile -t src_files < <(
+    find "$SRC" -type f \( -name '*.ts' -o -name '*.tsx' \) \
+        -not -path '*/mocks/*' \
+        -not -path '*/tests/*' \
+        -not -path '*/__tests__/*' |
+        sort
+)
+
+# Paths the SPA actually calls. Template segments (${id}) are dropped.
 mapfile -t referenced < <(
-    grep -rhoE "['\"\`]/(api|ws|rag-service|ai-automation|setup-service|log-aggregator|weather|websocket-ingestion)[a-zA-Z0-9/_.-]*" \
-        --include='*.ts' --include='*.tsx' "$SRC" 2>/dev/null |
-        grep -v '/mocks/\|/tests/' |
+    strip_ts_comments "${src_files[@]}" |
+        grep -oE "['\"\`]/(api|ws|rag-service|ai-automation|setup-service|log-aggregator|weather|websocket-ingestion)[a-zA-Z0-9/_.-]*" |
         tr -d "'\"\`" | sort -u
 )
 
