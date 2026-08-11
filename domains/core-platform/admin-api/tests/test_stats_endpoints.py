@@ -21,8 +21,8 @@ class TestStatsEndpoints:
     def test_init(self):
         """Test StatsEndpoints initialization"""
         assert self.stats_endpoints.router is not None
-        assert hasattr(self.stats_endpoints, 'router')
-        assert hasattr(self.stats_endpoints, 'service_urls')
+        assert hasattr(self.stats_endpoints, "router")
+        assert hasattr(self.stats_endpoints, "service_urls")
 
     def test_stats_endpoint(self):
         """Test stats endpoint"""
@@ -130,7 +130,9 @@ class TestStatsEndpoints:
     def test_stats_endpoint_error_handling(self):
         """Test stats endpoint error handling"""
         # Mock the _get_all_stats method to raise an exception
-        with patch.object(self.stats_endpoints, '_get_all_stats', side_effect=Exception("Test error")):
+        with patch.object(
+            self.stats_endpoints, "_get_all_stats", side_effect=Exception("Test error")
+        ):
             response = self.client.get("/stats")
 
             # Should handle error gracefully
@@ -142,7 +144,9 @@ class TestStatsEndpoints:
     def test_services_stats_endpoint_error_handling(self):
         """Test services stats endpoint error handling"""
         # Mock the _get_service_stats method to raise an exception
-        with patch.object(self.stats_endpoints, '_get_service_stats', side_effect=Exception("Test error")):
+        with patch.object(
+            self.stats_endpoints, "_get_service_stats", side_effect=Exception("Test error")
+        ):
             response = self.client.get("/stats/services")
 
             # Should handle error gracefully
@@ -154,7 +158,9 @@ class TestStatsEndpoints:
     def test_metrics_endpoint_error_handling(self):
         """Test metrics endpoint error handling"""
         # Mock the _get_metrics method to raise an exception
-        with patch.object(self.stats_endpoints, '_get_metrics', side_effect=Exception("Test error")):
+        with patch.object(
+            self.stats_endpoints, "_get_metrics", side_effect=Exception("Test error")
+        ):
             response = self.client.get("/stats/metrics")
 
             # Should handle error gracefully
@@ -166,7 +172,9 @@ class TestStatsEndpoints:
     def test_performance_stats_endpoint_error_handling(self):
         """Test performance stats endpoint error handling"""
         # Mock the _get_performance_stats method to raise an exception
-        with patch.object(self.stats_endpoints, '_get_performance_stats', side_effect=Exception("Test error")):
+        with patch.object(
+            self.stats_endpoints, "_get_performance_stats", side_effect=Exception("Test error")
+        ):
             response = self.client.get("/stats/performance")
 
             # Should handle error gracefully
@@ -178,7 +186,7 @@ class TestStatsEndpoints:
     def test_alerts_endpoint_error_handling(self):
         """Test alerts endpoint error handling"""
         # Mock the _get_alerts method to raise an exception
-        with patch.object(self.stats_endpoints, '_get_alerts', side_effect=Exception("Test error")):
+        with patch.object(self.stats_endpoints, "_get_alerts", side_effect=Exception("Test error")):
             response = self.client.get("/stats/alerts")
 
             # Should handle error gracefully
@@ -194,14 +202,14 @@ class TestStatsEndpoints:
                 "total_requests": 100,
                 "total_errors": 5,
                 "average_response_time": 100,
-                "throughput": 10
+                "throughput": 10,
             },
             "service2": {
                 "total_requests": 200,
                 "total_errors": 10,
                 "average_response_time": 200,
-                "throughput": 20
-            }
+                "throughput": 20,
+            },
         }
 
         overall = self.stats_endpoints._calculate_overall_performance(services_stats)
@@ -219,11 +227,9 @@ class TestStatsEndpoints:
                 "total_requests": 100,
                 "total_errors": 5,
                 "average_response_time": 100,
-                "throughput": 10
+                "throughput": 10,
             },
-            "service2": {
-                "error": "Service unavailable"
-            }
+            "service2": {"error": "Service unavailable"},
         }
 
         overall = self.stats_endpoints._calculate_overall_performance(services_stats)
@@ -240,13 +246,13 @@ class TestStatsEndpoints:
             "service1": {
                 "average_response_time": 1500,  # High response time
                 "success_rate": 90,  # Low success rate
-                "throughput": 5  # Low throughput
+                "throughput": 5,  # Low throughput
             },
             "service2": {
                 "average_response_time": 500,  # Normal response time
                 "success_rate": 98,  # Good success rate
-                "throughput": 50  # Good throughput
-            }
+                "throughput": 50,  # Good throughput
+            },
         }
 
         recommendations = self.stats_endpoints._generate_recommendations(services_stats)
@@ -265,14 +271,8 @@ class TestStatsEndpoints:
     def test_generate_recommendations_with_errors(self):
         """Test recommendations generation with error services"""
         services_stats = {
-            "service1": {
-                "average_response_time": 1500,
-                "success_rate": 90,
-                "throughput": 5
-            },
-            "service2": {
-                "error": "Service unavailable"
-            }
+            "service1": {"average_response_time": 1500, "success_rate": 90, "throughput": 5},
+            "service2": {"error": "Service unavailable"},
         }
 
         recommendations = self.stats_endpoints._generate_recommendations(services_stats)

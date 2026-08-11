@@ -85,11 +85,15 @@ class MetricsCollector:
         metric = self.metrics.get(name)
         if not metric:
             raise ValueError(f"Metric '{name}' not registered")
-        metric.values.append(MetricValue(timestamp=_utc_iso_now(), value=value, labels=labels or {}))
+        metric.values.append(
+            MetricValue(timestamp=_utc_iso_now(), value=value, labels=labels or {})
+        )
         if len(metric.values) > self.max_values_per_metric:
             metric.values = metric.values[-self.max_values_per_metric :]
 
-    def increment_counter(self, name: str, value: float = 1.0, labels: dict[str, str] | None = None) -> None:
+    def increment_counter(
+        self, name: str, value: float = 1.0, labels: dict[str, str] | None = None
+    ) -> None:
         metric = self.metrics.get(name)
         if not metric or metric.type != MetricType.COUNTER:
             raise ValueError(f"Counter metric '{name}' not registered")
@@ -102,7 +106,9 @@ class MetricsCollector:
             raise ValueError(f"Gauge metric '{name}' not registered")
         self.record_value(name, value, labels)
 
-    def record_timer(self, name: str, value_seconds: float, labels: dict[str, str] | None = None) -> None:
+    def record_timer(
+        self, name: str, value_seconds: float, labels: dict[str, str] | None = None
+    ) -> None:
         metric = self.metrics.get(name)
         if not metric or metric.type != MetricType.TIMER:
             raise ValueError(f"Timer metric '{name}' not registered")
@@ -165,7 +171,9 @@ class PerformanceTracker:
         labels = {"operation": timer_id.rsplit("_", 1)[0], **labels}
         self.metrics_collector.record_timer("operation_duration_seconds", elapsed, labels)
 
-    def record_event_processed(self, event_type: str, processing_time_ms: float, entity_id: str) -> None:
+    def record_event_processed(
+        self, event_type: str, processing_time_ms: float, entity_id: str
+    ) -> None:
         self.metrics_collector.record_timer(
             "event_processing_duration_seconds",
             processing_time_ms / 1000.0,
@@ -184,13 +192,17 @@ class PerformanceTracker:
             {"error_type": error_type, "service": service},
         )
 
-    def record_api_request(self, endpoint: str, method: str, status_code: int, duration_ms: float) -> None:
+    def record_api_request(
+        self, endpoint: str, method: str, status_code: int, duration_ms: float
+    ) -> None:
         labels = {
             "endpoint": endpoint,
             "method": method,
             "status_code": str(status_code),
         }
-        self.metrics_collector.record_timer("api_request_duration_seconds", duration_ms / 1000.0, labels)
+        self.metrics_collector.record_timer(
+            "api_request_duration_seconds", duration_ms / 1000.0, labels
+        )
         self.metrics_collector.increment_counter("api_requests_total", 1.0, labels)
 
 
@@ -206,7 +218,12 @@ class MetricsService:
             ("events_processed_total", MetricType.COUNTER, "Total events processed", "count"),
             ("api_requests_total", MetricType.COUNTER, "Total API requests", "count"),
             ("errors_total", MetricType.COUNTER, "Total errors", "count"),
-            ("event_processing_duration_seconds", MetricType.TIMER, "Event processing duration", "seconds"),
+            (
+                "event_processing_duration_seconds",
+                MetricType.TIMER,
+                "Event processing duration",
+                "seconds",
+            ),
             ("api_request_duration_seconds", MetricType.TIMER, "API request duration", "seconds"),
             ("operation_duration_seconds", MetricType.TIMER, "Operation duration", "seconds"),
         ]
@@ -252,4 +269,3 @@ class MetricsService:
 
 # Module-level singleton used by other services/tests
 metrics_service = MetricsService()
-

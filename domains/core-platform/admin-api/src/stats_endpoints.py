@@ -61,14 +61,18 @@ class StatsEndpoints:
             try:
                 return self._get_all_stats(period=period, service=service)
             except Exception as exc:  # pragma: no cover - defensive
-                raise HTTPException(status_code=500, detail=f"Failed to get statistics: {exc}") from exc
+                raise HTTPException(
+                    status_code=500, detail=f"Failed to get statistics: {exc}"
+                ) from exc
 
         @self.router.get("/stats/services")
         def get_services_stats():
             try:
                 return self._get_service_stats()
             except Exception as exc:  # pragma: no cover - defensive
-                raise HTTPException(status_code=500, detail=f"Failed to get services statistics: {exc}") from exc
+                raise HTTPException(
+                    status_code=500, detail=f"Failed to get services statistics: {exc}"
+                ) from exc
 
         @self.router.get("/stats/metrics")
         def get_metrics(
@@ -79,14 +83,18 @@ class StatsEndpoints:
             try:
                 return self._get_metrics(limit=limit, metric_name=metric_name, service=service)
             except Exception as exc:  # pragma: no cover - defensive
-                raise HTTPException(status_code=500, detail=f"Failed to get metrics: {exc}") from exc
+                raise HTTPException(
+                    status_code=500, detail=f"Failed to get metrics: {exc}"
+                ) from exc
 
         @self.router.get("/stats/performance")
         def get_performance_stats():
             try:
                 return self._get_performance_stats()
             except Exception as exc:  # pragma: no cover - defensive
-                raise HTTPException(status_code=500, detail=f"Failed to get performance statistics: {exc}") from exc
+                raise HTTPException(
+                    status_code=500, detail=f"Failed to get performance statistics: {exc}"
+                ) from exc
 
         @self.router.get("/stats/alerts")
         def get_alerts():
@@ -140,7 +148,11 @@ class StatsEndpoints:
         service: str | None = None,
     ) -> list[dict[str, Any]]:
         metrics_list: list[dict[str, Any]] = []
-        base_services = [service] if service and service in self.service_urls else list(self.service_urls.keys())
+        base_services = (
+            [service]
+            if service and service in self.service_urls
+            else list(self.service_urls.keys())
+        )
 
         for svc in base_services:
             metrics_list.append(
@@ -209,7 +221,9 @@ class StatsEndpoints:
             )
         return trends
 
-    def _calculate_overall_performance(self, services_stats: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    def _calculate_overall_performance(
+        self, services_stats: dict[str, dict[str, Any]]
+    ) -> dict[str, Any]:
         total_requests = 0
         total_errors = 0
         total_response_time = 0.0
@@ -227,7 +241,9 @@ class StatsEndpoints:
 
         average_response_time = total_response_time / counted_services if counted_services else 0
         success_rate = (
-            ((total_requests - total_errors) / total_requests * 100) if total_requests > 0 else 100.0
+            ((total_requests - total_errors) / total_requests * 100)
+            if total_requests > 0
+            else 100.0
         )
 
         return {
@@ -238,7 +254,9 @@ class StatsEndpoints:
             "success_rate": round(success_rate, 2),
         }
 
-    def _generate_recommendations(self, services_stats: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    def _generate_recommendations(
+        self, services_stats: dict[str, dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         recommendations: list[dict[str, Any]] = []
         for service, stats in services_stats.items():
             if "error" in stats:
@@ -255,4 +273,3 @@ class StatsEndpoints:
                 recommendations.append({"service": service, "recommendation": rec})
 
         return recommendations
-

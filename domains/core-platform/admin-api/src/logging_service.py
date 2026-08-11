@@ -207,4 +207,3 @@ class LoggingService:
 
 # Module-level singleton used by other services/tests
 logging_service = LoggingService()
-

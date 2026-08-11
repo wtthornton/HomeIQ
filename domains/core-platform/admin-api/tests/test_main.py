@@ -1,7 +1,6 @@
 """Tests for Admin API main service."""
 
 import os
-from unittest.mock import AsyncMock, Mock, patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient

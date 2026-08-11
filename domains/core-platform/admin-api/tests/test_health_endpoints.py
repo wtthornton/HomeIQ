@@ -2,7 +2,6 @@
 Tests for health endpoints
 """
 
-from datetime import datetime
 from unittest.mock import patch
 
 from fastapi import FastAPI
@@ -25,7 +24,7 @@ class TestHealthEndpoints:
     def test_init(self):
         """Test HealthEndpoints initialization"""
         assert self.health_endpoints.router is not None
-        assert hasattr(self.health_endpoints, 'router')
+        assert hasattr(self.health_endpoints, "router")
 
     def test_health_endpoint(self):
         """Test health endpoint returns the standardized envelope"""
@@ -94,8 +93,10 @@ class TestHealthEndpoints:
 
     def test_health_endpoint_healthy_when_dependencies_pass(self):
         """All dependencies reachable -> healthy overall"""
-        with patch.object(self.health_endpoints, '_check_influxdb_health', return_value=True), \
-             patch.object(self.health_endpoints, '_check_service_health', return_value=True):
+        with (
+            patch.object(self.health_endpoints, "_check_influxdb_health", return_value=True),
+            patch.object(self.health_endpoints, "_check_service_health", return_value=True),
+        ):
             data = self.client.get("/health").json()
 
         assert data["status"] == "healthy"
@@ -103,8 +104,10 @@ class TestHealthEndpoints:
 
     def test_health_endpoint_degrades_when_a_dependency_fails(self):
         """A single failing dependency is reflected in the overall status"""
-        with patch.object(self.health_endpoints, '_check_influxdb_health', return_value=True), \
-             patch.object(self.health_endpoints, '_check_service_health', return_value=False):
+        with (
+            patch.object(self.health_endpoints, "_check_influxdb_health", return_value=True),
+            patch.object(self.health_endpoints, "_check_service_health", return_value=False),
+        ):
             data = self.client.get("/health").json()
 
         assert data["status"] != "healthy"
@@ -115,7 +118,7 @@ class TestHealthEndpoints:
     def test_health_endpoint_error_handling(self):
         """A raising dependency check is contained, not propagated as a 500"""
         with patch.object(
-            self.health_endpoints, '_check_influxdb_health', side_effect=Exception("Test error")
+            self.health_endpoints, "_check_influxdb_health", side_effect=Exception("Test error")
         ):
             response = self.client.get("/health")
 

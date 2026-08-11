@@ -25,9 +25,6 @@ class AuthManager(SharedAuthManager):
 
     def __init__(self, api_key, enable_auth: bool = True, **kwargs):
         if enable_auth is False and not kwargs.get("allow_anonymous"):
-            raise ValueError(
-                "Authentication cannot be disabled. Remove enable_auth=False."
-            )
+            raise ValueError("Authentication cannot be disabled. Remove enable_auth=False.")
 
         super().__init__(api_key=api_key, **kwargs)
-

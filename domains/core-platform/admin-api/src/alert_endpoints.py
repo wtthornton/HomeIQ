@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class AlertResponse(BaseModel):
     """Alert response model"""
+
     id: str
     name: str
     severity: str
@@ -38,6 +39,7 @@ class AlertResponse(BaseModel):
 
 class AlertSummaryResponse(BaseModel):
     """Alert summary response model"""
+
     total_active: int
     critical: int
     warning: int
@@ -64,11 +66,13 @@ class AlertEndpoints:
 
         alerts_to_clean = []
         for alert in self.alert_manager.alerts.values():
-            if (alert.status == AlertStatus.ACTIVE and
-                alert.created_at and
-                alert.created_at < stale_threshold and
-                alert.metadata and
-                'Timeout' in alert.metadata.get('message', '')):
+            if (
+                alert.status == AlertStatus.ACTIVE
+                and alert.created_at
+                and alert.created_at < stale_threshold
+                and alert.metadata
+                and "Timeout" in alert.metadata.get("message", "")
+            ):
                 alerts_to_clean.append(alert.id)
 
         for alert_id in alerts_to_clean:
@@ -84,7 +88,7 @@ class AlertEndpoints:
         @self.router.get("/alerts", response_model=list[AlertResponse])
         async def get_all_alerts(
             severity: str | None = Query(None, description="Filter by severity"),
-            status_filter: str | None = Query(None, alias="status", description="Filter by status")
+            status_filter: str | None = Query(None, alias="status", description="Filter by status"),
         ):
             """
             Get all alerts with optional filtering
@@ -107,7 +111,7 @@ class AlertEndpoints:
                     except ValueError as err:
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Invalid severity: {severity}"
+                            detail=f"Invalid severity: {severity}",
                         ) from err
 
                 # Filter by status
@@ -118,7 +122,7 @@ class AlertEndpoints:
                     except ValueError as err:
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Invalid status: {status_filter}"
+                            detail=f"Invalid status: {status_filter}",
                         ) from err
 
                 # Sort by created_at (most recent first)
@@ -132,12 +136,12 @@ class AlertEndpoints:
                 logger.error(f"Error getting alerts: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to get alerts: {str(e)}"
+                    detail=f"Failed to get alerts: {str(e)}",
                 ) from e
 
         @self.router.get("/alerts/active", response_model=list[AlertResponse])
         async def get_active_alerts(
-            severity: str | None = Query(None, description="Filter by severity")
+            severity: str | None = Query(None, description="Filter by severity"),
         ):
             """
             Get only active alerts with automatic cleanup of stale alerts
@@ -159,7 +163,7 @@ class AlertEndpoints:
                     except ValueError as err:
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Invalid severity: {severity}"
+                            detail=f"Invalid severity: {severity}",
                         ) from err
 
                 alerts = self.alert_manager.get_active_alerts(sev)
@@ -171,7 +175,7 @@ class AlertEndpoints:
                 logger.error(f"Error getting active alerts: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to get active alerts: {str(e)}"
+                    detail=f"Failed to get active alerts: {str(e)}",
                 ) from e
 
         @self.router.get("/alerts/summary", response_model=AlertSummaryResponse)
@@ -189,7 +193,7 @@ class AlertEndpoints:
                 logger.error(f"Error getting alert summary: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to get alert summary: {str(e)}"
+                    detail=f"Failed to get alert summary: {str(e)}",
                 ) from e
 
         @self.router.get("/alerts/{alert_id}", response_model=AlertResponse)
@@ -207,8 +211,7 @@ class AlertEndpoints:
                 alert = self.alert_manager.get_alert(alert_id)
                 if not alert:
                     raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Alert not found: {alert_id}"
+                        status_code=status.HTTP_404_NOT_FOUND, detail=f"Alert not found: {alert_id}"
                     )
 
                 return AlertResponse(**alert.to_dict())
@@ -218,7 +221,7 @@ class AlertEndpoints:
                 logger.error(f"Error getting alert {alert_id}: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to get alert: {str(e)}"
+                    detail=f"Failed to get alert: {str(e)}",
                 ) from e
 
         @self.router.post("/alerts/{alert_id}/acknowledge")
@@ -236,14 +239,13 @@ class AlertEndpoints:
                 success = self.alert_manager.acknowledge_alert(alert_id)
                 if not success:
                     raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Alert not found: {alert_id}"
+                        status_code=status.HTTP_404_NOT_FOUND, detail=f"Alert not found: {alert_id}"
                     )
 
                 return {
                     "status": "success",
                     "message": f"Alert acknowledged: {alert_id}",
-                    "timestamp": datetime.now(UTC).isoformat() + "Z"
+                    "timestamp": datetime.now(UTC).isoformat() + "Z",
                 }
             except HTTPException:
                 raise
@@ -251,7 +253,7 @@ class AlertEndpoints:
                 logger.error(f"Error acknowledging alert {alert_id}: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to acknowledge alert: {str(e)}"
+                    detail=f"Failed to acknowledge alert: {str(e)}",
                 ) from e
 
         @self.router.post("/alerts/{alert_id}/resolve")
@@ -269,14 +271,13 @@ class AlertEndpoints:
                 success = self.alert_manager.resolve_alert(alert_id)
                 if not success:
                     raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Alert not found: {alert_id}"
+                        status_code=status.HTTP_404_NOT_FOUND, detail=f"Alert not found: {alert_id}"
                     )
 
                 return {
                     "status": "success",
                     "message": f"Alert resolved: {alert_id}",
-                    "timestamp": datetime.now(UTC).isoformat() + "Z"
+                    "timestamp": datetime.now(UTC).isoformat() + "Z",
                 }
             except HTTPException:
                 raise
@@ -284,12 +285,14 @@ class AlertEndpoints:
                 logger.error(f"Error resolving alert {alert_id}: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to resolve alert: {str(e)}"
+                    detail=f"Failed to resolve alert: {str(e)}",
                 ) from e
 
         @self.router.delete("/alerts/cleanup")
         async def cleanup_resolved_alerts(
-            older_than_hours: int = Query(24, description="Clear alerts resolved more than X hours ago")
+            older_than_hours: int = Query(
+                24, description="Clear alerts resolved more than X hours ago"
+            ),
         ):
             """
             Clean up old resolved alerts
@@ -305,13 +308,13 @@ class AlertEndpoints:
                 return {
                     "status": "success",
                     "message": f"Cleaned up resolved alerts older than {older_than_hours} hours",
-                    "timestamp": datetime.now(UTC).isoformat() + "Z"
+                    "timestamp": datetime.now(UTC).isoformat() + "Z",
                 }
             except Exception as e:
                 logger.error(f"Error cleaning up alerts: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to cleanup alerts: {str(e)}"
+                    detail=f"Failed to cleanup alerts: {str(e)}",
                 ) from e
 
 
@@ -327,4 +330,3 @@ def create_alert_router(alert_manager: AlertManager | None = None) -> APIRouter:
     """
     endpoints = AlertEndpoints(alert_manager)
     return endpoints.router
-

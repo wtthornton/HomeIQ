@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 class HealthStatus(BaseModel):
     """Health status model"""
+
     status: str
     timestamp: str  # Changed to string for JSON serialization
     uptime_seconds: float
@@ -37,6 +38,7 @@ class HealthStatus(BaseModel):
 
 class ServiceHealth(BaseModel):
     """Service health model"""
+
     name: str
     status: str
     last_check: str  # Changed to string for JSON serialization
@@ -57,37 +59,65 @@ class HealthEndpoints:
         self.alert_manager = get_alert_manager("admin-api")
         # Docker Compose service names (not container_name) for DNS resolution
         self.service_urls = {
-            "websocket-ingestion": os.getenv("WEBSOCKET_INGESTION_URL", "http://websocket-ingestion:8001"),
-            "ai-automation-service": os.getenv("AI_AUTOMATION_URL", "http://ai-automation-service-new:8025"),
+            "websocket-ingestion": os.getenv(
+                "WEBSOCKET_INGESTION_URL", "http://websocket-ingestion:8001"
+            ),
+            "ai-automation-service": os.getenv(
+                "AI_AUTOMATION_URL", "http://ai-automation-service-new:8025"
+            ),
             "influxdb": os.getenv("INFLUXDB_URL", "http://influxdb:8086"),
             "weather-api": os.getenv("WEATHER_SERVICE_URL", "http://weather-api:8009"),
             "sports-api": os.getenv("SPORTS_API_URL", "http://sports-api:8005"),
             # Data source services - Docker Compose service names
-            "carbon-intensity-service": os.getenv("CARBON_INTENSITY_URL", "http://carbon-intensity:8010"),
-            "electricity-pricing-service": os.getenv("ELECTRICITY_PRICING_URL", "http://electricity-pricing:8011"),
+            "carbon-intensity-service": os.getenv(
+                "CARBON_INTENSITY_URL", "http://carbon-intensity:8010"
+            ),
+            "electricity-pricing-service": os.getenv(
+                "ELECTRICITY_PRICING_URL", "http://electricity-pricing:8011"
+            ),
             "air-quality-service": os.getenv("AIR_QUALITY_URL", "http://air-quality:8012"),
             "calendar-service": os.getenv("CALENDAR_URL", "http://calendar:8013"),
             "smart-meter-service": os.getenv("SMART_METER_URL", "http://smart-meter:8014"),
             # ML & Blueprint services
             "blueprint-index": os.getenv("BLUEPRINT_INDEX_URL", "http://blueprint-index:8031"),
-            "rule-recommendation-ml": os.getenv("RULE_RECOMMENDATION_URL", "http://rule-recommendation-ml:8035"),
+            "rule-recommendation-ml": os.getenv(
+                "RULE_RECOMMENDATION_URL", "http://rule-recommendation-ml:8035"
+            ),
             # Energy Analytics
-            "energy-correlator": os.getenv("ENERGY_CORRELATOR_URL", "http://energy-correlator:8017"),
-            "energy-forecasting": os.getenv("ENERGY_FORECASTING_URL", "http://energy-forecasting:8037"),
-            "proactive-agent-service": os.getenv("PROACTIVE_AGENT_URL", "http://proactive-agent-service:8031"),
+            "energy-correlator": os.getenv(
+                "ENERGY_CORRELATOR_URL", "http://energy-correlator:8017"
+            ),
+            "energy-forecasting": os.getenv(
+                "ENERGY_FORECASTING_URL", "http://energy-forecasting:8037"
+            ),
+            "proactive-agent-service": os.getenv(
+                "PROACTIVE_AGENT_URL", "http://proactive-agent-service:8031"
+            ),
             # Blueprint services
-            "blueprint-suggestion-service": os.getenv("BLUEPRINT_SUGGESTION_URL", "http://blueprint-suggestion-service:8032"),
+            "blueprint-suggestion-service": os.getenv(
+                "BLUEPRINT_SUGGESTION_URL", "http://blueprint-suggestion-service:8032"
+            ),
             # Pattern Analysis
             "ai-pattern-service": os.getenv("AI_PATTERN_URL", "http://ai-pattern-service:8020"),
-            "api-automation-edge": os.getenv("AUTOMATION_EDGE_URL", "http://api-automation-edge:8025"),
+            "api-automation-edge": os.getenv(
+                "AUTOMATION_EDGE_URL", "http://api-automation-edge:8025"
+            ),
             # ML Engine
             "ai-core-service": os.getenv("AI_CORE_URL", "http://ai-core-service:8018"),
-            "device-intelligence-service": os.getenv("DEVICE_INTELLIGENCE_URL", "http://device-intelligence-service:8019"),
+            "device-intelligence-service": os.getenv(
+                "DEVICE_INTELLIGENCE_URL", "http://device-intelligence-service:8019"
+            ),
             "rag-service": os.getenv("RAG_SERVICE_URL", "http://rag-service:8027"),
             # Device Management
-            "device-health-monitor": os.getenv("DEVICE_HEALTH_URL", "http://device-health-monitor:8019"),
-            "device-context-classifier": os.getenv("DEVICE_CLASSIFIER_URL", "http://device-context-classifier:8020"),
-            "device-setup-assistant": os.getenv("DEVICE_SETUP_URL", "http://device-setup-assistant:8021"),
+            "device-health-monitor": os.getenv(
+                "DEVICE_HEALTH_URL", "http://device-health-monitor:8019"
+            ),
+            "device-context-classifier": os.getenv(
+                "DEVICE_CLASSIFIER_URL", "http://device-context-classifier:8020"
+            ),
+            "device-setup-assistant": os.getenv(
+                "DEVICE_SETUP_URL", "http://device-setup-assistant:8021"
+            ),
             # Core Platform self-monitoring
             "admin-api": os.getenv("ADMIN_API_URL", "http://admin-api:8004"),
             "health-dashboard": os.getenv("HEALTH_DASHBOARD_URL", "http://health-dashboard:8080"),
@@ -97,31 +127,47 @@ class HealthEndpoints:
         # Step 4.6: Domain group mappings for aggregated health
         self.group_mappings: dict[str, list[str]] = {
             "core-platform": [
-                "websocket-ingestion", "influxdb", "admin-api",
-                "health-dashboard", "data-api",
+                "websocket-ingestion",
+                "influxdb",
+                "admin-api",
+                "health-dashboard",
+                "data-api",
             ],
             "data-collectors": [
-                "weather-api", "sports-api", "carbon-intensity-service",
-                "electricity-pricing-service", "air-quality-service",
-                "calendar-service", "smart-meter-service",
+                "weather-api",
+                "sports-api",
+                "carbon-intensity-service",
+                "electricity-pricing-service",
+                "air-quality-service",
+                "calendar-service",
+                "smart-meter-service",
             ],
             "ml-engine": [
-                "ai-core-service", "device-intelligence-service", "rag-service",
+                "ai-core-service",
+                "device-intelligence-service",
+                "rag-service",
             ],
             "automation-intelligence": [
                 "ai-automation-service",
             ],
             "energy-analytics": [
-                "energy-correlator", "energy-forecasting", "proactive-agent-service",
+                "energy-correlator",
+                "energy-forecasting",
+                "proactive-agent-service",
             ],
             "blueprints": [
-                "blueprint-index", "blueprint-suggestion-service", "rule-recommendation-ml",
+                "blueprint-index",
+                "blueprint-suggestion-service",
+                "rule-recommendation-ml",
             ],
             "pattern-analysis": [
-                "ai-pattern-service", "api-automation-edge",
+                "ai-pattern-service",
+                "api-automation-edge",
             ],
             "device-management": [
-                "device-health-monitor", "device-context-classifier", "device-setup-assistant",
+                "device-health-monitor",
+                "device-context-classifier",
+                "device-setup-assistant",
             ],
         }
 
@@ -144,7 +190,7 @@ class HealthEndpoints:
                     name="InfluxDB",
                     dependency_type=DependencyType.DATABASE,
                     check_func=lambda: self._check_influxdb_health(),
-                    timeout=3.0
+                    timeout=3.0,
                 )
                 dependencies.append(influxdb_dep)
 
@@ -155,7 +201,7 @@ class HealthEndpoints:
                     check_func=lambda: self._check_service_health(
                         self.service_urls["websocket-ingestion"] + "/health"
                     ),
-                    timeout=2.0
+                    timeout=2.0,
                 )
                 dependencies.append(websocket_dep)
 
@@ -171,8 +217,8 @@ class HealthEndpoints:
                             metadata={
                                 "dependency": dep.name,
                                 "response_time_ms": dep.response_time_ms,
-                                "message": dep.message
-                            }
+                                "message": dep.message,
+                            },
                         )
 
                 # Calculate uptime percentage based on service health
@@ -188,17 +234,17 @@ class HealthEndpoints:
                         "uptime_human": self._format_uptime(uptime),
                         "uptime_percentage": uptime_percentage,
                         "start_time": self.start_time.isoformat(),
-                        "current_time": datetime.now().isoformat()
+                        "current_time": datetime.now().isoformat(),
                     },
                     uptime_seconds=uptime,
-                    version="1.0.0"
+                    version="1.0.0",
                 )
 
             except Exception as e:
                 logger.error("Error getting health status: %s", e)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get health status"
+                    detail="Failed to get health status",
                 ) from e
 
         @self.router.get("/health/services", response_model=dict[str, ServiceHealth])
@@ -211,7 +257,7 @@ class HealthEndpoints:
                 logger.error("Error getting services health: %s", e)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get services health"
+                    detail="Failed to get services health",
                 ) from e
 
         @self.router.get("/health/services/{service_name}", response_model=ServiceHealth)
@@ -223,7 +269,7 @@ class HealthEndpoints:
                 logger.error("Error getting health for service %s: %s", service_name, e)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get service health"
+                    detail="Failed to get service health",
                 ) from e
 
             # Kept outside the try above so a miss stays a 404 instead of
@@ -231,7 +277,7 @@ class HealthEndpoints:
             if service_name not in services_health:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Service '{service_name}' not found"
+                    detail=f"Service '{service_name}' not found",
                 )
             return services_health[service_name]
 
@@ -245,7 +291,7 @@ class HealthEndpoints:
                 logger.error("Error getting dependencies health: %s", e)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get dependencies health"
+                    detail="Failed to get dependencies health",
                 ) from e
 
         @self.router.get("/health/groups", response_model=dict[str, Any])
@@ -294,15 +340,9 @@ class HealthEndpoints:
                         "total": group_total,
                     }
 
-                healthy_groups = sum(
-                    1 for g in groups.values() if g["status"] == "healthy"
-                )
-                degraded_groups = sum(
-                    1 for g in groups.values() if g["status"] == "degraded"
-                )
-                unhealthy_groups = sum(
-                    1 for g in groups.values() if g["status"] == "unhealthy"
-                )
+                healthy_groups = sum(1 for g in groups.values() if g["status"] == "healthy")
+                degraded_groups = sum(1 for g in groups.values() if g["status"] == "degraded")
+                unhealthy_groups = sum(1 for g in groups.values() if g["status"] == "unhealthy")
 
                 return {
                     "groups": groups,
@@ -333,7 +373,7 @@ class HealthEndpoints:
                 logger.error("Error getting health metrics: %s", e)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get health metrics"
+                    detail="Failed to get health metrics",
                 ) from e
 
     async def _check_services(self) -> dict[str, ServiceHealth]:
@@ -346,7 +386,9 @@ class HealthEndpoints:
             "energy-forecasting": "/api/v1/health",
         }
 
-        logger.debug("Checking %d services: %s", len(self.service_urls), list(self.service_urls.keys()))
+        logger.debug(
+            "Checking %d services: %s", len(self.service_urls), list(self.service_urls.keys())
+        )
 
         for service_name, service_url in self.service_urls.items():
             logger.debug("Checking service: %s at %s", service_name, service_url)
@@ -378,7 +420,11 @@ class HealthEndpoints:
                                 if creds_configured is False:
                                     reported_status = "degraded"
                                     status_detail = status_detail or "credentials_missing"
-                                elif svc_success_rate is not None and svc_success_rate == 0 and data.get("total_fetches", 0) > 0:
+                                elif (
+                                    svc_success_rate is not None
+                                    and svc_success_rate == 0
+                                    and data.get("total_fetches", 0) > 0
+                                ):
                                     reported_status = "degraded"
                                     status_detail = status_detail or "all_fetches_failed"
 
@@ -397,7 +443,7 @@ class HealthEndpoints:
                                 status="unhealthy",
                                 last_check=datetime.now().isoformat(),  # Convert to ISO string
                                 response_time_ms=response_time,
-                                error_message=f"HTTP {response.status}"
+                                error_message=f"HTTP {response.status}",
                             )
 
             except TimeoutError:
@@ -405,7 +451,7 @@ class HealthEndpoints:
                     name=service_name,
                     status="unhealthy",
                     last_check=datetime.now().isoformat(),  # Convert to ISO string
-                    error_message="Timeout"
+                    error_message="Timeout",
                 )
             except Exception as e:
                 logger.error("Error checking %s: %s", service_name, e, exc_info=True)
@@ -413,10 +459,14 @@ class HealthEndpoints:
                     name=service_name,
                     status="unhealthy",
                     last_check=datetime.now().isoformat(),  # Convert to ISO string
-                    error_message=str(e)
+                    error_message=str(e),
                 )
 
-        logger.debug("Returning %d service health results: %s", len(services_health), list(services_health.keys()))
+        logger.debug(
+            "Returning %d service health results: %s",
+            len(services_health),
+            list(services_health.keys()),
+        )
         return services_health
 
     async def _check_dependencies(self) -> dict[str, Any]:
@@ -431,13 +481,13 @@ class HealthEndpoints:
                     dependencies_health["influxdb"] = {
                         "status": "healthy" if response.status == 200 else "unhealthy",
                         "last_check": datetime.now().isoformat(),
-                        "response_time_ms": response.headers.get("X-Response-Time", "N/A")
+                        "response_time_ms": response.headers.get("X-Response-Time", "N/A"),
                     }
         except Exception as e:
             dependencies_health["influxdb"] = {
                 "status": "unhealthy",
                 "last_check": datetime.now().isoformat(),
-                "error": str(e)
+                "error": str(e),
             }
 
         # Check Weather API
@@ -453,19 +503,19 @@ class HealthEndpoints:
                         dependencies_health["weather_api"] = {
                             "status": "healthy" if response.status == 200 else "unhealthy",
                             "last_check": datetime.now().isoformat(),
-                            "response_time_ms": response.headers.get("X-Response-Time", "N/A")
+                            "response_time_ms": response.headers.get("X-Response-Time", "N/A"),
                         }
             else:
                 dependencies_health["weather_api"] = {
                     "status": "disabled",
                     "last_check": datetime.now().isoformat(),
-                    "message": "No API key configured"
+                    "message": "No API key configured",
                 }
         except Exception as e:
             dependencies_health["weather_api"] = {
                 "status": "unhealthy",
                 "last_check": datetime.now().isoformat(),
-                "error": str(e)
+                "error": str(e),
             }
 
         return dependencies_health
@@ -481,7 +531,7 @@ class HealthEndpoints:
             "current_time": datetime.now().isoformat(),
             "memory_usage": self._get_memory_usage(),
             "cpu_usage": await self._get_cpu_usage(),
-            "disk_usage": self._get_disk_usage()
+            "disk_usage": self._get_disk_usage(),
         }
 
     async def _check_influxdb_health(self) -> bool:
@@ -561,12 +611,13 @@ class HealthEndpoints:
         """Get memory usage information"""
         try:
             import psutil
+
             memory = psutil.virtual_memory()
             return {
                 "total_mb": round(memory.total / 1024 / 1024, 2),
                 "available_mb": round(memory.available / 1024 / 1024, 2),
                 "used_mb": round(memory.used / 1024 / 1024, 2),
-                "percentage": memory.percent
+                "percentage": memory.percent,
             }
         except ImportError:
             return {"error": "psutil not available"}
@@ -575,12 +626,13 @@ class HealthEndpoints:
         """Get CPU usage information"""
         try:
             import psutil
+
             cpu_percent = await asyncio.to_thread(psutil.cpu_percent, interval=1)
             cpu_count = psutil.cpu_count()
             return {
                 "usage_percent": cpu_percent,
                 "core_count": cpu_count,
-                "load_average": psutil.getloadavg() if hasattr(psutil, 'getloadavg') else None
+                "load_average": psutil.getloadavg() if hasattr(psutil, "getloadavg") else None,
             }
         except ImportError:
             return {"error": "psutil not available"}
@@ -589,12 +641,13 @@ class HealthEndpoints:
         """Get disk usage information"""
         try:
             import psutil
-            disk = psutil.disk_usage('/')
+
+            disk = psutil.disk_usage("/")
             return {
                 "total_gb": round(disk.total / 1024 / 1024 / 1024, 2),
                 "used_gb": round(disk.used / 1024 / 1024 / 1024, 2),
                 "free_gb": round(disk.free / 1024 / 1024 / 1024, 2),
-                "percentage": round((disk.used / disk.total) * 100, 2)
+                "percentage": round((disk.used / disk.total) * 100, 2),
             }
         except ImportError:
             return {"error": "psutil not available"}

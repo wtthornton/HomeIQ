@@ -1,6 +1,6 @@
 """Tests for monitoring endpoints."""
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -56,7 +56,7 @@ class TestMonitoringEndpoints:
         assert endpoints.auth_manager is mock_auth_manager
         assert endpoints.router is not None
 
-    @patch('src.monitoring_endpoints.logging_service')
+    @patch("src.monitoring_endpoints.logging_service")
     def test_get_logs(self, mock_logging_service, client):
         """Test getting logs endpoint."""
         # Mock logging service response
@@ -66,7 +66,7 @@ class TestMonitoringEndpoints:
                 "level": "INFO",
                 "service": "test-service",
                 "component": "test-component",
-                "message": "Test message"
+                "message": "Test message",
             }
         ]
         mock_logging_service.get_recent_logs.return_value = mock_logs
@@ -80,14 +80,14 @@ class TestMonitoringEndpoints:
         assert len(data["data"]["logs"]) == 1
         assert data["data"]["logs"][0]["message"] == "Test message"
 
-    @patch('src.monitoring_endpoints.logging_service')
+    @patch("src.monitoring_endpoints.logging_service")
     def test_get_log_statistics(self, mock_logging_service, client):
         """Test getting log statistics endpoint."""
         # Mock logging service response
         mock_stats = {
             "total_entries": 100,
             "level_counts": {"INFO": 80, "ERROR": 20},
-            "service_counts": {"service1": 50, "service2": 50}
+            "service_counts": {"service1": 50, "service2": 50},
         }
         mock_logging_service.get_log_statistics.return_value = mock_stats
 
@@ -99,7 +99,7 @@ class TestMonitoringEndpoints:
         assert data["data"]["total_entries"] == 100
         assert data["data"]["level_counts"]["INFO"] == 80
 
-    @patch('src.monitoring_endpoints.logging_service')
+    @patch("src.monitoring_endpoints.logging_service")
     def test_compress_logs(self, mock_logging_service, client):
         """Test compress logs endpoint."""
         # Mock logging service response
@@ -113,7 +113,7 @@ class TestMonitoringEndpoints:
         assert data["data"]["compressed_files"] == 5
         assert "Compressed 5 log files" in data["message"]
 
-    @patch('src.monitoring_endpoints.logging_service')
+    @patch("src.monitoring_endpoints.logging_service")
     def test_cleanup_old_logs(self, mock_logging_service, client):
         """Test cleanup old logs endpoint."""
         # Mock logging service response
@@ -127,7 +127,7 @@ class TestMonitoringEndpoints:
         assert data["data"]["deleted_files"] == 3
         assert data["data"]["days_to_keep"] == 30
 
-    @patch('src.monitoring_endpoints.metrics_service')
+    @patch("src.monitoring_endpoints.metrics_service")
     def test_get_metrics(self, mock_metrics_service, client):
         """Test getting metrics endpoint."""
         # Mock metrics service response
@@ -138,7 +138,7 @@ class TestMonitoringEndpoints:
             type=MetricType.GAUGE,
             description="Test metric",
             unit="count",
-            values=[MetricValue("2024-01-01T00:00:00Z", 42.5)]
+            values=[MetricValue("2024-01-01T00:00:00Z", 42.5)],
         )
         mock_metrics_service.get_metrics.return_value = [mock_metric]
 
@@ -151,13 +151,13 @@ class TestMonitoringEndpoints:
         assert len(data["data"]["metrics"]) == 1
         assert data["data"]["metrics"][0]["name"] == "test_metric"
 
-    @patch('src.monitoring_endpoints.metrics_service')
+    @patch("src.monitoring_endpoints.metrics_service")
     def test_get_current_metrics(self, mock_metrics_service, client):
         """Test getting current metrics endpoint."""
         # Mock metrics service response
         mock_current_metrics = {
             "cpu_usage": {"value": 75.5, "timestamp": "2024-01-01T00:00:00Z", "unit": "percent"},
-            "memory_usage": {"value": 60.2, "timestamp": "2024-01-01T00:00:00Z", "unit": "percent"}
+            "memory_usage": {"value": 60.2, "timestamp": "2024-01-01T00:00:00Z", "unit": "percent"},
         }
         mock_metrics_service.get_current_metrics.return_value = mock_current_metrics
 
@@ -169,14 +169,14 @@ class TestMonitoringEndpoints:
         assert data["data"]["cpu_usage"]["value"] == 75.5
         assert data["data"]["memory_usage"]["value"] == 60.2
 
-    @patch('src.monitoring_endpoints.metrics_service')
+    @patch("src.monitoring_endpoints.metrics_service")
     def test_get_metrics_summary(self, mock_metrics_service, client):
         """Test getting metrics summary endpoint."""
         # Mock metrics service response
         mock_summary = {
             "total_metrics": 10,
             "metric_types": {"gauge": 5, "counter": 3, "timer": 2},
-            "total_values": 1000
+            "total_values": 1000,
         }
         mock_metrics_service.get_metrics_summary.return_value = mock_summary
 
@@ -188,7 +188,7 @@ class TestMonitoringEndpoints:
         assert data["data"]["total_metrics"] == 10
         assert data["data"]["metric_types"]["gauge"] == 5
 
-    @patch('src.monitoring_endpoints.alerting_service')
+    @patch("src.monitoring_endpoints.alerting_service")
     def test_get_alerts(self, mock_alerting_service, client):
         """Test getting alerts endpoint."""
         # Mock alerting service response
@@ -204,7 +204,7 @@ class TestMonitoringEndpoints:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at="2024-01-01T00:00:00Z"
+            created_at="2024-01-01T00:00:00Z",
         )
 
         mock_alert_manager = Mock()
@@ -220,7 +220,7 @@ class TestMonitoringEndpoints:
         assert len(data["data"]["alerts"]) == 1
         assert data["data"]["alerts"][0]["alert_id"] == "alert-123"
 
-    @patch('src.monitoring_endpoints.alerting_service')
+    @patch("src.monitoring_endpoints.alerting_service")
     def test_get_active_alerts(self, mock_alerting_service, client):
         """Test getting active alerts endpoint."""
         # Mock alerting service response
@@ -236,7 +236,7 @@ class TestMonitoringEndpoints:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at="2024-01-01T00:00:00Z"
+            created_at="2024-01-01T00:00:00Z",
         )
 
         mock_alerting_service.get_active_alerts.return_value = [mock_alert]
@@ -250,7 +250,7 @@ class TestMonitoringEndpoints:
         assert len(data["data"]["alerts"]) == 1
         assert data["data"]["alerts"][0]["alert_id"] == "alert-123"
 
-    @patch('src.monitoring_endpoints.alerting_service')
+    @patch("src.monitoring_endpoints.alerting_service")
     def test_get_alert_statistics(self, mock_alerting_service, client):
         """Test getting alert statistics endpoint."""
         # Mock alerting service response
@@ -258,7 +258,7 @@ class TestMonitoringEndpoints:
             "active_alerts_count": 2,
             "total_rules": 5,
             "enabled_rules": 4,
-            "active_alerts_by_severity": {"warning": 1, "critical": 1}
+            "active_alerts_by_severity": {"warning": 1, "critical": 1},
         }
 
         mock_alert_manager = Mock()
@@ -273,7 +273,7 @@ class TestMonitoringEndpoints:
         assert data["data"]["active_alerts_count"] == 2
         assert data["data"]["total_rules"] == 5
 
-    @patch('src.monitoring_endpoints.alerting_service')
+    @patch("src.monitoring_endpoints.alerting_service")
     def test_acknowledge_alert(self, mock_alerting_service, client):
         """Test acknowledging alert endpoint."""
         # Mock alerting service response
@@ -291,7 +291,7 @@ class TestMonitoringEndpoints:
         # Verify the method was called with correct parameters
         mock_alert_manager.acknowledge_alert.assert_called_once_with("alert-123", "test_user")
 
-    @patch('src.monitoring_endpoints.alerting_service')
+    @patch("src.monitoring_endpoints.alerting_service")
     def test_acknowledge_alert_not_found(self, mock_alerting_service, client):
         """Test acknowledging non-existent alert."""
         # Mock alerting service response
@@ -305,7 +305,7 @@ class TestMonitoringEndpoints:
         data = response.json()
         assert "Alert not found" in data["detail"]
 
-    @patch('src.monitoring_endpoints.alerting_service')
+    @patch("src.monitoring_endpoints.alerting_service")
     def test_resolve_alert(self, mock_alerting_service, client):
         """Test resolving alert endpoint."""
         # Mock alerting service response
@@ -323,7 +323,7 @@ class TestMonitoringEndpoints:
         # Verify the method was called with correct parameters
         mock_alert_manager.resolve_alert.assert_called_once_with("alert-123", "test_user")
 
-    @patch('src.monitoring_endpoints.alerting_service')
+    @patch("src.monitoring_endpoints.alerting_service")
     def test_resolve_alert_not_found(self, mock_alerting_service, client):
         """Test resolving non-existent alert."""
         # Mock alerting service response
@@ -337,21 +337,21 @@ class TestMonitoringEndpoints:
         data = response.json()
         assert "Alert not found" in data["detail"]
 
-    @patch('src.monitoring_endpoints.metrics_service')
-    @patch('src.monitoring_endpoints.alerting_service')
-    @patch('src.monitoring_endpoints.logging_service')
-    def test_get_dashboard_overview(self, mock_logging_service, mock_alerting_service,
-                                   mock_metrics_service, client):
+    @patch("src.monitoring_endpoints.metrics_service")
+    @patch("src.monitoring_endpoints.alerting_service")
+    @patch("src.monitoring_endpoints.logging_service")
+    def test_get_dashboard_overview(
+        self, mock_logging_service, mock_alerting_service, mock_metrics_service, client
+    ):
         """Test getting dashboard overview endpoint."""
         # Mock service responses
         mock_metrics_service.get_current_metrics.return_value = {
             "cpu_usage": {"value": 75.5, "timestamp": "2024-01-01T00:00:00Z"}
         }
-        mock_metrics_service.get_log_statistics.return_value = {
-            "total_entries": 100
-        }
+        mock_metrics_service.get_log_statistics.return_value = {"total_entries": 100}
 
         from src.alerting_service import Alert, AlertSeverity, AlertStatus
+
         mock_alert = Alert(
             alert_id="alert-123",
             rule_name="test_rule",
@@ -362,7 +362,7 @@ class TestMonitoringEndpoints:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at="2024-01-01T00:00:00Z"
+            created_at="2024-01-01T00:00:00Z",
         )
 
         mock_alerting_service.get_active_alerts.return_value = [mock_alert]
@@ -370,12 +370,8 @@ class TestMonitoringEndpoints:
             "active_alerts_count": 1
         }
 
-        mock_logging_service.get_recent_logs.return_value = [
-            {"message": "Test log entry"}
-        ]
-        mock_logging_service.get_log_statistics.return_value = {
-            "total_entries": 100
-        }
+        mock_logging_service.get_recent_logs.return_value = [{"message": "Test log entry"}]
+        mock_logging_service.get_log_statistics.return_value = {"total_entries": 100}
 
         mock_logging_service.is_running = True
         mock_metrics_service.is_running = True
@@ -391,7 +387,7 @@ class TestMonitoringEndpoints:
         assert "recent_logs" in data["data"]
         assert "system_status" in data["data"]
 
-    @patch('src.monitoring_endpoints.alerting_service')
+    @patch("src.monitoring_endpoints.alerting_service")
     def test_get_dashboard_health(self, mock_alerting_service, client):
         """Test getting dashboard health endpoint."""
         # Mock service responses
@@ -407,15 +403,16 @@ class TestMonitoringEndpoints:
             threshold=90.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at="2024-01-01T00:00:00Z"
+            created_at="2024-01-01T00:00:00Z",
         )
 
         mock_alerting_service.get_active_alerts.return_value = [mock_alert]
 
         # Mock service status
-        with patch('src.monitoring_endpoints.logging_service') as mock_logging_service, \
-             patch('src.monitoring_endpoints.metrics_service') as mock_metrics_service:
-
+        with (
+            patch("src.monitoring_endpoints.logging_service") as mock_logging_service,
+            patch("src.monitoring_endpoints.metrics_service") as mock_metrics_service,
+        ):
             mock_logging_service.is_running = True
             mock_metrics_service.is_running = True
             mock_alerting_service.is_running = True
@@ -430,7 +427,7 @@ class TestMonitoringEndpoints:
             assert data["data"]["critical_alerts_count"] == 1
             assert data["data"]["active_alerts_count"] == 1
 
-    @patch('src.monitoring_endpoints.alerting_service')
+    @patch("src.monitoring_endpoints.alerting_service")
     def test_get_alert_rules(self, mock_alerting_service, client):
         """Test getting alert rules endpoint."""
         # Mock alerting service response
@@ -442,7 +439,7 @@ class TestMonitoringEndpoints:
             metric_name="cpu_usage",
             condition=">",
             threshold=80.0,
-            severity=AlertSeverity.WARNING
+            severity=AlertSeverity.WARNING,
         )
 
         mock_alert_manager = Mock()
@@ -458,7 +455,7 @@ class TestMonitoringEndpoints:
         assert len(data["data"]["rules"]) == 1
         assert data["data"]["rules"][0]["name"] == "test_rule"
 
-    @patch('src.monitoring_endpoints.alerting_service')
+    @patch("src.monitoring_endpoints.alerting_service")
     def test_create_alert_rule(self, mock_alerting_service, client):
         """Test creating alert rule endpoint."""
         # Mock alerting service response
@@ -474,7 +471,7 @@ class TestMonitoringEndpoints:
             "severity": "warning",
             "enabled": True,
             "cooldown_minutes": 5,
-            "notification_channels": ["email"]
+            "notification_channels": ["email"],
         }
 
         response = client.post("/api/v1/monitoring/config/alert-rules", json=rule_data)
@@ -487,7 +484,7 @@ class TestMonitoringEndpoints:
         # Verify the method was called
         mock_alert_manager.add_rule.assert_called_once()
 
-    @patch('src.monitoring_endpoints.alerting_service')
+    @patch("src.monitoring_endpoints.alerting_service")
     def test_update_alert_rule(self, mock_alerting_service, client):
         """Test updating alert rule endpoint."""
         # Mock alerting service response
@@ -502,7 +499,7 @@ class TestMonitoringEndpoints:
             "severity": "critical",
             "enabled": True,
             "cooldown_minutes": 2,
-            "notification_channels": ["slack"]
+            "notification_channels": ["slack"],
         }
 
         response = client.put("/api/v1/monitoring/config/alert-rules/test_rule", json=rule_data)
@@ -515,7 +512,7 @@ class TestMonitoringEndpoints:
         # Verify the method was called
         mock_alert_manager.update_rule.assert_called_once()
 
-    @patch('src.monitoring_endpoints.alerting_service')
+    @patch("src.monitoring_endpoints.alerting_service")
     def test_delete_alert_rule(self, mock_alerting_service, client):
         """Test deleting alert rule endpoint."""
         # Mock alerting service response
@@ -532,16 +529,13 @@ class TestMonitoringEndpoints:
         # Verify the method was called
         mock_alert_manager.remove_rule.assert_called_once_with("test_rule")
 
-    @patch('src.monitoring_endpoints.alerting_service')
+    @patch("src.monitoring_endpoints.alerting_service")
     def test_create_notification_channel(self, mock_alerting_service, client):
         """Test creating notification channel endpoint."""
         channel_data = {
             "name": "test_webhook",
             "type": "webhook",
-            "config": {
-                "enabled": True,
-                "webhook_url": "https://api.example.com/webhook"
-            }
+            "config": {"enabled": True, "webhook_url": "https://api.example.com/webhook"},
         }
 
         response = client.post("/api/v1/monitoring/config/notification-channels", json=channel_data)
@@ -556,7 +550,7 @@ class TestMonitoringEndpoints:
             "test_webhook", "webhook", channel_data["config"]
         )
 
-    @patch('src.monitoring_endpoints.logging_service')
+    @patch("src.monitoring_endpoints.logging_service")
     def test_export_logs_json(self, mock_logging_service, client):
         """Test exporting logs in JSON format."""
         # Mock logging service response
@@ -565,7 +559,7 @@ class TestMonitoringEndpoints:
                 "timestamp": "2024-01-01T00:00:00Z",
                 "level": "INFO",
                 "service": "test-service",
-                "message": "Test message"
+                "message": "Test message",
             }
         ]
         mock_logging_service.get_recent_logs.return_value = mock_logs
@@ -578,7 +572,7 @@ class TestMonitoringEndpoints:
         assert data["data"]["format"] == "json"
         assert len(data["data"]["logs"]) == 1
 
-    @patch('src.monitoring_endpoints.logging_service')
+    @patch("src.monitoring_endpoints.logging_service")
     def test_export_logs_csv(self, mock_logging_service, client):
         """Test exporting logs in CSV format."""
         # Mock logging service response
@@ -587,7 +581,7 @@ class TestMonitoringEndpoints:
                 "timestamp": "2024-01-01T00:00:00Z",
                 "level": "INFO",
                 "service": "test-service",
-                "message": "Test message"
+                "message": "Test message",
             }
         ]
         mock_logging_service.get_recent_logs.return_value = mock_logs
@@ -601,7 +595,7 @@ class TestMonitoringEndpoints:
         assert "csv_data" in data["data"]
         assert "timestamp,level,service,component,message" in data["data"]["csv_data"]
 
-    @patch('src.monitoring_endpoints.metrics_service')
+    @patch("src.monitoring_endpoints.metrics_service")
     def test_export_metrics_json(self, mock_metrics_service, client):
         """Test exporting metrics in JSON format."""
         # Mock metrics service response
@@ -612,7 +606,7 @@ class TestMonitoringEndpoints:
             type=MetricType.GAUGE,
             description="Test metric",
             unit="count",
-            values=[MetricValue("2024-01-01T00:00:00Z", 42.5)]
+            values=[MetricValue("2024-01-01T00:00:00Z", 42.5)],
         )
         mock_metrics_service.get_metrics.return_value = [mock_metric]
 
@@ -624,7 +618,7 @@ class TestMonitoringEndpoints:
         assert data["data"]["format"] == "json"
         assert len(data["data"]["metrics"]) == 1
 
-    @patch('src.monitoring_endpoints.alerting_service')
+    @patch("src.monitoring_endpoints.alerting_service")
     def test_export_alerts_json(self, mock_alerting_service, client):
         """Test exporting alerts in JSON format."""
         # Mock alerting service response
@@ -640,7 +634,7 @@ class TestMonitoringEndpoints:
             threshold=80.0,
             condition=">",
             status=AlertStatus.ACTIVE,
-            created_at="2024-01-01T00:00:00Z"
+            created_at="2024-01-01T00:00:00Z",
         )
 
         mock_alert_manager = Mock()

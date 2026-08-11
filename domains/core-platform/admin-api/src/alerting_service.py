@@ -294,7 +294,9 @@ class AlertingService:
     def get_alert_manager(self) -> AlertManager:
         return self.alert_manager
 
-    def add_notification_channel(self, name: str, channel_type: str, config: dict[str, object]) -> None:
+    def add_notification_channel(
+        self, name: str, channel_type: str, config: dict[str, object]
+    ) -> None:
         if channel_type == "email":
             channel = EmailNotificationChannel(name, config)
         elif channel_type == "webhook":
@@ -326,4 +328,3 @@ class AlertingService:
 
 # Module-level singleton used by other components/tests
 alerting_service = AlertingService()
-

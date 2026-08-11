@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from homeiq_observability.monitoring import StatsEndpoints
 
@@ -20,24 +20,17 @@ def test_stats_endpoints_initialization():
 
     assert stats is not None
     assert stats.influxdb_client is not None
-    assert hasattr(stats, 'router')
-    assert hasattr(stats, 'service_urls')
+    assert hasattr(stats, "router")
+    assert hasattr(stats, "service_urls")
 
 
 def test_calculate_alerts_no_errors():
     """Test alert calculation with no errors"""
     stats = StatsEndpoints()
 
-    service_metrics = {
-        "websocket-ingestion": {
-            "success_rate": 100,
-            "processing_time_ms": 50
-        }
-    }
+    service_metrics = {"websocket-ingestion": {"success_rate": 100, "processing_time_ms": 50}}
 
-    error_stats = {
-        "error_rate_percent": 0
-    }
+    error_stats = {"error_rate_percent": 0}
 
     alerts = stats._calculate_alerts(service_metrics, error_stats)
 
@@ -86,13 +79,11 @@ def test_calculate_alerts_low_success_rate():
     service_metrics = {
         "test-service": {
             "success_rate": 85,  # Below 90%
-            "processing_time_ms": 50
+            "processing_time_ms": 50,
         }
     }
 
-    error_stats = {
-        "error_rate_percent": 0
-    }
+    error_stats = {"error_rate_percent": 0}
 
     alerts = stats._calculate_alerts(service_metrics, error_stats)
 
@@ -112,13 +103,11 @@ def test_calculate_alerts_slow_processing():
     service_metrics = {
         "slow-service": {
             "success_rate": 100,
-            "processing_time_ms": 1500  # > 1000ms
+            "processing_time_ms": 1500,  # > 1000ms
         }
     }
 
-    error_stats = {
-        "error_rate_percent": 0
-    }
+    error_stats = {"error_rate_percent": 0}
 
     alerts = stats._calculate_alerts(service_metrics, error_stats)
 
@@ -161,15 +150,14 @@ async def test_close_influxdb():
 
 def test_feature_flag_from_env():
     """Test feature flag reads from environment"""
-    with patch.dict(os.environ, {'USE_INFLUXDB_STATS': 'false'}):
+    with patch.dict(os.environ, {"USE_INFLUXDB_STATS": "false"}):
         stats = StatsEndpoints()
         assert stats.use_influxdb is False
 
-    with patch.dict(os.environ, {'USE_INFLUXDB_STATS': 'true'}):
+    with patch.dict(os.environ, {"USE_INFLUXDB_STATS": "true"}):
         stats = StatsEndpoints()
         assert stats.use_influxdb is True
 
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

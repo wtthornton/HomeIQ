@@ -27,6 +27,7 @@ _NO_BACKING_STORE = (
 
 class ConfigItem(BaseModel):
     """Configuration item model"""
+
     key: str
     value: Any
     description: str
@@ -38,6 +39,7 @@ class ConfigItem(BaseModel):
 
 class ConfigUpdate(BaseModel):
     """Configuration update model"""
+
     key: str
     value: Any
     reason: str | None = None
@@ -45,6 +47,7 @@ class ConfigUpdate(BaseModel):
 
 class ConfigValidation(BaseModel):
     """Configuration validation model"""
+
     is_valid: bool
     errors: list[str] = []
     warnings: list[str] = []
@@ -68,7 +71,9 @@ class ConfigEndpoints:
         @self.router.get("/config", response_model=dict[str, Any])
         async def get_configuration(
             service: str | None = Query(None, description="Specific service to get config for"),
-            include_sensitive: bool = Query(False, description="Include sensitive configuration values")
+            include_sensitive: bool = Query(
+                False, description="Include sensitive configuration values"
+            ),
         ):
             """Get configuration for services"""
             try:
@@ -122,7 +127,7 @@ class ConfigEndpoints:
         @self.router.put("/config/{service}", response_model=dict[str, Any])
         async def update_configuration(
             service: str,
-            updates: list[ConfigUpdate] = Body(..., description="Configuration updates")
+            updates: list[ConfigUpdate] = Body(..., description="Configuration updates"),
         ):
             """Update configuration for a specific service"""
             try:
@@ -137,7 +142,7 @@ class ConfigEndpoints:
                 if not validation.is_valid:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Configuration validation failed: {', '.join(validation.errors)}"
+                        detail=f"Configuration validation failed: {', '.join(validation.errors)}",
                     )
 
                 # Apply updates
@@ -147,7 +152,7 @@ class ConfigEndpoints:
                     "service": service,
                     "updated": len(updates),
                     "timestamp": datetime.now().isoformat(),
-                    "result": result
+                    "result": result,
                 }
 
             except HTTPException:
@@ -167,7 +172,7 @@ class ConfigEndpoints:
         @self.router.post("/config/{service}/validate", response_model=ConfigValidation)
         async def validate_configuration(
             service: str,
-            config: dict[str, Any] = Body(..., description="Configuration to validate")
+            config: dict[str, Any] = Body(..., description="Configuration to validate"),
         ):
             """Validate configuration for a service"""
             try:
@@ -214,7 +219,7 @@ class ConfigEndpoints:
         @self.router.post("/config/{service}/restore", response_model=dict[str, Any])
         async def restore_configuration(
             service: str,
-            backup_data: dict[str, Any] = Body(..., description="Backup data to restore")
+            backup_data: dict[str, Any] = Body(..., description="Backup data to restore"),
         ):
             """Restore configuration from backup"""
             try:
@@ -238,8 +243,7 @@ class ConfigEndpoints:
 
         @self.router.get("/config/{service}/history", response_model=list[dict[str, Any]])
         async def get_config_history(
-            service: str,
-            limit: int = Query(10, description="Maximum number of history entries")
+            service: str, limit: int = Query(10, description="Maximum number of history entries")
         ):
             """Get configuration change history for a service"""
             try:
@@ -307,7 +311,9 @@ class ConfigEndpoints:
             ]
         return schema
 
-    async def _validate_config_updates(self, service: str, updates: list[ConfigUpdate]) -> ConfigValidation:
+    async def _validate_config_updates(
+        self, service: str, updates: list[ConfigUpdate]
+    ) -> ConfigValidation:
         """Validate configuration updates"""
         errors = []
         warnings = []
@@ -342,13 +348,11 @@ class ConfigEndpoints:
                 if validation_result["warnings"]:
                     warnings.extend(validation_result["warnings"])
 
-        return ConfigValidation(
-            is_valid=len(errors) == 0,
-            errors=errors,
-            warnings=warnings
-        )
+        return ConfigValidation(is_valid=len(errors) == 0, errors=errors, warnings=warnings)
 
-    async def _apply_config_updates(self, service: str, updates: list[ConfigUpdate]) -> dict[str, Any]:
+    async def _apply_config_updates(
+        self, service: str, updates: list[ConfigUpdate]
+    ) -> dict[str, Any]:
         """Apply configuration updates to a service.
 
         Writes through ConfigManager. PermissionError (a sensitive key with
@@ -373,7 +377,9 @@ class ConfigEndpoints:
             "configuration": config_manager.sanitize_config(written),
         }
 
-    async def _validate_service_config(self, service: str, config: dict[str, Any]) -> ConfigValidation:
+    async def _validate_service_config(
+        self, service: str, config: dict[str, Any]
+    ) -> ConfigValidation:
         """Validate complete service configuration"""
         # Convert config dict to ConfigUpdate list
         updates = [ConfigUpdate(key=k, value=v) for k, v in config.items()]
@@ -386,7 +392,9 @@ class ConfigEndpoints:
             detail=_NO_BACKING_STORE.format(feature="backup"),
         )
 
-    async def _restore_service_config(self, _service: str, _backup_data: dict[str, Any]) -> dict[str, Any]:
+    async def _restore_service_config(
+        self, _service: str, _backup_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Restore service configuration from backup -- unimplemented."""
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
@@ -440,6 +448,7 @@ class ConfigEndpoints:
         # Pattern validation
         if "pattern" in rules and isinstance(value, str):
             import re
+
             if not re.match(rules["pattern"], value):
                 errors.append(f"Value {value} does not match pattern {rules['pattern']}")
 

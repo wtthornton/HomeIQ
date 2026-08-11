@@ -36,7 +36,7 @@ app = FastAPI(
     title="HA Ingestor Admin API - Simplified",
     description="Simplified Admin API for Dashboard Integration",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add CORS middleware
@@ -64,7 +64,7 @@ async def root():
     return {
         "message": "HA Ingestor Admin API - Simplified",
         "version": "1.0.0",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 

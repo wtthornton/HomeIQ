@@ -58,20 +58,19 @@ class AdminAPIService:
         self.cfg: Settings = cfg or settings
         c = self.cfg
         self.rate_limiter: RateLimiter = RateLimiter(
-            rate=c.rate_limit_per_min, per=60, burst=c.rate_limit_burst,
+            rate=c.rate_limit_per_min,
+            per=60,
+            burst=c.rate_limit_burst,
         )
         self.auth_manager: AuthManager = AuthManager(
-            api_key=c.api_key, allow_anonymous=c.allow_anonymous,
+            api_key=c.api_key,
+            allow_anonymous=c.allow_anonymous,
         )
         self.health_endpoints: HealthEndpoints = HealthEndpoints()
         self.stats_endpoints: StatsEndpoints = StatsEndpoints()
         self.config_endpoints: ConfigEndpoints = ConfigEndpoints()
-        self.docker_endpoints: DockerEndpoints = DockerEndpoints(
-            self.auth_manager
-        )
-        self.monitoring_endpoints: MonitoringEndpoints = MonitoringEndpoints(
-            self.auth_manager
-        )
+        self.docker_endpoints: DockerEndpoints = DockerEndpoints(self.auth_manager)
+        self.monitoring_endpoints: MonitoringEndpoints = MonitoringEndpoints(self.auth_manager)
 
     def setup_app(self, app):
         """Wire middleware, routes, and exception handlers onto *app*."""
@@ -79,20 +78,25 @@ class AdminAPIService:
         c = self.cfg
         setup_observability(app)
         setup_cors(
-            app, origins=c.get_cors_origins_list(),
-            methods=c.get_cors_methods_list(), headers=c.get_cors_headers_list(),
+            app,
+            origins=c.get_cors_origins_list(),
+            methods=c.get_cors_methods_list(),
+            headers=c.get_cors_headers_list(),
         )
         register_rate_limit_middleware(app, self.rate_limiter)
         _counters = register_logging_middleware(app)
         register_public_endpoints(
-            app, stats_endpoints=self.stats_endpoints,
+            app,
+            stats_endpoints=self.stats_endpoints,
             allow_anonymous=c.allow_anonymous,
             docs_enabled=c.docs_enabled,
             rate_limiter=self.rate_limiter,
-            start_time=_start_time, counters=_counters,
+            start_time=_start_time,
+            counters=_counters,
         )
         register_routers(
-            app, auth_manager=self.auth_manager,
+            app,
+            auth_manager=self.auth_manager,
             health_endpoints=self.health_endpoints,
             stats_endpoints=self.stats_endpoints,
             config_endpoints=self.config_endpoints,
@@ -100,7 +104,9 @@ class AdminAPIService:
             monitoring_endpoints=self.monitoring_endpoints,
         )
         register_root_endpoints(
-            app, api_title=c.api_title, api_version=c.api_version,
+            app,
+            api_title=c.api_title,
+            api_version=c.api_version,
             api_description=c.api_description,
             allow_anonymous=c.allow_anonymous,
             docs_enabled=c.docs_enabled,
@@ -120,7 +126,8 @@ def _add_exception_handlers(app) -> None:
 
     @app.exception_handler(HTTPException)
     async def http_exc(
-        request: Request, exc: HTTPException,
+        request: Request,
+        exc: HTTPException,
     ) -> JSONResponse:
         """Handle HTTP exceptions."""
         return JSONResponse(
@@ -134,7 +141,8 @@ def _add_exception_handlers(app) -> None:
 
     @app.exception_handler(Exception)
     async def general_exc(
-        request: Request, exc: Exception,
+        request: Request,
+        exc: Exception,
     ) -> JSONResponse:
         """Handle uncaught exceptions."""
         logger.error("Unhandled exception: %s", exc, exc_info=True)
@@ -209,7 +217,8 @@ admin_api_service.setup_app(app)
 
 if __name__ == "__main__":
     uvicorn.run(
-        "src.main:app", host="0.0.0.0",  # noqa: S104
+        "src.main:app",
+        host="0.0.0.0",  # noqa: S104
         port=c.service_port,
         reload=os.getenv("RELOAD", "false").lower() == "true",
         log_level=c.log_level.lower(),

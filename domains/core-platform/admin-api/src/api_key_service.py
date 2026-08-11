@@ -13,17 +13,21 @@ import aiohttp
 
 logger = logging.getLogger(__name__)
 
+
 class APIKeyStatus(Enum):
     """API key status enumeration"""
+
     CONFIGURED = "configured"
     INVALID = "invalid"
     REQUIRED = "required"
     DISABLED = "disabled"
     TESTING = "testing"
 
+
 @dataclass
 class APIKeyInfo:
     """API key information model"""
+
     service: str
     key_name: str
     status: APIKeyStatus
@@ -32,6 +36,7 @@ class APIKeyInfo:
     description: str
     validation_url: str | None = None
 
+
 class APIKeyService:
     """API key management service"""
 
@@ -39,53 +44,55 @@ class APIKeyService:
         """Initialize API key service"""
         self.config_file = "/app/infrastructure/.env.production"
         self.config_dir = "/app/infrastructure"
-        self.allow_secret_writes = os.getenv('ADMIN_API_ALLOW_SECRET_WRITES', 'false').lower() == 'true'
+        self.allow_secret_writes = (
+            os.getenv("ADMIN_API_ALLOW_SECRET_WRITES", "false").lower() == "true"
+        )
 
         # API key configuration for each service
         self.api_key_config = {
-            'weather': {
-                'env_var': 'WEATHER_API_KEY',
-                'description': 'OpenWeatherMap API Key',
-                'required': True,
-                'validation_url': 'https://api.openweathermap.org/data/2.5/weather?lat=0&lon=0&appid={key}',
-                'validation_response_check': 'cod'
+            "weather": {
+                "env_var": "WEATHER_API_KEY",
+                "description": "OpenWeatherMap API Key",
+                "required": True,
+                "validation_url": "https://api.openweathermap.org/data/2.5/weather?lat=0&lon=0&appid={key}",
+                "validation_response_check": "cod",
             },
-            'carbon-intensity': {
-                'env_var': 'WATTTIME_API_TOKEN',
-                'description': 'WattTime API Token',
-                'required': True,
-                'validation_url': 'https://api2.watttime.org/v2/index',
-                'validation_headers': {'Authorization': 'Bearer {key}'},
-                'validation_response_check': 'status'
+            "carbon-intensity": {
+                "env_var": "WATTTIME_API_TOKEN",
+                "description": "WattTime API Token",
+                "required": True,
+                "validation_url": "https://api2.watttime.org/v2/index",
+                "validation_headers": {"Authorization": "Bearer {key}"},
+                "validation_response_check": "status",
             },
-            'electricity-pricing': {
-                'env_var': 'PRICING_API_KEY',
-                'description': 'Electricity Pricing API Key',
-                'required': False,
-                'validation_url': None,
-                'validation_response_check': None
+            "electricity-pricing": {
+                "env_var": "PRICING_API_KEY",
+                "description": "Electricity Pricing API Key",
+                "required": False,
+                "validation_url": None,
+                "validation_response_check": None,
             },
-            'air-quality': {
-                'env_var': 'AIRNOW_API_KEY',
-                'description': 'AirNow API Key',
-                'required': True,
-                'validation_url': 'https://www.airnowapi.org/aq/observation/zipCode/current/?format=application/json&zipCode=10001&distance=25&API_KEY={key}',
-                'validation_response_check': 'Status'
+            "air-quality": {
+                "env_var": "AIRNOW_API_KEY",
+                "description": "AirNow API Key",
+                "required": True,
+                "validation_url": "https://www.airnowapi.org/aq/observation/zipCode/current/?format=application/json&zipCode=10001&distance=25&API_KEY={key}",
+                "validation_response_check": "Status",
             },
-            'calendar': {
-                'env_var': 'GOOGLE_CLIENT_SECRET',
-                'description': 'Google Calendar API Secret',
-                'required': False,
-                'validation_url': None,
-                'validation_response_check': None
+            "calendar": {
+                "env_var": "GOOGLE_CLIENT_SECRET",
+                "description": "Google Calendar API Secret",
+                "required": False,
+                "validation_url": None,
+                "validation_response_check": None,
             },
-            'smart-meter': {
-                'env_var': 'METER_API_TOKEN',
-                'description': 'Smart Meter API Token',
-                'required': False,
-                'validation_url': None,
-                'validation_response_check': None
-            }
+            "smart-meter": {
+                "env_var": "METER_API_TOKEN",
+                "description": "Smart Meter API Token",
+                "required": False,
+                "validation_url": None,
+                "validation_response_check": None,
+            },
         }
 
     async def get_api_keys(self) -> list[APIKeyInfo]:
@@ -99,14 +106,14 @@ class APIKeyService:
 
         for service, config in self.api_key_config.items():
             # Get current key value
-            current_key = os.getenv(config['env_var'])
+            current_key = os.getenv(config["env_var"])
 
             # Determine status
             if not current_key:
-                status = APIKeyStatus.REQUIRED if config['required'] else APIKeyStatus.DISABLED
+                status = APIKeyStatus.REQUIRED if config["required"] else APIKeyStatus.DISABLED
             else:
                 # Test the key if we have validation
-                if config['validation_url']:
+                if config["validation_url"]:
                     is_valid = await self._test_api_key(service, current_key)
                     status = APIKeyStatus.CONFIGURED if is_valid else APIKeyStatus.INVALID
                 else:
@@ -117,12 +124,12 @@ class APIKeyService:
 
             api_key_info = APIKeyInfo(
                 service=service,
-                key_name=config['env_var'],
+                key_name=config["env_var"],
                 status=status,
                 masked_key=masked_key,
-                is_required=config['required'],
-                description=config['description'],
-                validation_url=config['validation_url']
+                is_required=config["required"],
+                description=config["description"],
+                validation_url=config["validation_url"],
             )
 
             api_keys.append(api_key_info)
@@ -151,7 +158,7 @@ class APIKeyService:
                 return False, f"Invalid API key format for {service}"
 
             # Test the API key if validation URL is available
-            if config['validation_url']:
+            if config["validation_url"]:
                 is_valid = await self._test_api_key(service, api_key)
                 if not is_valid:
                     return False, f"API key validation failed for {service}"
@@ -160,9 +167,9 @@ class APIKeyService:
             # so it must run before the process env is touched: mutating
             # os.environ first left the rejected key live in the running
             # process even when the write was denied.
-            await self._update_config_file(config['env_var'], api_key)
+            await self._update_config_file(config["env_var"], api_key)
 
-            os.environ[config['env_var']] = api_key
+            os.environ[config["env_var"]] = api_key
 
             logger.info(f"Successfully updated API key for {service}")
             return True, f"API key updated successfully for {service}"
@@ -188,7 +195,7 @@ class APIKeyService:
 
             config = self.api_key_config[service]
 
-            if not config['validation_url']:
+            if not config["validation_url"]:
                 return True, f"No validation available for {service}"
 
             is_valid = await self._test_api_key(service, api_key)
@@ -216,10 +223,10 @@ class APIKeyService:
             return APIKeyStatus.DISABLED
 
         config = self.api_key_config[service]
-        current_key = os.getenv(config['env_var'])
+        current_key = os.getenv(config["env_var"])
 
         if not current_key:
-            return APIKeyStatus.REQUIRED if config['required'] else APIKeyStatus.DISABLED
+            return APIKeyStatus.REQUIRED if config["required"] else APIKeyStatus.DISABLED
 
         return APIKeyStatus.CONFIGURED
 
@@ -237,14 +244,16 @@ class APIKeyService:
         try:
             config = self.api_key_config[service]
 
-            if not config['validation_url']:
+            if not config["validation_url"]:
                 return True  # No validation available, assume valid
 
             # Replace placeholder in validation URL
-            test_url = config['validation_url'].format(key=api_key)
+            test_url = config["validation_url"].format(key=api_key)
 
             # Build request headers with key substitution
-            headers = {k: v.format(key=api_key) for k, v in config.get('validation_headers', {}).items()}
+            headers = {
+                k: v.format(key=api_key) for k, v in config.get("validation_headers", {}).items()
+            }
 
             # Make test request
             timeout = aiohttp.ClientTimeout(total=10)
@@ -252,14 +261,16 @@ class APIKeyService:
                 async with session.get(test_url, headers=headers) as response:
                     if response.status == 200:
                         # Check for expected response structure
-                        if config['validation_response_check']:
+                        if config["validation_response_check"]:
                             data = await response.json()
-                            return config['validation_response_check'] in data
+                            return config["validation_response_check"] in data
                         return True
                     elif response.status == 401:
                         return False  # Unauthorized - invalid key
                     else:
-                        logger.warning(f"Unexpected response status {response.status} for {service}")
+                        logger.warning(
+                            f"Unexpected response status {response.status} for {service}"
+                        )
                         return False
 
         except Exception as e:
@@ -281,13 +292,13 @@ class APIKeyService:
             return False
 
         # Basic format validation based on service
-        if service == 'weather':
+        if service == "weather":
             # OpenWeatherMap keys are typically 32 characters
             return len(api_key) >= 20
-        elif service == 'carbon-intensity':
+        elif service == "carbon-intensity":
             # WattTime tokens are typically longer
             return len(api_key) >= 10
-        elif service == 'air-quality':
+        elif service == "air-quality":
             # AirNow keys are typically shorter
             return len(api_key) >= 5
         else:
@@ -327,7 +338,7 @@ class APIKeyService:
                     "Updating stored API keys remotely is disabled. Use infrastructure secrets instead."
                 )
             # Read current config file
-            config_path = Path(self.config_dir) / '.env.production'
+            config_path = Path(self.config_dir) / ".env.production"
 
             if not config_path.exists():
                 # Create config file if it doesn't exist
@@ -349,7 +360,7 @@ class APIKeyService:
                 lines.append(f"{env_var}={value}\n")
 
             # Write back to file
-            with config_path.open('w') as f:
+            with config_path.open("w") as f:
                 f.writelines(lines)
 
             logger.info(f"Updated {env_var} in config file")

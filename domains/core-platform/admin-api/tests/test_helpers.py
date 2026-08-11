@@ -131,7 +131,9 @@ class TestGatherDependencyChecks:
         assert len(results) == 3
         assert all(r["status"] == "healthy" for r in results)
         assert {r["name"] for r in results} == {
-            "InfluxDB", "WebSocket Ingestion", "Data API",
+            "InfluxDB",
+            "WebSocket Ingestion",
+            "Data API",
         }
 
     @pytest.mark.asyncio

@@ -77,9 +77,7 @@ class MqttConfig(BaseModel):
             raise ValueError("MQTT_BROKER cannot be empty")
         allowed_prefixes = ("mqtt://", "mqtts://", "ws://", "wss://")
         if not value.startswith(allowed_prefixes):
-            raise ValueError(
-                "MQTT_BROKER must start with one of: mqtt://, mqtts://, ws://, wss://"
-            )
+            raise ValueError("MQTT_BROKER must start with one of: mqtt://, mqtts://, ws://, wss://")
         return value
 
     @field_validator("base_topic")
@@ -151,7 +149,7 @@ def _persist_config(payload: dict[str, Any]) -> None:
 async def get_mqtt_config() -> MqttConfig:
     """
     Return current MQTT/Zigbee configuration values.
-    
+
     This endpoint is public (no authentication required) to allow the dashboard
     to load existing configuration. Configuration values are not sensitive
     (they're already in environment variables or config files).
@@ -189,4 +187,3 @@ async def update_mqtt_config(config: MqttConfig) -> dict[str, Any]:
         "config": payload,
         "config_path": str(_config_path()),
     }
-

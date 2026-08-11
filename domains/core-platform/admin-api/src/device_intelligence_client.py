@@ -41,7 +41,7 @@ class DeviceIntelligenceClient:
         limit: int = 100,
         manufacturer: str | None = None,
         model: str | None = None,
-        area_id: str | None = None
+        area_id: str | None = None,
     ) -> dict[str, Any]:
         """
         Get devices from Device Intelligence Service.
@@ -65,12 +65,16 @@ class DeviceIntelligenceClient:
                 params["area_id"] = area_id
 
             response = await self._cross_client.call(
-                "GET", "/api/devices", params=params,
+                "GET",
+                "/api/devices",
+                params=params,
             )
             response.raise_for_status()
 
             data = response.json()
-            logger.debug("Retrieved %s devices from Device Intelligence Service", data.get('count', 0))
+            logger.debug(
+                "Retrieved %s devices from Device Intelligence Service", data.get("count", 0)
+            )
             return data
 
         except CircuitOpenError:
@@ -95,7 +99,8 @@ class DeviceIntelligenceClient:
         """
         try:
             response = await self._cross_client.call(
-                "GET", f"/api/devices/{device_id}",
+                "GET",
+                f"/api/devices/{device_id}",
             )
             response.raise_for_status()
 
@@ -153,7 +158,8 @@ class DeviceIntelligenceClient:
         """
         try:
             response = await self._cross_client.call(
-                "GET", f"/api/devices/{device_id}/capabilities",
+                "GET",
+                f"/api/devices/{device_id}/capabilities",
             )
             response.raise_for_status()
 

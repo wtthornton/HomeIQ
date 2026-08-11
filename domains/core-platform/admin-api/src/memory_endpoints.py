@@ -137,7 +137,7 @@ class TrustScoresResponse(BaseModel):
     overall_trust: float = Field(..., ge=0.0, le=1.0)
 
 
-def _memory_to_response(memory: "Memory") -> MemoryResponse:
+def _memory_to_response(memory: Memory) -> MemoryResponse:
     """Convert Memory model to response model."""
     from homeiq_memory import effective_confidence
 
@@ -176,9 +176,8 @@ async def _calculate_domain_trust(domain: str, session) -> TrustScoreResponse:
     Uses the `domain` column for accurate matching. Falls back to entity_ids
     prefix matching for memories that predate the domain column (NULL domain).
     """
-    from sqlalchemy import select
-
     from homeiq_memory import Memory, MemoryType
+    from sqlalchemy import select
 
     # Approvals: outcome memories with this domain and sufficient confidence
     approval_stmt = (
@@ -281,15 +280,9 @@ async def list_memories(
     memory_type: str | None = Query(
         None, description="Filter by memory type (behavioral, preference, etc.)"
     ),
-    min_confidence: float = Query(
-        0.0, ge=0.0, le=1.0, description="Minimum confidence threshold"
-    ),
-    entity_id: str | None = Query(
-        None, description="Filter by entity ID (partial match)"
-    ),
-    search: str | None = Query(
-        None, description="Full-text search in memory content"
-    ),
+    min_confidence: float = Query(0.0, ge=0.0, le=1.0, description="Minimum confidence threshold"),
+    entity_id: str | None = Query(None, description="Filter by entity ID (partial match)"),
+    search: str | None = Query(None, description="Full-text search in memory content"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
 ) -> MemoryListResponse:
@@ -301,9 +294,8 @@ async def list_memories(
     """
     client = await _ensure_client_initialized()
 
-    from sqlalchemy import select
-
     from homeiq_memory import Memory, MemoryType, effective_confidence
+    from sqlalchemy import select
 
     async with client._get_session() as session:
         stmt = select(Memory).order_by(Memory.updated_at.desc())
@@ -368,9 +360,7 @@ async def get_memory_stats() -> MemoryStatsResponse:
         memories = (await session.execute(select(Memory))).scalars().all()
         recent_24h = (
             await session.execute(
-                select(func.count())
-                .select_from(Memory)
-                .where(Memory.created_at >= cutoff)
+                select(func.count()).select_from(Memory).where(Memory.created_at >= cutoff)
             )
         ).scalar() or 0
         archived = (
@@ -408,12 +398,8 @@ async def get_memory_metrics() -> dict:
 
         return {
             "counters": memory_metrics.get_counters(),
-            "search_latency": memory_metrics.get_histogram_stats(
-                "memory_search_latency_ms"
-            ),
-            "embedding_latency": memory_metrics.get_histogram_stats(
-                "memory_embedding_latency_ms"
-            ),
+            "search_latency": memory_metrics.get_histogram_stats("memory_search_latency_ms"),
+            "embedding_latency": memory_metrics.get_histogram_stats("memory_embedding_latency_ms"),
         }
     except ImportError:
         return {"counters": {}, "search_latency": {}, "embedding_latency": {}}

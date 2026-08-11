@@ -16,7 +16,7 @@ def _validate_entity_id(entity_id: str) -> str:
     # Normalize __ to . for HA format
     normalized = entity_id if "." in entity_id else entity_id.replace("__", ".")
     # Validate format: domain.name (only alphanumeric, underscores, dots)
-    if not re.match(r'^[a-z_]+\.[a-z0-9_]+$', normalized):
+    if not re.match(r"^[a-z_]+\.[a-z0-9_]+$", normalized):
         raise HTTPException(status_code=400, detail=f"Invalid entity_id format: {entity_id}")
     return normalized
 
@@ -25,12 +25,12 @@ async def _fetch_from_home_assistant(path: str) -> Any:
     if not HA_URL:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="HA_URL is not configured for admin-api"
+            detail="HA_URL is not configured for admin-api",
         )
     if not HA_TOKEN:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="HA token is not configured for admin-api"
+            detail="HA token is not configured for admin-api",
         )
 
     url = f"{HA_URL.rstrip('/')}{path}"
@@ -45,21 +45,19 @@ async def _fetch_from_home_assistant(path: str) -> Any:
             response.raise_for_status()
             return response.json()
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=exc.response.status_code,
-            detail=exc.response.text
-        ) from exc
+        raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text) from exc
     except httpx.RequestError as exc:
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to reach Home Assistant: {exc}"
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Failed to reach Home Assistant: {exc}"
         ) from exc
 
 
 @router.get("/states", summary="List Home Assistant entity states")
 async def list_states(
     domain: str | None = Query(None, description="Filter by HA domain, e.g. sensor"),
-    entity_prefix: str | None = Query(None, description="Filter by entity_id prefix, e.g. sensor.team_tracker"),
+    entity_prefix: str | None = Query(
+        None, description="Filter by entity_id prefix, e.g. sensor.team_tracker"
+    ),
     limit: int = Query(1000, ge=1, le=5000, description="Max entities to return"),
 ) -> list[Any]:
     states = await _fetch_from_home_assistant("/api/states")
@@ -93,7 +91,6 @@ async def get_state(entity_id: str) -> Any:
     except HTTPException as exc:
         if exc.status_code == status.HTTP_404_NOT_FOUND:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Entity {normalized} not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Entity {normalized} not found"
             ) from exc
         raise
