@@ -1,7 +1,8 @@
 # Session handoff
 
 **Updated:** 2026-08-11T00:40:00Z
-**Git:** d1764362 (master == origin/master, clean)
+**Git:** master == origin/master, clean. Work merged in `d1764362` (PR #74); the
+commit carrying this handoff sits one above it.
 **Linear P0:** TAP-5434 open, but only on its blocked criterion
 
 > Session 9: closed the actionable half of session 8's Open list via PR #74.
