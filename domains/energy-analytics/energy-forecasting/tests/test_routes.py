@@ -255,4 +255,5 @@ class TestForecastCache:
 
         # Cleanup
         from src.api.routes import _forecast_cache
+
         _forecast_cache.pop("forecast_999", None)

@@ -125,7 +125,7 @@ class TestEnergyForecasterSaveLoad:
         config_path = model_save_path.with_suffix(".config.json")
         assert config_path.exists()
 
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             config = json.load(f)
 
         assert config["model_type"] == "naive"
@@ -163,7 +163,7 @@ class TestEnergyForecasterSaveLoad:
 
         # Remove JSON config and create pickle config instead
         json_path = model_save_path.with_suffix(".config.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             config = json.load(f)
         json_path.unlink()
 
@@ -190,7 +190,7 @@ class TestEnergyForecasterSaveLoad:
 
         # Tamper with config
         config_path = model_save_path.with_suffix(".config.json")
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             config = json.load(f)
         config["model_type"] = "invalid"
         with open(config_path, "w") as f:
@@ -241,7 +241,7 @@ class TestEnergyForecasterEvaluate:
         """Test that evaluate returns expected metrics."""
         _, test = sample_series.split_after(0.8)
         # Use only output_chunk_length points to avoid auto-regression warning
-        test_subset = test[:trained_forecaster.output_chunk_length]
+        test_subset = test[: trained_forecaster.output_chunk_length]
 
         results = trained_forecaster.evaluate(test_subset)
 
@@ -253,7 +253,7 @@ class TestEnergyForecasterEvaluate:
     def test_evaluate_custom_metrics(self, trained_forecaster, sample_series):
         """Test evaluate with custom metric list."""
         _, test = sample_series.split_after(0.8)
-        test_subset = test[:trained_forecaster.output_chunk_length]
+        test_subset = test[: trained_forecaster.output_chunk_length]
 
         results = trained_forecaster.evaluate(test_subset, metrics=["rmse"])
         assert "rmse" in results

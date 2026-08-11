@@ -7,16 +7,13 @@ Port: 8037
 """
 
 import asyncio
-import logging
-import sys
 from pathlib import Path
 
 import structlog
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from . import __version__
 from .api.routes import load_model, router
@@ -99,6 +96,7 @@ def _load_forecasting_model() -> None:
 # ---------------------------------------------------------------------------
 # Startup / Shutdown
 # ---------------------------------------------------------------------------
+
 
 async def _startup_model() -> None:
     """Load the forecasting model on startup."""

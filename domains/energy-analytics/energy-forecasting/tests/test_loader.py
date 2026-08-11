@@ -98,10 +98,12 @@ class TestStandardizeColumns:
         from src.data.energy_loader import EnergyDataLoader
 
         loader = EnergyDataLoader()
-        df = pl.DataFrame({
-            "time": ["2024-01-01 00:00:00", "2024-01-01 01:00:00"],
-            "watts": [100.0, 200.0],
-        })
+        df = pl.DataFrame(
+            {
+                "time": ["2024-01-01 00:00:00", "2024-01-01 01:00:00"],
+                "watts": [100.0, 200.0],
+            }
+        )
 
         result = loader._standardize_columns(df)
         assert "timestamp" in result.columns
@@ -112,10 +114,12 @@ class TestStandardizeColumns:
         from src.data.energy_loader import EnergyDataLoader
 
         loader = EnergyDataLoader()
-        df = pl.DataFrame({
-            "DateTime": ["2024-01-01 00:00:00"],
-            "Active_Power": [150.0],
-        })
+        df = pl.DataFrame(
+            {
+                "DateTime": ["2024-01-01 00:00:00"],
+                "Active_Power": [150.0],
+            }
+        )
 
         result = loader._standardize_columns(df)
         assert "timestamp" in result.columns
@@ -126,10 +130,12 @@ class TestStandardizeColumns:
         from src.data.energy_loader import EnergyDataLoader
 
         loader = EnergyDataLoader()
-        df = pl.DataFrame({
-            "ts": ["2024-01-01 00:00:00"],
-            "kwh": [1.5],
-        })
+        df = pl.DataFrame(
+            {
+                "ts": ["2024-01-01 00:00:00"],
+                "kwh": [1.5],
+            }
+        )
 
         result = loader._standardize_columns(df)
         assert "timestamp" in result.columns
@@ -140,10 +146,12 @@ class TestStandardizeColumns:
         from src.data.energy_loader import EnergyDataLoader
 
         loader = EnergyDataLoader()
-        df = pl.DataFrame({
-            "foo": [1],
-            "bar": [2],
-        })
+        df = pl.DataFrame(
+            {
+                "foo": [1],
+                "bar": [2],
+            }
+        )
 
         result = loader._standardize_columns(df)
         assert "foo" in result.columns
@@ -250,9 +258,11 @@ class TestToDartsTimeseries:
         from src.data.energy_loader import EnergyDataLoader
 
         loader = EnergyDataLoader()
-        df = pl.DataFrame({
-            "timestamp": [datetime(2024, 1, 1), datetime(2024, 1, 2)],
-        })
+        df = pl.DataFrame(
+            {
+                "timestamp": [datetime(2024, 1, 1), datetime(2024, 1, 2)],
+            }
+        )
 
         with pytest.raises(ValueError, match="'power' column"):
             loader.to_darts_timeseries(df)
@@ -328,9 +338,7 @@ class TestSplitByTime:
         from src.data.energy_loader import EnergyDataLoader
 
         loader = EnergyDataLoader()
-        train, val, test = loader.split_by_time(
-            sample_polars_df, train_ratio=0.7, val_ratio=0.15
-        )
+        train, val, test = loader.split_by_time(sample_polars_df, train_ratio=0.7, val_ratio=0.15)
 
         total = len(sample_polars_df)
         assert len(train) == int(total * 0.7)
