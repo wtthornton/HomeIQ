@@ -501,6 +501,11 @@ jobs:
           echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
 
+          # FAILED was computed above and then never used, so this job reported
+          # success while the jobs it summarizes were red — shared-lib-compat
+          # among them. Propagate it.
+          exit "$FAILED"
+
           if [ "$FAILED" -eq 1 ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "> **Note:** Cross-group integration failures may indicate breaking API changes between domains." >> $GITHUB_STEP_SUMMARY
