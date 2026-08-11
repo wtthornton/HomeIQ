@@ -176,7 +176,11 @@ class OpenVINOManager:
                         from transformers import AutoTokenizer  # type: ignore
 
                         # Check for HuggingFace token from environment
-                        hf_token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_HUB_TOKEN") or os.getenv("HUGGINGFACE_TOKEN")
+                        hf_token = (
+                            os.getenv("HF_TOKEN")
+                            or os.getenv("HUGGINGFACE_HUB_TOKEN")
+                            or os.getenv("HUGGINGFACE_TOKEN")
+                        )
 
                         # Check if quantized model exists locally
                         model_path = self.models_dir / "bge-m3" / "bge-m3-base-int8"
@@ -225,6 +229,7 @@ class OpenVINOManager:
 
                 def _load_standard():
                     from sentence_transformers import SentenceTransformer  # type: ignore
+
                     return SentenceTransformer(
                         self.embedding_model_name,
                         cache_folder=str(self.models_dir),
@@ -261,6 +266,7 @@ class OpenVINOManager:
                     def _load_openvino():
                         from optimum.intel import OVModelForSequenceClassification  # type: ignore
                         from transformers import AutoTokenizer  # type: ignore
+
                         model = OVModelForSequenceClassification.from_pretrained(
                             "OpenVINO/bge-reranker-base-int8-ov",
                             cache_dir=str(self.models_dir),
@@ -287,6 +293,7 @@ class OpenVINOManager:
                         AutoModelForSequenceClassification,
                         AutoTokenizer,
                     )
+
                     tokenizer = AutoTokenizer.from_pretrained(
                         "BAAI/bge-reranker-base",
                         cache_dir=str(self.models_dir),
@@ -324,6 +331,7 @@ class OpenVINOManager:
                     def _load_openvino():
                         from optimum.intel import OVModelForSeq2SeqLM  # type: ignore
                         from transformers import AutoTokenizer  # type: ignore
+
                         model = OVModelForSeq2SeqLM.from_pretrained(
                             "google/flan-t5-small",
                             export=True,
@@ -348,6 +356,7 @@ class OpenVINOManager:
 
                 def _load_standard():
                     from transformers import T5ForConditionalGeneration, T5Tokenizer  # type: ignore
+
                     tokenizer = T5Tokenizer.from_pretrained(
                         "google/flan-t5-small",
                         cache_dir=str(self.models_dir),
@@ -444,8 +453,11 @@ class OpenVINOManager:
 
             # Batch tokenize all pairs at once
             inputs = self._reranker_tokenizer(
-                pairs, return_tensors="pt", truncation=True,
-                max_length=512, padding=True,
+                pairs,
+                return_tensors="pt",
+                truncation=True,
+                max_length=512,
+                padding=True,
             )
             try:
                 outputs = self._reranker_model(**inputs)
@@ -492,15 +504,20 @@ class OpenVINOManager:
             def _generate(prompt: str) -> str:
                 """Run a single generate call (no gc.collect per call -- MED-5)."""
                 local_inputs = self._classifier_tokenizer(
-                    prompt, return_tensors="pt", max_length=512, truncation=True,
+                    prompt,
+                    return_tensors="pt",
+                    max_length=512,
+                    truncation=True,
                 )
                 local_outputs = None
                 try:
                     local_outputs = self._classifier_model.generate(
-                        **local_inputs, max_new_tokens=5,
+                        **local_inputs,
+                        max_new_tokens=5,
                     )
                     return self._classifier_tokenizer.decode(
-                        local_outputs[0], skip_special_tokens=True,
+                        local_outputs[0],
+                        skip_special_tokens=True,
                     )
                 finally:
                     del local_inputs
@@ -550,6 +567,7 @@ class OpenVINOManager:
         gc.collect()
         with suppress(ImportError, Exception):
             import torch  # type: ignore
+
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 

@@ -18,6 +18,8 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 # Import from src package to preserve relative imports in main.py
+from utils import TestOpenVINOManager, cosine_similarity, deterministic_embedding
+
 from src.main import (
     ClassifyRequest,
     EmbeddingRequest,
@@ -29,7 +31,6 @@ from src.main import (
     rerank_candidates,
     warmup_models,
 )
-from utils import TestOpenVINOManager, cosine_similarity, deterministic_embedding
 
 
 @pytest.fixture
@@ -85,9 +86,7 @@ async def test_rerank_endpoint(_wired_manager):
     query_vec = deterministic_embedding(request.query)
     expected_top = max(
         request.candidates,
-        key=lambda candidate: cosine_similarity(
-            query_vec, deterministic_embedding(candidate["description"])
-        ),
+        key=lambda candidate: cosine_similarity(query_vec, deterministic_embedding(candidate["description"])),
     )
     assert response.ranked_candidates[0]["id"] == expected_top["id"]
     assert response.model_name == "bge-reranker-base"
@@ -116,6 +115,7 @@ async def test_embedding_validation_errors(monkeypatch):
 # --------------------------------------------------------------------------
 # Additional test coverage (from REVIEW_AND_FIXES.md testing improvements)
 # --------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_health_endpoint_partial_initialization(tmp_path, monkeypatch):
