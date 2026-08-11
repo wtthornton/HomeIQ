@@ -115,10 +115,14 @@ class HAEventSubscriber:
                 raise Exception(f"Unexpected message: {auth_msg}")
 
             # Send auth
-            await ws.send(json.dumps({
-                "type": "auth",
-                "access_token": self.ha_token,
-            }))
+            await ws.send(
+                json.dumps(
+                    {
+                        "type": "auth",
+                        "access_token": self.ha_token,
+                    }
+                )
+            )
 
             # Wait for auth_ok
             auth_result = await ws.recv()
@@ -140,10 +144,14 @@ class HAEventSubscriber:
                 except TimeoutError:
                     # Send ping to keep connection alive
                     self._message_id += 1
-                    await ws.send(json.dumps({
-                        "id": self._message_id,
-                        "type": "ping",
-                    }))
+                    await ws.send(
+                        json.dumps(
+                            {
+                                "id": self._message_id,
+                                "type": "ping",
+                            }
+                        )
+                    )
                 except Exception as e:
                     logger.error(f"Error receiving message: {e}")
                     if not self._running:
@@ -159,27 +167,39 @@ class HAEventSubscriber:
         """Subscribe to automation events."""
         # Subscribe to automation_triggered
         self._message_id += 1
-        await ws.send(json.dumps({
-            "id": self._message_id,
-            "type": "subscribe_events",
-            "event_type": "automation_triggered",
-        }))
+        await ws.send(
+            json.dumps(
+                {
+                    "id": self._message_id,
+                    "type": "subscribe_events",
+                    "event_type": "automation_triggered",
+                }
+            )
+        )
 
         # Subscribe to call_service events (to track action completion)
         self._message_id += 1
-        await ws.send(json.dumps({
-            "id": self._message_id,
-            "type": "subscribe_events",
-            "event_type": "call_service",
-        }))
+        await ws.send(
+            json.dumps(
+                {
+                    "id": self._message_id,
+                    "type": "subscribe_events",
+                    "event_type": "call_service",
+                }
+            )
+        )
 
         # Subscribe to state_changed for automation entities
         self._message_id += 1
-        await ws.send(json.dumps({
-            "id": self._message_id,
-            "type": "subscribe_events",
-            "event_type": "state_changed",
-        }))
+        await ws.send(
+            json.dumps(
+                {
+                    "id": self._message_id,
+                    "type": "subscribe_events",
+                    "event_type": "state_changed",
+                }
+            )
+        )
 
         logger.info("Subscribed to automation events")
 
@@ -236,11 +256,13 @@ class HAEventSubscriber:
             # Track action
             if "actions" not in pending:
                 pending["actions"] = []
-            pending["actions"].append({
-                "domain": data.get("domain"),
-                "service": data.get("service"),
-                "success": True,  # If we get the event, it succeeded
-            })
+            pending["actions"].append(
+                {
+                    "domain": data.get("domain"),
+                    "service": data.get("service"),
+                    "success": True,  # If we get the event, it succeeded
+                }
+            )
 
     async def _handle_state_changed(self, event_data: dict[str, Any]) -> None:
         """Handle state_changed event for automation entities."""

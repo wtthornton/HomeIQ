@@ -16,68 +16,81 @@ logger = logging.getLogger(__name__)
 
 # System noise filtering constants
 EXCLUDED_DOMAINS: set[str] = {
-    'image',      # Maps, camera images
-    'event',      # System events
-    'update',     # Software updates
-    'camera',     # Camera entities
-    'button',     # Buttons (not automation targets)
-    'weather',    # Weather entities (external data)
-    'calendar',   # Calendar entities (external events)
+    "image",  # Maps, camera images
+    "event",  # System events
+    "update",  # Software updates
+    "camera",  # Camera entities
+    "button",  # Buttons (not automation targets)
+    "weather",  # Weather entities (external data)
+    "calendar",  # Calendar entities (external events)
 }
 
 EXCLUDED_ENTITY_PREFIXES: list[str] = [
-    'sensor.home_assistant_',  # System sensors
-    'sensor.slzb_',            # Coordinator sensors
-    'image.',                  # Images/maps (Roborock, cameras)
-    'event.',                  # System events
-    'binary_sensor.system_',   # System binary sensors
-    'camera.',                 # Camera entities
-    'button.',                 # Button entities
-    'update.',                 # Update entities
+    "sensor.home_assistant_",  # System sensors
+    "sensor.slzb_",  # Coordinator sensors
+    "image.",  # Images/maps (Roborock, cameras)
+    "event.",  # System events
+    "binary_sensor.system_",  # System binary sensors
+    "camera.",  # Camera entities
+    "button.",  # Button entities
+    "update.",  # Update entities
 ]
 
 # External data patterns (sports, weather, calendar, energy APIs)
 EXTERNAL_DATA_PATTERNS: list[str] = [
-    '_tracker',                # External API trackers (sports, etc.)
-    'team_tracker',            # Sports team tracker entities
-    'nfl_', 'nhl_', 'mlb_', 'nba_', 'ncaa_',  # Sports league entities
-    'weather_',                # Weather API entities
-    'openweathermap_',         # OpenWeatherMap integration
-    'carbon_intensity_',       # Carbon intensity API
-    'electricity_pricing_',    # Electricity pricing API
-    'national_grid_',          # National Grid API
-    'calendar_',               # Calendar entities (external events)
+    "_tracker",  # External API trackers (sports, etc.)
+    "team_tracker",  # Sports team tracker entities
+    "nfl_",
+    "nhl_",
+    "mlb_",
+    "nba_",
+    "ncaa_",  # Sports league entities
+    "weather_",  # Weather API entities
+    "openweathermap_",  # OpenWeatherMap integration
+    "carbon_intensity_",  # Carbon intensity API
+    "electricity_pricing_",  # Electricity pricing API
+    "national_grid_",  # National Grid API
+    "calendar_",  # Calendar entities (external events)
 ]
 
 # System monitoring patterns
 SYSTEM_NOISE_PATTERNS: list[str] = [
-    '_cpu_',                   # CPU/monitoring sensors
-    '_temp',                   # Temperature sensors (system)
-    '_chip_',                  # Chip temperature sensors
-    'coordinator_',            # Coordinator-related sensors
-    '_battery',                # Battery level sensors
-    '_memory_',                # Memory sensors
-    '_signal_strength',        # Signal strength
-    '_linkquality',            # Zigbee link quality
-    '_update_',                # Update status
-    '_uptime',                 # Uptime sensors
-    '_last_seen',              # Last seen timestamps
+    "_cpu_",  # CPU/monitoring sensors
+    "_temp",  # Temperature sensors (system)
+    "_chip_",  # Chip temperature sensors
+    "coordinator_",  # Coordinator-related sensors
+    "_battery",  # Battery level sensors
+    "_memory_",  # Memory sensors
+    "_signal_strength",  # Signal strength
+    "_linkquality",  # Zigbee link quality
+    "_update_",  # Update status
+    "_uptime",  # Uptime sensors
+    "_last_seen",  # Last seen timestamps
 ]
 
 # Domain categorization for pattern validation
 ACTIONABLE_DOMAINS: set[str] = {
-    'light', 'switch', 'climate', 'media_player',
-    'lock', 'cover', 'fan', 'vacuum', 'scene'
+    "light",
+    "switch",
+    "climate",
+    "media_player",
+    "lock",
+    "cover",
+    "fan",
+    "vacuum",
+    "scene",
 }
 
 TRIGGER_DOMAINS: set[str] = {
-    'binary_sensor', 'sensor', 'device_tracker',
-    'person', 'input_boolean', 'input_select'
+    "binary_sensor",
+    "sensor",
+    "device_tracker",
+    "person",
+    "input_boolean",
+    "input_select",
 }
 
-PASSIVE_DOMAINS: set[str] = {
-    'image', 'camera', 'weather', 'sun', 'event', 'update', 'calendar'
-}
+PASSIVE_DOMAINS: set[str] = {"image", "camera", "weather", "sun", "event", "update", "calendar"}
 
 
 class EventFilter:
@@ -101,9 +114,9 @@ class EventFilter:
         Returns:
             Domain name (e.g., "light", "sensor")
         """
-        if '.' in entity_id:
-            return entity_id.split('.')[0]
-        return ''
+        if "." in entity_id:
+            return entity_id.split(".")[0]
+        return ""
 
     @staticmethod
     def is_external_data_entity(entity_id: str) -> bool:
@@ -126,7 +139,7 @@ class EventFilter:
         domain = EventFilter.get_domain(entity_id)
 
         # Check domain-level exclusions
-        if domain in {'weather', 'calendar'}:
+        if domain in {"weather", "calendar"}:
             return True
 
         # Check external data patterns
@@ -187,7 +200,7 @@ class EventFilter:
         return not EventFilter.is_system_noise(entity_id)
 
     @staticmethod
-    def filter_events(events_df: pd.DataFrame, entity_column: str = 'entity_id') -> pd.DataFrame:
+    def filter_events(events_df: pd.DataFrame, entity_column: str = "entity_id") -> pd.DataFrame:
         """
         Filter events DataFrame to exclude external data and system noise.
 
@@ -204,7 +217,9 @@ class EventFilter:
             return events_df
 
         if entity_column not in events_df.columns:
-            logger.warning(f"Column '{entity_column}' not found in events DataFrame. Available columns: {events_df.columns.tolist()}")
+            logger.warning(
+                f"Column '{entity_column}' not found in events DataFrame. Available columns: {events_df.columns.tolist()}"
+            )
             return events_df
 
         original_count = len(events_df)
@@ -225,7 +240,9 @@ class EventFilter:
         return filtered_df
 
     @staticmethod
-    def filter_external_data_sources(events_df: pd.DataFrame, entity_column: str = 'entity_id') -> pd.DataFrame:
+    def filter_external_data_sources(
+        events_df: pd.DataFrame, entity_column: str = "entity_id"
+    ) -> pd.DataFrame:
         """
         Filter out only external data sources (sports, weather, calendar, energy APIs).
 

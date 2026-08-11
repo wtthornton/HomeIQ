@@ -24,9 +24,12 @@ class TestGenerateAutomationEndpoint:
         # Override DB dependency
         def override_get_db():
             return test_db
+
         app.dependency_overrides[get_db] = override_get_db
         try:
-            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as ac:
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://test"
+            ) as ac:
                 yield ac
         finally:
             app.dependency_overrides.clear()
@@ -73,10 +76,11 @@ class TestGenerateAutomationEndpoint:
 
         # Mock external dependencies: YAMLTransformer, BlueprintPatternLibrary, and httpx client
         # Note: httpx is imported inside the function, so we patch it at the httpx module level
-        with patch("src.services.automation_generator.YAMLTransformer") as MockTransformer, \
-             patch("src.services.automation_generator.BlueprintPatternLibrary") as MockBlueprint, \
-             patch("httpx.AsyncClient") as MockClient:
-            
+        with (
+            patch("src.services.automation_generator.YAMLTransformer") as MockTransformer,
+            patch("src.services.automation_generator.BlueprintPatternLibrary") as MockBlueprint,
+            patch("httpx.AsyncClient") as MockClient,
+        ):
             # Mock YAMLTransformer
             mock_transformer = MagicMock()
             mock_transformer.transform_to_yaml = AsyncMock(
@@ -91,12 +95,12 @@ class TestGenerateAutomationEndpoint:
                 )
             )
             MockTransformer.return_value = mock_transformer
-            
+
             # Mock BlueprintPatternLibrary
             mock_blueprint = MagicMock()
             mock_blueprint.find_matching_blueprint.return_value = None
             MockBlueprint.return_value = mock_blueprint
-            
+
             # Mock httpx.AsyncClient for HA API calls
             mock_client_instance = AsyncMock()
             mock_response = MagicMock()
@@ -104,7 +108,7 @@ class TestGenerateAutomationEndpoint:
             mock_response.json.return_value = {"entity_id": f"automation.synergy_{synergy_id}"}
             mock_response.raise_for_status.return_value = None
             mock_client_instance.post = AsyncMock(return_value=mock_response)
-            
+
             # Mock GET endpoints used by validator (must be async)
             async def mock_get(url, *_args, **_kwargs):
                 resp = MagicMock()
@@ -126,8 +130,9 @@ class TestGenerateAutomationEndpoint:
                 # Default
                 resp.json.return_value = {}
                 return resp
+
             mock_client_instance.get = AsyncMock(side_effect=mock_get)
-            
+
             # Async context manager setup
             MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_client_instance)
             MockClient.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -205,4 +210,3 @@ class TestGenerateAutomationEndpoint:
         # Assert
         assert resp.status_code in (400, 503)
         assert "home assistant" in resp.json().get("detail", "").lower()
-

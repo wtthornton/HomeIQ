@@ -18,24 +18,21 @@ logger = logging.getLogger(__name__)
 # Based on device usage patterns from research
 DOMAIN_ACTIVITY_WINDOWS = {
     # Daily/Weekly devices (7 days)
-    'light': 7,
-    'switch': 7,
-    'lock': 7,
-    'media_player': 7,
-    'binary_sensor': 7,
-    'vacuum': 7,
-
+    "light": 7,
+    "switch": 7,
+    "lock": 7,
+    "media_player": 7,
+    "binary_sensor": 7,
+    "vacuum": 7,
     # Monthly devices (30 days)
-    'climate': 30,
-    'cover': 30,
-    'fan': 30,
-    'sensor': 30,  # Most sensors
-
+    "climate": 30,
+    "cover": 30,
+    "fan": 30,
+    "sensor": 30,  # Most sensors
     # Seasonal devices (90 days)
-    'irrigation': 90,
-
+    "irrigation": 90,
     # Default: 30 days
-    'default': 30
+    "default": 30,
 }
 
 
@@ -71,7 +68,7 @@ class DeviceActivityService:
         Returns:
             Activity window in days
         """
-        return DOMAIN_ACTIVITY_WINDOWS.get(domain, DOMAIN_ACTIVITY_WINDOWS['default'])
+        return DOMAIN_ACTIVITY_WINDOWS.get(domain, DOMAIN_ACTIVITY_WINDOWS["default"])
 
     @staticmethod
     def get_domain(entity_id: str) -> str:
@@ -84,14 +81,12 @@ class DeviceActivityService:
         Returns:
             Domain name (e.g., "light", "sensor")
         """
-        if '.' in entity_id:
-            return entity_id.split('.')[0]
-        return ''
+        if "." in entity_id:
+            return entity_id.split(".")[0]
+        return ""
 
     async def get_active_devices(
-        self,
-        window_days: int = 30,
-        data_api_client: DataAPIClient | None = None
+        self, window_days: int = 30, data_api_client: DataAPIClient | None = None
     ) -> set[str]:
         """
         Get set of active device/entity IDs from events.
@@ -127,7 +122,7 @@ class DeviceActivityService:
             events_df = await client.fetch_events(
                 start_time=start_time,
                 end_time=end_time,
-                limit=50000  # Reasonable limit
+                limit=50000,  # Reasonable limit
             )
 
             if events_df.empty:
@@ -136,7 +131,7 @@ class DeviceActivityService:
 
             # Extract unique entity IDs from events
             # Handle both 'entity_id' and 'device_id' columns
-            entity_column = 'entity_id' if 'entity_id' in events_df.columns else 'device_id'
+            entity_column = "entity_id" if "entity_id" in events_df.columns else "device_id"
             if entity_column not in events_df.columns:
                 logger.warning("Neither 'entity_id' nor 'device_id' found in events DataFrame")
                 return set()
@@ -154,11 +149,7 @@ class DeviceActivityService:
             logger.error(f"Failed to get active devices: {e}", exc_info=True)
             return set()
 
-    def is_device_active(
-        self,
-        entity_id: str,
-        active_devices: set[str]
-    ) -> bool:
+    def is_device_active(self, entity_id: str, active_devices: set[str]) -> bool:
         """
         Check if a device/entity is active.
 
@@ -172,9 +163,7 @@ class DeviceActivityService:
         return entity_id in active_devices
 
     def filter_patterns_by_activity(
-        self,
-        patterns: list[dict],
-        active_devices: set[str]
+        self, patterns: list[dict], active_devices: set[str]
     ) -> list[dict]:
         """
         Filter patterns to only include those with active devices.
@@ -207,9 +196,7 @@ class DeviceActivityService:
         return filtered_patterns
 
     def filter_synergies_by_activity(
-        self,
-        synergies: list[dict],
-        active_devices: set[str]
+        self, synergies: list[dict], active_devices: set[str]
     ) -> list[dict]:
         """
         Filter synergies to only include those with active devices.
@@ -254,21 +241,22 @@ class DeviceActivityService:
         entities = set()
 
         # Check for device_id field
-        if 'device_id' in pattern:
-            device_id = pattern['device_id']
+        if "device_id" in pattern:
+            device_id = pattern["device_id"]
             if device_id:
                 # Handle co-occurrence patterns with '+' separator
-                entities.update(device_id.split('+'))
+                entities.update(device_id.split("+"))
 
         # Check for entities field
-        if 'entities' in pattern:
-            entities_list = pattern['entities']
+        if "entities" in pattern:
+            entities_list = pattern["entities"]
             if isinstance(entities_list, list):
                 entities.update(entities_list)
             elif isinstance(entities_list, str):
                 # Try to parse as JSON
                 try:
                     import json
+
                     parsed = json.loads(entities_list)
                     if isinstance(parsed, list):
                         entities.update(parsed)
@@ -276,10 +264,10 @@ class DeviceActivityService:
                     pass
 
         # Check for device1/device2 fields (co-occurrence patterns)
-        if 'device1' in pattern:
-            entities.add(pattern['device1'])
-        if 'device2' in pattern:
-            entities.add(pattern['device2'])
+        if "device1" in pattern:
+            entities.add(pattern["device1"])
+        if "device2" in pattern:
+            entities.add(pattern["device2"])
 
         return entities
 
@@ -296,14 +284,15 @@ class DeviceActivityService:
         entities = set()
 
         # Check for device_ids field
-        if 'device_ids' in synergy:
-            device_ids = synergy['device_ids']
+        if "device_ids" in synergy:
+            device_ids = synergy["device_ids"]
             if isinstance(device_ids, list):
                 entities.update(device_ids)
             elif isinstance(device_ids, str):
                 # Try to parse as JSON
                 try:
                     import json
+
                     parsed = json.loads(device_ids)
                     if isinstance(parsed, list):
                         entities.update(parsed)
@@ -311,20 +300,20 @@ class DeviceActivityService:
                     pass
 
         # Check for entities field
-        if 'entities' in synergy:
-            entities_list = synergy['entities']
+        if "entities" in synergy:
+            entities_list = synergy["entities"]
             if isinstance(entities_list, list):
                 entities.update(entities_list)
 
         # Check for trigger/action fields
-        if 'trigger' in synergy:
-            entities.add(synergy['trigger'])
-        if 'action' in synergy:
-            entities.add(synergy['action'])
+        if "trigger" in synergy:
+            entities.add(synergy["trigger"])
+        if "action" in synergy:
+            entities.add(synergy["action"])
 
         # Check for chain_devices field
-        if 'chain_devices' in synergy:
-            chain_devices = synergy['chain_devices']
+        if "chain_devices" in synergy:
+            chain_devices = synergy["chain_devices"]
             if isinstance(chain_devices, list):
                 entities.update(chain_devices)
 

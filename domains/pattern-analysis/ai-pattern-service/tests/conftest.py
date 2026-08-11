@@ -5,8 +5,8 @@ Epic 39, Story 39.8: Pattern Service Testing & Validation
 """
 
 import os
+from collections.abc import AsyncGenerator
 from datetime import UTC
-from typing import AsyncGenerator
 from unittest.mock import AsyncMock
 
 import pytest
@@ -92,18 +92,18 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
             )
             """)
         )
-    
+
     # Create session factory
     async_session_maker = async_sessionmaker(
         engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     # Create session for test
     async with async_session_maker() as session:
         yield session
-    
+
     # Cleanup
     await engine.dispose()
 
@@ -111,6 +111,7 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
 @pytest.fixture
 def client(test_db: AsyncSession):
     """Create test client with database dependency override."""
+
     async def override_get_db():
         yield test_db
 
@@ -125,12 +126,9 @@ def sample_pattern_data():
     return {
         "pattern_type": "time_of_day",
         "device_id": "light.office_lamp",
-        "metadata": {
-            "time": "07:00",
-            "time_range": "06:45-07:15"
-        },
+        "metadata": {"time": "07:00", "time_range": "06:45-07:15"},
         "confidence": 0.85,
-        "occurrences": 15
+        "occurrences": 15,
     }
 
 
@@ -144,12 +142,12 @@ def sample_synergy_data():
         "opportunity_metadata": {
             "trigger_entity": "binary_sensor.motion_office",
             "action_entity": "light.office_lamp",
-            "relationship": "motion_to_light"
+            "relationship": "motion_to_light",
         },
         "impact_score": 0.75,
         "complexity": "low",
         "confidence": 0.80,
-        "area": "office"
+        "area": "office",
     }
 
 
@@ -157,44 +155,40 @@ def sample_synergy_data():
 def mock_data_api_client():
     """Mock DataAPIClient for testing."""
     client = AsyncMock()
-    
+
     # Mock fetch_events
     async def mock_fetch_events(*_args, **_kwargs):
         from datetime import datetime, timedelta
 
         import pandas as pd
-        
+
         # Return sample events DataFrame
         now = datetime.now(UTC)
         events = []
         for i in range(10):
-            events.append({
-                "timestamp": now - timedelta(hours=i),
-                "_time": now - timedelta(hours=i),
-                "entity_id": f"light.office_lamp",
-                "device_id": f"light.office_lamp",
-                "state": "on" if i % 2 == 0 else "off",
-                "event_type": "state_changed",
-                "domain": "light",
-                "friendly_name": "Office Lamp"
-            })
-        
+            events.append(
+                {
+                    "timestamp": now - timedelta(hours=i),
+                    "_time": now - timedelta(hours=i),
+                    "entity_id": "light.office_lamp",
+                    "device_id": "light.office_lamp",
+                    "state": "on" if i % 2 == 0 else "off",
+                    "event_type": "state_changed",
+                    "domain": "light",
+                    "friendly_name": "Office Lamp",
+                }
+            )
+
         return pd.DataFrame(events)
-    
+
     client.fetch_events = mock_fetch_events
-    
+
     # Mock fetch_devices
     async def mock_fetch_devices(*_args, **_kwargs):
-        return [
-            {
-                "device_id": "light.office_lamp",
-                "name": "Office Lamp",
-                "area_id": "office"
-            }
-        ]
-    
+        return [{"device_id": "light.office_lamp", "name": "Office Lamp", "area_id": "office"}]
+
     client.fetch_devices = mock_fetch_devices
-    
+
     # Mock fetch_entities
     async def mock_fetch_entities(*_args, **_kwargs):
         return [
@@ -202,12 +196,12 @@ def mock_data_api_client():
                 "entity_id": "light.office_lamp",
                 "device_id": "light.office_lamp",
                 "domain": "light",
-                "area_id": "office"
+                "area_id": "office",
             }
         ]
-    
+
     client.fetch_entities = mock_fetch_entities
-    
+
     return client
 
 
@@ -219,4 +213,3 @@ def mock_mqtt_client():
     client.connect = AsyncMock(return_value=True)
     client.disconnect = AsyncMock(return_value=True)
     return client
-

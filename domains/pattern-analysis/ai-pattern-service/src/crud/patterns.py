@@ -21,7 +21,7 @@ async def store_patterns(
     db: AsyncSession,
     patterns: list[dict],
     _time_window_days: int = 30,
-    automation_validator: Any | None = None
+    automation_validator: Any | None = None,
 ) -> int:
     """
     Store detected patterns in database.
@@ -65,46 +65,52 @@ async def store_patterns(
         for pattern_data in patterns:
             # Check if pattern already exists (same type and device)
             query = select(Pattern).where(
-                Pattern.pattern_type == pattern_data['pattern_type'],
-                Pattern.device_id == pattern_data['device_id']
+                Pattern.pattern_type == pattern_data["pattern_type"],
+                Pattern.device_id == pattern_data["device_id"],
             )
             result = await db.execute(query)
             existing_pattern = result.scalar_one_or_none()
 
             # Build metadata: start with nested 'metadata' dict, then add top-level fields
             # This ensures hour/minute from TimeOfDayPatternDetector are preserved
-            metadata = dict(pattern_data.get('metadata', {}))
+            metadata = dict(pattern_data.get("metadata", {}))
             # Add top-level fields that should be in metadata (for time_of_day patterns)
-            for key in ['hour', 'minute', 'cluster', 'avg_time_decimal', 'std_minutes']:
+            for key in ["hour", "minute", "cluster", "avg_time_decimal", "std_minutes"]:
                 if key in pattern_data and key not in metadata:
                     metadata[key] = pattern_data[key]
 
             if existing_pattern:
                 # Update existing pattern
-                existing_pattern.confidence = max(existing_pattern.confidence, pattern_data['confidence'])
-                existing_pattern.occurrences = pattern_data.get('occurrences', existing_pattern.occurrences)
+                existing_pattern.confidence = max(
+                    existing_pattern.confidence, pattern_data["confidence"]
+                )
+                existing_pattern.occurrences = pattern_data.get(
+                    "occurrences", existing_pattern.occurrences
+                )
                 existing_pattern.pattern_metadata = metadata
-                if hasattr(existing_pattern, 'last_seen'):
+                if hasattr(existing_pattern, "last_seen"):
                     existing_pattern.last_seen = now
                 existing_pattern.updated_at = now
-                logger.debug(f"Updated existing pattern {existing_pattern.id} for {existing_pattern.device_id}")
+                logger.debug(
+                    f"Updated existing pattern {existing_pattern.id} for {existing_pattern.device_id}"
+                )
             else:
                 # Create new pattern
                 pattern = Pattern(
-                    pattern_type=pattern_data['pattern_type'],
-                    device_id=pattern_data['device_id'],
+                    pattern_type=pattern_data["pattern_type"],
+                    device_id=pattern_data["device_id"],
                     pattern_metadata=metadata,
-                    confidence=pattern_data['confidence'],
-                    occurrences=pattern_data.get('occurrences', 0),
+                    confidence=pattern_data["confidence"],
+                    occurrences=pattern_data.get("occurrences", 0),
                     created_at=now,
                     updated_at=now,
                 )
                 # Set history tracking fields if they exist
-                if hasattr(pattern, 'first_seen'):
+                if hasattr(pattern, "first_seen"):
                     pattern.first_seen = now
-                if hasattr(pattern, 'last_seen'):
+                if hasattr(pattern, "last_seen"):
                     pattern.last_seen = now
-                if hasattr(pattern, 'confidence_history_count'):
+                if hasattr(pattern, "confidence_history_count"):
                     pattern.confidence_history_count = 1
 
                 db.add(pattern)
@@ -135,8 +141,8 @@ async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int
         try:
             # Build metadata: start with nested 'metadata' dict, then add top-level fields
             # This ensures hour/minute from TimeOfDayPatternDetector are preserved
-            metadata = dict(pattern_data.get('metadata', {}))
-            for key in ['hour', 'minute', 'cluster', 'avg_time_decimal', 'std_minutes']:
+            metadata = dict(pattern_data.get("metadata", {}))
+            for key in ["hour", "minute", "cluster", "avg_time_decimal", "std_minutes"]:
                 if key in pattern_data and key not in metadata:
                     metadata[key] = pattern_data[key]
             metadata_str = json.dumps(metadata)
@@ -149,9 +155,9 @@ async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int
             result = await db.execute(
                 check_query,
                 {
-                    "pattern_type": pattern_data['pattern_type'],
-                    "device_id": pattern_data['device_id']
-                }
+                    "pattern_type": pattern_data["pattern_type"],
+                    "device_id": pattern_data["device_id"],
+                },
             )
             existing = result.scalar_one_or_none()
 
@@ -169,11 +175,11 @@ async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int
                     update_query,
                     {
                         "id": existing,
-                        "confidence": pattern_data['confidence'],
-                        "occurrences": pattern_data.get('occurrences', 0),
+                        "confidence": pattern_data["confidence"],
+                        "occurrences": pattern_data.get("occurrences", 0),
                         "metadata": metadata_str,
-                        "updated_at": now
-                    }
+                        "updated_at": now,
+                    },
                 )
             else:
                 # Insert
@@ -185,14 +191,14 @@ async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int
                 await db.execute(
                     insert_query,
                     {
-                        "pattern_type": pattern_data['pattern_type'],
-                        "device_id": pattern_data['device_id'],
+                        "pattern_type": pattern_data["pattern_type"],
+                        "device_id": pattern_data["device_id"],
                         "metadata": metadata_str,
-                        "confidence": pattern_data['confidence'],
-                        "occurrences": pattern_data.get('occurrences', 0),
+                        "confidence": pattern_data["confidence"],
+                        "occurrences": pattern_data.get("occurrences", 0),
                         "created_at": now,
-                        "updated_at": now
-                    }
+                        "updated_at": now,
+                    },
                 )
 
             stored_count += 1
@@ -209,7 +215,7 @@ async def get_patterns(
     pattern_type: str | None = None,
     device_id: str | None = None,
     min_confidence: float | None = None,
-    limit: int = 100
+    limit: int = 100,
 ) -> list[Any]:
     """
     Retrieve patterns from database with optional filters.
@@ -255,7 +261,9 @@ async def get_patterns(
         from ..database.integrity import DatabaseIntegrityError, is_database_corruption_error
 
         if is_database_corruption_error(e):
-            logger.error(f"Database corruption detected while retrieving patterns: {e}", exc_info=True)
+            logger.error(
+                f"Database corruption detected while retrieving patterns: {e}", exc_info=True
+            )
             raise DatabaseIntegrityError(f"Database corruption detected: {e}") from e
         else:
             logger.error(f"Failed to retrieve patterns: {e}", exc_info=True)
@@ -267,7 +275,7 @@ async def _get_patterns_raw_sql(
     pattern_type: str | None,
     device_id: str | None,
     min_confidence: float | None,
-    limit: int
+    limit: int,
 ) -> list[dict]:
     """Fallback: Get patterns using raw SQL"""
     from sqlalchemy import text
@@ -304,4 +312,3 @@ async def _get_patterns_raw_sql(
         patterns.append(dict(row._mapping))
 
     return patterns
-

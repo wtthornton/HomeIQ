@@ -185,9 +185,7 @@ class BlueprintAnalytics:
             metric.user_feedback = feedback
             metric.rated_at = datetime.now(UTC)
 
-            logger.info(
-                f"Recorded rating: automation={automation_id}, rating={rating}"
-            )
+            logger.info(f"Recorded rating: automation={automation_id}, rating={rating}")
 
     def record_pattern_outcome(
         self,
@@ -222,10 +220,7 @@ class BlueprintAnalytics:
         period_start = period_end - timedelta(days=days)
 
         # Filter deployments within period
-        period_deployments = [
-            d for d in self._deployments
-            if d.deployed_at >= period_start
-        ]
+        period_deployments = [d for d in self._deployments if d.deployed_at >= period_start]
 
         # Calculate adoption rate
         synergies_deployed = len([d for d in period_deployments if d.synergy_id])
@@ -249,11 +244,7 @@ class BlueprintAnalytics:
         all_outcomes = []
         for outcomes in self._pattern_outcomes.values():
             all_outcomes.extend(outcomes)
-        pattern_quality = (
-            sum(all_outcomes) / len(all_outcomes) * 100
-            if all_outcomes
-            else 0.0
-        )
+        pattern_quality = sum(all_outcomes) / len(all_outcomes) * 100 if all_outcomes else 0.0
 
         # Calculate user satisfaction
         rated_deployments = [d for d in period_deployments if d.user_rating is not None]
@@ -267,9 +258,7 @@ class BlueprintAnalytics:
         blueprint_deployments = len([d for d in period_deployments if d.blueprint_id])
         yaml_fallback = len(period_deployments) - blueprint_deployments
         blueprint_utilization = (
-            blueprint_deployments / len(period_deployments) * 100
-            if period_deployments
-            else 0.0
+            blueprint_deployments / len(period_deployments) * 100 if period_deployments else 0.0
         )
 
         summary = AnalyticsSummary(
@@ -282,7 +271,9 @@ class BlueprintAnalytics:
             successful_executions=total_executions - total_failures,
             success_rate=success_rate,
             patterns_used=len(self._pattern_outcomes),
-            patterns_successful=sum(1 for outcomes in self._pattern_outcomes.values() if all(outcomes)),
+            patterns_successful=sum(
+                1 for outcomes in self._pattern_outcomes.values() if all(outcomes)
+            ),
             pattern_quality=pattern_quality,
             total_ratings=len(rated_deployments),
             average_rating=average_rating,
@@ -368,16 +359,14 @@ class BlueprintAnalytics:
             successes = blueprint_success.get(blueprint_id, [])
             ratings = blueprint_ratings.get(blueprint_id, [])
 
-            trending.append({
-                "blueprint_id": blueprint_id,
-                "deployment_count": count,
-                "success_rate": (
-                    sum(successes) / len(successes) * 100 if successes else None
-                ),
-                "average_rating": (
-                    sum(ratings) / len(ratings) if ratings else None
-                ),
-            })
+            trending.append(
+                {
+                    "blueprint_id": blueprint_id,
+                    "deployment_count": count,
+                    "success_rate": (sum(successes) / len(successes) * 100 if successes else None),
+                    "average_rating": (sum(ratings) / len(ratings) if ratings else None),
+                }
+            )
 
         return trending
 
@@ -391,10 +380,7 @@ class BlueprintAnalytics:
         cutoff = datetime.now(UTC) - timedelta(days=self.retention_days)
         original_count = len(self._deployments)
 
-        self._deployments = [
-            d for d in self._deployments
-            if d.deployed_at >= cutoff
-        ]
+        self._deployments = [d for d in self._deployments if d.deployed_at >= cutoff]
 
         removed = original_count - len(self._deployments)
         if removed > 0:

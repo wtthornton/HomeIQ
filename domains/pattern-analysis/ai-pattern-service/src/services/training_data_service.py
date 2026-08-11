@@ -1,4 +1,5 @@
 """Training data collection and export service. Story 40.1."""
+
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -45,9 +46,7 @@ class TrainingDataService:
         logger.info("Recorded %d training samples for run %s", count, run_id)
         return count
 
-    async def record_feedback(
-        self, pattern_id: int, action: str
-    ) -> bool:
+    async def record_feedback(self, pattern_id: int, action: str) -> bool:
         """Record user feedback on a pattern."""
         result = await self.db.execute(
             select(PatternTrainingData).where(PatternTrainingData.id == pattern_id)
@@ -96,9 +95,13 @@ class TrainingDataService:
     async def has_sufficient_data(self, pattern_type: str) -> bool:
         """Check if we have enough training data (>= MIN_TRAINING_DAYS of runs)."""
         cutoff = datetime.now(UTC) - timedelta(days=MIN_TRAINING_DAYS)
-        stmt = select(func.count()).select_from(PatternTrainingData).where(
-            PatternTrainingData.pattern_type == pattern_type,
-            PatternTrainingData.created_at >= cutoff,
+        stmt = (
+            select(func.count())
+            .select_from(PatternTrainingData)
+            .where(
+                PatternTrainingData.pattern_type == pattern_type,
+                PatternTrainingData.created_at >= cutoff,
+            )
         )
         result = await self.db.execute(stmt)
         count = result.scalar() or 0
@@ -107,21 +110,18 @@ class TrainingDataService:
     async def cleanup_old_data(self) -> int:
         """Remove training data older than RETENTION_DAYS."""
         cutoff = datetime.now(UTC) - timedelta(days=RETENTION_DAYS)
-        stmt = delete(PatternTrainingData).where(
-            PatternTrainingData.created_at < cutoff
-        )
+        stmt = delete(PatternTrainingData).where(PatternTrainingData.created_at < cutoff)
         result = await self.db.execute(stmt)
         deleted = result.rowcount
         if deleted:
             logger.info(
                 "Cleaned up %d training records older than %d days",
-                deleted, RETENTION_DAYS,
+                deleted,
+                RETENTION_DAYS,
             )
         return deleted
 
-    async def export_for_training(
-        self, pattern_type: str
-    ) -> list[dict[str, Any]]:
+    async def export_for_training(self, pattern_type: str) -> list[dict[str, Any]]:
         """Export training data with feedback labels for offline model training."""
         stmt = (
             select(PatternTrainingData)

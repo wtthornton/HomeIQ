@@ -55,24 +55,27 @@ def recover_patterns(source_url: str, target_url: str):
             for row in source_cursor:
                 row_dict = dict(zip(columns, row))
                 try:
-                    target_cursor.execute("""
+                    target_cursor.execute(
+                        """
                         INSERT INTO patterns
                         (pattern_type, device_id, pattern_metadata, confidence, occurrences,
                          created_at, first_seen, last_seen, trend_direction, trend_strength, confidence_history_count)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (
-                        row_dict.get('pattern_type'),
-                        row_dict.get('device_id'),
-                        row_dict.get('pattern_metadata'),
-                        row_dict.get('confidence'),
-                        row_dict.get('occurrences', 0),
-                        row_dict.get('created_at'),
-                        row_dict.get('first_seen'),
-                        row_dict.get('last_seen'),
-                        row_dict.get('trend_direction'),
-                        row_dict.get('trend_strength'),
-                        row_dict.get('confidence_history_count', 0)
-                    ))
+                    """,
+                        (
+                            row_dict.get("pattern_type"),
+                            row_dict.get("device_id"),
+                            row_dict.get("pattern_metadata"),
+                            row_dict.get("confidence"),
+                            row_dict.get("occurrences", 0),
+                            row_dict.get("created_at"),
+                            row_dict.get("first_seen"),
+                            row_dict.get("last_seen"),
+                            row_dict.get("trend_direction"),
+                            row_dict.get("trend_strength"),
+                            row_dict.get("confidence_history_count", 0),
+                        ),
+                    )
                     recovered_count += 1
                 except Exception as e:
                     error_count += 1
@@ -94,8 +97,13 @@ def recover_patterns(source_url: str, target_url: str):
 
 
 def main():
-    source_url = os.environ.get("SOURCE_DATABASE_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq_backup")
-    target_url = os.environ.get("POSTGRES_URL", os.environ.get("DATABASE_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq"))
+    source_url = os.environ.get(
+        "SOURCE_DATABASE_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq_backup"
+    )
+    target_url = os.environ.get(
+        "POSTGRES_URL",
+        os.environ.get("DATABASE_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq"),
+    )
 
     logger.info(f"Attempting to recover data from {source_url}")
 

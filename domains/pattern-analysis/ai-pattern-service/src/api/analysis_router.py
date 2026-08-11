@@ -24,9 +24,7 @@ router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 
 @router.get("/status")
-async def get_analysis_status(
-    db: AsyncSession = Depends(get_db)
-) -> dict[str, Any]:
+async def get_analysis_status(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """
     Get current analysis status and pattern statistics.
 
@@ -58,7 +56,7 @@ async def get_analysis_status(
             total_confidence += confidence
 
             if device_id:
-                individual_devices = device_id.split('+')
+                individual_devices = device_id.split("+")
                 unique_device_set.update(individual_devices)
 
         avg_confidence = total_confidence / total_patterns if total_patterns > 0 else 0.0
@@ -66,9 +64,11 @@ async def get_analysis_status(
 
         # Get scheduler status (access dynamically to get current value)
         pattern_scheduler = main_module.pattern_scheduler
-        scheduler_status = "running" if pattern_scheduler and pattern_scheduler.is_running else "stopped"
+        scheduler_status = (
+            "running" if pattern_scheduler and pattern_scheduler.is_running else "stopped"
+        )
         last_run = None
-        if pattern_scheduler and hasattr(pattern_scheduler, 'last_run_result'):
+        if pattern_scheduler and hasattr(pattern_scheduler, "last_run_result"):
             last_run = pattern_scheduler.last_run_result
 
         return {
@@ -77,24 +77,21 @@ async def get_analysis_status(
                 "total_patterns": total_patterns,
                 "by_type": by_type,
                 "unique_devices": unique_devices,
-                "avg_confidence": round(avg_confidence, 3)
+                "avg_confidence": round(avg_confidence, 3),
             },
             "scheduler": {
                 "status": scheduler_status,
                 "schedule": settings.analysis_schedule,
-                "last_run": last_run
+                "last_run": last_run,
             },
-            "suggestions": {
-                "pending_count": 0,
-                "recent": []
-            }
+            "suggestions": {"pending_count": 0, "recent": []},
         }
 
     except Exception as e:
         logger.error(f"Failed to get analysis status: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get analysis status: {str(e)}"
+            detail=f"Failed to get analysis status: {str(e)}",
         ) from e
 
 
@@ -110,22 +107,27 @@ async def get_analysis_schedule() -> dict[str, Any]:
         next_run = None
         if settings.analysis_schedule:
             try:
-                next_run = croniter(
-                    settings.analysis_schedule, datetime.now()
-                ).get_next(datetime).isoformat()
+                next_run = (
+                    croniter(settings.analysis_schedule, datetime.now())
+                    .get_next(datetime)
+                    .isoformat()
+                )
             except (ValueError, KeyError):
                 next_run = None
 
         schedule_info = {
             "schedule": settings.analysis_schedule,
-            "enabled": main_module.pattern_scheduler is not None and main_module.pattern_scheduler.is_running if main_module.pattern_scheduler else False,
+            "enabled": main_module.pattern_scheduler is not None
+            and main_module.pattern_scheduler.is_running
+            if main_module.pattern_scheduler
+            else False,
             "incremental_enabled": settings.enable_incremental,
             "next_run": next_run,
-            "last_run": None
+            "last_run": None,
         }
 
         pattern_scheduler = main_module.pattern_scheduler
-        if pattern_scheduler and hasattr(pattern_scheduler, 'last_run_result'):
+        if pattern_scheduler and hasattr(pattern_scheduler, "last_run_result"):
             schedule_info["last_run"] = pattern_scheduler.last_run_result
 
         return schedule_info
@@ -134,7 +136,7 @@ async def get_analysis_schedule() -> dict[str, Any]:
         logger.error(f"Failed to get analysis schedule: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get analysis schedule: {str(e)}"
+            detail=f"Failed to get analysis schedule: {str(e)}",
         ) from e
 
 
@@ -152,7 +154,7 @@ async def trigger_analysis(background_tasks: BackgroundTasks) -> dict[str, Any]:
         if not pattern_scheduler:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Pattern analysis scheduler is not available"
+                detail="Pattern analysis scheduler is not available",
             )
 
         if pattern_scheduler.is_running:
@@ -169,12 +171,12 @@ async def trigger_analysis(background_tasks: BackgroundTasks) -> dict[str, Any]:
             return {
                 "success": True,
                 "message": "Pattern analysis triggered successfully",
-                "status": "running"
+                "status": "running",
             }
         else:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Pattern analysis scheduler is not running"
+                detail="Pattern analysis scheduler is not running",
             )
 
     except HTTPException:
@@ -183,6 +185,5 @@ async def trigger_analysis(background_tasks: BackgroundTasks) -> dict[str, Any]:
         logger.error(f"Failed to trigger analysis: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to trigger analysis: {str(e)}"
+            detail=f"Failed to trigger analysis: {str(e)}",
         ) from e
-

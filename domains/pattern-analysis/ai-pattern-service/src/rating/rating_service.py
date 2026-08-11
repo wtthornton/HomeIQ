@@ -89,10 +89,10 @@ class BlueprintRating:
 
         # Weight: overall (40%), reliability (30%), relevance (20%), ease (10%)
         score = (
-            self.average_overall * 0.4 +
-            self.average_reliability * 0.3 +
-            self.average_relevance * 0.2 +
-            self.average_ease_of_use * 0.1
+            self.average_overall * 0.4
+            + self.average_reliability * 0.3
+            + self.average_relevance * 0.2
+            + self.average_ease_of_use * 0.1
         )
 
         # Boost for high recommendation rate
@@ -124,9 +124,7 @@ class RatingService:
         self._blueprint_ratings: dict[str, BlueprintRating] = {}
         self._device_feedback: dict[str, list[float]] = defaultdict(list)  # device_id -> ratings
 
-        logger.info(
-            f"RatingService initialized (min_ratings={min_ratings_for_confidence})"
-        )
+        logger.info(f"RatingService initialized (min_ratings={min_ratings_for_confidence})")
 
     def submit_rating(
         self,
@@ -268,7 +266,9 @@ class RatingService:
         reward = (avg_rating - 3.0) / 2.0  # Maps 1-5 to -1 to 1
 
         # Calculate recommendation rate
-        recommendations = [r.would_recommend for r in synergy_ratings if r.would_recommend is not None]
+        recommendations = [
+            r.would_recommend for r in synergy_ratings if r.would_recommend is not None
+        ]
         rec_rate = sum(recommendations) / len(recommendations) if recommendations else 0.5
 
         return {
@@ -292,7 +292,8 @@ class RatingService:
         """
         # Filter blueprints with enough ratings
         qualified = [
-            bp for bp in self._blueprint_ratings.values()
+            bp
+            for bp in self._blueprint_ratings.values()
             if bp.total_ratings >= self.min_ratings_for_confidence
         ]
 
@@ -336,16 +337,24 @@ class RatingService:
         reliability_ratings = [r.reliability_rating for r in period_ratings if r.reliability_rating]
         ease_ratings = [r.ease_of_use_rating for r in period_ratings if r.ease_of_use_rating]
 
-        recommendations = [r.would_recommend for r in period_ratings if r.would_recommend is not None]
+        recommendations = [
+            r.would_recommend for r in period_ratings if r.would_recommend is not None
+        ]
 
         return {
             "period_days": days,
             "total_ratings": len(period_ratings),
             "average_overall": avg_overall,
-            "average_relevance": sum(relevance_ratings) / len(relevance_ratings) if relevance_ratings else None,
-            "average_reliability": sum(reliability_ratings) / len(reliability_ratings) if reliability_ratings else None,
+            "average_relevance": sum(relevance_ratings) / len(relevance_ratings)
+            if relevance_ratings
+            else None,
+            "average_reliability": sum(reliability_ratings) / len(reliability_ratings)
+            if reliability_ratings
+            else None,
             "average_ease_of_use": sum(ease_ratings) / len(ease_ratings) if ease_ratings else None,
-            "recommendation_rate": sum(recommendations) / len(recommendations) if recommendations else None,
+            "recommendation_rate": sum(recommendations) / len(recommendations)
+            if recommendations
+            else None,
             "target": 4.0,
             "achieved": avg_overall >= 4.0,
             "progress_pct": min(100, avg_overall / 4.0 * 100),
@@ -358,22 +367,24 @@ class RatingService:
     ) -> None:
         """Update aggregated blueprint rating with new automation rating."""
         if blueprint_id not in self._blueprint_ratings:
-            self._blueprint_ratings[blueprint_id] = BlueprintRating(
-                blueprint_id=blueprint_id
-            )
+            self._blueprint_ratings[blueprint_id] = BlueprintRating(blueprint_id=blueprint_id)
 
         bp_rating = self._blueprint_ratings[blueprint_id]
         bp_rating.ratings.append(rating)
         bp_rating.total_ratings = len(bp_rating.ratings)
 
         # Recalculate averages
-        bp_rating.average_overall = sum(r.overall_rating for r in bp_rating.ratings) / bp_rating.total_ratings
+        bp_rating.average_overall = (
+            sum(r.overall_rating for r in bp_rating.ratings) / bp_rating.total_ratings
+        )
 
         relevance_ratings = [r.relevance_rating for r in bp_rating.ratings if r.relevance_rating]
         if relevance_ratings:
             bp_rating.average_relevance = sum(relevance_ratings) / len(relevance_ratings)
 
-        reliability_ratings = [r.reliability_rating for r in bp_rating.ratings if r.reliability_rating]
+        reliability_ratings = [
+            r.reliability_rating for r in bp_rating.ratings if r.reliability_rating
+        ]
         if reliability_ratings:
             bp_rating.average_reliability = sum(reliability_ratings) / len(reliability_ratings)
 
@@ -382,6 +393,8 @@ class RatingService:
             bp_rating.average_ease_of_use = sum(ease_ratings) / len(ease_ratings)
 
         # Calculate recommendation rate
-        recommendations = [r.would_recommend for r in bp_rating.ratings if r.would_recommend is not None]
+        recommendations = [
+            r.would_recommend for r in bp_rating.ratings if r.would_recommend is not None
+        ]
         if recommendations:
             bp_rating.recommendation_rate = sum(recommendations) / len(recommendations)

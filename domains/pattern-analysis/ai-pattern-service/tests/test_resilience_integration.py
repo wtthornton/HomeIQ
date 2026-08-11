@@ -12,11 +12,11 @@ from homeiq_resilience import CircuitOpenError, CrossGroupClient
 def _make_client():
     """Create a DataAPIClient without hitting real settings."""
     from src.clients.data_api_client import DataAPIClient
+
     return DataAPIClient(base_url="http://data-api:8006")
 
 
 class TestDataAPIClientResilience:
-
     def test_uses_cross_group_client(self):
         client = _make_client()
         assert hasattr(client, "_cross_client")
@@ -32,7 +32,8 @@ class TestDataAPIClientResilience:
     async def test_circuit_open_events_returns_empty_df(self):
         client = _make_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.fetch_events()
@@ -43,7 +44,8 @@ class TestDataAPIClientResilience:
     async def test_circuit_open_devices_returns_empty(self):
         client = _make_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.fetch_devices()
@@ -53,7 +55,8 @@ class TestDataAPIClientResilience:
     async def test_circuit_open_entities_returns_empty(self):
         client = _make_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.fetch_entities()
@@ -63,7 +66,8 @@ class TestDataAPIClientResilience:
     async def test_circuit_open_get_returns_empty_dict(self):
         client = _make_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.get("/api/test")
@@ -78,8 +82,10 @@ class TestDataAPIClientResilience:
         mock_resp.json.return_value = {"entities": [{"entity_id": "light.test"}]}
 
         with patch.object(
-            client._cross_client, "call",
-            new_callable=AsyncMock, return_value=mock_resp,
+            client._cross_client,
+            "call",
+            new_callable=AsyncMock,
+            return_value=mock_resp,
         ):
             result = await client.fetch_entities()
             assert len(result) == 1

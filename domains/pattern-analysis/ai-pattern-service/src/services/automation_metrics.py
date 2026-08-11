@@ -64,19 +64,19 @@ class ExecutionRecord:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage."""
         return {
-            'automation_id': self.automation_id,
-            'synergy_id': self.synergy_id,
-            'blueprint_id': self.blueprint_id,
-            'status': self.status.value,
-            'execution_time_ms': self.execution_time_ms,
-            'error_message': self.error_message,
-            'error_code': self.error_code,
-            'trigger_type': self.trigger_type,
-            'trigger_entity': self.trigger_entity,
-            'action_count': self.action_count,
-            'actions_succeeded': self.actions_succeeded,
-            'started_at': self.started_at.isoformat(),
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            "automation_id": self.automation_id,
+            "synergy_id": self.synergy_id,
+            "blueprint_id": self.blueprint_id,
+            "status": self.status.value,
+            "execution_time_ms": self.execution_time_ms,
+            "error_message": self.error_message,
+            "error_code": self.error_code,
+            "trigger_type": self.trigger_type,
+            "trigger_entity": self.trigger_entity,
+            "action_count": self.action_count,
+            "actions_succeeded": self.actions_succeeded,
+            "started_at": self.started_at.isoformat(),
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
         }
 
 
@@ -117,25 +117,25 @@ class AutomationMetrics:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
-            'automation_id': self.automation_id,
-            'synergy_id': self.synergy_id,
-            'blueprint_id': self.blueprint_id,
-            'total_executions': self.total_executions,
-            'successful_executions': self.successful_executions,
-            'failed_executions': self.failed_executions,
-            'timeout_executions': self.timeout_executions,
-            'skipped_executions': self.skipped_executions,
-            'success_rate': round(self.success_rate, 3),
-            'avg_execution_time_ms': round(self.avg_execution_time_ms, 1),
-            'min_execution_time_ms': self.min_execution_time_ms,
-            'max_execution_time_ms': self.max_execution_time_ms,
-            'p95_execution_time_ms': self.p95_execution_time_ms,
-            'error_count': self.error_count,
-            'most_common_error': self.most_common_error,
-            'error_rate': round(self.error_rate, 3),
-            'first_execution': self.first_execution.isoformat() if self.first_execution else None,
-            'last_execution': self.last_execution.isoformat() if self.last_execution else None,
-            'lookback_hours': self.lookback_hours,
+            "automation_id": self.automation_id,
+            "synergy_id": self.synergy_id,
+            "blueprint_id": self.blueprint_id,
+            "total_executions": self.total_executions,
+            "successful_executions": self.successful_executions,
+            "failed_executions": self.failed_executions,
+            "timeout_executions": self.timeout_executions,
+            "skipped_executions": self.skipped_executions,
+            "success_rate": round(self.success_rate, 3),
+            "avg_execution_time_ms": round(self.avg_execution_time_ms, 1),
+            "min_execution_time_ms": self.min_execution_time_ms,
+            "max_execution_time_ms": self.max_execution_time_ms,
+            "p95_execution_time_ms": self.p95_execution_time_ms,
+            "error_count": self.error_count,
+            "most_common_error": self.most_common_error,
+            "error_rate": round(self.error_rate, 3),
+            "first_execution": self.first_execution.isoformat() if self.first_execution else None,
+            "last_execution": self.last_execution.isoformat() if self.last_execution else None,
+            "lookback_hours": self.lookback_hours,
         }
 
 
@@ -166,17 +166,17 @@ class OverallMetrics:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
-            'total_automations': self.total_automations,
-            'total_executions': self.total_executions,
-            'overall_success_rate': round(self.overall_success_rate, 3),
-            'target_success_rate': self.target_success_rate,
-            'meets_target': self.meets_target,
-            'gap_to_target': round(self.gap_to_target, 3),
-            'avg_execution_time_ms': round(self.avg_execution_time_ms, 1),
-            'failing_automations': self.failing_automations,
-            'automations_below_target': self.automations_below_target,
-            'analysis_timestamp': self.analysis_timestamp.isoformat(),
-            'lookback_hours': self.lookback_hours,
+            "total_automations": self.total_automations,
+            "total_executions": self.total_executions,
+            "overall_success_rate": round(self.overall_success_rate, 3),
+            "target_success_rate": self.target_success_rate,
+            "meets_target": self.meets_target,
+            "gap_to_target": round(self.gap_to_target, 3),
+            "avg_execution_time_ms": round(self.avg_execution_time_ms, 1),
+            "failing_automations": self.failing_automations,
+            "automations_below_target": self.automations_below_target,
+            "analysis_timestamp": self.analysis_timestamp.isoformat(),
+            "lookback_hours": self.lookback_hours,
         }
 
 
@@ -335,7 +335,7 @@ class AutomationMetricsCollector:
 
         # Trim if exceeds max
         if len(self._in_memory_records) > self._max_in_memory_records:
-            self._in_memory_records = self._in_memory_records[-self._max_in_memory_records:]
+            self._in_memory_records = self._in_memory_records[-self._max_in_memory_records :]
 
     async def get_automation_metrics(
         self,
@@ -356,7 +356,8 @@ class AutomationMetricsCollector:
 
         # Filter records
         records = [
-            r for r in self._in_memory_records
+            r
+            for r in self._in_memory_records
             if r.automation_id == automation_id and r.started_at >= cutoff
         ]
 
@@ -382,7 +383,8 @@ class AutomationMetricsCollector:
         # Filter records
         if automation_id:
             records = [
-                r for r in self._in_memory_records
+                r
+                for r in self._in_memory_records
                 if r.automation_id == automation_id and r.started_at >= cutoff
             ]
             automation_ids = [automation_id]
@@ -428,7 +430,9 @@ class AutomationMetricsCollector:
         automation_ids = list({r.automation_id for r in records})
         total_executions = len(records)
         successful_executions = sum(1 for r in records if r.is_success)
-        overall_success_rate = successful_executions / total_executions if total_executions > 0 else 0.0
+        overall_success_rate = (
+            successful_executions / total_executions if total_executions > 0 else 0.0
+        )
 
         # Calculate per-automation metrics
         failing_automations = 0
@@ -506,6 +510,7 @@ class AutomationMetricsCollector:
         most_common_error = None
         if errors:
             from collections import Counter
+
             error_counts = Counter(errors)
             most_common_error = error_counts.most_common(1)[0][0]
 
@@ -592,7 +597,8 @@ class AutomationMetricsCollector:
         """
         cutoff = datetime.now(UTC) - timedelta(hours=lookback_hours)
         records = [
-            r for r in self._in_memory_records
+            r
+            for r in self._in_memory_records
             if r.synergy_id == synergy_id and r.started_at >= cutoff
         ]
 

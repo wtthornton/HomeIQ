@@ -129,9 +129,7 @@ class BlueprintOpportunityEngine:
         logger.info(f"Found {len(blueprints)} candidate blueprints")
 
         # 4. Calculate fit scores and rank
-        ranked = self.device_matcher.rank_blueprints(
-            blueprints, devices, request.min_fit_score
-        )
+        ranked = self.device_matcher.rank_blueprints(blueprints, devices, request.min_fit_score)
 
         # 5. Build opportunities with autofill
         opportunities = []
@@ -170,8 +168,12 @@ class BlueprintOpportunityEngine:
                 blueprint=blueprint,
                 fit_score=fit_score,
                 matched_devices=matched_devices,
-                matching_domains=self.device_matcher.get_matching_domains(blueprint, matched_devices),
-                matching_device_classes=self.device_matcher.get_matching_device_classes(blueprint, matched_devices),
+                matching_domains=self.device_matcher.get_matching_domains(
+                    blueprint, matched_devices
+                ),
+                matching_device_classes=self.device_matcher.get_matching_device_classes(
+                    blueprint, matched_devices
+                ),
                 area_id=area_id,
                 area_name=area_name,
                 same_area=same_area,
@@ -229,9 +231,7 @@ class BlueprintOpportunityEngine:
 
         # Auto-fill inputs
         inputs = blueprint.get("inputs", {})
-        autofilled, unfilled = self.input_autofill.autofill_inputs(
-            inputs, devices, area_id
-        )
+        autofilled, unfilled = self.input_autofill.autofill_inputs(inputs, devices, area_id)
 
         # Extract target entities
         target_entities = [a.entity_id for a in autofilled if a.entity_id]
@@ -266,9 +266,7 @@ class BlueprintOpportunityEngine:
                 raise RuntimeError("Client not initialized")
 
             # Fetch entities
-            response = await self._client.get(
-                f"{self.data_api_url}/api/entities"
-            )
+            response = await self._client.get(f"{self.data_api_url}/api/entities")
 
             if response.status_code == 200:
                 entities_data = response.json()

@@ -61,7 +61,7 @@ class TestSceneBasedSynergyDetection:
             "chain_devices",
             "context_metadata",
         ]
-        
+
         # Create a sample scene synergy (matching what the method creates)
         sample_synergy = {
             "synergy_id": str(uuid.uuid4()),
@@ -83,10 +83,10 @@ class TestSceneBasedSynergyDetection:
                 "device_domains": ["light"],
             },
         }
-        
+
         for field in expected_fields:
             assert field in sample_synergy, f"Missing field: {field}"
-        
+
         assert sample_synergy["synergy_type"] == "scene_based"
         assert sample_synergy["complexity"] == "low"
         assert "scene_type" in sample_synergy["context_metadata"]
@@ -113,7 +113,7 @@ class TestSceneBasedSynergyDetection:
                 "domain": "light",
             },
         }
-        
+
         assert sample_synergy["synergy_type"] == "scene_based"
         assert sample_synergy["context_metadata"]["scene_type"] == "domain_based"
         assert sample_synergy["area"] is None  # Domain-based has no area
@@ -160,7 +160,7 @@ class TestContextAwareSynergyDetection:
                 "estimated_savings": "10-15% cooling costs",
             },
         }
-        
+
         assert sample_synergy["synergy_type"] == "context_aware"
         assert sample_synergy["context_metadata"]["context_type"] == "weather_climate"
         assert "benefits" in sample_synergy["context_metadata"]
@@ -188,7 +188,7 @@ class TestContextAwareSynergyDetection:
                 "estimated_savings": "5-10% cooling costs",
             },
         }
-        
+
         assert sample_synergy["synergy_type"] == "context_aware"
         assert sample_synergy["context_metadata"]["context_type"] == "weather_cover"
 
@@ -214,7 +214,7 @@ class TestContextAwareSynergyDetection:
                 "estimated_savings": "15-25% energy costs",
             },
         }
-        
+
         assert sample_synergy["synergy_type"] == "context_aware"
         assert sample_synergy["context_metadata"]["context_type"] == "energy_scheduling"
         assert "cost_reduction" in sample_synergy["context_metadata"]["benefits"]
@@ -244,7 +244,7 @@ class TestContextAwareSynergyDetection:
                 "estimated_savings": "5-10% lighting costs",
             },
         }
-        
+
         assert sample_synergy["synergy_type"] == "context_aware"
         assert sample_synergy["context_metadata"]["context_type"] == "weather_lighting"
 
@@ -276,7 +276,7 @@ class TestScheduleBasedSynergyEnhancements:
                 "device_count": 2,
             },
         }
-        
+
         assert sample_synergy["synergy_type"] == "schedule_based"
         assert sample_synergy["context_metadata"]["time_window"] == "30min"
         assert sample_synergy["pattern_support_score"] == 1.0
@@ -305,7 +305,7 @@ class TestScheduleBasedSynergyEnhancements:
                 "device_count": 2,
             },
         }
-        
+
         assert sample_synergy["synergy_type"] == "schedule_based"
         assert sample_synergy["context_metadata"]["time_window"] == "hourly"
         assert sample_synergy["pattern_support_score"] == 0.9  # Lower for hourly
@@ -331,7 +331,7 @@ class TestDeviceChainDepthFix:
             "synergy_depth": 3,
             "chain_devices": ["motion.hallway", "light.hallway", "light.living_room"],
         }
-        
+
         assert sample_chain["synergy_depth"] == 3
         assert len(sample_chain["devices"]) == 3
         assert len(sample_chain["chain_devices"]) == 3
@@ -351,9 +351,14 @@ class TestDeviceChainDepthFix:
             "area": "entry",
             "rationale": "4-device chain: Entry motion triggers lights and climate",
             "synergy_depth": 4,
-            "chain_devices": ["motion.entry", "light.entry", "light.hallway", "climate.living_room"],
+            "chain_devices": [
+                "motion.entry",
+                "light.entry",
+                "light.hallway",
+                "climate.living_room",
+            ],
         }
-        
+
         assert sample_chain["synergy_depth"] == 4
         assert len(sample_chain["devices"]) == 4
         assert len(sample_chain["chain_devices"]) == 4
@@ -371,7 +376,7 @@ class TestSynergyTypeValidation:
             "scene_based",
             "context_aware",
         ]
-        
+
         # These are the synergy types our system should generate
         for synergy_type in expected_types:
             assert synergy_type in expected_types
@@ -385,7 +390,7 @@ class TestSynergyTypeValidation:
             "scene_based": "low",
             "context_aware": ["low", "medium"],  # Varies by context type
         }
-        
+
         # Verify complexity values are valid
         valid_complexities = {"low", "medium", "high"}
         for synergy_type, complexity in complexity_mapping.items():

@@ -35,30 +35,49 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 EXCLUDED_DOMAINS = {
-    'image', 'event', 'update', 'camera', 'button',
+    "image",
+    "event",
+    "update",
+    "camera",
+    "button",
 }
 
 EXCLUDED_ENTITY_PREFIXES = [
-    'sensor.home_assistant_',
-    'sensor.slzb_',
-    'image.',
-    'event.',
-    'binary_sensor.system_',
-    'camera.',
-    'button.',
-    'update.',
+    "sensor.home_assistant_",
+    "sensor.slzb_",
+    "image.",
+    "event.",
+    "binary_sensor.system_",
+    "camera.",
+    "button.",
+    "update.",
 ]
 
 EXCLUDED_PATTERNS = [
-    '_tracker', 'team_tracker',
-    'nfl_', 'nhl_', 'mlb_', 'nba_', 'ncaa_',
-    'weather_', 'openweathermap_',
-    'carbon_intensity_', 'electricity_pricing_', 'national_grid_',
-    'calendar_',
-    '_cpu_', '_temp', '_chip_',
-    'coordinator_', '_battery', '_memory_',
-    '_signal_strength', '_linkquality',
-    '_update_', '_uptime', '_last_seen',
+    "_tracker",
+    "team_tracker",
+    "nfl_",
+    "nhl_",
+    "mlb_",
+    "nba_",
+    "ncaa_",
+    "weather_",
+    "openweathermap_",
+    "carbon_intensity_",
+    "electricity_pricing_",
+    "national_grid_",
+    "calendar_",
+    "_cpu_",
+    "_temp",
+    "_chip_",
+    "coordinator_",
+    "_battery",
+    "_memory_",
+    "_signal_strength",
+    "_linkquality",
+    "_update_",
+    "_uptime",
+    "_last_seen",
 ]
 
 # Weekend day numbers (Monday=0 ... Sunday=6)
@@ -68,6 +87,7 @@ WEEKEND_DAYS = {5, 6}  # Saturday, Sunday
 @dataclass
 class DayTypeProfile:
     """Activation profile for a single day type (weekday or weekend)."""
+
     event_count: int = 0
     day_count: int = 0
     avg_daily_count: float = 0.0
@@ -80,6 +100,7 @@ class DayTypeProfile:
 @dataclass
 class DayTypeComparison:
     """Comparison result between weekday and weekend profiles."""
+
     device_id: str
     weekday_profile: DayTypeProfile
     weekend_profile: DayTypeProfile
@@ -148,7 +169,7 @@ class DayTypePatternDetector:
             logger.warning("No events provided for day-type detection")
             return []
 
-        required_cols = ['device_id', 'timestamp']
+        required_cols = ["device_id", "timestamp"]
         missing_cols = [col for col in required_cols if col not in events.columns]
         if missing_cols:
             logger.error(f"Missing required columns: {missing_cols}")
@@ -160,15 +181,13 @@ class DayTypePatternDetector:
             original_count = len(events)
             events = self._filter_system_noise(events)
             if len(events) < original_count:
-                logger.info(
-                    f"Filtered system noise: {original_count} -> {len(events)} events"
-                )
+                logger.info(f"Filtered system noise: {original_count} -> {len(events)} events")
 
         if events.empty:
             logger.warning("No events remaining after filtering")
             return []
 
-        events = events.sort_values('timestamp').copy()
+        events = events.sort_values("timestamp").copy()
         events = events.reset_index(drop=True)
 
         # Partition events by day type
@@ -192,7 +211,7 @@ class DayTypePatternDetector:
         events: pd.DataFrame,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Split events into weekday and weekend groups."""
-        day_of_week = events['timestamp'].dt.dayofweek
+        day_of_week = events["timestamp"].dt.dayofweek
         weekend_mask = day_of_week.isin(WEEKEND_DAYS)
         return events[~weekend_mask].copy(), events[weekend_mask].copy()
 
@@ -204,15 +223,15 @@ class DayTypePatternDetector:
         """Compare weekday vs weekend profiles for each device."""
         all_devices = set()
         if not weekday_events.empty:
-            all_devices.update(weekday_events['device_id'].unique())
+            all_devices.update(weekday_events["device_id"].unique())
         if not weekend_events.empty:
-            all_devices.update(weekend_events['device_id'].unique())
+            all_devices.update(weekend_events["device_id"].unique())
 
         comparisons: list[DayTypeComparison] = []
 
         for device_id in all_devices:
-            wd_device = weekday_events[weekday_events['device_id'] == device_id]
-            we_device = weekend_events[weekend_events['device_id'] == device_id]
+            wd_device = weekday_events[weekday_events["device_id"] == device_id]
+            we_device = weekend_events[weekend_events["device_id"] == device_id]
 
             # Need sufficient data in both types
             if len(wd_device) < self.min_events_per_type:
@@ -235,7 +254,7 @@ class DayTypePatternDetector:
         profile.event_count = len(device_events)
 
         # Count unique days
-        dates = device_events['timestamp'].dt.date.unique()
+        dates = device_events["timestamp"].dt.date.unique()
         profile.day_count = len(dates)
 
         # Average daily count
@@ -243,13 +262,11 @@ class DayTypePatternDetector:
             profile.avg_daily_count = profile.event_count / profile.day_count
 
         # Hourly distribution (normalized to fraction of events)
-        hours = device_events['timestamp'].dt.hour
+        hours = device_events["timestamp"].dt.hour
         hour_counts = hours.value_counts().to_dict()
         total = sum(hour_counts.values())
         if total > 0:
-            profile.hourly_distribution = {
-                h: c / total for h, c in hour_counts.items()
-            }
+            profile.hourly_distribution = {h: c / total for h, c in hour_counts.items()}
 
         # Peak hour
         if hour_counts:
@@ -330,11 +347,7 @@ class DayTypePatternDetector:
 
         distribution_variance = 1.0 - min(overlap, 1.0)
 
-        return (
-            0.3 * peak_variance
-            + 0.3 * avg_variance
-            + 0.4 * distribution_variance
-        )
+        return 0.3 * peak_variance + 0.3 * avg_variance + 0.4 * distribution_variance
 
     @staticmethod
     def _calculate_confidence(
@@ -354,9 +367,7 @@ class DayTypePatternDetector:
 
         return 0.6 * day_factor + 0.4 * event_factor
 
-    def _build_patterns(
-        self, comparisons: list[DayTypeComparison]
-    ) -> list[dict]:
+    def _build_patterns(self, comparisons: list[DayTypeComparison]) -> list[dict]:
         """Build pattern dictionaries from comparisons that meet thresholds."""
         patterns = []
 
@@ -367,24 +378,24 @@ class DayTypePatternDetector:
                 continue
 
             pattern = {
-                'pattern_type': 'day_type',
-                'device_id': comp.device_id,
-                'weekday_pattern': self._profile_to_dict(comp.weekday_profile),
-                'weekend_pattern': self._profile_to_dict(comp.weekend_profile),
-                'variance_score': float(comp.overall_variance),
-                'confidence': float(comp.confidence),
-                'metadata': {
-                    'count_variance': float(comp.count_variance),
-                    'timing_variance': float(comp.timing_variance),
-                    'weekday_peak_hour': comp.weekday_profile.peak_hour,
-                    'weekend_peak_hour': comp.weekend_profile.peak_hour,
-                    'weekday_avg_daily': float(comp.weekday_profile.avg_daily_count),
-                    'weekend_avg_daily': float(comp.weekend_profile.avg_daily_count),
-                    'domain': self._get_domain(comp.device_id),
-                    'thresholds': {
-                        'min_events_per_type': self.min_events_per_type,
-                        'min_confidence': self.min_confidence,
-                        'variance_threshold': self.variance_threshold,
+                "pattern_type": "day_type",
+                "device_id": comp.device_id,
+                "weekday_pattern": self._profile_to_dict(comp.weekday_profile),
+                "weekend_pattern": self._profile_to_dict(comp.weekend_profile),
+                "variance_score": float(comp.overall_variance),
+                "confidence": float(comp.confidence),
+                "metadata": {
+                    "count_variance": float(comp.count_variance),
+                    "timing_variance": float(comp.timing_variance),
+                    "weekday_peak_hour": comp.weekday_profile.peak_hour,
+                    "weekend_peak_hour": comp.weekend_profile.peak_hour,
+                    "weekday_avg_daily": float(comp.weekday_profile.avg_daily_count),
+                    "weekend_avg_daily": float(comp.weekend_profile.avg_daily_count),
+                    "domain": self._get_domain(comp.device_id),
+                    "thresholds": {
+                        "min_events_per_type": self.min_events_per_type,
+                        "min_confidence": self.min_confidence,
+                        "variance_threshold": self.variance_threshold,
                     },
                 },
             }
@@ -399,20 +410,20 @@ class DayTypePatternDetector:
                 f"confidence={comp.confidence:.0%})"
             )
 
-        patterns.sort(key=lambda p: p['variance_score'], reverse=True)
+        patterns.sort(key=lambda p: p["variance_score"], reverse=True)
         return patterns
 
     @staticmethod
     def _profile_to_dict(profile: DayTypeProfile) -> dict:
         """Convert a DayTypeProfile to a serializable dictionary."""
         return {
-            'event_count': profile.event_count,
-            'day_count': profile.day_count,
-            'avg_daily_count': float(profile.avg_daily_count),
-            'peak_hour': profile.peak_hour,
-            'avg_hour': float(profile.avg_hour),
-            'std_hour': float(profile.std_hour),
-            'hourly_distribution': {
+            "event_count": profile.event_count,
+            "day_count": profile.day_count,
+            "avg_daily_count": float(profile.avg_daily_count),
+            "peak_hour": profile.peak_hour,
+            "avg_hour": float(profile.avg_hour),
+            "std_hour": float(profile.std_hour),
+            "hourly_distribution": {
                 str(h): round(v, 4) for h, v in profile.hourly_distribution.items()
             },
         }
@@ -429,64 +440,58 @@ class DayTypePatternDetector:
         Returns:
             Automation suggestion dictionary.
         """
-        if pattern.get('pattern_type') != 'day_type':
-            logger.warning(
-                f"Pattern type {pattern.get('pattern_type')} is not day_type"
-            )
+        if pattern.get("pattern_type") != "day_type":
+            logger.warning(f"Pattern type {pattern.get('pattern_type')} is not day_type")
             return {}
 
-        device_id = pattern.get('device_id', '')
+        device_id = pattern.get("device_id", "")
         if not device_id:
             return {}
 
-        weekday = pattern.get('weekday_pattern', {})
-        weekend = pattern.get('weekend_pattern', {})
-        confidence = pattern.get('confidence', 0.0)
+        weekday = pattern.get("weekday_pattern", {})
+        weekend = pattern.get("weekend_pattern", {})
+        confidence = pattern.get("confidence", 0.0)
 
-        wd_peak = weekday.get('peak_hour', 8)
-        we_peak = weekend.get('peak_hour', 9)
+        wd_peak = weekday.get("peak_hour", 8)
+        we_peak = weekend.get("peak_hour", 9)
 
         domain = self._get_domain(device_id)
         service = self._get_default_service(domain)
 
         description = (
-            f"Day-type automation: {device_id} "
-            f"(weekday {wd_peak}:00, weekend {we_peak}:00)"
+            f"Day-type automation: {device_id} (weekday {wd_peak}:00, weekend {we_peak}:00)"
         )
 
         suggestion = {
-            'automation_type': 'day_type_schedule',
-            'trigger': {
-                'platform': 'time',
-                'at': f"{wd_peak:02d}:00:00",
+            "automation_type": "day_type_schedule",
+            "trigger": {
+                "platform": "time",
+                "at": f"{wd_peak:02d}:00:00",
             },
-            'condition': {
-                'condition': 'time',
-                'weekday': ['mon', 'tue', 'wed', 'thu', 'fri'],
+            "condition": {
+                "condition": "time",
+                "weekday": ["mon", "tue", "wed", "thu", "fri"],
             },
-            'action': {
-                'service': f"{domain}.{service}",
-                'entity_id': device_id,
-                'target': {'entity_id': device_id},
+            "action": {
+                "service": f"{domain}.{service}",
+                "entity_id": device_id,
+                "target": {"entity_id": device_id},
             },
-            'confidence': float(confidence),
-            'description': description,
-            'device_id': device_id,
-            'requires_confirmation': False,
-            'safety_level': 'normal',
-            'safety_warnings': [],
-            'metadata': {
-                'source': 'day_type_pattern',
-                'weekday_peak_hour': wd_peak,
-                'weekend_peak_hour': we_peak,
-                'variance_score': pattern.get('variance_score', 0.0),
+            "confidence": float(confidence),
+            "description": description,
+            "device_id": device_id,
+            "requires_confirmation": False,
+            "safety_level": "normal",
+            "safety_warnings": [],
+            "metadata": {
+                "source": "day_type_pattern",
+                "weekday_peak_hour": wd_peak,
+                "weekend_peak_hour": we_peak,
+                "variance_score": pattern.get("variance_score", 0.0),
             },
         }
 
-        logger.info(
-            f"Suggested day-type automation: {description} "
-            f"(confidence={confidence:.0%})"
-        )
+        logger.info(f"Suggested day-type automation: {description} (confidence={confidence:.0%})")
 
         return suggestion
 
@@ -494,43 +499,43 @@ class DayTypePatternDetector:
         """Get summary statistics for detected day-type patterns."""
         if not patterns:
             return {
-                'total_patterns': 0,
-                'avg_variance': 0.0,
-                'avg_confidence': 0.0,
-                'high_variance_count': 0,
+                "total_patterns": 0,
+                "avg_variance": 0.0,
+                "avg_confidence": 0.0,
+                "high_variance_count": 0,
             }
 
-        variances = [p['variance_score'] for p in patterns]
+        variances = [p["variance_score"] for p in patterns]
         return {
-            'total_patterns': len(patterns),
-            'avg_variance': float(np.mean(variances)),
-            'max_variance': float(np.max(variances)),
-            'avg_confidence': float(np.mean([p['confidence'] for p in patterns])),
-            'high_variance_count': sum(1 for v in variances if v > 0.5),
-            'domains': dict(
-                pd.Series([
-                    self._get_domain(p['device_id']) for p in patterns
-                ]).value_counts().to_dict()
+            "total_patterns": len(patterns),
+            "avg_variance": float(np.mean(variances)),
+            "max_variance": float(np.max(variances)),
+            "avg_confidence": float(np.mean([p["confidence"] for p in patterns])),
+            "high_variance_count": sum(1 for v in variances if v > 0.5),
+            "domains": dict(
+                pd.Series([self._get_domain(p["device_id"]) for p in patterns])
+                .value_counts()
+                .to_dict()
             ),
-            'variance_distribution': {
-                '30-50%': sum(1 for v in variances if 0.3 <= v < 0.5),
-                '50-70%': sum(1 for v in variances if 0.5 <= v < 0.7),
-                '70-100%': sum(1 for v in variances if 0.7 <= v <= 1.0),
+            "variance_distribution": {
+                "30-50%": sum(1 for v in variances if 0.3 <= v < 0.5),
+                "50-70%": sum(1 for v in variances if 0.5 <= v < 0.7),
+                "70-100%": sum(1 for v in variances if 0.7 <= v <= 1.0),
             },
         }
 
     @staticmethod
     def _get_domain(device_id: str) -> str:
         """Extract entity domain from device ID."""
-        if not device_id or '.' not in str(device_id):
-            return 'default'
-        return str(device_id).split('.', 1)[0]
+        if not device_id or "." not in str(device_id):
+            return "default"
+        return str(device_id).split(".", 1)[0]
 
     def _filter_system_noise(self, events: pd.DataFrame) -> pd.DataFrame:
         """Filter out system sensors, trackers, and non-actionable entities."""
-        if 'device_id' not in events.columns:
+        if "device_id" not in events.columns:
             return events
-        mask = events['device_id'].apply(self._is_actionable_entity)
+        mask = events["device_id"].apply(self._is_actionable_entity)
         return events[mask].copy()
 
     def _is_actionable_entity(self, device_id: str) -> bool:
@@ -553,40 +558,36 @@ class DayTypePatternDetector:
     def _get_default_service(domain: str) -> str:
         """Get default service for domain."""
         service_map = {
-            'light': 'turn_on',
-            'switch': 'turn_on',
-            'fan': 'turn_on',
-            'cover': 'open_cover',
-            'lock': 'lock',
-            'climate': 'set_temperature',
-            'media_player': 'turn_on',
-            'vacuum': 'start',
-            'scene': 'turn_on',
+            "light": "turn_on",
+            "switch": "turn_on",
+            "fan": "turn_on",
+            "cover": "open_cover",
+            "lock": "lock",
+            "climate": "set_temperature",
+            "media_player": "turn_on",
+            "vacuum": "start",
+            "scene": "turn_on",
         }
-        return service_map.get(domain, 'turn_on')
+        return service_map.get(domain, "turn_on")
 
-    def _store_daily_aggregates(
-        self, patterns: list[dict], events: pd.DataFrame
-    ) -> None:
+    def _store_daily_aggregates(self, patterns: list[dict], events: pd.DataFrame) -> None:
         """Store daily aggregates to InfluxDB."""
         try:
-            if events.empty or 'timestamp' not in events.columns:
+            if events.empty or "timestamp" not in events.columns:
                 return
 
-            date = events['timestamp'].min().date()
+            date = events["timestamp"].min().date()
             date_str = date.strftime("%Y-%m-%d")
 
-            logger.info(
-                f"Storing {len(patterns)} day-type aggregates for {date_str}"
-            )
+            logger.info(f"Storing {len(patterns)} day-type aggregates for {date_str}")
 
             for pattern in patterns:
                 try:
                     self.aggregate_client.write_day_type_daily(
                         date=date_str,
-                        device_id=pattern.get('device_id', ''),
-                        variance_score=pattern.get('variance_score', 0.0),
-                        confidence=pattern.get('confidence', 0.0),
+                        device_id=pattern.get("device_id", ""),
+                        variance_score=pattern.get("variance_score", 0.0),
+                        confidence=pattern.get("confidence", 0.0),
                     )
                 except Exception as e:
                     logger.error(

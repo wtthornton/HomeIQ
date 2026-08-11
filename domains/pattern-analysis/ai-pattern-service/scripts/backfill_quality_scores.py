@@ -16,7 +16,7 @@ import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 # Add project root and service src to path
 project_root = Path(__file__).parent.parent.parent.parent
@@ -28,7 +28,9 @@ sys.path.insert(0, str(service_root / "src"))
 from services.synergy_quality_scorer import SynergyQualityScorer
 
 
-async def backfill_quality_scores(db_url: str, dry_run: bool = False, batch_size: int = 100) -> Dict[str, Any]:
+async def backfill_quality_scores(
+    db_url: str, dry_run: bool = False, batch_size: int = 100
+) -> dict[str, Any]:
     """
     Calculate and update quality scores for all existing synergies.
 
@@ -88,70 +90,81 @@ async def backfill_quality_scores(db_url: str, dry_run: bool = False, batch_size
         if total_synergies == 0:
             print("All synergies already have quality scores (nothing to do)")
             return {
-                'total_synergies': 0,
-                'updated_count': 0,
-                'skipped_count': 0,
-                'error_count': 0,
-                'tier_distribution': {}
+                "total_synergies": 0,
+                "updated_count": 0,
+                "skipped_count": 0,
+                "error_count": 0,
+                "tier_distribution": {},
             }
 
         updated_count = 0
         skipped_count = 0
         error_count = 0
-        tier_distribution = {'high': 0, 'medium': 0, 'low': 0, 'poor': 0}
+        tier_distribution = {"high": 0, "medium": 0, "low": 0, "poor": 0}
 
         for batch_start in range(0, total_synergies, batch_size):
             batch_end = min(batch_start + batch_size, total_synergies)
             batch = synergies[batch_start:batch_end]
 
-            print(f"Processing batch {batch_start // batch_size + 1} ({batch_start + 1}-{batch_end} of {total_synergies})...")
+            print(
+                f"Processing batch {batch_start // batch_size + 1} ({batch_start + 1}-{batch_end} of {total_synergies})..."
+            )
 
             for row in batch:
                 try:
-                    synergy_dict: Dict[str, Any] = {
-                        'synergy_id': row['synergy_id'],
-                        'impact_score': row['impact_score'] or 0.5,
-                        'confidence': row['confidence'] or 0.5,
-                        'complexity': row['complexity'] or 'medium',
-                        'pattern_support_score': row['pattern_support_score'] or 0.0,
-                        'validated_by_patterns': bool(row['validated_by_patterns']) if row['validated_by_patterns'] is not None else False,
+                    synergy_dict: dict[str, Any] = {
+                        "synergy_id": row["synergy_id"],
+                        "impact_score": row["impact_score"] or 0.5,
+                        "confidence": row["confidence"] or 0.5,
+                        "complexity": row["complexity"] or "medium",
+                        "pattern_support_score": row["pattern_support_score"] or 0.0,
+                        "validated_by_patterns": bool(row["validated_by_patterns"])
+                        if row["validated_by_patterns"] is not None
+                        else False,
                     }
 
-                    device_ids = row['device_ids']
+                    device_ids = row["device_ids"]
                     if isinstance(device_ids, str):
                         try:
                             device_ids = json.loads(device_ids)
                         except (json.JSONDecodeError, TypeError):
                             device_ids = []
-                    synergy_dict['device_ids'] = device_ids if isinstance(device_ids, list) else []
+                    synergy_dict["device_ids"] = device_ids if isinstance(device_ids, list) else []
 
-                    metadata = row['opportunity_metadata']
+                    metadata = row["opportunity_metadata"]
                     if isinstance(metadata, str):
                         try:
                             metadata = json.loads(metadata)
                         except (json.JSONDecodeError, TypeError):
                             metadata = {}
-                    synergy_dict['opportunity_metadata'] = metadata if isinstance(metadata, dict) else {}
+                    synergy_dict["opportunity_metadata"] = (
+                        metadata if isinstance(metadata, dict) else {}
+                    )
 
                     quality_result = scorer.calculate_quality_score(synergy_dict)
-                    quality_score = quality_result['quality_score']
-                    quality_tier = quality_result['quality_tier']
+                    quality_score = quality_result["quality_score"]
+                    quality_tier = quality_result["quality_tier"]
 
                     if dry_run:
-                        print(f"  [WOULD UPDATE] {row['synergy_id']}: quality_score={quality_score:.4f}, tier={quality_tier}")
+                        print(
+                            f"  [WOULD UPDATE] {row['synergy_id']}: quality_score={quality_score:.4f}, tier={quality_tier}"
+                        )
                     else:
-                        cursor.execute("""
+                        cursor.execute(
+                            """
                             UPDATE synergy_opportunities
                             SET quality_score = %s,
                                 quality_tier = %s,
                                 last_validated_at = %s
                             WHERE synergy_id = %s
-                        """, (
-                            quality_score,
-                            quality_tier,
-                            datetime.now(UTC).isoformat(),
-                            row['synergy_id']
-                        ))
+                        """,
+                            (
+                                quality_score,
+                                quality_tier,
+                                datetime.now(UTC).isoformat(),
+                                row["synergy_id"],
+                            ),
+                        )
 
                     updated_count += 1
                     tier_distribution[quality_tier] = tier_distribution.get(quality_tier, 0) + 1
@@ -168,22 +181,25 @@ async def backfill_quality_scores(db_url: str, dry_run: bool = False, batch_size
         print(f"  Total synergies: {total_synergies}")
         print(f"  Updated: {updated_count}")
         print(f"  Errors: {error_count}")
-        print(f"\nTier distribution:")
-        for tier, count in sorted(tier_distribution.items(), key=lambda x: ['high', 'medium', 'low', 'poor'].index(x[0])):
+        print("\nTier distribution:")
+        for tier, count in sorted(
+            tier_distribution.items(), key=lambda x: ["high", "medium", "low", "poor"].index(x[0])
+        ):
             if count > 0:
                 print(f"  {tier}: {count}")
 
         return {
-            'total_synergies': total_synergies,
-            'updated_count': updated_count,
-            'skipped_count': skipped_count,
-            'error_count': error_count,
-            'tier_distribution': tier_distribution
+            "total_synergies": total_synergies,
+            "updated_count": updated_count,
+            "skipped_count": skipped_count,
+            "error_count": error_count,
+            "tier_distribution": tier_distribution,
         }
 
     except Exception as e:
         print(f"\nError: {e}")
         import traceback
+
         traceback.print_exc()
         conn.rollback()
         sys.exit(1)
@@ -193,38 +209,35 @@ async def backfill_quality_scores(db_url: str, dry_run: bool = False, batch_size
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description='Backfill quality scores for existing synergies'
-    )
+    parser = argparse.ArgumentParser(description="Backfill quality scores for existing synergies")
     parser.add_argument(
-        '--db-url',
+        "--db-url",
         type=str,
-        default=os.environ.get('POSTGRES_URL', os.environ.get('DATABASE_URL', 'postgresql://homeiq:homeiq@localhost:5432/homeiq')),
-        help='PostgreSQL connection URL'
+        default=os.environ.get(
+            "POSTGRES_URL",
+            os.environ.get("DATABASE_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq"),
+        ),
+        help="PostgreSQL connection URL",
     )
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Preview changes without applying them'
+        "--dry-run", action="store_true", help="Preview changes without applying them"
     )
     parser.add_argument(
-        '--batch-size',
+        "--batch-size",
         type=int,
         default=100,
-        help='Number of synergies to process per batch (default: 100)'
+        help="Number of synergies to process per batch (default: 100)",
     )
 
     args = parser.parse_args()
 
-    result = asyncio.run(backfill_quality_scores(
-        args.db_url,
-        dry_run=args.dry_run,
-        batch_size=args.batch_size
-    ))
+    result = asyncio.run(
+        backfill_quality_scores(args.db_url, dry_run=args.dry_run, batch_size=args.batch_size)
+    )
 
     if args.dry_run:
         print("\nThis was a dry run. Remove --dry-run to apply changes.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

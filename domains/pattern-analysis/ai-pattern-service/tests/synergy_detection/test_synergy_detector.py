@@ -14,9 +14,13 @@ sys.path.insert(0, str(src_path))
 
 # Actual high-value synergy types used in production code
 HIGH_VALUE_TYPES = {
-    'weather_context', 'energy_context', 'sports_context',
-    'calendar_context', 'carbon_context',
-    'scene_based', 'schedule_based',
+    "weather_context",
+    "energy_context",
+    "sports_context",
+    "calendar_context",
+    "carbon_context",
+    "scene_based",
+    "schedule_based",
 }
 
 
@@ -103,19 +107,21 @@ class TestConfidenceFloor:
         min_confidence = 0.7
 
         synergies = [
-            self._make_synergy("device_pair", 0.72),           # pass (0.72 >= 0.7)
-            self._make_synergy("device_pair", 0.65),           # FAIL (0.65 < 0.7)
-            self._make_synergy("weather_context", 0.65),       # pass (0.65 >= 0.6)
-            self._make_synergy("scene_based", 0.60),           # pass (0.60 >= 0.6)
-            self._make_synergy("schedule_based", 0.55),        # FAIL (0.55 < 0.6)
-            self._make_synergy("device_chain", 0.68),          # FAIL (0.68 < 0.7)
-            self._make_synergy("energy_context", 0.61),        # pass (0.61 >= 0.6)
-            self._make_synergy("carbon_context", 0.59),        # FAIL (0.59 < 0.6)
+            self._make_synergy("device_pair", 0.72),  # pass (0.72 >= 0.7)
+            self._make_synergy("device_pair", 0.65),  # FAIL (0.65 < 0.7)
+            self._make_synergy("weather_context", 0.65),  # pass (0.65 >= 0.6)
+            self._make_synergy("scene_based", 0.60),  # pass (0.60 >= 0.6)
+            self._make_synergy("schedule_based", 0.55),  # FAIL (0.55 < 0.6)
+            self._make_synergy("device_chain", 0.68),  # FAIL (0.68 < 0.7)
+            self._make_synergy("energy_context", 0.61),  # pass (0.61 >= 0.6)
+            self._make_synergy("carbon_context", 0.59),  # FAIL (0.59 < 0.6)
         ]
 
         filtered = [
-            s for s in synergies
-            if s["confidence"] >= (
+            s
+            for s in synergies
+            if s["confidence"]
+            >= (
                 min_confidence - 0.1
                 if s.get("synergy_type") in HIGH_VALUE_TYPES
                 else min_confidence

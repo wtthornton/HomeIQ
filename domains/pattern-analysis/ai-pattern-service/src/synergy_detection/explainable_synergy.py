@@ -30,9 +30,7 @@ class ExplainableSynergyGenerator:
         logger.info("ExplainableSynergyGenerator initialized")
 
     def generate_explanation(
-        self,
-        synergy: dict[str, Any],
-        context: dict[str, Any] | None = None
+        self, synergy: dict[str, Any], context: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Generate comprehensive explanation for synergy.
@@ -55,42 +53,41 @@ class ExplainableSynergyGenerator:
         if not isinstance(synergy, dict):
             raise ValueError("synergy must be a dictionary")
 
-        synergy_id = synergy.get('synergy_id', 'unknown')
-        trigger_entity = synergy.get('trigger_entity', synergy.get('trigger_name', 'unknown'))
-        action_entity = synergy.get('action_entity', synergy.get('action_name', 'unknown'))
+        synergy_id = synergy.get("synergy_id", "unknown")
+        trigger_entity = synergy.get("trigger_entity", synergy.get("trigger_name", "unknown"))
+        action_entity = synergy.get("action_entity", synergy.get("action_name", "unknown"))
 
         logger.debug(
-            f"Generating explanation for synergy {synergy_id} "
-            f"({trigger_entity} → {action_entity})"
+            f"Generating explanation for synergy {synergy_id} ({trigger_entity} → {action_entity})"
         )
 
         explanation = {
-            'summary': self._generate_summary(synergy),
-            'detailed': self._generate_detailed_explanation(synergy, context),
-            'score_breakdown': self._breakdown_score(synergy),
-            'evidence': self._collect_evidence(synergy),
-            'benefits': self._list_benefits(synergy),
-            'visualization': self._create_visualization(synergy)
+            "summary": self._generate_summary(synergy),
+            "detailed": self._generate_detailed_explanation(synergy, context),
+            "score_breakdown": self._breakdown_score(synergy),
+            "evidence": self._collect_evidence(synergy),
+            "benefits": self._list_benefits(synergy),
+            "visualization": self._create_visualization(synergy),
         }
 
         return explanation
 
     def _generate_summary(self, synergy: dict[str, Any]) -> str:
         """Generate one-line summary."""
-        synergy_type = synergy.get('relationship_type', synergy.get('synergy_type', 'automation'))
-        trigger_name = synergy.get('trigger_name', synergy.get('trigger_entity'))
-        action_name = synergy.get('action_name', synergy.get('action_entity'))
-        area = synergy.get('area', 'your home')
-        impact = synergy.get('impact_score', 0)
+        synergy_type = synergy.get("relationship_type", synergy.get("synergy_type", "automation"))
+        trigger_name = synergy.get("trigger_name", synergy.get("trigger_entity"))
+        action_name = synergy.get("action_name", synergy.get("action_entity"))
+        area = synergy.get("area", "your home")
+        impact = synergy.get("impact_score", 0)
 
         # Handle event_context synergies (event-triggered, not device pairs)
-        if synergy_type == 'event_context' or synergy.get('synergy_type') == 'event_context':
+        if synergy_type == "event_context" or synergy.get("synergy_type") == "event_context":
             # Get event context from opportunity_metadata
-            metadata = synergy.get('opportunity_metadata', {})
+            metadata = synergy.get("opportunity_metadata", {})
             if isinstance(metadata, dict):
-                event_context = metadata.get('event_context', 'sports event')
-                suggested_action = metadata.get('suggested_action', 'Activate scene')
-                rationale = metadata.get('rationale', '')
+                event_context = metadata.get("event_context", "sports event")
+                suggested_action = metadata.get("suggested_action", "Activate scene")
+                rationale = metadata.get("rationale", "")
 
                 if rationale:
                     return rationale
@@ -106,24 +103,24 @@ class ExplainableSynergyGenerator:
                     return f"Event-based automation opportunity (Impact: {impact:.0%})"
 
         # Handle device pair synergies
-        if not trigger_name or trigger_name == 'None' or trigger_name == 'unknown':
+        if not trigger_name or trigger_name == "None" or trigger_name == "unknown":
             # Try to get from opportunity_metadata
-            metadata = synergy.get('opportunity_metadata', {})
+            metadata = synergy.get("opportunity_metadata", {})
             if isinstance(metadata, dict):
-                trigger_name = metadata.get('trigger_name', metadata.get('trigger_entity', 'Event'))
+                trigger_name = metadata.get("trigger_name", metadata.get("trigger_entity", "Event"))
             else:
-                trigger_name = 'Event'
+                trigger_name = "Event"
 
-        if not action_name or action_name == 'None' or action_name == 'unknown':
+        if not action_name or action_name == "None" or action_name == "unknown":
             # Try to get from opportunity_metadata
-            metadata = synergy.get('opportunity_metadata', {})
+            metadata = synergy.get("opportunity_metadata", {})
             if isinstance(metadata, dict):
-                action_name = metadata.get('action_name', metadata.get('action_entity', 'Device'))
+                action_name = metadata.get("action_name", metadata.get("action_entity", "Device"))
             else:
-                action_name = 'Device'
+                action_name = "Device"
 
         # Convert relationship type to readable format
-        relationship_readable = synergy_type.replace('_', ' ').title()
+        relationship_readable = synergy_type.replace("_", " ").title()
 
         return (
             f"{relationship_readable}: {trigger_name} → {action_name} "
@@ -131,17 +128,15 @@ class ExplainableSynergyGenerator:
         )
 
     def _generate_detailed_explanation(
-        self,
-        synergy: dict[str, Any],
-        context: dict[str, Any] | None
+        self, synergy: dict[str, Any], context: dict[str, Any] | None
     ) -> str:
         """Generate detailed explanation."""
-        trigger_name = synergy.get('trigger_name', synergy.get('trigger_entity', 'Device'))
-        action_name = synergy.get('action_name', synergy.get('action_entity', 'Device'))
-        relationship = synergy.get('relationship_type', 'automation')
-        area = synergy.get('area', 'your home')
-        impact = synergy.get('impact_score', 0)
-        confidence = synergy.get('confidence', 0)
+        trigger_name = synergy.get("trigger_name", synergy.get("trigger_entity", "Device"))
+        action_name = synergy.get("action_name", synergy.get("action_entity", "Device"))
+        relationship = synergy.get("relationship_type", "automation")
+        area = synergy.get("area", "your home")
+        impact = synergy.get("impact_score", 0)
+        confidence = synergy.get("confidence", 0)
 
         explanation_parts = []
 
@@ -151,16 +146,16 @@ class ExplainableSynergyGenerator:
         )
 
         # Relationship context
-        if relationship == 'motion_to_light':
+        if relationship == "motion_to_light":
             explanation_parts.append(
                 "When motion is detected, the lights will automatically turn on, "
                 "providing convenience and energy efficiency."
             )
-        elif relationship == 'door_to_lock':
+        elif relationship == "door_to_lock":
             explanation_parts.append(
                 "When the door closes, it will automatically lock, enhancing security."
             )
-        elif relationship == 'temp_to_climate':
+        elif relationship == "temp_to_climate":
             explanation_parts.append(
                 "The climate system will adjust based on temperature readings, "
                 "maintaining comfort automatically."
@@ -172,18 +167,16 @@ class ExplainableSynergyGenerator:
             )
 
         # Impact and confidence
-        explanation_parts.append(
-            f"\nImpact Score: {impact:.0%} | Confidence: {confidence:.0%}"
-        )
+        explanation_parts.append(f"\nImpact Score: {impact:.0%} | Confidence: {confidence:.0%}")
 
         # Context information
         if context:
-            if context.get('weather'):
+            if context.get("weather"):
                 explanation_parts.append(
                     f"\nCurrent conditions: {context.get('weather', 'unknown')} "
                     f"({context.get('temperature', 'N/A')}°C)"
                 )
-            if context.get('peak_hours'):
+            if context.get("peak_hours"):
                 explanation_parts.append(
                     "\n⚠️ Note: Currently in peak energy hours - consider scheduling for off-peak."
                 )
@@ -207,25 +200,27 @@ class ExplainableSynergyGenerator:
         """
         # Extract score components if available
         breakdown: dict[str, Any] = {
-            'base_benefit': synergy.get('base_benefit', synergy.get('impact_score', 0.7)),
-            'usage_frequency': synergy.get('usage_freq', 0.5),
-            'area_traffic': synergy.get('area_traffic', 0.7),
-            'time_weight': synergy.get('time_weight', 1.0),
-            'health_factor': synergy.get('health_factor', 1.0),
-            'complexity_penalty': synergy.get('complexity_penalty', 0.1),
-            'final_score': synergy.get('impact_score', 0.5)
+            "base_benefit": synergy.get("base_benefit", synergy.get("impact_score", 0.7)),
+            "usage_frequency": synergy.get("usage_freq", 0.5),
+            "area_traffic": synergy.get("area_traffic", 0.7),
+            "time_weight": synergy.get("time_weight", 1.0),
+            "health_factor": synergy.get("health_factor", 1.0),
+            "complexity_penalty": synergy.get("complexity_penalty", 0.1),
+            "final_score": synergy.get("impact_score", 0.5),
         }
 
         # If context breakdown available, use it
-        if 'context_breakdown' in synergy:
-            context_breakdown = synergy['context_breakdown']
-            breakdown.update({
-                'temporal_boost': context_breakdown.get('temporal_boost', 1.0),
-                'weather_boost': context_breakdown.get('weather_boost', 1.0),
-                'energy_boost': context_breakdown.get('energy_boost', 1.0),
-                'behavior_boost': context_breakdown.get('behavior_boost', 1.0),
-                'enhanced_score': synergy.get('enhanced_score', breakdown['final_score'])
-            })
+        if "context_breakdown" in synergy:
+            context_breakdown = synergy["context_breakdown"]
+            breakdown.update(
+                {
+                    "temporal_boost": context_breakdown.get("temporal_boost", 1.0),
+                    "weather_boost": context_breakdown.get("weather_boost", 1.0),
+                    "energy_boost": context_breakdown.get("energy_boost", 1.0),
+                    "behavior_boost": context_breakdown.get("behavior_boost", 1.0),
+                    "enhanced_score": synergy.get("enhanced_score", breakdown["final_score"]),
+                }
+            )
 
         return breakdown
 
@@ -239,45 +234,42 @@ class ExplainableSynergyGenerator:
         evidence = []
 
         # Usage evidence
-        trigger_name = synergy.get('trigger_name', synergy.get('trigger_entity', 'Device'))
-        action_name = synergy.get('action_name', synergy.get('action_entity', 'Device'))
+        trigger_name = synergy.get("trigger_name", synergy.get("trigger_entity", "Device"))
+        action_name = synergy.get("action_name", synergy.get("action_entity", "Device"))
 
-        if synergy.get('trigger_usage_count'):
+        if synergy.get("trigger_usage_count"):
             evidence.append(
                 f"{trigger_name} was used {synergy['trigger_usage_count']} times in the last 30 days"
             )
 
-        if synergy.get('action_usage_count'):
+        if synergy.get("action_usage_count"):
             evidence.append(
                 f"{action_name} was used {synergy['action_usage_count']} times in the same period"
             )
 
         # Area evidence
-        area = synergy.get('area')
-        if area and area != 'unknown':
+        area = synergy.get("area")
+        if area and area != "unknown":
             evidence.append(f"Both devices are located in {area}")
 
         # Pattern validation evidence
-        if synergy.get('validated_by_patterns'):
-            pattern_score = synergy.get('pattern_support_score', 0)
-            evidence.append(
-                f"Validated by detected usage patterns ({pattern_score:.0%} support)"
-            )
+        if synergy.get("validated_by_patterns"):
+            pattern_score = synergy.get("pattern_support_score", 0)
+            evidence.append(f"Validated by detected usage patterns ({pattern_score:.0%} support)")
 
         # ML discovery evidence
-        if synergy.get('synergy_type') == 'ml_discovered':
-            frequency = synergy.get('frequency', 0)
-            consistency = synergy.get('consistency', 0)
+        if synergy.get("synergy_type") == "ml_discovered":
+            frequency = synergy.get("frequency", 0)
+            consistency = synergy.get("consistency", 0)
             evidence.append(
-                f"Discovered from {frequency} real usage occurrences "
-                f"({consistency:.0%} consistent)"
+                f"Discovered from {frequency} real usage occurrences ({consistency:.0%} consistent)"
             )
 
         # No existing automation
         evidence.append("No existing automation currently connects these devices")
 
         # Confidence evidence
-        confidence = synergy.get('confidence', 0)
+        confidence = synergy.get("confidence", 0)
         if confidence >= 0.9:
             evidence.append("High confidence based on device compatibility and location")
         elif confidence >= 0.7:
@@ -288,45 +280,55 @@ class ExplainableSynergyGenerator:
     def _list_benefits(self, synergy: dict[str, Any]) -> list[str]:
         """List user benefits of this synergy."""
         benefits = []
-        relationship = synergy.get('relationship_type', '')
+        relationship = synergy.get("relationship_type", "")
 
         # Relationship-specific benefits
-        if 'motion_to_light' in relationship or 'occupancy_to_light' in relationship:
-            benefits.extend([
-                "Automatic lighting when you enter a room",
-                "Energy savings by turning lights off when not needed",
-                "Improved convenience - no need to manually switch lights"
-            ])
-        elif 'door_to_lock' in relationship:
-            benefits.extend([
-                "Enhanced security - automatic locking",
-                "Peace of mind - never forget to lock the door",
-                "Protection against unauthorized access"
-            ])
-        elif 'temp_to_climate' in relationship:
-            benefits.extend([
-                "Automatic climate control for comfort",
-                "Energy efficiency through smart temperature management",
-                "Consistent temperature without manual adjustment"
-            ])
-        elif 'presence_to_light' in relationship or 'presence_to_climate' in relationship:
-            benefits.extend([
-                "Personalized automation based on your presence",
-                "Energy savings when you're away",
-                "Comfort when you arrive home"
-            ])
+        if "motion_to_light" in relationship or "occupancy_to_light" in relationship:
+            benefits.extend(
+                [
+                    "Automatic lighting when you enter a room",
+                    "Energy savings by turning lights off when not needed",
+                    "Improved convenience - no need to manually switch lights",
+                ]
+            )
+        elif "door_to_lock" in relationship:
+            benefits.extend(
+                [
+                    "Enhanced security - automatic locking",
+                    "Peace of mind - never forget to lock the door",
+                    "Protection against unauthorized access",
+                ]
+            )
+        elif "temp_to_climate" in relationship:
+            benefits.extend(
+                [
+                    "Automatic climate control for comfort",
+                    "Energy efficiency through smart temperature management",
+                    "Consistent temperature without manual adjustment",
+                ]
+            )
+        elif "presence_to_light" in relationship or "presence_to_climate" in relationship:
+            benefits.extend(
+                [
+                    "Personalized automation based on your presence",
+                    "Energy savings when you're away",
+                    "Comfort when you arrive home",
+                ]
+            )
         else:
-            benefits.extend([
-                "Automated device coordination",
-                "Improved convenience",
-                "Potential energy savings"
-            ])
+            benefits.extend(
+                [
+                    "Automated device coordination",
+                    "Improved convenience",
+                    "Potential energy savings",
+                ]
+            )
 
         # Complexity-based benefits
-        complexity = synergy.get('complexity', 'medium')
-        if complexity == 'low':
+        complexity = synergy.get("complexity", "medium")
+        if complexity == "low":
             benefits.append("Easy to implement - simple automation")
-        elif complexity == 'medium':
+        elif complexity == "medium":
             benefits.append("Moderate complexity - may require some configuration")
 
         return benefits
@@ -342,62 +344,59 @@ class ExplainableSynergyGenerator:
                 'score_chart': dict
             }
         """
-        trigger_entity = synergy.get('trigger_entity', '')
-        action_entity = synergy.get('action_entity', '')
-        trigger_name = synergy.get('trigger_name', trigger_entity)
-        action_name = synergy.get('action_name', action_entity)
+        trigger_entity = synergy.get("trigger_entity", "")
+        action_entity = synergy.get("action_entity", "")
+        trigger_name = synergy.get("trigger_name", trigger_entity)
+        action_name = synergy.get("action_name", action_entity)
 
         # Graph structure
         graph = {
-            'nodes': [
+            "nodes": [
                 {
-                    'id': trigger_entity,
-                    'label': trigger_name,
-                    'type': 'trigger',
-                    'area': synergy.get('area', 'unknown')
+                    "id": trigger_entity,
+                    "label": trigger_name,
+                    "type": "trigger",
+                    "area": synergy.get("area", "unknown"),
                 },
                 {
-                    'id': action_entity,
-                    'label': action_name,
-                    'type': 'action',
-                    'area': synergy.get('area', 'unknown')
+                    "id": action_entity,
+                    "label": action_name,
+                    "type": "action",
+                    "area": synergy.get("area", "unknown"),
+                },
+            ],
+            "edges": [
+                {
+                    "from": trigger_entity,
+                    "to": action_entity,
+                    "label": synergy.get("relationship_type", "triggers"),
+                    "weight": synergy.get("impact_score", 0.5),
                 }
             ],
-            'edges': [
-                {
-                    'from': trigger_entity,
-                    'to': action_entity,
-                    'label': synergy.get('relationship_type', 'triggers'),
-                    'weight': synergy.get('impact_score', 0.5)
-                }
-            ]
         }
 
         # Timeline (if available)
         timeline = []
-        if synergy.get('frequency'):
-            timeline.append({
-                'event': f"{trigger_name} triggers",
-                'frequency': synergy.get('frequency', 0),
-                'consistency': synergy.get('consistency', 0)
-            })
+        if synergy.get("frequency"):
+            timeline.append(
+                {
+                    "event": f"{trigger_name} triggers",
+                    "frequency": synergy.get("frequency", 0),
+                    "consistency": synergy.get("consistency", 0),
+                }
+            )
 
         # Score chart data
         score_breakdown = self._breakdown_score(synergy)
         score_chart = {
-            'components': [
-                {'name': 'Base Benefit', 'value': score_breakdown.get('base_benefit', 0)},
-                {'name': 'Usage Frequency', 'value': score_breakdown.get('usage_frequency', 0)},
-                {'name': 'Area Traffic', 'value': score_breakdown.get('area_traffic', 0)},
-                {'name': 'Time Weight', 'value': score_breakdown.get('time_weight', 1.0)},
-                {'name': 'Health Factor', 'value': score_breakdown.get('health_factor', 1.0)}
+            "components": [
+                {"name": "Base Benefit", "value": score_breakdown.get("base_benefit", 0)},
+                {"name": "Usage Frequency", "value": score_breakdown.get("usage_frequency", 0)},
+                {"name": "Area Traffic", "value": score_breakdown.get("area_traffic", 0)},
+                {"name": "Time Weight", "value": score_breakdown.get("time_weight", 1.0)},
+                {"name": "Health Factor", "value": score_breakdown.get("health_factor", 1.0)},
             ],
-            'final_score': score_breakdown.get('final_score', 0)
+            "final_score": score_breakdown.get("final_score", 0),
         }
 
-        return {
-            'graph': graph,
-            'timeline': timeline,
-            'score_chart': score_chart
-        }
-
+        return {"graph": graph, "timeline": timeline, "score_chart": score_chart}

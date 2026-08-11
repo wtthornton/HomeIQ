@@ -5,15 +5,14 @@ Epic 37, Story 37.3: Day Type Detector tests.
 Target: >80% coverage.
 """
 
-import pytest
-import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
 
+import pandas as pd
+import pytest
 from src.pattern_analyzer.day_type import (
+    WEEKEND_DAYS,
     DayTypePatternDetector,
     DayTypeProfile,
-    WEEKEND_DAYS,
 )
 
 
@@ -52,17 +51,21 @@ class TestEventPartitioning:
         """Test that weekday events are correctly classified."""
         # 2026-03-02 is a Monday
         monday = datetime(2026, 3, 2, 8, 0, 0)
-        events = pd.DataFrame({
-            'device_id': ['light.bedroom'] * 5,
-            'timestamp': pd.to_datetime([
-                monday,  # Mon
-                monday + timedelta(days=1),  # Tue
-                monday + timedelta(days=2),  # Wed
-                monday + timedelta(days=3),  # Thu
-                monday + timedelta(days=4),  # Fri
-            ]),
-            'state': ['on'] * 5,
-        })
+        events = pd.DataFrame(
+            {
+                "device_id": ["light.bedroom"] * 5,
+                "timestamp": pd.to_datetime(
+                    [
+                        monday,  # Mon
+                        monday + timedelta(days=1),  # Tue
+                        monday + timedelta(days=2),  # Wed
+                        monday + timedelta(days=3),  # Thu
+                        monday + timedelta(days=4),  # Fri
+                    ]
+                ),
+                "state": ["on"] * 5,
+            }
+        )
 
         weekday, weekend = DayTypePatternDetector._partition_by_day_type(events)
         assert len(weekday) == 5
@@ -72,14 +75,18 @@ class TestEventPartitioning:
         """Test that weekend events are correctly classified."""
         # 2026-03-07 is a Saturday
         saturday = datetime(2026, 3, 7, 10, 0, 0)
-        events = pd.DataFrame({
-            'device_id': ['light.bedroom'] * 2,
-            'timestamp': pd.to_datetime([
-                saturday,  # Sat
-                saturday + timedelta(days=1),  # Sun
-            ]),
-            'state': ['on'] * 2,
-        })
+        events = pd.DataFrame(
+            {
+                "device_id": ["light.bedroom"] * 2,
+                "timestamp": pd.to_datetime(
+                    [
+                        saturday,  # Sat
+                        saturday + timedelta(days=1),  # Sun
+                    ]
+                ),
+                "state": ["on"] * 2,
+            }
+        )
 
         weekday, weekend = DayTypePatternDetector._partition_by_day_type(events)
         assert len(weekday) == 0
@@ -89,13 +96,13 @@ class TestEventPartitioning:
         """Test that mixed events are correctly split."""
         # 2026-03-02 is Monday
         monday = datetime(2026, 3, 2, 8, 0, 0)
-        events = pd.DataFrame({
-            'device_id': ['light.bedroom'] * 7,
-            'timestamp': pd.to_datetime([
-                monday + timedelta(days=i) for i in range(7)
-            ]),
-            'state': ['on'] * 7,
-        })
+        events = pd.DataFrame(
+            {
+                "device_id": ["light.bedroom"] * 7,
+                "timestamp": pd.to_datetime([monday + timedelta(days=i) for i in range(7)]),
+                "state": ["on"] * 7,
+            }
+        )
 
         weekday, weekend = DayTypePatternDetector._partition_by_day_type(events)
         assert len(weekday) == 5
@@ -107,14 +114,21 @@ class TestProfileBuilding:
 
     def test_basic_profile(self):
         """Test basic profile construction."""
-        events = pd.DataFrame({
-            'device_id': ['light.bedroom'] * 6,
-            'timestamp': pd.to_datetime([
-                '2026-03-02 07:00', '2026-03-02 08:00',
-                '2026-03-03 07:00', '2026-03-03 08:00',
-                '2026-03-04 07:00', '2026-03-04 08:00',
-            ]),
-        })
+        events = pd.DataFrame(
+            {
+                "device_id": ["light.bedroom"] * 6,
+                "timestamp": pd.to_datetime(
+                    [
+                        "2026-03-02 07:00",
+                        "2026-03-02 08:00",
+                        "2026-03-03 07:00",
+                        "2026-03-03 08:00",
+                        "2026-03-04 07:00",
+                        "2026-03-04 08:00",
+                    ]
+                ),
+            }
+        )
 
         profile = DayTypePatternDetector._build_profile(events)
         assert profile.event_count == 6
@@ -124,16 +138,25 @@ class TestProfileBuilding:
 
     def test_hourly_distribution_normalized(self):
         """Test that hourly distribution sums to ~1.0."""
-        events = pd.DataFrame({
-            'device_id': ['light.bedroom'] * 10,
-            'timestamp': pd.to_datetime([
-                '2026-03-02 07:00', '2026-03-02 07:30',
-                '2026-03-02 08:00', '2026-03-02 08:15',
-                '2026-03-02 08:30', '2026-03-02 12:00',
-                '2026-03-03 07:00', '2026-03-03 08:00',
-                '2026-03-04 07:00', '2026-03-04 08:00',
-            ]),
-        })
+        events = pd.DataFrame(
+            {
+                "device_id": ["light.bedroom"] * 10,
+                "timestamp": pd.to_datetime(
+                    [
+                        "2026-03-02 07:00",
+                        "2026-03-02 07:30",
+                        "2026-03-02 08:00",
+                        "2026-03-02 08:15",
+                        "2026-03-02 08:30",
+                        "2026-03-02 12:00",
+                        "2026-03-03 07:00",
+                        "2026-03-03 08:00",
+                        "2026-03-04 07:00",
+                        "2026-03-04 08:00",
+                    ]
+                ),
+            }
+        )
 
         profile = DayTypePatternDetector._build_profile(events)
         total = sum(profile.hourly_distribution.values())
@@ -141,10 +164,12 @@ class TestProfileBuilding:
 
     def test_single_event_profile(self):
         """Test profile with single event."""
-        events = pd.DataFrame({
-            'device_id': ['light.bedroom'],
-            'timestamp': pd.to_datetime(['2026-03-02 09:00']),
-        })
+        events = pd.DataFrame(
+            {
+                "device_id": ["light.bedroom"],
+                "timestamp": pd.to_datetime(["2026-03-02 09:00"]),
+            }
+        )
 
         profile = DayTypePatternDetector._build_profile(events)
         assert profile.event_count == 1
@@ -169,9 +194,13 @@ class TestVarianceCalculation:
     def test_identical_profiles_low_variance(self, detector):
         """Test that identical profiles produce low variance."""
         profile = DayTypeProfile(
-            event_count=20, day_count=5, avg_daily_count=4.0,
-            hourly_distribution={8: 0.5, 9: 0.5}, peak_hour=8,
-            avg_hour=8.5, std_hour=0.5,
+            event_count=20,
+            day_count=5,
+            avg_daily_count=4.0,
+            hourly_distribution={8: 0.5, 9: 0.5},
+            peak_hour=8,
+            avg_hour=8.5,
+            std_hour=0.5,
         )
 
         comp = detector._compute_variance("light.test", profile, profile)
@@ -181,14 +210,22 @@ class TestVarianceCalculation:
     def test_different_profiles_high_variance(self, detector):
         """Test that very different profiles produce high variance."""
         wd_profile = DayTypeProfile(
-            event_count=50, day_count=10, avg_daily_count=5.0,
-            hourly_distribution={7: 0.8, 8: 0.2}, peak_hour=7,
-            avg_hour=7.2, std_hour=0.5,
+            event_count=50,
+            day_count=10,
+            avg_daily_count=5.0,
+            hourly_distribution={7: 0.8, 8: 0.2},
+            peak_hour=7,
+            avg_hour=7.2,
+            std_hour=0.5,
         )
         we_profile = DayTypeProfile(
-            event_count=10, day_count=4, avg_daily_count=2.5,
-            hourly_distribution={10: 0.6, 11: 0.4}, peak_hour=10,
-            avg_hour=10.4, std_hour=0.5,
+            event_count=10,
+            day_count=4,
+            avg_daily_count=2.5,
+            hourly_distribution={10: 0.6, 11: 0.4},
+            peak_hour=10,
+            avg_hour=10.4,
+            std_hour=0.5,
         )
 
         comp = detector._compute_variance("light.test", wd_profile, we_profile)
@@ -199,14 +236,22 @@ class TestVarianceCalculation:
     def test_timing_variance_circular(self):
         """Test timing variance handles circular hour distances."""
         wd_profile = DayTypeProfile(
-            event_count=10, day_count=5, avg_daily_count=2.0,
-            hourly_distribution={23: 1.0}, peak_hour=23,
-            avg_hour=23.0, std_hour=0.0,
+            event_count=10,
+            day_count=5,
+            avg_daily_count=2.0,
+            hourly_distribution={23: 1.0},
+            peak_hour=23,
+            avg_hour=23.0,
+            std_hour=0.0,
         )
         we_profile = DayTypeProfile(
-            event_count=10, day_count=5, avg_daily_count=2.0,
-            hourly_distribution={1: 1.0}, peak_hour=1,
-            avg_hour=1.0, std_hour=0.0,
+            event_count=10,
+            day_count=5,
+            avg_daily_count=2.0,
+            hourly_distribution={1: 1.0},
+            peak_hour=1,
+            avg_hour=1.0,
+            std_hour=0.0,
         )
 
         variance = DayTypePatternDetector._timing_variance(wd_profile, we_profile)
@@ -238,46 +283,50 @@ class TestDayTypePatternDetection:
             # Weekday events (Mon-Fri)
             for day in range(5):
                 t = week_start + timedelta(days=day, hours=weekday_hour)
-                events_data.append({
-                    'device_id': device_id,
-                    'timestamp': t,
-                    'state': 'on',
-                })
+                events_data.append(
+                    {
+                        "device_id": device_id,
+                        "timestamp": t,
+                        "state": "on",
+                    }
+                )
             # Weekend events (Sat-Sun)
             for day in (5, 6):
                 t = week_start + timedelta(days=day, hours=weekend_hour)
-                events_data.append({
-                    'device_id': device_id,
-                    'timestamp': t,
-                    'state': 'on',
-                })
+                events_data.append(
+                    {
+                        "device_id": device_id,
+                        "timestamp": t,
+                        "state": "on",
+                    }
+                )
 
         df = pd.DataFrame(events_data)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
         return df
 
     def test_empty_events(self, detector):
         """Test with empty DataFrame."""
-        events = pd.DataFrame(columns=['device_id', 'timestamp', 'state'])
+        events = pd.DataFrame(columns=["device_id", "timestamp", "state"])
         patterns = detector.detect_patterns(events)
         assert patterns == []
 
     def test_missing_columns(self, detector):
         """Test with missing required columns."""
-        events = pd.DataFrame({'device_id': ['light.bedroom']})
+        events = pd.DataFrame({"device_id": ["light.bedroom"]})
         patterns = detector.detect_patterns(events)
         assert patterns == []
 
     def test_detects_different_weekday_weekend(self, detector):
         """Test detection of different weekday vs weekend behavior."""
-        events = self._make_events('light.bedroom', weekday_hour=7, weekend_hour=10, n_weeks=3)
+        events = self._make_events("light.bedroom", weekday_hour=7, weekend_hour=10, n_weeks=3)
         patterns = detector.detect_patterns(events)
 
         assert len(patterns) >= 1
         pattern = patterns[0]
-        assert pattern['pattern_type'] == 'day_type'
-        assert pattern['device_id'] == 'light.bedroom'
-        assert pattern['variance_score'] > 0.2
+        assert pattern["pattern_type"] == "day_type"
+        assert pattern["device_id"] == "light.bedroom"
+        assert pattern["variance_score"] > 0.2
 
     def test_similar_behavior_not_detected(self):
         """Test that similar weekday/weekend behavior is not flagged."""
@@ -289,11 +338,11 @@ class TestDayTypePatternDetection:
         )
 
         # Same hour on weekdays and weekends
-        events = self._make_events('light.bedroom', weekday_hour=8, weekend_hour=8, n_weeks=3)
+        events = self._make_events("light.bedroom", weekday_hour=8, weekend_hour=8, n_weeks=3)
         patterns = detector.detect_patterns(events)
 
         # Should have low variance, likely filtered
-        high_variance = [p for p in patterns if p['variance_score'] > 0.5]
+        high_variance = [p for p in patterns if p["variance_score"] > 0.5]
         assert len(high_variance) == 0
 
     def test_insufficient_events_skipped(self):
@@ -306,62 +355,62 @@ class TestDayTypePatternDetection:
         )
 
         # Only 2 weekend events
-        events = self._make_events('light.bedroom', weekday_hour=7, weekend_hour=10, n_weeks=1)
+        events = self._make_events("light.bedroom", weekday_hour=7, weekend_hour=10, n_weeks=1)
         patterns = detector.detect_patterns(events)
         assert len(patterns) == 0
 
     def test_pattern_output_structure(self, detector):
         """Test that output has all required fields."""
-        events = self._make_events('light.bedroom', weekday_hour=7, weekend_hour=11, n_weeks=3)
+        events = self._make_events("light.bedroom", weekday_hour=7, weekend_hour=11, n_weeks=3)
         patterns = detector.detect_patterns(events)
 
         assert len(patterns) >= 1
         pattern = patterns[0]
-        assert 'pattern_type' in pattern
-        assert 'device_id' in pattern
-        assert 'weekday_pattern' in pattern
-        assert 'weekend_pattern' in pattern
-        assert 'variance_score' in pattern
-        assert 'confidence' in pattern
-        assert 'metadata' in pattern
-        assert 'count_variance' in pattern['metadata']
-        assert 'timing_variance' in pattern['metadata']
+        assert "pattern_type" in pattern
+        assert "device_id" in pattern
+        assert "weekday_pattern" in pattern
+        assert "weekend_pattern" in pattern
+        assert "variance_score" in pattern
+        assert "confidence" in pattern
+        assert "metadata" in pattern
+        assert "count_variance" in pattern["metadata"]
+        assert "timing_variance" in pattern["metadata"]
 
     def test_weekday_pattern_fields(self, detector):
         """Test weekday/weekend pattern sub-dictionaries."""
-        events = self._make_events('light.bedroom', weekday_hour=7, weekend_hour=11, n_weeks=3)
+        events = self._make_events("light.bedroom", weekday_hour=7, weekend_hour=11, n_weeks=3)
         patterns = detector.detect_patterns(events)
 
         assert len(patterns) >= 1
-        wd = patterns[0]['weekday_pattern']
-        assert 'event_count' in wd
-        assert 'day_count' in wd
-        assert 'avg_daily_count' in wd
-        assert 'peak_hour' in wd
-        assert 'avg_hour' in wd
-        assert 'hourly_distribution' in wd
+        wd = patterns[0]["weekday_pattern"]
+        assert "event_count" in wd
+        assert "day_count" in wd
+        assert "avg_daily_count" in wd
+        assert "peak_hour" in wd
+        assert "avg_hour" in wd
+        assert "hourly_distribution" in wd
 
     def test_multiple_devices(self, detector):
         """Test detection across multiple devices."""
-        events1 = self._make_events('light.bedroom', weekday_hour=7, weekend_hour=10, n_weeks=3)
-        events2 = self._make_events('switch.coffee', weekday_hour=6, weekend_hour=9, n_weeks=3)
+        events1 = self._make_events("light.bedroom", weekday_hour=7, weekend_hour=10, n_weeks=3)
+        events2 = self._make_events("switch.coffee", weekday_hour=6, weekend_hour=9, n_weeks=3)
         events = pd.concat([events1, events2], ignore_index=True)
 
         patterns = detector.detect_patterns(events)
-        devices = {p['device_id'] for p in patterns}
+        devices = {p["device_id"] for p in patterns}
         assert len(devices) >= 1  # At least one should be detected
 
     def test_patterns_sorted_by_variance(self, detector):
         """Test that patterns are sorted by variance descending."""
         # Device with big difference
-        events1 = self._make_events('light.bedroom', weekday_hour=6, weekend_hour=14, n_weeks=3)
+        events1 = self._make_events("light.bedroom", weekday_hour=6, weekend_hour=14, n_weeks=3)
         # Device with small difference
-        events2 = self._make_events('light.kitchen', weekday_hour=7, weekend_hour=8, n_weeks=3)
+        events2 = self._make_events("light.kitchen", weekday_hour=7, weekend_hour=8, n_weeks=3)
         events = pd.concat([events1, events2], ignore_index=True)
 
         patterns = detector.detect_patterns(events)
         if len(patterns) >= 2:
-            assert patterns[0]['variance_score'] >= patterns[1]['variance_score']
+            assert patterns[0]["variance_score"] >= patterns[1]["variance_score"]
 
 
 class TestConfidence:
@@ -423,45 +472,45 @@ class TestAutomationSuggestion:
     def test_basic_suggestion(self, detector):
         """Test basic automation suggestion."""
         pattern = {
-            'pattern_type': 'day_type',
-            'device_id': 'light.bedroom',
-            'weekday_pattern': {'peak_hour': 7},
-            'weekend_pattern': {'peak_hour': 9},
-            'variance_score': 0.45,
-            'confidence': 0.85,
+            "pattern_type": "day_type",
+            "device_id": "light.bedroom",
+            "weekday_pattern": {"peak_hour": 7},
+            "weekend_pattern": {"peak_hour": 9},
+            "variance_score": 0.45,
+            "confidence": 0.85,
         }
 
         suggestion = detector.suggest_automation(pattern)
-        assert suggestion['automation_type'] == 'day_type_schedule'
-        assert suggestion['confidence'] == 0.85
-        assert suggestion['trigger']['at'] == '07:00:00'
-        assert 'weekday' in str(suggestion['condition'])
+        assert suggestion["automation_type"] == "day_type_schedule"
+        assert suggestion["confidence"] == 0.85
+        assert suggestion["trigger"]["at"] == "07:00:00"
+        assert "weekday" in str(suggestion["condition"])
 
     def test_wrong_pattern_type(self, detector):
         """Test wrong pattern type returns empty."""
-        pattern = {'pattern_type': 'sequence', 'device_id': 'x'}
+        pattern = {"pattern_type": "sequence", "device_id": "x"}
         assert detector.suggest_automation(pattern) == {}
 
     def test_empty_device_id(self, detector):
         """Test empty device_id returns empty."""
-        pattern = {'pattern_type': 'day_type', 'device_id': ''}
+        pattern = {"pattern_type": "day_type", "device_id": ""}
         assert detector.suggest_automation(pattern) == {}
 
     def test_suggestion_metadata(self, detector):
         """Test suggestion includes metadata."""
         pattern = {
-            'pattern_type': 'day_type',
-            'device_id': 'switch.coffee',
-            'weekday_pattern': {'peak_hour': 6},
-            'weekend_pattern': {'peak_hour': 9},
-            'variance_score': 0.5,
-            'confidence': 0.9,
+            "pattern_type": "day_type",
+            "device_id": "switch.coffee",
+            "weekday_pattern": {"peak_hour": 6},
+            "weekend_pattern": {"peak_hour": 9},
+            "variance_score": 0.5,
+            "confidence": 0.9,
         }
 
         suggestion = detector.suggest_automation(pattern)
-        assert suggestion['metadata']['source'] == 'day_type_pattern'
-        assert suggestion['metadata']['weekday_peak_hour'] == 6
-        assert suggestion['metadata']['weekend_peak_hour'] == 9
+        assert suggestion["metadata"]["source"] == "day_type_pattern"
+        assert suggestion["metadata"]["weekday_peak_hour"] == 6
+        assert suggestion["metadata"]["weekend_peak_hour"] == 9
 
 
 class TestPatternSummary:
@@ -470,28 +519,28 @@ class TestPatternSummary:
     def test_empty_summary(self):
         detector = DayTypePatternDetector()
         summary = detector.get_pattern_summary([])
-        assert summary['total_patterns'] == 0
+        assert summary["total_patterns"] == 0
 
     def test_summary_with_patterns(self):
         detector = DayTypePatternDetector()
         patterns = [
             {
-                'device_id': 'light.bedroom',
-                'variance_score': 0.6,
-                'confidence': 0.8,
+                "device_id": "light.bedroom",
+                "variance_score": 0.6,
+                "confidence": 0.8,
             },
             {
-                'device_id': 'switch.coffee',
-                'variance_score': 0.4,
-                'confidence': 0.7,
+                "device_id": "switch.coffee",
+                "variance_score": 0.4,
+                "confidence": 0.7,
             },
         ]
 
         summary = detector.get_pattern_summary(patterns)
-        assert summary['total_patterns'] == 2
-        assert summary['avg_variance'] == pytest.approx(0.5, abs=0.01)
-        assert summary['high_variance_count'] == 1
-        assert '30-50%' in summary['variance_distribution']
+        assert summary["total_patterns"] == 2
+        assert summary["avg_variance"] == pytest.approx(0.5, abs=0.01)
+        assert summary["high_variance_count"] == 1
+        assert "30-50%" in summary["variance_distribution"]
 
 
 class TestGetDomain:
@@ -534,13 +583,13 @@ class TestDailyAggregates:
         for week in range(3):
             for day in range(5):
                 t = start + timedelta(weeks=week, days=day, hours=7)
-                events_data.append({'device_id': 'light.bedroom', 'timestamp': t, 'state': 'on'})
+                events_data.append({"device_id": "light.bedroom", "timestamp": t, "state": "on"})
             for day in (5, 6):
                 t = start + timedelta(weeks=week, days=day, hours=11)
-                events_data.append({'device_id': 'light.bedroom', 'timestamp': t, 'state': 'on'})
+                events_data.append({"device_id": "light.bedroom", "timestamp": t, "state": "on"})
 
         events = pd.DataFrame(events_data)
-        events['timestamp'] = pd.to_datetime(events['timestamp'])
+        events["timestamp"] = pd.to_datetime(events["timestamp"])
 
         patterns = detector.detect_patterns(events)
         if patterns:
@@ -566,13 +615,13 @@ class TestDailyAggregates:
         for week in range(3):
             for day in range(5):
                 t = start + timedelta(weeks=week, days=day, hours=7)
-                events_data.append({'device_id': 'light.bedroom', 'timestamp': t, 'state': 'on'})
+                events_data.append({"device_id": "light.bedroom", "timestamp": t, "state": "on"})
             for day in (5, 6):
                 t = start + timedelta(weeks=week, days=day, hours=11)
-                events_data.append({'device_id': 'light.bedroom', 'timestamp': t, 'state': 'on'})
+                events_data.append({"device_id": "light.bedroom", "timestamp": t, "state": "on"})
 
         events = pd.DataFrame(events_data)
-        events['timestamp'] = pd.to_datetime(events['timestamp'])
+        events["timestamp"] = pd.to_datetime(events["timestamp"])
 
         # Should not raise
         patterns = detector.detect_patterns(events)
@@ -583,4 +632,4 @@ class TestWeekendDaysConstant:
     """Tests for the WEEKEND_DAYS constant."""
 
     def test_weekend_days_are_saturday_sunday(self):
-        assert WEEKEND_DAYS == {5, 6}
+        assert {5, 6} == WEEKEND_DAYS

@@ -42,7 +42,7 @@ class DeviceCapabilityAnalyzer:
         self,
         base_url: str = "http://device-intelligence-service:8019",
         enabled: bool = True,
-        timeout: float = 5.0
+        timeout: float = 5.0,
     ):
         """
         Initialize device capability analyzer.
@@ -52,7 +52,7 @@ class DeviceCapabilityAnalyzer:
             enabled: Whether capability analysis is enabled
             timeout: HTTP request timeout in seconds
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.enabled = enabled
         self.timeout = timeout
         self._cache: dict[str, list[dict[str, Any]]] = {}
@@ -75,10 +75,7 @@ class DeviceCapabilityAnalyzer:
             await self._http_client.aclose()
             self._http_client = None
 
-    async def analyze_device_capabilities(
-        self,
-        device_id: str
-    ) -> list[dict[str, Any]]:
+    async def analyze_device_capabilities(self, device_id: str) -> list[dict[str, Any]]:
         """
         Fetch and parse capabilities for a device.
 
@@ -109,9 +106,7 @@ class DeviceCapabilityAnalyzer:
 
         try:
             client = await self._get_client()
-            response = await client.get(
-                f"{self.base_url}/api/devices/{device_id}/capabilities"
-            )
+            response = await client.get(f"{self.base_url}/api/devices/{device_id}/capabilities")
             response.raise_for_status()
             await _ml_engine_breaker.record_success()
 
@@ -122,7 +117,9 @@ class DeviceCapabilityAnalyzer:
             elif isinstance(data, dict) and "capabilities" in data:
                 capabilities = data["capabilities"]
             else:
-                logger.warning(f"Unexpected capabilities response format for device {device_id}: {type(data)}")
+                logger.warning(
+                    f"Unexpected capabilities response format for device {device_id}: {type(data)}"
+                )
                 capabilities = []
 
             # Cache capabilities
@@ -135,11 +132,15 @@ class DeviceCapabilityAnalyzer:
                 # Device not found - return empty list (don't penalise breaker further)
                 logger.debug(f"Device {device_id} not found in device intelligence service")
                 return []
-            logger.warning(f"Device Intelligence Service error for capabilities ({device_id}): {e.response.status_code}")
+            logger.warning(
+                f"Device Intelligence Service error for capabilities ({device_id}): {e.response.status_code}"
+            )
             return []
         except httpx.RequestError as e:
             await _ml_engine_breaker.record_failure()
-            logger.warning(f"Device Intelligence Service unavailable for capabilities ({device_id}): {e}")
+            logger.warning(
+                f"Device Intelligence Service unavailable for capabilities ({device_id}): {e}"
+            )
             return []
         except Exception as e:
             await _ml_engine_breaker.record_failure()
@@ -147,9 +148,7 @@ class DeviceCapabilityAnalyzer:
             return []
 
     def match_capabilities(
-        self,
-        device1_capabilities: list[dict[str, Any]],
-        device2_capabilities: list[dict[str, Any]]
+        self, device1_capabilities: list[dict[str, Any]], device2_capabilities: list[dict[str, Any]]
     ) -> dict[str, Any]:
         """
         Check capability compatibility between two devices.
@@ -167,48 +166,48 @@ class DeviceCapabilityAnalyzer:
         """
         if not device1_capabilities or not device2_capabilities:
             return {
-                'compatible': False,
-                'match_score': 0.0,
-                'matching_capabilities': [],
-                'rationale': 'One or both devices have no capabilities'
+                "compatible": False,
+                "match_score": 0.0,
+                "matching_capabilities": [],
+                "rationale": "One or both devices have no capabilities",
             }
 
         # Extract capability names
-        device1_names = {cap.get('capability_name', '') for cap in device1_capabilities}
-        device2_names = {cap.get('capability_name', '') for cap in device2_capabilities}
+        device1_names = {cap.get("capability_name", "") for cap in device1_capabilities}
+        device2_names = {cap.get("capability_name", "") for cap in device2_capabilities}
 
         # Common compatibility patterns
         matching_pairs = []
         match_score = 0.0
 
         # Pattern 1: Both support dimming (light + light, light + switch)
-        if any('brightness' in name.lower() or 'dimmable' in name.lower()
-               for name in device1_names) and \
-           any('brightness' in name.lower() or 'dimmable' in name.lower()
-               for name in device2_names):
-            matching_pairs.append(('dimmable', 'dimmable'))
+        if any(
+            "brightness" in name.lower() or "dimmable" in name.lower() for name in device1_names
+        ) and any(
+            "brightness" in name.lower() or "dimmable" in name.lower() for name in device2_names
+        ):
+            matching_pairs.append(("dimmable", "dimmable"))
             match_score += 0.3
 
         # Pattern 2: Both support color control (color lights)
-        if any('color' in name.lower() or 'rgb' in name.lower()
-               for name in device1_names) and \
-           any('color' in name.lower() or 'rgb' in name.lower()
-               for name in device2_names):
-            matching_pairs.append(('color_control', 'color_control'))
+        if any("color" in name.lower() or "rgb" in name.lower() for name in device1_names) and any(
+            "color" in name.lower() or "rgb" in name.lower() for name in device2_names
+        ):
+            matching_pairs.append(("color_control", "color_control"))
             match_score += 0.3
 
         # Pattern 3: Scheduling capabilities
-        if any('schedule' in name.lower() or 'timer' in name.lower()
-               for name in device1_names) and \
-           any('schedule' in name.lower() or 'timer' in name.lower()
-               for name in device2_names):
-            matching_pairs.append(('scheduling', 'scheduling'))
+        if any(
+            "schedule" in name.lower() or "timer" in name.lower() for name in device1_names
+        ) and any("schedule" in name.lower() or "timer" in name.lower() for name in device2_names):
+            matching_pairs.append(("scheduling", "scheduling"))
             match_score += 0.2
 
         # Pattern 4: Scene support
-        if any('scene' in name.lower() for name in device1_names) and \
-           any('scene' in name.lower() for name in device2_names):
-            matching_pairs.append(('scene', 'scene'))
+        if any("scene" in name.lower() for name in device1_names) and any(
+            "scene" in name.lower() for name in device2_names
+        ):
+            matching_pairs.append(("scene", "scene"))
             match_score += 0.2
 
         # Normalize match score to 0.0-1.0
@@ -221,10 +220,10 @@ class DeviceCapabilityAnalyzer:
             rationale += f". Matching capabilities: {', '.join(pair[0] for pair in matching_pairs)}"
 
         return {
-            'compatible': compatible,
-            'match_score': match_score,
-            'matching_capabilities': matching_pairs,
-            'rationale': rationale
+            "compatible": compatible,
+            "match_score": match_score,
+            "matching_capabilities": matching_pairs,
+            "rationale": rationale,
         }
 
     async def suggest_capability_synergy(
@@ -232,7 +231,7 @@ class DeviceCapabilityAnalyzer:
         device1_id: str,
         device2_id: str,
         device1_capabilities: list[dict[str, Any]] | None = None,
-        device2_capabilities: list[dict[str, Any]] | None = None
+        device2_capabilities: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any] | None:
         """
         Suggest capability-based synergy between two devices.
@@ -255,27 +254,27 @@ class DeviceCapabilityAnalyzer:
         # Match capabilities
         match_result = self.match_capabilities(device1_capabilities, device2_capabilities)
 
-        if not match_result['compatible']:
+        if not match_result["compatible"]:
             return None
 
         # Create synergy suggestion
         synergy = {
-            'synergy_id': str(uuid.uuid4()),
-            'synergy_type': 'device_pair',
-            'devices': [device1_id, device2_id],
-            'trigger_entity': device1_id,
-            'action_entity': device2_id,
-            'impact_score': 0.5 + (match_result['match_score'] * 0.3),  # 0.5-0.8 range
-            'confidence': 0.6 + (match_result['match_score'] * 0.2),  # 0.6-0.8 range
-            'complexity': 'low',
-            'rationale': f"Capability-based synergy: {match_result['rationale']}",
-            'synergy_depth': 2,
-            'chain_devices': [device1_id, device2_id],
-            'context_metadata': {
-                'detection_method': 'capability_analysis',
-                'capability_match_score': match_result['match_score'],
-                'matching_capabilities': match_result['matching_capabilities']
-            }
+            "synergy_id": str(uuid.uuid4()),
+            "synergy_type": "device_pair",
+            "devices": [device1_id, device2_id],
+            "trigger_entity": device1_id,
+            "action_entity": device2_id,
+            "impact_score": 0.5 + (match_result["match_score"] * 0.3),  # 0.5-0.8 range
+            "confidence": 0.6 + (match_result["match_score"] * 0.2),  # 0.6-0.8 range
+            "complexity": "low",
+            "rationale": f"Capability-based synergy: {match_result['rationale']}",
+            "synergy_depth": 2,
+            "chain_devices": [device1_id, device2_id],
+            "context_metadata": {
+                "detection_method": "capability_analysis",
+                "capability_match_score": match_result["match_score"],
+                "matching_capabilities": match_result["matching_capabilities"],
+            },
         }
 
         return synergy

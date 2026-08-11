@@ -18,9 +18,11 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 # Configuration constants (2025 best practice: extract magic numbers)
 class SynergyScoringConfig:
     """Configuration for synergy scoring weights and thresholds."""
+
     # Score weights
     BASE_SCORE_WEIGHT = 0.40
     TEMPORAL_BOOST_WEIGHT = 0.20
@@ -84,9 +86,7 @@ class MultiModalContextEnhancer:
         logger.info("MultiModalContextEnhancer initialized")
 
     async def enhance_synergy_score(
-        self,
-        synergy: dict[str, Any],
-        context: dict[str, Any] | None = None
+        self, synergy: dict[str, Any], context: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Enhance synergy score with multi-modal context.
@@ -105,10 +105,10 @@ class MultiModalContextEnhancer:
         # Input validation (2025 improvement)
         if not isinstance(synergy, dict):
             raise ValueError("synergy must be a dictionary")
-        if 'impact_score' not in synergy:
+        if "impact_score" not in synergy:
             logger.warning("synergy missing 'impact_score', using default 0.5")
 
-        base_score = synergy.get('impact_score', 0.5)
+        base_score = synergy.get("impact_score", 0.5)
         # Clamp score to valid range
         if not 0.0 <= base_score <= 1.0:
             logger.warning(
@@ -123,60 +123,55 @@ class MultiModalContextEnhancer:
 
         # Calculate context boosts
         temporal_boost = self._calculate_temporal_boost(
-            context.get('time_of_day'),
-            context.get('day_of_week'),
-            context.get('season'),
-            synergy
+            context.get("time_of_day"), context.get("day_of_week"), context.get("season"), synergy
         )
 
         weather_boost = self._calculate_weather_boost(
-            context.get('weather'),
-            context.get('temperature'),
-            synergy.get('relationship_type', ''),
-            synergy
+            context.get("weather"),
+            context.get("temperature"),
+            synergy.get("relationship_type", ""),
+            synergy,
         )
 
         energy_boost = self._calculate_energy_boost(
-            context.get('energy_cost'),
-            context.get('carbon_intensity'),
+            context.get("energy_cost"),
+            context.get("carbon_intensity"),
             synergy,
-            peak_hours=context.get('peak_hours', False)
+            peak_hours=context.get("peak_hours", False),
         )
 
         behavior_boost = self._calculate_behavior_boost(
-            context.get('user_presence'),
-            context.get('activity_pattern'),
-            synergy
+            context.get("user_presence"), context.get("activity_pattern"), synergy
         )
 
         # Weighted combination (using config constants)
         enhanced_score = (
-            base_score * SynergyScoringConfig.BASE_SCORE_WEIGHT +
-            temporal_boost * SynergyScoringConfig.TEMPORAL_BOOST_WEIGHT +
-            weather_boost * SynergyScoringConfig.WEATHER_BOOST_WEIGHT +
-            energy_boost * SynergyScoringConfig.ENERGY_BOOST_WEIGHT +
-            behavior_boost * SynergyScoringConfig.BEHAVIOR_BOOST_WEIGHT
+            base_score * SynergyScoringConfig.BASE_SCORE_WEIGHT
+            + temporal_boost * SynergyScoringConfig.TEMPORAL_BOOST_WEIGHT
+            + weather_boost * SynergyScoringConfig.WEATHER_BOOST_WEIGHT
+            + energy_boost * SynergyScoringConfig.ENERGY_BOOST_WEIGHT
+            + behavior_boost * SynergyScoringConfig.BEHAVIOR_BOOST_WEIGHT
         )
 
         # Clamp to 0.0-1.0 range
         enhanced_score = max(0.0, min(1.0, enhanced_score))
 
         return {
-            'enhanced_score': round(enhanced_score, 4),
-            'context_breakdown': {
-                'base_score': base_score,
-                'temporal_boost': temporal_boost,
-                'weather_boost': weather_boost,
-                'energy_boost': energy_boost,
-                'behavior_boost': behavior_boost
+            "enhanced_score": round(enhanced_score, 4),
+            "context_breakdown": {
+                "base_score": base_score,
+                "temporal_boost": temporal_boost,
+                "weather_boost": weather_boost,
+                "energy_boost": energy_boost,
+                "behavior_boost": behavior_boost,
             },
-            'context_metadata': {
-                'time_of_day': context.get('time_of_day'),
-                'weather': context.get('weather'),
-                'temperature': context.get('temperature'),
-                'energy_cost': context.get('energy_cost'),
-                'peak_hours': context.get('peak_hours')
-            }
+            "context_metadata": {
+                "time_of_day": context.get("time_of_day"),
+                "weather": context.get("weather"),
+                "temperature": context.get("temperature"),
+                "energy_cost": context.get("energy_cost"),
+                "peak_hours": context.get("peak_hours"),
+            },
         }
 
     async def _fetch_context(self) -> dict[str, Any]:
@@ -199,45 +194,51 @@ class MultiModalContextEnhancer:
 
         # Build base context (always available)
         context: dict[str, Any] = {
-            'time_of_day': self._get_time_of_day(),
-            'day_of_week': self._get_day_of_week(),
-            'season': self._get_season(),
-            'weather': None,
-            'temperature': None,
-            'energy_cost': None,
-            'peak_hours': False,
-            'carbon_intensity': None,
-            'user_presence': True,  # Default: assume user present
-            'activity_pattern': 'normal'  # Default: normal activity
+            "time_of_day": self._get_time_of_day(),
+            "day_of_week": self._get_day_of_week(),
+            "season": self._get_season(),
+            "weather": None,
+            "temperature": None,
+            "energy_cost": None,
+            "peak_hours": False,
+            "carbon_intensity": None,
+            "user_presence": True,  # Default: assume user present
+            "activity_pattern": "normal",  # Default: normal activity
         }
 
         # Fetch enrichment data if fetcher available (with timeout/retry)
         if self.context_fetcher:
             # Weather context
             weather_data = await self._fetch_with_retry(
-                'weather',
-                self.context_fetcher.get_current_weather if hasattr(self.context_fetcher, 'get_current_weather') else None
+                "weather",
+                self.context_fetcher.get_current_weather
+                if hasattr(self.context_fetcher, "get_current_weather")
+                else None,
             )
             if weather_data:
-                context['weather'] = weather_data.get('condition', 'unknown')
-                context['temperature'] = weather_data.get('temperature')
+                context["weather"] = weather_data.get("condition", "unknown")
+                context["temperature"] = weather_data.get("temperature")
 
             # Energy context
             energy_data = await self._fetch_with_retry(
-                'energy',
-                self.context_fetcher.get_electricity_pricing if hasattr(self.context_fetcher, 'get_electricity_pricing') else None
+                "energy",
+                self.context_fetcher.get_electricity_pricing
+                if hasattr(self.context_fetcher, "get_electricity_pricing")
+                else None,
             )
             if energy_data:
-                context['energy_cost'] = energy_data.get('current_rate')
-                context['peak_hours'] = energy_data.get('is_peak_hour', False)
+                context["energy_cost"] = energy_data.get("current_rate")
+                context["peak_hours"] = energy_data.get("is_peak_hour", False)
 
             # Carbon intensity
             carbon_data = await self._fetch_with_retry(
-                'carbon',
-                self.context_fetcher.get_carbon_intensity if hasattr(self.context_fetcher, 'get_carbon_intensity') else None
+                "carbon",
+                self.context_fetcher.get_carbon_intensity
+                if hasattr(self.context_fetcher, "get_carbon_intensity")
+                else None,
             )
             if carbon_data:
-                context['carbon_intensity'] = carbon_data.get('intensity')
+                context["carbon_intensity"] = carbon_data.get("intensity")
 
         # Cache result
         self._context_cache = context
@@ -246,9 +247,7 @@ class MultiModalContextEnhancer:
         return context
 
     async def _fetch_with_retry(
-        self,
-        context_type: str,
-        fetch_func: Any | None
+        self, context_type: str, fetch_func: Any | None
     ) -> dict[str, Any] | None:
         """
         Fetch context data with timeout and retry logic.
@@ -267,16 +266,17 @@ class MultiModalContextEnhancer:
             try:
                 # Fetch with timeout (non-blocking)
                 data = await asyncio.wait_for(
-                    fetch_func(),
-                    timeout=SynergyScoringConfig.CONTEXT_FETCH_TIMEOUT
+                    fetch_func(), timeout=SynergyScoringConfig.CONTEXT_FETCH_TIMEOUT
                 )
                 if attempt > 0:
-                    logger.info(f"Successfully fetched {context_type} context on attempt {attempt + 1}")
+                    logger.info(
+                        f"Successfully fetched {context_type} context on attempt {attempt + 1}"
+                    )
                 return data
 
             except TimeoutError:
                 if attempt < SynergyScoringConfig.MAX_RETRIES:
-                    delay = SynergyScoringConfig.RETRY_DELAY * (2 ** attempt)
+                    delay = SynergyScoringConfig.RETRY_DELAY * (2**attempt)
                     logger.warning(
                         f"Context fetch timeout for {context_type}, "
                         f"retrying in {delay:.1f}s (attempt {attempt + 1}/{SynergyScoringConfig.MAX_RETRIES + 1})"
@@ -293,18 +293,18 @@ class MultiModalContextEnhancer:
                 # Log specific error types for better debugging
                 error_type = type(e).__name__
                 if attempt < SynergyScoringConfig.MAX_RETRIES:
-                    delay = SynergyScoringConfig.RETRY_DELAY * (2 ** attempt)
+                    delay = SynergyScoringConfig.RETRY_DELAY * (2**attempt)
                     logger.warning(
                         f"Context fetch error for {context_type} ({error_type}): {e}, "
                         f"retrying in {delay:.1f}s (attempt {attempt + 1}/{SynergyScoringConfig.MAX_RETRIES + 1})",
-                        exc_info=True
+                        exc_info=True,
                     )
                     await asyncio.sleep(delay)
                 else:
                     logger.warning(
                         f"Context fetch failed for {context_type} after {SynergyScoringConfig.MAX_RETRIES + 1} attempts "
                         f"({error_type}): {e}, using defaults",
-                        exc_info=True
+                        exc_info=True,
                     )
                     return None
 
@@ -316,17 +316,17 @@ class MultiModalContextEnhancer:
         hour = now.hour
 
         if 6 <= hour < 12:
-            return 'morning'
+            return "morning"
         elif 12 <= hour < 18:
-            return 'afternoon'
+            return "afternoon"
         elif 18 <= hour < 22:
-            return 'evening'
+            return "evening"
         else:
-            return 'night'
+            return "night"
 
     def _get_day_of_week(self) -> str:
         """Get current day of week."""
-        return datetime.now(UTC).strftime('%A').lower()
+        return datetime.now(UTC).strftime("%A").lower()
 
     def _get_season(self) -> str:
         """Get current season."""
@@ -334,20 +334,20 @@ class MultiModalContextEnhancer:
         month = now.month
 
         if month in [12, 1, 2]:
-            return 'winter'
+            return "winter"
         elif month in [3, 4, 5]:
-            return 'spring'
+            return "spring"
         elif month in [6, 7, 8]:
-            return 'summer'
+            return "summer"
         else:
-            return 'fall'
+            return "fall"
 
     def _calculate_temporal_boost(
         self,
         time_of_day: str | None,
         _day_of_week: str | None,
         season: str | None,
-        synergy: dict[str, Any]
+        synergy: dict[str, Any],
     ) -> float:
         """
         Calculate temporal context boost.
@@ -359,27 +359,27 @@ class MultiModalContextEnhancer:
         if not time_of_day:
             return 1.0
 
-        relationship = synergy.get('relationship_type', '')
+        relationship = synergy.get("relationship_type", "")
 
         # Motion-to-light: More valuable in evening/night
-        if 'motion_to_light' in relationship or 'occupancy_to_light' in relationship:
-            if time_of_day in ['evening', 'night']:
+        if "motion_to_light" in relationship or "occupancy_to_light" in relationship:
+            if time_of_day in ["evening", "night"]:
                 return SynergyScoringConfig.MOTION_TO_LIGHT_EVENING_BOOST
-            elif time_of_day == 'morning':
+            elif time_of_day == "morning":
                 return SynergyScoringConfig.MOTION_TO_LIGHT_MORNING_BOOST
             else:
                 return 1.0
 
         # Climate control: More valuable in extreme seasons
-        if 'temp_to_climate' in relationship or 'motion_to_climate' in relationship:
-            if season in ['winter', 'summer']:
+        if "temp_to_climate" in relationship or "motion_to_climate" in relationship:
+            if season in ["winter", "summer"]:
                 return SynergyScoringConfig.CLIMATE_EXTREME_SEASON_BOOST
             else:
                 return 1.0
 
         # Door-to-lock: More valuable in evening (security)
-        if 'door_to_lock' in relationship:
-            if time_of_day in ['evening', 'night']:
+        if "door_to_lock" in relationship:
+            if time_of_day in ["evening", "night"]:
                 return SynergyScoringConfig.DOOR_TO_LOCK_EVENING_BOOST
             else:
                 return 1.0
@@ -391,7 +391,7 @@ class MultiModalContextEnhancer:
         weather: str | None,
         temperature: float | None,
         relationship_type: str,
-        _synergy: dict[str, Any]
+        _synergy: dict[str, Any],
     ) -> float:
         """
         Calculate weather context boost.
@@ -406,30 +406,41 @@ class MultiModalContextEnhancer:
         boost = 1.0
 
         # Motion-to-light: Less valuable during daylight
-        if 'motion_to_light' in relationship_type or 'occupancy_to_light' in relationship_type:
-            if (weather == 'sunny' and temperature and
-                SynergyScoringConfig.SUNNY_COMFORTABLE_TEMP_LOW <= temperature <= SynergyScoringConfig.SUNNY_COMFORTABLE_TEMP_HIGH):
+        if "motion_to_light" in relationship_type or "occupancy_to_light" in relationship_type:
+            if (
+                weather == "sunny"
+                and temperature
+                and SynergyScoringConfig.SUNNY_COMFORTABLE_TEMP_LOW
+                <= temperature
+                <= SynergyScoringConfig.SUNNY_COMFORTABLE_TEMP_HIGH
+            ):
                 boost = 0.7  # Reduce score during sunny, comfortable days
-            elif weather in ['cloudy', 'overcast']:
+            elif weather in ["cloudy", "overcast"]:
                 boost = 1.1  # Slight boost on cloudy days
-            elif weather in ['rainy', 'stormy']:
+            elif weather in ["rainy", "stormy"]:
                 boost = 1.2  # Higher value during bad weather
 
         # Temperature-to-climate: More valuable when temperature is extreme
-        if 'temp_to_climate' in relationship_type and temperature:
-                if (temperature < SynergyScoringConfig.EXTREME_TEMP_LOW or
-                    temperature > SynergyScoringConfig.EXTREME_TEMP_HIGH):
-                    boost = 1.2  # Boost for extreme temperatures
-                elif (SynergyScoringConfig.COMFORTABLE_TEMP_LOW <= temperature <= SynergyScoringConfig.COMFORTABLE_TEMP_HIGH):
-                    boost = 0.9  # Slight reduction for comfortable temps
-                else:
-                    boost = 1.0
+        if "temp_to_climate" in relationship_type and temperature:
+            if (
+                temperature < SynergyScoringConfig.EXTREME_TEMP_LOW
+                or temperature > SynergyScoringConfig.EXTREME_TEMP_HIGH
+            ):
+                boost = 1.2  # Boost for extreme temperatures
+            elif (
+                SynergyScoringConfig.COMFORTABLE_TEMP_LOW
+                <= temperature
+                <= SynergyScoringConfig.COMFORTABLE_TEMP_HIGH
+            ):
+                boost = 0.9  # Slight reduction for comfortable temps
+            else:
+                boost = 1.0
 
         # Window-to-climate: More valuable when weather is relevant
-        if 'window_to_climate' in relationship_type:
-            if weather in ['rainy', 'stormy', 'windy']:
+        if "window_to_climate" in relationship_type:
+            if weather in ["rainy", "stormy", "windy"]:
                 boost = 1.3  # High value - close windows during bad weather
-            elif weather == 'sunny' and temperature and temperature > 20:
+            elif weather == "sunny" and temperature and temperature > 20:
                 boost = 1.1  # Moderate value - might want to open windows
 
         return boost
@@ -439,7 +450,7 @@ class MultiModalContextEnhancer:
         energy_cost: float | None,
         carbon_intensity: float | None,
         synergy: dict[str, Any],
-        peak_hours: bool = False
+        peak_hours: bool = False,
     ) -> float:
         """
         Calculate energy context boost.
@@ -450,15 +461,15 @@ class MultiModalContextEnhancer:
         """
         boost = 1.0
 
-        relationship = synergy.get('relationship_type', '')
+        relationship = synergy.get("relationship_type", "")
 
         # Energy-intensive relationships
         energy_intensive = [
-            'temp_to_climate',
-            'motion_to_climate',
-            'presence_to_climate',
-            'temp_to_fan',
-            'humidity_to_fan'
+            "temp_to_climate",
+            "motion_to_climate",
+            "presence_to_climate",
+            "temp_to_fan",
+            "humidity_to_fan",
         ]
 
         if any(rel in relationship for rel in energy_intensive):
@@ -472,20 +483,21 @@ class MultiModalContextEnhancer:
 
         # Carbon intensity consideration
         if carbon_intensity:
-            if carbon_intensity > SynergyScoringConfig.HIGH_CARBON_THRESHOLD and any(rel in relationship for rel in energy_intensive):
+            if carbon_intensity > SynergyScoringConfig.HIGH_CARBON_THRESHOLD and any(
+                rel in relationship for rel in energy_intensive
+            ):
                 # Slight reduction for high-carbon periods
                 boost *= 0.95
-            elif carbon_intensity < SynergyScoringConfig.LOW_CARBON_THRESHOLD and any(rel in relationship for rel in energy_intensive):
+            elif carbon_intensity < SynergyScoringConfig.LOW_CARBON_THRESHOLD and any(
+                rel in relationship for rel in energy_intensive
+            ):
                 # Boost for low-carbon periods
                 boost *= 1.05
 
         return boost
 
     def _calculate_behavior_boost(
-        self,
-        user_presence: bool | None,
-        activity_pattern: str | None,
-        synergy: dict[str, Any]
+        self, user_presence: bool | None, activity_pattern: str | None, synergy: dict[str, Any]
     ) -> float:
         """
         Calculate behavioral context boost.
@@ -497,26 +509,27 @@ class MultiModalContextEnhancer:
         if user_presence is None:
             return 1.0
 
-        relationship = synergy.get('relationship_type', '')
+        relationship = synergy.get("relationship_type", "")
         boost = 1.0
 
         # Presence-based synergies
-        if 'presence_to_light' in relationship or 'presence_to_climate' in relationship:
+        if "presence_to_light" in relationship or "presence_to_climate" in relationship:
             boost = 1.2 if user_presence else 0.7
 
         # Security synergies
-        if 'door_to_lock' in relationship or 'door_to_notify' in relationship:
+        if "door_to_lock" in relationship or "door_to_notify" in relationship:
             boost = 1.3 if not user_presence else 1.0
 
         # Activity pattern adjustments
         if activity_pattern:
-            if activity_pattern == 'sleeping' and ('light' in relationship or 'media' in relationship):
+            if activity_pattern == "sleeping" and (
+                "light" in relationship or "media" in relationship
+            ):
                 # Reduce light/entertainment synergies
                 boost *= 0.6
-            elif activity_pattern == 'active':
+            elif activity_pattern == "active":
                 # Boost convenience synergies
-                if 'motion_to_light' in relationship:
+                if "motion_to_light" in relationship:
                     boost *= 1.1
 
         return boost
-

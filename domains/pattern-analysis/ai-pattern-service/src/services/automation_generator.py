@@ -34,6 +34,7 @@ from .automation_pre_deployment_validator import AutomationPreDeploymentValidato
 try:
     from ..blueprint_deployment import BlueprintDeployer, DeploymentRequest
     from ..blueprint_opportunity import BlueprintOpportunityEngine
+
     BLUEPRINT_DEPLOYMENT_AVAILABLE = True
 except ImportError:
     BLUEPRINT_DEPLOYMENT_AVAILABLE = False
@@ -71,7 +72,7 @@ class AutomationGenerator:
             blueprint_index_url: Optional Blueprint Index service URL (Phase 3)
             prefer_blueprints: If True, attempt blueprint deployment first (Phase 3)
         """
-        self.ha_url = ha_url.rstrip('/')
+        self.ha_url = ha_url.rstrip("/")
         self.ha_token = ha_token
         self.ha_version = ha_version
         self.blueprint_index_url = blueprint_index_url
@@ -125,7 +126,7 @@ class AutomationGenerator:
                 'deployment_method': str  # 'blueprint' or 'yaml'
             }
         """
-        synergy_id = synergy.get('synergy_id', 'unknown')
+        synergy_id = synergy.get("synergy_id", "unknown")
 
         try:
             # Phase 3: Try blueprint deployment first
@@ -137,14 +138,18 @@ class AutomationGenerator:
                 )
 
                 if blueprint_result:
-                    logger.info(f"✅ Deployed synergy {synergy_id} via blueprint: {blueprint_result['blueprint_id']}")
+                    logger.info(
+                        f"✅ Deployed synergy {synergy_id} via blueprint: {blueprint_result['blueprint_id']}"
+                    )
                     return {
                         **blueprint_result,
-                        'deployment_method': 'blueprint',
-                        'estimated_impact': synergy.get('impact_score', 0.0),
+                        "deployment_method": "blueprint",
+                        "estimated_impact": synergy.get("impact_score", 0.0),
                     }
                 else:
-                    logger.info(f"No matching blueprint for synergy {synergy_id}, falling back to YAML")
+                    logger.info(
+                        f"No matching blueprint for synergy {synergy_id}, falling back to YAML"
+                    )
 
             # Fallback: YAML generation (original approach)
             return await self._generate_automation_via_yaml(
@@ -153,7 +158,9 @@ class AutomationGenerator:
             )
 
         except Exception as e:
-            logger.error(f"Failed to generate automation from synergy {synergy_id}: {e}", exc_info=True)
+            logger.error(
+                f"Failed to generate automation from synergy {synergy_id}: {e}", exc_info=True
+            )
             raise
 
     async def _try_blueprint_deployment(
@@ -202,8 +209,7 @@ class AutomationGenerator:
                 automation_name=f"Synergy: {synergy.get('synergy_id', 'auto')}",
                 description=f"Generated from synergy {synergy.get('synergy_id')} via blueprint",
                 input_values={
-                    k: v.suggested_entity
-                    for k, v in best_match.auto_fill_suggestions.items()
+                    k: v.suggested_entity for k, v in best_match.auto_fill_suggestions.items()
                 },
                 use_auto_fill=True,
             )
@@ -217,10 +223,10 @@ class AutomationGenerator:
 
             if result.success:
                 return {
-                    'automation_id': result.automation_id,
-                    'automation_yaml': result.automation_yaml,
-                    'blueprint_id': best_match.blueprint_id,
-                    'deployment_status': 'deployed',
+                    "automation_id": result.automation_id,
+                    "automation_yaml": result.automation_yaml,
+                    "blueprint_id": best_match.blueprint_id,
+                    "deployment_status": "deployed",
                 }
             else:
                 logger.warning(f"Blueprint deployment failed: {result.error}")
@@ -247,46 +253,40 @@ class AutomationGenerator:
         # 2. Transform to YAML using blueprint library or strict rules
         yaml_content = await self.yaml_transformer.transform_to_yaml(
             homeiq_automation,
-            strategy="auto"  # Try blueprint first, then strict rules
+            strategy="auto",  # Try blueprint first, then strict rules
         )
 
         # 2.5. Validate automation before deployment (Recommendation 4.2)
-        validation_result = await self.validator.validate_automation(
-            yaml_content,
-            ha_client
-        )
+        validation_result = await self.validator.validate_automation(yaml_content, ha_client)
 
-        if not validation_result['valid']:
+        if not validation_result["valid"]:
             error_msg = f"Automation validation failed: {', '.join(validation_result['errors'])}"
             logger.error(error_msg)
             raise ValueError(error_msg)
 
-        if validation_result['warnings']:
-            logger.warning(f"Automation validation warnings: {', '.join(validation_result['warnings'])}")
+        if validation_result["warnings"]:
+            logger.warning(
+                f"Automation validation warnings: {', '.join(validation_result['warnings'])}"
+            )
 
         # 3. Deploy via Home Assistant API (2025 best practice: use REST API)
         automation_id = await self._deploy_automation(
-            ha_client,
-            yaml_content,
-            synergy.get('synergy_id')
+            ha_client, yaml_content, synergy.get("synergy_id")
         )
 
         # 4. Find matching blueprint (if used)
         blueprint_id = self.blueprint_library.find_matching_blueprint(homeiq_automation)
 
         return {
-            'automation_id': automation_id,
-            'automation_yaml': yaml_content,
-            'blueprint_id': blueprint_id,
-            'deployment_status': 'deployed',
-            'deployment_method': 'yaml',
-            'estimated_impact': synergy.get('impact_score', 0.0)
+            "automation_id": automation_id,
+            "automation_yaml": yaml_content,
+            "blueprint_id": blueprint_id,
+            "deployment_status": "deployed",
+            "deployment_method": "yaml",
+            "estimated_impact": synergy.get("impact_score", 0.0),
         }
 
-    def _synergy_to_homeiq_automation(
-        self,
-        synergy: dict[str, Any]
-    ) -> HomeIQAutomation:
+    def _synergy_to_homeiq_automation(self, synergy: dict[str, Any]) -> HomeIQAutomation:
         """
         Convert synergy dictionary to HomeIQAutomation schema.
 
@@ -297,13 +297,13 @@ class AutomationGenerator:
             HomeIQAutomation object
         """
         # Extract device information
-        devices = synergy.get('devices', [])
-        if not devices and 'chain_devices' in synergy:
-            devices = synergy['chain_devices']
+        devices = synergy.get("devices", [])
+        if not devices and "chain_devices" in synergy:
+            devices = synergy["chain_devices"]
 
         # Extract trigger and action entities
-        trigger_entity = synergy.get('trigger_entity')
-        action_entity = synergy.get('action_entity')
+        trigger_entity = synergy.get("trigger_entity")
+        action_entity = synergy.get("action_entity")
 
         # If no explicit trigger/action, use first two devices
         if not trigger_entity and len(devices) >= 1:
@@ -315,41 +315,43 @@ class AutomationGenerator:
         trigger = HomeIQTrigger(
             platform="state",
             entity_id=trigger_entity,
-            to="on" if synergy.get('synergy_type') == 'device_pair' else None,
+            to="on" if synergy.get("synergy_type") == "device_pair" else None,
             device_id=trigger_entity,
-            area_id=synergy.get('area')
+            area_id=synergy.get("area"),
         )
 
         # Create action (turn on/off action entity)
         action = HomeIQAction(
-            service=f"{action_entity.split('.')[0]}.turn_on" if action_entity else "automation.turn_on",
+            service=f"{action_entity.split('.')[0]}.turn_on"
+            if action_entity
+            else "automation.turn_on",
             entity_id=action_entity,
             device_id=action_entity,
-            area_id=synergy.get('area')
+            area_id=synergy.get("area"),
         )
 
         # Create device context
         device_context = DeviceContext(
             device_ids=devices,
             entity_ids=[e for e in [trigger_entity, action_entity] if e],
-            device_types=[d.split('.')[0] for d in devices if '.' in d],
-            area_ids=[synergy.get('area')] if synergy.get('area') else None
+            device_types=[d.split(".")[0] for d in devices if "." in d],
+            area_ids=[synergy.get("area")] if synergy.get("area") else None,
         )
 
         # Create metadata
         metadata = HomeIQMetadata(
             created_by="ai-pattern-service",
             pattern_id=None,  # Could link to pattern if available
-            confidence_score=synergy.get('confidence', 0.0),
+            confidence_score=synergy.get("confidence", 0.0),
             use_case=self._infer_use_case(synergy),
-            complexity=self._infer_complexity(synergy)
+            complexity=self._infer_complexity(synergy),
         )
 
         # Create safety checks
         safety_checks = SafetyChecks(
             requires_confirmation=False,  # Could be True for critical devices
             critical_devices=None,
-            time_constraints=None
+            time_constraints=None,
         )
 
         # Create base HomeIQAutomation
@@ -362,7 +364,7 @@ class AutomationGenerator:
             mode="single",  # Default mode
             homeiq_metadata=metadata,
             device_context=device_context,
-            safety_checks=safety_checks
+            safety_checks=safety_checks,
         )
 
         # Recommendation 4.1: Apply context-aware parameter adjustments
@@ -370,34 +372,28 @@ class AutomationGenerator:
 
         return automation
 
-    def _infer_use_case(
-        self,
-        synergy: dict[str, Any]
-    ) -> str:
+    def _infer_use_case(self, synergy: dict[str, Any]) -> str:
         """Infer use case from synergy data."""
         # Check context breakdown for hints
-        context_breakdown = synergy.get('context_breakdown', {})
+        context_breakdown = synergy.get("context_breakdown", {})
         if context_breakdown:
-            if 'energy' in context_breakdown:
+            if "energy" in context_breakdown:
                 return "energy"
-            if 'security' in str(synergy.get('devices', [])).lower():
+            if "security" in str(synergy.get("devices", [])).lower():
                 return "security"
 
         # Check device types
-        devices = synergy.get('devices', [])
-        if any('climate' in d or 'thermostat' in d for d in devices):
+        devices = synergy.get("devices", [])
+        if any("climate" in d or "thermostat" in d for d in devices):
             return "comfort"
-        if any('light' in d for d in devices):
+        if any("light" in d for d in devices):
             return "convenience"
 
         return "convenience"  # Default
 
-    def _infer_complexity(
-        self,
-        synergy: dict[str, Any]
-    ) -> str:
+    def _infer_complexity(self, synergy: dict[str, Any]) -> str:
         """Infer complexity from synergy data."""
-        device_count = len(synergy.get('devices', []))
+        device_count = len(synergy.get("devices", []))
         if device_count <= 2:
             return "low"
         elif device_count <= 4:
@@ -406,9 +402,7 @@ class AutomationGenerator:
             return "high"
 
     def _apply_context_aware_parameters(
-        self,
-        automation: HomeIQAutomation,
-        synergy: dict[str, Any]
+        self, automation: HomeIQAutomation, synergy: dict[str, Any]
     ) -> HomeIQAutomation:
         """
         Apply context-aware parameter adjustments to automation.
@@ -425,7 +419,7 @@ class AutomationGenerator:
         Returns:
             Adjusted HomeIQAutomation object
         """
-        context_breakdown = synergy.get('context_breakdown', {})
+        context_breakdown = synergy.get("context_breakdown", {})
         if not context_breakdown:
             return automation  # No context data, return as-is
 
@@ -433,13 +427,13 @@ class AutomationGenerator:
         action_domain = None
         if automation.actions and len(automation.actions) > 0:
             action_service = automation.actions[0].service
-            if action_service and '.' in action_service:
-                action_domain = action_service.split('.')[0]
+            if action_service and "." in action_service:
+                action_domain = action_service.split(".")[0]
 
         # Weather context → adjust climate automation parameters
-        if 'weather' in context_breakdown or 'temperature' in context_breakdown:
-            weather_data = context_breakdown.get('weather') or context_breakdown.get('temperature')
-            if weather_data and action_domain == 'climate':
+        if "weather" in context_breakdown or "temperature" in context_breakdown:
+            weather_data = context_breakdown.get("weather") or context_breakdown.get("temperature")
+            if weather_data and action_domain == "climate":
                 # Adjust temperature based on weather
                 adjusted_temp = self._adjust_temperature_for_weather(weather_data)
                 if adjusted_temp and automation.actions:
@@ -448,27 +442,45 @@ class AutomationGenerator:
                     logger.info(f"Applied weather-based temperature adjustment: {adjusted_temp}°F")
 
         # Energy context → optimize for energy savings
-        if 'energy' in context_breakdown or 'energy_cost' in context_breakdown or 'peak_hours' in context_breakdown:
-            energy_data = context_breakdown.get('energy') or context_breakdown.get('energy_cost') or context_breakdown.get('peak_hours')
+        if (
+            "energy" in context_breakdown
+            or "energy_cost" in context_breakdown
+            or "peak_hours" in context_breakdown
+        ):
+            energy_data = (
+                context_breakdown.get("energy")
+                or context_breakdown.get("energy_cost")
+                or context_breakdown.get("peak_hours")
+            )
             if energy_data:
                 # Add condition to avoid peak hours if energy cost is high
-                peak_hours = energy_data.get('peak_hours') if isinstance(energy_data, dict) else None
+                peak_hours = (
+                    energy_data.get("peak_hours") if isinstance(energy_data, dict) else None
+                )
                 if peak_hours:
                     # Add time condition to avoid peak hours
                     logger.info(f"Applied energy optimization: avoiding peak hours {peak_hours}")
 
         # Carbon context → optimize for low carbon intensity
-        if 'carbon' in context_breakdown or 'carbon_intensity' in context_breakdown:
-            carbon_data = context_breakdown.get('carbon') or context_breakdown.get('carbon_intensity')
+        if "carbon" in context_breakdown or "carbon_intensity" in context_breakdown:
+            carbon_data = context_breakdown.get("carbon") or context_breakdown.get(
+                "carbon_intensity"
+            )
             if carbon_data:
-                carbon_intensity = carbon_data.get('intensity') if isinstance(carbon_data, dict) else carbon_data
-                if isinstance(carbon_intensity, (int, float)) and carbon_intensity > 300:  # High carbon intensity
+                carbon_intensity = (
+                    carbon_data.get("intensity") if isinstance(carbon_data, dict) else carbon_data
+                )
+                if (
+                    isinstance(carbon_intensity, (int, float)) and carbon_intensity > 300
+                ):  # High carbon intensity
                     # Add delay or condition to wait for lower carbon intensity
-                    logger.info(f"Applied carbon optimization: high intensity ({carbon_intensity}), may delay automation")
+                    logger.info(
+                        f"Applied carbon optimization: high intensity ({carbon_intensity}), may delay automation"
+                    )
 
         # Time context → adjust delays based on time-of-day patterns
-        if 'time' in context_breakdown or 'time_of_day' in context_breakdown:
-            time_data = context_breakdown.get('time') or context_breakdown.get('time_of_day')
+        if "time" in context_breakdown or "time_of_day" in context_breakdown:
+            time_data = context_breakdown.get("time") or context_breakdown.get("time_of_day")
             if time_data:
                 # Adjust delays based on time patterns
                 delay = self._adjust_delay_for_time_context(time_data)
@@ -490,7 +502,7 @@ class AutomationGenerator:
         if not isinstance(weather_data, dict):
             return None
 
-        current_temp = weather_data.get('temperature') or weather_data.get('temp')
+        current_temp = weather_data.get("temperature") or weather_data.get("temp")
         if not isinstance(current_temp, (int, float)):
             return None
 
@@ -517,7 +529,7 @@ class AutomationGenerator:
         if not isinstance(time_data, dict):
             return None
 
-        hour = time_data.get('hour')
+        hour = time_data.get("hour")
         if not isinstance(hour, int):
             return None
 
@@ -532,10 +544,7 @@ class AutomationGenerator:
             return 5  # Default delay
 
     async def _deploy_automation(
-        self,
-        ha_client: httpx.AsyncClient,
-        yaml_content: str,
-        synergy_id: str | None = None
+        self, ha_client: httpx.AsyncClient, yaml_content: str, synergy_id: str | None = None
     ) -> str:
         """
         Deploy automation to Home Assistant using REST API.
@@ -561,13 +570,11 @@ class AutomationGenerator:
 
             # Add metadata to first automation
             if automation_config and isinstance(automation_config[0], dict):
-                automation_config[0]['alias'] = automation_config[0].get(
-                    'alias',
-                    f"Synergy Automation: {synergy_id or 'auto'}"
+                automation_config[0]["alias"] = automation_config[0].get(
+                    "alias", f"Synergy Automation: {synergy_id or 'auto'}"
                 )
-                automation_config[0]['description'] = automation_config[0].get(
-                    'description',
-                    f"Generated from synergy {synergy_id}"
+                automation_config[0]["description"] = automation_config[0].get(
+                    "description", f"Generated from synergy {synergy_id}"
                 )
 
             # Deploy via REST API (2025 best practice)
@@ -580,22 +587,28 @@ class AutomationGenerator:
                     f"{self.ha_url}/api/services/automation/create",
                     headers={
                         "Authorization": f"Bearer {self.ha_token}",
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
                     },
-                    json=automation_dict
+                    json=automation_dict,
                 )
                 response.raise_for_status()
 
                 # Return automation ID from response
                 result = response.json()
-                automation_id = result.get('entity_id') or result.get('id') or f"automation.synergy_{synergy_id or 'auto'}"
+                automation_id = (
+                    result.get("entity_id")
+                    or result.get("id")
+                    or f"automation.synergy_{synergy_id or 'auto'}"
+                )
                 logger.info(f"✅ Automation deployed: {automation_id}")
                 return automation_id
             else:
                 raise ValueError("No automation config to deploy")
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error deploying automation: {e.response.status_code} - {e.response.text}")
+            logger.error(
+                f"HTTP error deploying automation: {e.response.status_code} - {e.response.text}"
+            )
             raise
         except Exception as e:
             logger.error(f"Failed to deploy automation: {e}", exc_info=True)

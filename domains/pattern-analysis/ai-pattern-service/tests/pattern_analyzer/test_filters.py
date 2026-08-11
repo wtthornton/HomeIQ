@@ -103,14 +103,16 @@ class TestFilterEvents:
     """Test EventFilter.filter_events static method."""
 
     def test_filters_external_and_noise(self):
-        df = pd.DataFrame({
-            "entity_id": [
-                "light.bedroom",
-                "weather.home",
-                "sensor.home_assistant_uptime",
-                "switch.kitchen",
-            ]
-        })
+        df = pd.DataFrame(
+            {
+                "entity_id": [
+                    "light.bedroom",
+                    "weather.home",
+                    "sensor.home_assistant_uptime",
+                    "switch.kitchen",
+                ]
+            }
+        )
 
         result = EventFilter.filter_events(df)
 
@@ -129,16 +131,12 @@ class TestFilterEvents:
         assert len(result) == 2
 
     def test_custom_entity_column(self):
-        df = pd.DataFrame({
-            "eid": ["light.bedroom", "weather.home"]
-        })
+        df = pd.DataFrame({"eid": ["light.bedroom", "weather.home"]})
         result = EventFilter.filter_events(df, entity_column="eid")
         assert len(result) == 1
         assert result.iloc[0]["eid"] == "light.bedroom"
 
     def test_all_noise_returns_empty(self):
-        df = pd.DataFrame({
-            "entity_id": ["weather.home", "image.map", "event.click"]
-        })
+        df = pd.DataFrame({"entity_id": ["weather.home", "image.map", "event.click"]})
         result = EventFilter.filter_events(df)
         assert len(result) == 0

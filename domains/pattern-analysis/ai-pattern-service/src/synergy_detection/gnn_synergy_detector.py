@@ -28,6 +28,7 @@ try:
     from torch_geometric.data import Data
     from torch_geometric.loader import DataLoader
     from torch_geometric.nn import GCNConv
+
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
@@ -42,6 +43,7 @@ except ImportError:
 
 
 if TORCH_AVAILABLE:
+
     class GNNModel(nn.Module):
         """
         Simple GCN model for synergy prediction.
@@ -77,7 +79,7 @@ if TORCH_AVAILABLE:
                 nn.Linear(hidden_dim * 2, hidden_dim),
                 nn.ReLU(),
                 nn.Linear(hidden_dim, 1),
-                nn.Sigmoid()  # Output synergy score (0-1)
+                nn.Sigmoid(),  # Output synergy score (0-1)
             )
 
         def forward(self, x, edge_index):
@@ -123,10 +125,12 @@ else:
     # Dummy class when torch is not available
     class GNNModel:
         """Dummy class when torch is not available."""
+
         pass
 
 
 if TORCH_AVAILABLE:
+
     class GNNSynergyDetector:
         """
         Graph Neural Network for learning device relationships.
@@ -147,7 +151,7 @@ if TORCH_AVAILABLE:
             batch_size: int = 32,
             epochs: int = 30,
             early_stopping_patience: int = 5,
-            model_path: str | None = None
+            model_path: str | None = None,
         ):
             """
             Initialize GNN synergy detector.
@@ -209,9 +213,7 @@ if TORCH_AVAILABLE:
             logger.info("✅ GNN model ready for training")
 
         def build_device_graph(
-            self,
-            entities: list[dict],
-            _events: list[dict] | None = None
+            self, entities: list[dict], _events: list[dict] | None = None
         ) -> dict[str, Any]:
             """
             Build graph from device entities with enhanced features.
@@ -235,9 +237,9 @@ if TORCH_AVAILABLE:
             unique_domains = set()
 
             for entity in entities:
-                entity_id = entity.get('entity_id', '')
-                domain = entity_id.split('.')[0] if '.' in entity_id else ''
-                area = entity.get('area_id', 'unknown')
+                entity_id = entity.get("entity_id", "")
+                domain = entity_id.split(".")[0] if "." in entity_id else ""
+                area = entity.get("area_id", "unknown")
                 unique_areas.add(area)
                 unique_domains.add(domain)
 
@@ -247,16 +249,18 @@ if TORCH_AVAILABLE:
 
             # Build nodes
             for idx, entity in enumerate(entities):
-                entity_id = entity.get('entity_id', '')
-                domain = entity_id.split('.')[0] if '.' in entity_id else ''
-                area = entity.get('area_id', 'unknown')
+                entity_id = entity.get("entity_id", "")
+                domain = entity_id.split(".")[0] if "." in entity_id else ""
+                area = entity.get("area_id", "unknown")
 
-                nodes.append({
-                    'id': entity_id,
-                    'label': entity.get('friendly_name', entity_id),
-                    'domain': domain,
-                    'area': area
-                })
+                nodes.append(
+                    {
+                        "id": entity_id,
+                        "label": entity.get("friendly_name", entity_id),
+                        "domain": domain,
+                        "area": area,
+                    }
+                )
 
                 # Enhanced node features: [domain_encoded, area_encoded, usage_freq]
                 domain_encoded = self.domain_encoder.get(domain, 0) / max(len(unique_domains), 1)
@@ -275,14 +279,14 @@ if TORCH_AVAILABLE:
             area_groups = {}
 
             for node in nodes:
-                area = node['area']
+                area = node["area"]
                 if area not in area_groups:
                     area_groups[area] = []
-                area_groups[area].append(node['id'])
+                area_groups[area].append(node["id"])
 
             for _area, device_ids in area_groups.items():
                 for i, device1 in enumerate(device_ids):
-                    for device2 in device_ids[i+1:]:
+                    for device2 in device_ids[i + 1 :]:
                         if device1 in node_id_map and device2 in node_id_map:
                             edges.append([node_id_map[device1], node_id_map[device2]])
                             edge_weights.append(1.0)
@@ -290,17 +294,14 @@ if TORCH_AVAILABLE:
             logger.info(f"Built graph: {len(nodes)} nodes, {len(edges)} edges")
 
             return {
-                'nodes': nodes,
-                'edges': edges,
-                'node_features': node_features,
-                'edge_weights': edge_weights,
-                'node_id_map': node_id_map
+                "nodes": nodes,
+                "edges": edges,
+                "node_features": node_features,
+                "edge_weights": edge_weights,
+                "node_id_map": node_id_map,
             }
 
-        async def _load_synergies_from_database(
-            self,
-            db_session: Any
-        ) -> list[dict]:
+        async def _load_synergies_from_database(self, db_session: Any) -> list[dict]:
             """
             Load synergies from database.
 
@@ -315,23 +316,25 @@ if TORCH_AVAILABLE:
             from ..database.models import SynergyOpportunity
 
             try:
-                result = await db_session.execute(
-                    select(SynergyOpportunity)
-                )
+                result = await db_session.execute(select(SynergyOpportunity))
                 synergies = result.scalars().all()
 
                 synergy_dicts = []
                 for synergy in synergies:
                     device_ids = json.loads(synergy.device_ids) if synergy.device_ids else []
                     if len(device_ids) >= 2:
-                        synergy_dicts.append({
-                            'synergy_id': synergy.synergy_id,
-                            'device_ids': device_ids[:2],  # Use first 2 devices for pairs
-                            'impact_score': synergy.impact_score,
-                            'confidence': synergy.confidence,
-                            'area': synergy.area,
-                            'validated_by_patterns': getattr(synergy, 'validated_by_patterns', False)
-                        })
+                        synergy_dicts.append(
+                            {
+                                "synergy_id": synergy.synergy_id,
+                                "device_ids": device_ids[:2],  # Use first 2 devices for pairs
+                                "impact_score": synergy.impact_score,
+                                "confidence": synergy.confidence,
+                                "area": synergy.area,
+                                "validated_by_patterns": getattr(
+                                    synergy, "validated_by_patterns", False
+                                ),
+                            }
+                        )
 
                 logger.info(f"Loaded {len(synergy_dicts)} synergies from database")
                 return synergy_dicts
@@ -354,9 +357,7 @@ if TORCH_AVAILABLE:
             return []
 
         def _create_training_pairs(
-            self,
-            synergies: list[dict],
-            entities: list[dict]
+            self, synergies: list[dict], entities: list[dict]
         ) -> list[tuple[str, str, float]]:
             """
             Create training pairs from synergies.
@@ -368,17 +369,17 @@ if TORCH_AVAILABLE:
             Returns:
                 List of (device1_id, device2_id, label) tuples
             """
-            entity_set = {e.get('entity_id') for e in entities}
+            entity_set = {e.get("entity_id") for e in entities}
             positive_pairs = []
 
             for synergy in synergies:
-                device_ids = synergy.get('device_ids', [])
+                device_ids = synergy.get("device_ids", [])
                 if len(device_ids) >= 2:
                     device1, device2 = device_ids[0], device_ids[1]
                     # Only include if both devices exist in entities
                     if device1 in entity_set and device2 in entity_set:
                         # Use confidence as label (0-1 range)
-                        label = float(synergy.get('confidence', 0.5))
+                        label = float(synergy.get("confidence", 0.5))
                         positive_pairs.append((device1, device2, label))
 
             logger.info(f"Created {len(positive_pairs)} positive training pairs")
@@ -388,7 +389,7 @@ if TORCH_AVAILABLE:
             self,
             entities: list[dict],
             positive_pairs: list[tuple[str, str, float]],
-            num_negative: int | None = None
+            num_negative: int | None = None,
         ) -> list[tuple[str, str, float]]:
             """
             Generate negative training pairs.
@@ -401,7 +402,7 @@ if TORCH_AVAILABLE:
             Returns:
                 List of (device1_id, device2_id, 0.0) tuples
             """
-            entity_ids = [e.get('entity_id') for e in entities if e.get('entity_id')]
+            entity_ids = [e.get("entity_id") for e in entities if e.get("entity_id")]
             positive_set = {(p[0], p[1]) for p in positive_pairs}
             positive_set.update({(p[1], p[0]) for p in positive_pairs})  # Include reverse
 
@@ -421,9 +422,7 @@ if TORCH_AVAILABLE:
             return negative_pairs
 
         def _convert_to_pyg_data(
-            self,
-            graph_dict: dict[str, Any],
-            pairs: list[tuple[str, str, float]]
+            self, graph_dict: dict[str, Any], pairs: list[tuple[str, str, float]]
         ) -> Data:
             """
             Convert graph and pairs to PyTorch Geometric Data object.
@@ -438,11 +437,11 @@ if TORCH_AVAILABLE:
             if not TORCH_AVAILABLE:
                 raise ImportError("torch-geometric not available")
 
-            node_features = torch.tensor(graph_dict['node_features'], dtype=torch.float)
-            edge_index = torch.tensor(graph_dict['edges'], dtype=torch.long).t().contiguous()
+            node_features = torch.tensor(graph_dict["node_features"], dtype=torch.float)
+            edge_index = torch.tensor(graph_dict["edges"], dtype=torch.long).t().contiguous()
 
             # Create edge labels for training pairs
-            node_id_map = graph_dict['node_id_map']
+            node_id_map = graph_dict["node_id_map"]
             edge_labels = []
             edge_indices = []
 
@@ -462,7 +461,7 @@ if TORCH_AVAILABLE:
                 x=node_features,
                 edge_index=edge_index,
                 edge_indices=edge_indices_tensor,  # Training edge pairs
-                edge_labels=edge_labels_tensor  # Training labels
+                edge_labels=edge_labels_tensor,  # Training labels
             )
 
             return data
@@ -473,7 +472,7 @@ if TORCH_AVAILABLE:
             known_synergies: list[dict],
             events: list[dict] | None = None,
             db_session: Any | None = None,
-            data_api_client: Any | None = None
+            data_api_client: Any | None = None,
         ) -> dict[str, Any]:
             """
             Learn device relationships from known synergies and event data.
@@ -490,9 +489,9 @@ if TORCH_AVAILABLE:
             """
             if not TORCH_AVAILABLE:
                 return {
-                    'status': 'skipped',
-                    'reason': 'torch_geometric_not_available',
-                    'note': 'Install torch-geometric to enable GNN learning'
+                    "status": "skipped",
+                    "reason": "torch_geometric_not_available",
+                    "note": "Install torch-geometric to enable GNN learning",
                 }
 
             # Load data if not provided
@@ -506,13 +505,15 @@ if TORCH_AVAILABLE:
 
             if not entities or not known_synergies:
                 return {
-                    'status': 'skipped',
-                    'reason': 'insufficient_data',
-                    'entities_count': len(entities) if entities else 0,
-                    'synergies_count': len(known_synergies) if known_synergies else 0
+                    "status": "skipped",
+                    "reason": "insufficient_data",
+                    "entities_count": len(entities) if entities else 0,
+                    "synergies_count": len(known_synergies) if known_synergies else 0,
                 }
 
-            logger.info(f"Training GNN on {len(entities)} entities and {len(known_synergies)} synergies...")
+            logger.info(
+                f"Training GNN on {len(entities)} entities and {len(known_synergies)} synergies..."
+            )
 
             # Build graph
             graph = self.build_device_graph(entities, events)
@@ -540,10 +541,12 @@ if TORCH_AVAILABLE:
             self.model = GNNModel(input_dim, self.hidden_dim, self.num_layers)
 
             # Apply PyTorch compile for faster training (2025 optimization)
-            if hasattr(torch, 'compile') and TORCH_AVAILABLE:
+            if hasattr(torch, "compile") and TORCH_AVAILABLE:
                 try:
-                    self.model = torch.compile(self.model, mode='reduce-overhead')
-                    logger.info("✅ GNN model compiled for faster training (1.5-2x speedup expected)")
+                    self.model = torch.compile(self.model, mode="reduce-overhead")
+                    logger.info(
+                        "✅ GNN model compiled for faster training (1.5-2x speedup expected)"
+                    )
                 except Exception as e:
                     logger.warning(f"⚠️  torch.compile failed, using standard model: {e}")
 
@@ -551,14 +554,9 @@ if TORCH_AVAILABLE:
             criterion = nn.BCELoss()
 
             # Training loop
-            best_val_loss = float('inf')
+            best_val_loss = float("inf")
             patience_counter = 0
-            training_history = {
-                'train_loss': [],
-                'val_loss': [],
-                'train_acc': [],
-                'val_acc': []
-            }
+            training_history = {"train_loss": [], "val_loss": [], "train_acc": [], "val_acc": []}
 
             logger.info("Starting GNN training...")
 
@@ -588,14 +586,14 @@ if TORCH_AVAILABLE:
                 val_pred_binary = (val_pred_scores > 0.5).float()
                 val_acc = (val_pred_binary == val_data.edge_labels).float().mean().item()
 
-                training_history['train_loss'].append(train_loss.item())
-                training_history['val_loss'].append(val_loss.item())
-                training_history['train_acc'].append(train_acc)
-                training_history['val_acc'].append(val_acc)
+                training_history["train_loss"].append(train_loss.item())
+                training_history["val_loss"].append(val_loss.item())
+                training_history["train_acc"].append(train_acc)
+                training_history["val_acc"].append(val_acc)
 
                 if (epoch + 1) % 5 == 0:
                     logger.info(
-                        f"Epoch {epoch+1}/{self.epochs}: "
+                        f"Epoch {epoch + 1}/{self.epochs}: "
                         f"Train Loss={train_loss.item():.4f}, Val Loss={val_loss.item():.4f}, "
                         f"Train Acc={train_acc:.4f}, Val Acc={val_acc:.4f}"
                     )
@@ -607,16 +605,16 @@ if TORCH_AVAILABLE:
                 else:
                     patience_counter += 1
                     if patience_counter >= self.early_stopping_patience:
-                        logger.info(f"Early stopping at epoch {epoch+1}")
+                        logger.info(f"Early stopping at epoch {epoch + 1}")
                         break
 
             # Save model
             await self.save_model(self.model_path)
 
-            final_train_loss = training_history['train_loss'][-1]
-            final_val_loss = training_history['val_loss'][-1]
-            final_train_acc = training_history['train_acc'][-1]
-            final_val_acc = training_history['val_acc'][-1]
+            final_train_loss = training_history["train_loss"][-1]
+            final_val_loss = training_history["val_loss"][-1]
+            final_train_acc = training_history["train_acc"][-1]
+            final_val_acc = training_history["val_acc"][-1]
 
             self._is_initialized = True
 
@@ -627,16 +625,16 @@ if TORCH_AVAILABLE:
             )
 
             return {
-                'status': 'complete',
-                'nodes': len(graph['nodes']),
-                'edges': len(graph['edges']),
-                'training_pairs': len(train_pairs),
-                'validation_pairs': len(val_pairs),
-                'final_train_loss': final_train_loss,
-                'final_val_loss': final_val_loss,
-                'final_train_acc': final_train_acc,
-                'final_val_acc': final_val_acc,
-                'epochs_trained': len(training_history['train_loss'])
+                "status": "complete",
+                "nodes": len(graph["nodes"]),
+                "edges": len(graph["edges"]),
+                "training_pairs": len(train_pairs),
+                "validation_pairs": len(val_pairs),
+                "final_train_loss": final_train_loss,
+                "final_val_loss": final_val_loss,
+                "final_train_acc": final_train_acc,
+                "final_val_acc": final_val_acc,
+                "epochs_trained": len(training_history["train_loss"]),
             }
 
         async def save_model(self, path: str | None = None):
@@ -654,25 +652,28 @@ if TORCH_AVAILABLE:
             save_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Save model state dict
-            torch.save({
-                'model_state_dict': self.model.state_dict(),
-                'hidden_dim': self.hidden_dim,
-                'num_layers': self.num_layers,
-                'node_id_map': self.node_id_map,
-                'area_encoder': self.area_encoder,
-                'domain_encoder': self.domain_encoder
-            }, save_path)
+            torch.save(
+                {
+                    "model_state_dict": self.model.state_dict(),
+                    "hidden_dim": self.hidden_dim,
+                    "num_layers": self.num_layers,
+                    "node_id_map": self.node_id_map,
+                    "area_encoder": self.area_encoder,
+                    "domain_encoder": self.domain_encoder,
+                },
+                save_path,
+            )
 
             # Save metadata
             metadata_path = save_path.parent / f"{save_path.stem}_metadata.json"
             metadata = {
-                'training_date': datetime.now(UTC).isoformat(),
-                'hidden_dim': self.hidden_dim,
-                'num_layers': self.num_layers,
-                **self.metadata
+                "training_date": datetime.now(UTC).isoformat(),
+                "hidden_dim": self.hidden_dim,
+                "num_layers": self.num_layers,
+                **self.metadata,
             }
 
-            with metadata_path.open('w') as f:
+            with metadata_path.open("w") as f:
                 json.dump(metadata, f, indent=2)
 
             logger.info(f"✅ Model saved to {save_path}")
@@ -697,21 +698,21 @@ if TORCH_AVAILABLE:
                 return False
 
             try:
-                checkpoint = torch.load(load_path, map_location='cpu')
+                checkpoint = torch.load(load_path, map_location="cpu")
 
                 # Reconstruct model (need input_dim - will be set during first forward pass)
                 # For now, use a default input_dim (3 features: domain, area, usage)
                 input_dim = 3
-                self.hidden_dim = checkpoint.get('hidden_dim', self.hidden_dim)
-                self.num_layers = checkpoint.get('num_layers', self.num_layers)
+                self.hidden_dim = checkpoint.get("hidden_dim", self.hidden_dim)
+                self.num_layers = checkpoint.get("num_layers", self.num_layers)
 
                 self.model = GNNModel(input_dim, self.hidden_dim, self.num_layers)
-                self.model.load_state_dict(checkpoint['model_state_dict'])
+                self.model.load_state_dict(checkpoint["model_state_dict"])
                 self.model.eval()
 
-                self.node_id_map = checkpoint.get('node_id_map', {})
-                self.area_encoder = checkpoint.get('area_encoder', {})
-                self.domain_encoder = checkpoint.get('domain_encoder', {})
+                self.node_id_map = checkpoint.get("node_id_map", {})
+                self.area_encoder = checkpoint.get("area_encoder", {})
+                self.domain_encoder = checkpoint.get("domain_encoder", {})
 
                 # Load metadata
                 metadata_path = load_path.parent / f"{load_path.stem}_metadata.json"
@@ -730,7 +731,7 @@ if TORCH_AVAILABLE:
             self,
             device_pair: tuple[str, str],
             graph: dict[str, Any] | None = None,
-            entities: list[dict] | None = None
+            entities: list[dict] | None = None,
         ) -> dict[str, Any]:
             """
             Predict synergy score using learned embeddings.
@@ -757,35 +758,37 @@ if TORCH_AVAILABLE:
                 await self.initialize()
 
             if not self._is_initialized or not self.model:
-                logger.debug(f"GNN model not available for pair ({device1}, {device2}), using fallback")
+                logger.debug(
+                    f"GNN model not available for pair ({device1}, {device2}), using fallback"
+                )
                 return {
-                    'score': 0.5,
-                    'explanation': f'GNN model not available for {device1} → {device2}, using fallback',
-                    'confidence': 0.3
+                    "score": 0.5,
+                    "explanation": f"GNN model not available for {device1} → {device2}, using fallback",
+                    "confidence": 0.3,
                 }
 
             # Build minimal graph if not provided
             if graph is None:
                 if not entities:
                     return {
-                        'score': 0.5,
-                        'explanation': 'Cannot build graph without entities',
-                        'confidence': 0.0
+                        "score": 0.5,
+                        "explanation": "Cannot build graph without entities",
+                        "confidence": 0.0,
                     }
                 graph = self.build_device_graph(entities)
 
             # Check if devices are in graph
-            node_id_map = graph['node_id_map']
+            node_id_map = graph["node_id_map"]
             if device1 not in node_id_map or device2 not in node_id_map:
                 return {
-                    'score': 0.0,
-                    'explanation': f'Devices not found in graph: {device1}, {device2}',
-                    'confidence': 0.0
+                    "score": 0.0,
+                    "explanation": f"Devices not found in graph: {device1}, {device2}",
+                    "confidence": 0.0,
                 }
 
             # Convert to PyG format
-            node_features = torch.tensor(graph['node_features'], dtype=torch.float)
-            edge_index = torch.tensor(graph['edges'], dtype=torch.long).t().contiguous()
+            node_features = torch.tensor(graph["node_features"], dtype=torch.float)
+            edge_index = torch.tensor(graph["edges"], dtype=torch.long).t().contiguous()
 
             # Get node embeddings
             self.model.eval()
@@ -802,22 +805,24 @@ if TORCH_AVAILABLE:
             confidence = min(score * 1.5, 1.0)  # Scale confidence
 
             return {
-                'score': float(score),
-                'explanation': f'GNN prediction for {device1} → {device2} (score: {score:.3f})',
-                'confidence': float(confidence)
+                "score": float(score),
+                "explanation": f"GNN prediction for {device1} → {device2} (score: {score:.3f})",
+                "confidence": float(confidence),
             }
 else:
     # Dummy class when torch is not available
     class GNNSynergyDetector:
         """Dummy class when torch is not available."""
+
         def __init__(self, *_args, **_kwargs):
-            logger.warning("GNNSynergyDetector requires torch-geometric. Install with: pip install torch torch-geometric")
+            logger.warning(
+                "GNNSynergyDetector requires torch-geometric. Install with: pip install torch torch-geometric"
+            )
 
         def predict_synergy(self, _device1: str, _device2: str, **_kwargs) -> dict[str, Any]:
             """Dummy method that returns None when torch is not available."""
             return {
-                'score': 0.0,
-                'explanation': 'GNN not available (torch-geometric not installed)',
-                'confidence': 0.0
+                "score": 0.0,
+                "explanation": "GNN not available (torch-geometric not installed)",
+                "confidence": 0.0,
             }
-

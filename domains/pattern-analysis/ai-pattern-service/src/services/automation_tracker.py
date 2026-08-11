@@ -39,7 +39,7 @@ class AutomationTracker:
         automation_id: str,
         synergy_id: str,
         execution_result: dict[str, Any],
-        db: AsyncSession | None = None
+        db: AsyncSession | None = None,
     ) -> None:
         """
         Track automation execution and update synergy confidence.
@@ -61,10 +61,10 @@ class AutomationTracker:
             return
 
         try:
-            success = execution_result.get('success', False)
-            error = execution_result.get('error')
-            execution_time_ms = execution_result.get('execution_time_ms', 0)
-            triggered_count = execution_result.get('triggered_count', 0)
+            success = execution_result.get("success", False)
+            error = execution_result.get("error")
+            execution_time_ms = execution_result.get("execution_time_ms", 0)
+            triggered_count = execution_result.get("triggered_count", 0)
 
             # Store execution record
             await self._store_execution_record(
@@ -74,16 +74,11 @@ class AutomationTracker:
                 success,
                 error,
                 execution_time_ms,
-                triggered_count
+                triggered_count,
             )
 
             # Update synergy confidence based on execution
-            await self._update_synergy_confidence(
-                session,
-                synergy_id,
-                success,
-                triggered_count
-            )
+            await self._update_synergy_confidence(session, synergy_id, success, triggered_count)
 
             logger.info(
                 f"✅ Tracked automation execution: automation_id={automation_id}, "
@@ -100,7 +95,7 @@ class AutomationTracker:
         success: bool,
         error: str | None,
         execution_time_ms: int,
-        triggered_count: int
+        triggered_count: int,
     ) -> None:
         """Store automation execution record in database."""
         try:
@@ -135,8 +130,8 @@ class AutomationTracker:
                     "success": success,
                     "error": error,
                     "execution_time_ms": execution_time_ms,
-                    "triggered_count": triggered_count
-                }
+                    "triggered_count": triggered_count,
+                },
             )
             await db.commit()
         except Exception as e:
@@ -144,11 +139,7 @@ class AutomationTracker:
             await db.rollback()
 
     async def _update_synergy_confidence(
-        self,
-        db: AsyncSession,
-        synergy_id: str,
-        success: bool,
-        triggered_count: int
+        self, db: AsyncSession, synergy_id: str, success: bool, triggered_count: int
     ) -> None:
         """
         Update synergy confidence based on execution outcomes.
@@ -207,8 +198,8 @@ class AutomationTracker:
                 {
                     "synergy_id": synergy_id,
                     "confidence": new_confidence,
-                    "impact_score": new_impact
-                }
+                    "impact_score": new_impact,
+                },
             )
             await db.commit()
 
@@ -221,9 +212,7 @@ class AutomationTracker:
             await db.rollback()
 
     async def get_execution_stats(
-        self,
-        synergy_id: str,
-        db: AsyncSession | None = None
+        self, synergy_id: str, db: AsyncSession | None = None
     ) -> dict[str, Any]:
         """
         Get execution statistics for a synergy.
@@ -245,12 +234,12 @@ class AutomationTracker:
         session = db or self.db
         if not session:
             return {
-                'total_executions': 0,
-                'successful_executions': 0,
-                'failed_executions': 0,
-                'total_triggered': 0,
-                'avg_execution_time_ms': 0.0,
-                'success_rate': 0.0
+                "total_executions": 0,
+                "successful_executions": 0,
+                "failed_executions": 0,
+                "total_triggered": 0,
+                "avg_execution_time_ms": 0.0,
+                "success_rate": 0.0,
             }
 
         try:
@@ -275,29 +264,29 @@ class AutomationTracker:
                 avg_time = row[4] or 0.0
 
                 return {
-                    'total_executions': total,
-                    'successful_executions': successful,
-                    'failed_executions': failed,
-                    'total_triggered': total_triggered,
-                    'avg_execution_time_ms': avg_time,
-                    'success_rate': (successful / total) if total > 0 else 0.0
+                    "total_executions": total,
+                    "successful_executions": successful,
+                    "failed_executions": failed,
+                    "total_triggered": total_triggered,
+                    "avg_execution_time_ms": avg_time,
+                    "success_rate": (successful / total) if total > 0 else 0.0,
                 }
             else:
                 return {
-                    'total_executions': 0,
-                    'successful_executions': 0,
-                    'failed_executions': 0,
-                    'total_triggered': 0,
-                    'avg_execution_time_ms': 0.0,
-                    'success_rate': 0.0
+                    "total_executions": 0,
+                    "successful_executions": 0,
+                    "failed_executions": 0,
+                    "total_triggered": 0,
+                    "avg_execution_time_ms": 0.0,
+                    "success_rate": 0.0,
                 }
         except Exception as e:
             logger.warning(f"Failed to get execution stats: {e}")
             return {
-                'total_executions': 0,
-                'successful_executions': 0,
-                'failed_executions': 0,
-                'total_triggered': 0,
-                'avg_execution_time_ms': 0.0,
-                'success_rate': 0.0
+                "total_executions": 0,
+                "successful_executions": 0,
+                "failed_executions": 0,
+                "total_triggered": 0,
+                "avg_execution_time_ms": 0.0,
+                "success_rate": 0.0,
             }

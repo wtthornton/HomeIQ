@@ -6,8 +6,9 @@ Revision ID: 001_add_ml_tables
 Revises:
 Create Date: 2026-03-09
 """
-from alembic import op
+
 import sqlalchemy as sa
+from alembic import op
 
 revision = "001_add_ml_tables"
 down_revision = None

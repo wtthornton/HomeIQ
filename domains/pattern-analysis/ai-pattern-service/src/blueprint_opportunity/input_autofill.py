@@ -63,15 +63,17 @@ class InputAutofill:
                 entity_id, confidence, alternatives = result
                 used_entities.add(entity_id)
 
-                autofilled.append(AutofilledInput(
-                    input_name=input_name,
-                    input_type=selector_type or "entity",
-                    value=entity_id,
-                    entity_id=entity_id,
-                    confidence=confidence,
-                    is_required=is_required,
-                    alternatives=alternatives,
-                ))
+                autofilled.append(
+                    AutofilledInput(
+                        input_name=input_name,
+                        input_type=selector_type or "entity",
+                        value=entity_id,
+                        entity_id=entity_id,
+                        confidence=confidence,
+                        is_required=is_required,
+                        alternatives=alternatives,
+                    )
+                )
             elif is_required:
                 unfilled.append(input_name)
             else:
@@ -107,9 +109,7 @@ class InputAutofill:
             if device.entity_id in used_entities:
                 continue
 
-            score = self._calculate_match_score(
-                device, domain, device_class, area_preference
-            )
+            score = self._calculate_match_score(device, domain, device_class, area_preference)
 
             if score > 0:
                 candidates.append((device, score))

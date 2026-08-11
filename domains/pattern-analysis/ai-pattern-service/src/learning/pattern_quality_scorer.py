@@ -18,7 +18,9 @@ class PatternQualityScorer:
     Epic 39, Story 39.7: Extracted to pattern service.
     """
 
-    def __init__(self, blueprint_validator=None, ground_truth_patterns=None, home_type: str | None = None):
+    def __init__(
+        self, blueprint_validator=None, ground_truth_patterns=None, home_type: str | None = None
+    ):
         """
         Initialize pattern quality scorer.
 
@@ -63,10 +65,10 @@ class PatternQualityScorer:
 
         # Calculate base quality (weighted average)
         base_quality = (
-            confidence_score * 0.40 +
-            frequency_score * 0.30 +
-            temporal_score * 0.20 +
-            relationship_score * 0.10
+            confidence_score * 0.40
+            + frequency_score * 0.30
+            + temporal_score * 0.20
+            + relationship_score * 0.10
         )
 
         # Calculate validation boost
@@ -79,34 +81,34 @@ class PatternQualityScorer:
 
         # Determine quality tier
         if quality_score >= 0.75:
-            quality_tier = 'high'
+            quality_tier = "high"
         elif quality_score >= 0.50:
-            quality_tier = 'medium'
+            quality_tier = "medium"
         else:
-            quality_tier = 'low'
+            quality_tier = "low"
 
         return {
-            'quality_score': quality_score,
-            'base_quality': base_quality,
-            'validation_boost': validation_boost,
-            'breakdown': {
-                'confidence': confidence_score,
-                'frequency': frequency_score,
-                'temporal': temporal_score,
-                'relationship': relationship_score
+            "quality_score": quality_score,
+            "base_quality": base_quality,
+            "validation_boost": validation_boost,
+            "breakdown": {
+                "confidence": confidence_score,
+                "frequency": frequency_score,
+                "temporal": temporal_score,
+                "relationship": relationship_score,
             },
-            'quality_tier': quality_tier,
-            'is_high_quality': quality_score >= 0.6
+            "quality_tier": quality_tier,
+            "is_high_quality": quality_score >= 0.6,
         }
 
     def _score_confidence(self, pattern: dict[str, Any]) -> float:
         """Score based on pattern confidence (0.0-1.0)"""
-        confidence = pattern.get('confidence', 0.0)
+        confidence = pattern.get("confidence", 0.0)
         return max(0.0, min(1.0, float(confidence)))
 
     def _score_frequency(self, pattern: dict[str, Any]) -> float:
         """Score based on occurrence frequency"""
-        occurrences = pattern.get('occurrences', pattern.get('count', 0))
+        occurrences = pattern.get("occurrences", pattern.get("count", 0))
         occurrences = max(0, int(occurrences))
 
         if occurrences == 0:
@@ -122,15 +124,15 @@ class PatternQualityScorer:
 
     def _score_temporal_consistency(self, pattern: dict[str, Any]) -> float:
         """Score based on temporal consistency"""
-        pattern_type = pattern.get('pattern_type', '')
+        pattern_type = pattern.get("pattern_type", "")
 
-        if pattern_type == 'time_of_day':
-            time_range = pattern.get('time_range', pattern.get('time', ''))
+        if pattern_type == "time_of_day":
+            time_range = pattern.get("time_range", pattern.get("time", ""))
             if time_range:
                 return 0.9
             return 0.5
-        elif pattern_type == 'co_occurrence':
-            window_minutes = pattern.get('window_minutes', 5)
+        elif pattern_type == "co_occurrence":
+            window_minutes = pattern.get("window_minutes", 5)
             if 1 <= window_minutes <= 10:
                 return 0.8
             elif window_minutes <= 30:
@@ -145,17 +147,24 @@ class PatternQualityScorer:
         score = 0.0
 
         # Check for same area
-        area1 = pattern.get('area1', pattern.get('area', ''))
-        area2 = pattern.get('area2', '')
+        area1 = pattern.get("area1", pattern.get("area", ""))
+        area2 = pattern.get("area2", "")
         if area1 and area2 and area1 == area2:
             score += 0.5
 
         # Check for logical pairing
-        device1 = pattern.get('device1', '')
-        device2 = pattern.get('device2', '')
+        device1 = pattern.get("device1", "")
+        device2 = pattern.get("device2", "")
 
         if device1 and device2:
-            if 'motion' in device1.lower() and 'light' in device2.lower() or 'door' in device1.lower() and 'lock' in device2.lower() or 'temperature' in device1.lower() and 'climate' in device2.lower():
+            if (
+                "motion" in device1.lower()
+                and "light" in device2.lower()
+                or "door" in device1.lower()
+                and "lock" in device2.lower()
+                or "temperature" in device1.lower()
+                and "climate" in device2.lower()
+            ):
                 score += 0.3
 
         return min(1.0, score)
@@ -167,7 +176,7 @@ class PatternQualityScorer:
         # Blueprint validation
         if self.blueprint_validator:
             try:
-                blueprint_match = pattern.get('blueprint_match', False)
+                blueprint_match = pattern.get("blueprint_match", False)
                 if blueprint_match:
                     boost += 0.2
             except Exception as e:
@@ -181,7 +190,7 @@ class PatternQualityScorer:
                     break
 
         # Pattern support
-        pattern_support = pattern.get('pattern_support_score', 0.0)
+        pattern_support = pattern.get("pattern_support_score", 0.0)
         if pattern_support > 0.7:
             boost += 0.1
 
@@ -189,19 +198,18 @@ class PatternQualityScorer:
 
     def _patterns_match(self, pattern1: dict[str, Any], pattern2: dict[str, Any]) -> bool:
         """Check if two patterns match"""
-        type1 = pattern1.get('pattern_type', '')
-        type2 = pattern2.get('pattern_type', '')
+        type1 = pattern1.get("pattern_type", "")
+        type2 = pattern2.get("pattern_type", "")
         if type1 != type2:
             return False
 
         devices1 = set()
         devices2 = set()
 
-        for field in ['device1', 'device2', 'entity_id']:
+        for field in ["device1", "device2", "entity_id"]:
             if pattern1.get(field):
                 devices1.add(pattern1[field])
             if pattern2.get(field):
                 devices2.add(pattern2[field])
 
         return len(devices1.intersection(devices2)) > 0
-

@@ -29,12 +29,12 @@ logger = logging.getLogger(__name__)
 class EvolutionType(str, Enum):
     """Types of pattern evolution."""
 
-    STABLE = "stable"           # Pattern unchanged
-    EVOLVING = "evolving"       # Pattern changing (time drift, confidence change)
-    NEW = "new"                 # Newly detected pattern
-    DEPRECATED = "deprecated"   # Pattern no longer valid
+    STABLE = "stable"  # Pattern unchanged
+    EVOLVING = "evolving"  # Pattern changing (time drift, confidence change)
+    NEW = "new"  # Newly detected pattern
+    DEPRECATED = "deprecated"  # Pattern no longer valid
     STRENGTHENING = "strengthening"  # Pattern becoming more reliable
-    WEAKENING = "weakening"     # Pattern becoming less reliable
+    WEAKENING = "weakening"  # Pattern becoming less reliable
 
 
 class TrendDirection(str, Enum):
@@ -57,7 +57,7 @@ class PatternEvolution:
     # Time drift analysis
     time_drift_minutes: float = 0.0
     original_time: str | None = None  # HH:MM format
-    current_time: str | None = None   # HH:MM format
+    current_time: str | None = None  # HH:MM format
 
     # Confidence analysis
     confidence_trend: float = 0.0  # -1.0 to 1.0 (declining to improving)
@@ -81,24 +81,24 @@ class PatternEvolution:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
-            'pattern_id': self.pattern_id,
-            'device_id': self.device_id,
-            'pattern_type': self.pattern_type,
-            'evolution_type': self.evolution_type.value,
-            'time_drift_minutes': round(self.time_drift_minutes, 1),
-            'original_time': self.original_time,
-            'current_time': self.current_time,
-            'confidence_trend': round(self.confidence_trend, 3),
-            'original_confidence': round(self.original_confidence, 3),
-            'current_confidence': round(self.current_confidence, 3),
-            'occurrences_trend': self.occurrences_trend.value,
-            'original_occurrences': self.original_occurrences,
-            'current_occurrences': self.current_occurrences,
-            'first_seen': self.first_seen.isoformat() if self.first_seen else None,
-            'last_seen': self.last_seen.isoformat() if self.last_seen else None,
-            'days_tracked': self.days_tracked,
-            'automation_update_recommended': self.automation_update_recommended,
-            'update_reason': self.update_reason,
+            "pattern_id": self.pattern_id,
+            "device_id": self.device_id,
+            "pattern_type": self.pattern_type,
+            "evolution_type": self.evolution_type.value,
+            "time_drift_minutes": round(self.time_drift_minutes, 1),
+            "original_time": self.original_time,
+            "current_time": self.current_time,
+            "confidence_trend": round(self.confidence_trend, 3),
+            "original_confidence": round(self.original_confidence, 3),
+            "current_confidence": round(self.current_confidence, 3),
+            "occurrences_trend": self.occurrences_trend.value,
+            "original_occurrences": self.original_occurrences,
+            "current_occurrences": self.current_occurrences,
+            "first_seen": self.first_seen.isoformat() if self.first_seen else None,
+            "last_seen": self.last_seen.isoformat() if self.last_seen else None,
+            "days_tracked": self.days_tracked,
+            "automation_update_recommended": self.automation_update_recommended,
+            "update_reason": self.update_reason,
         }
 
 
@@ -122,24 +122,24 @@ class EvolutionAnalysisResult:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
-            'stable_patterns': [p.to_dict() for p in self.stable_patterns],
-            'evolving_patterns': [p.to_dict() for p in self.evolving_patterns],
-            'new_patterns': [p.to_dict() for p in self.new_patterns],
-            'deprecated_patterns': [p.to_dict() for p in self.deprecated_patterns],
-            'strengthening_patterns': [p.to_dict() for p in self.strengthening_patterns],
-            'weakening_patterns': [p.to_dict() for p in self.weakening_patterns],
-            'summary': {
-                'total_patterns_analyzed': self.total_patterns_analyzed,
-                'patterns_requiring_update': self.patterns_requiring_update,
-                'analysis_timestamp': self.analysis_timestamp.isoformat(),
-                'lookback_days': self.lookback_days,
-                'stable_count': len(self.stable_patterns),
-                'evolving_count': len(self.evolving_patterns),
-                'new_count': len(self.new_patterns),
-                'deprecated_count': len(self.deprecated_patterns),
-                'strengthening_count': len(self.strengthening_patterns),
-                'weakening_count': len(self.weakening_patterns),
-            }
+            "stable_patterns": [p.to_dict() for p in self.stable_patterns],
+            "evolving_patterns": [p.to_dict() for p in self.evolving_patterns],
+            "new_patterns": [p.to_dict() for p in self.new_patterns],
+            "deprecated_patterns": [p.to_dict() for p in self.deprecated_patterns],
+            "strengthening_patterns": [p.to_dict() for p in self.strengthening_patterns],
+            "weakening_patterns": [p.to_dict() for p in self.weakening_patterns],
+            "summary": {
+                "total_patterns_analyzed": self.total_patterns_analyzed,
+                "patterns_requiring_update": self.patterns_requiring_update,
+                "analysis_timestamp": self.analysis_timestamp.isoformat(),
+                "lookback_days": self.lookback_days,
+                "stable_count": len(self.stable_patterns),
+                "evolving_count": len(self.evolving_patterns),
+                "new_count": len(self.new_patterns),
+                "deprecated_count": len(self.deprecated_patterns),
+                "strengthening_count": len(self.strengthening_patterns),
+                "weakening_count": len(self.weakening_patterns),
+            },
         }
 
 
@@ -161,9 +161,9 @@ class PatternEvolutionTracker:
 
     # Thresholds for evolution detection
     STABILITY_THRESHOLD_MINUTES = 15  # Patterns within 15min are "same"
-    MIN_HISTORY_DAYS = 7              # Need 7 days to assess evolution
+    MIN_HISTORY_DAYS = 7  # Need 7 days to assess evolution
     CONFIDENCE_CHANGE_THRESHOLD = 0.1  # 10% change is significant
-    DRIFT_WARNING_THRESHOLD = 30      # 30 min drift triggers warning
+    DRIFT_WARNING_THRESHOLD = 30  # 30 min drift triggers warning
     OCCURRENCE_CHANGE_THRESHOLD = 0.25  # 25% change is significant
 
     def __init__(
@@ -270,7 +270,7 @@ class PatternEvolutionTracker:
         groups: dict[str, list[dict[str, Any]]] = {}
 
         for pattern in patterns:
-            device_id = pattern.get('device_id', '')
+            device_id = pattern.get("device_id", "")
             if device_id:
                 if device_id not in groups:
                     groups[device_id] = []
@@ -278,9 +278,7 @@ class PatternEvolutionTracker:
 
         # Sort each group by timestamp (oldest first)
         for device_id in groups:
-            groups[device_id].sort(
-                key=lambda p: p.get('detected_at', p.get('timestamp', ''))
-            )
+            groups[device_id].sort(key=lambda p: p.get("detected_at", p.get("timestamp", "")))
 
         return groups
 
@@ -289,17 +287,17 @@ class PatternEvolutionTracker:
         pattern: dict[str, Any],
     ) -> PatternEvolution:
         """Create evolution record for a new pattern."""
-        hour = pattern.get('hour', 0)
-        minute = pattern.get('minute', 0)
+        hour = pattern.get("hour", 0)
+        minute = pattern.get("minute", 0)
 
         return PatternEvolution(
-            pattern_id=pattern.get('pattern_id', ''),
-            device_id=pattern.get('device_id', ''),
-            pattern_type=pattern.get('pattern_type', 'time_of_day'),
+            pattern_id=pattern.get("pattern_id", ""),
+            device_id=pattern.get("device_id", ""),
+            pattern_type=pattern.get("pattern_type", "time_of_day"),
             evolution_type=EvolutionType.NEW,
             current_time=f"{hour:02d}:{minute:02d}",
-            current_confidence=pattern.get('confidence', 0.0),
-            current_occurrences=pattern.get('occurrences', 0),
+            current_confidence=pattern.get("confidence", 0.0),
+            current_occurrences=pattern.get("occurrences", 0),
             first_seen=datetime.now(UTC),
             last_seen=datetime.now(UTC),
             days_tracked=0,
@@ -312,14 +310,14 @@ class PatternEvolutionTracker:
         pattern: dict[str, Any],
     ) -> PatternEvolution:
         """Create evolution record for a deprecated pattern."""
-        hour = pattern.get('hour', 0)
-        minute = pattern.get('minute', 0)
+        hour = pattern.get("hour", 0)
+        minute = pattern.get("minute", 0)
 
         # Calculate days since last seen
-        detected_at = pattern.get('detected_at')
+        detected_at = pattern.get("detected_at")
         if isinstance(detected_at, str):
             try:
-                detected_at = datetime.fromisoformat(detected_at.replace('Z', '+00:00'))
+                detected_at = datetime.fromisoformat(detected_at.replace("Z", "+00:00"))
             except ValueError:
                 detected_at = None
 
@@ -328,13 +326,13 @@ class PatternEvolutionTracker:
             days_since = (datetime.now(UTC) - detected_at.replace(tzinfo=None)).days
 
         return PatternEvolution(
-            pattern_id=pattern.get('pattern_id', ''),
-            device_id=pattern.get('device_id', ''),
-            pattern_type=pattern.get('pattern_type', 'time_of_day'),
+            pattern_id=pattern.get("pattern_id", ""),
+            device_id=pattern.get("device_id", ""),
+            pattern_type=pattern.get("pattern_type", "time_of_day"),
             evolution_type=EvolutionType.DEPRECATED,
             original_time=f"{hour:02d}:{minute:02d}",
-            original_confidence=pattern.get('confidence', 0.0),
-            original_occurrences=pattern.get('occurrences', 0),
+            original_confidence=pattern.get("confidence", 0.0),
+            original_occurrences=pattern.get("occurrences", 0),
             first_seen=detected_at,
             last_seen=detected_at,
             days_tracked=days_since,
@@ -358,8 +356,8 @@ class PatternEvolutionTracker:
             PatternEvolution with analysis results
         """
         # Get time values
-        current_hour = current.get('hour', 0)
-        current_minute = current.get('minute', 0)
+        current_hour = current.get("hour", 0)
+        current_minute = current.get("minute", 0)
         current_time_decimal = current_hour + current_minute / 60.0
 
         # Calculate historical averages
@@ -368,34 +366,44 @@ class PatternEvolutionTracker:
         historical_occurrences = []
 
         for h in historical:
-            h_hour = h.get('hour', 0)
-            h_minute = h.get('minute', 0)
+            h_hour = h.get("hour", 0)
+            h_minute = h.get("minute", 0)
             historical_times.append(h_hour + h_minute / 60.0)
-            historical_confidences.append(h.get('confidence', 0.0))
-            historical_occurrences.append(h.get('occurrences', 0))
+            historical_confidences.append(h.get("confidence", 0.0))
+            historical_occurrences.append(h.get("occurrences", 0))
 
         # Calculate metrics
-        avg_historical_time = np.mean(historical_times) if historical_times else current_time_decimal
-        avg_historical_confidence = np.mean(historical_confidences) if historical_confidences else 0.0
-        avg_historical_occurrences = np.mean(historical_occurrences) if historical_occurrences else 0
+        avg_historical_time = (
+            np.mean(historical_times) if historical_times else current_time_decimal
+        )
+        avg_historical_confidence = (
+            np.mean(historical_confidences) if historical_confidences else 0.0
+        )
+        avg_historical_occurrences = (
+            np.mean(historical_occurrences) if historical_occurrences else 0
+        )
 
         # Time drift (in minutes)
         time_drift_minutes = abs(current_time_decimal - avg_historical_time) * 60
 
         # Confidence trend (-1.0 to 1.0)
-        current_confidence = current.get('confidence', 0.0)
+        current_confidence = current.get("confidence", 0.0)
         if avg_historical_confidence > 0:
             confidence_change = current_confidence - avg_historical_confidence
-            std_confidence = np.std(historical_confidences) if len(historical_confidences) > 1 else 0.1
+            std_confidence = (
+                np.std(historical_confidences) if len(historical_confidences) > 1 else 0.1
+            )
             confidence_trend = confidence_change / max(std_confidence, 0.01)
             confidence_trend = float(np.clip(confidence_trend, -1.0, 1.0))
         else:
             confidence_trend = 0.0
 
         # Occurrences trend
-        current_occurrences = current.get('occurrences', 0)
+        current_occurrences = current.get("occurrences", 0)
         if avg_historical_occurrences > 0:
-            occurrence_change = (current_occurrences - avg_historical_occurrences) / avg_historical_occurrences
+            occurrence_change = (
+                current_occurrences - avg_historical_occurrences
+            ) / avg_historical_occurrences
             if occurrence_change > self.OCCURRENCE_CHANGE_THRESHOLD:
                 occurrences_trend = TrendDirection.INCREASING
             elif occurrence_change < -self.OCCURRENCE_CHANGE_THRESHOLD:
@@ -423,10 +431,10 @@ class PatternEvolutionTracker:
 
         # Get timestamps
         first_historical = historical[0] if historical else {}
-        first_seen = first_historical.get('detected_at')
+        first_seen = first_historical.get("detected_at")
         if isinstance(first_seen, str):
             try:
-                first_seen = datetime.fromisoformat(first_seen.replace('Z', '+00:00'))
+                first_seen = datetime.fromisoformat(first_seen.replace("Z", "+00:00"))
             except ValueError:
                 first_seen = None
 
@@ -439,9 +447,9 @@ class PatternEvolutionTracker:
         original_minute = int((avg_historical_time % 1) * 60)
 
         return PatternEvolution(
-            pattern_id=current.get('pattern_id', ''),
-            device_id=current.get('device_id', ''),
-            pattern_type=current.get('pattern_type', 'time_of_day'),
+            pattern_id=current.get("pattern_id", ""),
+            device_id=current.get("device_id", ""),
+            pattern_type=current.get("pattern_type", "time_of_day"),
             evolution_type=evolution_type,
             time_drift_minutes=float(time_drift_minutes),
             original_time=f"{original_hour:02d}:{original_minute:02d}",
@@ -503,16 +511,28 @@ class PatternEvolutionTracker:
 
         if evolution_type == EvolutionType.EVOLVING:
             if time_drift_minutes > self.DRIFT_WARNING_THRESHOLD:
-                return True, f"Pattern time has shifted by {time_drift_minutes:.0f} minutes - update automation trigger time"
+                return (
+                    True,
+                    f"Pattern time has shifted by {time_drift_minutes:.0f} minutes - update automation trigger time",
+                )
             return True, "Pattern is changing - review automation settings"
 
         if evolution_type == EvolutionType.WEAKENING:
             if current_confidence < 0.5:
-                return True, f"Pattern confidence dropped to {current_confidence:.0%} - consider disabling automation"
-            return False, f"Pattern weakening (confidence: {current_confidence:.0%}) - monitor for further decline"
+                return (
+                    True,
+                    f"Pattern confidence dropped to {current_confidence:.0%} - consider disabling automation",
+                )
+            return (
+                False,
+                f"Pattern weakening (confidence: {current_confidence:.0%}) - monitor for further decline",
+            )
 
         if evolution_type == EvolutionType.STRENGTHENING:
-            return False, f"Pattern strengthening (confidence: {current_confidence:.0%}) - no action needed"
+            return (
+                False,
+                f"Pattern strengthening (confidence: {current_confidence:.0%}) - no action needed",
+            )
 
         if evolution_type == EvolutionType.DEPRECATED:
             return True, "Pattern no longer detected - disable or remove automation"
@@ -539,55 +559,63 @@ class PatternEvolutionTracker:
 
         # Deprecated patterns - high priority
         for pattern in analysis_result.deprecated_patterns:
-            recommendations.append({
-                'priority': 'high',
-                'action': 'disable',
-                'device_id': pattern.device_id,
-                'pattern_id': pattern.pattern_id,
-                'reason': pattern.update_reason,
-                'original_time': pattern.original_time,
-            })
+            recommendations.append(
+                {
+                    "priority": "high",
+                    "action": "disable",
+                    "device_id": pattern.device_id,
+                    "pattern_id": pattern.pattern_id,
+                    "reason": pattern.update_reason,
+                    "original_time": pattern.original_time,
+                }
+            )
 
         # Evolving patterns with significant drift - medium priority
         for pattern in analysis_result.evolving_patterns:
             if pattern.time_drift_minutes > self.DRIFT_WARNING_THRESHOLD:
-                recommendations.append({
-                    'priority': 'medium',
-                    'action': 'update_time',
-                    'device_id': pattern.device_id,
-                    'pattern_id': pattern.pattern_id,
-                    'reason': pattern.update_reason,
-                    'original_time': pattern.original_time,
-                    'new_time': pattern.current_time,
-                    'time_drift_minutes': pattern.time_drift_minutes,
-                })
+                recommendations.append(
+                    {
+                        "priority": "medium",
+                        "action": "update_time",
+                        "device_id": pattern.device_id,
+                        "pattern_id": pattern.pattern_id,
+                        "reason": pattern.update_reason,
+                        "original_time": pattern.original_time,
+                        "new_time": pattern.current_time,
+                        "time_drift_minutes": pattern.time_drift_minutes,
+                    }
+                )
 
         # Weakening patterns - low priority
         for pattern in analysis_result.weakening_patterns:
             if pattern.current_confidence < 0.5:
-                recommendations.append({
-                    'priority': 'low',
-                    'action': 'review',
-                    'device_id': pattern.device_id,
-                    'pattern_id': pattern.pattern_id,
-                    'reason': pattern.update_reason,
-                    'confidence': pattern.current_confidence,
-                })
+                recommendations.append(
+                    {
+                        "priority": "low",
+                        "action": "review",
+                        "device_id": pattern.device_id,
+                        "pattern_id": pattern.pattern_id,
+                        "reason": pattern.update_reason,
+                        "confidence": pattern.current_confidence,
+                    }
+                )
 
         # New patterns - informational
         for pattern in analysis_result.new_patterns:
-            recommendations.append({
-                'priority': 'info',
-                'action': 'create',
-                'device_id': pattern.device_id,
-                'pattern_id': pattern.pattern_id,
-                'reason': pattern.update_reason,
-                'suggested_time': pattern.current_time,
-                'confidence': pattern.current_confidence,
-            })
+            recommendations.append(
+                {
+                    "priority": "info",
+                    "action": "create",
+                    "device_id": pattern.device_id,
+                    "pattern_id": pattern.pattern_id,
+                    "reason": pattern.update_reason,
+                    "suggested_time": pattern.current_time,
+                    "confidence": pattern.current_confidence,
+                }
+            )
 
         # Sort by priority
-        priority_order = {'high': 0, 'medium': 1, 'low': 2, 'info': 3}
-        recommendations.sort(key=lambda r: priority_order.get(r['priority'], 99))
+        priority_order = {"high": 0, "medium": 1, "low": 2, "info": 3}
+        recommendations.sort(key=lambda r: priority_order.get(r["priority"], 99))
 
         return recommendations

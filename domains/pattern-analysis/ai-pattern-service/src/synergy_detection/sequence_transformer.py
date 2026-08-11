@@ -62,7 +62,8 @@ class DeviceSequenceTransformer:
 
         logger.info(
             "DeviceSequenceTransformer initialized (model=%s, pretrained=%s)",
-            model_name, use_pretrained,
+            model_name,
+            use_pretrained,
         )
 
     async def initialize(self) -> None:
@@ -74,6 +75,7 @@ class DeviceSequenceTransformer:
             try:
                 import torch
                 from transformers import AutoModel, AutoTokenizer
+
                 self._torch = torch
             except ImportError:
                 logger.warning("transformers library not available, sequence learning disabled")
@@ -117,7 +119,9 @@ class DeviceSequenceTransformer:
             torch.nn.Linear(hidden_size // 2, vocab_size),
         )
         logger.info(
-            "Classification head built: hidden=%d -> %d classes", hidden_size, vocab_size,
+            "Classification head built: hidden=%d -> %d classes",
+            hidden_size,
+            vocab_size,
         )
 
     def _sequence_to_text(self, sequence: list[dict[str, Any]]) -> str:
@@ -180,7 +184,11 @@ class DeviceSequenceTransformer:
 
         if vocab_size < 2:
             logger.warning("Vocabulary too small (%d devices), skipping training", vocab_size)
-            return {"status": "skipped", "reason": "vocabulary_too_small", "vocabulary_size": vocab_size}
+            return {
+                "status": "skipped",
+                "reason": "vocabulary_too_small",
+                "vocabulary_size": vocab_size,
+            }
 
         logger.info("Built vocabulary: %d devices", vocab_size)
 
@@ -263,7 +271,10 @@ class DeviceSequenceTransformer:
 
             logger.info(
                 "Epoch %d/%d - loss: %.4f, accuracy: %.4f",
-                epoch + 1, epochs, epoch_loss, accuracy,
+                epoch + 1,
+                epochs,
+                epoch_loss,
+                accuracy,
             )
 
             # Early stopping
@@ -376,12 +387,14 @@ class DeviceSequenceTransformer:
             predictions = []
             for prob, idx in zip(top_values.tolist(), top_indices.tolist()):
                 device_id = self.idx_to_device.get(idx, f"unknown_{idx}")
-                predictions.append({
-                    "entity_id": device_id,
-                    "confidence": round(prob, 4),
-                    "reason": "Transformer sequence prediction",
-                    "method": "transformer",
-                })
+                predictions.append(
+                    {
+                        "entity_id": device_id,
+                        "confidence": round(prob, 4),
+                        "reason": "Transformer sequence prediction",
+                        "method": "transformer",
+                    }
+                )
 
             return predictions
 
@@ -415,30 +428,36 @@ class DeviceSequenceTransformer:
 
         # Motion sensor -> Light
         if last_domain == "binary_sensor" and "motion" in last_entity.lower():
-            predictions.append({
-                "entity_id": "light.follow_up",
-                "confidence": 0.7,
-                "reason": "Motion sensors commonly trigger lights",
-                "method": "heuristic",
-            })
+            predictions.append(
+                {
+                    "entity_id": "light.follow_up",
+                    "confidence": 0.7,
+                    "reason": "Motion sensors commonly trigger lights",
+                    "method": "heuristic",
+                }
+            )
 
         # Door sensor -> Lock
         if last_domain == "binary_sensor" and "door" in last_entity.lower():
-            predictions.append({
-                "entity_id": "lock.follow_up",
-                "confidence": 0.8,
-                "reason": "Door sensors commonly trigger locks",
-                "method": "heuristic",
-            })
+            predictions.append(
+                {
+                    "entity_id": "lock.follow_up",
+                    "confidence": 0.8,
+                    "reason": "Door sensors commonly trigger locks",
+                    "method": "heuristic",
+                }
+            )
 
         # Temperature sensor -> Climate
         if last_domain == "sensor" and "temp" in last_entity.lower():
-            predictions.append({
-                "entity_id": "climate.follow_up",
-                "confidence": 0.6,
-                "reason": "Temperature sensors commonly trigger climate control",
-                "method": "heuristic",
-            })
+            predictions.append(
+                {
+                    "entity_id": "climate.follow_up",
+                    "confidence": 0.6,
+                    "reason": "Temperature sensors commonly trigger climate control",
+                    "method": "heuristic",
+                }
+            )
 
         predictions.sort(key=lambda x: x.get("confidence", 0), reverse=True)
         return predictions[:top_k]
@@ -481,7 +500,9 @@ class DeviceSequenceTransformer:
             if vocab_size > 0:
                 self._build_classification_head(vocab_size)
                 if self.classification_head is not None:
-                    self.classification_head.load_state_dict(checkpoint["classification_head_state"])
+                    self.classification_head.load_state_dict(
+                        checkpoint["classification_head_state"]
+                    )
                     self.classification_head.eval()
                     self._has_trained_head = True
                     logger.info("Checkpoint loaded from %s (%d devices)", path, vocab_size)

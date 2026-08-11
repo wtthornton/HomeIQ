@@ -56,8 +56,7 @@ class ChainDetector:
         self.synergy_cache = synergy_cache
 
     def build_action_lookup(
-        self,
-        pairwise_synergies: list[dict[str, Any]]
+        self, pairwise_synergies: list[dict[str, Any]]
     ) -> dict[str, list[dict[str, Any]]]:
         """
         Build lookup dictionary: action_entity -> list of synergies where it's the action.
@@ -72,7 +71,7 @@ class ChainDetector:
         """
         action_lookup: dict[str, list[dict[str, Any]]] = {}
         for synergy in pairwise_synergies:
-            action_entity = synergy.get('action_entity')
+            action_entity = synergy.get("action_entity")
             if action_entity:
                 if action_entity not in action_lookup:
                     action_lookup[action_entity] = []
@@ -91,14 +90,12 @@ class ChainDetector:
         Returns:
             Quality score (0.0-1.0)
         """
-        confidence = synergy.get('confidence', 0)
-        impact = synergy.get('impact_score', 0)
+        confidence = synergy.get("confidence", 0)
+        impact = synergy.get("impact_score", 0)
         return confidence * 0.6 + impact * 0.4
 
     def _get_top_pairs_by_quality(
-        self,
-        pairwise_synergies: list[dict[str, Any]],
-        limit: int = TOP_PAIRS_FOR_CHAINS
+        self, pairwise_synergies: list[dict[str, Any]], limit: int = TOP_PAIRS_FOR_CHAINS
     ) -> list[dict[str, Any]]:
         """
         Get top pairs sorted by quality score.
@@ -113,11 +110,7 @@ class ChainDetector:
         if len(pairwise_synergies) <= limit:
             return pairwise_synergies
 
-        sorted_pairs = sorted(
-            pairwise_synergies,
-            key=self._calculate_quality_score,
-            reverse=True
-        )
+        sorted_pairs = sorted(pairwise_synergies, key=self._calculate_quality_score, reverse=True)
         return sorted_pairs[:limit]
 
     def _should_skip_3_chain(
@@ -126,7 +119,7 @@ class ChainDetector:
         next_action: str,
         synergy: dict[str, Any],
         next_synergy: dict[str, Any],
-        is_valid_cross_area_fn: callable | None = None
+        is_valid_cross_area_fn: callable | None = None,
     ) -> bool:
         """
         Check if a 3-device chain should be skipped.
@@ -146,8 +139,8 @@ class ChainDetector:
             return True
 
         # Skip if devices not in same area (unless validated)
-        if synergy.get('area') != next_synergy.get('area') and is_valid_cross_area_fn:
-            action_entity = synergy.get('action_entity')
+        if synergy.get("area") != next_synergy.get("area") and is_valid_cross_area_fn:
+            action_entity = synergy.get("action_entity")
             if not is_valid_cross_area_fn(trigger_entity, action_entity, next_action):
                 return True
 
@@ -159,7 +152,7 @@ class ChainDetector:
         action_entity: str,
         next_action: str,
         synergy: dict[str, Any],
-        next_synergy: dict[str, Any]
+        next_synergy: dict[str, Any],
     ) -> dict[str, Any]:
         """
         Create a 3-device chain synergy dictionary.
@@ -175,25 +168,21 @@ class ChainDetector:
             3-device chain synergy dictionary
         """
         return {
-            'synergy_id': str(uuid.uuid4()),
-            'synergy_type': 'device_chain',
-            'devices': [trigger_entity, action_entity, next_action],
-            'chain_path': f"{trigger_entity} → {action_entity} → {next_action}",
-            'trigger_entity': trigger_entity,
-            'action_entity': next_action,
-            'impact_score': round(
-                (synergy.get('impact_score', 0) + next_synergy.get('impact_score', 0)) / 2,
-                2
+            "synergy_id": str(uuid.uuid4()),
+            "synergy_type": "device_chain",
+            "devices": [trigger_entity, action_entity, next_action],
+            "chain_path": f"{trigger_entity} → {action_entity} → {next_action}",
+            "trigger_entity": trigger_entity,
+            "action_entity": next_action,
+            "impact_score": round(
+                (synergy.get("impact_score", 0) + next_synergy.get("impact_score", 0)) / 2, 2
             ),
-            'confidence': min(
-                synergy.get('confidence', 0.7),
-                next_synergy.get('confidence', 0.7)
-            ),
-            'complexity': 'medium',
-            'area': synergy.get('area'),
-            'rationale': f"Chain: {synergy.get('rationale', '')} then {next_synergy.get('rationale', '')}",
-            'synergy_depth': 3,
-            'chain_devices': [trigger_entity, action_entity, next_action]
+            "confidence": min(synergy.get("confidence", 0.7), next_synergy.get("confidence", 0.7)),
+            "complexity": "medium",
+            "area": synergy.get("area"),
+            "rationale": f"Chain: {synergy.get('rationale', '')} then {next_synergy.get('rationale', '')}",
+            "synergy_depth": 3,
+            "chain_devices": [trigger_entity, action_entity, next_action],
         }
 
     async def _try_get_cached_chain(self, chain_key: str) -> dict[str, Any] | None:
@@ -233,7 +222,7 @@ class ChainDetector:
     async def detect_3_device_chains(
         self,
         pairwise_synergies: list[dict[str, Any]],
-        is_valid_cross_area_fn: callable | None = None
+        is_valid_cross_area_fn: callable | None = None,
     ) -> list[dict[str, Any]]:
         """
         Detect 3-device chains by connecting pairs.
@@ -251,7 +240,9 @@ class ChainDetector:
         pairs_to_use = self._get_top_pairs_by_quality(pairwise_synergies)
 
         if len(pairwise_synergies) > TOP_PAIRS_FOR_CHAINS:
-            avg_quality = sum(self._calculate_quality_score(p) for p in pairs_to_use) / len(pairs_to_use)
+            avg_quality = sum(self._calculate_quality_score(p) for p in pairs_to_use) / len(
+                pairs_to_use
+            )
             logger.info(
                 f"   → Using top {TOP_PAIRS_FOR_CHAINS} pairs by quality for 3-chain detection "
                 f"(from {len(pairwise_synergies)} total, avg quality: {avg_quality:.3f})"
@@ -266,8 +257,8 @@ class ChainDetector:
                 logger.info(f"   → Reached chain limit ({MAX_3_DEVICE_CHAINS}), stopping detection")
                 break
 
-            trigger_entity = synergy.get('trigger_entity')
-            action_entity = synergy.get('action_entity')
+            trigger_entity = synergy.get("trigger_entity")
+            action_entity = synergy.get("action_entity")
 
             # Find pairs where action_entity is the trigger (B→C)
             if action_entity not in action_lookup:
@@ -278,7 +269,7 @@ class ChainDetector:
                 if len(chains) >= MAX_3_DEVICE_CHAINS:
                     break
 
-                next_action = next_synergy.get('action_entity')
+                next_action = next_synergy.get("action_entity")
 
                 # Skip invalid chains
                 if self._should_skip_3_chain(
@@ -318,7 +309,7 @@ class ChainDetector:
         chain_devices: list[str],
         three_chain: dict[str, Any],
         next_synergy: dict[str, Any],
-        is_valid_cross_area_fn: callable | None = None
+        is_valid_cross_area_fn: callable | None = None,
     ) -> bool:
         """
         Check if a 4-device chain should be skipped.
@@ -343,7 +334,7 @@ class ChainDetector:
             return True
 
         # Skip if devices not in same area (unless validated)
-        if three_chain.get('area') != next_synergy.get('area') and is_valid_cross_area_fn:
+        if three_chain.get("area") != next_synergy.get("area") and is_valid_cross_area_fn:
             b, c = chain_devices[1], chain_devices[2]
             if not is_valid_cross_area_fn(a, b, c):
                 return True
@@ -359,7 +350,7 @@ class ChainDetector:
         c: str,
         d: str,
         three_chain: dict[str, Any],
-        next_synergy: dict[str, Any]
+        next_synergy: dict[str, Any],
     ) -> dict[str, Any]:
         """
         Create a 4-device chain synergy dictionary.
@@ -376,35 +367,33 @@ class ChainDetector:
             4-device chain synergy dictionary
         """
         return {
-            'synergy_id': str(uuid.uuid4()),
-            'synergy_type': 'device_chain',
-            'devices': [a, b, c, d],
-            'chain_path': f"{a} → {b} → {c} → {d}",
-            'trigger_entity': a,
-            'action_entity': d,
-            'impact_score': round(
-                (three_chain.get('impact_score', 0) + next_synergy.get('impact_score', 0)) / 2,
-                2
+            "synergy_id": str(uuid.uuid4()),
+            "synergy_type": "device_chain",
+            "devices": [a, b, c, d],
+            "chain_path": f"{a} → {b} → {c} → {d}",
+            "trigger_entity": a,
+            "action_entity": d,
+            "impact_score": round(
+                (three_chain.get("impact_score", 0) + next_synergy.get("impact_score", 0)) / 2, 2
             ),
-            'confidence': min(
-                three_chain.get('confidence', 0.7),
-                next_synergy.get('confidence', 0.7)
+            "confidence": min(
+                three_chain.get("confidence", 0.7), next_synergy.get("confidence", 0.7)
             ),
-            'complexity': 'medium',
-            'area': three_chain.get('area'),
-            'rationale': (
+            "complexity": "medium",
+            "area": three_chain.get("area"),
+            "rationale": (
                 f"4-device chain: {three_chain.get('rationale', '')} "
                 f"then {next_synergy.get('rationale', '')}"
             ),
-            'synergy_depth': 4,
-            'chain_devices': [a, b, c, d]
+            "synergy_depth": 4,
+            "chain_devices": [a, b, c, d],
         }
 
     async def detect_4_device_chains(
         self,
         three_level_chains: list[dict[str, Any]],
         pairwise_synergies: list[dict[str, Any]],
-        is_valid_cross_area_fn: callable | None = None
+        is_valid_cross_area_fn: callable | None = None,
     ) -> list[dict[str, Any]]:
         """
         Detect 4-device chains by extending 3-level chains.
@@ -438,10 +427,12 @@ class ChainDetector:
         processed_count = 0
         for three_chain in three_level_chains:
             if len(chains) >= MAX_4_DEVICE_CHAINS:
-                logger.info(f"   → Reached 4-level chain limit ({MAX_4_DEVICE_CHAINS}), stopping detection")
+                logger.info(
+                    f"   → Reached 4-level chain limit ({MAX_4_DEVICE_CHAINS}), stopping detection"
+                )
                 break
 
-            chain_devices = three_chain.get('devices', [])
+            chain_devices = three_chain.get("devices", [])
             if len(chain_devices) != 3:
                 processed_count += 1
                 continue
@@ -457,7 +448,7 @@ class ChainDetector:
                 if len(chains) >= MAX_4_DEVICE_CHAINS:
                     break
 
-                d = next_synergy.get('action_entity')
+                d = next_synergy.get("action_entity")
 
                 # Skip invalid chains
                 if self._should_skip_4_chain(

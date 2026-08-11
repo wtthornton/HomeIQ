@@ -37,45 +37,65 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 EXCLUDED_DOMAINS = {
-    'image', 'event', 'update', 'camera', 'button',
+    "image",
+    "event",
+    "update",
+    "camera",
+    "button",
 }
 
 EXCLUDED_ENTITY_PREFIXES = [
-    'sensor.home_assistant_',
-    'sensor.slzb_',
-    'image.',
-    'event.',
-    'binary_sensor.system_',
-    'camera.',
-    'button.',
-    'update.',
+    "sensor.home_assistant_",
+    "sensor.slzb_",
+    "image.",
+    "event.",
+    "binary_sensor.system_",
+    "camera.",
+    "button.",
+    "update.",
 ]
 
 EXCLUDED_PATTERNS = [
-    '_tracker', 'team_tracker',
-    'nfl_', 'nhl_', 'mlb_', 'nba_', 'ncaa_',
-    'weather_', 'openweathermap_',
-    'carbon_intensity_', 'electricity_pricing_', 'national_grid_',
-    'calendar_',
-    '_cpu_', '_temp', '_chip_',
-    'coordinator_', '_battery', '_memory_',
-    '_signal_strength', '_linkquality',
-    '_update_', '_uptime', '_last_seen',
+    "_tracker",
+    "team_tracker",
+    "nfl_",
+    "nhl_",
+    "mlb_",
+    "nba_",
+    "ncaa_",
+    "weather_",
+    "openweathermap_",
+    "carbon_intensity_",
+    "electricity_pricing_",
+    "national_grid_",
+    "calendar_",
+    "_cpu_",
+    "_temp",
+    "_chip_",
+    "coordinator_",
+    "_battery",
+    "_memory_",
+    "_signal_strength",
+    "_linkquality",
+    "_update_",
+    "_uptime",
+    "_last_seen",
 ]
 
 # Time-of-day period definitions (hour ranges)
 TIME_PERIODS = {
-    'night': (0, 6),
-    'morning': (6, 12),
-    'afternoon': (12, 17),
-    'evening': (17, 22),
-    'late_night': (22, 24),
+    "night": (0, 6),
+    "morning": (6, 12),
+    "afternoon": (12, 17),
+    "evening": (17, 22),
+    "late_night": (22, 24),
 }
 
 
 @dataclass
 class RoomActivityWindow:
     """A window of co-occurring device activity in a room."""
+
     area_id: str
     devices: frozenset[str]
     start_time: pd.Timestamp
@@ -86,6 +106,7 @@ class RoomActivityWindow:
 @dataclass
 class RoomRoutine:
     """A detected room-level routine pattern."""
+
     area_id: str
     devices: frozenset[str]
     period: str
@@ -164,7 +185,7 @@ class RoomBasedPatternDetector:
             logger.warning("No events provided for room-based detection")
             return []
 
-        required_cols = ['device_id', 'timestamp']
+        required_cols = ["device_id", "timestamp"]
         missing_cols = [col for col in required_cols if col not in events.columns]
         if missing_cols:
             logger.error(f"Missing required columns: {missing_cols}")
@@ -177,9 +198,7 @@ class RoomBasedPatternDetector:
             original_count = len(events)
             events = self._filter_system_noise(events)
             if len(events) < original_count:
-                logger.info(
-                    f"Filtered system noise: {original_count} -> {len(events)} events"
-                )
+                logger.info(f"Filtered system noise: {original_count} -> {len(events)} events")
 
         if events.empty:
             logger.warning("No events remaining after filtering")
@@ -189,7 +208,7 @@ class RoomBasedPatternDetector:
         events = self._ensure_area_id(events)
 
         # Sort by timestamp
-        events = events.sort_values('timestamp').copy()
+        events = events.sort_values("timestamp").copy()
         events = events.reset_index(drop=True)
 
         # Group events by area and find co-occurring windows
@@ -222,21 +241,19 @@ class RoomBasedPatternDetector:
             binary_sensor.bedroom_motion -> bedroom
             switch.kitchen_fan -> kitchen
         """
-        if 'area_id' in events.columns and events['area_id'].notna().any():
+        if "area_id" in events.columns and events["area_id"].notna().any():
             # Fill missing area_ids with prefix-based fallback
-            mask = events['area_id'].isna() | (events['area_id'] == '')
+            mask = events["area_id"].isna() | (events["area_id"] == "")
             if mask.any():
                 events = events.copy()
-                events.loc[mask, 'area_id'] = events.loc[mask, 'device_id'].apply(
+                events.loc[mask, "area_id"] = events.loc[mask, "device_id"].apply(
                     self._extract_area_from_entity_id
                 )
             return events
 
         # No area_id column - parse from entity IDs
         events = events.copy()
-        events['area_id'] = events['device_id'].apply(
-            self._extract_area_from_entity_id
-        )
+        events["area_id"] = events["device_id"].apply(self._extract_area_from_entity_id)
         return events
 
     @staticmethod
@@ -254,23 +271,32 @@ class RoomBasedPatternDetector:
             climate.upstairs_thermostat -> upstairs
             light.hallway -> hallway
         """
-        if not entity_id or '.' not in str(entity_id):
-            return 'unknown'
+        if not entity_id or "." not in str(entity_id):
+            return "unknown"
 
         # Get object_id (after domain.)
-        object_id = str(entity_id).split('.', 1)[1]
+        object_id = str(entity_id).split(".", 1)[1]
 
         # Split by underscore
-        parts = object_id.split('_')
+        parts = object_id.split("_")
 
         if not parts:
-            return 'unknown'
+            return "unknown"
 
         # Common room names that may be multi-word
         multi_word_rooms = {
-            'living_room', 'dining_room', 'family_room', 'laundry_room',
-            'guest_room', 'master_bedroom', 'kids_room', 'front_door',
-            'back_door', 'side_door', 'front_yard', 'back_yard',
+            "living_room",
+            "dining_room",
+            "family_room",
+            "laundry_room",
+            "guest_room",
+            "master_bedroom",
+            "kids_room",
+            "front_door",
+            "back_door",
+            "side_door",
+            "front_yard",
+            "back_yard",
         }
 
         # Check for two-word room names first
@@ -282,9 +308,7 @@ class RoomBasedPatternDetector:
         # Single-word room name (first part)
         return parts[0]
 
-    def _find_activity_windows(
-        self, events: pd.DataFrame
-    ) -> list[RoomActivityWindow]:
+    def _find_activity_windows(self, events: pd.DataFrame) -> list[RoomActivityWindow]:
         """
         Find co-occurring device activity windows within each room.
 
@@ -301,11 +325,11 @@ class RoomBasedPatternDetector:
         window_delta = pd.Timedelta(minutes=self.window_minutes)
 
         # Group by area
-        for area_id, area_events in events.groupby('area_id'):
-            if area_id == 'unknown':
+        for area_id, area_events in events.groupby("area_id"):
+            if area_id == "unknown":
                 continue
 
-            area_events = area_events.sort_values('timestamp')
+            area_events = area_events.sort_values("timestamp")
             n_events = len(area_events)
 
             if n_events < self.min_devices:
@@ -314,7 +338,7 @@ class RoomBasedPatternDetector:
             # Sliding window to find co-occurring events
             i = 0
             while i < n_events:
-                window_start = area_events.iloc[i]['timestamp']
+                window_start = area_events.iloc[i]["timestamp"]
                 window_end = window_start + window_delta
 
                 # Collect all events within window
@@ -322,28 +346,30 @@ class RoomBasedPatternDetector:
                 j = i
 
                 while j < n_events:
-                    event_time = area_events.iloc[j]['timestamp']
+                    event_time = area_events.iloc[j]["timestamp"]
                     if event_time > window_end:
                         break
-                    devices_in_window.add(area_events.iloc[j]['device_id'])
+                    devices_in_window.add(area_events.iloc[j]["device_id"])
                     j += 1
 
                 # Only keep windows with enough unique devices
                 if len(devices_in_window) >= self.min_devices:
                     # Limit to max_devices (keep the most frequent)
                     if len(devices_in_window) > self.max_devices:
-                        devices_in_window = set(list(devices_in_window)[:self.max_devices])
+                        devices_in_window = set(list(devices_in_window)[: self.max_devices])
 
-                    actual_end = area_events.iloc[min(j - 1, n_events - 1)]['timestamp']
+                    actual_end = area_events.iloc[min(j - 1, n_events - 1)]["timestamp"]
                     period = self._get_time_period(window_start)
 
-                    windows.append(RoomActivityWindow(
-                        area_id=str(area_id),
-                        devices=frozenset(devices_in_window),
-                        start_time=window_start,
-                        end_time=actual_end,
-                        period=period,
-                    ))
+                    windows.append(
+                        RoomActivityWindow(
+                            area_id=str(area_id),
+                            devices=frozenset(devices_in_window),
+                            start_time=window_start,
+                            end_time=actual_end,
+                            period=period,
+                        )
+                    )
 
                 # Advance past this window
                 i = max(i + 1, j)
@@ -351,9 +377,7 @@ class RoomBasedPatternDetector:
         logger.info(f"Found {len(windows)} room activity windows")
         return windows
 
-    def _detect_routines(
-        self, windows: list[RoomActivityWindow]
-    ) -> list[RoomRoutine]:
+    def _detect_routines(self, windows: list[RoomActivityWindow]) -> list[RoomRoutine]:
         """
         Detect recurring routines from activity windows.
 
@@ -390,7 +414,9 @@ class RoomBasedPatternDetector:
         routine_groups: dict[tuple[str, frozenset[str], str], list[RoomActivityWindow]],
     ) -> dict[tuple[str, frozenset[str], str], list[RoomActivityWindow]]:
         """Expand routine groups to include device subsets."""
-        subset_groups: dict[tuple[str, frozenset[str], str], list[RoomActivityWindow]] = defaultdict(list)
+        subset_groups: dict[tuple[str, frozenset[str], str], list[RoomActivityWindow]] = (
+            defaultdict(list)
+        )
 
         for (area_id, devices, period), group_windows in routine_groups.items():
             subset_groups[(area_id, devices, period)].extend(group_windows)
@@ -530,11 +556,7 @@ class RoomBasedPatternDetector:
         # Device count factor: slight bonus for more devices (2 = baseline)
         device_factor = min(1.0, 0.8 + 0.1 * (n_devices - 1))
 
-        confidence = (
-            0.5 * occurrence_factor
-            + 0.35 * timing_factor
-            + 0.15 * device_factor
-        )
+        confidence = 0.5 * occurrence_factor + 0.35 * timing_factor + 0.15 * device_factor
 
         return min(max(confidence, 0.0), 1.0)
 
@@ -555,27 +577,25 @@ class RoomBasedPatternDetector:
             period_range = TIME_PERIODS.get(routine.period, (0, 24))
 
             pattern = {
-                'pattern_type': 'room_based',
-                'device_id': device_list[0],  # First device for compatibility
-                'area_id': routine.area_id,
-                'device_group': device_list,
-                'period': routine.period,
-                'occurrences': routine.occurrences,
-                'confidence': float(routine.confidence),
-                'avg_hour': float(routine.avg_hour),
-                'metadata': {
-                    'n_devices': len(device_list),
-                    'std_hour': float(routine.std_hour),
-                    'period_range': list(period_range),
-                    'routine_label': f"{routine.area_id} {routine.period}",
-                    'device_domains': [
-                        self._get_domain(d) for d in device_list
-                    ],
-                    'thresholds': {
-                        'window_minutes': self.window_minutes,
-                        'min_occurrences': self.min_occurrences,
-                        'min_confidence': self.min_confidence,
-                        'min_devices': self.min_devices,
+                "pattern_type": "room_based",
+                "device_id": device_list[0],  # First device for compatibility
+                "area_id": routine.area_id,
+                "device_group": device_list,
+                "period": routine.period,
+                "occurrences": routine.occurrences,
+                "confidence": float(routine.confidence),
+                "avg_hour": float(routine.avg_hour),
+                "metadata": {
+                    "n_devices": len(device_list),
+                    "std_hour": float(routine.std_hour),
+                    "period_range": list(period_range),
+                    "routine_label": f"{routine.area_id} {routine.period}",
+                    "device_domains": [self._get_domain(d) for d in device_list],
+                    "thresholds": {
+                        "window_minutes": self.window_minutes,
+                        "min_occurrences": self.min_occurrences,
+                        "min_confidence": self.min_confidence,
+                        "min_devices": self.min_devices,
                     },
                 },
             }
@@ -589,7 +609,7 @@ class RoomBasedPatternDetector:
             )
 
         # Sort by confidence descending
-        patterns.sort(key=lambda p: p['confidence'], reverse=True)
+        patterns.sort(key=lambda p: p["confidence"], reverse=True)
         return patterns
 
     @staticmethod
@@ -599,20 +619,20 @@ class RoomBasedPatternDetector:
         for period_name, (start, end) in TIME_PERIODS.items():
             if start <= hour < end:
                 return period_name
-        return 'night'  # fallback
+        return "night"  # fallback
 
     @staticmethod
     def _get_domain(device_id: str) -> str:
         """Extract entity domain from device ID."""
-        if not device_id or '.' not in str(device_id):
-            return 'default'
-        return str(device_id).split('.', 1)[0]
+        if not device_id or "." not in str(device_id):
+            return "default"
+        return str(device_id).split(".", 1)[0]
 
     def _filter_system_noise(self, events: pd.DataFrame) -> pd.DataFrame:
         """Filter out system sensors, trackers, and non-actionable entities."""
-        if 'device_id' not in events.columns:
+        if "device_id" not in events.columns:
             return events
-        mask = events['device_id'].apply(self._is_actionable_entity)
+        mask = events["device_id"].apply(self._is_actionable_entity)
         return events[mask].copy()
 
     def _is_actionable_entity(self, device_id: str) -> bool:
@@ -644,19 +664,17 @@ class RoomBasedPatternDetector:
         Returns:
             Automation suggestion dictionary.
         """
-        if pattern.get('pattern_type') != 'room_based':
-            logger.warning(
-                f"Pattern type {pattern.get('pattern_type')} is not room_based"
-            )
+        if pattern.get("pattern_type") != "room_based":
+            logger.warning(f"Pattern type {pattern.get('pattern_type')} is not room_based")
             return {}
 
-        device_group = pattern.get('device_group', [])
+        device_group = pattern.get("device_group", [])
         if len(device_group) < 2:
             return {}
 
-        area_id = pattern.get('area_id', 'unknown')
-        period = pattern.get('period', 'unknown')
-        confidence = pattern.get('confidence', 0.0)
+        area_id = pattern.get("area_id", "unknown")
+        period = pattern.get("period", "unknown")
+        confidence = pattern.get("confidence", 0.0)
 
         # First device (typically a sensor/trigger) triggers the rest
         trigger_device = device_group[0]
@@ -668,133 +686,123 @@ class RoomBasedPatternDetector:
         for device in action_devices:
             domain = self._get_domain(device)
             service = self._get_default_service(domain)
-            actions.append({
-                'service': f"{domain}.{service}",
-                'entity_id': device,
-                'target': {'entity_id': device},
-            })
+            actions.append(
+                {
+                    "service": f"{domain}.{service}",
+                    "entity_id": device,
+                    "target": {"entity_id": device},
+                }
+            )
 
-        description = (
-            f"Room routine: {area_id} {period} "
-            f"({len(device_group)} devices)"
-        )
+        description = f"Room routine: {area_id} {period} ({len(device_group)} devices)"
 
         trigger = self._build_trigger(trigger_device, trigger_domain)
 
         suggestion = {
-            'automation_type': 'room_routine',
-            'trigger': trigger,
-            'action': actions if len(actions) > 1 else actions[0],
-            'confidence': float(confidence),
-            'description': description,
-            'device_id': trigger_device,
-            'area_id': area_id,
-            'requires_confirmation': False,
-            'safety_level': 'normal',
-            'safety_warnings': [],
-            'metadata': {
-                'source': 'room_based_pattern',
-                'area_id': area_id,
-                'period': period,
-                'device_group': device_group,
-                'occurrences': pattern.get('occurrences', 0),
+            "automation_type": "room_routine",
+            "trigger": trigger,
+            "action": actions if len(actions) > 1 else actions[0],
+            "confidence": float(confidence),
+            "description": description,
+            "device_id": trigger_device,
+            "area_id": area_id,
+            "requires_confirmation": False,
+            "safety_level": "normal",
+            "safety_warnings": [],
+            "metadata": {
+                "source": "room_based_pattern",
+                "area_id": area_id,
+                "period": period,
+                "device_group": device_group,
+                "occurrences": pattern.get("occurrences", 0),
             },
         }
 
-        logger.info(
-            f"Suggested room automation: {description} "
-            f"(confidence={confidence:.0%})"
-        )
+        logger.info(f"Suggested room automation: {description} (confidence={confidence:.0%})")
 
         return suggestion
 
     @staticmethod
     def _build_trigger(device_id: str, domain: str) -> dict:
         """Build appropriate trigger based on device domain."""
-        if domain == 'binary_sensor' or domain in ('light', 'switch', 'fan'):
+        if domain == "binary_sensor" or domain in ("light", "switch", "fan"):
             return {
-                'platform': 'state',
-                'entity_id': device_id,
-                'to': 'on',
+                "platform": "state",
+                "entity_id": device_id,
+                "to": "on",
             }
         else:
             return {
-                'platform': 'state',
-                'entity_id': device_id,
+                "platform": "state",
+                "entity_id": device_id,
             }
 
     @staticmethod
     def _get_default_service(domain: str) -> str:
         """Get default service for domain."""
         service_map = {
-            'light': 'turn_on',
-            'switch': 'turn_on',
-            'fan': 'turn_on',
-            'cover': 'open_cover',
-            'lock': 'lock',
-            'climate': 'set_temperature',
-            'media_player': 'turn_on',
-            'vacuum': 'start',
-            'scene': 'turn_on',
+            "light": "turn_on",
+            "switch": "turn_on",
+            "fan": "turn_on",
+            "cover": "open_cover",
+            "lock": "lock",
+            "climate": "set_temperature",
+            "media_player": "turn_on",
+            "vacuum": "start",
+            "scene": "turn_on",
         }
-        return service_map.get(domain, 'turn_on')
+        return service_map.get(domain, "turn_on")
 
     def get_pattern_summary(self, patterns: list[dict]) -> dict:
         """Get summary statistics for detected room-based patterns."""
         if not patterns:
             return {
-                'total_patterns': 0,
-                'unique_rooms': 0,
-                'avg_confidence': 0.0,
-                'avg_devices_per_pattern': 0.0,
-                'periods': {},
+                "total_patterns": 0,
+                "unique_rooms": 0,
+                "avg_confidence": 0.0,
+                "avg_devices_per_pattern": 0.0,
+                "periods": {},
             }
 
-        rooms = {p['area_id'] for p in patterns}
+        rooms = {p["area_id"] for p in patterns}
         period_counts: dict[str, int] = defaultdict(int)
         for p in patterns:
-            period_counts[p['period']] += 1
+            period_counts[p["period"]] += 1
 
         return {
-            'total_patterns': len(patterns),
-            'unique_rooms': len(rooms),
-            'rooms': sorted(rooms),
-            'avg_confidence': float(np.mean([p['confidence'] for p in patterns])),
-            'avg_devices_per_pattern': float(
-                np.mean([len(p['device_group']) for p in patterns])
-            ),
-            'periods': dict(period_counts),
-            'confidence_distribution': {
-                '70-80%': sum(1 for p in patterns if 0.7 <= p['confidence'] < 0.8),
-                '80-90%': sum(1 for p in patterns if 0.8 <= p['confidence'] < 0.9),
-                '90-100%': sum(1 for p in patterns if 0.9 <= p['confidence'] <= 1.0),
+            "total_patterns": len(patterns),
+            "unique_rooms": len(rooms),
+            "rooms": sorted(rooms),
+            "avg_confidence": float(np.mean([p["confidence"] for p in patterns])),
+            "avg_devices_per_pattern": float(np.mean([len(p["device_group"]) for p in patterns])),
+            "periods": dict(period_counts),
+            "confidence_distribution": {
+                "70-80%": sum(1 for p in patterns if 0.7 <= p["confidence"] < 0.8),
+                "80-90%": sum(1 for p in patterns if 0.8 <= p["confidence"] < 0.9),
+                "90-100%": sum(1 for p in patterns if 0.9 <= p["confidence"] <= 1.0),
             },
         }
 
-    def _store_daily_aggregates(
-        self, patterns: list[dict], events: pd.DataFrame
-    ) -> None:
+    def _store_daily_aggregates(self, patterns: list[dict], events: pd.DataFrame) -> None:
         """Store daily aggregates to InfluxDB."""
         try:
-            if events.empty or 'timestamp' not in events.columns:
+            if events.empty or "timestamp" not in events.columns:
                 return
 
-            date = events['timestamp'].min().date()
+            date = events["timestamp"].min().date()
             date_str = date.strftime("%Y-%m-%d")
 
-            logger.info(
-                f"Storing {len(patterns)} room-based aggregates for {date_str}"
-            )
+            logger.info(f"Storing {len(patterns)} room-based aggregates for {date_str}")
 
             for pattern in patterns:
                 try:
                     self.aggregate_client.write_room_daily(
                         date=date_str,
-                        area_id=pattern.get('area_id', 'unknown'),
-                        device_group=pattern.get('device_group', []),
-                        period=pattern.get('period', 'unknown'),
-                        occurrences=pattern.get('occurrences', 0),
-                        confidence=pattern.get('confidence', 0.0),
+                        area_id=pattern.get("area_id", "unknown"),
+                        device_group=pattern.get("device_group", []),
+                        period=pattern.get("period", "unknown"),
+                        occurrences=pattern.get("occurrences", 0),
+                        confidence=pattern.get("confidence", 0.0),
                     )
                 except Exception as e:
                     logger.error(

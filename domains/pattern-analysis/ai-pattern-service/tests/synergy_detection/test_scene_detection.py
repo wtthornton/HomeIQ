@@ -76,45 +76,45 @@ class TestSceneDetector:
     def test_group_devices_by_area(self, detector, entities_with_areas):
         """Test grouping devices by area."""
         area_devices = detector._group_devices_by_area(entities_with_areas)
-        
+
         assert "living_room" in area_devices
         assert "bedroom" in area_devices
-        
+
         # Should have 4 actionable devices in living room (3 lights + 1 switch)
         assert len(area_devices["living_room"]) == 4
-        
+
         # Should have 3 actionable devices in bedroom (2 lights + 1 climate)
         assert len(area_devices["bedroom"]) == 3
-        
+
         # Sensor should not be included
         assert "sensor.temperature" not in area_devices["living_room"]
 
     def test_group_devices_by_domain(self, detector, entities_with_areas):
         """Test grouping devices by domain."""
         domain_devices = detector._group_devices_by_domain(entities_with_areas)
-        
+
         assert "light" in domain_devices
         assert "switch" in domain_devices
         assert "climate" in domain_devices
         assert "sensor" not in domain_devices  # Not actionable
-        
+
         # Should have 5 lights total
         assert len(domain_devices["light"]) == 5
 
     def test_find_existing_scenes(self, detector, entities_with_existing_scenes):
         """Test finding existing scenes."""
         scenes = detector._find_existing_scenes(entities_with_existing_scenes)
-        
+
         assert len(scenes) == 1
         assert scenes[0]["entity_id"] == "scene.living_room_movie"
 
     def test_has_existing_area_scene(self, detector, entities_with_existing_scenes):
         """Test checking for existing area scene."""
         scenes = detector._find_existing_scenes(entities_with_existing_scenes)
-        
+
         # living_room has a scene
         assert detector._has_existing_area_scene("living_room", scenes) is True
-        
+
         # bedroom has no scene
         assert detector._has_existing_area_scene("bedroom", scenes) is False
 
@@ -124,7 +124,7 @@ class TestSceneDetector:
             {"entity_id": "scene.all_lights"},
             {"entity_id": "scene.movie_time"},
         ]
-        
+
         assert detector._has_existing_domain_scene("light", scenes) is True
         assert detector._has_existing_domain_scene("switch", scenes) is False
 
@@ -132,7 +132,7 @@ class TestSceneDetector:
         """Test creating area-based scene synergy."""
         devices = ["light.a", "light.b", "light.c", "switch.d"]
         synergy = detector._create_area_scene_synergy("living_room", devices)
-        
+
         assert synergy["synergy_type"] == "scene_based"
         assert synergy["area"] == "living_room"
         assert synergy["trigger_entity"] == "scene.living_room_all"
@@ -146,7 +146,7 @@ class TestSceneDetector:
         """Test creating domain-based scene synergy."""
         devices = ["light.a", "light.b", "light.c", "light.d", "light.e"]
         synergy = detector._create_domain_scene_synergy("light", devices)
-        
+
         assert synergy["synergy_type"] == "scene_based"
         assert synergy["area"] is None
         assert synergy["trigger_entity"] == "scene.all_lights"
@@ -159,10 +159,10 @@ class TestSceneDetector:
     async def test_detect_scene_based_synergies_with_areas(self, detector, entities_with_areas):
         """Test detecting scene-based synergies with area data."""
         synergies = await detector.detect_scene_based_synergies(entities_with_areas)
-        
+
         # Should find at least one area-based scene (living_room has 4 devices >= 3)
         assert len(synergies) >= 1
-        
+
         # Check structure
         for synergy in synergies:
             assert synergy["synergy_type"] == "scene_based"
@@ -170,22 +170,26 @@ class TestSceneDetector:
             assert synergy["complexity"] == "low"
 
     @pytest.mark.asyncio
-    async def test_detect_scene_based_synergies_without_areas(self, detector, entities_without_areas):
+    async def test_detect_scene_based_synergies_without_areas(
+        self, detector, entities_without_areas
+    ):
         """Test detecting scene-based synergies without area data."""
         synergies = await detector.detect_scene_based_synergies(entities_without_areas)
-        
+
         # Should find domain-based scenes (5 lights, 5 switches)
         assert len(synergies) >= 1
-        
+
         # All should be domain-based
         for synergy in synergies:
             assert synergy["context_metadata"]["scene_type"] == "domain_based"
 
     @pytest.mark.asyncio
-    async def test_detect_scene_based_synergies_respects_existing(self, detector, entities_with_existing_scenes):
+    async def test_detect_scene_based_synergies_respects_existing(
+        self, detector, entities_with_existing_scenes
+    ):
         """Test that existing scenes prevent duplicate suggestions."""
         synergies = await detector.detect_scene_based_synergies(entities_with_existing_scenes)
-        
+
         # Should not suggest scene for living_room (already has one)
         for synergy in synergies:
             if synergy["context_metadata"]["scene_type"] == "area_based":
@@ -199,13 +203,10 @@ class TestSceneDetector:
         for i in range(100):
             area = f"area_{i}"
             for j in range(5):
-                entities.append({
-                    "entity_id": f"light.{area}_{j}",
-                    "area_id": area
-                })
-        
+                entities.append({"entity_id": f"light.{area}_{j}", "area_id": area})
+
         synergies = await detector.detect_scene_based_synergies(entities)
-        
+
         assert len(synergies) <= MAX_SCENE_SYNERGIES
 
 
@@ -275,10 +276,14 @@ class TestSceneDetectorLoweredThresholds:
         assert synergies[0]["context_metadata"]["scene_type"] == "area_based"
 
     @pytest.mark.asyncio
-    async def test_three_domain_devices_triggers_domain_scene(self, detector, three_domain_entities):
+    async def test_three_domain_devices_triggers_domain_scene(
+        self, detector, three_domain_entities
+    ):
         """Three devices of the same domain should generate a domain scene (threshold lowered to 3)."""
         synergies = await detector.detect_scene_based_synergies(three_domain_entities)
-        domain_scenes = [s for s in synergies if s["context_metadata"]["scene_type"] == "domain_based"]
+        domain_scenes = [
+            s for s in synergies if s["context_metadata"]["scene_type"] == "domain_based"
+        ]
         assert len(domain_scenes) >= 1
         assert domain_scenes[0]["context_metadata"]["domain"] == "light"
 
@@ -286,5 +291,7 @@ class TestSceneDetectorLoweredThresholds:
     async def test_single_device_per_area_no_scene(self, detector, single_device_area_entities):
         """A single device per area should NOT trigger any area scene."""
         synergies = await detector.detect_scene_based_synergies(single_device_area_entities)
-        area_scenes = [s for s in synergies if s.get("context_metadata", {}).get("scene_type") == "area_based"]
+        area_scenes = [
+            s for s in synergies if s.get("context_metadata", {}).get("scene_type") == "area_based"
+        ]
         assert len(area_scenes) == 0

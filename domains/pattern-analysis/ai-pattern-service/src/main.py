@@ -31,6 +31,7 @@ from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 # Setup logging (use shared logging config)
 try:
     from homeiq_observability.logging_config import setup_logging
+
     logger = setup_logging("ai-pattern-service", group_name="automation-intelligence")
 except ImportError:
     # Fallback if shared logging not available
@@ -51,6 +52,7 @@ try:
         instrument_fastapi,
         setup_tracing,
     )
+
     OBSERVABILITY_AVAILABLE = True
 except ImportError:
     logger.warning("Observability modules not available")
@@ -70,6 +72,7 @@ mqtt_client: MQTTNotificationClient | None = None
 # ---------------------------------------------------------------------------
 # Startup / shutdown hooks
 # ---------------------------------------------------------------------------
+
 
 async def _startup_db() -> None:
     """Initialize database."""
@@ -203,7 +206,7 @@ def _register_core_routers() -> None:
     # CRITICAL: Include specific_router FIRST to ensure /stats and /list are matched before /{synergy_id}
     # FastAPI matches routes in the order they're registered, so specific routes must come first
     try:
-        if hasattr(synergy_router, 'specific_router'):
+        if hasattr(synergy_router, "specific_router"):
             app.include_router(synergy_router.specific_router, tags=["synergies"])
             logger.info("Included specific_router with /stats and /list routes")
         else:
@@ -219,7 +222,7 @@ def _register_blueprint_routers() -> None:
     """Register blueprint-related routers."""
     # Include Blueprint Opportunity Router (Phase 2 - Blueprint-First Architecture)
     try:
-        if hasattr(synergy_router, 'blueprint_router'):
+        if hasattr(synergy_router, "blueprint_router"):
             app.include_router(synergy_router.blueprint_router, tags=["blueprint-opportunities"])
             logger.info("Included blueprint_router for Blueprint Opportunity Engine")
         else:
@@ -233,6 +236,7 @@ def _register_enhancement_routers() -> None:
     # Include Analytics, Rating, and Tracking Routers (Patterns & Synergies Enhancement)
     try:
         from .analytics.routes import router as analytics_router
+
         app.include_router(analytics_router, prefix="/api/v1", tags=["analytics"])
         logger.info("Included analytics_router for Blueprint Analytics")
     except ImportError as e:
@@ -240,6 +244,7 @@ def _register_enhancement_routers() -> None:
 
     try:
         from .rating.routes import router as rating_router
+
         app.include_router(rating_router, prefix="/api/v1", tags=["ratings"])
         logger.info("Included rating_router for Blueprint Rating System")
     except ImportError as e:
@@ -247,6 +252,7 @@ def _register_enhancement_routers() -> None:
 
     try:
         from .tracking.routes import router as tracking_router
+
         app.include_router(tracking_router, prefix="/api/v1", tags=["tracking"])
         logger.info("Included tracking_router for Execution Tracking")
     except ImportError as e:
@@ -260,6 +266,7 @@ _register_enhancement_routers()
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",  # noqa: S104
