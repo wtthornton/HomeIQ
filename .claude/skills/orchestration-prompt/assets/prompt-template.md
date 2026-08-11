@@ -47,14 +47,22 @@ Coverage rule: every ID claimed exactly once; Done-when requires all IDs green.
 2. <narrow, verifiable execution> — fulfills: <VAL-…> — proof: <ground-truth artifact>
 3. <…>
 
-## Plane map  (mechanism + model tier per chunk)
-| Step | Plane | Mechanism | Model tier | Notes |
-|------|-------|-----------|-----------|-------|
-| <audit/research> | coordination | Workflow / 3–5 subagents | cheap/low-effort | fan-out OK (read-only); research-to-*decide* stays on wayfind |
-| <code change> | execution | dispatch to <repo> via PR | cheap unless hard | **serial writes** — one repo at a time |
-| <verify proof> | coordination | **verifier subagent (fresh context)** | **frontier/high-effort** | creator ≠ verifier; refutes proof |
-| <fix after fail> | execution | fresh worker on scoped fix sub-goal | cheap unless hard | expected-fail loop; do not reopen whole feature |
-| <recurring check> | execution | Routine / `claude -p`+cron | cheap | human-gated |
+## Plane map  (mechanism + literal dispatch parameters per chunk)
+<`effort` applies only inside a Workflow — the Agent tool has no effort parameter and
+inherits the session's. If a step's effort is load-bearing, run it in a Workflow.>
+
+| Step | Plane | Mechanism | agentType | model | effort | Notes |
+|------|-------|-----------|-----------|-------|--------|-------|
+| <audit/research> | coordination | Workflow / 3–5 subagents | `Explore` | `haiku` | `low` | read-only enforced by agent type, not prose; research-to-*decide* stays on wayfind |
+| <multi-file synthesis> | coordination | subagent | `Explore` | `sonnet` | `medium` | judgement about what matters |
+| <code change> | execution | dispatch to <repo> via PR | `general-purpose` | `sonnet` | `low` | **serial writes** — one repo at a time |
+| <hard/ambiguous fix> | execution | `/goal` drive | `general-purpose` | `opus` | `high` | load-bearing judgement |
+| <verify proof> | coordination | **verifier subagent (fresh context)** | `general-purpose` | **`opus`** | **`high`–`xhigh`** | creator ≠ verifier; refutes proof; a weak verifier defeats the pattern |
+| <fix after fail> | execution | fresh worker on scoped fix sub-goal | `general-purpose` | `sonnet` | `low` | expected-fail loop; do not reopen whole feature |
+| <recurring check> | execution | Routine / `claude -p`+cron | `Explore` | `haiku` | `low` | human-gated |
+
+Cheap-model rule: `haiku` answers closed, evidence-checkable questions. It does not
+render verdicts that gate irreversible steps — narrow the question or pay for `opus`.
 
 ## Loop
 - **State:** <read first — wayfind resume (`memory_group=wayfind`), status, brain recall of prior attempts, Linear, last handoff>
@@ -71,7 +79,9 @@ Coverage rule: every ID claimed exactly once; Done-when requires all IDs green.
 - Wayfind fog gate: no Goal invent while decide tickets / Not yet specified remain.
 - Validation contract before features when changing behavior; coverage complete.
 - Independent verification (creator ≠ verifier); ground-truth proof; expected-fail fix loop with attempt cap.
+- Every subagent dispatch names `agentType` + `model` (+ `effort` in a Workflow); read-only steps use `Explore`; no cheap-model verdict gates an irreversible step.
 - No fan-out of coupled coding — sequential per-repo edits (serial writes, parallel reads OK).
+- Research grant: the loop has web + `tapps_research` + `tapps_lookup_docs` (cache-first, free to repeat). Never write against an external/versioned API from memory — required lookups: <list>.
 - Context hygiene — targeted grep over full re-Read.
 - Scope: repos in play = <list>; reads fleet-wide, writes via owner.
 - Memory: recall wayfind resume + prior attempts at start; record structured handoff (incl. failures) at each checkpoint.
