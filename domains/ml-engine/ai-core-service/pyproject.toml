@@ -14,4 +14,15 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "S", "B", "SIM", "UP"]
-ignore = ["S104"]
+# E501 and B008 match the decision the root pyproject.toml already made for the
+# other 39 services: ruff format owns line breaking, and the long lines it
+# cannot wrap are prompt text and JSON tool schemas where a hard wrap would
+# change the payload. B008 is the FastAPI Depends() idiom.
+ignore = ["S104", "E501", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# `assert` is pytest's assertion API, so S101 under tests/ flags correct code.
+# The rule earns its keep in src/, where `python -O` strips asserts and turns a
+# validation check into a silent no-op — so it stays enabled there.
+# S105/S106 likewise fire on obviously fake fixture tokens ("ha_token").
+"tests/**" = ["S101", "S105", "S106"]
