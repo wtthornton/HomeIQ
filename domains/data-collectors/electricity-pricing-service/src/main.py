@@ -205,9 +205,7 @@ class ElectricityPricingService:
             if points:
                 await asyncio.to_thread(self.influxdb_client.write, points)
 
-            logger.info(
-                "Electricity pricing data written to InfluxDB (%d points)", len(points)
-            )
+            logger.info("Electricity pricing data written to InfluxDB (%d points)", len(points))
 
         except Exception as e:
             log_error_with_context(
@@ -219,9 +217,7 @@ class ElectricityPricingService:
 
     async def run_continuous(self) -> None:
         """Run the continuous pricing data collection and storage loop."""
-        logger.info(
-            "Starting continuous pricing monitoring (every %ds)", self.fetch_interval
-        )
+        logger.info("Starting continuous pricing monitoring (every %ds)", self.fetch_interval)
 
         while True:
             try:
@@ -303,9 +299,7 @@ async def get_cheapest_hours(
         return {
             "cheapest_hours": cheapest,
             "provider": service.provider_name,
-            "timestamp": (
-                service.last_fetch_time.isoformat() if service.last_fetch_time else None
-            ),
+            "timestamp": (service.last_fetch_time.isoformat() if service.last_fetch_time else None),
         }
     from fastapi.responses import JSONResponse
 

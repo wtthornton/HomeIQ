@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from src.main import ElectricityPricingService
 
@@ -30,23 +30,23 @@ def mock_influxdb_client():
 async def service_with_mock(mock_influxdb_client):
     """Create service with mocked InfluxDB client"""
     # Set test environment
-    os.environ['INFLUXDB_TOKEN'] = 'test-token'
-    os.environ['INFLUXDB_URL'] = 'http://test-influxdb:8086'
-    os.environ['INFLUXDB_ORG'] = 'test-org'
-    os.environ['INFLUXDB_BUCKET'] = 'test-bucket'
-    
+    os.environ["INFLUXDB_TOKEN"] = "test-token"
+    os.environ["INFLUXDB_URL"] = "http://test-influxdb:8086"
+    os.environ["INFLUXDB_ORG"] = "test-org"
+    os.environ["INFLUXDB_BUCKET"] = "test-bucket"
+
     service = ElectricityPricingService()
-    
+
     # Mock InfluxDB client
     service.influxdb_client = mock_influxdb_client
-    
+
     # Mock HTTP session
     service.session = AsyncMock()
-    
+
     await service.startup()
-    
+
     yield service
-    
+
     # Cleanup
     try:
         await service.shutdown()
@@ -57,25 +57,21 @@ async def service_with_mock(mock_influxdb_client):
 @pytest.mark.asyncio
 async def test_batch_write_current_pricing(service_with_mock, mock_influxdb_client):
     """Test batch write of current pricing data"""
-    
+
     # Create test data
     test_data = {
-        'current_price': 0.25,
-        'currency': 'EUR',
-        'timestamp': datetime.now(UTC),
-        'forecast_24h': [
-            {
-                'hour': i,
-                'price': 0.20 + (i * 0.01),
-                'timestamp': datetime.now(UTC)
-            }
+        "current_price": 0.25,
+        "currency": "EUR",
+        "timestamp": datetime.now(UTC),
+        "forecast_24h": [
+            {"hour": i, "price": 0.20 + (i * 0.01), "timestamp": datetime.now(UTC)}
             for i in range(24)
-        ]
+        ],
     }
-    
+
     # Store data
     await service_with_mock.store_in_influxdb(test_data)
-    
+
     # Verify write was called (wrapped in asyncio.to_thread)
     # The write should be called with a list of points
     assert mock_influxdb_client.write.called
@@ -84,28 +80,24 @@ async def test_batch_write_current_pricing(service_with_mock, mock_influxdb_clie
 @pytest.mark.asyncio
 async def test_batch_write_forecast_data(service_with_mock, mock_influxdb_client):
     """Test batch write includes forecast data"""
-    
+
     # Create test data with forecast
     test_data = {
-        'current_price': 0.25,
-        'currency': 'EUR',
-        'timestamp': datetime.now(UTC),
-        'forecast_24h': [
-            {
-                'hour': i,
-                'price': 0.20 + (i * 0.01),
-                'timestamp': datetime.now(UTC)
-            }
+        "current_price": 0.25,
+        "currency": "EUR",
+        "timestamp": datetime.now(UTC),
+        "forecast_24h": [
+            {"hour": i, "price": 0.20 + (i * 0.01), "timestamp": datetime.now(UTC)}
             for i in range(24)
-        ]
+        ],
     }
-    
+
     # Store data
     await service_with_mock.store_in_influxdb(test_data)
-    
+
     # Verify write was called
     assert mock_influxdb_client.write.called
-    
+
     # Verify points were passed (should be 25 points: 1 current + 24 forecast)
     call_args = mock_influxdb_client.write.call_args
     points = call_args[0][0] if call_args[0] else []
@@ -117,21 +109,21 @@ async def test_write_error_handling(service_with_mock, mock_influxdb_client):
     """Test error handling during InfluxDB writes"""
     # Mock write to raise error
     mock_influxdb_client.write.side_effect = Exception("InfluxDB connection error")
-    
+
     test_data = {
-        'current_price': 0.25,
-        'currency': 'EUR',
-        'timestamp': datetime.now(UTC),
-        'forecast_24h': []
+        "current_price": 0.25,
+        "currency": "EUR",
+        "timestamp": datetime.now(UTC),
+        "forecast_24h": [],
     }
-    
+
     # Store should handle error gracefully (not raise)
     try:
         await service_with_mock.store_in_influxdb(test_data)
     except Exception:
         # Error should be logged but not crash
         pass
-    
+
     # Verify write was attempted
     assert mock_influxdb_client.write.called
 
@@ -141,15 +133,15 @@ async def test_write_empty_data(service_with_mock, _mock_influxdb_client):
     """Test handling of empty data"""
     # Empty data should not cause errors
     test_data = {
-        'current_price': None,
-        'currency': 'EUR',
-        'timestamp': datetime.now(UTC),
-        'forecast_24h': []
+        "current_price": None,
+        "currency": "EUR",
+        "timestamp": datetime.now(UTC),
+        "forecast_24h": [],
     }
-    
+
     # Should handle gracefully
     await service_with_mock.store_in_influxdb(test_data)
-    
+
     # If no points, write might not be called
     # This is acceptable behavior
 
@@ -157,15 +149,10 @@ async def test_write_empty_data(service_with_mock, _mock_influxdb_client):
 @pytest.mark.asyncio
 async def test_write_with_missing_fields(service_with_mock, mock_influxdb_client):
     """Test write with missing optional fields"""
-    test_data = {
-        'current_price': 0.25,
-        'timestamp': datetime.now(UTC),
-        'forecast_24h': []
-    }
-    
+    test_data = {"current_price": 0.25, "timestamp": datetime.now(UTC), "forecast_24h": []}
+
     # Should handle missing currency field
     await service_with_mock.store_in_influxdb(test_data)
-    
+
     # Write should still be called
     assert mock_influxdb_client.write.called
-
