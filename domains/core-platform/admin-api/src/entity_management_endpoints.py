@@ -115,16 +115,33 @@ def _make_ws_caller(ws: aiohttp.ClientWebSocketResponse) -> Any:
     return call
 
 
+def _slugify_label(name: str) -> str:
+    """Approximate HA's label_id slugification (lowercase, non-alnum -> _)."""
+    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+
+
 async def _resolve_label_ids(call: Any, label_names: list[str]) -> list[str]:
-    """Map label names to label_registry ids, creating missing labels."""
+    """Map label names to label_registry ids, creating missing labels.
+
+    Matches by exact name OR by slug: HA stores label_ids as slugs, and those
+    slugs round-trip back through the entity store as if they were names
+    (e.g. "role_presence" for "role:presence"). Treating such a slug as a new
+    name would mint a duplicate "<slug>_2" label on every re-apply.
+    """
     registry = await call({"type": "config/label_registry/list"})
     by_name = {lbl["name"]: lbl["label_id"] for lbl in registry}
+    by_id = {lbl["label_id"] for lbl in registry}
     label_ids = []
     for name in label_names:
-        if name not in by_name:
+        if name in by_name:
+            label_ids.append(by_name[name])
+        elif name in by_id or _slugify_label(name) in by_id:
+            label_ids.append(name if name in by_id else _slugify_label(name))
+        else:
             created = await call({"type": "config/label_registry/create", "name": name})
             by_name[name] = created["label_id"]
-        label_ids.append(by_name[name])
+            by_id.add(created["label_id"])
+            label_ids.append(created["label_id"])
     return label_ids
 
 
@@ -247,7 +264,13 @@ async def bulk_label_entities(body: BulkLabelRequest) -> dict[str, Any]:
                 resp.raise_for_status()
                 entity = resp.json()
 
-                current_labels = set(entity.get("labels") or [])
+                # Keep only pattern-conforming label names. HA-side label_id
+                # slugs ("role_presence") round-trip into the store via
+                # ingestion sync; carrying them forward would re-mint deleted
+                # labels as "<slug>_2" duplicates on every write.
+                current_labels = {
+                    lbl for lbl in (entity.get("labels") or []) if _LABEL_PATTERN.match(lbl)
+                }
                 new_labels = (current_labels | set(body.add_labels)) - set(body.remove_labels)
                 new_labels_list = sorted(new_labels)
 

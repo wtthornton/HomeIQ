@@ -82,3 +82,14 @@ async def test_sync_to_ha_reports_unconfigured(monkeypatch):
     monkeypatch.setattr("src.entity_management_endpoints.HA_URL", None)
     result = await _sync_to_ha("light.office", {"labels": ["role:primary-light"]})
     assert result == {"synced": False, "detail": "HA_URL or HA_TOKEN not configured"}
+
+
+@pytest.mark.asyncio
+async def test_resolve_label_ids_matches_existing_by_slug():
+    """A round-tripped slug ("role_presence") must reuse the existing label,
+    never mint a "<slug>_2" duplicate."""
+    ws = FakeWs([(True, [{"label_id": "role_presence", "name": "role:presence"}])])
+    call = _make_ws_caller(ws)
+    ids = await _resolve_label_ids(call, ["role_presence"])
+    assert ids == ["role_presence"]
+    assert len(ws.sent) == 1  # list only — no create call
