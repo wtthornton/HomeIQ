@@ -196,9 +196,11 @@ class TestInfluxDBLoading:
 
         loader = EnergyDataLoader()
 
-        with patch.dict("sys.modules", {"influxdb_client_3": None}):
-            with pytest.raises(ImportError, match="influxdb3-python is required"):
-                loader.load_from_influxdb(allow_synthetic_fallback=False)
+        with (
+            patch.dict("sys.modules", {"influxdb_client_3": None}),
+            pytest.raises(ImportError, match="influxdb3-python is required"),
+        ):
+            loader.load_from_influxdb(allow_synthetic_fallback=False)
 
     def test_missing_import_with_fallback_returns_synthetic(self):
         """Test that missing module with fallback returns synthetic data."""
@@ -219,10 +221,12 @@ class TestInfluxDBLoading:
         loader = EnergyDataLoader()
 
         mock_module = MagicMock()
-        with patch.dict("sys.modules", {"influxdb_client_3": mock_module}):
-            with patch.dict("os.environ", {"INFLUXDB_TOKEN": ""}, clear=False):
-                with pytest.raises(ValueError, match="INFLUXDB_TOKEN"):
-                    loader.load_from_influxdb(allow_synthetic_fallback=False)
+        with (
+            patch.dict("sys.modules", {"influxdb_client_3": mock_module}),
+            patch.dict("os.environ", {"INFLUXDB_TOKEN": ""}, clear=False),
+            pytest.raises(ValueError, match="INFLUXDB_TOKEN"),
+        ):
+            loader.load_from_influxdb(allow_synthetic_fallback=False)
 
     def test_sql_injection_field_rejected(self):
         """Test that SQL injection attempts in field parameter are rejected."""
@@ -231,13 +235,15 @@ class TestInfluxDBLoading:
         loader = EnergyDataLoader()
 
         mock_module = MagicMock()
-        with patch.dict("sys.modules", {"influxdb_client_3": mock_module}):
-            with patch.dict("os.environ", {"INFLUXDB_TOKEN": "test_token"}, clear=False):
-                with pytest.raises(ValueError, match="Invalid field"):
-                    loader.load_from_influxdb(
-                        field="power; DROP TABLE sensor",
-                        allow_synthetic_fallback=False,
-                    )
+        with (
+            patch.dict("sys.modules", {"influxdb_client_3": mock_module}),
+            patch.dict("os.environ", {"INFLUXDB_TOKEN": "test_token"}, clear=False),
+            pytest.raises(ValueError, match="Invalid field"),
+        ):
+            loader.load_from_influxdb(
+                field="power; DROP TABLE sensor",
+                allow_synthetic_fallback=False,
+            )
 
 
 class TestToDartsTimeseries:

@@ -440,11 +440,13 @@ class EnergyEventCorrelator:
             url = f"{self.data_api_url}/api/v1/activity/history"
             params = {"hours": 1, "limit": 50}
             timeout = aiohttp.ClientTimeout(total=5)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url, params=params) as resp:
-                    if resp.status != 200:
-                        return None
-                    items = await resp.json()
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.get(url, params=params) as resp,
+            ):
+                if resp.status != 200:
+                    return None
+                items = await resp.json()
             if not isinstance(items, list) or not items:
                 return None
             event_ts = event_time.timestamp()

@@ -64,9 +64,11 @@ class TestCalendarService:
     async def test_service_initialization_missing_token(self, mock_settings):
         """Test service raises error when InfluxDB token is missing."""
         mock_settings.influxdb_token = ""
-        with patch("main.settings", mock_settings):
-            with pytest.raises(ValueError, match="INFLUXDB_TOKEN required"):
-                CalendarService()
+        with (
+            patch("main.settings", mock_settings),
+            pytest.raises(ValueError, match="INFLUXDB_TOKEN required"),
+        ):
+            CalendarService()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -126,9 +128,11 @@ class TestCalendarService:
         mock_ha_client = AsyncMock()
         mock_ha_client.test_connection = AsyncMock(return_value=False)
 
-        with patch("main.HomeAssistantCalendarClient", return_value=mock_ha_client):
-            with pytest.raises(ConnectionError, match="Cannot connect to Home Assistant"):
-                await service.startup()
+        with (
+            patch("main.HomeAssistantCalendarClient", return_value=mock_ha_client),
+            pytest.raises(ConnectionError, match="Cannot connect to Home Assistant"),
+        ):
+            await service.startup()
 
         assert service.health_handler.ha_connected is False
 

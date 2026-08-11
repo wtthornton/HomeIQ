@@ -564,22 +564,24 @@ class HomeAssistantClient:
 
             headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
 
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(
                     url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    if response.status == 200:
-                        config = await response.json()
-                        logger.info(
-                            f"Retrieved Home Assistant system config (version: {config.get('version', 'unknown')})"
-                        )
-                        return config
-                    else:
-                        error_text = await response.text()
-                        logger.error(
-                            f"Failed to get system config: HTTP {response.status} - {error_text}"
-                        )
-                        return {}
+                ) as response,
+            ):
+                if response.status == 200:
+                    config = await response.json()
+                    logger.info(
+                        f"Retrieved Home Assistant system config (version: {config.get('version', 'unknown')})"
+                    )
+                    return config
+                else:
+                    error_text = await response.text()
+                    logger.error(
+                        f"Failed to get system config: HTTP {response.status} - {error_text}"
+                    )
+                    return {}
         except Exception as e:
             logger.error(f"Failed to get system config: {e}")
             return {}

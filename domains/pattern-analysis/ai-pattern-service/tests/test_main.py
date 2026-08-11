@@ -361,10 +361,11 @@ class TestMainApplication:
         # FastAPI stores middleware in user_middleware list
         middleware_found = False
         for middleware in app.user_middleware:
-            if hasattr(middleware, "cls"):
-                if "CORS" in str(middleware.cls) or "CORSMiddleware" in str(middleware.cls):
-                    middleware_found = True
-                    break
+            if (hasattr(middleware, "cls")) and (
+                "CORS" in str(middleware.cls) or "CORSMiddleware" in str(middleware.cls)
+            ):
+                middleware_found = True
+                break
 
         assert middleware_found, "CORS middleware should be configured"
 

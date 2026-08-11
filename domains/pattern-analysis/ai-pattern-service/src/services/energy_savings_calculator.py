@@ -158,36 +158,36 @@ class EnergySavingsCalculator:
                     )
 
         # Pattern 3: Lighting optimization (turn off when not needed)
-        if "light" in [d.lower() for d in device_domains]:
-            # Motion-to-light, door-to-light, occupancy-to-light reduce unnecessary lighting
-            if any(pattern in synergy_type for pattern in ["motion", "door", "occupancy"]):
-                # Estimate 1 hour/day savings per light
-                power_watts = self.device_power.get("light", 10.0)
-                daily_kwh = (power_watts / 1000.0) * 1.0  # 1 hour/day
-                monthly_savings_kwh = daily_kwh * 30
-                monthly_cost_savings = monthly_savings_kwh * self.electricity_price
+        # Motion-to-light, door-to-light, occupancy-to-light reduce unnecessary lighting
+        if ("light" in [d.lower() for d in device_domains]) and (
+            any(pattern in synergy_type for pattern in ["motion", "door", "occupancy"])
+        ):
+            power_watts = self.device_power.get("light", 10.0)
+            daily_kwh = (power_watts / 1000.0) * 1.0  # 1 hour/day
+            monthly_savings_kwh = daily_kwh * 30
+            monthly_cost_savings = monthly_savings_kwh * self.electricity_price
 
-                kwh_savings += monthly_savings_kwh
-                cost_savings += monthly_cost_savings
-                energy_score += 0.2
-                rationale_parts.append(f"lighting optimization: ~${monthly_cost_savings:.2f}/month")
+            kwh_savings += monthly_savings_kwh
+            cost_savings += monthly_cost_savings
+            energy_score += 0.2
+            rationale_parts.append(f"lighting optimization: ~${monthly_cost_savings:.2f}/month")
 
         # Pattern 4: Climate optimization (weather-based, window-based)
-        if "climate" in [d.lower() for d in device_domains]:
-            if synergy_type == "weather_context" or "window" in synergy_type:
-                # Weather-based climate control can save 10-15% (conservative estimate: 10%)
-                power_watts = self.device_power.get("climate", 3500.0)
-                # Assume 6 hours/day average usage
-                daily_kwh = (power_watts / 1000.0) * 6.0
-                savings_percentage = 0.10  # 10% savings
-                daily_savings_kwh = daily_kwh * savings_percentage
-                monthly_savings_kwh = daily_savings_kwh * 30
-                monthly_cost_savings = monthly_savings_kwh * self.electricity_price
+        if ("climate" in [d.lower() for d in device_domains]) and (
+            synergy_type == "weather_context" or "window" in synergy_type
+        ):
+            power_watts = self.device_power.get("climate", 3500.0)
+            # Assume 6 hours/day average usage
+            daily_kwh = (power_watts / 1000.0) * 6.0
+            savings_percentage = 0.10  # 10% savings
+            daily_savings_kwh = daily_kwh * savings_percentage
+            monthly_savings_kwh = daily_savings_kwh * 30
+            monthly_cost_savings = monthly_savings_kwh * self.electricity_price
 
-                kwh_savings += monthly_savings_kwh
-                cost_savings += monthly_cost_savings
-                energy_score += 0.3
-                rationale_parts.append(f"climate optimization: ~${monthly_cost_savings:.2f}/month")
+            kwh_savings += monthly_savings_kwh
+            cost_savings += monthly_cost_savings
+            energy_score += 0.3
+            rationale_parts.append(f"climate optimization: ~${monthly_cost_savings:.2f}/month")
 
         # Normalize energy score to 0.0-1.0
         energy_score = min(1.0, energy_score)

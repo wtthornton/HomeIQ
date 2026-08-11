@@ -93,14 +93,16 @@ async def test_query_with_invalid_bucket_name():
     """Test that invalid bucket names are caught during initialization"""
     # This should be caught by validate_bucket_name in main.py
     # But we can test the correlator handles it gracefully
-    with patch("src.correlator.validate_bucket_name", side_effect=ValueError("Invalid bucket")):
-        with pytest.raises(ValueError):
-            EnergyEventCorrelator(
-                influxdb_url="http://test-influxdb:8086",
-                influxdb_token="test-token",
-                influxdb_org="test-org",
-                influxdb_bucket="invalid bucket!",  # Invalid
-            )
+    with (
+        patch("src.correlator.validate_bucket_name", side_effect=ValueError("Invalid bucket")),
+        pytest.raises(ValueError),
+    ):
+        EnergyEventCorrelator(
+            influxdb_url="http://test-influxdb:8086",
+            influxdb_token="test-token",
+            influxdb_org="test-org",
+            influxdb_bucket="invalid bucket!",  # Invalid
+        )
 
 
 @pytest.mark.asyncio

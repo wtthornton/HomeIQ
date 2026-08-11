@@ -230,9 +230,10 @@ class CoOccurrencePatternDetector:
 
                 if device_b != device_a:
                     # Task 2: Filter system noise in pairs (double-check)
-                    if self.filter_system_noise:
-                        if not self._is_meaningful_automation_pattern(device_a, device_b):
-                            continue
+                    if (self.filter_system_noise) and (
+                        not self._is_meaningful_automation_pattern(device_a, device_b)
+                    ):
+                        continue
 
                     # Create sorted pair to avoid duplicates (A,B) vs (B,A)
                     pair = tuple(sorted([device_a, device_b]))
@@ -275,12 +276,13 @@ class CoOccurrencePatternDetector:
             # Filter by thresholds
             if count >= support_threshold and confidence >= confidence_threshold:
                 # Quality check: Ensure meaningful automation pattern
-                if self.filter_system_noise:
-                    if not self._is_meaningful_automation_pattern(device1, device2):
-                        logger.debug(
-                            f"❌ Rejected pattern {device1}+{device2}: not a meaningful automation pattern"
-                        )
-                        continue
+                if (self.filter_system_noise) and (
+                    not self._is_meaningful_automation_pattern(device1, device2)
+                ):
+                    logger.debug(
+                        f"❌ Rejected pattern {device1}+{device2}: not a meaningful automation pattern"
+                    )
+                    continue
 
                 # Task 3: Calculate time variance and filter by threshold
                 time_deltas = pair_time_deltas.get((device1, device2), [])

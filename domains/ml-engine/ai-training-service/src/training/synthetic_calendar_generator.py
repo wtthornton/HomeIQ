@@ -437,9 +437,10 @@ class SyntheticCalendarGenerator:
                 device_class = device.get("device_class", "")
 
                 # Security devices
-                if device_type in ("alarm_control_panel", "lock", "binary_sensor"):
-                    if device_class in ("motion", "door", "window") or device_type == "lock":
-                        security_devices.append(device)
+                if (device_type in ("alarm_control_panel", "lock", "binary_sensor")) and (
+                    device_class in ("motion", "door", "window") or device_type == "lock"
+                ):
+                    security_devices.append(device)
 
                 # Comfort devices (HVAC, lights)
                 if device_type in ("climate", "light", "fan"):
@@ -487,18 +488,17 @@ class SyntheticCalendarGenerator:
             elif presence == "home":
                 for device in comfort_devices:
                     entity_id = device.get("entity_id")
-                    if entity_id:
-                        # Lights on, HVAC adjust
-                        if device.get("device_type") == "light":
-                            correlated_events.append(
-                                {
-                                    "entity_id": entity_id,
-                                    "timestamp": timestamp,
-                                    "state": "on",
-                                    "event_type": "state_changed",
-                                    "calendar_correlated": True,
-                                }
-                            )
+                    # Lights on, HVAC adjust
+                    if (entity_id) and (device.get("device_type") == "light"):
+                        correlated_events.append(
+                            {
+                                "entity_id": entity_id,
+                                "timestamp": timestamp,
+                                "state": "on",
+                                "event_type": "state_changed",
+                                "calendar_correlated": True,
+                            }
+                        )
 
         # Add original events that weren't correlated
         correlated_entity_timestamps = {

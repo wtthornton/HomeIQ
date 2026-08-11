@@ -265,19 +265,19 @@ class EventsEndpoints:
         """Get a specific event by ID"""
         for service_name, service_url in self.service_urls.items():
             try:
-                async with aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as session:  # noqa: SIM117
-                    async with session.get(f"{service_url}/events/{event_id}") as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            event = EventData(**data)
-                            event.tags["service"] = service_name
-                            return event
-                        elif response.status == 404:
-                            continue  # Try next service
-                        else:
-                            raise Exception(f"HTTP {response.status}")
+                async with (
+                    aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session,
+                    session.get(f"{service_url}/events/{event_id}") as response,
+                ):
+                    if response.status == 200:
+                        data = await response.json()
+                        event = EventData(**data)
+                        event.tags["service"] = service_name
+                        return event
+                    elif response.status == 404:
+                        continue  # Try next service
+                    else:
+                        raise Exception(f"HTTP {response.status}")
             except Exception as e:
                 logger.warning(f"Failed to get event {event_id} from {service_name}: {e}")
 
@@ -289,20 +289,20 @@ class EventsEndpoints:
 
         for service_name, service_url in self.service_urls.items():
             try:
-                async with aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as session:  # noqa: SIM117
-                    async with session.post(
+                async with (
+                    aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session,
+                    session.post(
                         f"{service_url}/events/search", json=search.model_dump()
-                    ) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            events = [EventData(**event) for event in data]
-                            for event in events:
-                                event.tags["service"] = service_name
-                            all_events.extend(events)
-                        else:
-                            raise Exception(f"HTTP {response.status}")
+                    ) as response,
+                ):
+                    if response.status == 200:
+                        data = await response.json()
+                        events = [EventData(**event) for event in data]
+                        for event in events:
+                            event.tags["service"] = service_name
+                        all_events.extend(events)
+                    else:
+                        raise Exception(f"HTTP {response.status}")
             except Exception as e:
                 logger.warning(f"Failed to search events in {service_name}: {e}")
 

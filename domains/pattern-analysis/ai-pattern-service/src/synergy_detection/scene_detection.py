@@ -246,10 +246,11 @@ class SceneDetector:
             if len(synergies) >= self.max_synergies:
                 break
 
-            if len(devices) >= MIN_DEVICES_FOR_AREA_SCENE:
-                if not self._has_existing_area_scene(area_id, scene_entities):
-                    synergy = self._create_area_scene_synergy(area_id, devices)
-                    synergies.append(synergy)
+            if (len(devices) >= MIN_DEVICES_FOR_AREA_SCENE) and (
+                not self._has_existing_area_scene(area_id, scene_entities)
+            ):
+                synergy = self._create_area_scene_synergy(area_id, devices)
+                synergies.append(synergy)
 
         # Strategy 2: Create domain-based scene synergies (if not enough area-based)
         if len(synergies) < self.max_synergies // 2:
@@ -257,10 +258,11 @@ class SceneDetector:
                 if len(synergies) >= self.max_synergies:
                     break
 
-                if len(devices) >= MIN_DEVICES_FOR_DOMAIN_SCENE:
-                    if not self._has_existing_domain_scene(domain, scene_entities):
-                        synergy = self._create_domain_scene_synergy(domain, devices)
-                        synergies.append(synergy)
+                if (len(devices) >= MIN_DEVICES_FOR_DOMAIN_SCENE) and (
+                    not self._has_existing_domain_scene(domain, scene_entities)
+                ):
+                    synergy = self._create_domain_scene_synergy(domain, devices)
+                    synergies.append(synergy)
 
         logger.info(
             f"      ✅ Generated {len(synergies)} scene-based synergies "

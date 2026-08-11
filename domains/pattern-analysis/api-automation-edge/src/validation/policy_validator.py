@@ -103,9 +103,8 @@ class PolicyValidator:
 
         # Check HA stability
         ha_unstable = current_risk_state and current_risk_state.get("ha_unstable", False)
-        if ha_unstable and not allow_when_ha_unstable:
-            if risk in ["medium", "high"]:
-                return False, "HA unstable and policy does not allow execution"
+        if (ha_unstable and not allow_when_ha_unstable) and (risk in ["medium", "high"]):
+            return False, "HA unstable and policy does not allow execution"
 
         # High risk requires additional checks
         if risk == "high":

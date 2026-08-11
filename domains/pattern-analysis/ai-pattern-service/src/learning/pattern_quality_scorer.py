@@ -156,16 +156,15 @@ class PatternQualityScorer:
         device1 = pattern.get("device1", "")
         device2 = pattern.get("device2", "")
 
-        if device1 and device2:
-            if (
-                "motion" in device1.lower()
-                and "light" in device2.lower()
-                or "door" in device1.lower()
-                and "lock" in device2.lower()
-                or "temperature" in device1.lower()
-                and "climate" in device2.lower()
-            ):
-                score += 0.3
+        if (device1 and device2) and (
+            "motion" in device1.lower()
+            and "light" in device2.lower()
+            or "door" in device1.lower()
+            and "lock" in device2.lower()
+            or "temperature" in device1.lower()
+            and "climate" in device2.lower()
+        ):
+            score += 0.3
 
         return min(1.0, score)
 

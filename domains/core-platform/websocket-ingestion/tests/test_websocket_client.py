@@ -146,13 +146,15 @@ class TestHomeAssistantWebSocketClient:
         """Test successful reconnection"""
         self.client.connection_attempts = 1
 
-        with patch.object(self.client, "connect", return_value=True) as mock_connect:
-            with patch.object(self.client, "disconnect") as mock_disconnect:
-                result = await self.client.reconnect()
+        with (
+            patch.object(self.client, "connect", return_value=True) as mock_connect,
+            patch.object(self.client, "disconnect") as mock_disconnect,
+        ):
+            result = await self.client.reconnect()
 
-                assert result is True
-                mock_disconnect.assert_called_once()
-                mock_connect.assert_called_once()
+            assert result is True
+            mock_disconnect.assert_called_once()
+            mock_connect.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_reconnect_max_attempts(self):

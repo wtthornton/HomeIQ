@@ -153,12 +153,10 @@ class AutomationPreDeploymentValidator:
             warnings.append(f"Could not validate services: {e}")
 
         # 4. Check for common issues
-        if "condition" in automation_config:
-            if (
-                isinstance(automation_config["condition"], list)
-                and not automation_config["condition"]
-            ):
-                warnings.append("Empty condition list - automation may always trigger")
+        if ("condition" in automation_config) and (
+            isinstance(automation_config["condition"], list) and not automation_config["condition"]
+        ):
+            warnings.append("Empty condition list - automation may always trigger")
 
         # 5. Check trigger validity
         triggers = automation_config.get("trigger", [])

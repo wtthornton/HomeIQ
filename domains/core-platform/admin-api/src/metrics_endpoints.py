@@ -71,16 +71,18 @@ class MetricsEndpoints:
                 # Get metrics from other services
                 for service_name, service_url in self.service_urls.items():
                     try:
-                        async with aiohttp.ClientSession(
-                            timeout=aiohttp.ClientTimeout(total=2)
-                        ) as session:  # noqa: SIM117
-                            async with session.get(f"{service_url}/metrics") as response:
-                                if response.status == 200:
-                                    all_metrics[service_name] = await response.json()
-                                else:
-                                    logger.warning(
-                                        f"Failed to get metrics from {service_name}: HTTP {response.status}"
-                                    )
+                        async with (
+                            aiohttp.ClientSession(
+                                timeout=aiohttp.ClientTimeout(total=2)
+                            ) as session,
+                            session.get(f"{service_url}/metrics") as response,
+                        ):
+                            if response.status == 200:
+                                all_metrics[service_name] = await response.json()
+                            else:
+                                logger.warning(
+                                    f"Failed to get metrics from {service_name}: HTTP {response.status}"
+                                )
                     except Exception as e:
                         logger.warning(f"Could not fetch metrics from {service_name}: {e}")
 
@@ -118,14 +120,16 @@ class MetricsEndpoints:
                             metrics = self.metrics_collector.get_all_metrics()
                         else:
                             service_url = self.service_urls[service_name]
-                            async with aiohttp.ClientSession(
-                                timeout=aiohttp.ClientTimeout(total=2)
-                            ) as session:  # noqa: SIM117
-                                async with session.get(f"{service_url}/metrics") as response:
-                                    if response.status == 200:
-                                        metrics = await response.json()
-                                    else:
-                                        continue
+                            async with (
+                                aiohttp.ClientSession(
+                                    timeout=aiohttp.ClientTimeout(total=2)
+                                ) as session,
+                                session.get(f"{service_url}/metrics") as response,
+                            ):
+                                if response.status == 200:
+                                    metrics = await response.json()
+                                else:
+                                    continue
 
                         all_metrics[service_name] = metrics
                     except Exception as e:

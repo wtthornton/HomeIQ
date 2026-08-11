@@ -184,12 +184,15 @@ class TestPatternDetection:
             return_value=[{"pattern_type": "time_of_day", "entity_id": "light.office"}]
         )
 
-        with patch(
-            "src.scheduler.pattern_analysis.TimeOfDayPatternDetector", return_value=mock_detector
+        with (
+            patch(
+                "src.scheduler.pattern_analysis.TimeOfDayPatternDetector",
+                return_value=mock_detector,
+            ),
+            patch("asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
         ):
-            with patch("asyncio.to_thread", new_callable=AsyncMock) as mock_thread:
-                mock_thread.return_value = [{"pattern_type": "time_of_day"}]
-                patterns = await scheduler._detect_time_of_day_patterns(events_df, job_result)
+            mock_thread.return_value = [{"pattern_type": "time_of_day"}]
+            patterns = await scheduler._detect_time_of_day_patterns(events_df, job_result)
 
         assert len(patterns) == 1
         assert len(job_result["errors"]) == 0
@@ -226,12 +229,15 @@ class TestPatternDetection:
         )
         job_result = {"errors": []}
 
-        with patch(
-            "src.scheduler.pattern_analysis.CoOccurrencePatternDetector", return_value=MagicMock()
-        ) as mock_detector:
-            with patch("asyncio.to_thread", new_callable=AsyncMock) as mock_thread:
-                mock_thread.return_value = [{"pattern_type": "co_occurrence"}]
-                patterns = await scheduler._detect_co_occurrence_patterns(events_df, job_result)
+        with (
+            patch(
+                "src.scheduler.pattern_analysis.CoOccurrencePatternDetector",
+                return_value=MagicMock(),
+            ) as mock_detector,
+            patch("asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+        ):
+            mock_thread.return_value = [{"pattern_type": "co_occurrence"}]
+            patterns = await scheduler._detect_co_occurrence_patterns(events_df, job_result)
 
         assert len(patterns) == 1
         assert len(job_result["errors"]) == 0
@@ -262,16 +268,18 @@ class TestPatternDetection:
         events_df = pd.DataFrame()
         job_result = {"errors": []}
 
-        with patch.object(
-            scheduler, "_detect_time_of_day_patterns", new_callable=AsyncMock
-        ) as mock_tod:
-            with patch.object(
+        with (
+            patch.object(
+                scheduler, "_detect_time_of_day_patterns", new_callable=AsyncMock
+            ) as mock_tod,
+            patch.object(
                 scheduler, "_detect_co_occurrence_patterns", new_callable=AsyncMock
-            ) as mock_co:
-                mock_tod.return_value = [{"type": "tod"}]
-                mock_co.return_value = [{"type": "co"}]
+            ) as mock_co,
+        ):
+            mock_tod.return_value = [{"type": "tod"}]
+            mock_co.return_value = [{"type": "co"}]
 
-                patterns = await scheduler._detect_patterns(events_df, job_result)
+            patterns = await scheduler._detect_patterns(events_df, job_result)
 
         assert len(patterns) == 2
         assert job_result["patterns_detected"] == 2
@@ -345,20 +353,22 @@ class TestResultStorage:
         mock_session_local.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_local.__aexit__ = AsyncMock(return_value=None)
 
-        with patch(
-            "src.scheduler.pattern_analysis.AsyncSessionLocal", return_value=mock_session_local
-        ):
-            with patch(
+        with (
+            patch(
+                "src.scheduler.pattern_analysis.AsyncSessionLocal", return_value=mock_session_local
+            ),
+            patch(
                 "src.scheduler.pattern_analysis.store_patterns", new_callable=AsyncMock
-            ) as mock_store_patterns:
-                with patch(
-                    "src.scheduler.pattern_analysis.store_synergy_opportunities",
-                    new_callable=AsyncMock,
-                ) as mock_store_synergies:
-                    mock_store_patterns.return_value = 2
-                    mock_store_synergies.return_value = 1
+            ) as mock_store_patterns,
+            patch(
+                "src.scheduler.pattern_analysis.store_synergy_opportunities",
+                new_callable=AsyncMock,
+            ) as mock_store_synergies,
+        ):
+            mock_store_patterns.return_value = 2
+            mock_store_synergies.return_value = 1
 
-                    await scheduler._store_results(patterns, synergies, job_result)
+            await scheduler._store_results(patterns, synergies, job_result)
 
         assert len(job_result["errors"]) == 0
         mock_db.commit.assert_called_once()
@@ -383,14 +393,16 @@ class TestResultStorage:
         mock_session_local.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_local.__aexit__ = AsyncMock(return_value=None)
 
-        with patch(
-            "src.scheduler.pattern_analysis.AsyncSessionLocal", return_value=mock_session_local
-        ):
-            with patch(
+        with (
+            patch(
+                "src.scheduler.pattern_analysis.AsyncSessionLocal", return_value=mock_session_local
+            ),
+            patch(
                 "src.scheduler.pattern_analysis.store_patterns",
                 side_effect=Exception("Storage failed"),
-            ):
-                await scheduler._store_results(patterns, synergies, job_result)
+            ),
+        ):
+            await scheduler._store_results(patterns, synergies, job_result)
 
         assert len(job_result["errors"]) == 1
         assert "Storage" in job_result["errors"][0]
@@ -494,16 +506,16 @@ class TestFullAnalysisFlow:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("src.scheduler.pattern_analysis.DataAPIClient", return_value=mock_client):
-            with patch.object(scheduler, "_detect_patterns", new_callable=AsyncMock) as mock_detect:
-                with patch.object(
-                    scheduler, "_detect_synergies", new_callable=AsyncMock
-                ) as mock_synergies:
-                    with patch.object(scheduler, "_store_results", new_callable=AsyncMock):
-                        mock_detect.return_value = []
-                        mock_synergies.return_value = []
+        with (
+            patch("src.scheduler.pattern_analysis.DataAPIClient", return_value=mock_client),
+            patch.object(scheduler, "_detect_patterns", new_callable=AsyncMock) as mock_detect,
+            patch.object(scheduler, "_detect_synergies", new_callable=AsyncMock) as mock_synergies,
+            patch.object(scheduler, "_store_results", new_callable=AsyncMock),
+        ):
+            mock_detect.return_value = []
+            mock_synergies.return_value = []
 
-                        await scheduler.run_pattern_analysis()
+            await scheduler.run_pattern_analysis()
 
         mock_mqtt.publish.assert_called_once()
 

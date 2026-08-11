@@ -19,9 +19,11 @@ class TestServiceConfiguration:
         """
         from src.main import ElectricityPricingService
 
-        with patch.dict(os.environ, {"INFLUXDB_TOKEN": ""}, clear=True):
-            with pytest.raises(ValueError, match="INFLUXDB_TOKEN environment variable is required"):
-                ElectricityPricingService()
+        with (
+            patch.dict(os.environ, {"INFLUXDB_TOKEN": ""}, clear=True),
+            pytest.raises(ValueError, match="INFLUXDB_TOKEN environment variable is required"),
+        ):
+            ElectricityPricingService()
 
     def test_default_provider(self):
         """

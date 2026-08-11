@@ -257,21 +257,21 @@ class APIKeyService:
 
             # Make test request
             timeout = aiohttp.ClientTimeout(total=10)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(test_url, headers=headers) as response:
-                    if response.status == 200:
-                        # Check for expected response structure
-                        if config["validation_response_check"]:
-                            data = await response.json()
-                            return config["validation_response_check"] in data
-                        return True
-                    elif response.status == 401:
-                        return False  # Unauthorized - invalid key
-                    else:
-                        logger.warning(
-                            f"Unexpected response status {response.status} for {service}"
-                        )
-                        return False
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.get(test_url, headers=headers) as response,
+            ):
+                if response.status == 200:
+                    # Check for expected response structure
+                    if config["validation_response_check"]:
+                        data = await response.json()
+                        return config["validation_response_check"] in data
+                    return True
+                elif response.status == 401:
+                    return False  # Unauthorized - invalid key
+                else:
+                    logger.warning(f"Unexpected response status {response.status} for {service}")
+                    return False
 
         except Exception as e:
             logger.error(f"Error testing API key for {service}: {e}")

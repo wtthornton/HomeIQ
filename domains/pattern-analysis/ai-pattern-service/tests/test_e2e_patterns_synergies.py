@@ -119,14 +119,13 @@ class TestE2EPatternEndpoints:
         data = response.json()
 
         # Verify stats structure
-        if isinstance(data, dict):
-            if "data" in data:
-                stats = data["data"]
-                assert "total_patterns" in stats
-                assert "by_type" in stats
-                assert "avg_confidence" in stats
-                assert isinstance(stats["total_patterns"], int)
-                assert isinstance(stats["by_type"], dict)
+        if (isinstance(data, dict)) and ("data" in data):
+            stats = data["data"]
+            assert "total_patterns" in stats
+            assert "by_type" in stats
+            assert "avg_confidence" in stats
+            assert isinstance(stats["total_patterns"], int)
+            assert isinstance(stats["by_type"], dict)
 
 
 @pytest.mark.e2e

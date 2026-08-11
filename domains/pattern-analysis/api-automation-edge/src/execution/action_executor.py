@@ -91,9 +91,10 @@ class ActionExecutor:
             }
 
         # Check if key exists
-        if entity_id in self.idempotency_store:
-            if idempotency_key in self.idempotency_store[entity_id]:
-                return True
+        if (entity_id in self.idempotency_store) and (
+            idempotency_key in self.idempotency_store[entity_id]
+        ):
+            return True
 
         return False
 

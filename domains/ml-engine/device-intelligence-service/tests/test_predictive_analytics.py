@@ -256,21 +256,21 @@ class TestPredictionsAPI:
         app = FastAPI()
         app.include_router(router)
 
-        with patch(
-            "src.api.predictions_router.get_device_repository", return_value=mock_repository
-        ):
-            with patch(
+        with (
+            patch("src.api.predictions_router.get_device_repository", return_value=mock_repository),
+            patch(
                 "src.api.predictions_router.get_analytics_engine",
                 return_value=mock_analytics_engine,
-            ):
-                client = TestClient(app)
-                response = client.get("/api/predictions/failures")
+            ),
+        ):
+            client = TestClient(app)
+            response = client.get("/api/predictions/failures")
 
-                assert response.status_code == 200
-                data = response.json()
-                assert "total_predictions" in data
-                assert "predictions" in data
-                assert len(data["predictions"]) == 2
+            assert response.status_code == 200
+            data = response.json()
+            assert "total_predictions" in data
+            assert "predictions" in data
+            assert len(data["predictions"]) == 2
 
     @pytest.mark.asyncio
     async def test_get_device_failure_prediction(self, mock_repository, mock_analytics_engine):
@@ -281,21 +281,21 @@ class TestPredictionsAPI:
         app = FastAPI()
         app.include_router(router)
 
-        with patch(
-            "src.api.predictions_router.get_device_repository", return_value=mock_repository
-        ):
-            with patch(
+        with (
+            patch("src.api.predictions_router.get_device_repository", return_value=mock_repository),
+            patch(
                 "src.api.predictions_router.get_analytics_engine",
                 return_value=mock_analytics_engine,
-            ):
-                client = TestClient(app)
-                response = client.get("/api/predictions/failures/device1")
+            ),
+        ):
+            client = TestClient(app)
+            response = client.get("/api/predictions/failures/device1")
 
-                assert response.status_code == 200
-                data = response.json()
-                assert data["device_id"] == "device1"
-                assert "failure_probability" in data
-                assert "risk_level" in data
+            assert response.status_code == 200
+            data = response.json()
+            assert data["device_id"] == "device1"
+            assert "failure_probability" in data
+            assert "risk_level" in data
 
     @pytest.mark.asyncio
     async def test_get_maintenance_recommendations(self, mock_repository, mock_analytics_engine):
@@ -306,20 +306,20 @@ class TestPredictionsAPI:
         app = FastAPI()
         app.include_router(router)
 
-        with patch(
-            "src.api.predictions_router.get_device_repository", return_value=mock_repository
-        ):
-            with patch(
+        with (
+            patch("src.api.predictions_router.get_device_repository", return_value=mock_repository),
+            patch(
                 "src.api.predictions_router.get_analytics_engine",
                 return_value=mock_analytics_engine,
-            ):
-                client = TestClient(app)
-                response = client.get("/api/predictions/maintenance")
+            ),
+        ):
+            client = TestClient(app)
+            response = client.get("/api/predictions/maintenance")
 
-                assert response.status_code == 200
-                data = response.json()
-                assert "total_recommendations" in data
-                assert "recommendations" in data
+            assert response.status_code == 200
+            data = response.json()
+            assert "total_recommendations" in data
+            assert "recommendations" in data
 
     @pytest.mark.asyncio
     async def test_get_model_status(self, mock_analytics_engine):

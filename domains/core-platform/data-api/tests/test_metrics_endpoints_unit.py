@@ -484,7 +484,8 @@ class TestMetricsEndpointsInit:
 def _get_route_handler(ep: MetricsEndpoints, path: str, method: str = "GET"):
     """Extract the route handler function from the router."""
     for route in ep.router.routes:
-        if hasattr(route, "path") and route.path == path:
-            if method.upper() in [m.upper() for m in route.methods]:
-                return route.endpoint
+        if (hasattr(route, "path") and route.path == path) and (
+            method.upper() in [m.upper() for m in route.methods]
+        ):
+            return route.endpoint
     raise ValueError(f"Route {method} {path} not found")

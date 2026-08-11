@@ -252,15 +252,15 @@ class ConfigEndpoints:
 
         for service_name, service_url in self.service_urls.items():
             try:
-                async with aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as session:  # noqa: SIM117
-                    async with session.get(f"{service_url}/config/schema") as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            schema[service_name] = [ConfigItem(**item) for item in data]
-                        else:
-                            schema[service_name] = []
+                async with (
+                    aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session,
+                    session.get(f"{service_url}/config/schema") as response,
+                ):
+                    if response.status == 200:
+                        data = await response.json()
+                        schema[service_name] = [ConfigItem(**item) for item in data]
+                    else:
+                        schema[service_name] = []
             except Exception as e:
                 logger.warning(f"Failed to get schema for {service_name}: {e}")
                 schema[service_name] = []

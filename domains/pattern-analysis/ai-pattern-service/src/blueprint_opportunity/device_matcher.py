@@ -235,10 +235,11 @@ class DeviceMatcher:
         # Check domain seasonal relevance
         for domain in blueprint.required_domains:
             domain_lower = domain.lower()
-            if domain_lower in self.SEASONAL_DOMAINS:
-                if month in self.SEASONAL_DOMAINS[domain_lower]:
-                    score = max(score, 0.9)  # High relevance
-                    break
+            if (domain_lower in self.SEASONAL_DOMAINS) and (
+                month in self.SEASONAL_DOMAINS[domain_lower]
+            ):
+                score = max(score, 0.9)  # High relevance
+                break
 
         # Check use case seasonal relevance
         use_case = (blueprint.use_case or "").lower()
@@ -248,19 +249,21 @@ class DeviceMatcher:
                 break
 
         # Time-of-day relevance for lighting
-        if any(d.lower() in ["light", "scene"] for d in blueprint.required_domains):
-            # Boost lighting blueprints during evening hours
-            if 17 <= hour <= 22:  # 5 PM to 10 PM
-                score = max(score, 0.8)
+        # Boost lighting blueprints during evening hours
+        if (any(d.lower() in ["light", "scene"] for d in blueprint.required_domains)) and (
+            17 <= hour <= 22
+        ):
+            score = max(score, 0.8)
 
         # Morning routine relevance
         if ("morning" in use_case or "wake" in use_case) and 5 <= hour <= 9:
             score = max(score, 0.85)
 
         # Night/sleep routine relevance
-        if "night" in use_case or "sleep" in use_case or "bedtime" in use_case:
-            if 20 <= hour <= 23 or 0 <= hour <= 2:
-                score = max(score, 0.85)
+        if ("night" in use_case or "sleep" in use_case or "bedtime" in use_case) and (
+            20 <= hour <= 23 or 0 <= hour <= 2
+        ):
+            score = max(score, 0.85)
 
         return score
 
@@ -317,9 +320,10 @@ class DeviceMatcher:
                 score = min(score, 0.5)  # Penalize complex automations
 
         # Energy saving preference
-        if profile.prefers_energy_saving:
-            if "energy" in use_case or "power" in use_case or "saving" in use_case:
-                score = max(score, 0.85)
+        if (profile.prefers_energy_saving) and (
+            "energy" in use_case or "power" in use_case or "saving" in use_case
+        ):
+            score = max(score, 0.85)
 
         # Security preference
         if profile.prefers_security_focused:
@@ -332,9 +336,10 @@ class DeviceMatcher:
                 score = max(score, 0.85)
 
         # Presence detection bonus
-        if profile.has_presence_detection:
-            if "presence" in use_case or "away" in use_case or "home" in use_case:
-                score = max(score, 0.8)
+        if (profile.has_presence_detection) and (
+            "presence" in use_case or "away" in use_case or "home" in use_case
+        ):
+            score = max(score, 0.8)
 
         # Voice assistant bonus
         if profile.has_voice_assistant and ("voice" in use_case or "assistant" in use_case):
@@ -370,10 +375,8 @@ class DeviceMatcher:
             all_domains = set(trigger_domains) | set(action_domains)
             for pattern, popularity in self._popular_patterns[:50]:
                 parts = pattern.split("_to_")
-                if len(parts) == 2:
-                    if parts[0] in all_domains or parts[1] in all_domains:
-                        # Scale popularity to 0-1 range
-                        best_score = max(best_score, min(1.0, popularity / 10000))
+                if (len(parts) == 2) and (parts[0] in all_domains or parts[1] in all_domains):
+                    best_score = max(best_score, min(1.0, popularity / 10000))
 
         return best_score
 

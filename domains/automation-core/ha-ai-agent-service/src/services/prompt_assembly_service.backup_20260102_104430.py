@@ -158,15 +158,14 @@ class PromptAssemblyService:
         original_count = len(history_messages)
 
         for msg in history_messages:
-            if msg["role"] == "assistant":
-                if is_generic_welcome_message(msg.get("content", "")):
-                    filtered_count += 1
-                    logger.info(
-                        f"[Generic Message Filter] Conversation {conversation_id}: "
-                        f"Filtered generic welcome message (count: {filtered_count}). "
-                        f"Content preview: {msg.get('content', '')[:100]}..."
-                    )
-                    continue  # Skip this generic message
+            if (msg["role"] == "assistant") and (is_generic_welcome_message(msg.get("content", ""))):
+                filtered_count += 1
+                logger.info(
+                    f"[Generic Message Filter] Conversation {conversation_id}: "
+                    f"Filtered generic welcome message (count: {filtered_count}). "
+                    f"Content preview: {msg.get('content', '')[:100]}..."
+                )
+                continue  # Skip this generic message
             filtered_history.append(msg)
 
         history_messages = filtered_history

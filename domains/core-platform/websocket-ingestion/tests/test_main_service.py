@@ -116,89 +116,78 @@ class TestWebSocketIngestionService:
     async def test_startup_without_home_assistant(self, service):
         """Test service startup without Home Assistant enabled"""
         # Mock all async components
-        with patch.object(service, "memory_manager", new_callable=AsyncMock) as mock_memory:
-            with patch.object(service, "event_queue", new_callable=Mock) as mock_queue:
-                with patch.object(service, "batch_processor", new_callable=AsyncMock) as mock_batch:
-                    with patch.object(
-                        service, "async_event_processor", new_callable=AsyncMock
-                    ) as mock_async:
-                        with patch("src.main.MemoryManager", return_value=mock_memory):
-                            with patch("src.main.EventQueue", return_value=mock_queue):
-                                with patch("src.main.BatchProcessor", return_value=mock_batch):
-                                    with patch(
-                                        "src.main.AsyncEventProcessor", return_value=mock_async
-                                    ):
-                                        with patch(
-                                            "src.main.InfluxDBConnectionManager"
-                                        ) as mock_influxdb_mgr:
-                                            with patch(
-                                                "src.influxdb_batch_writer.InfluxDBBatchWriter"
-                                            ) as mock_batch_writer:
-                                                with patch(
-                                                    "src.main.HistoricalEventCounter"
-                                                ) as mock_counter:
-                                                    # Setup mocks
-                                                    mock_influxdb_mgr.return_value.start = (
-                                                        AsyncMock()
-                                                    )
-                                                    mock_batch_writer.return_value.start = (
-                                                        AsyncMock()
-                                                    )
-                                                    mock_counter.return_value.initialize_historical_totals = AsyncMock(
-                                                        return_value={"total_events_received": 0}
-                                                    )
-                                                    mock_memory.start = AsyncMock()
-                                                    mock_batch.start = AsyncMock()
-                                                    mock_async.start = AsyncMock()
+        with (
+            patch.object(service, "memory_manager", new_callable=AsyncMock) as mock_memory,
+            patch.object(service, "event_queue", new_callable=Mock) as mock_queue,
+            patch.object(service, "batch_processor", new_callable=AsyncMock) as mock_batch,
+            patch.object(service, "async_event_processor", new_callable=AsyncMock) as mock_async,
+            patch("src.main.MemoryManager", return_value=mock_memory),
+            patch("src.main.EventQueue", return_value=mock_queue),
+            patch("src.main.BatchProcessor", return_value=mock_batch),
+            patch("src.main.AsyncEventProcessor", return_value=mock_async),
+            patch("src.main.InfluxDBConnectionManager") as mock_influxdb_mgr,
+            patch("src.influxdb_batch_writer.InfluxDBBatchWriter") as mock_batch_writer,
+            patch("src.main.HistoricalEventCounter") as mock_counter,
+        ):
+            mock_influxdb_mgr.return_value.start = AsyncMock()
+            mock_batch_writer.return_value.start = AsyncMock()
+            mock_counter.return_value.initialize_historical_totals = AsyncMock(
+                return_value={"total_events_received": 0}
+            )
+            mock_memory.start = AsyncMock()
+            mock_batch.start = AsyncMock()
+            mock_async.start = AsyncMock()
 
-                                                    # Execute
-                                                    await service.start()
+            # Execute
+            await service.start()
 
-                                                    # Verify
-                                                    assert service.memory_manager is not None
-                                                    assert service.event_queue is not None
-                                                    assert service.batch_processor is not None
-                                                    assert service.async_event_processor is not None
+            # Verify
+            assert service.memory_manager is not None
+            assert service.event_queue is not None
+            assert service.batch_processor is not None
+            assert service.async_event_processor is not None
 
     @pytest.mark.asyncio
     async def test_startup_with_influxdb_failure(self, service):
         """Test service startup when InfluxDB connection fails"""
-        with patch("src.main.MemoryManager"), patch("src.main.EventQueue"):
-            with patch("src.main.BatchProcessor"):
-                with patch("src.main.AsyncEventProcessor"):
-                    with patch("src.main.InfluxDBConnectionManager") as mock_influxdb_mgr:
-                        with patch("src.main.HistoricalEventCounter"):
-                            with patch("src.influxdb_batch_writer.InfluxDBBatchWriter"):
-                                # Setup InfluxDB to fail
-                                mock_influxdb_mgr.return_value.start = AsyncMock(
-                                    side_effect=Exception("Connection failed")
-                                )
+        with (
+            patch("src.main.MemoryManager"),
+            patch("src.main.EventQueue"),
+            patch("src.main.BatchProcessor"),
+            patch("src.main.AsyncEventProcessor"),
+            patch("src.main.InfluxDBConnectionManager") as mock_influxdb_mgr,
+            patch("src.main.HistoricalEventCounter"),
+            patch("src.influxdb_batch_writer.InfluxDBBatchWriter"),
+        ):
+            mock_influxdb_mgr.return_value.start = AsyncMock(
+                side_effect=Exception("Connection failed")
+            )
 
-                                # Should raise exception
-                                with pytest.raises(Exception):
-                                    await service.start()
+            # Should raise exception
+            with pytest.raises(Exception):
+                await service.start()
 
     @pytest.mark.asyncio
     async def test_startup_with_batch_writer_failure(self, service):
         """Test service startup when batch writer fails to start"""
-        with patch("src.main.MemoryManager"), patch("src.main.EventQueue"):
-            with patch("src.main.BatchProcessor"):
-                with patch("src.main.AsyncEventProcessor"):
-                    with patch("src.main.InfluxDBConnectionManager") as mock_influxdb_mgr:
-                        with patch("src.main.HistoricalEventCounter"):
-                            with patch(
-                                "src.influxdb_batch_writer.InfluxDBBatchWriter"
-                            ) as mock_batch_writer:
-                                # Setup InfluxDB to succeed
-                                mock_influxdb_mgr.return_value.start = AsyncMock()
-                                # Setup batch writer to fail
-                                mock_batch_writer.return_value.start = AsyncMock(
-                                    side_effect=Exception("Batch writer failed")
-                                )
+        with (
+            patch("src.main.MemoryManager"),
+            patch("src.main.EventQueue"),
+            patch("src.main.BatchProcessor"),
+            patch("src.main.AsyncEventProcessor"),
+            patch("src.main.InfluxDBConnectionManager") as mock_influxdb_mgr,
+            patch("src.main.HistoricalEventCounter"),
+            patch("src.influxdb_batch_writer.InfluxDBBatchWriter") as mock_batch_writer,
+        ):
+            mock_influxdb_mgr.return_value.start = AsyncMock()
+            # Setup batch writer to fail
+            mock_batch_writer.return_value.start = AsyncMock(
+                side_effect=Exception("Batch writer failed")
+            )
 
-                                # Should raise exception
-                                with pytest.raises(Exception):
-                                    await service.start()
+            # Should raise exception
+            with pytest.raises(Exception):
+                await service.start()
 
     @pytest.mark.asyncio
     async def test_stop_with_partial_initialization(self, service):

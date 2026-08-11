@@ -121,18 +121,16 @@ class EntityEnrichmentService:
                     capabilities.append("white_value")
 
             # Check attributes for additional capabilities
-            if attributes.get("brightness") is not None:
-                if "brightness" not in capabilities:
-                    capabilities.append("brightness")
+            if (attributes.get("brightness") is not None) and ("brightness" not in capabilities):
+                capabilities.append("brightness")
             if (
                 attributes.get("rgb_color")
                 or attributes.get("hs_color")
                 or attributes.get("xy_color")
             ) and "color" not in capabilities:
                 capabilities.append("color")
-            if attributes.get("color_temp") is not None:
-                if "color_temp" not in capabilities:
-                    capabilities.append("color_temp")
+            if (attributes.get("color_temp") is not None) and ("color_temp" not in capabilities):
+                capabilities.append("color_temp")
             if attributes.get("effect_list") and "effect" not in capabilities:
                 capabilities.append("effect")
 

@@ -215,9 +215,11 @@ class TestGetApiKeys:
                 return "a" * 32
             return None
 
-        with patch("src.api_key_service.os.getenv", side_effect=fake_getenv):
-            with patch.object(svc, "_test_api_key", new=AsyncMock(return_value=True)):
-                result = await svc.get_api_keys()
+        with (
+            patch("src.api_key_service.os.getenv", side_effect=fake_getenv),
+            patch.object(svc, "_test_api_key", new=AsyncMock(return_value=True)),
+        ):
+            result = await svc.get_api_keys()
 
         result_map = {info.service: info for info in result}
         assert result_map["weather"].status == APIKeyStatus.CONFIGURED
@@ -231,9 +233,11 @@ class TestGetApiKeys:
                 return "a" * 32
             return None
 
-        with patch("src.api_key_service.os.getenv", side_effect=fake_getenv):
-            with patch.object(svc, "_test_api_key", new=AsyncMock(return_value=False)):
-                result = await svc.get_api_keys()
+        with (
+            patch("src.api_key_service.os.getenv", side_effect=fake_getenv),
+            patch.object(svc, "_test_api_key", new=AsyncMock(return_value=False)),
+        ):
+            result = await svc.get_api_keys()
 
         result_map = {info.service: info for info in result}
         assert result_map["weather"].status == APIKeyStatus.INVALID
@@ -297,9 +301,11 @@ class TestUpdateApiKey:
         """Valid key that passes _test_api_key returns (True, message)."""
         svc = APIKeyService()
         good_key = "a" * 32
-        with patch.object(svc, "_test_api_key", new=AsyncMock(return_value=True)):
-            with patch.object(svc, "_update_config_file", new=AsyncMock()):
-                success, msg = await svc.update_api_key("weather", good_key)
+        with (
+            patch.object(svc, "_test_api_key", new=AsyncMock(return_value=True)),
+            patch.object(svc, "_update_config_file", new=AsyncMock()),
+        ):
+            success, msg = await svc.update_api_key("weather", good_key)
         assert success is True
 
     async def test_valid_key_validation_fails_returns_false(self):
