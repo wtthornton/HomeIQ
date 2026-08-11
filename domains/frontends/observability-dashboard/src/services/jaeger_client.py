@@ -251,9 +251,7 @@ class JaegerClient:
             logger.warning(f"Failed to get operations for {service_name}: {e}")
             return []
 
-    async def get_dependencies(
-        self, start_time: datetime, end_time: datetime
-    ) -> list[Dependency]:
+    async def get_dependencies(self, start_time: datetime, end_time: datetime) -> list[Dependency]:
         """
         Get service dependencies.
 

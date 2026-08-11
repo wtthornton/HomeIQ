@@ -37,12 +37,14 @@ def show() -> None:
         "View Mode",
         ["All Services", "Automations Only"],
         horizontal=True,
-        help="Filter traces to show all services or automation-specific traces only"
+        help="Filter traces to show all services or automation-specific traces only",
     )
 
     # Apply automation filter
     if filter_mode == "Automations Only":
-        st.info("Showing automation execution traces only (ai-automation-service, ha-ai-agent-service)")
+        st.info(
+            "Showing automation execution traces only (ai-automation-service, ha-ai-agent-service)"
+        )
 
     # Sidebar filters
     with st.sidebar:
@@ -70,7 +72,9 @@ def show() -> None:
         )
 
         if time_range == "Custom":
-            start_time = st.datetime_input("Start Time", value=datetime.now(UTC) - timedelta(hours=1))
+            start_time = st.datetime_input(
+                "Start Time", value=datetime.now(UTC) - timedelta(hours=1)
+            )
             end_time = st.datetime_input("End Time", value=datetime.now(UTC))
         else:
             end_time = datetime.now(UTC)
@@ -126,10 +130,17 @@ def show() -> None:
             total_spans = sum(len(trace.spans) for trace in traces)
             st.metric("Total Spans", total_spans)
         with col3:
-            avg_duration = sum(
-                sum(span.duration for span in trace.spans) / len(trace.spans) if trace.spans else 0
-                for trace in traces
-            ) / len(traces) if traces else 0
+            avg_duration = (
+                sum(
+                    sum(span.duration for span in trace.spans) / len(trace.spans)
+                    if trace.spans
+                    else 0
+                    for trace in traces
+                )
+                / len(traces)
+                if traces
+                else 0
+            )
             st.metric("Avg Duration (μs)", f"{avg_duration:,.0f}")
         with col4:
             error_traces = sum(1 for trace in traces if has_errors(trace))
@@ -156,7 +167,9 @@ def show() -> None:
             selected_trace_idx = st.selectbox(
                 "Select Trace",
                 range(len(traces)),
-                format_func=lambda i: f"Trace {traces[i].traceID[:16]}... ({len(traces[i].spans)} spans)",
+                format_func=lambda i: (
+                    f"Trace {traces[i].traceID[:16]}... ({len(traces[i].spans)} spans)"
+                ),
             )
 
             if selected_trace_idx is not None and 0 <= selected_trace_idx < len(traces):

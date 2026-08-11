@@ -5,12 +5,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
+from services.jaeger_client import JaegerClient
+
 from conftest import make_span, make_trace
-from services.jaeger_client import JaegerClient, Trace
 
 # Mock streamlit for page imports
 _st_mock = MagicMock()
-_st_mock.fragment = lambda run_every=None: (lambda f: f)
+_st_mock.fragment = lambda run_every=None: lambda f: f
 sys.modules.setdefault("streamlit", _st_mock)
 
 from dashboard_pages.service_performance import _calculate_service_metrics
@@ -150,18 +151,14 @@ class TestMalformedData:
 class TestEmptyResponses:
     @pytest.mark.asyncio
     async def test_get_traces_empty_data_array(self, client):
-        resp = httpx.Response(
-            200, json={"data": []}, request=httpx.Request("GET", "http://x")
-        )
+        resp = httpx.Response(200, json={"data": []}, request=httpx.Request("GET", "http://x"))
         _setup_client(client, AsyncMock(return_value=resp))
         traces = await client.get_traces()
         assert traces == []
 
     @pytest.mark.asyncio
     async def test_get_services_empty_list(self, client):
-        resp = httpx.Response(
-            200, json={"data": []}, request=httpx.Request("GET", "http://x")
-        )
+        resp = httpx.Response(200, json={"data": []}, request=httpx.Request("GET", "http://x"))
         _setup_client(client, AsyncMock(return_value=resp))
         services = await client.get_services()
         assert services == []

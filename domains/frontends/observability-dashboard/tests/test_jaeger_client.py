@@ -187,11 +187,7 @@ class TestGetServices:
 class TestGetDependencies:
     @pytest.mark.asyncio
     async def test_returns_dependencies(self, client):
-        mock_data = {
-            "data": [
-                {"parent": "service-a", "child": "service-b", "callCount": 42}
-            ]
-        }
+        mock_data = {"data": [{"parent": "service-a", "child": "service-b", "callCount": 42}]}
         _setup_client(client, AsyncMock(return_value=_ok_response(mock_data)))
 
         now = datetime.now(UTC)

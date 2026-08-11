@@ -48,7 +48,9 @@ def show() -> None:
         st.session_state.auto_refresh = auto_refresh
 
     with col2:
-        refresh_interval = st.selectbox("Refresh Interval", _REFRESH_OPTIONS, index=1, format_func=lambda x: f"{x}s")
+        refresh_interval = st.selectbox(
+            "Refresh Interval", _REFRESH_OPTIONS, index=1, format_func=lambda x: f"{x}s"
+        )
 
     with col3:
         if st.button("🛑 Stop Monitoring"):
@@ -70,10 +72,19 @@ def show() -> None:
             st.metric("Active Traces", len(traces))
         with col2:
             error_traces = sum(1 for trace in traces if has_errors(trace))
-            st.metric("Error Traces", error_traces, delta=f"{error_traces/len(traces)*100:.1f}%" if traces else "0%")
+            st.metric(
+                "Error Traces",
+                error_traces,
+                delta=f"{error_traces / len(traces) * 100:.1f}%" if traces else "0%",
+            )
         with col3:
             avg_latency = (
-                sum(sum(span.duration for span in trace.spans) / len(trace.spans) if trace.spans else 0 for trace in traces)
+                sum(
+                    sum(span.duration for span in trace.spans) / len(trace.spans)
+                    if trace.spans
+                    else 0
+                    for trace in traces
+                )
                 / len(traces)
                 / 1000
                 if traces
@@ -134,7 +145,9 @@ def _auto_refresh_fragment(refresh_interval: int) -> None:
         if traces:
             existing_ids = {t.traceID for t in st.session_state.real_time_traces}
             new_traces = [t for t in traces if t.traceID not in existing_ids]
-            st.session_state.real_time_traces = (new_traces + st.session_state.real_time_traces)[:100]
+            st.session_state.real_time_traces = (new_traces + st.session_state.real_time_traces)[
+                :100
+            ]
 
             if new_traces:
                 st.success(f"Received {len(new_traces)} new traces")
@@ -171,7 +184,9 @@ def _detect_anomalies(traces: list[Trace]) -> list[dict[str, str]]:
                     {
                         "Type": "High Latency",
                         "Trace ID": trace.traceID[:16] + "...",
-                        "Service": trace.processes.get(span.processID, {}).get("serviceName", "unknown"),
+                        "Service": trace.processes.get(span.processID, {}).get(
+                            "serviceName", "unknown"
+                        ),
                         "Operation": span.operationName,
                         "Latency (ms)": f"{duration_ms:.2f}",
                     }
@@ -185,7 +200,10 @@ def _detect_anomalies(traces: list[Trace]) -> list[dict[str, str]]:
                     "Type": "Error",
                     "Trace ID": trace.traceID[:16] + "...",
                     "Service": ", ".join(
-                        {trace.processes.get(s.processID, {}).get("serviceName", "unknown") for s in trace.spans}
+                        {
+                            trace.processes.get(s.processID, {}).get("serviceName", "unknown")
+                            for s in trace.spans
+                        }
                     ),
                     "Operation": trace.spans[0].operationName if trace.spans else "unknown",
                     "Latency (ms)": f"{trace_duration:.2f}",
@@ -209,7 +227,8 @@ def _create_realtime_dataframe(traces: list[Trace]) -> pd.DataFrame:
     data = []
     for trace in traces:
         service_names = [
-            trace.processes.get(span.processID, {}).get("serviceName", "unknown") for span in trace.spans
+            trace.processes.get(span.processID, {}).get("serviceName", "unknown")
+            for span in trace.spans
         ]
         unique_services = list(set(service_names))
         total_duration = _trace_wall_clock_ms(trace)
@@ -249,7 +268,9 @@ def _calculate_service_health(traces: list[Trace]) -> list[dict[str, float]]:
     health_data = []
     for service_name, metrics in service_metrics.items():
         error_rate = (metrics["errors"] / metrics["total"] * 100) if metrics["total"] > 0 else 0
-        avg_latency = sum(metrics["latencies"]) / len(metrics["latencies"]) if metrics["latencies"] else 0
+        avg_latency = (
+            sum(metrics["latencies"]) / len(metrics["latencies"]) if metrics["latencies"] else 0
+        )
 
         # Health score: 100 - (error_rate * 2) - (latency_penalty)
         latency_penalty = min(avg_latency / 10, 30)  # Max 30 point penalty

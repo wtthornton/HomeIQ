@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 # Mock streamlit before importing the page module
 _st_mock = MagicMock()
-_st_mock.fragment = lambda run_every=None: (lambda f: f)  # passthrough decorator
+_st_mock.fragment = lambda run_every=None: lambda f: f  # passthrough decorator
 sys.modules["streamlit"] = _st_mock
 
 from dashboard_pages.real_time_monitoring import _detect_anomalies, _trace_wall_clock_ms
