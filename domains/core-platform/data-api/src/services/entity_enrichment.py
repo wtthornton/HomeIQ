@@ -128,15 +128,13 @@ class EntityEnrichmentService:
                 attributes.get("rgb_color")
                 or attributes.get("hs_color")
                 or attributes.get("xy_color")
-            ):
-                if "color" not in capabilities:
-                    capabilities.append("color")
+            ) and "color" not in capabilities:
+                capabilities.append("color")
             if attributes.get("color_temp") is not None:
                 if "color_temp" not in capabilities:
                     capabilities.append("color_temp")
-            if attributes.get("effect_list"):
-                if "effect" not in capabilities:
-                    capabilities.append("effect")
+            if attributes.get("effect_list") and "effect" not in capabilities:
+                capabilities.append("effect")
 
         elif domain == "switch":
             # Switch capabilities
@@ -185,7 +183,7 @@ class EntityEnrichmentService:
         if attributes.get("humidity"):
             capabilities.append("humidity_control")
 
-        return sorted(list(set(capabilities))) if capabilities else None
+        return sorted(set(capabilities)) if capabilities else None
 
     async def get_available_services_for_domain(self, domain: str, db) -> list[str]:
         """

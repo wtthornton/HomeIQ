@@ -4,6 +4,7 @@ Migrated from admin-api as part of Epic 13 Story 13.2
 Story 22.2: Updated to use database storage
 """
 
+import contextlib
 import logging
 import os
 from datetime import UTC, datetime
@@ -844,10 +845,8 @@ async def list_entities(
         if "device_id" in raw_query and not device_id:
             device_id = raw_query.get("device_id")
         if "limit" in raw_query and limit == 100:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 limit = int(raw_query.get("limit", 100))
-            except (ValueError, TypeError):
-                pass
 
         # Build query
         query = select(Entity)

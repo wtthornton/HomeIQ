@@ -76,7 +76,7 @@ class TestSyncMetadataFromEntity:
         mock_session = AsyncMock()
         mock_session.execute.return_value = mock_result
 
-        result = await StatisticsMetadataService.sync_metadata_from_entity(
+        await StatisticsMetadataService.sync_metadata_from_entity(
             entity, state_class="measurement", session=mock_session
         )
         mock_session.add.assert_called_once()
@@ -90,7 +90,7 @@ class TestSyncMetadataFromEntity:
         mock_session = AsyncMock()
         mock_session.execute.return_value = mock_result
 
-        result = await StatisticsMetadataService.sync_metadata_from_entity(
+        await StatisticsMetadataService.sync_metadata_from_entity(
             entity, state_class="total_increasing", session=mock_session
         )
         mock_session.add.assert_called_once()
@@ -103,7 +103,7 @@ class TestSyncMetadataFromEntity:
         mock_session = AsyncMock()
         mock_session.execute.return_value = mock_result
 
-        result = await StatisticsMetadataService.sync_metadata_from_entity(
+        await StatisticsMetadataService.sync_metadata_from_entity(
             entity, state_class="total", session=mock_session
         )
         mock_session.add.assert_called_once()
@@ -117,7 +117,7 @@ class TestSyncMetadataFromEntity:
         mock_session = AsyncMock()
         mock_session.execute.return_value = mock_result
 
-        result = await StatisticsMetadataService.sync_metadata_from_entity(
+        await StatisticsMetadataService.sync_metadata_from_entity(
             entity, state_class=None, session=mock_session
         )
         mock_session.add.assert_called_once()
@@ -142,7 +142,7 @@ class TestSyncMetadataFromEntity:
         mock_session = AsyncMock()
         mock_session.execute.return_value = mock_result
 
-        result = await StatisticsMetadataService.sync_metadata_from_entity(
+        await StatisticsMetadataService.sync_metadata_from_entity(
             entity, state_class="measurement", session=mock_session
         )
         assert existing.state_class == "measurement"

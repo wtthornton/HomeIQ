@@ -145,7 +145,7 @@ class TestRequestDeviceIntelligence:
             client_ctx.request = AsyncMock(return_value=mock_resp)
             mock_cls.return_value = client_ctx
 
-            result = await _request_device_intelligence(
+            await _request_device_intelligence(
                 "GET", "/api/hygiene/issues", params={"status": "open"}
             )
 
@@ -164,7 +164,7 @@ class TestRequestDeviceIntelligence:
             client_ctx.request = AsyncMock(return_value=mock_resp)
             mock_cls.return_value = client_ctx
 
-            result = await _request_device_intelligence(
+            await _request_device_intelligence(
                 "POST",
                 "/api/hygiene/issues/k/status",
                 payload={"status": "resolved"},
@@ -292,7 +292,7 @@ class TestListHygieneIssues:
         ) as mock_req:
             mock_req.return_value = payload
 
-            result = await list_hygiene_issues(
+            await list_hygiene_issues(
                 status_filter="open",
                 severity=None,
                 issue_type=None,
@@ -314,7 +314,7 @@ class TestListHygieneIssues:
         ) as mock_req:
             mock_req.return_value = payload
 
-            result = await list_hygiene_issues(
+            await list_hygiene_issues(
                 status_filter=None,
                 severity="critical",
                 issue_type=None,
@@ -336,7 +336,7 @@ class TestListHygieneIssues:
         ) as mock_req:
             mock_req.return_value = payload
 
-            result = await list_hygiene_issues(
+            await list_hygiene_issues(
                 status_filter=None,
                 severity=None,
                 issue_type=None,
@@ -358,7 +358,7 @@ class TestListHygieneIssues:
         ) as mock_req:
             mock_req.return_value = payload
 
-            result = await list_hygiene_issues(
+            await list_hygiene_issues(
                 status_filter=None,
                 severity=None,
                 issue_type="naming",
@@ -380,7 +380,7 @@ class TestListHygieneIssues:
         ) as mock_req:
             mock_req.return_value = payload
 
-            result = await list_hygiene_issues(
+            await list_hygiene_issues(
                 status_filter="open",
                 severity="warning",
                 issue_type="naming",
@@ -540,7 +540,7 @@ class TestApplyIssueAction:
             mock_req.return_value = result_data
             payload = ApplyIssueActionRequest(action="dismiss")
 
-            result = await apply_issue_action("hygiene-005", payload)
+            await apply_issue_action("hygiene-005", payload)
 
         call_payload = mock_req.call_args.kwargs.get("payload") or mock_req.call_args[0][2]
         # model_dump includes value=None

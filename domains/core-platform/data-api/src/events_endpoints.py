@@ -864,10 +864,7 @@ from(bucket: "{influxdb_bucket}")
 
     def _format_flux_time(self, value: datetime) -> str:
         """Format datetime for Flux queries in UTC."""
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=UTC)
-        else:
-            value = value.astimezone(UTC)
+        value = value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
         return value.isoformat().replace("+00:00", "Z")
 
     def _determine_data_source(self, event_filter: EventFilter) -> tuple[str, str]:
@@ -894,10 +891,7 @@ from(bucket: "{influxdb_bucket}")
 
         if event_filter.end_time:
             end_dt = event_filter.end_time
-            if end_dt.tzinfo is None:
-                end_dt = end_dt.replace(tzinfo=UTC)
-            else:
-                end_dt = end_dt.astimezone(UTC)
+            end_dt = end_dt.replace(tzinfo=UTC) if end_dt.tzinfo is None else end_dt.astimezone(UTC)
         else:
             end_dt = now
 

@@ -94,7 +94,7 @@ class TestSimpleCacheGetSet:
         import time
 
         time.sleep(0.01)  # tiny sleep to ensure expiry
-        result = await c.get("key1")
+        await c.get("key1")
         # Depending on implementation, this may or may not expire at TTL=0
         # Just verify no crash
         assert True

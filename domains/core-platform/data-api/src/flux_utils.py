@@ -71,6 +71,7 @@ def sanitize_flux_value(value: str | None, max_length: int = MAX_SANITIZED_LENGT
         warnings.warn(
             f"Sanitized value truncated from {len(str_value)} to {max_length} characters",
             UserWarning,
+            stacklevel=2,
         )
 
     # Validate that we have valid content after sanitization

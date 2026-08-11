@@ -165,7 +165,7 @@ class TestSessionStatistics:
     def test_stats_with_sessions(self):
         mgr = AuthManager(api_key="key")
         user = User(username="test", created_at=datetime.now())
-        t1 = mgr.create_session(user)
+        mgr.create_session(user)
         t2 = mgr.create_session(user)
         # Expire t2
         mgr.sessions[t2]["expires_at"] = datetime.now() - timedelta(seconds=1)
