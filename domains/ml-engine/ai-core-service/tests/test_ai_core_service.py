@@ -472,7 +472,7 @@ class TestEndpoints:
         data = response.json()
         assert "openvino" in data
         # Verify no URLs are exposed
-        for name, info in data.items():
+        for _name, info in data.items():
             assert "url" not in info
 
     def test_analyze_data(self, client, auth_headers):
