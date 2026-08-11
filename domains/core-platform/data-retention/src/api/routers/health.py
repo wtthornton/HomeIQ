@@ -36,7 +36,9 @@ async def health_check(request: Request):
         # Determine overall health
         overall_status = "healthy"
         if storage_alerts:
-            critical_alerts = [alert for alert in storage_alerts if alert.get("severity") == "critical"]
+            critical_alerts = [
+                alert for alert in storage_alerts if alert.get("severity") == "critical"
+            ]
             if critical_alerts:
                 overall_status = "critical"
             else:
@@ -48,7 +50,7 @@ async def health_check(request: Request):
             "service_status": service_status,
             "storage_metrics": storage_metrics,
             "active_alerts": len(storage_alerts),
-            "alerts": storage_alerts
+            "alerts": storage_alerts,
         }
     except Exception as e:
         logger.error(f"Health check failed: {e}", exc_info=True)
@@ -57,8 +59,8 @@ async def health_check(request: Request):
             detail={
                 "status": "error",
                 "timestamp": datetime.now(UTC).isoformat(),
-                "error": "Internal server error"
-            }
+                "error": "Internal server error",
+            },
         )
 
 
@@ -77,4 +79,3 @@ async def get_statistics(request: Request):
     except Exception as e:
         logger.error(f"Get statistics failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail={"error": "Internal server error"})
-

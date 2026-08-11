@@ -16,7 +16,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-VALID_IDENTIFIER = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+VALID_IDENTIFIER = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 ALLOWED_VIEW_NAMES = {
     "mv_daily_energy_by_device",
@@ -27,6 +27,7 @@ ALLOWED_VIEW_NAMES = {
 # Try to import InfluxDB 3.0 client, but don't fail if not available
 try:
     from influxdb_client_3 import InfluxDBClient3
+
     INFLUXDB3_AVAILABLE = True
 except ImportError:
     INFLUXDB3_AVAILABLE = False
@@ -37,10 +38,10 @@ class MaterializedViewManager:
     """Manage materialized views for fast query performance"""
 
     def __init__(self):
-        self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
-        self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
-        self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
-        self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
+        self.influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+        self.influxdb_token = os.getenv("INFLUXDB_TOKEN")
+        self.influxdb_org = os.getenv("INFLUXDB_ORG", "home_assistant")
+        self.influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "events")
 
         self.client = None
         self.enabled = False
@@ -48,13 +49,17 @@ class MaterializedViewManager:
     def initialize(self):
         """Initialize InfluxDB client - disabled for InfluxDB 2.7"""
         if not INFLUXDB3_AVAILABLE:
-            logger.warning("InfluxDB 3.0 client not available. Materialized views disabled (requires InfluxDB 3.0+ with SQL support).")
+            logger.warning(
+                "InfluxDB 3.0 client not available. Materialized views disabled (requires InfluxDB 3.0+ with SQL support)."
+            )
             self.enabled = False
             return
 
         # Check if we're using InfluxDB 2.7 (HTTP) vs 3.0 (gRPC)
-        if self.influxdb_url.startswith('http://') or self.influxdb_url.startswith('https://'):
-            logger.warning("Materialized views require InfluxDB 3.0+ with gRPC. InfluxDB 2.7 detected - feature disabled.")
+        if self.influxdb_url.startswith("http://") or self.influxdb_url.startswith("https://"):
+            logger.warning(
+                "Materialized views require InfluxDB 3.0+ with gRPC. InfluxDB 2.7 detected - feature disabled."
+            )
             self.enabled = False
             return
 
@@ -63,7 +68,7 @@ class MaterializedViewManager:
                 host=self.influxdb_url,
                 token=self.influxdb_token,
                 database=self.influxdb_bucket,
-                org=self.influxdb_org
+                org=self.influxdb_org,
             )
             self.enabled = True
             logger.info("Materialized views manager initialized with InfluxDB 3.0")
@@ -92,14 +97,14 @@ class MaterializedViewManager:
 
         if not self.enabled:
             logger.debug("Materialized views disabled - skipping daily energy view creation")
-            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
+            return {"status": "disabled", "reason": "InfluxDB 3.0+ required"}
 
         logger.info("Creating daily energy by device view...")
 
         # In InfluxDB 3.0, we use continuous aggregates via tasks
         # This creates a new measurement with pre-computed data
 
-        query = '''
+        query = """
         SELECT
             entity_id,
             DATE_TRUNC('day', time) as day,
@@ -111,10 +116,10 @@ class MaterializedViewManager:
         WHERE time >= NOW() - INTERVAL '30 days'
         AND energy_consumption > 0
         GROUP BY entity_id, DATE_TRUNC('day', time)
-        '''
+        """
 
         # Execute and store in new measurement
-        result = await self._run_blocking(self.client.query, query, language='sql', mode='pandas')
+        result = await self._run_blocking(self.client.query, query, language="sql", mode="pandas")
 
         if not result.empty:
             from influxdb_client_3 import Point
@@ -123,12 +128,12 @@ class MaterializedViewManager:
             for _, row in result.iterrows():
                 points.append(
                     Point("mv_daily_energy_by_device")
-                    .tag("entity_id", row['entity_id'])
-                    .field("total_kwh", float(row['total_kwh']))
-                    .field("avg_power", float(row['avg_power']))
-                    .field("peak_power", float(row['peak_power']))
-                    .field("cost_usd", float(row['cost_usd']))
-                    .time(row['day'])
+                    .tag("entity_id", row["entity_id"])
+                    .field("total_kwh", float(row["total_kwh"]))
+                    .field("avg_power", float(row["avg_power"]))
+                    .field("peak_power", float(row["peak_power"]))
+                    .field("cost_usd", float(row["cost_usd"]))
+                    .time(row["day"])
                 )
 
             await self._run_blocking(self._write_points, points)
@@ -139,12 +144,14 @@ class MaterializedViewManager:
         """Create materialized view for hourly room activity"""
 
         if not self.enabled:
-            logger.debug("Materialized views disabled - skipping hourly room activity view creation")
-            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
+            logger.debug(
+                "Materialized views disabled - skipping hourly room activity view creation"
+            )
+            return {"status": "disabled", "reason": "InfluxDB 3.0+ required"}
 
         logger.info("Creating hourly room activity view...")
 
-        query = '''
+        query = """
         SELECT
             area,
             EXTRACT(HOUR FROM time) as hour,
@@ -156,9 +163,9 @@ class MaterializedViewManager:
         AND domain = 'binary_sensor'
         AND device_class = 'motion'
         GROUP BY area, EXTRACT(HOUR FROM time), EXTRACT(DOW FROM time)
-        '''
+        """
 
-        result = await self._run_blocking(self.client.query, query, language='sql', mode='pandas')
+        result = await self._run_blocking(self.client.query, query, language="sql", mode="pandas")
 
         if not result.empty:
             from influxdb_client_3 import Point
@@ -167,11 +174,11 @@ class MaterializedViewManager:
             for _, row in result.iterrows():
                 points.append(
                     Point("mv_hourly_room_activity")
-                    .tag("area", row['area'])
-                    .field("hour", int(row['hour']))
-                    .field("day_of_week", int(row['day_of_week']))
-                    .field("motion_count", int(row['motion_count']))
-                    .field("occupancy_rate", float(row['occupancy_rate']))
+                    .tag("area", row["area"])
+                    .field("hour", int(row["hour"]))
+                    .field("day_of_week", int(row["day_of_week"]))
+                    .field("motion_count", int(row["motion_count"]))
+                    .field("occupancy_rate", float(row["occupancy_rate"]))
                     .time(datetime.now())
                 )
 
@@ -183,12 +190,14 @@ class MaterializedViewManager:
         """Create materialized view for daily carbon summary"""
 
         if not self.enabled:
-            logger.debug("Materialized views disabled - skipping daily carbon summary view creation")
-            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
+            logger.debug(
+                "Materialized views disabled - skipping daily carbon summary view creation"
+            )
+            return {"status": "disabled", "reason": "InfluxDB 3.0+ required"}
 
         logger.info("Creating daily carbon summary view...")
 
-        query = '''
+        query = """
         SELECT
             DATE_TRUNC('day', time) as day,
             AVG(carbon_intensity_gco2_kwh) as avg_carbon,
@@ -198,9 +207,9 @@ class MaterializedViewManager:
         FROM carbon_intensity
         WHERE time >= NOW() - INTERVAL '90 days'
         GROUP BY DATE_TRUNC('day', time)
-        '''
+        """
 
-        result = await self._run_blocking(self.client.query, query, language='sql', mode='pandas')
+        result = await self._run_blocking(self.client.query, query, language="sql", mode="pandas")
 
         if not result.empty:
             from influxdb_client_3 import Point
@@ -209,11 +218,11 @@ class MaterializedViewManager:
             for _, row in result.iterrows():
                 points.append(
                     Point("mv_daily_carbon_summary")
-                    .field("avg_carbon", float(row['avg_carbon']))
-                    .field("min_carbon", float(row['min_carbon']))
-                    .field("max_carbon", float(row['max_carbon']))
-                    .field("avg_renewable", float(row['avg_renewable']))
-                    .time(row['day'])
+                    .field("avg_carbon", float(row["avg_carbon"]))
+                    .field("min_carbon", float(row["min_carbon"]))
+                    .field("max_carbon", float(row["max_carbon"]))
+                    .field("avg_renewable", float(row["avg_renewable"]))
+                    .time(row["day"])
                 )
 
             await self._run_blocking(self._write_points, points)
@@ -225,7 +234,7 @@ class MaterializedViewManager:
 
         if not self.enabled:
             logger.debug("Materialized views disabled - skipping refresh")
-            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
+            return {"status": "disabled", "reason": "InfluxDB 3.0+ required"}
 
         logger.info("Refreshing all materialized views...")
 
@@ -240,19 +249,15 @@ class MaterializedViewManager:
             logger.info(f"All views refreshed in {duration:.2f}s")
 
             return {
-                'status': 'success',
-                'duration_seconds': duration,
-                'views_refreshed': 3,
-                'timestamp': datetime.now()
+                "status": "success",
+                "duration_seconds": duration,
+                "views_refreshed": 3,
+                "timestamp": datetime.now(),
             }
 
         except Exception as e:
             logger.error(f"Error refreshing views: {e}")
-            return {
-                'status': 'error',
-                'error': str(e),
-                'timestamp': datetime.now()
-            }
+            return {"status": "error", "error": str(e), "timestamp": datetime.now()}
 
     async def query_view(self, view_name: str, filters: dict[str, Any] | None = None) -> list[dict]:
         """Query materialized view (fast)"""
@@ -291,9 +296,9 @@ class MaterializedViewManager:
 
         query += " ORDER BY time DESC LIMIT 1000"
 
-        result = await self._run_blocking(self.client.query, query, language='sql', mode='pandas')
+        result = await self._run_blocking(self.client.query, query, language="sql", mode="pandas")
 
-        return result.to_dict('records') if not result.empty else []
+        return result.to_dict("records") if not result.empty else []
 
     async def benchmark_performance(self):
         """Benchmark query performance improvement"""
@@ -301,7 +306,7 @@ class MaterializedViewManager:
         import time
 
         # Original complex query
-        original_query = '''
+        original_query = """
         SELECT
             entity_id,
             DATE_TRUNC('day', time) as day,
@@ -310,11 +315,11 @@ class MaterializedViewManager:
         WHERE time >= NOW() - INTERVAL '30 days'
         AND energy_consumption > 0
         GROUP BY entity_id, DATE_TRUNC('day', time)
-        '''
+        """
 
         # Time original query
         start = time.time()
-        await self._run_blocking(self.client.query, original_query, language='sql', mode='pandas')
+        await self._run_blocking(self.client.query, original_query, language="sql", mode="pandas")
         original_time = (time.time() - start) * 1000  # ms
 
         # Time materialized view query
@@ -330,8 +335,7 @@ class MaterializedViewManager:
         logger.info(f"  Improvement: {improvement:.1f}x faster")
 
         return {
-            'original_ms': original_time,
-            'view_ms': view_time,
-            'improvement_factor': improvement
+            "original_ms": original_time,
+            "view_ms": view_time,
+            "improvement_factor": improvement,
         }
-

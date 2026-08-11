@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RetentionConfig:
     """Retention configuration for a bucket"""
+
     bucket_name: str
     retention_days: int
     cleanup_enabled: bool = True
@@ -44,18 +45,18 @@ class PatternAggregateRetention:
 
         # Epic AI-5 retention policies
         self.retention_policies = {
-            'pattern_aggregates_daily': RetentionConfig(
-                bucket_name='pattern_aggregates_daily',
+            "pattern_aggregates_daily": RetentionConfig(
+                bucket_name="pattern_aggregates_daily",
                 retention_days=90,
                 cleanup_enabled=True,
-                description='Daily pattern aggregates - 90 day retention'
+                description="Daily pattern aggregates - 90 day retention",
             ),
-            'pattern_aggregates_weekly': RetentionConfig(
-                bucket_name='pattern_aggregates_weekly',
+            "pattern_aggregates_weekly": RetentionConfig(
+                bucket_name="pattern_aggregates_weekly",
                 retention_days=365,
                 cleanup_enabled=True,
-                description='Weekly/monthly pattern aggregates - 365 day retention'
-            )
+                description="Weekly/monthly pattern aggregates - 365 day retention",
+            ),
         }
 
         logger.info("Pattern aggregate retention manager initialized")
@@ -82,14 +83,11 @@ class PatternAggregateRetention:
             try:
                 result = await self._cleanup_bucket(config)
                 results[policy_name] = result
-                if not result.get('success', False):
+                if not result.get("success", False):
                     all_succeeded = False
             except Exception as e:
                 logger.error(f"Error cleaning up {policy_name}: {e}", exc_info=True)
-                results[policy_name] = {
-                    'success': False,
-                    'error': str(e)
-                }
+                results[policy_name] = {"success": False, "error": str(e)}
                 all_succeeded = False
 
         duration = (datetime.now() - start_time).total_seconds()
@@ -97,10 +95,10 @@ class PatternAggregateRetention:
         logger.info(f"Pattern aggregate cleanup completed in {duration:.2f}s")
 
         return {
-            'success': all_succeeded,
-            'duration_seconds': duration,
-            'results': results,
-            'timestamp': datetime.now().isoformat()
+            "success": all_succeeded,
+            "duration_seconds": duration,
+            "results": results,
+            "timestamp": datetime.now().isoformat(),
         }
 
     async def _cleanup_bucket(self, config: RetentionConfig) -> dict[str, Any]:
@@ -113,7 +111,9 @@ class PatternAggregateRetention:
         Returns:
             Dict with cleanup results
         """
-        logger.info(f"Cleaning up bucket: {config.bucket_name} (retention: {config.retention_days} days)")
+        logger.info(
+            f"Cleaning up bucket: {config.bucket_name} (retention: {config.retention_days} days)"
+        )
 
         try:
             cutoff_date = datetime.now() - timedelta(days=config.retention_days)
@@ -127,15 +127,17 @@ class PatternAggregateRetention:
                     config.bucket_name,
                 )
                 return {
-                    'success': False,
-                    'records_deleted': 0,
-                    'cutoff_date': cutoff_date.isoformat(),
-                    'bucket': config.bucket_name,
-                    'error': 'No InfluxDB client configured',
+                    "success": False,
+                    "records_deleted": 0,
+                    "cutoff_date": cutoff_date.isoformat(),
+                    "bucket": config.bucket_name,
+                    "error": "No InfluxDB client configured",
                 }
 
             # Delete data older than cutoff_date using InfluxDB delete API
-            logger.info(f"Deleting data older than {cutoff_date.isoformat()} from {config.bucket_name}")
+            logger.info(
+                f"Deleting data older than {cutoff_date.isoformat()} from {config.bucket_name}"
+            )
 
             # InfluxDBClient has no .delete(); deletes go through delete_api().
             # DeleteApi.delete requires a predicate -- an empty one means "every
@@ -150,29 +152,28 @@ class PatternAggregateRetention:
                 None,
                 partial(
                     self.influxdb_client.delete_api().delete,
-                    start='1970-01-01T00:00:00Z',
+                    start="1970-01-01T00:00:00Z",
                     stop=cutoff_date.isoformat(),
-                    predicate='',
+                    predicate="",
                     bucket=config.bucket_name,
                     org=self.influxdb_org,
                 ),
             )
 
-            logger.info(f"Successfully deleted expired data from {config.bucket_name} before {cutoff_date.isoformat()}")
+            logger.info(
+                f"Successfully deleted expired data from {config.bucket_name} before {cutoff_date.isoformat()}"
+            )
 
             return {
-                'success': True,
-                'records_deleted': None,  # InfluxDB delete API doesn't return record count
-                'cutoff_date': cutoff_date.isoformat(),
-                'bucket': config.bucket_name
+                "success": True,
+                "records_deleted": None,  # InfluxDB delete API doesn't return record count
+                "cutoff_date": cutoff_date.isoformat(),
+                "bucket": config.bucket_name,
             }
 
         except Exception as e:
             logger.error(f"Error cleaning up {config.bucket_name}: {e}", exc_info=True)
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     def get_retention_summary(self) -> dict[str, Any]:
         """
@@ -182,19 +183,18 @@ class PatternAggregateRetention:
             Dict with retention policy summary
         """
         summary = {
-            'policies': {},
-            'total_buckets': len(self.retention_policies),
-            'total_retention_days': sum(
-                config.retention_days
-                for config in self.retention_policies.values()
-            )
+            "policies": {},
+            "total_buckets": len(self.retention_policies),
+            "total_retention_days": sum(
+                config.retention_days for config in self.retention_policies.values()
+            ),
         }
 
         for policy_name, config in self.retention_policies.items():
-            summary['policies'][policy_name] = {
-                'retention_days': config.retention_days,
-                'enabled': config.cleanup_enabled,
-                'description': config.description
+            summary["policies"][policy_name] = {
+                "retention_days": config.retention_days,
+                "enabled": config.cleanup_enabled,
+                "description": config.description,
             }
 
         return summary
@@ -227,9 +227,9 @@ if __name__ == "__main__":
     async def main():
         results = await run_pattern_aggregate_retention()
         logger.info("Pattern Aggregate Retention Results:")
-        logger.info("  Duration: %.2fs", results['duration_seconds'])
-        for bucket, result in results['results'].items():
-            bucket_status = 'OK' if result['success'] else 'FAIL'
+        logger.info("  Duration: %.2fs", results["duration_seconds"])
+        for bucket, result in results["results"].items():
+            bucket_status = "OK" if result["success"] else "FAIL"
             logger.info("  %s: %s", bucket, bucket_status)
 
     asyncio.run(main())

@@ -109,29 +109,40 @@ class DataRetentionService:
         self.scheduler = RetentionScheduler()
 
         # Schedule Epic 2 operations
-        self.scheduler.schedule_daily(2, 0, self.retention_manager.downsample_hot_to_warm, "Hot to Warm Downsampling")
-        self.scheduler.schedule_daily(2, 30, self.retention_manager.downsample_warm_to_cold, "Warm to Cold Downsampling")
+        self.scheduler.schedule_daily(
+            2, 0, self.retention_manager.downsample_hot_to_warm, "Hot to Warm Downsampling"
+        )
+        self.scheduler.schedule_daily(
+            2, 30, self.retention_manager.downsample_warm_to_cold, "Warm to Cold Downsampling"
+        )
         self.scheduler.schedule_daily(3, 0, self.archival_manager.archive_to_s3, "S3 Archival")
         self.scheduler.schedule_daily(4, 0, self.view_manager.refresh_all_views, "Refresh Views")
-        self.scheduler.schedule_daily(5, 0, self.analytics.calculate_storage_metrics, "Calculate Metrics")
+        self.scheduler.schedule_daily(
+            5, 0, self.analytics.calculate_storage_metrics, "Calculate Metrics"
+        )
 
         # Schedule pattern aggregate retention cleanup (Epic AI-5)
         # Note: Tested via test_pattern_aggregate_retention.py; credentials rotated before first production run
         self.influxdb_client = self._build_influxdb_client()
         self.scheduler.schedule_daily(
-            6, 0,
+            6,
+            0,
             lambda: run_pattern_aggregate_retention(
                 self.influxdb_client,
                 influxdb_org=settings.influxdb_org,
             ),
-            "Pattern Aggregate Retention"
+            "Pattern Aggregate Retention",
         )
 
         # Epic 45.3: Schedule short-term statistics aggregation (every 5 minutes)
-        self.scheduler.schedule_periodic(5, self.statistics_aggregator.aggregate_short_term, "Short-Term Statistics Aggregation")
+        self.scheduler.schedule_periodic(
+            5, self.statistics_aggregator.aggregate_short_term, "Short-Term Statistics Aggregation"
+        )
 
         # Epic 45.4: Schedule long-term statistics aggregation (every hour)
-        self.scheduler.schedule_periodic(60, self.statistics_aggregator.aggregate_long_term, "Long-Term Statistics Aggregation")
+        self.scheduler.schedule_periodic(
+            60, self.statistics_aggregator.aggregate_long_term, "Long-Term Statistics Aggregation"
+        )
 
         # Start scheduler in background
         asyncio.create_task(self.scheduler.run_scheduler())

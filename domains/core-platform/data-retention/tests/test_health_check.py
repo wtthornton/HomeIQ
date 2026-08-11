@@ -22,17 +22,17 @@ class TestHealthCheckEndpoints:
             "storage_monitor": True,
             "compression_service": True,
             "backup_service": True,
-            "policy_count": 2
+            "policy_count": 2,
         }
         service.get_storage_metrics.return_value = {
             "usage_bytes": 1000,
             "capacity_bytes": 5000,
-            "usage_percentage": 20.0
+            "usage_percentage": 20.0,
         }
         service.get_storage_alerts.return_value = []
         service.get_service_statistics.return_value = {
             "service_status": {"cleanup_service": True},
-            "policy_statistics": {"total_policies": 2}
+            "policy_statistics": {"total_policies": 2},
         }
         service.get_retention_policies.return_value = [
             {"name": "test_policy", "retention_period": 30}
@@ -40,16 +40,18 @@ class TestHealthCheckEndpoints:
         service.run_cleanup = AsyncMock(return_value=[{"policy": "test", "deleted": 100}])
         # Mirrors DataRetentionService.create_backup, which returns
         # BackupInfo.to_dict() (created_at serialized, success as bool).
-        service.create_backup = AsyncMock(return_value={
-            "backup_id": "test_backup",
-            "backup_type": "full",
-            "created_at": "2024-01-01T00:00:00Z",
-            "size_bytes": 1000,
-            "file_path": "/backups/test_backup.tar.gz",
-            "metadata": {},
-            "success": True,
-            "error_message": None
-        })
+        service.create_backup = AsyncMock(
+            return_value={
+                "backup_id": "test_backup",
+                "backup_type": "full",
+                "created_at": "2024-01-01T00:00:00Z",
+                "size_bytes": 1000,
+                "file_path": "/backups/test_backup.tar.gz",
+                "metadata": {},
+                "success": True,
+                "error_message": None,
+            }
+        )
         service.restore_backup = AsyncMock(return_value=True)
         service.get_backup_history.return_value = [
             {"backup_id": "test_backup", "created_at": "2024-01-01T00:00:00Z"}
@@ -57,7 +59,7 @@ class TestHealthCheckEndpoints:
         service.get_backup_statistics.return_value = {
             "total_backups": 5,
             "total_size_bytes": 5000,
-            "successful_backups": 4
+            "successful_backups": 4,
         }
         service.cleanup_old_backups.return_value = 3
         service.add_retention_policy = Mock()
@@ -152,7 +154,7 @@ class TestHealthCheckEndpoints:
             "description": "New policy",
             "retention_period": 60,
             "retention_unit": "days",
-            "enabled": True
+            "enabled": True,
         }
 
         response = client.post("/policies", json=policy_data)
@@ -171,7 +173,7 @@ class TestHealthCheckEndpoints:
             "description": "Bad policy",
             "retention_period": 60,
             "retention_unit": "days",
-            "enabled": True
+            "enabled": True,
         }
         response = client.post("/policies", json=policy_data)
 
@@ -186,7 +188,7 @@ class TestHealthCheckEndpoints:
             "description": "Updated policy",
             "retention_period": 90,
             "retention_unit": "days",
-            "enabled": False
+            "enabled": False,
         }
 
         response = client.put("/policies", json=policy_data)
@@ -231,7 +233,7 @@ class TestHealthCheckEndpoints:
             "backup_type": "full",
             "include_data": True,
             "include_config": True,
-            "include_logs": False
+            "include_logs": False,
         }
 
         response = client.post("/backup", json=backup_data)
@@ -258,7 +260,7 @@ class TestHealthCheckEndpoints:
             "backup_id": "test_backup",
             "restore_data": True,
             "restore_config": True,
-            "restore_logs": False
+            "restore_logs": False,
         }
 
         response = client.post("/backup/restore", json=restore_data)

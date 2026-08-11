@@ -31,7 +31,10 @@ class StatisticsAggregator:
         self.influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
 
         # PostgreSQL metadata database (for statistics_meta table)
-        self.pg_url = os.getenv("POSTGRES_URL", os.getenv("DATABASE_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq"))
+        self.pg_url = os.getenv(
+            "POSTGRES_URL",
+            os.getenv("DATABASE_URL", "postgresql://homeiq:homeiq@localhost:5432/homeiq"),
+        )
 
         self.client: InfluxDBClient | None = None
         self.query_api = None
@@ -51,9 +54,7 @@ class StatisticsAggregator:
 
         if not self.client:
             self.client = InfluxDBClient(
-                url=self.influxdb_url,
-                token=self.influxdb_token,
-                org=self.influxdb_org
+                url=self.influxdb_url, token=self.influxdb_token, org=self.influxdb_org
             )
             self.query_api = self.client.query_api()
             self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
@@ -70,23 +71,22 @@ class StatisticsAggregator:
         try:
             import psycopg2
 
-            with psycopg2.connect(self.pg_url) as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute("""
+            with psycopg2.connect(self.pg_url) as conn, conn.cursor() as cursor:
+                cursor.execute("""
                         SELECT statistic_id, state_class, has_mean, has_sum, unit_of_measurement
                         FROM statistics_meta
                     """)
-                    columns = [desc[0] for desc in cursor.description]
-                    return [
-                        {
-                            "statistic_id": row[columns.index("statistic_id")],
-                            "state_class": row[columns.index("state_class")],
-                            "has_mean": bool(row[columns.index("has_mean")]),
-                            "has_sum": bool(row[columns.index("has_sum")]),
-                            "unit_of_measurement": row[columns.index("unit_of_measurement")]
-                        }
-                        for row in cursor
-                    ]
+                columns = [desc[0] for desc in cursor.description]
+                return [
+                    {
+                        "statistic_id": row[columns.index("statistic_id")],
+                        "state_class": row[columns.index("state_class")],
+                        "has_mean": bool(row[columns.index("has_mean")]),
+                        "has_sum": bool(row[columns.index("has_sum")]),
+                        "unit_of_measurement": row[columns.index("unit_of_measurement")],
+                    }
+                    for row in cursor
+                ]
         except Exception as e:
             logger.error(f"Error fetching eligible entities from PostgreSQL: {e}")
             return []
@@ -131,15 +131,13 @@ class StatisticsAggregator:
             end_flux = range_end.strftime("%Y-%m-%dT%H:%M:%SZ")
 
             for batch_start in range(0, len(eligible_entities), BATCH_SIZE):
-                batch = eligible_entities[batch_start:batch_start + BATCH_SIZE]
+                batch = eligible_entities[batch_start : batch_start + BATCH_SIZE]
                 entity_ids = [e["statistic_id"] for e in batch]
                 entity_map = {e["statistic_id"]: e for e in batch}
 
                 try:
                     # Build batched entity filter
-                    entity_filter = " or ".join(
-                        f'r.entity_id == "{eid}"' for eid in entity_ids
-                    )
+                    entity_filter = " or ".join(f'r.entity_id == "{eid}"' for eid in entity_ids)
 
                     base_query = f'''
                     from(bucket: "{self.influxdb_bucket}")
@@ -152,7 +150,9 @@ class StatisticsAggregator:
                     '''
 
                     # Execute batched queries for mean, min, max
-                    mean_query = base_query + '|> aggregateWindow(every: 5m, fn: mean, createEmpty: false)'
+                    mean_query = (
+                        base_query + "|> aggregateWindow(every: 5m, fn: mean, createEmpty: false)"
+                    )
                     result = self.query_api.query(mean_query)
 
                     # Process mean results keyed by (entity_id, time)
@@ -167,8 +167,14 @@ class StatisticsAggregator:
 
                     # Query for min and max in batch
                     if mean_values:
-                        min_query = base_query + '|> aggregateWindow(every: 5m, fn: min, createEmpty: false)'
-                        max_query = base_query + '|> aggregateWindow(every: 5m, fn: max, createEmpty: false)'
+                        min_query = (
+                            base_query
+                            + "|> aggregateWindow(every: 5m, fn: min, createEmpty: false)"
+                        )
+                        max_query = (
+                            base_query
+                            + "|> aggregateWindow(every: 5m, fn: max, createEmpty: false)"
+                        )
 
                         min_result = self.query_api.query(min_query)
                         max_result = self.query_api.query(max_query)
@@ -179,7 +185,11 @@ class StatisticsAggregator:
                                 value = record.get_value()
                                 eid = record.values.get("entity_id", "")
                                 key = (eid, time_key)
-                                if key in mean_values and value is not None and isinstance(value, (int, float)):
+                                if (
+                                    key in mean_values
+                                    and value is not None
+                                    and isinstance(value, (int, float))
+                                ):
                                     mean_values[key]["min"] = float(value)
 
                         for table in max_result:
@@ -188,17 +198,23 @@ class StatisticsAggregator:
                                 value = record.get_value()
                                 eid = record.values.get("entity_id", "")
                                 key = (eid, time_key)
-                                if key in mean_values and value is not None and isinstance(value, (int, float)):
+                                if (
+                                    key in mean_values
+                                    and value is not None
+                                    and isinstance(value, (int, float))
+                                ):
                                     mean_values[key]["max"] = float(value)
 
                     # Create aggregated points
                     for (eid, time_key), values in mean_values.items():
                         entity = entity_map.get(eid, {})
-                        point = Point("statistics_short_term") \
-                            .tag("entity_id", eid) \
-                            .tag("state_class", entity.get("state_class", "")) \
-                            .field("mean", values["mean"]) \
+                        point = (
+                            Point("statistics_short_term")
+                            .tag("entity_id", eid)
+                            .tag("state_class", entity.get("state_class", ""))
+                            .field("mean", values["mean"])
                             .time(time_key)
+                        )
 
                         if "min" in values:
                             point = point.field("min", values["min"])
@@ -217,11 +233,11 @@ class StatisticsAggregator:
             # Write aggregated points to InfluxDB
             if aggregated_points:
                 self.write_api.write(
-                    bucket=self.influxdb_bucket,
-                    org=self.influxdb_org,
-                    record=aggregated_points
+                    bucket=self.influxdb_bucket, org=self.influxdb_org, record=aggregated_points
                 )
-                logger.info(f"Wrote {len(aggregated_points)} short-term statistics points for {entities_processed} entities")
+                logger.info(
+                    f"Wrote {len(aggregated_points)} short-term statistics points for {entities_processed} entities"
+                )
 
             # Update tracking
             self.last_short_term_run = range_end
@@ -233,7 +249,7 @@ class StatisticsAggregator:
                 "success": True,
                 "entities_processed": entities_processed,
                 "points_written": len(aggregated_points),
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
         except Exception as e:
@@ -279,15 +295,13 @@ class StatisticsAggregator:
             end_flux = range_end.strftime("%Y-%m-%dT%H:%M:%SZ")
 
             for batch_start in range(0, len(eligible_entities), BATCH_SIZE):
-                batch = eligible_entities[batch_start:batch_start + BATCH_SIZE]
+                batch = eligible_entities[batch_start : batch_start + BATCH_SIZE]
                 entity_ids = [e["statistic_id"] for e in batch]
                 entity_map = {e["statistic_id"]: e for e in batch}
 
                 try:
                     # Build batched entity filter
-                    entity_filter = " or ".join(
-                        f'r.entity_id == "{eid}"' for eid in entity_ids
-                    )
+                    entity_filter = " or ".join(f'r.entity_id == "{eid}"' for eid in entity_ids)
 
                     # Query short-term statistics and aggregate to hourly
                     flux_query = f'''
@@ -314,11 +328,13 @@ class StatisticsAggregator:
 
                             entity = entity_map.get(eid, {})
                             # Create aggregated point
-                            point = Point("statistics") \
-                                .tag("entity_id", eid) \
-                                .tag("state_class", entity.get("state_class", "")) \
-                                .field("mean", float(value)) \
+                            point = (
+                                Point("statistics")
+                                .tag("entity_id", eid)
+                                .tag("state_class", entity.get("state_class", ""))
+                                .field("mean", float(value))
                                 .time(record_time)
+                            )
 
                             aggregated_points.append(point)
 
@@ -332,11 +348,11 @@ class StatisticsAggregator:
             # Write aggregated points to InfluxDB
             if aggregated_points:
                 self.write_api.write(
-                    bucket=self.influxdb_bucket,
-                    org=self.influxdb_org,
-                    record=aggregated_points
+                    bucket=self.influxdb_bucket, org=self.influxdb_org, record=aggregated_points
                 )
-                logger.info(f"Wrote {len(aggregated_points)} long-term statistics points for {entities_processed} entities")
+                logger.info(
+                    f"Wrote {len(aggregated_points)} long-term statistics points for {entities_processed} entities"
+                )
 
             # Update tracking
             self.last_long_term_run = range_end
@@ -348,7 +364,7 @@ class StatisticsAggregator:
                 "success": True,
                 "entities_processed": entities_processed,
                 "points_written": len(aggregated_points),
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
         except Exception as e:
@@ -362,7 +378,10 @@ class StatisticsAggregator:
             "short_term_aggregations": self.short_term_aggregations,
             "long_term_aggregations": self.long_term_aggregations,
             "errors": self.errors,
-            "last_short_term_run": self.last_short_term_run.isoformat() if self.last_short_term_run else None,
-            "last_long_term_run": self.last_long_term_run.isoformat() if self.last_long_term_run else None
+            "last_short_term_run": self.last_short_term_run.isoformat()
+            if self.last_short_term_run
+            else None,
+            "last_long_term_run": self.last_long_term_run.isoformat()
+            if self.last_long_term_run
+            else None,
         }
-

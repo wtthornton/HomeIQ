@@ -30,7 +30,7 @@ class TestBackupInfo:
             created_at=datetime.now(UTC),
             size_bytes=1024,
             file_path="/backups/test_backup.tar.gz",
-            metadata={"test": "data"}
+            metadata={"test": "data"},
         )
 
         assert backup_info.backup_id == "test_backup"
@@ -48,7 +48,7 @@ class TestBackupInfo:
             created_at=now,
             size_bytes=1024,
             file_path="/backups/test_backup.tar.gz",
-            metadata={"test": "data"}
+            metadata={"test": "data"},
         )
 
         result = backup_info.to_dict()
@@ -95,10 +95,7 @@ class TestBackupRestoreService:
     async def test_create_backup_full(self, service):
         """Test creating a full backup."""
         backup_info = await service.create_backup(
-            backup_type="full",
-            include_data=True,
-            include_config=True,
-            include_logs=False
+            backup_type="full", include_data=True, include_config=True, include_logs=False
         )
 
         assert backup_info.backup_id.startswith("full_")
@@ -120,6 +117,7 @@ class TestBackupRestoreService:
         except in create_backup never fired and every archive came back
         success=True -- operators only discovered the gap at restore time.
         """
+
         async def failing_backup_data(_backup_path, metadata):
             metadata["data_error"] = "InfluxDB connection refused"
 
@@ -142,10 +140,7 @@ class TestBackupRestoreService:
     async def test_create_backup_config_only(self, service):
         """Test creating a config-only backup."""
         backup_info = await service.create_backup(
-            backup_type="config",
-            include_data=False,
-            include_config=True,
-            include_logs=False
+            backup_type="config", include_data=False, include_config=True, include_logs=False
         )
 
         assert backup_info.backup_type == "config"
@@ -157,10 +152,7 @@ class TestBackupRestoreService:
     async def test_create_backup_with_logs(self, service):
         """Test creating a backup with logs."""
         backup_info = await service.create_backup(
-            backup_type="full",
-            include_data=True,
-            include_config=True,
-            include_logs=True
+            backup_type="full", include_data=True, include_config=True, include_logs=True
         )
 
         # _backup_logs walks the real /var/log, whose readability varies by
@@ -168,9 +160,7 @@ class TestBackupRestoreService:
         # the service container). Assert the contract -- success is true exactly
         # when no component recorded an error -- rather than a fixed outcome.
         # Hardcoding True here is what hid the swallowed log failure.
-        component_errors = [
-            key for key in COMPONENT_ERROR_KEYS if key in backup_info.metadata
-        ]
+        component_errors = [key for key in COMPONENT_ERROR_KEYS if key in backup_info.metadata]
         assert backup_info.success is (not component_errors)
         assert backup_info.metadata["include_logs"] is True
 
@@ -249,8 +239,8 @@ class TestBackupRestoreService:
             metadata = {}
 
             with (
-                patch('pathlib.Path.exists', return_value=True),
-                patch('shutil.copy2') as mock_copy,
+                patch("pathlib.Path.exists", return_value=True),
+                patch("shutil.copy2") as mock_copy,
             ):
                 await service._backup_config(temp_path, metadata)
 
@@ -274,9 +264,9 @@ class TestBackupRestoreService:
             metadata = {}
 
             with (
-                patch('pathlib.Path.exists', return_value=True),
-                patch('os.walk', side_effect=lambda top: [(str(top), [], ["test.log"])]),
-                patch('shutil.copy2') as mock_copy,
+                patch("pathlib.Path.exists", return_value=True),
+                patch("os.walk", side_effect=lambda top: [(str(top), [], ["test.log"])]),
+                patch("shutil.copy2") as mock_copy,
             ):
                 await service._backup_logs(temp_path, metadata)
 
@@ -318,12 +308,12 @@ class TestBackupRestoreService:
                         "measurement": "home_assistant_event",
                         "field": "temperature",
                         "value": 20.5,
-                        "tags": {"entity_id": "sensor.temp"}
+                        "tags": {"entity_id": "sensor.temp"},
                     }
                 ]
             }
 
-            with open(data_file, 'w') as f:
+            with open(data_file, "w") as f:
                 json.dump(mock_data, f)
 
             # Should not raise exception with mock implementation
@@ -352,12 +342,12 @@ class TestBackupRestoreService:
                         "measurement": "home_assistant_event",
                         "field": "temperature",
                         "value": 20.5,
-                        "tags": {"entity_id": "sensor.temp"}
+                        "tags": {"entity_id": "sensor.temp"},
                     }
                 ]
             }
 
-            with open(data_file, 'w') as f:
+            with open(data_file, "w") as f:
                 json.dump(mock_data, f)
 
             await service._restore_data(temp_path)
@@ -382,7 +372,7 @@ class TestBackupRestoreService:
             config_file = config_dir / "config.yaml"
             config_file.write_text("test: config")
 
-            with patch('shutil.copy2') as mock_copy:
+            with patch("shutil.copy2") as mock_copy:
                 await service._restore_config(temp_path)
                 mock_copy.assert_called_once_with(config_file, Path("/app/config.yaml"))
 
@@ -396,7 +386,7 @@ class TestBackupRestoreService:
             config_dir.mkdir()
             (config_dir / "evil.yaml").write_text("not: allowed")
 
-            with patch('shutil.copy2') as mock_copy:
+            with patch("shutil.copy2") as mock_copy:
                 await service._restore_config(temp_path)
                 mock_copy.assert_not_called()
 
@@ -412,7 +402,7 @@ class TestBackupRestoreService:
             log_file = logs_dir / "test.log"
             log_file.write_text("test log content")
 
-            with patch('shutil.copy2') as mock_copy:
+            with patch("shutil.copy2") as mock_copy:
                 await service._restore_logs(temp_path)
                 mock_copy.assert_called()
 
@@ -456,7 +446,7 @@ class TestBackupRestoreService:
         service.backup_history = [
             BackupInfo("backup1", "full", datetime.now(UTC), 1000, "/path1", {}),
             BackupInfo("backup2", "config", datetime.now(UTC), 500, "/path2", {}),
-            BackupInfo("backup3", "full", datetime.now(UTC), 1500, "/path3", {})
+            BackupInfo("backup3", "full", datetime.now(UTC), 1500, "/path3", {}),
         ]
 
         history = service.get_backup_history(limit=2)
@@ -470,7 +460,7 @@ class TestBackupRestoreService:
         service.backup_history = [
             BackupInfo("backup1", "full", datetime.now(UTC), 1000, "/path1", {}, True),
             BackupInfo("backup2", "config", datetime.now(UTC), 500, "/path2", {}, True),
-            BackupInfo("backup3", "full", datetime.now(UTC), 1500, "/path3", {}, False, "Error")
+            BackupInfo("backup3", "full", datetime.now(UTC), 1500, "/path3", {}, False, "Error"),
         ]
 
         stats = service.get_backup_statistics()
@@ -480,7 +470,7 @@ class TestBackupRestoreService:
         assert stats["failed_backups"] == 1
         assert stats["total_size_bytes"] == 1500
         assert stats["average_size_bytes"] == 750
-        assert stats["success_rate"] == 2/3
+        assert stats["success_rate"] == 2 / 3
         assert stats["last_backup"] is not None
 
     def test_get_backup_statistics_empty(self, service):
@@ -525,7 +515,7 @@ class TestBackupRestoreService:
     @pytest.mark.asyncio
     async def test_backup_error_handling(self, service):
         """Test backup error handling."""
-        with patch('tarfile.open', side_effect=Exception("Test error")):
+        with patch("tarfile.open", side_effect=Exception("Test error")):
             backup_info = await service.create_backup("full")
 
             assert backup_info.success is False
@@ -540,6 +530,6 @@ class TestBackupRestoreService:
         assert backup_info.success
 
         # Mock restore to fail
-        with patch.object(service, '_restore_data', side_effect=Exception("Test error")):
+        with patch.object(service, "_restore_data", side_effect=Exception("Test error")):
             result = await service.restore_backup(backup_info.backup_id)
             assert result is False

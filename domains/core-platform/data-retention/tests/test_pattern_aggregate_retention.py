@@ -36,7 +36,7 @@ class TestRetentionConfig:
             bucket_name="test_bucket",
             retention_days=90,
             cleanup_enabled=True,
-            description="Test retention config"
+            description="Test retention config",
         )
 
         assert config.bucket_name == "test_bucket"
@@ -46,10 +46,7 @@ class TestRetentionConfig:
 
     def test_config_defaults(self):
         """Test retention config defaults."""
-        config = RetentionConfig(
-            bucket_name="test_bucket",
-            retention_days=90
-        )
+        config = RetentionConfig(bucket_name="test_bucket", retention_days=90)
 
         assert config.cleanup_enabled is True
         assert config.description == ""
@@ -124,9 +121,7 @@ class TestPatternAggregateRetention:
     async def test_cleanup_with_real_client(self):
         """Test cleanup with mocked InfluxDB client."""
         mock_client, delete_api = _mock_influx_client()
-        manager = PatternAggregateRetention(
-            influxdb_client=mock_client, influxdb_org="homeiq"
-        )
+        manager = PatternAggregateRetention(influxdb_client=mock_client, influxdb_org="homeiq")
         config = manager.retention_policies["pattern_aggregates_daily"]
 
         result = await manager._cleanup_bucket(config)
@@ -242,7 +237,7 @@ class TestPatternAggregateRetention:
         mock_client, delete_api = _mock_influx_client()
         delete_api.delete.side_effect = [
             None,  # First call succeeds
-            Exception("Weekly bucket error")  # Second call fails
+            Exception("Weekly bucket error"),  # Second call fails
         ]
 
         manager = PatternAggregateRetention(influxdb_client=mock_client)

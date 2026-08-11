@@ -16,11 +16,14 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class CompressionAlgorithm(Enum):
     """Compression algorithm types."""
+
     GZIP = "gzip"
     LZMA = "lzma"
     ZLIB = "zlib"
+
 
 @dataclass
 class CompressionResult:
@@ -51,8 +54,9 @@ class CompressionResult:
             "error_message": self.error_message,
             "compression_timestamp": self.compression_timestamp.isoformat(),
             "space_saved_bytes": self.original_size_bytes - self.compressed_size_bytes,
-            "space_saved_percentage": (1 - self.compression_ratio) * 100
+            "space_saved_percentage": (1 - self.compression_ratio) * 100,
         }
+
 
 class DataCompressionService:
     """Service for compressing and optimizing data storage."""
@@ -65,7 +69,9 @@ class DataCompressionService:
             influxdb_client: InfluxDB client for data operations
         """
         self.influxdb_client = influxdb_client
-        self.compression_history: collections.deque[CompressionResult] = collections.deque(maxlen=1000)
+        self.compression_history: collections.deque[CompressionResult] = collections.deque(
+            maxlen=1000
+        )
         self.is_running = False
         self.compression_task: asyncio.Task | None = None
 
@@ -73,7 +79,7 @@ class DataCompressionService:
         self.compression_algorithms = [
             CompressionAlgorithm.GZIP,
             CompressionAlgorithm.LZMA,
-            CompressionAlgorithm.ZLIB
+            CompressionAlgorithm.ZLIB,
         ]
 
         logger.info("Data compression service initialized")
@@ -101,8 +107,9 @@ class DataCompressionService:
 
         logger.info("Data compression service stopped")
 
-    async def compress_data(self, data: bytes, algorithm: CompressionAlgorithm,
-                           _track_history: bool = True) -> CompressionResult:
+    async def compress_data(
+        self, data: bytes, algorithm: CompressionAlgorithm, _track_history: bool = True
+    ) -> CompressionResult:
         """
         Compress data using specified algorithm.
 
@@ -128,9 +135,7 @@ class DataCompressionService:
                     None, partial(lzma.compress, data, preset=6)
                 )
             elif algorithm == CompressionAlgorithm.ZLIB:
-                compressed_data = await loop.run_in_executor(
-                    None, partial(zlib.compress, data, 6)
-                )
+                compressed_data = await loop.run_in_executor(None, partial(zlib.compress, data, 6))
             else:
                 raise ValueError(f"Unsupported compression algorithm: {algorithm}")
 
@@ -144,15 +149,17 @@ class DataCompressionService:
                 compressed_size_bytes=compressed_size,
                 compression_ratio=compression_ratio,
                 compression_duration=compression_duration,
-                success=True
+                success=True,
             )
 
             if _track_history:
                 self.compression_history.append(result)
 
-            logger.info(f"Data compressed with {algorithm.value}: "
-                       f"{original_size} -> {compressed_size} bytes "
-                       f"({compression_ratio:.2%} ratio)")
+            logger.info(
+                f"Data compressed with {algorithm.value}: "
+                f"{original_size} -> {compressed_size} bytes "
+                f"({compression_ratio:.2%} ratio)"
+            )
 
             return result
 
@@ -165,7 +172,7 @@ class DataCompressionService:
                 compression_ratio=1.0,
                 compression_duration=compression_duration,
                 success=False,
-                error_message=str(e)
+                error_message=str(e),
             )
 
             if _track_history:
@@ -201,7 +208,7 @@ class DataCompressionService:
             compression_ratio=1.0,
             compression_duration=0.0,
             success=False,
-            error_message="No compression algorithm succeeded"
+            error_message="No compression algorithm succeeded",
         )
 
     async def compress_old_data(self, days_old: int = 30) -> list[CompressionResult]:
@@ -269,13 +276,15 @@ class DataCompressionService:
             for table in result:
                 chunk_data = []
                 for record in table.records:
-                    chunk_data.append({
-                        "timestamp": record.get_time().isoformat(),
-                        "measurement": record.get_measurement(),
-                        "field": record.get_field(),
-                        "value": record.get_value(),
-                        "tags": record.values
-                    })
+                    chunk_data.append(
+                        {
+                            "timestamp": record.get_time().isoformat(),
+                            "measurement": record.get_measurement(),
+                            "field": record.get_field(),
+                            "value": record.get_value(),
+                            "tags": record.values,
+                        }
+                    )
 
                 if chunk_data:
                     data_chunks.append(json.dumps(chunk_data).encode())
@@ -325,8 +334,11 @@ class DataCompressionService:
                     logger.info("Starting scheduled compression")
                     results = await self.compress_old_data(days_old=30)
 
-                    total_saved = sum(result.original_size_bytes - result.compressed_size_bytes
-                                    for result in results if result.success)
+                    total_saved = sum(
+                        result.original_size_bytes - result.compressed_size_bytes
+                        for result in results
+                        if result.success
+                    )
                     logger.info(f"Scheduled compression completed: {total_saved} bytes saved")
 
                 except Exception as e:
@@ -364,7 +376,7 @@ class DataCompressionService:
                 "average_compression_ratio": 1.0,
                 "best_compression_ratio": 1.0,
                 "success_rate": 0.0,
-                "last_compression": None
+                "last_compression": None,
             }
 
         successful_results = [result for result in self.compression_history if result.success]
@@ -376,7 +388,7 @@ class DataCompressionService:
                 "average_compression_ratio": 1.0,
                 "best_compression_ratio": 1.0,
                 "success_rate": 0.0,
-                "last_compression": self.compression_history[-1].compression_timestamp.isoformat()
+                "last_compression": self.compression_history[-1].compression_timestamp.isoformat(),
             }
 
         total_bytes_saved = sum(
@@ -393,7 +405,7 @@ class DataCompressionService:
             "average_compression_ratio": sum(compression_ratios) / len(compression_ratios),
             "best_compression_ratio": min(compression_ratios),
             "success_rate": len(successful_results) / len(self.compression_history),
-            "last_compression": self.compression_history[-1].compression_timestamp.isoformat()
+            "last_compression": self.compression_history[-1].compression_timestamp.isoformat(),
         }
 
     def get_algorithm_performance(self) -> dict[str, Any]:
@@ -407,7 +419,8 @@ class DataCompressionService:
 
         for algorithm in self.compression_algorithms:
             algorithm_results = [
-                result for result in self.compression_history
+                result
+                for result in self.compression_history
                 if result.algorithm == algorithm and result.success
             ]
 
@@ -423,7 +436,7 @@ class DataCompressionService:
                     "total_bytes_saved": sum(
                         result.original_size_bytes - result.compressed_size_bytes
                         for result in algorithm_results
-                    )
+                    ),
                 }
             else:
                 algorithm_stats[algorithm.value] = {
@@ -431,7 +444,7 @@ class DataCompressionService:
                     "average_ratio": 1.0,
                     "best_ratio": 1.0,
                     "average_duration": 0.0,
-                    "total_bytes_saved": 0
+                    "total_bytes_saved": 0,
                 }
 
         return algorithm_stats

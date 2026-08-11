@@ -12,6 +12,7 @@ from .retention_policy import RetentionPolicy, RetentionPolicyManager
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class CleanupResult:
     """Result of a data cleanup operation."""
@@ -37,8 +38,9 @@ class CleanupResult:
             "cleanup_duration": self.cleanup_duration,
             "success": self.success,
             "error_message": self.error_message,
-            "cleanup_timestamp": self.cleanup_timestamp.isoformat()
+            "cleanup_timestamp": self.cleanup_timestamp.isoformat(),
         }
+
 
 class DataCleanupService:
     """Service for cleaning up expired data."""
@@ -107,8 +109,10 @@ class DataCleanupService:
                 results.append(result)
                 self.cleanup_history.append(result)
 
-                logger.info(f"Cleanup completed for policy '{policy.name}': "
-                          f"{result.records_deleted} records deleted")
+                logger.info(
+                    f"Cleanup completed for policy '{policy.name}': "
+                    f"{result.records_deleted} records deleted"
+                )
 
             except Exception as e:
                 logger.error(f"Cleanup failed for policy '{policy.name}': {e}")
@@ -118,7 +122,7 @@ class DataCleanupService:
                     records_processed=0,
                     cleanup_duration=0.0,
                     success=False,
-                    error_message=str(e)
+                    error_message=str(e),
                 )
                 results.append(error_result)
                 self.cleanup_history.append(error_result)
@@ -155,7 +159,7 @@ class DataCleanupService:
                 records_deleted=records_deleted,
                 records_processed=records_processed,
                 cleanup_duration=cleanup_duration,
-                success=True
+                success=True,
             )
 
         except Exception as e:
@@ -166,7 +170,7 @@ class DataCleanupService:
                 records_processed=0,
                 cleanup_duration=cleanup_duration,
                 success=False,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def _get_expired_records(self, expiration_date: datetime) -> list[dict[str, Any]]:
@@ -182,7 +186,10 @@ class DataCleanupService:
         if not self.influxdb_client:
             # Mock implementation for testing
             return [
-                {"id": f"record_{i}", "timestamp": (expiration_date - timedelta(days=i)).isoformat()}
+                {
+                    "id": f"record_{i}",
+                    "timestamp": (expiration_date - timedelta(days=i)).isoformat(),
+                }
                 for i in range(1, 11)
             ]
 
@@ -199,12 +206,14 @@ class DataCleanupService:
 
             for table in result:
                 for record in table.records:
-                    records.append({
-                        "id": record.get_field(),
-                        "timestamp": record.get_time().isoformat(),
-                        "measurement": record.get_measurement(),
-                        "tags": record.values
-                    })
+                    records.append(
+                        {
+                            "id": record.get_field(),
+                            "timestamp": record.get_time().isoformat(),
+                            "measurement": record.get_measurement(),
+                            "tags": record.values,
+                        }
+                    )
 
             return records
 
@@ -236,7 +245,7 @@ class DataCleanupService:
                         bucket="home-assistant-events",
                         start=record["timestamp"],
                         stop=record["timestamp"],
-                        predicate=f'_measurement="{record["measurement"]}"'
+                        predicate=f'_measurement="{record["measurement"]}"',
                     )
                     deleted_count += 1
 
@@ -304,7 +313,7 @@ class DataCleanupService:
                 "total_records_processed": 0,
                 "average_cleanup_duration": 0.0,
                 "success_rate": 0.0,
-                "last_cleanup": None
+                "last_cleanup": None,
             }
 
         total_cleanups = len(self.cleanup_history)
@@ -317,9 +326,13 @@ class DataCleanupService:
             "total_cleanups": total_cleanups,
             "total_records_deleted": total_deleted,
             "total_records_processed": total_processed,
-            "average_cleanup_duration": total_duration / total_cleanups if total_cleanups > 0 else 0.0,
+            "average_cleanup_duration": total_duration / total_cleanups
+            if total_cleanups > 0
+            else 0.0,
             "success_rate": successful_cleanups / total_cleanups if total_cleanups > 0 else 0.0,
-            "last_cleanup": self.cleanup_history[-1].cleanup_timestamp.isoformat() if self.cleanup_history else None
+            "last_cleanup": self.cleanup_history[-1].cleanup_timestamp.isoformat()
+            if self.cleanup_history
+            else None,
         }
 
     def get_policy_manager(self) -> RetentionPolicyManager:

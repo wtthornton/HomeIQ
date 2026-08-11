@@ -16,7 +16,7 @@ router = APIRouter(prefix="/cleanup", tags=["cleanup"])
 @router.post("", response_model=CleanupResponse)
 async def run_cleanup(
     request: Request,
-    policy_name: str = Query(None, description="Optional policy name to run cleanup for")
+    policy_name: str = Query(None, description="Optional policy name to run cleanup for"),
 ):
     """
     Run data cleanup operation.
@@ -30,4 +30,3 @@ async def run_cleanup(
     except Exception as e:
         logger.error(f"Cleanup operation failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail={"error": "Internal server error"})
-

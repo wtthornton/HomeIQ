@@ -135,9 +135,7 @@ class TestBlockingCallsOffloaded:
     """query/write must never run on the event-loop thread."""
 
     @pytest.mark.parametrize(("method_name", "row"), _VIEW_CASES)
-    def test_create_view_offloads_query_and_write(
-        self, stub_point_module, method_name, row
-    ):
+    def test_create_view_offloads_query_and_write(self, stub_point_module, method_name, row):
         client, call_threads = _recording_client(_FakeFrame([row]))
         manager = _enabled_manager(client)
 

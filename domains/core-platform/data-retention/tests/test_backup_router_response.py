@@ -2,8 +2,6 @@
 
 from datetime import UTC, datetime
 
-import pytest
-
 from src.api.models import BackupResponse
 from src.backup_restore import BackupInfo
 

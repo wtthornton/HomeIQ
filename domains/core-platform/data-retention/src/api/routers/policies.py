@@ -66,7 +66,9 @@ async def update_policy(request: Request, policy: PolicyUpdateRequest):
 
 
 @router.delete("/{policy_name}", response_model=PolicyResponse)
-async def delete_policy(request: Request, policy_name: str = Path(..., description="Name of the policy to delete")):
+async def delete_policy(
+    request: Request, policy_name: str = Path(..., description="Name of the policy to delete")
+):
     """
     Delete a retention policy.
 
@@ -81,4 +83,3 @@ async def delete_policy(request: Request, policy_name: str = Path(..., descripti
     except Exception as e:
         logger.error(f"Delete policy failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from None
-

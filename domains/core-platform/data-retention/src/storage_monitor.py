@@ -11,6 +11,7 @@ import psutil
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class StorageMetrics:
     """Storage usage metrics."""
@@ -38,10 +39,15 @@ class StorageMetrics:
             "total_size_gb": self.total_size_bytes / (1024**3),
             "used_size_gb": self.used_size_bytes / (1024**3),
             "available_size_gb": self.available_size_bytes / (1024**3),
-            "database_size_gb": self.database_size_bytes / (1024**3) if self.database_size_bytes else None,
+            "database_size_gb": self.database_size_bytes / (1024**3)
+            if self.database_size_bytes
+            else None,
             "log_size_gb": self.log_size_bytes / (1024**3) if self.log_size_bytes else None,
-            "backup_size_gb": self.backup_size_bytes / (1024**3) if self.backup_size_bytes else None
+            "backup_size_gb": self.backup_size_bytes / (1024**3)
+            if self.backup_size_bytes
+            else None,
         }
+
 
 @dataclass
 class StorageAlert:
@@ -64,8 +70,9 @@ class StorageAlert:
             "threshold_percentage": self.threshold_percentage,
             "current_percentage": self.current_percentage,
             "timestamp": self.timestamp.isoformat(),
-            "resolved": self.resolved
+            "resolved": self.resolved,
         }
+
 
 class StorageMonitor:
     """Monitors storage usage and generates alerts."""
@@ -123,7 +130,7 @@ class StorageMonitor:
         """
         try:
             # Get system disk usage
-            disk_usage = psutil.disk_usage('/')
+            disk_usage = psutil.disk_usage("/")
 
             # Get database size if InfluxDB client is available
             database_size = await self._get_database_size()
@@ -142,7 +149,7 @@ class StorageMonitor:
                 usage_percentage=(disk_usage.used / disk_usage.total) * 100,
                 database_size_bytes=database_size,
                 log_size_bytes=log_size,
-                backup_size_bytes=backup_size
+                backup_size_bytes=backup_size,
             )
 
             self.metrics_history.append(metrics)
@@ -197,6 +204,7 @@ class StorageMonitor:
         """
         try:
             import os
+
             log_path = "/var/log"
             if os.path.exists(log_path):
                 total_size = 0
@@ -221,6 +229,7 @@ class StorageMonitor:
         """
         try:
             import os
+
             backup_path = "/backups"
             if os.path.exists(backup_path):
                 total_size = 0
@@ -252,7 +261,7 @@ class StorageMonitor:
                 severity="critical",
                 message=f"Storage usage is critical: {current_percentage:.1f}%",
                 threshold_percentage=self.critical_threshold,
-                current_percentage=current_percentage
+                current_percentage=current_percentage,
             )
 
         # Check for warning threshold
@@ -262,15 +271,21 @@ class StorageMonitor:
                 severity="warning",
                 message=f"Storage usage is high: {current_percentage:.1f}%",
                 threshold_percentage=self.warning_threshold,
-                current_percentage=current_percentage
+                current_percentage=current_percentage,
             )
 
         # Resolve alerts if usage drops below thresholds
         else:
             await self._resolve_alerts()
 
-    async def _create_alert(self, alert_type: str, severity: str, message: str,
-                          threshold_percentage: float, current_percentage: float) -> None:
+    async def _create_alert(
+        self,
+        alert_type: str,
+        severity: str,
+        message: str,
+        threshold_percentage: float,
+        current_percentage: float,
+    ) -> None:
         """
         Create a storage alert.
 
@@ -283,9 +298,12 @@ class StorageMonitor:
         """
         # Check if alert already exists
         existing_alert = next(
-            (alert for alert in self.active_alerts
-             if alert.alert_type == alert_type and not alert.resolved),
-            None
+            (
+                alert
+                for alert in self.active_alerts
+                if alert.alert_type == alert_type and not alert.resolved
+            ),
+            None,
         )
 
         if existing_alert:
@@ -297,7 +315,7 @@ class StorageMonitor:
             message=message,
             threshold_percentage=threshold_percentage,
             current_percentage=current_percentage,
-            timestamp=datetime.now(UTC)
+            timestamp=datetime.now(UTC),
         )
 
         self.active_alerts.append(alert)
@@ -354,10 +372,7 @@ class StorageMonitor:
             List of storage metrics
         """
         cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
-        return [
-            metrics for metrics in self.metrics_history
-            if metrics.timestamp >= cutoff_time
-        ]
+        return [metrics for metrics in self.metrics_history if metrics.timestamp >= cutoff_time]
 
     def get_active_alerts(self) -> list[StorageAlert]:
         """
@@ -382,7 +397,7 @@ class StorageMonitor:
                 "average_usage_percentage": 0.0,
                 "peak_usage_percentage": 0.0,
                 "active_alerts": 0,
-                "last_measurement": None
+                "last_measurement": None,
             }
 
         current_metrics = self.get_current_metrics()
@@ -390,11 +405,15 @@ class StorageMonitor:
 
         return {
             "total_metrics": len(self.metrics_history),
-            "current_usage_percentage": current_metrics.usage_percentage if current_metrics else 0.0,
+            "current_usage_percentage": current_metrics.usage_percentage
+            if current_metrics
+            else 0.0,
             "average_usage_percentage": sum(usage_percentages) / len(usage_percentages),
             "peak_usage_percentage": max(usage_percentages),
             "active_alerts": len(self.get_active_alerts()),
-            "last_measurement": self.metrics_history[-1].timestamp.isoformat() if self.metrics_history else None
+            "last_measurement": self.metrics_history[-1].timestamp.isoformat()
+            if self.metrics_history
+            else None,
         }
 
     def set_alert_thresholds(self, warning_threshold: float, critical_threshold: float) -> None:
@@ -411,4 +430,6 @@ class StorageMonitor:
         self.warning_threshold = warning_threshold
         self.critical_threshold = critical_threshold
 
-        logger.info(f"Alert thresholds updated: warning={warning_threshold}%, critical={critical_threshold}%")
+        logger.info(
+            f"Alert thresholds updated: warning={warning_threshold}%, critical={critical_threshold}%"
+        )
