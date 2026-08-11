@@ -5,19 +5,18 @@ ContainerStatus enum, ContainerInfo dataclass, container operations,
 log retrieval, stats calculation, name lookups, and mock fallback.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 from dataclasses import asdict
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.docker_service import ContainerInfo, ContainerStatus, DockerService
-
 
 # ---------------------------------------------------------------------------
 # ContainerStatus enum
 # ---------------------------------------------------------------------------
 
-class TestContainerStatus:
 
+class TestContainerStatus:
     @pytest.mark.unit
     def test_running_value(self):
         assert ContainerStatus.RUNNING.value == "running"
@@ -52,8 +51,8 @@ class TestContainerStatus:
 # ContainerInfo dataclass
 # ---------------------------------------------------------------------------
 
-class TestContainerInfo:
 
+class TestContainerInfo:
     @pytest.mark.unit
     def test_creation(self):
         info = ContainerInfo(
@@ -73,16 +72,26 @@ class TestContainerInfo:
     @pytest.mark.unit
     def test_default_is_project_container(self):
         info = ContainerInfo(
-            name="c", service_name="s", status=ContainerStatus.STOPPED,
-            image="img", created="ts", ports={}, labels={},
+            name="c",
+            service_name="s",
+            status=ContainerStatus.STOPPED,
+            image="img",
+            created="ts",
+            ports={},
+            labels={},
         )
         assert info.is_project_container is True
 
     @pytest.mark.unit
     def test_override_is_project_container(self):
         info = ContainerInfo(
-            name="c", service_name="s", status=ContainerStatus.STOPPED,
-            image="img", created="ts", ports={}, labels={},
+            name="c",
+            service_name="s",
+            status=ContainerStatus.STOPPED,
+            image="img",
+            created="ts",
+            ports={},
+            labels={},
             is_project_container=False,
         )
         assert info.is_project_container is False
@@ -90,8 +99,13 @@ class TestContainerInfo:
     @pytest.mark.unit
     def test_asdict(self):
         info = ContainerInfo(
-            name="c", service_name="s", status=ContainerStatus.RUNNING,
-            image="img", created="ts", ports={"80/tcp": "80"}, labels={"k": "v"},
+            name="c",
+            service_name="s",
+            status=ContainerStatus.RUNNING,
+            image="img",
+            created="ts",
+            ports={"80/tcp": "80"},
+            labels={"k": "v"},
         )
         d = asdict(info)
         assert d["name"] == "c"
@@ -101,6 +115,7 @@ class TestContainerInfo:
 # ---------------------------------------------------------------------------
 # Helper to build a DockerService with client=None (mock mode)
 # ---------------------------------------------------------------------------
+
 
 def _mock_mode_service() -> DockerService:
     """Create a DockerService that skips Docker init (client=None)."""
@@ -159,8 +174,8 @@ def _make_container(
 # _get_container_name
 # ---------------------------------------------------------------------------
 
-class TestGetContainerName:
 
+class TestGetContainerName:
     def setup_method(self):
         self.svc = _mock_mode_service()
 
@@ -181,14 +196,16 @@ class TestGetContainerName:
 # _get_service_name_from_container
 # ---------------------------------------------------------------------------
 
-class TestGetServiceNameFromContainer:
 
+class TestGetServiceNameFromContainer:
     def setup_method(self):
         self.svc = _mock_mode_service()
 
     @pytest.mark.unit
     def test_known_container(self):
-        assert self.svc._get_service_name_from_container("homeiq-websocket") == "websocket-ingestion"
+        assert (
+            self.svc._get_service_name_from_container("homeiq-websocket") == "websocket-ingestion"
+        )
 
     @pytest.mark.unit
     def test_unknown_container_returns_name(self):
@@ -203,8 +220,8 @@ class TestGetServiceNameFromContainer:
 # _get_container_status
 # ---------------------------------------------------------------------------
 
-class TestGetContainerStatusMapping:
 
+class TestGetContainerStatusMapping:
     def setup_method(self):
         self.svc = _mock_mode_service()
 
@@ -249,8 +266,8 @@ class TestGetContainerStatusMapping:
 # list_containers
 # ---------------------------------------------------------------------------
 
-class TestListContainers:
 
+class TestListContainers:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_mock_mode_returns_containers(self):
@@ -357,8 +374,8 @@ class TestListContainers:
 # start_container
 # ---------------------------------------------------------------------------
 
-class TestStartContainer:
 
+class TestStartContainer:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_mock_mode(self):
@@ -452,8 +469,8 @@ class TestStartContainer:
 # stop_container
 # ---------------------------------------------------------------------------
 
-class TestStopContainer:
 
+class TestStopContainer:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_mock_mode(self):
@@ -546,8 +563,8 @@ class TestStopContainer:
 # restart_container
 # ---------------------------------------------------------------------------
 
-class TestRestartContainer:
 
+class TestRestartContainer:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_mock_mode(self):
@@ -625,8 +642,8 @@ class TestRestartContainer:
 # get_container_logs
 # ---------------------------------------------------------------------------
 
-class TestGetContainerLogs:
 
+class TestGetContainerLogs:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_mock_mode(self):
@@ -695,8 +712,8 @@ class TestGetContainerLogs:
 # get_container_stats
 # ---------------------------------------------------------------------------
 
-class TestGetContainerStats:
 
+class TestGetContainerStats:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_mock_mode(self):
@@ -776,8 +793,8 @@ class TestGetContainerStats:
 # _get_mock_containers (internal)
 # ---------------------------------------------------------------------------
 
-class TestMockContainersFallback:
 
+class TestMockContainersFallback:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_returns_all_mapped_services(self):
@@ -813,8 +830,8 @@ class TestMockContainersFallback:
 # DockerService __init__
 # ---------------------------------------------------------------------------
 
-class TestDockerServiceInit:
 
+class TestDockerServiceInit:
     @pytest.mark.unit
     def test_init_fallback_to_mock_mode(self):
         """When docker.from_env() fails, client should be None."""
@@ -828,8 +845,10 @@ class TestDockerServiceInit:
     @pytest.mark.unit
     def test_init_tcp_success(self):
         """TCP DOCKER_HOST path should connect via DockerClient."""
-        with patch("src.docker_service.docker") as mock_docker, \
-             patch.dict("os.environ", {"DOCKER_HOST": "tcp://localhost:2375"}):
+        with (
+            patch("src.docker_service.docker") as mock_docker,
+            patch.dict("os.environ", {"DOCKER_HOST": "tcp://localhost:2375"}),
+        ):
             mock_client = MagicMock()
             mock_docker.DockerClient.return_value = mock_client
             svc = DockerService()
@@ -838,8 +857,10 @@ class TestDockerServiceInit:
     @pytest.mark.unit
     def test_init_tcp_failure(self):
         """TCP DOCKER_HOST failure should fall back to None."""
-        with patch("src.docker_service.docker") as mock_docker, \
-             patch.dict("os.environ", {"DOCKER_HOST": "tcp://localhost:2375"}):
+        with (
+            patch("src.docker_service.docker") as mock_docker,
+            patch.dict("os.environ", {"DOCKER_HOST": "tcp://localhost:2375"}),
+        ):
             mock_docker.DockerClient.side_effect = Exception("refused")
             svc = DockerService()
         assert svc.client is None

@@ -37,9 +37,7 @@ class TestDatabaseOperations:
         from sqlalchemy import inspect
 
         conn = await test_db.connection()
-        tables = await conn.run_sync(
-            lambda sync_conn: inspect(sync_conn).get_table_names()
-        )
+        tables = await conn.run_sync(lambda sync_conn: inspect(sync_conn).get_table_names())
 
         assert "devices" in tables or "device" in tables
         # Add more table checks as needed
@@ -52,27 +50,27 @@ class TestDatabaseOperations:
             device_id="test_device_1",
             name="Test Device",
             manufacturer="Test Manufacturer",
-            model="Test Model"
+            model="Test Model",
         )
         test_db.add(device)
         await test_db.commit()
         await test_db.refresh(device)
-        
+
         # Read
         result = await test_db.get(Device, device.device_id)
         assert result is not None
         assert result.name == "Test Device"
-        
+
         # Update
         result.name = "Updated Device"
         await test_db.commit()
         await test_db.refresh(result)
         assert result.name == "Updated Device"
-        
+
         # Delete
         await test_db.delete(result)
         await test_db.commit()
-        
+
         # Verify deletion
         deleted = await test_db.get(Device, device.device_id)
         assert deleted is None
@@ -82,23 +80,20 @@ class TestDatabaseOperations:
         """Test foreign key constraints are enforced"""
         # Create device
         device = Device(
-            device_id="test_device_fk",
-            name="Test Device FK",
-            manufacturer="Test",
-            model="Test"
+            device_id="test_device_fk", name="Test Device FK", manufacturer="Test", model="Test"
         )
         test_db.add(device)
         await test_db.commit()
-        
+
         # Try to create entity with invalid device_id (should fail or handle gracefully)
         entity = Entity(
             entity_id="test_entity_fk",
             device_id="nonexistent_device_id",  # Invalid foreign key
             name="Test Entity",
-            domain="sensor"
+            domain="sensor",
         )
         test_db.add(entity)
-        
+
         # Should raise IntegrityError or handle gracefully
         with pytest.raises(Exception):  # Adjust exception type based on actual behavior
             await test_db.commit()
@@ -110,13 +105,13 @@ class TestDatabaseOperations:
             device_id="test_device_rollback",
             name="Test Device Rollback",
             manufacturer="Test",
-            model="Test"
+            model="Test",
         )
         test_db.add(device)
-        
+
         # Rollback before commit
         await test_db.rollback()
-        
+
         # Verify device was not persisted
         result = await test_db.get(Device, "test_device_rollback")
         assert result is None
@@ -128,16 +123,16 @@ class TestDatabaseOperations:
             device_id="test_device_commit",
             name="Test Device Commit",
             manufacturer="Test",
-            model="Test"
+            model="Test",
         )
         test_db.add(device)
         await test_db.commit()
-        
+
         # Verify device was persisted
         result = await test_db.get(Device, "test_device_commit")
         assert result is not None
         assert result.name == "Test Device Commit"
-        
+
         # Cleanup
         await test_db.delete(result)
         await test_db.commit()
@@ -169,15 +164,15 @@ class TestSchemaMigrations:
             device_id="test_migration_device",
             name="Test Migration Device",
             manufacturer="Test",
-            model="Test"
+            model="Test",
         )
         test_db.add(device)
         await test_db.commit()
-        
+
         # Verify data is accessible after migrations
         result = await test_db.get(Device, "test_migration_device")
         assert result is not None
-        
+
         # Cleanup
         await test_db.delete(result)
         await test_db.commit()
@@ -191,25 +186,25 @@ class TestDatabasePerformance:
     async def test_bulk_insert_performance(self, test_db: AsyncSession):
         """Test bulk insert performance"""
         import time
-        
+
         devices = [
             Device(
                 device_id=f"bulk_device_{i}",
                 name=f"Bulk Device {i}",
                 manufacturer="Test",
-                model="Test"
+                model="Test",
             )
             for i in range(100)
         ]
-        
+
         start_time = time.time()
         test_db.add_all(devices)
         await test_db.commit()
         end_time = time.time()
-        
+
         # Should complete in reasonable time (adjust threshold as needed)
         assert (end_time - start_time) < 5.0  # 5 seconds for 100 inserts
-        
+
         # Cleanup
         for device in devices:
             await test_db.delete(device)

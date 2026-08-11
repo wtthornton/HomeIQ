@@ -26,16 +26,19 @@ def _get_shared_influxdb_client():
     global _shared_influxdb_client
     if _shared_influxdb_client is None:
         from influxdb_client import InfluxDBClient
+
         influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
         influxdb_token = os.getenv("INFLUXDB_TOKEN", "homeiq-token")
         influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
-        _shared_influxdb_client = InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
+        _shared_influxdb_client = InfluxDBClient(
+            url=influxdb_url, token=influxdb_token, org=influxdb_org
+        )
     return _shared_influxdb_client
-
 
 
 class EventData(BaseModel):
     """Event data model"""
+
     id: str
     timestamp: datetime
     entity_id: str
@@ -48,6 +51,7 @@ class EventData(BaseModel):
 
 class EventFilter(BaseModel):
     """Event filter model"""
+
     entity_id: str | None = None
     event_type: str | None = None
     start_time: datetime | None = None
@@ -60,12 +64,15 @@ class EventFilter(BaseModel):
     entity_category: str | None = None
     exclude_category: str | None = None
     # Home Type Integration: Event category filtering
-    event_category: str | None = None  # Filter by event category (security, climate, lighting, etc.)
+    event_category: str | None = (
+        None  # Filter by event category (security, climate, lighting, etc.)
+    )
     home_type: str | None = None  # Use home type for category mapping
 
 
 class EventSearch(BaseModel):
     """Event search model"""
+
     query: str
     fields: list[str] = ["entity_id", "event_type", "attributes"]
     limit: int = 100
@@ -78,7 +85,9 @@ class EventsEndpoints:
         """Initialize events endpoints"""
         self.router = APIRouter()
         self.service_urls = {
-            "websocket-ingestion": os.getenv("WEBSOCKET_INGESTION_URL", "http://websocket-ingestion:8001")
+            "websocket-ingestion": os.getenv(
+                "WEBSOCKET_INGESTION_URL", "http://websocket-ingestion:8001"
+            )
         }
 
         self._add_routes()
@@ -92,7 +101,7 @@ class EventsEndpoints:
         @self.router.get("/events/categories", response_model=dict[str, Any])
         async def get_event_categories(
             home_type: str | None = Query(None, description="Home type for category mapping"),
-            hours: int = Query(default=24, ge=1, le=720, description="Hours of history to analyze")
+            hours: int = Query(default=24, ge=1, le=720, description="Hours of history to analyze"),
         ):
             """
             Get event categories with counts.
@@ -107,13 +116,13 @@ class EventsEndpoints:
                 logger.error(f"Error getting event categories: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get event categories"
+                    detail="Failed to get event categories",
                 ) from e
 
         @self.router.get("/events/stats", response_model=dict[str, Any])
         async def get_events_stats(
             period: str = Query("1h", description="Time period for statistics"),
-            service: str | None = Query(None, description="Specific service")
+            service: str | None = Query(None, description="Specific service"),
         ):
             """Get event statistics"""
             try:
@@ -128,7 +137,7 @@ class EventsEndpoints:
                 logger.error(f"Error getting events stats: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get events statistics"
+                    detail="Failed to get events statistics",
                 ) from e
 
         @self.router.post("/events/search", response_model=list[EventData])
@@ -142,18 +151,15 @@ class EventsEndpoints:
                 logger.error(f"Error searching events: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to search events"
+                    detail="Failed to search events",
                 ) from e
 
         @self.router.get("/events/stream", response_model=dict[str, Any])
         async def get_events_stream(
             duration: int = Query(
-                60,
-                description="Stream duration in seconds (max 1 hour)",
-                ge=10,
-                le=3600
+                60, description="Stream duration in seconds (max 1 hour)", ge=10, le=3600
             ),
-            entity_id: str | None = Query(None, description="Filter by entity ID")
+            entity_id: str | None = Query(None, description="Filter by entity ID"),
         ):
             """Get real-time event stream"""
             try:
@@ -164,13 +170,13 @@ class EventsEndpoints:
                 logger.error(f"Error getting events stream: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get events stream"
+                    detail="Failed to get events stream",
                 ) from e
 
         @self.router.get("/events/entities", response_model=list[dict[str, Any]])
         async def get_active_entities(
             limit: int = Query(100, description="Maximum number of entities to return"),
-            service: str | None = Query(None, description="Specific service")
+            service: str | None = Query(None, description="Specific service"),
         ):
             """Get list of active entities"""
             try:
@@ -185,13 +191,13 @@ class EventsEndpoints:
                 logger.error(f"Error getting active entities: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get active entities"
+                    detail="Failed to get active entities",
                 ) from e
 
         @self.router.get("/events/types", response_model=list[dict[str, Any]])
         async def get_event_types(
             limit: int = Query(50, description="Maximum number of event types to return"),
-            service: str | None = Query(None, description="Specific service")
+            service: str | None = Query(None, description="Specific service"),
         ):
             """Get list of event types"""
             try:
@@ -206,15 +212,17 @@ class EventsEndpoints:
                 logger.error(f"Error getting event types: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get event types"
+                    detail="Failed to get event types",
                 ) from e
 
         # Epic 23.1: Automation Trace Endpoint
-        @self.router.get("/events/automation-trace/{context_id}", response_model=list[dict[str, Any]])
+        @self.router.get(
+            "/events/automation-trace/{context_id}", response_model=list[dict[str, Any]]
+        )
         async def trace_automation_chain(
             context_id: str,
             max_depth: int = Query(10, description="Maximum chain depth to traverse"),
-            include_details: bool = Query(True, description="Include event details")
+            include_details: bool = Query(True, description="Include event details"),
         ):
             """
             Trace automation chain by following context.parent_id relationships
@@ -240,7 +248,7 @@ class EventsEndpoints:
                 logger.error(f"Error tracing automation chain: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to trace automation chain: {str(e)}"
+                    detail=f"Failed to trace automation chain: {str(e)}",
                 ) from e
 
         # General /events route - should come after specific routes
@@ -257,11 +265,17 @@ class EventsEndpoints:
             device_id: str | None = Query(None, description="Filter by device ID"),
             area_id: str | None = Query(None, description="Filter by area ID (room)"),
             # Epic 23.4: Entity classification filtering
-            entity_category: str | None = Query(None, description="Filter by entity category (config, diagnostic)"),
-            exclude_category: str | None = Query(None, description="Exclude entity category (config, diagnostic)"),
+            entity_category: str | None = Query(
+                None, description="Filter by entity category (config, diagnostic)"
+            ),
+            exclude_category: str | None = Query(
+                None, description="Exclude entity category (config, diagnostic)"
+            ),
             # Home Type Integration: Event category filtering
-            event_category: str | None = Query(None, description="Filter by event category (security, climate, lighting, etc.)"),
-            home_type: str | None = Query(None, description="Home type for category mapping")
+            event_category: str | None = Query(
+                None, description="Filter by event category (security, climate, lighting, etc.)"
+            ),
+            home_type: str | None = Query(None, description="Home type for category mapping"),
         ):
             """
             Get recent events with optional filtering
@@ -290,7 +304,7 @@ class EventsEndpoints:
                     entity_category=entity_category,
                     exclude_category=exclude_category,
                     event_category=event_category,
-                    home_type=home_type
+                    home_type=home_type,
                 )
 
                 if service and service in self.service_urls:
@@ -306,7 +320,7 @@ class EventsEndpoints:
                 logger.error(f"Error getting recent events: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get recent events"
+                    detail="Failed to get recent events",
                 ) from e
 
         # Parameterized route MUST be last to avoid matching specific routes
@@ -317,8 +331,7 @@ class EventsEndpoints:
                 event = await self._get_event_by_id(event_id)
                 if not event:
                     raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Event {event_id} not found"
+                        status_code=status.HTTP_404_NOT_FOUND, detail=f"Event {event_id} not found"
                     )
 
                 return event
@@ -328,11 +341,12 @@ class EventsEndpoints:
             except Exception as e:
                 logger.error(f"Error getting event {event_id}: {e}")
                 raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get event"
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get event"
                 ) from e
 
-    async def _get_all_events(self, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
+    async def _get_all_events(
+        self, event_filter: EventFilter, limit: int, offset: int
+    ) -> list[EventData]:
         """Get events from InfluxDB directly"""
         try:
             logger.info(f"_get_all_events called: limit={limit}, offset={offset}")
@@ -345,19 +359,18 @@ class EventsEndpoints:
             # Return proper error instead of mock data
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"InfluxDB service unavailable: {str(e)}"
+                detail=f"InfluxDB service unavailable: {str(e)}",
             ) from e
 
-    async def _get_service_events(self, service: str, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
+    async def _get_service_events(
+        self, service: str, event_filter: EventFilter, limit: int, offset: int
+    ) -> list[EventData]:
         """Get events from a specific service"""
         service_url = self.service_urls[service]
 
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
-                params = {
-                    "limit": limit,
-                    "offset": offset
-                }
+                params = {"limit": limit, "offset": offset}
 
                 if event_filter.entity_id:
                     params["entity_id"] = event_filter.entity_id
@@ -388,7 +401,9 @@ class EventsEndpoints:
         # Fallback: query downstream services (legacy compatibility)
         for service_name, service_url in self.service_urls.items():
             try:
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
+                async with aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as session:  # noqa: SIM117
                     async with session.get(f"{service_url}/events/{event_id}") as response:
                         if response.status == 200:
                             data = await response.json()
@@ -432,7 +447,7 @@ class EventsEndpoints:
                 event_ts = datetime.fromtimestamp(float(ts_part), tz=UTC)
                 timestamp_window = (
                     event_ts - timedelta(seconds=5),
-                    event_ts + timedelta(seconds=5)
+                    event_ts + timedelta(seconds=5),
                 )
                 entity_id = entity_part.replace("_", ".")
             except Exception as parse_err:
@@ -449,10 +464,14 @@ class EventsEndpoints:
                 # First, try to find the event by context_id field value to get timestamp
                 context_value = sanitize_flux_value(context_id)
                 if not context_value:
-                    logger.warning(f"Context ID {event_id} was sanitized to empty string - cannot query")
+                    logger.warning(
+                        f"Context ID {event_id} was sanitized to empty string - cannot query"
+                    )
                     return None
 
-                logger.info(f"Looking up event by context_id: {event_id} (sanitized: {context_value})")
+                logger.info(
+                    f"Looking up event by context_id: {event_id} (sanitized: {context_value})"
+                )
 
                 # Query 1: Find the event by context_id to get timestamp and entity_id
                 context_query = f'''
@@ -477,15 +496,19 @@ from(bucket: "{influxdb_bucket}")
                         break
 
                 if not event_time:
-                    logger.warning(f"Event with context_id {event_id} not found in InfluxDB (checked last 30 days)")
+                    logger.warning(
+                        f"Event with context_id {event_id} not found in InfluxDB (checked last 30 days)"
+                    )
                     return None
 
-                logger.info(f"Found event with context_id {event_id} at time {event_time}, entity {event_entity}")
+                logger.info(
+                    f"Found event with context_id {event_id} at time {event_time}, entity {event_entity}"
+                )
 
                 # Create timestamp window for detail query
                 timestamp_window = (
                     event_time - timedelta(seconds=5),
-                    event_time + timedelta(seconds=5)
+                    event_time + timedelta(seconds=5),
                 )
                 entity_id = event_entity
 
@@ -500,7 +523,9 @@ from(bucket: "{influxdb_bucket}")
             if entity_id:
                 entity_id_safe = sanitize_flux_value(entity_id)
                 if entity_id_safe:
-                    filter_entity_clause = f'  |> filter(fn: (r) => r["entity_id"] == "{entity_id_safe}")\n'
+                    filter_entity_clause = (
+                        f'  |> filter(fn: (r) => r["entity_id"] == "{entity_id_safe}")\n'
+                    )
 
             # Query 2: Get full event details with pivot
             detail_query = f'''
@@ -521,7 +546,9 @@ from(bucket: "{influxdb_bucket}")
                         logger.info(f"Successfully retrieved event details for {event_id}")
                         return event_payload
 
-            logger.warning(f"Event detail query found no records for {event_id} in time window {start_iso} to {stop_iso}")
+            logger.warning(
+                f"Event detail query found no records for {event_id} in time window {start_iso} to {stop_iso}"
+            )
             return None
         except Exception as e:
             logger.error(f"Error fetching event {event_id} from InfluxDB: {e}", exc_info=True)
@@ -573,8 +600,8 @@ from(bucket: "{influxdb_bucket}")
                 tags={
                     "domain": values.get("domain") or "unknown",
                     "device_class": values.get("device_class") or "unknown",
-                    "service": "home-assistant"
-                }
+                    "service": "home-assistant",
+                },
             )
             return event
         except Exception as e:
@@ -587,8 +614,12 @@ from(bucket: "{influxdb_bucket}")
 
         for service_name, service_url in self.service_urls.items():
             try:
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
-                    async with session.post(f"{service_url}/events/search", json=search.model_dump()) as response:
+                async with aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as session:  # noqa: SIM117
+                    async with session.post(
+                        f"{service_url}/events/search", json=search.model_dump()
+                    ) as response:
                         if response.status == 200:
                             data = await response.json()
                             events = [EventData(**event) for event in data]
@@ -603,7 +634,7 @@ from(bucket: "{influxdb_bucket}")
         # Sort by timestamp (newest first)
         all_events.sort(key=lambda x: x.timestamp, reverse=True)
 
-        return all_events[:search.limit]
+        return all_events[: search.limit]
 
     async def _get_all_events_stats(self, period: str) -> dict[str, Any]:
         """Get event statistics for all services"""
@@ -612,7 +643,7 @@ from(bucket: "{influxdb_bucket}")
             "events_per_minute": 0,
             "unique_entities": 0,
             "event_types": {},
-            "services": {}
+            "services": {},
         }
 
         for service_name, _service_url in self.service_urls.items():
@@ -625,7 +656,9 @@ from(bucket: "{influxdb_bucket}")
 
                 # Merge event types
                 for event_type, count in stats.get("event_types", {}).items():
-                    all_stats["event_types"][event_type] = all_stats["event_types"].get(event_type, 0) + count
+                    all_stats["event_types"][event_type] = (
+                        all_stats["event_types"].get(event_type, 0) + count
+                    )
             except Exception as e:
                 logger.warning(f"Failed to get stats from {service_name}: {e}")
                 all_stats["services"][service_name] = {"error": str(e)}
@@ -665,11 +698,16 @@ from(bucket: "{influxdb_bucket}")
         unique_entities = {}
         for entity in all_entities:
             entity_id = entity["entity_id"]
-            if entity_id not in unique_entities or entity["last_activity"] > unique_entities[entity_id]["last_activity"]:
+            if (
+                entity_id not in unique_entities
+                or entity["last_activity"] > unique_entities[entity_id]["last_activity"]
+            ):
                 unique_entities[entity_id] = entity
 
         # Sort by last activity (most recent first)
-        sorted_entities = sorted(unique_entities.values(), key=lambda x: x["last_activity"], reverse=True)
+        sorted_entities = sorted(
+            unique_entities.values(), key=lambda x: x["last_activity"], reverse=True
+        )
 
         return sorted_entities[:limit]
 
@@ -702,7 +740,7 @@ from(bucket: "{influxdb_bucket}")
                         all_event_types[event_type_name] = {
                             "event_type": event_type_name,
                             "count": 0,
-                            "services": []
+                            "services": [],
                         }
                     all_event_types[event_type_name]["count"] += event_type["count"]
                     all_event_types[event_type_name]["services"].append(service_name)
@@ -710,7 +748,9 @@ from(bucket: "{influxdb_bucket}")
                 logger.warning(f"Failed to get event types from {service_name}: {e}")
 
         # Sort by count (most frequent first)
-        sorted_event_types = sorted(all_event_types.values(), key=lambda x: x["count"], reverse=True)
+        sorted_event_types = sorted(
+            all_event_types.values(), key=lambda x: x["count"], reverse=True
+        )
 
         return sorted_event_types[:limit]
 
@@ -737,7 +777,7 @@ from(bucket: "{influxdb_bucket}")
             "entity_id": entity_id,
             "events": [],
             "start_time": datetime.now().isoformat(),
-            "end_time": None
+            "end_time": None,
         }
 
         # This would typically involve WebSocket connections or Server-Sent Events
@@ -745,11 +785,7 @@ from(bucket: "{influxdb_bucket}")
         end_time = datetime.now()
         start_time = end_time - timedelta(seconds=duration)
 
-        event_filter = EventFilter(
-            entity_id=entity_id,
-            start_time=start_time,
-            end_time=end_time
-        )
+        event_filter = EventFilter(entity_id=entity_id, start_time=start_time, end_time=end_time)
 
         events = await self._get_all_events(event_filter, limit=1000, offset=0)
         stream_data["events"] = [event.dict() for event in events]
@@ -801,7 +837,7 @@ from(bucket: "{influxdb_bucket}")
             distribution = {
                 category: {
                     "count": count,
-                    "percentage": round((count / total * 100) if total > 0 else 0, 2)
+                    "percentage": round((count / total * 100) if total > 0 else 0, 2),
                 }
                 for category, count in categories.items()
             }
@@ -811,7 +847,7 @@ from(bucket: "{influxdb_bucket}")
                 "period_hours": hours,
                 "total_events": total,
                 "categories": distribution,
-                "category_count": len(categories)
+                "category_count": len(categories),
             }
 
         except Exception as e:
@@ -823,7 +859,7 @@ from(bucket: "{influxdb_bucket}")
                 "total_events": 0,
                 "categories": {},
                 "category_count": 0,
-                "error": str(e)
+                "error": str(e),
             }
 
     def _format_flux_time(self, value: datetime) -> str:
@@ -879,7 +915,9 @@ from(bucket: "{influxdb_bucket}")
             # Beyond 30 days: Use long-term statistics
             return ("statistics", "mean")
 
-    async def _get_events_from_influxdb(self, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
+    async def _get_events_from_influxdb(
+        self, event_filter: EventFilter, limit: int, offset: int
+    ) -> list[EventData]:
         """
         Retrieve and transform events from InfluxDB using Flux query language.
 
@@ -1016,13 +1054,13 @@ from(bucket: "{influxdb_bucket}")
                 query += f'  |> filter(fn: (r) => r.event_category == "{category_safe}")\n'
 
             # Group all tag-based series together, then get distinct records
-            query += '  |> group()\n'
+            query += "  |> group()\n"
             query += '  |> sort(columns: ["_time"], desc: true)\n'
 
             # MED-06: Apply offset BEFORE limit so pagination works correctly
             if offset > 0:
-                query += f'  |> offset(n: {offset})\n'
-            query += f'  |> limit(n: {limit})\n'
+                query += f"  |> offset(n: {offset})\n"
+            query += f"  |> limit(n: {limit})\n"
 
             # Log the query for debugging
             logger.debug(f"Executing Flux query:\n{query}")
@@ -1073,12 +1111,14 @@ from(bucket: "{influxdb_bucket}")
                         attributes={},  # Not available (would need second query or pivot)
                         tags={
                             "domain": record.values.get("domain") or "unknown",
-                            "device_class": record.values.get("device_class") or "unknown"
-                        }
+                            "device_class": record.values.get("device_class") or "unknown",
+                        },
                     )
                     events.append(event)
 
-            logger.info(f"InfluxDB Query Stats: {table_count} tables, {record_count} records, {len(events)} unique events (before final dedup)")
+            logger.info(
+                f"InfluxDB Query Stats: {table_count} tables, {record_count} records, {len(events)} unique events (before final dedup)"
+            )
 
             # PRAGMATIC FIX: Python-level deduplication as final safety net
             # Even with field filtering, InfluxDB may return duplicates due to series grouping
@@ -1099,7 +1139,9 @@ from(bucket: "{influxdb_bucket}")
             logger.error(f"Error querying InfluxDB: {e}")
             return []
 
-    async def _trace_automation_chain(self, context_id: str, max_depth: int, include_details: bool) -> list[dict[str, Any]]:
+    async def _trace_automation_chain(
+        self, context_id: str, max_depth: int, include_details: bool
+    ) -> list[dict[str, Any]]:
         """
         Trace automation chain by following context.parent_id relationships
 
@@ -1128,7 +1170,9 @@ from(bucket: "{influxdb_bucket}")
             while current_context and depth < max_depth:
                 # Avoid circular references
                 if current_context in visited_contexts:
-                    logger.warning(f"Circular reference detected in automation chain: {current_context}")
+                    logger.warning(
+                        f"Circular reference detected in automation chain: {current_context}"
+                    )
                     break
 
                 visited_contexts.add(current_context)
@@ -1136,7 +1180,9 @@ from(bucket: "{influxdb_bucket}")
                 # Query for events with this context_parent_id (children)
                 current_context_safe = sanitize_flux_value(current_context)
                 if not current_context_safe:
-                    logger.warning("Invalid context_id supplied for automation trace; aborting traversal")
+                    logger.warning(
+                        "Invalid context_id supplied for automation trace; aborting traversal"
+                    )
                     break
 
                 query = f'''
@@ -1160,9 +1206,13 @@ from(bucket: "{influxdb_bucket}")
 
                         if include_details:
                             # Query full event details
-                            event_context_safe = sanitize_flux_value(event_context_id) if event_context_id else ""
+                            event_context_safe = (
+                                sanitize_flux_value(event_context_id) if event_context_id else ""
+                            )
                             if not event_context_safe:
-                                logger.warning("Skipping automation trace detail due to invalid context_id")
+                                logger.warning(
+                                    "Skipping automation trace detail due to invalid context_id"
+                                )
                                 continue
                             event_detail_query = f'''
                             from(bucket: "{influxdb_bucket}")
@@ -1181,10 +1231,14 @@ from(bucket: "{influxdb_bucket}")
                                         "context_id": event_context_id,
                                         "context_parent_id": current_context,
                                         "timestamp": detail_record.get_time().isoformat(),
-                                        "entity_id": detail_record.values.get("entity_id", "unknown"),
-                                        "event_type": detail_record.values.get("event_type", "unknown"),
+                                        "entity_id": detail_record.values.get(
+                                            "entity_id", "unknown"
+                                        ),
+                                        "event_type": detail_record.values.get(
+                                            "event_type", "unknown"
+                                        ),
                                         "state": detail_record.values.get("state"),
-                                        "old_state": detail_record.values.get("old_state")
+                                        "old_state": detail_record.values.get("old_state"),
                                     }
                                     found_events.append(event_info)
                         else:
@@ -1193,7 +1247,7 @@ from(bucket: "{influxdb_bucket}")
                                 "depth": depth,
                                 "context_id": event_context_id,
                                 "context_parent_id": current_context,
-                                "timestamp": record.get_time().isoformat()
+                                "timestamp": record.get_time().isoformat(),
                             }
                             found_events.append(event_info)
 
@@ -1207,12 +1261,14 @@ from(bucket: "{influxdb_bucket}")
                 current_context = next_context
                 depth += 1
 
-            logger.info(f"Traced automation chain for {context_id}: {len(chain)} events, {depth} levels deep")
+            logger.info(
+                f"Traced automation chain for {context_id}: {len(chain)} events, {depth} levels deep"
+            )
             return chain
 
         except Exception as e:
             logger.error(f"Error tracing automation chain: {e}")
             import traceback
+
             logger.error(traceback.format_exc())
             return []
-

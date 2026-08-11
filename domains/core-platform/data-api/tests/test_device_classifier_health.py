@@ -24,7 +24,7 @@ DeviceHealthService:
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
@@ -74,7 +74,9 @@ class TestClassifyDeviceFromDomains:
         from src.services.device_classifier import DeviceClassifierService
 
         svc = DeviceClassifierService()
-        with patch("src.services.device_classifier.match_device_pattern", side_effect=Exception("fail")):
+        with patch(
+            "src.services.device_classifier.match_device_pattern", side_effect=Exception("fail")
+        ):
             result = await svc.classify_device_from_domains("dev-001", ["light"])
         assert result["device_type"] is None
 
@@ -84,6 +86,7 @@ class TestClassifyDeviceByMetadata:
 
     def _classify(self, name, manufacturer=None, model=None):
         from src.services.device_classifier import DeviceClassifierService
+
         svc = DeviceClassifierService()
         return svc.classify_device_by_metadata("dev-001", name, manufacturer, model)
 
@@ -171,12 +174,14 @@ class TestSingletonGetters:
 
     def test_get_classifier_service(self):
         from src.services.device_classifier import get_classifier_service
+
         svc1 = get_classifier_service()
         svc2 = get_classifier_service()
         assert svc1 is svc2
 
     def test_get_health_service(self):
         from src.services.device_health import get_health_service
+
         svc1 = get_health_service()
         svc2 = get_health_service()
         assert svc1 is svc2

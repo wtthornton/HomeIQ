@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 class AgentSummary(BaseModel):
     """Summary for one agent in the agents list."""
+
     agent_name: str
     last_run: str | None = None
     sessions_evaluated: int = 0
@@ -134,6 +135,7 @@ def _get_scheduler():
     global _scheduler
     if _scheduler is None:
         from homeiq_patterns.evaluation import EvaluationRegistry, EvaluationScheduler
+
         registry = EvaluationRegistry()
         _scheduler = EvaluationScheduler(registry=registry)
     return _scheduler
@@ -144,6 +146,7 @@ def _get_alert_engine():
     global _alert_engine
     if _alert_engine is None:
         from homeiq_patterns.evaluation import AlertEngine
+
         _alert_engine = AlertEngine()
     return _alert_engine
 
@@ -165,14 +168,16 @@ async def list_agents():
     for agent_name in scheduler.registered_agents:
         report = await store.get_latest_report(agent_name)
         if report:
-            agents.append(AgentSummary(
-                agent_name=agent_name,
-                last_run=report.get("run_timestamp"),
-                sessions_evaluated=report.get("sessions_evaluated", 0),
-                total_evaluations=report.get("total_evaluations", 0),
-                alerts_triggered=report.get("alerts_triggered", 0),
-                aggregate_scores=report.get("summary", {}),
-            ))
+            agents.append(
+                AgentSummary(
+                    agent_name=agent_name,
+                    last_run=report.get("run_timestamp"),
+                    sessions_evaluated=report.get("sessions_evaluated", 0),
+                    total_evaluations=report.get("total_evaluations", 0),
+                    alerts_triggered=report.get("alerts_triggered", 0),
+                    aggregate_scores=report.get("summary", {}),
+                )
+            )
         else:
             agents.append(AgentSummary(agent_name=agent_name))
 
@@ -318,6 +323,7 @@ async def trigger_evaluation(agent_name: str):
     engine = _get_alert_engine()
     try:
         from homeiq_patterns.evaluation import ConfigLoader
+
         config = ConfigLoader.from_yaml(
             f"shared/patterns/evaluation/configs/{agent_name.replace('-', '_')}.yaml"
         )
@@ -336,6 +342,7 @@ async def trigger_evaluation(agent_name: str):
 
 class SubmitResultsRequest(BaseModel):
     """Request body for direct evaluation result submission."""
+
     session_id: str = ""
     timestamp: str = ""
     results: list[dict[str, Any]] = Field(default_factory=list)

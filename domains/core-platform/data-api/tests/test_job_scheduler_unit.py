@@ -3,11 +3,10 @@
 Tests scheduler lifecycle, job registration, and error handling.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.jobs.scheduler import (
-    CONSOLIDATION_INTERVAL_HOURS,
     CONSOLIDATION_JOB_ID,
     JobScheduler,
     get_job_scheduler,
@@ -15,7 +14,6 @@ from src.jobs.scheduler import (
 
 
 class TestJobSchedulerStart:
-
     def _make_scheduler(self):
         mock_influxdb = MagicMock()
         return JobScheduler(mock_influxdb)
@@ -40,10 +38,12 @@ class TestJobSchedulerStart:
         mock_job.id = CONSOLIDATION_JOB_ID
         mock_async_sched.get_jobs.return_value = [mock_job]
 
-        with patch("src.jobs.scheduler.APSCHEDULER_AVAILABLE", True), \
-             patch("src.jobs.scheduler.AsyncIOScheduler", return_value=mock_async_sched), \
-             patch("src.jobs.scheduler.IntervalTrigger"), \
-             patch("src.jobs.scheduler.MemoryConsolidationJob", create=True):
+        with (
+            patch("src.jobs.scheduler.APSCHEDULER_AVAILABLE", True),
+            patch("src.jobs.scheduler.AsyncIOScheduler", return_value=mock_async_sched),
+            patch("src.jobs.scheduler.IntervalTrigger"),
+            patch("src.jobs.scheduler.MemoryConsolidationJob", create=True),
+        ):
             result = await sched.start()
             assert result is True
             assert sched._running is True
@@ -52,15 +52,16 @@ class TestJobSchedulerStart:
     @pytest.mark.asyncio
     async def test_start_exception_returns_false(self):
         sched = self._make_scheduler()
-        with patch("src.jobs.scheduler.APSCHEDULER_AVAILABLE", True), \
-             patch("src.jobs.scheduler.AsyncIOScheduler", side_effect=Exception("init fail")):
+        with (
+            patch("src.jobs.scheduler.APSCHEDULER_AVAILABLE", True),
+            patch("src.jobs.scheduler.AsyncIOScheduler", side_effect=Exception("init fail")),
+        ):
             result = await sched.start()
             assert result is False
             assert sched._running is False
 
 
 class TestJobSchedulerStop:
-
     @pytest.mark.asyncio
     async def test_stop_when_not_running(self):
         sched = JobScheduler(MagicMock())
@@ -91,7 +92,6 @@ class TestJobSchedulerStop:
 
 
 class TestRunConsolidation:
-
     @pytest.mark.asyncio
     async def test_no_job_does_nothing(self):
         sched = JobScheduler(MagicMock())
@@ -115,7 +115,6 @@ class TestRunConsolidation:
 
 
 class TestTriggerConsolidation:
-
     @pytest.mark.asyncio
     async def test_creates_job_if_needed(self):
         sched = JobScheduler(MagicMock())
@@ -139,7 +138,6 @@ class TestTriggerConsolidation:
 
 
 class TestGetStatus:
-
     def test_status_not_running(self):
         sched = JobScheduler(MagicMock())
         status = sched.get_status()
@@ -173,9 +171,9 @@ class TestGetStatus:
 
 
 class TestSingleton:
-
     def test_returns_same_instance(self):
         import src.jobs.scheduler as mod
+
         mod._scheduler_instance = None
         mock_influxdb = MagicMock()
         s1 = get_job_scheduler(mock_influxdb)

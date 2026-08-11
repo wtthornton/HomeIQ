@@ -44,7 +44,11 @@ class Automation(Base):
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
 
     # Relationship
     executions = relationship(
@@ -84,5 +88,9 @@ class AutomationExecution(Base):
 
 
 # Composite indexes for common queries
-Index("idx_execution_automation_started", AutomationExecution.automation_id, AutomationExecution.started_at.desc())
+Index(
+    "idx_execution_automation_started",
+    AutomationExecution.automation_id,
+    AutomationExecution.started_at.desc(),
+)
 Index("idx_execution_result", AutomationExecution.execution_result)

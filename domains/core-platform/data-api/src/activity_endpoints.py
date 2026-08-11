@@ -73,7 +73,7 @@ async def _query_activity_from_influxdb(
     bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
 
     if hours:
-        range_clause = f'|> range(start: -{hours}h)'
+        range_clause = f"|> range(start: -{hours}h)"
     else:
         range_clause = "|> range(start: -24h)"
 

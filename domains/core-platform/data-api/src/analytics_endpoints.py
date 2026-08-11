@@ -26,14 +26,17 @@ logger = logging.getLogger(__name__)
 # Response Models
 # ---------------------------------------------------------------------------
 
+
 class TimeSeriesPoint(BaseModel):
     """Time series data point"""
+
     timestamp: str
     value: float
 
 
 class MetricData(BaseModel):
     """Metric data with statistics"""
+
     current: float
     peak: float
     average: float
@@ -44,6 +47,7 @@ class MetricData(BaseModel):
 
 class AnalyticsSummary(BaseModel):
     """Analytics summary statistics"""
+
     totalEvents: int
     successRate: float
     avgLatency: float
@@ -52,6 +56,7 @@ class AnalyticsSummary(BaseModel):
 
 class AnalyticsResponse(BaseModel):
     """Analytics response model"""
+
     eventsPerMinute: MetricData
     apiResponseTime: MetricData
     databaseLatency: MetricData
@@ -72,16 +77,17 @@ router = APIRouter(tags=["Analytics"])
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def calculate_trend(data: list[float], window: int = 5) -> str:
     """Calculate trend from time series data."""
     if len(data) < window:
-        return 'stable'
+        return "stable"
 
     recent = data[-window:]
-    older = data[-window * 2:-window] if len(data) >= window * 2 else data[:-window]
+    older = data[-window * 2 : -window] if len(data) >= window * 2 else data[:-window]
 
     if not older:
-        return 'stable'
+        return "stable"
 
     recent_avg = sum(recent) / len(recent)
     older_avg = sum(older) / len(older)
@@ -89,37 +95,37 @@ def calculate_trend(data: list[float], window: int = 5) -> str:
     threshold = abs(older_avg) * 0.1 if older_avg != 0 else 0.1
 
     if recent_avg > older_avg + threshold:
-        return 'up'
+        return "up"
     elif recent_avg < older_avg - threshold:
-        return 'down'
-    return 'stable'
+        return "down"
+    return "stable"
 
 
 def get_time_range_params(time_range: str) -> tuple:
     """Return (start_time_iso, interval_str, num_points) for *time_range*."""
     now = datetime.now(UTC)
 
-    if time_range == '1h':
+    if time_range == "1h":
         start = now - timedelta(hours=1)
-        return (start.strftime('%Y-%m-%dT%H:%M:%SZ'), '1m', 60)
-    if time_range == '6h':
+        return (start.strftime("%Y-%m-%dT%H:%M:%SZ"), "1m", 60)
+    if time_range == "6h":
         start = now - timedelta(hours=6)
-        return (start.strftime('%Y-%m-%dT%H:%M:%SZ'), '5m', 72)
-    if time_range == '24h':
+        return (start.strftime("%Y-%m-%dT%H:%M:%SZ"), "5m", 72)
+    if time_range == "24h":
         start = now - timedelta(hours=24)
-        return (start.strftime('%Y-%m-%dT%H:%M:%SZ'), '15m', 96)
-    if time_range == '7d':
+        return (start.strftime("%Y-%m-%dT%H:%M:%SZ"), "15m", 96)
+    if time_range == "7d":
         start = now - timedelta(days=7)
-        return (start.strftime('%Y-%m-%dT%H:%M:%SZ'), '2h', 84)
+        return (start.strftime("%Y-%m-%dT%H:%M:%SZ"), "2h", 84)
 
     # Default 1h
     start = now - timedelta(hours=1)
-    return (start.strftime('%Y-%m-%dT%H:%M:%SZ'), '1m', 60)
+    return (start.strftime("%Y-%m-%dT%H:%M:%SZ"), "1m", 60)
 
 
 def _build_metric(series: list[dict[str, Any]]) -> MetricData:
     """Build a MetricData from a raw series list."""
-    values = [p['value'] for p in series]
+    values = [p["value"] for p in series]
     return MetricData(
         current=values[-1] if values else 0.0,
         peak=max(values) if values else 0.0,
@@ -134,6 +140,7 @@ def calculate_service_uptime() -> float:
     """Return service uptime as percentage (always 100 while running)."""
     try:
         from .main import SERVICE_START_TIME
+
         uptime_seconds = (datetime.now(UTC) - SERVICE_START_TIME).total_seconds()
         # Service is running → 100 %.
         # A more advanced version would track restart windows.
@@ -146,7 +153,7 @@ def calculate_service_uptime() -> float:
         return 0.0
 
 
-_INTERVAL_RE = re.compile(r'(\d+)([mhd])')
+_INTERVAL_RE = re.compile(r"(\d+)([mhd])")
 
 
 def _generate_empty_series(start_time: str, interval: str, num_points: int) -> list[dict[str, Any]]:
@@ -156,11 +163,17 @@ def _generate_empty_series(start_time: str, interval: str, num_points: int) -> l
         delta = timedelta(minutes=1)
     else:
         v, u = int(m.group(1)), m.group(2)
-        delta = timedelta(minutes=v) if u == 'm' else timedelta(hours=v) if u == 'h' else timedelta(days=v)
+        delta = (
+            timedelta(minutes=v)
+            if u == "m"
+            else timedelta(hours=v)
+            if u == "h"
+            else timedelta(days=v)
+        )
 
-    start = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+    start = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
     return [
-        {'timestamp': (start + delta * i).isoformat() + 'Z', 'value': 0.0}
+        {"timestamp": (start + delta * i).isoformat() + "Z", "value": 0.0}
         for i in range(num_points)
     ]
 
@@ -168,6 +181,7 @@ def _generate_empty_series(start_time: str, interval: str, num_points: int) -> l
 # ---------------------------------------------------------------------------
 # Data Queries
 # ---------------------------------------------------------------------------
+
 
 async def query_events_per_minute(
     influxdb_client,
@@ -177,23 +191,25 @@ async def query_events_per_minute(
 ) -> list[dict[str, Any]]:
     """Query real event counts from InfluxDB."""
     try:
-        query = f'''
+        query = f"""
         from(bucket: "home_assistant_events")
           |> range(start: {start_time})
           |> filter(fn: (r) => r._measurement == "home_assistant_events")
           |> aggregateWindow(every: {interval}, fn: count)
           |> keep(columns: ["_time", "_value"])
-        '''
+        """
         result = await influxdb_client._execute_query(query)
 
         data = []
         for record in result:
-            time_val = record.get('_time')
-            ts = time_val.isoformat() + 'Z' if hasattr(time_val, 'isoformat') else str(time_val)
-            data.append({
-                'timestamp': ts,
-                'value': float(record.get('_value') or 0),
-            })
+            time_val = record.get("_time")
+            ts = time_val.isoformat() + "Z" if hasattr(time_val, "isoformat") else str(time_val)
+            data.append(
+                {
+                    "timestamp": ts,
+                    "value": float(record.get("_value") or 0),
+                }
+            )
 
         if len(data) < num_points:
             if not data:
@@ -206,30 +222,32 @@ async def query_events_per_minute(
         return _generate_empty_series(start_time, interval, num_points)
 
 
-def query_api_response_time(start_time: str, interval: str, num_points: int) -> list[dict[str, Any]]:
+def query_api_response_time(
+    start_time: str, interval: str, num_points: int
+) -> list[dict[str, Any]]:
     """Real API response time from in-memory MetricsBuffer."""
-    return metrics_buffer.get_series('response_time', start_time, interval, num_points)
+    return metrics_buffer.get_series("response_time", start_time, interval, num_points)
 
 
 def query_database_latency(start_time: str, interval: str, num_points: int) -> list[dict[str, Any]]:
     """Real InfluxDB query latency from in-memory MetricsBuffer."""
-    return metrics_buffer.get_series('db_latency', start_time, interval, num_points)
+    return metrics_buffer.get_series("db_latency", start_time, interval, num_points)
 
 
 def query_error_rate(start_time: str, interval: str, num_points: int) -> list[dict[str, Any]]:
     """Real error rate from in-memory MetricsBuffer."""
-    return metrics_buffer.get_series('error_rate', start_time, interval, num_points)
+    return metrics_buffer.get_series("error_rate", start_time, interval, num_points)
 
 
 # ---------------------------------------------------------------------------
 # Endpoint
 # ---------------------------------------------------------------------------
 
+
 @router.get("/analytics", response_model=AnalyticsResponse)
 async def get_analytics(
-    range: Literal['1h', '6h', '24h', '7d'] = Query(
-        '1h',
-        description="Time range: 1h, 6h, 24h, 7d"
+    range: Literal["1h", "6h", "24h", "7d"] = Query(
+        "1h", description="Time range: 1h, 6h, 24h, 7d"
     ),
     _metrics: str | None = Query(None, description="Comma-separated list of metrics to include"),
 ):
@@ -237,6 +255,7 @@ async def get_analytics(
     try:
         # Lazy-import to access the shared InfluxDB client from the service
         from .main import data_api_service
+
         influxdb_client = data_api_service.influxdb_client
 
         if not influxdb_client.is_connected:
@@ -245,7 +264,9 @@ async def get_analytics(
         start_time, interval, num_points = get_time_range_params(range)
 
         # Events — real InfluxDB query
-        events_data = await query_events_per_minute(influxdb_client, start_time, interval, num_points)
+        events_data = await query_events_per_minute(
+            influxdb_client, start_time, interval, num_points
+        )
 
         # Response time, DB latency, error rate — real in-memory buffer
         api_response_data = query_api_response_time(start_time, interval, num_points)
@@ -253,11 +274,12 @@ async def get_analytics(
         error_rate_data = query_error_rate(start_time, interval, num_points)
 
         # Summary
-        total_events = sum(p['value'] for p in events_data)
-        current_error_rate = error_rate_data[-1]['value'] if error_rate_data else 0.0
+        total_events = sum(p["value"] for p in events_data)
+        current_error_rate = error_rate_data[-1]["value"] if error_rate_data else 0.0
         avg_latency = (
-            sum(p['value'] for p in db_latency_data) / len(db_latency_data)
-            if db_latency_data else 0.0
+            sum(p["value"] for p in db_latency_data) / len(db_latency_data)
+            if db_latency_data
+            else 0.0
         )
 
         return AnalyticsResponse(
@@ -272,7 +294,7 @@ async def get_analytics(
                 uptime=calculate_service_uptime(),
             ),
             timeRange=range,
-            lastUpdate=datetime.now(UTC).isoformat() + 'Z',
+            lastUpdate=datetime.now(UTC).isoformat() + "Z",
         )
 
     except Exception as e:

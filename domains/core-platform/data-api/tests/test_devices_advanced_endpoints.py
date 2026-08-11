@@ -49,7 +49,6 @@ import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-
 # ---------------------------------------------------------------------------
 # Override conftest fresh_db — no real DB needed for unit tests
 # ---------------------------------------------------------------------------
@@ -65,8 +64,9 @@ async def fresh_db():
 # ---------------------------------------------------------------------------
 
 
-def _make_mock_device(device_id="dev-001", name="Test Light", manufacturer="TestCo",
-                      model="Bulb-v2", **kwargs):
+def _make_mock_device(
+    device_id="dev-001", name="Test Light", manufacturer="TestCo", model="Bulb-v2", **kwargs
+):
     """Create a MagicMock that looks like a Device ORM instance."""
     d = MagicMock()
     d.device_id = device_id
@@ -95,8 +95,9 @@ def _make_mock_device(device_id="dev-001", name="Test Light", manufacturer="Test
     return d
 
 
-def _make_mock_entity(entity_id="light.living_room", device_id="dev-001",
-                      domain="light", platform="hue", **kwargs):
+def _make_mock_entity(
+    entity_id="light.living_room", device_id="dev-001", domain="light", platform="hue", **kwargs
+):
     """Create a MagicMock that looks like an Entity ORM instance."""
     now = datetime.now(UTC)
     e = MagicMock()
@@ -131,8 +132,10 @@ def _make_mock_entity(entity_id="light.living_room", device_id="dev-001",
 
 def _make_db_override(mock_session):
     """Return a dependency function that yields the mock session."""
+
     async def _override():
         yield mock_session
+
     return _override
 
 
@@ -214,7 +217,10 @@ class TestIntegrationPerformance:
         mock_session = AsyncMock()
         app = _build_app(mock_session)
 
-        with patch("src.devices_endpoints._get_shared_influxdb_client", side_effect=Exception("InfluxDB down")):
+        with patch(
+            "src.devices_endpoints._get_shared_influxdb_client",
+            side_effect=Exception("InfluxDB down"),
+        ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 resp = await c.get("/api/integrations/hue/performance")
 
@@ -297,10 +303,18 @@ class TestListIntegrations:
 
         mock_influx = MagicMock()
         mock_influx.is_connected = True
-        mock_influx._execute_query = AsyncMock(return_value=[
-            {"entry_id": "e1", "domain": "hue", "title": "Philips Hue",
-             "state": "loaded", "version": 1, "_time": "2026-01-01T00:00:00Z"}
-        ])
+        mock_influx._execute_query = AsyncMock(
+            return_value=[
+                {
+                    "entry_id": "e1",
+                    "domain": "hue",
+                    "title": "Philips Hue",
+                    "state": "loaded",
+                    "version": 1,
+                    "_time": "2026-01-01T00:00:00Z",
+                }
+            ]
+        )
 
         with patch("src.devices_endpoints.influxdb_client", mock_influx):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -366,11 +380,21 @@ class TestBulkUpsertDevices:
         mock_db_service = MagicMock()
         mock_db_service.update_device_from_database = AsyncMock(return_value={})
 
-        with patch("src.devices_endpoints.get_device_database_service", return_value=mock_db_service):
+        with patch(
+            "src.devices_endpoints.get_device_database_service", return_value=mock_db_service
+        ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-                resp = await c.post("/internal/devices/bulk_upsert", json=[
-                    {"id": "dev-new", "name": "New Device", "manufacturer": "Test", "model": "X"}
-                ])
+                resp = await c.post(
+                    "/internal/devices/bulk_upsert",
+                    json=[
+                        {
+                            "id": "dev-new",
+                            "name": "New Device",
+                            "manufacturer": "Test",
+                            "model": "X",
+                        }
+                    ],
+                )
 
         assert resp.status_code == 200
         assert resp.json()["upserted"] == 1
@@ -385,9 +409,9 @@ class TestBulkUpsertDevices:
 
         with patch("src.devices_endpoints.get_device_database_service"):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-                resp = await c.post("/internal/devices/bulk_upsert", json=[
-                    {"name": "No ID Device"}
-                ])
+                resp = await c.post(
+                    "/internal/devices/bulk_upsert", json=[{"name": "No ID Device"}]
+                )
 
         assert resp.status_code == 200
         assert resp.json()["upserted"] == 0
@@ -408,11 +432,14 @@ class TestBulkUpsertDevices:
         mock_db_service = MagicMock()
         mock_db_service.update_device_from_database = AsyncMock(return_value={})
 
-        with patch("src.devices_endpoints.get_device_database_service", return_value=mock_db_service):
+        with patch(
+            "src.devices_endpoints.get_device_database_service", return_value=mock_db_service
+        ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-                resp = await c.post("/internal/devices/bulk_upsert", json=[
-                    {"id": "dev-exist", "name": "Updated Name"}
-                ])
+                resp = await c.post(
+                    "/internal/devices/bulk_upsert",
+                    json=[{"id": "dev-exist", "name": "Updated Name"}],
+                )
 
         assert resp.status_code == 200
         assert resp.json()["upserted"] == 1
@@ -435,7 +462,9 @@ class TestBulkUpsertEntities:
         app = _build_app(mock_session)
 
         with patch("src.devices_endpoints.get_entity_enrichment_service") as mock_enrich:
-            mock_enrich.return_value.get_available_services_for_domain = AsyncMock(return_value=None)
+            mock_enrich.return_value.get_available_services_for_domain = AsyncMock(
+                return_value=None
+            )
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 resp = await c.post("/internal/entities/bulk_upsert", json=[])
 
@@ -475,13 +504,18 @@ class TestBulkUpsertEntities:
         mock_classifier.classify_device_from_domains = AsyncMock(return_value={})
 
         with (
-            patch("src.devices_endpoints.get_entity_enrichment_service", return_value=mock_enrichment),
+            patch(
+                "src.devices_endpoints.get_entity_enrichment_service", return_value=mock_enrichment
+            ),
             patch("src.devices_endpoints.get_classifier_service", return_value=mock_classifier),
         ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-                resp = await c.post("/internal/entities/bulk_upsert", json=[
-                    {"entity_id": "light.kitchen", "device_id": "dev-001", "platform": "hue"}
-                ])
+                resp = await c.post(
+                    "/internal/entities/bulk_upsert",
+                    json=[
+                        {"entity_id": "light.kitchen", "device_id": "dev-001", "platform": "hue"}
+                    ],
+                )
 
         assert resp.status_code == 200
         assert resp.json()["upserted"] == 1
@@ -504,13 +538,18 @@ class TestBulkUpsertEntities:
         mock_classifier = MagicMock()
 
         with (
-            patch("src.devices_endpoints.get_entity_enrichment_service", return_value=mock_enrichment),
+            patch(
+                "src.devices_endpoints.get_entity_enrichment_service", return_value=mock_enrichment
+            ),
             patch("src.devices_endpoints.get_classifier_service", return_value=mock_classifier),
         ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-                resp = await c.post("/internal/entities/bulk_upsert", json=[
-                    {"platform": "hue"}  # missing entity_id
-                ])
+                resp = await c.post(
+                    "/internal/entities/bulk_upsert",
+                    json=[
+                        {"platform": "hue"}  # missing entity_id
+                    ],
+                )
 
         assert resp.status_code == 200
         assert resp.json()["upserted"] == 0
@@ -544,11 +583,10 @@ class TestBulkUpsertServices:
         app = _build_app(mock_session)
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            resp = await c.post("/internal/services/bulk_upsert", json={
-                "light": {
-                    "turn_on": {"name": "Turn On", "description": "Turn on a light"}
-                }
-            })
+            resp = await c.post(
+                "/internal/services/bulk_upsert",
+                json={"light": {"turn_on": {"name": "Turn On", "description": "Turn on a light"}}},
+            )
 
         assert resp.status_code == 200
         assert resp.json()["upserted"] == 1
@@ -566,11 +604,12 @@ class TestBulkUpsertServices:
         app = _build_app(mock_session)
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            resp = await c.post("/internal/services/bulk_upsert", json={
-                "light": {
-                    "turn_on": {"name": "Turn On Updated", "description": "Updated desc"}
-                }
-            })
+            resp = await c.post(
+                "/internal/services/bulk_upsert",
+                json={
+                    "light": {"turn_on": {"name": "Turn On Updated", "description": "Updated desc"}}
+                },
+            )
 
         assert resp.status_code == 200
         assert resp.json()["upserted"] == 1
@@ -582,9 +621,12 @@ class TestBulkUpsertServices:
         app = _build_app(mock_session)
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            resp = await c.post("/internal/services/bulk_upsert", json={
-                "light": {}  # valid format, no services to upsert
-            })
+            resp = await c.post(
+                "/internal/services/bulk_upsert",
+                json={
+                    "light": {}  # valid format, no services to upsert
+                },
+            )
 
         assert resp.status_code == 200
         assert resp.json()["upserted"] == 0
@@ -614,11 +656,9 @@ class TestDeviceHealth:
         app = _build_app(mock_session)
 
         mock_health = MagicMock()
-        mock_health.get_device_health = AsyncMock(return_value={
-            "device_id": "dev-001",
-            "overall_status": "healthy",
-            "issues": []
-        })
+        mock_health.get_device_health = AsyncMock(
+            return_value={"device_id": "dev-001", "overall_status": "healthy", "issues": []}
+        )
 
         with patch("src.devices_endpoints.get_health_service", return_value=mock_health):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -674,9 +714,9 @@ class TestHealthSummary:
         app = _build_unshadowed_app(mock_session, get_health_summary, "/api/devices/health-summary")
 
         mock_health = MagicMock()
-        mock_health.get_device_health = AsyncMock(return_value={
-            "overall_status": "healthy", "issues": []
-        })
+        mock_health.get_device_health = AsyncMock(
+            return_value={"overall_status": "healthy", "issues": []}
+        )
 
         with patch("src.devices_endpoints.get_health_service", return_value=mock_health):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -718,13 +758,19 @@ class TestMaintenanceAlerts:
             return result
 
         mock_session.execute = AsyncMock(side_effect=_multi_execute)
-        app = _build_unshadowed_app(mock_session, get_maintenance_alerts, "/api/devices/maintenance-alerts")
+        app = _build_unshadowed_app(
+            mock_session, get_maintenance_alerts, "/api/devices/maintenance-alerts"
+        )
 
         mock_health = MagicMock()
-        mock_health.get_device_health = AsyncMock(return_value={
-            "overall_status": "warning",
-            "issues": [{"type": "battery_low", "severity": "warning", "message": "Battery at 5%"}]
-        })
+        mock_health.get_device_health = AsyncMock(
+            return_value={
+                "overall_status": "warning",
+                "issues": [
+                    {"type": "battery_low", "severity": "warning", "message": "Battery at 5%"}
+                ],
+            }
+        )
 
         with patch("src.devices_endpoints.get_health_service", return_value=mock_health):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -855,7 +901,9 @@ class TestPowerAnomalies:
 
         mock_session = AsyncMock()
         _mock_scalars_all(mock_session, [])
-        app = _build_unshadowed_app(mock_session, get_power_anomalies, "/api/devices/power-anomalies")
+        app = _build_unshadowed_app(
+            mock_session, get_power_anomalies, "/api/devices/power-anomalies"
+        )
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/api/devices/power-anomalies")
@@ -889,10 +937,9 @@ class TestClassifyDevice:
         app = _build_app(mock_session)
 
         mock_classifier = MagicMock()
-        mock_classifier.classify_device_from_domains = AsyncMock(return_value={
-            "device_type": "smart_bulb",
-            "device_category": "lighting"
-        })
+        mock_classifier.classify_device_from_domains = AsyncMock(
+            return_value={"device_type": "smart_bulb", "device_category": "lighting"}
+        )
 
         with patch("src.devices_endpoints.get_classifier_service", return_value=mock_classifier):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -968,7 +1015,7 @@ class TestSetupGuide:
         mock_assistant = MagicMock()
         mock_assistant.generate_setup_guide.return_value = {
             "device_id": "dev-001",
-            "steps": ["Step 1: Plug in", "Step 2: Pair"]
+            "steps": ["Step 1: Plug in", "Step 2: Pair"],
         }
 
         with patch("src.devices_endpoints.get_setup_assistant", return_value=mock_assistant):
@@ -1008,9 +1055,9 @@ class TestSetupIssues:
         app = _build_app(mock_session)
 
         mock_assistant = MagicMock()
-        mock_assistant.detect_setup_issues = AsyncMock(return_value=[
-            {"type": "missing_area", "message": "No area assigned"}
-        ])
+        mock_assistant.detect_setup_issues = AsyncMock(
+            return_value=[{"type": "missing_area", "message": "No area assigned"}]
+        )
 
         with patch("src.devices_endpoints.get_setup_assistant", return_value=mock_assistant):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -1088,12 +1135,14 @@ class TestDiscoverCapabilities:
         app = _build_app(mock_session)
 
         mock_cap_service = MagicMock()
-        mock_cap_service.discover_device_capabilities = AsyncMock(return_value={
-            "capabilities": ["brightness", "color_temp"],
-            "features": {"brightness": True},
-            "device_classes": ["light"],
-            "state_classes": []
-        })
+        mock_cap_service.discover_device_capabilities = AsyncMock(
+            return_value={
+                "capabilities": ["brightness", "color_temp"],
+                "features": {"brightness": True},
+                "device_classes": ["light"],
+                "state_classes": [],
+            }
+        )
         mock_cap_service.format_capabilities_for_storage.return_value = '{"brightness": true}'
 
         with patch("src.devices_endpoints.get_capability_service", return_value=mock_cap_service):
@@ -1160,13 +1209,14 @@ class TestEnrichEntities:
         app = _build_app(mock_session)
 
         mock_enrichment = MagicMock()
-        mock_enrichment.enrich_entity_capabilities = AsyncMock(return_value={
-            "supported_features": 44,
-            "capabilities": ["brightness"]
-        })
+        mock_enrichment.enrich_entity_capabilities = AsyncMock(
+            return_value={"supported_features": 44, "capabilities": ["brightness"]}
+        )
         mock_enrichment.get_available_services_for_domain = AsyncMock(return_value=["turn_on"])
 
-        with patch("src.devices_endpoints.get_entity_enrichment_service", return_value=mock_enrichment):
+        with patch(
+            "src.devices_endpoints.get_entity_enrichment_service", return_value=mock_enrichment
+        ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 resp = await c.post("/api/entities/enrich")
 
@@ -1192,12 +1242,14 @@ class TestDeviceRecommendations:
 
         mock_session = AsyncMock()
         _mock_scalars_all(mock_session, [_make_mock_device()])
-        app = _build_unshadowed_app(mock_session, get_device_recommendations, "/api/devices/recommendations")
+        app = _build_unshadowed_app(
+            mock_session, get_device_recommendations, "/api/devices/recommendations"
+        )
 
         mock_recommender = MagicMock()
-        mock_recommender.recommend_devices = AsyncMock(return_value=[
-            {"name": "Smart Bulb Pro", "score": 0.95}
-        ])
+        mock_recommender.recommend_devices = AsyncMock(
+            return_value=[{"name": "Smart Bulb Pro", "score": 0.95}]
+        )
 
         with patch("src.devices_endpoints.get_recommender_service", return_value=mock_recommender):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -1213,7 +1265,9 @@ class TestDeviceRecommendations:
         from src.devices_endpoints import get_device_recommendations
 
         mock_session = AsyncMock()
-        app = _build_unshadowed_app(mock_session, get_device_recommendations, "/api/devices/recommendations")
+        app = _build_unshadowed_app(
+            mock_session, get_device_recommendations, "/api/devices/recommendations"
+        )
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/api/devices/recommendations")
@@ -1472,11 +1526,9 @@ class TestDeviceHierarchy:
 
         with patch("src.devices_endpoints.EntityRegistry") as MockRegistry:
             instance = MockRegistry.return_value
-            instance.get_device_hierarchy = AsyncMock(return_value={
-                "device_id": "dev-001",
-                "parent": None,
-                "children": ["dev-002"]
-            })
+            instance.get_device_hierarchy = AsyncMock(
+                return_value={"device_id": "dev-001", "parent": None, "children": ["dev-002"]}
+            )
 
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 resp = await c.get("/api/devices/dev-001/hierarchy")
@@ -1504,7 +1556,9 @@ class TestDeviceReliability:
         from src.devices_endpoints import get_device_reliability
 
         mock_session = AsyncMock()
-        app = _build_unshadowed_app(mock_session, get_device_reliability, "/api/devices/reliability")
+        app = _build_unshadowed_app(
+            mock_session, get_device_reliability, "/api/devices/reliability"
+        )
 
         mock_query_api = MagicMock()
         mock_query_api.query.return_value = []
@@ -1527,7 +1581,9 @@ class TestDeviceReliability:
         from src.devices_endpoints import get_device_reliability
 
         mock_session = AsyncMock()
-        app = _build_unshadowed_app(mock_session, get_device_reliability, "/api/devices/reliability")
+        app = _build_unshadowed_app(
+            mock_session, get_device_reliability, "/api/devices/reliability"
+        )
 
         mock_query_api = MagicMock()
         mock_query_api.query.return_value = []

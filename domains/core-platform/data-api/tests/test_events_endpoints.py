@@ -23,13 +23,12 @@ Covers 16 scenarios:
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-
 from src.events_endpoints import EventData, EventFilter, EventSearch, EventsEndpoints
 
 # ---------------------------------------------------------------------------
@@ -191,7 +190,9 @@ class TestGetEventsStats:
 
     @pytest.mark.asyncio
     async def test_service_specific_stats(self, client):
-        with patch.object(EventsEndpoints, "_get_service_events_stats", new_callable=AsyncMock) as mock:
+        with patch.object(
+            EventsEndpoints, "_get_service_events_stats", new_callable=AsyncMock
+        ) as mock:
             mock.return_value = {"total_events": 50}
             resp = await client.get("/events/stats?service=websocket-ingestion")
             assert resp.status_code == 200
@@ -235,7 +236,9 @@ class TestGetActiveEntities:
 
     @pytest.mark.asyncio
     async def test_returns_entities(self, client):
-        with patch.object(EventsEndpoints, "_get_all_active_entities", new_callable=AsyncMock) as mock:
+        with patch.object(
+            EventsEndpoints, "_get_all_active_entities", new_callable=AsyncMock
+        ) as mock:
             mock.return_value = [{"entity_id": "light.test", "last_event": "2026-03-16T00:00:00Z"}]
             resp = await client.get("/events/entities")
             assert resp.status_code == 200

@@ -4,25 +4,24 @@ Tests DockerEndpoints routes with mocked DockerService and APIKeyService.
 All Docker/external dependencies are mocked so tests pass without Docker.
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-
-from httpx import ASGITransport, AsyncClient
 from fastapi import FastAPI
-
-from src.docker_service import ContainerInfo, ContainerStatus
+from httpx import ASGITransport, AsyncClient
 from src.docker_endpoints import (
     ContainerOperationResponse,
     ContainerResponse,
     ContainerStatsResponse,
     DockerEndpoints,
 )
-
+from src.docker_service import ContainerInfo, ContainerStatus
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _make_container_info(
     name: str = "homeiq-websocket",
@@ -50,8 +49,10 @@ async def mock_app_client():
     Build a FastAPI app with DockerEndpoints, mocking DockerService and APIKeyService.
     Returns (client, mock_docker_service, mock_api_key_service).
     """
-    with patch("src.docker_endpoints.DockerService") as MockDockerSvc, \
-         patch("src.docker_endpoints.APIKeyService") as MockAPIKeySvc:
+    with (
+        patch("src.docker_endpoints.DockerService") as MockDockerSvc,
+        patch("src.docker_endpoints.APIKeyService") as MockAPIKeySvc,
+    ):
         mock_ds = MockDockerSvc.return_value
         mock_aks = MockAPIKeySvc.return_value
 
@@ -68,8 +69,8 @@ async def mock_app_client():
 # Response model serialization
 # ---------------------------------------------------------------------------
 
-class TestResponseModels:
 
+class TestResponseModels:
     @pytest.mark.unit
     def test_container_response_model(self):
         resp = ContainerResponse(
@@ -118,20 +119,22 @@ class TestResponseModels:
 # GET /api/v1/docker/containers
 # ---------------------------------------------------------------------------
 
-class TestListContainersEndpoint:
 
+class TestListContainersEndpoint:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_returns_list(self, mock_app_client):
         client, mock_ds, _ = mock_app_client
-        mock_ds.list_containers = AsyncMock(return_value=[
-            _make_container_info(),
-            _make_container_info(
-                name="homeiq-influxdb",
-                service_name="influxdb",
-                ports={"8086/tcp": "8086"},
-            ),
-        ])
+        mock_ds.list_containers = AsyncMock(
+            return_value=[
+                _make_container_info(),
+                _make_container_info(
+                    name="homeiq-influxdb",
+                    service_name="influxdb",
+                    ports={"8086/tcp": "8086"},
+                ),
+            ]
+        )
 
         resp = await client.get("/api/v1/docker/containers")
         assert resp.status_code == 200
@@ -166,8 +169,8 @@ class TestListContainersEndpoint:
 # POST /api/v1/docker/containers/{service_name}/start
 # ---------------------------------------------------------------------------
 
-class TestStartContainerEndpoint:
 
+class TestStartContainerEndpoint:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_start_success(self, mock_app_client):
@@ -206,8 +209,8 @@ class TestStartContainerEndpoint:
 # POST /api/v1/docker/containers/{service_name}/stop
 # ---------------------------------------------------------------------------
 
-class TestStopContainerEndpoint:
 
+class TestStopContainerEndpoint:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_stop_success(self, mock_app_client):
@@ -244,8 +247,8 @@ class TestStopContainerEndpoint:
 # POST /api/v1/docker/containers/{service_name}/restart
 # ---------------------------------------------------------------------------
 
-class TestRestartContainerEndpoint:
 
+class TestRestartContainerEndpoint:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_restart_success(self, mock_app_client):
@@ -282,8 +285,8 @@ class TestRestartContainerEndpoint:
 # GET /api/v1/docker/containers/{service_name}/logs
 # ---------------------------------------------------------------------------
 
-class TestGetContainerLogsEndpoint:
 
+class TestGetContainerLogsEndpoint:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_logs_success(self, mock_app_client):
@@ -330,19 +333,21 @@ class TestGetContainerLogsEndpoint:
 # GET /api/v1/docker/containers/{service_name}/stats
 # ---------------------------------------------------------------------------
 
-class TestGetContainerStatsEndpoint:
 
+class TestGetContainerStatsEndpoint:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_stats_success(self, mock_app_client):
         client, mock_ds, _ = mock_app_client
-        mock_ds.get_container_stats = AsyncMock(return_value={
-            "cpu_percent": 12.5,
-            "memory_usage": 256_000_000,
-            "memory_limit": 512_000_000,
-            "memory_percent": 50.0,
-            "timestamp": "2024-01-01T00:00:00",
-        })
+        mock_ds.get_container_stats = AsyncMock(
+            return_value={
+                "cpu_percent": 12.5,
+                "memory_usage": 256_000_000,
+                "memory_limit": 512_000_000,
+                "memory_percent": 50.0,
+                "timestamp": "2024-01-01T00:00:00",
+            }
+        )
 
         resp = await client.get("/api/v1/docker/containers/websocket-ingestion/stats")
         assert resp.status_code == 200
@@ -374,24 +379,26 @@ class TestGetContainerStatsEndpoint:
 # GET /api/v1/docker/api-keys
 # ---------------------------------------------------------------------------
 
-class TestGetApiKeysEndpoint:
 
+class TestGetApiKeysEndpoint:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_api_keys_success(self, mock_app_client):
         from src.api_key_service import APIKeyInfo, APIKeyStatus
 
         client, _, mock_aks = mock_app_client
-        mock_aks.get_api_keys = AsyncMock(return_value=[
-            APIKeyInfo(
-                service="weather",
-                key_name="WEATHER_API_KEY",
-                status=APIKeyStatus.CONFIGURED,
-                masked_key="abc1...xyz9",
-                is_required=True,
-                description="Weather API key",
-            ),
-        ])
+        mock_aks.get_api_keys = AsyncMock(
+            return_value=[
+                APIKeyInfo(
+                    service="weather",
+                    key_name="WEATHER_API_KEY",
+                    status=APIKeyStatus.CONFIGURED,
+                    masked_key="abc1...xyz9",
+                    is_required=True,
+                    description="Weather API key",
+                ),
+            ]
+        )
 
         resp = await client.get("/api/v1/docker/api-keys")
         assert resp.status_code == 200
@@ -425,8 +432,8 @@ class TestGetApiKeysEndpoint:
 # PUT /api/v1/docker/api-keys/{service}
 # ---------------------------------------------------------------------------
 
-class TestUpdateApiKeyEndpoint:
 
+class TestUpdateApiKeyEndpoint:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_update_success(self, mock_app_client):
@@ -459,8 +466,8 @@ class TestUpdateApiKeyEndpoint:
 # POST /api/v1/docker/api-keys/{service}/test
 # ---------------------------------------------------------------------------
 
-class TestTestApiKeyEndpoint:
 
+class TestTestApiKeyEndpoint:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_test_key_success(self, mock_app_client):

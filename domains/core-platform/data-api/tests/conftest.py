@@ -16,6 +16,7 @@ os.environ["DATABASE_URL"] = os.environ.get(
 # Allow data-api to start without DATA_API_API_KEY (for test_main and app imports)
 os.environ.setdefault("DATA_API_ALLOW_ANONYMOUS", "true")
 
+
 # Load path_setup dynamically
 def _load_add_service_src():
     repo_root = Path(__file__).resolve().parents[4]
@@ -26,6 +27,7 @@ def _load_add_service_src():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.add_service_src
+
 
 add_service_src = _load_add_service_src()
 add_service_src(__file__)
@@ -51,7 +53,7 @@ from httpx import ASGITransport, AsyncClient
 async def client():
     """
     Async HTTP client for testing Data API endpoints
-    
+
     Automatically closes connection after test completes.
     Use with async tests: async def test_endpoint(client):
     """
@@ -67,10 +69,10 @@ async def client():
 def mock_influxdb():
     """
     Mock InfluxDB client for testing without database dependency
-    
+
     Automatically cleaned up after each test.
     """
-    with patch('shared.influxdb_query_client.InfluxDBQueryClient') as mock:
+    with patch("shared.influxdb_query_client.InfluxDBQueryClient") as mock:
         mock.return_value.connect.return_value = True
         mock.return_value.query.return_value = []
         yield mock
@@ -80,7 +82,7 @@ def mock_influxdb():
 @pytest.fixture
 def mock_database():
     """Mock database for testing"""
-    with patch('src.database.get_session') as mock:
+    with patch("src.database.get_session") as mock:
         yield mock
 
 
@@ -145,13 +147,10 @@ async def fresh_db(request):
 async def sample_event_data():
     """Sample Home Assistant event data for testing"""
     return {
-        'entity_id': 'light.living_room',
-        'state': 'on',
-        'timestamp': datetime.now(UTC),
-        'attributes': {
-            'brightness': 255,
-            'color_temp': 370
-        }
+        "entity_id": "light.living_room",
+        "state": "on",
+        "timestamp": datetime.now(UTC),
+        "attributes": {"brightness": 255, "color_temp": 370},
     }
 
 
@@ -159,11 +158,11 @@ async def sample_event_data():
 async def sample_device_data():
     """Sample device data for testing"""
     return {
-        'id': 'test-device-1',
-        'name': 'Test Light',
-        'model': 'Smart Bulb v2',
-        'manufacturer': 'Test Co',
-        'sw_version': '1.0.0'
+        "id": "test-device-1",
+        "name": "Test Light",
+        "model": "Smart Bulb v2",
+        "manufacturer": "Test Co",
+        "sw_version": "1.0.0",
     }
 
 
@@ -171,10 +170,10 @@ async def sample_device_data():
 async def sample_stats_data():
     """Sample statistics data for testing"""
     return {
-        'total_events': 12345,
-        'events_per_minute': 42,
-        'error_rate': 0.01,
-        'uptime_seconds': 86400
+        "total_events": 12345,
+        "events_per_minute": 42,
+        "error_rate": 0.01,
+        "uptime_seconds": 86400,
     }
 
 
@@ -186,7 +185,6 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "slow: Slow-running tests (>1s)")
     config.addinivalue_line("markers", "database: Tests requiring database access")
     config.addinivalue_line("markers", "api: API endpoint tests")
-
 
 
 @pytest.fixture(autouse=True)

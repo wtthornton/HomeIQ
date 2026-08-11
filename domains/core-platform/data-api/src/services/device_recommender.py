@@ -24,7 +24,10 @@ class DeviceRecommenderService:
         if self._recommender is None:
             try:
                 import sys
-                sys.path.append(os.path.join(os.path.dirname(__file__), '../../../device-recommender/src'))
+
+                sys.path.append(
+                    os.path.join(os.path.dirname(__file__), "../../../device-recommender/src")
+                )
                 from db_client import DeviceDatabaseClient
                 from recommender import DeviceRecommender
 
@@ -41,8 +44,12 @@ class DeviceRecommenderService:
         if self._comparison_engine is None:
             try:
                 import sys
-                sys.path.append(os.path.join(os.path.dirname(__file__), '../../../device-recommender/src'))
+
+                sys.path.append(
+                    os.path.join(os.path.dirname(__file__), "../../../device-recommender/src")
+                )
                 from comparison_engine import DeviceComparisonEngine
+
                 self._comparison_engine = DeviceComparisonEngine()
             except ImportError:
                 logger.warning("Device comparison engine not available")
@@ -53,7 +60,7 @@ class DeviceRecommenderService:
         self,
         device_type: str,
         requirements: dict[str, Any] | None = None,
-        user_devices: list[dict[str, Any]] | None = None
+        user_devices: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Get device recommendations.
@@ -72,18 +79,14 @@ class DeviceRecommenderService:
 
         try:
             return await recommender.recommend_devices(
-                device_type=device_type,
-                requirements=requirements,
-                user_devices=user_devices
+                device_type=device_type, requirements=requirements, user_devices=user_devices
             )
         except Exception as e:
             logger.error(f"Error getting recommendations: {e}")
             return []
 
     def compare_devices(
-        self,
-        device_ids: list[str],
-        devices: list[dict[str, Any]]
+        self, device_ids: list[str], devices: list[dict[str, Any]]
     ) -> dict[str, Any]:
         """
         Compare devices.
@@ -97,24 +100,16 @@ class DeviceRecommenderService:
         """
         engine = self._get_comparison_engine()
         if not engine:
-            return {
-                "message": "Comparison engine not available",
-                "devices": []
-            }
+            return {"message": "Comparison engine not available", "devices": []}
 
         try:
             return engine.compare_devices(device_ids, devices)
         except Exception as e:
             logger.error(f"Error comparing devices: {e}")
-            return {
-                "message": f"Comparison failed: {str(e)}",
-                "devices": []
-            }
+            return {"message": f"Comparison failed: {str(e)}", "devices": []}
 
     def find_similar_devices(
-        self,
-        device_id: str,
-        all_devices: list[dict[str, Any]]
+        self, device_id: str, all_devices: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         """
         Find similar devices.
@@ -127,10 +122,7 @@ class DeviceRecommenderService:
             List of similar devices
         """
         # Find reference device
-        reference = next(
-            (d for d in all_devices if d.get("device_id") == device_id),
-            None
-        )
+        reference = next((d for d in all_devices if d.get("device_id") == device_id), None)
 
         if not reference:
             return []
@@ -174,4 +166,3 @@ def get_recommender_service() -> DeviceRecommenderService:
     if _recommender_service is None:
         _recommender_service = DeviceRecommenderService()
     return _recommender_service
-

@@ -92,6 +92,7 @@ class TestSimpleCacheGetSet:
         await c.set("key1", "value", ttl=0)
         # With TTL=0, the entry should expire immediately
         import time
+
         time.sleep(0.01)  # tiny sleep to ensure expiry
         result = await c.get("key1")
         # Depending on implementation, this may or may not expire at TTL=0
@@ -162,7 +163,9 @@ class TestSettings:
         with patch.dict(os.environ, {"DATA_API_API_KEY": "test-key-12345"}, clear=False):
             # Force re-import with test env
             import importlib
+
             import src.config
+
             importlib.reload(src.config)
             s = src.config.Settings()
             assert s.service_port == 8006
@@ -172,7 +175,9 @@ class TestSettings:
     def test_api_key_from_env(self):
         with patch.dict(os.environ, {"DATA_API_API_KEY": "my-secret-key"}, clear=False):
             import importlib
+
             import src.config
+
             importlib.reload(src.config)
             s = src.config.Settings()
             assert s.api_key == "my-secret-key"
@@ -185,7 +190,9 @@ class TestSettings:
             os.environ.pop("DATA_API_KEY", None)
             os.environ.pop("API_KEY", None)
             import importlib
+
             import src.config
+
             importlib.reload(src.config)
             s = src.config.Settings()
             assert s.api_key is not None

@@ -53,16 +53,15 @@ class SportsInfluxDBWriter:
 
         try:
             self.client = InfluxDBClient(
-                url=self.url,
-                token=self.token,
-                org=self.org,
-                timeout=30000
+                url=self.url, token=self.token, org=self.org, timeout=30000
             )
 
             self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
             self.is_connected = True
 
-            logger.info(f"Connected to InfluxDB for sports data at {self.url}, bucket: {self.bucket}")
+            logger.info(
+                f"Connected to InfluxDB for sports data at {self.url}, bucket: {self.bucket}"
+            )
             return True
 
         except Exception as e:
@@ -106,7 +105,7 @@ class SportsInfluxDBWriter:
             if start_time := game_data.get("start_time") or game_data.get("startTime"):
                 if isinstance(start_time, str):
                     try:
-                        dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                        dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
                         point.time(dt, WritePrecision.S)
                     except (ValueError, TypeError):
                         point.time(datetime.now(), WritePrecision.S)
@@ -117,10 +116,7 @@ class SportsInfluxDBWriter:
 
             # Write to InfluxDB
             await asyncio.to_thread(
-                self.write_api.write,
-                bucket=self.bucket,
-                org=self.org,
-                record=point
+                self.write_api.write, bucket=self.bucket, org=self.org, record=point
             )
 
             self.total_points_written += 1
@@ -165,7 +161,7 @@ class SportsInfluxDBWriter:
             if start_time := game_data.get("start_time") or game_data.get("startTime"):
                 if isinstance(start_time, str):
                     try:
-                        dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                        dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
                         point.time(dt, WritePrecision.S)
                     except (ValueError, TypeError):
                         point.time(datetime.now(), WritePrecision.S)
@@ -176,10 +172,7 @@ class SportsInfluxDBWriter:
 
             # Write to InfluxDB
             await asyncio.to_thread(
-                self.write_api.write,
-                bucket=self.bucket,
-                org=self.org,
-                record=point
+                self.write_api.write, bucket=self.bucket, org=self.org, record=point
             )
 
             self.total_points_written += 1
@@ -208,7 +201,7 @@ class SportsInfluxDBWriter:
             "connected": self.is_connected,
             "total_points_written": self.total_points_written,
             "total_points_failed": self.total_points_failed,
-            "bucket": self.bucket
+            "bucket": self.bucket,
         }
 
     async def close(self):
@@ -237,4 +230,3 @@ def get_sports_writer() -> SportsInfluxDBWriter:
     if _sports_writer is None:
         _sports_writer = SportsInfluxDBWriter()
     return _sports_writer
-

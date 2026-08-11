@@ -235,9 +235,7 @@ class MemoryConsolidationJob:
         self._influxdb_write_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
         self._influxdb_write_token = os.getenv("INFLUXDB_TOKEN")
         self._influxdb_write_org = os.getenv("INFLUXDB_ORG", "homeiq")
-        self._influxdb_metrics_bucket = os.getenv(
-            "INFLUXDB_METRICS_BUCKET", "homeiq_metrics"
-        )
+        self._influxdb_metrics_bucket = os.getenv("INFLUXDB_METRICS_BUCKET", "homeiq_metrics")
         self._write_client: InfluxDBClient | None = None
         self._write_api = None
 
@@ -340,9 +338,7 @@ class MemoryConsolidationJob:
                     )
 
             metrics.completed_at = datetime.now(UTC)
-            metrics.duration_ms = (
-                metrics.completed_at - metrics.started_at
-            ).total_seconds() * 1000
+            metrics.duration_ms = (metrics.completed_at - metrics.started_at).total_seconds() * 1000
 
             self._last_run = metrics.completed_at
             self._overrides_detected = metrics.overrides_detected
@@ -370,9 +366,7 @@ class MemoryConsolidationJob:
         except Exception as e:
             metrics.error = str(e)
             metrics.completed_at = datetime.now(UTC)
-            metrics.duration_ms = (
-                metrics.completed_at - metrics.started_at
-            ).total_seconds() * 1000
+            metrics.duration_ms = (metrics.completed_at - metrics.started_at).total_seconds() * 1000
             logger.error(
                 "Memory consolidation failed after %.0fms: %s",
                 metrics.duration_ms,
@@ -419,9 +413,7 @@ class MemoryConsolidationJob:
                     org=self._influxdb_write_org,
                     timeout=30000,
                 )
-                self._write_api = self._write_client.write_api(
-                    write_options=SYNCHRONOUS
-                )
+                self._write_api = self._write_client.write_api(write_options=SYNCHRONOUS)
 
             point = (
                 Point(METRICS_MEASUREMENT)
@@ -599,9 +591,7 @@ from(bucket: "{self.influxdb.bucket}")
 
         return overrides
 
-    def _filter_by_threshold(
-        self, overrides: list[DetectedOverride]
-    ) -> list[DetectedOverride]:
+    def _filter_by_threshold(self, overrides: list[DetectedOverride]) -> list[DetectedOverride]:
         """Filter to entities meeting the override threshold."""
         entity_counts = Counter(o.entity_id for o in overrides)
         qualifying_entities = {
@@ -919,9 +909,7 @@ from(bucket: "{self.influxdb.bucket}")
         patterns = self._aggregate_patterns(events)
         return self._filter_patterns_by_criteria(patterns)
 
-    async def _consolidate_patterns(
-        self, patterns: list[DetectedUsagePattern]
-    ) -> int:
+    async def _consolidate_patterns(self, patterns: list[DetectedUsagePattern]) -> int:
         """Store detected usage patterns as behavioral memories.
 
         Args:
@@ -1065,12 +1053,8 @@ from(bucket: "{self.influxdb.bucket}")
             logger.debug("No activity label events found for routine synthesis")
             return []
 
-        weekday_events: dict[str, list[datetime]] = {
-            label: [] for label in ROUTINE_LABELS
-        }
-        weekend_events: dict[str, list[datetime]] = {
-            label: [] for label in ROUTINE_LABELS
-        }
+        weekday_events: dict[str, list[datetime]] = {label: [] for label in ROUTINE_LABELS}
+        weekend_events: dict[str, list[datetime]] = {label: [] for label in ROUTINE_LABELS}
 
         for event in events:
             label = event.get("_value", "")
@@ -1277,9 +1261,7 @@ from(bucket: "{self.influxdb.bucket}")
 
         return memories_created
 
-    def _detect_routine_shift(
-        self, profile: RoutineProfile, existing_memory: dict
-    ) -> bool:
+    def _detect_routine_shift(self, profile: RoutineProfile, existing_memory: dict) -> bool:
         """Detect if a routine has shifted significantly from existing memory.
 
         Args:
@@ -1337,9 +1319,7 @@ from(bucket: "{self.influxdb.bucket}")
         return {
             "last_run": self._last_run.isoformat() if self._last_run else None,
             "last_routine_synthesis": (
-                self._last_routine_synthesis.isoformat()
-                if self._last_routine_synthesis
-                else None
+                self._last_routine_synthesis.isoformat() if self._last_routine_synthesis else None
             ),
             "overrides_detected": self._overrides_detected,
             "patterns_detected": self._patterns_detected,

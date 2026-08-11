@@ -44,11 +44,11 @@ class TestFluxSanitization:
             'entity" |> drop()',
             'entity" |> limit(n: 1000000)',
         ]
-        
+
         for injection in flux_injections:
             sanitized = sanitize_flux_value(injection)
             # Should not contain unescaped quotes or pipe operators
-            assert '|>' not in sanitized
+            assert "|>" not in sanitized
             assert sanitized.count('"') == sanitized.count('\\"') or '"' not in sanitized
 
     def test_special_characters(self):
@@ -68,9 +68,9 @@ class TestFluxSanitization:
     def test_quote_escaping(self):
         """Test that quotes are removed (injection-safe; escaping happens only if kept)."""
         # Implementation removes ', " in the allowed-char filter for safety
-        assert sanitize_flux_value('test"value') == 'testvalue'
+        assert sanitize_flux_value('test"value') == "testvalue"
         assert sanitize_flux_value("test'value") == "testvalue"
-        assert sanitize_flux_value('test"value"') == 'testvalue'
+        assert sanitize_flux_value('test"value"') == "testvalue"
 
     def test_length_limiting(self):
         """Test that length limits are enforced."""
@@ -94,7 +94,7 @@ class TestFluxSanitization:
         # Unicode should be preserved if it's word characters
         assert sanitize_flux_value("café") == "café"
         assert sanitize_flux_value("тест") == "тест"
-        
+
         # Special unicode should be removed
         assert sanitize_flux_value("test\u0000null") == "testnull"
 
@@ -103,10 +103,10 @@ class TestFluxSanitization:
         # Empty after sanitization
         assert sanitize_flux_value("!!!") == ""
         assert sanitize_flux_value("###") == ""
-        
+
         # Only special characters
         assert sanitize_flux_value("';--") == ""
-        
+
         # Mixed case
         assert sanitize_flux_value("Test_Value-123") == "Test_Value-123"
 
@@ -119,4 +119,3 @@ class TestFluxSanitization:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

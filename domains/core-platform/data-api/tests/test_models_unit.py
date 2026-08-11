@@ -9,7 +9,6 @@ from src.models.entity_registry_entry import EntityRegistryEntry
 
 
 class TestEntityRegistryEntry:
-
     def test_defaults(self):
         e = EntityRegistryEntry(entity_id="light.kitchen", unique_id="abc")
         assert e.name is None
@@ -85,8 +84,11 @@ class TestEntityRegistryEntry:
 
     def test_to_dict(self):
         e = EntityRegistryEntry(
-            entity_id="light.kitchen", unique_id="abc",
-            name="Kitchen", platform="hue", domain="light",
+            entity_id="light.kitchen",
+            unique_id="abc",
+            name="Kitchen",
+            platform="hue",
+            domain="light",
         )
         d = e.to_dict()
         assert d["entity_id"] == "light.kitchen"

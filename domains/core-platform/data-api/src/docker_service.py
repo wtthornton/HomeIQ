@@ -14,8 +14,10 @@ import docker
 
 logger = logging.getLogger(__name__)
 
+
 class ContainerStatus(Enum):
     """Container status enumeration"""
+
     RUNNING = "running"
     STOPPED = "stopped"
     STARTING = "starting"
@@ -23,9 +25,11 @@ class ContainerStatus(Enum):
     ERROR = "error"
     UNKNOWN = "unknown"
 
+
 @dataclass
 class ContainerInfo:
     """Container information model"""
+
     name: str
     service_name: str
     status: ContainerStatus
@@ -35,6 +39,7 @@ class ContainerInfo:
     labels: dict[str, str]
     is_project_container: bool = True
 
+
 class DockerService:
     """Docker container management service"""
 
@@ -42,9 +47,9 @@ class DockerService:
         """Initialize Docker service"""
         try:
             # Try to connect to Docker with fallback options
-            docker_host = os.getenv('DOCKER_HOST', 'unix:///var/run/docker.sock')
+            docker_host = os.getenv("DOCKER_HOST", "unix:///var/run/docker.sock")
 
-            if docker_host.startswith('unix://'):
+            if docker_host.startswith("unix://"):
                 # For Unix socket, try different approaches
                 try:
                     self.client = docker.from_env()
@@ -54,10 +59,12 @@ class DockerService:
                     logger.warning(f"Default Docker connection failed: {e1}")
                     try:
                         # Try with explicit socket path
-                        socket_path = docker_host.replace('unix://', '')
-                        self.client = docker.DockerClient(base_url=f'unix://{socket_path}')
+                        socket_path = docker_host.replace("unix://", "")
+                        self.client = docker.DockerClient(base_url=f"unix://{socket_path}")
                         self.client.ping()
-                        logger.info("Docker service initialized successfully with explicit socket path")
+                        logger.info(
+                            "Docker service initialized successfully with explicit socket path"
+                        )
                     except Exception as e2:
                         logger.error(f"Explicit socket connection also failed: {e2}")
                         # For now, create a mock client for development
@@ -77,17 +84,17 @@ class DockerService:
 
         # Container name mapping - maps service names to Docker container names
         self.container_mapping = {
-            'websocket-ingestion': 'homeiq-websocket',
-            'admin-api': 'homeiq-admin',
-            'health-dashboard': 'homeiq-dashboard',
-            'influxdb': 'homeiq-influxdb',
-            'weather-api': 'homeiq-weather',
-            'carbon-intensity-service': 'homeiq-carbon-intensity',
-            'electricity-pricing-service': 'homeiq-electricity-pricing',
-            'air-quality-service': 'homeiq-air-quality',
-            'calendar-service': 'homeiq-calendar',
-            'smart-meter-service': 'homeiq-smart-meter',
-            'data-retention': 'homeiq-data-retention'
+            "websocket-ingestion": "homeiq-websocket",
+            "admin-api": "homeiq-admin",
+            "health-dashboard": "homeiq-dashboard",
+            "influxdb": "homeiq-influxdb",
+            "weather-api": "homeiq-weather",
+            "carbon-intensity-service": "homeiq-carbon-intensity",
+            "electricity-pricing-service": "homeiq-electricity-pricing",
+            "air-quality-service": "homeiq-air-quality",
+            "calendar-service": "homeiq-calendar",
+            "smart-meter-service": "homeiq-smart-meter",
+            "data-retention": "homeiq-data-retention",
         }
 
         # Project label for filtering containers
@@ -113,9 +120,9 @@ class DockerService:
             for container in containers:
                 # Check if this is a project container
                 labels = container.labels or {}
-                project_name = labels.get('com.docker.compose.project')
+                project_name = labels.get("com.docker.compose.project")
 
-                if project_name == 'homeiq':
+                if project_name == "homeiq":
                     # Map container name to service name
                     service_name = self._get_service_name_from_container(container.name)
 
@@ -124,20 +131,24 @@ class DockerService:
 
                     # Get port mappings
                     ports = {}
-                    if container.attrs.get('NetworkSettings', {}).get('Ports'):
-                        for container_port, host_bindings in container.attrs['NetworkSettings']['Ports'].items():
+                    if container.attrs.get("NetworkSettings", {}).get("Ports"):
+                        for container_port, host_bindings in container.attrs["NetworkSettings"][
+                            "Ports"
+                        ].items():
                             if host_bindings:
-                                ports[container_port] = host_bindings[0]['HostPort']
+                                ports[container_port] = host_bindings[0]["HostPort"]
 
                     container_info = ContainerInfo(
                         name=container.name,
                         service_name=service_name,
                         status=status,
-                        image=container.image.tags[0] if container.image.tags else container.image.short_id,
-                        created=container.attrs['Created'],
+                        image=container.image.tags[0]
+                        if container.image.tags
+                        else container.image.short_id,
+                        created=container.attrs["Created"],
                         ports=ports,
                         labels=labels,
-                        is_project_container=True
+                        is_project_container=True,
                     )
 
                     project_containers.append(container_info)
@@ -163,7 +174,10 @@ class DockerService:
         try:
             if self.client is None:
                 # Mock response when Docker is not available
-                return True, f"Mock: Container {service_name} started successfully (Docker not available)"
+                return (
+                    True,
+                    f"Mock: Container {service_name} started successfully (Docker not available)",
+                )
 
             container_name = self._get_container_name(service_name)
             if not container_name:
@@ -171,7 +185,7 @@ class DockerService:
 
             container = self.client.containers.get(container_name)
 
-            if container.status == 'running':
+            if container.status == "running":
                 return True, f"Container {container_name} is already running"
 
             # Start the container
@@ -182,7 +196,7 @@ class DockerService:
 
             # Check if it started successfully
             container.reload()
-            if container.status == 'running':
+            if container.status == "running":
                 logger.info(f"Successfully started container: {container_name}")
                 return True, f"Container {container_name} started successfully"
             else:
@@ -209,7 +223,10 @@ class DockerService:
         try:
             if self.client is None:
                 # Mock response when Docker is not available
-                return True, f"Mock: Container {service_name} stopped successfully (Docker not available)"
+                return (
+                    True,
+                    f"Mock: Container {service_name} stopped successfully (Docker not available)",
+                )
 
             container_name = self._get_container_name(service_name)
             if not container_name:
@@ -217,7 +234,7 @@ class DockerService:
 
             container = self.client.containers.get(container_name)
 
-            if container.status != 'running':
+            if container.status != "running":
                 return True, f"Container {container_name} is not running"
 
             # Stop the container
@@ -228,7 +245,7 @@ class DockerService:
 
             # Check if it stopped successfully
             container.reload()
-            if container.status != 'running':
+            if container.status != "running":
                 logger.info(f"Successfully stopped container: {container_name}")
                 return True, f"Container {container_name} stopped successfully"
             else:
@@ -255,7 +272,10 @@ class DockerService:
         try:
             if self.client is None:
                 # Mock response when Docker is not available
-                return True, f"Mock: Container {service_name} restarted successfully (Docker not available)"
+                return (
+                    True,
+                    f"Mock: Container {service_name} restarted successfully (Docker not available)",
+                )
 
             container_name = self._get_container_name(service_name)
             if not container_name:
@@ -271,7 +291,7 @@ class DockerService:
 
             # Check if it restarted successfully
             container.reload()
-            if container.status == 'running':
+            if container.status == "running":
                 logger.info(f"Successfully restarted container: {container_name}")
                 return True, f"Container {container_name} restarted successfully"
             else:
@@ -299,17 +319,19 @@ class DockerService:
         try:
             if self.client is None:
                 # Mock logs when Docker is not available
-                return f"Mock logs for {service_name}:\n" + \
-                       f"{datetime.now().isoformat()} INFO: Service {service_name} is running\n" + \
-                       f"{datetime.now().isoformat()} INFO: Mock mode - Docker not available\n" + \
-                       f"{datetime.now().isoformat()} INFO: Container would be running normally\n"
+                return (
+                    f"Mock logs for {service_name}:\n"
+                    + f"{datetime.now().isoformat()} INFO: Service {service_name} is running\n"
+                    + f"{datetime.now().isoformat()} INFO: Mock mode - Docker not available\n"
+                    + f"{datetime.now().isoformat()} INFO: Container would be running normally\n"
+                )
 
             container_name = self._get_container_name(service_name)
             if not container_name:
                 return f"Unknown service: {service_name}"
 
             container = self.client.containers.get(container_name)
-            logs = container.logs(tail=tail, timestamps=True).decode('utf-8')
+            logs = container.logs(tail=tail, timestamps=True).decode("utf-8")
 
             return logs
 
@@ -334,11 +356,11 @@ class DockerService:
         """Get container status as enum"""
         status = container.status.lower()
 
-        if status == 'running':
+        if status == "running":
             return ContainerStatus.RUNNING
-        elif status == 'exited':
+        elif status == "exited":
             return ContainerStatus.STOPPED
-        elif status in ['created', 'restarting']:
+        elif status in ["created", "restarting"]:
             return ContainerStatus.STARTING
         else:
             return ContainerStatus.UNKNOWN
@@ -357,11 +379,11 @@ class DockerService:
             if self.client is None:
                 # Return mock stats when Docker is not available
                 return {
-                    'cpu_percent': 15.5,
-                    'memory_usage': 256 * 1024 * 1024,  # 256MB
-                    'memory_limit': 512 * 1024 * 1024,  # 512MB
-                    'memory_percent': 50.0,
-                    'timestamp': datetime.now().isoformat()
+                    "cpu_percent": 15.5,
+                    "memory_usage": 256 * 1024 * 1024,  # 256MB
+                    "memory_limit": 512 * 1024 * 1024,  # 512MB
+                    "memory_percent": 50.0,
+                    "timestamp": datetime.now().isoformat(),
                 }
 
             container_name = self._get_container_name(service_name)
@@ -370,27 +392,36 @@ class DockerService:
 
             container = self.client.containers.get(container_name)
 
-            if container.status != 'running':
+            if container.status != "running":
                 return None
 
             stats = container.stats(stream=False)
 
             # Calculate CPU usage
-            cpu_delta = stats['cpu_stats']['cpu_usage']['total_usage'] - stats['precpu_stats']['cpu_usage']['total_usage']
-            system_delta = stats['cpu_stats']['system_cpu_usage'] - stats['precpu_stats']['system_cpu_usage']
-            cpu_percent = (cpu_delta / system_delta) * len(stats['cpu_stats']['cpu_usage']['percpu_usage']) * 100.0
+            cpu_delta = (
+                stats["cpu_stats"]["cpu_usage"]["total_usage"]
+                - stats["precpu_stats"]["cpu_usage"]["total_usage"]
+            )
+            system_delta = (
+                stats["cpu_stats"]["system_cpu_usage"] - stats["precpu_stats"]["system_cpu_usage"]
+            )
+            cpu_percent = (
+                (cpu_delta / system_delta)
+                * len(stats["cpu_stats"]["cpu_usage"]["percpu_usage"])
+                * 100.0
+            )
 
             # Memory usage
-            memory_usage = stats['memory_stats']['usage']
-            memory_limit = stats['memory_stats']['limit']
+            memory_usage = stats["memory_stats"]["usage"]
+            memory_limit = stats["memory_stats"]["limit"]
             memory_percent = (memory_usage / memory_limit) * 100.0
 
             return {
-                'cpu_percent': round(cpu_percent, 2),
-                'memory_usage': memory_usage,
-                'memory_limit': memory_limit,
-                'memory_percent': round(memory_percent, 2),
-                'timestamp': datetime.now().isoformat()
+                "cpu_percent": round(cpu_percent, 2),
+                "memory_usage": memory_usage,
+                "memory_limit": memory_limit,
+                "memory_percent": round(memory_percent, 2),
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
@@ -409,10 +440,10 @@ class DockerService:
         # Create mock data for all known services
         for service_name, container_name in self.container_mapping.items():
             # Mock different statuses for variety
-            if service_name in ['influxdb', 'websocket-ingestion']:
+            if service_name in ["influxdb", "websocket-ingestion"]:
                 status = ContainerStatus.RUNNING
-                ports = {'8086/tcp': '8086'} if service_name == 'influxdb' else {'8001/tcp': '8001'}
-            elif service_name in ['weather-api', 'carbon-intensity-service']:
+                ports = {"8086/tcp": "8086"} if service_name == "influxdb" else {"8001/tcp": "8001"}
+            elif service_name in ["weather-api", "carbon-intensity-service"]:
                 status = ContainerStatus.STOPPED
                 ports = {}
             else:
@@ -426,8 +457,8 @@ class DockerService:
                 image=f"homeiq-{service_name}:latest",
                 created="2024-01-01T00:00:00Z",
                 ports=ports,
-                labels={'com.docker.compose.project': 'homeiq'},
-                is_project_container=True
+                labels={"com.docker.compose.project": "homeiq"},
+                is_project_container=True,
             )
 
             mock_containers.append(container_info)

@@ -40,7 +40,9 @@ class MinuteBucket:
     # Derived helpers --------------------------------------------------
     @property
     def avg_response_time(self) -> float:
-        return self.response_time_sum / self.response_time_count if self.response_time_count else 0.0
+        return (
+            self.response_time_sum / self.response_time_count if self.response_time_count else 0.0
+        )
 
     @property
     def avg_db_latency(self) -> float:
@@ -166,10 +168,12 @@ class MetricsBuffer:
             # Collect minute-buckets that fall inside this window
             value = self._aggregate_window(metric, bucket_map, window_start, window_end)
 
-            series.append({
-                "timestamp": window_start.isoformat() + ("Z" if window_start.tzinfo else ""),
-                "value": round(value, 4),
-            })
+            series.append(
+                {
+                    "timestamp": window_start.isoformat() + ("Z" if window_start.tzinfo else ""),
+                    "value": round(value, 4),
+                }
+            )
 
         return series
 

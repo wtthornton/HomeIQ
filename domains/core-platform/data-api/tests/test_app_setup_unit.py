@@ -3,8 +3,7 @@
 Tests middleware configuration and router registration.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 
 from src._app_setup import configure_middleware, register_routers
 
@@ -30,8 +29,7 @@ class TestConfigureMiddleware:
         with patch("homeiq_data.rate_limiter.rate_limit_middleware", create=True):
             configure_middleware(app, svc)
         # CORSMiddleware should be added
-        cors_calls = [c for c in app.add_middleware.call_args_list
-                      if "CORSMiddleware" in str(c)]
+        cors_calls = [c for c in app.add_middleware.call_args_list if "CORSMiddleware" in str(c)]
         assert len(cors_calls) >= 1
 
     @patch("src._app_setup.OBSERVABILITY_AVAILABLE", False)
@@ -103,6 +101,7 @@ class TestRegisterRouters:
 
         register_routers(app, svc)
 
-        prefix_calls = [c for c in app.include_router.call_args_list
-                        if c.kwargs.get("prefix") == "/api/v1"]
+        prefix_calls = [
+            c for c in app.include_router.call_args_list if c.kwargs.get("prefix") == "/api/v1"
+        ]
         assert len(prefix_calls) >= 8

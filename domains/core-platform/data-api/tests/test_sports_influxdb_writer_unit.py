@@ -4,14 +4,13 @@ Tests point construction, write dispatch, stats tracking, and error handling
 with mocked InfluxDB client.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.sports_influxdb_writer import SportsInfluxDBWriter, get_sports_writer
 
 
 class TestConnect:
-
     @pytest.mark.asyncio
     async def test_connect_no_token_returns_false(self):
         writer = SportsInfluxDBWriter()
@@ -35,8 +34,10 @@ class TestConnect:
         mock_write_api = MagicMock()
         mock_client.write_api.return_value = mock_write_api
 
-        with patch("src.sports_influxdb_writer.InfluxDBClient", return_value=mock_client), \
-             patch("src.sports_influxdb_writer.SYNCHRONOUS", "sync"):
+        with (
+            patch("src.sports_influxdb_writer.InfluxDBClient", return_value=mock_client),
+            patch("src.sports_influxdb_writer.SYNCHRONOUS", "sync"),
+        ):
             result = await writer.connect()
             assert result is True
             assert writer.is_connected is True
@@ -51,7 +52,6 @@ class TestConnect:
 
 
 class TestWriteNFLGame:
-
     def _make_writer(self):
         writer = SportsInfluxDBWriter()
         writer.is_connected = True
@@ -113,7 +113,6 @@ class TestWriteNFLGame:
 
 
 class TestWriteNHLGame:
-
     @pytest.mark.asyncio
     async def test_not_connected_returns_false(self):
         writer = SportsInfluxDBWriter()
@@ -136,7 +135,6 @@ class TestWriteNHLGame:
             mock_asyncio.to_thread = AsyncMock()
             result = await writer.write_nhl_game(game)
             assert result is True
-
 
     @pytest.mark.asyncio
     async def test_writes_nhl_game_all_fields(self):
@@ -179,6 +177,7 @@ class TestWriteNHLGame:
         writer.is_connected = True
         writer.write_api = MagicMock()
         from datetime import datetime
+
         game = {
             "game_id": "NFL-2025-3",
             "home_team": "CLE",
@@ -194,7 +193,6 @@ class TestWriteNHLGame:
 
 
 class TestWriteGame:
-
     def setup_method(self):
         self.writer = SportsInfluxDBWriter()
         self.writer.is_connected = True
@@ -224,7 +222,6 @@ class TestWriteGame:
 
 
 class TestGetStats:
-
     def test_returns_stats_dict(self):
         writer = SportsInfluxDBWriter()
         writer.total_points_written = 10
@@ -237,7 +234,6 @@ class TestGetStats:
 
 
 class TestClose:
-
     @pytest.mark.asyncio
     async def test_close_sets_not_connected(self):
         writer = SportsInfluxDBWriter()
@@ -249,8 +245,8 @@ class TestClose:
 
 
 class TestSingleton:
-
     def test_returns_same_instance(self):
         import src.sports_influxdb_writer as mod
+
         mod._sports_writer = None
         assert get_sports_writer() is get_sports_writer()

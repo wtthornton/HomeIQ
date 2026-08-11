@@ -27,13 +27,11 @@ class DeviceHealthService:
         if self._session is None or self._session.closed:
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             timeout = aiohttp.ClientTimeout(total=10)
             self._session = aiohttp.ClientSession(
-                headers=headers,
-                timeout=timeout,
-                raise_for_status=False
+                headers=headers, timeout=timeout, raise_for_status=False
             )
         return self._session
 
@@ -42,7 +40,7 @@ class DeviceHealthService:
         device_id: str,
         device_name: str,
         entity_ids: list[str],
-        _power_spec_w: float | None = None
+        _power_spec_w: float | None = None,
     ) -> dict[str, Any]:
         """
         Get health report for a device.
@@ -64,7 +62,7 @@ class DeviceHealthService:
                 "timestamp": datetime.now().isoformat(),
                 "overall_status": "unknown",
                 "issues": [],
-                "maintenance_recommendations": []
+                "maintenance_recommendations": [],
             }
 
         issues = []
@@ -76,32 +74,40 @@ class DeviceHealthService:
             # Check battery levels
             battery_level = await self._get_battery_level(session, entity_ids)
             if battery_level is not None and battery_level < 20:
-                issues.append({
-                    "type": "low_battery",
-                    "severity": "error" if battery_level < 10 else "warning",
-                    "message": f"Battery level at {battery_level:.0f}%"
-                })
-                recommendations.append({
-                    "title": "Replace or recharge battery",
-                    "description": f"Device battery is at {battery_level:.0f}%",
-                    "priority": "high" if battery_level < 10 else "medium"
-                })
+                issues.append(
+                    {
+                        "type": "low_battery",
+                        "severity": "error" if battery_level < 10 else "warning",
+                        "message": f"Battery level at {battery_level:.0f}%",
+                    }
+                )
+                recommendations.append(
+                    {
+                        "title": "Replace or recharge battery",
+                        "description": f"Device battery is at {battery_level:.0f}%",
+                        "priority": "high" if battery_level < 10 else "medium",
+                    }
+                )
 
             # Check last seen
             last_seen = await self._get_last_seen(session, entity_ids)
             if last_seen:
                 hours_ago = (datetime.now() - last_seen).total_seconds() / 3600
                 if hours_ago > 24:
-                    issues.append({
-                        "type": "device_not_responding",
-                        "severity": "error" if hours_ago > 48 else "warning",
-                        "message": f"Device not seen in {hours_ago:.1f} hours"
-                    })
-                    recommendations.append({
-                        "title": "Check device status",
-                        "description": f"Device has not sent events in {hours_ago:.1f} hours",
-                        "priority": "high" if hours_ago > 48 else "medium"
-                    })
+                    issues.append(
+                        {
+                            "type": "device_not_responding",
+                            "severity": "error" if hours_ago > 48 else "warning",
+                            "message": f"Device not seen in {hours_ago:.1f} hours",
+                        }
+                    )
+                    recommendations.append(
+                        {
+                            "title": "Check device status",
+                            "description": f"Device has not sent events in {hours_ago:.1f} hours",
+                            "priority": "high" if hours_ago > 48 else "medium",
+                        }
+                    )
 
             # Determine overall status
             if any(issue["severity"] in ("error", "critical") for issue in issues):
@@ -119,7 +125,7 @@ class DeviceHealthService:
                 "battery_level": battery_level,
                 "last_seen": last_seen.isoformat() if last_seen else None,
                 "issues": issues,
-                "maintenance_recommendations": recommendations
+                "maintenance_recommendations": recommendations,
             }
 
         except Exception as e:
@@ -129,15 +135,19 @@ class DeviceHealthService:
                 "device_name": device_name,
                 "timestamp": datetime.now().isoformat(),
                 "overall_status": "error",
-                "issues": [{
-                    "type": "health_check_failed",
-                    "severity": "error",
-                    "message": f"Failed to analyze health: {str(e)}"
-                }],
-                "maintenance_recommendations": []
+                "issues": [
+                    {
+                        "type": "health_check_failed",
+                        "severity": "error",
+                        "message": f"Failed to analyze health: {str(e)}",
+                    }
+                ],
+                "maintenance_recommendations": [],
             }
 
-    async def _get_battery_level(self, session: aiohttp.ClientSession, entity_ids: list[str]) -> float | None:
+    async def _get_battery_level(
+        self, session: aiohttp.ClientSession, entity_ids: list[str]
+    ) -> float | None:
         """Get battery level from device entities"""
         for entity_id in entity_ids[:5]:  # Limit to first 5
             try:
@@ -153,7 +163,9 @@ class DeviceHealthService:
                 continue
         return None
 
-    async def _get_last_seen(self, session: aiohttp.ClientSession, entity_ids: list[str]) -> datetime | None:
+    async def _get_last_seen(
+        self, session: aiohttp.ClientSession, entity_ids: list[str]
+    ) -> datetime | None:
         """Get last seen timestamp from device entities"""
         latest = None
         for entity_id in entity_ids[:5]:  # Limit to first 5
@@ -185,4 +197,3 @@ def get_health_service() -> DeviceHealthService:
     if _health_service is None:
         _health_service = DeviceHealthService()
     return _health_service
-

@@ -50,13 +50,13 @@ def sanitize_flux_value(value: str | None, max_length: int = MAX_SANITIZED_LENGT
 
     # Remove special characters that could be used for injection
     # Allow: word characters, spaces, dots, hyphens, underscores
-    sanitized = re.sub(r'[^\w\s._-]', '', str_value)
+    sanitized = re.sub(r"[^\w\s._-]", "", str_value)
 
     # Remove SQL/Flux line comments (--) to prevent injection
-    sanitized = re.sub(r'--+', '', sanitized)
+    sanitized = re.sub(r"--+", "", sanitized)
 
     # Remove newlines, tabs, and collapse inner whitespace
-    sanitized = re.sub(r'\s+', '', sanitized)
+    sanitized = re.sub(r"\s+", "", sanitized)
 
     # Escape quotes (defense in depth; re.sub above removes them, this stays for clarity)
     sanitized = sanitized.replace('"', '\\"')
@@ -67,9 +67,10 @@ def sanitize_flux_value(value: str | None, max_length: int = MAX_SANITIZED_LENGT
         sanitized = sanitized[:max_length]
         # Log warning if truncation occurred (in production, use proper logging)
         import warnings
+
         warnings.warn(
             f"Sanitized value truncated from {len(str_value)} to {max_length} characters",
-            UserWarning
+            UserWarning,
         )
 
     # Validate that we have valid content after sanitization

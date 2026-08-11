@@ -4,8 +4,8 @@ Story 22.1
 """
 
 import pytest
-from sqlalchemy import text
 import src.database as _database
+from sqlalchemy import text
 from src.database import (
     check_db_health,
     get_db,
@@ -71,4 +71,3 @@ async def test_connection_error_handling():
     # Should always return a dict
     assert isinstance(health, dict)
     assert "status" in health
-

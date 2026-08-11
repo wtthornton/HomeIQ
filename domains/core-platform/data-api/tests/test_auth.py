@@ -31,7 +31,6 @@ import pytest
 import pytest_asyncio
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
-
 from src.auth import AuthManager, User
 
 # ---------------------------------------------------------------------------
@@ -45,6 +44,7 @@ from src.auth import AuthManager, User
 async def fresh_db():  # noqa: F811  (intentional override of conftest fixture)
     """No-op override: auth tests have no database dependency."""
     yield
+
 
 # ---------------------------------------------------------------------------
 # Helpers

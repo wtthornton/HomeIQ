@@ -4,7 +4,6 @@ Unit tests for EntityRegistry service
 Tests relationship query methods for entity registry with device and area relationships.
 """
 
-
 import pytest
 import src.database as _database
 from src.database import init_db
@@ -18,6 +17,7 @@ def AsyncSessionLocal():  # noqa: N802
     from-import would capture None permanently.
     """
     return _database.AsyncSessionLocal()
+
 
 from src.models import Device, Entity
 from src.models.entity_registry_entry import EntityRegistryEntry
@@ -36,7 +36,7 @@ async def test_get_entities_by_device():
             name="Test Device",
             manufacturer="Test Co",
             model="Model X",
-            config_entry_id="entry_123"
+            config_entry_id="entry_123",
         )
         session.add(device)
 
@@ -46,14 +46,14 @@ async def test_get_entities_by_device():
             device_id="test_device_1",
             domain="light",
             platform="test",
-            config_entry_id="entry_123"
+            config_entry_id="entry_123",
         )
         entity2 = Entity(
             entity_id="sensor.test_1",
             device_id="test_device_1",
             domain="sensor",
             platform="test",
-            config_entry_id="entry_123"
+            config_entry_id="entry_123",
         )
         session.add(entity1)
         session.add(entity2)
@@ -93,15 +93,12 @@ async def test_get_device_for_entity():
             device_id="test_device_2",
             name="Test Device 2",
             manufacturer="Test Co",
-            config_entry_id="entry_456"
+            config_entry_id="entry_456",
         )
         session.add(device)
 
         entity = Entity(
-            entity_id="light.test_2",
-            device_id="test_device_2",
-            domain="light",
-            platform="test"
+            entity_id="light.test_2", device_id="test_device_2", domain="light", platform="test"
         )
         session.add(entity)
         await session.commit()
@@ -130,9 +127,15 @@ async def test_get_sibling_entities():
         device = Device(device_id="test_device_3", name="Test Device 3")
         session.add(device)
 
-        entity1 = Entity(entity_id="light.test_3", device_id="test_device_3", domain="light", platform="test")
-        entity2 = Entity(entity_id="sensor.test_3", device_id="test_device_3", domain="sensor", platform="test")
-        entity3 = Entity(entity_id="switch.test_3", device_id="test_device_3", domain="switch", platform="test")
+        entity1 = Entity(
+            entity_id="light.test_3", device_id="test_device_3", domain="light", platform="test"
+        )
+        entity2 = Entity(
+            entity_id="sensor.test_3", device_id="test_device_3", domain="sensor", platform="test"
+        )
+        entity3 = Entity(
+            entity_id="switch.test_3", device_id="test_device_3", domain="switch", platform="test"
+        )
 
         session.add(entity1)
         session.add(entity2)
@@ -170,9 +173,27 @@ async def test_get_entities_in_area():
         session.add(device1)
         session.add(device2)
 
-        entity1 = Entity(entity_id="light.living_room_1", device_id="test_device_4", domain="light", area_id="living_room", platform="test")
-        entity2 = Entity(entity_id="light.living_room_2", device_id="test_device_5", domain="light", area_id="living_room", platform="test")
-        entity3 = Entity(entity_id="sensor.living_room", device_id="test_device_4", domain="sensor", area_id="living_room", platform="test")
+        entity1 = Entity(
+            entity_id="light.living_room_1",
+            device_id="test_device_4",
+            domain="light",
+            area_id="living_room",
+            platform="test",
+        )
+        entity2 = Entity(
+            entity_id="light.living_room_2",
+            device_id="test_device_5",
+            domain="light",
+            area_id="living_room",
+            platform="test",
+        )
+        entity3 = Entity(
+            entity_id="sensor.living_room",
+            device_id="test_device_4",
+            domain="sensor",
+            area_id="living_room",
+            platform="test",
+        )
 
         session.add(entity1)
         session.add(entity2)
@@ -210,9 +231,27 @@ async def test_get_entities_by_config_entry():
         session.add(device1)
         session.add(device2)
 
-        entity1 = Entity(entity_id="light.test_6", device_id="test_device_6", domain="light", config_entry_id="entry_789", platform="test")
-        entity2 = Entity(entity_id="sensor.test_6", device_id="test_device_6", domain="sensor", config_entry_id="entry_789", platform="test")
-        entity3 = Entity(entity_id="light.test_7", device_id="test_device_7", domain="light", config_entry_id="entry_789", platform="test")
+        entity1 = Entity(
+            entity_id="light.test_6",
+            device_id="test_device_6",
+            domain="light",
+            config_entry_id="entry_789",
+            platform="test",
+        )
+        entity2 = Entity(
+            entity_id="sensor.test_6",
+            device_id="test_device_6",
+            domain="sensor",
+            config_entry_id="entry_789",
+            platform="test",
+        )
+        entity3 = Entity(
+            entity_id="light.test_7",
+            device_id="test_device_7",
+            domain="light",
+            config_entry_id="entry_789",
+            platform="test",
+        )
 
         session.add(entity1)
         session.add(entity2)
@@ -245,7 +284,9 @@ async def test_get_device_hierarchy():
 
     async with AsyncSessionLocal() as session:
         # Create parent device
-        parent_device = Device(device_id="parent_device", name="Parent Device", manufacturer="Test Co")
+        parent_device = Device(
+            device_id="parent_device", name="Parent Device", manufacturer="Test Co"
+        )
         session.add(parent_device)
 
         # Create child device with via_device
@@ -253,7 +294,7 @@ async def test_get_device_hierarchy():
             device_id="child_device",
             name="Child Device",
             manufacturer="Test Co",
-            via_device="parent_device"
+            via_device="parent_device",
         )
         session.add(child_device)
         await session.commit()
@@ -327,7 +368,7 @@ async def test_entity_registry_entry_from_entity_and_device():
             model="Model Y",
             sw_version="1.0.0",
             via_device=None,
-            config_entry_id="entry_999"
+            config_entry_id="entry_999",
         )
         session.add(device)
 
@@ -339,16 +380,14 @@ async def test_entity_registry_entry_from_entity_and_device():
             config_entry_id="entry_999",
             name="Test Light",
             name_by_user="My Light",
-            friendly_name="My Light"
+            friendly_name="My Light",
         )
         session.add(entity)
         await session.commit()
 
         # Create EntityRegistryEntry
         entry = EntityRegistryEntry.from_entity_and_device(
-            entity=entity,
-            device=device,
-            related_entities=["sensor.test_8"]
+            entity=entity, device=device, related_entities=["sensor.test_8"]
         )
 
         assert entry.entity_id == "light.test_8"
@@ -371,4 +410,3 @@ async def test_entity_registry_entry_from_entity_and_device():
         await session.delete(entity)
         await session.delete(device)
         await session.commit()
-

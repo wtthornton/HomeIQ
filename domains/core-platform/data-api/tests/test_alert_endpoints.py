@@ -21,14 +21,16 @@ Covers 14 scenarios:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-
-from src.alert_endpoints import AlertEndpoints, AlertResponse, AlertSummaryResponse, create_alert_router
+from src.alert_endpoints import (
+    AlertEndpoints,
+    create_alert_router,
+)
 
 # ---------------------------------------------------------------------------
 # Override conftest fresh_db — alert endpoints have no DB dependency
@@ -48,8 +50,16 @@ async def fresh_db():
 class FakeAlert:
     """Minimal alert object matching AlertManager's alert interface."""
 
-    def __init__(self, id, name, severity, alert_status, message="test alert",
-                 service="data-api", created_at=None):
+    def __init__(
+        self,
+        id,
+        name,
+        severity,
+        alert_status,
+        message="test alert",
+        service="data-api",
+        created_at=None,
+    ):
         from homeiq_observability.alert_manager import AlertSeverity, AlertStatus
 
         self.id = id
@@ -70,8 +80,8 @@ class FakeAlert:
         return {
             "id": self.id,
             "name": self.name,
-            "severity": self.severity.value if hasattr(self.severity, 'value') else self.severity,
-            "status": self.status.value if hasattr(self.status, 'value') else self.status,
+            "severity": self.severity.value if hasattr(self.severity, "value") else self.severity,
+            "status": self.status.value if hasattr(self.status, "value") else self.status,
             "message": self.message,
             "service": self.service,
             "metric": self.metric,
@@ -100,6 +110,7 @@ def _make_mock_alert_manager(alerts=None):
         alert = alert_dict.get(alert_id)
         if alert:
             from homeiq_observability.alert_manager import AlertStatus
+
             alert.status = AlertStatus.ACKNOWLEDGED
             return True
         return False
@@ -108,12 +119,14 @@ def _make_mock_alert_manager(alerts=None):
         alert = alert_dict.get(alert_id)
         if alert:
             from homeiq_observability.alert_manager import AlertStatus
+
             alert.status = AlertStatus.RESOLVED
             return True
         return False
 
     def _get_active(severity=None):
         from homeiq_observability.alert_manager import AlertStatus
+
         active = [a for a in alert_dict.values() if a.status == AlertStatus.ACTIVE]
         if severity:
             active = [a for a in active if a.severity == severity]
@@ -121,6 +134,7 @@ def _make_mock_alert_manager(alerts=None):
 
     def _get_summary():
         from homeiq_observability.alert_manager import AlertSeverity, AlertStatus
+
         active_alerts = [a for a in alert_dict.values() if a.status == AlertStatus.ACTIVE]
         return {
             "total_active": len(active_alerts),

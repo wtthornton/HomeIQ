@@ -46,10 +46,12 @@ SERVICE_START_TIME = data_api_service.start_time  # backward compat for health/a
 
 # -- lifecycle hooks --------------------------------------------------------
 
+
 async def _startup() -> None:
     """DB init and service start."""
     try:
         from homeiq_ha.deployment_validation import log_deployment_info
+
         log_deployment_info("data-api")
     except ImportError:
         pass
@@ -118,6 +120,7 @@ register_routers(app, data_api_service)
 
 # -- custom endpoints (preserved from original) -----------------------------
 
+
 @app.get("/health/detailed")
 async def health_check_detailed() -> dict:
     """Detailed health check with dependencies and error-rate metrics."""
@@ -126,32 +129,51 @@ async def health_check_detailed() -> dict:
     err = round(svc.failed_requests / svc.total_requests * 100, 2) if svc.total_requests else 0.0
     return {
         "status": "healthy" if svc.is_running else "unhealthy",
-        "service": "data-api", "version": svc.api_version,
+        "service": "data-api",
+        "version": svc.api_version,
         "timestamp": datetime.now().isoformat(),
         "uptime_seconds": (datetime.now() - svc.start_time).total_seconds(),
-        "metrics": {"total_requests": svc.total_requests,
-                     "failed_requests": svc.failed_requests,
-                     "error_rate_percent": err},
-        "cache": cache.get_stats(), "rate_limiter": svc.rate_limiter.get_stats(),
+        "metrics": {
+            "total_requests": svc.total_requests,
+            "failed_requests": svc.failed_requests,
+            "error_rate_percent": err,
+        },
+        "cache": cache.get_stats(),
+        "rate_limiter": svc.rate_limiter.get_stats(),
         "dependencies": {
-            "influxdb": {"status": "connected" if influx["is_connected"] else "disconnected",
-                         "url": influx["url"], "query_count": influx["query_count"],
-                         "avg_query_time_ms": influx["avg_query_time_ms"],
-                         "success_rate": influx["success_rate"]},
-            "database": await check_db_health()},
-        "authentication": {"api_key_required": not svc.allow_anonymous}}
+            "influxdb": {
+                "status": "connected" if influx["is_connected"] else "disconnected",
+                "url": influx["url"],
+                "query_count": influx["query_count"],
+                "avg_query_time_ms": influx["avg_query_time_ms"],
+                "success_rate": influx["success_rate"],
+            },
+            "database": await check_db_health(),
+        },
+        "authentication": {"api_key_required": not svc.allow_anonymous},
+    }
 
 
 @app.get("/api/info", response_model=APIResponse)
 async def api_info() -> APIResponse:
     """API information endpoint."""
     svc = data_api_service
-    return APIResponse(success=True, message="Data API info", data={
-        "title": svc.api_title, "version": svc.api_version,
-        "description": svc.api_description,
-        "endpoints": {"health": "/health", "events": "/api/v1/events",
-                       "devices": "/api/v1/devices", "sports": "/api/v1/sports"},
-        "authentication": {"api_key_required": not svc.allow_anonymous}})
+    return APIResponse(
+        success=True,
+        message="Data API info",
+        data={
+            "title": svc.api_title,
+            "version": svc.api_version,
+            "description": svc.api_description,
+            "endpoints": {
+                "health": "/health",
+                "events": "/api/v1/events",
+                "devices": "/api/v1/devices",
+                "sports": "/api/v1/sports",
+            },
+            "authentication": {"api_key_required": not svc.allow_anonymous},
+        },
+    )
 
 
 # -- error handlers ---------------------------------------------------------
@@ -159,21 +181,32 @@ async def api_info() -> APIResponse:
 if register_error_handlers:
     register_error_handlers(app)
 else:
+
     @app.exception_handler(HTTPException)
     async def _http_err(_req, exc: HTTPException):  # noqa: ANN001,ANN201
-        return JSONResponse(status_code=exc.status_code,
-                            content=ErrorResponse(error=exc.detail,
-                                                  error_code=f"HTTP_{exc.status_code}").model_dump())
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=ErrorResponse(
+                error=exc.detail, error_code=f"HTTP_{exc.status_code}"
+            ).model_dump(),
+        )
 
     @app.exception_handler(Exception)
     async def _general_err(_req, exc: Exception):  # noqa: ANN001,ANN201
         logger.error("Unhandled: %s", exc, exc_info=True)
-        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            content=ErrorResponse(error="Internal server error",
-                                                  error_code="INTERNAL_ERROR").model_dump())
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content=ErrorResponse(
+                error="Internal server error", error_code="INTERNAL_ERROR"
+            ).model_dump(),
+        )
+
 
 if __name__ == "__main__":
-    uvicorn.run("src.main:app", host="0.0.0.0",  # noqa: S104
-                port=settings.service_port,
-                reload=os.getenv("RELOAD", "false").lower() == "true",
-                log_level=settings.log_level.lower())
+    uvicorn.run(
+        "src.main:app",
+        host="0.0.0.0",  # noqa: S104
+        port=settings.service_port,
+        reload=os.getenv("RELOAD", "false").lower() == "true",
+        log_level=settings.log_level.lower(),
+    )

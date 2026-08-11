@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 SENSITIVE_KEY_PATTERNS = ("TOKEN", "API_KEY", "SECRET", "PASSWORD", "PRIVATE_KEY", "ACCESS_KEY")
 MASK_VALUE = "********"
 
+
 class ConfigManager:
     """Simple configuration manager for .env files"""
 
@@ -22,7 +23,9 @@ class ConfigManager:
             config_dir: Directory containing .env files
         """
         self.config_dir = Path(config_dir)
-        self.allow_secret_writes = os.getenv('ADMIN_API_ALLOW_SECRET_WRITES', 'false').lower() == 'true'
+        self.allow_secret_writes = (
+            os.getenv("ADMIN_API_ALLOW_SECRET_WRITES", "false").lower() == "true"
+        )
         if not self.config_dir.exists():
             logger.warning(f"Config directory {config_dir} does not exist")
 
@@ -72,26 +75,21 @@ class ConfigManager:
                 line = line.strip()
 
                 # Skip empty lines and comments
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
 
                 # Parse key=value
-                if '=' in line:
-                    key, value = line.split('=', 1)
+                if "=" in line:
+                    key, value = line.split("=", 1)
                     config[key.strip()] = value.strip()
                 else:
-                    logger.warning(
-                        f"Invalid line {line_num} in {env_file}: {line}"
-                    )
+                    logger.warning(f"Invalid line {line_num} in {env_file}: {line}")
 
         logger.info(f"Read {len(config)} settings for {service}")
         return config
 
     def write_config(
-        self,
-        service: str,
-        updates: dict[str, str],
-        create_if_missing: bool = False
+        self, service: str, updates: dict[str, str], create_if_missing: bool = False
     ) -> dict[str, str]:
         """
         Update configuration for a service
@@ -133,13 +131,13 @@ class ConfigManager:
             stripped = line.strip()
 
             # Keep comments and empty lines as-is
-            if not stripped or stripped.startswith('#'):
+            if not stripped or stripped.startswith("#"):
                 new_lines.append(line)
                 continue
 
             # Update existing key
-            if '=' in stripped:
-                key = stripped.split('=')[0].strip()
+            if "=" in stripped:
+                key = stripped.split("=")[0].strip()
                 if key in updates:
                     new_lines.append(f"{key}={updates[key]}\n")
                     updated_keys.add(key)
@@ -155,7 +153,7 @@ class ConfigManager:
                 updated_keys.add(key)
 
         # Write back
-        with open(env_file, 'w') as f:
+        with open(env_file, "w") as f:
             f.writelines(new_lines)
 
         # Set secure permissions (owner read/write only) - ignore errors for mounted volumes
@@ -167,9 +165,7 @@ class ConfigManager:
         except Exception as e:
             logger.warning(f"Could not change permissions for {env_file}: {e}")
 
-        logger.info(
-            f"Updated {len(updated_keys)} settings for {service}"
-        )
+        logger.info(f"Updated {len(updated_keys)} settings for {service}")
 
         # Return updated config
         return self.read_config(service)
@@ -225,7 +221,9 @@ class ConfigManager:
         if service == "websocket":
             if "HA_URL" not in config:
                 errors.append("HA_URL is required")
-            elif not config["HA_URL"].startswith("ws://") and not config["HA_URL"].startswith("wss://"):
+            elif not config["HA_URL"].startswith("ws://") and not config["HA_URL"].startswith(
+                "wss://"
+            ):
                 errors.append("HA_URL must start with ws:// or wss://")
 
             if "HA_TOKEN" not in config:
@@ -266,11 +264,7 @@ class ConfigManager:
             if "INFLUXDB_BUCKET" not in config:
                 errors.append("INFLUXDB_BUCKET is required")
 
-        return {
-            "errors": errors,
-            "warnings": warnings,
-            "valid": len(errors) == 0
-        }
+        return {"errors": errors, "warnings": warnings, "valid": len(errors) == 0}
 
     def get_config_template(self, service: str) -> dict[str, dict[str, str]]:
         """
@@ -290,7 +284,7 @@ class ConfigManager:
                     "sensitive": False,
                     "description": "Home Assistant WebSocket URL",
                     "placeholder": "ws://192.168.1.100:8123/api/websocket",
-                    "default": ""
+                    "default": "",
                 },
                 "HA_TOKEN": {
                     "type": "password",
@@ -298,22 +292,22 @@ class ConfigManager:
                     "sensitive": True,
                     "description": "Home Assistant Long-Lived Access Token",
                     "placeholder": "Your HA access token",
-                    "default": ""
+                    "default": "",
                 },
                 "HA_SSL_VERIFY": {
                     "type": "boolean",
                     "required": False,
                     "sensitive": False,
                     "description": "Verify SSL certificates",
-                    "default": "true"
+                    "default": "true",
                 },
                 "HA_RECONNECT_DELAY": {
                     "type": "number",
                     "required": False,
                     "sensitive": False,
                     "description": "Reconnect delay in seconds",
-                    "default": "5"
-                }
+                    "default": "5",
+                },
             },
             "weather": {
                 "WEATHER_API_KEY": {
@@ -322,7 +316,7 @@ class ConfigManager:
                     "sensitive": True,
                     "description": "OpenWeatherMap API Key",
                     "placeholder": "Your OpenWeatherMap API key",
-                    "default": ""
+                    "default": "",
                 },
                 "WEATHER_LAT": {
                     "type": "number",
@@ -330,7 +324,7 @@ class ConfigManager:
                     "sensitive": False,
                     "description": "Latitude",
                     "placeholder": "51.5074",
-                    "default": "51.5074"
+                    "default": "51.5074",
                 },
                 "WEATHER_LON": {
                     "type": "number",
@@ -338,7 +332,7 @@ class ConfigManager:
                     "sensitive": False,
                     "description": "Longitude",
                     "placeholder": "-0.1278",
-                    "default": "-0.1278"
+                    "default": "-0.1278",
                 },
                 "WEATHER_UNITS": {
                     "type": "select",
@@ -346,15 +340,15 @@ class ConfigManager:
                     "sensitive": False,
                     "description": "Temperature units",
                     "options": ["metric", "imperial"],
-                    "default": "metric"
+                    "default": "metric",
                 },
                 "WEATHER_CACHE_SECONDS": {
                     "type": "number",
                     "required": False,
                     "sensitive": False,
                     "description": "Cache duration in seconds",
-                    "default": "300"
-                }
+                    "default": "300",
+                },
             },
             "influxdb": {
                 "INFLUXDB_URL": {
@@ -363,7 +357,7 @@ class ConfigManager:
                     "sensitive": False,
                     "description": "InfluxDB URL",
                     "placeholder": "http://influxdb:8086",
-                    "default": "http://influxdb:8086"
+                    "default": "http://influxdb:8086",
                 },
                 "INFLUXDB_TOKEN": {
                     "type": "password",
@@ -371,23 +365,23 @@ class ConfigManager:
                     "sensitive": True,
                     "description": "InfluxDB Access Token",
                     "placeholder": "Your InfluxDB token",
-                    "default": ""
+                    "default": "",
                 },
                 "INFLUXDB_ORG": {
                     "type": "text",
                     "required": True,
                     "sensitive": False,
                     "description": "InfluxDB Organization",
-                    "default": "home-assistant"
+                    "default": "home-assistant",
                 },
                 "INFLUXDB_BUCKET": {
                     "type": "text",
                     "required": True,
                     "sensitive": False,
                     "description": "InfluxDB Bucket",
-                    "default": "ha_events"
-                }
-            }
+                    "default": "ha_events",
+                },
+            },
         }
 
         return templates.get(service, {})
@@ -409,4 +403,3 @@ class ConfigManager:
 
 # Global instance
 config_manager = ConfigManager()
-

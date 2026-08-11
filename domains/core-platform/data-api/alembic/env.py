@@ -72,9 +72,7 @@ async def run_async_migrations() -> None:
     )
 
     async with connectable.connect() as connection:
-        await connection.execute(
-            text(f"SET search_path TO {DATABASE_SCHEMA}, public")
-        )
+        await connection.execute(text(f"SET search_path TO {DATABASE_SCHEMA}, public"))
         await connection.commit()
 
         await connection.run_sync(do_run_migrations)

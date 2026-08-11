@@ -3,9 +3,9 @@
 Tests the pure logic in find_similar_devices() and wrapper methods.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
+import pytest
 from src.services.device_recommender import (
     DeviceRecommenderService,
     get_recommender_service,
@@ -85,8 +85,8 @@ class TestFindSimilarDevices:
     def test_results_sorted_by_similarity_descending(self):
         devices = [
             self._make_device("d1", "light", "Philips", "lighting"),
-            self._make_device("d2", "light", "IKEA", "lighting"),      # 0.7
-            self._make_device("d3", "light", "Philips", "lighting"),   # 1.0
+            self._make_device("d2", "light", "IKEA", "lighting"),  # 0.7
+            self._make_device("d3", "light", "Philips", "lighting"),  # 1.0
         ]
         result = self.svc.find_similar_devices("d1", devices)
         assert result[0]["device_id"] == "d3"
@@ -94,10 +94,7 @@ class TestFindSimilarDevices:
 
     def test_max_10_results(self):
         ref = self._make_device("d1", "light", "Philips", "lighting")
-        others = [
-            self._make_device(f"d{i}", "light", "Philips", "lighting")
-            for i in range(2, 20)
-        ]
+        others = [self._make_device(f"d{i}", "light", "Philips", "lighting") for i in range(2, 20)]
         result = self.svc.find_similar_devices("d1", [ref] + others)
         assert len(result) == 10
 
@@ -112,7 +109,6 @@ class TestFindSimilarDevices:
 
 
 class TestCompareDevices:
-
     def setup_method(self):
         self.svc = DeviceRecommenderService()
 
@@ -141,7 +137,6 @@ class TestCompareDevices:
 
 
 class TestRecommendDevices:
-
     def setup_method(self):
         self.svc = DeviceRecommenderService()
 
@@ -160,8 +155,8 @@ class TestRecommendDevices:
 
 
 class TestSingleton:
-
     def test_returns_same_instance(self):
         import src.services.device_recommender as mod
+
         mod._recommender_service = None
         assert get_recommender_service() is get_recommender_service()

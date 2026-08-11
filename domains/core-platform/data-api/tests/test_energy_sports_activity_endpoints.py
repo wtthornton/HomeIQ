@@ -164,8 +164,12 @@ class TestSportsModels:
 
         games = [
             GameResponse(
-                game_id=f"g-{i}", league="NFL", season=2025,
-                home_team="KC", away_team="BUF", status="finished",
+                game_id=f"g-{i}",
+                league="NFL",
+                season=2025,
+                home_team="KC",
+                away_team="BUF",
+                status="finished",
                 timestamp=datetime.now(UTC).isoformat(),
             )
             for i in range(3)
@@ -177,8 +181,14 @@ class TestSportsModels:
         from src.sports_endpoints import TeamScheduleResponse
 
         ts = TeamScheduleResponse(
-            team="KC", season=2025, games=[], total_games=16,
-            wins=10, losses=5, ties=1, win_percentage=0.625,
+            team="KC",
+            season=2025,
+            games=[],
+            total_games=16,
+            wins=10,
+            losses=5,
+            ties=1,
+            win_percentage=0.625,
         )
         assert ts.win_percentage == 0.625
         assert ts.total_games == 16
@@ -188,12 +198,17 @@ class TestSportsModels:
 
         point = ScoreTimelinePoint(
             timestamp="2026-01-01T20:00:00Z",
-            home_score=7, away_score=3,
-            quarter_period="Q1", time_remaining="5:00",
+            home_score=7,
+            away_score=3,
+            quarter_period="Q1",
+            time_remaining="5:00",
         )
         r = ScoreTimelineResponse(
-            game_id="g-001", home_team="KC", away_team="BUF",
-            timeline=[point], final_score="24-21",
+            game_id="g-001",
+            home_team="KC",
+            away_team="BUF",
+            timeline=[point],
+            final_score="24-21",
         )
         assert r.final_score == "24-21"
 
@@ -243,8 +258,12 @@ class TestHaAutomationModels:
         from src.ha_automation_endpoints import GameStatusResponse
 
         r = GameStatusResponse(
-            status="live", team="KC", game_id="g-001",
-            opponent="BUF", score="24-21", time_remaining="2:00",
+            status="live",
+            team="KC",
+            game_id="g-001",
+            opponent="BUF",
+            score="24-21",
+            time_remaining="2:00",
         )
         assert r.status == "live"
         assert r.score == "24-21"

@@ -6,18 +6,18 @@ Tests recording, aggregation, series retrieval, and thread safety.
 from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from src.metrics_buffer import MetricsBuffer, MinuteBucket, _parse_interval
-
 
 # ---------------------------------------------------------------------------
 # MinuteBucket dataclass
 # ---------------------------------------------------------------------------
 
-class TestMinuteBucket:
 
+class TestMinuteBucket:
     def test_avg_response_time_with_data(self):
-        b = MinuteBucket(timestamp=datetime.now(UTC), response_time_sum=100.0, response_time_count=10)
+        b = MinuteBucket(
+            timestamp=datetime.now(UTC), response_time_sum=100.0, response_time_count=10
+        )
         assert b.avg_response_time == pytest.approx(10.0)
 
     def test_avg_response_time_no_data(self):
@@ -52,8 +52,8 @@ class TestMinuteBucket:
 # _parse_interval helper
 # ---------------------------------------------------------------------------
 
-class TestParseInterval:
 
+class TestParseInterval:
     def test_minutes(self):
         assert _parse_interval("5m") == timedelta(minutes=5)
 
@@ -74,8 +74,8 @@ class TestParseInterval:
 # MetricsBuffer — recording
 # ---------------------------------------------------------------------------
 
-class TestMetricsBufferRecording:
 
+class TestMetricsBufferRecording:
     def test_record_single_request(self):
         buf = MetricsBuffer()
         buf.record_request(50.0, False)
@@ -129,8 +129,8 @@ class TestMetricsBufferRecording:
 # MetricsBuffer — get_series
 # ---------------------------------------------------------------------------
 
-class TestMetricsBufferGetSeries:
 
+class TestMetricsBufferGetSeries:
     def _create_buffer_with_data(self):
         buf = MetricsBuffer()
         now = datetime.now(UTC).replace(second=0, microsecond=0)
@@ -194,8 +194,8 @@ class TestMetricsBufferGetSeries:
 # MetricsBuffer — max capacity
 # ---------------------------------------------------------------------------
 
-class TestMetricsBufferCapacity:
 
+class TestMetricsBufferCapacity:
     def test_max_minutes_limit(self):
         buf = MetricsBuffer()
         assert buf._snapshots.maxlen == 10_080

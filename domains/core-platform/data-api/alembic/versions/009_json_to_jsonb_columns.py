@@ -16,8 +16,8 @@ on the Devices page when GROUP BY includes the labels column.
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '009'
-down_revision = '008'
+revision = "009"
+down_revision = "008"
 branch_labels = None
 depends_on = None
 
@@ -26,58 +26,32 @@ def upgrade():
     """Convert all JSON columns to JSONB in devices and entities tables."""
 
     # Device table: labels
-    op.execute(
-        "ALTER TABLE core.devices "
-        "ALTER COLUMN labels TYPE jsonb USING labels::jsonb"
-    )
+    op.execute("ALTER TABLE core.devices ALTER COLUMN labels TYPE jsonb USING labels::jsonb")
 
     # Entity table: capabilities, available_services, aliases, labels, options
     op.execute(
-        "ALTER TABLE core.entities "
-        "ALTER COLUMN capabilities TYPE jsonb USING capabilities::jsonb"
+        "ALTER TABLE core.entities ALTER COLUMN capabilities TYPE jsonb USING capabilities::jsonb"
     )
     op.execute(
         "ALTER TABLE core.entities "
         "ALTER COLUMN available_services TYPE jsonb USING available_services::jsonb"
     )
-    op.execute(
-        "ALTER TABLE core.entities "
-        "ALTER COLUMN aliases TYPE jsonb USING aliases::jsonb"
-    )
-    op.execute(
-        "ALTER TABLE core.entities "
-        "ALTER COLUMN labels TYPE jsonb USING labels::jsonb"
-    )
-    op.execute(
-        "ALTER TABLE core.entities "
-        "ALTER COLUMN options TYPE jsonb USING options::jsonb"
-    )
+    op.execute("ALTER TABLE core.entities ALTER COLUMN aliases TYPE jsonb USING aliases::jsonb")
+    op.execute("ALTER TABLE core.entities ALTER COLUMN labels TYPE jsonb USING labels::jsonb")
+    op.execute("ALTER TABLE core.entities ALTER COLUMN options TYPE jsonb USING options::jsonb")
 
 
 def downgrade():
     """Revert JSONB columns back to JSON."""
 
+    op.execute("ALTER TABLE core.devices ALTER COLUMN labels TYPE json USING labels::json")
     op.execute(
-        "ALTER TABLE core.devices "
-        "ALTER COLUMN labels TYPE json USING labels::json"
-    )
-    op.execute(
-        "ALTER TABLE core.entities "
-        "ALTER COLUMN capabilities TYPE json USING capabilities::json"
+        "ALTER TABLE core.entities ALTER COLUMN capabilities TYPE json USING capabilities::json"
     )
     op.execute(
         "ALTER TABLE core.entities "
         "ALTER COLUMN available_services TYPE json USING available_services::json"
     )
-    op.execute(
-        "ALTER TABLE core.entities "
-        "ALTER COLUMN aliases TYPE json USING aliases::json"
-    )
-    op.execute(
-        "ALTER TABLE core.entities "
-        "ALTER COLUMN labels TYPE json USING labels::json"
-    )
-    op.execute(
-        "ALTER TABLE core.entities "
-        "ALTER COLUMN options TYPE json USING options::json"
-    )
+    op.execute("ALTER TABLE core.entities ALTER COLUMN aliases TYPE json USING aliases::json")
+    op.execute("ALTER TABLE core.entities ALTER COLUMN labels TYPE json USING labels::json")
+    op.execute("ALTER TABLE core.entities ALTER COLUMN options TYPE json USING options::json")

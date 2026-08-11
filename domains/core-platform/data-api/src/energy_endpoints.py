@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 # Pydantic Models
 class EnergyCorrelation(BaseModel):
     """Energy correlation data model"""
+
     timestamp: datetime
     entity_id: str
     domain: str
@@ -32,6 +33,7 @@ class EnergyCorrelation(BaseModel):
 
 class PowerReading(BaseModel):
     """Power reading from smart meter"""
+
     timestamp: datetime
     total_power_w: float
     daily_kwh: float
@@ -39,6 +41,7 @@ class PowerReading(BaseModel):
 
 class CircuitPowerReading(BaseModel):
     """Circuit-level power reading"""
+
     timestamp: datetime
     circuit_name: str
     power_w: float
@@ -47,6 +50,7 @@ class CircuitPowerReading(BaseModel):
 
 class DeviceEnergyImpact(BaseModel):
     """Energy impact analysis for a device"""
+
     entity_id: str
     domain: str
     average_power_on_w: float
@@ -58,6 +62,7 @@ class DeviceEnergyImpact(BaseModel):
 
 class EnergyStatistics(BaseModel):
     """Overall energy statistics"""
+
     current_power_w: float
     daily_kwh: float
     peak_power_w: float
@@ -82,9 +87,7 @@ def get_influxdb_client():
         influxdb_token = os.getenv("INFLUXDB_TOKEN", "homeiq-token")
         influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
         _shared_influxdb_client = InfluxDBClient(
-            url=influxdb_url,
-            token=influxdb_token,
-            org=influxdb_org
+            url=influxdb_url, token=influxdb_token, org=influxdb_org
         )
     return _shared_influxdb_client
 
@@ -95,7 +98,7 @@ async def get_energy_correlations(
     domain: str | None = Query(None, description="Filter by domain (switch, light, climate, etc.)"),
     hours: int = Query(24, description="Hours of history to return", ge=1, le=168),
     min_delta: float = Query(50.0, description="Minimum power delta (watts)", ge=0),
-    limit: int = Query(100, description="Maximum number of results", ge=1, le=1000)
+    limit: int = Query(100, description="Maximum number of results", ge=1, le=1000),
 ):
     """
     Get event-energy correlations
@@ -118,16 +121,14 @@ async def get_energy_correlations(
             entity_id_safe = sanitize_flux_value(entity_id)
             if not entity_id_safe:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid entity_id supplied"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid entity_id supplied"
                 )
             filters.append(f'r["entity_id"] == "{entity_id_safe}"')
         if domain:
             domain_safe = sanitize_flux_value(domain)
             if not domain_safe:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid domain supplied"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid domain supplied"
                 )
             filters.append(f'r["domain"] == "{domain_safe}"')
 
@@ -148,17 +149,19 @@ async def get_energy_correlations(
         correlations = []
         for table in tables:
             for record in table.records:
-                correlations.append(EnergyCorrelation(
-                    timestamp=record.get_time(),
-                    entity_id=record.values.get("entity_id", ""),
-                    domain=record.values.get("domain", ""),
-                    state=record.values.get("state", ""),
-                    previous_state=record.values.get("previous_state", ""),
-                    power_before_w=record.values.get("power_before_w", 0),
-                    power_after_w=record.values.get("power_after_w", 0),
-                    power_delta_w=record.values.get("_value", 0),
-                    power_delta_pct=record.values.get("power_delta_pct", 0)
-                ))
+                correlations.append(
+                    EnergyCorrelation(
+                        timestamp=record.get_time(),
+                        entity_id=record.values.get("entity_id", ""),
+                        domain=record.values.get("domain", ""),
+                        state=record.values.get("state", ""),
+                        previous_state=record.values.get("previous_state", ""),
+                        power_before_w=record.values.get("power_before_w", 0),
+                        power_after_w=record.values.get("power_after_w", 0),
+                        power_delta_w=record.values.get("_value", 0),
+                        power_delta_pct=record.values.get("power_delta_pct", 0),
+                    )
+                )
 
         return correlations
 
@@ -168,7 +171,7 @@ async def get_energy_correlations(
         logger.error(f"Error getting energy correlations: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to query correlations: {str(e)}"
+            detail=f"Failed to query correlations: {str(e)}",
         ) from e
     # Shared client is not closed per-request (HIGH-01)
 
@@ -209,25 +212,19 @@ async def get_current_power():
                 elif field == "daily_kwh":
                     daily_kwh = float(value)
 
-        return PowerReading(
-            timestamp=timestamp,
-            total_power_w=power_w,
-            daily_kwh=daily_kwh
-        )
+        return PowerReading(timestamp=timestamp, total_power_w=power_w, daily_kwh=daily_kwh)
 
     except Exception as e:
         logger.error(f"Error getting current power: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to query power: {str(e)}"
+            detail=f"Failed to query power: {str(e)}",
         ) from e
     # Shared client is not closed per-request (HIGH-01)
 
 
 @router.get("/circuits", response_model=list[CircuitPowerReading])
-async def get_circuit_power(
-    hours: int = Query(1, description="Hours of history", ge=1, le=24)
-):
+async def get_circuit_power(hours: int = Query(1, description="Hours of history", ge=1, le=24)):
     """Get circuit-level power readings"""
 
     client = None
@@ -252,12 +249,14 @@ async def get_circuit_power(
         circuits = []
         for table in tables:
             for record in table.records:
-                circuits.append(CircuitPowerReading(
-                    timestamp=record.get_time(),
-                    circuit_name=record.values.get("circuit_name", ""),
-                    power_w=float(record.get_value()),
-                    percentage=record.values.get("percentage", 0.0)
-                ))
+                circuits.append(
+                    CircuitPowerReading(
+                        timestamp=record.get_time(),
+                        circuit_name=record.values.get("circuit_name", ""),
+                        power_w=float(record.get_value()),
+                        percentage=record.values.get("percentage", 0.0),
+                    )
+                )
 
         return circuits
 
@@ -265,15 +264,14 @@ async def get_circuit_power(
         logger.error(f"Error getting circuit power: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to query circuits: {str(e)}"
+            detail=f"Failed to query circuits: {str(e)}",
         ) from e
     # Shared client is not closed per-request (HIGH-01)
 
 
 @router.get("/device-impact/{entity_id}", response_model=DeviceEnergyImpact)
 async def get_device_energy_impact(
-    entity_id: str,
-    days: int = Query(7, description="Days of history", ge=1, le=30)
+    entity_id: str, days: int = Query(7, description="Days of history", ge=1, le=30)
 ):
     """
     Get energy impact analysis for a specific device
@@ -291,8 +289,7 @@ async def get_device_energy_impact(
         entity_id_safe = sanitize_flux_value(entity_id)
         if not entity_id_safe:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid entity_id supplied"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid entity_id supplied"
             )
 
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
@@ -370,7 +367,7 @@ async def get_device_energy_impact(
             average_power_off_w=avg_power_off,
             total_state_changes=total_changes,
             estimated_daily_kwh=daily_kwh,
-            estimated_monthly_cost=monthly_cost
+            estimated_monthly_cost=monthly_cost,
         )
 
     except HTTPException:
@@ -379,14 +376,14 @@ async def get_device_energy_impact(
         logger.error(f"Error getting device impact for {entity_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to query device impact: {str(e)}"
+            detail=f"Failed to query device impact: {str(e)}",
         ) from e
     # Shared client is not closed per-request (HIGH-01)
 
 
 @router.get("/statistics", response_model=EnergyStatistics)
 async def get_energy_statistics(
-    hours: int = Query(24, description="Hours for statistics", ge=1, le=168)
+    hours: int = Query(24, description="Hours for statistics", ge=1, le=168),
 ):
     """Get overall energy statistics"""
 
@@ -478,14 +475,14 @@ async def get_energy_statistics(
             peak_power_w=peak_power,
             peak_time=peak_time,
             average_power_w=avg_power,
-            total_correlations=total_correlations
+            total_correlations=total_correlations,
         )
 
     except Exception as e:
         logger.error(f"Error getting energy statistics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to query statistics: {str(e)}"
+            detail=f"Failed to query statistics: {str(e)}",
         ) from e
     # Shared client is not closed per-request (HIGH-01)
 
@@ -493,7 +490,7 @@ async def get_energy_statistics(
 @router.get("/top-consumers", response_model=list[DeviceEnergyImpact])
 async def get_top_energy_consumers(
     days: int = Query(7, description="Days of history", ge=1, le=30),
-    limit: int = Query(10, description="Number of devices to return", ge=1, le=50)
+    limit: int = Query(10, description="Number of devices to return", ge=1, le=50),
 ):
     """
     Get top energy consuming devices based on correlation data
@@ -535,15 +532,17 @@ async def get_top_energy_consumers(
                 daily_kwh = (avg_power * 8) / 1000.0
                 monthly_cost = daily_kwh * 30 * 0.12
 
-                devices.append(DeviceEnergyImpact(
-                    entity_id=entity_id,
-                    domain=domain,
-                    average_power_on_w=avg_power,
-                    average_power_off_w=0.0,
-                    total_state_changes=0,
-                    estimated_daily_kwh=daily_kwh,
-                    estimated_monthly_cost=monthly_cost
-                ))
+                devices.append(
+                    DeviceEnergyImpact(
+                        entity_id=entity_id,
+                        domain=domain,
+                        average_power_on_w=avg_power,
+                        average_power_off_w=0.0,
+                        total_state_changes=0,
+                        estimated_daily_kwh=daily_kwh,
+                        estimated_monthly_cost=monthly_cost,
+                    )
+                )
 
         return devices
 
@@ -551,7 +550,7 @@ async def get_top_energy_consumers(
         logger.error(f"Error getting top consumers: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to query top consumers: {str(e)}"
+            detail=f"Failed to query top consumers: {str(e)}",
         ) from e
     # Shared client is not closed per-request (HIGH-01)
 
@@ -559,6 +558,7 @@ async def get_top_energy_consumers(
 # Carbon Intensity Endpoints
 class CarbonIntensityResponse(BaseModel):
     """Carbon intensity data response"""
+
     timestamp: datetime
     intensity: float  # gCO2/kWh
     renewable_percentage: float
@@ -571,6 +571,7 @@ class CarbonIntensityResponse(BaseModel):
 
 class CarbonIntensityTrendsResponse(BaseModel):
     """Carbon intensity trends over time"""
+
     current: CarbonIntensityResponse
     average_24h: float
     min_24h: float
@@ -624,7 +625,7 @@ async def get_current_carbon_intensity():
         # No data found
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No carbon intensity data found in InfluxDB"
+            detail="No carbon intensity data found in InfluxDB",
         )
 
     except HTTPException:
@@ -633,7 +634,7 @@ async def get_current_carbon_intensity():
         logger.error(f"Error getting current carbon intensity: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to query carbon intensity: {str(e)}"
+            detail=f"Failed to query carbon intensity: {str(e)}",
         ) from e
     # Shared client is not closed per-request (HIGH-01)
 
@@ -679,7 +680,9 @@ async def get_carbon_intensity_trends():
                 current_data = CarbonIntensityResponse(
                     timestamp=current_record.get_time(),
                     intensity=float(current_record.values.get("carbon_intensity_gco2_kwh", 0)),
-                    renewable_percentage=float(current_record.values.get("renewable_percentage", 0)),
+                    renewable_percentage=float(
+                        current_record.values.get("renewable_percentage", 0)
+                    ),
                     fossil_percentage=float(current_record.values.get("fossil_percentage", 0)),
                     forecast_1h=float(current_record.values.get("forecast_1h", 0)),
                     forecast_24h=float(current_record.values.get("forecast_24h", 0)),
@@ -692,8 +695,7 @@ async def get_carbon_intensity_trends():
 
         if not current_data:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No carbon intensity data found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="No carbon intensity data found"
             )
 
         # Query for last 24 hours of intensity values for trend analysis
@@ -713,8 +715,8 @@ async def get_carbon_intensity_trends():
 
             # Determine trend (compare first half to second half)
             if len(intensities) >= 2:
-                first_half = intensities[:len(intensities)//2]
-                second_half = intensities[len(intensities)//2:]
+                first_half = intensities[: len(intensities) // 2]
+                second_half = intensities[len(intensities) // 2 :]
                 first_avg = sum(first_half) / len(first_half)
                 second_avg = sum(second_half) / len(second_half)
 
@@ -759,6 +761,6 @@ async def get_carbon_intensity_trends():
         logger.error(f"Error getting carbon intensity trends: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to query carbon intensity trends: {str(e)}"
+            detail=f"Failed to query carbon intensity trends: {str(e)}",
         ) from e
     # Shared client is not closed per-request (HIGH-01)

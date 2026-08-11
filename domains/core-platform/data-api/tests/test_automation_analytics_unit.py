@@ -4,28 +4,27 @@ Tests all endpoint handlers and helper functions with mocked database sessions.
 No real database required — all queries are mocked via AsyncMock/MagicMock.
 """
 
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
-
 from fastapi import HTTPException
-
 from src.automation_analytics_endpoints import (
     _automation_to_dict,
     _execution_to_dict,
-    list_automations,
-    stats_overview,
-    stats_errors,
-    stats_slow,
-    stats_inactive,
     get_automation,
+    list_automations,
     list_executions,
+    stats_errors,
+    stats_inactive,
+    stats_overview,
+    stats_slow,
 )
-
 
 # ---------------------------------------------------------------------------
 # Factories
 # ---------------------------------------------------------------------------
+
 
 def _make_automation(**overrides):
     """Create a mock Automation ORM object."""
@@ -57,7 +56,7 @@ def _make_execution(**overrides):
     e.execution_result = overrides.get("execution_result", "finished_successfully")
     e.trigger_type = overrides.get("trigger_type", "state")
     e.trigger_entity = overrides.get("trigger_entity", "binary_sensor.motion")
-    e.error_message = overrides.get("error_message", None)
+    e.error_message = overrides.get("error_message")
     e.step_count = overrides.get("step_count", 3)
     e.last_step = overrides.get("last_step", "action/2")
     e.context_id = overrides.get("context_id", "ctx-999")
@@ -165,9 +164,18 @@ class TestAutomationToDict:
     @pytest.mark.unit
     def test_dict_keys_complete(self):
         expected_keys = {
-            "automation_id", "alias", "description", "mode", "enabled",
-            "total_executions", "total_errors", "avg_duration_seconds",
-            "success_rate", "last_triggered", "created_at", "updated_at",
+            "automation_id",
+            "alias",
+            "description",
+            "mode",
+            "enabled",
+            "total_executions",
+            "total_errors",
+            "avg_duration_seconds",
+            "success_rate",
+            "last_triggered",
+            "created_at",
+            "updated_at",
         }
         d = _automation_to_dict(_make_automation())
         assert set(d.keys()) == expected_keys
@@ -216,9 +224,18 @@ class TestExecutionToDict:
     @pytest.mark.unit
     def test_dict_keys_complete(self):
         expected_keys = {
-            "id", "automation_id", "run_id", "started_at", "finished_at",
-            "duration_seconds", "execution_result", "trigger_type",
-            "trigger_entity", "error_message", "step_count", "last_step",
+            "id",
+            "automation_id",
+            "run_id",
+            "started_at",
+            "finished_at",
+            "duration_seconds",
+            "execution_result",
+            "trigger_type",
+            "trigger_entity",
+            "error_message",
+            "step_count",
+            "last_step",
             "context_id",
         }
         d = _execution_to_dict(_make_execution())
@@ -253,7 +270,9 @@ class TestListAutomations:
     @pytest.mark.asyncio
     async def test_sort_by_total_executions(self):
         db = _mock_db_session([_scalars_result([_make_automation()])])
-        result = await list_automations(enabled_only=False, sort_by="total_executions", limit=100, db=db)
+        result = await list_automations(
+            enabled_only=False, sort_by="total_executions", limit=100, db=db
+        )
         assert result["count"] == 1
         db.execute.assert_called_once()
 
@@ -261,14 +280,18 @@ class TestListAutomations:
     @pytest.mark.asyncio
     async def test_sort_by_success_rate(self):
         db = _mock_db_session([_scalars_result([_make_automation()])])
-        result = await list_automations(enabled_only=False, sort_by="success_rate", limit=100, db=db)
+        result = await list_automations(
+            enabled_only=False, sort_by="success_rate", limit=100, db=db
+        )
         assert result["count"] == 1
 
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_sort_by_last_triggered(self):
         db = _mock_db_session([_scalars_result([_make_automation()])])
-        result = await list_automations(enabled_only=False, sort_by="last_triggered", limit=100, db=db)
+        result = await list_automations(
+            enabled_only=False, sort_by="last_triggered", limit=100, db=db
+        )
         assert result["count"] == 1
 
     @pytest.mark.unit
@@ -518,10 +541,12 @@ class TestGetAutomation:
     async def test_found(self):
         auto = _make_automation()
         execs = [_make_execution(), _make_execution(id=2, run_id="run-def-456")]
-        db = _mock_db_session([
-            _scalar_one_or_none_result(auto),
-            _scalars_result(execs),
-        ])
+        db = _mock_db_session(
+            [
+                _scalar_one_or_none_result(auto),
+                _scalars_result(execs),
+            ]
+        )
         result = await get_automation(automation_id="automation.test_1", db=db)
         assert result["automation_id"] == "automation.test_1"
         assert len(result["recent_executions"]) == 2
@@ -539,10 +564,12 @@ class TestGetAutomation:
     @pytest.mark.asyncio
     async def test_found_no_executions(self):
         auto = _make_automation()
-        db = _mock_db_session([
-            _scalar_one_or_none_result(auto),
-            _scalars_result([]),
-        ])
+        db = _mock_db_session(
+            [
+                _scalar_one_or_none_result(auto),
+                _scalars_result([]),
+            ]
+        )
         result = await get_automation(automation_id="automation.test_1", db=db)
         assert result["recent_executions"] == []
 
@@ -561,8 +588,11 @@ class TestListExecutions:
         execs = [_make_execution(id=i) for i in range(3)]
         db = _mock_db_session([_scalars_result(execs), _scalar_result(3)])
         result = await list_executions(
-            automation_id="automation.test_1", limit=50, offset=0,
-            result_filter=None, db=db,
+            automation_id="automation.test_1",
+            limit=50,
+            offset=0,
+            result_filter=None,
+            db=db,
         )
         assert result["automation_id"] == "automation.test_1"
         assert result["total"] == 3
@@ -576,8 +606,11 @@ class TestListExecutions:
         execs = [_make_execution(execution_result="error")]
         db = _mock_db_session([_scalars_result(execs), _scalar_result(1)])
         result = await list_executions(
-            automation_id="automation.test_1", limit=50, offset=0,
-            result_filter="error", db=db,
+            automation_id="automation.test_1",
+            limit=50,
+            offset=0,
+            result_filter="error",
+            db=db,
         )
         assert result["total"] == 1
         assert len(result["executions"]) == 1
@@ -587,8 +620,11 @@ class TestListExecutions:
     async def test_empty_results(self):
         db = _mock_db_session([_scalars_result([]), _scalar_result(0)])
         result = await list_executions(
-            automation_id="automation.test_1", limit=50, offset=0,
-            result_filter=None, db=db,
+            automation_id="automation.test_1",
+            limit=50,
+            offset=0,
+            result_filter=None,
+            db=db,
         )
         assert result["total"] == 0
         assert result["executions"] == []
@@ -598,8 +634,11 @@ class TestListExecutions:
     async def test_pagination_offset(self):
         db = _mock_db_session([_scalars_result([_make_execution()]), _scalar_result(10)])
         result = await list_executions(
-            automation_id="automation.test_1", limit=5, offset=5,
-            result_filter=None, db=db,
+            automation_id="automation.test_1",
+            limit=5,
+            offset=5,
+            result_filter=None,
+            db=db,
         )
         assert result["offset"] == 5
         assert result["limit"] == 5
@@ -610,8 +649,11 @@ class TestListExecutions:
     async def test_limit_boundary_1(self):
         db = _mock_db_session([_scalars_result([_make_execution()]), _scalar_result(1)])
         result = await list_executions(
-            automation_id="automation.test_1", limit=1, offset=0,
-            result_filter=None, db=db,
+            automation_id="automation.test_1",
+            limit=1,
+            offset=0,
+            result_filter=None,
+            db=db,
         )
         assert result["limit"] == 1
 
@@ -620,8 +662,11 @@ class TestListExecutions:
     async def test_limit_boundary_500(self):
         db = _mock_db_session([_scalars_result([]), _scalar_result(0)])
         result = await list_executions(
-            automation_id="automation.test_1", limit=500, offset=0,
-            result_filter=None, db=db,
+            automation_id="automation.test_1",
+            limit=500,
+            offset=0,
+            result_filter=None,
+            db=db,
         )
         assert result["limit"] == 500
 
@@ -631,7 +676,10 @@ class TestListExecutions:
         """When count query returns None, total should be 0."""
         db = _mock_db_session([_scalars_result([]), _scalar_result(None)])
         result = await list_executions(
-            automation_id="automation.test_1", limit=50, offset=0,
-            result_filter=None, db=db,
+            automation_id="automation.test_1",
+            limit=50,
+            offset=0,
+            result_filter=None,
+            db=db,
         )
         assert result["total"] == 0

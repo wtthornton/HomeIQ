@@ -126,4 +126,3 @@ async def apply_issue_action(
     )
 
     return HygieneIssueResponse(**result)
-
