@@ -23,7 +23,7 @@ from ..clients.ha_agent_client import HAAgentClient
 from ..config import Settings
 from ..models.autonomous_action import ActionOutcome
 from .autonomous_executor import AutonomousExecutor
-from .confidence_scorer import ActionScore, ConfidenceScorer, SAFETY_BLOCKED_DOMAINS
+from .confidence_scorer import SAFETY_BLOCKED_DOMAINS, ActionScore, ConfidenceScorer
 from .context_analysis_service import ContextAnalysisService
 from .feedback_recorder import FeedbackRecorder
 from .preference_service import PreferenceService
@@ -177,7 +177,8 @@ class ProactiveAgentLoop:
         duration = (datetime.now(UTC) - cycle_start).total_seconds()
         logger.info(
             "Cycle #%d complete in %.1fs: %d proposed, %d auto-executed, %d suggested, %d suppressed",
-            self.cycle_count, duration,
+            self.cycle_count,
+            duration,
             len(proposed_actions),
             results.get("auto_executed", 0),
             results.get("suggested", 0),
@@ -408,7 +409,8 @@ class ProactiveAgentLoop:
         # Block safety-critical domains
         if action.get("entity_domain") in SAFETY_BLOCKED_DOMAINS:
             logger.warning(
-                "Blocked safety-critical action on %s", action.get("entity_id"),
+                "Blocked safety-critical action on %s",
+                action.get("entity_id"),
             )
             return False
         return True

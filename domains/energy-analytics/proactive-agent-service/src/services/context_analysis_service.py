@@ -44,9 +44,7 @@ class ContextAnalysisService:
         self.sports_client = sports_client or SportsDataClient()
         if carbon_client is None:
             settings = Settings()
-            self.carbon_client = CarbonIntensityClient(
-                data_api_url=settings.data_api_url
-            )
+            self.carbon_client = CarbonIntensityClient(data_api_url=settings.data_api_url)
         else:
             self.carbon_client = carbon_client
         self.data_api_client = data_api_client or DataAPIClient()
@@ -79,31 +77,70 @@ class ContextAnalysisService:
         )
 
         # Handle any exceptions from gather
-        weather_analysis = results[0] if not isinstance(results[0], BaseException) else {
-            "available": False, "error": str(results[0]), "current": None,
-            "forecast": None, "trends": None, "insights": [],
-        }
-        sports_analysis = results[1] if not isinstance(results[1], BaseException) else {
-            "available": False, "error": str(results[1]),
-            "live_games": [], "upcoming_games": [], "insights": [],
-        }
-        energy_analysis = results[2] if not isinstance(results[2], BaseException) else {
-            "available": False, "error": str(results[2]),
-            "current_intensity": None, "trends": None, "insights": [],
-        }
-        historical_analysis = results[3] if not isinstance(results[3], BaseException) else {
-            "available": False, "error": str(results[3]),
-            "events": [], "patterns": [], "insights": [],
-        }
-        activity_analysis = results[4] if not isinstance(results[4], BaseException) else {
-            "available": False, "error": str(results[4]),
-            "current": None, "recent": [], "insights": [],
-        }
+        weather_analysis = (
+            results[0]
+            if not isinstance(results[0], BaseException)
+            else {
+                "available": False,
+                "error": str(results[0]),
+                "current": None,
+                "forecast": None,
+                "trends": None,
+                "insights": [],
+            }
+        )
+        sports_analysis = (
+            results[1]
+            if not isinstance(results[1], BaseException)
+            else {
+                "available": False,
+                "error": str(results[1]),
+                "live_games": [],
+                "upcoming_games": [],
+                "insights": [],
+            }
+        )
+        energy_analysis = (
+            results[2]
+            if not isinstance(results[2], BaseException)
+            else {
+                "available": False,
+                "error": str(results[2]),
+                "current_intensity": None,
+                "trends": None,
+                "insights": [],
+            }
+        )
+        historical_analysis = (
+            results[3]
+            if not isinstance(results[3], BaseException)
+            else {
+                "available": False,
+                "error": str(results[3]),
+                "events": [],
+                "patterns": [],
+                "insights": [],
+            }
+        )
+        activity_analysis = (
+            results[4]
+            if not isinstance(results[4], BaseException)
+            else {
+                "available": False,
+                "error": str(results[4]),
+                "current": None,
+                "recent": [],
+                "insights": [],
+            }
+        )
 
         # Aggregate and correlate
         summary = self._create_summary(
-            weather_analysis, sports_analysis, energy_analysis,
-            historical_analysis, activity_analysis,
+            weather_analysis,
+            sports_analysis,
+            energy_analysis,
+            historical_analysis,
+            activity_analysis,
         )
 
         result = {
@@ -222,7 +259,9 @@ class ContextAnalysisService:
 
             insights = []
             if live_games:
-                insights.append(f"{len(live_games)} game(s) currently live - consider viewing automation")
+                insights.append(
+                    f"{len(live_games)} game(s) currently live - consider viewing automation"
+                )
 
             if upcoming_games:
                 next_game = upcoming_games[0] if upcoming_games else None
@@ -233,8 +272,12 @@ class ContextAnalysisService:
             else:
                 # Generate insights even when no games scheduled
                 if not live_games:
-                    insights.append("No games scheduled - sports automations can be set up for future games")
-                    insights.append("Team Tracker sensors detected - automations will trigger automatically when games start")
+                    insights.append(
+                        "No games scheduled - sports automations can be set up for future games"
+                    )
+                    insights.append(
+                        "Team Tracker sensors detected - automations will trigger automatically when games start"
+                    )
 
             return {
                 "available": True,
@@ -277,7 +320,9 @@ class ContextAnalysisService:
                 if intensity_value and intensity_value < 200:
                     insights.append("Low carbon intensity - good time for energy-intensive tasks")
                 elif intensity_value and intensity_value > 400:
-                    insights.append("High carbon intensity - consider delaying energy-intensive tasks")
+                    insights.append(
+                        "High carbon intensity - consider delaying energy-intensive tasks"
+                    )
 
                 # Add trend-based insights
                 if trends_data:
@@ -285,7 +330,9 @@ class ContextAnalysisService:
                     if trend == "increasing":
                         insights.append("Carbon intensity trending upward - schedule tasks soon")
                     elif trend == "decreasing":
-                        insights.append("Carbon intensity trending downward - good time for energy tasks")
+                        insights.append(
+                            "Carbon intensity trending downward - good time for energy tasks"
+                        )
 
             # Format trends data
             trends = None
@@ -526,9 +573,7 @@ class ContextAnalysisService:
 
         return patterns
 
-    def _detect_time_patterns(
-        self, events: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def _detect_time_patterns(self, events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Detect time-based patterns in events.
 
@@ -568,7 +613,9 @@ class ContextAnalysisService:
         return patterns
 
     def _generate_pattern_insights(
-        self, patterns: list[dict[str, Any]], events: list[dict[str, Any]]  # noqa: ARG002
+        self,
+        patterns: list[dict[str, Any]],
+        events: list[dict[str, Any]],  # noqa: ARG002
     ) -> list[str]:
         """
         Generate insights from detected patterns.
@@ -586,9 +633,7 @@ class ContextAnalysisService:
             return insights
 
         # Frequent entities insight
-        frequent_pattern = next(
-            (p for p in patterns if p.get("type") == "frequent_entities"), None
-        )
+        frequent_pattern = next((p for p in patterns if p.get("type") == "frequent_entities"), None)
         if frequent_pattern:
             entities = frequent_pattern.get("entities", [])
             if entities:
@@ -599,9 +644,7 @@ class ContextAnalysisService:
                 )
 
         # Peak hours insight
-        peak_hours_pattern = next(
-            (p for p in patterns if p.get("type") == "peak_hours"), None
-        )
+        peak_hours_pattern = next((p for p in patterns if p.get("type") == "peak_hours"), None)
         if peak_hours_pattern:
             hours = peak_hours_pattern.get("hours", [])
             if hours:
@@ -671,4 +714,3 @@ class ContextAnalysisService:
         await self.carbon_client.close()
         await self.data_api_client.close()
         logger.debug("Context Analysis Service closed")
-

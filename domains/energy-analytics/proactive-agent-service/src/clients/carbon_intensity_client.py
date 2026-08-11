@@ -46,7 +46,8 @@ class CarbonIntensityClient:
         try:
             logger.debug("Fetching current carbon intensity from data-api")
             response = await self._cross_client.call(
-                "GET", "/api/v1/energy/carbon-intensity/current",
+                "GET",
+                "/api/v1/energy/carbon-intensity/current",
             )
             response.raise_for_status()
             data = response.json()
@@ -81,7 +82,8 @@ class CarbonIntensityClient:
         try:
             logger.debug("Fetching carbon intensity trends from data-api")
             response = await self._cross_client.call(
-                "GET", "/api/v1/energy/carbon-intensity/trends",
+                "GET",
+                "/api/v1/energy/carbon-intensity/trends",
             )
             response.raise_for_status()
             return response.json()

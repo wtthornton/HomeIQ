@@ -22,12 +22,27 @@ from ..models.scheduled_task import ScheduledTask, TaskExecution
 logger = logging.getLogger(__name__)
 
 # Keywords that indicate an alert condition in the LLM response
-_ALERT_KEYWORDS = frozenset({
-    "alert", "warning", "urgent", "critical", "attention",
-    "problem", "issue", "offline", "unavailable", "open",
-    "unlocked", "anomaly", "spike", "unusual", "breach",
-    "low battery", "not responding",
-})
+_ALERT_KEYWORDS = frozenset(
+    {
+        "alert",
+        "warning",
+        "urgent",
+        "critical",
+        "attention",
+        "problem",
+        "issue",
+        "offline",
+        "unavailable",
+        "open",
+        "unlocked",
+        "anomaly",
+        "spike",
+        "unusual",
+        "breach",
+        "low battery",
+        "not responding",
+    }
+)
 
 
 class TaskExecutor:
@@ -108,13 +123,13 @@ class TaskExecutor:
             elapsed_ms = int((time.monotonic() - start_ts) * 1000)
             execution.status = "timeout"
             execution.completed_at = datetime.now(UTC)
-            execution.error = (
-                f"Execution timed out after {task.max_execution_seconds}s"
-            )
+            execution.error = f"Execution timed out after {task.max_execution_seconds}s"
             execution.duration_ms = elapsed_ms
             logger.warning(
                 "Task %s (%s) timed out after %d ms",
-                task.id, task.name, elapsed_ms,
+                task.id,
+                task.name,
+                elapsed_ms,
             )
 
         except Exception as exc:
@@ -124,7 +139,10 @@ class TaskExecutor:
             execution.error = str(exc)[:2000]
             execution.duration_ms = elapsed_ms
             logger.exception(
-                "Task %s (%s) failed: %s", task.id, task.name, exc,
+                "Task %s (%s) failed: %s",
+                task.id,
+                task.name,
+                exc,
             )
 
         # Update task metadata
@@ -205,7 +223,8 @@ class TaskExecutor:
             execution.notification_sent = True
         except Exception:
             logger.exception(
-                "Failed to send notification for task %s", task.id,
+                "Failed to send notification for task %s",
+                task.id,
             )
 
     @staticmethod
@@ -247,6 +266,7 @@ class TaskExecutor:
             resp.raise_for_status()
         except Exception:
             logger.debug(
-                "Notification endpoint unavailable at %s", self._notify_url,
+                "Notification endpoint unavailable at %s",
+                self._notify_url,
             )
             raise

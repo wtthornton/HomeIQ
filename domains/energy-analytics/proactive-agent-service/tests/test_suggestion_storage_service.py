@@ -129,11 +129,13 @@ async def test_create_suggestion_raises_error_when_db_not_initialized():
         DatabaseNotInitializedError,
         SuggestionStorageService,
     )
-    
+
     service = SuggestionStorageService()
-    
+
     # Mock get_async_session_maker to return None (simulating uninitialized DB)
-    with patch('src.services.suggestion_storage_service.get_async_session_maker', return_value=None):
+    with patch(
+        "src.services.suggestion_storage_service.get_async_session_maker", return_value=None
+    ):
         with pytest.raises(DatabaseNotInitializedError):
             await service.create_suggestion(
                 prompt="Test prompt",

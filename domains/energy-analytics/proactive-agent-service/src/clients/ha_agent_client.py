@@ -38,15 +38,12 @@ class HAAgentClient:
             timeout: Request timeout in seconds (default: 30)
             max_retries: Maximum retry attempts (default: 3)
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
 
         # Resolve auth token from environment (cross-group service auth).
-        api_key = (
-            os.getenv("HA_AGENT_API_KEY")
-            or os.getenv("SERVICE_AUTH_TOKEN")
-        )
+        api_key = os.getenv("HA_AGENT_API_KEY") or os.getenv("SERVICE_AUTH_TOKEN")
 
         self._cross_client = CrossGroupClient(
             base_url=self.base_url,
@@ -105,7 +102,9 @@ class HAAgentClient:
 
             logger.debug("Sending message to HA AI Agent: %s...", message[:100])
             response = await self._cross_client.call(
-                "POST", "/api/v1/chat", json=payload,
+                "POST",
+                "/api/v1/chat",
+                json=payload,
             )
             response.raise_for_status()
             data = response.json()
@@ -117,15 +116,13 @@ class HAAgentClient:
 
             logger.info(
                 "Received response from HA AI Agent: conversation=%s, tool_calls=%d",
-                data.get('conversation_id'),
-                len(data.get('tool_calls', [])),
+                data.get("conversation_id"),
+                len(data.get("tool_calls", [])),
             )
             return data
 
         except CircuitOpenError:
-            logger.warning(
-                "Circuit open for automation-core — HA AI Agent unavailable"
-            )
+            logger.warning("Circuit open for automation-core — HA AI Agent unavailable")
             return None  # Graceful degradation
         except httpx.HTTPStatusError as e:
             logger.error(
@@ -139,7 +136,8 @@ class HAAgentClient:
             return None  # Graceful degradation
         except Exception as e:
             logger.error(
-                "Unexpected error communicating with HA AI Agent: %s", e,
+                "Unexpected error communicating with HA AI Agent: %s",
+                e,
                 exc_info=True,
             )
             return None  # Graceful degradation

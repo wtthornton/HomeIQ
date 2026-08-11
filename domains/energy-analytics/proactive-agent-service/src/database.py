@@ -23,6 +23,7 @@ _schema = os.getenv("DATABASE_SCHEMA", "energy")
 
 class Base(DeclarativeBase):
     """Base class for database models"""
+
     pass
 
 

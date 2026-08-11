@@ -17,10 +17,12 @@ from src.services.suggestion_pipeline_service import (
 def mock_context_service():
     """Create mock context analysis service"""
     service = MagicMock()
-    service.analyze_all_context = AsyncMock(return_value={
-        "weather": {"available": True, "current": {"temperature": 75}},
-        "timestamp": "2025-01-07T12:00:00Z",
-    })
+    service.analyze_all_context = AsyncMock(
+        return_value={
+            "weather": {"available": True, "current": {"temperature": 75}},
+            "timestamp": "2025-01-07T12:00:00Z",
+        }
+    )
     return service
 
 
@@ -28,14 +30,16 @@ def mock_context_service():
 def mock_prompt_service():
     """Create mock prompt generation service"""
     service = MagicMock()
-    service.generate_prompts = MagicMock(return_value=[
-        {
-            "prompt": "Test prompt",
-            "context_type": "weather",
-            "quality_score": 0.8,
-            "metadata": {},
-        }
-    ])
+    service.generate_prompts = MagicMock(
+        return_value=[
+            {
+                "prompt": "Test prompt",
+                "context_type": "weather",
+                "quality_score": 0.8,
+                "metadata": {},
+            }
+        ]
+    )
     return service
 
 
@@ -43,10 +47,12 @@ def mock_prompt_service():
 def mock_agent_client():
     """Create mock HA agent client"""
     client = MagicMock()
-    client.send_message = AsyncMock(return_value={
-        "message": "Agent response",
-        "conversation_id": "conv-123",
-    })
+    client.send_message = AsyncMock(
+        return_value={
+            "message": "Agent response",
+            "conversation_id": "conv-123",
+        }
+    )
     return client
 
 
@@ -56,7 +62,7 @@ def mock_storage_service():
     from datetime import datetime
 
     from src.models import Suggestion
-    
+
     service = MagicMock()
     suggestion = Suggestion(
         id="test-id",
@@ -80,17 +86,19 @@ async def test_generate_suggestions_handles_prompt_generation_failure(
     """Test that generate_suggestions handles prompt generation failure gracefully"""
     # Create a prompt service that raises an exception
     mock_prompt_service = MagicMock()
-    mock_prompt_service.generate_prompts = MagicMock(side_effect=Exception("Prompt generation failed"))
-    
+    mock_prompt_service.generate_prompts = MagicMock(
+        side_effect=Exception("Prompt generation failed")
+    )
+
     pipeline = SuggestionPipelineService(
         context_service=mock_context_service,
         prompt_service=mock_prompt_service,
         agent_client=mock_agent_client,
         storage_service=mock_storage_service,
     )
-    
+
     result = await pipeline.generate_suggestions()
-    
+
     assert result["success"] is False
     assert result["suggestions_created"] == 0
     assert len(result["details"]) > 0
@@ -108,24 +116,21 @@ async def test_generate_suggestions_handles_storage_failure(
     # Create a storage service that raises an exception
     mock_storage_service = MagicMock()
     mock_storage_service.create_suggestion = AsyncMock(side_effect=Exception("Storage failed"))
-    
+
     pipeline = SuggestionPipelineService(
         context_service=mock_context_service,
         prompt_service=mock_prompt_service,
         agent_client=mock_agent_client,
         storage_service=mock_storage_service,
     )
-    
+
     result = await pipeline.generate_suggestions()
-    
+
     # Storage failure should be caught and logged, but pipeline should continue
     # The suggestion creation count should be 0 due to the failure
     assert result["suggestions_created"] == 0
     assert result["suggestions_failed"] > 0
-    assert any(
-        detail.get("step") == "prompt_processing" 
-        for detail in result["details"]
-    )
+    assert any(detail.get("step") == "prompt_processing" for detail in result["details"])
 
 
 @pytest.mark.asyncio
@@ -138,24 +143,21 @@ async def test_generate_suggestions_handles_agent_communication_failure(
     # Create an agent client that raises an exception
     mock_agent_client = MagicMock()
     mock_agent_client.send_message = AsyncMock(side_effect=Exception("Agent communication failed"))
-    
+
     pipeline = SuggestionPipelineService(
         context_service=mock_context_service,
         prompt_service=mock_prompt_service,
         agent_client=mock_agent_client,
         storage_service=mock_storage_service,
     )
-    
+
     result = await pipeline.generate_suggestions()
-    
+
     # Suggestion should be created, but not sent
     assert result["suggestions_created"] > 0
     assert result["suggestions_sent"] == 0
     assert result["suggestions_failed"] > 0
-    assert any(
-        detail.get("step") == "agent_communication"
-        for detail in result["details"]
-    )
+    assert any(detail.get("step") == "agent_communication" for detail in result["details"])
 
 
 @pytest.mark.asyncio
@@ -168,16 +170,16 @@ async def test_generate_suggestions_handles_none_context_analysis(
     # Create a context service that returns None
     mock_context_service = MagicMock()
     mock_context_service.analyze_all_context = AsyncMock(return_value=None)
-    
+
     pipeline = SuggestionPipelineService(
         context_service=mock_context_service,
         prompt_service=mock_prompt_service,
         agent_client=mock_agent_client,
         storage_service=mock_storage_service,
     )
-    
+
     result = await pipeline.generate_suggestions()
-    
+
     assert result["success"] is False
     assert result["suggestions_created"] == 0
     assert len(result["details"]) > 0

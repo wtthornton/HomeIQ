@@ -40,7 +40,8 @@ class WeatherAPIClient:
         try:
             logger.debug("Fetching current weather from Weather API")
             response = await self._cross_client.call(
-                "GET", "/current-weather",
+                "GET",
+                "/current-weather",
             )
             response.raise_for_status()
             data = response.json()

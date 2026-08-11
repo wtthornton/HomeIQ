@@ -272,4 +272,3 @@ def test_temperature_conversion_in_prompts(prompt_service):
     # Metadata should include both
     assert prompts[0]["metadata"]["temperature_celsius"] == 6.69
     assert prompts[0]["metadata"]["temperature_fahrenheit"] == 44
-

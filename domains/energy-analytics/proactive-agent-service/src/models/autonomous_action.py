@@ -53,10 +53,15 @@ class UserPreference(Base):
     preference_value: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False,
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     def __repr__(self) -> str:
@@ -78,7 +83,9 @@ class AutonomousActionAudit(Base):
     )
     # Action details
     action_type: Mapped[str] = mapped_column(
-        String(50), nullable=False, index=True,
+        String(50),
+        nullable=False,
+        index=True,
     )  # light, switch, climate, scene
     entity_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     action_description: Mapped[str] = mapped_column(Text, nullable=False)
@@ -94,7 +101,9 @@ class AutonomousActionAudit(Base):
 
     # Outcome
     outcome: Mapped[str] = mapped_column(
-        String(30), nullable=False, default=ActionOutcome.AUTO_EXECUTED.value,
+        String(30),
+        nullable=False,
+        default=ActionOutcome.AUTO_EXECUTED.value,
     )
     success: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -105,10 +114,13 @@ class AutonomousActionAudit(Base):
 
     # Timestamps
     executed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
     undo_expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     def __repr__(self) -> str:
@@ -153,7 +165,8 @@ class ActionPreferenceHistory(Base):
     entity_domain: Mapped[str] = mapped_column(String(50), nullable=False)
     context_type: Mapped[str] = mapped_column(String(50), nullable=False)
     time_slot: Mapped[str] = mapped_column(
-        String(20), nullable=False,
+        String(20),
+        nullable=False,
     )  # morning, afternoon, evening, night
 
     # Preference scoring
@@ -167,10 +180,15 @@ class ActionPreferenceHistory(Base):
 
     # Timestamps
     first_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
     last_updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False,
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     def __repr__(self) -> str:

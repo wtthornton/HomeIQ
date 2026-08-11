@@ -23,6 +23,7 @@ from ..database import Base
 
 class InvalidReportReason(str, Enum):
     """Reasons for reporting an invalid suggestion."""
+
     DEVICE_NOT_FOUND = "device_not_found"
     NOT_RELEVANT = "not_relevant"
     ALREADY_AUTOMATED = "already_automated"
@@ -31,6 +32,7 @@ class InvalidReportReason(str, Enum):
 
 class SuggestionEngagement(str, Enum):
     """Engagement types for suggestion tracking (Story 31.4)."""
+
     DELIVERED = "delivered"
     VIEWED = "viewed"
     ACTED = "acted"
@@ -137,7 +139,11 @@ class InvalidSuggestionReport(Base):
 
 
 # Indexes for invalid reports
-Index("idx_invalid_reports_reason_date", InvalidSuggestionReport.reason, InvalidSuggestionReport.reported_at)
+Index(
+    "idx_invalid_reports_reason_date",
+    InvalidSuggestionReport.reason,
+    InvalidSuggestionReport.reported_at,
+)
 
 
 class SuggestionEngagementEvent(Base):

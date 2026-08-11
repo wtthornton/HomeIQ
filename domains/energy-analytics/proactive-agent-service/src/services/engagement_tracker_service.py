@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from homeiq_memory import MemoryClient, MemoryType, SourceChannel
+
     MEMORY_AVAILABLE = True
 except ImportError:
     MEMORY_AVAILABLE = False
@@ -29,6 +30,7 @@ except ImportError:
 
 class DatabaseNotInitializedError(Exception):
     """Raised when database session maker is not initialized."""
+
     pass
 
 
@@ -130,9 +132,7 @@ class EngagementTracker:
     ) -> SuggestionEngagementEvent | None:
         """Internal implementation of engagement tracking."""
         try:
-            result = await db.execute(
-                select(Suggestion).where(Suggestion.id == suggestion_id)
-            )
+            result = await db.execute(select(Suggestion).where(Suggestion.id == suggestion_id))
             suggestion = result.scalar_one_or_none()
             if not suggestion:
                 logger.warning(f"Suggestion {suggestion_id} not found for engagement tracking")
@@ -231,8 +231,7 @@ class EngagementTracker:
                 },
             )
             logger.info(
-                f"Saved behavioral memory: {category} suggestions ignored "
-                f"{ignored_count} times"
+                f"Saved behavioral memory: {category} suggestions ignored {ignored_count} times"
             )
         except Exception as e:
             logger.error(f"Failed to save behavioral memory: {e}", exc_info=True)
@@ -267,8 +266,7 @@ class EngagementTracker:
                 },
             )
             logger.info(
-                f"Saved preference memory: {category} suggestions acted upon "
-                f"{acted_count} times"
+                f"Saved preference memory: {category} suggestions acted upon {acted_count} times"
             )
         except Exception as e:
             logger.error(f"Failed to save preference memory: {e}", exc_info=True)
@@ -329,28 +327,34 @@ class EngagementTracker:
             delivered = stats.get("delivered", 0)
 
             if ignored >= self.IGNORE_THRESHOLD:
-                patterns["ignored_categories"].append({
-                    "category": category,
-                    "ignored_count": ignored,
-                    "threshold": self.IGNORE_THRESHOLD,
-                })
+                patterns["ignored_categories"].append(
+                    {
+                        "category": category,
+                        "ignored_count": ignored,
+                        "threshold": self.IGNORE_THRESHOLD,
+                    }
+                )
 
             if acted >= self.ENGAGE_THRESHOLD:
-                patterns["engaged_categories"].append({
-                    "category": category,
-                    "acted_count": acted,
-                    "threshold": self.ENGAGE_THRESHOLD,
-                })
+                patterns["engaged_categories"].append(
+                    {
+                        "category": category,
+                        "acted_count": acted,
+                        "threshold": self.ENGAGE_THRESHOLD,
+                    }
+                )
 
             total = ignored + acted + viewed + delivered
             if total > 0:
                 engagement_rate = acted / total
                 if engagement_rate < 0.1 and ignored < self.IGNORE_THRESHOLD:
-                    patterns["low_engagement_categories"].append({
-                        "category": category,
-                        "engagement_rate": round(engagement_rate, 3),
-                        "total_events": total,
-                    })
+                    patterns["low_engagement_categories"].append(
+                        {
+                            "category": category,
+                            "engagement_rate": round(engagement_rate, 3),
+                            "total_events": total,
+                        }
+                    )
 
         return {
             "window_days": self.TRACKING_WINDOW_DAYS,
@@ -383,13 +387,9 @@ class EngagementTracker:
         """
         if db is None:
             async with _get_session_maker()() as session:
-                return await self._get_engagement_stats_impl(
-                    suggestion_id, category, days, session
-                )
+                return await self._get_engagement_stats_impl(suggestion_id, category, days, session)
         else:
-            return await self._get_engagement_stats_impl(
-                suggestion_id, category, days, db
-            )
+            return await self._get_engagement_stats_impl(suggestion_id, category, days, db)
 
     async def _get_engagement_stats_impl(
         self,

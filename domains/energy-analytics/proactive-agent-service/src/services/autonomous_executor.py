@@ -21,7 +21,7 @@ from typing import Any
 from ..clients.device_control_client import DeviceControlClient
 from ..config import Settings
 from ..models.autonomous_action import ActionOutcome, AutonomousActionAudit
-from .confidence_scorer import ActionScore, SAFETY_BLOCKED_DOMAINS
+from .confidence_scorer import SAFETY_BLOCKED_DOMAINS, ActionScore
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,8 @@ class AutonomousExecutor:
         if entity_domain in SAFETY_BLOCKED_DOMAINS:
             logger.warning(
                 "SAFETY BLOCK: Refused auto-execute on %s (%s)",
-                entity_id, entity_domain,
+                entity_id,
+                entity_domain,
             )
             return False
 
@@ -70,7 +71,8 @@ class AutonomousExecutor:
         if not result or not result.get("success"):
             logger.warning(
                 "Autonomous execution failed for %s: %s",
-                entity_id, result,
+                entity_id,
+                result,
             )
             await self._save_audit(
                 action=action,
@@ -98,7 +100,10 @@ class AutonomousExecutor:
 
         logger.info(
             "Auto-executed: %s on %s (confidence=%d, risk=%s)",
-            action_type, entity_id, score.confidence, score.risk_level,
+            action_type,
+            entity_id,
+            score.confidence,
+            score.risk_level,
         )
         return True
 
@@ -199,13 +204,15 @@ class AutonomousExecutor:
             if domain == "light":
                 brightness = 0 if old_state == "off" else pre_state.get("brightness", 100)
                 result = await self.device_control.control_light(
-                    entity_id_or_name=entity_id, brightness=brightness,
+                    entity_id_or_name=entity_id,
+                    brightness=brightness,
                 )
                 return bool(result and result.get("success"))
 
             if domain == "switch":
                 result = await self.device_control.control_switch(
-                    entity_id_or_name=entity_id, state=old_state,
+                    entity_id_or_name=entity_id,
+                    state=old_state,
                 )
                 return bool(result and result.get("success"))
 

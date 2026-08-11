@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class DatabaseNotInitializedError(Exception):
     """Raised when database session maker is not initialized"""
+
     pass
 
 
@@ -88,8 +89,11 @@ class SuggestionStorageService:
                     # Check for duplicates if enabled
                     if check_duplicates:
                         duplicate = await self._check_duplicate(
-                            prompt, context_type, duplicate_window_hours, session,
-                            trigger_type=trigger_type
+                            prompt,
+                            context_type,
+                            duplicate_window_hours,
+                            session,
+                            trigger_type=trigger_type,
                         )
                         if duplicate:
                             logger.info(
@@ -122,8 +126,7 @@ class SuggestionStorageService:
                 # Check for duplicates if enabled
                 if check_duplicates:
                     duplicate = await self._check_duplicate(
-                        prompt, context_type, duplicate_window_hours, db,
-                        trigger_type=trigger_type
+                        prompt, context_type, duplicate_window_hours, db, trigger_type=trigger_type
                     )
                     if duplicate:
                         logger.info(
@@ -211,7 +214,9 @@ class SuggestionStorageService:
 
         return result.scalar_one_or_none()
 
-    async def get_suggestion(self, suggestion_id: str, db: AsyncSession | None = None) -> Suggestion | None:
+    async def get_suggestion(
+        self, suggestion_id: str, db: AsyncSession | None = None
+    ) -> Suggestion | None:
         """
         Get a suggestion by ID.
 
@@ -225,7 +230,9 @@ class SuggestionStorageService:
         if db is None:
             async with _get_session_maker()() as session:
                 try:
-                    result = await session.execute(select(Suggestion).where(Suggestion.id == suggestion_id))
+                    result = await session.execute(
+                        select(Suggestion).where(Suggestion.id == suggestion_id)
+                    )
                     return result.scalar_one_or_none()
                 except Exception as e:
                     logger.error(f"Failed to get suggestion {suggestion_id}: {e}", exc_info=True)
@@ -316,7 +323,9 @@ class SuggestionStorageService:
             async with _get_session_maker()() as session:
                 try:
                     # Get existing suggestion
-                    result = await session.execute(select(Suggestion).where(Suggestion.id == suggestion_id))
+                    result = await session.execute(
+                        select(Suggestion).where(Suggestion.id == suggestion_id)
+                    )
                     suggestion = result.scalar_one_or_none()
 
                     if not suggestion:
@@ -384,7 +393,9 @@ class SuggestionStorageService:
         if db is None:
             async with _get_session_maker()() as session:
                 try:
-                    result = await session.execute(delete(Suggestion).where(Suggestion.id == suggestion_id))
+                    result = await session.execute(
+                        delete(Suggestion).where(Suggestion.id == suggestion_id)
+                    )
                     await session.commit()
 
                     deleted = result.rowcount > 0
@@ -446,7 +457,9 @@ class SuggestionStorageService:
                     await session.commit()
 
                     deleted_count = result.rowcount
-                    logger.info(f"Cleaned up {deleted_count} suggestions older than {days_old} days")
+                    logger.info(
+                        f"Cleaned up {deleted_count} suggestions older than {days_old} days"
+                    )
                     return deleted_count
                 except Exception as e:
                     await session.rollback()
@@ -537,10 +550,9 @@ class SuggestionStorageService:
                     total_count = total_result.scalar_one() or 0
 
                     # Count by status (single query with GROUP BY)
-                    status_query = (
-                        select(Suggestion.status, func.count(Suggestion.id).label("count"))
-                        .group_by(Suggestion.status)
-                    )
+                    status_query = select(
+                        Suggestion.status, func.count(Suggestion.id).label("count")
+                    ).group_by(Suggestion.status)
                     status_result = await session.execute(status_query)
                     status_counts = {row[0]: row[1] for row in status_result.all()}
                     # Ensure all statuses are present
@@ -549,10 +561,9 @@ class SuggestionStorageService:
                             status_counts[status] = 0
 
                     # Count by context type (single query with GROUP BY)
-                    context_query = (
-                        select(Suggestion.context_type, func.count(Suggestion.id).label("count"))
-                        .group_by(Suggestion.context_type)
-                    )
+                    context_query = select(
+                        Suggestion.context_type, func.count(Suggestion.id).label("count")
+                    ).group_by(Suggestion.context_type)
                     context_result = await session.execute(context_query)
                     context_counts = {row[0]: row[1] for row in context_result.all()}
 
@@ -571,10 +582,9 @@ class SuggestionStorageService:
                 total_count = total_result.scalar_one() or 0
 
                 # Count by status (single query with GROUP BY)
-                status_query = (
-                    select(Suggestion.status, func.count(Suggestion.id).label("count"))
-                    .group_by(Suggestion.status)
-                )
+                status_query = select(
+                    Suggestion.status, func.count(Suggestion.id).label("count")
+                ).group_by(Suggestion.status)
                 status_result = await db.execute(status_query)
                 status_counts = {row[0]: row[1] for row in status_result.all()}
                 # Ensure all statuses are present
@@ -583,10 +593,9 @@ class SuggestionStorageService:
                         status_counts[status] = 0
 
                 # Count by context type (single query with GROUP BY)
-                context_query = (
-                    select(Suggestion.context_type, func.count(Suggestion.id).label("count"))
-                    .group_by(Suggestion.context_type)
-                )
+                context_query = select(
+                    Suggestion.context_type, func.count(Suggestion.id).label("count")
+                ).group_by(Suggestion.context_type)
                 context_result = await db.execute(context_query)
                 context_counts = {row[0]: row[1] for row in context_result.all()}
 

@@ -306,11 +306,7 @@ async def get_task_history(
     total_result = await session.execute(count_stmt)
     total = total_result.scalar() or 0
 
-    stmt = (
-        stmt.order_by(TaskExecution.started_at.desc())
-        .offset(offset)
-        .limit(limit)
-    )
+    stmt = stmt.order_by(TaskExecution.started_at.desc()).offset(offset).limit(limit)
     result = await session.execute(stmt)
     executions = result.scalars().all()
 

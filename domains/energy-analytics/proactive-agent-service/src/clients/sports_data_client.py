@@ -44,7 +44,9 @@ class SportsDataClient:
 
             logger.debug("Fetching live games from Data API: %s", params)
             response = await self._cross_client.call(
-                "GET", "/api/v1/sports/games/live", params=params,
+                "GET",
+                "/api/v1/sports/games/live",
+                params=params,
             )
             response.raise_for_status()
             data = response.json()
@@ -70,7 +72,9 @@ class SportsDataClient:
 
             logger.debug("Fetching upcoming games from Data API: %s", params)
             response = await self._cross_client.call(
-                "GET", "/api/v1/sports/games/upcoming", params=params,
+                "GET",
+                "/api/v1/sports/games/upcoming",
+                params=params,
             )
             response.raise_for_status()
             data = response.json()

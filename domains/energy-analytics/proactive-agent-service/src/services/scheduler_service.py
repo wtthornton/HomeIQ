@@ -150,4 +150,3 @@ class SchedulerService:
         """Get next scheduled run time"""
         job = self.scheduler.get_job("daily_suggestion_generation")
         return job.next_run_time if job else None
-

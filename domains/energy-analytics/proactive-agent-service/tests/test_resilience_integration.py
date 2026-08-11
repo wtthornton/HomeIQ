@@ -13,14 +13,15 @@ from homeiq_resilience import CircuitBreaker, CircuitOpenError, CrossGroupClient
 
 
 class TestSharedBreakers:
-
     def test_core_platform_breaker_is_singleton(self):
         from src.clients.breakers import core_platform_breaker
+
         assert isinstance(core_platform_breaker, CircuitBreaker)
         assert core_platform_breaker.name == "core-platform"
 
     def test_data_collectors_breaker_is_singleton(self):
         from src.clients.breakers import data_collectors_breaker
+
         assert isinstance(data_collectors_breaker, CircuitBreaker)
         assert data_collectors_breaker.name == "data-collectors"
 
@@ -32,11 +33,11 @@ class TestSharedBreakers:
 
 def _make_data_client():
     from src.clients.data_api_client import DataAPIClient
+
     return DataAPIClient(base_url="http://data-api:8006")
 
 
 class TestDataAPIClientResilience:
-
     def test_uses_cross_group_client(self):
         client = _make_data_client()
         assert hasattr(client, "_cross_client")
@@ -57,7 +58,8 @@ class TestDataAPIClientResilience:
     async def test_circuit_open_events_returns_empty(self):
         client = _make_data_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.get_events()
@@ -67,7 +69,8 @@ class TestDataAPIClientResilience:
     async def test_circuit_open_activity_returns_none(self):
         client = _make_data_client()
         with patch.object(
-            client._activity_client, "call",
+            client._activity_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.get_activity()
@@ -77,7 +80,8 @@ class TestDataAPIClientResilience:
     async def test_circuit_open_activity_history_returns_empty(self):
         client = _make_data_client()
         with patch.object(
-            client._activity_client, "call",
+            client._activity_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.get_activity_history()
@@ -92,8 +96,10 @@ class TestDataAPIClientResilience:
         mock_resp.json.return_value = {"events": [{"entity_id": "light.test"}]}
 
         with patch.object(
-            client._cross_client, "call",
-            new_callable=AsyncMock, return_value=mock_resp,
+            client._cross_client,
+            "call",
+            new_callable=AsyncMock,
+            return_value=mock_resp,
         ):
             result = await client.get_events()
             assert len(result) == 1
@@ -107,11 +113,11 @@ class TestDataAPIClientResilience:
 
 def _make_weather_client():
     from src.clients.weather_api_client import WeatherAPIClient
+
     return WeatherAPIClient(base_url="http://weather-api:8009")
 
 
 class TestWeatherAPIClientResilience:
-
     def test_uses_cross_group_client(self):
         client = _make_weather_client()
         assert isinstance(client._cross_client, CrossGroupClient)
@@ -119,6 +125,7 @@ class TestWeatherAPIClientResilience:
 
     def test_uses_data_collectors_breaker(self):
         from src.clients.breakers import data_collectors_breaker
+
         client = _make_weather_client()
         assert client._cross_client._breaker is data_collectors_breaker
 
@@ -126,7 +133,8 @@ class TestWeatherAPIClientResilience:
     async def test_circuit_open_returns_none(self):
         client = _make_weather_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.get_current_weather()
@@ -141,8 +149,10 @@ class TestWeatherAPIClientResilience:
         mock_resp.json.return_value = {"temperature": 22, "condition": "sunny"}
 
         with patch.object(
-            client._cross_client, "call",
-            new_callable=AsyncMock, return_value=mock_resp,
+            client._cross_client,
+            "call",
+            new_callable=AsyncMock,
+            return_value=mock_resp,
         ):
             result = await client.get_current_weather()
             assert result["temperature"] == 22
@@ -155,13 +165,14 @@ class TestWeatherAPIClientResilience:
 
 def _make_sports_client():
     from src.clients.sports_data_client import SportsDataClient
+
     return SportsDataClient(base_url="http://data-api:8006")
 
 
 class TestSportsDataClientResilience:
-
     def test_uses_core_platform_breaker(self):
         from src.clients.breakers import core_platform_breaker
+
         client = _make_sports_client()
         assert client._cross_client._breaker is core_platform_breaker
 
@@ -169,7 +180,8 @@ class TestSportsDataClientResilience:
     async def test_circuit_open_live_games_returns_empty(self):
         client = _make_sports_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.get_live_games()
@@ -179,7 +191,8 @@ class TestSportsDataClientResilience:
     async def test_circuit_open_upcoming_games_returns_empty(self):
         client = _make_sports_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.get_upcoming_games()
@@ -193,13 +206,14 @@ class TestSportsDataClientResilience:
 
 def _make_carbon_client():
     from src.clients.carbon_intensity_client import CarbonIntensityClient
+
     return CarbonIntensityClient(data_api_url="http://data-api:8006")
 
 
 class TestCarbonIntensityClientResilience:
-
     def test_uses_core_platform_breaker(self):
         from src.clients.breakers import core_platform_breaker
+
         client = _make_carbon_client()
         assert client._cross_client._breaker is core_platform_breaker
 
@@ -207,7 +221,8 @@ class TestCarbonIntensityClientResilience:
     async def test_circuit_open_intensity_returns_none(self):
         client = _make_carbon_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.get_current_intensity()
@@ -217,7 +232,8 @@ class TestCarbonIntensityClientResilience:
     async def test_circuit_open_trends_returns_none(self):
         client = _make_carbon_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.get_trends()
@@ -236,8 +252,10 @@ class TestCarbonIntensityClientResilience:
         }
 
         with patch.object(
-            client._cross_client, "call",
-            new_callable=AsyncMock, return_value=mock_resp,
+            client._cross_client,
+            "call",
+            new_callable=AsyncMock,
+            return_value=mock_resp,
         ):
             result = await client.get_current_intensity()
             assert result["intensity"] == 150
@@ -250,12 +268,13 @@ class TestCarbonIntensityClientResilience:
 
 
 class TestGroupHealthCheck:
-
     @pytest.mark.asyncio
     async def test_healthy_response_format(self):
         from homeiq_resilience import GroupHealthCheck
+
         health = GroupHealthCheck(
-            group_name="automation-intelligence", version="1.0.0",
+            group_name="automation-intelligence",
+            version="1.0.0",
         )
         result = await health.to_dict()
         assert result["group"] == "automation-intelligence"

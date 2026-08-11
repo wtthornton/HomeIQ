@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +47,12 @@ DOMAIN_RISK_MAP: dict[str, str] = {
 # Action reversibility scores (higher = more reversible)
 ACTION_REVERSIBILITY: dict[str, float] = {
     "turn_off": 1.0,  # Can always turn back on
-    "turn_on": 1.0,   # Can always turn off
+    "turn_on": 1.0,  # Can always turn off
     "set_brightness": 0.9,
     "set_temperature": 0.7,  # Takes time to reach new temp
     "set_hvac_mode": 0.7,
     "activate_scene": 0.5,  # Unknown what changed
-    "run_script": 0.3,       # Unknown side effects
+    "run_script": 0.3,  # Unknown side effects
 }
 
 
@@ -174,9 +173,7 @@ class ConfidenceScorer:
         # Build reasoning
         reasoning_parts = []
         if acceptance_rate is not None:
-            reasoning_parts.append(
-                f"Historical acceptance: {acceptance_rate:.0%}"
-            )
+            reasoning_parts.append(f"Historical acceptance: {acceptance_rate:.0%}")
         reasoning_parts.append(f"LLM confidence: {llm_confidence:.0%}")
         reasoning_parts.append(f"Context match: {context_match_strength:.0%}")
         reasoning_parts.append(f"Risk: {risk_level} (reversibility: {reversibility:.0%})")
@@ -206,11 +203,7 @@ class ConfidenceScorer:
         if score.should_suppress:
             return "suppress"
 
-        if (
-            score.should_auto_execute
-            and autonomous_enabled
-            and not in_quiet_hours
-        ):
+        if score.should_auto_execute and autonomous_enabled and not in_quiet_hours:
             return "auto_execute"
 
         if score.should_suggest:

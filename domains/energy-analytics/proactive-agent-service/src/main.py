@@ -81,6 +81,7 @@ _group_health: GroupHealthCheck | None = None
 # Startup / Shutdown helpers
 # ---------------------------------------------------------------------------
 
+
 async def _startup_dependencies() -> None:
     """Probe cross-group dependencies (non-fatal)."""
     if wait_for_dependency is not None:
@@ -90,7 +91,8 @@ async def _startup_dependencies() -> None:
     global _group_health
     if GroupHealthCheck is not None:
         _group_health = GroupHealthCheck(
-            group_name="automation-intelligence", version="1.0.0",
+            group_name="automation-intelligence",
+            version="1.0.0",
         )
         _group_health.register_dependency("data-api", "http://data-api:8006")
         _group_health.register_dependency("weather-api", "http://weather-api:8009")
@@ -201,7 +203,6 @@ async def _startup_agent_loop() -> None:
         return
 
     from .clients.device_control_client import DeviceControlClient
-    from .services.confidence_scorer import ConfidenceScorer
     from .services.feedback_recorder import FeedbackRecorder
     from .services.preference_service import PreferenceService
 
