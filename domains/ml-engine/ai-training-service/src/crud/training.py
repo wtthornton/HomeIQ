@@ -17,14 +17,16 @@ from ..database.models import TrainingRun
 logger = logging.getLogger("ai-training-service")
 
 
-async def get_active_training_run(db: AsyncSession, training_type: str | None = None) -> TrainingRun | None:
+async def get_active_training_run(
+    db: AsyncSession, training_type: str | None = None
+) -> TrainingRun | None:
     """Fetch the currently running training run if one exists.
 
     Args:
         db: Database session
         training_type: Optional filter by training type (e.g., 'gnn_synergy', 'soft_prompt')
     """
-    query = select(TrainingRun).where(TrainingRun.status == 'running')
+    query = select(TrainingRun).where(TrainingRun.status == "running")
     if training_type:
         query = query.where(TrainingRun.training_type == training_type)
     query = query.limit(1)
@@ -42,7 +44,9 @@ async def create_training_run(db: AsyncSession, values: dict[str, Any]) -> Train
     return run
 
 
-async def update_training_run(db: AsyncSession, run_id: int, updates: dict[str, Any]) -> TrainingRun | None:
+async def update_training_run(
+    db: AsyncSession, run_id: int, updates: dict[str, Any]
+) -> TrainingRun | None:
     """Update an existing training run record."""
     result = await db.execute(select(TrainingRun).where(TrainingRun.id == run_id))
     run = result.scalar_one_or_none()
@@ -58,7 +62,9 @@ async def update_training_run(db: AsyncSession, run_id: int, updates: dict[str, 
     return run
 
 
-async def list_training_runs(db: AsyncSession, limit: int = 20, training_type: str | None = None) -> list[TrainingRun]:
+async def list_training_runs(
+    db: AsyncSession, limit: int = 20, training_type: str | None = None
+) -> list[TrainingRun]:
     """Return recent training runs ordered by newest first.
 
     Args:
@@ -105,7 +111,9 @@ async def delete_old_training_runs(
     Returns:
         Number of runs deleted
     """
-    cutoff_date = datetime.now(UTC) - timedelta(days=older_than_days)  # CRITICAL: Use timezone-aware datetime
+    cutoff_date = datetime.now(UTC) - timedelta(
+        days=older_than_days
+    )  # CRITICAL: Use timezone-aware datetime
 
     # Get IDs of runs to keep (most recent N)
     keep_query = select(TrainingRun.id)
@@ -122,9 +130,7 @@ async def delete_old_training_runs(
 
     while True:
         # Delete runs older than cutoff, excluding keep_ids, with LIMIT
-        delete_query = select(TrainingRun).where(
-            TrainingRun.started_at < cutoff_date
-        )
+        delete_query = select(TrainingRun).where(TrainingRun.started_at < cutoff_date)
         if training_type:
             delete_query = delete_query.where(TrainingRun.training_type == training_type)
         delete_query = delete_query.limit(batch_size)  # CRITICAL: Limit batch size
@@ -146,4 +152,3 @@ async def delete_old_training_runs(
             break
 
     return total_deleted
-

@@ -17,6 +17,7 @@ import pytest
 
 def _loader():
     from src.training.synthetic_home_ha_loader import SyntheticHomeHALoader
+
     return SyntheticHomeHALoader()
 
 
@@ -30,7 +31,6 @@ def _ws(area_id="area_living_room", side_effect=None):
 
 
 class TestAreaCreationOverWebSocket:
-
     @pytest.mark.asyncio
     async def test_returns_area_id_from_websocket_command(self):
         ws = _ws()

@@ -23,36 +23,68 @@ class SyntheticAreaGenerator:
 
     # Common area types by home type
     AREA_TEMPLATES = {
-        'single_family_house': [
-            'Living Room', 'Kitchen', 'Master Bedroom', 'Bedroom 2', 'Bedroom 3',
-            'Bathroom', 'Master Bathroom', 'Garage', 'Backyard', 'Front Yard'
+        "single_family_house": [
+            "Living Room",
+            "Kitchen",
+            "Master Bedroom",
+            "Bedroom 2",
+            "Bedroom 3",
+            "Bathroom",
+            "Master Bathroom",
+            "Garage",
+            "Backyard",
+            "Front Yard",
         ],
-        'apartment': [
-            'Living Room', 'Kitchen', 'Bedroom', 'Bathroom', 'Balcony'
+        "apartment": ["Living Room", "Kitchen", "Bedroom", "Bathroom", "Balcony"],
+        "condo": [
+            "Living Room",
+            "Kitchen",
+            "Master Bedroom",
+            "Bedroom 2",
+            "Bathroom",
+            "Balcony",
+            "Garage",
         ],
-        'condo': [
-            'Living Room', 'Kitchen', 'Master Bedroom', 'Bedroom 2',
-            'Bathroom', 'Balcony', 'Garage'
+        "townhouse": [
+            "Living Room",
+            "Kitchen",
+            "Master Bedroom",
+            "Bedroom 2",
+            "Bathroom",
+            "Garage",
+            "Backyard",
+            "Front Yard",
         ],
-        'townhouse': [
-            'Living Room', 'Kitchen', 'Master Bedroom', 'Bedroom 2',
-            'Bathroom', 'Garage', 'Backyard', 'Front Yard'
+        "cottage": ["Living Room", "Kitchen", "Bedroom", "Bathroom", "Porch", "Garden"],
+        "studio": ["Main Room", "Kitchen Area", "Bathroom", "Closet"],
+        "multi_story": [
+            "Living Room",
+            "Kitchen",
+            "Dining Room",
+            "Master Bedroom",
+            "Bedroom 2",
+            "Bedroom 3",
+            "Bedroom 4",
+            "Bathroom",
+            "Master Bathroom",
+            "Garage",
+            "Basement",
+            "Attic",
+            "Backyard",
+            "Front Yard",
         ],
-        'cottage': [
-            'Living Room', 'Kitchen', 'Bedroom', 'Bathroom', 'Porch', 'Garden'
+        "ranch_house": [
+            "Living Room",
+            "Kitchen",
+            "Master Bedroom",
+            "Bedroom 2",
+            "Bedroom 3",
+            "Bathroom",
+            "Master Bathroom",
+            "Garage",
+            "Backyard",
+            "Front Yard",
         ],
-        'studio': [
-            'Main Room', 'Kitchen Area', 'Bathroom', 'Closet'
-        ],
-        'multi_story': [
-            'Living Room', 'Kitchen', 'Dining Room', 'Master Bedroom',
-            'Bedroom 2', 'Bedroom 3', 'Bedroom 4', 'Bathroom', 'Master Bathroom',
-            'Garage', 'Basement', 'Attic', 'Backyard', 'Front Yard'
-        ],
-        'ranch_house': [
-            'Living Room', 'Kitchen', 'Master Bedroom', 'Bedroom 2', 'Bedroom 3',
-            'Bathroom', 'Master Bathroom', 'Garage', 'Backyard', 'Front Yard'
-        ]
     }
 
     def __init__(self):
@@ -61,10 +93,7 @@ class SyntheticAreaGenerator:
         """
         logger.info("SyntheticAreaGenerator initialized")
 
-    def generate_areas(
-        self,
-        home_data: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def generate_areas(self, home_data: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Generate areas for a synthetic home using templates.
 
@@ -74,12 +103,12 @@ class SyntheticAreaGenerator:
         Returns:
             List of area dictionaries
         """
-        home_type = home_data.get('home_type', 'single_family_house')
-        home_metadata = home_data.get('metadata', {})
+        home_type = home_data.get("home_type", "single_family_house")
+        home_metadata = home_data.get("metadata", {})
 
         # Try to extract areas from metadata if available (for backward compatibility)
-        if 'areas' in home_metadata:
-            areas = home_metadata['areas']
+        if "areas" in home_metadata:
+            areas = home_metadata["areas"]
             logger.info(f"Using areas from home metadata: {len(areas)} areas")
             return areas
 
@@ -89,10 +118,7 @@ class SyntheticAreaGenerator:
 
         return areas
 
-    def _generate_from_template(
-        self,
-        home_type: str
-    ) -> list[dict[str, Any]]:
+    def _generate_from_template(self, home_type: str) -> list[dict[str, Any]]:
         """
         Generate areas from template with randomization.
 
@@ -105,7 +131,9 @@ class SyntheticAreaGenerator:
         # Get template areas, fallback to single_family_house if home_type not found
         template_areas = self.AREA_TEMPLATES.get(
             home_type,
-            self.AREA_TEMPLATES.get('single_family_house', ['Living Room', 'Kitchen', 'Bedroom', 'Bathroom'])
+            self.AREA_TEMPLATES.get(
+                "single_family_house", ["Living Room", "Kitchen", "Bedroom", "Bathroom"]
+            ),
         )
 
         # Create base areas from template
@@ -113,14 +141,14 @@ class SyntheticAreaGenerator:
 
         # Add 0-2 optional areas based on home type for variation
         optional_areas_by_type = {
-            'single_family_house': ['Office', 'Laundry Room', 'Pantry'],
-            'apartment': ['Storage', 'Entryway'],
-            'condo': ['Office', 'Storage'],
-            'townhouse': ['Office', 'Laundry Room'],
-            'cottage': ['Shed', 'Workshop'],
-            'studio': ['Entryway'],
-            'multi_story': ['Office', 'Laundry Room', 'Pantry', 'Library'],
-            'ranch_house': ['Office', 'Laundry Room', 'Pantry']
+            "single_family_house": ["Office", "Laundry Room", "Pantry"],
+            "apartment": ["Storage", "Entryway"],
+            "condo": ["Office", "Storage"],
+            "townhouse": ["Office", "Laundry Room"],
+            "cottage": ["Shed", "Workshop"],
+            "studio": ["Entryway"],
+            "multi_story": ["Office", "Laundry Room", "Pantry", "Library"],
+            "ranch_house": ["Office", "Laundry Room", "Pantry"],
         }
 
         optional_areas = optional_areas_by_type.get(home_type, [])
@@ -135,23 +163,20 @@ class SyntheticAreaGenerator:
         for area in areas:
             if random.random() < 0.2:  # 20% chance to vary name
                 name_variations = {
-                    'Living Room': ['Family Room', 'Great Room', 'Living Space'],
-                    'Kitchen': ['Kitchen Area', 'Cooking Space'],
-                    'Master Bedroom': ['Primary Bedroom', 'Main Bedroom'],
-                    'Bedroom 2': ['Guest Bedroom', 'Second Bedroom'],
-                    'Bathroom': ['Full Bath', 'Bathroom'],
-                    'Master Bathroom': ['Primary Bathroom', 'Ensuite Bathroom']
+                    "Living Room": ["Family Room", "Great Room", "Living Space"],
+                    "Kitchen": ["Kitchen Area", "Cooking Space"],
+                    "Master Bedroom": ["Primary Bedroom", "Main Bedroom"],
+                    "Bedroom 2": ["Guest Bedroom", "Second Bedroom"],
+                    "Bathroom": ["Full Bath", "Bathroom"],
+                    "Master Bathroom": ["Primary Bathroom", "Ensuite Bathroom"],
                 }
-                if area['name'] in name_variations:
-                    area['name'] = random.choice(name_variations[area['name']])
+                if area["name"] in name_variations:
+                    area["name"] = random.choice(name_variations[area["name"]])
 
         logger.info(f"✅ Generated {len(areas)} areas")
         return areas
 
-    def _create_areas_from_template(
-        self,
-        area_names: list[str]
-    ) -> list[dict[str, Any]]:
+    def _create_areas_from_template(self, area_names: list[str]) -> list[dict[str, Any]]:
         """
         Create area dictionaries from template names.
 
@@ -161,16 +186,13 @@ class SyntheticAreaGenerator:
         Returns:
             List of area dictionaries
         """
-        outdoor_keywords = ['yard', 'balcony', 'porch', 'garden', 'patio', 'deck']
+        outdoor_keywords = ["yard", "balcony", "porch", "garden", "patio", "deck"]
 
         areas = []
         for name in area_names:
-            area_type = 'outdoor' if any(kw in name.lower() for kw in outdoor_keywords) else 'indoor'
-            areas.append({
-                'name': name,
-                'type': area_type,
-                'description': f"{name} in the home"
-            })
+            area_type = (
+                "outdoor" if any(kw in name.lower() for kw in outdoor_keywords) else "indoor"
+            )
+            areas.append({"name": name, "type": area_type, "description": f"{name} in the home"})
 
         return areas
-

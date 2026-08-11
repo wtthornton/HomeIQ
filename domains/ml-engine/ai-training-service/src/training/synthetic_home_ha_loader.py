@@ -25,6 +25,7 @@ DEFAULT_HTTP_TIMEOUT = 10.0  # seconds
 
 class LoadResult(TypedDict, total=False):
     """Result structure for home loading operations."""
+
     areas_created: int
     entities_created: int
     area_map: dict[str, str]
@@ -40,10 +41,7 @@ class SyntheticHomeHALoader:
         self.device_generator = SyntheticDeviceGenerator()
 
     async def load_json_home_to_ha(
-        self,
-        home_json_path: Path,
-        ha_url: str,
-        ha_token: str
+        self, home_json_path: Path, ha_url: str, ha_token: str
     ) -> LoadResult:
         """
         Load a synthetic home JSON file into Home Assistant.
@@ -72,82 +70,79 @@ class SyntheticHomeHALoader:
 
         # Load JSON home
         try:
-            with open(home_json_path, 'r', encoding='utf-8') as f:
+            with open(home_json_path, encoding="utf-8") as f:
                 home_data = json.load(f)
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in home file {home_json_path}: {e}") from e
         except OSError as e:
-            raise IOError(f"Failed to read home file {home_json_path}: {e}") from e
+            raise OSError(f"Failed to read home file {home_json_path}: {e}") from e
 
-        logger.info(f"Loading home: {home_data.get('metadata', {}).get('home', {}).get('name', 'Unknown')}")
+        logger.info(
+            f"Loading home: {home_data.get('metadata', {}).get('home', {}).get('name', 'Unknown')}"
+        )
 
         # Generate areas and devices if not present
-        if 'areas' not in home_data:
+        if "areas" not in home_data:
             areas = self.area_generator.generate_areas(home_data)
-            home_data['areas'] = areas
+            home_data["areas"] = areas
 
-        if 'devices' not in home_data:
-            devices = self.device_generator.generate_devices(home_data, home_data['areas'])
-            home_data['devices'] = devices
+        if "devices" not in home_data:
+            devices = self.device_generator.generate_devices(home_data, home_data["areas"])
+            home_data["devices"] = devices
 
         # Convert and load to HA
-        results = {
-            'areas_created': 0,
-            'entities_created': 0,
-            'area_map': {},
-            'errors': []
-        }
+        results = {"areas_created": 0, "entities_created": 0, "area_map": {}, "errors": []}
 
         # Areas go over WebSocket (registry command); entity states stay on REST.
         async with httpx.AsyncClient() as client, SharedHAClient(ha_url, ha_token).ws as ws:
             # Create areas
-            areas = home_data.get('areas', [])
+            areas = home_data.get("areas", [])
             area_map = {}
 
             for area in areas:
-                area_name = area.get('name') if isinstance(area, dict) else str(area)
+                area_name = area.get("name") if isinstance(area, dict) else str(area)
                 if not area_name:
                     continue
 
                 area_id = await self.create_ha_area(ws, area_name)
                 if area_id:
                     area_map[area_name] = area_id
-                    results['areas_created'] += 1
+                    results["areas_created"] += 1
                 else:
-                    results['errors'].append(f"Failed to create area: {area_name}")
+                    results["errors"].append(f"Failed to create area: {area_name}")
 
-            results['area_map'] = area_map
+            results["area_map"] = area_map
 
             # Create entities
-            devices = home_data.get('devices', [])
+            devices = home_data.get("devices", [])
 
             for device in devices:
-                entity_id = device.get('entity_id')
+                entity_id = device.get("entity_id")
                 if not entity_id:
                     # Generate entity_id from device name and type
-                    device_name = device.get('name', 'unknown')
-                    device_type = device.get('device_type', 'sensor')
+                    device_name = device.get("name", "unknown")
+                    device_type = device.get("device_type", "sensor")
                     # Sanitize entity_id: lowercase, replace spaces/hyphens with underscores
-                    sanitized_name = device_name.lower().replace(' ', '_').replace('-', '_')
+                    sanitized_name = device_name.lower().replace(" ", "_").replace("-", "_")
                     # Remove any invalid characters for entity_id
-                    sanitized_name = ''.join(c for c in sanitized_name if c.isalnum() or c == '_')
+                    sanitized_name = "".join(c for c in sanitized_name if c.isalnum() or c == "_")
                     entity_id = f"{device_type}.{sanitized_name}"
 
-                state = device.get('state', 'unknown')
-                attributes = device.get('attributes', {})
+                state = device.get("state", "unknown")
+                attributes = device.get("attributes", {})
 
                 # Add area if available
-                area_name = device.get('area')
+                area_name = device.get("area")
                 if area_name and area_name in area_map:
-                    attributes['area_id'] = area_map[area_name]
+                    attributes["area_id"] = area_map[area_name]
 
                 success = await self.create_ha_entity(
                     client, entity_id, state, attributes, ha_url, ha_token
                 )
                 if success:
-                    results['entities_created'] += 1
+                    results["entities_created"] += 1
                 else:
-                    results['errors'].append(f"Failed to create entity: {entity_id}")
+                    results["errors"].append(f"Failed to create entity: {entity_id}")
 
         logger.info(
             f"✅ Loaded home: {results['areas_created']} areas, "
@@ -189,7 +184,7 @@ class SyntheticHomeHALoader:
         state: str,
         attributes: dict[str, Any],
         ha_url: str,
-        ha_token: str
+        ha_token: str,
     ) -> bool:
         """
         Create or update an entity in Home Assistant.
@@ -221,7 +216,9 @@ class SyntheticHomeHALoader:
             response.raise_for_status()
             return True
         except httpx.HTTPStatusError as e:
-            logger.warning(f"HTTP error creating entity {entity_id}: {e.response.status_code} - {e.response.text}")
+            logger.warning(
+                f"HTTP error creating entity {entity_id}: {e.response.status_code} - {e.response.text}"
+            )
             return False
         except httpx.RequestError as e:
             logger.warning(f"Request error creating entity {entity_id}: {e}")
@@ -245,11 +242,13 @@ class SyntheticHomeHALoader:
             if isinstance(area, str):
                 ha_areas.append({"name": area})
             elif isinstance(area, dict):
-                ha_areas.append({
-                    "name": area.get("name", "Unknown"),
-                    "id": area.get("id"),
-                    "aliases": area.get("aliases", [])
-                })
+                ha_areas.append(
+                    {
+                        "name": area.get("name", "Unknown"),
+                        "id": area.get("id"),
+                        "aliases": area.get("aliases", []),
+                    }
+                )
         return ha_areas
 
     def convert_devices_to_entities(self, devices: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -270,14 +269,14 @@ class SyntheticHomeHALoader:
                 device_name = device.get("name", "unknown")
                 device_type = device.get("device_type", "sensor")
                 # Sanitize entity_id
-                sanitized_name = device_name.lower().replace(' ', '_').replace('-', '_')
-                sanitized_name = ''.join(c for c in sanitized_name if c.isalnum() or c == '_')
+                sanitized_name = device_name.lower().replace(" ", "_").replace("-", "_")
+                sanitized_name = "".join(c for c in sanitized_name if c.isalnum() or c == "_")
                 entity_id = f"{device_type}.{sanitized_name}"
 
             entity = {
                 "entity_id": entity_id,
                 "state": device.get("state", "unknown"),
-                "attributes": device.get("attributes", {})
+                "attributes": device.get("attributes", {}),
             }
 
             # Add area if available
@@ -287,4 +286,3 @@ class SyntheticHomeHALoader:
             entities.append(entity)
 
         return entities
-

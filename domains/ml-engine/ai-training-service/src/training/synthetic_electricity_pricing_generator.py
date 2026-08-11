@@ -41,48 +41,48 @@ class SyntheticElectricityPricingGenerator:
 
     # Pricing region profiles with baseline prices and currency
     PRICING_REGIONS: dict[str, dict[str, Any]] = {
-        'germany_awattar': {
-            'baseline': 0.30,  # EUR/kWh
-            'currency': 'EUR',
-            'price_range': (0.10, 0.50)
+        "germany_awattar": {
+            "baseline": 0.30,  # EUR/kWh
+            "currency": "EUR",
+            "price_range": (0.10, 0.50),
         },
-        'california_tou': {
-            'baseline': 0.25,  # USD/kWh
-            'currency': 'USD',
-            'price_range': (0.10, 0.50)
+        "california_tou": {
+            "baseline": 0.25,  # USD/kWh
+            "currency": "USD",
+            "price_range": (0.10, 0.50),
         },
-        'fixed_rate': {
-            'baseline': 0.15,  # USD/kWh
-            'currency': 'USD',
-            'price_range': (0.10, 0.50)
-        }
+        "fixed_rate": {
+            "baseline": 0.15,  # USD/kWh
+            "currency": "USD",
+            "price_range": (0.10, 0.50),
+        },
     }
 
     # Time-of-use price multipliers
     TOU_MULTIPLIERS: dict[str, float] = {
-        'peak': 1.75,      # 1.5-2.0x range, using 1.75x
-        'mid-peak': 1.0,   # Baseline (1.0x)
-        'off-peak': 0.6    # 0.5-0.7x range, using 0.6x
+        "peak": 1.75,  # 1.5-2.0x range, using 1.75x
+        "mid-peak": 1.0,  # Baseline (1.0x)
+        "off-peak": 0.6,  # 0.5-0.7x range, using 0.6x
     }
 
     # TOU periods (hour ranges, 0-23)
     TOU_PERIODS: dict[str, dict[str, Any]] = {
-        'california_tou': {
-            'peak': (17, 21),      # 5 PM - 9 PM (weekdays)
-            'mid-peak': (10, 17),  # 10 AM - 5 PM (weekdays)
-            'off-peak': [(0, 10), (21, 24)]  # Before 10 AM, after 9 PM (weekdays)
+        "california_tou": {
+            "peak": (17, 21),  # 5 PM - 9 PM (weekdays)
+            "mid-peak": (10, 17),  # 10 AM - 5 PM (weekdays)
+            "off-peak": [(0, 10), (21, 24)],  # Before 10 AM, after 9 PM (weekdays)
         },
-        'germany_awattar': {
-            'peak': (8, 20),       # 8 AM - 8 PM (weekdays)
-            'mid-peak': (6, 8),    # 6 AM - 8 AM (weekdays)
-            'off-peak': [(0, 6), (20, 24)]  # Before 6 AM, after 8 PM (weekdays)
+        "germany_awattar": {
+            "peak": (8, 20),  # 8 AM - 8 PM (weekdays)
+            "mid-peak": (6, 8),  # 6 AM - 8 AM (weekdays)
+            "off-peak": [(0, 6), (20, 24)],  # Before 6 AM, after 8 PM (weekdays)
         },
-        'fixed_rate': {
+        "fixed_rate": {
             # Fixed rate has no TOU periods - all off-peak
-            'peak': None,
-            'mid-peak': None,
-            'off-peak': [(0, 24)]
-        }
+            "peak": None,
+            "mid-peak": None,
+            "off-peak": [(0, 24)],
+        },
     }
 
     def __init__(self):
@@ -90,9 +90,7 @@ class SyntheticElectricityPricingGenerator:
         logger.debug("SyntheticElectricityPricingGenerator initialized")
 
     def _get_pricing_region(
-        self,
-        home: dict[str, Any],
-        location: dict[str, Any] | None = None
+        self, home: dict[str, Any], location: dict[str, Any] | None = None
     ) -> str:
         """
         Determine pricing region from home location.
@@ -108,28 +106,24 @@ class SyntheticElectricityPricingGenerator:
         """
         # Try to get region from location parameter
         if location:
-            country = location.get('country', '').lower()
-            state = location.get('state', '').lower()
+            country = location.get("country", "").lower()
+            state = location.get("state", "").lower()
 
-            if 'germany' in country:
-                return 'germany_awattar'
-            elif 'california' in state or 'ca' in state:
-                return 'california_tou'
+            if "germany" in country:
+                return "germany_awattar"
+            elif "california" in state or "ca" in state:
+                return "california_tou"
 
         # Try to get region from home metadata
-        if home.get('metadata', {}).get('pricing_region'):
-            region = home['metadata']['pricing_region'].lower()
+        if home.get("metadata", {}).get("pricing_region"):
+            region = home["metadata"]["pricing_region"].lower()
             if region in self.PRICING_REGIONS:
                 return region
 
         # Default to fixed_rate for simplicity
-        return 'fixed_rate'
+        return "fixed_rate"
 
-    def _calculate_time_of_use_tier(
-        self,
-        pricing_region: str,
-        timestamp: datetime
-    ) -> str:
+    def _calculate_time_of_use_tier(self, pricing_region: str, timestamp: datetime) -> str:
         """
         Calculate time-of-use tier for a given timestamp and region.
 
@@ -141,8 +135,8 @@ class SyntheticElectricityPricingGenerator:
             Pricing tier string (peak, mid-peak, off-peak)
         """
         # Fixed rate regions have no TOU
-        if pricing_region == 'fixed_rate':
-            return 'off-peak'
+        if pricing_region == "fixed_rate":
+            return "off-peak"
 
         # Get day of week (0=Monday, 6=Sunday)
         day_of_week = timestamp.weekday()
@@ -150,7 +144,7 @@ class SyntheticElectricityPricingGenerator:
 
         # Weekends are typically off-peak for TOU regions
         if is_weekend:
-            return 'off-peak'
+            return "off-peak"
 
         # Get hour of day
         hour = timestamp.hour
@@ -159,32 +153,29 @@ class SyntheticElectricityPricingGenerator:
         tou_periods = self.TOU_PERIODS.get(pricing_region, {})
 
         # Check peak period
-        peak_period = tou_periods.get('peak')
+        peak_period = tou_periods.get("peak")
         if peak_period:
             peak_start, peak_end = peak_period
             if peak_start <= hour < peak_end:
-                return 'peak'
+                return "peak"
 
         # Check mid-peak period
-        mid_peak_period = tou_periods.get('mid-peak')
+        mid_peak_period = tou_periods.get("mid-peak")
         if mid_peak_period:
             mid_start, mid_end = mid_peak_period
             if mid_start <= hour < mid_end:
-                return 'mid-peak'
+                return "mid-peak"
 
         # Check off-peak periods (list of tuples)
-        off_peak_periods = tou_periods.get('off-peak', [])
+        off_peak_periods = tou_periods.get("off-peak", [])
         for off_start, off_end in off_peak_periods:
             if off_start <= hour < off_end:
-                return 'off-peak'
+                return "off-peak"
 
         # Default to off-peak if no match
-        return 'off-peak'
+        return "off-peak"
 
-    def _calculate_demand_factor(
-        self,
-        timestamp: datetime
-    ) -> float:
+    def _calculate_demand_factor(self, timestamp: datetime) -> float:
         """
         Calculate demand-based price factor based on time of day.
 
@@ -212,7 +203,7 @@ class SyntheticElectricityPricingGenerator:
         self,
         pricing_region: str,
         timestamp: datetime,
-        base_price: float  # noqa: ARG002
+        base_price: float,  # noqa: ARG002
     ) -> list[float]:
         """
         Generate 24-hour price forecast starting from timestamp.
@@ -237,7 +228,7 @@ class SyntheticElectricityPricingGenerator:
 
             # Get baseline and TOU multiplier
             region_config = self.PRICING_REGIONS[pricing_region]
-            baseline_price = region_config['baseline']
+            baseline_price = region_config["baseline"]
             tou_multiplier = self.TOU_MULTIPLIERS.get(pricing_tier, 1.0)
 
             # Calculate forecast price
@@ -248,18 +239,14 @@ class SyntheticElectricityPricingGenerator:
             forecast_price = forecast_price * (1.0 + random_variation)
 
             # Ensure within range
-            price_min, price_max = region_config['price_range']
+            price_min, price_max = region_config["price_range"]
             forecast_price = max(price_min, min(price_max, forecast_price))
 
             forecast.append(round(forecast_price, 4))
 
         return forecast
 
-    def _generate_basic_price(
-        self,
-        pricing_region: str,
-        timestamp: datetime
-    ) -> float:
+    def _generate_basic_price(self, pricing_region: str, timestamp: datetime) -> float:
         """
         Generate basic price for a given timestamp and region.
 
@@ -273,8 +260,8 @@ class SyntheticElectricityPricingGenerator:
             Price per kWh (float)
         """
         region_config = self.PRICING_REGIONS[pricing_region]
-        baseline_price = region_config['baseline']
-        price_min, price_max = region_config['price_range']
+        baseline_price = region_config["baseline"]
+        price_min, price_max = region_config["price_range"]
 
         # Calculate TOU tier
         pricing_tier = self._calculate_time_of_use_tier(pricing_region, timestamp)
@@ -301,7 +288,7 @@ class SyntheticElectricityPricingGenerator:
         home: dict[str, Any],
         start_date: datetime,
         days: int,
-        location: dict[str, Any] | None = None
+        location: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Generate electricity pricing data for a synthetic home.
@@ -342,11 +329,11 @@ class SyntheticElectricityPricingGenerator:
 
                 # Create pricing data point
                 pricing_point = {
-                    'timestamp': timestamp_str,
-                    'price_per_kwh': price,
-                    'pricing_tier': pricing_tier,
-                    'region': pricing_region,
-                    'forecast': forecast
+                    "timestamp": timestamp_str,
+                    "price_per_kwh": price,
+                    "pricing_tier": pricing_tier,
+                    "region": pricing_region,
+                    "forecast": forecast,
                 }
 
                 pricing_data.append(pricing_point)
@@ -359,7 +346,7 @@ class SyntheticElectricityPricingGenerator:
         pricing_data: list[dict[str, Any]],
         device_events: list[dict[str, Any]],
         devices: list[dict[str, Any]] | None = None,
-        pricing_region: str | None = None
+        pricing_region: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         Correlate electricity pricing data with high-energy device events.
@@ -381,7 +368,7 @@ class SyntheticElectricityPricingGenerator:
         """
         # Determine pricing region from pricing data if not provided
         if not pricing_region and pricing_data:
-            pricing_region = pricing_data[0].get('region', 'fixed_rate')
+            pricing_region = pricing_data[0].get("region", "fixed_rate")
 
         # Find high-energy devices
         energy_devices = []
@@ -390,29 +377,45 @@ class SyntheticElectricityPricingGenerator:
 
         if devices:
             for device in devices:
-                device_type = device.get('device_type', '')
-                device_class = device.get('device_class', '')
-                entity_id = device.get('entity_id', '')
+                device_type = device.get("device_type", "")
+                device_class = device.get("device_class", "")
+                entity_id = device.get("entity_id", "")
 
                 # EV devices
-                if device_type == 'sensor' and 'battery' in device_class.lower() or 'ev' in device_type.lower() or 'electric_vehicle' in device_type.lower() or 'ev' in entity_id.lower() or 'vehicle' in entity_id.lower():
+                if (
+                    device_type == "sensor"
+                    and "battery" in device_class.lower()
+                    or "ev" in device_type.lower()
+                    or "electric_vehicle" in device_type.lower()
+                    or "ev" in entity_id.lower()
+                    or "vehicle" in entity_id.lower()
+                ):
                     ev_devices.append(device)
 
                 # HVAC devices
-                if device_type == 'climate' or device_class in ('thermostat', 'temperature') and device_type == 'sensor':
+                if (
+                    device_type == "climate"
+                    or device_class in ("thermostat", "temperature")
+                    and device_type == "sensor"
+                ):
                     hvac_devices.append(device)
 
                 # Other high-energy devices
-                if device_type == 'water_heater' or device_type == 'switch' and device_class and 'energy' in device_class.lower():
+                if (
+                    device_type == "water_heater"
+                    or device_type == "switch"
+                    and device_class
+                    and "energy" in device_class.lower()
+                ):
                     energy_devices.append(device)
 
         # Create maps for quick lookup
-        {p['timestamp']: p for p in pricing_data}
+        {p["timestamp"]: p for p in pricing_data}
 
         # Group events by entity_id
         events_by_entity: dict[str, list[dict[str, Any]]] = {}
         for event in device_events:
-            entity_id = event.get('entity_id', '')
+            entity_id = event.get("entity_id", "")
             if entity_id not in events_by_entity:
                 events_by_entity[entity_id] = []
             events_by_entity[entity_id].append(event)
@@ -420,51 +423,38 @@ class SyntheticElectricityPricingGenerator:
         correlated_events = []
 
         # Correlate EV charging
-        ev_entity_ids = {d.get('entity_id') for d in ev_devices if d.get('entity_id')}
+        ev_entity_ids = {d.get("entity_id") for d in ev_devices if d.get("entity_id")}
         ev_events = self._correlate_ev_charging(
-            pricing_data,
-            device_events,
-            ev_entity_ids,
-            events_by_entity,
-            pricing_region
+            pricing_data, device_events, ev_entity_ids, events_by_entity, pricing_region
         )
         correlated_events.extend(ev_events)
 
         # Correlate HVAC
-        hvac_entity_ids = {d.get('entity_id') for d in hvac_devices if d.get('entity_id')}
+        hvac_entity_ids = {d.get("entity_id") for d in hvac_devices if d.get("entity_id")}
         hvac_events = self._correlate_hvac_pricing(
-            pricing_data,
-            device_events,
-            hvac_entity_ids,
-            events_by_entity,
-            pricing_region
+            pricing_data, device_events, hvac_entity_ids, events_by_entity, pricing_region
         )
         correlated_events.extend(hvac_events)
 
         # Correlate other high-energy devices
-        energy_entity_ids = {d.get('entity_id') for d in energy_devices if d.get('entity_id')}
+        energy_entity_ids = {d.get("entity_id") for d in energy_devices if d.get("entity_id")}
         energy_events = self._correlate_high_energy_devices(
-            pricing_data,
-            device_events,
-            energy_entity_ids,
-            events_by_entity,
-            pricing_region
+            pricing_data, device_events, energy_entity_ids, events_by_entity, pricing_region
         )
         correlated_events.extend(energy_events)
 
         # Add original events that weren't correlated
         correlated_entity_timestamps = {
-            (e.get('entity_id'), e.get('timestamp'))
-            for e in correlated_events
+            (e.get("entity_id"), e.get("timestamp")) for e in correlated_events
         }
 
         for event in device_events:
-            key = (event.get('entity_id'), event.get('timestamp'))
+            key = (event.get("entity_id"), event.get("timestamp"))
             if key not in correlated_entity_timestamps:
                 correlated_events.append(event)
 
         # Sort by timestamp
-        correlated_events.sort(key=lambda e: e.get('timestamp', ''))
+        correlated_events.sort(key=lambda e: e.get("timestamp", ""))
 
         logger.debug(f"Correlated {len(correlated_events)} events with pricing data")
         return correlated_events
@@ -475,7 +465,7 @@ class SyntheticElectricityPricingGenerator:
         device_events: list[dict[str, Any]],  # noqa: ARG002
         ev_entity_ids: set[str],
         events_by_entity: dict[str, list[dict[str, Any]]],
-        pricing_region: str  # noqa: ARG002
+        pricing_region: str,  # noqa: ARG002
     ) -> list[dict[str, Any]]:
         """
         Correlate EV charging with off-peak pricing periods.
@@ -490,11 +480,10 @@ class SyntheticElectricityPricingGenerator:
         # Find off-peak pricing periods (lowest prices)
         off_peak_periods = []
         for pricing_point in pricing_data:
-            if pricing_point.get('pricing_tier') == 'off-peak':
-                off_peak_periods.append((
-                    pricing_point['timestamp'],
-                    pricing_point['price_per_kwh']
-                ))
+            if pricing_point.get("pricing_tier") == "off-peak":
+                off_peak_periods.append(
+                    (pricing_point["timestamp"], pricing_point["price_per_kwh"])
+                )
 
         # Sort by price (lowest first)
         off_peak_periods.sort(key=lambda x: x[1])
@@ -506,19 +495,19 @@ class SyntheticElectricityPricingGenerator:
 
             # Find EV charging events (state contains 'charging' or 'on')
             for event in events:
-                state = event.get('state', '').lower()
-                if 'charging' not in state and 'on' not in state:
+                state = event.get("state", "").lower()
+                if "charging" not in state and "on" not in state:
                     continue
 
-                event_timestamp = event.get('timestamp', '')
-                event_dt = datetime.fromisoformat(event_timestamp.replace('Z', '+00:00'))
+                event_timestamp = event.get("timestamp", "")
+                event_dt = datetime.fromisoformat(event_timestamp.replace("Z", "+00:00"))
 
                 # Find nearest off-peak period
                 best_period = None
-                best_price = float('inf')
+                best_price = float("inf")
 
                 for period_ts, period_price in off_peak_periods:
-                    period_dt = datetime.fromisoformat(period_ts.replace('Z', '+00:00'))
+                    period_dt = datetime.fromisoformat(period_ts.replace("Z", "+00:00"))
                     time_diff = abs((event_dt - period_dt).total_seconds())
 
                     # Consider periods within 6 hours (reasonable for EV charging)
@@ -529,9 +518,9 @@ class SyntheticElectricityPricingGenerator:
                 # Adjust event if beneficial off-peak period found
                 if best_period:
                     adjusted_event = event.copy()
-                    adjusted_event['timestamp'] = best_period
-                    adjusted_event['pricing_optimized'] = True
-                    adjusted_event['original_timestamp'] = event_timestamp
+                    adjusted_event["timestamp"] = best_period
+                    adjusted_event["pricing_optimized"] = True
+                    adjusted_event["original_timestamp"] = event_timestamp
                     correlated_events.append(adjusted_event)
                 else:
                     # Keep original event if no better option
@@ -545,7 +534,7 @@ class SyntheticElectricityPricingGenerator:
         device_events: list[dict[str, Any]],  # noqa: ARG002
         hvac_entity_ids: set[str],
         events_by_entity: dict[str, list[dict[str, Any]]],
-        pricing_region: str  # noqa: ARG002
+        pricing_region: str,  # noqa: ARG002
     ) -> list[dict[str, Any]]:
         """
         Correlate HVAC scheduling with pricing periods.
@@ -559,9 +548,9 @@ class SyntheticElectricityPricingGenerator:
 
         # Find off-peak periods
         off_peak_by_timestamp = {
-            p['timestamp']: p['price_per_kwh']
+            p["timestamp"]: p["price_per_kwh"]
             for p in pricing_data
-            if p.get('pricing_tier') == 'off-peak'
+            if p.get("pricing_tier") == "off-peak"
         }
 
         # Correlate HVAC events
@@ -570,16 +559,16 @@ class SyntheticElectricityPricingGenerator:
                 continue
 
             for event in events:
-                event_timestamp = event.get('timestamp', '')
-                event_dt = datetime.fromisoformat(event_timestamp.replace('Z', '+00:00'))
+                event_timestamp = event.get("timestamp", "")
+                event_dt = datetime.fromisoformat(event_timestamp.replace("Z", "+00:00"))
 
                 # For HVAC, prefer off-peak for scheduling operations
                 # Look for off-peak periods within 2 hours before or after
                 best_period = None
-                best_price = float('inf')
+                best_price = float("inf")
 
                 for period_ts, period_price in off_peak_by_timestamp.items():
-                    period_dt = datetime.fromisoformat(period_ts.replace('Z', '+00:00'))
+                    period_dt = datetime.fromisoformat(period_ts.replace("Z", "+00:00"))
                     time_diff = abs((event_dt - period_dt).total_seconds())
 
                     # Consider periods within 2 hours for HVAC scheduling
@@ -592,16 +581,16 @@ class SyntheticElectricityPricingGenerator:
                 # Adjust event if beneficial (only for non-peak events)
                 current_tier = None
                 for p in pricing_data:
-                    if p['timestamp'] == event_timestamp:
-                        current_tier = p.get('pricing_tier')
+                    if p["timestamp"] == event_timestamp:
+                        current_tier = p.get("pricing_tier")
                         break
 
                 # Only adjust if currently in peak/mid-peak and better option exists
-                if best_period and current_tier in ('peak', 'mid-peak'):
+                if best_period and current_tier in ("peak", "mid-peak"):
                     adjusted_event = event.copy()
-                    adjusted_event['timestamp'] = best_period
-                    adjusted_event['pricing_optimized'] = True
-                    adjusted_event['original_timestamp'] = event_timestamp
+                    adjusted_event["timestamp"] = best_period
+                    adjusted_event["pricing_optimized"] = True
+                    adjusted_event["original_timestamp"] = event_timestamp
                     correlated_events.append(adjusted_event)
                 else:
                     # Keep original event
@@ -615,7 +604,7 @@ class SyntheticElectricityPricingGenerator:
         device_events: list[dict[str, Any]],  # noqa: ARG002
         energy_entity_ids: set[str],
         events_by_entity: dict[str, list[dict[str, Any]]],
-        pricing_region: str  # noqa: ARG002
+        pricing_region: str,  # noqa: ARG002
     ) -> list[dict[str, Any]]:
         """
         Correlate high-energy devices (water heater, pool pump, etc.) with pricing.
@@ -628,9 +617,9 @@ class SyntheticElectricityPricingGenerator:
 
         # Find off-peak periods
         off_peak_by_timestamp = {
-            p['timestamp']: p['price_per_kwh']
+            p["timestamp"]: p["price_per_kwh"]
             for p in pricing_data
-            if p.get('pricing_tier') == 'off-peak'
+            if p.get("pricing_tier") == "off-peak"
         }
 
         # Correlate high-energy device events
@@ -639,15 +628,15 @@ class SyntheticElectricityPricingGenerator:
                 continue
 
             for event in events:
-                event_timestamp = event.get('timestamp', '')
-                event_dt = datetime.fromisoformat(event_timestamp.replace('Z', '+00:00'))
+                event_timestamp = event.get("timestamp", "")
+                event_dt = datetime.fromisoformat(event_timestamp.replace("Z", "+00:00"))
 
                 # Find best off-peak period within 4 hours
                 best_period = None
-                best_price = float('inf')
+                best_price = float("inf")
 
                 for period_ts, period_price in off_peak_by_timestamp.items():
-                    period_dt = datetime.fromisoformat(period_ts.replace('Z', '+00:00'))
+                    period_dt = datetime.fromisoformat(period_ts.replace("Z", "+00:00"))
                     time_diff = abs((event_dt - period_dt).total_seconds())
 
                     if time_diff <= 4 * 3600 and period_price < best_price:
@@ -657,18 +646,17 @@ class SyntheticElectricityPricingGenerator:
                 # Adjust event if beneficial
                 current_price = None
                 for p in pricing_data:
-                    if p['timestamp'] == event_timestamp:
-                        current_price = p.get('price_per_kwh')
+                    if p["timestamp"] == event_timestamp:
+                        current_price = p.get("price_per_kwh")
                         break
 
                 if best_period and current_price and best_price < current_price:
                     adjusted_event = event.copy()
-                    adjusted_event['timestamp'] = best_period
-                    adjusted_event['pricing_optimized'] = True
-                    adjusted_event['original_timestamp'] = event_timestamp
+                    adjusted_event["timestamp"] = best_period
+                    adjusted_event["pricing_optimized"] = True
+                    adjusted_event["original_timestamp"] = event_timestamp
                     correlated_events.append(adjusted_event)
                 else:
                     correlated_events.append(event)
 
         return correlated_events
-

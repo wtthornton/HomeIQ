@@ -39,30 +39,30 @@ class SyntheticWeatherGenerator:
 
     # Climate zones with temperature ranges and characteristics
     CLIMATE_ZONES: dict[str, dict[str, Any]] = {
-        'tropical': {
-            'temp_range': (20, 35),  # °C
-            'humidity_range': (60, 90),
-            'seasonal_variation': 5,  # Small seasonal variation
-            'precipitation_freq': 0.3
+        "tropical": {
+            "temp_range": (20, 35),  # °C
+            "humidity_range": (60, 90),
+            "seasonal_variation": 5,  # Small seasonal variation
+            "precipitation_freq": 0.3,
         },
-        'temperate': {
-            'temp_range': (-5, 30),
-            'humidity_range': (40, 80),
-            'seasonal_variation': 15,
-            'precipitation_freq': 0.25
+        "temperate": {
+            "temp_range": (-5, 30),
+            "humidity_range": (40, 80),
+            "seasonal_variation": 15,
+            "precipitation_freq": 0.25,
         },
-        'continental': {
-            'temp_range': (-20, 35),
-            'humidity_range': (30, 70),
-            'seasonal_variation': 25,
-            'precipitation_freq': 0.2
+        "continental": {
+            "temp_range": (-20, 35),
+            "humidity_range": (30, 70),
+            "seasonal_variation": 25,
+            "precipitation_freq": 0.2,
         },
-        'arctic': {
-            'temp_range': (-40, 15),
-            'humidity_range': (50, 90),
-            'seasonal_variation': 30,
-            'precipitation_freq': 0.15
-        }
+        "arctic": {
+            "temp_range": (-40, 15),
+            "humidity_range": (50, 90),
+            "seasonal_variation": 30,
+            "precipitation_freq": 0.15,
+        },
     }
 
     def __init__(self):
@@ -70,9 +70,7 @@ class SyntheticWeatherGenerator:
         logger.debug("SyntheticWeatherGenerator initialized")
 
     def _get_climate_zone(
-        self,
-        home: dict[str, Any],
-        location: dict[str, Any] | None = None
+        self, home: dict[str, Any], location: dict[str, Any] | None = None
     ) -> str:
         """
         Determine climate zone from home location.
@@ -92,35 +90,35 @@ class SyntheticWeatherGenerator:
         """
         # Try to get latitude from location parameter
         latitude = None
-        if location and 'latitude' in location:
-            latitude = location['latitude']
-        elif location and 'lat' in location:
-            latitude = location['lat']
-        elif home.get('metadata', {}).get('location', {}).get('latitude'):
-            latitude = home['metadata']['location']['latitude']
-        elif home.get('metadata', {}).get('location', {}).get('lat'):
-            latitude = home['metadata']['location']['lat']
+        if location and "latitude" in location:
+            latitude = location["latitude"]
+        elif location and "lat" in location:
+            latitude = location["lat"]
+        elif home.get("metadata", {}).get("location", {}).get("latitude"):
+            latitude = home["metadata"]["location"]["latitude"]
+        elif home.get("metadata", {}).get("location", {}).get("lat"):
+            latitude = home["metadata"]["location"]["lat"]
 
         # Determine climate zone from latitude
         if latitude is not None:
             if latitude > 60 or latitude < -60:
-                return 'arctic'
+                return "arctic"
             elif -30 <= latitude <= 30:
-                return 'tropical'
+                return "tropical"
             elif (30 < latitude <= 60) or (-60 < latitude < -30):
-                return 'continental'
+                return "continental"
             else:
-                return 'temperate'
+                return "temperate"
 
         # Fallback: check if climate zone is specified in metadata
-        if home.get('metadata', {}).get('climate_zone'):
-            climate_zone = home['metadata']['climate_zone']
+        if home.get("metadata", {}).get("climate_zone"):
+            climate_zone = home["metadata"]["climate_zone"]
             if climate_zone in self.CLIMATE_ZONES:
                 return climate_zone
 
         # Default fallback to temperate
         logger.debug("No location data found for home, defaulting to temperate climate")
-        return 'temperate'
+        return "temperate"
 
     def _get_season(self, date: datetime) -> str:
         """
@@ -135,19 +133,16 @@ class SyntheticWeatherGenerator:
         month = date.month
         # Northern hemisphere seasons
         if month in (12, 1, 2):
-            return 'winter'
+            return "winter"
         elif month in (3, 4, 5):
-            return 'spring'
+            return "spring"
         elif month in (6, 7, 8):
-            return 'summer'
+            return "summer"
         else:  # 9, 10, 11
-            return 'fall'
+            return "fall"
 
     def _calculate_seasonal_temp(
-        self,
-        base_temp: float,
-        date: datetime,
-        climate_zone: str
+        self, base_temp: float, date: datetime, climate_zone: str
     ) -> float:
         """
         Calculate seasonal temperature offset.
@@ -165,31 +160,26 @@ class SyntheticWeatherGenerator:
         """
         season = self._get_season(date)
         climate_config = self.CLIMATE_ZONES[climate_zone]
-        max_seasonal_variation = climate_config['seasonal_variation']
+        max_seasonal_variation = climate_config["seasonal_variation"]
 
         # Seasonal offsets (scaled by climate zone variation)
         seasonal_offsets = {
-            'winter': -max_seasonal_variation * 0.4,  # -10°C for zones with 25°C variation
-            'spring': 0.0,
-            'summer': max_seasonal_variation * 0.4,   # +10°C for zones with 25°C variation
-            'fall': 0.0
+            "winter": -max_seasonal_variation * 0.4,  # -10°C for zones with 25°C variation
+            "spring": 0.0,
+            "summer": max_seasonal_variation * 0.4,  # +10°C for zones with 25°C variation
+            "fall": 0.0,
         }
 
         offset = seasonal_offsets.get(season, 0.0)
         seasonal_temp = base_temp + offset
 
         # Ensure temperature stays within climate zone bounds
-        temp_min, temp_max = climate_config['temp_range']
+        temp_min, temp_max = climate_config["temp_range"]
         seasonal_temp = max(temp_min, min(temp_max, seasonal_temp))
 
         return seasonal_temp
 
-    def _calculate_daily_temp(
-        self,
-        base_temp: float,
-        hour: int,
-        season: str
-    ) -> float:
+    def _calculate_daily_temp(self, base_temp: float, hour: int, season: str) -> float:
         """
         Calculate daily temperature cycle using sinusoidal curve.
 
@@ -207,10 +197,10 @@ class SyntheticWeatherGenerator:
         # Daily cycle amplitude varies by season
         # Summer has stronger daily variation, winter has weaker
         amplitude_by_season = {
-            'winter': 3.0,   # Smaller daily variation in winter
-            'spring': 5.0,
-            'summer': 7.0,   # Larger daily variation in summer
-            'fall': 5.0
+            "winter": 3.0,  # Smaller daily variation in winter
+            "spring": 5.0,
+            "summer": 7.0,  # Larger daily variation in summer
+            "fall": 5.0,
         }
         amplitude = amplitude_by_season.get(season, 5.0)
 
@@ -233,11 +223,7 @@ class SyntheticWeatherGenerator:
         return daily_temp
 
     def _generate_condition(
-        self,
-        temperature: float,
-        season: str,
-        climate_zone: str,
-        random_factor: float
+        self, temperature: float, season: str, climate_zone: str, random_factor: float
     ) -> str:
         """
         Generate weather condition based on temperature, season, climate.
@@ -263,14 +249,14 @@ class SyntheticWeatherGenerator:
 
         # Get precipitation frequency from climate zone
         climate_config = self.CLIMATE_ZONES[climate_zone]
-        rain_prob = climate_config['precipitation_freq']
+        rain_prob = climate_config["precipitation_freq"]
 
         # Adjust rain probability by season
         # Higher in spring/fall, lower in summer/winter (for temperate zones)
-        if climate_zone == 'temperate':
-            if season in ('spring', 'fall'):
+        if climate_zone == "temperate":
+            if season in ("spring", "fall"):
                 rain_prob *= 1.2  # 20% more likely in spring/fall
-            elif season == 'summer':
+            elif season == "summer":
                 rain_prob *= 0.8  # 20% less likely in summer
 
         # Rain condition: based on precipitation frequency
@@ -284,12 +270,7 @@ class SyntheticWeatherGenerator:
         else:
             return "sunny"
 
-    def _calculate_humidity(
-        self,
-        condition: str,
-        temperature: float,
-        climate_zone: str
-    ) -> float:
+    def _calculate_humidity(self, condition: str, temperature: float, climate_zone: str) -> float:
         """
         Calculate humidity based on condition and temperature.
 
@@ -302,7 +283,7 @@ class SyntheticWeatherGenerator:
             Humidity percentage (0-100)
         """
         climate_config = self.CLIMATE_ZONES[climate_zone]
-        humidity_min, humidity_max = climate_config['humidity_range']
+        humidity_min, humidity_max = climate_config["humidity_range"]
 
         # Humidity correlation with condition
         if condition == "rainy":
@@ -329,7 +310,7 @@ class SyntheticWeatherGenerator:
     def _calculate_precipitation(
         self,
         condition: str,
-        temperature: float  # noqa: ARG002
+        temperature: float,  # noqa: ARG002
     ) -> float:
         """
         Calculate precipitation amount based on condition.
@@ -376,7 +357,7 @@ class SyntheticWeatherGenerator:
         home: dict[str, Any],
         start_date: datetime,
         days: int,
-        location: dict[str, Any] | None = None
+        location: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Generate basic weather data for a home.
@@ -395,7 +376,7 @@ class SyntheticWeatherGenerator:
         climate_config = self.CLIMATE_ZONES[climate_zone]
 
         # Calculate base temperature (midpoint of climate zone range)
-        temp_min, temp_max = climate_config['temp_range']
+        temp_min, temp_max = climate_config["temp_range"]
         base_temp = (temp_min + temp_max) / 2.0
 
         # Generate hourly weather data
@@ -429,44 +410,36 @@ class SyntheticWeatherGenerator:
                 # Generate weather condition
                 random_factor = random.random()
                 condition = self._generate_condition(
-                    final_temp,
-                    season,
-                    climate_zone,
-                    random_factor
+                    final_temp, season, climate_zone, random_factor
                 )
 
                 # Calculate humidity based on condition and temperature
-                humidity = self._calculate_humidity(
-                    condition,
-                    final_temp,
-                    climate_zone
-                )
+                humidity = self._calculate_humidity(condition, final_temp, climate_zone)
 
                 # Calculate precipitation based on condition
-                precipitation = self._calculate_precipitation(
-                    condition,
-                    final_temp
-                )
+                precipitation = self._calculate_precipitation(condition, final_temp)
 
                 # Create weather data point
                 weather_point = {
-                    'timestamp': timestamp_str,
-                    'temperature': round(final_temp, 1),
-                    'condition': condition,
-                    'humidity': humidity,
-                    'precipitation': precipitation
+                    "timestamp": timestamp_str,
+                    "temperature": round(final_temp, 1),
+                    "condition": condition,
+                    "humidity": humidity,
+                    "precipitation": precipitation,
                 }
 
                 weather_data.append(weather_point)
 
-        logger.debug(f"Generated {len(weather_data)} weather data points for {climate_zone} climate")
+        logger.debug(
+            f"Generated {len(weather_data)} weather data points for {climate_zone} climate"
+        )
         return weather_data
 
     def correlate_with_hvac(
         self,
         weather_data: list[dict[str, Any]],
         device_events: list[dict[str, Any]],
-        devices: list[dict[str, Any]] | None = None
+        devices: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Correlate weather data with HVAC device events.
@@ -489,29 +462,30 @@ class SyntheticWeatherGenerator:
         hvac_devices = []
         if devices:
             hvac_devices = [
-                d for d in devices
-                if d.get('device_type') == 'climate'
-                or d.get('device_class') in ('thermostat', 'temperature')
+                d
+                for d in devices
+                if d.get("device_type") == "climate"
+                or d.get("device_class") in ("thermostat", "temperature")
             ]
 
         # Create a map of weather by timestamp for quick lookup
-        {w['timestamp']: w for w in weather_data}
+        {w["timestamp"]: w for w in weather_data}
 
         # Create a map of events by entity_id and timestamp
         events_by_entity = {}
         for event in device_events:
-            entity_id = event.get('entity_id', '')
+            entity_id = event.get("entity_id", "")
             if entity_id not in events_by_entity:
                 events_by_entity[entity_id] = []
             events_by_entity[entity_id].append(event)
 
         correlated_events = []
-        hvac_entity_ids = {d.get('entity_id') for d in hvac_devices if d.get('entity_id')}
+        hvac_entity_ids = {d.get("entity_id") for d in hvac_devices if d.get("entity_id")}
 
         # Process each weather point and correlate with HVAC
         for weather_point in weather_data:
-            timestamp = weather_point['timestamp']
-            temperature = weather_point['temperature']
+            timestamp = weather_point["timestamp"]
+            temperature = weather_point["temperature"]
 
             # Find HVAC events near this timestamp (within 1 hour)
             for entity_id, events in events_by_entity.items():
@@ -520,11 +494,11 @@ class SyntheticWeatherGenerator:
 
                 # Find closest event to this weather timestamp
                 closest_event = None
-                min_time_diff = float('inf')
+                min_time_diff = float("inf")
 
                 for event in events:
-                    event_time = datetime.fromisoformat(event['timestamp'].replace('Z', '+00:00'))
-                    weather_time = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    event_time = datetime.fromisoformat(event["timestamp"].replace("Z", "+00:00"))
+                    weather_time = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
                     time_diff = abs((event_time - weather_time).total_seconds())
 
                     if time_diff < min_time_diff and time_diff < 3600:  # Within 1 hour
@@ -535,36 +509,44 @@ class SyntheticWeatherGenerator:
                     # Adjust HVAC state based on temperature
                     if temperature > 25:
                         # Hot weather - AC should be on or cooling
-                        new_state = str(int(22 + (temperature - 25) * 0.5))  # Cooler target when hotter
-                        if closest_event.get('state') != new_state:
+                        new_state = str(
+                            int(22 + (temperature - 25) * 0.5)
+                        )  # Cooler target when hotter
+                        if closest_event.get("state") != new_state:
                             adjusted_event = closest_event.copy()
-                            adjusted_event['state'] = new_state
-                            adjusted_event['attributes'] = adjusted_event.get('attributes', {}).copy()
-                            adjusted_event['attributes']['hvac_mode'] = 'cool'
-                            adjusted_event['attributes']['weather_correlated'] = True
+                            adjusted_event["state"] = new_state
+                            adjusted_event["attributes"] = adjusted_event.get(
+                                "attributes", {}
+                            ).copy()
+                            adjusted_event["attributes"]["hvac_mode"] = "cool"
+                            adjusted_event["attributes"]["weather_correlated"] = True
                             correlated_events.append(adjusted_event)
                     elif temperature < 18:
                         # Cold weather - Heat should be on or heating
-                        new_state = str(int(20 + (18 - temperature) * 0.3))  # Warmer target when colder
-                        if closest_event.get('state') != new_state:
+                        new_state = str(
+                            int(20 + (18 - temperature) * 0.3)
+                        )  # Warmer target when colder
+                        if closest_event.get("state") != new_state:
                             adjusted_event = closest_event.copy()
-                            adjusted_event['state'] = new_state
-                            adjusted_event['attributes'] = adjusted_event.get('attributes', {}).copy()
-                            adjusted_event['attributes']['hvac_mode'] = 'heat'
-                            adjusted_event['attributes']['weather_correlated'] = True
+                            adjusted_event["state"] = new_state
+                            adjusted_event["attributes"] = adjusted_event.get(
+                                "attributes", {}
+                            ).copy()
+                            adjusted_event["attributes"]["hvac_mode"] = "heat"
+                            adjusted_event["attributes"]["weather_correlated"] = True
                             correlated_events.append(adjusted_event)
 
         # Add original events that weren't correlated
         for event in device_events:
             if not any(
-                e.get('entity_id') == event.get('entity_id') and
-                e.get('timestamp') == event.get('timestamp')
+                e.get("entity_id") == event.get("entity_id")
+                and e.get("timestamp") == event.get("timestamp")
                 for e in correlated_events
             ):
                 correlated_events.append(event)
 
         # Sort by timestamp
-        correlated_events.sort(key=lambda e: e.get('timestamp', ''))
+        correlated_events.sort(key=lambda e: e.get("timestamp", ""))
 
         logger.debug(f"Correlated {len(correlated_events)} events with weather data")
         return correlated_events
@@ -573,7 +555,7 @@ class SyntheticWeatherGenerator:
         self,
         weather_data: list[dict[str, Any]],
         device_events: list[dict[str, Any]],
-        devices: list[dict[str, Any]] | None = None
+        devices: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Correlate weather data with window (cover) device events.
@@ -595,27 +577,27 @@ class SyntheticWeatherGenerator:
         window_devices = []
         if devices:
             window_devices = [
-                d for d in devices
-                if d.get('device_type') == 'cover'
-                and d.get('device_class') == 'window'
+                d
+                for d in devices
+                if d.get("device_type") == "cover" and d.get("device_class") == "window"
             ]
 
         # Create a map of events by entity_id
         events_by_entity = {}
         for event in device_events:
-            entity_id = event.get('entity_id', '')
+            entity_id = event.get("entity_id", "")
             if entity_id not in events_by_entity:
                 events_by_entity[entity_id] = []
             events_by_entity[entity_id].append(event)
 
         correlated_events = []
-        window_entity_ids = {d.get('entity_id') for d in window_devices if d.get('entity_id')}
+        window_entity_ids = {d.get("entity_id") for d in window_devices if d.get("entity_id")}
 
         # Process each weather point and correlate with windows
         for weather_point in weather_data:
-            timestamp = weather_point['timestamp']
-            temperature = weather_point['temperature']
-            condition = weather_point.get('condition', 'sunny')
+            timestamp = weather_point["timestamp"]
+            temperature = weather_point["temperature"]
+            condition = weather_point.get("condition", "sunny")
 
             # Find window events near this timestamp (within 1 hour)
             for entity_id, events in events_by_entity.items():
@@ -624,11 +606,11 @@ class SyntheticWeatherGenerator:
 
                 # Find closest event to this weather timestamp
                 closest_event = None
-                min_time_diff = float('inf')
+                min_time_diff = float("inf")
 
                 for event in events:
-                    event_time = datetime.fromisoformat(event['timestamp'].replace('Z', '+00:00'))
-                    weather_time = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    event_time = datetime.fromisoformat(event["timestamp"].replace("Z", "+00:00"))
+                    weather_time = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
                     time_diff = abs((event_time - weather_time).total_seconds())
 
                     if time_diff < min_time_diff and time_diff < 3600:  # Within 1 hour
@@ -637,35 +619,34 @@ class SyntheticWeatherGenerator:
 
                 if closest_event:
                     # Determine window state based on weather
-                    if condition == 'sunny' and 18 <= temperature <= 25:
+                    if condition == "sunny" and 18 <= temperature <= 25:
                         # Nice weather - windows should be open
-                        new_state = 'open'
-                    elif condition in ('rainy', 'snowy') or temperature < 10 or temperature > 30:
+                        new_state = "open"
+                    elif condition in ("rainy", "snowy") or temperature < 10 or temperature > 30:
                         # Extreme weather - windows should be closed
-                        new_state = 'closed'
+                        new_state = "closed"
                     else:
                         # Moderate weather - keep existing state or random
-                        new_state = closest_event.get('state', 'closed')
+                        new_state = closest_event.get("state", "closed")
 
-                    if closest_event.get('state') != new_state:
+                    if closest_event.get("state") != new_state:
                         adjusted_event = closest_event.copy()
-                        adjusted_event['state'] = new_state
-                        adjusted_event['attributes'] = adjusted_event.get('attributes', {}).copy()
-                        adjusted_event['attributes']['weather_correlated'] = True
+                        adjusted_event["state"] = new_state
+                        adjusted_event["attributes"] = adjusted_event.get("attributes", {}).copy()
+                        adjusted_event["attributes"]["weather_correlated"] = True
                         correlated_events.append(adjusted_event)
 
         # Add original events that weren't correlated
         for event in device_events:
             if not any(
-                e.get('entity_id') == event.get('entity_id') and
-                e.get('timestamp') == event.get('timestamp')
+                e.get("entity_id") == event.get("entity_id")
+                and e.get("timestamp") == event.get("timestamp")
                 for e in correlated_events
             ):
                 correlated_events.append(event)
 
         # Sort by timestamp
-        correlated_events.sort(key=lambda e: e.get('timestamp', ''))
+        correlated_events.sort(key=lambda e: e.get("timestamp", ""))
 
         logger.debug(f"Correlated {len(correlated_events)} window events with weather data")
         return correlated_events
-

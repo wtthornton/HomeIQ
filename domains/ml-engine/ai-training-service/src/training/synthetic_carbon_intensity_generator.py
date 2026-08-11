@@ -40,41 +40,37 @@ class SyntheticCarbonIntensityGenerator:
 
     # Grid region profiles with baseline carbon intensity and renewable capacity
     GRID_REGIONS: dict[str, dict[str, Any]] = {
-        'california': {
-            'baseline': 250,  # gCO2/kWh
-            'renewable_capacity': 0.4,  # 40% renewable
-            'intensity_range': (150, 400),
-            'solar_capacity': 0.3
+        "california": {
+            "baseline": 250,  # gCO2/kWh
+            "renewable_capacity": 0.4,  # 40% renewable
+            "intensity_range": (150, 400),
+            "solar_capacity": 0.3,
         },
-        'texas': {
-            'baseline': 400,
-            'renewable_capacity': 0.25,  # 25% renewable
-            'intensity_range': (300, 550),
-            'solar_capacity': 0.15
+        "texas": {
+            "baseline": 400,
+            "renewable_capacity": 0.25,  # 25% renewable
+            "intensity_range": (300, 550),
+            "solar_capacity": 0.15,
         },
-        'germany': {
-            'baseline': 350,
-            'renewable_capacity': 0.5,  # 50% renewable
-            'intensity_range': (200, 500),
-            'solar_capacity': 0.2
+        "germany": {
+            "baseline": 350,
+            "renewable_capacity": 0.5,  # 50% renewable
+            "intensity_range": (200, 500),
+            "solar_capacity": 0.2,
         },
-        'coal_heavy': {
-            'baseline': 600,
-            'renewable_capacity': 0.1,  # 10% renewable
-            'intensity_range': (500, 700),
-            'solar_capacity': 0.05
-        }
+        "coal_heavy": {
+            "baseline": 600,
+            "renewable_capacity": 0.1,  # 10% renewable
+            "intensity_range": (500, 700),
+            "solar_capacity": 0.05,
+        },
     }
 
     def __init__(self):
         """Initialize carbon intensity generator (NUC-optimized, no heavy initialization)."""
         logger.debug("SyntheticCarbonIntensityGenerator initialized")
 
-    def _get_grid_region(
-        self,
-        home: dict[str, Any],
-        location: dict[str, Any] | None = None
-    ) -> str:
+    def _get_grid_region(self, home: dict[str, Any], location: dict[str, Any] | None = None) -> str:
         """
         Determine grid region from home location.
 
@@ -88,31 +84,31 @@ class SyntheticCarbonIntensityGenerator:
             Grid region identifier (california, texas, germany, coal_heavy)
         """
         # Try to get region from location parameter
-        if location and 'region' in location:
-            region = location['region'].lower()
+        if location and "region" in location:
+            region = location["region"].lower()
             if region in self.GRID_REGIONS:
                 return region
 
         # Try to get region from home metadata
-        if home.get('metadata', {}).get('grid_region'):
-            region = home['metadata']['grid_region'].lower()
+        if home.get("metadata", {}).get("grid_region"):
+            region = home["metadata"]["grid_region"].lower()
             if region in self.GRID_REGIONS:
                 return region
 
         # Try to infer from country/state if available
         if location:
-            country = location.get('country', '').lower()
-            if 'germany' in country or 'de' in country:
-                return 'germany'
-            state = location.get('state', '').lower()
-            if 'texas' in state or 'tx' in state:
-                return 'texas'
-            if 'california' in state or 'ca' in state:
-                return 'california'
+            country = location.get("country", "").lower()
+            if "germany" in country or "de" in country:
+                return "germany"
+            state = location.get("state", "").lower()
+            if "texas" in state or "tx" in state:
+                return "texas"
+            if "california" in state or "ca" in state:
+                return "california"
 
         # Default fallback to california (cleaner grid)
         logger.debug("No grid region data found for home, defaulting to california")
-        return 'california'
+        return "california"
 
     def _get_season(self, date: datetime) -> str:
         """
@@ -127,19 +123,15 @@ class SyntheticCarbonIntensityGenerator:
         month = date.month
         # Northern hemisphere seasons
         if month in (12, 1, 2):
-            return 'winter'
+            return "winter"
         elif month in (3, 4, 5):
-            return 'spring'
+            return "spring"
         elif month in (6, 7, 8):
-            return 'summer'
+            return "summer"
         else:  # 9, 10, 11
-            return 'fall'
+            return "fall"
 
-    def _calculate_seasonal_solar(
-        self,
-        season: str,
-        grid_region: str
-    ) -> float:
+    def _calculate_seasonal_solar(self, season: str, grid_region: str) -> float:
         """
         Calculate seasonal solar factor.
 
@@ -155,16 +147,16 @@ class SyntheticCarbonIntensityGenerator:
             Multiplier factor (0.3-0.8) for seasonal solar impact
         """
         region_config = self.GRID_REGIONS[grid_region]
-        solar_capacity = region_config.get('solar_capacity', 0.2)
+        solar_capacity = region_config.get("solar_capacity", 0.2)
 
         # Seasonal solar reduction factors
         # Summer has strongest solar impact (more reduction = lower factor)
         # Winter has weakest solar impact (less reduction = higher factor)
         seasonal_reduction_potential = {
-            'summer': 0.6,   # 60% reduction potential (strongest)
-            'spring': 0.4,   # 40% reduction potential
-            'fall': 0.4,     # 40% reduction potential
-            'winter': 0.25   # 25% reduction potential (weakest)
+            "summer": 0.6,  # 60% reduction potential (strongest)
+            "spring": 0.4,  # 40% reduction potential
+            "fall": 0.4,  # 40% reduction potential
+            "winter": 0.25,  # 25% reduction potential (weakest)
         }
 
         reduction_potential = seasonal_reduction_potential.get(season, 0.4)
@@ -186,7 +178,7 @@ class SyntheticCarbonIntensityGenerator:
         intensity: float,  # noqa: ARG002
         grid_region: str,
         season: str,
-        hour: float
+        hour: float,
     ) -> float:
         """
         Calculate renewable percentage based on grid region, season, and time.
@@ -206,18 +198,18 @@ class SyntheticCarbonIntensityGenerator:
             Renewable percentage (0-100)
         """
         region_config = self.GRID_REGIONS[grid_region]
-        base_renewable = region_config.get('renewable_capacity', 0.2)
-        solar_capacity = region_config.get('solar_capacity', 0.2)
+        base_renewable = region_config.get("renewable_capacity", 0.2)
+        solar_capacity = region_config.get("solar_capacity", 0.2)
 
         # Base renewable percentage from grid region
         renewable_pct = base_renewable * 100
 
         # Seasonal adjustment (summer has more solar)
         seasonal_adjustments = {
-            'summer': 20,   # +20% in summer
-            'spring': 10,   # +10% in spring
-            'fall': 10,     # +10% in fall
-            'winter': 0     # No adjustment in winter
+            "summer": 20,  # +20% in summer
+            "spring": 10,  # +10% in spring
+            "fall": 10,  # +10% in fall
+            "winter": 0,  # No adjustment in winter
         }
         renewable_pct += seasonal_adjustments.get(season, 0)
 
@@ -246,7 +238,7 @@ class SyntheticCarbonIntensityGenerator:
         current_intensity: float,  # noqa: ARG002
         grid_region: str,
         season: str,
-        hour: float
+        hour: float,
     ) -> list[float]:
         """
         Generate 24-hour forecast (96 values for 15-minute intervals).
@@ -264,7 +256,7 @@ class SyntheticCarbonIntensityGenerator:
         """
         forecast = []
         region_config = self.GRID_REGIONS[grid_region]
-        intensity_min, intensity_max = region_config['intensity_range']
+        intensity_min, intensity_max = region_config["intensity_range"]
 
         # Generate forecast starting from current hour
         for i in range(96):  # 24 hours * 4 quarters
@@ -288,11 +280,7 @@ class SyntheticCarbonIntensityGenerator:
 
         return forecast
 
-    def _calculate_time_of_day_factor(
-        self,
-        hour: float,
-        grid_region: str
-    ) -> float:
+    def _calculate_time_of_day_factor(self, hour: float, grid_region: str) -> float:
         """
         Calculate time-of-day factor for carbon intensity.
 
@@ -309,7 +297,7 @@ class SyntheticCarbonIntensityGenerator:
             Multiplier factor (0.7-1.3) to apply to baseline intensity
         """
         region_config = self.GRID_REGIONS[grid_region]
-        solar_capacity = region_config.get('solar_capacity', 0.2)
+        solar_capacity = region_config.get("solar_capacity", 0.2)
 
         # Normalize hour to 0-24 range
         hour_normalized = hour % 24
@@ -357,7 +345,7 @@ class SyntheticCarbonIntensityGenerator:
         home: dict[str, Any],
         start_date: datetime,
         days: int,
-        location: dict[str, Any] | None = None
+        location: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Generate basic carbon intensity data for a home.
@@ -394,7 +382,7 @@ class SyntheticCarbonIntensityGenerator:
                     season = self._get_season(timestamp)
 
                     # Get baseline intensity (midpoint of range)
-                    intensity_min, intensity_max = region_config['intensity_range']
+                    intensity_min, intensity_max = region_config["intensity_range"]
                     baseline_intensity = (intensity_min + intensity_max) / 2.0
 
                     # Apply time-of-day factor
@@ -415,38 +403,34 @@ class SyntheticCarbonIntensityGenerator:
 
                     # Calculate renewable percentage
                     renewable_pct = self._calculate_renewable_percentage(
-                        intensity,
-                        grid_region,
-                        season,
-                        hour_with_quarter
+                        intensity, grid_region, season, hour_with_quarter
                     )
 
                     # Generate 24-hour forecast
                     forecast = self._generate_forecast(
-                        intensity,
-                        grid_region,
-                        season,
-                        hour_with_quarter
+                        intensity, grid_region, season, hour_with_quarter
                     )
 
                     # Create carbon intensity data point
                     carbon_point = {
-                        'timestamp': timestamp_str,
-                        'intensity': round(intensity, 1),
-                        'renewable_percentage': renewable_pct,
-                        'forecast': forecast
+                        "timestamp": timestamp_str,
+                        "intensity": round(intensity, 1),
+                        "renewable_percentage": renewable_pct,
+                        "forecast": forecast,
                     }
 
                     carbon_data.append(carbon_point)
 
-        logger.debug(f"Generated {len(carbon_data)} carbon intensity data points for {grid_region} grid")
+        logger.debug(
+            f"Generated {len(carbon_data)} carbon intensity data points for {grid_region} grid"
+        )
         return carbon_data
 
     def correlate_with_energy_devices(
         self,
         carbon_data: list[dict[str, Any]],
         device_events: list[dict[str, Any]],
-        devices: list[dict[str, Any]] | None = None
+        devices: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Correlate carbon intensity data with high-energy device events.
@@ -471,26 +455,35 @@ class SyntheticCarbonIntensityGenerator:
 
         if devices:
             for device in devices:
-                device_type = device.get('device_type', '')
-                device_class = device.get('device_class', '')
+                device_type = device.get("device_type", "")
+                device_class = device.get("device_class", "")
 
                 # EV devices
-                if device_type == 'sensor' and 'battery' in device_class.lower() or 'ev' in device_type.lower() or 'electric_vehicle' in device_type.lower():
+                if (
+                    device_type == "sensor"
+                    and "battery" in device_class.lower()
+                    or "ev" in device_type.lower()
+                    or "electric_vehicle" in device_type.lower()
+                ):
                     ev_devices.append(device)
 
                 # HVAC devices
-                if device_type == 'climate' or device_class in ('thermostat', 'temperature'):
+                if device_type == "climate" or device_class in ("thermostat", "temperature"):
                     hvac_devices.append(device)
 
                 # Other high-energy devices (water heater, pool pump, etc.)
-                if device_type in ('water_heater', 'switch') and device_class and 'energy' in device_class.lower():
+                if (
+                    device_type in ("water_heater", "switch")
+                    and device_class
+                    and "energy" in device_class.lower()
+                ):
                     energy_devices.append(device)
 
         # Create maps for quick lookup
-        {c['timestamp']: c for c in carbon_data}
+        {c["timestamp"]: c for c in carbon_data}
         events_by_entity = {}
         for event in device_events:
-            entity_id = event.get('entity_id', '')
+            entity_id = event.get("entity_id", "")
             if entity_id not in events_by_entity:
                 events_by_entity[entity_id] = []
             events_by_entity[entity_id].append(event)
@@ -499,44 +492,34 @@ class SyntheticCarbonIntensityGenerator:
 
         # Correlate EV charging
         ev_events = self._correlate_ev_charging(
-            carbon_data,
-            device_events,
-            ev_devices,
-            events_by_entity
+            carbon_data, device_events, ev_devices, events_by_entity
         )
         correlated_events.extend(ev_events)
 
         # Correlate HVAC
         hvac_events = self._correlate_hvac_carbon(
-            carbon_data,
-            device_events,
-            hvac_devices,
-            events_by_entity
+            carbon_data, device_events, hvac_devices, events_by_entity
         )
         correlated_events.extend(hvac_events)
 
         # Correlate other high-energy devices
         energy_events = self._correlate_high_energy_devices(
-            carbon_data,
-            device_events,
-            energy_devices,
-            events_by_entity
+            carbon_data, device_events, energy_devices, events_by_entity
         )
         correlated_events.extend(energy_events)
 
         # Add original events that weren't correlated
         correlated_entity_timestamps = {
-            (e.get('entity_id'), e.get('timestamp'))
-            for e in correlated_events
+            (e.get("entity_id"), e.get("timestamp")) for e in correlated_events
         }
 
         for event in device_events:
-            key = (event.get('entity_id'), event.get('timestamp'))
+            key = (event.get("entity_id"), event.get("timestamp"))
             if key not in correlated_entity_timestamps:
                 correlated_events.append(event)
 
         # Sort by timestamp
-        correlated_events.sort(key=lambda e: e.get('timestamp', ''))
+        correlated_events.sort(key=lambda e: e.get("timestamp", ""))
 
         logger.debug(f"Correlated {len(correlated_events)} events with carbon intensity data")
         return correlated_events
@@ -546,7 +529,7 @@ class SyntheticCarbonIntensityGenerator:
         carbon_data: list[dict[str, Any]],
         device_events: list[dict[str, Any]],  # noqa: ARG002
         ev_devices: list[dict[str, Any]],
-        events_by_entity: dict[str, list[dict[str, Any]]]
+        events_by_entity: dict[str, list[dict[str, Any]]],
     ) -> list[dict[str, Any]]:
         """
         Correlate EV charging with low-carbon periods.
@@ -557,14 +540,14 @@ class SyntheticCarbonIntensityGenerator:
         - Avoids evening peak (6 PM - 9 PM) - high carbon
         """
         correlated_events = []
-        ev_entity_ids = {d.get('entity_id') for d in ev_devices if d.get('entity_id')}
+        ev_entity_ids = {d.get("entity_id") for d in ev_devices if d.get("entity_id")}
 
         # Find low-carbon periods (solar peak and night)
         low_carbon_periods = []
         for carbon_point in carbon_data:
-            timestamp = carbon_point['timestamp']
-            intensity = carbon_point['intensity']
-            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            timestamp = carbon_point["timestamp"]
+            intensity = carbon_point["intensity"]
+            dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
             hour = dt.hour
 
             # Solar peak (10 AM - 3 PM) or night (midnight - 6 AM)
@@ -583,17 +566,20 @@ class SyntheticCarbonIntensityGenerator:
 
             # Find EV charging events
             for event in events:
-                if 'charging' not in event.get('state', '').lower() and 'on' not in event.get('state', '').lower():
+                if (
+                    "charging" not in event.get("state", "").lower()
+                    and "on" not in event.get("state", "").lower()
+                ):
                     continue
 
-                event_time = datetime.fromisoformat(event['timestamp'].replace('Z', '+00:00'))
+                event_time = datetime.fromisoformat(event["timestamp"].replace("Z", "+00:00"))
 
                 # Find nearest low-carbon period
                 best_period = None
-                min_time_diff = float('inf')
+                min_time_diff = float("inf")
 
                 for period_timestamp, period_intensity in low_carbon_periods:
-                    period_time = datetime.fromisoformat(period_timestamp.replace('Z', '+00:00'))
+                    period_time = datetime.fromisoformat(period_timestamp.replace("Z", "+00:00"))
                     time_diff = abs((event_time - period_time).total_seconds())
 
                     # Prefer periods within 4 hours
@@ -604,10 +590,10 @@ class SyntheticCarbonIntensityGenerator:
                 if best_period and min_time_diff < 14400:
                     # Adjust event to low-carbon period
                     adjusted_event = event.copy()
-                    adjusted_event['timestamp'] = best_period[0]
-                    adjusted_event['attributes'] = adjusted_event.get('attributes', {}).copy()
-                    adjusted_event['attributes']['carbon_intensity'] = best_period[1]
-                    adjusted_event['attributes']['carbon_optimized'] = True
+                    adjusted_event["timestamp"] = best_period[0]
+                    adjusted_event["attributes"] = adjusted_event.get("attributes", {}).copy()
+                    adjusted_event["attributes"]["carbon_intensity"] = best_period[1]
+                    adjusted_event["attributes"]["carbon_optimized"] = True
                     correlated_events.append(adjusted_event)
 
         return correlated_events
@@ -617,7 +603,7 @@ class SyntheticCarbonIntensityGenerator:
         carbon_data: list[dict[str, Any]],
         device_events: list[dict[str, Any]],  # noqa: ARG002
         hvac_devices: list[dict[str, Any]],
-        events_by_entity: dict[str, list[dict[str, Any]]]
+        events_by_entity: dict[str, list[dict[str, Any]]],
     ) -> list[dict[str, Any]]:
         """
         Correlate HVAC usage with carbon intensity.
@@ -627,10 +613,10 @@ class SyntheticCarbonIntensityGenerator:
         - Reduce usage during high-carbon periods (evening peak)
         """
         correlated_events = []
-        hvac_entity_ids = {d.get('entity_id') for d in hvac_devices if d.get('entity_id')}
+        hvac_entity_ids = {d.get("entity_id") for d in hvac_devices if d.get("entity_id")}
 
         # Create carbon intensity map
-        {c['timestamp']: c for c in carbon_data}
+        {c["timestamp"]: c for c in carbon_data}
 
         # Process HVAC events
         for entity_id, events in events_by_entity.items():
@@ -638,15 +624,17 @@ class SyntheticCarbonIntensityGenerator:
                 continue
 
             for event in events:
-                event_timestamp = event['timestamp']
+                event_timestamp = event["timestamp"]
 
                 # Find nearest carbon data point
-                event_time = datetime.fromisoformat(event_timestamp.replace('Z', '+00:00'))
+                event_time = datetime.fromisoformat(event_timestamp.replace("Z", "+00:00"))
                 closest_carbon = None
-                min_time_diff = float('inf')
+                min_time_diff = float("inf")
 
                 for carbon_point in carbon_data:
-                    carbon_time = datetime.fromisoformat(carbon_point['timestamp'].replace('Z', '+00:00'))
+                    carbon_time = datetime.fromisoformat(
+                        carbon_point["timestamp"].replace("Z", "+00:00")
+                    )
                     time_diff = abs((event_time - carbon_time).total_seconds())
 
                     if time_diff < min_time_diff and time_diff < 3600:  # Within 1 hour
@@ -654,19 +642,21 @@ class SyntheticCarbonIntensityGenerator:
                         closest_carbon = carbon_point
 
                 if closest_carbon:
-                    intensity = closest_carbon['intensity']
-                    renewable_pct = closest_carbon.get('renewable_percentage', 0)
+                    intensity = closest_carbon["intensity"]
+                    renewable_pct = closest_carbon.get("renewable_percentage", 0)
 
                     # Add carbon context to HVAC event
                     adjusted_event = event.copy()
-                    adjusted_event['attributes'] = adjusted_event.get('attributes', {}).copy()
-                    adjusted_event['attributes']['carbon_intensity'] = intensity
-                    adjusted_event['attributes']['renewable_percentage'] = renewable_pct
-                    adjusted_event['attributes']['carbon_correlated'] = True
+                    adjusted_event["attributes"] = adjusted_event.get("attributes", {}).copy()
+                    adjusted_event["attributes"]["carbon_intensity"] = intensity
+                    adjusted_event["attributes"]["renewable_percentage"] = renewable_pct
+                    adjusted_event["attributes"]["carbon_correlated"] = True
 
                     # If high carbon and HVAC is on, suggest reducing usage
-                    if intensity > 400 and event.get('state') not in ('off', 'idle'):
-                        adjusted_event['attributes']['carbon_optimization_suggestion'] = 'reduce_usage'
+                    if intensity > 400 and event.get("state") not in ("off", "idle"):
+                        adjusted_event["attributes"]["carbon_optimization_suggestion"] = (
+                            "reduce_usage"
+                        )
 
                     correlated_events.append(adjusted_event)
 
@@ -677,7 +667,7 @@ class SyntheticCarbonIntensityGenerator:
         carbon_data: list[dict[str, Any]],
         device_events: list[dict[str, Any]],  # noqa: ARG002
         energy_devices: list[dict[str, Any]],
-        events_by_entity: dict[str, list[dict[str, Any]]]
+        events_by_entity: dict[str, list[dict[str, Any]]],
     ) -> list[dict[str, Any]]:
         """
         Correlate other high-energy devices (water heater, pool pump, etc.) with carbon intensity.
@@ -685,10 +675,10 @@ class SyntheticCarbonIntensityGenerator:
         High-energy devices should prefer low-carbon periods when possible.
         """
         correlated_events = []
-        energy_entity_ids = {d.get('entity_id') for d in energy_devices if d.get('entity_id')}
+        energy_entity_ids = {d.get("entity_id") for d in energy_devices if d.get("entity_id")}
 
         # Create carbon intensity map
-        {c['timestamp']: c for c in carbon_data}
+        {c["timestamp"]: c for c in carbon_data}
 
         # Process energy device events
         for entity_id, events in events_by_entity.items():
@@ -696,15 +686,17 @@ class SyntheticCarbonIntensityGenerator:
                 continue
 
             for event in events:
-                event_timestamp = event['timestamp']
+                event_timestamp = event["timestamp"]
 
                 # Find nearest carbon data point
-                event_time = datetime.fromisoformat(event_timestamp.replace('Z', '+00:00'))
+                event_time = datetime.fromisoformat(event_timestamp.replace("Z", "+00:00"))
                 closest_carbon = None
-                min_time_diff = float('inf')
+                min_time_diff = float("inf")
 
                 for carbon_point in carbon_data:
-                    carbon_time = datetime.fromisoformat(carbon_point['timestamp'].replace('Z', '+00:00'))
+                    carbon_time = datetime.fromisoformat(
+                        carbon_point["timestamp"].replace("Z", "+00:00")
+                    )
                     time_diff = abs((event_time - carbon_time).total_seconds())
 
                     if time_diff < min_time_diff and time_diff < 3600:  # Within 1 hour
@@ -712,15 +704,14 @@ class SyntheticCarbonIntensityGenerator:
                         closest_carbon = carbon_point
 
                 if closest_carbon:
-                    intensity = closest_carbon['intensity']
+                    intensity = closest_carbon["intensity"]
 
                     # Add carbon context to energy device event
                     adjusted_event = event.copy()
-                    adjusted_event['attributes'] = adjusted_event.get('attributes', {}).copy()
-                    adjusted_event['attributes']['carbon_intensity'] = intensity
-                    adjusted_event['attributes']['carbon_correlated'] = True
+                    adjusted_event["attributes"] = adjusted_event.get("attributes", {}).copy()
+                    adjusted_event["attributes"]["carbon_intensity"] = intensity
+                    adjusted_event["attributes"]["carbon_correlated"] = True
 
                     correlated_events.append(adjusted_event)
 
         return correlated_events
-
