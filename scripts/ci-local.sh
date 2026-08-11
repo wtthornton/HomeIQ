@@ -51,7 +51,11 @@ KEEP_PG=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --lanes)    LANES="$2"; shift 2 ;;
-    --baseline) BASELINE=1; LANES="lint,format,libs,deps,tests"; shift ;;
+    # --baseline only turns on the JSON write. It deliberately does NOT choose
+    # lanes: it used to force deps+tests on, which silently overrode an explicit
+    # --lanes and turned a "capture the numbers" run into a two-hour, 13 GB
+    # build of 46 virtualenvs.
+    --baseline) BASELINE=1; shift ;;
     --keep-pg)  KEEP_PG=1; shift ;;
     --python)   PY="$2"; shift 2 ;;
     -h|--help)  sed -n '2,30p' "$0"; exit 0 ;;
