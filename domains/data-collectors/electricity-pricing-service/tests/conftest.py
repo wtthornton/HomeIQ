@@ -2,6 +2,7 @@
 Shared test fixtures for electricity-pricing-service
 """
 
+import contextlib
 import os
 import sys
 from datetime import datetime, timedelta
@@ -107,7 +108,5 @@ async def service_instance():
     yield service
 
     # Cleanup
-    try:
+    with contextlib.suppress(BaseException):
         await service.shutdown()
-    except:
-        pass

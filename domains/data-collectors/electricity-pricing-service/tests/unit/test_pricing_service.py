@@ -60,7 +60,7 @@ class TestDataFetching:
             assert service_instance.cached_data is None
             assert service_instance.last_fetch_time is None
 
-            data = await service_instance.fetch_pricing()
+            await service_instance.fetch_pricing()
 
             # Cache should be updated
             assert service_instance.cached_data is not None
@@ -267,7 +267,6 @@ class TestAPIEndpoints:
         response = await service_instance.get_cheapest_hours(request)
 
         assert response.status == 200
-        data = response.body
         # Response should contain cheapest_hours
 
     @pytest.mark.asyncio

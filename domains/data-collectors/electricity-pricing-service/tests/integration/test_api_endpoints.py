@@ -17,6 +17,8 @@ from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
+import contextlib
+
 from src.main import ElectricityPricingService, create_app
 
 
@@ -156,7 +158,7 @@ async def test_service_startup_with_missing_token():
         del os.environ["INFLUXDB_TOKEN"]
 
     with pytest.raises(ValueError) as exc_info:
-        service = ElectricityPricingService()
+        ElectricityPricingService()
 
     assert "INFLUXDB_TOKEN" in str(exc_info.value)
 
@@ -173,7 +175,5 @@ async def test_service_startup_with_valid_config():
     assert service.influxdb_bucket == "test-bucket"
 
     # Cleanup
-    try:
+    with contextlib.suppress(BaseException):
         await service.shutdown()
-    except:
-        pass

@@ -7,6 +7,7 @@ and cache expiration scenarios.
 """
 
 import asyncio
+import contextlib
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -340,10 +341,8 @@ class TestContinuousLoopErrors:
                 await asyncio.sleep(0.1)
                 task.cancel()
 
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await task
-                except asyncio.CancelledError:
-                    pass
 
                 # Verify sleep was called (retry logic)
                 assert mock_sleep.called
@@ -380,10 +379,8 @@ class TestContinuousLoopErrors:
                 with patch("asyncio.sleep", side_effect=mock_sleep):
                     task = asyncio.create_task(service_instance.run_continuous())
 
-                    try:
+                    with contextlib.suppress(asyncio.CancelledError):
                         await task
-                    except asyncio.CancelledError:
-                        pass
 
                     # Verify fetch was called (store may not be called if cancelled early)
                     assert mock_fetch.called

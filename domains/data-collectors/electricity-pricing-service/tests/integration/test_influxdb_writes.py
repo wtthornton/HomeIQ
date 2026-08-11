@@ -15,6 +15,8 @@ import pytest
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
+import contextlib
+
 from src.main import ElectricityPricingService
 
 
@@ -48,10 +50,8 @@ async def service_with_mock(mock_influxdb_client):
     yield service
 
     # Cleanup
-    try:
+    with contextlib.suppress(BaseException):
         await service.shutdown()
-    except:
-        pass
 
 
 @pytest.mark.asyncio

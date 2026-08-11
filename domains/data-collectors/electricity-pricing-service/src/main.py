@@ -5,6 +5,7 @@ Migrated from aiohttp to FastAPI with shared library pattern.
 """
 
 import asyncio
+import contextlib
 from datetime import UTC, datetime
 from typing import Any
 
@@ -102,10 +103,8 @@ class ElectricityPricingService:
 
         if self._background_task and not self._background_task.done():
             self._background_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._background_task
-            except asyncio.CancelledError:
-                pass
 
         if self.session:
             await self.session.close()
@@ -121,7 +120,7 @@ class ElectricityPricingService:
             log_with_context(
                 logger,
                 "INFO",
-                "Fetching electricity pricing from %s" % self.provider_name,
+                f"Fetching electricity pricing from {self.provider_name}",
                 service="electricity-pricing-service",
                 provider=self.provider_name,
             )
