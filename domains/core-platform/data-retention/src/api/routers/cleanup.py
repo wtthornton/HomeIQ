@@ -29,4 +29,4 @@ async def run_cleanup(
         return {"results": results}
     except Exception as e:
         logger.error(f"Cleanup operation failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from e

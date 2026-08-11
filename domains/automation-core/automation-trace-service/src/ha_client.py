@@ -137,9 +137,9 @@ class HATraceClient:
 
         try:
             result = await asyncio.wait_for(fut, timeout=timeout)
-        except TimeoutError:
+        except TimeoutError as err:
             self._pending.pop(msg_id, None)
-            raise TimeoutError(f"HA command timed out after {timeout}s: {payload.get('type')}")
+            raise TimeoutError(f"HA command timed out after {timeout}s: {payload.get('type')}") from err
         finally:
             self._pending.pop(msg_id, None)
 

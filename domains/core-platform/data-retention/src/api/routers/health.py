@@ -58,7 +58,7 @@ async def health_check(request: Request):
                 "timestamp": datetime.now(UTC).isoformat(),
                 "error": "Internal server error",
             },
-        )
+        ) from e
 
 
 @router.get("/stats", response_model=StatisticsResponse)
@@ -75,4 +75,4 @@ async def get_statistics(request: Request):
         return stats
     except Exception as e:
         logger.error(f"Get statistics failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail={"error": "Internal server error"})
+        raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from e

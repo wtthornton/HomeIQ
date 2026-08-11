@@ -41,7 +41,7 @@ async def get_indexing_status(db: AsyncSession = Depends(get_db)):
 
     except Exception as e:
         logger.error(f"Get status failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Get status failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Get status failed: {str(e)}") from e
 
 
 @router.get("/search", response_model=BlueprintSearchResponse)
@@ -95,7 +95,7 @@ async def search_blueprints(
 
     except Exception as e:
         logger.error(f"Search failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}") from e
 
 
 @router.get("/by-pattern", response_model=PatternMatchResponse)
@@ -134,7 +134,7 @@ async def find_by_pattern(
 
     except Exception as e:
         logger.error(f"Pattern match failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Pattern match failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Pattern match failed: {str(e)}") from e
 
 
 @router.get("/{blueprint_id}", response_model=BlueprintResponse)
@@ -155,7 +155,7 @@ async def get_blueprint(blueprint_id: str, db: AsyncSession = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Get blueprint failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Get blueprint failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Get blueprint failed: {str(e)}") from e
 
 
 @router.post("/index/refresh", response_model=IndexingJobResponse)
@@ -192,7 +192,7 @@ async def trigger_indexing(request: TriggerIndexingRequest, db: AsyncSession = D
 
     except Exception as e:
         logger.error(f"Trigger indexing failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Trigger indexing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Trigger indexing failed: {str(e)}") from e
 
 
 @router.get("/index/job/{job_id}", response_model=IndexingJobResponse)
@@ -226,4 +226,4 @@ async def get_indexing_job(job_id: str, db: AsyncSession = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Get job failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Get job failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Get job failed: {str(e)}") from e

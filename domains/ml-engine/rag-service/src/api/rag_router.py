@@ -202,7 +202,7 @@ async def search_knowledge(request: SearchRequest, service: RAGServiceDep) -> Se
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_error("embedding")
         logger.error(f"Error searching knowledge: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to search knowledge: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to search knowledge: {str(e)}") from e
 
 
 @router.put("/{id}/success", response_model=UpdateSuccessResponse)
@@ -233,7 +233,9 @@ async def update_success_score(
 
     except ValueError as e:
         logger.error(f"Entry not found: {e}")
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error updating success score: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to update success score: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update success score: {str(e)}"
+        ) from e
