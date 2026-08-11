@@ -15,11 +15,13 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from scipy.sparse import csr_matrix, random as sparse_random
+from scipy.sparse import csr_matrix
+from scipy.sparse import random as sparse_random
 
 # Try to import the recommender; skip the module if implicit is missing.
 try:
     import sys
+
     _service_root = Path(__file__).resolve().parents[1]
     sys.path.insert(0, str(_service_root / "src"))
     from models.rule_recommender import RuleRecommender  # noqa: E402
@@ -30,6 +32,7 @@ except ImportError as _exc:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _build_sample_data(
     n_users: int = 20,
@@ -72,8 +75,8 @@ def _fit_sample_recommender(**kwargs) -> RuleRecommender:
 # Model Initialization
 # ---------------------------------------------------------------------------
 
-class TestRuleRecommenderInit:
 
+class TestRuleRecommenderInit:
     def test_instantiation(self):
         rec = RuleRecommender()
         assert rec is not None
@@ -98,8 +101,8 @@ class TestRuleRecommenderInit:
 # Fit
 # ---------------------------------------------------------------------------
 
-class TestFit:
 
+class TestFit:
     def test_fit_marks_fitted(self):
         rec = _fit_sample_recommender()
         assert rec._is_fitted is True
@@ -128,8 +131,8 @@ class TestFit:
 # Recommendations (collaborative filtering)
 # ---------------------------------------------------------------------------
 
-class TestRecommend:
 
+class TestRecommend:
     def test_recommend_known_user(self):
         rec = _fit_sample_recommender()
         recs = rec.recommend(user_id="user_0", n=5)
@@ -165,8 +168,8 @@ class TestRecommend:
 # Device-based recommendations
 # ---------------------------------------------------------------------------
 
-class TestDeviceBasedRecommendations:
 
+class TestDeviceBasedRecommendations:
     def test_recommend_for_devices(self):
         rec = _fit_sample_recommender()
         recs = rec.recommend_for_devices(["light", "switch"], n=5)
@@ -194,8 +197,8 @@ class TestDeviceBasedRecommendations:
 # Popular rules
 # ---------------------------------------------------------------------------
 
-class TestPopularRules:
 
+class TestPopularRules:
     def test_get_popular_rules(self):
         rec = _fit_sample_recommender()
         popular = rec.get_popular_rules(n=5)
@@ -226,8 +229,8 @@ class TestPopularRules:
 # Similar rules
 # ---------------------------------------------------------------------------
 
-class TestSimilarRules:
 
+class TestSimilarRules:
     def test_get_similar_rules_known_pattern(self):
         rec = _fit_sample_recommender()
         similar = rec.get_similar_rules("binary_sensor_to_light", n=3)
@@ -248,8 +251,8 @@ class TestSimilarRules:
 # Model info
 # ---------------------------------------------------------------------------
 
-class TestModelInfo:
 
+class TestModelInfo:
     def test_model_info_before_fit(self):
         rec = RuleRecommender(factors=32, iterations=25)
         info = rec.get_model_info()
@@ -272,8 +275,8 @@ class TestModelInfo:
 # Save / Load
 # ---------------------------------------------------------------------------
 
-class TestSaveLoad:
 
+class TestSaveLoad:
     def test_save_creates_files(self, tmp_path):
         rec = _fit_sample_recommender()
         save_path = tmp_path / "model.pkl"
@@ -319,8 +322,8 @@ class TestSaveLoad:
 # Security
 # ---------------------------------------------------------------------------
 
-class TestPickleSecurity:
 
+class TestPickleSecurity:
     def test_pickle_used_for_trusted_internal_files_only(self):
         """SECURITY: pickle.load is used for trusted internal model files only.
 
@@ -337,8 +340,8 @@ class TestPickleSecurity:
 # Edge cases
 # ---------------------------------------------------------------------------
 
-class TestEdgeCases:
 
+class TestEdgeCases:
     def test_single_user_single_pattern(self):
         """Minimal data (1 user, 1 pattern) doesn't crash."""
         mat = csr_matrix(np.array([[3.0]]))

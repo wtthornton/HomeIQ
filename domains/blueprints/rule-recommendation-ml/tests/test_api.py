@@ -20,10 +20,10 @@ sys.path.insert(0, str(_service_root))
 
 from fastapi.testclient import TestClient
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _mock_recommender() -> MagicMock:
     """Return a mock RuleRecommender with realistic return values."""
@@ -72,6 +72,7 @@ def _mock_feedback_store() -> MagicMock:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def client():
     """Create test client with mocked model and feedback store."""
@@ -82,13 +83,14 @@ def client():
     # before patch() tries to resolve the dotted path.
     from src.main import app
 
-    with patch("src.api.routes._recommender", mock_rec), \
-         patch("src.api.routes._feedback_store", mock_store), \
-         patch("src.api.routes._memory_client", None), \
-         patch("src.api.routes.init_feedback_store", return_value=mock_store), \
-         patch("src.api.routes.init_memory_client", new_callable=AsyncMock), \
-         patch("src.api.routes.load_model", return_value=True):
-
+    with (
+        patch("src.api.routes._recommender", mock_rec),
+        patch("src.api.routes._feedback_store", mock_store),
+        patch("src.api.routes._memory_client", None),
+        patch("src.api.routes.init_feedback_store", return_value=mock_store),
+        patch("src.api.routes.init_memory_client", new_callable=AsyncMock),
+        patch("src.api.routes.load_model", return_value=True),
+    ):
         yield TestClient(app, raise_server_exceptions=False)
 
 
@@ -96,8 +98,8 @@ def client():
 # Health
 # ---------------------------------------------------------------------------
 
-class TestHealthEndpoint:
 
+class TestHealthEndpoint:
     def test_health_returns_200(self, client):
         response = client.get("/api/v1/health")
         assert response.status_code == 200
@@ -115,8 +117,8 @@ class TestHealthEndpoint:
 # Model info
 # ---------------------------------------------------------------------------
 
-class TestModelInfoEndpoint:
 
+class TestModelInfoEndpoint:
     def test_model_info_returns_200(self, client):
         response = client.get("/api/v1/model/info")
         assert response.status_code == 200
@@ -133,8 +135,8 @@ class TestModelInfoEndpoint:
 # Recommendations
 # ---------------------------------------------------------------------------
 
-class TestRecommendationsEndpoint:
 
+class TestRecommendationsEndpoint:
     def test_popular_recommendations(self, client):
         response = client.get("/api/v1/rule-recommendations?limit=5")
         assert response.status_code == 200
@@ -188,8 +190,8 @@ class TestRecommendationsEndpoint:
 # Similar rules
 # ---------------------------------------------------------------------------
 
-class TestSimilarRulesEndpoint:
 
+class TestSimilarRulesEndpoint:
     def test_similar_rules_known_pattern(self, client):
         response = client.get(
             "/api/v1/rule-recommendations/similar?rule_pattern=binary_sensor_to_light&limit=5"
@@ -203,6 +205,7 @@ class TestSimilarRulesEndpoint:
 
         with patch("src.api.routes._recommender", mock_rec):
             from src.main import app
+
             c = TestClient(app, raise_server_exceptions=False)
             response = c.get(
                 "/api/v1/rule-recommendations/similar?rule_pattern=nonexistent&limit=5"
@@ -218,8 +221,8 @@ class TestSimilarRulesEndpoint:
 # Popular rules
 # ---------------------------------------------------------------------------
 
-class TestPopularEndpoint:
 
+class TestPopularEndpoint:
     def test_popular_rules_200(self, client):
         response = client.get("/api/v1/rule-recommendations/popular?limit=5")
         assert response.status_code == 200
@@ -234,8 +237,8 @@ class TestPopularEndpoint:
 # Feedback
 # ---------------------------------------------------------------------------
 
-class TestFeedbackEndpoint:
 
+class TestFeedbackEndpoint:
     def test_submit_feedback_accepted(self, client):
         response = client.post(
             "/api/v1/rule-recommendations/feedback",
@@ -313,8 +316,8 @@ class TestFeedbackEndpoint:
 # Patterns
 # ---------------------------------------------------------------------------
 
-class TestPatternsEndpoint:
 
+class TestPatternsEndpoint:
     def test_list_patterns_200(self, client):
         response = client.get("/api/v1/patterns?limit=10")
         assert response.status_code == 200

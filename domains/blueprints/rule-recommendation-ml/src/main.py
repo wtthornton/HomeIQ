@@ -22,6 +22,7 @@ logger = setup_logging("rule-recommendation-ml", group_name="blueprints")
 # Startup / shutdown hooks
 # ---------------------------------------------------------------------------
 
+
 async def _startup_init() -> None:
     """Initialize feedback store, memory client, and load model."""
     # Initialize feedback store (must be before model load)

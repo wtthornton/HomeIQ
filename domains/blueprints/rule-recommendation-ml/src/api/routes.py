@@ -28,6 +28,7 @@ router = APIRouter(prefix="/api/v1", tags=["recommendations"])
 # Pydantic Models
 # ============================================================================
 
+
 class RuleRecommendation(BaseModel):
     """A single rule recommendation."""
 
@@ -53,16 +54,12 @@ class RecommendationFeedback(BaseModel):
     rule_pattern: str = Field(..., description="The recommended rule pattern")
     user_id: str | None = Field(None, description="User who received the recommendation")
     feedback_type: str = Field(
-        ...,
-        description="Type of feedback",
-        pattern="^(accepted|rejected|ignored|created)$"
+        ..., description="Type of feedback", pattern="^(accepted|rejected|ignored|created)$"
     )
     automation_id: str | None = Field(
         None, description="ID of created automation if feedback_type is 'created'"
     )
-    rating: int | None = Field(
-        None, ge=1, le=5, description="Optional 1-5 rating"
-    )
+    rating: int | None = Field(None, ge=1, le=5, description="Optional 1-5 rating")
     comment: str | None = Field(None, description="Optional feedback comment")
 
 
@@ -114,7 +111,7 @@ def get_recommender():
     if _recommender is None:
         raise HTTPException(
             status_code=503,
-            detail="Model not loaded. Please ensure the model is trained and loaded."
+            detail="Model not loaded. Please ensure the model is trained and loaded.",
         )
     return _recommender
 
@@ -123,10 +120,7 @@ def get_feedback_store() -> FeedbackStore:
     """Get the feedback store singleton."""
     global _feedback_store
     if _feedback_store is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Feedback store not initialized."
-        )
+        raise HTTPException(status_code=503, detail="Feedback store not initialized.")
     return _feedback_store
 
 
@@ -181,6 +175,7 @@ def load_model(path: Path | str | None = None) -> bool:
 # Helper Functions
 # ============================================================================
 
+
 def pattern_to_recommendation(pattern: str, score: float) -> RuleRecommendation:
     """Convert a pattern string to a RuleRecommendation object."""
     parts = pattern.split("_to_")
@@ -229,6 +224,7 @@ def pattern_to_recommendation(pattern: str, score: float) -> RuleRecommendation:
 # API Endpoints
 # ============================================================================
 
+
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint."""
@@ -258,8 +254,7 @@ async def get_model_info():
 
 
 _default_device_domains: list[str] = Query(
-    default=[],
-    description="Device domains to match (e.g., 'light', 'switch', 'climate')"
+    default=[], description="Device domains to match (e.g., 'light', 'switch', 'climate')"
 )
 
 
@@ -296,10 +291,7 @@ async def get_recommendations(
         results = recommender.get_popular_rules(n=limit)
         method = "popular"
 
-    recommendations = [
-        pattern_to_recommendation(pattern, score)
-        for pattern, score in results
-    ]
+    recommendations = [pattern_to_recommendation(pattern, score) for pattern, score in results]
 
     return RecommendationResponse(
         recommendations=recommendations,
@@ -321,14 +313,10 @@ async def get_similar_rules(
 
     if not results:
         raise HTTPException(
-            status_code=404,
-            detail=f"Rule pattern '{rule_pattern}' not found in model"
+            status_code=404, detail=f"Rule pattern '{rule_pattern}' not found in model"
         )
 
-    recommendations = [
-        pattern_to_recommendation(pattern, score)
-        for pattern, score in results
-    ]
+    recommendations = [pattern_to_recommendation(pattern, score) for pattern, score in results]
 
     return RecommendationResponse(
         recommendations=recommendations,
@@ -347,10 +335,7 @@ async def get_popular_rules(
 
     results = recommender.get_popular_rules(n=limit)
 
-    recommendations = [
-        pattern_to_recommendation(pattern, score)
-        for pattern, score in results
-    ]
+    recommendations = [pattern_to_recommendation(pattern, score) for pattern, score in results]
 
     return RecommendationResponse(
         recommendations=recommendations,
@@ -452,7 +437,7 @@ async def list_patterns(
     total = len(patterns)
 
     # Paginate
-    paginated = patterns[offset:offset + limit]
+    paginated = patterns[offset : offset + limit]
 
     return {
         "patterns": paginated,

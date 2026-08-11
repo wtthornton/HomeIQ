@@ -312,6 +312,7 @@ class RuleRecommender:
         # Also save the sparse matrix separately (more efficient)
         if self._user_items is not None:
             from scipy.sparse import save_npz
+
             save_npz(path.with_suffix(".npz"), self._user_items)
 
         logger.info(f"Saved model to {path}")

@@ -162,11 +162,13 @@ def _build_augmented_matrix(
 
         # Expand matrix lazily when new rows/cols are needed
         if u_idx >= matrix.shape[0] or p_idx >= matrix.shape[1]:
-            expanded = lil_matrix((
-                max(matrix.shape[0], u_idx + 1),
-                max(matrix.shape[1], p_idx + 1),
-            ))
-            expanded[:matrix.shape[0], :matrix.shape[1]] = matrix
+            expanded = lil_matrix(
+                (
+                    max(matrix.shape[0], u_idx + 1),
+                    max(matrix.shape[1], p_idx + 1),
+                )
+            )
+            expanded[: matrix.shape[0], : matrix.shape[1]] = matrix
             matrix = expanded
 
         current = matrix[u_idx, p_idx]
@@ -181,8 +183,7 @@ def _build_augmented_matrix(
         idx_to_pattern[idx] = pat
 
     logger.info(
-        "Augmented matrix: %d users x %d patterns "
-        "(%d new users, %d new patterns, %d signals)",
+        "Augmented matrix: %d users x %d patterns (%d new users, %d new patterns, %d signals)",
         matrix.shape[0],
         matrix.shape[1],
         len(new_users),
@@ -219,7 +220,8 @@ def _apply_feedback_and_fit(
         return
 
     augmented_csr, idx_to_user, idx_to_pattern = _build_augmented_matrix(
-        recommender, signals,
+        recommender,
+        signals,
     )
 
     recommender.fit(augmented_csr, idx_to_user, idx_to_pattern)
