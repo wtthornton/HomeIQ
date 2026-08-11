@@ -36,7 +36,9 @@ class EventHandlerMixin:
         """Handle successful connection and trigger discovery."""
         corr_id = get_correlation_id() or generate_correlation_id()
         log_with_context(
-            logger, "INFO", "Successfully connected to Home Assistant",
+            logger,
+            "INFO",
+            "Successfully connected to Home Assistant",
             operation="ha_connection",
             correlation_id=corr_id,
             status="connected",
@@ -47,7 +49,9 @@ class EventHandlerMixin:
         """Handle disconnection from Home Assistant."""
         corr_id = get_correlation_id() or generate_correlation_id()
         log_with_context(
-            logger, "WARNING", "Disconnected from Home Assistant",
+            logger,
+            "WARNING",
+            "Disconnected from Home Assistant",
             operation="ha_disconnection",
             correlation_id=corr_id,
             status="disconnected",
@@ -58,7 +62,9 @@ class EventHandlerMixin:
         """Handle incoming message from Home Assistant WebSocket."""
         corr_id = get_correlation_id() or generate_correlation_id()
         log_with_context(
-            logger, "DEBUG", "Received message from Home Assistant",
+            logger,
+            "DEBUG",
+            "Received message from Home Assistant",
             operation="message_received",
             correlation_id=corr_id,
             message_type=type(message).__name__,
@@ -69,7 +75,9 @@ class EventHandlerMixin:
         """Handle a service-level error by logging it with context."""
         corr_id = get_correlation_id() or generate_correlation_id()
         log_error_with_context(
-            logger, "Service error occurred", error,
+            logger,
+            "Service error occurred",
+            error,
             operation="service_error",
             correlation_id=corr_id,
             error_type="service_error",
@@ -95,7 +103,9 @@ class EventHandlerMixin:
             await self._feed_house_status(processed_event)
         except Exception as e:
             log_error_with_context(
-                logger, "Error processing Home Assistant event", e,
+                logger,
+                "Error processing Home Assistant event",
+                e,
                 operation="event_processing",
                 correlation_id=corr_id,
                 event_type=event_type,
@@ -122,7 +132,9 @@ class EventHandlerMixin:
                     await publisher.broadcast(delta)
         except Exception as e:
             log_error_with_context(
-                logger, "House status aggregation failed", e,
+                logger,
+                "House status aggregation failed",
+                e,
                 operation="house_status_aggregation",
                 correlation_id=get_correlation_id() or generate_correlation_id(),
                 entity_id=entity_id,
@@ -134,7 +146,9 @@ class EventHandlerMixin:
             if self.influxdb_batch_writer:  # type: ignore[attr-defined]
                 success = await self.influxdb_batch_writer.write_event(event_data)  # type: ignore[attr-defined]
                 if not success:
-                    logger.warning("Failed to write event to InfluxDB: %s", event_data.get("event_type"))
+                    logger.warning(
+                        "Failed to write event to InfluxDB: %s", event_data.get("event_type")
+                    )
         except Exception as e:
             logger.error("Error writing event to InfluxDB: %s", e)
 
@@ -151,21 +165,27 @@ class EventHandlerMixin:
                         await self.async_event_processor.process_event(event)  # type: ignore[attr-defined]
                     except Exception as e:
                         log_error_with_context(
-                            logger, "Error processing event in batch", e,
+                            logger,
+                            "Error processing event in batch",
+                            e,
                             operation="batch_processing",
                             correlation_id=corr_id,
                             batch_size=batch_size,
                         )
 
             log_with_context(
-                logger, "DEBUG", "Batch processed",
+                logger,
+                "DEBUG",
+                "Batch processed",
                 operation="batch_processing",
                 correlation_id=corr_id,
                 batch_size=batch_size,
             )
         except Exception as e:
             log_error_with_context(
-                logger, "Error processing batch", e,
+                logger,
+                "Error processing batch",
+                e,
                 operation="batch_processing",
                 correlation_id=corr_id,
                 batch_size=batch_size,

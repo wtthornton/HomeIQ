@@ -77,13 +77,15 @@ class ConnectionManager:
         self.event_processor = EventProcessor(discovery_service=self.discovery_service)
 
         # Periodic discovery refresh interval (default: 30 minutes to match cache TTL)
-        self.discovery_refresh_interval = int(os.getenv('DISCOVERY_REFRESH_INTERVAL', '1800'))  # 30 minutes
+        self.discovery_refresh_interval = int(
+            os.getenv("DISCOVERY_REFRESH_INTERVAL", "1800")
+        )  # 30 minutes
 
         # Retry configuration (configurable via environment)
         # -1 = infinite retries (recommended for production)
-        self.max_retries = int(os.getenv('WEBSOCKET_MAX_RETRIES', '-1'))
+        self.max_retries = int(os.getenv("WEBSOCKET_MAX_RETRIES", "-1"))
         self.base_delay = 1  # seconds
-        self.max_delay = int(os.getenv('WEBSOCKET_MAX_RETRY_DELAY', '300'))  # 5 minutes default
+        self.max_delay = int(os.getenv("WEBSOCKET_MAX_RETRY_DELAY", "300"))  # 5 minutes default
         self.backoff_multiplier = 2
         self.jitter_range = 0.1  # 10% jitter
         self.current_retry_count = 0
@@ -216,7 +218,9 @@ class ConnectionManager:
             # Transition to authenticating state if connecting
             if current_state == ConnectionState.CONNECTING:
                 with contextlib.suppress(InvalidStateTransition):
-                    self.state_machine.transition(ConnectionState.AUTHENTICATING)  # Already transitioning
+                    self.state_machine.transition(
+                        ConnectionState.AUTHENTICATING
+                    )  # Already transitioning
 
             success = await self.client.connect()
             if success:
@@ -229,7 +233,9 @@ class ConnectionManager:
                 self.failed_connections += 1
                 logger.warning("Connection failed")
                 with contextlib.suppress(InvalidStateTransition):
-                    self.state_machine.transition(ConnectionState.FAILED)  # May already be in failed state
+                    self.state_machine.transition(
+                        ConnectionState.FAILED
+                    )  # May already be in failed state
 
             return success
 
@@ -241,7 +247,7 @@ class ConnectionManager:
             context = {
                 "base_url": self.base_url,
                 "connection_attempt": self.connection_attempts,
-                "retry_count": self.current_retry_count
+                "retry_count": self.current_retry_count,
             }
             self.error_handler.log_error(e, context)
 
@@ -251,28 +257,39 @@ class ConnectionManager:
         """Loop for automatic reconnection with exponential backoff and jitter"""
         # Transition to reconnecting state
         with contextlib.suppress(InvalidStateTransition):
-            self.state_machine.transition(ConnectionState.RECONNECTING)  # May already be reconnecting
+            self.state_machine.transition(
+                ConnectionState.RECONNECTING
+            )  # May already be reconnecting
 
         current_state = self.state_machine.get_state()
         # Support infinite retries when max_retries = -1
-        while current_state in [ConnectionState.RECONNECTING, ConnectionState.FAILED] and (self.max_retries == -1 or self.current_retry_count < self.max_retries):
+        while current_state in [ConnectionState.RECONNECTING, ConnectionState.FAILED] and (
+            self.max_retries == -1 or self.current_retry_count < self.max_retries
+        ):
             try:
                 self._increment_retry_count()
                 delay = self._calculate_delay()
 
                 # Format retry message (show "∞" for infinite retries)
                 retry_display = "∞" if self.max_retries == -1 else str(self.max_retries)
-                logger.info(f"Reconnection attempt {self.current_retry_count}/{retry_display} in {delay:.1f}s")
+                logger.info(
+                    f"Reconnection attempt {self.current_retry_count}/{retry_display} in {delay:.1f}s"
+                )
                 await asyncio.sleep(delay)
 
                 # Check if we should continue (update current_state will be done at end of loop)
                 current_state_check = self.state_machine.get_state()
-                if current_state_check not in [ConnectionState.RECONNECTING, ConnectionState.FAILED]:
+                if current_state_check not in [
+                    ConnectionState.RECONNECTING,
+                    ConnectionState.FAILED,
+                ]:
                     break
 
                 # Transition to connecting from reconnecting
                 with contextlib.suppress(InvalidStateTransition):
-                    self.state_machine.transition(ConnectionState.CONNECTING)  # May already be connecting
+                    self.state_machine.transition(
+                        ConnectionState.CONNECTING
+                    )  # May already be connecting
 
                 success = await self._connect()
 
@@ -318,7 +335,7 @@ class ConnectionManager:
                 context = {
                     "reconnection_attempt": self.current_retry_count,
                     "total_attempts": self.connection_attempts,
-                    "base_url": self.base_url
+                    "base_url": self.base_url,
                 }
                 self.error_handler.log_error(e, context)
 
@@ -335,7 +352,11 @@ class ConnectionManager:
         """Loop for listening to WebSocket messages"""
         while True:
             current_state = self.state_machine.get_state()
-            if current_state != ConnectionState.CONNECTED or not self.client or not self.client.is_connected:
+            if (
+                current_state != ConnectionState.CONNECTED
+                or not self.client
+                or not self.client.is_connected
+            ):
                 logger.info("Listen loop exiting: connection no longer active")
                 break
 
@@ -411,8 +432,7 @@ class ConnectionManager:
             # Subscribe to state_changed events by default
             logger.info("📡 Initiating subscription to state_changed events")
             success = await self.event_subscription.subscribe_to_events(
-                self.client,
-                ['state_changed']
+                self.client, ["state_changed"]
             )
 
             if success:
@@ -429,6 +449,7 @@ class ConnectionManager:
             logger.error(f"❌ ERROR SUBSCRIBING TO EVENTS: {e}")
             logger.error("=" * 80)
             import traceback
+
             logger.error(f"Traceback: {traceback.format_exc()}")
 
     async def _run_initial_discovery(self):
@@ -458,23 +479,34 @@ class ConnectionManager:
             # Subscribe to registry update events for real-time updates
             if self.client and self.client.websocket:
                 logger.info("📡 Subscribing to registry update events...")
-                await self.discovery_service.subscribe_to_device_registry_events(self.client.websocket)
-                await self.discovery_service.subscribe_to_entity_registry_events(self.client.websocket)
+                await self.discovery_service.subscribe_to_device_registry_events(
+                    self.client.websocket
+                )
+                await self.discovery_service.subscribe_to_entity_registry_events(
+                    self.client.websocket
+                )
             else:
                 logger.warning("⚠️  WebSocket not available - skipping registry event subscriptions")
 
             # Start periodic discovery refresh task
             if not self.periodic_discovery_task or self.periodic_discovery_task.done():
-                logger.info(f"🔄 Starting periodic discovery refresh (every {self.discovery_refresh_interval/60:.1f} minutes)...")
-                self.periodic_discovery_task = asyncio.create_task(self._periodic_discovery_refresh())
+                logger.info(
+                    f"🔄 Starting periodic discovery refresh (every {self.discovery_refresh_interval / 60:.1f} minutes)..."
+                )
+                self.periodic_discovery_task = asyncio.create_task(
+                    self._periodic_discovery_refresh()
+                )
 
         except Exception as e:
             logger.error(f"❌ Initial discovery failed (non-fatal): {e}")
             import traceback
+
             logger.error(traceback.format_exc())
             # Still start periodic refresh even if initial discovery fails
             if not self.periodic_discovery_task or self.periodic_discovery_task.done():
-                self.periodic_discovery_task = asyncio.create_task(self._periodic_discovery_refresh())
+                self.periodic_discovery_task = asyncio.create_task(
+                    self._periodic_discovery_refresh()
+                )
 
     async def _periodic_discovery_refresh(self):
         """
@@ -483,7 +515,9 @@ class ConnectionManager:
         Runs every DISCOVERY_REFRESH_INTERVAL seconds (default: 30 minutes).
         Automatically retries if discovery fails.
         """
-        logger.info(f"🔄 Periodic discovery refresh task started (interval: {self.discovery_refresh_interval/60:.1f} minutes)")
+        logger.info(
+            f"🔄 Periodic discovery refresh task started (interval: {self.discovery_refresh_interval / 60:.1f} minutes)"
+        )
 
         while True:
             try:
@@ -493,12 +527,16 @@ class ConnectionManager:
                 # Check if we're still connected
                 current_state = self.state_machine.get_state()
                 if current_state != ConnectionState.CONNECTED:
-                    logger.warning(f"⚠️  Skipping periodic discovery refresh - not connected (state: {current_state.value})")
+                    logger.warning(
+                        f"⚠️  Skipping periodic discovery refresh - not connected (state: {current_state.value})"
+                    )
                     continue
 
                 # Check if client and websocket are available
                 if not self.client or not self.client.websocket:
-                    logger.warning("⚠️  Skipping periodic discovery refresh - WebSocket not available")
+                    logger.warning(
+                        "⚠️  Skipping periodic discovery refresh - WebSocket not available"
+                    )
                     continue
 
                 # Run discovery refresh
@@ -509,12 +547,15 @@ class ConnectionManager:
 
                 try:
                     # Pass WebSocket for device discovery (required for device registry and Zigbee identification)
-                    await self.discovery_service.discover_all(websocket=self.client.websocket, store=True)
+                    await self.discovery_service.discover_all(
+                        websocket=self.client.websocket, store=True
+                    )
                     logger.info("✅ Periodic discovery refresh completed successfully")
                 except Exception as discovery_error:
                     logger.error(f"❌ Periodic discovery refresh failed: {discovery_error}")
                     # Log but continue - will try again next interval
                     import traceback
+
                     logger.error(traceback.format_exc())
 
                 logger.info("=" * 80)
@@ -526,6 +567,7 @@ class ConnectionManager:
                 logger.error(f"❌ Error in periodic discovery refresh task: {e}")
                 # Log but continue - will try again next interval
                 import traceback
+
                 logger.error(traceback.format_exc())
                 # Short sleep to avoid rapid retries on persistent errors
                 await asyncio.sleep(60)
@@ -544,7 +586,9 @@ class ConnectionManager:
         # The listen loop (started in connect() after _on_connect returns) is required
         # to route WebSocket responses back to discovery's pending Futures.
         # Keep a reference: a bare create_task() may be garbage collected mid-flight.
-        logger.info("🔍 Scheduling device and entity discovery (deferred until listen loop is active)...")
+        logger.info(
+            "🔍 Scheduling device and entity discovery (deferred until listen loop is active)..."
+        )
         self.initial_discovery_task = asyncio.create_task(self._run_initial_discovery())
 
         if self.on_connect:
@@ -556,6 +600,7 @@ class ConnectionManager:
             except Exception as e:
                 logger.error(f"❌ External on_connect callback failed (non-fatal): {e}")
                 import traceback
+
                 logger.error(traceback.format_exc())
         else:
             logger.info("ℹ️  No external on_connect callback registered")
@@ -590,7 +635,9 @@ class ConnectionManager:
 
         # If still in a reconnectable state, start reconnection
         current_state = self.state_machine.get_state()
-        if current_state in [ConnectionState.RECONNECTING, ConnectionState.FAILED] and (self.reconnect_task is None or self.reconnect_task.done()):
+        if current_state in [ConnectionState.RECONNECTING, ConnectionState.FAILED] and (
+            self.reconnect_task is None or self.reconnect_task.done()
+        ):
             self.reconnect_task = asyncio.create_task(self._reconnect_loop())
 
     async def _on_message(self, message: dict[str, Any]):
@@ -661,9 +708,14 @@ class ConnectionManager:
 
         return await self.client.send_message(message)
 
-    def configure_retry_parameters(self, max_retries: int = None, base_delay: float = None,
-                                   max_delay: float = None, backoff_multiplier: float = None,
-                                   jitter_range: float = None):
+    def configure_retry_parameters(
+        self,
+        max_retries: int = None,
+        base_delay: float = None,
+        max_delay: float = None,
+        backoff_multiplier: float = None,
+        jitter_range: float = None,
+    ):
         """
         Configure retry parameters
 
@@ -685,9 +737,11 @@ class ConnectionManager:
         if jitter_range is not None:
             self.jitter_range = min(max(jitter_range, 0.0), 1.0)  # Clamp between 0 and 1
 
-        logger.info(f"Retry parameters configured: max_retries={self.max_retries}, "
-                   f"base_delay={self.base_delay}, max_delay={self.max_delay}, "
-                   f"backoff_multiplier={self.backoff_multiplier}, jitter_range={self.jitter_range}")
+        logger.info(
+            f"Retry parameters configured: max_retries={self.max_retries}, "
+            f"base_delay={self.base_delay}, max_delay={self.max_delay}, "
+            f"backoff_multiplier={self.backoff_multiplier}, jitter_range={self.jitter_range}"
+        )
 
     @property
     def is_running(self) -> bool:
@@ -697,7 +751,11 @@ class ConnectionManager:
         Returns:
             True if connected, connecting, or reconnecting
         """
-        return self.state_machine.get_state() in [ConnectionState.CONNECTED, ConnectionState.CONNECTING, ConnectionState.RECONNECTING]
+        return self.state_machine.get_state() in [
+            ConnectionState.CONNECTED,
+            ConnectionState.CONNECTING,
+            ConnectionState.RECONNECTING,
+        ]
 
     async def get_status(self) -> dict[str, Any]:
         """
@@ -714,7 +772,9 @@ class ConnectionManager:
             "connection_attempts": self.connection_attempts,
             "successful_connections": self.successful_connections,
             "failed_connections": self.failed_connections,
-            "last_connection_time": self.last_connection_time.isoformat() if self.last_connection_time else None,
+            "last_connection_time": self.last_connection_time.isoformat()
+            if self.last_connection_time
+            else None,
             "last_error": self.last_error,
             "retry_config": {
                 "max_retries": self.max_retries,
@@ -722,7 +782,7 @@ class ConnectionManager:
                 "max_delay": self.max_delay,
                 "backoff_multiplier": self.backoff_multiplier,
                 "jitter_range": self.jitter_range,
-                "current_retry_count": self.current_retry_count
+                "current_retry_count": self.current_retry_count,
             },
             "base_url": self.base_url,
             "client_status": client_status,
@@ -730,5 +790,5 @@ class ConnectionManager:
             "event_processing": self.event_processor.get_processing_statistics(),
             "event_rates": await self.event_rate_monitor.get_rate_statistics(),
             "error_statistics": self.error_handler.get_error_statistics(),
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat(),
         }

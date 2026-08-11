@@ -188,8 +188,16 @@ class TestWeatherCache:
     def test_get_cache_keys(self):
         """Test getting cache keys"""
         # Add some data
-        self.cache.cache["London"] = {"data": {"temp": 20}, "timestamp": datetime.now().isoformat(), "ttl": 60}
-        self.cache.cache["Paris"] = {"data": {"temp": 18}, "timestamp": datetime.now().isoformat(), "ttl": 60}
+        self.cache.cache["London"] = {
+            "data": {"temp": 20},
+            "timestamp": datetime.now().isoformat(),
+            "ttl": 60,
+        }
+        self.cache.cache["Paris"] = {
+            "data": {"temp": 18},
+            "timestamp": datetime.now().isoformat(),
+            "ttl": 60,
+        }
 
         keys = self.cache.get_cache_keys()
         assert "London" in keys

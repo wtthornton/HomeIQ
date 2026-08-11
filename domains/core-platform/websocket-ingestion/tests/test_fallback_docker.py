@@ -13,11 +13,9 @@ from typing import Any
 import websockets
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
 
 class DockerFallbackTest:
     """Test fallback functionality within Docker environment"""
@@ -33,26 +31,30 @@ class DockerFallbackTest:
         primary_url = "http://ha-simulator:8123"
         primary_token = "dev_simulator_token"
 
-        self.connections.append({
-            "name": "Primary (HA Simulator)",
-            "url": primary_url,
-            "token": primary_token,
-            "ws_url": primary_url.replace("http://", "ws://") + "/api/websocket",
-            "priority": 1
-        })
+        self.connections.append(
+            {
+                "name": "Primary (HA Simulator)",
+                "url": primary_url,
+                "token": primary_token,
+                "ws_url": primary_url.replace("http://", "ws://") + "/api/websocket",
+                "priority": 1,
+            }
+        )
 
         # Nabu Casa fallback - accessible from host
         nabu_casa_url = "https://lwzisze94hrpqde9typkwgu5pptxdkoh.ui.nabu.casa"
         nabu_casa_token = os.getenv("NABU_CASA_TOKEN")
 
         if nabu_casa_token:
-            self.connections.append({
-                "name": "Nabu Casa Fallback",
-                "url": nabu_casa_url,
-                "token": nabu_casa_token,
-                "ws_url": nabu_casa_url.replace("https://", "wss://") + "/api/websocket",
-                "priority": 2
-            })
+            self.connections.append(
+                {
+                    "name": "Nabu Casa Fallback",
+                    "url": nabu_casa_url,
+                    "token": nabu_casa_token,
+                    "ws_url": nabu_casa_url.replace("https://", "wss://") + "/api/websocket",
+                    "priority": 2,
+                }
+            )
 
         # Sort by priority
         self.connections.sort(key=lambda x: x["priority"])
@@ -69,10 +71,7 @@ class DockerFallbackTest:
 
             # Connect to WebSocket
             ws = await websockets.connect(
-                connection["ws_url"],
-                ping_interval=20,
-                ping_timeout=10,
-                close_timeout=10
+                connection["ws_url"], ping_interval=20, ping_timeout=10, close_timeout=10
             )
 
             # Wait for auth_required
@@ -80,15 +79,12 @@ class DockerFallbackTest:
             auth_data = json.loads(auth_required)
             logger.info(f"🔐 Auth required: {auth_data}")
 
-            if auth_data.get('type') != 'auth_required':
+            if auth_data.get("type") != "auth_required":
                 logger.error("❌ Expected auth_required message")
                 return False
 
             # Send authentication
-            auth_message = {
-                "type": "auth",
-                "access_token": connection["token"]
-            }
+            auth_message = {"type": "auth", "access_token": connection["token"]}
             await ws.send(json.dumps(auth_message))
 
             # Wait for auth response
@@ -96,14 +92,11 @@ class DockerFallbackTest:
             auth_result = json.loads(auth_response)
             logger.info(f"🔑 Auth response: {auth_result}")
 
-            if auth_result.get('type') == 'auth_ok':
+            if auth_result.get("type") == "auth_ok":
                 logger.info(f"✅ {connection['name']} connection successful")
 
                 # Test event subscription
-                subscribe_message = {
-                    "id": 1,
-                    "type": "subscribe_events"
-                }
+                subscribe_message = {"id": 1, "type": "subscribe_events"}
                 await ws.send(json.dumps(subscribe_message))
 
                 # Wait for subscription confirmation
@@ -111,7 +104,7 @@ class DockerFallbackTest:
                 result = json.loads(response)
                 logger.info(f"📡 Event subscription: {result}")
 
-                if result.get('type') == 'result' and result.get('success'):
+                if result.get("type") == "result" and result.get("success"):
                     logger.info(f"✅ {connection['name']} event subscription successful")
                     await ws.close()
                     return True
@@ -147,7 +140,9 @@ class DockerFallbackTest:
         available_connections = [name for name, success in results.items() if success]
 
         if len(available_connections) >= 2:
-            logger.info(f"🎉 Fallback capability confirmed! {len(available_connections)} connections available")
+            logger.info(
+                f"🎉 Fallback capability confirmed! {len(available_connections)} connections available"
+            )
             logger.info(f"📋 Available connections: {', '.join(available_connections)}")
             return True
         elif len(available_connections) == 1:
@@ -157,6 +152,7 @@ class DockerFallbackTest:
         else:
             logger.error("❌ No connections available")
             return False
+
 
 async def main():
     """Main test function"""
@@ -175,6 +171,7 @@ async def main():
         logger.error("Please check your connection configurations and tokens.")
 
     return success
+
 
 if __name__ == "__main__":
     success = asyncio.run(main())

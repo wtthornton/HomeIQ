@@ -18,12 +18,8 @@ async def health_check_detailed(request: Request):
     """
     service = request.app.state.service
     # Access the health handler from the service
-    if hasattr(service, 'health_handler'):
+    if hasattr(service, "health_handler"):
         handler = service.health_handler
         return await handler.handle_fastapi()
     else:
-        return {
-            "status": "healthy",
-            "service": "websocket-ingestion",
-            "timestamp": None
-        }
+        return {"status": "healthy", "service": "websocket-ingestion", "timestamp": None}

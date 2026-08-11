@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 # -- lifecycle hooks --------------------------------------------------------
 
+
 async def _startup_service() -> None:
     """Start the WebSocketIngestionService and store on app state."""
     # Lazy import to avoid circular dependency

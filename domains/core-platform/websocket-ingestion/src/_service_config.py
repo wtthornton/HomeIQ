@@ -22,25 +22,23 @@ class ServiceConfig:
     """
 
     # Home Assistant connection
-    home_assistant_url: str | None = field(
-        default_factory=lambda: settings.resolved_ha_http_url
-    )
-    home_assistant_ws_url: str | None = field(
-        default_factory=lambda: settings.resolved_ha_ws_url
-    )
+    home_assistant_url: str | None = field(default_factory=lambda: settings.resolved_ha_http_url)
+    home_assistant_ws_url: str | None = field(default_factory=lambda: settings.resolved_ha_ws_url)
     home_assistant_token: str | None = field(
-        default_factory=lambda: settings.resolved_ha_token.get_secret_value() if settings.resolved_ha_token else None
+        default_factory=lambda: (
+            settings.resolved_ha_token.get_secret_value() if settings.resolved_ha_token else None
+        )
     )
 
     # Nabu Casa fallback
     nabu_casa_url: str | None = field(default_factory=lambda: settings.nabu_casa_url)
     nabu_casa_token: str | None = field(
-        default_factory=lambda: settings.nabu_casa_token.get_secret_value() if settings.nabu_casa_token else None
+        default_factory=lambda: (
+            settings.nabu_casa_token.get_secret_value() if settings.nabu_casa_token else None
+        )
     )
 
-    home_assistant_enabled: bool = field(
-        default_factory=lambda: settings.enable_home_assistant
-    )
+    home_assistant_enabled: bool = field(default_factory=lambda: settings.enable_home_assistant)
 
     # High-volume processing
     max_workers: int = field(default_factory=lambda: settings.max_workers)
@@ -52,7 +50,9 @@ class ServiceConfig:
     # InfluxDB
     influxdb_url: str = field(default_factory=lambda: settings.influxdb_url)
     influxdb_token: str | None = field(
-        default_factory=lambda: settings.influxdb_token.get_secret_value() if settings.influxdb_token else None
+        default_factory=lambda: (
+            settings.influxdb_token.get_secret_value() if settings.influxdb_token else None
+        )
     )
     influxdb_org: str = field(default_factory=lambda: settings.influxdb_org)
     influxdb_bucket: str = field(default_factory=lambda: settings.influxdb_bucket)

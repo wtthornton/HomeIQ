@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 class ErrorCategory(Enum):
     """Categories of errors that can occur"""
+
     NETWORK = "network"
     AUTHENTICATION = "authentication"
     SUBSCRIPTION = "subscription"
@@ -22,6 +23,7 @@ class ErrorCategory(Enum):
 
 class ErrorSeverity(Enum):
     """Severity levels for errors"""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -54,21 +56,27 @@ class ErrorHandler:
         error_str = str(error).lower()
 
         # Network errors
-        if any(keyword in error_str for keyword in ['connection', 'network', 'unreachable', 'timeout', 'refused']):
-            if 'timeout' in error_str:
+        if any(
+            keyword in error_str
+            for keyword in ["connection", "network", "unreachable", "timeout", "refused"]
+        ):
+            if "timeout" in error_str:
                 return ErrorCategory.TIMEOUT, ErrorSeverity.MEDIUM
             return ErrorCategory.NETWORK, ErrorSeverity.HIGH
 
         # Authentication errors
-        if any(keyword in error_str for keyword in ['auth', 'token', 'unauthorized', 'forbidden', 'invalid']):
+        if any(
+            keyword in error_str
+            for keyword in ["auth", "token", "unauthorized", "forbidden", "invalid"]
+        ):
             return ErrorCategory.AUTHENTICATION, ErrorSeverity.CRITICAL
 
         # WebSocket specific errors
-        if any(keyword in error_str for keyword in ['websocket', 'ws', 'protocol', 'handshake']):
+        if any(keyword in error_str for keyword in ["websocket", "ws", "protocol", "handshake"]):
             return ErrorCategory.WEBSOCKET, ErrorSeverity.HIGH
 
         # Subscription errors
-        if any(keyword in error_str for keyword in ['subscription', 'subscribe', 'event']):
+        if any(keyword in error_str for keyword in ["subscription", "subscribe", "event"]):
             return ErrorCategory.SUBSCRIPTION, ErrorSeverity.MEDIUM
 
         # Default categorization
@@ -95,7 +103,7 @@ class ErrorHandler:
             "severity": severity.value,
             "error_type": type(error).__name__,
             "error_message": str(error),
-            "context": context or {}
+            "context": context or {},
         }
 
         # Update error counts
@@ -155,12 +163,16 @@ class ErrorHandler:
 
         return {
             "total_errors": total_errors,
-            "error_counts_by_category": {category.value: count for category, count in self.error_counts.items()},
+            "error_counts_by_category": {
+                category.value: count for category, count in self.error_counts.items()
+            },
             "error_rate_per_minute": self.get_error_rate(),
             "last_error_time": self.last_error_time.isoformat() if self.last_error_time else None,
             "recent_errors_count": len(self.recent_errors),
             "error_history_size": len(self.error_history),
-            "most_common_category": max(self.error_counts.items(), key=lambda x: x[1])[0].value if total_errors > 0 else None
+            "most_common_category": max(self.error_counts.items(), key=lambda x: x[1])[0].value
+            if total_errors > 0
+            else None,
         }
 
     def get_recent_errors(self, limit: int = 10) -> list:

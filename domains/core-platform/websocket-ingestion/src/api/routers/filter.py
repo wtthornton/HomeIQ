@@ -18,14 +18,7 @@ async def get_filter_stats(request: Request):
     """
     service = request.app.state.service
     if not service.entity_filter:
-        return {
-            "enabled": False,
-            "message": "Entity filter not configured"
-        }
+        return {"enabled": False, "message": "Entity filter not configured"}
 
     stats = service.entity_filter.get_statistics()
-    return {
-        "enabled": True,
-        "statistics": stats
-    }
-
+    return {"enabled": True, "statistics": stats}

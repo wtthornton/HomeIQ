@@ -42,7 +42,9 @@ class EntityFilter:
         self._compiled_exceptions: list[tuple[re.Pattern, dict[str, Any]]] = []
         self._compile_patterns()
 
-        logger.info(f"Entity filter initialized: mode={self.mode}, patterns={len(self.patterns)}, exceptions={len(self.exceptions)}")
+        logger.info(
+            f"Entity filter initialized: mode={self.mode}, patterns={len(self.patterns)}, exceptions={len(self.exceptions)}"
+        )
 
     def _compile_patterns(self):
         """Compile regex patterns for performance"""
@@ -93,9 +95,9 @@ class EntityFilter:
         # Escape special regex characters except * and ?
         pattern = re.escape(pattern)
         # Replace escaped * with .*
-        pattern = pattern.replace(r'\*', '.*')
+        pattern = pattern.replace(r"\*", ".*")
         # Replace escaped ? with .
-        pattern = pattern.replace(r'\?', '.')
+        pattern = pattern.replace(r"\?", ".")
         return f"^{pattern}$"
 
     def should_include(self, event_data: dict[str, Any]) -> bool:
@@ -115,7 +117,9 @@ class EntityFilter:
             return True
 
         domain = self._extract_domain(entity_id)
-        device_class = event_data.get("device_class") or event_data.get("attributes", {}).get("device_class")
+        device_class = event_data.get("device_class") or event_data.get("attributes", {}).get(
+            "device_class"
+        )
         area_id = event_data.get("area_id") or event_data.get("attributes", {}).get("area_id")
 
         # Check exceptions first (always override)
@@ -163,27 +167,44 @@ class EntityFilter:
             return entity_id.split(".")[0]
         return None
 
-    def _matches_exceptions(self, entity_id: str, domain: str | None, device_class: str | None, area_id: str | None) -> bool:
+    def _matches_exceptions(
+        self, entity_id: str, domain: str | None, device_class: str | None, area_id: str | None
+    ) -> bool:
         """Check if entity matches any exception pattern"""
         for compiled_pattern, pattern_dict in self._compiled_exceptions:
-            if self._entity_matches_pattern(entity_id, domain, device_class, area_id, compiled_pattern, pattern_dict):
+            if self._entity_matches_pattern(
+                entity_id, domain, device_class, area_id, compiled_pattern, pattern_dict
+            ):
                 return True
         return False
 
-    def _matches_patterns(self, entity_id: str, domain: str | None, device_class: str | None, area_id: str | None) -> bool:
+    def _matches_patterns(
+        self, entity_id: str, domain: str | None, device_class: str | None, area_id: str | None
+    ) -> bool:
         """Check if entity matches any filter pattern"""
         # Check compiled regex patterns
         for compiled_pattern, pattern_dict in self._compiled_patterns:
-            if self._entity_matches_pattern(entity_id, domain, device_class, area_id, compiled_pattern, pattern_dict):
+            if self._entity_matches_pattern(
+                entity_id, domain, device_class, area_id, compiled_pattern, pattern_dict
+            ):
                 return True
 
         # Also check non-regex patterns (domain, device_class, area_id)
         for pattern in self.patterns:
-            if not pattern.get("entity_id") and self._entity_matches_simple_pattern(entity_id, domain, device_class, area_id, pattern):
+            if not pattern.get("entity_id") and self._entity_matches_simple_pattern(
+                entity_id, domain, device_class, area_id, pattern
+            ):
                 return True
         return False
 
-    def _entity_matches_simple_pattern(self, _entity_id: str, domain: str | None, device_class: str | None, area_id: str | None, pattern: dict[str, Any]) -> bool:
+    def _entity_matches_simple_pattern(
+        self,
+        _entity_id: str,
+        domain: str | None,
+        device_class: str | None,
+        area_id: str | None,
+        pattern: dict[str, Any],
+    ) -> bool:
         """Check if entity matches a simple pattern (non-regex)"""
         # Check domain
         if pattern.get("domain") and domain and pattern["domain"] == domain:
@@ -199,8 +220,15 @@ class EntityFilter:
 
         return False
 
-    def _entity_matches_pattern(self, entity_id: str, domain: str | None, device_class: str | None, area_id: str | None,
-                                compiled_pattern: re.Pattern, pattern_dict: dict[str, Any]) -> bool:
+    def _entity_matches_pattern(
+        self,
+        entity_id: str,
+        domain: str | None,
+        device_class: str | None,
+        area_id: str | None,
+        compiled_pattern: re.Pattern,
+        pattern_dict: dict[str, Any],
+    ) -> bool:
         """Check if entity matches a specific pattern"""
         # Check entity_id pattern
         if pattern_dict.get("entity_id") and compiled_pattern and compiled_pattern.match(entity_id):
@@ -211,7 +239,11 @@ class EntityFilter:
             return True
 
         # Check device_class
-        if pattern_dict.get("device_class") and device_class and pattern_dict["device_class"] == device_class:
+        if (
+            pattern_dict.get("device_class")
+            and device_class
+            and pattern_dict["device_class"] == device_class
+        ):
             return True
 
         # Check area_id
@@ -239,7 +271,7 @@ class EntityFilter:
             "uptime_seconds": uptime,
             "mode": self.mode,
             "patterns_count": len(self.patterns),
-            "exceptions_count": len(self.exceptions)
+            "exceptions_count": len(self.exceptions),
         }
 
     def reload_config(self, new_config: dict[str, Any]):
@@ -259,5 +291,6 @@ class EntityFilter:
         self._compiled_exceptions.clear()
         self._compile_patterns()
 
-        logger.info(f"Entity filter configuration reloaded: mode={self.mode}, patterns={len(self.patterns)}")
-
+        logger.info(
+            f"Entity filter configuration reloaded: mode={self.mode}, patterns={len(self.patterns)}"
+        )

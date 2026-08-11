@@ -85,7 +85,9 @@ class WeatherData:
 class OpenWeatherMapClient:
     """Async client for retrieving current weather data."""
 
-    def __init__(self, api_key: str, base_url: str = "https://api.openweathermap.org/data/2.5") -> None:
+    def __init__(
+        self, api_key: str, base_url: str = "https://api.openweathermap.org/data/2.5"
+    ) -> None:
         self.api_key = api_key
         self.base_url = base_url
         self.session: aiohttp.ClientSession | None = None
@@ -184,5 +186,3 @@ class OpenWeatherMapClient:
                 self.failed_requests += 1
                 self.last_error = str(exc)
                 return None
-
-

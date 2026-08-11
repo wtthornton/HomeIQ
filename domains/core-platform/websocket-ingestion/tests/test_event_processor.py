@@ -25,7 +25,7 @@ class TestEventProcessor:
         event_data = {
             "event_type": "state_changed",
             "old_state": {"state": "off"},
-            "new_state": {"state": "on", "entity_id": "light.living_room"}
+            "new_state": {"state": "on", "entity_id": "light.living_room"},
         }
 
         is_valid, error_msg = self.processor.validate_event(event_data)
@@ -37,7 +37,7 @@ class TestEventProcessor:
         """Test validation of event missing event_type"""
         event_data = {
             "old_state": {"state": "off"},
-            "new_state": {"state": "on", "entity_id": "light.living_room"}
+            "new_state": {"state": "on", "entity_id": "light.living_room"},
         }
 
         is_valid, error_msg = self.processor.validate_event(event_data)
@@ -56,10 +56,7 @@ class TestEventProcessor:
 
     def test_validate_state_changed_missing_new_state(self):
         """Test validation of state_changed event missing new_state"""
-        event_data = {
-            "event_type": "state_changed",
-            "old_state": {"state": "off"}
-        }
+        event_data = {"event_type": "state_changed", "old_state": {"state": "off"}}
 
         is_valid, error_msg = self.processor.validate_event(event_data)
 
@@ -71,7 +68,7 @@ class TestEventProcessor:
         event_data = {
             "event_type": "state_changed",
             "old_state": {"state": "off"},
-            "new_state": {"state": "on", "entity_id": "invalid_entity_id"}
+            "new_state": {"state": "on", "entity_id": "invalid_entity_id"},
         }
 
         is_valid, error_msg = self.processor.validate_event(event_data)
@@ -84,7 +81,7 @@ class TestEventProcessor:
         event_data = {
             "event_type": "state_changed",
             "old_state": {"state": "off"},
-            "new_state": {"state": 123, "entity_id": "light.living_room"}
+            "new_state": {"state": 123, "entity_id": "light.living_room"},
         }
 
         is_valid, error_msg = self.processor.validate_event(event_data)
@@ -97,7 +94,11 @@ class TestEventProcessor:
         event_data = {
             "event_type": "state_changed",
             "old_state": {"state": "off", "attributes": {"brightness": 0}},
-            "new_state": {"state": "on", "entity_id": "light.living_room", "attributes": {"brightness": 255}}
+            "new_state": {
+                "state": "on",
+                "entity_id": "light.living_room",
+                "attributes": {"brightness": 255},
+            },
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -116,7 +117,7 @@ class TestEventProcessor:
         event_data = {
             "event_type": "state_changed",
             "old_state": {"state": "on", "entity_id": "sensor.kitchen_motion"},
-            "new_state": None
+            "new_state": None,
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -133,7 +134,7 @@ class TestEventProcessor:
             "domain": "light",
             "service": "turn_on",
             "service_data": {"brightness": 255},
-            "entity_id": "light.living_room"
+            "entity_id": "light.living_room",
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -146,10 +147,7 @@ class TestEventProcessor:
 
     def test_extract_event_data_generic_event(self):
         """Test extracting data from generic event"""
-        event_data = {
-            "event_type": "custom_event",
-            "custom_field": "custom_value"
-        }
+        event_data = {"event_type": "custom_event", "custom_field": "custom_value"}
 
         extracted = self.processor.extract_event_data(event_data)
 
@@ -161,7 +159,7 @@ class TestEventProcessor:
         event_data = {
             "event_type": "state_changed",
             "old_state": {"state": "off"},
-            "new_state": {"state": "on", "entity_id": "light.living_room"}
+            "new_state": {"state": "on", "entity_id": "light.living_room"},
         }
 
         processed = self.processor.process_event(event_data)
@@ -176,7 +174,7 @@ class TestEventProcessor:
         """Test processing invalid event"""
         event_data = {
             "event_type": "state_changed",
-            "old_state": {"state": "off"}
+            "old_state": {"state": "off"},
             # Missing new_state
         }
 
@@ -233,7 +231,7 @@ class TestEventProcessor:
             "event_type": "call_service",
             "domain": "light",
             "service": "turn_on",
-            "service_data": {"brightness": 255}
+            "service_data": {"brightness": 255},
         }
 
         is_valid, error_msg = self.processor.validate_event(event_data)
@@ -245,7 +243,7 @@ class TestEventProcessor:
         """Test validation of call_service event missing required fields"""
         event_data = {
             "event_type": "call_service",
-            "domain": "light"
+            "domain": "light",
             # Missing service and service_data
         }
 
@@ -272,8 +270,12 @@ class TestEventProcessor:
             "data": {
                 "entity_id": "light.living_room",
                 "old_state": {"state": "off", "last_changed": "2023-01-01T12:00:00.000Z"},
-                "new_state": {"state": "on", "entity_id": "light.living_room", "last_changed": "2023-01-01T12:01:00.000Z"}
-            }
+                "new_state": {
+                    "state": "on",
+                    "entity_id": "light.living_room",
+                    "last_changed": "2023-01-01T12:01:00.000Z",
+                },
+            },
         }
 
         is_valid, error_msg = self.processor.validate_event(event_data)
@@ -285,10 +287,7 @@ class TestEventProcessor:
         """Test validation of state_changed event with data field but missing entity_id"""
         event_data = {
             "event_type": "state_changed",
-            "data": {
-                "old_state": {"state": "off"},
-                "new_state": {"state": "on"}
-            }
+            "data": {"old_state": {"state": "off"}, "new_state": {"state": "on"}},
         }
 
         is_valid, error_msg = self.processor.validate_event(event_data)
@@ -303,8 +302,8 @@ class TestEventProcessor:
             "data": {
                 "entity_id": "sensor.deleted",
                 "old_state": {"state": "on"},
-                "new_state": None  # Valid for entity deletion
-            }
+                "new_state": None,  # Valid for entity deletion
+            },
         }
 
         is_valid, error_msg = self.processor.validate_event(event_data)
@@ -322,8 +321,12 @@ class TestEventProcessor:
             "data": {
                 "entity_id": "light.living_room",
                 "old_state": {"state": "off", "last_changed": "2023-01-01T12:00:00.000Z"},
-                "new_state": {"state": "on", "entity_id": "light.living_room", "last_changed": "2023-01-01T12:01:00.000Z"}
-            }
+                "new_state": {
+                    "state": "on",
+                    "entity_id": "light.living_room",
+                    "last_changed": "2023-01-01T12:01:00.000Z",
+                },
+            },
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -347,7 +350,7 @@ class TestEventProcessor:
         mock_discovery.get_device_metadata.return_value = {
             "manufacturer": "Philips",
             "model": "Hue Light",
-            "sw_version": "1.0.0"
+            "sw_version": "1.0.0",
         }
 
         processor = EventProcessor(discovery_service=mock_discovery)
@@ -357,8 +360,8 @@ class TestEventProcessor:
             "data": {
                 "entity_id": "light.living_room",
                 "old_state": {"state": "off"},
-                "new_state": {"state": "on", "entity_id": "light.living_room"}
-            }
+                "new_state": {"state": "on", "entity_id": "light.living_room"},
+            },
         }
 
         extracted = processor.extract_event_data(event_data)
@@ -384,8 +387,8 @@ class TestEventProcessor:
             "data": {
                 "entity_id": "light.unknown",
                 "old_state": {"state": "off"},
-                "new_state": {"state": "on", "entity_id": "light.unknown"}
-            }
+                "new_state": {"state": "on", "entity_id": "light.unknown"},
+            },
         }
 
         extracted = processor.extract_event_data(event_data)
@@ -400,16 +403,13 @@ class TestEventProcessor:
             "event_type": "state_changed",
             "data": {
                 "entity_id": "light.living_room",
-                "old_state": {
-                    "state": "off",
-                    "last_changed": "2023-01-01T12:00:00.000Z"
-                },
+                "old_state": {"state": "off", "last_changed": "2023-01-01T12:00:00.000Z"},
                 "new_state": {
                     "state": "on",
                     "entity_id": "light.living_room",
-                    "last_changed": "2023-01-01T12:00:30.000Z"  # 30 seconds later
-                }
-            }
+                    "last_changed": "2023-01-01T12:00:30.000Z",  # 30 seconds later
+                },
+            },
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -423,16 +423,13 @@ class TestEventProcessor:
             "event_type": "state_changed",
             "data": {
                 "entity_id": "light.living_room",
-                "old_state": {
-                    "state": "off",
-                    "last_changed": "2023-01-01T12:00:00+00:00"
-                },
+                "old_state": {"state": "off", "last_changed": "2023-01-01T12:00:00+00:00"},
                 "new_state": {
                     "state": "on",
                     "entity_id": "light.living_room",
-                    "last_changed": "2023-01-01T12:00:15+00:00"  # 15 seconds later
-                }
-            }
+                    "last_changed": "2023-01-01T12:00:15+00:00",  # 15 seconds later
+                },
+            },
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -447,14 +444,14 @@ class TestEventProcessor:
                 "entity_id": "light.living_room",
                 "old_state": {
                     "state": "off",
-                    "last_changed": "2023-01-01T12:00:30.000Z"  # Later time
+                    "last_changed": "2023-01-01T12:00:30.000Z",  # Later time
                 },
                 "new_state": {
                     "state": "on",
                     "entity_id": "light.living_room",
-                    "last_changed": "2023-01-01T12:00:00.000Z"  # Earlier time (invalid)
-                }
-            }
+                    "last_changed": "2023-01-01T12:00:00.000Z",  # Earlier time (invalid)
+                },
+            },
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -468,8 +465,8 @@ class TestEventProcessor:
             "data": {
                 "entity_id": "light.living_room",
                 "old_state": {"state": "off"},  # No last_changed
-                "new_state": {"state": "on", "entity_id": "light.living_room"}  # No last_changed
-            }
+                "new_state": {"state": "on", "entity_id": "light.living_room"},  # No last_changed
+            },
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -482,16 +479,13 @@ class TestEventProcessor:
             "event_type": "state_changed",
             "data": {
                 "entity_id": "light.living_room",
-                "old_state": {
-                    "state": "off",
-                    "last_changed": "invalid-timestamp"
-                },
+                "old_state": {"state": "off", "last_changed": "invalid-timestamp"},
                 "new_state": {
                     "state": "on",
                     "entity_id": "light.living_room",
-                    "last_changed": "2023-01-01T12:00:00.000Z"
-                }
-            }
+                    "last_changed": "2023-01-01T12:00:00.000Z",
+                },
+            },
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -504,16 +498,13 @@ class TestEventProcessor:
             "event_type": "state_changed",
             "data": {
                 "entity_id": "light.living_room",
-                "old_state": {
-                    "state": "off",
-                    "last_changed": "2023-01-01T12:00:00.000Z"
-                },
+                "old_state": {"state": "off", "last_changed": "2023-01-01T12:00:00.000Z"},
                 "new_state": {
                     "state": "on",
                     "entity_id": "light.living_room",
-                    "last_changed": "2023-01-10T12:00:00.000Z"  # 9 days later
-                }
-            }
+                    "last_changed": "2023-01-10T12:00:00.000Z",  # 9 days later
+                },
+            },
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -523,10 +514,7 @@ class TestEventProcessor:
 
     def test_validate_state_changed_with_data_field_invalid_data_type(self):
         """Test validation when data field is not a dictionary"""
-        event_data = {
-            "event_type": "state_changed",
-            "data": "not_a_dict"
-        }
+        event_data = {"event_type": "state_changed", "data": "not_a_dict"}
 
         is_valid, error_msg = self.processor.validate_event(event_data)
 
@@ -539,7 +527,7 @@ class TestEventProcessor:
             "event_type": "state_changed",
             "entity_id": "light.living_room",
             "old_state": {"state": "off", "entity_id": "light.living_room"},
-            "new_state": {"state": "on", "entity_id": "light.living_room"}
+            "new_state": {"state": "on", "entity_id": "light.living_room"},
         }
 
         extracted = self.processor.extract_event_data(event_data)
@@ -551,11 +539,7 @@ class TestEventProcessor:
 
     def test_validate_service_registered_event(self):
         """Test validation of service_registered event"""
-        event_data = {
-            "event_type": "service_registered",
-            "domain": "light",
-            "service": "turn_on"
-        }
+        event_data = {"event_type": "service_registered", "domain": "light", "service": "turn_on"}
 
         is_valid, error_msg = self.processor.validate_event(event_data)
 
@@ -564,11 +548,7 @@ class TestEventProcessor:
 
     def test_validate_service_removed_event(self):
         """Test validation of service_removed event"""
-        event_data = {
-            "event_type": "service_removed",
-            "domain": "light",
-            "service": "turn_on"
-        }
+        event_data = {"event_type": "service_removed", "domain": "light", "service": "turn_on"}
 
         is_valid, error_msg = self.processor.validate_event(event_data)
 
@@ -577,10 +557,7 @@ class TestEventProcessor:
 
     def test_validate_unknown_event_type(self):
         """Test validation of unknown event type (should pass basic validation)"""
-        event_data = {
-            "event_type": "unknown_event",
-            "custom_field": "value"
-        }
+        event_data = {"event_type": "unknown_event", "custom_field": "value"}
 
         is_valid, error_msg = self.processor.validate_event(event_data)
 

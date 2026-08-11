@@ -24,7 +24,7 @@ class TestBoundaryConditions:
         THEN: Should handle minimum size correctly
         """
         from src.event_queue import EventQueue
-        
+
         queue = EventQueue(maxsize=1)
 
         # Add one event (at capacity)
@@ -46,12 +46,12 @@ class TestBoundaryConditions:
         THEN: Should handle zero batch size edge case
         """
         from src.batch_processor import BatchProcessor
-        
+
         processor = BatchProcessor(
             batch_size=0,  # Edge case
-            batch_timeout=1.0
+            batch_timeout=1.0,
         )
-        
+
         # Should still be able to add events (may process immediately)
         await processor.add_event({"event_id": 1})
         assert processor is not None
@@ -64,7 +64,7 @@ class TestBoundaryConditions:
         THEN: Should handle negative timeout gracefully
         """
         from src.batch_processor import BatchProcessor
-        
+
         # Negative timeout should be handled (may default to 0 or raise error)
         try:
             processor = BatchProcessor(
@@ -89,12 +89,9 @@ class TestEmptyDataHandling:
         THEN: Should handle empty batch gracefully
         """
         from src.batch_processor import BatchProcessor
-        
-        processor = BatchProcessor(
-            batch_size=10,
-            batch_timeout=1.0
-        )
-        
+
+        processor = BatchProcessor(batch_size=10, batch_timeout=1.0)
+
         # Process empty batch (should not crash)
         # This tests the batch processing logic with no events
         await asyncio.sleep(0.1)  # Allow any background processing
@@ -154,19 +151,16 @@ class TestNullNoneHandling:
         THEN: Should handle None gracefully
         """
         from src.batch_processor import BatchProcessor
-        
-        processor = BatchProcessor(
-            batch_size=10,
-            batch_timeout=1.0
-        )
-        
+
+        processor = BatchProcessor(batch_size=10, batch_timeout=1.0)
+
         # Try to add None event (should handle gracefully)
         try:
             await processor.add_event(None)
         except (TypeError, ValueError, AttributeError):
             # Acceptable if None raises error
             pass
-        
+
         assert processor is not None
 
     @pytest.mark.asyncio
@@ -177,9 +171,9 @@ class TestNullNoneHandling:
         THEN: Should handle None entity_id
         """
         from src.entity_filter import EntityFilter
-        
+
         filter_obj = EntityFilter(config={"mode": "exclude", "patterns": []})
-        
+
         # Filter event with None entity_id
         result = filter_obj.should_include({"entity_id": None, "domain": "test"})
         # Should return True or False (not crash)
@@ -197,19 +191,13 @@ class TestTimestampEdgeCases:
         THEN: Should handle future timestamp
         """
         from src.batch_processor import BatchProcessor
-        
-        processor = BatchProcessor(
-            batch_size=10,
-            batch_timeout=1.0
-        )
-        
+
+        processor = BatchProcessor(batch_size=10, batch_timeout=1.0)
+
         # Add event with future timestamp
         future_time = datetime.now(UTC) + timedelta(days=1)
-        await processor.add_event({
-            "event_id": 1,
-            "time": future_time.isoformat()
-        })
-        
+        await processor.add_event({"event_id": 1, "time": future_time.isoformat()})
+
         assert processor is not None
 
     @pytest.mark.asyncio
@@ -220,19 +208,13 @@ class TestTimestampEdgeCases:
         THEN: Should handle old timestamp
         """
         from src.batch_processor import BatchProcessor
-        
-        processor = BatchProcessor(
-            batch_size=10,
-            batch_timeout=1.0
-        )
-        
+
+        processor = BatchProcessor(batch_size=10, batch_timeout=1.0)
+
         # Add event with very old timestamp
         old_time = datetime.now(UTC) - timedelta(days=365)
-        await processor.add_event({
-            "event_id": 1,
-            "time": old_time.isoformat()
-        })
-        
+        await processor.add_event({"event_id": 1, "time": old_time.isoformat()})
+
         assert processor is not None
 
     @pytest.mark.asyncio
@@ -243,19 +225,13 @@ class TestTimestampEdgeCases:
         THEN: Should handle timezone-naive timestamp
         """
         from src.batch_processor import BatchProcessor
-        
-        processor = BatchProcessor(
-            batch_size=10,
-            batch_timeout=1.0
-        )
-        
+
+        processor = BatchProcessor(batch_size=10, batch_timeout=1.0)
+
         # Add event with timezone-naive timestamp (edge case)
         naive_time = datetime.now()
-        await processor.add_event({
-            "event_id": 1,
-            "time": naive_time.isoformat()
-        })
-        
+        await processor.add_event({"event_id": 1, "time": naive_time.isoformat()})
+
         assert processor is not None
 
 
@@ -270,19 +246,13 @@ class TestStringEdgeCases:
         THEN: Should handle long entity_id
         """
         from src.batch_processor import BatchProcessor
-        
-        processor = BatchProcessor(
-            batch_size=10,
-            batch_timeout=1.0
-        )
-        
+
+        processor = BatchProcessor(batch_size=10, batch_timeout=1.0)
+
         # Add event with very long entity_id
         long_entity_id = "a" * 1000
-        await processor.add_event({
-            "entity_id": long_entity_id,
-            "domain": "test"
-        })
-        
+        await processor.add_event({"entity_id": long_entity_id, "domain": "test"})
+
         assert processor is not None
 
     @pytest.mark.asyncio
@@ -293,17 +263,11 @@ class TestStringEdgeCases:
         THEN: Should handle empty string
         """
         from src.batch_processor import BatchProcessor
-        
-        processor = BatchProcessor(
-            batch_size=10,
-            batch_timeout=1.0
-        )
-        
-        await processor.add_event({
-            "entity_id": "",
-            "domain": "test"
-        })
-        
+
+        processor = BatchProcessor(batch_size=10, batch_timeout=1.0)
+
+        await processor.add_event({"entity_id": "", "domain": "test"})
+
         assert processor is not None
 
     @pytest.mark.asyncio
@@ -314,19 +278,13 @@ class TestStringEdgeCases:
         THEN: Should handle special characters
         """
         from src.batch_processor import BatchProcessor
-        
-        processor = BatchProcessor(
-            batch_size=10,
-            batch_timeout=1.0
-        )
-        
+
+        processor = BatchProcessor(batch_size=10, batch_timeout=1.0)
+
         # Add event with special characters
         special_entity_id = "test.entity_123-456@domain"
-        await processor.add_event({
-            "entity_id": special_entity_id,
-            "domain": "test"
-        })
-        
+        await processor.add_event({"entity_id": special_entity_id, "domain": "test"})
+
         assert processor is not None
 
 
@@ -341,19 +299,16 @@ class TestConcurrencyEdgeCases:
         THEN: Should handle concurrent additions
         """
         from src.batch_processor import BatchProcessor
-        
-        processor = BatchProcessor(
-            batch_size=10,
-            batch_timeout=1.0
-        )
-        
+
+        processor = BatchProcessor(batch_size=10, batch_timeout=1.0)
+
         # Add events concurrently
         async def add_event(i):
             await processor.add_event({"event_id": i})
-        
+
         tasks = [add_event(i) for i in range(10)]
         await asyncio.gather(*tasks)
-        
+
         # Processor should handle concurrent additions
         assert processor is not None
 
@@ -365,7 +320,7 @@ class TestConcurrencyEdgeCases:
         THEN: Should handle rapid cycles gracefully
         """
         from src.connection_manager import ConnectionManager
-        
+
         manager = ConnectionManager(
             base_url="http://localhost:8123",
             token="token",
@@ -402,19 +357,13 @@ class TestMemoryEdgeCases:
         THEN: Should handle large payload
         """
         from src.batch_processor import BatchProcessor
-        
-        processor = BatchProcessor(
-            batch_size=10,
-            batch_timeout=1.0
-        )
-        
+
+        processor = BatchProcessor(batch_size=10, batch_timeout=1.0)
+
         # Add event with large payload
         large_payload = {"data": "x" * 10000}  # 10KB payload
-        await processor.add_event({
-            "event_id": 1,
-            **large_payload
-        })
-        
+        await processor.add_event({"event_id": 1, **large_payload})
+
         assert processor is not None
 
     @pytest.mark.asyncio
@@ -425,15 +374,15 @@ class TestMemoryEdgeCases:
         THEN: Should handle memory pressure
         """
         from src.memory_manager import MemoryManager
-        
+
         manager = MemoryManager(
             max_memory_mb=10,  # Low limit
-            memory_check_interval=1.0
+            memory_check_interval=1.0,
         )
-        
+
         # Simulate high memory usage
         manager.current_memory_mb = 9.0  # Near limit
-        
+
         # Should handle pressure gracefully
         assert manager is not None
         assert manager.current_memory_mb <= manager.max_memory_mb
@@ -450,9 +399,9 @@ class TestConfigurationEdgeCases:
         THEN: Should handle missing variables gracefully
         """
         from src.main import WebSocketIngestionService
-        
+
         # Mock missing env vars
-        with patch.dict('os.environ', {}, clear=True):
+        with patch.dict("os.environ", {}, clear=True):
             try:
                 service = WebSocketIngestionService()
                 # Should initialize with defaults or raise clear error
@@ -469,10 +418,9 @@ class TestConfigurationEdgeCases:
         THEN: Should handle invalid URL
         """
         from src.websocket_client import HomeAssistantWebSocketClient
-        
+
         # Invalid URL format
         client = HomeAssistantWebSocketClient("not-a-url", "token")
-        
+
         # Should handle invalid URL (may raise error or use default)
         assert client is not None
-

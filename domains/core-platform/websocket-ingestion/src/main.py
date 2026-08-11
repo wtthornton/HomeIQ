@@ -56,6 +56,7 @@ logger = setup_logging("websocket-ingestion")
 
 # -- entity filter loader (pure function) ------------------------------------
 
+
 def _load_entity_filter() -> EntityFilter | None:
     """Return an ``EntityFilter`` from env/file config, or ``None``."""
     env_json = os.getenv("ENTITY_FILTER_CONFIG")
@@ -69,6 +70,7 @@ def _load_entity_filter() -> EntityFilter | None:
 
 
 # -- service class ------------------------------------------------------------
+
 
 class WebSocketIngestionService(EventHandlerMixin):
     """Orchestrates WebSocket ingestion lifecycle.
@@ -130,19 +132,30 @@ class WebSocketIngestionService(EventHandlerMixin):
         """Start all processing components and optionally connect to HA."""
         cid = generate_correlation_id()
         set_correlation_id(cid)
-        log_with_context(logger, "INFO", "Starting WebSocket Ingestion Service",
-                         operation="service_startup", correlation_id=cid)
+        log_with_context(
+            logger,
+            "INFO",
+            "Starting WebSocket Ingestion Service",
+            operation="service_startup",
+            correlation_id=cid,
+        )
         try:
             await start_processing_components(self, cid)
             await start_influxdb_pipeline(self, cid)
             await start_ha_connection(self, cid)
             self.health_handler.set_connection_manager(self.connection_manager)
             self.health_handler.set_historical_counter(self.historical_counter)
-            log_with_context(logger, "INFO", "Service started successfully",
-                             operation="service_startup_complete", correlation_id=cid)
+            log_with_context(
+                logger,
+                "INFO",
+                "Service started successfully",
+                operation="service_startup_complete",
+                correlation_id=cid,
+            )
         except Exception as exc:
-            log_error_with_context(logger, "Startup failed", exc,
-                                   operation="service_startup", correlation_id=cid)
+            log_error_with_context(
+                logger, "Startup failed", exc, operation="service_startup", correlation_id=cid
+            )
             raise
 
     async def stop(self) -> None:

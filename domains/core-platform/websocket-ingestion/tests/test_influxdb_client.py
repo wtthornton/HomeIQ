@@ -38,10 +38,7 @@ class TestInfluxDBConnectionManager:
     def setup_method(self):
         """Set up test fixtures"""
         self.connection_manager = InfluxDBConnectionManager(
-            url="http://localhost:8086",
-            token="test-token",
-            org="test-org",
-            bucket="test-bucket"
+            url="http://localhost:8086", token="test-token", org="test-org", bucket="test-bucket"
         )
 
     def teardown_method(self):
@@ -65,7 +62,7 @@ class TestInfluxDBConnectionManager:
     async def test_start_stop(self):
         """Test starting and stopping the connection manager"""
         # Mock InfluxDB client
-        with patch('src.influxdb_wrapper.InfluxDBClient') as mock_client_class:
+        with patch("src.influxdb_wrapper.InfluxDBClient") as mock_client_class:
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 
@@ -90,8 +87,10 @@ class TestInfluxDBConnectionManager:
     @pytest.mark.asyncio
     async def test_connection_success(self):
         """Test successful connection"""
-        with mock_influx_health(status=200), \
-             patch('src.influxdb_wrapper.InfluxDBClient') as mock_client_class:
+        with (
+            mock_influx_health(status=200),
+            patch("src.influxdb_wrapper.InfluxDBClient") as mock_client_class,
+        ):
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 
@@ -117,8 +116,10 @@ class TestInfluxDBConnectionManager:
     @pytest.mark.asyncio
     async def test_connection_failure(self):
         """Test connection failure"""
-        with mock_influx_health(status=500), \
-             patch('src.influxdb_wrapper.InfluxDBClient') as mock_client_class:
+        with (
+            mock_influx_health(status=500),
+            patch("src.influxdb_wrapper.InfluxDBClient") as mock_client_class,
+        ):
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 
@@ -142,8 +143,10 @@ class TestInfluxDBConnectionManager:
     @pytest.mark.asyncio
     async def test_write_points_success(self):
         """Test successful point writing"""
-        with mock_influx_health(status=200), \
-             patch('src.influxdb_wrapper.InfluxDBClient') as mock_client_class:
+        with (
+            mock_influx_health(status=200),
+            patch("src.influxdb_wrapper.InfluxDBClient") as mock_client_class,
+        ):
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 
@@ -174,8 +177,10 @@ class TestInfluxDBConnectionManager:
     @pytest.mark.asyncio
     async def test_write_points_failure(self):
         """Test point writing failure"""
-        with mock_influx_health(status=200), \
-             patch('src.influxdb_wrapper.InfluxDBClient') as mock_client_class:
+        with (
+            mock_influx_health(status=200),
+            patch("src.influxdb_wrapper.InfluxDBClient") as mock_client_class,
+        ):
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 
@@ -206,8 +211,10 @@ class TestInfluxDBConnectionManager:
     @pytest.mark.asyncio
     async def test_query_data_success(self):
         """Test successful data querying"""
-        with mock_influx_health(status=200), \
-             patch('src.influxdb_wrapper.InfluxDBClient') as mock_client_class:
+        with (
+            mock_influx_health(status=200),
+            patch("src.influxdb_wrapper.InfluxDBClient") as mock_client_class,
+        ):
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 
@@ -245,8 +252,10 @@ class TestInfluxDBConnectionManager:
     @pytest.mark.asyncio
     async def test_query_data_failure(self):
         """Test data querying failure"""
-        with mock_influx_health(status=200), \
-             patch('src.influxdb_wrapper.InfluxDBClient') as mock_client_class:
+        with (
+            mock_influx_health(status=200),
+            patch("src.influxdb_wrapper.InfluxDBClient") as mock_client_class,
+        ):
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 

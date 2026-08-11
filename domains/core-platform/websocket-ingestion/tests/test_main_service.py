@@ -24,11 +24,14 @@ load_dotenv()
 @pytest.fixture
 def mock_shared_modules():
     """Mock shared modules that may not be available in test environment"""
-    with patch.dict(sys.modules, {
-        'shared.correlation_middleware': MagicMock(),
-        'shared.enhanced_ha_connection_manager': MagicMock(),
-        'shared.logging_config': MagicMock(),
-    }):
+    with patch.dict(
+        sys.modules,
+        {
+            "shared.correlation_middleware": MagicMock(),
+            "shared.enhanced_ha_connection_manager": MagicMock(),
+            "shared.logging_config": MagicMock(),
+        },
+    ):
         yield
 
 
@@ -45,23 +48,23 @@ def mock_env_vars(monkeypatch):
     from src.config import settings
 
     overrides = {
-        'ha_http_url': 'http://test:8123',
-        'ha_ws_url': 'ws://test:8123/api/websocket',
+        "ha_http_url": "http://test:8123",
+        "ha_ws_url": "ws://test:8123/api/websocket",
         # ha_token is a SecretStr on Settings; a bare str breaks callers
         # that do .get_secret_value()
-        'ha_token': SecretStr('test-token'),
-        'enable_home_assistant': False,  # Disable HA for unit tests
-        'influxdb_url': 'http://test-influxdb:8086',
+        "ha_token": SecretStr("test-token"),
+        "enable_home_assistant": False,  # Disable HA for unit tests
+        "influxdb_url": "http://test-influxdb:8086",
         # influxdb_token is a SecretStr on BaseServiceSettings; a bare str
         # breaks callers that do .get_secret_value()
-        'influxdb_token': SecretStr('test-token'),
-        'influxdb_org': 'test-org',
-        'influxdb_bucket': 'test-bucket',
-        'max_workers': 5,
-        'processing_rate_limit': 500,
-        'batch_size': 50,
-        'batch_timeout': 2.5,
-        'max_memory_mb': 512,
+        "influxdb_token": SecretStr("test-token"),
+        "influxdb_org": "test-org",
+        "influxdb_bucket": "test-bucket",
+        "max_workers": 5,
+        "processing_rate_limit": 500,
+        "batch_size": 50,
+        "batch_timeout": 2.5,
+        "max_memory_mb": 512,
     }
     for name, value in overrides.items():
         monkeypatch.setattr(settings, name, value, raising=False)
@@ -74,8 +77,8 @@ class TestWebSocketIngestionService:
     def service(self, mock_env_vars, mock_shared_modules):
         """Create service instance with mocked dependencies"""
         from src.main import WebSocketIngestionService
-        
-        with patch('src.main.setup_logging'):
+
+        with patch("src.main.setup_logging"):
             service = WebSocketIngestionService()
             return service
 
@@ -90,19 +93,19 @@ class TestWebSocketIngestionService:
         assert service.batch_processor is None
         assert service.memory_manager is None
         assert service.influxdb_manager is None
-        assert service.home_assistant_url == 'http://test:8123'
-        assert service.home_assistant_ws_url == 'ws://test:8123/api/websocket'
-        assert service.home_assistant_token == 'test-token'
+        assert service.home_assistant_url == "http://test:8123"
+        assert service.home_assistant_ws_url == "ws://test:8123/api/websocket"
+        assert service.home_assistant_token == "test-token"
         assert service.home_assistant_enabled is False
         assert service.max_workers == 5
         assert service.processing_rate_limit == 500
         assert service.batch_size == 50
         assert service.batch_timeout == 2.5
         assert service.max_memory_mb == 512
-        assert service.influxdb_url == 'http://test-influxdb:8086'
-        assert service.influxdb_token == 'test-token'
-        assert service.influxdb_org == 'test-org'
-        assert service.influxdb_bucket == 'test-bucket'
+        assert service.influxdb_url == "http://test-influxdb:8086"
+        assert service.influxdb_token == "test-token"
+        assert service.influxdb_org == "test-org"
+        assert service.influxdb_bucket == "test-bucket"
 
     def test_entity_filter_initialization_no_config(self, service):
         """Test entity filter initialization when no config provided"""
@@ -113,30 +116,44 @@ class TestWebSocketIngestionService:
     async def test_startup_without_home_assistant(self, service):
         """Test service startup without Home Assistant enabled"""
         # Mock all async components
-        with patch.object(service, 'memory_manager', new_callable=AsyncMock) as mock_memory:
-            with patch.object(service, 'event_queue', new_callable=Mock) as mock_queue:
-                with patch.object(service, 'batch_processor', new_callable=AsyncMock) as mock_batch:
-                    with patch.object(service, 'async_event_processor', new_callable=AsyncMock) as mock_async:
-                        with patch('src.main.MemoryManager', return_value=mock_memory):
-                            with patch('src.main.EventQueue', return_value=mock_queue):
-                                with patch('src.main.BatchProcessor', return_value=mock_batch):
-                                    with patch('src.main.AsyncEventProcessor', return_value=mock_async):
-                                        with patch('src.main.InfluxDBConnectionManager') as mock_influxdb_mgr:
-                                            with patch('src.influxdb_batch_writer.InfluxDBBatchWriter') as mock_batch_writer:
-                                                with patch('src.main.HistoricalEventCounter') as mock_counter:
+        with patch.object(service, "memory_manager", new_callable=AsyncMock) as mock_memory:
+            with patch.object(service, "event_queue", new_callable=Mock) as mock_queue:
+                with patch.object(service, "batch_processor", new_callable=AsyncMock) as mock_batch:
+                    with patch.object(
+                        service, "async_event_processor", new_callable=AsyncMock
+                    ) as mock_async:
+                        with patch("src.main.MemoryManager", return_value=mock_memory):
+                            with patch("src.main.EventQueue", return_value=mock_queue):
+                                with patch("src.main.BatchProcessor", return_value=mock_batch):
+                                    with patch(
+                                        "src.main.AsyncEventProcessor", return_value=mock_async
+                                    ):
+                                        with patch(
+                                            "src.main.InfluxDBConnectionManager"
+                                        ) as mock_influxdb_mgr:
+                                            with patch(
+                                                "src.influxdb_batch_writer.InfluxDBBatchWriter"
+                                            ) as mock_batch_writer:
+                                                with patch(
+                                                    "src.main.HistoricalEventCounter"
+                                                ) as mock_counter:
                                                     # Setup mocks
-                                                    mock_influxdb_mgr.return_value.start = AsyncMock()
-                                                    mock_batch_writer.return_value.start = AsyncMock()
+                                                    mock_influxdb_mgr.return_value.start = (
+                                                        AsyncMock()
+                                                    )
+                                                    mock_batch_writer.return_value.start = (
+                                                        AsyncMock()
+                                                    )
                                                     mock_counter.return_value.initialize_historical_totals = AsyncMock(
-                                                        return_value={'total_events_received': 0}
+                                                        return_value={"total_events_received": 0}
                                                     )
                                                     mock_memory.start = AsyncMock()
                                                     mock_batch.start = AsyncMock()
                                                     mock_async.start = AsyncMock()
-                                                    
+
                                                     # Execute
                                                     await service.start()
-                                                    
+
                                                     # Verify
                                                     assert service.memory_manager is not None
                                                     assert service.event_queue is not None
@@ -146,16 +163,18 @@ class TestWebSocketIngestionService:
     @pytest.mark.asyncio
     async def test_startup_with_influxdb_failure(self, service):
         """Test service startup when InfluxDB connection fails"""
-        with patch('src.main.MemoryManager') as mock_memory:
-            with patch('src.main.EventQueue'):
-                with patch('src.main.BatchProcessor'):
-                    with patch('src.main.AsyncEventProcessor'):
-                        with patch('src.main.InfluxDBConnectionManager') as mock_influxdb_mgr:
-                            with patch('src.main.HistoricalEventCounter'):
-                                with patch('src.influxdb_batch_writer.InfluxDBBatchWriter'):
+        with patch("src.main.MemoryManager") as mock_memory:
+            with patch("src.main.EventQueue"):
+                with patch("src.main.BatchProcessor"):
+                    with patch("src.main.AsyncEventProcessor"):
+                        with patch("src.main.InfluxDBConnectionManager") as mock_influxdb_mgr:
+                            with patch("src.main.HistoricalEventCounter"):
+                                with patch("src.influxdb_batch_writer.InfluxDBBatchWriter"):
                                     # Setup InfluxDB to fail
-                                    mock_influxdb_mgr.return_value.start = AsyncMock(side_effect=Exception("Connection failed"))
-                                    
+                                    mock_influxdb_mgr.return_value.start = AsyncMock(
+                                        side_effect=Exception("Connection failed")
+                                    )
+
                                     # Should raise exception
                                     with pytest.raises(Exception):
                                         await service.start()
@@ -163,17 +182,21 @@ class TestWebSocketIngestionService:
     @pytest.mark.asyncio
     async def test_startup_with_batch_writer_failure(self, service):
         """Test service startup when batch writer fails to start"""
-        with patch('src.main.MemoryManager'):
-            with patch('src.main.EventQueue'):
-                with patch('src.main.BatchProcessor'):
-                    with patch('src.main.AsyncEventProcessor'):
-                        with patch('src.main.InfluxDBConnectionManager') as mock_influxdb_mgr:
-                            with patch('src.main.HistoricalEventCounter'):
-                                with patch('src.influxdb_batch_writer.InfluxDBBatchWriter') as mock_batch_writer:
+        with patch("src.main.MemoryManager"):
+            with patch("src.main.EventQueue"):
+                with patch("src.main.BatchProcessor"):
+                    with patch("src.main.AsyncEventProcessor"):
+                        with patch("src.main.InfluxDBConnectionManager") as mock_influxdb_mgr:
+                            with patch("src.main.HistoricalEventCounter"):
+                                with patch(
+                                    "src.influxdb_batch_writer.InfluxDBBatchWriter"
+                                ) as mock_batch_writer:
                                     # Setup InfluxDB to succeed
                                     mock_influxdb_mgr.return_value.start = AsyncMock()
                                     # Setup batch writer to fail
-                                    mock_batch_writer.return_value.start = AsyncMock(side_effect=Exception("Batch writer failed"))
+                                    mock_batch_writer.return_value.start = AsyncMock(
+                                        side_effect=Exception("Batch writer failed")
+                                    )
 
                                     # Should raise exception
                                     with pytest.raises(Exception):
@@ -189,10 +212,10 @@ class TestWebSocketIngestionService:
         service.influxdb_batch_writer = None  # Not initialized
         service.influxdb_manager = AsyncMock()
         service.connection_manager = None  # Not initialized
-        
+
         # Should not raise exception
         await service.stop()
-        
+
         # Verify initialized components were stopped
         service.async_event_processor.stop.assert_called_once()
         service.memory_manager.stop.assert_called_once()
@@ -205,10 +228,10 @@ class TestWebSocketIngestionService:
         service.async_event_processor.stop = AsyncMock(side_effect=Exception("Stop failed"))
         service.batch_processor = AsyncMock()
         service.memory_manager = AsyncMock()
-        
+
         # Should not raise exception (errors are logged but don't stop cleanup)
         await service.stop()
-        
+
         # Verify all stop methods were called
         service.async_event_processor.stop.assert_called_once()
         service.batch_processor.stop.assert_called_once()
@@ -224,10 +247,10 @@ class TestWebSocketIngestionService:
         service.influxdb_batch_writer = AsyncMock()
         service.influxdb_manager = AsyncMock()
         service.connection_manager = AsyncMock()
-        
+
         # Execute
         await service.stop()
-        
+
         # Verify cleanup called
         service.async_event_processor.stop.assert_called_once()
         service.batch_processor.stop.assert_called_once()
@@ -260,7 +283,7 @@ class TestWebSocketIngestionService:
         mock_client.websocket = mock_websocket
         service.connection_manager = Mock()
         service.connection_manager.client = mock_client
-        
+
         result = await service._check_connection_status()
         assert result is True
 
@@ -273,7 +296,7 @@ class TestWebSocketIngestionService:
         mock_client.websocket = mock_websocket
         service.connection_manager = Mock()
         service.connection_manager.client = mock_client
-        
+
         result = await service._check_connection_status()
         assert result is False
 
@@ -285,7 +308,7 @@ class TestWebSocketIngestionService:
         ConnectionManager._on_connect); this callback only reports. It is wired
         as the external on_connect in _startup.py.
         """
-        with patch('src._event_handlers.log_with_context') as mock_log:
+        with patch("src._event_handlers.log_with_context") as mock_log:
             await service._on_connect()
 
         mock_log.assert_called_once()
@@ -312,7 +335,7 @@ class TestWebSocketIngestionService:
     async def test_on_connect_no_connection_manager(self, service):
         """Test on_connect handler when connection manager is None"""
         service.connection_manager = None
-        
+
         # Should not raise exception
         await service._on_connect()
 
@@ -337,15 +360,11 @@ class TestWebSocketIngestionService:
         mock_filter.should_include = Mock(return_value=False)
         service.entity_filter = mock_filter
         service.batch_processor = AsyncMock()
-        
-        event = {
-            'event_type': 'state_changed',
-            'entity_id': 'test.entity',
-            'domain': 'test'
-        }
-        
+
+        event = {"event_type": "state_changed", "entity_id": "test.entity", "domain": "test"}
+
         await service._on_event(event)
-        
+
         # Verify filter was checked and event was not added to batch
         mock_filter.should_include.assert_called_once_with(event)
         service.batch_processor.add_event.assert_not_called()
@@ -358,15 +377,11 @@ class TestWebSocketIngestionService:
         mock_filter.should_include = Mock(return_value=True)
         service.entity_filter = mock_filter
         service.batch_processor = AsyncMock()
-        
-        event = {
-            'event_type': 'state_changed',
-            'entity_id': 'test.entity',
-            'domain': 'test'
-        }
-        
+
+        event = {"event_type": "state_changed", "entity_id": "test.entity", "domain": "test"}
+
         await service._on_event(event)
-        
+
         # Verify filter was checked and event was added to batch
         mock_filter.should_include.assert_called_once_with(event)
         service.batch_processor.add_event.assert_called_once_with(event)
@@ -376,15 +391,11 @@ class TestWebSocketIngestionService:
         """Test on_event handler without entity filter"""
         service.entity_filter = None
         service.batch_processor = AsyncMock()
-        
-        event = {
-            'event_type': 'state_changed',
-            'entity_id': 'test.entity',
-            'domain': 'test'
-        }
-        
+
+        event = {"event_type": "state_changed", "entity_id": "test.entity", "domain": "test"}
+
         await service._on_event(event)
-        
+
         # Verify event was added to batch
         service.batch_processor.add_event.assert_called_once_with(event)
 
@@ -393,17 +404,15 @@ class TestWebSocketIngestionService:
         """Test on_event handler when batch processor raises error"""
         service.entity_filter = None
         service.batch_processor = AsyncMock()
-        service.batch_processor.add_event = AsyncMock(side_effect=Exception("Batch processor error"))
-        
-        event = {
-            'event_type': 'state_changed',
-            'entity_id': 'test.entity',
-            'domain': 'test'
-        }
-        
+        service.batch_processor.add_event = AsyncMock(
+            side_effect=Exception("Batch processor error")
+        )
+
+        event = {"event_type": "state_changed", "entity_id": "test.entity", "domain": "test"}
+
         # Should not raise exception (errors are logged)
         await service._on_event(event)
-        
+
         # Verify add_event was attempted
         service.batch_processor.add_event.assert_called_once_with(event)
 
@@ -412,13 +421,9 @@ class TestWebSocketIngestionService:
         """Test on_event handler when batch processor is None"""
         service.entity_filter = None
         service.batch_processor = None
-        
-        event = {
-            'event_type': 'state_changed',
-            'entity_id': 'test.entity',
-            'domain': 'test'
-        }
-        
+
+        event = {"event_type": "state_changed", "entity_id": "test.entity", "domain": "test"}
+
         # Should not raise exception
         await service._on_event(event)
 
@@ -427,14 +432,12 @@ class TestWebSocketIngestionService:
         """Test on_event handler with event missing fields"""
         service.entity_filter = None
         service.batch_processor = AsyncMock()
-        
+
         # Event with minimal fields
-        event = {
-            'event_type': 'state_changed'
-        }
-        
+        event = {"event_type": "state_changed"}
+
         await service._on_event(event)
-        
+
         # Verify event was still added to batch
         service.batch_processor.add_event.assert_called_once_with(event)
 
@@ -444,10 +447,10 @@ class TestWebSocketIngestionService:
         mock_writer = AsyncMock()
         mock_writer.write_event = AsyncMock(return_value=True)
         service.influxdb_batch_writer = mock_writer
-        
-        event_data = {'event_type': 'test', 'data': 'test'}
+
+        event_data = {"event_type": "test", "data": "test"}
         await service._write_event_to_influxdb(event_data)
-        
+
         mock_writer.write_event.assert_called_once_with(event_data)
 
     @pytest.mark.asyncio
@@ -456,18 +459,18 @@ class TestWebSocketIngestionService:
         mock_writer = AsyncMock()
         mock_writer.write_event = AsyncMock(return_value=False)
         service.influxdb_batch_writer = mock_writer
-        
-        event_data = {'event_type': 'test', 'data': 'test'}
+
+        event_data = {"event_type": "test", "data": "test"}
         await service._write_event_to_influxdb(event_data)
-        
+
         mock_writer.write_event.assert_called_once_with(event_data)
 
     @pytest.mark.asyncio
     async def test_write_event_to_influxdb_no_writer(self, service):
         """Test writing event when batch writer is None"""
         service.influxdb_batch_writer = None
-        
-        event_data = {'event_type': 'test', 'data': 'test'}
+
+        event_data = {"event_type": "test", "data": "test"}
         # Should not raise exception
         await service._write_event_to_influxdb(event_data)
 
@@ -477,11 +480,11 @@ class TestWebSocketIngestionService:
         mock_writer = AsyncMock()
         mock_writer.write_event = AsyncMock(side_effect=Exception("Write failed"))
         service.influxdb_batch_writer = mock_writer
-        
-        event_data = {'event_type': 'test', 'data': 'test'}
+
+        event_data = {"event_type": "test", "data": "test"}
         # Should not raise exception (errors are logged)
         await service._write_event_to_influxdb(event_data)
-        
+
         # Verify write was attempted
         mock_writer.write_event.assert_called_once_with(event_data)
 
@@ -491,14 +494,11 @@ class TestWebSocketIngestionService:
         mock_processor = AsyncMock()
         mock_processor.process_event = AsyncMock()
         service.async_event_processor = mock_processor
-        
-        batch = [
-            {'event_type': 'test1', 'data': 'test1'},
-            {'event_type': 'test2', 'data': 'test2'}
-        ]
-        
+
+        batch = [{"event_type": "test1", "data": "test1"}, {"event_type": "test2", "data": "test2"}]
+
         await service._process_batch(batch)
-        
+
         # Verify all events were processed
         assert mock_processor.process_event.call_count == 2
 
@@ -507,9 +507,9 @@ class TestWebSocketIngestionService:
         """Test batch processing with empty batch"""
         mock_processor = AsyncMock()
         service.async_event_processor = mock_processor
-        
+
         await service._process_batch([])
-        
+
         # Should not call process_event
         mock_processor.process_event.assert_not_called()
 
@@ -519,15 +519,12 @@ class TestWebSocketIngestionService:
         mock_processor = AsyncMock()
         mock_processor.process_event = AsyncMock(side_effect=Exception("Processing failed"))
         service.async_event_processor = mock_processor
-        
-        batch = [
-            {'event_type': 'test1', 'data': 'test1'},
-            {'event_type': 'test2', 'data': 'test2'}
-        ]
-        
+
+        batch = [{"event_type": "test1", "data": "test1"}, {"event_type": "test2", "data": "test2"}]
+
         # Should not raise exception (errors are logged)
         await service._process_batch(batch)
-        
+
         # Verify processing was attempted for all events
         assert mock_processor.process_event.call_count == 2
 
@@ -535,11 +532,9 @@ class TestWebSocketIngestionService:
     async def test_process_batch_no_processor(self, service):
         """Test batch processing when processor is None"""
         service.async_event_processor = None
-        
-        batch = [
-            {'event_type': 'test1', 'data': 'test1'}
-        ]
-        
+
+        batch = [{"event_type": "test1", "data": "test1"}]
+
         # Should not raise exception
         await service._process_batch(batch)
 
@@ -568,22 +563,22 @@ class TestWebSocketIngestionService:
         """CRITICAL: This test prevents AttributeError crashes when entities are deleted"""
         service.entity_filter = None
         service.batch_processor = AsyncMock()
-        
+
         # Simulate entity deletion event (new_state is None)
         event = {
-            'event_type': 'state_changed',
-            'entity_id': 'test.entity',
-            'old_state': {
-                'entity_id': 'test.entity',
-                'state': 'on',
-                'last_changed': '2025-01-01T00:00:00Z'
+            "event_type": "state_changed",
+            "entity_id": "test.entity",
+            "old_state": {
+                "entity_id": "test.entity",
+                "state": "on",
+                "last_changed": "2025-01-01T00:00:00Z",
             },
-            'new_state': None  # Entity deleted
+            "new_state": None,  # Entity deleted
         }
-        
+
         # Should not raise AttributeError
         await service._on_event(event)
-        
+
         # Verify event was still added to batch (deletion events should be processed)
         service.batch_processor.add_event.assert_called_once()
 
@@ -596,16 +591,14 @@ class TestMainFunction:
         """Test main() function calls uvicorn.run"""
         mock_uvicorn = Mock()
         mock_uvicorn.run = Mock()
-        monkeypatch.setenv('WEBSOCKET_INGESTION_PORT', '8001')
-        monkeypatch.setenv('WEBSOCKET_INGESTION_HOST', '127.0.0.1')
-        
-        with patch.dict('sys.modules', {'uvicorn': mock_uvicorn}):
-            with patch('src.main.app'):
-                # Note: main() will block, so we can't easily test it in unit tests
-                # This is more of an integration test scenario
-                pass  # Placeholder for main() testing
+        monkeypatch.setenv("WEBSOCKET_INGESTION_PORT", "8001")
+        monkeypatch.setenv("WEBSOCKET_INGESTION_HOST", "127.0.0.1")
+
+        with patch.dict("sys.modules", {"uvicorn": mock_uvicorn}), patch("src.main.app"):
+            # Note: main() will block, so we can't easily test it in unit tests
+            # This is more of an integration test scenario
+            pass  # Placeholder for main() testing
 
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--cov=src.main", "--cov-report=term-missing"])
-

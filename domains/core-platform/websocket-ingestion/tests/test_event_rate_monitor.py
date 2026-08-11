@@ -42,7 +42,7 @@ class TestEventRateMonitorEventRecording:
         event_data = {
             "event_type": "state_changed",
             "entity_id": "light.living_room",
-            "state": "on"
+            "state": "on",
         }
 
         await monitor.record_event(event_data)
@@ -60,7 +60,7 @@ class TestEventRateMonitorEventRecording:
             event_data = {
                 "event_type": "state_changed",
                 "entity_id": f"light.room_{i}",
-                "state": "on"
+                "state": "on",
             }
             await monitor.record_event(event_data)
 
@@ -94,17 +94,11 @@ class TestEventRateMonitorEventRecording:
 
         # Record events for light.1
         for i in range(3):
-            await monitor.record_event({
-                "event_type": "state_changed",
-                "entity_id": "light.1"
-            })
+            await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         # Record events for light.2
         for i in range(2):
-            await monitor.record_event({
-                "event_type": "state_changed",
-                "entity_id": "light.2"
-            })
+            await monitor.record_event({"event_type": "state_changed", "entity_id": "light.2"})
 
         assert monitor.events_by_entity["light.1"] == 3
         assert monitor.events_by_entity["light.2"] == 2
@@ -113,9 +107,7 @@ class TestEventRateMonitorEventRecording:
         """Test recording event without entity_id"""
         monitor = EventRateMonitor()
 
-        event_data = {
-            "event_type": "service_registered"
-        }
+        event_data = {"event_type": "service_registered"}
 
         await monitor.record_event(event_data)
 
@@ -195,10 +187,9 @@ class TestEventRateMonitorStatistics:
 
         # Record some events
         for i in range(10):
-            await monitor.record_event({
-                "event_type": "state_changed",
-                "entity_id": f"light.{i % 3}"
-            })
+            await monitor.record_event(
+                {"event_type": "state_changed", "entity_id": f"light.{i % 3}"}
+            )
 
         stats = await monitor.get_rate_statistics()
 
@@ -230,22 +221,13 @@ class TestEventRateMonitorStatistics:
 
         # Record events with different frequencies
         for i in range(10):
-            await monitor.record_event({
-                "event_type": "state_changed",
-                "entity_id": "light.1"
-            })
+            await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         for i in range(5):
-            await monitor.record_event({
-                "event_type": "state_changed",
-                "entity_id": "light.2"
-            })
+            await monitor.record_event({"event_type": "state_changed", "entity_id": "light.2"})
 
         for i in range(2):
-            await monitor.record_event({
-                "event_type": "state_changed",
-                "entity_id": "light.3"
-            })
+            await monitor.record_event({"event_type": "state_changed", "entity_id": "light.3"})
 
         stats = await monitor.get_rate_statistics()
         top_entities = stats["top_entities"]
@@ -264,10 +246,7 @@ class TestEventRateMonitorStatistics:
 
         # Record events for 20 entities
         for i in range(20):
-            await monitor.record_event({
-                "event_type": "state_changed",
-                "entity_id": f"light.{i}"
-            })
+            await monitor.record_event({"event_type": "state_changed", "entity_id": f"light.{i}"})
 
         stats = await monitor.get_rate_statistics()
         top_entities = stats["top_entities"]
@@ -358,10 +337,7 @@ class TestEventRateMonitorStatisticsReset:
 
         # Record some events
         for i in range(10):
-            await monitor.record_event({
-                "event_type": "state_changed",
-                "entity_id": "light.1"
-            })
+            await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         assert monitor.total_events == 10
 
@@ -396,10 +372,7 @@ class TestEventRateMonitorConcurrency:
 
         async def record_events():
             for _ in range(events_per_recorder):
-                await monitor.record_event({
-                    "event_type": "state_changed",
-                    "entity_id": "light.1"
-                })
+                await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         await asyncio.gather(*(record_events() for _ in range(num_recorders)))
 
@@ -417,10 +390,7 @@ class TestEventRateMonitorEdgeCases:
         monitor = EventRateMonitor()
 
         # Record event with None values
-        event_data = {
-            "event_type": None,
-            "entity_id": None
-        }
+        event_data = {"event_type": None, "entity_id": None}
 
         await monitor.record_event(event_data)
 
@@ -446,10 +416,9 @@ class TestEventRateMonitorEdgeCases:
 
         # Record many events
         for i in range(1000):
-            await monitor.record_event({
-                "event_type": "state_changed",
-                "entity_id": f"light.{i % 100}"
-            })
+            await monitor.record_event(
+                {"event_type": "state_changed", "entity_id": f"light.{i % 100}"}
+            )
 
         assert monitor.total_events == 1000
         assert len(monitor.events_by_entity) == 100
@@ -467,10 +436,7 @@ class TestEventRateMonitorRateTrends:
 
         # Record some events
         for i in range(30):
-            await monitor.record_event({
-                "event_type": "state_changed",
-                "entity_id": "light.1"
-            })
+            await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         stats = await monitor.get_rate_statistics()
 
@@ -484,10 +450,7 @@ class TestEventRateMonitorRateTrends:
 
         # Record some events
         for i in range(30):
-            await monitor.record_event({
-                "event_type": "state_changed",
-                "entity_id": "light.1"
-            })
+            await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         stats = await monitor.get_rate_statistics()
 

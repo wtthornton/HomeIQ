@@ -24,7 +24,7 @@ class EventProcessor:
             "state_changed": ["event_type", "new_state"],
             "call_service": ["event_type", "domain", "service", "service_data"],
             "service_registered": ["event_type", "domain", "service"],
-            "service_removed": ["event_type", "domain", "service"]
+            "service_removed": ["event_type", "domain", "service"],
         }
 
     def validate_event(self, event_data: dict[str, Any]) -> tuple[bool, str]:
@@ -181,7 +181,7 @@ class EventProcessor:
             extracted = {
                 "event_type": event_data.get("event_type"),
                 "timestamp": datetime.now(UTC).isoformat(),
-                "raw_data": event_data.copy()
+                "raw_data": event_data.copy(),
             }
 
             event_type = event_data.get("event_type")
@@ -202,7 +202,7 @@ class EventProcessor:
                 "event_type": "error",
                 "timestamp": datetime.now(UTC).isoformat(),
                 "error": str(e),
-                "raw_data": event_data
+                "raw_data": event_data,
             }
 
     def _extract_state_changed_data(self, event_data: dict[str, Any]) -> dict[str, Any]:
@@ -256,15 +256,24 @@ class EventProcessor:
                 # Epic 23.5: Look up device metadata for reliability analysis
                 device_metadata = self.discovery_service.get_device_metadata(device_id)
                 if device_metadata:
-                    logger.debug(f"Found device metadata for device {device_id}: "
-                               f"{device_metadata.get('manufacturer')}/{device_metadata.get('model')}")
+                    logger.debug(
+                        f"Found device metadata for device {device_id}: "
+                        f"{device_metadata.get('manufacturer')}/{device_metadata.get('model')}"
+                    )
 
             if area_id:
                 logger.debug(f"Found area_id {area_id} for entity {entity_id}")
 
         # Epic 23.3: Calculate duration_in_state for time-based analytics
         duration_in_state = None
-        if old_state and isinstance(old_state, dict) and "last_changed" in old_state and new_state and isinstance(new_state, dict) and "last_changed" in new_state:
+        if (
+            old_state
+            and isinstance(old_state, dict)
+            and "last_changed" in old_state
+            and new_state
+            and isinstance(new_state, dict)
+            and "last_changed" in new_state
+        ):
             try:
                 # Parse timestamps (handle both with and without 'Z' suffix)
                 old_time_str = old_state["last_changed"].replace("Z", "+00:00")
@@ -278,10 +287,14 @@ class EventProcessor:
 
                 # Validation: Warn for negative or very long durations
                 if duration_seconds < 0:
-                    logger.warning(f"Negative duration calculated: {duration_seconds}s for entity {entity_id}")
+                    logger.warning(
+                        f"Negative duration calculated: {duration_seconds}s for entity {entity_id}"
+                    )
                     duration_in_state = 0  # Clamp to 0
                 elif duration_seconds > 604800:  # 7 days in seconds
-                    logger.warning(f"Very long duration detected: {duration_seconds}s ({duration_seconds/86400:.1f} days) for entity {entity_id}")
+                    logger.warning(
+                        f"Very long duration detected: {duration_seconds}s ({duration_seconds / 86400:.1f} days) for entity {entity_id}"
+                    )
                     duration_in_state = duration_seconds  # Keep the value but log warning
                 else:
                     duration_in_state = duration_seconds
@@ -313,10 +326,9 @@ class EventProcessor:
             "state_change": {
                 "from": old_state.get("state") if isinstance(old_state, dict) else None,
                 "to": new_state.get("state") if isinstance(new_state, dict) else None,
-                "changed": (old_state.get("state") if isinstance(old_state, dict) else None) != (
-                    new_state.get("state") if isinstance(new_state, dict) else None
-                )
-            }
+                "changed": (old_state.get("state") if isinstance(old_state, dict) else None)
+                != (new_state.get("state") if isinstance(new_state, dict) else None),
+            },
         }
 
     def _extract_call_service_data(self, event_data: dict[str, Any]) -> dict[str, Any]:
@@ -333,7 +345,7 @@ class EventProcessor:
             "domain": event_data.get("domain"),
             "service": event_data.get("service"),
             "service_data": event_data.get("service_data", {}),
-            "entity_id": event_data.get("entity_id")
+            "entity_id": event_data.get("entity_id"),
         }
 
     def process_event(self, event_data: dict[str, Any]) -> dict[str, Any] | None:
@@ -406,9 +418,14 @@ class EventProcessor:
         return {
             "processed_events": self.processed_events,
             "validation_errors": self.validation_errors,
-            "success_rate": (self.processed_events / (self.processed_events + self.validation_errors) * 100)
-                           if (self.processed_events + self.validation_errors) > 0 else 0,
-            "last_processed_time": self.last_processed_time.isoformat() if self.last_processed_time else None
+            "success_rate": (
+                self.processed_events / (self.processed_events + self.validation_errors) * 100
+            )
+            if (self.processed_events + self.validation_errors) > 0
+            else 0,
+            "last_processed_time": self.last_processed_time.isoformat()
+            if self.last_processed_time
+            else None,
         }
 
     def reset_statistics(self):

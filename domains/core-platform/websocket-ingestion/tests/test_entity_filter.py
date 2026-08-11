@@ -9,19 +9,16 @@ def test_filter_exclude_mode():
     """Test exclude mode (opt-out)"""
     config = {
         "mode": "exclude",
-        "patterns": [
-            {"entity_id": "sensor.*_battery"},
-            {"device_class": "battery"}
-        ]
+        "patterns": [{"entity_id": "sensor.*_battery"}, {"device_class": "battery"}],
     }
     filter_obj = EntityFilter(config)
-    
+
     # Should exclude battery sensors
     assert not filter_obj.should_include({"entity_id": "sensor.device_battery"})
     assert not filter_obj.should_include(
         {"entity_id": "sensor.phone_battery", "device_class": "battery"}
     )
-    
+
     # Should include other entities
     assert filter_obj.should_include({"entity_id": "sensor.temperature"})
     assert filter_obj.should_include({"entity_id": "light.living_room"})
@@ -29,19 +26,13 @@ def test_filter_exclude_mode():
 
 def test_filter_include_mode():
     """Test include mode (opt-in)"""
-    config = {
-        "mode": "include",
-        "patterns": [
-            {"domain": "sensor"},
-            {"domain": "light"}
-        ]
-    }
+    config = {"mode": "include", "patterns": [{"domain": "sensor"}, {"domain": "light"}]}
     filter_obj = EntityFilter(config)
-    
+
     # Should include matching entities
     assert filter_obj.should_include({"entity_id": "sensor.temperature"})
     assert filter_obj.should_include({"entity_id": "light.living_room"})
-    
+
     # Should exclude non-matching entities
     assert not filter_obj.should_include({"entity_id": "switch.kitchen"})
 
@@ -50,32 +41,23 @@ def test_filter_exceptions():
     """Test exception patterns (always included)"""
     config = {
         "mode": "exclude",
-        "patterns": [
-            {"entity_id": "sensor.*_battery"}
-        ],
-        "exceptions": [
-            {"entity_id": "sensor.important_battery"}
-        ]
+        "patterns": [{"entity_id": "sensor.*_battery"}],
+        "exceptions": [{"entity_id": "sensor.important_battery"}],
     }
     filter_obj = EntityFilter(config)
-    
+
     # Exception should override filter
     assert filter_obj.should_include({"entity_id": "sensor.important_battery"})
-    
+
     # Other battery sensors should be filtered
     assert not filter_obj.should_include({"entity_id": "sensor.device_battery"})
 
 
 def test_filter_domain():
     """Test filtering by domain"""
-    config = {
-        "mode": "exclude",
-        "patterns": [
-            {"domain": "diagnostic"}
-        ]
-    }
+    config = {"mode": "exclude", "patterns": [{"domain": "diagnostic"}]}
     filter_obj = EntityFilter(config)
-    
+
     # Should extract domain from entity_id
     assert not filter_obj.should_include({"entity_id": "diagnostic.sensor"})
     assert filter_obj.should_include({"entity_id": "sensor.temperature"})
@@ -83,14 +65,9 @@ def test_filter_domain():
 
 def test_filter_device_class():
     """Test filtering by device_class"""
-    config = {
-        "mode": "exclude",
-        "patterns": [
-            {"device_class": "battery"}
-        ]
-    }
+    config = {"mode": "exclude", "patterns": [{"device_class": "battery"}]}
     filter_obj = EntityFilter(config)
-    
+
     assert not filter_obj.should_include(
         {"entity_id": "sensor.phone_battery", "device_class": "battery"}
     )
@@ -101,17 +78,10 @@ def test_filter_device_class():
 
 def test_filter_area_id():
     """Test filtering by area_id"""
-    config = {
-        "mode": "exclude",
-        "patterns": [
-            {"area_id": "garage"}
-        ]
-    }
+    config = {"mode": "exclude", "patterns": [{"area_id": "garage"}]}
     filter_obj = EntityFilter(config)
-    
-    assert not filter_obj.should_include(
-        {"entity_id": "light.garage_main", "area_id": "garage"}
-    )
+
+    assert not filter_obj.should_include({"entity_id": "light.garage_main", "area_id": "garage"})
     assert filter_obj.should_include(
         {"entity_id": "light.living_room_lamp", "area_id": "living_room"}
     )
@@ -119,19 +89,16 @@ def test_filter_area_id():
 
 def test_filter_statistics():
     """Test filter statistics tracking"""
-    config = {
-        "mode": "exclude",
-        "patterns": [{"entity_id": "sensor.*_battery"}]
-    }
+    config = {"mode": "exclude", "patterns": [{"entity_id": "sensor.*_battery"}]}
     filter_obj = EntityFilter(config)
-    
+
     # Process some events
     filter_obj.should_include({"entity_id": "sensor.device_battery"})  # Filtered
     filter_obj.should_include({"entity_id": "sensor.temperature"})  # Passed
     # sensor.*_battery requires the _battery suffix, so the previous
     # "sensor.battery2" here never matched and was counted as passed
     filter_obj.should_include({"entity_id": "sensor.phone_battery"})  # Filtered
-    
+
     stats = filter_obj.get_statistics()
     assert stats["filtered_count"] == 2
     assert stats["passed_count"] == 1
@@ -141,7 +108,7 @@ def test_filter_statistics():
 def test_filter_no_config():
     """Test filter with no configuration (default: include all)"""
     filter_obj = EntityFilter()
-    
+
     # Should include all entities by default
     assert filter_obj.should_include({"entity_id": "sensor.temperature"})
     assert filter_obj.should_include({"entity_id": "light.living_room"})
@@ -149,21 +116,14 @@ def test_filter_no_config():
 
 def test_filter_reload_config():
     """Test reloading filter configuration"""
-    config1 = {
-        "mode": "exclude",
-        "patterns": [{"entity_id": "sensor.*_battery"}]
-    }
+    config1 = {"mode": "exclude", "patterns": [{"entity_id": "sensor.*_battery"}]}
     filter_obj = EntityFilter(config1)
-    
+
     assert not filter_obj.should_include({"entity_id": "sensor.device_battery"})
-    
+
     # Reload with new config
-    config2 = {
-        "mode": "include",
-        "patterns": [{"domain": "sensor"}]
-    }
+    config2 = {"mode": "include", "patterns": [{"domain": "sensor"}]}
     filter_obj.reload_config(config2)
-    
+
     assert filter_obj.should_include({"entity_id": "sensor.device_battery"})
     assert not filter_obj.should_include({"entity_id": "light.living_room"})
-

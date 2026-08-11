@@ -51,7 +51,9 @@ async def start_processing_components(
     await svc.async_event_processor.start()
 
     log_with_context(
-        logger, "INFO", "High-volume processing components started",
+        logger,
+        "INFO",
+        "High-volume processing components started",
         operation="component_startup",
         correlation_id=corr_id,
     )
@@ -64,7 +66,9 @@ async def start_processing_components(
         svc.house_status_publisher = StatusWebSocketPublisher()
         await svc.house_status_publisher.start()
         log_with_context(
-            logger, "INFO", "House status aggregator + publisher started",
+            logger,
+            "INFO",
+            "House status aggregator + publisher started",
             operation="house_status_startup",
             correlation_id=corr_id,
         )
@@ -88,7 +92,9 @@ async def start_influxdb_pipeline(
     )
     await svc.influxdb_manager.start()
     log_with_context(
-        logger, "INFO", "InfluxDB manager started",
+        logger,
+        "INFO",
+        "InfluxDB manager started",
         operation="influxdb_connection",
         correlation_id=corr_id,
     )
@@ -96,7 +102,9 @@ async def start_influxdb_pipeline(
     svc.historical_counter = HistoricalEventCounter(svc.influxdb_manager)
     historical_totals = await svc.historical_counter.initialize_historical_totals()
     log_with_context(
-        logger, "INFO", "Historical event totals initialized",
+        logger,
+        "INFO",
+        "Historical event totals initialized",
         operation="historical_counter_init",
         correlation_id=corr_id,
         total_events=historical_totals.get("total_events_received", 0),
@@ -113,7 +121,9 @@ async def start_influxdb_pipeline(
     )
     await svc.influxdb_batch_writer.start()
     log_with_context(
-        logger, "INFO", "InfluxDB batch writer started",
+        logger,
+        "INFO",
+        "InfluxDB batch writer started",
         operation="influxdb_batch_writer_startup",
         correlation_id=corr_id,
     )
@@ -128,7 +138,8 @@ async def start_ha_connection(
     """Connect to Home Assistant if enabled, otherwise log standalone mode."""
     if not svc.home_assistant_enabled:
         log_with_context(
-            logger, "INFO",
+            logger,
+            "INFO",
             "Home Assistant connection disabled - running in standalone mode",
             operation="ha_connection_startup",
             correlation_id=corr_id,
@@ -174,12 +185,12 @@ async def start_ha_connection(
 
     # Epic 28: Wire discovery service into house status aggregator for area lookups.
     if svc.house_status_aggregator and svc.connection_manager:
-        svc.house_status_aggregator._discovery = (
-            svc.connection_manager.discovery_service
-        )
+        svc.house_status_aggregator._discovery = svc.connection_manager.discovery_service
 
     log_with_context(
-        logger, "INFO", "Home Assistant connection manager started",
+        logger,
+        "INFO",
+        "Home Assistant connection manager started",
         operation="ha_connection_startup",
         correlation_id=corr_id,
         connection_name=connection_config.name,

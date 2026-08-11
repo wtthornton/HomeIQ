@@ -11,16 +11,15 @@ All external dependencies are mocked; these are pure unit tests.
 
 from __future__ import annotations
 
-import sys
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_svc(**extra_attrs: Any) -> MagicMock:
     """Return a minimal mock service object.
@@ -87,6 +86,7 @@ _INFLUXDB_BATCH_WRITER = "src.influxdb_batch_writer.InfluxDBBatchWriter"
 # Tests: start_processing_components
 # ---------------------------------------------------------------------------
 
+
 class TestStartProcessingComponents:
     """Tests for the start_processing_components startup phase."""
 
@@ -100,14 +100,16 @@ class TestStartProcessingComponents:
         svc = make_svc()
         mock_mm = AsyncMock()
 
-        with patch(_MEMORY_MANAGER, return_value=mock_mm) as MockMM, \
-             patch(_EVENT_QUEUE, return_value=MagicMock()), \
-             patch(_BATCH_PROCESSOR, return_value=AsyncMock()), \
-             patch(_ASYNC_EVENT_PROCESSOR, return_value=AsyncMock()), \
-             patch(_HOUSE_STATUS_AGGREGATOR, return_value=MagicMock()), \
-             patch(_STATUS_WS_PUBLISHER, return_value=AsyncMock()):
-
+        with (
+            patch(_MEMORY_MANAGER, return_value=mock_mm) as MockMM,
+            patch(_EVENT_QUEUE, return_value=MagicMock()),
+            patch(_BATCH_PROCESSOR, return_value=AsyncMock()),
+            patch(_ASYNC_EVENT_PROCESSOR, return_value=AsyncMock()),
+            patch(_HOUSE_STATUS_AGGREGATOR, return_value=MagicMock()),
+            patch(_STATUS_WS_PUBLISHER, return_value=AsyncMock()),
+        ):
             from src._startup import start_processing_components
+
             await start_processing_components(svc, "corr-001")
 
         MockMM.assert_called_once_with(max_memory_mb=svc.cfg.max_memory_mb)
@@ -118,14 +120,16 @@ class TestStartProcessingComponents:
         svc = make_svc()
         mock_eq = MagicMock()
 
-        with patch(_MEMORY_MANAGER, return_value=AsyncMock()), \
-             patch(_EVENT_QUEUE, return_value=mock_eq) as MockEQ, \
-             patch(_BATCH_PROCESSOR, return_value=AsyncMock()), \
-             patch(_ASYNC_EVENT_PROCESSOR, return_value=AsyncMock()), \
-             patch(_HOUSE_STATUS_AGGREGATOR, return_value=MagicMock()), \
-             patch(_STATUS_WS_PUBLISHER, return_value=AsyncMock()):
-
+        with (
+            patch(_MEMORY_MANAGER, return_value=AsyncMock()),
+            patch(_EVENT_QUEUE, return_value=mock_eq) as MockEQ,
+            patch(_BATCH_PROCESSOR, return_value=AsyncMock()),
+            patch(_ASYNC_EVENT_PROCESSOR, return_value=AsyncMock()),
+            patch(_HOUSE_STATUS_AGGREGATOR, return_value=MagicMock()),
+            patch(_STATUS_WS_PUBLISHER, return_value=AsyncMock()),
+        ):
             from src._startup import start_processing_components
+
             await start_processing_components(svc, "corr-001")
 
         MockEQ.assert_called_once_with(maxsize=10000)
@@ -136,14 +140,16 @@ class TestStartProcessingComponents:
         svc = make_svc()
         mock_bp = AsyncMock()
 
-        with patch(_MEMORY_MANAGER, return_value=AsyncMock()), \
-             patch(_EVENT_QUEUE, return_value=MagicMock()), \
-             patch(_BATCH_PROCESSOR, return_value=mock_bp) as MockBP, \
-             patch(_ASYNC_EVENT_PROCESSOR, return_value=AsyncMock()), \
-             patch(_HOUSE_STATUS_AGGREGATOR, return_value=MagicMock()), \
-             patch(_STATUS_WS_PUBLISHER, return_value=AsyncMock()):
-
+        with (
+            patch(_MEMORY_MANAGER, return_value=AsyncMock()),
+            patch(_EVENT_QUEUE, return_value=MagicMock()),
+            patch(_BATCH_PROCESSOR, return_value=mock_bp) as MockBP,
+            patch(_ASYNC_EVENT_PROCESSOR, return_value=AsyncMock()),
+            patch(_HOUSE_STATUS_AGGREGATOR, return_value=MagicMock()),
+            patch(_STATUS_WS_PUBLISHER, return_value=AsyncMock()),
+        ):
             from src._startup import start_processing_components
+
             await start_processing_components(svc, "corr-001")
 
         MockBP.assert_called_once_with(
@@ -157,14 +163,16 @@ class TestStartProcessingComponents:
         svc = make_svc()
         mock_aep = AsyncMock()
 
-        with patch(_MEMORY_MANAGER, return_value=AsyncMock()), \
-             patch(_EVENT_QUEUE, return_value=MagicMock()), \
-             patch(_BATCH_PROCESSOR, return_value=AsyncMock()), \
-             patch(_ASYNC_EVENT_PROCESSOR, return_value=mock_aep) as MockAEP, \
-             patch(_HOUSE_STATUS_AGGREGATOR, return_value=MagicMock()), \
-             patch(_STATUS_WS_PUBLISHER, return_value=AsyncMock()):
-
+        with (
+            patch(_MEMORY_MANAGER, return_value=AsyncMock()),
+            patch(_EVENT_QUEUE, return_value=MagicMock()),
+            patch(_BATCH_PROCESSOR, return_value=AsyncMock()),
+            patch(_ASYNC_EVENT_PROCESSOR, return_value=mock_aep) as MockAEP,
+            patch(_HOUSE_STATUS_AGGREGATOR, return_value=MagicMock()),
+            patch(_STATUS_WS_PUBLISHER, return_value=AsyncMock()),
+        ):
             from src._startup import start_processing_components
+
             await start_processing_components(svc, "corr-001")
 
         MockAEP.assert_called_once_with(
@@ -180,14 +188,16 @@ class TestStartProcessingComponents:
         mock_bp = AsyncMock()
         mock_aep = AsyncMock()
 
-        with patch(_MEMORY_MANAGER, return_value=mock_mm), \
-             patch(_EVENT_QUEUE), \
-             patch(_BATCH_PROCESSOR, return_value=mock_bp), \
-             patch(_ASYNC_EVENT_PROCESSOR, return_value=mock_aep), \
-             patch(_HOUSE_STATUS_AGGREGATOR), \
-             patch(_STATUS_WS_PUBLISHER):
-
+        with (
+            patch(_MEMORY_MANAGER, return_value=mock_mm),
+            patch(_EVENT_QUEUE),
+            patch(_BATCH_PROCESSOR, return_value=mock_bp),
+            patch(_ASYNC_EVENT_PROCESSOR, return_value=mock_aep),
+            patch(_HOUSE_STATUS_AGGREGATOR),
+            patch(_STATUS_WS_PUBLISHER),
+        ):
             from src._startup import start_processing_components
+
             await start_processing_components(svc, "corr-001")
 
         mock_mm.start.assert_awaited_once()
@@ -199,14 +209,16 @@ class TestStartProcessingComponents:
         svc = make_svc()
         mock_bp = AsyncMock()
 
-        with patch(_MEMORY_MANAGER, return_value=AsyncMock()), \
-             patch(_EVENT_QUEUE), \
-             patch(_BATCH_PROCESSOR, return_value=mock_bp), \
-             patch(_ASYNC_EVENT_PROCESSOR, return_value=AsyncMock()), \
-             patch(_HOUSE_STATUS_AGGREGATOR), \
-             patch(_STATUS_WS_PUBLISHER):
-
+        with (
+            patch(_MEMORY_MANAGER, return_value=AsyncMock()),
+            patch(_EVENT_QUEUE),
+            patch(_BATCH_PROCESSOR, return_value=mock_bp),
+            patch(_ASYNC_EVENT_PROCESSOR, return_value=AsyncMock()),
+            patch(_HOUSE_STATUS_AGGREGATOR),
+            patch(_STATUS_WS_PUBLISHER),
+        ):
             from src._startup import start_processing_components
+
             await start_processing_components(svc, "corr-001")
 
         mock_bp.add_batch_handler.assert_called_once_with(svc._process_batch)
@@ -217,14 +229,16 @@ class TestStartProcessingComponents:
         mock_agg = MagicMock()
         mock_pub = AsyncMock()
 
-        with patch(_MEMORY_MANAGER, return_value=AsyncMock()), \
-             patch(_EVENT_QUEUE), \
-             patch(_BATCH_PROCESSOR, return_value=AsyncMock()), \
-             patch(_ASYNC_EVENT_PROCESSOR, return_value=AsyncMock()), \
-             patch(_HOUSE_STATUS_AGGREGATOR, return_value=mock_agg), \
-             patch(_STATUS_WS_PUBLISHER, return_value=mock_pub):
-
+        with (
+            patch(_MEMORY_MANAGER, return_value=AsyncMock()),
+            patch(_EVENT_QUEUE),
+            patch(_BATCH_PROCESSOR, return_value=AsyncMock()),
+            patch(_ASYNC_EVENT_PROCESSOR, return_value=AsyncMock()),
+            patch(_HOUSE_STATUS_AGGREGATOR, return_value=mock_agg),
+            patch(_STATUS_WS_PUBLISHER, return_value=mock_pub),
+        ):
             from src._startup import start_processing_components
+
             await start_processing_components(svc, "corr-001")
 
         assert svc.house_status_aggregator is mock_agg
@@ -235,14 +249,16 @@ class TestStartProcessingComponents:
         """If HouseStatusAggregator raises, aggregator and publisher are set to None."""
         svc = make_svc()
 
-        with patch(_MEMORY_MANAGER, return_value=AsyncMock()), \
-             patch(_EVENT_QUEUE), \
-             patch(_BATCH_PROCESSOR, return_value=AsyncMock()), \
-             patch(_ASYNC_EVENT_PROCESSOR, return_value=AsyncMock()), \
-             patch(_HOUSE_STATUS_AGGREGATOR, side_effect=RuntimeError("init failed")), \
-             patch(_STATUS_WS_PUBLISHER):
-
+        with (
+            patch(_MEMORY_MANAGER, return_value=AsyncMock()),
+            patch(_EVENT_QUEUE),
+            patch(_BATCH_PROCESSOR, return_value=AsyncMock()),
+            patch(_ASYNC_EVENT_PROCESSOR, return_value=AsyncMock()),
+            patch(_HOUSE_STATUS_AGGREGATOR, side_effect=RuntimeError("init failed")),
+            patch(_STATUS_WS_PUBLISHER),
+        ):
             from src._startup import start_processing_components
+
             # Must not raise
             await start_processing_components(svc, "corr-001")
 
@@ -253,6 +269,7 @@ class TestStartProcessingComponents:
 # ---------------------------------------------------------------------------
 # Tests: start_influxdb_pipeline
 # ---------------------------------------------------------------------------
+
 
 class TestStartInfluxdbPipeline:
     """Tests for the start_influxdb_pipeline startup phase."""
@@ -277,11 +294,13 @@ class TestStartInfluxdbPipeline:
             return_value={"total_events_received": 0}
         )
 
-        with patch(_INFLUXDB_CONN_MANAGER, return_value=mock_mgr) as MockMgr, \
-             patch(_HISTORICAL_COUNTER, return_value=historical_mock), \
-             patch(_INFLUXDB_BATCH_WRITER, return_value=batch_writer_mock):
-
+        with (
+            patch(_INFLUXDB_CONN_MANAGER, return_value=mock_mgr) as MockMgr,
+            patch(_HISTORICAL_COUNTER, return_value=historical_mock),
+            patch(_INFLUXDB_BATCH_WRITER, return_value=batch_writer_mock),
+        ):
             from src._startup import start_influxdb_pipeline
+
             await start_influxdb_pipeline(svc, "corr-002")
 
         MockMgr.assert_called_once_with(
@@ -302,11 +321,13 @@ class TestStartInfluxdbPipeline:
         )
         batch_writer_mock = AsyncMock()
 
-        with patch(_INFLUXDB_CONN_MANAGER, return_value=mock_mgr), \
-             patch(_HISTORICAL_COUNTER, return_value=historical_mock) as MockHC, \
-             patch(_INFLUXDB_BATCH_WRITER, return_value=batch_writer_mock):
-
+        with (
+            patch(_INFLUXDB_CONN_MANAGER, return_value=mock_mgr),
+            patch(_HISTORICAL_COUNTER, return_value=historical_mock) as MockHC,
+            patch(_INFLUXDB_BATCH_WRITER, return_value=batch_writer_mock),
+        ):
             from src._startup import start_influxdb_pipeline
+
             await start_influxdb_pipeline(svc, "corr-002")
 
         mock_mgr.start.assert_awaited_once()
@@ -324,11 +345,13 @@ class TestStartInfluxdbPipeline:
         )
         batch_writer_mock = AsyncMock()
 
-        with patch(_INFLUXDB_CONN_MANAGER, return_value=mock_mgr), \
-             patch(_HISTORICAL_COUNTER, return_value=historical_mock), \
-             patch(_INFLUXDB_BATCH_WRITER, return_value=batch_writer_mock) as MockBW:
-
+        with (
+            patch(_INFLUXDB_CONN_MANAGER, return_value=mock_mgr),
+            patch(_HISTORICAL_COUNTER, return_value=historical_mock),
+            patch(_INFLUXDB_BATCH_WRITER, return_value=batch_writer_mock) as MockBW,
+        ):
             from src._startup import start_influxdb_pipeline
+
             await start_influxdb_pipeline(svc, "corr-002")
 
         MockBW.assert_called_once_with(
@@ -354,11 +377,13 @@ class TestStartInfluxdbPipeline:
         )
         batch_writer_mock = AsyncMock()
 
-        with patch(_INFLUXDB_CONN_MANAGER, return_value=mock_mgr), \
-             patch(_HISTORICAL_COUNTER, return_value=historical_mock), \
-             patch(_INFLUXDB_BATCH_WRITER, return_value=batch_writer_mock):
-
+        with (
+            patch(_INFLUXDB_CONN_MANAGER, return_value=mock_mgr),
+            patch(_HISTORICAL_COUNTER, return_value=historical_mock),
+            patch(_INFLUXDB_BATCH_WRITER, return_value=batch_writer_mock),
+        ):
             from src._startup import start_influxdb_pipeline
+
             await start_influxdb_pipeline(svc, "corr-002")
 
         mock_aep.add_event_handler.assert_called_once_with(svc._write_event_to_influxdb)
@@ -367,6 +392,7 @@ class TestStartInfluxdbPipeline:
 # ---------------------------------------------------------------------------
 # Tests: start_ha_connection
 # ---------------------------------------------------------------------------
+
 
 class TestStartHaConnection:
     """Tests for the start_ha_connection startup phase."""
@@ -380,10 +406,9 @@ class TestStartHaConnection:
         """When home_assistant_enabled is False, function returns without connecting."""
         svc = make_svc(home_assistant_enabled=False)
 
-        with patch(_HA_CONN_MANAGER) as mock_ha_mgr, \
-             patch(_CONNECTION_MANAGER) as MockCM:
-
+        with patch(_HA_CONN_MANAGER) as mock_ha_mgr, patch(_CONNECTION_MANAGER) as MockCM:
             from src._startup import start_ha_connection
+
             await start_ha_connection(svc, "corr-003")
 
         mock_ha_mgr.get_connection_with_circuit_breaker.assert_not_called()
@@ -398,6 +423,7 @@ class TestStartHaConnection:
 
         with patch(_HA_CONN_MANAGER, mock_ha_mgr):
             from src._startup import start_ha_connection
+
             with pytest.raises(ValueError, match="No Home Assistant connections available"):
                 await start_ha_connection(svc, "corr-003")
 
@@ -414,18 +440,18 @@ class TestStartHaConnection:
         connection_config.token = "secret"
 
         mock_ha_mgr = AsyncMock()
-        mock_ha_mgr.get_connection_with_circuit_breaker = AsyncMock(
-            return_value=connection_config
-        )
+        mock_ha_mgr.get_connection_with_circuit_breaker = AsyncMock(return_value=connection_config)
 
         mock_cm = AsyncMock()
         mock_cm.start = AsyncMock()
 
-        with patch(_HA_CONN_MANAGER, mock_ha_mgr), \
-             patch(_CONNECTION_MANAGER, return_value=mock_cm) as MockCM, \
-             patch(_ASYNCIO_SLEEP):
-
+        with (
+            patch(_HA_CONN_MANAGER, mock_ha_mgr),
+            patch(_CONNECTION_MANAGER, return_value=mock_cm) as MockCM,
+            patch(_ASYNCIO_SLEEP),
+        ):
             from src._startup import start_ha_connection
+
             await start_ha_connection(svc, "corr-003")
 
         MockCM.assert_called_once_with(
@@ -456,17 +482,17 @@ class TestStartHaConnection:
         connection_config.token = "secret"
 
         mock_ha_mgr = AsyncMock()
-        mock_ha_mgr.get_connection_with_circuit_breaker = AsyncMock(
-            return_value=connection_config
-        )
+        mock_ha_mgr.get_connection_with_circuit_breaker = AsyncMock(return_value=connection_config)
 
         mock_cm = AsyncMock()
         mock_cm.start = AsyncMock()
 
-        with patch(_HA_CONN_MANAGER, mock_ha_mgr), \
-             patch(_CONNECTION_MANAGER, return_value=mock_cm), \
-             patch(_ASYNCIO_SLEEP):
-
+        with (
+            patch(_HA_CONN_MANAGER, mock_ha_mgr),
+            patch(_CONNECTION_MANAGER, return_value=mock_cm),
+            patch(_ASYNCIO_SLEEP),
+        ):
             from src._startup import start_ha_connection
+
             with pytest.raises(ConnectionError, match="Could not connect to Home Assistant"):
                 await start_ha_connection(svc, "corr-003")

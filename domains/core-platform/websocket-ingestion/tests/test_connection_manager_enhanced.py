@@ -2,7 +2,6 @@
 Tests for Enhanced Connection Manager with Error Handling
 """
 
-
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -142,11 +141,7 @@ class TestConnectionManagerEnhanced:
     def test_configure_retry_parameters(self):
         """Test configuring retry parameters"""
         self.connection_manager.configure_retry_parameters(
-            max_retries=5,
-            base_delay=2.0,
-            max_delay=30.0,
-            backoff_multiplier=1.5,
-            jitter_range=0.2
+            max_retries=5, base_delay=2.0, max_delay=30.0, backoff_multiplier=1.5, jitter_range=0.2
         )
 
         assert self.connection_manager.max_retries == 5
@@ -225,6 +220,7 @@ class TestConnectionManagerEnhanced:
     @pytest.mark.asyncio
     async def test_reconnect_loop_max_retries_reached(self):
         """Test reconnection loop when max retries are reached"""
+
         # Mock the connection to always fail
         async def mock_connect():
             return False

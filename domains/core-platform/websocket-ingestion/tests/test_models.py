@@ -2,7 +2,6 @@
 Tests for data models
 """
 
-
 import pytest
 from src.models import ConfigEntry, Device, Entity
 
@@ -19,7 +18,7 @@ class TestDevice:
             model="Hue Bulb",
             sw_version="1.58.0",
             area_id="living_room",
-            entity_count=3
+            entity_count=3,
         )
 
         assert device.device_id == "dev1"
@@ -32,35 +31,20 @@ class TestDevice:
 
     def test_device_validation_success(self):
         """Test device validation with valid data"""
-        device = Device(
-            device_id="dev1",
-            name="Test Device",
-            manufacturer="Test",
-            model="Model1"
-        )
+        device = Device(device_id="dev1", name="Test Device", manufacturer="Test", model="Model1")
 
         assert device.validate() is True
 
     def test_device_validation_no_id(self):
         """Test device validation fails with no device_id"""
-        device = Device(
-            device_id="",
-            name="Test Device",
-            manufacturer="Test",
-            model="Model1"
-        )
+        device = Device(device_id="", name="Test Device", manufacturer="Test", model="Model1")
 
         with pytest.raises(ValueError, match="device_id is required"):
             device.validate()
 
     def test_device_validation_no_name(self):
         """Test device validation fails with no name"""
-        device = Device(
-            device_id="dev1",
-            name="",
-            manufacturer="Test",
-            model="Model1"
-        )
+        device = Device(device_id="dev1", name="", manufacturer="Test", model="Model1")
 
         with pytest.raises(ValueError, match="name is required"):
             device.validate()
@@ -75,7 +59,7 @@ class TestDevice:
             sw_version="1.58.0",
             area_id="living_room",
             entity_count=3,
-            timestamp="2025-10-12T10:30:00Z"
+            timestamp="2025-10-12T10:30:00Z",
         )
 
         point = device.to_influx_point()
@@ -98,7 +82,7 @@ class TestDevice:
             "manufacturer": "Acme Corp",
             "model": "Model X",
             "sw_version": "2.0.0",
-            "area_id": "bedroom"
+            "area_id": "bedroom",
         }
 
         device = Device.from_ha_device(ha_device)
@@ -117,7 +101,7 @@ class TestDevice:
             "name": None,
             "name_by_user": "User Custom Name",
             "manufacturer": "Acme",
-            "model": "X"
+            "model": "X",
         }
 
         device = Device.from_ha_device(ha_device)
@@ -126,9 +110,7 @@ class TestDevice:
 
     def test_device_from_ha_device_defaults(self):
         """Test Device handles missing fields with defaults"""
-        ha_device = {
-            "id": "abc123"
-        }
+        ha_device = {"id": "abc123"}
 
         device = Device.from_ha_device(ha_device)
 
@@ -152,7 +134,7 @@ class TestEntity:
             platform="hue",
             unique_id="hue123",
             area_id="living_room",
-            disabled=False
+            disabled=False,
         )
 
         assert entity.entity_id == "light.living_room"
@@ -185,7 +167,7 @@ class TestEntity:
             unique_id="hue123",
             area_id="living_room",
             disabled=False,
-            timestamp="2025-10-12T10:30:00Z"
+            timestamp="2025-10-12T10:30:00Z",
         )
 
         point = entity.to_influx_point()
@@ -208,7 +190,7 @@ class TestEntity:
             "platform": "mqtt",
             "unique_id": "mqtt_temp_123",
             "area_id": "kitchen",
-            "disabled_by": None
+            "disabled_by": None,
         }
 
         entity = Entity.from_ha_entity(ha_entity)
@@ -223,10 +205,7 @@ class TestEntity:
 
     def test_entity_from_ha_entity_disabled(self):
         """Test Entity detects disabled status"""
-        ha_entity = {
-            "entity_id": "light.test",
-            "disabled_by": "user"
-        }
+        ha_entity = {"entity_id": "light.test", "disabled_by": "user"}
 
         entity = Entity.from_ha_entity(ha_entity)
 
@@ -234,9 +213,7 @@ class TestEntity:
 
     def test_entity_from_ha_entity_domain_extraction(self):
         """Test Entity extracts domain from entity_id"""
-        ha_entity = {
-            "entity_id": "switch.bedroom_fan"
-        }
+        ha_entity = {"entity_id": "switch.bedroom_fan"}
 
         entity = Entity.from_ha_entity(ha_entity)
 
@@ -249,11 +226,7 @@ class TestConfigEntry:
     def test_config_entry_creation(self):
         """Test creating a ConfigEntry"""
         entry = ConfigEntry(
-            entry_id="entry1",
-            domain="hue",
-            title="Philips Hue",
-            state="loaded",
-            version=2
+            entry_id="entry1", domain="hue", title="Philips Hue", state="loaded", version=2
         )
 
         assert entry.entry_id == "entry1"
@@ -264,32 +237,20 @@ class TestConfigEntry:
 
     def test_config_entry_validation_success(self):
         """Test config entry validation with valid data"""
-        entry = ConfigEntry(
-            entry_id="entry1",
-            domain="test",
-            title="Test"
-        )
+        entry = ConfigEntry(entry_id="entry1", domain="test", title="Test")
 
         assert entry.validate() is True
 
     def test_config_entry_validation_no_id(self):
         """Test config entry validation fails with no entry_id"""
-        entry = ConfigEntry(
-            entry_id="",
-            domain="test",
-            title="Test"
-        )
+        entry = ConfigEntry(entry_id="", domain="test", title="Test")
 
         with pytest.raises(ValueError, match="entry_id is required"):
             entry.validate()
 
     def test_config_entry_validation_no_domain(self):
         """Test config entry validation fails with no domain"""
-        entry = ConfigEntry(
-            entry_id="entry1",
-            domain="",
-            title="Test"
-        )
+        entry = ConfigEntry(entry_id="entry1", domain="", title="Test")
 
         with pytest.raises(ValueError, match="domain is required"):
             entry.validate()
@@ -302,7 +263,7 @@ class TestConfigEntry:
             title="Philips Hue",
             state="loaded",
             version=2,
-            timestamp="2025-10-12T10:30:00Z"
+            timestamp="2025-10-12T10:30:00Z",
         )
 
         point = entry.to_influx_point()
@@ -322,7 +283,7 @@ class TestConfigEntry:
             "domain": "nest",
             "title": "Google Nest",
             "state": "loaded",
-            "version": 3
+            "version": 3,
         }
 
         entry = ConfigEntry.from_ha_config_entry(ha_entry)
@@ -335,9 +296,7 @@ class TestConfigEntry:
 
     def test_config_entry_from_ha_config_entry_defaults(self):
         """Test ConfigEntry handles missing fields"""
-        ha_entry = {
-            "entry_id": "entry123"
-        }
+        ha_entry = {"entry_id": "entry123"}
 
         entry = ConfigEntry.from_ha_config_entry(ha_entry)
 
@@ -346,4 +305,3 @@ class TestConfigEntry:
         assert entry.title == "Unknown Integration"
         assert entry.state == "unknown"
         assert entry.version == 1
-

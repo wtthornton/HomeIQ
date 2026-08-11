@@ -43,18 +43,18 @@ class Device:
                 "device_id": self.device_id,
                 "manufacturer": self.manufacturer or "Unknown",
                 "model": self.model or "Unknown",
-                "area_id": self.area_id or "unassigned"
+                "area_id": self.area_id or "unassigned",
             },
             "fields": {
                 "name": self.name,
                 "sw_version": self.sw_version or "Unknown",
-                "entity_count": self.entity_count
+                "entity_count": self.entity_count,
             },
-            "time": self.timestamp
+            "time": self.timestamp,
         }
 
     @classmethod
-    def from_ha_device(cls, ha_device: dict[str, Any]) -> 'Device':
+    def from_ha_device(cls, ha_device: dict[str, Any]) -> "Device":
         """
         Create Device from Home Assistant device registry entry
 
@@ -71,7 +71,7 @@ class Device:
             model=ha_device.get("model", "Unknown"),
             sw_version=ha_device.get("sw_version"),
             area_id=ha_device.get("area_id"),
-            entity_count=0  # Will be calculated later
+            entity_count=0,  # Will be calculated later
         )
 
 
@@ -108,17 +108,14 @@ class Entity:
                 "device_id": self.device_id or "unknown",
                 "domain": self.domain,
                 "platform": self.platform,
-                "area_id": self.area_id or "unassigned"
+                "area_id": self.area_id or "unassigned",
             },
-            "fields": {
-                "unique_id": self.unique_id or "",
-                "disabled": self.disabled
-            },
-            "time": self.timestamp
+            "fields": {"unique_id": self.unique_id or "", "disabled": self.disabled},
+            "time": self.timestamp,
         }
 
     @classmethod
-    def from_ha_entity(cls, ha_entity: dict[str, Any]) -> 'Entity':
+    def from_ha_entity(cls, ha_entity: dict[str, Any]) -> "Entity":
         """
         Create Entity from Home Assistant entity registry entry
 
@@ -138,7 +135,7 @@ class Entity:
             platform=ha_entity.get("platform", "unknown"),
             unique_id=ha_entity.get("unique_id"),
             area_id=ha_entity.get("area_id"),
-            disabled=ha_entity.get("disabled_by") is not None
+            disabled=ha_entity.get("disabled_by") is not None,
         )
 
 
@@ -170,20 +167,13 @@ class ConfigEntry:
         """
         return {
             "measurement": "config_entries",
-            "tags": {
-                "entry_id": self.entry_id,
-                "domain": self.domain,
-                "state": self.state
-            },
-            "fields": {
-                "title": self.title,
-                "version": self.version
-            },
-            "time": self.timestamp
+            "tags": {"entry_id": self.entry_id, "domain": self.domain, "state": self.state},
+            "fields": {"title": self.title, "version": self.version},
+            "time": self.timestamp,
         }
 
     @classmethod
-    def from_ha_config_entry(cls, ha_entry: dict[str, Any]) -> 'ConfigEntry':
+    def from_ha_config_entry(cls, ha_entry: dict[str, Any]) -> "ConfigEntry":
         """
         Create ConfigEntry from Home Assistant config entry
 
@@ -198,6 +188,5 @@ class ConfigEntry:
             domain=ha_entry.get("domain", "unknown"),
             title=ha_entry.get("title", "Unknown Integration"),
             state=ha_entry.get("state", "unknown"),
-            version=ha_entry.get("version", 1)
+            version=ha_entry.get("version", 1),
         )
-

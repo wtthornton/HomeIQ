@@ -6,7 +6,6 @@ Tests WebSocket connection establishment, message handling, ping/pong,
 subscription handling, and error scenarios.
 """
 
-import asyncio
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -25,7 +24,7 @@ class TestWebSocketConnection:
         THEN: Should accept connection and send welcome message
         """
         from src.api.routers.websocket import websocket_endpoint
-        
+
         # Mock WebSocket object
         mock_websocket = MagicMock(spec=WebSocket)
         mock_websocket.client = MagicMock()
@@ -41,10 +40,14 @@ class TestWebSocketConnection:
         mock_websocket.send_json = AsyncMock()
 
         # Mock rate limiter and validation functions
-        with patch('src.api.routers.websocket.get_rate_limiter') as mock_rate_limiter, \
-             patch('src.api.routers.websocket.validate_message_size', return_value=(True, None)), \
-             patch('src.api.routers.websocket.validate_message_json', return_value=(True, {"type": "ping"}, None)):
-
+        with (
+            patch("src.api.routers.websocket.get_rate_limiter") as mock_rate_limiter,
+            patch("src.api.routers.websocket.validate_message_size", return_value=(True, None)),
+            patch(
+                "src.api.routers.websocket.validate_message_json",
+                return_value=(True, {"type": "ping"}, None),
+            ),
+        ):
             mock_limiter = MagicMock()
             mock_limiter.check_rate_limit = MagicMock(return_value=(True, None))
             mock_limiter.reset = MagicMock()
@@ -77,7 +80,7 @@ class TestWebSocketConnection:
         mock_websocket.send_json = AsyncMock(side_effect=WebSocketDisconnect())
         mock_websocket.receive_text = AsyncMock()
 
-        with patch('src.api.routers.websocket.get_rate_limiter') as mock_rate_limiter:
+        with patch("src.api.routers.websocket.get_rate_limiter") as mock_rate_limiter:
             mock_limiter = MagicMock()
             mock_limiter.reset = MagicMock()
             mock_rate_limiter.return_value = mock_limiter
@@ -95,11 +98,11 @@ class TestWebSocketConnection:
         THEN: Should have unique correlation ID per connection
         """
         from homeiq_observability.logging_config import generate_correlation_id
-        
+
         # Generate two correlation IDs
         corr_id1 = generate_correlation_id()
         corr_id2 = generate_correlation_id()
-        
+
         # Correlation IDs should be unique
         assert corr_id1 != corr_id2
 
@@ -111,22 +114,22 @@ class TestWebSocketConnection:
         THEN: Should handle disconnection gracefully
         """
         from src.api.routers.websocket import websocket_endpoint
-        
+
         mock_websocket = MagicMock(spec=WebSocket)
         mock_websocket.client = MagicMock()
         mock_websocket.client.host = "127.0.0.1"
         mock_websocket.accept = AsyncMock()
         mock_websocket.receive_text = AsyncMock(side_effect=WebSocketDisconnect())
         mock_websocket.send_json = AsyncMock()
-        
-        with patch('src.api.routers.websocket.get_rate_limiter') as mock_rate_limiter:
+
+        with patch("src.api.routers.websocket.get_rate_limiter") as mock_rate_limiter:
             mock_limiter = MagicMock()
             mock_limiter.reset = MagicMock()
             mock_rate_limiter.return_value = mock_limiter
-            
+
             # Should handle disconnect gracefully
             await websocket_endpoint(mock_websocket)
-            
+
             # Verify disconnect was handled
             assert mock_websocket.accept.called
 
@@ -142,7 +145,7 @@ class TestPingPongMessages:
         THEN: Should respond with pong
         """
         from src.api.routers.websocket import websocket_endpoint
-        
+
         mock_websocket = MagicMock(spec=WebSocket)
         mock_websocket.client = MagicMock()
         mock_websocket.client.host = "127.0.0.1"
@@ -152,10 +155,14 @@ class TestPingPongMessages:
         )
         mock_websocket.send_json = AsyncMock()
 
-        with patch('src.api.routers.websocket.get_rate_limiter') as mock_rate_limiter, \
-             patch('src.api.routers.websocket.validate_message_size', return_value=(True, None)), \
-             patch('src.api.routers.websocket.validate_message_json', return_value=(True, {"type": "ping"}, None)):
-
+        with (
+            patch("src.api.routers.websocket.get_rate_limiter") as mock_rate_limiter,
+            patch("src.api.routers.websocket.validate_message_size", return_value=(True, None)),
+            patch(
+                "src.api.routers.websocket.validate_message_json",
+                return_value=(True, {"type": "ping"}, None),
+            ),
+        ):
             mock_limiter = MagicMock()
             mock_limiter.check_rate_limit = MagicMock(return_value=(True, None))
             mock_limiter.reset = MagicMock()
@@ -183,7 +190,9 @@ class TestPingPongMessages:
         # Test timestamp generation directly
         timestamp = datetime.now(UTC).isoformat()
         assert "T" in timestamp  # ISO format contains T
-        assert "+" in timestamp or "Z" in timestamp or timestamp.endswith("+00:00")  # Timezone indicator
+        assert (
+            "+" in timestamp or "Z" in timestamp or timestamp.endswith("+00:00")
+        )  # Timezone indicator
 
 
 class TestSubscriptionMessages:
@@ -197,7 +206,7 @@ class TestSubscriptionMessages:
         THEN: Should confirm subscription
         """
         from src.api.routers.websocket import websocket_endpoint
-        
+
         mock_websocket = MagicMock(spec=WebSocket)
         mock_websocket.client = MagicMock()
         mock_websocket.client.host = "127.0.0.1"
@@ -210,10 +219,14 @@ class TestSubscriptionMessages:
         )
         mock_websocket.send_json = AsyncMock()
 
-        with patch('src.api.routers.websocket.get_rate_limiter') as mock_rate_limiter, \
-             patch('src.api.routers.websocket.validate_message_size', return_value=(True, None)), \
-             patch('src.api.routers.websocket.validate_message_json', return_value=(True, {"type": "subscribe", "channels": ["events"]}, None)):
-
+        with (
+            patch("src.api.routers.websocket.get_rate_limiter") as mock_rate_limiter,
+            patch("src.api.routers.websocket.validate_message_size", return_value=(True, None)),
+            patch(
+                "src.api.routers.websocket.validate_message_json",
+                return_value=(True, {"type": "subscribe", "channels": ["events"]}, None),
+            ),
+        ):
             mock_limiter = MagicMock()
             mock_limiter.check_rate_limit = MagicMock(return_value=(True, None))
             mock_limiter.reset = MagicMock()
@@ -289,7 +302,7 @@ class TestMessageValidation:
         THEN: Should reject with error message
         """
         from src.security import validate_message_size
-        
+
         # Test size validation function directly
         large_message = "x" * (65 * 1024)  # 65KB
         is_valid, error = validate_message_size(large_message)
@@ -304,7 +317,7 @@ class TestMessageValidation:
         THEN: Should return error message
         """
         from src.security import validate_message_json
-        
+
         # Test JSON validation function directly
         invalid_json = "{ invalid json }"
         is_valid, data, error = validate_message_json(invalid_json)
@@ -319,14 +332,14 @@ class TestMessageValidation:
         THEN: Should reject with rate limit error
         """
         from src.security import get_rate_limiter
-        
+
         # Test rate limiter directly
         rate_limiter = get_rate_limiter()
         connection_id = "test_connection"
-        
+
         # Reset first
         rate_limiter.reset(connection_id)
-        
+
         # Check rate limit multiple times
         for i in range(65):  # Exceed 60/minute limit
             allowed, error = rate_limiter.check_rate_limit(connection_id)
@@ -342,12 +355,12 @@ class TestMessageValidation:
         THEN: Should process without errors
         """
         from src.security import validate_message_json, validate_message_size
-        
+
         # Test valid message validation
         valid_message = '{"type": "ping"}'
         size_valid, _ = validate_message_size(valid_message)
         json_valid, data, _ = validate_message_json(valid_message)
-        
+
         assert size_valid
         assert json_valid
         assert data.get("type") == "ping"
@@ -364,19 +377,19 @@ class TestErrorHandling:
         THEN: Should handle disconnection gracefully
         """
         from src.api.routers.websocket import websocket_endpoint
-        
+
         mock_websocket = MagicMock(spec=WebSocket)
         mock_websocket.client = MagicMock()
         mock_websocket.client.host = "127.0.0.1"
         mock_websocket.accept = AsyncMock()
         mock_websocket.receive_text = AsyncMock(side_effect=WebSocketDisconnect())
         mock_websocket.send_json = AsyncMock()
-        
-        with patch('src.api.routers.websocket.get_rate_limiter') as mock_rate_limiter:
+
+        with patch("src.api.routers.websocket.get_rate_limiter") as mock_rate_limiter:
             mock_limiter = MagicMock()
             mock_limiter.reset = MagicMock()
             mock_rate_limiter.return_value = mock_limiter
-            
+
             # Should handle disconnect gracefully
             await websocket_endpoint(mock_websocket)
             assert mock_websocket.accept.called
@@ -388,11 +401,11 @@ class TestErrorHandling:
         THEN: Should handle all connections independently
         """
         from homeiq_observability.logging_config import generate_correlation_id
-        
+
         # Test that correlation IDs are unique for different connections
         corr_id1 = generate_correlation_id()
         corr_id2 = generate_correlation_id()
-        
+
         assert corr_id1 != corr_id2
         assert len(corr_id1) > 0
         assert len(corr_id2) > 0
@@ -404,7 +417,7 @@ class TestErrorHandling:
         THEN: Should handle gracefully without crashing
         """
         from src.security import validate_message_json
-        
+
         # Test various malformed messages
         malformed_messages = [
             "",  # Empty
@@ -412,7 +425,7 @@ class TestErrorHandling:
             '{"type":}',  # Invalid JSON
             '{"type": null}',  # Null type
         ]
-        
+
         for msg in malformed_messages:
             is_valid, data, error = validate_message_json(msg)
             # Should either be invalid or handle gracefully
@@ -420,4 +433,3 @@ class TestErrorHandling:
                 assert error is not None
             # Should not crash
             assert True
-

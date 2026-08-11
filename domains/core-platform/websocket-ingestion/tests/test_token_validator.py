@@ -155,6 +155,8 @@ class TestTokenValidator:
         assert "too short" in error_msg.lower()
 
         # Invalid format - invalid characters
-        is_valid, error_msg = validator.validate_token_format("abc!@#abcdefghijklmnopqrstuvwxyz123456")
+        is_valid, error_msg = validator.validate_token_format(
+            "abc!@#abcdefghijklmnopqrstuvwxyz123456"
+        )
         assert is_valid is False
         assert "invalid characters" in error_msg.lower()

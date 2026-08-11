@@ -21,7 +21,8 @@ class MessageIDManager:
     all WebSocket messages. This singleton ensures all components use
     the same counter.
     """
-    _instance: Optional['MessageIDManager'] = None
+
+    _instance: Optional["MessageIDManager"] = None
     _lock: asyncio.Lock | None = None
 
     def __new__(cls):
@@ -70,7 +71,7 @@ class MessageIDManager:
         # Create locks if they don't exist (for sync contexts)
         if self._lock is None:
             self._lock = asyncio.Lock()
-        if not hasattr(self, '_thread_lock') or self._thread_lock is None:
+        if not hasattr(self, "_thread_lock") or self._thread_lock is None:
             self._thread_lock = threading.Lock()
 
         # Use asyncio.run if we're in a sync context
@@ -124,4 +125,3 @@ def get_message_id_manager() -> MessageIDManager:
     if _message_id_manager is None:
         _message_id_manager = MessageIDManager()
     return _message_id_manager
-

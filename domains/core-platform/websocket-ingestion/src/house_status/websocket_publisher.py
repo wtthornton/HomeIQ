@@ -54,17 +54,13 @@ class StatusWebSocketPublisher:
         """Register a new WebSocket client."""
         async with self._lock:
             self._clients.add(ws)
-        logger.info(
-            "Status WS client connected (total: %d)", len(self._clients)
-        )
+        logger.info("Status WS client connected (total: %d)", len(self._clients))
 
     async def remove_client(self, ws: WebSocket) -> None:
         """Unregister a WebSocket client."""
         async with self._lock:
             self._clients.discard(ws)
-        logger.info(
-            "Status WS client disconnected (total: %d)", len(self._clients)
-        )
+        logger.info("Status WS client disconnected (total: %d)", len(self._clients))
 
     # -- broadcasting ---------------------------------------------------------
 
@@ -89,9 +85,7 @@ class StatusWebSocketPublisher:
                     self._clients.discard(ws)
             logger.debug("Cleaned up %d dead WS clients", len(dead))
 
-    async def send_full_snapshot(
-        self, ws: WebSocket, snapshot_dict: dict[str, Any]
-    ) -> None:
+    async def send_full_snapshot(self, ws: WebSocket, snapshot_dict: dict[str, Any]) -> None:
         """Send the full status snapshot to a single client on connect."""
         payload = json.dumps({"type": "snapshot", **snapshot_dict})
         try:
