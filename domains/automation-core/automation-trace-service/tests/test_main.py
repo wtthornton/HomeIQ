@@ -1,6 +1,6 @@
 """Tests for automation-trace-service FastAPI endpoints."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
