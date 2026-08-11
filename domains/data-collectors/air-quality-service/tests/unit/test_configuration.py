@@ -32,9 +32,7 @@ class TestServiceConfiguration:
         from src.main import AirQualityService
 
         with (
-            patch.dict(
-                os.environ, {"INFLUXDB_TOKEN": ""}, clear=True
-            ),
+            patch.dict(os.environ, {"INFLUXDB_TOKEN": ""}, clear=True),
             pytest.raises(ValueError, match="INFLUXDB_TOKEN environment variable is required"),
         ):
             AirQualityService()
@@ -47,9 +45,7 @@ class TestServiceConfiguration:
         """
         from src.main import AirQualityService
 
-        with patch.dict(
-            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
-        ):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = AirQualityService()
             assert service.latitude == "36.1699"
             assert service.longitude == "-115.1398"
@@ -83,9 +79,7 @@ class TestServiceConfiguration:
         """
         from src.main import AirQualityService
 
-        with patch.dict(
-            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
-        ):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = AirQualityService()
             assert service.influxdb_url == "http://influxdb:8086"
 
@@ -97,9 +91,7 @@ class TestServiceConfiguration:
         """
         from src.main import AirQualityService
 
-        with patch.dict(
-            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
-        ):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = AirQualityService()
             assert service.influxdb_org == "home_assistant"
 
@@ -111,9 +103,7 @@ class TestServiceConfiguration:
         """
         from src.main import AirQualityService
 
-        with patch.dict(
-            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
-        ):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = AirQualityService()
             assert service.influxdb_bucket == "events"
 
@@ -125,9 +115,7 @@ class TestServiceConfiguration:
         """
         from src.main import AirQualityService
 
-        with patch.dict(
-            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
-        ):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = AirQualityService()
             assert service.fetch_interval == 3600
 
@@ -139,9 +127,7 @@ class TestServiceConfiguration:
         """
         from src.main import AirQualityService
 
-        with patch.dict(
-            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
-        ):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = AirQualityService()
             assert service.cache_duration == 60
 
@@ -153,9 +139,7 @@ class TestServiceConfiguration:
         """
         from src.main import AirQualityService
 
-        with patch.dict(
-            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
-        ):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = AirQualityService()
             assert service.base_url == "https://air-quality-api.open-meteo.com/v1/air-quality"
 
@@ -202,9 +186,7 @@ class TestCompleteConfiguration:
         """
         from src.main import AirQualityService
 
-        with patch.dict(
-            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
-        ):
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = AirQualityService()
 
             assert service.influxdb_token == "test-token"
