@@ -191,7 +191,7 @@ class TestBlockingCallsOffloaded:
         )
 
     def test_refresh_all_views_offloads_every_call(self, stub_point_module):
-        rows = {name: row for name, row in _VIEW_CASES}
+        rows = dict(_VIEW_CASES)
         frames = iter(
             [
                 _FakeFrame([rows["create_daily_energy_view"]]),

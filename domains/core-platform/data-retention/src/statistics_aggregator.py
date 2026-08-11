@@ -114,10 +114,7 @@ class StatisticsAggregator:
             logger.info(f"Found {len(eligible_entities)} eligible entities for aggregation")
 
             # Calculate time range: last 5 minutes (or since last run)
-            if self.last_short_term_run:
-                range_start = self.last_short_term_run
-            else:
-                range_start = datetime.now(UTC) - timedelta(minutes=5)
+            range_start = self.last_short_term_run or datetime.now(UTC) - timedelta(minutes=5)
 
             range_end = datetime.now(UTC)
 
@@ -278,10 +275,7 @@ class StatisticsAggregator:
                 return {"success": False, "error": "No eligible entities"}
 
             # Calculate time range: last hour (or since last run)
-            if self.last_long_term_run:
-                range_start = self.last_long_term_run
-            else:
-                range_start = datetime.now(UTC) - timedelta(hours=1)
+            range_start = self.last_long_term_run or datetime.now(UTC) - timedelta(hours=1)
 
             range_end = datetime.now(UTC)
 

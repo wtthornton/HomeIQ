@@ -39,10 +39,7 @@ async def health_check(request: Request):
             critical_alerts = [
                 alert for alert in storage_alerts if alert.get("severity") == "critical"
             ]
-            if critical_alerts:
-                overall_status = "critical"
-            else:
-                overall_status = "warning"
+            overall_status = "critical" if critical_alerts else "warning"
 
         return {
             "status": overall_status,
