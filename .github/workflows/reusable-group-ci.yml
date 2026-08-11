@@ -152,6 +152,13 @@ jobs:
           python -m alembic upgrade head
         env:
           POSTGRES_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
+          # DATABASE_URL as well as POSTGRES_URL. Nine of the alembic env.py
+          # files read both, but data-api's src/database.py:18 reads only
+          # DATABASE_URL — so with POSTGRES_URL alone it got an empty string and
+          # died on `ArgumentError: Could not parse SQLAlchemy URL from string ''`
+          # before running a migration. The test step above already sets both;
+          # this step was the one that didn't.
+          DATABASE_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
 
       - name: Report no tests
         if: steps.check-tests.outputs.has_tests == 'false'
