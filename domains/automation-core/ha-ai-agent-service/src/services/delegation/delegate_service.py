@@ -64,13 +64,10 @@ class DelegateService:
             List of SubagentResults, one per task.
         """
         # Limit to max subagents
-        active_tasks = tasks[:self.max_subagents]
+        active_tasks = tasks[: self.max_subagents]
 
         # Filter restricted tools
-        safe_tools = [
-            t for t in tools
-            if t.get("name") not in RESTRICTED_TOOLS
-        ]
+        safe_tools = [t for t in tools if t.get("name") not in RESTRICTED_TOOLS]
 
         # Spawn subagents in parallel
         runners = []
@@ -94,7 +91,8 @@ class DelegateService:
 
         logger.info(
             "Delegating %d tasks to parallel subagents for conversation %s",
-            len(runners), conversation_id,
+            len(runners),
+            conversation_id,
         )
 
         results = await asyncio.gather(*runners, return_exceptions=True)
@@ -103,11 +101,13 @@ class DelegateService:
         processed: list[SubagentResult] = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                processed.append(SubagentResult(
-                    area=active_tasks[i].get("area", "unknown"),
-                    status="failed",
-                    error=str(result),
-                ))
+                processed.append(
+                    SubagentResult(
+                        area=active_tasks[i].get("area", "unknown"),
+                        status="failed",
+                        error=str(result),
+                    )
+                )
             else:
                 processed.append(result)
 
@@ -116,7 +116,9 @@ class DelegateService:
         total_tokens = sum(r.tokens_used for r in processed)
         logger.info(
             "Delegation complete: %d/%d tasks completed, %d total tokens",
-            completed, len(processed), total_tokens,
+            completed,
+            len(processed),
+            total_tokens,
         )
 
         return processed

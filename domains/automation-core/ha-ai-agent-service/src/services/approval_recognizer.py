@@ -115,4 +115,3 @@ def is_rejection_command(message: str) -> bool:
         True if message indicates rejection
     """
     return recognize_approval_intent(message) == "reject"
-

@@ -3,6 +3,7 @@
 `main.py` instantiates Settings at import time and lifespan requires a non-empty
 OPENAI_API_KEY. CI and local runs without .env must still load the app for ASGI tests.
 """
+
 from __future__ import annotations
 
 import os

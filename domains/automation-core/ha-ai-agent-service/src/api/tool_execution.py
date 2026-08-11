@@ -97,11 +97,7 @@ async def process_tool_result(
         )
 
     # Handle create tool: clear pending preview after execution
-    if (
-        tc_name == "create_automation_from_prompt"
-        and isinstance(result_data, dict)
-        and result_data.get("success")
-    ):
+    if tc_name == "create_automation_from_prompt" and isinstance(result_data, dict) and result_data.get("success"):
         await conversation_service.clear_pending_preview(conversation_id)
         logger.info(
             "[Execution] Conversation %s: Cleared pending preview after successful creation",
@@ -111,11 +107,13 @@ async def process_tool_result(
     # Format tool result for OpenAI Responses API (function_call_output)
     tool_result_str = str(tool_result.get("result", ""))
 
-    tool_results.append({
-        "type": "function_call_output",
-        "call_id": tc_call_id,
-        "output": tool_result_str,
-    })
+    tool_results.append(
+        {
+            "type": "function_call_output",
+            "call_id": tc_call_id,
+            "output": tool_result_str,
+        }
+    )
 
     parsed_arguments = safe_parse_tool_arguments(tc_arguments)
     tool_calls.append(
@@ -191,10 +189,13 @@ async def execute_tool_calls(
                     "call_id": fc_item.call_id,
                 }
                 result = await tool_service.execute_tool_call(tc_dict)
-                end_tracking(tool_exec_id, {
-                    "success": result.get("success", False),
-                    "result_length": len(str(result.get("result", ""))),
-                })
+                end_tracking(
+                    tool_exec_id,
+                    {
+                        "success": result.get("success", False),
+                        "result_length": len(str(result.get("result", ""))),
+                    },
+                )
                 return fc_item, result
             except Exception as e:
                 end_tracking(tool_exec_id, {"success": False, "error": str(e)})
@@ -208,16 +209,22 @@ async def execute_tool_calls(
         for result in parallel_results:
             if isinstance(result, Exception):
                 logger.error("Tool execution failed: %s", result, exc_info=True)
-                tool_results.append({
-                    "type": "function_call_output",
-                    "call_id": "error",
-                    "output": f"Tool execution failed: {result!s}",
-                })
+                tool_results.append(
+                    {
+                        "type": "function_call_output",
+                        "call_id": "error",
+                        "output": f"Tool execution failed: {result!s}",
+                    }
+                )
             else:
                 fc_item, tr = result
                 await process_tool_result(
-                    fc_item, tr, conversation_id,
-                    conversation_service, tool_calls, tool_results,
+                    fc_item,
+                    tr,
+                    conversation_id,
+                    conversation_service,
+                    tool_calls,
+                    tool_results,
                 )
     else:
         # Single tool call - execute directly
@@ -241,14 +248,21 @@ async def execute_tool_calls(
             "call_id": fc_item.call_id,
         }
         tool_result = await tool_service.execute_tool_call(tc_dict)
-        end_tracking(tool_exec_id, {
-            "success": tool_result.get("success", False),
-            "result_length": len(str(tool_result.get("result", ""))),
-        })
+        end_tracking(
+            tool_exec_id,
+            {
+                "success": tool_result.get("success", False),
+                "result_length": len(str(tool_result.get("result", ""))),
+            },
+        )
 
         await process_tool_result(
-            fc_item, tool_result, conversation_id,
-            conversation_service, tool_calls, tool_results,
+            fc_item,
+            tool_result,
+            conversation_id,
+            conversation_service,
+            tool_calls,
+            tool_results,
         )
 
     return tool_results

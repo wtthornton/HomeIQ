@@ -57,14 +57,8 @@ class AIAutomationValidationStrategy(ValidationStrategy):
         # Unified endpoint returns errors/warnings as list[str]; support legacy dict format
         raw_errors = result.get("errors", [])
         raw_warnings = result.get("warnings", [])
-        errors = [
-            err.get("message", str(err)) if isinstance(err, dict) else str(err)
-            for err in raw_errors
-        ]
-        warnings = [
-            w.get("message", str(w)) if isinstance(w, dict) else str(w)
-            for w in raw_warnings
-        ]
+        errors = [err.get("message", str(err)) if isinstance(err, dict) else str(err) for err in raw_errors]
+        warnings = [w.get("message", str(w)) if isinstance(w, dict) else str(w) for w in raw_warnings]
 
         return ValidationResult(
             valid=result.get("valid", False),

@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeiq_resilience import CircuitBreaker, CircuitOpenError, GroupHealthCheck
+
 from src.clients.ai_automation_client import AIAutomationClient
 from src.clients.data_api_client import DataAPIClient
 
@@ -38,7 +39,9 @@ class TestDataAPIClientResilience:
         mock_response.json.return_value = [{"entity_id": "light.test"}]
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(client._cross_client, "call", new_callable=AsyncMock, return_value=mock_response) as mock_call:
+        with patch.object(
+            client._cross_client, "call", new_callable=AsyncMock, return_value=mock_response
+        ) as mock_call:
             entities = await client.fetch_entities(domain="light")
             mock_call.assert_called_once()
             assert mock_call.call_args[0] == ("GET", "/api/entities")
@@ -49,7 +52,9 @@ class TestDataAPIClientResilience:
     async def test_circuit_open_raises_exception(self):
         client = DataAPIClient(base_url="http://data-api:8006")
         with (
-            patch.object(client._cross_client, "call", new_callable=AsyncMock, side_effect=CircuitOpenError("circuit open")),
+            patch.object(
+                client._cross_client, "call", new_callable=AsyncMock, side_effect=CircuitOpenError("circuit open")
+            ),
             pytest.raises(Exception, match="circuit breaker open"),
         ):
             await client.fetch_entities()
@@ -84,7 +89,9 @@ class TestAIAutomationClientResilience:
         mock_response.json.return_value = {"valid": True, "errors": [], "warnings": []}
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(client._cross_client, "call", new_callable=AsyncMock, return_value=mock_response) as mock_call:
+        with patch.object(
+            client._cross_client, "call", new_callable=AsyncMock, return_value=mock_response
+        ) as mock_call:
             result = await client.validate_yaml("alias: Test\ntrigger: []")
             assert result["valid"] is True
             # Verify X-HomeIQ-API-Key was passed
@@ -128,7 +135,8 @@ class TestDeviceIntelligenceClientResilience:
 
         client = DeviceIntelligenceClient(base_url="http://device-intel:8019")
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             new_callable=AsyncMock,
             side_effect=CircuitOpenError("circuit open"),
         ):

@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class ConversationState(str, Enum):
     """Conversation state enum"""
+
     ACTIVE = "active"
     ARCHIVED = "archived"
 
@@ -68,9 +69,10 @@ class Message:
 
 class ConversationSource(str, Enum):
     """Conversation source enum - tracks where the conversation originated"""
-    USER = "user"           # Direct user chat
-    PROACTIVE = "proactive" # From proactive suggestions
-    PATTERN = "pattern"     # From pattern-based suggestions
+
+    USER = "user"  # Direct user chat
+    PROACTIVE = "proactive"  # From proactive suggestions
+    PATTERN = "pattern"  # From pattern-based suggestions
 
 
 class Conversation:
@@ -128,10 +130,7 @@ class Conversation:
         message = Message(role=role, content=content, tool_calls=tool_calls)
         self.messages.append(message)
         self.updated_at = datetime.now()
-        logger.debug(
-            f"Added {role} message to conversation {self.conversation_id} "
-            f"(total: {self.message_count})"
-        )
+        logger.debug(f"Added {role} message to conversation {self.conversation_id} (total: {self.message_count})")
         return message
 
     def get_messages(self) -> list[Message]:
@@ -230,4 +229,3 @@ class Conversation:
         self._pending_preview = None
         self.updated_at = datetime.now()
         logger.debug(f"Cleared pending preview for conversation {self.conversation_id}")
-

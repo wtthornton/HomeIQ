@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from src.config import Settings
 from src.services.capability_patterns_service import CapabilityPatternsService
 from src.services.context_builder import ContextBuilder
@@ -11,9 +12,7 @@ from src.services.context_builder import ContextBuilder
 @pytest.fixture
 def mock_settings():
     """Create mock settings"""
-    return Settings(
-        device_intelligence_url="http://test-device-intel:8028"
-    )
+    return Settings(device_intelligence_url="http://test-device-intel:8028")
 
 
 @pytest.fixture
@@ -28,10 +27,7 @@ def mock_context_builder():
 @pytest.fixture
 def capability_patterns_service(mock_settings, mock_context_builder):
     """Create CapabilityPatternsService instance"""
-    return CapabilityPatternsService(
-        settings=mock_settings,
-        context_builder=mock_context_builder
-    )
+    return CapabilityPatternsService(settings=mock_settings, context_builder=mock_context_builder)
 
 
 @pytest.mark.asyncio
@@ -45,36 +41,25 @@ async def test_get_patterns_with_capabilities(capability_patterns_service, mock_
 
     # Mock capabilities response
     mock_capabilities_device1 = [
-        {
-            "capability_name": "brightness",
-            "capability_type": "numeric",
-            "properties": {"min": 0, "max": 255}
-        },
-        {
-            "capability_name": "color_mode",
-            "capability_type": "enum",
-            "properties": {"values": ["rgb", "hs", "xy"]}
-        }
+        {"capability_name": "brightness", "capability_type": "numeric", "properties": {"min": 0, "max": 255}},
+        {"capability_name": "color_mode", "capability_type": "enum", "properties": {"values": ["rgb", "hs", "xy"]}},
     ]
 
-    mock_capabilities_device2 = [
-        {
-            "capability_name": "effect",
-            "capability_type": "enum",
-            "properties": {"count": 186}
-        }
-    ]
+    mock_capabilities_device2 = [{"capability_name": "effect", "capability_type": "enum", "properties": {"count": 186}}]
 
-    with patch.object(
-        capability_patterns_service.device_intelligence_client,
-        "get_devices",
-        new_callable=AsyncMock,
-        return_value=mock_devices
-    ), patch.object(
-        capability_patterns_service.device_intelligence_client,
-        "get_device_capabilities",
-        new_callable=AsyncMock,
-        side_effect=[mock_capabilities_device1, mock_capabilities_device2]
+    with (
+        patch.object(
+            capability_patterns_service.device_intelligence_client,
+            "get_devices",
+            new_callable=AsyncMock,
+            return_value=mock_devices,
+        ),
+        patch.object(
+            capability_patterns_service.device_intelligence_client,
+            "get_device_capabilities",
+            new_callable=AsyncMock,
+            side_effect=[mock_capabilities_device1, mock_capabilities_device2],
+        ),
     ):
         patterns = await capability_patterns_service.get_patterns()
 
@@ -90,10 +75,7 @@ async def test_get_patterns_with_capabilities(capability_patterns_service, mock_
 async def test_get_patterns_empty_devices(capability_patterns_service, mock_context_builder):
     """Test getting patterns with no devices"""
     with patch.object(
-        capability_patterns_service.device_intelligence_client,
-        "get_devices",
-        new_callable=AsyncMock,
-        return_value=[]
+        capability_patterns_service.device_intelligence_client, "get_devices", new_callable=AsyncMock, return_value=[]
     ):
         patterns = await capability_patterns_service.get_patterns()
 
@@ -106,12 +88,10 @@ async def test_get_patterns_cached(capability_patterns_service, mock_context_bui
     """Test getting patterns from cache"""
     cached_patterns = "Cached patterns: Philips Hue: brightness (0-255), color_mode (3 options)"
     mock_context_builder._get_cached_value = AsyncMock(return_value=cached_patterns)
-    
+
     # Mock get_devices to verify it's not called when cached
     with patch.object(
-        capability_patterns_service.device_intelligence_client,
-        "get_devices",
-        new_callable=AsyncMock
+        capability_patterns_service.device_intelligence_client, "get_devices", new_callable=AsyncMock
     ) as mock_get_devices:
         patterns = await capability_patterns_service.get_patterns()
 
@@ -127,7 +107,7 @@ async def test_get_patterns_api_error(capability_patterns_service, mock_context_
         capability_patterns_service.device_intelligence_client,
         "get_devices",
         new_callable=AsyncMock,
-        side_effect=Exception("API Error")
+        side_effect=Exception("API Error"),
     ):
         patterns = await capability_patterns_service.get_patterns()
 
@@ -143,16 +123,19 @@ async def test_get_patterns_device_capability_error(capability_patterns_service,
         {"device_id": "device1", "manufacturer": "Philips", "model": "Hue"},
     ]
 
-    with patch.object(
-        capability_patterns_service.device_intelligence_client,
-        "get_devices",
-        new_callable=AsyncMock,
-        return_value=mock_devices
-    ), patch.object(
-        capability_patterns_service.device_intelligence_client,
-        "get_device_capabilities",
-        new_callable=AsyncMock,
-        side_effect=Exception("Capability fetch error")
+    with (
+        patch.object(
+            capability_patterns_service.device_intelligence_client,
+            "get_devices",
+            new_callable=AsyncMock,
+            return_value=mock_devices,
+        ),
+        patch.object(
+            capability_patterns_service.device_intelligence_client,
+            "get_device_capabilities",
+            new_callable=AsyncMock,
+            side_effect=Exception("Capability fetch error"),
+        ),
     ):
         patterns = await capability_patterns_service.get_patterns()
 
@@ -164,9 +147,7 @@ async def test_get_patterns_device_capability_error(capability_patterns_service,
 @pytest.mark.asyncio
 async def test_format_capability_numeric(capability_patterns_service):
     """Test formatting numeric capability"""
-    formatted = capability_patterns_service._format_capability(
-        "brightness", "numeric", {"min": 0, "max": 255}
-    )
+    formatted = capability_patterns_service._format_capability("brightness", "numeric", {"min": 0, "max": 255})
     assert "brightness" in formatted
     assert "0-255" in formatted or "255" in formatted
 
@@ -174,9 +155,7 @@ async def test_format_capability_numeric(capability_patterns_service):
 @pytest.mark.asyncio
 async def test_format_capability_enum(capability_patterns_service):
     """Test formatting enum capability"""
-    formatted = capability_patterns_service._format_capability(
-        "color_mode", "enum", {"values": ["rgb", "hs"]}
-    )
+    formatted = capability_patterns_service._format_capability("color_mode", "enum", {"values": ["rgb", "hs"]})
     assert "color_mode" in formatted
     # Format is "color_mode [rgb, hs]" - check for the values
     assert "rgb" in formatted and "hs" in formatted
@@ -190,4 +169,3 @@ async def test_close(capability_patterns_service):
     await capability_patterns_service.close()
 
     capability_patterns_service.device_intelligence_client.close.assert_called_once()
-

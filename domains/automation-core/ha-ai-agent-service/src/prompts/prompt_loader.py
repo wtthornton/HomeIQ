@@ -27,11 +27,7 @@ class PromptLoader:
     """Loads and assembles system prompt from section files."""
 
     def __init__(self, config_path: str | None = None) -> None:
-        self._config_path = Path(
-            config_path
-            or os.environ.get("PROMPT_CONFIG_PATH", "")
-            or str(_DEFAULT_CONFIG)
-        )
+        self._config_path = Path(config_path or os.environ.get("PROMPT_CONFIG_PATH", "") or str(_DEFAULT_CONFIG))
         self._config: dict | None = None
         self._sections: dict[str, str] = {}
         self._assembled_raw: str | None = None
@@ -70,9 +66,7 @@ class PromptLoader:
             self._log_summary(result)
             return result
         except Exception:
-            logger.warning(
-                "⚠️ Failed to load prompt from config — falling back to SYSTEM_PROMPT constant"
-            )
+            logger.warning("⚠️ Failed to load prompt from config — falling back to SYSTEM_PROMPT constant")
             from .system_prompt import SYSTEM_PROMPT
 
             self._assembled = SYSTEM_PROMPT
@@ -103,11 +97,7 @@ class PromptLoader:
         """Number of enabled sections."""
         if not self._config:
             return 0
-        return sum(
-            1
-            for s in self._config.get("sections", [])
-            if s.get("enabled", True)
-        )
+        return sum(1 for s in self._config.get("sections", []) if s.get("enabled", True))
 
     def reload(self) -> str:
         """Force reload from disk."""
@@ -130,9 +120,7 @@ class PromptLoader:
         self._assembled_raw = self._assemble()
         return self._assembled_raw
 
-    def _apply_variables(
-        self, text: str, extra_vars: dict[str, str] | None = None
-    ) -> str:
+    def _apply_variables(self, text: str, extra_vars: dict[str, str] | None = None) -> str:
         """Substitute only known config/env variables in *text*."""
         variables: dict[str, str] = {}
         if self._config:
@@ -143,7 +131,7 @@ class PromptLoader:
         # Env var overrides: PROMPT_VAR_HA_VERSION → ha_version
         for key, val in os.environ.items():
             if key.startswith("PROMPT_VAR_"):
-                var_name = key[len("PROMPT_VAR_"):].lower()
+                var_name = key[len("PROMPT_VAR_") :].lower()
                 variables[var_name] = val
 
         if not variables:
@@ -160,9 +148,7 @@ class PromptLoader:
         if self._config is not None:
             return
         if not self._config_path.exists():
-            raise FileNotFoundError(
-                f"Prompt config not found: {self._config_path}"
-            )
+            raise FileNotFoundError(f"Prompt config not found: {self._config_path}")
         with open(self._config_path, encoding="utf-8") as f:
             self._config = yaml.safe_load(f)
         logger.debug("Loaded prompt config from %s", self._config_path)
@@ -177,9 +163,7 @@ class PromptLoader:
         if preamble_file:
             preamble_path = sections_dir / preamble_file
             if preamble_path.exists():
-                self._sections["__preamble__"] = preamble_path.read_text(
-                    encoding="utf-8"
-                )
+                self._sections["__preamble__"] = preamble_path.read_text(encoding="utf-8")
 
         # Read each enabled section
         for section in self._config.get("sections", []):
@@ -188,9 +172,7 @@ class PromptLoader:
             name = section["name"]
             filepath = sections_dir / section["file"]
             if not filepath.exists():
-                raise FileNotFoundError(
-                    f"Section file missing: {filepath} (section '{name}')"
-                )
+                raise FileNotFoundError(f"Section file missing: {filepath} (section '{name}')")
             self._sections[name] = filepath.read_text(encoding="utf-8")
 
     def _assemble(self) -> str:
@@ -218,9 +200,7 @@ class PromptLoader:
                 continue
             name = section["name"]
             content = self._sections.get(name, "")
-            header = header_tpl.replace("{index}", section["index"]).replace(
-                "{title}", section["title"]
-            )
+            header = header_tpl.replace("{index}", section["index"]).replace("{title}", section["title"])
             parts.append(header)
             parts.append(content)
 

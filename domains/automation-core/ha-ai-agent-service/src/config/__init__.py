@@ -144,8 +144,7 @@ class Settings(BaseServiceSettings):
     openai_reasoning_effort: str | None = Field(
         default=None,
         description=(
-            "Reasoning effort for reasoning models (low, medium, high, xhigh)."
-            " None for non-reasoning models."
+            "Reasoning effort for reasoning models (low, medium, high, xhigh). None for non-reasoning models."
         ),
     )
     openai_timeout: int = Field(
@@ -282,4 +281,3 @@ class Settings(BaseServiceSettings):
         default=True,
         description="Enable API cost tracking and savings reporting",
     )
-

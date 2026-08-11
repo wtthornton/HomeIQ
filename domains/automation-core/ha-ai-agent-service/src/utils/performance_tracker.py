@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PerformanceMetric:
     """Single performance metric"""
+
     name: str
     start_time: float
     end_time: float | None = None
@@ -27,6 +28,7 @@ class PerformanceMetric:
 @dataclass
 class PerformanceReport:
     """Performance report for an operation"""
+
     operation: str
     total_duration: float
     metrics: list[PerformanceMetric]
@@ -59,11 +61,7 @@ class PerformanceTracker:
             Metric ID for ending the metric
         """
         metric_id = f"{name}_{int(time.time() * 1000)}_{id(self)}"
-        self.metrics[metric_id] = PerformanceMetric(
-            name=name,
-            start_time=time.perf_counter(),
-            metadata=metadata or {}
-        )
+        self.metrics[metric_id] = PerformanceMetric(name=name, start_time=time.perf_counter(), metadata=metadata or {})
         return metric_id
 
     def end(self, metric_id: str, metadata: dict[str, Any] | None = None) -> PerformanceMetric | None:
@@ -93,10 +91,7 @@ class PerformanceTracker:
         return metric
 
     def create_report(
-        self,
-        operation: str,
-        metric_ids: list[str],
-        additional_metadata: dict[str, Any] | None = None
+        self, operation: str, metric_ids: list[str], additional_metadata: dict[str, Any] | None = None
     ) -> PerformanceReport:
         """
         Create a performance report for an operation.
@@ -118,10 +113,7 @@ class PerformanceTracker:
         total_duration = sum(m.duration for m in metrics if m.duration)
 
         report = PerformanceReport(
-            operation=operation,
-            total_duration=total_duration,
-            metrics=metrics,
-            timestamp=time.time()
+            operation=operation, total_duration=total_duration, metrics=metrics, timestamp=time.time()
         )
 
         # Cleanup: remove processed metrics to prevent unbounded memory growth
@@ -137,7 +129,7 @@ class PerformanceTracker:
             f"[Performance] {operation}: "
             f"Total: {total_duration_ms:.2f}ms ({total_duration:.3f}s), "
             f"Metrics: {len(metrics)}, "
-            f"Details: {', '.join(f'{m.name}={m.duration*1000:.2f}ms' for m in metrics)}"
+            f"Details: {', '.join(f'{m.name}={m.duration * 1000:.2f}ms' for m in metrics)}"
         )
 
         if additional_metadata:
@@ -173,14 +165,7 @@ class PerformanceTracker:
                 "operation": r.operation,
                 "total_duration": r.total_duration,
                 "timestamp": r.timestamp,
-                "metrics": [
-                    {
-                        "name": m.name,
-                        "duration": m.duration,
-                        "metadata": m.metadata
-                    }
-                    for m in r.metrics
-                ]
+                "metrics": [{"name": m.name, "duration": m.duration, "metadata": m.metadata} for m in r.metrics],
             }
             for r in self.reports
         ]
@@ -206,10 +191,7 @@ def end_tracking(metric_id: str, metadata: dict[str, Any] | None = None) -> Perf
 
 
 def create_report(
-    operation: str,
-    metric_ids: list[str],
-    additional_metadata: dict[str, Any] | None = None
+    operation: str, metric_ids: list[str], additional_metadata: dict[str, Any] | None = None
 ) -> PerformanceReport:
     """Create a performance report (convenience function)"""
     return _performance_tracker.create_report(operation, metric_ids, additional_metadata)
-

@@ -6,11 +6,12 @@ Tests the complete chat flow from user message to agent response,
 including tool calls, conversation persistence, and error scenarios.
 """
 
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from httpx import AsyncClient
+
 from src.api.dependencies import set_services
 from src.config import Settings
 from src.main import app
@@ -35,9 +36,7 @@ def settings():
 def mock_context_builder():
     """Create mock context builder"""
     builder = MagicMock(spec=ContextBuilder)
-    builder.build_complete_system_prompt = AsyncMock(
-        return_value="System prompt with Tier 1 context"
-    )
+    builder.build_complete_system_prompt = AsyncMock(return_value="System prompt with Tier 1 context")
     builder.initialize = AsyncMock()
     builder.close = AsyncMock()
     builder._initialized = True
@@ -133,7 +132,7 @@ def create_mock_completion(content: str, tool_calls=None):
     )
 
 
-def create_mock_tool_call(call_id: str, name: str, arguments: Dict[str, Any]):
+def create_mock_tool_call(call_id: str, name: str, arguments: dict[str, Any]):
     """Create mock Responses API function_call item"""
     import json
     from types import SimpleNamespace
@@ -197,9 +196,7 @@ async def test_chat_flow_with_tool_call(test_client, mock_openai_client, mock_to
     }
 
     # Mock second OpenAI call (after tool execution)
-    mock_response2 = create_mock_completion(
-        "The kitchen light is currently on with 100% brightness."
-    )
+    mock_response2 = create_mock_completion("The kitchen light is currently on with 100% brightness.")
     mock_openai_client.chat_completion.side_effect = [mock_response, mock_response2]
 
     # Send chat message
@@ -228,9 +225,7 @@ async def test_chat_flow_multi_turn_conversation(test_client, mock_openai_client
     conversation_id = None
 
     # First message
-    mock_response1 = create_mock_completion(
-        "I can help you create automations. What would you like to automate?"
-    )
+    mock_response1 = create_mock_completion("I can help you create automations. What would you like to automate?")
     mock_openai_client.chat_completion.return_value = mock_response1
 
     response1 = await test_client.post(
@@ -248,9 +243,7 @@ async def test_chat_flow_multi_turn_conversation(test_client, mock_openai_client
     assert conversation_id is not None
 
     # Second message in same conversation
-    mock_response2 = create_mock_completion(
-        "Great! I can help you create an automation to turn on lights at sunset."
-    )
+    mock_response2 = create_mock_completion("Great! I can help you create an automation to turn on lights at sunset.")
     mock_openai_client.chat_completion.return_value = mock_response2
 
     response2 = await test_client.post(
@@ -296,9 +289,7 @@ action:
     )
 
     # Second: Agent confirms success
-    mock_response2 = create_mock_completion(
-        "I've successfully created the automation 'Turn On Lights at Sunset'."
-    )
+    mock_response2 = create_mock_completion("I've successfully created the automation 'Turn On Lights at Sunset'.")
 
     mock_openai_client.chat_completion.side_effect = [mock_response1, mock_response2]
 
@@ -442,4 +433,3 @@ async def test_chat_flow_conversation_persistence(test_client, mock_openai_clien
     conversation = await conversation_service.get_conversation(conversation_id)
     assert conversation is not None
     # Messages should be persisted (checked via conversation service)
-

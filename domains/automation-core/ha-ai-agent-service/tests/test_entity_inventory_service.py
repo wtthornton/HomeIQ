@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from src.config import Settings
 from src.services.context_builder import ContextBuilder
 from src.services.entity_inventory_service import EntityInventoryService
@@ -11,9 +12,7 @@ from src.services.entity_inventory_service import EntityInventoryService
 @pytest.fixture
 def mock_settings():
     """Create mock settings"""
-    return Settings(
-        data_api_url="http://test-data-api:8006"
-    )
+    return Settings(data_api_url="http://test-data-api:8006")
 
 
 @pytest.fixture
@@ -28,10 +27,7 @@ def mock_context_builder():
 @pytest.fixture
 def entity_inventory_service(mock_settings, mock_context_builder):
     """Create EntityInventoryService instance"""
-    return EntityInventoryService(
-        settings=mock_settings,
-        context_builder=mock_context_builder
-    )
+    return EntityInventoryService(settings=mock_settings, context_builder=mock_context_builder)
 
 
 @pytest.mark.asyncio
@@ -47,10 +43,7 @@ async def test_get_summary_with_entities(entity_inventory_service, mock_context_
     ]
 
     with patch.object(
-        entity_inventory_service.data_api_client,
-        "fetch_entities",
-        new_callable=AsyncMock,
-        return_value=mock_entities
+        entity_inventory_service.data_api_client, "fetch_entities", new_callable=AsyncMock, return_value=mock_entities
     ):
         summary = await entity_inventory_service.get_summary()
 
@@ -69,10 +62,7 @@ async def test_get_summary_with_entities(entity_inventory_service, mock_context_
 async def test_get_summary_empty_entities(entity_inventory_service, mock_context_builder):
     """Test getting summary with no entities"""
     with patch.object(
-        entity_inventory_service.data_api_client,
-        "fetch_entities",
-        new_callable=AsyncMock,
-        return_value=[]
+        entity_inventory_service.data_api_client, "fetch_entities", new_callable=AsyncMock, return_value=[]
     ):
         summary = await entity_inventory_service.get_summary()
 
@@ -90,8 +80,10 @@ async def test_get_summary_cached(entity_inventory_service, mock_context_builder
 
     assert summary == cached_summary
     # Should not call fetch_entities when cached
-    assert not hasattr(entity_inventory_service.data_api_client, "fetch_entities") or \
-           not entity_inventory_service.data_api_client.fetch_entities.called
+    assert (
+        not hasattr(entity_inventory_service.data_api_client, "fetch_entities")
+        or not entity_inventory_service.data_api_client.fetch_entities.called
+    )
 
 
 @pytest.mark.asyncio
@@ -101,7 +93,7 @@ async def test_get_summary_api_error(entity_inventory_service, mock_context_buil
         entity_inventory_service.data_api_client,
         "fetch_entities",
         new_callable=AsyncMock,
-        side_effect=Exception("API Error")
+        side_effect=Exception("API Error"),
     ):
         summary = await entity_inventory_service.get_summary()
 
@@ -147,26 +139,20 @@ async def test_get_summary_with_device_area_resolution(entity_inventory_service,
         {"area_id": "office", "name": "Office"},
     ]
 
-    with patch.object(
-        entity_inventory_service.data_api_client,
-        "fetch_entities",
-        new_callable=AsyncMock,
-        return_value=mock_entities
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_device_registry",
-        new_callable=AsyncMock,
-        return_value=mock_devices
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_area_registry",
-        new_callable=AsyncMock,
-        return_value=mock_areas
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_states",
-        new_callable=AsyncMock,
-        return_value=[]
+    with (
+        patch.object(
+            entity_inventory_service.data_api_client,
+            "fetch_entities",
+            new_callable=AsyncMock,
+            return_value=mock_entities,
+        ),
+        patch.object(
+            entity_inventory_service.ha_client, "get_device_registry", new_callable=AsyncMock, return_value=mock_devices
+        ),
+        patch.object(
+            entity_inventory_service.ha_client, "get_area_registry", new_callable=AsyncMock, return_value=mock_areas
+        ),
+        patch.object(entity_inventory_service.ha_client, "get_states", new_callable=AsyncMock, return_value=[]),
     ):
         summary = await entity_inventory_service.get_summary()
 
@@ -195,32 +181,26 @@ async def test_get_summary_with_device_metadata(entity_inventory_service, mock_c
             "area_id": "office",
             "manufacturer": "Philips",
             "model": "Hue Light",
-            "sw_version": "1.0.0"
+            "sw_version": "1.0.0",
         },
     ]
 
     mock_areas = [{"area_id": "office", "name": "Office"}]
 
-    with patch.object(
-        entity_inventory_service.data_api_client,
-        "fetch_entities",
-        new_callable=AsyncMock,
-        return_value=mock_entities
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_device_registry",
-        new_callable=AsyncMock,
-        return_value=mock_devices
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_area_registry",
-        new_callable=AsyncMock,
-        return_value=mock_areas
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_states",
-        new_callable=AsyncMock,
-        return_value=[]
+    with (
+        patch.object(
+            entity_inventory_service.data_api_client,
+            "fetch_entities",
+            new_callable=AsyncMock,
+            return_value=mock_entities,
+        ),
+        patch.object(
+            entity_inventory_service.ha_client, "get_device_registry", new_callable=AsyncMock, return_value=mock_devices
+        ),
+        patch.object(
+            entity_inventory_service.ha_client, "get_area_registry", new_callable=AsyncMock, return_value=mock_areas
+        ),
+        patch.object(entity_inventory_service.ha_client, "get_states", new_callable=AsyncMock, return_value=[]),
     ):
         summary = await entity_inventory_service.get_summary()
 
@@ -240,26 +220,26 @@ async def test_get_summary_device_registry_error_graceful(entity_inventory_servi
     ]
 
     # Mock device registry failure
-    with patch.object(
-        entity_inventory_service.data_api_client,
-        "fetch_entities",
-        new_callable=AsyncMock,
-        return_value=mock_entities
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_device_registry",
-        new_callable=AsyncMock,
-        side_effect=Exception("Device Registry API Error")
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_area_registry",
-        new_callable=AsyncMock,
-        return_value=[{"area_id": "office", "name": "Office"}]
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_states",
-        new_callable=AsyncMock,
-        return_value=[]
+    with (
+        patch.object(
+            entity_inventory_service.data_api_client,
+            "fetch_entities",
+            new_callable=AsyncMock,
+            return_value=mock_entities,
+        ),
+        patch.object(
+            entity_inventory_service.ha_client,
+            "get_device_registry",
+            new_callable=AsyncMock,
+            side_effect=Exception("Device Registry API Error"),
+        ),
+        patch.object(
+            entity_inventory_service.ha_client,
+            "get_area_registry",
+            new_callable=AsyncMock,
+            return_value=[{"area_id": "office", "name": "Office"}],
+        ),
+        patch.object(entity_inventory_service.ha_client, "get_states", new_callable=AsyncMock, return_value=[]),
     ):
         # Should not raise error, should continue with existing behavior
         summary = await entity_inventory_service.get_summary()
@@ -285,38 +265,33 @@ async def test_get_summary_with_entity_aliases(entity_inventory_service, mock_co
             "name": "Office Light",
             "aliases": ["workspace light", "desk light"],
             "category": "light",
-            "disabled_by": None
+            "disabled_by": None,
         },
     ]
 
     mock_devices = [{"id": "device1", "name": "Office Light", "area_id": "office"}]
     mock_areas = [{"area_id": "office", "name": "Office"}]
 
-    with patch.object(
-        entity_inventory_service.data_api_client,
-        "fetch_entities",
-        new_callable=AsyncMock,
-        return_value=mock_entities
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_device_registry",
-        new_callable=AsyncMock,
-        return_value=mock_devices
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_entity_registry",
-        new_callable=AsyncMock,
-        return_value=mock_entity_registry
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_area_registry",
-        new_callable=AsyncMock,
-        return_value=mock_areas
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_states",
-        new_callable=AsyncMock,
-        return_value=[]
+    with (
+        patch.object(
+            entity_inventory_service.data_api_client,
+            "fetch_entities",
+            new_callable=AsyncMock,
+            return_value=mock_entities,
+        ),
+        patch.object(
+            entity_inventory_service.ha_client, "get_device_registry", new_callable=AsyncMock, return_value=mock_devices
+        ),
+        patch.object(
+            entity_inventory_service.ha_client,
+            "get_entity_registry",
+            new_callable=AsyncMock,
+            return_value=mock_entity_registry,
+        ),
+        patch.object(
+            entity_inventory_service.ha_client, "get_area_registry", new_callable=AsyncMock, return_value=mock_areas
+        ),
+        patch.object(entity_inventory_service.ha_client, "get_states", new_callable=AsyncMock, return_value=[]),
     ):
         summary = await entity_inventory_service.get_summary()
 
@@ -336,31 +311,29 @@ async def test_get_summary_entity_registry_error_graceful(entity_inventory_servi
     ]
 
     # Mock entity registry failure
-    with patch.object(
-        entity_inventory_service.data_api_client,
-        "fetch_entities",
-        new_callable=AsyncMock,
-        return_value=mock_entities
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_entity_registry",
-        new_callable=AsyncMock,
-        side_effect=Exception("Entity Registry API Error")
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_device_registry",
-        new_callable=AsyncMock,
-        return_value=[]
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_area_registry",
-        new_callable=AsyncMock,
-        return_value=[{"area_id": "office", "name": "Office"}]
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_states",
-        new_callable=AsyncMock,
-        return_value=[]
+    with (
+        patch.object(
+            entity_inventory_service.data_api_client,
+            "fetch_entities",
+            new_callable=AsyncMock,
+            return_value=mock_entities,
+        ),
+        patch.object(
+            entity_inventory_service.ha_client,
+            "get_entity_registry",
+            new_callable=AsyncMock,
+            side_effect=Exception("Entity Registry API Error"),
+        ),
+        patch.object(
+            entity_inventory_service.ha_client, "get_device_registry", new_callable=AsyncMock, return_value=[]
+        ),
+        patch.object(
+            entity_inventory_service.ha_client,
+            "get_area_registry",
+            new_callable=AsyncMock,
+            return_value=[{"area_id": "office", "name": "Office"}],
+        ),
+        patch.object(entity_inventory_service.ha_client, "get_states", new_callable=AsyncMock, return_value=[]),
     ):
         # Should not raise error, should continue with existing behavior
         summary = await entity_inventory_service.get_summary()
@@ -388,37 +361,29 @@ async def test_get_summary_hue_room_detection(entity_inventory_service, mock_con
             "name": "Office Room",
             "area_id": "office",
             "manufacturer": "Philips",
-            "model": "Room"  # Hue Room group
+            "model": "Room",  # Hue Room group
         },
     ]
 
     mock_areas = [{"area_id": "office", "name": "Office"}]
 
-    with patch.object(
-        entity_inventory_service.data_api_client,
-        "fetch_entities",
-        new_callable=AsyncMock,
-        return_value=mock_entities
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_device_registry",
-        new_callable=AsyncMock,
-        return_value=mock_devices
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_entity_registry",
-        new_callable=AsyncMock,
-        return_value=[]
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_area_registry",
-        new_callable=AsyncMock,
-        return_value=mock_areas
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_states",
-        new_callable=AsyncMock,
-        return_value=[]
+    with (
+        patch.object(
+            entity_inventory_service.data_api_client,
+            "fetch_entities",
+            new_callable=AsyncMock,
+            return_value=mock_entities,
+        ),
+        patch.object(
+            entity_inventory_service.ha_client, "get_device_registry", new_callable=AsyncMock, return_value=mock_devices
+        ),
+        patch.object(
+            entity_inventory_service.ha_client, "get_entity_registry", new_callable=AsyncMock, return_value=[]
+        ),
+        patch.object(
+            entity_inventory_service.ha_client, "get_area_registry", new_callable=AsyncMock, return_value=mock_areas
+        ),
+        patch.object(entity_inventory_service.ha_client, "get_states", new_callable=AsyncMock, return_value=[]),
     ):
         summary = await entity_inventory_service.get_summary()
 
@@ -442,31 +407,23 @@ async def test_get_summary_wled_segment_detection(entity_inventory_service, mock
     mock_devices = []
     mock_areas = [{"area_id": "office", "name": "Office"}]
 
-    with patch.object(
-        entity_inventory_service.data_api_client,
-        "fetch_entities",
-        new_callable=AsyncMock,
-        return_value=mock_entities
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_device_registry",
-        new_callable=AsyncMock,
-        return_value=mock_devices
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_entity_registry",
-        new_callable=AsyncMock,
-        return_value=[]
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_area_registry",
-        new_callable=AsyncMock,
-        return_value=mock_areas
-    ), patch.object(
-        entity_inventory_service.ha_client,
-        "get_states",
-        new_callable=AsyncMock,
-        return_value=[]
+    with (
+        patch.object(
+            entity_inventory_service.data_api_client,
+            "fetch_entities",
+            new_callable=AsyncMock,
+            return_value=mock_entities,
+        ),
+        patch.object(
+            entity_inventory_service.ha_client, "get_device_registry", new_callable=AsyncMock, return_value=mock_devices
+        ),
+        patch.object(
+            entity_inventory_service.ha_client, "get_entity_registry", new_callable=AsyncMock, return_value=[]
+        ),
+        patch.object(
+            entity_inventory_service.ha_client, "get_area_registry", new_callable=AsyncMock, return_value=mock_areas
+        ),
+        patch.object(entity_inventory_service.ha_client, "get_states", new_callable=AsyncMock, return_value=[]),
     ):
         summary = await entity_inventory_service.get_summary()
 

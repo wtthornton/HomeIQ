@@ -30,7 +30,9 @@ logger = logging.getLogger(__name__)
 
 # Module-level breakers so all instances share a single circuit per target group
 _ml_engine_breaker = CircuitBreaker(name="ml-engine-suggestions", failure_threshold=3, recovery_timeout=60.0)
-_pattern_analysis_breaker = CircuitBreaker(name="pattern-analysis-suggestions", failure_threshold=3, recovery_timeout=60.0)
+_pattern_analysis_breaker = CircuitBreaker(
+    name="pattern-analysis-suggestions", failure_threshold=3, recovery_timeout=60.0
+)
 
 
 class DeviceSuggestionService:
@@ -46,13 +48,11 @@ class DeviceSuggestionService:
         self.settings = settings
         self.data_api_client = DataAPIClient(
             base_url=settings.data_api_url or "http://data-api:8006",
-            api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None
+            api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None,
         )
         # HTTP client for other services
         self.http_client = httpx.AsyncClient(
-            timeout=30.0,
-            follow_redirects=True,
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            timeout=30.0, follow_redirects=True, limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
         )
 
     async def generate_suggestions(
@@ -367,10 +367,7 @@ class DeviceSuggestionService:
             entity_id = entity.get("entity_id")
             if entity_id:
                 friendly_name = (
-                    entity.get("friendly_name") or
-                    entity.get("name") or
-                    entity.get("name_by_user") or
-                    entity_id
+                    entity.get("friendly_name") or entity.get("name") or entity.get("name_by_user") or entity_id
                 )
                 entity_map[entity_id] = friendly_name
                 # Use first entity's friendly name as primary if available
@@ -393,7 +390,9 @@ class DeviceSuggestionService:
         # Generate suggestion from device capabilities
         if device_context.capabilities:
             # Get capability names for better description
-            capability_names = [cap.get("capability_name", "") for cap in device_context.capabilities if cap.get("capability_name")]
+            capability_names = [
+                cap.get("capability_name", "") for cap in device_context.capabilities if cap.get("capability_name")
+            ]
             capability_text = ", ".join(capability_names[:3]) if capability_names else "device capabilities"
 
             suggestion = DeviceSuggestion(
@@ -408,7 +407,11 @@ class DeviceSuggestionService:
                     device_capabilities=True,
                 ),
                 home_assistant_entities=HomeAssistantEntities(
-                    action_entities=[entity.get("entity_id") for entity in device_context.home_assistant_entities if entity.get("entity_id")],
+                    action_entities=[
+                        entity.get("entity_id")
+                        for entity in device_context.home_assistant_entities
+                        if entity.get("entity_id")
+                    ],
                 ),
                 home_assistant_services=HomeAssistantServices(
                     actions=["switch.turn_on", "switch.turn_off"],
@@ -477,9 +480,7 @@ class DeviceSuggestionService:
                 primary_entity = device_context.home_assistant_entities[0]
 
             entity_name = (
-                primary_entity.get("friendly_name") or
-                primary_entity.get("name") or
-                primary_entity.get("entity_id", "")
+                primary_entity.get("friendly_name") or primary_entity.get("name") or primary_entity.get("entity_id", "")
             )
 
             suggestion = DeviceSuggestion(
@@ -498,7 +499,10 @@ class DeviceSuggestionService:
                     action_entities=[primary_entity.get("entity_id")] if primary_entity.get("entity_id") else [],
                 ),
                 home_assistant_services=HomeAssistantServices(
-                    actions=[f"{primary_entity.get('domain', 'switch')}.turn_on", f"{primary_entity.get('domain', 'switch')}.turn_off"],
+                    actions=[
+                        f"{primary_entity.get('domain', 'switch')}.turn_on",
+                        f"{primary_entity.get('domain', 'switch')}.turn_off",
+                    ],
                     validated=False,
                 ),
                 confidence_score=0.70,
@@ -563,21 +567,20 @@ class DeviceSuggestionService:
         )
 
         # Filter by minimum thresholds (raise to 0.65 for better quality)
-        filtered = [
-            s for s in ranked
-            if s.confidence_score >= 0.65 and s.quality_score >= 0.65
-        ]
+        filtered = [s for s in ranked if s.confidence_score >= 0.65 and s.quality_score >= 0.65]
 
         # Calculate improved scores based on data sources
         for suggestion in filtered:
             # Boost confidence for multiple data sources
-            source_count = sum([
-                1 if suggestion.data_sources.blueprints else 0,
-                1 if suggestion.data_sources.synergies else 0,
-                1 if suggestion.data_sources.device_capabilities else 0,
-                1 if suggestion.data_sources.weather else 0,
-                1 if suggestion.data_sources.sports else 0,
-            ])
+            source_count = sum(
+                [
+                    1 if suggestion.data_sources.blueprints else 0,
+                    1 if suggestion.data_sources.synergies else 0,
+                    1 if suggestion.data_sources.device_capabilities else 0,
+                    1 if suggestion.data_sources.weather else 0,
+                    1 if suggestion.data_sources.sports else 0,
+                ]
+            )
             if source_count > 1:
                 suggestion.confidence_score = min(suggestion.confidence_score + 0.05, 1.0)
 

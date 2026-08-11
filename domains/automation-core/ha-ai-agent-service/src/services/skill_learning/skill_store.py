@@ -11,9 +11,8 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import UTC, datetime
-from typing import Any
 
-from sqlalchemy import JSON, DateTime, Float, Index, Integer, String, Text, func, select
+from sqlalchemy import JSON, DateTime, Index, Integer, String, Text, func, select
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ...database import Base, db
@@ -38,7 +37,9 @@ class Skill(Base):
     __tablename__ = "skills"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4()),
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     description: Mapped[str] = mapped_column(Text, nullable=False)
@@ -50,16 +51,21 @@ class Skill(Base):
     # Usage tracking
     use_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(),
-        onupdate=func.now(), nullable=False,
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     def __repr__(self) -> str:
@@ -138,10 +144,7 @@ class SkillStore:
         async with db.get_db() as session:
             stmt = (
                 select(Skill)
-                .where(
-                    Skill.name.ilike(f"%{query}%")
-                    | Skill.description.ilike(f"%{query}%")
-                )
+                .where(Skill.name.ilike(f"%{query}%") | Skill.description.ilike(f"%{query}%"))
                 .order_by(Skill.use_count.desc())
                 .limit(limit)
             )

@@ -52,10 +52,11 @@ class PromptAssemblyService:
         self.model = settings.openai_model
         self.max_input_tokens = MAX_INPUT_TOKENS
         # Initialize EntityResolutionService and DataAPIClient for entity extraction
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
-        self.entity_resolution_service = EntityResolutionService(
-            data_api_client=self.data_api_client
+        self.data_api_client = DataAPIClient(
+            base_url=settings.data_api_url,
+            api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None,
         )
+        self.entity_resolution_service = EntityResolutionService(data_api_client=self.data_api_client)
         logger.info("✅ Prompt assembly service initialized")
 
     async def assemble_messages(
@@ -92,9 +93,7 @@ class PromptAssemblyService:
 
         # Add user message to conversation (unless skipping)
         if not skip_add_message:
-            await self.conversation_service.add_message(
-                conversation_id, "user", user_message
-            )
+            await self.conversation_service.add_message(conversation_id, "user", user_message)
             # Reload conversation to get updated message history (includes the message we just added)
             conversation = await self.conversation_service.get_conversation(conversation_id)
         if not conversation:
@@ -132,16 +131,12 @@ class PromptAssemblyService:
                         f"❌ CRITICAL: Context builder not initialized! Error: {e}"
                     )
                     raise
-                logger.error(
-                    f"[Context Building] Conversation {conversation_id}: "
-                    f"❌ Error building context: {e}"
-                )
+                logger.error(f"[Context Building] Conversation {conversation_id}: ❌ Error building context: {e}")
                 raise
             except Exception as e:
                 logger.error(
-                    f"[Context Building] Conversation {conversation_id}: "
-                    f"❌ Unexpected error building context: {e}",
-                    exc_info=True
+                    f"[Context Building] Conversation {conversation_id}: ❌ Unexpected error building context: {e}",
+                    exc_info=True,
                 )
                 raise
         else:
@@ -163,8 +158,10 @@ class PromptAssemblyService:
             context_entities: list[dict[str, Any]] | None = None
             try:
                 # Try to get entities from entity inventory service (if available)
-                if hasattr(self.context_builder, '_entity_inventory_service') and \
-                   self.context_builder._entity_inventory_service:
+                if (
+                    hasattr(self.context_builder, "_entity_inventory_service")
+                    and self.context_builder._entity_inventory_service
+                ):
                     # Fetch entities via data_api_client (used by entity_inventory_service)
                     context_entities = await self.data_api_client.fetch_entities(limit=1000)
             except Exception as e:
@@ -212,13 +209,14 @@ class PromptAssemblyService:
                                     break
 
                         # Get recent automation patterns
-                        if hasattr(self.context_builder, '_automation_patterns_service') and \
-                           self.context_builder._automation_patterns_service:
-                            patterns_context = await self.context_builder._automation_patterns_service.get_recent_patterns(
-                                user_prompt=user_message,
-                                area_id=area_id,
-                                limit=3,
-                                skip_truncation=False
+                        if (
+                            hasattr(self.context_builder, "_automation_patterns_service")
+                            and self.context_builder._automation_patterns_service
+                        ):
+                            patterns_context = (
+                                await self.context_builder._automation_patterns_service.get_recent_patterns(
+                                    user_prompt=user_message, area_id=area_id, limit=3, skip_truncation=False
+                                )
                             )
 
                             # Inject patterns context if available
@@ -232,12 +230,9 @@ class PromptAssemblyService:
 
                         # Reusable Pattern Framework: Inject RAG context via registry
                         # Runs all registered RAG services (sports, energy, etc.)
-                        if hasattr(self.context_builder, '_rag_registry') and \
-                           self.context_builder._rag_registry:
+                        if hasattr(self.context_builder, "_rag_registry") and self.context_builder._rag_registry:
                             try:
-                                rag_context = await self.context_builder._rag_registry.get_merged_context(
-                                    user_message
-                                )
+                                rag_context = await self.context_builder._rag_registry.get_merged_context(user_message)
                                 if rag_context and rag_context.strip():
                                     system_prompt = f"{system_prompt}\n{rag_context}"
                                     logger.info(
@@ -258,8 +253,7 @@ class PromptAssemblyService:
         except Exception as e:
             # Graceful degradation: log error but don't fail
             logger.warning(
-                f"[Device State Context] Conversation {conversation_id}: "
-                f"Failed to inject device state context: {e}"
+                f"[Device State Context] Conversation {conversation_id}: Failed to inject device state context: {e}"
             )
 
         # Story 33.2: Inject memory context for personalized responses
@@ -282,10 +276,7 @@ class PromptAssemblyService:
                         f"Injected memory context ({len(memory_context)} chars)"
                     )
         except Exception as e:
-            logger.warning(
-                f"[Memory Context] Conversation {conversation_id}: "
-                f"Failed to inject memory context: {e}"
-            )
+            logger.warning(f"[Memory Context] Conversation {conversation_id}: Failed to inject memory context: {e}")
 
         # Inject pending preview context if available (2025 Preview-and-Approval Workflow)
         pending_preview = conversation.get_pending_preview()
@@ -350,10 +341,7 @@ class PromptAssemblyService:
 Instructions: Process this request now. Use tools if needed. Do not respond with generic welcome messages."""
 
             # Replace the last message with emphasized version
-            emphasized_messages[-1] = {
-                "role": "user",
-                "content": emphasized_user_message
-            }
+            emphasized_messages[-1] = {"role": "user", "content": emphasized_user_message}
 
             logger.debug(
                 f"[Message Emphasis] Conversation {conversation_id}: "
@@ -382,10 +370,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
 {original_user_message}
 
 Instructions: Process this request now. Use tools if needed. Do not respond with generic welcome messages."""
-                emphasized_messages[last_user_idx] = {
-                    "role": "user",
-                    "content": emphasized_user_message
-                }
+                emphasized_messages[last_user_idx] = {"role": "user", "content": emphasized_user_message}
 
                 logger.info(
                     f"[Message Emphasis] Conversation {conversation_id}: "
@@ -402,8 +387,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
         # Verify system prompt before assembly
         if not system_prompt:
             logger.error(
-                f"[Message Assembly] Conversation {conversation_id}: "
-                f"❌ CRITICAL: System prompt is None or empty!"
+                f"[Message Assembly] Conversation {conversation_id}: ❌ CRITICAL: System prompt is None or empty!"
             )
             raise ValueError("System prompt is required but was None or empty")
 
@@ -468,14 +452,11 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
         total_tokens = count_message_tokens(messages, self.model)
 
         if total_tokens <= self.max_input_tokens:
-            logger.debug(
-                f"Token count {total_tokens} within budget {self.max_input_tokens}"
-            )
+            logger.debug(f"Token count {total_tokens} within budget {self.max_input_tokens}")
             return messages
 
         logger.warning(
-            f"Token count {total_tokens} exceeds budget {self.max_input_tokens}, "
-            f"truncating conversation history"
+            f"Token count {total_tokens} exceeds budget {self.max_input_tokens}, truncating conversation history"
         )
 
         # Extract system prompt and last user message (must keep)
@@ -496,23 +477,18 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             return [system_message]
 
         # Count tokens for required messages
-        required_tokens = count_message_tokens(
-            [system_message, last_user_message], self.model
-        )
+        required_tokens = count_message_tokens([system_message, last_user_message], self.model)
         available_tokens = self.max_input_tokens - required_tokens
 
         if available_tokens < 0:
             # Even system + user message exceeds budget (shouldn't happen)
             logger.error(
-                f"System + user message ({required_tokens} tokens) exceeds budget "
-                f"({self.max_input_tokens} tokens)"
+                f"System + user message ({required_tokens} tokens) exceeds budget ({self.max_input_tokens} tokens)"
             )
             return [system_message, last_user_message]
 
         # Truncate history to fit within available tokens
-        truncated_history = self._truncate_message_list(
-            history_messages, available_tokens
-        )
+        truncated_history = self._truncate_message_list(history_messages, available_tokens)
 
         # Reassemble messages
         result = [system_message, *truncated_history, last_user_message]
@@ -525,9 +501,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
 
         return result
 
-    def _truncate_message_list(
-        self, messages: list[dict[str, str]], max_tokens: int
-    ) -> list[dict[str, str]]:
+    def _truncate_message_list(self, messages: list[dict[str, str]], max_tokens: int) -> list[dict[str, str]]:
         """
         Truncate message list to fit within token budget.
 
@@ -592,9 +566,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
 
         return truncated
 
-    async def get_token_count(
-        self, conversation_id: str, include_new_message: str | None = None
-    ) -> dict[str, int]:
+    async def get_token_count(self, conversation_id: str, include_new_message: str | None = None) -> dict[str, int]:
         """
         Get token count breakdown for a conversation.
 
@@ -658,57 +630,65 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             "",
             "Automation YAML:",
             "```yaml",
-            preview.get('automation_yaml', ''),
+            preview.get("automation_yaml", ""),
             "```",
         ]
 
-        details = preview.get('details', {})
+        details = preview.get("details", {})
         if details:
-            lines.extend([
-                "",
-                "Details:",
-                f"- Trigger: {details.get('trigger_description', 'Unknown')}",
-                f"- Action: {details.get('action_description', 'Unknown')}",
-                f"- Mode: {details.get('mode', 'single')}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "Details:",
+                    f"- Trigger: {details.get('trigger_description', 'Unknown')}",
+                    f"- Action: {details.get('action_description', 'Unknown')}",
+                    f"- Mode: {details.get('mode', 'single')}",
+                ]
+            )
 
-        entities = preview.get('entities_affected', [])
+        entities = preview.get("entities_affected", [])
         if entities:
             lines.append(f"- Entities Affected: {', '.join(entities)}")
 
-        areas = preview.get('areas_affected', [])
+        areas = preview.get("areas_affected", [])
         if areas:
             lines.append(f"- Areas Affected: {', '.join(areas)}")
 
-        services = preview.get('services_used', [])
+        services = preview.get("services_used", [])
         if services:
             lines.append(f"- Services Used: {', '.join(services)}")
 
-        warnings = preview.get('safety_warnings', [])
+        warnings = preview.get("safety_warnings", [])
         if warnings:
-            lines.extend([
-                "",
-                "Safety Warnings:",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "Safety Warnings:",
+                ]
+            )
             for warning in warnings:
                 lines.append(f"- {warning}")
 
-        validation = preview.get('validation', {})
+        validation = preview.get("validation", {})
         if validation:
-            errors = validation.get('errors', [])
-            warnings_list = validation.get('warnings', [])
+            errors = validation.get("errors", [])
+            warnings_list = validation.get("warnings", [])
             if errors:
-                lines.extend([
-                    "",
-                    "Validation Errors:",
-                ])
+                lines.extend(
+                    [
+                        "",
+                        "Validation Errors:",
+                    ]
+                )
                 for error in errors:
                     lines.append(f"- {error}")
             if warnings_list:
-                lines.extend([
-                    "",
-                    "Validation Warnings:",
-                ])
+                lines.extend(
+                    [
+                        "",
+                        "Validation Warnings:",
+                    ]
+                )
                 for warning in warnings_list:
                     lines.append(f"- {warning}")
 
@@ -745,10 +725,14 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             lines.append(f"- **Kickoff In**: {kickoff_in}")
 
         # Team colors (for lighting automations)
-        if (team_colors := hidden_context.get("team_colors")) and isinstance(team_colors, list) and len(team_colors) >= 1:
-                lines.append(f"- **Team Colors**: Primary: {team_colors[0]}")
-                if len(team_colors) >= 2:
-                    lines.append(f"                  Secondary: {team_colors[1]}")
+        if (
+            (team_colors := hidden_context.get("team_colors"))
+            and isinstance(team_colors, list)
+            and len(team_colors) >= 1
+        ):
+            lines.append(f"- **Team Colors**: Primary: {team_colors[0]}")
+            if len(team_colors) >= 2:
+                lines.append(f"                  Secondary: {team_colors[1]}")
 
         # Trigger type recommendation
         if trigger_type := hidden_context.get("trigger_type"):
@@ -796,10 +780,9 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
                 lines.append("Blueprint Input Schema:")
                 lines.append(json.dumps(blueprint_inputs, indent=2))
             if matched_devices:
-                device_list = ", ".join([
-                    str(d.get("friendly_name") or d.get("entity_id", ""))
-                    for d in matched_devices
-                ])
+                device_list = ", ".join(
+                    [str(d.get("friendly_name") or d.get("entity_id", "")) for d in matched_devices]
+                )
                 lines.append(f"Matched Devices: {device_list}")
 
             lines.append("")
@@ -814,18 +797,30 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
 
         # Any additional fields
         standard_fields = {
-            "game_time", "kickoff_in", "team_colors", "trigger_type",
-            "trigger_entity", "trigger_condition", "target_color", "context_type",
-            "constraint_mode", "blueprint_id", "blueprint_yaml", "blueprint_inputs", "matched_devices"
+            "game_time",
+            "kickoff_in",
+            "team_colors",
+            "trigger_type",
+            "trigger_entity",
+            "trigger_condition",
+            "target_color",
+            "context_type",
+            "constraint_mode",
+            "blueprint_id",
+            "blueprint_yaml",
+            "blueprint_inputs",
+            "matched_devices",
         }
         for key, value in hidden_context.items():
             if key not in standard_fields and value:
                 lines.append(f"- **{key.replace('_', ' ').title()}**: {value}")
 
-        lines.extend([
-            "",
-            "⚠️ IMPORTANT: Use sensor state triggers for sports events, NOT fixed times.",
-            "If game_time is provided, it's for informational display only - trigger on sensor state change.",
-        ])
+        lines.extend(
+            [
+                "",
+                "⚠️ IMPORTANT: Use sensor state triggers for sports events, NOT fixed times.",
+                "If game_time is provided, it's for informational display only - trigger on sensor state change.",
+            ]
+        )
 
         return "\n".join(lines)

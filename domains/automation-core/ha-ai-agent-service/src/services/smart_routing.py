@@ -23,19 +23,43 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 # Keywords that indicate complex requests requiring the primary model
-AUTOMATION_KEYWORDS = frozenset({
-    "create", "set up", "setup", "configure", "automate", "schedule",
-    "condition", "trigger", "automation", "blueprint", "scene", "script",
-    "routine", "workflow", "if", "when", "whenever", "every",
-    "turn on", "turn off", "dim", "brighten", "set temperature",
-    "hvac", "thermostat", "notify", "alert",
-})
+AUTOMATION_KEYWORDS = frozenset(
+    {
+        "create",
+        "set up",
+        "setup",
+        "configure",
+        "automate",
+        "schedule",
+        "condition",
+        "trigger",
+        "automation",
+        "blueprint",
+        "scene",
+        "script",
+        "routine",
+        "workflow",
+        "if",
+        "when",
+        "whenever",
+        "every",
+        "turn on",
+        "turn off",
+        "dim",
+        "brighten",
+        "set temperature",
+        "hvac",
+        "thermostat",
+        "notify",
+        "alert",
+    }
+)
 
 # Patterns that indicate complex requests
 COMPLEX_PATTERNS = [
-    re.compile(r"```"),           # Code blocks
-    re.compile(r"https?://"),     # URLs
-    re.compile(r"yaml", re.I),   # YAML references
+    re.compile(r"```"),  # Code blocks
+    re.compile(r"https?://"),  # URLs
+    re.compile(r"yaml", re.I),  # YAML references
     re.compile(r"\bapi\b", re.I),  # API references
 ]
 
@@ -152,6 +176,8 @@ def _evaluate_message(
     # Passes all checks → route to cheap model
     logger.info(
         "Routing to cheap model: len=%d, words=%d, message='%s'",
-        len(msg), word_count, msg[:80],
+        len(msg),
+        word_count,
+        msg[:80],
     )
     return ModelRoute(model=cheap_model, reason="simple_query", is_cheap=True)

@@ -29,7 +29,7 @@ class DataAPIClient:
             base_url: Base URL for Data API (default: http://data-api:8006)
             api_key: Optional API key for Bearer auth
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self._cross_client = CrossGroupClient(
             base_url=self.base_url,
             group_name="core-platform",
@@ -46,7 +46,7 @@ class DataAPIClient:
         domain: str | None = None,
         platform: str | None = None,
         area_id: str | None = None,
-        limit: int = 10000
+        limit: int = 10000,
     ) -> list[dict[str, Any]]:
         """
         Fetch entities from Data API.
@@ -248,4 +248,3 @@ class DataAPIClient:
     async def close(self):
         """No-op — CrossGroupClient uses per-request clients."""
         logger.debug("Data API client close called (no-op with CrossGroupClient)")
-

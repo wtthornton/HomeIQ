@@ -23,6 +23,7 @@ DEVICES = [{"id": "dev-1", "name": "Lamp"}]
 
 def _client():
     from src.clients.ha_client import HomeAssistantClient
+
     return HomeAssistantClient("http://ha.local:8123", "test-token")
 
 
@@ -37,7 +38,6 @@ def _ws():
 
 
 class TestRegistriesUseTheSharedClient:
-
     @pytest.mark.asyncio
     async def test_area_registry(self):
         ws = _ws()
@@ -87,7 +87,6 @@ class TestRegistriesUseTheSharedClient:
 
 
 class TestFailuresSurface:
-
     @pytest.mark.asyncio
     async def test_failure_raises_instead_of_returning_empty(self):
         ws = _ws()

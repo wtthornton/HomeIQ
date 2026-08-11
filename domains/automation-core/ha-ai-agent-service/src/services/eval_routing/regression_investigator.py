@@ -71,7 +71,7 @@ class RegressionInvestigator:
         """Record a trace for future investigation."""
         self._traces.append(trace)
         if len(self._traces) > self._max_traces:
-            self._traces = self._traces[-self._max_traces:]
+            self._traces = self._traces[-self._max_traces :]
 
     def investigate(
         self,
@@ -94,10 +94,7 @@ class RegressionInvestigator:
             InvestigationReport with findings.
         """
         cutoff = time.time() - window_hours * 3600
-        window_traces = [
-            t for t in self._traces
-            if t.timestamp > cutoff
-        ]
+        window_traces = [t for t in self._traces if t.timestamp > cutoff]
 
         # 1. Find 5 lowest-scoring traces
         sorted_traces = sorted(window_traces, key=lambda t: t.score)
@@ -125,31 +122,25 @@ class RegressionInvestigator:
             for rd in routing_decisions:
                 ts = rd.get("timestamp", 0)
                 if ts > cutoff and rd.get("overridden"):
-                    routing_changes.append({
-                        "timestamp": ts,
-                        "model": rd.get("chosen_model"),
-                        "reason": rd.get("override_reason"),
-                    })
+                    routing_changes.append(
+                        {
+                            "timestamp": ts,
+                            "model": rd.get("chosen_model"),
+                            "reason": rd.get("override_reason"),
+                        }
+                    )
 
         # Generate summary
         summary_parts = []
         if lowest:
-            summary_parts.append(
-                f"Lowest score in window: {lowest[0].score:.1f} (trace {lowest[0].trace_id})"
-            )
+            summary_parts.append(f"Lowest score in window: {lowest[0].score:.1f} (trace {lowest[0].trace_id})")
         if patterns:
             top_pattern = patterns[0]
-            summary_parts.append(
-                f"Most common pattern: {top_pattern['pattern']} ({top_pattern['count']} occurrences)"
-            )
+            summary_parts.append(f"Most common pattern: {top_pattern['pattern']} ({top_pattern['count']} occurrences)")
         if routing_changes:
-            summary_parts.append(
-                f"{len(routing_changes)} routing overrides in alert window"
-            )
+            summary_parts.append(f"{len(routing_changes)} routing overrides in alert window")
         if failing:
-            summary_parts.append(
-                f"{len(failing)} of {len(window_traces)} traces scored below 70"
-            )
+            summary_parts.append(f"{len(failing)} of {len(window_traces)} traces scored below 70")
 
         report = InvestigationReport(
             alert_id=alert_id,
@@ -185,11 +176,13 @@ class RegressionInvestigator:
 
         for domain, count in domain_counter.most_common(3):
             if count >= 2:
-                patterns.append({
-                    "pattern": f"entity_domain:{domain}",
-                    "count": count,
-                    "description": f"Failures involving {domain} entities",
-                })
+                patterns.append(
+                    {
+                        "pattern": f"entity_domain:{domain}",
+                        "count": count,
+                        "description": f"Failures involving {domain} entities",
+                    }
+                )
 
         # Pattern 2: Common intent categories
         intent_counter: Counter[str] = Counter()
@@ -199,11 +192,13 @@ class RegressionInvestigator:
 
         for intent, count in intent_counter.most_common(3):
             if count >= 2:
-                patterns.append({
-                    "pattern": f"intent:{intent}",
-                    "count": count,
-                    "description": f"Failures with {intent} intent",
-                })
+                patterns.append(
+                    {
+                        "pattern": f"intent:{intent}",
+                        "count": count,
+                        "description": f"Failures with {intent} intent",
+                    }
+                )
 
         # Pattern 3: Common error types
         error_counter: Counter[str] = Counter()
@@ -213,11 +208,13 @@ class RegressionInvestigator:
 
         for error, count in error_counter.most_common(3):
             if count >= 2:
-                patterns.append({
-                    "pattern": f"error:{error}",
-                    "count": count,
-                    "description": f"Error type: {error}",
-                })
+                patterns.append(
+                    {
+                        "pattern": f"error:{error}",
+                        "count": count,
+                        "description": f"Error type: {error}",
+                    }
+                )
 
         # Pattern 4: Model distribution
         model_counter: Counter[str] = Counter()
@@ -227,10 +224,12 @@ class RegressionInvestigator:
         for model, count in model_counter.most_common(2):
             pct = count / len(traces) * 100
             if pct >= 60:
-                patterns.append({
-                    "pattern": f"model:{model}",
-                    "count": count,
-                    "description": f"{pct:.0f}% of failures on {model}",
-                })
+                patterns.append(
+                    {
+                        "pattern": f"model:{model}",
+                        "count": count,
+                        "description": f"{pct:.0f}% of failures on {model}",
+                    }
+                )
 
         return sorted(patterns, key=lambda p: p["count"], reverse=True)

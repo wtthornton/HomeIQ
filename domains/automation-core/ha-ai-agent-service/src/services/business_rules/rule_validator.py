@@ -38,8 +38,12 @@ class BusinessRuleValidator:
 
     # Dangerous services that should never be used in automations
     BLOCKED_SERVICES = {
-        "shell_command", "python_script", "rest_command",
-        "script.reload", "homeassistant.restart", "homeassistant.stop",
+        "shell_command",
+        "python_script",
+        "rest_command",
+        "script.reload",
+        "homeassistant.restart",
+        "homeassistant.stop",
     }
 
     def __init__(
@@ -112,9 +116,7 @@ class BusinessRuleValidator:
 
         # Find similar effects (case-insensitive)
         effect_lower = effect_name.lower()
-        similar = [
-            e for e in available_effects if effect_lower in e.lower() or e.lower() in effect_lower
-        ]
+        similar = [e for e in available_effects if effect_lower in e.lower() or e.lower() in effect_lower]
 
         if similar:
             # Return top 5 similar
@@ -195,10 +197,7 @@ class BusinessRuleValidator:
         warnings = []
 
         # Check for blocked/dangerous services
-        blocked_services_used = [
-            s for s in services
-            if any(s.startswith(bs) for bs in self.BLOCKED_SERVICES)
-        ]
+        blocked_services_used = [s for s in services if any(s.startswith(bs) for bs in self.BLOCKED_SERVICES)]
         if blocked_services_used:
             warnings.append(
                 f"BLOCKED: Dangerous service(s) detected: {', '.join(blocked_services_used)}. "
@@ -206,11 +205,7 @@ class BusinessRuleValidator:
             )
 
         # Check for security-related entities
-        security_entities = [
-            e
-            for e in entities
-            if any(e.startswith(f"{domain}.") for domain in self.SECURITY_DOMAINS)
-        ]
+        security_entities = [e for e in entities if any(e.startswith(f"{domain}.") for domain in self.SECURITY_DOMAINS)]
         if security_entities:
             warnings.append(
                 f"Security-sensitive entities detected: {', '.join(security_entities)}. "
@@ -218,13 +213,10 @@ class BusinessRuleValidator:
             )
 
         # Check for critical services
-        critical_services_used = [
-            s for s in services if any(s.startswith(cs) for cs in self.CRITICAL_SERVICES)
-        ]
+        critical_services_used = [s for s in services if any(s.startswith(cs) for cs in self.CRITICAL_SERVICES)]
         if critical_services_used:
             warnings.append(
-                f"Critical service used: {', '.join(critical_services_used)}. "
-                "Verify automation logic carefully."
+                f"Critical service used: {', '.join(critical_services_used)}. Verify automation logic carefully."
             )
 
         # Enhanced safety validation (recommendation #4 from HA_AGENT_API_FLOW_ANALYSIS.md)
@@ -232,10 +224,7 @@ class BusinessRuleValidator:
         trigger = automation_dict.get("trigger", [])
         has_time_trigger = False
         if isinstance(trigger, list):
-            has_time_trigger = any(
-                t.get("platform") in ["time", "time_pattern", "sun", "calendar"]
-                for t in trigger
-            )
+            has_time_trigger = any(t.get("platform") in ["time", "time_pattern", "sun", "calendar"] for t in trigger)
         elif isinstance(trigger, dict):
             platform = trigger.get("platform")
             has_time_trigger = platform in ["time", "time_pattern", "sun", "calendar"]
@@ -275,26 +264,17 @@ class BusinessRuleValidator:
         score = 10.0  # Start with perfect score
 
         # Check for blocked/dangerous services (maximum penalty)
-        blocked_services_used = [
-            s for s in services
-            if any(s.startswith(bs) for bs in self.BLOCKED_SERVICES)
-        ]
+        blocked_services_used = [s for s in services if any(s.startswith(bs) for bs in self.BLOCKED_SERVICES)]
         if blocked_services_used:
             score -= 5.0
 
         # Check for security entities (deduct points)
-        security_entities = [
-            e
-            for e in entities
-            if any(e.startswith(f"{domain}.") for domain in self.SECURITY_DOMAINS)
-        ]
+        security_entities = [e for e in entities if any(e.startswith(f"{domain}.") for domain in self.SECURITY_DOMAINS)]
         if security_entities:
             score -= 2.0  # Security entities reduce safety score
 
         # Check for critical services (deduct points)
-        critical_services_used = [
-            s for s in services if any(s.startswith(cs) for cs in self.CRITICAL_SERVICES)
-        ]
+        critical_services_used = [s for s in services if any(s.startswith(cs) for cs in self.CRITICAL_SERVICES)]
         if critical_services_used:
             score -= 2.0  # Critical services reduce safety score
 
@@ -302,10 +282,7 @@ class BusinessRuleValidator:
         trigger = automation_dict.get("trigger", [])
         has_time_trigger = False
         if isinstance(trigger, list):
-            has_time_trigger = any(
-                t.get("platform") in ["time", "time_pattern", "sun", "calendar"]
-                for t in trigger
-            )
+            has_time_trigger = any(t.get("platform") in ["time", "time_pattern", "sun", "calendar"] for t in trigger)
         elif isinstance(trigger, dict):
             has_time_trigger = trigger.get("platform") in ["time", "time_pattern", "sun", "calendar"]
 

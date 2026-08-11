@@ -12,10 +12,10 @@ import pytest
 from src.models.llm_models import LLMResponse, TokenUsage
 from src.services.llm_router import LLMRouter
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_settings(**overrides):
     """Create a mock Settings object."""
@@ -46,6 +46,7 @@ def _make_llm_response(provider: str = "anthropic") -> LLMResponse:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestLLMRouterInit:
     """Story 97.3: Router initialization."""

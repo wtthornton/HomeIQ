@@ -75,9 +75,9 @@ class ContextCompressor:
             return messages
 
         # Split into head, middle, tail
-        head = messages[:self.protect_head]
-        tail = messages[-self.protect_tail:]
-        middle = messages[self.protect_head:total - self.protect_tail]
+        head = messages[: self.protect_head]
+        tail = messages[-self.protect_tail :]
+        middle = messages[self.protect_head : total - self.protect_tail]
 
         if not middle:
             return messages
@@ -99,15 +99,19 @@ class ContextCompressor:
         compressed = list(head)
 
         if summary_text:
-            compressed.append({
-                "role": "system",
-                "content": f"[Conversation summary — {len(middle)} messages compressed]\n{summary_text}",
-            })
+            compressed.append(
+                {
+                    "role": "system",
+                    "content": f"[Conversation summary — {len(middle)} messages compressed]\n{summary_text}",
+                }
+            )
         else:
-            compressed.append({
-                "role": "system",
-                "content": f"[{len(middle)} earlier messages omitted for context management]",
-            })
+            compressed.append(
+                {
+                    "role": "system",
+                    "content": f"[{len(middle)} earlier messages omitted for context management]",
+                }
+            )
 
         compressed.extend(tail)
 
@@ -115,8 +119,10 @@ class ContextCompressor:
         after_tokens = count_message_tokens(compressed)
         logger.info(
             "Context compressed: %d→%d messages, %d→%d tokens (%.0f%% reduction)",
-            total, len(compressed),
-            before_tokens, after_tokens,
+            total,
+            len(compressed),
+            before_tokens,
+            after_tokens,
             (1 - after_tokens / before_tokens) * 100 if before_tokens > 0 else 0,
         )
 

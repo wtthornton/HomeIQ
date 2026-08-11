@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
+
 from src.config import Settings
 from src.database import init_database
 from src.services.conversation_service import (
@@ -19,8 +20,7 @@ from src.services.prompt_assembly_service import PromptAssemblyService
 async def settings():
     """Create test settings with in-memory database"""
     test_settings = Settings(
-        openai_model="gpt-4o-mini",
-        database_url="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq"
+        openai_model="gpt-4o-mini", database_url="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq"
     )
     # Initialize database
     await init_database(test_settings.database_url)
@@ -31,9 +31,7 @@ async def settings():
 def mock_context_builder():
     """Create mock context builder"""
     builder = MagicMock()
-    builder.build_complete_system_prompt = AsyncMock(
-        return_value="System prompt with Tier 1 context"
-    )
+    builder.build_complete_system_prompt = AsyncMock(return_value="System prompt with Tier 1 context")
     return builder
 
 
@@ -54,9 +52,7 @@ async def test_assemble_messages_basic(prompt_assembly_service, conversation_ser
     """Test basic message assembly"""
     conversation = await conversation_service.create_conversation()
 
-    messages = await prompt_assembly_service.assemble_messages(
-        conversation.conversation_id, "Hello, agent!"
-    )
+    messages = await prompt_assembly_service.assemble_messages(conversation.conversation_id, "Hello, agent!")
 
     assert len(messages) >= 2  # system + user
     assert messages[0]["role"] == "system"
@@ -67,24 +63,16 @@ async def test_assemble_messages_basic(prompt_assembly_service, conversation_ser
 
 
 @pytest.mark.asyncio
-async def test_assemble_messages_with_history(
-    prompt_assembly_service, conversation_service
-):
+async def test_assemble_messages_with_history(prompt_assembly_service, conversation_service):
     """Test message assembly with conversation history"""
     conversation = await conversation_service.create_conversation()
 
     # Add some history
-    await conversation_service.add_message(
-        conversation.conversation_id, "user", "First message"
-    )
-    await conversation_service.add_message(
-        conversation.conversation_id, "assistant", "First response"
-    )
+    await conversation_service.add_message(conversation.conversation_id, "user", "First message")
+    await conversation_service.add_message(conversation.conversation_id, "assistant", "First response")
 
     # Add new message
-    messages = await prompt_assembly_service.assemble_messages(
-        conversation.conversation_id, "Second message"
-    )
+    messages = await prompt_assembly_service.assemble_messages(conversation.conversation_id, "Second message")
 
     assert len(messages) == 4  # system + user + assistant + user
     assert messages[0]["role"] == "system"
@@ -98,22 +86,16 @@ async def test_assemble_messages_with_history(
 
 
 @pytest.mark.asyncio
-async def test_assemble_messages_refresh_context(
-    prompt_assembly_service, mock_context_builder, conversation_service
-):
+async def test_assemble_messages_refresh_context(prompt_assembly_service, mock_context_builder, conversation_service):
     """Test that context refresh works"""
     conversation = await conversation_service.create_conversation()
 
     # First call - should build context
-    await prompt_assembly_service.assemble_messages(
-        conversation.conversation_id, "Hello!", refresh_context=False
-    )
+    await prompt_assembly_service.assemble_messages(conversation.conversation_id, "Hello!", refresh_context=False)
     assert mock_context_builder.build_complete_system_prompt.call_count == 1
 
     # Second call with refresh=True - should rebuild context
-    await prompt_assembly_service.assemble_messages(
-        conversation.conversation_id, "Hello again!", refresh_context=True
-    )
+    await prompt_assembly_service.assemble_messages(conversation.conversation_id, "Hello again!", refresh_context=True)
     assert mock_context_builder.build_complete_system_prompt.call_count == 2
 
 
@@ -125,25 +107,19 @@ async def test_assemble_messages_uses_cached_context(
     conversation = await conversation_service.create_conversation()
 
     # First call - should build context
-    await prompt_assembly_service.assemble_messages(
-        conversation.conversation_id, "Hello!", refresh_context=False
-    )
+    await prompt_assembly_service.assemble_messages(conversation.conversation_id, "Hello!", refresh_context=False)
     assert mock_context_builder.build_complete_system_prompt.call_count == 1
 
     # Second call without refresh - should use cache
     # Note: We reload conversation after adding message, which may trigger context rebuild
     # This is expected behavior - the important thing is we use cache when available
-    await prompt_assembly_service.assemble_messages(
-        conversation.conversation_id, "Hello again!", refresh_context=False
-    )
+    await prompt_assembly_service.assemble_messages(conversation.conversation_id, "Hello again!", refresh_context=False)
     # Context may be rebuilt once due to conversation reload, but should use cache after that
     assert mock_context_builder.build_complete_system_prompt.call_count <= 2
 
 
 @pytest.mark.asyncio
-async def test_token_budget_enforcement(
-    prompt_assembly_service, conversation_service
-):
+async def test_token_budget_enforcement(prompt_assembly_service, conversation_service):
     """Test that token budget is enforced by truncating history"""
     conversation = await conversation_service.create_conversation()
 
@@ -151,9 +127,7 @@ async def test_token_budget_enforcement(
     # Each message is large enough to exceed budget when combined
     large_message = "This is a large message. " * 100  # ~2500 chars per message
     for i in range(50):
-        await conversation_service.add_message(
-            conversation.conversation_id, "user", f"{large_message} Message {i}"
-        )
+        await conversation_service.add_message(conversation.conversation_id, "user", f"{large_message} Message {i}")
         await conversation_service.add_message(
             conversation.conversation_id, "assistant", f"{large_message} Response {i}"
         )
@@ -164,9 +138,7 @@ async def test_token_budget_enforcement(
     )
 
     # Assemble messages - should truncate history if needed
-    messages = await prompt_assembly_service.assemble_messages(
-        conversation.conversation_id, "New message"
-    )
+    messages = await prompt_assembly_service.assemble_messages(conversation.conversation_id, "New message")
 
     # Verify structure
     assert messages[0]["role"] == "system"
@@ -185,9 +157,7 @@ async def test_token_budget_enforcement(
 async def test_get_token_count(prompt_assembly_service, conversation_service):
     """Test token count retrieval"""
     conversation = await conversation_service.create_conversation()
-    await conversation_service.add_message(
-        conversation.conversation_id, "user", "Test message"
-    )
+    await conversation_service.add_message(conversation.conversation_id, "user", "Test message")
 
     counts = await prompt_assembly_service.get_token_count(conversation.conversation_id)
 
@@ -203,9 +173,7 @@ async def test_get_token_count(prompt_assembly_service, conversation_service):
 
 
 @pytest.mark.asyncio
-async def test_get_token_count_with_new_message(
-    prompt_assembly_service, conversation_service
-):
+async def test_get_token_count_with_new_message(prompt_assembly_service, conversation_service):
     """Test token count with new message included"""
     conversation = await conversation_service.create_conversation()
 
@@ -232,29 +200,17 @@ async def test_assemble_messages_nonexistent_conversation(prompt_assembly_servic
 
 
 @pytest.mark.asyncio
-async def test_message_ordering_preserved(
-    prompt_assembly_service, conversation_service
-):
+async def test_message_ordering_preserved(prompt_assembly_service, conversation_service):
     """Test that message ordering is preserved"""
     conversation = await conversation_service.create_conversation()
 
     # Add messages in order
-    await conversation_service.add_message(
-        conversation.conversation_id, "user", "First"
-    )
-    await conversation_service.add_message(
-        conversation.conversation_id, "assistant", "Response 1"
-    )
-    await conversation_service.add_message(
-        conversation.conversation_id, "user", "Second"
-    )
-    await conversation_service.add_message(
-        conversation.conversation_id, "assistant", "Response 2"
-    )
+    await conversation_service.add_message(conversation.conversation_id, "user", "First")
+    await conversation_service.add_message(conversation.conversation_id, "assistant", "Response 1")
+    await conversation_service.add_message(conversation.conversation_id, "user", "Second")
+    await conversation_service.add_message(conversation.conversation_id, "assistant", "Response 2")
 
-    messages = await prompt_assembly_service.assemble_messages(
-        conversation.conversation_id, "Third"
-    )
+    messages = await prompt_assembly_service.assemble_messages(conversation.conversation_id, "Third")
 
     # Check ordering (system is first, new message is last)
     assert messages[0]["role"] == "system"
@@ -268,29 +224,23 @@ async def test_message_ordering_preserved(
 
 
 @pytest.mark.asyncio
-async def test_assemble_messages_filters_generic_welcome_messages(
-    prompt_assembly_service, conversation_service
-):
+async def test_assemble_messages_filters_generic_welcome_messages(prompt_assembly_service, conversation_service):
     """Test that generic welcome messages are filtered from history"""
     conversation = await conversation_service.create_conversation()
-    
+
     # Add a generic welcome message
     await conversation_service.add_message(
         conversation.conversation_id,
         "assistant",
         "How can I assist you with your Home Assistant automations today?",
     )
-    
+
     # Add a user message
-    await conversation_service.add_message(
-        conversation.conversation_id, "user", "Make the office lights blink red"
-    )
-    
+    await conversation_service.add_message(conversation.conversation_id, "user", "Make the office lights blink red")
+
     # Assemble messages - generic welcome should be filtered out
-    messages = await prompt_assembly_service.assemble_messages(
-        conversation.conversation_id, "Actually, make them blue"
-    )
-    
+    messages = await prompt_assembly_service.assemble_messages(conversation.conversation_id, "Actually, make them blue")
+
     # Should have: system + user (first) + user (second) - generic welcome filtered
     # The generic welcome message should not be in the messages
     assistant_messages = [msg for msg in messages if msg["role"] == "assistant"]
@@ -298,29 +248,23 @@ async def test_assemble_messages_filters_generic_welcome_messages(
 
 
 @pytest.mark.asyncio
-async def test_assemble_messages_keeps_specific_responses(
-    prompt_assembly_service, conversation_service
-):
+async def test_assemble_messages_keeps_specific_responses(prompt_assembly_service, conversation_service):
     """Test that specific, non-generic assistant responses are kept"""
     conversation = await conversation_service.create_conversation()
-    
+
     # Add a specific response (not generic)
     await conversation_service.add_message(
         conversation.conversation_id,
         "assistant",
         "I've created an automation that makes the office lights blink red every 15 minutes.",
     )
-    
+
     # Add a user message
-    await conversation_service.add_message(
-        conversation.conversation_id, "user", "Thanks!"
-    )
-    
+    await conversation_service.add_message(conversation.conversation_id, "user", "Thanks!")
+
     # Assemble messages - specific response should be kept
-    messages = await prompt_assembly_service.assemble_messages(
-        conversation.conversation_id, "Can you modify it?"
-    )
-    
+    messages = await prompt_assembly_service.assemble_messages(conversation.conversation_id, "Can you modify it?")
+
     # Should have: system + user + assistant (specific) + user + user
     assistant_messages = [msg for msg in messages if msg["role"] == "assistant"]
     assert len(assistant_messages) == 1, "Specific response should be kept"
@@ -328,33 +272,24 @@ async def test_assemble_messages_keeps_specific_responses(
 
 
 @pytest.mark.asyncio
-async def test_assemble_messages_emphasizes_user_request(
-    prompt_assembly_service, conversation_service
-):
+async def test_assemble_messages_emphasizes_user_request(prompt_assembly_service, conversation_service):
     """Test that the user's current request is emphasized"""
     conversation = await conversation_service.create_conversation()
-    
+
     # Add some history
-    await conversation_service.add_message(
-        conversation.conversation_id, "user", "First message"
-    )
-    await conversation_service.add_message(
-        conversation.conversation_id, "assistant", "First response"
-    )
-    
+    await conversation_service.add_message(conversation.conversation_id, "user", "First message")
+    await conversation_service.add_message(conversation.conversation_id, "assistant", "First response")
+
     # Add new message - should be emphasized
     new_user_message = "Make the office lights blink red every 15 minutes"
-    messages = await prompt_assembly_service.assemble_messages(
-        conversation.conversation_id, new_user_message
-    )
-    
+    messages = await prompt_assembly_service.assemble_messages(conversation.conversation_id, new_user_message)
+
     # Find the last user message (should be emphasized)
     user_messages = [msg for msg in messages if msg["role"] == "user"]
     last_user_msg = user_messages[-1]
-    
+
     # Check that the message is emphasized
     assert "USER REQUEST" in last_user_msg["content"]
     assert "process this immediately" in last_user_msg["content"].lower()
     assert new_user_message in last_user_msg["content"]
     assert "Do not respond with generic welcome messages" in last_user_msg["content"]
-

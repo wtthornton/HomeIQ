@@ -38,11 +38,11 @@ class EntityAttributesService:
         """
         self.settings = settings
         self.context_builder = context_builder
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
-        self.ha_client = HomeAssistantClient(
-            ha_url=settings.ha_url,
-            access_token=settings.ha_token.get_secret_value()
+        self.data_api_client = DataAPIClient(
+            base_url=settings.data_api_url,
+            api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None,
         )
+        self.ha_client = HomeAssistantClient(ha_url=settings.ha_url, access_token=settings.ha_token.get_secret_value())
         self._cache_key = "entity_attributes_summary"
         self._cache_ttl = 300  # 5 minutes (same as entity inventory)
 
@@ -69,9 +69,7 @@ class EntityAttributesService:
 
             if not states:
                 summary = "No entity states available."
-                await self.context_builder._set_cached_value(
-                    self._cache_key, summary, self._cache_ttl
-                )
+                await self.context_builder._set_cached_value(self._cache_key, summary, self._cache_ttl)
                 return summary
 
             # Group attributes by domain
@@ -115,7 +113,9 @@ class EntityAttributesService:
                 # Only add if we found relevant attributes
                 if entity_attrs:
                     entity_attrs["entity_id"] = entity_id
-                    entity_attrs["friendly_name"] = attributes.get("friendly_name", entity_id.split(".")[-1] if "." in entity_id else entity_id)
+                    entity_attrs["friendly_name"] = attributes.get(
+                        "friendly_name", entity_id.split(".")[-1] if "." in entity_id else entity_id
+                    )
                     domain_attributes[domain].append(entity_attrs)
 
             # Format summary
@@ -183,9 +183,7 @@ class EntityAttributesService:
                 summary = summary[:2500] + "... (truncated)"
 
             # Cache the result
-            await self.context_builder._set_cached_value(
-                self._cache_key, summary, self._cache_ttl
-            )
+            await self.context_builder._set_cached_value(self._cache_key, summary, self._cache_ttl)
 
             logger.info(f"✅ Generated entity attributes summary ({len(summary)} chars)")
             return summary
@@ -199,4 +197,3 @@ class EntityAttributesService:
         """Close service resources"""
         await self.data_api_client.close()
         await self.ha_client.close()
-

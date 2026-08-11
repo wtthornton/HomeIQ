@@ -15,22 +15,53 @@ logger = logging.getLogger(__name__)
 
 DEVICE_SETUP_KEYWORDS = (
     # Protocols / standards
-    "zigbee", "z-wave", "zwave", "matter", "thread", "bluetooth", "ble",
-    "wifi", "wi-fi",
+    "zigbee",
+    "z-wave",
+    "zwave",
+    "matter",
+    "thread",
+    "bluetooth",
+    "ble",
+    "wifi",
+    "wi-fi",
     # Bridges / coordinators
-    "hue", "hue bridge", "philips hue", "conbee", "sonoff", "skyconnect",
-    "coordinator", "dongle", "usb stick",
+    "hue",
+    "hue bridge",
+    "philips hue",
+    "conbee",
+    "sonoff",
+    "skyconnect",
+    "coordinator",
+    "dongle",
+    "usb stick",
     # MQTT
-    "mqtt", "mosquitto", "zigbee2mqtt", "z2m",
+    "mqtt",
+    "mosquitto",
+    "zigbee2mqtt",
+    "z2m",
     # Setup actions
-    "pairing", "pair", "setup", "set up", "configure", "add device",
-    "discover", "discovery", "commissioning", "inclusion", "interview",
+    "pairing",
+    "pair",
+    "setup",
+    "set up",
+    "configure",
+    "add device",
+    "discover",
+    "discovery",
+    "commissioning",
+    "inclusion",
+    "interview",
     "join network",
     # Integration management
-    "integration", "add integration", "install integration",
+    "integration",
+    "add integration",
+    "install integration",
     # Troubleshooting
-    "device not found", "pairing failed", "not responding",
-    "unavailable device", "offline device",
+    "device not found",
+    "pairing failed",
+    "not responding",
+    "unavailable device",
+    "offline device",
 )
 
 

@@ -98,9 +98,7 @@ class BasicValidationStrategy(ValidationStrategy):
 
             # CRITICAL: Mandatory entity validation (recommendation #2 from HA_AGENT_API_FLOW_ANALYSIS.md)
             # Validate that all entities exist in Home Assistant
-            entity_validation_errors, entity_validation_warnings = await self._validate_entities(
-                entities
-            )
+            entity_validation_errors, entity_validation_warnings = await self._validate_entities(entities)
             errors.extend(entity_validation_errors)
             warnings.extend(entity_validation_warnings)
 
@@ -151,9 +149,7 @@ class BasicValidationStrategy(ValidationStrategy):
                 warnings=warnings,
             )
 
-    async def _validate_entities(
-        self, entities: list[str]
-    ) -> tuple[list[str], list[str]]:
+    async def _validate_entities(self, entities: list[str]) -> tuple[list[str], list[str]]:
         """
         Validate that all entities exist in Home Assistant.
 
@@ -173,30 +169,22 @@ class BasicValidationStrategy(ValidationStrategy):
             all_entities = await self.tool_handler.data_api_client.fetch_entities()
             valid_entity_ids = {e.get("entity_id") for e in all_entities if e.get("entity_id")}
             invalid_entities = [
-                eid for eid in entities
-                if eid not in valid_entity_ids and not self.tool_handler._is_group_entity(eid)
+                eid for eid in entities if eid not in valid_entity_ids and not self.tool_handler._is_group_entity(eid)
             ]
 
             if invalid_entities:
                 # Provide helpful error messages with suggestions (recommendation #8)
                 for invalid_entity in invalid_entities:
-                    error_msg = self._build_entity_error_message(
-                        invalid_entity, valid_entity_ids
-                    )
+                    error_msg = self._build_entity_error_message(invalid_entity, valid_entity_ids)
                     errors.append(error_msg)
 
         except Exception as e:
             logger.warning(f"Failed to validate entities via Data API: {e}")
-            warnings.append(
-                "Could not validate entity existence (Data API unavailable). "
-                "Entity validation skipped."
-            )
+            warnings.append("Could not validate entity existence (Data API unavailable). Entity validation skipped.")
 
         return errors, warnings
 
-    def _build_entity_error_message(
-        self, invalid_entity: str, valid_entity_ids: set[str]
-    ) -> str:
+    def _build_entity_error_message(self, invalid_entity: str, valid_entity_ids: set[str]) -> str:
         """
         Build error message for invalid entity with suggestions.
 
@@ -211,23 +199,18 @@ class BasicValidationStrategy(ValidationStrategy):
 
         if entity_domain:
             similar_entities = [
-                eid for eid in valid_entity_ids
-                if eid.startswith(f"{entity_domain}.") and
-                abs(len(eid) - len(invalid_entity)) <= 3
+                eid
+                for eid in valid_entity_ids
+                if eid.startswith(f"{entity_domain}.") and abs(len(eid) - len(invalid_entity)) <= 3
             ][:3]  # Limit to 3 suggestions
 
             if similar_entities:
                 suggestions = ", ".join(similar_entities)
-                return (
-                    f"Invalid entity ID: '{invalid_entity}'. "
-                    f"Did you mean: {suggestions}?"
-                )
+                return f"Invalid entity ID: '{invalid_entity}'. Did you mean: {suggestions}?"
 
         return f"Invalid entity ID: '{invalid_entity}' (entity does not exist)"
 
-    def _detect_dimming_pattern_issues(
-        self, automation_dict: dict[str, Any]
-    ) -> list[str]:
+    def _detect_dimming_pattern_issues(self, automation_dict: dict[str, Any]) -> list[str]:
         """
         Detect common issues in motion-based dimming automations.
 
@@ -242,10 +225,7 @@ class BasicValidationStrategy(ValidationStrategy):
         # Check if this looks like a dimming automation
         description = automation_dict.get("description", "").lower()
         alias = automation_dict.get("alias", "").lower()
-        is_dimming = (
-            "dim" in description or "dim" in alias or
-            "dimming" in description or "dimming" in alias
-        )
+        is_dimming = "dim" in description or "dim" in alias or "dimming" in description or "dimming" in alias
 
         if not is_dimming:
             return warnings
@@ -349,10 +329,7 @@ class BasicValidationStrategy(ValidationStrategy):
                 if isinstance(cond, dict) and cond.get("condition") == "and":
                     and_conditions = cond.get("conditions", [])
                     if isinstance(and_conditions, list):
-                        for_and_conditions = [
-                            c for c in and_conditions
-                            if isinstance(c, dict) and "for" in c
-                        ]
+                        for_and_conditions = [c for c in and_conditions if isinstance(c, dict) and "for" in c]
                         if len(for_and_conditions) > 1:
                             warnings.append(
                                 "Motion-based dimming: Individual 'for:' options in 'and' conditions check "
@@ -362,9 +339,7 @@ class BasicValidationStrategy(ValidationStrategy):
 
         return warnings
 
-    def _detect_scene_creation_pattern(
-        self, automation_dict: dict[str, Any]
-    ) -> list[str]:
+    def _detect_scene_creation_pattern(self, automation_dict: dict[str, Any]) -> list[str]:
         """
         Detect dynamic scene creation pattern and validate scene ID matching.
 
@@ -419,9 +394,7 @@ class BasicValidationStrategy(ValidationStrategy):
         # Check for scene ID mismatches
         if scenes_created or scenes_activated:
             created_scene_ids = set(scenes_created)
-            activated_scene_ids = {
-                s.replace("scene.", "") for s in scenes_activated
-            }
+            activated_scene_ids = {s.replace("scene.", "") for s in scenes_activated}
 
             # Check for scenes activated but not created
             missing_scenes = activated_scene_ids - created_scene_ids

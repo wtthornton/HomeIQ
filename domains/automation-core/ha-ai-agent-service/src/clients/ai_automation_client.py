@@ -27,7 +27,7 @@ class AIAutomationClient:
             base_url: Base URL for AI Automation Service (default: http://ai-automation-service:8000)
             api_key: API key for authentication (optional)
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self._auth_headers = {"X-HomeIQ-API-Key": api_key} if api_key else {}
         self._cross_client = CrossGroupClient(
@@ -44,7 +44,7 @@ class AIAutomationClient:
         yaml_content: str,
         validate_entities: bool = True,
         validate_safety: bool = True,
-        _context: dict[str, Any] | None = None
+        _context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Validate Home Assistant automation YAML via unified endpoint.
@@ -75,8 +75,10 @@ class AIAutomationClient:
             )
 
             response = await self._cross_client.call(
-                "POST", "/api/v1/automations/validate",
-                json=payload, headers=self._auth_headers,
+                "POST",
+                "/api/v1/automations/validate",
+                json=payload,
+                headers=self._auth_headers,
             )
             response.raise_for_status()
 
@@ -105,4 +107,3 @@ class AIAutomationClient:
     async def close(self):
         """No-op — CrossGroupClient uses per-request clients."""
         logger.debug("AI Automation Service client close called (no-op with CrossGroupClient)")
-

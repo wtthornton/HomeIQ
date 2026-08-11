@@ -10,6 +10,7 @@ import time
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from src.config import Settings
 from src.services.context_builder import ContextBuilder
 
@@ -21,7 +22,7 @@ def mock_settings():
         ha_url="http://test-ha:8123",
         ha_access_token="test-token",
         data_api_url="http://test-data-api:8006",
-        device_intelligence_url="http://test-device-intel:8028"
+        device_intelligence_url="http://test-device-intel:8028",
     )
 
 
@@ -41,29 +42,19 @@ async def test_context_build_performance_with_cache(context_builder):
     """
     # Setup services with cached responses
     context_builder._entity_inventory_service = MagicMock()
-    context_builder._entity_inventory_service.get_summary = AsyncMock(
-        return_value="Light: 5 entities"
-    )
+    context_builder._entity_inventory_service.get_summary = AsyncMock(return_value="Light: 5 entities")
 
     context_builder._areas_service = MagicMock()
-    context_builder._areas_service.get_areas_list = AsyncMock(
-        return_value="Office, Kitchen"
-    )
+    context_builder._areas_service.get_areas_list = AsyncMock(return_value="Office, Kitchen")
 
     context_builder._services_summary_service = MagicMock()
-    context_builder._services_summary_service.get_summary = AsyncMock(
-        return_value="light.turn_on"
-    )
+    context_builder._services_summary_service.get_summary = AsyncMock(return_value="light.turn_on")
 
     context_builder._capability_patterns_service = MagicMock()
-    context_builder._capability_patterns_service.get_patterns = AsyncMock(
-        return_value="Philips Hue: brightness"
-    )
+    context_builder._capability_patterns_service.get_patterns = AsyncMock(return_value="Philips Hue: brightness")
 
     context_builder._helpers_scenes_service = MagicMock()
-    context_builder._helpers_scenes_service.get_summary = AsyncMock(
-        return_value="input_boolean: test"
-    )
+    context_builder._helpers_scenes_service.get_summary = AsyncMock(return_value="input_boolean: test")
 
     context_builder._initialized = True
 
@@ -96,29 +87,19 @@ async def test_context_build_performance_first_call(context_builder):
     """
     # Setup services with fast mock responses
     context_builder._entity_inventory_service = MagicMock()
-    context_builder._entity_inventory_service.get_summary = AsyncMock(
-        return_value="Light: 5 entities"
-    )
+    context_builder._entity_inventory_service.get_summary = AsyncMock(return_value="Light: 5 entities")
 
     context_builder._areas_service = MagicMock()
-    context_builder._areas_service.get_areas_list = AsyncMock(
-        return_value="Office, Kitchen"
-    )
+    context_builder._areas_service.get_areas_list = AsyncMock(return_value="Office, Kitchen")
 
     context_builder._services_summary_service = MagicMock()
-    context_builder._services_summary_service.get_summary = AsyncMock(
-        return_value="light.turn_on"
-    )
+    context_builder._services_summary_service.get_summary = AsyncMock(return_value="light.turn_on")
 
     context_builder._capability_patterns_service = MagicMock()
-    context_builder._capability_patterns_service.get_patterns = AsyncMock(
-        return_value="Philips Hue: brightness"
-    )
+    context_builder._capability_patterns_service.get_patterns = AsyncMock(return_value="Philips Hue: brightness")
 
     context_builder._helpers_scenes_service = MagicMock()
-    context_builder._helpers_scenes_service.get_summary = AsyncMock(
-        return_value="input_boolean: test"
-    )
+    context_builder._helpers_scenes_service.get_summary = AsyncMock(return_value="input_boolean: test")
 
     context_builder._initialized = True
 
@@ -168,29 +149,19 @@ async def test_complete_prompt_performance(context_builder):
     """
     # Setup services
     context_builder._entity_inventory_service = MagicMock()
-    context_builder._entity_inventory_service.get_summary = AsyncMock(
-        return_value="Light: 5 entities"
-    )
+    context_builder._entity_inventory_service.get_summary = AsyncMock(return_value="Light: 5 entities")
 
     context_builder._areas_service = MagicMock()
-    context_builder._areas_service.get_areas_list = AsyncMock(
-        return_value="Office, Kitchen"
-    )
+    context_builder._areas_service.get_areas_list = AsyncMock(return_value="Office, Kitchen")
 
     context_builder._services_summary_service = MagicMock()
-    context_builder._services_summary_service.get_summary = AsyncMock(
-        return_value="light.turn_on"
-    )
+    context_builder._services_summary_service.get_summary = AsyncMock(return_value="light.turn_on")
 
     context_builder._capability_patterns_service = MagicMock()
-    context_builder._capability_patterns_service.get_patterns = AsyncMock(
-        return_value="Philips Hue: brightness"
-    )
+    context_builder._capability_patterns_service.get_patterns = AsyncMock(return_value="Philips Hue: brightness")
 
     context_builder._helpers_scenes_service = MagicMock()
-    context_builder._helpers_scenes_service.get_summary = AsyncMock(
-        return_value="input_boolean: test"
-    )
+    context_builder._helpers_scenes_service.get_summary = AsyncMock(return_value="input_boolean: test")
 
     context_builder._initialized = True
 
@@ -207,4 +178,3 @@ async def test_complete_prompt_performance(context_builder):
     assert isinstance(complete_prompt, str)
     assert len(complete_prompt) > 0
     assert "HOME ASSISTANT CONTEXT" in complete_prompt
-

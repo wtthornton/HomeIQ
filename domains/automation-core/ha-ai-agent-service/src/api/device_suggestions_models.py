@@ -23,12 +23,9 @@ class DeviceSuggestionsRequest(BaseModel):
     """Request model for device suggestions endpoint"""
 
     device_id: str = Field(..., description="Device ID to generate suggestions for")
-    conversation_id: str | None = Field(
-        None, description="Optional conversation ID for context"
-    )
+    conversation_id: str | None = Field(None, description="Optional conversation ID for context")
     context: DeviceSuggestionContext = Field(
-        default_factory=DeviceSuggestionContext,
-        description="Context configuration for data aggregation"
+        default_factory=DeviceSuggestionContext, description="Context configuration for data aggregation"
     )
 
     model_config = ConfigDict(
@@ -41,7 +38,7 @@ class DeviceSuggestionsRequest(BaseModel):
                     "include_blueprints": True,
                     "include_sports": True,
                     "include_weather": True,
-                }
+                },
             }
         }
     )
@@ -52,50 +49,32 @@ class AutomationPreview(BaseModel):
 
     trigger: str = Field(..., description="Home Assistant trigger description")
     action: str = Field(..., description="Home Assistant action description")
-    yaml_preview: str | None = Field(
-        None, description="Optional preview of Home Assistant YAML structure"
-    )
+    yaml_preview: str | None = Field(None, description="Optional preview of Home Assistant YAML structure")
 
 
 class DataSources(BaseModel):
     """Data sources used for suggestion generation"""
 
-    synergies: list[str] | None = Field(
-        None, description="Synergy IDs used in suggestion"
-    )
-    blueprints: list[str] | None = Field(
-        None, description="Blueprint IDs used in suggestion"
-    )
+    synergies: list[str] | None = Field(None, description="Synergy IDs used in suggestion")
+    blueprints: list[str] | None = Field(None, description="Blueprint IDs used in suggestion")
     sports: bool = Field(default=False, description="Includes sports data")
     weather: bool = Field(default=False, description="Includes weather data")
-    device_capabilities: bool = Field(
-        default=False, description="Based on device capabilities"
-    )
+    device_capabilities: bool = Field(default=False, description="Based on device capabilities")
 
 
 class HomeAssistantEntities(BaseModel):
     """Home Assistant entities involved in automation"""
 
-    trigger_entities: list[str] = Field(
-        default_factory=list, description="Trigger entity IDs"
-    )
-    action_entities: list[str] = Field(
-        default_factory=list, description="Action entity IDs"
-    )
-    condition_entities: list[str] = Field(
-        default_factory=list, description="Condition entity IDs"
-    )
+    trigger_entities: list[str] = Field(default_factory=list, description="Trigger entity IDs")
+    action_entities: list[str] = Field(default_factory=list, description="Action entity IDs")
+    condition_entities: list[str] = Field(default_factory=list, description="Condition entity IDs")
 
 
 class HomeAssistantServices(BaseModel):
     """Home Assistant services used in automation"""
 
-    actions: list[str] = Field(
-        default_factory=list, description="Service calls (e.g., 'switch.turn_on')"
-    )
-    validated: bool = Field(
-        default=False, description="Whether services are validated against HA registry"
-    )
+    actions: list[str] = Field(default_factory=list, description="Service calls (e.g., 'switch.turn_on')")
+    validated: bool = Field(default=False, description="Whether services are validated against HA registry")
 
 
 class DeviceSuggestion(BaseModel):
@@ -106,21 +85,11 @@ class DeviceSuggestion(BaseModel):
     description: str = Field(..., description="Detailed description")
     automation_preview: AutomationPreview = Field(..., description="Automation preview")
     data_sources: DataSources = Field(..., description="Data sources used")
-    home_assistant_entities: HomeAssistantEntities | None = Field(
-        None, description="Home Assistant entities involved"
-    )
-    home_assistant_services: HomeAssistantServices | None = Field(
-        None, description="Home Assistant services used"
-    )
-    confidence_score: float = Field(
-        ..., ge=0.0, le=1.0, description="Confidence score (0.0-1.0)"
-    )
-    quality_score: float = Field(
-        ..., ge=0.0, le=1.0, description="Quality score (0.0-1.0)"
-    )
-    enhanceable: bool = Field(
-        default=True, description="Whether suggestion can be enhanced via chat"
-    )
+    home_assistant_entities: HomeAssistantEntities | None = Field(None, description="Home Assistant entities involved")
+    home_assistant_services: HomeAssistantServices | None = Field(None, description="Home Assistant services used")
+    confidence_score: float = Field(..., ge=0.0, le=1.0, description="Confidence score (0.0-1.0)")
+    quality_score: float = Field(..., ge=0.0, le=1.0, description="Quality score (0.0-1.0)")
+    enhanceable: bool = Field(default=True, description="Whether suggestion can be enhanced via chat")
     home_assistant_compatible: bool = Field(
         default=True, description="Whether suggestion is Home Assistant 2025.10+ compatible"
     )
@@ -130,12 +99,8 @@ class DeviceContext(BaseModel):
     """Device context information"""
 
     device_id: str = Field(..., description="Device ID")
-    capabilities: list[dict[str, Any]] = Field(
-        default_factory=list, description="Device capabilities"
-    )
-    related_synergies: list[dict[str, Any]] = Field(
-        default_factory=list, description="Related synergies"
-    )
+    capabilities: list[dict[str, Any]] = Field(default_factory=list, description="Device capabilities")
+    related_synergies: list[dict[str, Any]] = Field(default_factory=list, description="Related synergies")
     compatible_blueprints: list[dict[str, Any]] = Field(
         default_factory=list, description="Compatible Home Assistant blueprints"
     )
@@ -145,20 +110,14 @@ class DeviceContext(BaseModel):
     home_assistant_services: list[dict[str, Any]] = Field(
         default_factory=list, description="Available Home Assistant services"
     )
-    sports_data: dict[str, Any] | None = Field(
-        default=None, description="Sports data from Team Tracker sensors"
-    )
-    weather_data: dict[str, Any] | None = Field(
-        default=None, description="Current weather data"
-    )
+    sports_data: dict[str, Any] | None = Field(default=None, description="Sports data from Team Tracker sensors")
+    weather_data: dict[str, Any] | None = Field(default=None, description="Current weather data")
 
 
 class DeviceSuggestionsResponse(BaseModel):
     """Response model for device suggestions endpoint"""
 
-    suggestions: list[DeviceSuggestion] = Field(
-        ..., description="List of automation suggestions (3-5)"
-    )
+    suggestions: list[DeviceSuggestion] = Field(..., description="List of automation suggestions (3-5)")
     device_context: DeviceContext = Field(..., description="Device context information")
 
     model_config = ConfigDict(
@@ -190,7 +149,7 @@ class DeviceSuggestionsResponse(BaseModel):
                     "compatible_blueprints": [],
                     "home_assistant_entities": [],
                     "home_assistant_services": [],
-                }
+                },
             }
         }
     )

@@ -7,9 +7,6 @@ CostTracker, RegressionInvestigator.
 
 import time
 
-import pytest
-
-
 # ---------------------------------------------------------------------------
 # Story 69.1: Request Complexity Classifier
 # ---------------------------------------------------------------------------
@@ -345,15 +342,17 @@ class TestRegressionInvestigator:
         now = time.time()
 
         for i in range(10):
-            inv.record_trace(TraceRecord(
-                trace_id=f"trace-{i}",
-                timestamp=now - 3600 + i * 60,
-                score=50.0 + i * 2,
-                model="gpt-4.1-mini",
-                complexity_level="low",
-                entity_domains=["light"],
-                intent_category="control",
-            ))
+            inv.record_trace(
+                TraceRecord(
+                    trace_id=f"trace-{i}",
+                    timestamp=now - 3600 + i * 60,
+                    score=50.0 + i * 2,
+                    model="gpt-4.1-mini",
+                    complexity_level="low",
+                    entity_domains=["light"],
+                    intent_category="control",
+                )
+            )
 
         report = inv.investigate(
             alert_id="alert-1",
@@ -376,16 +375,18 @@ class TestRegressionInvestigator:
 
         # All failures involve "light" domain
         for i in range(5):
-            inv.record_trace(TraceRecord(
-                trace_id=f"fail-{i}",
-                timestamp=now - 1800 + i * 60,
-                score=40.0,
-                model="gpt-4.1-mini",
-                complexity_level="low",
-                entity_domains=["light"],
-                intent_category="control",
-                error_type="entity_not_found",
-            ))
+            inv.record_trace(
+                TraceRecord(
+                    trace_id=f"fail-{i}",
+                    timestamp=now - 1800 + i * 60,
+                    score=40.0,
+                    model="gpt-4.1-mini",
+                    complexity_level="low",
+                    entity_domains=["light"],
+                    intent_category="control",
+                    error_type="entity_not_found",
+                )
+            )
 
         report = inv.investigate("alert-2", "agent-1", "accuracy")
         pattern_names = [p["pattern"] for p in report.common_patterns]

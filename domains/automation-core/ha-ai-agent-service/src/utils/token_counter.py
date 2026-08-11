@@ -29,9 +29,7 @@ def get_encoding(model: str) -> tiktoken.Encoding:
         try:
             return tiktoken.encoding_for_model(model)
         except KeyError:
-            logger.warning(
-                f"Model {model} not found in tiktoken, using cl100k_base encoding"
-            )
+            logger.warning(f"Model {model} not found in tiktoken, using cl100k_base encoding")
             return tiktoken.get_encoding("cl100k_base")
     else:
         return tiktoken.get_encoding("cl100k_base")
@@ -81,4 +79,3 @@ def count_message_tokens(messages: list[dict], model: str = "gpt-4o") -> int:
 
     num_tokens += 3  # Every reply is primed with <|start|>assistant<|message|>
     return num_tokens
-

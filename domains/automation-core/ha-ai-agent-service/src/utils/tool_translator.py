@@ -42,11 +42,13 @@ def openai_tools_to_anthropic(tools: list[dict[str, Any]]) -> list[dict[str, Any
             description = func.get("description", "")
             parameters = func.get("parameters", {"type": "object", "properties": {}})
 
-        anthropic_tools.append({
-            "name": name,
-            "description": description,
-            "input_schema": parameters,
-        })
+        anthropic_tools.append(
+            {
+                "name": name,
+                "description": description,
+                "input_schema": parameters,
+            }
+        )
 
     return anthropic_tools
 
@@ -136,28 +138,34 @@ def openai_messages_to_anthropic(
                         args = json.loads(args_str) if isinstance(args_str, str) else args_str
                     except json.JSONDecodeError:
                         args = {}
-                    blocks.append({
-                        "type": "tool_use",
-                        "id": tc.get("id", ""),
-                        "name": func.get("name", ""),
-                        "input": args,
-                    })
+                    blocks.append(
+                        {
+                            "type": "tool_use",
+                            "id": tc.get("id", ""),
+                            "name": func.get("name", ""),
+                            "input": args,
+                        }
+                    )
 
-            anthropic_messages.append({
-                "role": "assistant",
-                "content": blocks if blocks else content,
-            })
+            anthropic_messages.append(
+                {
+                    "role": "assistant",
+                    "content": blocks if blocks else content,
+                }
+            )
 
         elif role == "tool":
             # Tool result → user message with tool_result content block
-            anthropic_messages.append({
-                "role": "user",
-                "content": [
-                    build_anthropic_tool_result(
-                        tool_use_id=msg.get("tool_call_id", ""),
-                        result=content if isinstance(content, str) else json.dumps(content),
-                    )
-                ],
-            })
+            anthropic_messages.append(
+                {
+                    "role": "user",
+                    "content": [
+                        build_anthropic_tool_result(
+                            tool_use_id=msg.get("tool_call_id", ""),
+                            result=content if isinstance(content, str) else json.dumps(content),
+                        )
+                    ],
+                }
+            )
 
     return anthropic_messages, system_text

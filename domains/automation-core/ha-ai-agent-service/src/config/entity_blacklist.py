@@ -43,23 +43,18 @@ class EntityBlacklist:
         """Load config from YAML and apply env-var overrides."""
         data = self._read_yaml()
         self._blocked_domains = set(data.get("blocked_domains") or [])
-        self._blocked_entities = {
-            e.lower() for e in (data.get("blocked_entities") or [])
-        }
+        self._blocked_entities = {e.lower() for e in (data.get("blocked_entities") or [])}
         self._blocked_services = set(data.get("blocked_services") or [])
         self._warn_domains = set(data.get("warn_domains") or [])
 
         # ENTITY_BLACKLIST_OVERRIDE=lock,alarm_control_panel  → unblock those domains
         override_raw = os.environ.get("ENTITY_BLACKLIST_OVERRIDE", "").strip()
         if override_raw:
-            self._override_domains = {
-                d.strip() for d in override_raw.split(",") if d.strip()
-            }
+            self._override_domains = {d.strip() for d in override_raw.split(",") if d.strip()}
             self._blocked_domains -= self._override_domains
             # Also remove overridden domains from blocked_services
             self._blocked_services = {
-                s for s in self._blocked_services
-                if s.split(".")[0] not in self._override_domains
+                s for s in self._blocked_services if s.split(".")[0] not in self._override_domains
             }
             logger.warning(
                 "Entity blacklist override active — unblocked domains: %s",
@@ -67,8 +62,7 @@ class EntityBlacklist:
             )
 
         logger.info(
-            "Entity blacklist loaded: %d blocked domains, %d blocked entities, "
-            "%d blocked services, %d warn domains",
+            "Entity blacklist loaded: %d blocked domains, %d blocked entities, %d blocked services, %d warn domains",
             len(self._blocked_domains),
             len(self._blocked_entities),
             len(self._blocked_services),

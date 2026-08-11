@@ -8,7 +8,6 @@ as a "## User Preferences" section (200-token budget).
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from .profile_store import ProfileStore
 
@@ -86,7 +85,9 @@ class ProfileInjector:
             result = "\n".join(lines)
             logger.debug(
                 "Profile injection for user %s: %d dimensions, %d chars",
-                user_id, len(lines) - 1, len(result),
+                user_id,
+                len(lines) - 1,
+                len(result),
             )
             return result
 

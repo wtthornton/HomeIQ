@@ -20,19 +20,19 @@ HA_TOOLS = [
             "properties": {
                 "user_prompt": {
                     "type": "string",
-                    "description": "The user's natural language request for an automation (e.g., 'Make the office lights blink red every 15 minutes and then return back to the state they were'). Use this exact prompt to understand what automation to create."
+                    "description": "The user's natural language request for an automation (e.g., 'Make the office lights blink red every 15 minutes and then return back to the state they were'). Use this exact prompt to understand what automation to create.",
                 },
                 "automation_yaml": {
                     "type": "string",
-                    "description": "Complete Home Assistant automation YAML configuration. Must be valid YAML with required fields: alias, description, trigger, action. Include initial_state: true, proper mode selection, and use entities/areas/services from the provided context. Follow Home Assistant 2025.10+ format."
+                    "description": "Complete Home Assistant automation YAML configuration. Must be valid YAML with required fields: alias, description, trigger, action. Include initial_state: true, proper mode selection, and use entities/areas/services from the provided context. Follow Home Assistant 2025.10+ format.",
                 },
                 "alias": {
                     "type": "string",
-                    "description": "Human-readable name for the automation. Should be descriptive and match the user's intent (e.g., 'Office lights blink red every 15 minutes')."
-                }
+                    "description": "Human-readable name for the automation. Should be descriptive and match the user's intent (e.g., 'Office lights blink red every 15 minutes').",
+                },
             },
-            "required": ["user_prompt", "automation_yaml", "alias"]
-        }
+            "required": ["user_prompt", "automation_yaml", "alias"],
+        },
     },
     {
         "type": "function",
@@ -43,19 +43,19 @@ HA_TOOLS = [
             "properties": {
                 "user_prompt": {
                     "type": "string",
-                    "description": "The user's natural language request for an automation (e.g., 'Make the office lights blink red every 15 minutes and then return back to the state they were'). Use this exact prompt to understand what automation to create."
+                    "description": "The user's natural language request for an automation (e.g., 'Make the office lights blink red every 15 minutes and then return back to the state they were'). Use this exact prompt to understand what automation to create.",
                 },
                 "automation_yaml": {
                     "type": "string",
-                    "description": "Complete Home Assistant automation YAML configuration. Must be valid YAML with required fields: alias, description, trigger, action. Include initial_state: true, proper mode selection, and use entities/areas/services from the provided context. Follow Home Assistant 2025.10+ format."
+                    "description": "Complete Home Assistant automation YAML configuration. Must be valid YAML with required fields: alias, description, trigger, action. Include initial_state: true, proper mode selection, and use entities/areas/services from the provided context. Follow Home Assistant 2025.10+ format.",
                 },
                 "alias": {
                     "type": "string",
-                    "description": "Human-readable name for the automation. Should be descriptive and match the user's intent (e.g., 'Office lights blink red every 15 minutes')."
-                }
+                    "description": "Human-readable name for the automation. Should be descriptive and match the user's intent (e.g., 'Office lights blink red every 15 minutes').",
+                },
             },
-            "required": ["user_prompt", "automation_yaml", "alias"]
-        }
+            "required": ["user_prompt", "automation_yaml", "alias"],
+        },
     },
     {
         "type": "function",
@@ -66,20 +66,17 @@ HA_TOOLS = [
             "properties": {
                 "automation_yaml": {
                     "type": "string",
-                    "description": "The automation YAML to enhance (optional). If provided, enhances the YAML. If omitted, enhances the original prompt instead."
+                    "description": "The automation YAML to enhance (optional). If provided, enhances the YAML. If omitted, enhances the original prompt instead.",
                 },
                 "original_prompt": {
                     "type": "string",
-                    "description": "The user's original request. Required for both prompt and YAML enhancement modes."
+                    "description": "The user's original request. Required for both prompt and YAML enhancement modes.",
                 },
-                "conversation_id": {
-                    "type": "string",
-                    "description": "The conversation ID for tracking and context."
-                }
+                "conversation_id": {"type": "string", "description": "The conversation ID for tracking and context."},
             },
-            "required": ["original_prompt", "conversation_id"]
-        }
-    }
+            "required": ["original_prompt", "conversation_id"],
+        },
+    },
 ]
 
 # -------------------------------------------------------------------------
@@ -96,20 +93,17 @@ DEVICE_CONTROL_TOOLS = [
             "properties": {
                 "entity_id_or_name": {
                     "type": "string",
-                    "description": "Light entity ID (e.g., 'light.kitchen') or friendly name (e.g., 'Kitchen Light')"
+                    "description": "Light entity ID (e.g., 'light.kitchen') or friendly name (e.g., 'Kitchen Light')",
                 },
-                "brightness": {
-                    "type": "integer",
-                    "description": "Brightness 0-100 (0 = off, 100 = full). Required."
-                },
+                "brightness": {"type": "integer", "description": "Brightness 0-100 (0 = off, 100 = full). Required."},
                 "rgb": {
                     "type": "array",
                     "items": {"type": "integer"},
-                    "description": "Optional RGB color as [R, G, B] with values 0-255 (e.g., [255, 0, 0] for red)"
-                }
+                    "description": "Optional RGB color as [R, G, B] with values 0-255 (e.g., [255, 0, 0] for red)",
+                },
             },
-            "required": ["entity_id_or_name", "brightness"]
-        }
+            "required": ["entity_id_or_name", "brightness"],
+        },
     },
     {
         "type": "function",
@@ -118,22 +112,16 @@ DEVICE_CONTROL_TOOLS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "area": {
-                    "type": "string",
-                    "description": "Area/room name (e.g., 'Living Room', 'Bedroom', 'Kitchen')"
-                },
-                "brightness": {
-                    "type": "integer",
-                    "description": "Brightness 0-100 (0 = off)"
-                },
+                "area": {"type": "string", "description": "Area/room name (e.g., 'Living Room', 'Bedroom', 'Kitchen')"},
+                "brightness": {"type": "integer", "description": "Brightness 0-100 (0 = off)"},
                 "rgb": {
                     "type": "array",
                     "items": {"type": "integer"},
-                    "description": "Optional RGB color as [R, G, B] with values 0-255"
-                }
+                    "description": "Optional RGB color as [R, G, B] with values 0-255",
+                },
             },
-            "required": ["area", "brightness"]
-        }
+            "required": ["area", "brightness"],
+        },
     },
     {
         "type": "function",
@@ -142,27 +130,17 @@ DEVICE_CONTROL_TOOLS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "entity_id_or_name": {
-                    "type": "string",
-                    "description": "Switch entity ID or friendly name"
-                },
-                "state": {
-                    "type": "string",
-                    "enum": ["on", "off"],
-                    "description": "Desired state"
-                }
+                "entity_id_or_name": {"type": "string", "description": "Switch entity ID or friendly name"},
+                "state": {"type": "string", "enum": ["on", "off"], "description": "Desired state"},
             },
-            "required": ["entity_id_or_name", "state"]
-        }
+            "required": ["entity_id_or_name", "state"],
+        },
     },
     {
         "type": "function",
         "name": "get_climate",
         "description": "Get current thermostat/climate status for all zones. Shows current temperature, target temperature, and HVAC mode. Use when user asks about temperature or thermostat.",
-        "parameters": {
-            "type": "object",
-            "properties": {}
-        }
+        "parameters": {"type": "object", "properties": {}},
     },
     {
         "type": "function",
@@ -173,19 +151,16 @@ DEVICE_CONTROL_TOOLS = [
             "properties": {
                 "entity_id": {
                     "type": "string",
-                    "description": "Climate entity ID (e.g., 'climate.living_room'). Use get_climate first to find available entities."
+                    "description": "Climate entity ID (e.g., 'climate.living_room'). Use get_climate first to find available entities.",
                 },
-                "temperature": {
-                    "type": "number",
-                    "description": "Target temperature in the entity's native unit"
-                },
+                "temperature": {"type": "number", "description": "Target temperature in the entity's native unit"},
                 "hvac_mode": {
                     "type": "string",
-                    "description": "Optional HVAC mode: heat, cool, auto, off, fan_only, dry"
-                }
+                    "description": "Optional HVAC mode: heat, cool, auto, off, fan_only, dry",
+                },
             },
-            "required": ["entity_id", "temperature"]
-        }
+            "required": ["entity_id", "temperature"],
+        },
     },
     {
         "type": "function",
@@ -194,22 +169,16 @@ DEVICE_CONTROL_TOOLS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Scene or script name (e.g., 'movie_night', 'bedtime')"
-                }
+                "name": {"type": "string", "description": "Scene or script name (e.g., 'movie_night', 'bedtime')"}
             },
-            "required": ["name"]
-        }
+            "required": ["name"],
+        },
     },
     {
         "type": "function",
         "name": "house_status",
         "description": "Get a comprehensive snapshot of the current home status: climate, presence, lights by area, doors/windows, motion sensors, active switches, and automations. Use when user asks 'what's the status of the house?' or 'are any lights on?'.",
-        "parameters": {
-            "type": "object",
-            "properties": {}
-        }
+        "parameters": {"type": "object", "properties": {}},
     },
     {
         "type": "function",
@@ -218,18 +187,12 @@ DEVICE_CONTROL_TOOLS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "message": {
-                    "type": "string",
-                    "description": "Notification message body"
-                },
-                "title": {
-                    "type": "string",
-                    "description": "Optional notification title"
-                }
+                "message": {"type": "string", "description": "Notification message body"},
+                "title": {"type": "string", "description": "Optional notification title"},
             },
-            "required": ["message"]
-        }
-    }
+            "required": ["message"],
+        },
+    },
 ]
 
 

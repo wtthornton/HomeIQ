@@ -114,7 +114,8 @@ class PreferenceExtractor:
 
             logger.info(
                 "Extracted %d preferences for user %s",
-                len(preferences), user_id,
+                len(preferences),
+                user_id,
             )
             return preferences
 

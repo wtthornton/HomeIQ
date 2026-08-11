@@ -72,8 +72,7 @@ class ValidationChain:
 
             except Exception as e:
                 logger.warning(
-                    f"Validation strategy {strategy.name} failed with exception: {e}. "
-                    "Trying next strategy..."
+                    f"Validation strategy {strategy.name} failed with exception: {e}. Trying next strategy..."
                 )
                 # Track unavailable services
                 services_unavailable.append(strategy.name)

@@ -39,11 +39,11 @@ class DeviceStateContextService:
         """
         self.settings = settings
         self.context_builder = context_builder
-        self.ha_client = HomeAssistantClient(
-            ha_url=settings.ha_url,
-            access_token=settings.ha_token.get_secret_value()
+        self.ha_client = HomeAssistantClient(ha_url=settings.ha_url, access_token=settings.ha_token.get_secret_value())
+        self.data_api_client = DataAPIClient(
+            base_url=settings.data_api_url,
+            api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None,
         )
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
         self._cache_ttl = 45  # 45 seconds (states change frequently)
 
     def _get_cache_key(self, entity_ids: list[str]) -> str:
@@ -195,7 +195,9 @@ class DeviceStateContextService:
 
             # Phase 1.3: Log unavailable entities count
             if unavailable_entities:
-                logger.warning(f"⚠️ Found {len(unavailable_entities)} unavailable/unknown entities: {unavailable_entities[:5]}...")
+                logger.warning(
+                    f"⚠️ Found {len(unavailable_entities)} unavailable/unknown entities: {unavailable_entities[:5]}..."
+                )
 
             if not relevant_states:
                 logger.warning(f"⚠️ No states found for {len(entity_ids)} requested entities")
@@ -224,9 +226,7 @@ class DeviceStateContextService:
 
             # Cache the result (only if not skipping truncation)
             if not skip_truncation:
-                await self.context_builder._set_cached_value(
-                    cache_key, context, self._cache_ttl
-                )
+                await self.context_builder._set_cached_value(cache_key, context, self._cache_ttl)
 
             logger.info(f"✅ Generated state context for {len(relevant_states)} entities ({len(context)} chars)")
             return context

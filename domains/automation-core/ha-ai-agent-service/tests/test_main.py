@@ -2,6 +2,7 @@
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+
 from src.main import app
 
 
@@ -31,4 +32,3 @@ async def test_context_endpoint_not_ready(client):
         response = await ac.get("/api/v1/context")
         # Service not ready without proper initialization
         assert response.status_code == 503
-

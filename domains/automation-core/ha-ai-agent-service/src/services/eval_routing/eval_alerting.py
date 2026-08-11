@@ -244,7 +244,12 @@ class EvalAlertService:
 
         logger.warning(
             "EVAL ALERT: %s — %s:%s current=%.1f baseline=%.1f drop=%.1f%%",
-            alert_type, agent_name, dimension, current, baseline, drop_pct,
+            alert_type,
+            agent_name,
+            dimension,
+            current,
+            baseline,
+            drop_pct,
         )
 
         return alert

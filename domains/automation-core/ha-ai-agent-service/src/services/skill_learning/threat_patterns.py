@@ -38,18 +38,35 @@ def _build_patterns() -> list[ThreatPattern]:
     patterns: list[ThreatPattern] = []
 
     def add(cat: ThreatCategory, sev: str, desc: str, regex: str, flags: int = re.IGNORECASE) -> None:
-        patterns.append(ThreatPattern(
-            category=cat,
-            pattern=re.compile(regex, flags),
-            severity=sev,
-            description=desc,
-        ))
+        patterns.append(
+            ThreatPattern(
+                category=cat,
+                pattern=re.compile(regex, flags),
+                severity=sev,
+                description=desc,
+            )
+        )
 
     # --- Prompt Injection (20 patterns) ---
     pi = ThreatCategory.PROMPT_INJECTION
-    add(pi, "critical", "Role hijacking attempt", r"(you are now|act as|pretend to be|ignore previous|disregard|forget all)")
-    add(pi, "critical", "Instruction override", r"(ignore (all |any )?instructions|new instructions|override (system|prompt))")
-    add(pi, "high", "System prompt extraction", r"(reveal|show|print|output|display).{0,20}(system prompt|instructions|rules)")
+    add(
+        pi,
+        "critical",
+        "Role hijacking attempt",
+        r"(you are now|act as|pretend to be|ignore previous|disregard|forget all)",
+    )
+    add(
+        pi,
+        "critical",
+        "Instruction override",
+        r"(ignore (all |any )?instructions|new instructions|override (system|prompt))",
+    )
+    add(
+        pi,
+        "high",
+        "System prompt extraction",
+        r"(reveal|show|print|output|display).{0,20}(system prompt|instructions|rules)",
+    )
     add(pi, "high", "Jailbreak attempt", r"(DAN|do anything now|no restrictions|no limitations|unrestricted mode)")
     add(pi, "high", "Context manipulation", r"(begin new|start over|reset context|clear instructions)")
     add(pi, "medium", "Delimiter injection", r"(```system|<\|im_start\|>|<\|im_end\|>|\[INST\]|\[/INST\])")

@@ -129,12 +129,7 @@ class ConversationService:
             Created Conversation instance
         """
         async for session in get_session():
-            return await db_create_conversation(
-                session,
-                conversation_id,
-                title=title,
-                source=source or "user"
-            )
+            return await db_create_conversation(session, conversation_id, title=title, source=source or "user")
         raise RuntimeError("Database session unavailable: could not create conversation")
 
     async def get_conversation_by_debug_id(self, debug_id: str) -> Conversation | None:
@@ -179,9 +174,7 @@ class ConversationService:
             List of Conversation instances
         """
         async for session in get_session():
-            return await db_list_conversations(
-                session, state, limit, offset, start_date, end_date
-            )
+            return await db_list_conversations(session, state, limit, offset, start_date, end_date)
         return []
 
     async def count_conversations(
@@ -220,7 +213,10 @@ class ConversationService:
         return None
 
     async def add_message(
-        self, conversation_id: str, role: str, content: str,
+        self,
+        conversation_id: str,
+        role: str,
+        content: str,
         tool_calls: list[dict] | None = None,
     ) -> Message | None:
         """
@@ -237,7 +233,11 @@ class ConversationService:
         """
         async for session in get_session():
             return await db_add_message(
-                session, conversation_id, role, content, tool_calls=tool_calls,
+                session,
+                conversation_id,
+                role,
+                content,
+                tool_calls=tool_calls,
             )
         return None
 
@@ -256,9 +256,7 @@ class ConversationService:
             return []
         return conversation.get_messages()
 
-    async def update_conversation_title(
-        self, conversation_id: str, title: str | None
-    ) -> bool:
+    async def update_conversation_title(self, conversation_id: str, title: str | None) -> bool:
         """
         Update conversation title (Epic AI-20.9).
 
@@ -287,9 +285,7 @@ class ConversationService:
             return await db_auto_generate_title(session, conversation_id)
         return None
 
-    async def get_openai_messages(
-        self, conversation_id: str, include_system: bool = True
-    ) -> list[dict[str, str]]:
+    async def get_openai_messages(self, conversation_id: str, include_system: bool = True) -> list[dict[str, str]]:
         """
         Get messages in OpenAI API format with optional system prompt.
 
@@ -313,9 +309,7 @@ class ConversationService:
 
         return messages
 
-    async def _get_system_prompt_with_context(
-        self, conversation: Conversation
-    ) -> str:
+    async def _get_system_prompt_with_context(self, conversation: Conversation) -> str:
         """
         Get system prompt with context injection for a conversation.
 
@@ -343,15 +337,11 @@ class ConversationService:
                 should_refresh = True
 
         if should_refresh:
-            logger.debug(
-                f"Refreshing context for conversation {conversation.conversation_id}"
-            )
+            logger.debug(f"Refreshing context for conversation {conversation.conversation_id}")
             context = await self.context_builder.build_complete_system_prompt()
             conversation.set_context_cache(context)
         else:
-            logger.debug(
-                f"Using cached context for conversation {conversation.conversation_id}"
-            )
+            logger.debug(f"Using cached context for conversation {conversation.conversation_id}")
 
         return conversation.get_context_cache() or ""
 
@@ -366,10 +356,9 @@ class ConversationService:
             True if archived, False if not found
         """
         from .conversation_persistence import update_conversation_state
+
         async for session in get_session():
-            return await update_conversation_state(
-                session, conversation_id, ConversationState.ARCHIVED
-            )
+            return await update_conversation_state(session, conversation_id, ConversationState.ARCHIVED)
         return None
 
     async def activate_conversation(self, conversation_id: str) -> bool:
@@ -383,10 +372,9 @@ class ConversationService:
             True if activated, False if not found
         """
         from .conversation_persistence import update_conversation_state
+
         async for session in get_session():
-            return await update_conversation_state(
-                session, conversation_id, ConversationState.ACTIVE
-            )
+            return await update_conversation_state(session, conversation_id, ConversationState.ACTIVE)
         return None
 
     async def set_pending_preview(self, conversation_id: str, preview: dict) -> bool:
@@ -401,6 +389,7 @@ class ConversationService:
             True if stored, False if conversation not found
         """
         from .conversation_persistence import set_pending_preview
+
         async for session in get_session():
             result = await set_pending_preview(session, conversation_id, preview)
             if result:
@@ -437,6 +426,7 @@ class ConversationService:
             True if cleared, False if conversation not found
         """
         from .conversation_persistence import clear_pending_preview
+
         async for session in get_session():
             result = await clear_pending_preview(session, conversation_id)
             if result:
@@ -446,4 +436,3 @@ class ConversationService:
                     conversation.clear_pending_preview()
             return result
         return None
-

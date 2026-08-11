@@ -210,10 +210,7 @@ class OpenAIClient:
 
                     # Track reasoning tokens if available
                     output_details = getattr(response.usage, "output_tokens_details", None)
-                    reasoning_count = (
-                        getattr(output_details, "reasoning_tokens", 0)
-                        if output_details else 0
-                    )
+                    reasoning_count = getattr(output_details, "reasoning_tokens", 0) if output_details else 0
                     if reasoning_count:
                         self.total_reasoning_tokens += reasoning_count
                     logger.info(
@@ -249,9 +246,7 @@ class OpenAIClient:
             self.total_errors += 1
             raise
 
-    async def chat_completion_simple(
-        self, system_prompt: str, user_message: str
-    ) -> str:
+    async def chat_completion_simple(self, system_prompt: str, user_message: str) -> str:
         """
         Simple completion helper (no function calling).
 
@@ -283,9 +278,7 @@ class OpenAIClient:
             "total_requests": self.total_requests,
             "total_errors": self.total_errors,
             "average_tokens_per_request": (
-                self.total_tokens_used / self.total_requests
-                if self.total_requests > 0
-                else 0
+                self.total_tokens_used / self.total_requests if self.total_requests > 0 else 0
             ),
         }
 
@@ -313,45 +306,55 @@ def _messages_to_input(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         content = msg.get("content", "")
 
         if role == "user":
-            input_items.append({
-                "type": "message",
-                "role": "user",
-                "content": content,
-            })
+            input_items.append(
+                {
+                    "type": "message",
+                    "role": "user",
+                    "content": content,
+                }
+            )
         elif role == "assistant":
             # Assistant messages with tool calls need special handling
             tool_calls = msg.get("tool_calls")
             if content:
-                input_items.append({
-                    "type": "message",
-                    "role": "assistant",
-                    "content": content,
-                })
+                input_items.append(
+                    {
+                        "type": "message",
+                        "role": "assistant",
+                        "content": content,
+                    }
+                )
             if tool_calls:
                 for tc in tool_calls:
                     func = tc.get("function", tc)
-                    input_items.append({
-                        "type": "function_call",
-                        "name": func.get("name", ""),
-                        "arguments": func.get("arguments", "{}"),
-                        "call_id": tc.get("id", ""),
-                    })
+                    input_items.append(
+                        {
+                            "type": "function_call",
+                            "name": func.get("name", ""),
+                            "arguments": func.get("arguments", "{}"),
+                            "call_id": tc.get("id", ""),
+                        }
+                    )
         elif role == "tool_call":
             # Responses API function_call item passed through from chat loop
             fc = msg.get("_function_call")
             if fc:
-                input_items.append({
-                    "type": "function_call",
-                    "name": getattr(fc, "name", ""),
-                    "arguments": getattr(fc, "arguments", "{}"),
-                    "call_id": getattr(fc, "call_id", ""),
-                })
+                input_items.append(
+                    {
+                        "type": "function_call",
+                        "name": getattr(fc, "name", ""),
+                        "arguments": getattr(fc, "arguments", "{}"),
+                        "call_id": getattr(fc, "call_id", ""),
+                    }
+                )
         elif role == "tool":
             # Tool result messages
-            input_items.append({
-                "type": "function_call_output",
-                "call_id": msg.get("tool_call_id", ""),
-                "output": content if isinstance(content, str) else str(content),
-            })
+            input_items.append(
+                {
+                    "type": "function_call_output",
+                    "call_id": msg.get("tool_call_id", ""),
+                    "output": content if isinstance(content, str) else str(content),
+                }
+            )
 
     return input_items

@@ -66,10 +66,7 @@ def _apply_anthropic_cache(
         result.append(msg_copy)
 
     # Mark last 3 non-system messages
-    non_system_indices = [
-        i for i, m in enumerate(result)
-        if m.get("role") != "system"
-    ]
+    non_system_indices = [i for i, m in enumerate(result) if m.get("role") != "system"]
 
     for idx in non_system_indices[-3:]:
         result[idx] = dict(result[idx])
@@ -123,11 +120,7 @@ def estimate_cache_savings(
     estimated_tokens = total_chars // 4
 
     # System prompt tokens (cacheable, stable)
-    system_tokens = sum(
-        len(m.get("content", "")) // 4
-        for m in messages
-        if m.get("role") == "system"
-    )
+    system_tokens = sum(len(m.get("content", "")) // 4 for m in messages if m.get("role") == "system")
 
     # Cached tokens save ~75% on OpenAI, ~90% on Anthropic
     cached_tokens = int(system_tokens * cache_hit_rate)

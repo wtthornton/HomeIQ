@@ -10,11 +10,11 @@ Tests performance requirements:
 
 import asyncio
 import time
-from typing import List
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from httpx import AsyncClient
+
 from src.api.dependencies import set_services
 from src.config import Settings
 from src.main import app
@@ -39,9 +39,7 @@ def settings():
 def mock_context_builder():
     """Create mock context builder with fast responses"""
     builder = MagicMock(spec=ContextBuilder)
-    builder.build_complete_system_prompt = AsyncMock(
-        return_value="System prompt with Tier 1 context"
-    )
+    builder.build_complete_system_prompt = AsyncMock(return_value="System prompt with Tier 1 context")
     builder.initialize = AsyncMock()
     builder.close = AsyncMock()
     builder._initialized = True
@@ -128,6 +126,7 @@ def create_fast_mock_completion(content: str):
 @pytest.mark.asyncio
 async def test_chat_response_time_performance(test_client, mock_openai_client):
     """Test that chat endpoint responds within 3 seconds"""
+
     # Mock fast OpenAI response (simulate 100ms latency)
     async def fast_completion(*_args, **_kwargs):
         await asyncio.sleep(0.1)  # Simulate network latency
@@ -159,7 +158,7 @@ async def test_chat_concurrent_users(test_client, mock_openai_client):
     # Mock fast OpenAI responses
     async def fast_completion(*_args, **_kwargs):
         await asyncio.sleep(0.1)  # Simulate network latency
-        return create_fast_mock_completion(f"Response for request")
+        return create_fast_mock_completion("Response for request")
 
     mock_openai_client.chat_completion = AsyncMock(side_effect=fast_completion)
 
@@ -210,7 +209,7 @@ async def test_chat_sustained_load(test_client, mock_openai_client):
     mock_openai_client.chat_completion = AsyncMock(side_effect=fast_completion)
 
     # Track request results
-    results: List[tuple] = []
+    results: list[tuple] = []
 
     async def send_request_with_delay(index: int):
         """Send a request with delay to simulate sustained load"""
@@ -320,9 +319,7 @@ async def test_chat_memory_usage_stability(test_client, mock_openai_client):
 async def test_chat_context_refresh_performance(test_client, mock_openai_client, mock_context_builder):
     """Test that context refresh doesn't significantly slow down responses"""
     # Mock fast context refresh
-    mock_context_builder.build_complete_system_prompt = AsyncMock(
-        return_value="Refreshed context"
-    )
+    mock_context_builder.build_complete_system_prompt = AsyncMock(return_value="Refreshed context")
 
     # Mock fast OpenAI response
     async def fast_completion(*_args, **_kwargs):
@@ -346,4 +343,3 @@ async def test_chat_context_refresh_performance(test_client, mock_openai_client,
     assert response.status_code == 200
     # Context refresh adds some overhead, but should still be reasonable
     assert elapsed_time < 5.0, f"Context refresh took {elapsed_time:.2f}s, expected <5.0s"
-

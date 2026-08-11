@@ -5,8 +5,6 @@ Covers: smart routing, skills guard, skill extraction heuristics,
 context compression, prompt caching, delegation synthesis.
 """
 
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # Story 70.3: Smart Model Routing
@@ -192,34 +190,43 @@ class TestSkillExtraction:
         """5+ iterations with tool calls triggers extraction."""
         from src.services.skill_learning.skill_extractor import should_extract_skill
 
-        assert should_extract_skill(
-            iterations=6,
-            tool_calls=[{"name": "preview"}, {"name": "create"}],
-            assistant_content="Done",
-            user_messages=["Create automation for kitchen"],
-        ) is True
+        assert (
+            should_extract_skill(
+                iterations=6,
+                tool_calls=[{"name": "preview"}, {"name": "create"}],
+                assistant_content="Done",
+                user_messages=["Create automation for kitchen"],
+            )
+            is True
+        )
 
     def test_simple_conversation_no_extraction(self):
         """Short conversations don't trigger extraction."""
         from src.services.skill_learning.skill_extractor import should_extract_skill
 
-        assert should_extract_skill(
-            iterations=2,
-            tool_calls=[],
-            assistant_content="The light is on.",
-            user_messages=["Is the light on?"],
-        ) is False
+        assert (
+            should_extract_skill(
+                iterations=2,
+                tool_calls=[],
+                assistant_content="The light is on.",
+                user_messages=["Is the light on?"],
+            )
+            is False
+        )
 
     def test_explicit_save_triggers_extraction(self):
         """User saying 'remember this' triggers extraction."""
         from src.services.skill_learning.skill_extractor import should_extract_skill
 
-        assert should_extract_skill(
-            iterations=2,
-            tool_calls=[],
-            assistant_content="Done",
-            user_messages=["Remember this pattern for next time"],
-        ) is True
+        assert (
+            should_extract_skill(
+                iterations=2,
+                tool_calls=[],
+                assistant_content="Done",
+                user_messages=["Remember this pattern for next time"],
+            )
+            is True
+        )
 
     def test_extract_metadata_categories(self):
         """Metadata extraction categorizes by tool names."""

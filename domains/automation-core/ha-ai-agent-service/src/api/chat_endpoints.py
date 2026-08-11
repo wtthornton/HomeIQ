@@ -69,17 +69,11 @@ class SimpleRateLimiter:
         if ip not in self._requests:
             self._requests[ip] = []
 
-        self._requests[ip] = [
-            req_time for req_time in self._requests[ip] if now - req_time < 60
-        ]
+        self._requests[ip] = [req_time for req_time in self._requests[ip] if now - req_time < 60]
 
         # Clean stale IPs to prevent unbounded memory growth
         if len(self._requests) > 10_000:
-            stale_ips = [
-                k
-                for k, v in self._requests.items()
-                if not v or (now - max(v)) > 300
-            ]
+            stale_ips = [k for k, v in self._requests.items() if not v or (now - max(v)) > 300]
             for ip_key in stale_ips:
                 del self._requests[ip_key]
 
@@ -161,8 +155,10 @@ async def _run_openai_loop(
         # Build messages array
         if result.iterations == 1:
             base_messages = await prompt_assembly_service.assemble_messages(
-                conversation_id, request_message,
-                refresh_context=False, skip_add_message=True,
+                conversation_id,
+                request_message,
+                refresh_context=False,
+                skip_add_message=True,
             )
             messages = base_messages.copy()
         else:
@@ -176,23 +172,30 @@ async def _run_openai_loop(
                 messages.append({"role": "tool_call", "_function_call": fc_item})
 
             for tr_item in tool_results:
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tr_item.get("call_id", ""),
-                    "content": tr_item.get("output", ""),
-                })
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tr_item.get("call_id", ""),
+                        "content": tr_item.get("output", ""),
+                    }
+                )
 
         # Call OpenAI API
-        openai_call_id = start_tracking("openai_api_call", {
-            "iteration": result.iterations,
-            "message_count": len(messages),
-            "tool_count": len(tools) if tools else 0,
-        })
+        openai_call_id = start_tracking(
+            "openai_api_call",
+            {
+                "iteration": result.iterations,
+                "message_count": len(messages),
+                "tool_count": len(tools) if tools else 0,
+            },
+        )
         result.openai_call_ids.append(openai_call_id)
 
         try:
             response = await openai_client.chat_completion(
-                messages=messages, tools=tools, tool_choice="auto",
+                messages=messages,
+                tools=tools,
+                tool_choice="auto",
             )
         except OpenAIRateLimitError as e:
             logger.error("OpenAI rate limit error: %s", e)
@@ -215,10 +218,7 @@ async def _run_openai_loop(
 
         # Extract response content and function calls
         result.assistant_content = response.output_text or ""
-        function_call_items = [
-            item for item in response.output
-            if getattr(item, "type", None) == "function_call"
-        ]
+        function_call_items = [item for item in response.output if getattr(item, "type", None) == "function_call"]
 
         # Token tracking
         input_tokens = getattr(response.usage, "input_tokens", 0) if response.usage else 0
@@ -226,13 +226,16 @@ async def _run_openai_loop(
         tokens_used = input_tokens + output_tokens
         result.total_tokens += tokens_used
 
-        end_tracking(openai_call_id, {
-            "tokens_used": tokens_used,
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "has_tool_calls": bool(function_call_items),
-            "tool_calls_count": len(function_call_items),
-        })
+        end_tracking(
+            openai_call_id,
+            {
+                "tokens_used": tokens_used,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "has_tool_calls": bool(function_call_items),
+                "tool_calls_count": len(function_call_items),
+            },
+        )
 
         previous_function_calls = function_call_items
 
@@ -247,12 +250,10 @@ async def _run_openai_loop(
         if result.assistant_content or not function_call_items:
             tc_dicts = None
             if not function_call_items and result.tool_calls:
-                tc_dicts = [
-                    {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
-                    for tc in result.tool_calls
-                ]
+                tc_dicts = [{"id": tc.id, "name": tc.name, "arguments": tc.arguments} for tc in result.tool_calls]
             await conversation_service.add_message(
-                conversation_id, "assistant",
+                conversation_id,
+                "assistant",
                 result.assistant_content or "[Processing...]",
                 tool_calls=tc_dicts,
             )
@@ -314,10 +315,13 @@ async def _run_anthropic_loop(
             max_iterations,
         )
 
-        api_call_id = start_tracking("anthropic_api_call", {
-            "iteration": result.iterations,
-            "message_count": len(conv_messages),
-        })
+        api_call_id = start_tracking(
+            "anthropic_api_call",
+            {
+                "iteration": result.iterations,
+                "message_count": len(conv_messages),
+            },
+        )
         result.openai_call_ids.append(api_call_id)
 
         try:
@@ -342,19 +346,23 @@ async def _run_anthropic_loop(
         tokens_used = llm_response.usage.total_tokens
         result.total_tokens += tokens_used
 
-        end_tracking(api_call_id, {
-            "tokens_used": tokens_used,
-            "input_tokens": llm_response.usage.input_tokens,
-            "output_tokens": llm_response.usage.output_tokens,
-            "cached_tokens": llm_response.cached_tokens,
-            "has_tool_calls": bool(llm_response.tool_calls),
-            "tool_calls_count": len(llm_response.tool_calls) if llm_response.tool_calls else 0,
-        })
+        end_tracking(
+            api_call_id,
+            {
+                "tokens_used": tokens_used,
+                "input_tokens": llm_response.usage.input_tokens,
+                "output_tokens": llm_response.usage.output_tokens,
+                "cached_tokens": llm_response.cached_tokens,
+                "has_tool_calls": bool(llm_response.tool_calls),
+                "tool_calls_count": len(llm_response.tool_calls) if llm_response.tool_calls else 0,
+            },
+        )
 
         # Add assistant message to conversation
         if result.assistant_content or not llm_response.tool_calls:
             await conversation_service.add_message(
-                conversation_id, "assistant",
+                conversation_id,
+                "assistant",
                 result.assistant_content or "[Processing...]",
             )
 
@@ -397,11 +405,13 @@ async def _run_anthropic_loop(
 
             # Append tool results
             for tr in tool_results:
-                conv_messages.append({
-                    "role": "tool",
-                    "tool_call_id": tr.get("call_id", ""),
-                    "content": tr.get("output", ""),
-                })
+                conv_messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tr.get("call_id", ""),
+                        "content": tr.get("output", ""),
+                    }
+                )
             continue
 
         # No tool calls — final response
@@ -418,11 +428,7 @@ async def _run_anthropic_loop(
 
 
 @router.post("/chat", response_model=ChatResponse)
-@(
-    trace_session(agent_name="ha-ai-agent", sink=_eval_sink, model="gpt-4o")
-    if _TRACING_AVAILABLE
-    else lambda f: f
-)
+@(trace_session(agent_name="ha-ai-agent", sink=_eval_sink, model="gpt-4o") if _TRACING_AVAILABLE else lambda f: f)
 async def chat(
     request: ChatRequest,
     http_request: Request,
@@ -459,10 +465,13 @@ async def chat(
     try:
         # Get or create conversation
         conversation_id = request.conversation_id
-        conversation_management_id = start_tracking("conversation_management", {
-            "conversation_id": conversation_id or "new",
-            "is_new": not conversation_id,
-        })
+        conversation_management_id = start_tracking(
+            "conversation_management",
+            {
+                "conversation_id": conversation_id or "new",
+                "is_new": not conversation_id,
+            },
+        )
 
         if not conversation_id:
             title = request.title
@@ -471,7 +480,8 @@ async def chat(
                 title = msg_text[:47] + "..." if len(msg_text) > 50 else msg_text
 
             conversation = await conversation_service.create_conversation(
-                title=title, source=request.source or "user",
+                title=title,
+                source=request.source or "user",
             )
             conversation_id = conversation.conversation_id
             logger.info(
@@ -509,26 +519,34 @@ async def chat(
         if memory_extractor and settings.enable_memory_extraction:
             asyncio.create_task(
                 _extract_memories_background(
-                    memory_extractor, request.message, conversation_id,
+                    memory_extractor,
+                    request.message,
+                    conversation_id,
                 )
             )
 
         # Assemble messages with context
-        message_assembly_id = start_tracking("message_assembly", {
-            "refresh_context": request.refresh_context,
-            "message_length": len(request.message),
-            "has_hidden_context": request.hidden_context is not None,
-        })
+        message_assembly_id = start_tracking(
+            "message_assembly",
+            {
+                "refresh_context": request.refresh_context,
+                "message_length": len(request.message),
+                "has_hidden_context": request.hidden_context is not None,
+            },
+        )
         messages = await prompt_assembly_service.assemble_messages(
             conversation_id,
             request.message,
             refresh_context=request.refresh_context,
             hidden_context=request.hidden_context,
         )
-        end_tracking(message_assembly_id, {
-            "message_count": len(messages),
-            "system_message_length": len(messages[0].get("content", "")) if messages else 0,
-        })
+        end_tracking(
+            message_assembly_id,
+            {
+                "message_count": len(messages),
+                "system_message_length": len(messages[0].get("content", "")) if messages else 0,
+            },
+        )
 
         # Verify messages
         if not messages:
@@ -540,9 +558,7 @@ async def chat(
 
         # Get tool schemas and run the loop
         tools = get_tool_schemas()
-        use_anthropic = (
-            settings.llm_provider == "anthropic" and llm_router is not None
-        )
+        use_anthropic = settings.llm_provider == "anthropic" and llm_router is not None
 
         if use_anthropic:
             # Epic 97: Anthropic provider path with prompt caching
@@ -604,22 +620,30 @@ async def chat(
         )
 
         # Performance report
-        all_metric_ids = [
-            rate_limit_id,
-            conversation_management_id,
-            pending_preview_id,
-            message_assembly_id,
-            token_counts_id,
-        ] + loop_result.openai_call_ids + loop_result.tool_execution_ids
+        all_metric_ids = (
+            [
+                rate_limit_id,
+                conversation_management_id,
+                pending_preview_id,
+                message_assembly_id,
+                token_counts_id,
+            ]
+            + loop_result.openai_call_ids
+            + loop_result.tool_execution_ids
+        )
 
-        create_report(operation_id, all_metric_ids, {
-            "conversation_id": conversation_id,
-            "total_tokens": loop_result.total_tokens,
-            "iterations": loop_result.iterations,
-            "tool_calls_count": len(loop_result.tool_calls),
-            "response_length": len(final_content),
-            "message_length": len(request.message),
-        })
+        create_report(
+            operation_id,
+            all_metric_ids,
+            {
+                "conversation_id": conversation_id,
+                "total_tokens": loop_result.total_tokens,
+                "iterations": loop_result.iterations,
+                "tool_calls_count": len(loop_result.tool_calls),
+                "response_length": len(final_content),
+                "message_length": len(request.message),
+            },
+        )
 
         logger.info(
             "[Chat Complete] Conversation %s: tokens=%d time=%dms iterations=%d tools=%d",

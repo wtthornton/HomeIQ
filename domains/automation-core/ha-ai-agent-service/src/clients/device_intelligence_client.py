@@ -38,7 +38,11 @@ class DeviceIntelligenceClient:
         if settings:
             self.base_url = settings.device_intelligence_url.rstrip("/")
             self.enabled = settings.device_intelligence_enabled
-            self.api_key = settings.device_intelligence_api_key.get_secret_value() if settings.device_intelligence_api_key else None
+            self.api_key = (
+                settings.device_intelligence_api_key.get_secret_value()
+                if settings.device_intelligence_api_key
+                else None
+            )
         else:
             if base_url is None:
                 raise ValueError("Either settings or base_url must be provided")
@@ -56,7 +60,9 @@ class DeviceIntelligenceClient:
             max_retries=3,
             circuit_breaker=_ml_engine_breaker,
         )
-        logger.debug(f"Device Intelligence Client initialized: {self.base_url} (enabled: {self.enabled}, auth={'yes' if self.api_key else 'no'})")
+        logger.debug(
+            f"Device Intelligence Client initialized: {self.base_url} (enabled: {self.enabled}, auth={'yes' if self.api_key else 'no'})"
+        )
 
     async def get_devices(self, limit: int = 1000) -> list[dict[str, Any]]:
         """
@@ -77,7 +83,10 @@ class DeviceIntelligenceClient:
         try:
             params = {"limit": limit}
             response = await self._cross_client.call(
-                "GET", "/api/devices", params=params, headers=self._auth_headers,
+                "GET",
+                "/api/devices",
+                params=params,
+                headers=self._auth_headers,
             )
             response.raise_for_status()
 
@@ -97,7 +106,7 @@ class DeviceIntelligenceClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 return []
-            error_text = getattr(e.response, 'text', str(e))[:200] if hasattr(e.response, 'text') else str(e)[:200]
+            error_text = getattr(e.response, "text", str(e))[:200] if hasattr(e.response, "text") else str(e)[:200]
             error_msg = f"Device Intelligence API returned {e.response.status_code}: {error_text}"
             logger.error(f"HTTP error fetching devices: {error_msg}")
             raise Exception(error_msg) from e
@@ -121,7 +130,9 @@ class DeviceIntelligenceClient:
 
         try:
             response = await self._cross_client.call(
-                "GET", f"/api/devices/{device_id}/capabilities", headers=self._auth_headers,
+                "GET",
+                f"/api/devices/{device_id}/capabilities",
+                headers=self._auth_headers,
             )
             response.raise_for_status()
 
@@ -136,11 +147,7 @@ class DeviceIntelligenceClient:
             logger.warning(f"Device Intelligence unavailable for capabilities: {e}")
             return []
 
-    async def get_device_type(
-        self,
-        device_id: str,
-        device_data: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    async def get_device_type(self, device_id: str, device_data: dict[str, Any]) -> dict[str, Any] | None:
         """
         Get device type for a device.
 
@@ -156,8 +163,10 @@ class DeviceIntelligenceClient:
 
         try:
             response = await self._cross_client.call(
-                "POST", f"/api/device-mappings/{device_id}/type",
-                json=device_data, headers=self._auth_headers,
+                "POST",
+                f"/api/device-mappings/{device_id}/type",
+                json=device_data,
+                headers=self._auth_headers,
             )
             response.raise_for_status()
             return response.json()
@@ -166,10 +175,7 @@ class DeviceIntelligenceClient:
             return None
 
     async def get_device_relationships(
-        self,
-        device_id: str,
-        device_data: dict[str, Any],
-        all_devices: list[dict[str, Any]] | None = None
+        self, device_id: str, device_data: dict[str, Any], all_devices: list[dict[str, Any]] | None = None
     ) -> dict[str, Any] | None:
         """
         Get device relationships for a device.
@@ -191,8 +197,10 @@ class DeviceIntelligenceClient:
                 payload = {**device_data, "all_devices": all_devices}
 
             response = await self._cross_client.call(
-                "POST", f"/api/device-mappings/{device_id}/relationships",
-                json=payload, headers=self._auth_headers,
+                "POST",
+                f"/api/device-mappings/{device_id}/relationships",
+                json=payload,
+                headers=self._auth_headers,
             )
             response.raise_for_status()
             return response.json()
@@ -201,10 +209,7 @@ class DeviceIntelligenceClient:
             return None
 
     async def get_device_context(
-        self,
-        device_id: str,
-        device_data: dict[str, Any],
-        entities: list[dict[str, Any]] | None = None
+        self, device_id: str, device_data: dict[str, Any], entities: list[dict[str, Any]] | None = None
     ) -> dict[str, Any] | None:
         """
         Get enriched context for a device.
@@ -226,8 +231,10 @@ class DeviceIntelligenceClient:
                 payload = {**device_data, "entities": entities}
 
             response = await self._cross_client.call(
-                "POST", f"/api/device-mappings/{device_id}/context",
-                json=payload, headers=self._auth_headers,
+                "POST",
+                f"/api/device-mappings/{device_id}/context",
+                json=payload,
+                headers=self._auth_headers,
             )
             response.raise_for_status()
             return response.json()

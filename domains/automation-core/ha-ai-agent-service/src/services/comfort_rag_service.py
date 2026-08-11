@@ -15,21 +15,51 @@ logger = logging.getLogger(__name__)
 
 COMFORT_KEYWORDS = (
     # HVAC — "cool" replaced with multi-word to avoid "cool app" false positive
-    "thermostat", "hvac", "heat", "heating", "cool down", "cooling", "cooling mode",
-    "air conditioning", "ac", "furnace", "boiler",
+    "thermostat",
+    "hvac",
+    "heat",
+    "heating",
+    "cool down",
+    "cooling",
+    "cooling mode",
+    "air conditioning",
+    "ac",
+    "furnace",
+    "boiler",
     # Climate control
-    "climate", "temperature", "humidity", "setpoint", "set point",
-    "fan", "fan speed", "ventilation",
+    "climate",
+    "temperature",
+    "humidity",
+    "setpoint",
+    "set point",
+    "fan",
+    "fan speed",
+    "ventilation",
     # Scheduling
-    "schedule", "scheduled", "morning routine", "night mode", "sleep mode",
-    "bedtime", "wake up",
+    "schedule",
+    "scheduled",
+    "morning routine",
+    "night mode",
+    "sleep mode",
+    "bedtime",
+    "wake up",
     # Modes
-    "eco mode", "comfort mode", "away mode thermostat", "vacation mode",
-    "occupied", "unoccupied",
+    "eco mode",
+    "comfort mode",
+    "away mode thermostat",
+    "vacation mode",
+    "occupied",
+    "unoccupied",
     # Zones
-    "zone", "multi-zone", "room temperature", "floor heating",
+    "zone",
+    "multi-zone",
+    "room temperature",
+    "floor heating",
     # Comfort
-    "comfort", "cozy", "warm", "cold",
+    "comfort",
+    "cozy",
+    "warm",
+    "cold",
 )
 
 

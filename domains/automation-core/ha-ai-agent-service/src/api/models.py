@@ -14,24 +14,16 @@ class ChatRequest(BaseModel):
     """Request model for chat endpoint"""
 
     message: str = Field(..., description="User message to send to the agent")
-    conversation_id: str | None = Field(
-        None, description="Optional conversation ID (creates new if not provided)"
-    )
-    refresh_context: bool = Field(
-        False, description="Force context refresh (default: False, uses cache)"
-    )
+    conversation_id: str | None = Field(None, description="Optional conversation ID (creates new if not provided)")
+    refresh_context: bool = Field(False, description="Force context refresh (default: False, uses cache)")
     # Epic AI-20.9: Conversation metadata for new conversations
-    title: str | None = Field(
-        None, max_length=200, description="Optional title for new conversation (max 200 chars)"
-    )
-    source: str | None = Field(
-        None, description="Conversation source: user, proactive, or pattern (default: user)"
-    )
+    title: str | None = Field(None, max_length=200, description="Optional title for new conversation (max 200 chars)")
+    source: str | None = Field(None, description="Conversation source: user, proactive, or pattern (default: user)")
     # Proactive Suggestions Enhancement: Hidden context for LLM
     hidden_context: dict[str, Any] | None = Field(
         None,
         description="Structured context to inject into system prompt (not shown to user). "
-                    "Useful for passing automation hints like game_time, team_colors, trigger_type."
+        "Useful for passing automation hints like game_time, team_colors, trigger_type.",
     )
 
     model_config = ConfigDict(
@@ -46,8 +38,8 @@ class ChatRequest(BaseModel):
                     "game_time": "7:00 PM",
                     "team_colors": ["#B4975A", "#333F48"],
                     "trigger_type": "state_change",
-                    "trigger_entity": "sensor.vgk_team_tracker"
-                }
+                    "trigger_entity": "sensor.vgk_team_tracker",
+                },
             }
         }
     )
@@ -66,9 +58,7 @@ class ChatResponse(BaseModel):
 
     message: str = Field(..., description="Assistant response message")
     conversation_id: str = Field(..., description="Conversation ID")
-    tool_calls: list[ToolCall] = Field(
-        default_factory=list, description="Tool calls made by the agent"
-    )
+    tool_calls: list[ToolCall] = Field(default_factory=list, description="Tool calls made by the agent")
     metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional metadata (token counts, model, etc.)",
@@ -94,4 +84,3 @@ class ChatResponse(BaseModel):
             }
         }
     )
-

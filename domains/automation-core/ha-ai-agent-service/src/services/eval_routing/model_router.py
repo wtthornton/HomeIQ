@@ -83,8 +83,7 @@ class ModelRouter:
 
         # Eval score tracking per category
         self._category_scores: dict[ComplexityLevel, CategoryEvalScores] = {
-            level: CategoryEvalScores(category=level)
-            for level in ComplexityLevel
+            level: CategoryEvalScores(category=level) for level in ComplexityLevel
         }
 
         # Recent routing decisions (ring buffer, max 1000)
@@ -122,7 +121,8 @@ class ModelRouter:
                 timestamp=time.time(),
                 conversation_id=conversation_id,
                 complexity=ComplexityResult(
-                    level=ComplexityLevel.HIGH, score=1.0,
+                    level=ComplexityLevel.HIGH,
+                    score=1.0,
                 ),
                 chosen_model=self.config.locked_model,
                 reason="model_locked",
@@ -136,7 +136,10 @@ class ModelRouter:
         if agent_id and agent_id in self._agent_overrides:
             override_model = self._agent_overrides[agent_id]
             complexity = self.classifier.classify(
-                message, conversation_depth, entity_ids, previous_tool_calls,
+                message,
+                conversation_depth,
+                entity_ids,
+                previous_tool_calls,
             )
             decision = RoutingDecision(
                 timestamp=time.time(),
@@ -155,7 +158,8 @@ class ModelRouter:
                 timestamp=time.time(),
                 conversation_id=conversation_id,
                 complexity=ComplexityResult(
-                    level=ComplexityLevel.HIGH, score=1.0,
+                    level=ComplexityLevel.HIGH,
+                    score=1.0,
                 ),
                 chosen_model=self.config.primary_model,
                 reason="routing_disabled",
@@ -165,7 +169,10 @@ class ModelRouter:
 
         # Classify complexity
         complexity = self.classifier.classify(
-            message, conversation_depth, entity_ids, previous_tool_calls,
+            message,
+            conversation_depth,
+            entity_ids,
+            previous_tool_calls,
         )
 
         # Select model based on complexity + eval scores
@@ -199,8 +206,7 @@ class ModelRouter:
             cat_scores.recent_scores = cat_scores.recent_scores[-max_history:]
         cat_scores.sample_count = len(cat_scores.recent_scores)
         cat_scores.rolling_avg = (
-            sum(cat_scores.recent_scores) / len(cat_scores.recent_scores)
-            if cat_scores.recent_scores else 0.0
+            sum(cat_scores.recent_scores) / len(cat_scores.recent_scores) if cat_scores.recent_scores else 0.0
         )
 
     def set_agent_override(self, agent_id: str, model: str | None) -> None:
@@ -271,4 +277,4 @@ class ModelRouter:
         """Record a routing decision in the ring buffer."""
         self._decisions.append(decision)
         if len(self._decisions) > self._max_decisions:
-            self._decisions = self._decisions[-self._max_decisions:]
+            self._decisions = self._decisions[-self._max_decisions :]

@@ -7,6 +7,7 @@ Tests tool execution, routing, and error handling.
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from src.clients.data_api_client import DataAPIClient
 from src.clients.ha_client import HomeAssistantClient
 from src.services.tool_service import ToolService
@@ -16,13 +17,9 @@ from src.services.tool_service import ToolService
 def mock_ha_client():
     """Mock Home Assistant client"""
     client = MagicMock(spec=HomeAssistantClient)
-    client.get_states = AsyncMock(return_value=[
-        {
-            "entity_id": "light.kitchen",
-            "state": "on",
-            "attributes": {"brightness": 255}
-        }
-    ])
+    client.get_states = AsyncMock(
+        return_value=[{"entity_id": "light.kitchen", "state": "on", "attributes": {"brightness": 255}}]
+    )
     client._get_session = AsyncMock()
     client.ha_url = "http://localhost:8123"
     return client
@@ -32,14 +29,11 @@ def mock_ha_client():
 def mock_data_api_client():
     """Mock Data API client"""
     client = MagicMock(spec=DataAPIClient)
-    client.fetch_entities = AsyncMock(return_value=[
-        {
-            "entity_id": "light.kitchen",
-            "friendly_name": "Kitchen Light",
-            "domain": "light",
-            "area_id": "kitchen"
-        }
-    ])
+    client.fetch_entities = AsyncMock(
+        return_value=[
+            {"entity_id": "light.kitchen", "friendly_name": "Kitchen Light", "domain": "light", "area_id": "kitchen"}
+        ]
+    )
     client.get_devices = AsyncMock(return_value=[])
     return client
 
@@ -69,10 +63,10 @@ action:
         {
             "user_prompt": "Turn off kitchen light when it turns on",
             "automation_yaml": valid_yaml,
-            "alias": "Test Automation"
-        }
+            "alias": "Test Automation",
+        },
     )
-    
+
     assert result["success"] is True
     assert result["preview"] is True
 
@@ -81,7 +75,7 @@ action:
 async def test_execute_tool_unknown_tool(tool_service):
     """Test execution of unknown tool"""
     result = await tool_service.execute_tool("unknown_tool", {})
-    
+
     assert "error" in result
     assert "available_tools" in result
     assert "unknown_tool" in result["error"]
@@ -95,10 +89,10 @@ async def test_execute_tool_validation_error(tool_service):
         {
             "user_prompt": "",  # Empty prompt should fail validation
             "automation_yaml": "alias: test",
-            "alias": "test"
-        }
+            "alias": "test",
+        },
     )
-    
+
     assert result["success"] is False
     assert "error" in result
 
@@ -107,7 +101,7 @@ async def test_execute_tool_validation_error(tool_service):
 async def test_execute_tool_call_openai_format(tool_service):
     """Test tool call execution in OpenAI format"""
     import json
-    
+
     valid_yaml = """alias: Test Automation
 trigger:
   - platform: state
@@ -117,23 +111,16 @@ action:
     target:
       entity_id: light.kitchen
 """
-    arguments = {
-        "user_prompt": "Turn off kitchen light",
-        "automation_yaml": valid_yaml,
-        "alias": "Test Automation"
-    }
-    
+    arguments = {"user_prompt": "Turn off kitchen light", "automation_yaml": valid_yaml, "alias": "Test Automation"}
+
     tool_call = {
         "id": "call_123",
         "type": "function",
-        "function": {
-            "name": "preview_automation_from_prompt",
-            "arguments": json.dumps(arguments)
-        }
+        "function": {"name": "preview_automation_from_prompt", "arguments": json.dumps(arguments)},
     }
-    
+
     result = await tool_service.execute_tool_call(tool_call)
-    
+
     assert result["success"] is True
     assert result["tool_call_id"] == "call_123"
     assert "preview" in result
@@ -143,7 +130,7 @@ action:
 async def test_get_available_tools(tool_service):
     """Test getting list of available tools"""
     tools = tool_service.get_available_tools()
-    
+
     assert isinstance(tools, list)
     assert len(tools) > 0
     assert "preview_automation_from_prompt" in tools

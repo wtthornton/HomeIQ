@@ -116,12 +116,14 @@ class MemoryExtractor:
             for fact in extracted_facts:
                 memory = await self._save_fact(fact, conversation_id)
                 if memory:
-                    saved_facts.append({
-                        "content": fact.get("content"),
-                        "memory_type": fact.get("memory_type"),
-                        "entity_ids": fact.get("entity_ids"),
-                        "memory_id": memory.id,
-                    })
+                    saved_facts.append(
+                        {
+                            "content": fact.get("content"),
+                            "memory_type": fact.get("memory_type"),
+                            "entity_ids": fact.get("entity_ids"),
+                            "memory_id": memory.id,
+                        }
+                    )
 
             if saved_facts:
                 logger.info(
