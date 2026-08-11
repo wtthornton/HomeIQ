@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from pathlib import Path
 
 from alembic import context
@@ -28,6 +29,34 @@ from sqlalchemy import pool, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 logger = logging.getLogger(__name__)
+
+# A schema name is an SQL *identifier*, and identifiers cannot be supplied as
+# bind parameters — see _validate_schema_name below for why that matters here.
+# Restricting them to this shape makes direct interpolation safe: a string that
+# matches cannot contain a quote, a space, a semicolon or a comment marker.
+_SCHEMA_NAME_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
+
+
+def _validate_schema_name(schema_name: str) -> str:
+    """
+    Return ``schema_name`` if it is a safe bare SQL identifier, else raise.
+
+    ``SET search_path`` and ``CREATE SCHEMA`` are utility statements. PostgreSQL
+    parses them before the bind-parameter substitution phase, so passing the
+    schema as a bound value does not merely fail to interpolate — the server
+    rejects the statement outright with::
+
+        asyncpg.exceptions.PostgresSyntaxError: syntax error at or near "$1"
+
+    That means the name has to be interpolated into the SQL text, and therefore
+    has to be validated rather than trusted.
+    """
+    if not _SCHEMA_NAME_RE.match(schema_name):
+        raise ValueError(
+            f"Unsafe schema name {schema_name!r}: expected a lowercase SQL "
+            "identifier matching [a-z_][a-z0-9_]*"
+        )
+    return schema_name
 
 
 def run_migrations_offline(
@@ -86,16 +115,12 @@ def run_async_migrations(
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(
                 asyncio.run,
-                _run_async_migrations(
-                    target_metadata, schema_name, database_url, version_table
-                ),
+                _run_async_migrations(target_metadata, schema_name, database_url, version_table),
             )
             future.result()
     else:
         asyncio.run(
-            _run_async_migrations(
-                target_metadata, schema_name, database_url, version_table
-            )
+            _run_async_migrations(target_metadata, schema_name, database_url, version_table)
         )
 
 
@@ -111,11 +136,10 @@ async def _run_async_migrations(
         poolclass=pool.NullPool,
     )
 
+    safe_schema = _validate_schema_name(schema_name)
+
     async with engine.connect() as connection:
-        await connection.execute(
-            text("SET search_path TO :schema, public"),
-            {"schema": schema_name},
-        )
+        await connection.execute(text(f"SET search_path TO {safe_schema}, public"))
         await connection.commit()
 
         await connection.run_sync(
@@ -146,7 +170,7 @@ def _do_run_migrations(
     )
 
     with context.begin_transaction():
-        context.execute(f"SET search_path TO {schema_name}, public")
+        context.execute(f"SET search_path TO {_validate_schema_name(schema_name)}, public")
         context.run_migrations()
 
 
@@ -173,17 +197,14 @@ async def run_migrations_on_startup(
 
         async with engine.begin() as conn:
             await conn.execute(
-                text("CREATE SCHEMA IF NOT EXISTS :schema"),
-                {"schema": schema_name},
+                text(f"CREATE SCHEMA IF NOT EXISTS {_validate_schema_name(schema_name)}")
             )
             logger.info("Schema '%s' verified/created", schema_name)
 
         await engine.dispose()
         logger.info("Startup migrations complete for schema '%s'", schema_name)
     except Exception:
-        logger.exception(
-            "Startup migration failed for schema '%s'", schema_name
-        )
+        logger.exception("Startup migration failed for schema '%s'", schema_name)
         raise
 
 
