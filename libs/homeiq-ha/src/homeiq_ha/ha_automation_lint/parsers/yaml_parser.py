@@ -85,7 +85,8 @@ class AutomationParser:
         """
         if isinstance(data, dict):
             # Check if it's a single automation or a package format
-            if "trigger" in data or "action" in data:
+            # (legacy singular keys or modern 2024.10+ plural keys)
+            if any(k in data for k in ("trigger", "triggers", "action", "actions")):
                 # Single automation
                 return [data]
             else:
@@ -148,21 +149,23 @@ class AutomationParser:
             path=f"automations[{index}]"
         )
 
-        # Parse triggers
-        triggers = data.get("trigger", [])
+        # Parse triggers — modern (2024.10+) plural "triggers" with per-item
+        # "trigger: <kind>" keys, or legacy singular "trigger" with "platform:".
+        triggers = data.get("triggers", data.get("trigger", []))
         if not isinstance(triggers, list):
             triggers = [triggers]
         ir.trigger = [
             TriggerIR(
-                platform=t.get("platform", "unknown") if isinstance(t, dict) else "unknown",
+                platform=(t.get("platform") or t.get("trigger") or "unknown")
+                if isinstance(t, dict) else "unknown",
                 raw=t if isinstance(t, dict) else {},
                 path=f"{ir.path}.trigger[{i}]"
             )
             for i, t in enumerate(triggers)
         ]
 
-        # Parse conditions
-        conditions = data.get("condition", [])
+        # Parse conditions (modern plural "conditions" or legacy "condition")
+        conditions = data.get("conditions", data.get("condition", []))
         if not isinstance(conditions, list):
             conditions = [conditions]
         ir.condition = [
@@ -174,13 +177,14 @@ class AutomationParser:
             for i, c in enumerate(conditions)
         ]
 
-        # Parse actions
-        actions = data.get("action", [])
+        # Parse actions — modern plural "actions" with per-item
+        # "action: <domain.service>", or legacy "action" with "service:".
+        actions = data.get("actions", data.get("action", []))
         if not isinstance(actions, list):
             actions = [actions]
         ir.action = [
             ActionIR(
-                service=a.get("service") if isinstance(a, dict) else None,
+                service=(a.get("service") or a.get("action")) if isinstance(a, dict) else None,
                 raw=a if isinstance(a, dict) else {},
                 path=f"{ir.path}.action[{i}]"
             )

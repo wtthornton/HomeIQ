@@ -26,7 +26,7 @@ capability:
   verb: evaluate
   object: quality-verdict
   modality: structured
-output_schema: '{"type":"object","properties":{"assessment_status":{"type":"string","enum":["complete","needs_revision","blocked","skipped"]},"confidence":{"type":"number","minimum":0,"maximum":1},"build_summary":{"type":"string"},"reason":{"type":"string"},"spend_usd":{"type":"number","minimum":0},"pass":{"type":"boolean"},"score":{"type":"number","minimum":0,"maximum":100},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["critical","high","medium","low"]},"dimension":{"type":"string","enum":["correctness","safety","extensibility","schema"]},"finding":{"type":"string"},"recommendation":{"type":"string"}},"required":["severity","dimension","finding","recommendation"],"additionalProperties":false}}},"required":["assessment_status","confidence","build_summary","reason","spend_usd","pass","score","findings"],"additionalProperties":false}'
+output_schema: '{"type":"object","properties":{"pass":{"type":"boolean"},"score":{"type":"number","minimum":0,"maximum":100},"confidence":{"type":"number","minimum":0,"maximum":1},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["critical","high","medium","low"]},"dimension":{"type":"string","enum":["correctness","safety","extensibility","schema"]},"finding":{"type":"string"},"recommendation":{"type":"string"}},"required":["severity","dimension","finding","recommendation"],"additionalProperties":false}}},"required":["pass","score","confidence","findings"],"additionalProperties":false}'
 memory_footprint:
   recall_topics:
   - homeiq-ha-automation

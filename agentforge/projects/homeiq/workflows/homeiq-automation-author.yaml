@@ -29,15 +29,11 @@ nodes:
     output_schema:
       type: object
       additionalProperties: false
-      required: [assessment_status, confidence, build_summary, reason, spend_usd, automation_yaml, design_notes, entities_referenced]
+      required: [automation_yaml, design_notes, entities_referenced, confidence]
       properties:
-        assessment_status: {type: string, enum: [complete, needs_revision, blocked, skipped]}
-        confidence: {type: number, minimum: 0, maximum: 1}
-        build_summary: {type: string}
-        reason: {type: string}
-        spend_usd: {type: number, minimum: 0}
         automation_yaml: {type: string}
         design_notes: {type: string}
+        confidence: {type: number, minimum: 0, maximum: 1}
         entities_referenced:
           type: array
           items: {type: string}
@@ -55,13 +51,9 @@ nodes:
     output_schema:
       type: object
       additionalProperties: false
-      required: [assessment_status, confidence, build_summary, reason, spend_usd, pass, score, findings]
+      required: [pass, score, confidence, findings]
       properties:
-        assessment_status: {type: string, enum: [complete, needs_revision, blocked, skipped]}
         confidence: {type: number, minimum: 0, maximum: 1}
-        build_summary: {type: string}
-        reason: {type: string}
-        spend_usd: {type: number, minimum: 0}
         pass: {type: boolean}
         score: {type: number, minimum: 0, maximum: 100}
         findings:

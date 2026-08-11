@@ -25,7 +25,7 @@ capability:
   verb: generate
   object: spec
   modality: structured
-output_schema: '{"type":"object","properties":{"assessment_status":{"type":"string","enum":["complete","needs_revision","blocked","skipped"]},"confidence":{"type":"number","minimum":0,"maximum":1},"build_summary":{"type":"string"},"reason":{"type":"string"},"spend_usd":{"type":"number","minimum":0},"automation_yaml":{"type":"string"},"design_notes":{"type":"string"},"entities_referenced":{"type":"array","items":{"type":"string"}}},"required":["assessment_status","confidence","build_summary","reason","spend_usd","automation_yaml","design_notes","entities_referenced"],"additionalProperties":false}'
+output_schema: '{"type":"object","properties":{"automation_yaml":{"type":"string"},"design_notes":{"type":"string"},"entities_referenced":{"type":"array","items":{"type":"string"}},"confidence":{"type":"number","minimum":0,"maximum":1}},"required":["automation_yaml","design_notes","entities_referenced","confidence"],"additionalProperties":false}'
 memory_footprint:
   recall_topics:
   - homeiq-ha-automation

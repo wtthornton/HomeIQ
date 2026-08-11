@@ -25,21 +25,28 @@ class DataAPIClient:
             headers["Authorization"] = f"Bearer {api_key}"
         self.client = httpx.AsyncClient(timeout=10.0, headers=headers)
 
-    async def fetch_entities(self) -> list[dict[str, Any]]:
+    async def fetch_entities(self) -> list[dict[str, Any]] | None:
         """
         Fetch all entities from Data API.
 
+        The endpoint is paginated with a default limit of 100, which silently
+        truncates instances with more entities — always request the maximum.
+
         Returns:
-            List of entity dictionaries
+            List of entity dictionaries, or None when the fetch failed (callers
+            must skip entity validation rather than treat every entity as
+            unknown).
         """
         try:
-            response = await self.client.get(f"{self.base_url}/api/entities")
+            response = await self.client.get(
+                f"{self.base_url}/api/entities", params={"limit": 10000}
+            )
             response.raise_for_status()
             data = response.json()
             return data.get("entities", [])
         except Exception as e:
             logger.error(f"Failed to fetch entities: {e}")
-            return []
+            return None
 
     async def fetch_areas(self) -> list[dict[str, Any]]:
         """

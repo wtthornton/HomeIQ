@@ -1601,6 +1601,48 @@ async def bulk_upsert_devices(devices: list[dict[str, Any]], db: AsyncSession = 
         ) from e
 
 
+def _apply_entity_patch(
+    entity: "Entity", entity_data: dict[str, Any], valid_device_ids: set[str]
+) -> None:
+    """Update only the fields present in entity_data on an existing entity row.
+
+    Absent keys are left untouched — this is what lets partial patches (e.g.
+    admin-api setting just labels or just aliases) coexist with full-record
+    discovery syncs on the same endpoint.
+    """
+    if "device_id" in entity_data:
+        device_id = entity_data["device_id"]
+        entity.device_id = device_id if device_id in valid_device_ids else None
+    if "disabled_by" in entity_data:
+        entity.disabled = entity_data["disabled_by"] is not None
+    if "aliases" in entity_data:
+        entity.aliases = entity_data["aliases"] or []
+    if "labels" in entity_data:
+        entity.labels = entity_data["labels"] or []
+    for key in (
+        "platform",
+        "unique_id",
+        "area_id",
+        "name",
+        "name_by_user",
+        "original_name",
+        "icon",
+        "original_icon",
+        "options",
+        "config_entry_id",
+    ):
+        if key in entity_data:
+            setattr(entity, key, entity_data[key])
+    if any(k in entity_data for k in ("name", "name_by_user", "original_name")):
+        entity.friendly_name = (
+            entity.name_by_user
+            or entity.name
+            or entity.original_name
+            or entity.entity_id.split(".")[-1].replace("_", " ").title()
+        )
+    entity.updated_at = datetime.now(UTC)
+
+
 @router.post("/internal/entities/bulk_upsert")
 async def bulk_upsert_entities(entities: list[dict[str, Any]], db: AsyncSession = Depends(get_db)):
     """
@@ -1619,6 +1661,17 @@ async def bulk_upsert_entities(entities: list[dict[str, Any]], db: AsyncSession 
             entity_id = entity_data.get("entity_id")
             if not entity_id:
                 logger.warning("Skipping entity without entity_id")
+                continue
+
+            # Partial-update path: when the entity already exists, touch only the
+            # fields present in the payload. Full-row construction below would
+            # reset every absent field to its default (labels -> [], platform ->
+            # "unknown"), which clobbers data when a caller (e.g. admin-api
+            # entity management) patches a single field.
+            existing_entity = await db.get(Entity, entity_id)
+            if existing_entity is not None:
+                _apply_entity_patch(existing_entity, entity_data, valid_device_ids)
+                upserted_count += 1
                 continue
 
             # Extract domain from entity_id (e.g., "light.kitchen" -> "light")

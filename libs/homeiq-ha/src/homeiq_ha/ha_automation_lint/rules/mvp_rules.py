@@ -76,6 +76,7 @@ class UnknownTopLevelKeysRule(Rule):
 
     KNOWN_KEYS = {
         "id", "alias", "description", "trigger", "condition", "action",
+        "triggers", "conditions", "actions",
         "mode", "max", "max_exceeded", "variables", "trace", "initial_state"
     }
 
