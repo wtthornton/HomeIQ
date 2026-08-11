@@ -13,13 +13,13 @@ Supports all Home Assistant 2025.10+ features:
 - Error handling
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 
-class AutomationMode(str, Enum):
+class AutomationMode(StrEnum):
     """Automation execution mode."""
 
     SINGLE = "single"
@@ -28,7 +28,7 @@ class AutomationMode(str, Enum):
     PARALLEL = "parallel"
 
 
-class MaxExceeded(str, Enum):
+class MaxExceeded(StrEnum):
     """Behavior when max_exceeded is triggered."""
 
     SILENT = "silent"

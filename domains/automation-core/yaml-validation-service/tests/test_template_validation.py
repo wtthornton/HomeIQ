@@ -137,9 +137,7 @@ action:
 
         # Should validate multiline template without syntax errors
         errors = result.get("errors", [])
-        template_errors = [
-            e for e in errors if "template" in str(e).lower() and "syntax" in str(e).lower()
-        ]
+        [e for e in errors if "template" in str(e).lower() and "syntax" in str(e).lower()]
         # If template is valid, should not have syntax errors
         # Note: This may fail if Jinja2 is not installed, but that's handled gracefully
 
