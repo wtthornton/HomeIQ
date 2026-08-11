@@ -36,7 +36,7 @@ except Exception as e:
 result
 """
     result = await sandbox.execute(malicious_code)
-    
+
     assert not result.success or "FAILED" in str(result.return_value) or result.error is not None
     assert "/etc/passwd" not in result.stdout
     assert "/etc/passwd" not in str(result.return_value)
@@ -57,7 +57,7 @@ except Exception as e:
 result
 """
     result = await sandbox.execute(malicious_code)
-    
+
     # Verify file was not created
     assert not Path("/tmp/sandbox_escape_test").exists()
     assert not result.success or "FAILED" in str(result.return_value) or result.error is not None
@@ -78,7 +78,7 @@ except Exception as e:
 result
 """
     result = await sandbox.execute(malicious_code)
-    
+
     assert not result.success or "FAILED" in str(result.return_value) or result.error is not None
     assert "SUCCESS: Network access" not in str(result.return_value)
 
@@ -93,7 +93,7 @@ async def test_import_restrictions(sandbox):
         "import sys.exit",
         "import shutil.rmtree",
     ]
-    
+
     for import_stmt in dangerous_imports:
         code = f"""
 {import_stmt}
@@ -101,7 +101,7 @@ result = "SUCCESS"
 result
 """
         result = await sandbox.execute(code)
-        
+
         # Should fail or be blocked
         assert not result.success or result.error is not None or "ImportError" in str(result.error)
 
@@ -118,7 +118,7 @@ result = len(data)
 result
 """
     result = await sandbox.execute(malicious_code)
-    
+
     # Should fail due to memory limit or timeout
     assert not result.success or result.error is not None or result.memory_used_mb > 100
 
@@ -135,7 +135,7 @@ result = "NEVER_REACHED"
 result
 """
     result = await sandbox.execute(malicious_code)
-    
+
     # Should timeout
     assert not result.success
     assert result.error is not None or result.execution_time >= 5
@@ -149,18 +149,18 @@ async def test_code_execution_boundaries(sandbox):
         # Try to access __builtins__
         "__builtins__['__import__']('os').system('ls')",
         # Try to use eval
-        "eval('__import__(\"os\").system(\"ls\")')",
+        'eval(\'__import__("os").system("ls")\')',
         # Try to use exec
         "exec('import os; os.system(\"ls\")')",
     ]
-    
+
     for attempt in escape_attempts:
         code = f"""
 result = {attempt}
 result
 """
         result = await sandbox.execute(code)
-        
+
         # Should fail or be blocked
         assert not result.success or result.error is not None
 
@@ -174,7 +174,7 @@ result = 2 + 2
 result
 """
     result = await sandbox.execute(safe_code)
-    
+
     assert result.success
     assert result.return_value == 4
     assert result.error is None
@@ -184,21 +184,21 @@ result
 async def test_context_sanitization(sandbox):
     """Test that context variables are properly sanitized."""
     # Attempt to inject malicious code via context
-    malicious_context = {
-        "malicious": "__import__('os').system('ls')",
-        "safe_value": "test"
-    }
-    
+    malicious_context = {"malicious": "__import__('os').system('ls')", "safe_value": "test"}
+
     code = """
 result = malicious
 result
 """
     result = await sandbox.execute(code, context=malicious_context)
-    
+
     # Should fail or sanitize the malicious context
-    assert not result.success or result.error is not None or "os.system" not in str(result.return_value)
+    assert (
+        not result.success
+        or result.error is not None
+        or "os.system" not in str(result.return_value)
+    )
 
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

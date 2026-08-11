@@ -4,7 +4,6 @@ Integration tests for FastAPI endpoints.
 Tests /health and /execute endpoints with proper authentication and error handling.
 """
 
-
 import pytest
 from fastapi.testclient import TestClient
 from src.config import Settings
@@ -38,15 +37,16 @@ def client(test_settings):
         max_memory_mb=test_settings.max_memory_mb,
         max_cpu_percent=test_settings.max_cpu_percent,
     )
-    
+
     # Import here to get fresh instances
     # Initialize sandbox
     import asyncio
 
     from src.main import code_validator, sandbox
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    
+
     sandbox = MCPSandbox(
         config=sandbox_config,
         workspace_dir=test_settings.mcp_workspace_dir,
@@ -54,7 +54,7 @@ def client(test_settings):
         enable_network_tools=test_settings.enable_mcp_network_tools,
     )
     loop.run_until_complete(sandbox.initialize())
-    
+
     code_validator = CodeValidator(
         CodeValidatorConfig(
             max_bytes=test_settings.max_code_bytes,
@@ -62,14 +62,15 @@ def client(test_settings):
             allowed_imports=sandbox_config.allowed_imports,
         )
     )
-    
+
     # Update global instances
     import src.main as main_module
+
     main_module.sandbox = sandbox
     main_module.code_validator = code_validator
-    
+
     yield TestClient(app)
-    
+
     loop.close()
 
 
@@ -80,7 +81,7 @@ class TestHealthEndpoint:
         """Test that health check returns healthy status."""
         response = client.get("/health")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert data["status"] == "healthy"
         assert data["service"] == "ai-code-executor"
@@ -91,7 +92,7 @@ class TestHealthEndpoint:
         """Test that health check reports MCP initialization status."""
         response = client.get("/health")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert isinstance(data["mcp_initialized"], bool)
 
@@ -101,19 +102,14 @@ class TestExecuteEndpoint:
 
     def test_execute_without_token(self, client):
         """Test that execute endpoint requires authentication."""
-        response = client.post(
-            "/execute",
-            json={"code": "_ = 42"}
-        )
+        response = client.post("/execute", json={"code": "_ = 42"})
         assert response.status_code == 401
         assert "Invalid or missing executor token" in response.json()["detail"]
 
     def test_execute_with_invalid_token(self, client):
         """Test that invalid token is rejected."""
         response = client.post(
-            "/execute",
-            json={"code": "_ = 42"},
-            headers={"X-Executor-Token": "invalid-token"}
+            "/execute", json={"code": "_ = 42"}, headers={"X-Executor-Token": "invalid-token"}
         )
         assert response.status_code == 401
         assert "Invalid or missing executor token" in response.json()["detail"]
@@ -123,10 +119,10 @@ class TestExecuteEndpoint:
         response = client.post(
             "/execute",
             json={"code": "result = 2 + 2\n_ = result"},
-            headers={"X-Executor-Token": "test-token-123"}
+            headers={"X-Executor-Token": "test-token-123"},
         )
         assert response.status_code == 200
-        
+
         data = response.json()
         assert data["success"] is True
         assert data["return_value"] == 4
@@ -137,9 +133,7 @@ class TestExecuteEndpoint:
     def test_execute_simple_arithmetic(self, client):
         """Test executing simple arithmetic."""
         response = client.post(
-            "/execute",
-            json={"code": "_ = 10 * 5"},
-            headers={"X-Executor-Token": "test-token-123"}
+            "/execute", json={"code": "_ = 10 * 5"}, headers={"X-Executor-Token": "test-token-123"}
         )
         assert response.status_code == 200
         assert response.json()["return_value"] == 50
@@ -148,11 +142,8 @@ class TestExecuteEndpoint:
         """Test executing code with context variables."""
         response = client.post(
             "/execute",
-            json={
-                "code": "result = x * y\n_ = result",
-                "context": {"x": 5, "y": 3}
-            },
-            headers={"X-Executor-Token": "test-token-123"}
+            json={"code": "result = x * y\n_ = result", "context": {"x": 5, "y": 3}},
+            headers={"X-Executor-Token": "test-token-123"},
         )
         assert response.status_code == 200
         assert response.json()["return_value"] == 15
@@ -162,7 +153,7 @@ class TestExecuteEndpoint:
         response = client.post(
             "/execute",
             json={"code": "_ = [x * x for x in range(5)]"},
-            headers={"X-Executor-Token": "test-token-123"}
+            headers={"X-Executor-Token": "test-token-123"},
         )
         assert response.status_code == 200
         assert response.json()["return_value"] == [0, 1, 4, 9, 16]
@@ -172,10 +163,10 @@ class TestExecuteEndpoint:
         response = client.post(
             "/execute",
             json={"code": "raise ValueError('Test error')\n_ = 'never'"},
-            headers={"X-Executor-Token": "test-token-123"}
+            headers={"X-Executor-Token": "test-token-123"},
         )
         assert response.status_code == 200
-        
+
         data = response.json()
         assert data["success"] is False
         assert data["error"] is not None
@@ -184,9 +175,7 @@ class TestExecuteEndpoint:
     def test_execute_empty_code(self, client):
         """Test that empty code is rejected."""
         response = client.post(
-            "/execute",
-            json={"code": ""},
-            headers={"X-Executor-Token": "test-token-123"}
+            "/execute", json={"code": ""}, headers={"X-Executor-Token": "test-token-123"}
         )
         assert response.status_code == 400
         assert "Code payload is empty" in response.json()["detail"]
@@ -196,7 +185,7 @@ class TestExecuteEndpoint:
         response = client.post(
             "/execute",
             json={"code": "def invalid syntax"},
-            headers={"X-Executor-Token": "test-token-123"}
+            headers={"X-Executor-Token": "test-token-123"},
         )
         assert response.status_code == 400
         assert "Code failed to parse" in response.json()["detail"]
@@ -206,7 +195,7 @@ class TestExecuteEndpoint:
         response = client.post(
             "/execute",
             json={"code": "import os\n_ = os.getcwd()"},
-            headers={"X-Executor-Token": "test-token-123"}
+            headers={"X-Executor-Token": "test-token-123"},
         )
         assert response.status_code == 400
         assert "Import of 'os' is not permitted" in response.json()["detail"]
@@ -216,7 +205,7 @@ class TestExecuteEndpoint:
         response = client.post(
             "/execute",
             json={"code": "import json\n_ = json.dumps({'key': 'value'})"},
-            headers={"X-Executor-Token": "test-token-123"}
+            headers={"X-Executor-Token": "test-token-123"},
         )
         assert response.status_code == 200
         assert response.json()["success"] is True
@@ -224,16 +213,15 @@ class TestExecuteEndpoint:
     def test_execute_code_too_large(self, client, monkeypatch):
         """Test that code exceeding size limit is rejected."""
         monkeypatch.setenv("MAX_CODE_BYTES", "100")
-        
+
         # Reload settings
         from src.config import Settings
+
         settings = Settings()
-        
+
         large_code = "x" * 101
         response = client.post(
-            "/execute",
-            json={"code": large_code},
-            headers={"X-Executor-Token": "test-token-123"}
+            "/execute", json={"code": large_code}, headers={"X-Executor-Token": "test-token-123"}
         )
         assert response.status_code == 400
         assert "Code payload is" in response.json()["detail"]
@@ -244,7 +232,7 @@ class TestExecuteEndpoint:
         response = client.post(
             "/execute",
             json={"code": "print('Hello, World!')\n_ = 'done'"},
-            headers={"X-Executor-Token": "test-token-123"}
+            headers={"X-Executor-Token": "test-token-123"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -258,7 +246,7 @@ class TestExecuteEndpoint:
         response = client.post(
             "/execute",
             json={"code": "import sys\nsys.stderr.write('Error message')\n_ = 'done'"},
-            headers={"X-Executor-Token": "test-token-123"}
+            headers={"X-Executor-Token": "test-token-123"},
         )
         # May succeed or fail depending on RestrictedPython restrictions
         assert response.status_code in [200, 400]
@@ -266,14 +254,20 @@ class TestExecuteEndpoint:
     def test_execute_response_structure(self, client):
         """Test that response has correct structure."""
         response = client.post(
-            "/execute",
-            json={"code": "_ = 42"},
-            headers={"X-Executor-Token": "test-token-123"}
+            "/execute", json={"code": "_ = 42"}, headers={"X-Executor-Token": "test-token-123"}
         )
         assert response.status_code == 200
-        
+
         data = response.json()
-        required_fields = ["success", "stdout", "stderr", "return_value", "execution_time", "memory_used_mb", "error"]
+        required_fields = [
+            "success",
+            "stdout",
+            "stderr",
+            "return_value",
+            "execution_time",
+            "memory_used_mb",
+            "error",
+        ]
         for field in required_fields:
             assert field in data
 
@@ -283,7 +277,7 @@ class TestExecuteEndpoint:
         response = client.post(
             "/execute",
             json={"code": "import time\ntime.sleep(10)\n_ = 'done'"},
-            headers={"X-Executor-Token": "test-token-123"}
+            headers={"X-Executor-Token": "test-token-123"},
         )
         # Should either timeout or be rejected
         assert response.status_code in [200, 400, 500]
@@ -295,4 +289,3 @@ class TestExecuteEndpoint:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

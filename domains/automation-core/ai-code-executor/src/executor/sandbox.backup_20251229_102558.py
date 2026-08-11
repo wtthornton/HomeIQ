@@ -35,7 +35,13 @@ def _safe_import_factory(allowed_modules: set[str]) -> Callable[..., Any]:
 
     allowed = set(allowed_modules)
 
-    def _safe_import(name: str, globals: dict[str, Any] | None = None, locals: dict[str, Any] | None = None, fromlist: tuple[str, ...] = (), level: int = 0) -> Any:  # noqa: ARG001
+    def _safe_import(
+        name: str,
+        globals: dict[str, Any] | None = None,
+        locals: dict[str, Any] | None = None,
+        fromlist: tuple[str, ...] = (),
+        level: int = 0,
+    ) -> Any:  # noqa: ARG001
         if level != 0:
             raise ImportError("Relative imports are not permitted inside the sandbox")
 
@@ -173,6 +179,7 @@ def _sandbox_process_worker(
 @dataclass
 class ExecutionResult:
     """Result of code execution"""
+
     success: bool
     stdout: str
     stderr: str
@@ -195,16 +202,19 @@ class SandboxConfig:
         self.timeout_seconds = timeout_seconds
         self.max_memory_mb = max_memory_mb
         self.max_cpu_percent = max_cpu_percent
-        self.allowed_imports = set(allowed_imports or {
-            "json",
-            "datetime",
-            "math",
-            "re",
-            "typing",
-            "collections",
-            "itertools",
-            "functools",
-        })
+        self.allowed_imports = set(
+            allowed_imports
+            or {
+                "json",
+                "datetime",
+                "math",
+                "re",
+                "typing",
+                "collections",
+                "itertools",
+                "functools",
+            }
+        )
 
     def as_payload(self) -> dict[str, Any]:
         """Serialize configuration for subprocess usage."""
@@ -289,7 +299,7 @@ class PythonSandbox:
             if isinstance(value, SAFE_VALUE_TYPES):
                 # Estimate size (rough approximation)
                 if isinstance(value, str):
-                    size_tracker[0] += len(value.encode('utf-8'))
+                    size_tracker[0] += len(value.encode("utf-8"))
                 else:
                     size_tracker[0] += 16  # Approximate size for numbers/bool/None
                 return value
@@ -310,7 +320,7 @@ class PythonSandbox:
                     if size_tracker[0] > MAX_CONTEXT_SIZE:
                         raise ValueError(f"Context size exceeds {MAX_CONTEXT_SIZE} bytes")
                     # Add key size
-                    size_tracker[0] += len(key.encode('utf-8'))
+                    size_tracker[0] += len(key.encode("utf-8"))
                     sanitized_dict[key] = _sanitize(val, depth + 1, size_tracker)
                 return sanitized_dict
 
@@ -320,7 +330,9 @@ class PythonSandbox:
         try:
             serialized_size = len(json.dumps(context, default=str))
             if serialized_size > MAX_CONTEXT_SIZE:
-                raise ValueError(f"Context size ({serialized_size} bytes) exceeds limit ({MAX_CONTEXT_SIZE} bytes)")
+                raise ValueError(
+                    f"Context size ({serialized_size} bytes) exceeds limit ({MAX_CONTEXT_SIZE} bytes)"
+                )
         except (TypeError, ValueError):
             # If we can't serialize, sanitization will catch it
             pass

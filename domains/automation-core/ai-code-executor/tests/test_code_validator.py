@@ -31,14 +31,16 @@ class TestCodeValidator:
         """Test that empty code raises CodeValidationError."""
         with pytest.raises(CodeValidationError, match="Code payload is empty"):
             validator.validate("")
-        
+
         with pytest.raises(CodeValidationError, match="Code payload is empty"):
             validator.validate("   \n\t  ")
 
     def test_validate_size_limit(self, validator):
         """Test that code exceeding size limit raises error."""
         large_code = "x" * 1001
-        with pytest.raises(CodeValidationError, match="Code payload is .* bytes; limit is 1000 bytes"):
+        with pytest.raises(
+            CodeValidationError, match="Code payload is .* bytes; limit is 1000 bytes"
+        ):
             validator.validate(large_code)
 
     def test_validate_size_limit_unicode(self, validator):
@@ -237,4 +239,3 @@ _ = result
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

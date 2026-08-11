@@ -40,9 +40,9 @@ class TestMetrics:
         """Test recording a successful execution."""
         initial_executions = get_metrics()["total_executions"]
         initial_successful = get_metrics()["successful_executions"]
-        
+
         record_execution(success=True, execution_time=1.5, memory_used_mb=50.0)
-        
+
         metrics = get_metrics()
         assert metrics["total_executions"] == initial_executions + 1
         assert metrics["successful_executions"] == initial_successful + 1
@@ -54,9 +54,9 @@ class TestMetrics:
         """Test recording a failed execution."""
         initial_executions = get_metrics()["total_executions"]
         initial_failed = get_metrics()["failed_executions"]
-        
+
         record_execution(success=False, execution_time=0.5, memory_used_mb=25.0)
-        
+
         metrics = get_metrics()
         assert metrics["total_executions"] == initial_executions + 1
         assert metrics["failed_executions"] == initial_failed + 1
@@ -68,7 +68,7 @@ class TestMetrics:
         record_execution(success=True, execution_time=1.0, memory_used_mb=10.0)
         record_execution(success=True, execution_time=2.0, memory_used_mb=20.0)
         record_execution(success=True, execution_time=3.0, memory_used_mb=30.0)
-        
+
         metrics = get_metrics()
         # Average should be (1.0 + 2.0 + 3.0) / 3 = 2.0
         assert metrics["average_execution_time"] == pytest.approx(2.0, rel=0.1)
@@ -79,7 +79,7 @@ class TestMetrics:
         record_execution(success=True, execution_time=1.0, memory_used_mb=10.0)
         record_execution(success=True, execution_time=1.0, memory_used_mb=20.0)
         record_execution(success=True, execution_time=1.0, memory_used_mb=30.0)
-        
+
         metrics = get_metrics()
         # Average should be (10.0 + 20.0 + 30.0) / 3 = 20.0
         assert metrics["average_memory_used_mb"] == pytest.approx(20.0, rel=0.1)
@@ -100,22 +100,22 @@ class TestLoggingMiddleware:
                 "headers": [],
             }
         )
-        
+
         # Mock call_next
         async def call_next(_request):
             return Response(status_code=200)
-        
+
         # Process request
         response = await middleware.dispatch(request, call_next)
-        
+
         assert response.status_code == 200
 
     async def test_middleware_logs_request_info(self, middleware, caplog):
         """Test that middleware logs request information."""
         import logging
-        
+
         caplog.set_level(logging.INFO)
-        
+
         request = Request(
             scope={
                 "type": "http",
@@ -124,13 +124,12 @@ class TestLoggingMiddleware:
                 "headers": [],
             }
         )
-        
+
         async def call_next(_request):
             return Response(status_code=200)
-        
+
         await middleware.dispatch(request, call_next)
-        
+
         # Check that request was logged
         assert len(caplog.records) > 0
         assert any("Request:" in record.message for record in caplog.records)
-
