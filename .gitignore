@@ -165,6 +165,10 @@ ha_events.log
 *.backup
 *.bak
 .env.backup*
+# `*.bak` does not match a timestamped `.env.bak-20260811T174805Z`, and
+# `.env.backup*` does not match `.env.bak*`. Without this line a dated .env
+# backup is committable, and those files carry live credentials.
+.env.bak*
 
 # Temporary data files
 conversation_data.json

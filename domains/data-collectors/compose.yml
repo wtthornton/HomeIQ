@@ -21,14 +21,20 @@ services:
       - ../../.env
     environment:
       - SERVICE_PORT=8009
-      - WEATHER_API_KEY=${WEATHER_API_KEY:-}
+      # Open-Meteo's non-commercial tier needs no API key, so this service
+      # holds no credential. It is queried by coordinate; WEATHER_LOCATION is
+      # the display label and the InfluxDB `location` tag.
       - WEATHER_LOCATION=${WEATHER_LOCATION:-Las Vegas}
+      - WEATHER_LATITUDE=${LATITUDE:-35.9561663}
+      - WEATHER_LONGITUDE=${LONGITUDE:--115.1833246}
       - CACHE_TTL_SECONDS=900
       - FETCH_INTERVAL_SECONDS=300
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
-      - INFLUXDB_BUCKET=weather_data
+      # Every other collector writes to this bucket; `weather_data` was never
+      # provisioned in InfluxDB, so weather writes had nowhere to land.
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     # Cross-group depends_on removed (influxdb is in core-platform)
     networks:
@@ -160,7 +166,7 @@ services:
     env_file:
       - ../../.env
     environment:
-      - WEATHER_API_KEY=${WEATHER_API_KEY:-}
+      # Open-Meteo air-quality needs no API key; location only.
       - LATITUDE=${LATITUDE:-36.1699}
       - LONGITUDE=${LONGITUDE:--115.1398}
       - HOME_ASSISTANT_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}

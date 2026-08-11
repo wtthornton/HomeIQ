@@ -1,12 +1,11 @@
 """Air Quality Service Main Entry Point.
 
-Fetches AQI data from OpenWeather API.
+Fetches AQI data from the Open-Meteo air-quality API.
 Migrated from aiohttp to FastAPI with shared library pattern.
 """
 
 import asyncio
 import contextlib
-import logging
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -25,40 +24,14 @@ from influxdb_client_3 import InfluxDBClient3, Point
 logger = setup_logging("air-quality-service")
 
 
-class APIKeyFilter(logging.Filter):
-    """Redact API keys from log output."""
-
-    def __init__(self, api_key: str) -> None:
-        super().__init__()
-        self.api_key = api_key
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        if self.api_key and self.api_key in record.getMessage():
-            record.msg = record.msg.replace(self.api_key, "***REDACTED***")
-            if record.args:
-                record.args = tuple(
-                    str(a).replace(self.api_key, "***REDACTED***") if isinstance(a, str) else a
-                    for a in record.args
-                )
-        return True
-
-
-_api_key = settings.weather_api_key
-if _api_key:
-    for handler in logging.root.handlers:
-        handler.addFilter(APIKeyFilter(_api_key))
-    logger.addFilter(APIKeyFilter(_api_key))
-
-
 class AirQualityService:
-    """Fetch and store air quality data from OpenWeather API."""
+    """Fetch and store air quality data from the Open-Meteo air-quality API."""
 
     def __init__(self) -> None:
-        """Initialize the air quality service with API keys and InfluxDB config."""
-        self.api_key = settings.weather_api_key
+        """Initialize the air quality service with location and InfluxDB config."""
         self.latitude = settings.latitude
         self.longitude = settings.longitude
-        self.base_url = "https://api.openweathermap.org/data/2.5/air_pollution"
+        self.base_url = settings.air_quality_api_url
 
         # Home Assistant configuration (for automatic location detection)
         self.ha_url = settings.home_assistant_url or settings.ha_http_url
@@ -93,8 +66,6 @@ class AirQualityService:
         self.health_handler = HealthCheckHandler()
         self._background_task: asyncio.Task | None = None
 
-        if not self.api_key:
-            raise ValueError("WEATHER_API_KEY environment variable is required")
         if not self.influxdb_token:
             raise ValueError("INFLUXDB_TOKEN environment variable is required")
 
@@ -185,35 +156,66 @@ class AirQualityService:
         if self.influxdb_client:
             self.influxdb_client.close()
 
+    @staticmethod
+    def _aqi_category(aqi: int) -> str:
+        """Map a US AQI value to its EPA category name."""
+        for ceiling, name in (
+            (50, "Good"),
+            (100, "Moderate"),
+            (150, "Unhealthy for Sensitive Groups"),
+            (200, "Unhealthy"),
+            (300, "Very Unhealthy"),
+        ):
+            if aqi <= ceiling:
+                return name
+        return "Hazardous"
+
     def _parse_pollution_response(self, raw_data: dict[str, Any]) -> dict[str, Any] | None:
-        """Parse OpenWeather air pollution API response into normalized format."""
-        if not raw_data or "list" not in raw_data or not raw_data["list"]:
-            logger.warning("OpenWeather API returned empty data")
+        """Parse an Open-Meteo air-quality response into the normalized format.
+
+        Open-Meteo reports a true US AQI on the 0-500 EPA scale, so the value is
+        used directly. The previous provider only exposed a 1-5 bucket, which
+        this service mapped to invented midpoints (25/75/125/175/250); those
+        synthetic numbers are gone.
+        """
+        current = (raw_data or {}).get("current")
+        if not current:
+            logger.warning("Open-Meteo air-quality response carried no `current` block")
             return None
 
-        pollution_data = raw_data["list"][0]
-        main_data = pollution_data.get("main", {})
-        components = pollution_data.get("components", {})
+        # Open-Meteo has genuine coverage gaps and returns `us_aqi: null` for
+        # some hours and locations. Treat that as no-data and fall back to the
+        # cache: coercing it to 0 would publish "Good" — the best possible
+        # reading — precisely when air quality is unknown. Checked with `is
+        # None` rather than falsiness because 0 is itself a valid AQI.
+        raw_aqi = current.get("us_aqi")
+        if raw_aqi is None:
+            logger.warning("Open-Meteo reported no us_aqi for this hour; treating as no data")
+            return None
 
-        ow_aqi = main_data.get("aqi", 1)
-        aqi_map = {1: 25, 2: 75, 3: 125, 4: 175, 5: 250}
-        category_map = {1: "Good", 2: "Fair", 3: "Moderate", 4: "Poor", 5: "Very Poor"}
+        aqi = int(round(float(raw_aqi)))
 
-        timestamp = datetime.fromtimestamp(
-            pollution_data.get("dt", datetime.now(UTC).timestamp()), tz=UTC
-        )
+        raw_time = current.get("time")
+        try:
+            # Open-Meteo emits naive ISO-8601 in the requested timezone (UTC here).
+            timestamp = datetime.fromisoformat(raw_time).replace(tzinfo=UTC)
+        except (TypeError, ValueError):
+            timestamp = datetime.now(UTC)
+
+        def _num(key: str) -> float:
+            return float(current.get(key) or 0)
 
         return {
-            "aqi": aqi_map.get(ow_aqi, 25),
-            "category": category_map.get(ow_aqi, "Unknown"),
+            "aqi": aqi,
+            "category": self._aqi_category(aqi),
             "parameter": "Combined",
-            "pm25": round(float(components.get("pm2_5", 0)), 2),
-            "pm10": round(float(components.get("pm10", 0)), 2),
-            "ozone": round(float(components.get("o3", 0)), 2),
+            "pm25": round(_num("pm2_5"), 2),
+            "pm10": round(_num("pm10"), 2),
+            "ozone": round(_num("ozone"), 2),
             "timestamp": timestamp,
-            "co": float(components.get("co", 0)),
-            "no2": float(components.get("no2", 0)),
-            "so2": float(components.get("so2", 0)),
+            "co": _num("carbon_monoxide"),
+            "no2": _num("nitrogen_dioxide"),
+            "so2": _num("sulphur_dioxide"),
         }
 
     def _update_aqi_cache(self, data: dict[str, Any]) -> None:
@@ -228,10 +230,17 @@ class AirQualityService:
         self.health_handler.last_api_success = True
 
     async def fetch_air_quality(self) -> dict[str, Any] | None:
-        """Fetch AQI from OpenWeather API with retry logic."""
+        """Fetch AQI from the Open-Meteo air-quality API with retry logic."""
         for attempt in range(len(self.retry_delays) + 1):
             try:
-                params = {"lat": self.latitude, "lon": self.longitude, "appid": self.api_key}
+                params = {
+                    "latitude": self.latitude,
+                    "longitude": self.longitude,
+                    "current": (
+                        "us_aqi,pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone"
+                    ),
+                    "timezone": "UTC",
+                }
 
                 log_with_context(
                     logger,
@@ -250,7 +259,7 @@ class AirQualityService:
                         logger.info("AQI: %d (%s)", data["aqi"], data["category"])
                         return data
 
-                    logger.error("OpenWeather API returned status %d", response.status)
+                    logger.error("Open-Meteo air-quality API returned status %d", response.status)
                     if attempt < len(self.retry_delays):
                         logger.info(
                             "Retrying in %ds (attempt %d/%d)",
@@ -408,7 +417,7 @@ health = StandardHealthCheck(service_name="air-quality-service", version="1.0.0"
 app = create_app(
     title="Air Quality Service",
     version="1.0.0",
-    description="Fetches AQI data from OpenWeather API",
+    description="Fetches AQI data from the Open-Meteo air-quality API",
     lifespan=lifespan.handler,
     health_check=health,
 )

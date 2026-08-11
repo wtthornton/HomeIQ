@@ -13,8 +13,12 @@ class Settings(BaseServiceSettings):
     service_name: str = "air-quality-service"
     service_port: int = 8012
 
-    # OpenWeather API configuration
-    weather_api_key: str = Field(description="OpenWeather API key")
+    # Open-Meteo air-quality API. The non-commercial tier needs no API key, so
+    # this service holds no credential.
+    air_quality_api_url: str = Field(
+        default="https://air-quality-api.open-meteo.com/v1/air-quality",
+        description="Open-Meteo air-quality endpoint",
+    )
 
     # Location configuration
     latitude: str = Field(default="36.1699", description="Latitude for AQI monitoring")
