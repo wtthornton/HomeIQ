@@ -103,7 +103,14 @@ jobs:
         if: steps.check-requirements.outputs.has_requirements == 'true'
         run: |
           pip install -r domains/${{ inputs.domain_dir }}/${{ matrix.service }}/requirements.txt
-          pip install pytest pytest-asyncio pytest-timeout
+          # pytest-cov belongs here, not in 19 pytest.ini files. Those services
+          # put `--cov=src` in addopts, and pytest treats an unknown addopt as a
+          # usage error: `unrecognized arguments: --cov=src`, exit 4, zero tests
+          # collected. The step was failing before it ran a single test. Every
+          # one of those 19 services has a requirements.txt, so this step reaches
+          # all of them. Stripping --cov instead would have discarded coverage
+          # signal the repo deliberately configured.
+          pip install pytest pytest-asyncio pytest-timeout pytest-cov
 
       - name: Initialize PostgreSQL schemas
         run: |
