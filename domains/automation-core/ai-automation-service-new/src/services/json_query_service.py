@@ -89,9 +89,10 @@ class JSONQueryService:
 
         # Filter by pattern_type
         if "pattern_type" in filters:
-            if not automation.pattern_context or automation.pattern_context.pattern_type != filters[
-                "pattern_type"
-            ]:
+            if (
+                not automation.pattern_context
+                or automation.pattern_context.pattern_type != filters["pattern_type"]
+            ):
                 return False
 
         # Filter by use_case
@@ -99,7 +100,10 @@ class JSONQueryService:
             return False
 
         # Filter by complexity
-        if "complexity" in filters and automation.homeiq_metadata.complexity != filters["complexity"]:
+        if (
+            "complexity" in filters
+            and automation.homeiq_metadata.complexity != filters["complexity"]
+        ):
             return False
 
         # Filter by energy impact

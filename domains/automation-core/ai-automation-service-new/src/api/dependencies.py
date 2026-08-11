@@ -141,7 +141,14 @@ async def close_clients() -> None:
     """Close all singleton HTTP clients. Called during lifespan shutdown."""
     global _data_api_client, _ha_client, _openai_client, _openai_yaml_client
     global _yaml_validation_client, _linter_client, _memory_client, _memory_search
-    for client in [_data_api_client, _ha_client, _openai_client, _openai_yaml_client, _yaml_validation_client, _linter_client]:
+    for client in [
+        _data_api_client,
+        _ha_client,
+        _openai_client,
+        _openai_yaml_client,
+        _yaml_validation_client,
+        _linter_client,
+    ]:
         if client and hasattr(client, "close"):
             try:
                 await client.close()
@@ -191,9 +198,7 @@ def get_openai_client() -> OpenAIClient:
 def get_openai_yaml_client() -> OpenAIClient:
     """Get OpenAI client for YAML/HomeIQ JSON generation (reasoning/codex model)."""
     if _openai_yaml_client is None:
-        return OpenAIClient(
-            api_key=settings.openai_api_key, model=settings.openai_yaml_model
-        )
+        return OpenAIClient(api_key=settings.openai_api_key, model=settings.openai_yaml_model)
     return _openai_yaml_client
 
 

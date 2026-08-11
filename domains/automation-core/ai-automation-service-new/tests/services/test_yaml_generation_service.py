@@ -2,7 +2,6 @@
 Tests for yaml_generation_service.py
 """
 
-
 from src.services.yaml_generation_service import (
     InvalidSuggestionError,
     YAMLGenerationError,
@@ -61,7 +60,11 @@ class TestYAMLGenerationServiceFormatEntityContext:
         context = {
             "entities": {
                 "light": [
-                    {"entity_id": "light.office", "friendly_name": "Office Light", "area_id": "office"},
+                    {
+                        "entity_id": "light.office",
+                        "friendly_name": "Office Light",
+                        "area_id": "office",
+                    },
                 ],
                 "switch": [
                     {"entity_id": "switch.fan", "friendly_name": "Fan", "area_id": None},

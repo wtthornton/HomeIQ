@@ -70,11 +70,28 @@ class RejectionRequest(BaseModel):
 
 
 # Keywords that indicate a hard user boundary (e.g., safety, never, must not)
-_HARD_CONSTRAINT_KEYWORDS = frozenset([
-    "never", "always", "must not", "must never", "safety", "dangerous",
-    "security", "children", "kids", "baby", "pet", "allergy", "medical",
-    "fire", "emergency", "critical", "forbidden", "prohibited",
-])
+_HARD_CONSTRAINT_KEYWORDS = frozenset(
+    [
+        "never",
+        "always",
+        "must not",
+        "must never",
+        "safety",
+        "dangerous",
+        "security",
+        "children",
+        "kids",
+        "baby",
+        "pet",
+        "allergy",
+        "medical",
+        "fire",
+        "emergency",
+        "critical",
+        "forbidden",
+        "prohibited",
+    ]
+)
 
 
 def _is_hard_constraint(reason: str | None) -> bool:

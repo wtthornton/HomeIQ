@@ -34,7 +34,9 @@ class TestSuggestionService:
         client.generate_suggestion_description = AsyncMock(
             return_value="Turn on office lamp at 7am"
         )
-        client.get_usage_stats = MagicMock(return_value={"prompt_tokens": 0, "completion_tokens": 0})
+        client.get_usage_stats = MagicMock(
+            return_value={"prompt_tokens": 0, "completion_tokens": 0}
+        )
         return client
 
     @pytest.fixture
@@ -221,7 +223,11 @@ class TestYAMLGenerationService:
             ],
             "conditions": None,
             "actions": [
-                {"service": "light.turn_on", "target": {"entity_id": "light.office_lamp"}, "data": {}}
+                {
+                    "service": "light.turn_on",
+                    "target": {"entity_id": "light.office_lamp"},
+                    "data": {},
+                }
             ],
             "mode": "single",
             "initial_state": True,

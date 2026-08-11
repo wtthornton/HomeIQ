@@ -64,7 +64,9 @@ class PatternServiceClient:
 
         try:
             response = await self._cross_client.call(
-                "GET", "/api/v1/patterns/list", params=params,
+                "GET",
+                "/api/v1/patterns/list",
+                params=params,
             )
             response.raise_for_status()
             data = response.json()
@@ -84,7 +86,9 @@ class PatternServiceClient:
             logger.warning("AI FALLBACK: Pattern service circuit open -- returning empty patterns")
             return []
         except httpx.HTTPStatusError as e:
-            logger.error("Pattern service returned %d: %s", e.response.status_code, e.response.text[:200])
+            logger.error(
+                "Pattern service returned %d: %s", e.response.status_code, e.response.text[:200]
+            )
             return []
         except httpx.HTTPError as e:
             logger.error("Failed to fetch patterns from pattern service: %s", e)

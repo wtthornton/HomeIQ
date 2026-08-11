@@ -121,19 +121,13 @@ class DeploymentService:
                     )
 
                 # YAML safety scoring
-                safety_result = await self.safety_validator.validate(
-                    suggestion.automation_yaml
-                )
+                safety_result = await self.safety_validator.validate(suggestion.automation_yaml)
                 safety_score = safety_result.score
 
                 if not safety_result.passed:
-                    issue_msgs = [
-                        f"[{i.severity.value}] {i.message}"
-                        for i in safety_result.issues
-                    ]
+                    issue_msgs = [f"[{i.severity.value}] {i.message}" for i in safety_result.issues]
                     raise SafetyValidationError(
-                        f"Safety validation failed (score={safety_score}): "
-                        + "; ".join(issue_msgs)
+                        f"Safety validation failed (score={safety_score}): " + "; ".join(issue_msgs)
                     )
 
             # Deploy to Home Assistant
@@ -299,9 +293,7 @@ class DeploymentService:
             new_version_number = latest_version.version_number + 1
 
             # Deploy previous version
-            await self.ha_client.deploy_automation(
-                previous_version.automation_yaml
-            )
+            await self.ha_client.deploy_automation(previous_version.automation_yaml)
 
             # Store new version
             new_version = AutomationVersion(

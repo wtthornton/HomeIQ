@@ -84,8 +84,7 @@ action:
                 "config": {
                     "entity_id": trigger.get("entity_id"),
                     "parameters": {
-                        k: v for k, v in trigger.items()
-                        if k not in ("platform", "entity_id")
+                        k: v for k, v in trigger.items() if k not in ("platform", "entity_id")
                     },
                 },
             }
@@ -277,8 +276,7 @@ async def test_json_rebuild_roundtrip_e2e():
                 "config": {
                     "entity_id": trigger.get("entity_id"),
                     "parameters": {
-                        k: v for k, v in trigger.items()
-                        if k not in ("platform", "entity_id")
+                        k: v for k, v in trigger.items() if k not in ("platform", "entity_id")
                     },
                 },
             }

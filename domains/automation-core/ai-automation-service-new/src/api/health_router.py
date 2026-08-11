@@ -69,9 +69,6 @@ async def validation_metrics():
 
     Returns first-pass rate, average retries, and total generation count.
     """
-    from ..api.dependencies import get_linter_client, get_openai_yaml_client
-    from ..api.dependencies import get_yaml_validation_client, get_data_api_client
-    from ..services.yaml_generation_service import YAMLGenerationService
 
     # Access the singleton validation loop metrics via dependency chain
     # In production, the YAMLGenerationService is request-scoped, but the

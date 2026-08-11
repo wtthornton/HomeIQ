@@ -177,9 +177,7 @@ class SuggestionService:
     async def _fetch_patterns_safely(self, limit: int) -> list[dict[str, Any]]:
         """Fetch patterns from pattern service, returning empty list on failure."""
         try:
-            patterns = await self.pattern_client.fetch_patterns(
-                min_confidence=0.5, limit=limit
-            )
+            patterns = await self.pattern_client.fetch_patterns(min_confidence=0.5, limit=limit)
             if patterns:
                 logger.info(f"Using {len(patterns)} detected patterns")
             return patterns or []
@@ -218,13 +216,15 @@ class SuggestionService:
                         "device_id": pattern.get("device_id"),
                     }
                 )
-                suggestions.append({
-                    "title": f"Automation Suggestion {i + 1}",
-                    "description": description,
-                    "status": "draft",
-                    "confidence_score": pattern.get("confidence", 0.5),
-                    "entity_ids": self._extract_entity_ids_from_pattern(pattern),
-                })
+                suggestions.append(
+                    {
+                        "title": f"Automation Suggestion {i + 1}",
+                        "description": description,
+                        "status": "draft",
+                        "confidence_score": pattern.get("confidence", 0.5),
+                        "entity_ids": self._extract_entity_ids_from_pattern(pattern),
+                    }
+                )
                 logger.debug(f"Generated pattern-based suggestion {i + 1}/{actual_limit}")
             except Exception as e:
                 logger.error(f"Failed to generate suggestion {i + 1} from pattern: {e}")
@@ -252,13 +252,15 @@ class SuggestionService:
                 description = await self.openai_client.generate_suggestion_description(
                     pattern_data={"events": event_batch}
                 )
-                suggestions.append({
-                    "title": f"Automation Suggestion {i + 1}",
-                    "description": description,
-                    "status": "draft",
-                    "confidence_score": 0.5,
-                    "entity_ids": self._extract_entity_ids_from_events(event_batch),
-                })
+                suggestions.append(
+                    {
+                        "title": f"Automation Suggestion {i + 1}",
+                        "description": description,
+                        "status": "draft",
+                        "confidence_score": 0.5,
+                        "entity_ids": self._extract_entity_ids_from_events(event_batch),
+                    }
+                )
                 logger.debug(f"Generated event-based suggestion {i + 1}/{actual_limit}")
             except Exception as e:
                 logger.error(f"Failed to generate suggestion {i + 1}: {e}")
@@ -479,7 +481,8 @@ class SuggestionService:
         boundary_entities, boundary_keywords = self._extract_boundary_constraints(boundaries)
 
         filtered = [
-            s for s in suggestions
+            s
+            for s in suggestions
             if not self._matches_boundary(s, boundary_entities, boundary_keywords)
         ]
 
@@ -504,9 +507,7 @@ class SuggestionService:
                 all_ids.update(eids)
         return list(all_ids) if all_ids else None
 
-    async def _fetch_boundaries(
-        self, entity_list: list[str] | None
-    ) -> list[MemorySearchResult]:
+    async def _fetch_boundaries(self, entity_list: list[str] | None) -> list[MemorySearchResult]:
         """Fetch boundary memories for filtering."""
         try:
             return await self.memory_search.search(
@@ -557,9 +558,7 @@ class SuggestionService:
                 current = suggestion.get("confidence_score", 0.5)
                 suggestion["confidence_score"] = min(1.0, current * (1 + boost))
 
-    async def _fetch_outcomes(
-        self, entity_list: list[str] | None
-    ) -> list[MemorySearchResult]:
+    async def _fetch_outcomes(self, entity_list: list[str] | None) -> list[MemorySearchResult]:
         """Fetch outcome memories for factor calculation."""
         try:
             return await self.memory_search.search(
@@ -623,9 +622,7 @@ class SuggestionService:
 
             content_lower = memory.content.lower()
             keyword_match = any(
-                word in description
-                for word in content_lower.split()
-                if len(word) > 4
+                word in description for word in content_lower.split() if len(word) > 4
             )
 
             if entity_match or keyword_match:
@@ -670,11 +667,7 @@ class SuggestionService:
                 return True
 
         content_lower = memory.content.lower()
-        return any(
-            word in description
-            for word in content_lower.split()
-            if len(word) > 4
-        )
+        return any(word in description for word in content_lower.split() if len(word) > 4)
 
     def _classify_outcome(self, result: MemorySearchResult) -> tuple[float, float]:
         """Classify outcome as success or failure, returning weighted signals."""
@@ -693,9 +686,7 @@ class SuggestionService:
         failure = memory.confidence if is_failure else 0.0
         return success, failure
 
-    def _outcome_factor_from_signals(
-        self, success_signals: float, failure_signals: float
-    ) -> float:
+    def _outcome_factor_from_signals(self, success_signals: float, failure_signals: float) -> float:
         """Convert success/failure signals to a confidence factor."""
         if success_signals > failure_signals:
             return self.OUTCOME_SUCCESS_BOOST

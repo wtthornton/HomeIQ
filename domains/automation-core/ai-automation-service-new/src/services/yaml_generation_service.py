@@ -374,7 +374,8 @@ If you need an entity that doesn't exist, use the closest matching entity from t
             # Epic 67: Validation retry loop (replaces inline validation)
             # Runs automation-linter + yaml-validation-service, retries on failure
             description = (
-                suggestion.description if isinstance(suggestion, Suggestion)
+                suggestion.description
+                if isinstance(suggestion, Suggestion)
                 else suggestion.get("description", "")
             )
             retry_result = await self.validation_loop.generate_and_validate(
@@ -387,14 +388,17 @@ If you need an entity that doesn't exist, use the closest matching entity from t
                 error_msgs = [f.message for f in retry_result.findings if f.severity == "error"]
                 logger.warning(
                     "YAML validation failed after %d attempts: %s",
-                    retry_result.attempts, "; ".join(error_msgs[:3]),
+                    retry_result.attempts,
+                    "; ".join(error_msgs[:3]),
                 )
 
             yaml_content = retry_result.yaml_content
             logger.info(
                 "Generated YAML from HomeIQ JSON: %s (validated=%s, passed=%s, attempts=%d, %.0fms)",
-                homeiq_automation.alias, retry_result.validated,
-                retry_result.passed, retry_result.attempts,
+                homeiq_automation.alias,
+                retry_result.validated,
+                retry_result.passed,
+                retry_result.attempts,
                 retry_result.total_duration_ms,
             )
             return yaml_content
@@ -749,9 +753,22 @@ Requirements:
                 if len(parts[0]) > 0 and len(parts[1]) > 0:
                     # Exclude service names (e.g. light.turn_on, switch.turn_off)
                     service_actions = {
-                        "turn_on", "turn_off", "toggle", "enable", "disable", "reload",
-                        "open_cover", "close_cover", "stop", "play", "pause", "media_pause",
-                        "set_temperature", "set_hvac_mode", "lock", "unlock",
+                        "turn_on",
+                        "turn_off",
+                        "toggle",
+                        "enable",
+                        "disable",
+                        "reload",
+                        "open_cover",
+                        "close_cover",
+                        "stop",
+                        "play",
+                        "pause",
+                        "media_pause",
+                        "set_temperature",
+                        "set_hvac_mode",
+                        "lock",
+                        "unlock",
                     }
                     if parts[1] in service_actions:
                         return entity_ids

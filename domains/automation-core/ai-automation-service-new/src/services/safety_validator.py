@@ -142,13 +142,9 @@ class SafetyValidator:
         # Log issues
         for issue in issues:
             if issue.severity == SafetySeverity.CRITICAL:
-                logger.warning(
-                    "Safety CRITICAL: %s - %s", issue.category, issue.message
-                )
+                logger.warning("Safety CRITICAL: %s - %s", issue.category, issue.message)
             elif issue.severity == SafetySeverity.MAJOR:
-                logger.warning(
-                    "Safety MAJOR: %s - %s", issue.category, issue.message
-                )
+                logger.warning("Safety MAJOR: %s - %s", issue.category, issue.message)
             else:
                 logger.warning(
                     "Safety %s: %s - %s",
@@ -280,7 +276,9 @@ class SafetyValidator:
                 continue
 
             target = action.get("target", {})
-            entity_id = action.get("entity_id") or (target.get("entity_id") if isinstance(target, dict) else None)
+            entity_id = action.get("entity_id") or (
+                target.get("entity_id") if isinstance(target, dict) else None
+            )
 
             if not isinstance(target, dict):
                 target = {}
@@ -302,7 +300,11 @@ class SafetyValidator:
                         deduction=_MAJOR_DEDUCTION,
                     )
                 )
-            elif isinstance(entity_id, str) and entity_id.lower() == "all" and (has_area or has_device):
+            elif (
+                isinstance(entity_id, str)
+                and entity_id.lower() == "all"
+                and (has_area or has_device)
+            ):
                 # All with area filter is still worth a minor note
                 pass
 
@@ -492,7 +494,11 @@ class SafetyValidator:
             # Try HH:MM:SS format
             match = re.match(r"^(\d+):(\d+):(\d+)$", delay_value)
             if match:
-                hours, minutes, seconds = int(match.group(1)), int(match.group(2)), int(match.group(3))
+                hours, minutes, seconds = (
+                    int(match.group(1)),
+                    int(match.group(2)),
+                    int(match.group(3)),
+                )
                 return hours * 3600 + minutes * 60 + seconds
             # Try seconds only
             try:

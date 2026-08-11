@@ -114,9 +114,7 @@ async def get_preferences(
     returns hardcoded defaults without creating a database record
     (lazy creation on first PUT).
     """
-    result = await db.execute(
-        select(UserPreferences).where(UserPreferences.user_id == user_id)
-    )
+    result = await db.execute(select(UserPreferences).where(UserPreferences.user_id == user_id))
     prefs = result.scalar_one_or_none()
 
     if prefs is None:
@@ -150,9 +148,7 @@ async def update_preferences(
     retain their current (or default) values.
     """
     # Check for existing record
-    result = await db.execute(
-        select(UserPreferences).where(UserPreferences.user_id == user_id)
-    )
+    result = await db.execute(select(UserPreferences).where(UserPreferences.user_id == user_id))
     prefs = result.scalar_one_or_none()
 
     if prefs is None:

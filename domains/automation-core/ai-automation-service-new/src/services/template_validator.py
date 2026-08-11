@@ -299,8 +299,10 @@ class TemplateValidator:
                     try:
                         all_entities = await self.data_api_client.fetch_entities(limit=2000)
                         area_lower = area_id.lower()
+
                         def _entity_id(e: dict) -> str:
                             return e.get("entity_id") or ""
+
                         motion_sensors = [
                             e["entity_id"]
                             for e in all_entities
