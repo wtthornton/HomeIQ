@@ -15,7 +15,7 @@ if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from src.api.main import app
 from src.miner.models import AutomationMetadata
 from src.miner.repository import CorpusRepository
@@ -73,7 +73,7 @@ async def sample_automation(test_db):
 @pytest.mark.asyncio
 async def test_health_endpoint():
     """Test health check endpoint"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/health")
 
         assert response.status_code == 200
@@ -85,7 +85,7 @@ async def test_health_endpoint():
 @pytest.mark.asyncio
 async def test_root_endpoint():
     """Test root endpoint"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/")
 
         assert response.status_code == 200
@@ -97,7 +97,7 @@ async def test_root_endpoint():
 @pytest.mark.asyncio
 async def test_search_endpoint(_sample_automation):
     """Test search endpoint"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get(
             "/api/automation-miner/corpus/search",
             params={"device": "light", "min_quality": 0.7, "limit": 10},
@@ -113,7 +113,7 @@ async def test_search_endpoint(_sample_automation):
 @pytest.mark.asyncio
 async def test_stats_endpoint(_sample_automation):
     """Test stats endpoint"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/api/automation-miner/corpus/stats")
 
         assert response.status_code == 200

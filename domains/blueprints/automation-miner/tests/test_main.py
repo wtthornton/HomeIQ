@@ -44,15 +44,17 @@ class TestMainApplication:
         async def mock_session():
             yield mock_db
 
-        with patch("src.miner.database.get_db_session", return_value=mock_session()):
-            with patch("src.miner.repository.CorpusRepository", return_value=mock_repo):
-                transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test") as client:
-                    response = await client.get("/health")
-                    assert response.status_code == 200
-                    data = response.json()
-                    assert data["status"] == "healthy"
-                    assert data["service"] == "automation-miner"
+        with (
+            patch("src.miner.database.get_db_session", return_value=mock_session()),
+            patch("src.miner.repository.CorpusRepository", return_value=mock_repo),
+        ):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.get("/health")
+                assert response.status_code == 200
+                data = response.json()
+                assert data["status"] == "healthy"
+                assert data["service"] == "automation-miner"
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -220,10 +222,11 @@ class TestMainApplication:
         # Check that CORS middleware is added
         middleware_found = False
         for middleware in app.user_middleware:
-            if hasattr(middleware, "cls"):
-                if "CORS" in str(middleware.cls) or "CORSMiddleware" in str(middleware.cls):
-                    middleware_found = True
-                    break
+            if (hasattr(middleware, "cls")) and (
+                "CORS" in str(middleware.cls) or "CORSMiddleware" in str(middleware.cls)
+            ):
+                middleware_found = True
+                break
 
         assert middleware_found, "CORS middleware should be configured"
 

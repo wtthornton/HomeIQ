@@ -11,7 +11,7 @@ import os
 from datetime import UTC, datetime
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
 # Mark for tests that require external services (integration tests)
 needs_external = pytest.mark.skipif(
@@ -21,17 +21,15 @@ needs_external = pytest.mark.skipif(
 
 
 @pytest.fixture
-@pytest.mark.asyncio
 async def client():
     """Async HTTP client for Automation Miner API"""
     from src.api.main import app
 
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
 
 @pytest.fixture
-@pytest.mark.asyncio
 async def test_db():
     """
     Test database with automatic setup and teardown.
@@ -57,7 +55,6 @@ async def test_db():
 
 
 @pytest.fixture
-@pytest.mark.asyncio
 async def test_repository(test_db):
     """Test repository with database session"""
     from src.miner.repository import CorpusRepository
