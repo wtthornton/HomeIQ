@@ -328,10 +328,7 @@ def _activity_by_hour_from_history(activity_items: list[dict]) -> dict[int, list
         if not ts or not activity:
             continue
         try:
-            if isinstance(ts, str):
-                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-            else:
-                dt = ts
+            dt = datetime.fromisoformat(ts.replace("Z", "+00:00")) if isinstance(ts, str) else ts
             h = getattr(dt, "hour", 0)
             if h not in by_hour:
                 by_hour[h] = []
