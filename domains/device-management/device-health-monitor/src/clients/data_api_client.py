@@ -54,7 +54,9 @@ class DataAPIClient:
                 params["area_id"] = area_id
 
             response = await self._cross_client.call(
-                "GET", "/api/entities", params=params,
+                "GET",
+                "/api/entities",
+                params=params,
             )
             response.raise_for_status()
             data = response.json()
@@ -88,7 +90,9 @@ class DataAPIClient:
                 params["area_id"] = area_id
 
             response = await self._cross_client.call(
-                "GET", "/api/devices", params=params,
+                "GET",
+                "/api/devices",
+                params=params,
             )
             response.raise_for_status()
             data = response.json()
