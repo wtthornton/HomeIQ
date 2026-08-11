@@ -197,14 +197,14 @@ async def test_cache_functionality(validation_service):
             mock_detect.return_value = []
 
             # First call should fetch data
-            result1 = await validation_service.validate_ha_config(use_cache=True)
+            await validation_service.validate_ha_config(use_cache=True)
             assert mock_fetch.call_count == 1
 
             # Second call should use cache
-            result2 = await validation_service.validate_ha_config(use_cache=True)
+            await validation_service.validate_ha_config(use_cache=True)
             assert mock_fetch.call_count == 1  # Should not call again
 
             # Clear cache and call again
             validation_service.clear_cache()
-            result3 = await validation_service.validate_ha_config(use_cache=True)
+            await validation_service.validate_ha_config(use_cache=True)
             assert mock_fetch.call_count == 2  # Should call again

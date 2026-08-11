@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, HTTPException, Request, status
 
-from .zigbee_setup_wizard import SetupWizardRequest
+if TYPE_CHECKING:
+    from .zigbee_setup_wizard import SetupWizardRequest
 
 logger = logging.getLogger(__name__)
 

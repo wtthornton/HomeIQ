@@ -1,13 +1,13 @@
 """Pydantic schemas for API validation (Context7 best practice)"""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class HealthStatus(str, Enum):
+class HealthStatus(StrEnum):
     """Health status enum"""
 
     HEALTHY = "healthy"
@@ -16,7 +16,7 @@ class HealthStatus(str, Enum):
     UNKNOWN = "unknown"
 
 
-class IntegrationStatus(str, Enum):
+class IntegrationStatus(StrEnum):
     """Integration status enum"""
 
     HEALTHY = "healthy"
@@ -151,7 +151,7 @@ class PerformanceMetricResponse(BaseModel):
 # Setup Wizard Schemas
 
 
-class SetupWizardStatus(str, Enum):
+class SetupWizardStatus(StrEnum):
     """Setup wizard status enum"""
 
     PENDING = "pending"

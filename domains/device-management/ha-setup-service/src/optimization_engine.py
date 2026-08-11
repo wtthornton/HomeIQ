@@ -9,7 +9,7 @@ Context7 Best Practices Applied:
 
 import asyncio
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 
 import aiohttp
 from pydantic import BaseModel
@@ -20,7 +20,7 @@ from .http_client import get_http_session
 settings = get_settings()
 
 
-class OptimizationImpact(str, Enum):
+class OptimizationImpact(StrEnum):
     """Optimization impact level"""
 
     HIGH = "high"
@@ -28,7 +28,7 @@ class OptimizationImpact(str, Enum):
     LOW = "low"
 
 
-class OptimizationEffort(str, Enum):
+class OptimizationEffort(StrEnum):
     """Effort required for optimization"""
 
     LOW = "low"

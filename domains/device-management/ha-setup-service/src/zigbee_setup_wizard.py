@@ -16,7 +16,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 
 import aiohttp
 from pydantic import BaseModel, Field
@@ -29,7 +29,7 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
-class SetupStep(str, Enum):
+class SetupStep(StrEnum):
     """Setup wizard steps"""
 
     PREREQUISITES = "prerequisites"
@@ -42,7 +42,7 @@ class SetupStep(str, Enum):
     VALIDATION = "validation"
 
 
-class SetupStatus(str, Enum):
+class SetupStatus(StrEnum):
     """Setup step status"""
 
     PENDING = "pending"
@@ -52,7 +52,7 @@ class SetupStatus(str, Enum):
     SKIPPED = "skipped"
 
 
-class DeviceType(str, Enum):
+class DeviceType(StrEnum):
     """Zigbee device types"""
 
     SWITCH = "switch"

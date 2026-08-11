@@ -17,7 +17,7 @@ import logging
 from collections import deque
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 
 import aiohttp
 from pydantic import BaseModel, Field
@@ -30,14 +30,14 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
-class BridgeState(str, Enum):
+class BridgeState(StrEnum):
     ONLINE = "online"
     OFFLINE = "offline"
     UNKNOWN = "unknown"
     ERROR = "error"
 
 
-class RecoveryAction(str, Enum):
+class RecoveryAction(StrEnum):
     RESTART_ADDON = "restart_addon"
     RESTART_MQTT = "restart_mqtt"
     RESET_COORDINATOR = "reset_coordinator"

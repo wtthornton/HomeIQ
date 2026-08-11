@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 
 def _make_app() -> FastAPI:
