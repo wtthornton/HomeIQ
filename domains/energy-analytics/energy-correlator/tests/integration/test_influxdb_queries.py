@@ -55,7 +55,7 @@ async def test_query_recent_events(correlator_with_mock, mock_influxdb_client):
     mock_influxdb_client.query.return_value = mock_results
 
     # Query recent events
-    events = await correlator_with_mock._query_recent_events(lookback_minutes=5)
+    await correlator_with_mock._query_recent_events(lookback_minutes=5)
 
     # Verify query was called
     assert mock_influxdb_client.query.called
@@ -95,7 +95,7 @@ async def test_query_with_invalid_bucket_name():
     # But we can test the correlator handles it gracefully
     with patch("src.correlator.validate_bucket_name", side_effect=ValueError("Invalid bucket")):
         with pytest.raises(ValueError):
-            correlator = EnergyEventCorrelator(
+            EnergyEventCorrelator(
                 influxdb_url="http://test-influxdb:8086",
                 influxdb_token="test-token",
                 influxdb_org="test-org",
@@ -117,7 +117,7 @@ async def test_query_error_handling(correlator_with_mock, mock_influxdb_client):
 @pytest.mark.asyncio
 async def test_query_time_range_validation(correlator_with_mock, mock_influxdb_client):
     """Test that queries use correct time ranges"""
-    now = datetime.now(UTC)
+    datetime.now(UTC)
     lookback_minutes = 5
 
     await correlator_with_mock._query_recent_events(lookback_minutes=lookback_minutes)

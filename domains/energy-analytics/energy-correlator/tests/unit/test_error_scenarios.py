@@ -15,6 +15,8 @@ import pytest
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
+import contextlib
+
 from src.correlator import EnergyEventCorrelator
 
 
@@ -46,12 +48,14 @@ class TestConnectionFailures:
         )
 
         # Mock timeout exception
-        with patch(
-            "src.influxdb_wrapper.InfluxDBWrapper.connect",
-            side_effect=TimeoutError("Connection timeout"),
+        with (
+            patch(
+                "src.influxdb_wrapper.InfluxDBWrapper.connect",
+                side_effect=TimeoutError("Connection timeout"),
+            ),
+            pytest.raises(TimeoutError),
         ):
-            with pytest.raises(TimeoutError):
-                await correlator.startup()
+            await correlator.startup()
 
     @pytest.mark.asyncio
     async def test_authentication_failure(self):
@@ -92,10 +96,8 @@ class TestQueryFailures:
 
         yield correlator, mock_client
 
-        try:
+        with contextlib.suppress(BaseException):
             await correlator.shutdown()
-        except:
-            pass
 
     @pytest.mark.asyncio
     async def test_query_timeout(self, correlator_with_mock):
@@ -178,10 +180,8 @@ class TestDataValidation:
 
         yield correlator, mock_client
 
-        try:
+        with contextlib.suppress(BaseException):
             await correlator.shutdown()
-        except:
-            pass
 
     @pytest.mark.asyncio
     async def test_missing_required_fields(self, correlator_with_mock):
@@ -272,10 +272,8 @@ class TestRetryQueueOverflow:
 
         yield correlator, mock_client
 
-        try:
+        with contextlib.suppress(BaseException):
             await correlator.shutdown()
-        except:
-            pass
 
     @pytest.mark.asyncio
     async def test_queue_at_maximum_capacity(self, correlator_with_mock):
@@ -325,7 +323,7 @@ class TestRetryQueueOverflow:
                 event, retry_queue=retry_queue, write_result=False
             )
 
-        initial_size = len(retry_queue)
+        len(retry_queue)
 
         # Add one more event (should be dropped or oldest removed)
         event = {
@@ -363,10 +361,8 @@ class TestCacheFailures:
 
         yield correlator, mock_client
 
-        try:
+        with contextlib.suppress(BaseException):
             await correlator.shutdown()
-        except:
-            pass
 
     @pytest.mark.asyncio
     async def test_cache_miss_scenario(self, correlator_with_mock):
@@ -446,25 +442,19 @@ class TestErrorStatistics:
 
         yield correlator, mock_client
 
-        try:
+        with contextlib.suppress(BaseException):
             await correlator.shutdown()
-        except:
-            pass
 
     @pytest.mark.asyncio
     async def test_error_statistics_tracking(self, correlator_with_mock):
         """Test that errors are tracked in statistics"""
         correlator, mock_client = correlator_with_mock
 
-        initial_errors = correlator.errors
-
         # Trigger an error
         mock_client.query = AsyncMock(side_effect=Exception("Test error"))
 
-        try:
+        with contextlib.suppress(Exception):
             await correlator._query_recent_events(minutes=5)
-        except Exception:
-            pass
 
         # Errors should be tracked (may be incremented in error handler)
         stats = correlator.get_statistics()

@@ -2,6 +2,7 @@
 Shared test fixtures for energy-correlator service
 """
 
+import contextlib
 import os
 import sys
 from datetime import UTC, datetime, timedelta
@@ -129,10 +130,8 @@ async def service_instance():
     yield service
 
     # Cleanup
-    try:
+    with contextlib.suppress(BaseException):
         await service.shutdown()
-    except:
-        pass
 
 
 @pytest.fixture

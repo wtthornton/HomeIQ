@@ -23,7 +23,7 @@ class TestEnergyCorrelatorConfiguration:
         # Clear the token
         with patch.dict(os.environ, {"INFLUXDB_TOKEN": ""}, clear=True):
             with pytest.raises(ValueError, match="INFLUXDB_TOKEN environment variable is required"):
-                service = EnergyCorrelatorService()
+                EnergyCorrelatorService()
 
     def test_default_processing_interval(self):
         """

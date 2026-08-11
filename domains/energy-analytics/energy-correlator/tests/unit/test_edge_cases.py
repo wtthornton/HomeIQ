@@ -15,6 +15,8 @@ import pytest
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
+import contextlib
+
 from src.correlator import EnergyEventCorrelator
 
 
@@ -38,10 +40,8 @@ class TestBoundaryConditions:
 
         yield correlator, mock_client
 
-        try:
+        with contextlib.suppress(BaseException):
             await correlator.shutdown()
-        except:
-            pass
 
     @pytest.mark.asyncio
     async def test_empty_event_list(self, correlator_with_mock):
@@ -231,10 +231,8 @@ class TestStatisticsEdgeCases:
 
         yield correlator
 
-        try:
+        with contextlib.suppress(BaseException):
             await correlator.shutdown()
-        except:
-            pass
 
     def test_initial_statistics(self, correlator_with_mock):
         """Test initial statistics values"""
@@ -284,10 +282,8 @@ class TestTimezoneHandling:
 
         yield correlator, mock_client
 
-        try:
+        with contextlib.suppress(BaseException):
             await correlator.shutdown()
-        except:
-            pass
 
     @pytest.mark.asyncio
     async def test_utc_timestamps(self, correlator_with_mock):
@@ -356,10 +352,8 @@ class TestMemoryLimits:
 
         yield correlator, mock_client
 
-        try:
+        with contextlib.suppress(BaseException):
             await correlator.shutdown()
-        except:
-            pass
 
     @pytest.mark.asyncio
     async def test_max_events_limit(self, correlator_with_mock):
@@ -406,10 +400,8 @@ class TestConcurrentOperations:
 
         yield correlator, mock_client
 
-        try:
+        with contextlib.suppress(BaseException):
             await correlator.shutdown()
-        except:
-            pass
 
     @pytest.mark.asyncio
     async def test_concurrent_queries(self, correlator_with_mock):

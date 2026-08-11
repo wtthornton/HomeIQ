@@ -6,6 +6,7 @@ Converted from aiohttp to FastAPI with shared library pattern.
 """
 
 import asyncio
+import contextlib
 from datetime import UTC, datetime
 
 from fastapi import Request
@@ -161,10 +162,8 @@ async def _shutdown_service() -> None:
     global _service, _background_task
     if _background_task and not _background_task.done():
         _background_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await _background_task
-        except asyncio.CancelledError:
-            pass
     _background_task = None
     if _service:
         await _service.shutdown()
