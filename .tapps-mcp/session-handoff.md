@@ -1,49 +1,74 @@
 # Session handoff
 
-**Updated:** 2026-08-10T22:45:00Z
-**Git:** 884f4a22
-**Linear P0:** none verified (no `get_issue` calls — treat TAP ids as unconfirmed)
+**Updated:** 2026-08-11T00:40:00Z
+**Git:** d1764362 (master == origin/master, clean)
+**Linear P0:** TAP-5434 open, but only on its blocked criterion
 
-> Session 8: sync review → Wave 1 backlog burndown. Theme: four defects were
-> **metrics measuring a proxy**, each reading green while the real fault went untouched.
+> Session 9: closed the actionable half of session 8's Open list via PR #74.
+> Theme continued: gates that report a result while measuring something else.
 
-## Done
+## Done — PR #74, merged as `d1764362` (5 commits)
 
-- **Contract scanner (`2f250aa9`)** — counted backtick paths in a JSDoc block (`api.ts:782-798`) as call sites; red since Aug 1. Now strips TS comments. Also: `grep -rh` hides filenames, so the mocks/tests exclusion never excluded anything. 68→58 refs, all production sites kept. CI green.
-- **CI restored 1 → 18 working workflows.** 18 of 19 documented-auto workflows sat `disabled_manually` at the **GitHub API level** while their `pull_request:` triggers were already correct. Enabled 17; verified by real runs. Repo is PUBLIC → Actions free.
-- **`start-stack.sh` (`04f78dd3`)** — dropped forced `--pull always --force-recreate` (re-pulled every base image, recreated all 58 containers each start). `STACK_REFRESH=1` restores.
-- **`automation-miner` → 58/58 healthy.** Latched degraded since the Aug 3 postgres swap on pre-fix code (`_try_recover`, `90613386`).
-- **Wave 1 plan corrected (`f3857c15`)**; **MCP HTTP fleet committed (`884f4a22`, ADR-0024, another session's work, validated first)**.
+- **`4eb9e118` TAP-5434 absolute-URL criterion.** Six `VITE_*_URL || localhost:PORT`
+  fetches. Five unreachable — `9c170ff2` (Feb 26, app consolidation) dropped the
+  Synergies tab; `SynergiesTab` + `AnalyticsDashboard` deleted, 1105 lines. The
+  sixth pointed at the **wrong service**: port 8019 is device-health-monitor,
+  device-intelligence is 8028. Now behind `/device-intelligence/` nginx location
+  injecting `X-API-Key` (that service wants X-API-Key, not Bearer).
+- **`ad36e4e9` validator checked 1 of 31.** `set -e` + `((WARNINGS++))` — post-
+  increment returns 1 when the counter is 0. Two more once it ran: the missing-
+  script check had **never fired** (sed needed quotes real lines lack), and the
+  `curl -f` warning fired only on correct code.
+- **`25e82af5`** CLAUDE.md documented an impossible install (all 3 paths verified
+  failing in a clean venv). **`0d2666a3`** dependabot rationale +
+  `upgrade_skip_files`. **`c015fa32`** dangling docs.
 
 ## Open
 
-- **`quality-gate` + `agentic-pr-review` RED, parked by user.** TappsMCP uninstallable at any ref: not on PyPI; repo root is a uv workspace; `packages/tapps-core` fails its wheel build on a hatchling `force-include` duplicate (`pyproject.toml:51-52`). **`013067f7` pins the root and is wrong** — changes the error, not the outcome. Fix is cross-project.
-- **`dependabot-auto-merge` disabled** — squash-merges to master unattended.
-- **`scripts/validate-github-workflows.sh` validates 1 of 33** — exits on first warning.
-- **HomeIQ CLAUDE.md documents `pip install tapps-mcp`** — wrong as written.
+- **TAP-5434's 88-row target** — blocked on ~20 families at 500/no-route.
+- **TAP-5876** (TappsMCP Platform): `docs-mcp>=0.1.0` resolved by uv-only
+  `[tool.uv.sources]`; an unrelated package owns that name on PyPI. Latent only
+  because resolution dies earlier on unpublished `tapps-core`.
+- **CI is red and always has been.** 12 of 24 checks fail on master. `ci` matrix =
+  12 ruff errors in `health-dashboard/scripts/generate-icons*.py`. Quality Gate /
+  E2E / Cross-Group failed on **every** master commit since Aug 2025.
+- **Session 8's "18 workflows verified by real runs" meant they RUN, not PASS.**
 
-## Next (P0) — Wave 2 (TAP-5433/5434/5424); plan stale 4 ways
+## Corrections to the previous handoff
 
-1. **`git stash` head start GONE** — list empty; the 8 promised TAP-5433 fixes don't exist.
-2. **Contract is 79/79, not 36.** Target ≥88 → 9 rows away.
-3. **The 5 KNOWN_GAPS are unclosable as written** — all base-URL constants, not endpoints (`baseUrl = ... || '/ai-automation'`, `API_BASE = '/api/v1'`, `super('/rag-service')`, `super('/setup-service')`, `|| '/websocket-ingestion'`). Teach the scanner that a match with no path beyond the service prefix is a base URL.
-4. **TAP-5424 clause misleads:** 12 importer files, 2 are tests → 10 app files. ~6 app files keep REST-registry fallbacks *while* importing the shared client: `data-api/src/devices_endpoints.py` (frontier), `device-health-monitor/src/ha_client.py`, `device-recommender/src/ha_client.py`, `ha-setup-service/src/integration_checker.py`, `device-setup-assistant/src/issue_detector.py`, `websocket-ingestion/src/discovery_service.py`.
+1. **TAP-5433 and TAP-5424 were already Done** (Aug 2) — 2 of 3 P0 ids were stale.
+2. **The TappsMCP blocker is not tapps-core's hatchling force-include.** At
+   v3.12.65 it is setuptools rejecting the root's flat layout (uv workspace, no
+   `[project]`). "Cross-project" still holds; the cause was wrong.
+3. Validator count is **31** workflow files, not 33.
+
+## Next (P0) — pick one
+
+1. **Fix the `ci` ruff failures** — 12 errors in two icon scripts. Turns 7 of 12
+   failing checks green.
+2. **Provision the two DB gaps** TAP-5434 names (absent `memory` schema, absent
+   `patterns` table); each probably wants its own issue.
+3. **`/api/v1/real-time-metrics` answers at ~10.0s** — real perf defect.
 
 ## Blockers
 
-- **Shared tree — `tapps-mcp-6c` writes here.** `git status --short` twice ~30s apart before editing; stage explicit paths, never `git add -A`.
+- **Shared tree — `tapps-mcp-6c` writes here.** `git status --short` twice ~30s
+  apart before editing; stage explicit paths, never `git add -A`.
 
 ## Verify
 
-- `git status --porcelain` clean; master == origin/master
-- `bash scripts/verify-dashboard-contract.sh` → 79/79, 0 deviations
+- `git status --porcelain` clean; master == origin/master @ `d1764362`
+- `bash scripts/verify-dashboard-contract.sh` → 80/80, 0 deviations
+- `bash scripts/check-dashboard-contract-coverage.sh` → no new uncovered, 5 gaps
+- `bash scripts/validate-github-workflows.sh` → 31/31, 0 errors 0 warnings
 - `docker ps --filter name=homeiq --format '{{.Status}}' | grep -c '(healthy)'` → 58
-- `.venv/bin/python -m pytest libs/homeiq-ha -q` → 99 passed (system python3 lacks pytest)
-- `gh workflow list --all` → 18 active, dependabot-auto-merge disabled
 
 ## Quirks that cost time
 
-- **One-service deploy needs `--env-file .env`** — else compose reads `.env` from the compose file's dir (absent) and `${POSTGRES_PASSWORD:-...}` falls back to a wrong default → runtime auth failure. `--project-directory .` is NOT the fix.
-- **Masking a secret when diffing env verifies nothing** — hash and compare.
-- **TCP connect proves reachability, not auth** — "DB unavailable" can mean `InvalidPasswordError`.
-- **`.dockerignore:72` excludes `docs/`** — a cache probe there never enters the build context.
+- **`gh pr checks` piped into anything loses the exit code** — `$?` is the pipe's
+  tail. Redirect to a file, check separately.
+- **`tapps_validate_config` calls nginx.conf a "websocket" config** and returns
+  Python asyncio advice. Use `docker exec homeiq-dashboard nginx -t`.
+- **One-service deploy needs `--env-file .env`**; also recreates its dependency
+  containers, not just the target.
+- **`.dockerignore:72` excludes `docs/`.**
