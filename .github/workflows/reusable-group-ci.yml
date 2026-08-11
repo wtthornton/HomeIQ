@@ -29,7 +29,11 @@ jobs:
 
     services:
       postgres:
-        image: postgres:17-alpine
+        # pgvector/pgvector:pg17, not postgres:17-alpine — the same reason
+        # domains/core-platform/compose.yml:51-55 gives. init-schemas.sql runs
+        # `CREATE EXTENSION IF NOT EXISTS vector`, which stock postgres cannot
+        # satisfy, so the memory schema came up with zero tables.
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: homeiq
           POSTGRES_PASSWORD: homeiq_test
@@ -57,7 +61,11 @@ jobs:
           cache: "pip"
 
       - name: Install ruff
-        run: pip install ruff
+        # Pinned: an unpinned ruff makes the lint gate a moving target. 0.16.0
+        # expanded the default rule set from 59 to 413 rules, so a bare
+        # `pip install ruff` can turn a green commit red with no change to this
+        # repo. Bump this deliberately, in its own PR, with the diff reviewed.
+        run: pip install ruff==0.15.15
 
       - name: Lint with ruff
         run: ruff check domains/${{ inputs.domain_dir }}/${{ matrix.service }}/
@@ -70,11 +78,17 @@ jobs:
 
       - name: Install shared libraries
         run: |
+          # One pip invocation, not a loop. The libs depend on each other
+          # (homeiq-data -> homeiq-resilience, homeiq-memory -> homeiq-data) and
+          # none of them is published to PyPI. Installing one at a time resolves
+          # each in isolation, so the first lib alphabetically — homeiq-data —
+          # looks for homeiq-resilience on the index and 404s. Passing all six
+          # paths at once puts them in a single resolution pass, which is what
+          # the 52 service Dockerfiles already do.
+          #
           # No `|| true`: a shared library that fails to install must fail the
           # job here, not surface later as confusing import errors in tests.
-          for lib in libs/homeiq-*/; do
-            pip install "$lib"
-          done
+          pip install libs/homeiq-*/
 
       - name: Check if service has requirements
         id: check-requirements
@@ -93,7 +107,10 @@ jobs:
 
       - name: Initialize PostgreSQL schemas
         run: |
-          PGPASSWORD=homeiq_test psql -h localhost -U homeiq -d homeiq_test -f infrastructure/postgres/init-schemas.sql
+          # -v ON_ERROR_STOP=1: without it psql reports errors and still exits 0.
+          # That is how this step stayed green while `CREATE EXTENSION vector`
+          # failed and the memory schema came up with zero tables.
+          PGPASSWORD=homeiq_test psql -v ON_ERROR_STOP=1 -h localhost -U homeiq -d homeiq_test -f infrastructure/postgres/init-schemas.sql
         env:
           PGPASSWORD: homeiq_test
 

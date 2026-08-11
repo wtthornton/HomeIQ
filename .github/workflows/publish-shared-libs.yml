@@ -26,7 +26,9 @@ jobs:
           cache: "pip"
 
       - name: Install ruff
-        run: pip install ruff
+        # Pinned — see reusable-group-ci.yml. An unpinned ruff makes the lint
+        # gate move on its own between runs.
+        run: pip install ruff==0.15.15
 
       - name: Lint shared libraries
         run: |
@@ -39,12 +41,11 @@ jobs:
 
       - name: Install shared libraries
         run: |
-          for lib in libs/homeiq-*/; do
-            if [ -d "$lib" ]; then
-              pip install "$lib" 2>/dev/null || true
-            fi
-          done
-          pip install pytest pytest-asyncio pytest-timeout 2>/dev/null || true
+          # One invocation, no suppression. These libs depend on each other and
+          # none is on PyPI, so per-lib installs resolve in isolation and fail.
+          # See reusable-group-ci.yml for the full note.
+          pip install libs/homeiq-*/
+          pip install pytest pytest-asyncio pytest-timeout
 
       - name: Run shared library tests
         run: |
