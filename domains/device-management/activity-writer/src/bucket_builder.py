@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .helpers import (
     append_value,
@@ -11,7 +11,9 @@ from .helpers import (
     parse_event_timestamp,
     parse_state_value,
 )
-from .models import SensorReading
+
+if TYPE_CHECKING:
+    from .models import SensorReading
 
 _ON_STATES: frozenset[str] = frozenset({"on", "1", "true"})
 
