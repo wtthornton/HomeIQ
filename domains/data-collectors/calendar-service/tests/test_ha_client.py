@@ -11,7 +11,7 @@ import aiohttp
 import pytest
 
 # Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
 
 from ha_client import HomeAssistantCalendarClient
 
@@ -26,10 +26,7 @@ def mock_session():
 @pytest.fixture
 def ha_client():
     """Create HA client instance"""
-    return HomeAssistantCalendarClient(
-        base_url="http://localhost:8123",
-        token="test_token"
-    )
+    return HomeAssistantCalendarClient(base_url="http://localhost:8123", token="test_token")
 
 
 @pytest.mark.asyncio
@@ -37,7 +34,7 @@ async def test_client_initialization():
     """Test client initialization"""
     client = HomeAssistantCalendarClient(
         base_url="http://localhost:8123/",  # With trailing slash
-        token="test_token"
+        token="test_token",
     )
 
     assert client.base_url == "http://localhost:8123"
@@ -171,13 +168,13 @@ async def test_get_events(ha_client):
             "summary": "Team Meeting",
             "start": {"dateTime": "2025-10-16T14:00:00-07:00"},
             "end": {"dateTime": "2025-10-16T15:00:00-07:00"},
-            "location": "Conference Room"
+            "location": "Conference Room",
         },
         {
             "summary": "Lunch",
             "start": {"dateTime": "2025-10-16T12:00:00-07:00"},
-            "end": {"dateTime": "2025-10-16T13:00:00-07:00"}
-        }
+            "end": {"dateTime": "2025-10-16T13:00:00-07:00"},
+        },
     ]
 
     mock_response = AsyncMock()
@@ -254,8 +251,8 @@ async def test_get_calendar_state(ha_client):
             "message": "Team Meeting",
             "all_day": False,
             "start_time": "2025-10-16 14:00:00",
-            "end_time": "2025-10-16 15:00:00"
-        }
+            "end_time": "2025-10-16 15:00:00",
+        },
     }
 
     mock_response = AsyncMock()
@@ -294,9 +291,7 @@ async def test_get_events_from_multiple_calendars(ha_client):
     end = start + timedelta(days=1)
 
     results = await ha_client.get_events_from_multiple_calendars(
-        ["calendar.primary", "calendar.work"],
-        start,
-        end
+        ["calendar.primary", "calendar.work"], start, end
     )
 
     assert len(results) == 2
@@ -321,12 +316,9 @@ async def test_get_events_from_multiple_calendars_with_error(ha_client):
     end = start + timedelta(days=1)
 
     results = await ha_client.get_events_from_multiple_calendars(
-        ["calendar.primary", "calendar.error"],
-        start,
-        end
+        ["calendar.primary", "calendar.error"], start, end
     )
 
     assert len(results) == 2
     assert len(results["calendar.primary"]) == 1
     assert len(results["calendar.error"]) == 0  # Error returns empty list
-
