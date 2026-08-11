@@ -5,15 +5,15 @@ This module contains comprehensive tests for the predictive analytics functional
 including model training, failure prediction, and API endpoints.
 """
 
-import os
 import sys
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import numpy as np
 import pandas as pd
 import pytest
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.append(str(Path(__file__).parent / ".." / "src"))
 
 from src.api.predictions_router import router
 from src.core.predictive_analytics import PredictiveAnalyticsEngine

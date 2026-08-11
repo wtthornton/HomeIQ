@@ -6,14 +6,14 @@ Tests for all API endpoints including health checks, statistics, and security.
 Converted from aiohttp TestCase to FastAPI TestClient.
 """
 
-import os
 import sys
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, str(Path(__file__).parent / "../.."))
 
 
 @pytest.fixture(autouse=True)

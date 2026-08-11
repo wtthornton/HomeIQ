@@ -4,12 +4,13 @@ Simple tests for refactored stats endpoints
 
 import os
 import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, str(Path(__file__).parent / ".."))
 
 from homeiq_observability.monitoring import StatsEndpoints
 

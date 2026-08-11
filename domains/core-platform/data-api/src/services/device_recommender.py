@@ -4,7 +4,7 @@ Phase 3.3: Device recommendations and comparisons
 """
 
 import logging
-import os
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -25,9 +25,7 @@ class DeviceRecommenderService:
             try:
                 import sys
 
-                sys.path.append(
-                    os.path.join(os.path.dirname(__file__), "../../../device-recommender/src")
-                )
+                sys.path.append(str(Path(__file__).parent / "../../../device-recommender/src"))
                 from db_client import DeviceDatabaseClient
                 from recommender import DeviceRecommender
 
@@ -45,9 +43,7 @@ class DeviceRecommenderService:
             try:
                 import sys
 
-                sys.path.append(
-                    os.path.join(os.path.dirname(__file__), "../../../device-recommender/src")
-                )
+                sys.path.append(str(Path(__file__).parent / "../../../device-recommender/src"))
                 from comparison_engine import DeviceComparisonEngine
 
                 self._comparison_engine = DeviceComparisonEngine()

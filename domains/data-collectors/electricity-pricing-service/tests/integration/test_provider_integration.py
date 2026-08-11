@@ -5,16 +5,16 @@ Epic 49 Story 49.3: Integration Test Suite
 Tests for provider API integration including Awattar provider.
 """
 
-import os
 import sys
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import aiohttp
 import pytest
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, str(Path(__file__).parent / "../.."))
 
 from src.providers.awattar import AwattarProvider
 

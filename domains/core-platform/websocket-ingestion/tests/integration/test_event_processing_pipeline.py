@@ -6,15 +6,15 @@ Tests for end-to-end event processing pipeline from Home Assistant to InfluxDB.
 """
 
 import asyncio
-import os
 import sys
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, str(Path(__file__).parent / "../.."))
 
 import contextlib
 

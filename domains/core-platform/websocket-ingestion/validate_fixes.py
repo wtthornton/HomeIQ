@@ -5,12 +5,12 @@ Validation script to test websocket fixes
 
 import asyncio
 import logging
-import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 # Setup path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 # Configure logging
 logging.basicConfig(

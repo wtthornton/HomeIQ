@@ -8,12 +8,13 @@ DiscoveryService uses HA HTTP/WebSocket, not data-api, for discover_devices/enti
 
 import os
 import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, str(Path(__file__).parent / "../.."))
 
 from src.discovery_service import DiscoveryService
 

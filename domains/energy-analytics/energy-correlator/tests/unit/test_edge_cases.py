@@ -5,15 +5,15 @@ Epic 48 Story 48.4: Test Coverage & Quality Improvements
 Tests for boundary conditions, edge cases, and configuration limits.
 """
 
-import os
 import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, str(Path(__file__).parent / "../.."))
 
 import contextlib
 

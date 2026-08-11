@@ -7,16 +7,16 @@ including WebSocket management, device state tracking, and performance metrics c
 
 import asyncio
 import json
-import os
 import sys
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.append(str(Path(__file__).parent / ".." / "src"))
 
 from src.api.websocket_router import router
 from src.core.device_state_tracker import DeviceStateTracker

@@ -4,12 +4,13 @@ Simple tests for InfluxDB client
 
 import os
 import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
+sys.path.insert(0, str(Path(__file__).parent / "../src"))
 
 from src.influxdb_client import AdminAPIInfluxDBClient
 

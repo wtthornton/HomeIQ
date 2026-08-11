@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.append(str(Path(__file__).parent / ".." / "src"))
 
 from src.core.predictive_analytics import PredictiveAnalyticsEngine
 

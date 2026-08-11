@@ -5,15 +5,15 @@ Epic 48 Story 48.3: Error Scenario Testing
 Tests for robust error handling and graceful degradation under failure conditions.
 """
 
-import os
 import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, str(Path(__file__).parent / "../.."))
 
 import contextlib
 

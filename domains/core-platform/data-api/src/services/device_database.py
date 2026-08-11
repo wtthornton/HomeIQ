@@ -6,6 +6,7 @@ Phase 3.1: Integrate with Device Database client
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -26,9 +27,7 @@ class DeviceDatabaseService:
             try:
                 import sys
 
-                sys.path.append(
-                    os.path.join(os.path.dirname(__file__), "../../../device-database-client/src")
-                )
+                sys.path.append(str(Path(__file__).parent / "../../../device-database-client/src"))
                 from db_client import DeviceDatabaseClient
 
                 self._db_client = DeviceDatabaseClient()
@@ -43,9 +42,7 @@ class DeviceDatabaseService:
             try:
                 import sys
 
-                sys.path.append(
-                    os.path.join(os.path.dirname(__file__), "../../../device-database-client/src")
-                )
+                sys.path.append(str(Path(__file__).parent / "../../../device-database-client/src"))
                 from cache import DeviceCache
 
                 cache_dir = os.getenv("DEVICE_CACHE_DIR", "data/device_cache")

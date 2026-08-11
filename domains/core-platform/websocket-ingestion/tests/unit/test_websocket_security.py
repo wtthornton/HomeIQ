@@ -8,10 +8,11 @@ Tests for WebSocket message validation, rate limiting, and SSL configuration.
 import os
 import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, str(Path(__file__).parent / "../.."))
 
 from src.security import (
     RateLimiter,

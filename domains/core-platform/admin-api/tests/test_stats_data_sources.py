@@ -3,14 +3,14 @@ Unit tests for stats endpoint data source discovery
 Story 24.1: Fix Hardcoded Monitoring Metrics
 """
 
-import os
 import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 # Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, str(Path(__file__).parent / ".."))
 
 from homeiq_observability.monitoring import StatsEndpoints
 

@@ -1,9 +1,9 @@
 {
-  "version": "1.0.2",
-  "training_date": "2026-03-06T19:01:22.499495+00:00",
+  "version": "1.0.1",
+  "training_date": "2026-08-11T10:23:57.702462+00:00",
   "training_data_stats": {
     "sample_count": 200,
-    "unique_devices": 200,
+    "unique_devices": 1,
     "date_range": null,
     "days_back": 180
   },
@@ -12,9 +12,9 @@
     "precision": 1.0,
     "recall": 1.0,
     "f1_score": 1.0,
-    "evaluated_at": "2026-03-06T19:01:25.472070+00:00"
+    "evaluated_at": "2026-08-11T10:23:57.900781+00:00"
   },
-  "scikit_learn_version": "1.8.0",
+  "scikit_learn_version": "1.9.0",
   "feature_columns": [
     "response_time",
     "error_rate",
@@ -36,8 +36,8 @@
     "random_state": 42,
     "model_type": "randomforest"
   },
-  "data_source": "sample",
-  "training_duration_seconds": 2.990258,
+  "data_source": "database",
+  "training_duration_seconds": 0.216683,
   "validation": {
     "valid": true,
     "reason": "All validation checks passed",

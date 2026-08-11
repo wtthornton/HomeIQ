@@ -5,15 +5,15 @@ Epic 49 Story 49.1: Security Hardening & Input Validation
 Tests for security validation functions.
 """
 
-import os
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 from aiohttp import web
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, str(Path(__file__).parent / "../.."))
 
 from src.security import (
     require_internal_network,

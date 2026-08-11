@@ -5,6 +5,7 @@ Phase 2.3: Setup guides and issue detection
 
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 import aiohttp
@@ -59,9 +60,7 @@ class SetupAssistantService:
         try:
             import sys
 
-            sys.path.append(
-                os.path.join(os.path.dirname(__file__), "../../../device-setup-assistant/src")
-            )
+            sys.path.append(str(Path(__file__).parent / "../../../device-setup-assistant/src"))
             from setup_guide_generator import SetupGuideGenerator
 
             generator = SetupGuideGenerator()
@@ -108,9 +107,7 @@ class SetupAssistantService:
         try:
             import sys
 
-            sys.path.append(
-                os.path.join(os.path.dirname(__file__), "../../../device-setup-assistant/src")
-            )
+            sys.path.append(str(Path(__file__).parent / "../../../device-setup-assistant/src"))
             from issue_detector import SetupIssueDetector
 
             detector = SetupIssueDetector(self.ha_url, self.ha_token)

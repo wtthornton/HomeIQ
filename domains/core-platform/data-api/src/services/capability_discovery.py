@@ -5,7 +5,7 @@ Phase 3.2: Discover device capabilities from HA API only
 
 import json
 import logging
-import os
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -25,9 +25,7 @@ class CapabilityDiscoveryService:
                 import sys
 
                 sys.path.append(
-                    os.path.join(
-                        os.path.dirname(__file__), "../../../device-intelligence-service/src"
-                    )
+                    str(Path(__file__).parent / "../../../device-intelligence-service/src")
                 )
                 from capability_discovery.ha_api_discovery import HACapabilityDiscoverer
 
