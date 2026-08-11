@@ -8,7 +8,6 @@ Note: These are placeholder tests. Full implementation would require:
 """
 
 
-
 def test_rag_service_placeholder():
     """Placeholder test for RAG service."""
     # TODO: Implement full unit tests with mocked dependencies

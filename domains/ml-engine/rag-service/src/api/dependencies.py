@@ -29,14 +29,14 @@ def get_openvino_client(request: Request) -> OpenVINOClient:
 def get_rag_service(
     request: Request,
     db: DatabaseSession,
-    openvino_client: Annotated[OpenVINOClient, Depends(get_openvino_client)]
+    openvino_client: Annotated[OpenVINOClient, Depends(get_openvino_client)],
 ) -> RAGService:
     """Get RAG service instance with shared embedding cache."""
     return RAGService(
         db=db,
         openvino_client=openvino_client,
         embedding_cache=request.app.state.embedding_cache,
-        embedding_cache_size=settings.embedding_cache_size
+        embedding_cache_size=settings.embedding_cache_size,
     )
 
 

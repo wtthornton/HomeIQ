@@ -26,10 +26,7 @@ async def health() -> dict[str, str]:
     Returns:
         Service status
     """
-    return {
-        "status": "healthy",
-        "service": "rag-service"
-    }
+    return {"status": "healthy", "service": "rag-service"}
 
 
 @router.get("/health/ready")
