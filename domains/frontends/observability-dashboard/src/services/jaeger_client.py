@@ -217,7 +217,7 @@ class JaegerClient:
             )
 
             services = []
-            for name, ops in zip(service_names, operations_list):
+            for name, ops in zip(service_names, operations_list, strict=False):
                 operations = ops if isinstance(ops, list) else []
                 services.append(Service(name=name, operations=operations))
 

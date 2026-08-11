@@ -309,12 +309,12 @@ def _create_timeline_chart(traces: list[Trace]) -> go.Figure:
                 y=service_df["Operation"],
                 mode="markers",
                 name=service,
-                marker=dict(
-                    size=service_df["Duration (ms)"],
-                    sizemode="diameter",
-                    sizeref=2 * max(service_df["Duration (ms)"]) / (20**2),
-                    color=service_df["Has Error"].map({True: "red", False: "blue"}),
-                ),
+                marker={
+                    "size": service_df["Duration (ms)"],
+                    "sizemode": "diameter",
+                    "sizeref": 2 * max(service_df["Duration (ms)"]) / (20**2),
+                    "color": service_df["Has Error"].map({True: "red", False: "blue"}),
+                },
             )
         )
 
@@ -377,8 +377,8 @@ def _create_dependency_graph(traces: list[Trace]) -> go.Figure:
     fig = go.Figure(
         data=[
             go.Sankey(
-                node=dict(label=node_labels),
-                link=dict(source=source, target=target, value=value),
+                node={"label": node_labels},
+                link={"source": source, "target": target, "value": value},
             )
         ]
     )

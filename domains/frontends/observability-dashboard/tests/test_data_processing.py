@@ -236,7 +236,7 @@ class TestCreateLatencyDataframe:
         metrics = {"svc": {"p50": 10, "p95": 50, "p99": 100}}
         df = _create_latency_dataframe(metrics)
         assert isinstance(df, pd.DataFrame)
-        assert set(["p50", "p95", "p99"]).issubset(df.columns)
+        assert {"p50", "p95", "p99"}.issubset(df.columns)
         assert df.iloc[0]["p50"] == 10
 
 
