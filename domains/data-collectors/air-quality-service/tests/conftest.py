@@ -39,51 +39,38 @@ def mock_influxdb_client():
 
 
 @pytest.fixture
-def sample_openweather_response() -> dict:
-    """Sample OpenWeather API response (good air quality)"""
+def sample_open_meteo_response() -> dict:
+    """Sample Open-Meteo air-quality response (good air quality)"""
     return {
-        "coord": {"lon": -115.1398, "lat": 36.1699},
-        "list": [
-            {
-                "dt": int(datetime.now().timestamp()),
-                "main": {
-                    "aqi": 1  # Good
-                },
-                "components": {
-                    "co": 230.31,
-                    "no": 0.0,
-                    "no2": 1.15,
-                    "o3": 68.66,
-                    "so2": 0.38,
-                    "pm2_5": 3.41,
-                    "pm10": 3.78,
-                    "nh3": 0.18,
-                },
-            }
-        ],
+        "latitude": 36.0,
+        "longitude": -115.2,
+        "current": {
+            "time": "2026-08-11T17:00",
+            "us_aqi": 34,
+            "carbon_monoxide": 230.31,
+            "nitrogen_dioxide": 1.15,
+            "ozone": 68.66,
+            "sulphur_dioxide": 0.38,
+            "pm2_5": 3.41,
+            "pm10": 3.78,
+        },
     }
 
 
 @pytest.fixture
 def sample_poor_aqi_response() -> dict:
-    """Sample OpenWeather response with poor AQI"""
+    """Sample Open-Meteo response with poor AQI"""
     return {
-        "list": [
-            {
-                "dt": int(datetime.now().timestamp()),
-                "main": {
-                    "aqi": 4  # Poor
-                },
-                "components": {
-                    "co": 450.0,
-                    "no2": 45.0,
-                    "o3": 150.0,
-                    "so2": 25.0,
-                    "pm2_5": 75.0,
-                    "pm10": 120.0,
-                },
-            }
-        ]
+        "current": {
+            "time": "2026-08-11T17:00",
+            "us_aqi": 175,
+            "carbon_monoxide": 450.0,
+            "nitrogen_dioxide": 45.0,
+            "ozone": 150.0,
+            "sulphur_dioxide": 25.0,
+            "pm2_5": 75.0,
+            "pm10": 120.0,
+        }
     }
 
 
@@ -105,7 +92,7 @@ def sample_aqi_data() -> dict:
     """Sample processed AQI data"""
     now = datetime.now()
     return {
-        "aqi": 25,  # Converted from OpenWeather scale
+        "aqi": 34,  # US AQI as reported by Open-Meteo
         "category": "Good",
         "parameter": "Combined",
         "pm25": 3,
@@ -124,7 +111,6 @@ async def service_instance():
     from src.main import AirQualityService
 
     # Set test environment
-    os.environ["WEATHER_API_KEY"] = "test-api-key"
     os.environ["INFLUXDB_TOKEN"] = "test-token"
     os.environ["INFLUXDB_URL"] = "http://test-influxdb:8086"
     os.environ["INFLUXDB_ORG"] = "test-org"

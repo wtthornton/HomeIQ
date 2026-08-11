@@ -1,7 +1,5 @@
 """Configuration settings for Weather API Service."""
 
-from typing import Literal
-
 from homeiq_data import BaseServiceSettings
 
 
@@ -18,10 +16,18 @@ class Settings(BaseServiceSettings):
     service_name: str = "weather-api"
     influxdb_bucket: str = "weather_data"
 
-    # OpenWeatherMap configuration
-    weather_api_key: str | None = None
+    # Open-Meteo configuration. Open-Meteo's non-commercial tier needs no API
+    # key, so there is no credential to lose or rotate here. It is queried by
+    # coordinate, not city name; weather_location is kept as the display label
+    # reported back to callers and written as the InfluxDB `location` tag.
+    # Named for the provider, not generically: a stale WEATHER_API_URL left in
+    # .env from the OpenWeatherMap era would otherwise override this through
+    # env_file and silently repoint the service at a provider it can no longer
+    # authenticate against.
+    open_meteo_forecast_url: str = "https://api.open-meteo.com/v1/forecast"
     weather_location: str = "Las Vegas"
-    weather_api_auth_mode: Literal["header", "query"] = "header"
+    weather_latitude: float = 35.9561663
+    weather_longitude: float = -115.1833246
 
     # Cache
     cache_ttl_seconds: int = 900

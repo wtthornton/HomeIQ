@@ -11,21 +11,17 @@ import pytest
 class TestServiceConfiguration:
     """Test service configuration parsing"""
 
-    def test_missing_weather_api_key(self):
+    def test_no_provider_credential_required(self):
         """
-        GIVEN: No WEATHER_API_KEY environment variable
+        GIVEN: No weather-provider API key in the environment
         WHEN: Initialize service
-        THEN: Should raise ValueError
+        THEN: Should construct successfully — Open-Meteo needs no credential
         """
         from src.main import AirQualityService
 
-        with (
-            patch.dict(
-                os.environ, {"WEATHER_API_KEY": "", "INFLUXDB_TOKEN": "test-token"}, clear=True
-            ),
-            pytest.raises(ValueError, match="WEATHER_API_KEY environment variable is required"),
-        ):
-            AirQualityService()
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
+            service = AirQualityService()
+            assert service.base_url.startswith("https://air-quality-api.open-meteo.com")
 
     def test_missing_influxdb_token(self):
         """
@@ -37,7 +33,7 @@ class TestServiceConfiguration:
 
         with (
             patch.dict(
-                os.environ, {"WEATHER_API_KEY": "test-key", "INFLUXDB_TOKEN": ""}, clear=True
+                os.environ, {"INFLUXDB_TOKEN": ""}, clear=True
             ),
             pytest.raises(ValueError, match="INFLUXDB_TOKEN environment variable is required"),
         ):
@@ -52,7 +48,7 @@ class TestServiceConfiguration:
         from src.main import AirQualityService
 
         with patch.dict(
-            os.environ, {"WEATHER_API_KEY": "test-key", "INFLUXDB_TOKEN": "test-token"}, clear=True
+            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
         ):
             service = AirQualityService()
             assert service.latitude == "36.1699"
@@ -69,7 +65,6 @@ class TestServiceConfiguration:
         with patch.dict(
             os.environ,
             {
-                "WEATHER_API_KEY": "test-key",
                 "INFLUXDB_TOKEN": "test-token",
                 "LATITUDE": "40.7128",
                 "LONGITUDE": "-74.0060",
@@ -89,7 +84,7 @@ class TestServiceConfiguration:
         from src.main import AirQualityService
 
         with patch.dict(
-            os.environ, {"WEATHER_API_KEY": "test-key", "INFLUXDB_TOKEN": "test-token"}, clear=True
+            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
         ):
             service = AirQualityService()
             assert service.influxdb_url == "http://influxdb:8086"
@@ -103,7 +98,7 @@ class TestServiceConfiguration:
         from src.main import AirQualityService
 
         with patch.dict(
-            os.environ, {"WEATHER_API_KEY": "test-key", "INFLUXDB_TOKEN": "test-token"}, clear=True
+            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
         ):
             service = AirQualityService()
             assert service.influxdb_org == "home_assistant"
@@ -117,7 +112,7 @@ class TestServiceConfiguration:
         from src.main import AirQualityService
 
         with patch.dict(
-            os.environ, {"WEATHER_API_KEY": "test-key", "INFLUXDB_TOKEN": "test-token"}, clear=True
+            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
         ):
             service = AirQualityService()
             assert service.influxdb_bucket == "events"
@@ -131,7 +126,7 @@ class TestServiceConfiguration:
         from src.main import AirQualityService
 
         with patch.dict(
-            os.environ, {"WEATHER_API_KEY": "test-key", "INFLUXDB_TOKEN": "test-token"}, clear=True
+            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
         ):
             service = AirQualityService()
             assert service.fetch_interval == 3600
@@ -145,7 +140,7 @@ class TestServiceConfiguration:
         from src.main import AirQualityService
 
         with patch.dict(
-            os.environ, {"WEATHER_API_KEY": "test-key", "INFLUXDB_TOKEN": "test-token"}, clear=True
+            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
         ):
             service = AirQualityService()
             assert service.cache_duration == 60
@@ -154,15 +149,15 @@ class TestServiceConfiguration:
         """
         GIVEN: Service instance
         WHEN: Check base_url
-        THEN: Should be OpenWeather air pollution endpoint
+        THEN: Should be the Open-Meteo air-quality endpoint
         """
         from src.main import AirQualityService
 
         with patch.dict(
-            os.environ, {"WEATHER_API_KEY": "test-key", "INFLUXDB_TOKEN": "test-token"}, clear=True
+            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
         ):
             service = AirQualityService()
-            assert service.base_url == "https://api.openweathermap.org/data/2.5/air_pollution"
+            assert service.base_url == "https://air-quality-api.open-meteo.com/v1/air-quality"
 
 
 class TestCompleteConfiguration:
@@ -177,7 +172,6 @@ class TestCompleteConfiguration:
         from src.main import AirQualityService
 
         custom_env = {
-            "WEATHER_API_KEY": "custom-api-key-12345",
             "INFLUXDB_TOKEN": "custom-token-12345",
             "INFLUXDB_URL": "http://prod-influxdb:8086",
             "INFLUXDB_ORG": "production-org",
@@ -191,7 +185,6 @@ class TestCompleteConfiguration:
         with patch.dict(os.environ, custom_env, clear=True):
             service = AirQualityService()
 
-            assert service.api_key == "custom-api-key-12345"
             assert service.influxdb_token == "custom-token-12345"
             assert service.influxdb_url == "http://prod-influxdb:8086"
             assert service.influxdb_org == "production-org"
@@ -210,11 +203,10 @@ class TestCompleteConfiguration:
         from src.main import AirQualityService
 
         with patch.dict(
-            os.environ, {"WEATHER_API_KEY": "test-key", "INFLUXDB_TOKEN": "test-token"}, clear=True
+            os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True
         ):
             service = AirQualityService()
 
-            assert service.api_key == "test-key"
             assert service.influxdb_token == "test-token"
             assert service.influxdb_url == "http://influxdb:8086"
             assert service.influxdb_org == "home_assistant"

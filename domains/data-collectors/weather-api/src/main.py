@@ -1,15 +1,17 @@
-"""Weather API Service for OpenWeatherMap Integration.
+"""Weather API Service for Open-Meteo Integration.
 
-Fetches current weather data from the OpenWeatherMap API, caches results with
-thundering herd protection, and stores time-series data in InfluxDB. Supports
-header and query auth modes, InfluxDB fallback hostnames for DNS resilience,
-and exponential backoff on consecutive background fetch failures.
+Fetches current weather data from the Open-Meteo API, caches results with
+thundering herd protection, and stores time-series data in InfluxDB. Provides
+InfluxDB fallback hostnames for DNS resilience and exponential backoff on
+consecutive background fetch failures.
+
+Open-Meteo's non-commercial tier requires no API key, so this service holds no
+credential. It is queried by coordinate rather than city name.
 """
 
 from __future__ import annotations
 
 import asyncio
-import re
 from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
@@ -30,6 +32,41 @@ SERVICE_VERSION = __version__
 # Configure logging
 logger = setup_logging(SERVICE_NAME)
 
+# WMO 4677 present-weather codes, as returned by Open-Meteo's `weather_code`.
+# Mapped to the (condition, description) pair this service has always exposed,
+# so downstream consumers and the InfluxDB schema are unchanged by the provider
+# switch. Codes absent from this table fall back to ("Unknown", "").
+WMO_WEATHER_CODES: dict[int, tuple[str, str]] = {
+    0: ("Clear", "clear sky"),
+    1: ("Clear", "mainly clear"),
+    2: ("Clouds", "partly cloudy"),
+    3: ("Clouds", "overcast"),
+    45: ("Fog", "fog"),
+    48: ("Fog", "depositing rime fog"),
+    51: ("Drizzle", "light drizzle"),
+    53: ("Drizzle", "moderate drizzle"),
+    55: ("Drizzle", "dense drizzle"),
+    56: ("Drizzle", "light freezing drizzle"),
+    57: ("Drizzle", "dense freezing drizzle"),
+    61: ("Rain", "slight rain"),
+    63: ("Rain", "moderate rain"),
+    65: ("Rain", "heavy rain"),
+    66: ("Rain", "light freezing rain"),
+    67: ("Rain", "heavy freezing rain"),
+    71: ("Snow", "slight snow fall"),
+    73: ("Snow", "moderate snow fall"),
+    75: ("Snow", "heavy snow fall"),
+    77: ("Snow", "snow grains"),
+    80: ("Rain", "slight rain showers"),
+    81: ("Rain", "moderate rain showers"),
+    82: ("Rain", "violent rain showers"),
+    85: ("Snow", "slight snow showers"),
+    86: ("Snow", "heavy snow showers"),
+    95: ("Thunderstorm", "thunderstorm"),
+    96: ("Thunderstorm", "thunderstorm with slight hail"),
+    99: ("Thunderstorm", "thunderstorm with heavy hail"),
+}
+
 
 # Pydantic Models
 class WeatherResponse(BaseModel):
@@ -48,40 +85,31 @@ class WeatherResponse(BaseModel):
 
 
 class WeatherService:
-    """Weather data service that fetches from OpenWeatherMap and stores in InfluxDB.
+    """Weather data service that fetches from Open-Meteo and stores in InfluxDB.
 
     Implements cache-first fetching with thundering herd protection, InfluxDB fallback
     hostnames, and continuous background polling with exponential backoff on failures.
     """
 
     def __init__(self) -> None:
-        """Initialize the weather service with OpenWeatherMap and InfluxDB config."""
+        """Initialize the weather service with Open-Meteo and InfluxDB config."""
         self._init_weather_config()
         self._init_influxdb_config()
         self._init_cache_and_components()
 
-        if not self.api_key:
-            logger.warning("WEATHER_API_KEY not set - service will run in standby mode")
         if not self.influxdb_token:
             raise ValueError("INFLUXDB_TOKEN required")
 
     def _init_weather_config(self) -> None:
-        """Initialize OpenWeatherMap API configuration."""
-        self.api_key = settings.weather_api_key
-        location = settings.weather_location
-        if not re.match(r"^[a-zA-Z\s,.\-]{1,100}$", location):
-            raise ValueError(
-                f"Invalid WEATHER_LOCATION: must be alphanumeric with spaces/commas, got '{location}'"
-            )
-        self.location = location
-        self.base_url = "https://api.openweathermap.org/data/2.5"
-        self.auth_mode = settings.weather_api_auth_mode
-        if self.auth_mode == "query":
-            logger.warning(
-                "SECURITY: WEATHER_API_AUTH_MODE=query sends API key in URL parameters. "
-                "This exposes the key in logs and proxy caches. Use 'header' mode unless "
-                "your API plan does not support header authentication."
-            )
+        """Initialize Open-Meteo API configuration."""
+        self.location = settings.weather_location
+        self.latitude = settings.weather_latitude
+        self.longitude = settings.weather_longitude
+        if not -90 <= self.latitude <= 90:
+            raise ValueError(f"Invalid WEATHER_LATITUDE: must be -90..90, got {self.latitude}")
+        if not -180 <= self.longitude <= 180:
+            raise ValueError(f"Invalid WEATHER_LONGITUDE: must be -180..180, got {self.longitude}")
+        self.base_url = settings.open_meteo_forecast_url
 
     def _init_influxdb_config(self) -> None:
         """Initialize InfluxDB configuration with fallback hostname logic."""
@@ -181,8 +209,17 @@ class WeatherService:
                     org=self.influxdb_org,
                 )
 
-                # Actually test the connection with a lightweight query
-                await asyncio.to_thread(client.query, "SELECT 1")
+                # Probe reachability over HTTP, not with a query. This service
+                # only ever writes, and the query path is Flight/gRPC, which
+                # InfluxDB 2.x does not serve — probing with `SELECT 1` made
+                # every host look dead and discarded a working write client.
+                async with (
+                    aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as probe_session,
+                    probe_session.get(f"{url.rstrip('/')}/health") as probe,
+                ):
+                    if probe.status != 200:
+                        raise RuntimeError(f"InfluxDB health probe returned HTTP {probe.status}")
+
                 self.working_influxdb_host = url
                 logger.info("[OK] Successfully verified InfluxDB connection at: %s", url)
                 return client
@@ -206,59 +243,65 @@ class WeatherService:
             self.influxdb_client.close()
 
     async def fetch_weather(self) -> dict[str, Any] | None:
-        """Fetch current weather data from OpenWeatherMap API.
+        """Fetch current weather data from the Open-Meteo API.
 
         Returns:
             Weather data dictionary with temperature, humidity, etc., or cached data on failure.
         """
-        if not self.api_key:
-            return self.cached_weather
-
         if not self.session or self.session.closed:
             raise RuntimeError("HTTP session not initialized")
 
         try:
-            url = f"{self.base_url}/weather"
-            params = {"q": self.location, "units": "metric"}
+            params = {
+                "latitude": str(self.latitude),
+                "longitude": str(self.longitude),
+                "current": (
+                    "temperature_2m,relative_humidity_2m,apparent_temperature,"
+                    "surface_pressure,wind_speed_10m,weather_code,cloud_cover"
+                ),
+                "temperature_unit": "celsius",
+                "wind_speed_unit": "ms",
+                "timezone": "UTC",
+            }
             headers = {"Accept": "application/json"}
-            if self.auth_mode == "header":
-                headers["X-API-Key"] = self.api_key
-            else:
-                params["appid"] = self.api_key
 
-            async with self.session.get(url, params=params, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-
-                    timestamp = datetime.now(UTC).isoformat()
-                    weather_block = (data.get("weather") or [{}])[0]
-                    weather = {
-                        "temperature": data.get("main", {}).get("temp", 0),
-                        "feels_like": data.get("main", {}).get("feels_like", 0),
-                        "humidity": data.get("main", {}).get("humidity", 0),
-                        "pressure": data.get("main", {}).get("pressure", 0),
-                        "condition": weather_block.get("main", "Unknown"),
-                        "description": weather_block.get("description", ""),
-                        "wind_speed": data.get("wind", {}).get("speed", 0),
-                        "cloudiness": data.get("clouds", {}).get("all", 0),
-                        "location": data.get("name", self.location),
-                        "timestamp": timestamp,
-                    }
-
-                    self.fetch_count += 1
-                    logger.info(
-                        "Fetched weather: %s°C, %s", weather["temperature"], weather["condition"]
+            async with self.session.get(self.base_url, params=params, headers=headers) as response:
+                if response.status != 200:
+                    logger.error(
+                        "Open-Meteo API error: HTTP %s for %s,%s",
+                        response.status,
+                        self.latitude,
+                        self.longitude,
                     )
-                    return weather
-                else:
-                    if response.status == 401 and self.auth_mode == "header":
-                        logger.error(
-                            "OpenWeatherMap API authentication failed with header mode. "
-                            "Set WEATHER_API_AUTH_MODE=query if your API key does not support headers."
-                        )
-                    else:
-                        logger.error("OpenWeatherMap API error: %s", response.status)
                     return self.cached_weather
+
+                data = await response.json()
+                current = data.get("current") or {}
+                if not current:
+                    logger.error("Open-Meteo response carried no `current` block")
+                    return self.cached_weather
+
+                code = int(current.get("weather_code", -1))
+                condition, description = WMO_WEATHER_CODES.get(code, ("Unknown", ""))
+
+                weather = {
+                    "temperature": current.get("temperature_2m", 0),
+                    "feels_like": current.get("apparent_temperature", 0),
+                    "humidity": current.get("relative_humidity_2m", 0),
+                    "pressure": round(current.get("surface_pressure", 0)),
+                    "condition": condition,
+                    "description": description,
+                    "wind_speed": current.get("wind_speed_10m", 0),
+                    "cloudiness": current.get("cloud_cover", 0),
+                    "location": self.location,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+
+                self.fetch_count += 1
+                logger.info(
+                    "Fetched weather: %s°C, %s", weather["temperature"], weather["condition"]
+                )
+                return weather
 
         except Exception as e:
             logger.error("Error fetching weather: %s", e)

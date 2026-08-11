@@ -72,14 +72,14 @@ class TestDataFetching:
 
     @pytest.mark.asyncio
     async def test_fetch_aqi_success(
-        self, service_instance, mock_aiohttp_session, sample_openweather_response
+        self, service_instance, mock_aiohttp_session, sample_open_meteo_response
     ):
         """GIVEN: Valid API response | WHEN: Fetch AQI | THEN: Return parsed data"""
         service_instance.session = mock_aiohttp_session
 
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=sample_openweather_response)
+        mock_response.json = AsyncMock(return_value=sample_open_meteo_response)
 
         mock_cm = AsyncMock()
         mock_cm.__aenter__.return_value = mock_response
@@ -89,7 +89,7 @@ class TestDataFetching:
         data = await service_instance.fetch_air_quality()
 
         assert data is not None
-        assert data["aqi"] == 25  # Converted from OpenWeather AQI 1
+        assert data["aqi"] == 34  # US AQI as reported by Open-Meteo
         assert data["category"] == "Good"
         assert data["parameter"] == "Combined"
         assert "pm25" in data
@@ -97,35 +97,31 @@ class TestDataFetching:
         assert "ozone" in data
 
     @pytest.mark.asyncio
-    async def test_fetch_aqi_scale_conversion(self, service_instance, mock_aiohttp_session):
-        """GIVEN: Different OpenWeather AQI values | WHEN: Convert | THEN: Map to 0-500 scale"""
+    async def test_fetch_uses_reported_us_aqi(self, service_instance, mock_aiohttp_session):
+        """GIVEN: Open-Meteo US AQI values | WHEN: Fetch | THEN: Pass through, categorise by EPA band"""
         service_instance.session = mock_aiohttp_session
 
-        # Test all 5 AQI levels
         test_cases = [
-            (1, 25, "Good"),
-            (2, 75, "Fair"),
-            (3, 125, "Moderate"),
-            (4, 175, "Poor"),
-            (5, 250, "Very Poor"),
+            (34, "Good"),
+            (78, "Moderate"),
+            (122, "Unhealthy for Sensitive Groups"),
+            (175, "Unhealthy"),
+            (250, "Very Unhealthy"),
+            (410, "Hazardous"),
         ]
 
-        for ow_aqi, expected_aqi, expected_category in test_cases:
+        for reported_aqi, expected_category in test_cases:
             response = {
-                "list": [
-                    {
-                        "dt": int(datetime.now().timestamp()),
-                        "main": {"aqi": ow_aqi},
-                        "components": {
-                            "pm2_5": 10,
-                            "pm10": 15,
-                            "o3": 50,
-                            "co": 200,
-                            "no2": 5,
-                            "so2": 2,
-                        },
-                    }
-                ]
+                "current": {
+                    "time": "2026-08-11T17:00",
+                    "us_aqi": reported_aqi,
+                    "pm2_5": 10,
+                    "pm10": 15,
+                    "ozone": 50,
+                    "carbon_monoxide": 200,
+                    "nitrogen_dioxide": 5,
+                    "sulphur_dioxide": 2,
+                }
             }
 
             mock_response = AsyncMock()
@@ -139,19 +135,19 @@ class TestDataFetching:
 
             data = await service_instance.fetch_air_quality()
 
-            assert data["aqi"] == expected_aqi
+            assert data["aqi"] == reported_aqi
             assert data["category"] == expected_category
 
     @pytest.mark.asyncio
     async def test_fetch_aqi_updates_cache(
-        self, service_instance, mock_aiohttp_session, sample_openweather_response
+        self, service_instance, mock_aiohttp_session, sample_open_meteo_response
     ):
         """GIVEN: Successful fetch | WHEN: Complete | THEN: Update cache"""
         service_instance.session = mock_aiohttp_session
 
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=sample_openweather_response)
+        mock_response.json = AsyncMock(return_value=sample_open_meteo_response)
 
         mock_cm = AsyncMock()
         mock_cm.__aenter__.return_value = mock_response
@@ -194,7 +190,7 @@ class TestDataFetching:
 
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={"list": []})
+        mock_response.json = AsyncMock(return_value={"current": {}})
 
         mock_cm = AsyncMock()
         mock_cm.__aenter__.return_value = mock_response
@@ -216,20 +212,16 @@ class TestCategoryTracking:
         service_instance.last_category = "Good"
 
         response = {
-            "list": [
-                {
-                    "dt": int(datetime.now().timestamp()),
-                    "main": {"aqi": 4},  # Poor
-                    "components": {
-                        "pm2_5": 75,
-                        "pm10": 120,
-                        "o3": 150,
-                        "co": 450,
-                        "no2": 45,
-                        "so2": 25,
-                    },
-                }
-            ]
+            "current": {
+                "time": "2026-08-11T17:00",
+                "us_aqi": 175,
+                "pm2_5": 75,
+                "pm10": 120,
+                "ozone": 150,
+                "carbon_monoxide": 450,
+                "nitrogen_dioxide": 45,
+                "sulphur_dioxide": 25,
+            }
         }
 
         mock_response = AsyncMock()
@@ -243,8 +235,8 @@ class TestCategoryTracking:
 
         data = await service_instance.fetch_air_quality()
 
-        assert data["category"] == "Poor"
-        assert service_instance.last_category == "Poor"
+        assert data["category"] == "Unhealthy"
+        assert service_instance.last_category == "Unhealthy"
 
 
 class TestInfluxDBStorage:
@@ -351,7 +343,7 @@ class TestHealthTracking:
 
     @pytest.mark.asyncio
     async def test_successful_fetch_updates_health(
-        self, service_instance, mock_aiohttp_session, sample_openweather_response
+        self, service_instance, mock_aiohttp_session, sample_open_meteo_response
     ):
         """GIVEN: Successful fetch | WHEN: Complete | THEN: Update health stats"""
         service_instance.session = mock_aiohttp_session
@@ -359,7 +351,7 @@ class TestHealthTracking:
 
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=sample_openweather_response)
+        mock_response.json = AsyncMock(return_value=sample_open_meteo_response)
 
         mock_cm = AsyncMock()
         mock_cm.__aenter__.return_value = mock_response

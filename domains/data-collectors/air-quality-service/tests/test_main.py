@@ -7,8 +7,10 @@ import pytest
 
 @pytest.fixture
 def mock_env(monkeypatch):
-    """Set required environment variables for service initialization."""
-    monkeypatch.setenv("WEATHER_API_KEY", "test-api-key")
+    """Set required environment variables for service initialization.
+
+    Open-Meteo needs no API key, so InfluxDB is the only credential.
+    """
     monkeypatch.setenv("INFLUXDB_TOKEN", "test-token")
     monkeypatch.setenv("LATITUDE", "36.17")
     monkeypatch.setenv("LONGITUDE", "-115.14")
@@ -27,16 +29,15 @@ class TestAirQualityServiceInit:
 
     def test_default_config(self, service):
         """Service should have expected default configuration."""
-        assert service.api_key == "test-api-key"
         assert service.influxdb_token == "test-token"
+        assert service.base_url.startswith("https://air-quality-api.open-meteo.com")
 
-    def test_missing_api_key_raises(self, monkeypatch):
-        """Should raise ValueError when WEATHER_API_KEY is not set."""
-        monkeypatch.setenv("INFLUXDB_TOKEN", "test-token")
-        monkeypatch.delenv("WEATHER_API_KEY", raising=False)
+    def test_missing_influxdb_token_raises(self, mock_env, monkeypatch):
+        """Should raise ValueError when INFLUXDB_TOKEN is not set."""
+        monkeypatch.delenv("INFLUXDB_TOKEN", raising=False)
         from main import AirQualityService
 
-        with pytest.raises(ValueError, match="WEATHER_API_KEY"):
+        with pytest.raises(ValueError, match="INFLUXDB_TOKEN"):
             AirQualityService()
 
     def test_invalid_latitude_raises(self, mock_env, monkeypatch):
@@ -49,38 +50,80 @@ class TestAirQualityServiceInit:
 
 
 class TestParsePollutionResponse:
-    """Test OpenWeather API response parsing."""
+    """Test Open-Meteo air-quality response parsing."""
 
     def test_parse_valid_response(self, service):
-        """Should parse a valid OpenWeather pollution response."""
+        """Should parse a valid Open-Meteo air-quality response."""
         raw = {
-            "list": [
-                {
-                    "main": {"aqi": 2},
-                    "components": {
-                        "pm2_5": 12.5,
-                        "pm10": 25.0,
-                        "o3": 40.0,
-                        "co": 200.0,
-                        "no2": 10.0,
-                        "so2": 5.0,
-                    },
-                    "dt": 1709500000,
-                }
-            ]
+            "current": {
+                "time": "2026-08-11T17:00",
+                "us_aqi": 34,
+                "pm2_5": 12.5,
+                "pm10": 25.0,
+                "ozone": 40.0,
+                "carbon_monoxide": 200.0,
+                "nitrogen_dioxide": 10.0,
+                "sulphur_dioxide": 5.0,
+            }
         }
 
         result = service._parse_pollution_response(raw)
 
         assert result is not None
-        assert result["category"] == "Fair"
-        assert result["aqi"] == 75
+        assert result["aqi"] == 34
+        assert result["category"] == "Good"
         assert result["pm25"] == 12.5
+        assert result["ozone"] == 40.0
+        assert result["timestamp"] == datetime(2026, 8, 11, 17, 0, tzinfo=UTC)
+
+    def test_parse_uses_reported_aqi_not_a_bucket_midpoint(self, service):
+        """The reported US AQI is used verbatim, not mapped to a synthetic value."""
+        raw = {"current": {"time": "2026-08-11T17:00", "us_aqi": 157}}
+
+        result = service._parse_pollution_response(raw)
+
+        assert result["aqi"] == 157
+        assert result["category"] == "Unhealthy"
+
+    @pytest.mark.parametrize(
+        ("aqi", "category"),
+        [
+            (0, "Good"),
+            (50, "Good"),
+            (51, "Moderate"),
+            (100, "Moderate"),
+            (101, "Unhealthy for Sensitive Groups"),
+            (150, "Unhealthy for Sensitive Groups"),
+            (151, "Unhealthy"),
+            (200, "Unhealthy"),
+            (201, "Very Unhealthy"),
+            (300, "Very Unhealthy"),
+            (301, "Hazardous"),
+            (500, "Hazardous"),
+        ],
+    )
+    def test_aqi_category_boundaries(self, service, aqi, category):
+        """EPA category boundaries are inclusive of their upper bound."""
+        assert service._aqi_category(aqi) == category
+
+    def test_parse_missing_fields_defaults_to_zero(self, service):
+        """A partial `current` block yields zeros rather than raising."""
+        result = service._parse_pollution_response({"current": {"time": "2026-08-11T17:00"}})
+
+        assert result["aqi"] == 0
+        assert result["pm25"] == 0
+        assert result["co"] == 0
+
+    def test_parse_bad_timestamp_falls_back_to_now(self, service):
+        """An unparseable time still produces a timezone-aware timestamp."""
+        result = service._parse_pollution_response({"current": {"time": "not-a-time", "us_aqi": 1}})
+
+        assert result["timestamp"].tzinfo is not None
 
     def test_parse_empty_response_returns_none(self, service):
-        """Should return None for empty response."""
+        """Should return None when the response carries no `current` block."""
         assert service._parse_pollution_response({}) is None
-        assert service._parse_pollution_response({"list": []}) is None
+        assert service._parse_pollution_response({"current": {}}) is None
 
 
 class TestCacheValidation:
