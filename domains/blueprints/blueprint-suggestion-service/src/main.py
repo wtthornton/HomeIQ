@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 # Startup / shutdown hooks
 # ---------------------------------------------------------------------------
 
+
 async def _startup_db() -> None:
     """Initialize database and cache schema."""
     db_ok = await init_db()

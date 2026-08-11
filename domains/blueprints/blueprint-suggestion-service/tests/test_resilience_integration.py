@@ -17,11 +17,11 @@ def _make_client():
     with patch("src.clients.data_api_client.settings") as mock_settings:
         mock_settings.data_api_url = "http://data-api:8006"
         from src.clients.data_api_client import DataApiClient
+
         return DataApiClient(base_url="http://data-api:8006", api_key="test-key")
 
 
 class TestDataApiClientResilience:
-
     def test_uses_cross_group_client(self):
         client = _make_client()
         assert hasattr(client, "_cross_client")
@@ -37,7 +37,8 @@ class TestDataApiClientResilience:
     async def test_circuit_open_entities_returns_empty(self):
         client = _make_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.get_all_entities()
@@ -47,7 +48,8 @@ class TestDataApiClientResilience:
     async def test_circuit_open_devices_returns_empty(self):
         client = _make_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.get_all_devices()
@@ -62,8 +64,10 @@ class TestDataApiClientResilience:
         mock_resp.json.return_value = {"entities": [{"entity_id": "light.test"}]}
 
         with patch.object(
-            client._cross_client, "call",
-            new_callable=AsyncMock, return_value=mock_resp,
+            client._cross_client,
+            "call",
+            new_callable=AsyncMock,
+            return_value=mock_resp,
         ):
             result = await client.get_all_entities()
             assert len(result) == 1
@@ -78,8 +82,10 @@ class TestDataApiClientResilience:
         mock_resp.json.return_value = {"devices": [{"id": "abc123"}]}
 
         with patch.object(
-            client._cross_client, "call",
-            new_callable=AsyncMock, return_value=mock_resp,
+            client._cross_client,
+            "call",
+            new_callable=AsyncMock,
+            return_value=mock_resp,
         ):
             result = await client.get_all_devices()
             assert len(result) == 1
@@ -92,12 +98,13 @@ class TestDataApiClientResilience:
 
 
 class TestGroupHealthCheck:
-
     @pytest.mark.asyncio
     async def test_healthy_response_format(self):
         from homeiq_resilience import GroupHealthCheck
+
         health = GroupHealthCheck(
-            group_name="automation-intelligence", version="1.0.0",
+            group_name="automation-intelligence",
+            version="1.0.0",
         )
         result = await health.to_dict()
         assert result["group"] == "automation-intelligence"
@@ -108,8 +115,10 @@ class TestGroupHealthCheck:
     @pytest.mark.asyncio
     async def test_degraded_features_reported(self):
         from homeiq_resilience import GroupHealthCheck
+
         health = GroupHealthCheck(
-            group_name="automation-intelligence", version="1.0.0",
+            group_name="automation-intelligence",
+            version="1.0.0",
         )
         health.add_degraded_feature("blueprint-matching")
         result = await health.to_dict()

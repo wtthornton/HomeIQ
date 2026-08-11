@@ -20,13 +20,20 @@ class BlueprintSuggestion(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     blueprint_id = Column(String, nullable=False, index=True)
     blueprint_name = Column(String, nullable=True)  # Blueprint name for display
-    blueprint_description = Column(Text, nullable=True)  # Blueprint description explaining what it does
+    blueprint_description = Column(
+        Text, nullable=True
+    )  # Blueprint description explaining what it does
     suggestion_score = Column(Float, nullable=False, index=True)
     matched_devices = Column(JSON, nullable=False)  # List of device signatures
     use_case = Column(String, index=True, nullable=True)
     status = Column(String, default="pending", index=True)  # pending, accepted, declined
     created_at = Column(DateTime, default=lambda: datetime.now(UTC), server_default=func.now())
-    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC), server_default=func.now())
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        server_default=func.now(),
+    )
     accepted_at = Column(DateTime, nullable=True)
     declined_at = Column(DateTime, nullable=True)
     conversation_id = Column(String, nullable=True)  # Link to Agent conversation

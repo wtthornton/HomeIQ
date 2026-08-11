@@ -55,9 +55,7 @@ class DataApiClient:
     async def get_all_devices(self, limit: int = 500) -> list[dict[str, Any]]:
         """Get all devices from data-api service."""
         try:
-            response = await self._cross_client.call(
-                "GET", "/api/devices", params={"limit": limit}
-            )
+            response = await self._cross_client.call("GET", "/api/devices", params={"limit": limit})
             response.raise_for_status()
             data = response.json()
             return data.get("devices", [])

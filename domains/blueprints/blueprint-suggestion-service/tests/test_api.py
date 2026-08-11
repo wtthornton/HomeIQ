@@ -7,30 +7,32 @@ Uses mocked database dependencies to avoid real DB connections.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def client():
     """Create a test client with mocked DB and services."""
     # Patch the database dependency before importing the app
-    with patch("src.database.init_db", new_callable=AsyncMock, return_value=True), \
-         patch("src.database.close_db", new_callable=AsyncMock), \
-         patch("src.database.get_db") as mock_get_db, \
-         patch("src.api.routes.init_schema_cache", new_callable=AsyncMock), \
-         patch("src.api.routes.check_schema_version", new_callable=AsyncMock, return_value=True):
-
+    with (
+        patch("src.database.init_db", new_callable=AsyncMock, return_value=True),
+        patch("src.database.close_db", new_callable=AsyncMock),
+        patch("src.database.get_db") as mock_get_db,
+        patch("src.api.routes.init_schema_cache", new_callable=AsyncMock),
+        patch("src.api.routes.check_schema_version", new_callable=AsyncMock, return_value=True),
+    ):
         mock_session = AsyncMock()
         mock_get_db.return_value = mock_session
 
         from src.main import app
+
         yield TestClient(app, raise_server_exceptions=False)
 
 
@@ -38,8 +40,8 @@ def client():
 # Health endpoint
 # ---------------------------------------------------------------------------
 
-class TestHealthEndpoint:
 
+class TestHealthEndpoint:
     def test_health_returns_200(self, client):
         """Health endpoint returns 200."""
         response = client.get("/health")
@@ -56,8 +58,8 @@ class TestHealthEndpoint:
 # Suggestions endpoint
 # ---------------------------------------------------------------------------
 
-class TestSuggestionsEndpoint:
 
+class TestSuggestionsEndpoint:
     def test_list_suggestions_endpoint_exists(self, client):
         """GET /api/blueprint-suggestions/suggestions does not 404."""
         response = client.get("/api/blueprint-suggestions/suggestions")
@@ -88,8 +90,8 @@ class TestSuggestionsEndpoint:
 # Stats endpoint
 # ---------------------------------------------------------------------------
 
-class TestStatsEndpoint:
 
+class TestStatsEndpoint:
     def test_stats_endpoint_exists(self, client):
         """GET /api/blueprint-suggestions/stats does not 404."""
         response = client.get("/api/blueprint-suggestions/stats")
@@ -100,8 +102,8 @@ class TestStatsEndpoint:
 # Generate endpoint
 # ---------------------------------------------------------------------------
 
-class TestGenerateEndpoint:
 
+class TestGenerateEndpoint:
     def test_generate_endpoint_exists(self, client):
         """POST /api/blueprint-suggestions/generate does not 404/405."""
         response = client.post(
@@ -124,8 +126,8 @@ class TestGenerateEndpoint:
 # Delete-all endpoint
 # ---------------------------------------------------------------------------
 
-class TestDeleteAllEndpoint:
 
+class TestDeleteAllEndpoint:
     def test_delete_all_requires_admin_key(self, client):
         """DELETE without X-Admin-Key is rejected (422 for missing header)."""
         response = client.delete("/api/blueprint-suggestions/delete-all")
@@ -154,8 +156,8 @@ class TestDeleteAllEndpoint:
 # Schema health endpoint
 # ---------------------------------------------------------------------------
 
-class TestSchemaHealthEndpoint:
 
+class TestSchemaHealthEndpoint:
     def test_schema_health_endpoint_exists(self, client):
         """GET /api/blueprint-suggestions/health/schema does not 404."""
         response = client.get("/api/blueprint-suggestions/health/schema")
@@ -166,8 +168,8 @@ class TestSchemaHealthEndpoint:
 # Accept / decline endpoints
 # ---------------------------------------------------------------------------
 
-class TestAcceptDeclineEndpoints:
 
+class TestAcceptDeclineEndpoints:
     def test_accept_endpoint_exists(self, client):
         """POST /{suggestion_id}/accept does not 404 for valid UUID."""
         response = client.post(
@@ -177,9 +179,7 @@ class TestAcceptDeclineEndpoints:
 
     def test_accept_rejects_invalid_uuid(self, client):
         """POST /{suggestion_id}/accept rejects non-UUID path."""
-        response = client.post(
-            "/api/blueprint-suggestions/not-a-uuid/accept"
-        )
+        response = client.post("/api/blueprint-suggestions/not-a-uuid/accept")
         assert response.status_code == 422
 
     def test_decline_endpoint_exists(self, client):

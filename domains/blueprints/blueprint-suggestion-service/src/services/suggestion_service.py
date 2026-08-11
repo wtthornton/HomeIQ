@@ -53,7 +53,9 @@ class SuggestionService:
                 id=str(uuid.uuid4()),
                 blueprint_id=suggestion_data["blueprint_id"],
                 blueprint_name=suggestion_data.get("blueprint_name"),  # Store blueprint name
-                blueprint_description=suggestion_data.get("blueprint_description"),  # Store blueprint description
+                blueprint_description=suggestion_data.get(
+                    "blueprint_description"
+                ),  # Store blueprint description
                 suggestion_score=suggestion_data["suggestion_score"],
                 matched_devices=suggestion_data["matched_devices"],
                 use_case=suggestion_data.get("use_case"),
