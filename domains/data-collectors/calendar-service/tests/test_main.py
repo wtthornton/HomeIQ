@@ -21,6 +21,8 @@ os.environ.setdefault("CALENDAR_ENTITIES", "calendar.personal,calendar.work")
 os.environ.setdefault("CALENDAR_FETCH_INTERVAL", "60")
 os.environ.setdefault("SERVICE_PORT", "8011")
 
+import contextlib
+
 from main import CalendarService, create_app
 
 
@@ -345,10 +347,8 @@ class TestCalendarService:
         await asyncio.sleep(0.1)  # Let it run briefly
         task.cancel()
 
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
 
         # After successful run, ha_connected should be True
         # (set in run_continuous after successful fetch and store)
@@ -374,10 +374,8 @@ class TestCalendarService:
         await asyncio.sleep(0.05)  # Let it run briefly
         task.cancel()
 
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
 
         # Should continue running despite InfluxDB error
         assert service.predict_home_status.call_count > 0
