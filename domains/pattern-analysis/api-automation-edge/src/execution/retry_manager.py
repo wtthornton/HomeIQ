@@ -106,9 +106,7 @@ class CircuitBreaker:
 
     def allow_request(self) -> bool:
         """Check if request should be allowed"""
-        if self.is_open():
-            return False
-        return True
+        return not self.is_open()
 
 
 class RetryManager:

@@ -5,17 +5,20 @@ Epic A2: WebSocket client with auth, resubscribe, heartbeat, metrics
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 import random
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import websockets
-from websockets.client import WebSocketClientProtocol
 
 from ..config import settings
+
+if TYPE_CHECKING:
+    from websockets.client import WebSocketClientProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -171,17 +174,13 @@ class HAWebSocketClient:
 
         if self._receive_task:
             self._receive_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._receive_task
-            except asyncio.CancelledError:
-                pass
 
         if self._ping_task:
             self._ping_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._ping_task
-            except asyncio.CancelledError:
-                pass
 
         if self.websocket:
             await self.websocket.close()

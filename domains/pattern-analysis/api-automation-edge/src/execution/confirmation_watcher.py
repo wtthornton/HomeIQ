@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-from ..clients.ha_websocket_client import HAWebSocketClient
+    from ..clients.ha_websocket_client import HAWebSocketClient
+
 
 logger = logging.getLogger(__name__)
 

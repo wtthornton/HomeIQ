@@ -129,7 +129,7 @@ class AutomationScheduler:
                 return scheduled_automation
 
             # Create and register periodic task
-            periodic_task = create_periodic_task_wrapper(spec_id, home_id, spec)
+            create_periodic_task_wrapper(spec_id, home_id, spec)
 
             # Store job ID (mapping spec_id to job_id)
             self.registered_schedules[spec_id] = job_id

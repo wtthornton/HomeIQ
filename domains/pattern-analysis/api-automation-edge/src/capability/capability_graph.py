@@ -5,6 +5,7 @@ Main service that coordinates inventory, updates, and drift detection
 """
 
 import asyncio
+import contextlib
 import logging
 from typing import Any
 
@@ -100,10 +101,8 @@ class CapabilityGraph:
 
         if self._refresh_task:
             self._refresh_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._refresh_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Capability graph stopped")
 
