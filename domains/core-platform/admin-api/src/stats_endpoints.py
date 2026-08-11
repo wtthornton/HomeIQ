@@ -34,7 +34,7 @@ class StatsEndpoints:
 
     def _seed_default_data(self) -> None:
         # Populate metrics with deterministic data
-        for index, service in enumerate(self.service_urls, start=1):
+        for index, _service in enumerate(self.service_urls, start=1):
             value = 100 * index
             metrics_service.collector.record_value("events_processed_total", float(value))
             metrics_service.collector.record_value("api_requests_total", float(value // 2))

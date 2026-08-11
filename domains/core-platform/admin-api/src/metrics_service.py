@@ -8,10 +8,10 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 
 
-class MetricType(str, Enum):
+class MetricType(StrEnum):
     GAUGE = "gauge"
     COUNTER = "counter"
     TIMER = "timer"

@@ -91,7 +91,7 @@ class ResponseTimeTracker:
         """Get stats for all tracked services"""
         async with self._lock:
             stats = {}
-            for service in self.measurements.keys():
+            for service in self.measurements:
                 stats[service] = self._get_stats_unlocked(service)
             return stats
 

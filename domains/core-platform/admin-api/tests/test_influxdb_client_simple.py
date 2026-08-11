@@ -112,7 +112,7 @@ async def test_successful_connection(mock_client_class, mock_test_connection):
 
     # Mock query_api
     client.client = mock_client
-    result = await client.connect()
+    await client.connect()
 
     # Should succeed but will fail due to missing query_api in mock
     # This is a simple test, just verify it tried to connect
