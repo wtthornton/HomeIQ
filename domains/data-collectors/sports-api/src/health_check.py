@@ -45,7 +45,7 @@ class HealthCheckHandler:
                 "uptime_seconds": int(uptime.total_seconds()),
                 "timestamp": now.isoformat(),
                 "components": self._component_status(service),
-                "metrics": self._metrics(service, now)
+                "metrics": self._metrics(service, now),
             }
 
             return health_data
@@ -57,7 +57,7 @@ class HealthCheckHandler:
                 "service": self.service_name,
                 "version": self.version,
                 "error": str(e),
-                "timestamp": datetime.now(UTC).isoformat()
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
     def get_uptime_seconds(self) -> int:
@@ -71,10 +71,12 @@ class HealthCheckHandler:
         if service.background_task and service.background_task.done():
             return "degraded"
         # Check if InfluxDB writes are failing persistently
-        if (hasattr(service, 'influx_write_failure_count') and
-            service.influx_write_failure_count > 0 and
-            hasattr(service, 'influx_write_success_count') and
-            service.influx_write_success_count == 0):
+        if (
+            hasattr(service, "influx_write_failure_count")
+            and service.influx_write_failure_count > 0
+            and hasattr(service, "influx_write_success_count")
+            and service.influx_write_success_count == 0
+        ):
             # All writes failing, no successes
             return "degraded"
         return "healthy"
@@ -86,10 +88,12 @@ class HealthCheckHandler:
                 "ha_client": "initializing",
                 "cache": "initializing",
                 "influxdb": "initializing",
-                "background_task": "not_started"
+                "background_task": "not_started",
             }
 
-        session_state = "healthy" if service.session and not service.session.closed else "not_initialized"
+        session_state = (
+            "healthy" if service.session and not service.session.closed else "not_initialized"
+        )
         cache_state = "healthy" if service.cached_sensors else "empty"
 
         # InfluxDB status: check client exists AND recent writes are succeeding
@@ -123,7 +127,7 @@ class HealthCheckHandler:
             "ha_client": session_state,
             "cache": cache_state,
             "influxdb": influx_state,
-            "background_task": task_state
+            "background_task": task_state,
         }
 
     def _metrics(self, service: SportsService | None, now: datetime) -> dict[str, Any]:
@@ -139,12 +143,15 @@ class HealthCheckHandler:
             "sensors_processed": service.sensors_processed,
             "poll_interval_seconds": service.poll_interval,
             "cache_age_seconds": cache_age,
-            "last_successful_fetch": service.last_successful_fetch.isoformat() if service.last_successful_fetch else None,
-            "last_influx_write": service.last_influx_write.isoformat() if service.last_influx_write else None,
+            "last_successful_fetch": service.last_successful_fetch.isoformat()
+            if service.last_successful_fetch
+            else None,
+            "last_influx_write": service.last_influx_write.isoformat()
+            if service.last_influx_write
+            else None,
             "last_influx_write_error": service.last_influx_write_error,
-            "influx_write_success_count": getattr(service, 'influx_write_success_count', 0),
-            "influx_write_failure_count": getattr(service, 'influx_write_failure_count', 0),
+            "influx_write_success_count": getattr(service, "influx_write_success_count", 0),
+            "influx_write_failure_count": getattr(service, "influx_write_failure_count", 0),
             "last_background_error": service.last_background_error,
-            "cached_sensors_count": len(service.cached_sensors) if service.cached_sensors else 0
+            "cached_sensors_count": len(service.cached_sensors) if service.cached_sensors else 0,
         }
-

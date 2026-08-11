@@ -127,13 +127,15 @@ class SportsService:
         service components, and statistics counters.
         """
         # Home Assistant configuration (no default: must be configured explicitly)
-        self.ha_url = (os.getenv('HA_HTTP_URL') or os.getenv('HOME_ASSISTANT_URL') or '').rstrip('/')
-        self.ha_token = os.getenv('HA_TOKEN') or os.getenv('HOME_ASSISTANT_TOKEN')
+        self.ha_url = (os.getenv("HA_HTTP_URL") or os.getenv("HOME_ASSISTANT_URL") or "").rstrip(
+            "/"
+        )
+        self.ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
         if not self.ha_url:
             logger.error(
                 "HA_HTTP_URL/HOME_ASSISTANT_URL not set — sports polling cannot reach Home Assistant"
             )
-        self.poll_interval = int(os.getenv('SPORTS_POLL_INTERVAL', '60'))
+        self.poll_interval = int(os.getenv("SPORTS_POLL_INTERVAL", "60"))
 
         # InfluxDB configuration with fallback hostnames
         self._init_influxdb_config()
@@ -142,10 +144,10 @@ class SportsService:
 
     def _init_influxdb_config(self) -> None:
         """Initialize InfluxDB configuration with fallback hostnames for DNS resilience."""
-        influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
+        influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
         parsed_url = self._parse_influxdb_url(influxdb_url)
-        self.influxdb_host = parsed_url['host']
-        self.influxdb_port = parsed_url['port']
+        self.influxdb_host = parsed_url["host"]
+        self.influxdb_port = parsed_url["port"]
 
         # Build fallback URL list for DNS resilience
         fallback_hosts = self._parse_fallback_hosts()
@@ -153,31 +155,33 @@ class SportsService:
 
         logger.info(f"InfluxDB fallback URLs configured: {len(self.influxdb_urls)} URLs")
         self.influxdb_url = influxdb_url
-        self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
-        self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
-        self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'home_assistant_events')
-        self.max_influx_retries = int(os.getenv('INFLUXDB_WRITE_RETRIES', '3'))
+        self.influxdb_token = os.getenv("INFLUXDB_TOKEN")
+        self.influxdb_org = os.getenv("INFLUXDB_ORG", "home_assistant")
+        self.influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
+        self.max_influx_retries = int(os.getenv("INFLUXDB_WRITE_RETRIES", "3"))
         self.working_influxdb_host: str | None = None
 
     def _parse_influxdb_url(self, url: str) -> dict[str, str]:
         """Parse InfluxDB URL to extract host and port components."""
-        parsed = urlparse(url if '://' in url else f'http://{url}')
+        parsed = urlparse(url if "://" in url else f"http://{url}")
         return {
-            'host': parsed.hostname or url.split(':')[0],
-            'port': str(parsed.port) if parsed.port else '8086'
+            "host": parsed.hostname or url.split(":")[0],
+            "port": str(parsed.port) if parsed.port else "8086",
         }
 
     def _parse_fallback_hosts(self) -> list[str]:
         """Parse INFLUXDB_FALLBACK_HOSTS environment variable into a list."""
-        fallback_hosts_env = os.getenv('INFLUXDB_FALLBACK_HOSTS', 'influxdb,homeiq-influxdb,localhost')
-        return [h.strip() for h in fallback_hosts_env.split(',') if h.strip()]
+        fallback_hosts_env = os.getenv(
+            "INFLUXDB_FALLBACK_HOSTS", "influxdb,homeiq-influxdb,localhost"
+        )
+        return [h.strip() for h in fallback_hosts_env.split(",") if h.strip()]
 
     def _build_influxdb_urls(self, primary_url: str, fallback_hosts: list[str]) -> list[str]:
         """Build URL list from primary and fallback hosts for DNS resilience."""
         urls = [primary_url]
         for host in fallback_hosts:
             if host != self.influxdb_host:
-                urls.append(f'http://{host}:{self.influxdb_port}')
+                urls.append(f"http://{host}:{self.influxdb_port}")
         return urls
 
     def _init_cache(self) -> None:
@@ -214,13 +218,17 @@ class SportsService:
         logger.info("Initializing Sports API Service...")
 
         connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)
-        self.session = aiohttp.ClientSession(connector=connector, timeout=aiohttp.ClientTimeout(total=10))
+        self.session = aiohttp.ClientSession(
+            connector=connector, timeout=aiohttp.ClientTimeout(total=10)
+        )
 
         # Try to connect to InfluxDB with fallback hostnames
         self.influxdb_client = await self._initialize_influxdb()
 
         if not self.influxdb_client:
-            logger.warning("InfluxDB client initialization failed - service will continue but writes will fail")
+            logger.warning(
+                "InfluxDB client initialization failed - service will continue but writes will fail"
+            )
 
         logger.info("Sports API Service initialized")
 
@@ -242,7 +250,7 @@ class SportsService:
                     host=url,
                     token=self.influxdb_token,
                     database=self.influxdb_bucket,
-                    org=self.influxdb_org
+                    org=self.influxdb_org,
                 )
 
                 self.working_influxdb_host = url
@@ -279,8 +287,8 @@ class SportsService:
         Returns:
             True if the entity is a Team Tracker sensor.
         """
-        entity_id = state.get('entity_id', '')
-        return entity_id.startswith('sensor.') and 'team_tracker' in entity_id
+        entity_id = state.get("entity_id", "")
+        return entity_id.startswith("sensor.") and "team_tracker" in entity_id
 
     def _redact_token(self, message: str) -> str:
         """Redact HA bearer token from error messages for safe logging.
@@ -301,10 +309,7 @@ class SportsService:
         Returns:
             List of raw state dictionaries, or empty list on error.
         """
-        headers = {
-            "Authorization": f"Bearer {self.ha_token}",
-            "Content-Type": "application/json"
-        }
+        headers = {"Authorization": f"Bearer {self.ha_token}", "Content-Type": "application/json"}
         url = f"{self.ha_url}/api/states"
         async with self.session.get(url, headers=headers) as response:
             if response.status == 200:
@@ -363,9 +368,9 @@ class SportsService:
         Returns:
             Normalized dictionary with core game data and automation attributes.
         """
-        entity_id = sensor.get('entity_id', '')
-        state = sensor.get('state', 'NOT_FOUND')
-        attributes = sensor.get('attributes', {})
+        entity_id = sensor.get("entity_id", "")
+        state = sensor.get("state", "NOT_FOUND")
+        attributes = sensor.get("attributes", {})
 
         # Build normalized data from core + automation attributes
         parsed = self._extract_core_attributes(entity_id, state, attributes, sensor)
@@ -387,28 +392,28 @@ class SportsService:
             Dictionary with core game data fields.
         """
         return {
-            'entity_id': entity_id,
-            'state': state,
-            'sport': attributes.get('sport', ''),
-            'league': attributes.get('league', ''),
-            'team_abbr': attributes.get('team_abbr', ''),
-            'team_name': attributes.get('team_name', ''),
-            'team_id': attributes.get('team_id', ''),
-            'opponent_abbr': attributes.get('opponent_abbr', ''),
-            'opponent_name': attributes.get('opponent_name', ''),
-            'opponent_id': attributes.get('opponent_id', ''),
-            'team_score': attributes.get('team_score'),
-            'opponent_score': attributes.get('opponent_score'),
-            'quarter': attributes.get('quarter'),
-            'clock': attributes.get('clock'),
-            'venue': attributes.get('venue', ''),
-            'location': attributes.get('location', ''),
-            'date': attributes.get('date', ''),
-            'kickoff_in': attributes.get('kickoff_in', ''),
-            'tv_network': attributes.get('tv_network', ''),
-            'last_update': attributes.get('last_update', sensor.get('last_updated', '')),
-            'last_updated': sensor.get('last_updated', ''),
-            'last_changed': sensor.get('last_changed', ''),
+            "entity_id": entity_id,
+            "state": state,
+            "sport": attributes.get("sport", ""),
+            "league": attributes.get("league", ""),
+            "team_abbr": attributes.get("team_abbr", ""),
+            "team_name": attributes.get("team_name", ""),
+            "team_id": attributes.get("team_id", ""),
+            "opponent_abbr": attributes.get("opponent_abbr", ""),
+            "opponent_name": attributes.get("opponent_name", ""),
+            "opponent_id": attributes.get("opponent_id", ""),
+            "team_score": attributes.get("team_score"),
+            "opponent_score": attributes.get("opponent_score"),
+            "quarter": attributes.get("quarter"),
+            "clock": attributes.get("clock"),
+            "venue": attributes.get("venue", ""),
+            "location": attributes.get("location", ""),
+            "date": attributes.get("date", ""),
+            "kickoff_in": attributes.get("kickoff_in", ""),
+            "tv_network": attributes.get("tv_network", ""),
+            "last_update": attributes.get("last_update", sensor.get("last_updated", "")),
+            "last_updated": sensor.get("last_updated", ""),
+            "last_changed": sensor.get("last_changed", ""),
         }
 
     def _extract_automation_attributes(self, attributes: dict[str, Any]) -> dict[str, Any]:
@@ -425,12 +430,12 @@ class SportsService:
             Dictionary with automation-specific fields.
         """
         return {
-            'team_homeaway': attributes.get('team_homeaway', ''),
-            'team_colors': attributes.get('team_colors', []),
-            'team_winner': attributes.get('team_winner'),
-            'opponent_winner': attributes.get('opponent_winner'),
-            'event_name': attributes.get('event_name', ''),
-            'last_play': attributes.get('last_play', ''),
+            "team_homeaway": attributes.get("team_homeaway", ""),
+            "team_colors": attributes.get("team_colors", []),
+            "team_winner": attributes.get("team_winner"),
+            "opponent_winner": attributes.get("opponent_winner"),
+            "event_name": attributes.get("event_name", ""),
+            "last_play": attributes.get("last_play", ""),
         }
 
     async def store_in_influxdb(self, sensors: list[dict[str, Any]]) -> None:
@@ -481,19 +486,21 @@ class SportsService:
         Returns:
             InfluxDB Point object
         """
-        point = Point("sports_data") \
-            .tag("entity_id", sensor_data['entity_id']) \
-            .tag("sport", sensor_data.get('sport', '')) \
-            .tag("league", sensor_data.get('league', '')) \
-            .tag("team_abbr", sensor_data.get('team_abbr', '')) \
-            .tag("team_id", str(sensor_data.get('team_id', ''))) \
-            .tag("state", sensor_data['state']) \
+        point = (
+            Point("sports_data")
+            .tag("entity_id", sensor_data["entity_id"])
+            .tag("sport", sensor_data.get("sport", ""))
+            .tag("league", sensor_data.get("league", ""))
+            .tag("team_abbr", sensor_data.get("team_abbr", ""))
+            .tag("team_id", str(sensor_data.get("team_id", "")))
+            .tag("state", sensor_data["state"])
             .time(timestamp)
+        )
 
-        team_score = self._safe_int(sensor_data.get('team_score'))
+        team_score = self._safe_int(sensor_data.get("team_score"))
         if team_score is not None:
             point = point.field("team_score", team_score)
-        opponent_score = self._safe_int(sensor_data.get('opponent_score'))
+        opponent_score = self._safe_int(sensor_data.get("opponent_score"))
         if opponent_score is not None:
             point = point.field("opponent_score", opponent_score)
 
@@ -521,16 +528,16 @@ class SportsService:
         Returns:
             Updated InfluxDB Point object.
         """
-        if sensor_data.get('quarter'):
-            point = point.field("quarter", str(sensor_data['quarter']))
-        if sensor_data.get('clock'):
-            point = point.field("clock", str(sensor_data['clock']))
-        if sensor_data.get('opponent_abbr'):
-            point = point.tag("opponent_abbr", sensor_data['opponent_abbr'])
-        if sensor_data.get('opponent_id'):
-            point = point.tag("opponent_id", str(sensor_data['opponent_id']))
-        if sensor_data.get('venue'):
-            point = point.tag("venue", sensor_data['venue'])
+        if sensor_data.get("quarter"):
+            point = point.field("quarter", str(sensor_data["quarter"]))
+        if sensor_data.get("clock"):
+            point = point.field("clock", str(sensor_data["clock"]))
+        if sensor_data.get("opponent_abbr"):
+            point = point.tag("opponent_abbr", sensor_data["opponent_abbr"])
+        if sensor_data.get("opponent_id"):
+            point = point.tag("opponent_id", str(sensor_data["opponent_id"]))
+        if sensor_data.get("venue"):
+            point = point.tag("venue", sensor_data["venue"])
         return point
 
     def _add_team_colors(self, point: Point, team_colors: list) -> Point:
@@ -560,24 +567,24 @@ class SportsService:
         Returns:
             Updated InfluxDB Point object.
         """
-        if sensor_data.get('team_homeaway'):
-            point = point.tag("team_homeaway", sensor_data['team_homeaway'])
+        if sensor_data.get("team_homeaway"):
+            point = point.tag("team_homeaway", sensor_data["team_homeaway"])
 
-        point = self._add_team_colors(point, sensor_data.get('team_colors', []))
+        point = self._add_team_colors(point, sensor_data.get("team_colors", []))
 
-        team_winner = sensor_data.get('team_winner')
+        team_winner = sensor_data.get("team_winner")
         if team_winner is not None:
             point = point.field("team_winner", str(team_winner).lower())
 
-        opponent_winner = sensor_data.get('opponent_winner')
+        opponent_winner = sensor_data.get("opponent_winner")
         if opponent_winner is not None:
             point = point.field("opponent_winner", str(opponent_winner).lower())
 
-        if sensor_data.get('event_name'):
-            point = point.field("event_name", sensor_data['event_name'])
+        if sensor_data.get("event_name"):
+            point = point.field("event_name", sensor_data["event_name"])
 
-        if sensor_data.get('last_play'):
-            point = point.field("last_play", sensor_data['last_play'])
+        if sensor_data.get("last_play"):
+            point = point.field("last_play", sensor_data["last_play"])
 
         return point
 
@@ -638,7 +645,9 @@ class SportsService:
             return True
 
         backoff = 2 ** (attempt - 1)
-        logger.warning(f"InfluxDB write failed (attempt {attempt}/{self.max_influx_retries}). Retrying in {backoff}s")
+        logger.warning(
+            f"InfluxDB write failed (attempt {attempt}/{self.max_influx_retries}). Retrying in {backoff}s"
+        )
         await asyncio.sleep(backoff)
         return False
 
@@ -660,7 +669,9 @@ class SportsService:
             attempt: Current retry attempt number
             _error: The exception that occurred (logged at call site)
         """
-        logger.warning(f"DNS resolution failed (attempt {attempt}/{self.max_influx_retries}), attempting to reconnect...")
+        logger.warning(
+            f"DNS resolution failed (attempt {attempt}/{self.max_influx_retries}), attempting to reconnect..."
+        )
         self.influxdb_client = await self._initialize_influxdb()
 
     def _record_successful_write(self, point_count: int) -> None:
@@ -726,7 +737,7 @@ class SportsService:
                 consecutive_errors += 1
                 self.last_background_error = str(e)
                 logger.error(f"Error in continuous loop: {e}")
-                backoff = min(300, (2 ** consecutive_errors) + random.uniform(0, 1))  # noqa: S311
+                backoff = min(300, (2**consecutive_errors) + random.uniform(0, 1))  # noqa: S311
                 await asyncio.sleep(backoff)
 
     def start_background_task(self) -> asyncio.Task:
@@ -818,7 +829,7 @@ async def root() -> dict[str, Any]:
         "service": SERVICE_NAME,
         "version": SERVICE_VERSION,
         "status": "running",
-        "endpoints": ["/health", "/sports-data", "/stats"]
+        "endpoints": ["/health", "/sports-data", "/stats"],
     }
 
 
@@ -840,7 +851,9 @@ async def get_sports_data(_api_key: str = Depends(verify_api_key)) -> SportsData
     return SportsDataResponse(
         sensors=sensors,
         count=len(sensors),
-        last_update=sports_service.last_successful_fetch.isoformat() if sports_service.last_successful_fetch else None
+        last_update=sports_service.last_successful_fetch.isoformat()
+        if sports_service.last_successful_fetch
+        else None,
     )
 
 
@@ -855,10 +868,16 @@ async def stats(_api_key: str = Depends(verify_api_key)) -> dict[str, Any]:
         "sensors_processed": sports_service.sensors_processed,
         "influx_write_success": sports_service.influx_write_success_count,
         "influx_write_failures": sports_service.influx_write_failure_count,
-        "last_successful_fetch": sports_service.last_successful_fetch.isoformat() if sports_service.last_successful_fetch else None,
-        "last_influx_write": sports_service.last_influx_write.isoformat() if sports_service.last_influx_write else None,
+        "last_successful_fetch": sports_service.last_successful_fetch.isoformat()
+        if sports_service.last_successful_fetch
+        else None,
+        "last_influx_write": sports_service.last_influx_write.isoformat()
+        if sports_service.last_influx_write
+        else None,
         "poll_interval_seconds": sports_service.poll_interval,
-        "cached_sensors_count": len(sports_service.cached_sensors) if sports_service.cached_sensors else 0
+        "cached_sensors_count": len(sports_service.cached_sensors)
+        if sports_service.cached_sensors
+        else 0,
     }
 
 
@@ -871,4 +890,3 @@ if __name__ == "__main__":
         port=settings.service_port,
         reload=True,
     )
-
