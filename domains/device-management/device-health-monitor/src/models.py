@@ -3,13 +3,13 @@ Health Report Models
 Phase 1.2: Data models for device health reports
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class HealthSeverity(str, Enum):
+class HealthSeverity(StrEnum):
     """Health issue severity levels"""
 
     INFO = "info"
