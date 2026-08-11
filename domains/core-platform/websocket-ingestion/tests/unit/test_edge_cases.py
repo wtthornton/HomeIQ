@@ -403,9 +403,9 @@ class TestConfigurationEdgeCases:
         # Mock missing env vars
         with patch.dict("os.environ", {}, clear=True):
             try:
-                service = WebSocketIngestionService()
+                WebSocketIngestionService()
                 # Should initialize with defaults or raise clear error
-                assert service is not None or True  # Either is acceptable
+                assert True  # Either is acceptable
             except (ValueError, KeyError) as e:
                 # Acceptable if missing required vars raise error
                 assert "url" in str(e).lower() or "token" in str(e).lower()

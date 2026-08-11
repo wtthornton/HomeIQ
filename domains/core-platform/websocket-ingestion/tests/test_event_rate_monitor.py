@@ -72,15 +72,15 @@ class TestEventRateMonitorEventRecording:
         monitor = EventRateMonitor()
 
         # Record state_changed events
-        for i in range(5):
+        for _i in range(5):
             await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         # Record service_registered events
-        for i in range(3):
+        for _i in range(3):
             await monitor.record_event({"event_type": "service_registered"})
 
         # Record call_service events
-        for i in range(2):
+        for _i in range(2):
             await monitor.record_event({"event_type": "call_service"})
 
         assert monitor.total_events == 10
@@ -93,11 +93,11 @@ class TestEventRateMonitorEventRecording:
         monitor = EventRateMonitor()
 
         # Record events for light.1
-        for i in range(3):
+        for _i in range(3):
             await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         # Record events for light.2
-        for i in range(2):
+        for _i in range(2):
             await monitor.record_event({"event_type": "state_changed", "entity_id": "light.2"})
 
         assert monitor.events_by_entity["light.1"] == 3
@@ -135,7 +135,7 @@ class TestEventRateMonitorRateCalculation:
         monitor = EventRateMonitor()
 
         # Record 10 events
-        for i in range(10):
+        for _i in range(10):
             await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         rate = await monitor.get_current_rate(window_minutes=1)
@@ -148,7 +148,7 @@ class TestEventRateMonitorRateCalculation:
         monitor = EventRateMonitor()
 
         # Record 50 events
-        for i in range(50):
+        for _i in range(50):
             await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         rate = await monitor.get_current_rate(window_minutes=5)
@@ -169,7 +169,7 @@ class TestEventRateMonitorRateCalculation:
         monitor = EventRateMonitor()
 
         # Record some events
-        for i in range(60):
+        for _i in range(60):
             await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         average_rate = await monitor.get_average_rate(window_minutes=60)
@@ -220,13 +220,13 @@ class TestEventRateMonitorStatistics:
         monitor = EventRateMonitor()
 
         # Record events with different frequencies
-        for i in range(10):
+        for _i in range(10):
             await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
-        for i in range(5):
+        for _i in range(5):
             await monitor.record_event({"event_type": "state_changed", "entity_id": "light.2"})
 
-        for i in range(2):
+        for _i in range(2):
             await monitor.record_event({"event_type": "state_changed", "entity_id": "light.3"})
 
         stats = await monitor.get_rate_statistics()
@@ -271,14 +271,14 @@ class TestEventRateMonitorAlerts:
         monitor = EventRateMonitor()
 
         # Record baseline events
-        for i in range(10):
+        for _i in range(10):
             await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         # Simulate time passing and establish average
         time.sleep(0.1)
 
         # Record many more events to trigger high rate alert
-        for i in range(100):
+        for _i in range(100):
             await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         alerts = await monitor.get_rate_alerts()
@@ -336,7 +336,7 @@ class TestEventRateMonitorStatisticsReset:
         monitor = EventRateMonitor()
 
         # Record some events
-        for i in range(10):
+        for _i in range(10):
             await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         assert monitor.total_events == 10
@@ -435,7 +435,7 @@ class TestEventRateMonitorRateTrends:
         monitor = EventRateMonitor()
 
         # Record some events
-        for i in range(30):
+        for _i in range(30):
             await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         stats = await monitor.get_rate_statistics()
@@ -449,7 +449,7 @@ class TestEventRateMonitorRateTrends:
         monitor = EventRateMonitor()
 
         # Record some events
-        for i in range(30):
+        for _i in range(30):
             await monitor.record_event({"event_type": "state_changed", "entity_id": "light.1"})
 
         stats = await monitor.get_rate_statistics()

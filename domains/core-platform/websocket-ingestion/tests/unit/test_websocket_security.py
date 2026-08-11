@@ -122,7 +122,7 @@ class TestRateLimiter:
         connection_id = "test_connection_1"
 
         # Send 30 messages (within limit)
-        for i in range(30):
+        for _i in range(30):
             allowed, error = limiter.check_rate_limit(connection_id)
             assert allowed is True
             assert error is None
@@ -133,7 +133,7 @@ class TestRateLimiter:
         connection_id = "test_connection_2"
 
         # Send messages up to limit
-        for i in range(5):
+        for _i in range(5):
             allowed, error = limiter.check_rate_limit(connection_id)
             assert allowed is True
             assert error is None
@@ -150,7 +150,7 @@ class TestRateLimiter:
         connection_id = "test_connection_3"
 
         # Exceed limit
-        for i in range(5):
+        for _i in range(5):
             limiter.check_rate_limit(connection_id)
 
         # Verify limit exceeded
@@ -170,7 +170,7 @@ class TestRateLimiter:
         connection_2 = "connection_2"
 
         # Exceed limit for connection_1
-        for i in range(5):
+        for _i in range(5):
             limiter.check_rate_limit(connection_1)
 
         # Connection_1 should be limited
@@ -188,7 +188,7 @@ class TestRateLimiter:
         connection_id = "test_connection_4"
 
         # Send messages up to limit
-        for i in range(5):
+        for _i in range(5):
             limiter.check_rate_limit(connection_id)
 
         # Verify limit exceeded

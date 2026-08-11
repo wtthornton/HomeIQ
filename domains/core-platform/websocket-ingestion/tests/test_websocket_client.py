@@ -48,7 +48,7 @@ class TestHomeAssistantWebSocketClient:
         """Test connection with invalid token"""
         client = HomeAssistantWebSocketClient(self.base_url, "invalid")
 
-        with patch("src.websocket_client.ClientSession") as mock_session:
+        with patch("src.websocket_client.ClientSession"):
             result = await client.connect()
 
             assert result is False

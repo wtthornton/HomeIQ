@@ -163,44 +163,42 @@ class TestWebSocketIngestionService:
     @pytest.mark.asyncio
     async def test_startup_with_influxdb_failure(self, service):
         """Test service startup when InfluxDB connection fails"""
-        with patch("src.main.MemoryManager") as mock_memory:
-            with patch("src.main.EventQueue"):
-                with patch("src.main.BatchProcessor"):
-                    with patch("src.main.AsyncEventProcessor"):
-                        with patch("src.main.InfluxDBConnectionManager") as mock_influxdb_mgr:
-                            with patch("src.main.HistoricalEventCounter"):
-                                with patch("src.influxdb_batch_writer.InfluxDBBatchWriter"):
-                                    # Setup InfluxDB to fail
-                                    mock_influxdb_mgr.return_value.start = AsyncMock(
-                                        side_effect=Exception("Connection failed")
-                                    )
+        with patch("src.main.MemoryManager"), patch("src.main.EventQueue"):
+            with patch("src.main.BatchProcessor"):
+                with patch("src.main.AsyncEventProcessor"):
+                    with patch("src.main.InfluxDBConnectionManager") as mock_influxdb_mgr:
+                        with patch("src.main.HistoricalEventCounter"):
+                            with patch("src.influxdb_batch_writer.InfluxDBBatchWriter"):
+                                # Setup InfluxDB to fail
+                                mock_influxdb_mgr.return_value.start = AsyncMock(
+                                    side_effect=Exception("Connection failed")
+                                )
 
-                                    # Should raise exception
-                                    with pytest.raises(Exception):
-                                        await service.start()
+                                # Should raise exception
+                                with pytest.raises(Exception):
+                                    await service.start()
 
     @pytest.mark.asyncio
     async def test_startup_with_batch_writer_failure(self, service):
         """Test service startup when batch writer fails to start"""
-        with patch("src.main.MemoryManager"):
-            with patch("src.main.EventQueue"):
-                with patch("src.main.BatchProcessor"):
-                    with patch("src.main.AsyncEventProcessor"):
-                        with patch("src.main.InfluxDBConnectionManager") as mock_influxdb_mgr:
-                            with patch("src.main.HistoricalEventCounter"):
-                                with patch(
-                                    "src.influxdb_batch_writer.InfluxDBBatchWriter"
-                                ) as mock_batch_writer:
-                                    # Setup InfluxDB to succeed
-                                    mock_influxdb_mgr.return_value.start = AsyncMock()
-                                    # Setup batch writer to fail
-                                    mock_batch_writer.return_value.start = AsyncMock(
-                                        side_effect=Exception("Batch writer failed")
-                                    )
+        with patch("src.main.MemoryManager"), patch("src.main.EventQueue"):
+            with patch("src.main.BatchProcessor"):
+                with patch("src.main.AsyncEventProcessor"):
+                    with patch("src.main.InfluxDBConnectionManager") as mock_influxdb_mgr:
+                        with patch("src.main.HistoricalEventCounter"):
+                            with patch(
+                                "src.influxdb_batch_writer.InfluxDBBatchWriter"
+                            ) as mock_batch_writer:
+                                # Setup InfluxDB to succeed
+                                mock_influxdb_mgr.return_value.start = AsyncMock()
+                                # Setup batch writer to fail
+                                mock_batch_writer.return_value.start = AsyncMock(
+                                    side_effect=Exception("Batch writer failed")
+                                )
 
-                                    # Should raise exception
-                                    with pytest.raises(Exception):
-                                        await service.start()
+                                # Should raise exception
+                                with pytest.raises(Exception):
+                                    await service.start()
 
     @pytest.mark.asyncio
     async def test_stop_with_partial_initialization(self, service):

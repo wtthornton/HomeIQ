@@ -152,7 +152,6 @@ class TestConnectionManagerEnhanced:
 
     def test_configure_retry_parameters_partial(self):
         """Test configuring only some retry parameters"""
-        original_max_retries = self.connection_manager.max_retries
         original_base_delay = self.connection_manager.base_delay
 
         self.connection_manager.configure_retry_parameters(max_retries=15)
@@ -199,9 +198,7 @@ class TestConnectionManagerEnhanced:
 
         async def mock_connect():
             connection_attempts.append(len(connection_attempts) + 1)
-            if len(connection_attempts) < 3:
-                return False
-            return True
+            return not len(connection_attempts) < 3
 
         self.connection_manager._connect = mock_connect
         # is_running is derived from the state machine, so drive the state

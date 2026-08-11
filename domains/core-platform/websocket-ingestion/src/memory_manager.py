@@ -3,6 +3,7 @@ Memory Manager for High-Volume Event Processing
 """
 
 import asyncio
+import contextlib
 import gc
 import logging
 import weakref
@@ -84,10 +85,8 @@ class MemoryManager:
         # Cancel monitoring task
         if self.monitoring_task:
             self.monitoring_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.monitoring_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Stopped memory manager")
 

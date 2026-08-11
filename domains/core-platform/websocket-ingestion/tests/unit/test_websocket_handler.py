@@ -341,7 +341,7 @@ class TestMessageValidation:
         rate_limiter.reset(connection_id)
 
         # Check rate limit multiple times
-        for i in range(65):  # Exceed 60/minute limit
+        for _i in range(65):  # Exceed 60/minute limit
             allowed, error = rate_limiter.check_rate_limit(connection_id)
             if not allowed:
                 assert error is not None

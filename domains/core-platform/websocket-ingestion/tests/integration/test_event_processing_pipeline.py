@@ -16,6 +16,8 @@ import pytest
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
+import contextlib
+
 from src.async_event_processor import AsyncEventProcessor
 from src.batch_processor import BatchProcessor
 
@@ -59,10 +61,8 @@ async def batch_processor():
     yield processor
 
     # Cleanup
-    try:
+    with contextlib.suppress(BaseException):
         await processor.shutdown()
-    except:
-        pass
 
 
 @pytest.mark.asyncio

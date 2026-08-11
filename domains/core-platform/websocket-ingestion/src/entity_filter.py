@@ -215,10 +215,7 @@ class EntityFilter:
             return True
 
         # Check area_id
-        if pattern.get("area_id") and area_id and pattern["area_id"] == area_id:
-            return True
-
-        return False
+        return bool(pattern.get("area_id") and area_id and pattern["area_id"] == area_id)
 
     def _entity_matches_pattern(
         self,
@@ -247,10 +244,7 @@ class EntityFilter:
             return True
 
         # Check area_id
-        if pattern_dict.get("area_id") and area_id and pattern_dict["area_id"] == area_id:
-            return True
-
-        return False
+        return bool(pattern_dict.get("area_id") and area_id and pattern_dict["area_id"] == area_id)
 
     def get_statistics(self) -> dict[str, Any]:
         """

@@ -155,31 +155,31 @@ class InfluxDBConnectionManager:
         import aiohttp
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(
                     f"{self.url}/health", timeout=aiohttp.ClientTimeout(total=self.timeout)
-                ) as response:
-                    if response.status == 200:
-                        logger.debug("InfluxDB health check passed")
-                        return
-                    else:
-                        raise Exception(
-                            f"InfluxDB health check failed with status {response.status}"
-                        )
+                ) as response,
+            ):
+                if response.status == 200:
+                    logger.debug("InfluxDB health check passed")
+                    return
+                else:
+                    raise Exception(f"InfluxDB health check failed with status {response.status}")
         except Exception as e:
             # Fallback to simple ping endpoint
             try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(
+                async with (
+                    aiohttp.ClientSession() as session,
+                    session.get(
                         f"{self.url}/ping", timeout=aiohttp.ClientTimeout(total=self.timeout)
-                    ) as response:
-                        if response.status == 204:  # Ping returns 204 No Content on success
-                            logger.debug("InfluxDB ping check passed")
-                            return
-                        else:
-                            raise Exception(
-                                f"InfluxDB ping check failed with status {response.status}"
-                            )
+                    ) as response,
+                ):
+                    if response.status == 204:  # Ping returns 204 No Content on success
+                        logger.debug("InfluxDB ping check passed")
+                        return
+                    else:
+                        raise Exception(f"InfluxDB ping check failed with status {response.status}")
             except Exception as ping_error:
                 raise Exception(
                     f"InfluxDB connection test failed: {e}, ping also failed: {ping_error}"
