@@ -1,7 +1,6 @@
 """Tests for entity safety blacklist enforcement in Stage 5 — Epic 93 Story 93.3."""
 
 import pytest
-
 from yaml_validation_service.validator import ValidationPipeline
 
 

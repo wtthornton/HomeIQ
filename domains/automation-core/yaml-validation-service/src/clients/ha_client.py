@@ -62,9 +62,7 @@ class HAServiceClient:
             return services
 
         except httpx.TimeoutException:
-            logger.warning(
-                "Timeout connecting to Home Assistant at %s", self._ha_url
-            )
+            logger.warning("Timeout connecting to Home Assistant at %s", self._ha_url)
             return {}
         except httpx.HTTPStatusError as exc:
             logger.warning(

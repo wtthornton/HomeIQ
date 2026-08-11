@@ -41,6 +41,7 @@ def _load_blacklist(config_path: Path | None = None) -> dict[str, Any]:
 @dataclass
 class ValidationResult:
     """Validation result with errors, warnings, score, and fixes."""
+
     valid: bool = True
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -88,17 +89,11 @@ class ValidationPipeline:
         # Epic 93: Load entity blacklist for Stage 5 enforcement
         bl = _load_blacklist()
         self._blocked_domains: set[str] = set(bl.get("blocked_domains") or [])
-        self._blocked_entities: set[str] = {
-            e.lower() for e in (bl.get("blocked_entities") or [])
-        }
+        self._blocked_entities: set[str] = {e.lower() for e in (bl.get("blocked_entities") or [])}
         self._blocked_services: set[str] = set(bl.get("blocked_services") or [])
         self._warn_domains: set[str] = set(bl.get("warn_domains") or [])
 
-    async def validate(
-        self,
-        yaml_content: str,
-        normalize: bool = True
-    ) -> ValidationResult:
+    async def validate(self, yaml_content: str, normalize: bool = True) -> ValidationResult:
         """
         Validate YAML through multi-stage pipeline.
 
@@ -124,6 +119,7 @@ class ValidationPipeline:
         normalized_yaml = yaml_content
         if normalize:
             from .normalizer import YAMLNormalizer
+
             normalizer = YAMLNormalizer()
             normalized_yaml, fixes = normalizer.normalize(yaml_content)
             if fixes:
@@ -222,10 +218,7 @@ class ValidationPipeline:
         except yaml.YAMLError as e:
             errors.append(f"YAML syntax error: {str(e)}")
 
-        return {
-            "valid": len(errors) == 0,
-            "errors": errors
-        }
+        return {"valid": len(errors) == 0, "errors": errors}
 
     def _validate_schema(self, data: dict[str, Any]) -> dict[str, Any]:
         """Stage 2: Schema validation."""
@@ -263,7 +256,9 @@ class ValidationPipeline:
         if "description" not in data:
             warnings.append("Missing recommended field: 'description'")
         if "initial_state" not in data:
-            errors.append("Missing required field: 'initial_state' (must be 'true' for 2025.10+ compliance)")
+            errors.append(
+                "Missing required field: 'initial_state' (must be 'true' for 2025.10+ compliance)"
+            )
 
         # Validate trigger structure
         if "trigger" in data and isinstance(data["trigger"], list):
@@ -306,11 +301,7 @@ class ValidationPipeline:
                         "Use target: {entity_id: ...} instead of entity_id: ... directly in action."
                     )
 
-        return {
-            "valid": len(errors) == 0,
-            "errors": errors,
-            "warnings": warnings
-        }
+        return {"valid": len(errors) == 0, "errors": errors, "warnings": warnings}
 
     async def _validate_referential_integrity(self, data: dict[str, Any]) -> dict[str, Any]:
         """
@@ -337,7 +328,11 @@ class ValidationPipeline:
                 valid_entity_ids = {e.get("entity_id") for e in entities if e.get("entity_id")}
 
                 # Build entity state map for state validation
-                entity_states = {e.get("entity_id"): e.get("state") for e in entities if e.get("entity_id") and e.get("state")}
+                entity_states = {
+                    e.get("entity_id"): e.get("state")
+                    for e in entities
+                    if e.get("entity_id") and e.get("state")
+                }
 
                 # Check which entities are invalid
                 invalid_entities = [eid for eid in entity_ids if eid not in valid_entity_ids]
@@ -365,11 +360,7 @@ class ValidationPipeline:
             logger.error(f"Referential integrity validation failed: {e}")
             warnings.append(f"Could not validate entities/areas: {str(e)}")
 
-        return {
-            "valid": len(errors) == 0,
-            "errors": errors,
-            "warnings": warnings
-        }
+        return {"valid": len(errors) == 0, "errors": errors, "warnings": warnings}
 
     def _validate_entity_states(
         self,
@@ -426,7 +417,10 @@ class ValidationPipeline:
                                 valid_states = valid_states_by_domain[domain]
                                 if isinstance(to_state, str) and to_state not in valid_states:
                                     # Check if it's a list (multiple states)
-                                    if not (isinstance(to_state, list) and all(s in valid_states for s in to_state)):
+                                    if not (
+                                        isinstance(to_state, list)
+                                        and all(s in valid_states for s in to_state)
+                                    ):
                                         warnings.append(
                                             f"State trigger for {entity_id}: 'to' state '{to_state}' may be invalid "
                                             f"(expected one of: {', '.join(valid_states)})"
@@ -475,8 +469,7 @@ class ValidationPipeline:
         for service in services:
             if "." not in service:
                 warnings.append(
-                    f"Service '{service}' may be invalid "
-                    "(expected format: domain.service)"
+                    f"Service '{service}' may be invalid (expected format: domain.service)"
                 )
 
         # Validate against live HA service registry
@@ -715,10 +708,15 @@ class ValidationPipeline:
                             # Check for delay in sequence/parallel
                             if "sequence" in prev_action or "parallel" in prev_action:
                                 # Recursively check nested actions
-                                nested_actions = prev_action.get("sequence") or prev_action.get("parallel", [])
+                                nested_actions = prev_action.get("sequence") or prev_action.get(
+                                    "parallel", []
+                                )
                                 if isinstance(nested_actions, list):
                                     for nested_action in nested_actions:
-                                        if isinstance(nested_action, dict) and "delay" in nested_action:
+                                        if (
+                                            isinstance(nested_action, dict)
+                                            and "delay" in nested_action
+                                        ):
                                             return True
 
         return False
@@ -736,6 +734,7 @@ class ValidationPipeline:
         errors = []
         try:
             from jinja2 import Environment, TemplateSyntaxError
+
             env = Environment(autoescape=True)
             env.parse(template_string)
         except ImportError:
@@ -748,7 +747,9 @@ class ValidationPipeline:
             errors.append(f"Template validation error: {str(e)}")
         return errors
 
-    def _extract_templates_from_data(self, data: Any, templates: list[tuple[str, str]] | None = None, path: str = "root") -> list[tuple[str, str]]:
+    def _extract_templates_from_data(
+        self, data: Any, templates: list[tuple[str, str]] | None = None, path: str = "root"
+    ) -> list[tuple[str, str]]:
         """
         Extract template strings from automation data.
 
@@ -799,7 +800,9 @@ class ValidationPipeline:
         if "action" in data and isinstance(data["action"], list):
             for i, action in enumerate(data["action"]):
                 if isinstance(action, dict) and "continue_on_error" in action:
-                    warnings.append(f"Action {i}: Use 'error' field instead of deprecated 'continue_on_error'")
+                    warnings.append(
+                        f"Action {i}: Use 'error' field instead of deprecated 'continue_on_error'"
+                    )
 
         # Validate Jinja2 template syntax
         templates = self._extract_templates_from_data(data)
@@ -816,13 +819,11 @@ class ValidationPipeline:
                     "Use condition: state with for: option instead for continuous occupancy detection."
                 )
 
-        return {
-            "valid": len(errors) == 0,
-            "errors": errors,
-            "warnings": warnings
-        }
+        return {"valid": len(errors) == 0, "errors": errors, "warnings": warnings}
 
-    def _extract_entity_ids(self, data: Any, entity_ids: list[str] | None = None, context: str = "root") -> list[str]:
+    def _extract_entity_ids(
+        self, data: Any, entity_ids: list[str] | None = None, context: str = "root"
+    ) -> list[str]:
         """
         Extract entity IDs from automation data (Epic 51.7: Enhanced extraction).
 
@@ -852,45 +853,73 @@ class ValidationPipeline:
                     if self._is_valid_entity_id(entity_id):
                         entity_ids.append(entity_id)
                 elif isinstance(entity_id, list):
-                    entity_ids.extend([
-                        eid for eid in entity_id
-                        if isinstance(eid, str) and "." in eid and self._is_valid_entity_id(eid)
-                    ])
+                    entity_ids.extend(
+                        [
+                            eid
+                            for eid in entity_id
+                            if isinstance(eid, str) and "." in eid and self._is_valid_entity_id(eid)
+                        ]
+                    )
 
             # Extract from state triggers (platform: state)
             if context == "trigger" and "platform" in data and data.get("platform") == "state":
                 if "entity_id" in data:
                     entity_id = data["entity_id"]
-                    if isinstance(entity_id, str) and "." in entity_id and self._is_valid_entity_id(entity_id):
+                    if (
+                        isinstance(entity_id, str)
+                        and "." in entity_id
+                        and self._is_valid_entity_id(entity_id)
+                    ):
                         entity_ids.append(entity_id)
                     elif isinstance(entity_id, list):
-                        entity_ids.extend([
-                            eid for eid in entity_id
-                            if isinstance(eid, str) and "." in eid and self._is_valid_entity_id(eid)
-                        ])
+                        entity_ids.extend(
+                            [
+                                eid
+                                for eid in entity_id
+                                if isinstance(eid, str)
+                                and "." in eid
+                                and self._is_valid_entity_id(eid)
+                            ]
+                        )
 
             # Extract from conditions
             if context == "condition" and "entity_id" in data:
                 entity_id = data["entity_id"]
-                if isinstance(entity_id, str) and "." in entity_id and self._is_valid_entity_id(entity_id):
+                if (
+                    isinstance(entity_id, str)
+                    and "." in entity_id
+                    and self._is_valid_entity_id(entity_id)
+                ):
                     entity_ids.append(entity_id)
                 elif isinstance(entity_id, list):
-                    entity_ids.extend([
-                        eid for eid in entity_id
-                        if isinstance(eid, str) and "." in eid and self._is_valid_entity_id(eid)
-                    ])
+                    entity_ids.extend(
+                        [
+                            eid
+                            for eid in entity_id
+                            if isinstance(eid, str) and "." in eid and self._is_valid_entity_id(eid)
+                        ]
+                    )
 
             # Extract from target.entity_id (actions)
             if "target" in data and isinstance(data["target"], dict):
                 if "entity_id" in data["target"]:
                     entity_id = data["target"]["entity_id"]
-                    if isinstance(entity_id, str) and "." in entity_id and self._is_valid_entity_id(entity_id):
+                    if (
+                        isinstance(entity_id, str)
+                        and "." in entity_id
+                        and self._is_valid_entity_id(entity_id)
+                    ):
                         entity_ids.append(entity_id)
                     elif isinstance(entity_id, list):
-                        entity_ids.extend([
-                            eid for eid in entity_id
-                            if isinstance(eid, str) and "." in eid and self._is_valid_entity_id(eid)
-                        ])
+                        entity_ids.extend(
+                            [
+                                eid
+                                for eid in entity_id
+                                if isinstance(eid, str)
+                                and "." in eid
+                                and self._is_valid_entity_id(eid)
+                            ]
+                        )
 
             # Recursively process nested structures, but skip service names
             for key, value in data.items():
@@ -901,7 +930,9 @@ class ValidationPipeline:
                 if key in ("description", "alias", "name"):
                     continue
                 # Process with context awareness
-                new_context = key if key in ("trigger", "action", "condition", "target") else context
+                new_context = (
+                    key if key in ("trigger", "action", "condition", "target") else context
+                )
                 self._extract_entity_ids(value, entity_ids, new_context)
 
         elif isinstance(data, list):
@@ -1063,4 +1094,3 @@ class ValidationPipeline:
             return f"✅ Validation passed with {len(result.warnings)} warning(s)"
         else:
             return f"❌ Validation failed with {len(result.errors)} error(s) and {len(result.warnings)} warning(s)"
-

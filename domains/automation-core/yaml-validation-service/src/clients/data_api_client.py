@@ -60,4 +60,3 @@ class DataAPIClient:
     async def close(self):
         """Close HTTP client."""
         await self.client.aclose()
-

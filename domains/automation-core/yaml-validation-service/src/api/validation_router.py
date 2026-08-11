@@ -18,6 +18,7 @@ router = APIRouter(prefix="/api/v1/validation", tags=["validation"])
 
 class ValidationRequest(BaseModel):
     """Validation request model."""
+
     yaml_content: str = Field(..., description="YAML content to validate")
     normalize: bool = Field(True, description="Whether to normalize YAML")
     validate_entities: bool = Field(True, description="Whether to validate entities")
@@ -26,6 +27,7 @@ class ValidationRequest(BaseModel):
 
 class ValidationResponse(BaseModel):
     """Validation response model."""
+
     valid: bool
     errors: list[str]
     warnings: list[str]
@@ -84,8 +86,7 @@ async def validate_yaml(
 
         # Validate
         result: ValidationResult = await pipeline.validate(
-            request.yaml_content,
-            normalize=request.normalize and settings.enable_normalization
+            request.yaml_content, normalize=request.normalize and settings.enable_normalization
         )
 
         return ValidationResponse(
@@ -95,7 +96,7 @@ async def validate_yaml(
             score=result.score,
             fixed_yaml=result.fixed_yaml,
             fixes_applied=result.fixes_applied,
-            summary=result.summary
+            summary=result.summary,
         )
 
     except Exception as e:
@@ -121,12 +122,8 @@ async def normalize_yaml(yaml_content: str) -> dict[str, Any]:
         normalizer = YAMLNormalizer()
         normalized_yaml, fixes = normalizer.normalize(yaml_content)
 
-        return {
-            "normalized_yaml": normalized_yaml,
-            "fixes_applied": fixes
-        }
+        return {"normalized_yaml": normalized_yaml, "fixes_applied": fixes}
 
     except Exception as e:
         logger.error(f"Normalization failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Normalization error: {str(e)}") from e
-

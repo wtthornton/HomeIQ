@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 # Lifespan
 # ---------------------------------------------------------------------------
 
+
 async def _startup_log() -> None:
     logger.info("Service Port: %s", settings.service_port)
     logger.info("Validation Level: %s", settings.validation_level)
