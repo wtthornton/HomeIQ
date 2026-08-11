@@ -85,13 +85,11 @@ class DeviceCache:
                 "manufacturer": manufacturer,
                 "model": model,
                 "device_info": device_info,
-                "cached_at": datetime.now(UTC).isoformat()
+                "cached_at": datetime.now(UTC).isoformat(),
             }
 
             # Atomic write: write to temp file then replace
-            fd, tmp_path = tempfile.mkstemp(
-                dir=str(self.cache_dir), suffix=".tmp"
-            )
+            fd, tmp_path = tempfile.mkstemp(dir=str(self.cache_dir), suffix=".tmp")
             try:
                 with os.fdopen(fd, "w") as f:
                     json.dump(data, f, indent=2)

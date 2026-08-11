@@ -13,19 +13,14 @@ from typing import Any
 logger = logging.getLogger("device-database-client")
 
 # Backoff constants
-MIN_BACKOFF_SECONDS = 60       # 1 minute
-MAX_BACKOFF_SECONDS = 3600     # 1 hour
+MIN_BACKOFF_SECONDS = 60  # 1 minute
+MAX_BACKOFF_SECONDS = 3600  # 1 hour
 
 
 class DeviceSyncService:
     """Background service for syncing device data"""
 
-    def __init__(
-        self,
-        db_client: Any,
-        cache: Any,
-        sync_interval_hours: int = 24
-    ):
+    def __init__(self, db_client: Any, cache: Any, sync_interval_hours: int = 24):
         """
         Initialize sync service.
 
@@ -93,7 +88,7 @@ class DeviceSyncService:
         failed = 0
 
         # Get all cached entries and check staleness
-        if hasattr(self.cache, 'cache_dir') and self.cache.cache_dir.exists():
+        if hasattr(self.cache, "cache_dir") and self.cache.cache_dir.exists():
             for cache_file in self.cache.cache_dir.glob("*.json"):
                 try:
                     with cache_file.open() as f:
