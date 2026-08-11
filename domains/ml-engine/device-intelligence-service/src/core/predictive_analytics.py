@@ -44,6 +44,7 @@ from ..models.database import Device, DeviceHealthMetric
 # Optional import - only needed if ML_FAILURE_MODEL=tabpfn
 try:
     from .tabpfn_predictor import TabPFNFailurePredictor
+
     TABPFN_AVAILABLE = True
 except ImportError:
     TABPFN_AVAILABLE = False
@@ -66,16 +67,24 @@ class PredictiveAnalyticsEngine:
         self.models = {
             "failure_prediction": None,
             "anomaly_detection": None,
-            "maintenance_scheduling": None
+            "maintenance_scheduling": None,
         }
         self.scalers = {
             "failure_prediction": StandardScaler(),
-            "anomaly_detection": StandardScaler()
+            "anomaly_detection": StandardScaler(),
         }
         self.feature_columns = [
-            "response_time", "error_rate", "battery_level", "signal_strength",
-            "usage_frequency", "temperature", "humidity", "uptime_hours",
-            "restart_count", "connection_drops", "data_transfer_rate"
+            "response_time",
+            "error_rate",
+            "battery_level",
+            "signal_strength",
+            "usage_frequency",
+            "temperature",
+            "humidity",
+            "uptime_hours",
+            "restart_count",
+            "connection_drops",
+            "data_transfer_rate",
         ]
         self.model_performance = {}
         self.is_trained = False
@@ -89,7 +98,7 @@ class PredictiveAnalyticsEngine:
             "feature_columns": self.feature_columns,
             "training_parameters": {},
             "data_source": "unknown",
-            "model_type": self.settings.ML_FAILURE_MODEL.lower()
+            "model_type": self.settings.ML_FAILURE_MODEL.lower(),
         }
 
         # Ensure models directory exists
@@ -98,6 +107,7 @@ class PredictiveAnalyticsEngine:
         # Initialize metrics tracker
         try:
             from .ml_metrics import MLMetricsTracker
+
             self.metrics_tracker = MLMetricsTracker()
             self.metrics_tracker.load_metrics()
         except Exception as e:
@@ -115,7 +125,15 @@ class PredictiveAnalyticsEngine:
             anomaly_scaler_path = models_dir / "anomaly_detection_scaler.pkl"
             metadata_path = models_dir / "model_metadata.json"
 
-            if all(p.exists() for p in [failure_model_path, anomaly_model_path, failure_scaler_path, anomaly_scaler_path]):
+            if all(
+                p.exists()
+                for p in [
+                    failure_model_path,
+                    anomaly_model_path,
+                    failure_scaler_path,
+                    anomaly_scaler_path,
+                ]
+            ):
                 self.models["failure_prediction"] = joblib.load(failure_model_path)
                 self.models["anomaly_detection"] = joblib.load(anomaly_model_path)
                 self.scalers["failure_prediction"] = joblib.load(failure_scaler_path)
@@ -126,7 +144,9 @@ class PredictiveAnalyticsEngine:
                     try:
                         with metadata_path.open() as f:
                             self.model_metadata = json.load(f)
-                        logger.info(f"Model metadata loaded: version {self.model_metadata.get('version', 'unknown')}")
+                        logger.info(
+                            f"Model metadata loaded: version {self.model_metadata.get('version', 'unknown')}"
+                        )
                     except Exception as e:
                         logger.warning(f"Could not load model metadata: {e}")
 
@@ -144,7 +164,9 @@ class PredictiveAnalyticsEngine:
             )
             await self.train_models()
 
-    async def train_models(self, historical_data: list[dict[str, Any]] = None, days_back: int = 180):
+    async def train_models(
+        self, historical_data: list[dict[str, Any]] = None, days_back: int = 180
+    ):
         """Train machine learning models."""
         training_start_time = datetime.now(UTC)
         data_source = "database"
@@ -152,7 +174,9 @@ class PredictiveAnalyticsEngine:
         if not historical_data:
             historical_data = await self._collect_training_data(days_back=days_back)
             # Check if we used sample data (fallback)
-            if historical_data and historical_data[0].get("device_id", "").startswith("sample_device_"):
+            if historical_data and historical_data[0].get("device_id", "").startswith(
+                "sample_device_"
+            ):
                 data_source = "sample"
 
         if len(historical_data) < 100:
@@ -175,15 +199,19 @@ class PredictiveAnalyticsEngine:
                 timestamps = [d.get("timestamp") for d in historical_data if d.get("timestamp")]
                 if timestamps:
                     date_range = {
-                        "start": min(timestamps) if isinstance(timestamps[0], str) else min(timestamps).isoformat(),
-                        "end": max(timestamps) if isinstance(timestamps[0], str) else max(timestamps).isoformat()
+                        "start": min(timestamps)
+                        if isinstance(timestamps[0], str)
+                        else min(timestamps).isoformat(),
+                        "end": max(timestamps)
+                        if isinstance(timestamps[0], str)
+                        else max(timestamps).isoformat(),
                     }
 
             training_data_stats = {
                 "sample_count": len(historical_data),
                 "unique_devices": unique_devices,
                 "date_range": date_range,
-                "days_back": days_back
+                "days_back": days_back,
             }
 
             # Split data
@@ -202,7 +230,7 @@ class PredictiveAnalyticsEngine:
                 "max_depth": 10,
                 "contamination": 0.1,
                 "test_size": 0.2,
-                "random_state": 42
+                "random_state": 42,
             }
 
             # Train failure prediction model based on configuration
@@ -212,16 +240,21 @@ class PredictiveAnalyticsEngine:
             if self.settings.ML_USE_INCREMENTAL:
                 try:
                     from .incremental_predictor import IncrementalFailurePredictor
+
                     logger.info("Training incremental failure prediction model (River)")
                     self.models["failure_prediction"] = IncrementalFailurePredictor(
                         memory_buffer_size=self.settings.ML_INCREMENTAL_UPDATE_THRESHOLD
                     )
                     # Incremental model uses unscaled features
-                    self.models["failure_prediction"].fit(X_train, y_failure_train, feature_names=self.feature_columns)
+                    self.models["failure_prediction"].fit(
+                        X_train, y_failure_train, feature_names=self.feature_columns
+                    )
                     model_type = "incremental"
                     logger.info("Incremental model trained (10-50x faster updates enabled)")
                 except ImportError:
-                    logger.warning("River library not available, falling back to configured model type")
+                    logger.warning(
+                        "River library not available, falling back to configured model type"
+                    )
                     model_type = self.settings.ML_FAILURE_MODEL.lower()
 
             if model_type != "incremental":
@@ -234,18 +267,22 @@ class PredictiveAnalyticsEngine:
                         "TabPFN requested but not available. Falling back to RandomForest. "
                         "Install TabPFN with: pip install tabpfn>=2.2.0,<7.0.0"
                     )
-                    model_type = "randomforest"# Fallback - will be handled below
+                    model_type = "randomforest"  # Fallback - will be handled below
                 else:
                     self.models["failure_prediction"] = TabPFNFailurePredictor()
                     # TabPFN works better without scaling, use original features
-                    self.models["failure_prediction"].fit(X_train, y_failure_train, feature_names=self.feature_columns)
+                    self.models["failure_prediction"].fit(
+                        X_train, y_failure_train, feature_names=self.feature_columns
+                    )
                     # Update scaler to identity for TabPFN (no scaling needed)
                     from sklearn.preprocessing import FunctionTransformer
+
                     self.scalers["failure_prediction"] = FunctionTransformer()
             elif model_type == "lightgbm":
                 # LightGBM - 2-5x faster than RandomForest
                 try:
                     from lightgbm import LGBMClassifier
+
                     self.models["failure_prediction"] = LGBMClassifier(
                         n_estimators=training_params["n_estimators"],
                         max_depth=training_params["max_depth"],
@@ -253,7 +290,7 @@ class PredictiveAnalyticsEngine:
                         class_weight="balanced",
                         device="cpu",
                         verbose=-1,
-                        force_col_wise=True
+                        force_col_wise=True,
                     )
                     self.models["failure_prediction"].fit(X_train_scaled, y_failure_train)
                     logger.info("LightGBM model trained (2-5x faster than RandomForest)")
@@ -267,7 +304,7 @@ class PredictiveAnalyticsEngine:
                     n_estimators=training_params["n_estimators"],
                     max_depth=training_params["max_depth"],
                     random_state=training_params["random_state"],
-                    class_weight="balanced"
+                    class_weight="balanced",
                 )
                 self.models["failure_prediction"].fit(X_train_scaled, y_failure_train)
                 logger.info("RandomForest model trained")
@@ -279,7 +316,7 @@ class PredictiveAnalyticsEngine:
             # Train anomaly detection model
             self.models["anomaly_detection"] = IsolationForest(
                 contamination=training_params["contamination"],
-                random_state=training_params["random_state"]
+                random_state=training_params["random_state"],
             )
             self.models["anomaly_detection"].fit(X_train_scaled)
 
@@ -293,9 +330,13 @@ class PredictiveAnalyticsEngine:
 
             # Validate models before saving (use appropriate test set based on model type)
             if model_type == "tabpfn":
-                validation_result = await self._validate_models(X_test, y_failure_test, use_scaled=False)
+                validation_result = await self._validate_models(
+                    X_test, y_failure_test, use_scaled=False
+                )
             else:
-                validation_result = await self._validate_models(X_test_scaled, y_failure_test, use_scaled=True)
+                validation_result = await self._validate_models(
+                    X_test_scaled, y_failure_test, use_scaled=True
+                )
             if not validation_result["valid"]:
                 logger.warning(f"Model validation failed: {validation_result['reason']}")
                 logger.warning("Models will not be saved. Using existing models if available.")
@@ -312,8 +353,10 @@ class PredictiveAnalyticsEngine:
                 "feature_columns": self.feature_columns.copy(),
                 "training_parameters": training_params,
                 "data_source": data_source,
-                "training_duration_seconds": (datetime.now(UTC) - training_start_time).total_seconds(),
-                "validation": validation_result
+                "training_duration_seconds": (
+                    datetime.now(UTC) - training_start_time
+                ).total_seconds(),
+                "validation": validation_result,
             }
 
             # Save models and metadata
@@ -326,7 +369,9 @@ class PredictiveAnalyticsEngine:
                 return
 
             self.is_trained = True
-            logger.info(f"Models trained, validated, and saved successfully (version {self.model_metadata['version']})")
+            logger.info(
+                f"Models trained, validated, and saved successfully (version {self.model_metadata['version']})"
+            )
 
         except Exception as e:
             logger.error(f"Error training models: {e}", exc_info=True)
@@ -346,7 +391,9 @@ class PredictiveAnalyticsEngine:
         except Exception:
             return "1.0.1"
 
-    async def predict_device_failure(self, device_id: str, metrics: dict[str, Any]) -> dict[str, Any]:
+    async def predict_device_failure(
+        self, device_id: str, metrics: dict[str, Any]
+    ) -> dict[str, Any]:
         """Predict device failure probability."""
         if not self.is_trained:
             return await self._rule_based_prediction(device_id, metrics)
@@ -364,7 +411,9 @@ class PredictiveAnalyticsEngine:
                 features_for_prediction = features_scaled
 
             # Predict failure probability
-            failure_probability = self.models["failure_prediction"].predict_proba(features_for_prediction)[0][1]
+            failure_probability = self.models["failure_prediction"].predict_proba(
+                features_for_prediction
+            )[0][1]
 
             # Detect anomalies (always use scaled features for IsolationForest)
             if model_type != "tabpfn":
@@ -389,14 +438,16 @@ class PredictiveAnalyticsEngine:
                 "confidence": self._calculate_confidence(failure_probability, anomaly_score),
                 "recommendations": recommendations,
                 "predicted_at": datetime.now(UTC).isoformat(),
-                "model_version": "1.0"
+                "model_version": "1.0",
             }
 
         except Exception as e:
             logger.error(f"Error predicting failure for device {device_id}: {e}")
             return await self._rule_based_prediction(device_id, metrics)
 
-    async def predict_all_devices(self, devices_metrics: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    async def predict_all_devices(
+        self, devices_metrics: dict[str, dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Predict failure probability for all devices."""
         predictions = []
 
@@ -407,13 +458,15 @@ class PredictiveAnalyticsEngine:
             except Exception as e:
                 logger.error(f"Error predicting failure for device {device_id}: {e}")
                 # Add fallback prediction
-                predictions.append({
-                    "device_id": device_id,
-                    "failure_probability": 0.0,
-                    "risk_level": "unknown",
-                    "error": str(e),
-                    "predicted_at": datetime.now(UTC).isoformat()
-                })
+                predictions.append(
+                    {
+                        "device_id": device_id,
+                        "failure_probability": 0.0,
+                        "risk_level": "unknown",
+                        "error": str(e),
+                        "predicted_at": datetime.now(UTC).isoformat(),
+                    }
+                )
 
         return predictions
 
@@ -444,17 +497,21 @@ class PredictiveAnalyticsEngine:
 
         # Create failure labels (simplified - devices with high error rate or low battery)
         y_failure = (
-            (df["error_rate"] > 0.1) |
-            (df["battery_level"] < 20) |
-            (df["response_time"] > 2000)
-        ).astype(int).values
+            ((df["error_rate"] > 0.1) | (df["battery_level"] < 20) | (df["response_time"] > 2000))
+            .astype(int)
+            .values
+        )
 
         # Create anomaly labels (devices with unusual patterns)
         y_anomaly = (
-            (df["signal_strength"] < -80) |
-            (df["connection_drops"] > 10) |
-            (df["restart_count"] > 5)
-        ).astype(int).values
+            (
+                (df["signal_strength"] < -80)
+                | (df["connection_drops"] > 10)
+                | (df["restart_count"] > 5)
+            )
+            .astype(int)
+            .values
+        )
 
         return X, y_failure, y_anomaly
 
@@ -468,9 +525,11 @@ class PredictiveAnalyticsEngine:
                 cutoff_date = datetime.now(UTC) - timedelta(days=days_back)
 
                 # Query device health metrics from the last N days
-                stmt = select(DeviceHealthMetric).where(
-                    DeviceHealthMetric.timestamp >= cutoff_date
-                ).order_by(DeviceHealthMetric.device_id, DeviceHealthMetric.timestamp)
+                stmt = (
+                    select(DeviceHealthMetric)
+                    .where(DeviceHealthMetric.timestamp >= cutoff_date)
+                    .order_by(DeviceHealthMetric.device_id, DeviceHealthMetric.timestamp)
+                )
 
                 result = await session.execute(stmt)
                 metrics = result.scalars().all()
@@ -489,7 +548,9 @@ class PredictiveAnalyticsEngine:
                     logger.warning("Training data validation failed, using sample data")
                     return await self._generate_sample_training_data()
 
-                logger.info(f"Collected {len(training_data)} training samples from {len({d['device_id'] for d in training_data})} devices")
+                logger.info(
+                    f"Collected {len(training_data)} training samples from {len({d['device_id'] for d in training_data})} devices"
+                )
                 return training_data
 
         except RuntimeError as e:
@@ -504,10 +565,7 @@ class PredictiveAnalyticsEngine:
             return await self._generate_sample_training_data()
 
     async def _aggregate_metrics_by_device(
-        self,
-        session: AsyncSession,
-        metrics: list[DeviceHealthMetric],
-        _days_back: int
+        self, session: AsyncSession, metrics: list[DeviceHealthMetric], _days_back: int
     ) -> list[dict[str, Any]]:
         """Aggregate metrics by device into training samples."""
         # Group metrics by device_id
@@ -550,17 +608,33 @@ class PredictiveAnalyticsEngine:
             # Map metric names to feature columns
             sample = {
                 "device_id": device_id,
-                "response_time": self._get_metric_value(metric_groups, ["response_time", "latency", "delay"], 500.0),
-                "error_rate": self._get_metric_value(metric_groups, ["error_rate", "errors", "error_count"], 0.0),
-                "battery_level": self._get_metric_value(metric_groups, ["battery", "battery_level", "battery_percentage"], 100.0),
-                "signal_strength": self._get_metric_value(metric_groups, ["signal", "signal_strength", "rssi"], -60.0),
-                "usage_frequency": self._get_metric_value(metric_groups, ["usage", "usage_frequency", "activity"], 0.5),
+                "response_time": self._get_metric_value(
+                    metric_groups, ["response_time", "latency", "delay"], 500.0
+                ),
+                "error_rate": self._get_metric_value(
+                    metric_groups, ["error_rate", "errors", "error_count"], 0.0
+                ),
+                "battery_level": self._get_metric_value(
+                    metric_groups, ["battery", "battery_level", "battery_percentage"], 100.0
+                ),
+                "signal_strength": self._get_metric_value(
+                    metric_groups, ["signal", "signal_strength", "rssi"], -60.0
+                ),
+                "usage_frequency": self._get_metric_value(
+                    metric_groups, ["usage", "usage_frequency", "activity"], 0.5
+                ),
                 "temperature": self._get_metric_value(metric_groups, ["temperature", "temp"], 25.0),
                 "humidity": self._get_metric_value(metric_groups, ["humidity", "hum"], 50.0),
                 "uptime_hours": uptime_hours,
-                "restart_count": self._get_metric_value(metric_groups, ["restart", "restart_count", "reboot"], 0.0),
-                "connection_drops": self._get_metric_value(metric_groups, ["connection_drops", "disconnects", "drop"], 0.0),
-                "data_transfer_rate": self._get_metric_value(metric_groups, ["data_rate", "transfer_rate", "throughput"], 1000.0),
+                "restart_count": self._get_metric_value(
+                    metric_groups, ["restart", "restart_count", "reboot"], 0.0
+                ),
+                "connection_drops": self._get_metric_value(
+                    metric_groups, ["connection_drops", "disconnects", "drop"], 0.0
+                ),
+                "data_transfer_rate": self._get_metric_value(
+                    metric_groups, ["data_rate", "transfer_rate", "throughput"], 1000.0
+                ),
             }
 
             # Add device metadata if available
@@ -576,10 +650,7 @@ class PredictiveAnalyticsEngine:
         return training_samples
 
     def _get_metric_value(
-        self,
-        metric_groups: dict[str, list[float]],
-        possible_names: list[str],
-        default: float
+        self, metric_groups: dict[str, list[float]], possible_names: list[str], default: float
     ) -> float:
         """Get metric value by trying multiple possible metric names."""
         for name in possible_names:
@@ -629,24 +700,28 @@ class PredictiveAnalyticsEngine:
         # Generate sample training data
         np.random.seed(42)
         for i in range(200):
-            sample_data.append({
-                "device_id": f"sample_device_{i}",
-                "response_time": np.random.normal(500, 200),
-                "error_rate": np.random.exponential(0.05),
-                "battery_level": np.random.normal(70, 20),
-                "signal_strength": np.random.normal(-60, 15),
-                "usage_frequency": np.random.uniform(0.1, 1.0),
-                "temperature": np.random.normal(25, 5),
-                "humidity": np.random.normal(50, 10),
-                "uptime_hours": np.random.exponential(100),
-                "restart_count": np.random.poisson(2),
-                "connection_drops": np.random.poisson(1),
-                "data_transfer_rate": np.random.normal(1000, 200)
-            })
+            sample_data.append(
+                {
+                    "device_id": f"sample_device_{i}",
+                    "response_time": np.random.normal(500, 200),
+                    "error_rate": np.random.exponential(0.05),
+                    "battery_level": np.random.normal(70, 20),
+                    "signal_strength": np.random.normal(-60, 15),
+                    "usage_frequency": np.random.uniform(0.1, 1.0),
+                    "temperature": np.random.normal(25, 5),
+                    "humidity": np.random.normal(50, 10),
+                    "uptime_hours": np.random.exponential(100),
+                    "restart_count": np.random.poisson(2),
+                    "connection_drops": np.random.poisson(1),
+                    "data_transfer_rate": np.random.normal(1000, 200),
+                }
+            )
 
         return sample_data
 
-    async def _rule_based_prediction(self, device_id: str, metrics: dict[str, Any]) -> dict[str, Any]:
+    async def _rule_based_prediction(
+        self, device_id: str, metrics: dict[str, Any]
+    ) -> dict[str, Any]:
         """Fallback rule-based prediction when ML models are not available."""
         failure_score = 0
 
@@ -673,7 +748,7 @@ class PredictiveAnalyticsEngine:
                 device_id, metrics, failure_score / 100, 0.0
             ),
             "predicted_at": datetime.now(UTC).isoformat(),
-            "model_version": "rule-based"
+            "model_version": "rule-based",
         }
 
     def _get_risk_level(self, probability: float) -> str:
@@ -707,7 +782,7 @@ class PredictiveAnalyticsEngine:
         _device_id: str,
         metrics: dict[str, Any],
         failure_probability: float,
-        anomaly_score: float
+        anomaly_score: float,
     ) -> list[str]:
         """Generate maintenance recommendations."""
         recommendations = []
@@ -735,7 +810,9 @@ class PredictiveAnalyticsEngine:
 
         return recommendations
 
-    async def _evaluate_models(self, X_test: np.ndarray, y_test: np.ndarray, use_scaled: bool = True):
+    async def _evaluate_models(
+        self, X_test: np.ndarray, y_test: np.ndarray, use_scaled: bool = True
+    ):
         """
         Evaluate model performance.
 
@@ -757,19 +834,23 @@ class PredictiveAnalyticsEngine:
                 "precision": float(precision),
                 "recall": float(recall),
                 "f1_score": float(f1),
-                "evaluated_at": datetime.now(UTC).isoformat()
+                "evaluated_at": datetime.now(UTC).isoformat(),
             }
 
-            logger.info(f"Model performance: Accuracy={accuracy:.3f}, Precision={precision:.3f}, Recall={recall:.3f}, F1={f1:.3f}")
+            logger.info(
+                f"Model performance: Accuracy={accuracy:.3f}, Precision={precision:.3f}, Recall={recall:.3f}, F1={f1:.3f}"
+            )
 
         except Exception as e:
             logger.error(f"Error evaluating models: {e}")
             self.model_performance = {
                 "error": str(e),
-                "evaluated_at": datetime.now(UTC).isoformat()
+                "evaluated_at": datetime.now(UTC).isoformat(),
             }
 
-    async def _validate_models(self, X_test: np.ndarray, y_test: np.ndarray, use_scaled: bool = True) -> dict[str, Any]:
+    async def _validate_models(
+        self, X_test: np.ndarray, y_test: np.ndarray, use_scaled: bool = True
+    ) -> dict[str, Any]:
         """
         Validate models meet minimum performance thresholds.
 
@@ -780,19 +861,18 @@ class PredictiveAnalyticsEngine:
         """
         try:
             # Check if models exist
-            if self.models["failure_prediction"] is None or self.models["anomaly_detection"] is None:
-                return {
-                    "valid": False,
-                    "reason": "Models are None",
-                    "checks": {}
-                }
+            if (
+                self.models["failure_prediction"] is None
+                or self.models["anomaly_detection"] is None
+            ):
+                return {"valid": False, "reason": "Models are None", "checks": {}}
 
             # Check if performance metrics exist
             if not self.model_performance or "accuracy" not in self.model_performance:
                 return {
                     "valid": False,
                     "reason": "Model performance metrics not available",
-                    "checks": {}
+                    "checks": {},
                 }
 
             checks = {}
@@ -801,7 +881,7 @@ class PredictiveAnalyticsEngine:
             # Minimum performance thresholds
             min_accuracy = 0.5  # At least 50% accuracy
             min_precision = 0.3  # At least 30% precision (can be low for imbalanced data)
-            min_recall = 0.3    # At least 30% recall
+            min_recall = 0.3  # At least 30% recall
 
             accuracy = self.model_performance.get("accuracy", 0)
             precision = self.model_performance.get("precision", 0)
@@ -812,7 +892,7 @@ class PredictiveAnalyticsEngine:
             checks["accuracy"] = {
                 "value": accuracy,
                 "threshold": min_accuracy,
-                "passed": accuracy >= min_accuracy
+                "passed": accuracy >= min_accuracy,
             }
             if accuracy < min_accuracy:
                 issues.append(f"Accuracy {accuracy:.3f} below threshold {min_accuracy}")
@@ -821,7 +901,7 @@ class PredictiveAnalyticsEngine:
             checks["precision"] = {
                 "value": precision,
                 "threshold": min_precision,
-                "passed": precision >= min_precision
+                "passed": precision >= min_precision,
             }
             if precision < min_precision:
                 issues.append(f"Precision {precision:.3f} below threshold {min_precision}")
@@ -830,7 +910,7 @@ class PredictiveAnalyticsEngine:
             checks["recall"] = {
                 "value": recall,
                 "threshold": min_recall,
-                "passed": recall >= min_recall
+                "passed": recall >= min_recall,
             }
             if recall < min_recall:
                 issues.append(f"Recall {recall:.3f} below threshold {min_recall}")
@@ -842,13 +922,10 @@ class PredictiveAnalyticsEngine:
                 checks["prediction_test"] = {
                     "passed": True,
                     "sample_predictions": len(sample_predictions) == 5,
-                    "sample_proba_shape": sample_proba.shape[0] == 5
+                    "sample_proba_shape": sample_proba.shape[0] == 5,
                 }
             except Exception as e:
-                checks["prediction_test"] = {
-                    "passed": False,
-                    "error": str(e)
-                }
+                checks["prediction_test"] = {"passed": False, "error": str(e)}
                 issues.append(f"Prediction test failed: {e}")
 
             # Test anomaly detection (always use scaled features for IsolationForest)
@@ -860,35 +937,26 @@ class PredictiveAnalyticsEngine:
                 else:
                     anomaly_features = X_test[:5]
                 anomaly_predictions = self.models["anomaly_detection"].predict(anomaly_features)
-                anomaly_scores = self.models["anomaly_detection"].decision_function(anomaly_features)
+                anomaly_scores = self.models["anomaly_detection"].decision_function(
+                    anomaly_features
+                )
                 checks["anomaly_test"] = {
                     "passed": True,
                     "sample_predictions": len(anomaly_predictions) == 5,
-                    "sample_scores": len(anomaly_scores) == 5
+                    "sample_scores": len(anomaly_scores) == 5,
                 }
             except Exception as e:
-                checks["anomaly_test"] = {
-                    "passed": False,
-                    "error": str(e)
-                }
+                checks["anomaly_test"] = {"passed": False, "error": str(e)}
                 issues.append(f"Anomaly detection test failed: {e}")
 
             valid = len(issues) == 0
             reason = "; ".join(issues) if issues else "All validation checks passed"
 
-            return {
-                "valid": valid,
-                "reason": reason,
-                "checks": checks
-            }
+            return {"valid": valid, "reason": reason, "checks": checks}
 
         except Exception as e:
             logger.error(f"Error validating models: {e}")
-            return {
-                "valid": False,
-                "reason": f"Validation error: {str(e)}",
-                "checks": {}
-            }
+            return {"valid": False, "reason": f"Validation error: {str(e)}", "checks": {}}
 
     async def _verify_saved_models(self) -> bool:
         """Verify that saved models can be loaded and used."""
@@ -953,6 +1021,7 @@ class PredictiveAnalyticsEngine:
                 backup_path = f"{failure_model_path}.backup_{backup_suffix}"
                 try:
                     import shutil
+
                     shutil.copy2(failure_model_path, backup_path)
                     logger.info(f"Backed up existing model to {backup_path}")
 
@@ -987,10 +1056,12 @@ class PredictiveAnalyticsEngine:
             joblib.dump(self.scalers["anomaly_detection"], anomaly_scaler_path)
 
             # Save metadata
-            with metadata_path.open('w') as f:
+            with metadata_path.open("w") as f:
                 json.dump(self.model_metadata, f, indent=2)
 
-            logger.info(f"Models and metadata saved successfully (version {self.model_metadata.get('version', 'unknown')})")
+            logger.info(
+                f"Models and metadata saved successfully (version {self.model_metadata.get('version', 'unknown')})"
+            )
 
         except Exception as e:
             logger.error(f"Error saving models: {e}")
@@ -1002,7 +1073,7 @@ class PredictiveAnalyticsEngine:
             "model_performance": self.model_performance,
             "feature_columns": self.feature_columns,
             "model_metadata": self.model_metadata,
-            "last_updated": datetime.now(UTC).isoformat()
+            "last_updated": datetime.now(UTC).isoformat(),
         }
 
     async def incremental_update(self, new_data: list[dict[str, Any]]):
@@ -1029,7 +1100,9 @@ class PredictiveAnalyticsEngine:
                 # Convert existing model to incremental
                 # For now, we'll need to retrain with incremental model
                 # In future, could implement model conversion
-                logger.warning("Current model doesn't support incremental updates. Use incremental model from start.")
+                logger.warning(
+                    "Current model doesn't support incremental updates. Use incremental model from start."
+                )
                 return
 
             # Prepare new data
@@ -1046,18 +1119,20 @@ class PredictiveAnalyticsEngine:
             update_time = time.time() - start_time
             accuracy = self.models["failure_prediction"].get_accuracy()
 
-            logger.info(f"Incremental update complete in {update_time:.3f}s. Current accuracy: {accuracy:.3f}")
+            logger.info(
+                f"Incremental update complete in {update_time:.3f}s. Current accuracy: {accuracy:.3f}"
+            )
 
             # Update metadata
             self.model_metadata["last_incremental_update"] = datetime.now(UTC).isoformat()
-            self.model_metadata["incremental_update_count"] = self.model_metadata.get("incremental_update_count", 0) + 1
+            self.model_metadata["incremental_update_count"] = (
+                self.model_metadata.get("incremental_update_count", 0) + 1
+            )
 
             # Record incremental update metrics
             if self.metrics_tracker:
                 self.metrics_tracker.record_incremental_update(
-                    samples=len(X_new),
-                    update_time=update_time,
-                    accuracy=accuracy
+                    samples=len(X_new), update_time=update_time, accuracy=accuracy
                 )
 
         except ImportError:

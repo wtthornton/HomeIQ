@@ -76,7 +76,9 @@ class DeviceRepository:
 
         return devices
 
-    async def get_devices_by_integration(self, session: AsyncSession, integration: str) -> list[Device]:
+    async def get_devices_by_integration(
+        self, session: AsyncSession, integration: str
+    ) -> list[Device]:
         """Get devices by integration with cache."""
         # Try cache first
         cached_devices = await self.cache.get_devices_by_integration(integration)
@@ -114,7 +116,9 @@ class DeviceRepository:
         logger.info(f"Created device {device.id}")
         return device
 
-    async def update_device(self, session: AsyncSession, device_id: str, update_data: dict[str, Any]) -> Device | None:
+    async def update_device(
+        self, session: AsyncSession, device_id: str, update_data: dict[str, Any]
+    ) -> Device | None:
         """Update device with cache invalidation."""
         stmt = select(Device).where(Device.id == device_id)
         result = await session.execute(stmt)
@@ -180,7 +184,9 @@ class DeviceRepository:
         return False
 
     # Bulk Operations (Context7 optimized patterns)
-    async def bulk_create_devices(self, session: AsyncSession, devices_data: list[dict[str, Any]]) -> list[Device]:
+    async def bulk_create_devices(
+        self, session: AsyncSession, devices_data: list[dict[str, Any]]
+    ) -> list[Device]:
         """Bulk create devices using optimized SQLAlchemy patterns."""
         if not devices_data:
             return []
@@ -206,7 +212,9 @@ class DeviceRepository:
         logger.info(f"Bulk created {len(devices)} devices")
         return devices
 
-    async def bulk_update_devices(self, session: AsyncSession, updates: list[dict[str, Any]]) -> int:
+    async def bulk_update_devices(
+        self, session: AsyncSession, updates: list[dict[str, Any]]
+    ) -> int:
         """Bulk update devices using bindparam pattern."""
         if not updates:
             return 0
@@ -231,7 +239,7 @@ class DeviceRepository:
                 battery_updated_at=bindparam("battery_updated_at"),
                 device_type=bindparam("device_type"),
                 source=bindparam("source"),
-                updated_at=func.now()
+                updated_at=func.now(),
             )
         )
 
@@ -247,7 +255,9 @@ class DeviceRepository:
         return result.rowcount
 
     # Device Capabilities Operations
-    async def get_device_capabilities(self, session: AsyncSession, device_id: str) -> list[DeviceCapability]:
+    async def get_device_capabilities(
+        self, session: AsyncSession, device_id: str
+    ) -> list[DeviceCapability]:
         """Get device capabilities with eager loading."""
         stmt = (
             select(DeviceCapability)
@@ -257,7 +267,9 @@ class DeviceRepository:
         result = await session.execute(stmt)
         return result.scalars().all()
 
-    async def bulk_upsert_capabilities(self, session: AsyncSession, capabilities_data: list[dict[str, Any]]) -> int:
+    async def bulk_upsert_capabilities(
+        self, session: AsyncSession, capabilities_data: list[dict[str, Any]]
+    ) -> int:
         """Bulk upsert capabilities using PostgreSQL UPSERT."""
         if not capabilities_data:
             return 0
@@ -271,8 +283,8 @@ class DeviceRepository:
                 "exposed": stmt.excluded.exposed,
                 "configured": stmt.excluded.configured,
                 "source": stmt.excluded.source,
-                "last_updated": func.now()
-            }
+                "last_updated": func.now(),
+            },
         )
 
         await session.execute(stmt)
@@ -282,16 +294,22 @@ class DeviceRepository:
         return len(capabilities_data)
 
     # Device Health Operations
-    async def record_health_metric(self, session: AsyncSession, device_id: str, metric_name: str,
-                                 metric_value: float, metric_unit: str | None = None,
-                                 metadata_json: dict[str, Any] | None = None) -> DeviceHealthMetric:
+    async def record_health_metric(
+        self,
+        session: AsyncSession,
+        device_id: str,
+        metric_name: str,
+        metric_value: float,
+        metric_unit: str | None = None,
+        metadata_json: dict[str, Any] | None = None,
+    ) -> DeviceHealthMetric:
         """Record a health metric for a device."""
         metric = DeviceHealthMetric(
             device_id=device_id,
             metric_name=metric_name,
             metric_value=metric_value,
             metric_unit=metric_unit,
-            metadata_json=metadata_json
+            metadata_json=metadata_json,
         )
         session.add(metric)
         await session.commit()
@@ -300,8 +318,9 @@ class DeviceRepository:
         logger.debug(f"Recorded health metric {metric_name} for device {device_id}")
         return metric
 
-    async def get_device_health_metrics(self, session: AsyncSession, device_id: str,
-                                     limit: int = 100) -> list[DeviceHealthMetric]:
+    async def get_device_health_metrics(
+        self, session: AsyncSession, device_id: str, limit: int = 100
+    ) -> list[DeviceHealthMetric]:
         """Get recent health metrics for a device."""
         stmt = (
             select(DeviceHealthMetric)
@@ -325,21 +344,23 @@ class DeviceRepository:
         # Convert to dictionary format for ML training
         training_data = []
         for metric in metrics:
-            training_data.append({
-                "device_id": metric.device_id,
-                "response_time": metric.response_time or 0,
-                "error_rate": metric.error_rate or 0,
-                "battery_level": metric.battery_level or 0,
-                "signal_strength": metric.signal_strength or 0,
-                "usage_frequency": metric.usage_frequency or 0,
-                "temperature": metric.temperature or 0,
-                "humidity": metric.humidity or 0,
-                "uptime_hours": metric.uptime_hours or 0,
-                "restart_count": metric.restart_count or 0,
-                "connection_drops": metric.connection_drops or 0,
-                "data_transfer_rate": metric.data_transfer_rate or 0,
-                "failure_imminent": 0  # Default to no failure for training
-            })
+            training_data.append(
+                {
+                    "device_id": metric.device_id,
+                    "response_time": metric.response_time or 0,
+                    "error_rate": metric.error_rate or 0,
+                    "battery_level": metric.battery_level or 0,
+                    "signal_strength": metric.signal_strength or 0,
+                    "usage_frequency": metric.usage_frequency or 0,
+                    "temperature": metric.temperature or 0,
+                    "humidity": metric.humidity or 0,
+                    "uptime_hours": metric.uptime_hours or 0,
+                    "restart_count": metric.restart_count or 0,
+                    "connection_drops": metric.connection_drops or 0,
+                    "data_transfer_rate": metric.data_transfer_rate or 0,
+                    "failure_imminent": 0,  # Default to no failure for training
+                }
+            )
 
         return training_data
 
@@ -354,8 +375,7 @@ class DeviceRepository:
 
         # Devices by integration
         result = await session.execute(
-            select(Device.integration, func.count(Device.id))
-            .group_by(Device.integration)
+            select(Device.integration, func.count(Device.id)).group_by(Device.integration)
         )
         stats["devices_by_integration"] = dict(result.all())
 
@@ -369,8 +389,7 @@ class DeviceRepository:
 
         # Average health score
         result = await session.execute(
-            select(func.avg(Device.health_score))
-            .where(Device.health_score.isnot(None))
+            select(func.avg(Device.health_score)).where(Device.health_score.isnot(None))
         )
         stats["average_health_score"] = round(result.scalar() or 0, 2)
 
@@ -414,14 +433,18 @@ class DeviceRepository:
             "lqi": device.lqi,
             "lqi_updated_at": device.lqi_updated_at.isoformat() if device.lqi_updated_at else None,
             "availability_status": device.availability_status,
-            "availability_updated_at": device.availability_updated_at.isoformat() if device.availability_updated_at else None,
+            "availability_updated_at": device.availability_updated_at.isoformat()
+            if device.availability_updated_at
+            else None,
             "battery_level": device.battery_level,
             "battery_low": device.battery_low,
-            "battery_updated_at": device.battery_updated_at.isoformat() if device.battery_updated_at else None,
+            "battery_updated_at": device.battery_updated_at.isoformat()
+            if device.battery_updated_at
+            else None,
             "device_type": device.device_type,
             "source": device.source,
             "created_at": device.created_at.isoformat(),
-            "updated_at": device.updated_at.isoformat()
+            "updated_at": device.updated_at.isoformat(),
         }
 
     def _dict_to_device(self, device_dict: dict[str, Any]) -> Device:

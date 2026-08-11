@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ZigbeeDevice:
     """Zigbee2MQTT device representation."""
+
     ieee_address: str
     friendly_name: str
     model: str
@@ -51,6 +52,7 @@ class ZigbeeDevice:
 @dataclass
 class ZigbeeGroup:
     """Zigbee2MQTT group representation."""
+
     id: int
     friendly_name: str
     members: list[str]
@@ -67,12 +69,12 @@ class MQTTClient:
         password: str | None = None,
         base_topic: str = "zigbee2mqtt",
         subscribe_discovery_configs: bool = False,
-        subscribe_device_states: bool = False
+        subscribe_device_states: bool = False,
     ):
         self.broker_url = broker_url
         self.username = username
         self.password = password
-        self.base_topic = base_topic.rstrip('/')  # Remove trailing slash if present
+        self.base_topic = base_topic.rstrip("/")  # Remove trailing slash if present
 
         # Optional feature flags
         self.subscribe_discovery_configs = subscribe_discovery_configs
@@ -184,11 +186,13 @@ class MQTTClient:
         """MQTT message callback."""
         try:
             topic = msg.topic
-            payload = msg.payload.decode('utf-8')
+            payload = msg.payload.decode("utf-8")
 
             # Enhanced logging: Log ALL received MQTT messages for debugging
             payload_preview = payload[:200] if len(payload) > 200 else payload
-            logger.debug(f"MQTT message received: topic={topic}, payload_size={len(payload)} bytes, preview={payload_preview}...")
+            logger.debug(
+                f"MQTT message received: topic={topic}, payload_size={len(payload)} bytes, preview={payload_preview}..."
+            )
 
             # Parse JSON payload
             try:
@@ -202,7 +206,9 @@ class MQTTClient:
             if self.event_loop and self.event_loop.is_running():
                 asyncio.run_coroutine_threadsafe(self._handle_message(topic, data), self.event_loop)
             else:
-                logger.error(f"Cannot handle MQTT message: event loop not available for topic {topic}")
+                logger.error(
+                    f"Cannot handle MQTT message: event loop not available for topic {topic}"
+                )
 
         except Exception as e:
             logger.error(f"Error handling MQTT message: {e}")
@@ -245,7 +251,10 @@ class MQTTClient:
         """Handle incoming MQTT messages."""
         try:
             # Handle device list messages (both retained and response)
-            if topic == f"{self.base_topic}/bridge/devices" or topic == f"{self.base_topic}/bridge/response/device/list":
+            if (
+                topic == f"{self.base_topic}/bridge/devices"
+                or topic == f"{self.base_topic}/bridge/response/device/list"
+            ):
                 # Extract data from response if it's a response message
                 if topic == f"{self.base_topic}/bridge/response/device/list":
                     # Response format: {"data": {...}, "status": "ok"}
@@ -259,7 +268,10 @@ class MQTTClient:
                         return
                 await self._handle_devices_message(data)
             # Handle group list messages (both retained and response)
-            elif topic == f"{self.base_topic}/bridge/groups" or topic == f"{self.base_topic}/bridge/response/group/list":
+            elif (
+                topic == f"{self.base_topic}/bridge/groups"
+                or topic == f"{self.base_topic}/bridge/response/group/list"
+            ):
                 # Extract data from response if it's a response message
                 if topic == f"{self.base_topic}/bridge/response/group/list":
                     if isinstance(data, dict) and "data" in data:
@@ -301,10 +313,12 @@ class MQTTClient:
                 last_seen = None
                 if device_data.get("last_seen"):
                     try:
-                        last_seen_str = device_data["last_seen"].replace('Z', '+00:00')
+                        last_seen_str = device_data["last_seen"].replace("Z", "+00:00")
                         last_seen = datetime.fromisoformat(last_seen_str)
                     except Exception as e:
-                        logger.debug(f"Could not parse last_seen for {device_data.get('ieee_address')}: {e}")
+                        logger.debug(
+                            f"Could not parse last_seen for {device_data.get('ieee_address')}: {e}"
+                        )
 
                 # Extract Zigbee2MQTT-specific fields
                 definition = device_data.get("definition", {})
@@ -327,20 +341,24 @@ class MQTTClient:
                     capabilities={},  # Will be populated by capability parser
                     # Zigbee2MQTT-specific fields
                     lqi=device_data.get("lqi"),
-                    availability=device_data.get("availability"),  # "enabled", "disabled", "unavailable"
+                    availability=device_data.get(
+                        "availability"
+                    ),  # "enabled", "disabled", "unavailable"
                     battery=device_data.get("battery"),
                     battery_low=device_data.get("battery_low"),
                     device_type=device_data.get("type"),
                     network_address=device_data.get("network_address"),
                     supported=device_data.get("supported"),
                     interview_completed=device_data.get("interview_completed"),
-                    settings=device_data.get("settings")
+                    settings=device_data.get("settings"),
                 )
 
                 self.devices[device.ieee_address] = device
 
             except Exception as e:
-                logger.error(f"Error parsing device {device_data.get('ieee_address', 'unknown')}: {e}")
+                logger.error(
+                    f"Error parsing device {device_data.get('ieee_address', 'unknown')}: {e}"
+                )
 
         # Call message handler with full list (after all devices are stored)
         if "devices" in self.message_handlers:
@@ -357,7 +375,7 @@ class MQTTClient:
                     id=group_data["id"],
                     friendly_name=group_data["friendly_name"],
                     members=group_data.get("members", []),
-                    scenes=group_data.get("scenes", [])
+                    scenes=group_data.get("scenes", []),
                 )
 
                 self.groups[group.id] = group
@@ -400,13 +418,15 @@ class MQTTClient:
 
             # Call message handler if registered
             if "discovery_config" in self.message_handlers:
-                await self.message_handlers["discovery_config"]({
-                    "topic": topic,
-                    "component": component,
-                    "device_id": device_id,
-                    "object_id": object_id,
-                    "config": data
-                })
+                await self.message_handlers["discovery_config"](
+                    {
+                        "topic": topic,
+                        "component": component,
+                        "device_id": device_id,
+                        "object_id": object_id,
+                        "config": data,
+                    }
+                )
         else:
             logger.debug(f"Received HA discovery config: {topic}")
 
@@ -419,11 +439,9 @@ class MQTTClient:
 
         # Call message handler if registered
         if "device_state" in self.message_handlers:
-            await self.message_handlers["device_state"]({
-                "topic": topic,
-                "friendly_name": friendly_name,
-                "state": data
-            })
+            await self.message_handlers["device_state"](
+                {"topic": topic, "friendly_name": friendly_name, "state": data}
+            )
 
     async def _handle_reconnection(self):
         """Handle automatic reconnection."""
@@ -434,13 +452,17 @@ class MQTTClient:
         self.reconnect_attempts += 1
         delay = self.reconnect_delay * self.reconnect_attempts
 
-        logger.info(f"Attempting MQTT reconnection {self.reconnect_attempts}/{self.max_reconnect_attempts} in {delay}s")
+        logger.info(
+            f"Attempting MQTT reconnection {self.reconnect_attempts}/{self.max_reconnect_attempts} in {delay}s"
+        )
         await asyncio.sleep(delay)
 
         if await self.connect():
             logger.info("MQTT reconnection successful")
 
-    def register_message_handler(self, topic: str, handler: Callable[[dict[str, Any]], Awaitable[None]]):
+    def register_message_handler(
+        self, topic: str, handler: Callable[[dict[str, Any]], Awaitable[None]]
+    ):
         """Register a message handler for a specific topic."""
         self.message_handlers[topic] = handler
         logger.info(f"Registered message handler for {topic}")

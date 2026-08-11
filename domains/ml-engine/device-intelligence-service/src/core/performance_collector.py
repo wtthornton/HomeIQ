@@ -18,7 +18,9 @@ class PerformanceCollector:
     """Collects and aggregates device performance metrics."""
 
     def __init__(self, retention_hours: int = 24, max_points_per_device: int = 1000):
-        self.metrics_history: dict[str, deque] = defaultdict(lambda: deque(maxlen=max_points_per_device))
+        self.metrics_history: dict[str, deque] = defaultdict(
+            lambda: deque(maxlen=max_points_per_device)
+        )
         self.aggregated_metrics: dict[str, dict[str, Any]] = {}
         self.retention_hours = retention_hours
         self.max_points_per_device = max_points_per_device
@@ -43,11 +45,7 @@ class PerformanceCollector:
         current_time = datetime.now(UTC)
 
         # Add timestamp to metrics
-        metric_entry = {
-            "timestamp": current_time,
-            "device_id": device_id,
-            **metrics
-        }
+        metric_entry = {"timestamp": current_time, "device_id": device_id, **metrics}
 
         # Store in history
         self.metrics_history[device_id].append(metric_entry)
@@ -67,13 +65,27 @@ class PerformanceCollector:
             return
 
         # Calculate aggregated metrics
-        response_times = [m.get("response_time", 0) for m in metrics_list if m.get("response_time") is not None]
-        error_rates = [m.get("error_rate", 0) for m in metrics_list if m.get("error_rate") is not None]
-        battery_levels = [m.get("battery_level", 100) for m in metrics_list if m.get("battery_level") is not None]
-        signal_strengths = [m.get("signal_strength", -50) for m in metrics_list if m.get("signal_strength") is not None]
+        response_times = [
+            m.get("response_time", 0) for m in metrics_list if m.get("response_time") is not None
+        ]
+        error_rates = [
+            m.get("error_rate", 0) for m in metrics_list if m.get("error_rate") is not None
+        ]
+        battery_levels = [
+            m.get("battery_level", 100) for m in metrics_list if m.get("battery_level") is not None
+        ]
+        signal_strengths = [
+            m.get("signal_strength", -50)
+            for m in metrics_list
+            if m.get("signal_strength") is not None
+        ]
         cpu_usage = [m.get("cpu_usage", 0) for m in metrics_list if m.get("cpu_usage") is not None]
-        memory_usage = [m.get("memory_usage", 0) for m in metrics_list if m.get("memory_usage") is not None]
-        temperatures = [m.get("temperature", 25) for m in metrics_list if m.get("temperature") is not None]
+        memory_usage = [
+            m.get("memory_usage", 0) for m in metrics_list if m.get("memory_usage") is not None
+        ]
+        temperatures = [
+            m.get("temperature", 25) for m in metrics_list if m.get("temperature") is not None
+        ]
 
         # Calculate statistics
         self.aggregated_metrics[device_id] = {
@@ -81,7 +93,7 @@ class PerformanceCollector:
             "total_measurements": len(metrics_list),
             "time_range": {
                 "start": metrics_list[0]["timestamp"].isoformat(),
-                "end": metrics_list[-1]["timestamp"].isoformat()
+                "end": metrics_list[-1]["timestamp"].isoformat(),
             },
             "response_time": {
                 "avg": statistics.mean(response_times) if response_times else 0,
@@ -89,51 +101,51 @@ class PerformanceCollector:
                 "max": max(response_times) if response_times else 0,
                 "median": statistics.median(response_times) if response_times else 0,
                 "p95": self._percentile(response_times, 95) if response_times else 0,
-                "count": len(response_times)
+                "count": len(response_times),
             },
             "error_rate": {
                 "avg": statistics.mean(error_rates) if error_rates else 0,
                 "min": min(error_rates) if error_rates else 0,
                 "max": max(error_rates) if error_rates else 0,
                 "median": statistics.median(error_rates) if error_rates else 0,
-                "count": len(error_rates)
+                "count": len(error_rates),
             },
             "battery_level": {
                 "avg": statistics.mean(battery_levels) if battery_levels else 100,
                 "min": min(battery_levels) if battery_levels else 100,
                 "max": max(battery_levels) if battery_levels else 100,
                 "median": statistics.median(battery_levels) if battery_levels else 100,
-                "count": len(battery_levels)
+                "count": len(battery_levels),
             },
             "signal_strength": {
                 "avg": statistics.mean(signal_strengths) if signal_strengths else -50,
                 "min": min(signal_strengths) if signal_strengths else -50,
                 "max": max(signal_strengths) if signal_strengths else -50,
                 "median": statistics.median(signal_strengths) if signal_strengths else -50,
-                "count": len(signal_strengths)
+                "count": len(signal_strengths),
             },
             "cpu_usage": {
                 "avg": statistics.mean(cpu_usage) if cpu_usage else 0,
                 "min": min(cpu_usage) if cpu_usage else 0,
                 "max": max(cpu_usage) if cpu_usage else 0,
                 "median": statistics.median(cpu_usage) if cpu_usage else 0,
-                "count": len(cpu_usage)
+                "count": len(cpu_usage),
             },
             "memory_usage": {
                 "avg": statistics.mean(memory_usage) if memory_usage else 0,
                 "min": min(memory_usage) if memory_usage else 0,
                 "max": max(memory_usage) if memory_usage else 0,
                 "median": statistics.median(memory_usage) if memory_usage else 0,
-                "count": len(memory_usage)
+                "count": len(memory_usage),
             },
             "temperature": {
                 "avg": statistics.mean(temperatures) if temperatures else 25,
                 "min": min(temperatures) if temperatures else 25,
                 "max": max(temperatures) if temperatures else 25,
                 "median": statistics.median(temperatures) if temperatures else 25,
-                "count": len(temperatures)
+                "count": len(temperatures),
             },
-            "last_updated": datetime.now(UTC).isoformat()
+            "last_updated": datetime.now(UTC).isoformat(),
         }
 
     def _percentile(self, data: list[float], percentile: int) -> float:
@@ -150,7 +162,9 @@ class PerformanceCollector:
         """Get device performance summary."""
         return self.aggregated_metrics.get(device_id, {})
 
-    async def get_device_metrics_history(self, device_id: str, hours: int = 24) -> list[dict[str, Any]]:
+    async def get_device_metrics_history(
+        self, device_id: str, hours: int = 24
+    ) -> list[dict[str, Any]]:
         """Get device metrics history for specified hours."""
         if device_id not in self.metrics_history:
             return []
@@ -159,14 +173,13 @@ class PerformanceCollector:
         metrics_list = list(self.metrics_history[device_id])
 
         # Filter by time range
-        filtered_metrics = [
-            m for m in metrics_list
-            if m["timestamp"] >= cutoff_time
-        ]
+        filtered_metrics = [m for m in metrics_list if m["timestamp"] >= cutoff_time]
 
         return filtered_metrics
 
-    async def get_device_metrics_trend(self, device_id: str, metric_name: str, hours: int = 24) -> dict[str, Any]:
+    async def get_device_metrics_trend(
+        self, device_id: str, metric_name: str, hours: int = 24
+    ) -> dict[str, Any]:
         """Get trend analysis for specific metric."""
         metrics_history = await self.get_device_metrics_history(device_id, hours)
 
@@ -180,8 +193,8 @@ class PerformanceCollector:
             return {"trend": "insufficient_data", "change_percent": 0}
 
         # Calculate trend
-        first_half = values[:len(values)//2]
-        second_half = values[len(values)//2:]
+        first_half = values[: len(values) // 2]
+        second_half = values[len(values) // 2 :]
 
         if not first_half or not second_half:
             return {"trend": "insufficient_data", "change_percent": 0}
@@ -207,7 +220,7 @@ class PerformanceCollector:
             "change_percent": round(change_percent, 2),
             "first_half_avg": round(avg_first, 2),
             "second_half_avg": round(avg_second, 2),
-            "data_points": len(values)
+            "data_points": len(values),
         }
 
     async def get_all_devices_performance(self) -> dict[str, dict[str, Any]]:
@@ -223,8 +236,8 @@ class PerformanceCollector:
                 "avg_response_time": 0,
                 "avg_error_rate": 0,
                 "avg_battery_level": 0,
-                "avg_signal_strength": 0
-            }
+                "avg_signal_strength": 0,
+            },
         }
 
         response_times = []
@@ -255,7 +268,9 @@ class PerformanceCollector:
         if battery_levels:
             comparison["summary"]["avg_battery_level"] = round(statistics.mean(battery_levels), 1)
         if signal_strengths:
-            comparison["summary"]["avg_signal_strength"] = round(statistics.mean(signal_strengths), 1)
+            comparison["summary"]["avg_signal_strength"] = round(
+                statistics.mean(signal_strengths), 1
+            )
 
         return comparison
 
@@ -295,7 +310,7 @@ class PerformanceCollector:
             "total_metrics_points": total_metrics_points,
             "retention_hours": self.retention_hours,
             "max_points_per_device": self.max_points_per_device,
-            "devices_with_data": list(self.metrics_history.keys())
+            "devices_with_data": list(self.metrics_history.keys()),
         }
 
 

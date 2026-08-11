@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class HADevice:
     """Home Assistant device representation."""
+
     id: str
     name: str
     name_by_user: str | None  # User-customized device name
@@ -44,12 +45,15 @@ class HADevice:
     # Phase 2-3: Device Registry 2025 Attributes
     labels: list[str] | None = None  # Array of label IDs for organizational filtering
     serial_number: str | None = None  # Optional serial number (if available from integration)
-    model_id: str | None = None  # Optional model ID (manufacturer identifier, may differ from model)
+    model_id: str | None = (
+        None  # Optional model ID (manufacturer identifier, may differ from model)
+    )
 
 
 @dataclass
 class HAEntity:
     """Home Assistant entity representation."""
+
     entity_id: str
     name: str | None
     original_name: str | None
@@ -72,12 +76,15 @@ class HAEntity:
     aliases: list[str] | None = None  # Array of alternative names for entity resolution
     # Phase 2: Entity Registry 2025 Attributes (Important)
     labels: list[str] | None = None  # Array of label IDs for organizational filtering
-    options: dict[str, Any] | None = None  # Entity-specific options/config (e.g., default brightness)
+    options: dict[str, Any] | None = (
+        None  # Entity-specific options/config (e.g., default brightness)
+    )
 
 
 @dataclass
 class HAArea:
     """Home Assistant area representation."""
+
     area_id: str
     name: str
     normalized_name: str
@@ -90,8 +97,8 @@ class HomeAssistantClient:
     """WebSocket client for Home Assistant integration."""
 
     def __init__(self, primary_url: str, fallback_url: str | None, token: str):
-        self.primary_url = primary_url.rstrip('/')
-        self.fallback_url = fallback_url.rstrip('/') if fallback_url else None
+        self.primary_url = primary_url.rstrip("/")
+        self.fallback_url = fallback_url.rstrip("/") if fallback_url else None
         self.token = token
         self.websocket: websockets.WebSocketClientProtocol | None = None
         self.connected = False
@@ -116,10 +123,10 @@ class HomeAssistantClient:
         for url in urls_to_try:
             try:
                 # Use the URL as-is if it's already a WebSocket URL, otherwise convert
-                if url.startswith('ws://') or url.startswith('wss://'):
+                if url.startswith("ws://") or url.startswith("wss://"):
                     ws_url = url
                 else:
-                    ws_url = url.replace('http://', 'ws://').replace('https://', 'wss://')
+                    ws_url = url.replace("http://", "ws://").replace("https://", "wss://")
                     ws_url = f"{ws_url}/api/websocket"
 
                 logger.info(f"Connecting to Home Assistant WebSocket: {ws_url}")
@@ -132,7 +139,7 @@ class HomeAssistantClient:
                     extra_headers=headers,
                     ping_interval=20,
                     ping_timeout=10,
-                    close_timeout=10
+                    close_timeout=10,
                 )
 
                 self.current_url = url
@@ -146,7 +153,9 @@ class HomeAssistantClient:
 
                 if auth_data.get("type") == "auth_required":
                     logger.info("Authentication required, sending token...")
-                    await self.websocket.send(json.dumps({"type": "auth", "access_token": self.token}))
+                    await self.websocket.send(
+                        json.dumps({"type": "auth", "access_token": self.token})
+                    )
 
                     auth_result = await asyncio.wait_for(
                         self.websocket.recv(), timeout=self.receive_timeout
@@ -239,7 +248,9 @@ class HomeAssistantClient:
                         self.websocket.recv(), timeout=self.receive_timeout
                     )
                 except TimeoutError:
-                    logger.debug("⏳ No WebSocket message within timeout window; pruning pending messages")
+                    logger.debug(
+                        "⏳ No WebSocket message within timeout window; pruning pending messages"
+                    )
                     self._prune_pending_messages()
                     continue
 
@@ -295,7 +306,9 @@ class HomeAssistantClient:
         self.reconnect_attempts += 1
         delay = self.reconnect_delay * self.reconnect_attempts
 
-        logger.info(f"Attempting reconnection {self.reconnect_attempts}/{self.max_reconnect_attempts} in {delay}s")
+        logger.info(
+            f"Attempting reconnection {self.reconnect_attempts}/{self.max_reconnect_attempts} in {delay}s"
+        )
         await asyncio.sleep(delay)
 
         if await self.connect():
@@ -344,8 +357,8 @@ class HomeAssistantClient:
             # Handle string timestamps (ISO format)
             if isinstance(timestamp, str):
                 # Remove 'Z' suffix and add timezone info
-                if timestamp.endswith('Z'):
-                    timestamp = timestamp[:-1] + '+00:00'
+                if timestamp.endswith("Z"):
+                    timestamp = timestamp[:-1] + "+00:00"
                 return datetime.fromisoformat(timestamp)
 
             # Fallback to current time
@@ -358,14 +371,14 @@ class HomeAssistantClient:
     async def get_device_registry(self) -> list[HADevice]:
         """Get all devices from Home Assistant device registry."""
         try:
-            response = await self.send_message({
-                "type": "config/device_registry/list"
-            })
+            response = await self.send_message({"type": "config/device_registry/list"})
 
             devices = []
             for device_data in response.get("result", []):
                 # Debug logging to verify what HA actually returns
-                logger.debug(f"Device {device_data.get('name')}: manufacturer={device_data.get('manufacturer')}, integration={device_data.get('integration')}")
+                logger.debug(
+                    f"Device {device_data.get('name')}: manufacturer={device_data.get('manufacturer')}, integration={device_data.get('integration')}"
+                )
 
                 device = HADevice(
                     id=device_data["id"],
@@ -390,7 +403,7 @@ class HomeAssistantClient:
                     # Phase 2-3: Device Registry 2025 Attributes
                     labels=device_data.get("labels") or [],
                     serial_number=device_data.get("serial_number"),
-                    model_id=device_data.get("model_id")
+                    model_id=device_data.get("model_id"),
                 )
                 devices.append(device)
 
@@ -404,9 +417,7 @@ class HomeAssistantClient:
     async def get_entity_registry(self) -> list[HAEntity]:
         """Get all entities from Home Assistant entity registry."""
         try:
-            response = await self.send_message({
-                "type": "config/entity_registry/list"
-            })
+            response = await self.send_message({"type": "config/entity_registry/list"})
 
             entities = []
             for entity_data in response.get("result", []):
@@ -433,7 +444,7 @@ class HomeAssistantClient:
                     aliases=entity_data.get("aliases") or [],
                     # Phase 2: Entity Registry 2025 Attributes (Important)
                     labels=entity_data.get("labels") or [],
-                    options=entity_data.get("options")
+                    options=entity_data.get("options"),
                 )
                 entities.append(entity)
 
@@ -447,19 +458,19 @@ class HomeAssistantClient:
     async def get_area_registry(self) -> list[HAArea]:
         """Get all areas from Home Assistant area registry."""
         try:
-            response = await self.send_message({
-                "type": "config/area_registry/list"
-            })
+            response = await self.send_message({"type": "config/area_registry/list"})
 
             areas = []
             for area_data in response.get("result", []):
                 area = HAArea(
                     area_id=area_data["area_id"],
                     name=area_data["name"],
-                    normalized_name=area_data.get("normalized_name", area_data["name"].lower().replace(" ", "_")),
+                    normalized_name=area_data.get(
+                        "normalized_name", area_data["name"].lower().replace(" ", "_")
+                    ),
                     aliases=area_data.get("aliases", []),
                     created_at=self._parse_timestamp(area_data.get("created_at")),
-                    updated_at=self._parse_timestamp(area_data.get("updated_at"))
+                    updated_at=self._parse_timestamp(area_data.get("updated_at")),
                 )
                 areas.append(area)
 
@@ -478,9 +489,7 @@ class HomeAssistantClient:
             Dict mapping config_entry_id to domain (integration name)
         """
         try:
-            response = await self.send_message({
-                "type": "config_entries/get"
-            })
+            response = await self.send_message({"type": "config_entries/get"})
 
             config_entry_map = {}
             for entry in response.get("result", []):
@@ -518,9 +527,7 @@ class HomeAssistantClient:
             Exception: If WebSocket command fails (returns empty list on error)
         """
         try:
-            response = await self.send_message({
-                "type": "get_states"
-            })
+            response = await self.send_message({"type": "get_states"})
 
             states = response.get("result", [])
             logger.info(f"Retrieved {len(states)} entity states from Home Assistant")
@@ -552,23 +559,26 @@ class HomeAssistantClient:
         """
         try:
             # Use REST API for system config (not available via WebSocket)
-            http_url = self.primary_url.replace('ws://', 'http://').replace('wss://', 'https://')
+            http_url = self.primary_url.replace("ws://", "http://").replace("wss://", "https://")
             url = f"{http_url}/api/config"
 
-            headers = {
-                "Authorization": f"Bearer {self.token}",
-                "Content-Type": "application/json"
-            }
+            headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
 
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                async with session.get(
+                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+                ) as response:
                     if response.status == 200:
                         config = await response.json()
-                        logger.info(f"Retrieved Home Assistant system config (version: {config.get('version', 'unknown')})")
+                        logger.info(
+                            f"Retrieved Home Assistant system config (version: {config.get('version', 'unknown')})"
+                        )
                         return config
                     else:
                         error_text = await response.text()
-                        logger.error(f"Failed to get system config: HTTP {response.status} - {error_text}")
+                        logger.error(
+                            f"Failed to get system config: HTTP {response.status} - {error_text}"
+                        )
                         return {}
         except Exception as e:
             logger.error(f"Failed to get system config: {e}")
@@ -618,7 +628,9 @@ class HomeAssistantClient:
         logger.error("Failed to update entity %s: %s", entity_id, error)
         raise RuntimeError(f"Failed to update entity registry: {error}")
 
-    async def start_config_flow(self, handler: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def start_config_flow(
+        self, handler: str, data: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Initiate a Home Assistant config flow for a given handler."""
         if not handler:
             raise ValueError("handler is required to start config flow")
@@ -639,15 +651,14 @@ class HomeAssistantClient:
         logger.error("Failed to start config flow for %s: %s", handler, error)
         raise RuntimeError(f"Failed to start config flow: {error}")
 
-    async def subscribe_to_events(self, event_type: str, callback: Callable[[dict[str, Any]], Awaitable[None]]):
+    async def subscribe_to_events(
+        self, event_type: str, callback: Callable[[dict[str, Any]], Awaitable[None]]
+    ):
         """Subscribe to Home Assistant events."""
         try:
             self.subscriptions[event_type] = callback
 
-            await self.send_message({
-                "type": "subscribe_events",
-                "event_type": event_type
-            })
+            await self.send_message({"type": "subscribe_events", "event_type": event_type})
 
             logger.info(f"Subscribed to {event_type} events")
 
@@ -657,7 +668,7 @@ class HomeAssistantClient:
     async def subscribe_to_registry_updates(
         self,
         entity_callback: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
-        device_callback: Callable[[dict[str, Any]], Awaitable[None]] | None = None
+        device_callback: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
     ):
         """
         Subscribe to entity and device registry update events.
@@ -694,14 +705,15 @@ class HomeAssistantClient:
 
                 await self.subscribe_to_events("device_registry_updated", default_device_handler)
 
-            logger.info("Subscribed to registry update events (entity_registry_updated, device_registry_updated)")
+            logger.info(
+                "Subscribed to registry update events (entity_registry_updated, device_registry_updated)"
+            )
 
         except Exception as e:
             logger.error(f"Failed to subscribe to registry updates: {e}")
 
     async def subscribe_to_state_changes(
-        self,
-        callback: Callable[[dict[str, Any]], Awaitable[None]]
+        self, callback: Callable[[dict[str, Any]], Awaitable[None]]
     ):
         """
         Subscribe to state_changed events for real-time telemetry updates.

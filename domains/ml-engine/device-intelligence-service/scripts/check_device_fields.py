@@ -1,4 +1,5 @@
 """Script to check device fields in database."""
+
 import asyncio
 
 from sqlalchemy import text
@@ -12,13 +13,15 @@ async def check_device_fields():
 
     async for session in get_db_session():
         # Get sample devices with all fields
-        result = await session.execute(text('''
+        result = await session.execute(
+            text("""
             SELECT id, name, manufacturer, model, integration, area_name, 
                    device_class, sw_version, hw_version, power_source,
                    config_entry_id, zigbee_ieee, is_battery_powered
             FROM devices 
             LIMIT 5
-        '''))
+        """)
+        )
 
         devices = result.fetchall()
 
@@ -43,6 +46,6 @@ async def check_device_fields():
             print(f"  Is Battery Powered: {device[12]}")
             print()
 
+
 if __name__ == "__main__":
     asyncio.run(check_device_fields())
-

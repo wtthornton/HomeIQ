@@ -10,4 +10,3 @@ from .handler import HueHandler
 def register(registry):
     """Register the Hue handler with the device mapping registry."""
     registry.register("hue", HueHandler())
-

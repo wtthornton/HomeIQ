@@ -43,12 +43,14 @@ def get_device_repository() -> DeviceRepository:
 @router.get("/scores")
 async def get_all_health_scores(
     skip: int = Query(default=0, ge=0, description="Number of devices to skip"),
-    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of devices to return"),
+    limit: int = Query(
+        default=100, ge=1, le=1000, description="Maximum number of devices to return"
+    ),
     min_score: int = Query(default=0, ge=0, le=100, description="Minimum health score filter"),
     max_score: int = Query(default=100, ge=0, le=100, description="Maximum health score filter"),
     health_status: str | None = Query(default=None, description="Filter by health status"),
     session: AsyncSession = Depends(get_db_session),
-    repository: DeviceRepository = Depends(get_device_repository)
+    repository: DeviceRepository = Depends(get_device_repository),
 ):
     """Get all device health scores with optional filtering."""
     try:
@@ -57,7 +59,7 @@ async def get_all_health_scores(
         # Get all devices from database
         devices = await repository.get_all_devices(session, limit=limit)
 
-        for device in devices[skip:skip+limit]:
+        for device in devices[skip : skip + limit]:
             try:
                 # Get device health metrics from database
                 metrics_list = await repository.get_device_health_metrics(session, device.id)
@@ -73,29 +75,36 @@ async def get_all_health_scores(
                         "usage_frequency": latest_metric.usage_frequency or 0.5,
                         "cpu_usage": latest_metric.cpu_usage or 0,
                         "memory_usage": latest_metric.memory_usage or 0,
-                        "temperature": latest_metric.temperature or 25
+                        "temperature": latest_metric.temperature or 25,
                     }
 
                     # Convert historical metrics to dict format
                     historical_metrics = []
                     for metric in metrics_list[:50]:  # Last 50 metrics
-                        historical_metrics.append({
-                            "response_time": metric.response_time or 0,
-                            "error_rate": metric.error_rate or 0,
-                            "battery_level": metric.battery_level or 100,
-                            "signal_strength": metric.signal_strength or -50,
-                            "usage_frequency": metric.usage_frequency or 0.5,
-                            "cpu_usage": metric.cpu_usage or 0,
-                            "memory_usage": metric.memory_usage or 0,
-                            "temperature": metric.temperature or 25,
-                            "timestamp": metric.timestamp
-                        })
+                        historical_metrics.append(
+                            {
+                                "response_time": metric.response_time or 0,
+                                "error_rate": metric.error_rate or 0,
+                                "battery_level": metric.battery_level or 100,
+                                "signal_strength": metric.signal_strength or -50,
+                                "usage_frequency": metric.usage_frequency or 0.5,
+                                "cpu_usage": metric.cpu_usage or 0,
+                                "memory_usage": metric.memory_usage or 0,
+                                "temperature": metric.temperature or 25,
+                                "timestamp": metric.timestamp,
+                            }
+                        )
                 else:
                     # Default metrics if no data available
                     current_metrics = {
-                        "response_time": 0, "error_rate": 0, "battery_level": 100,
-                        "signal_strength": -50, "usage_frequency": 0.5, "cpu_usage": 0,
-                        "memory_usage": 0, "temperature": 25
+                        "response_time": 0,
+                        "error_rate": 0,
+                        "battery_level": 100,
+                        "signal_strength": -50,
+                        "usage_frequency": 0.5,
+                        "cpu_usage": 0,
+                        "memory_usage": 0,
+                        "temperature": 25,
                     }
                     historical_metrics = []
 
@@ -105,7 +114,9 @@ async def get_all_health_scores(
                 )
 
                 # Apply filters
-                if min_score <= health_score["overall_score"] <= max_score and (health_status is None or health_score["health_status"] == health_status):
+                if min_score <= health_score["overall_score"] <= max_score and (
+                    health_status is None or health_score["health_status"] == health_status
+                ):
                     health_scores.append(health_score)
 
             except Exception as e:
@@ -123,9 +134,9 @@ async def get_all_health_scores(
                 "limit": limit,
                 "min_score": min_score,
                 "max_score": max_score,
-                "health_status": health_status
+                "health_status": health_status,
             },
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     except Exception as e:
@@ -151,7 +162,7 @@ async def get_device_health_score(device_id: str):
             "usage_frequency": device_state.get("usage_frequency", 0.5),
             "cpu_usage": device_state.get("cpu_usage"),
             "memory_usage": device_state.get("memory_usage"),
-            "temperature": device_state.get("temperature")
+            "temperature": device_state.get("temperature"),
         }
 
         # Get historical metrics
@@ -174,7 +185,7 @@ async def get_device_health_score(device_id: str):
 @router.get("/trends/{device_id}")
 async def get_device_health_trends(
     device_id: str,
-    days: int = Query(default=7, ge=1, le=30, description="Number of days to analyze")
+    days: int = Query(default=7, ge=1, le=30, description="Number of days to analyze"),
 ):
     """Get device health trends over time."""
     try:
@@ -188,10 +199,7 @@ async def get_device_health_trends(
         historical_metrics = device_state_tracker.get_device_metrics(device_id, limit=1000)
 
         # Filter by time range
-        filtered_metrics = [
-            m for m in historical_metrics
-            if m["timestamp"] >= cutoff_time
-        ]
+        filtered_metrics = [m for m in historical_metrics if m["timestamp"] >= cutoff_time]
 
         if not filtered_metrics:
             return {
@@ -200,24 +208,24 @@ async def get_device_health_trends(
                 "summary": {
                     "total_data_points": 0,
                     "time_range": f"{days} days",
-                    "message": "No data available for the specified time range"
+                    "message": "No data available for the specified time range",
                 },
-                "timestamp": datetime.now(UTC).isoformat()
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
         # Calculate health scores for each data point
         trends = []
         for metrics in filtered_metrics:
             try:
-                health_score = await health_scorer.calculate_health_score(
-                    device_id, metrics, []
+                health_score = await health_scorer.calculate_health_score(device_id, metrics, [])
+                trends.append(
+                    {
+                        "timestamp": metrics["timestamp"].isoformat(),
+                        "overall_score": health_score["overall_score"],
+                        "health_status": health_score["health_status"],
+                        "factor_scores": health_score["factor_scores"],
+                    }
                 )
-                trends.append({
-                    "timestamp": metrics["timestamp"].isoformat(),
-                    "overall_score": health_score["overall_score"],
-                    "health_status": health_score["health_status"],
-                    "factor_scores": health_score["factor_scores"]
-                })
             except Exception as e:
                 logger.warning(f"Error calculating trend score for {device_id}: {e}")
                 continue
@@ -231,9 +239,13 @@ async def get_device_health_trends(
 
             # Calculate trend direction
             if len(scores) >= 2:
-                first_half = scores[:len(scores)//2]
-                second_half = scores[len(scores)//2:]
-                trend_direction = "improving" if statistics.mean(second_half) > statistics.mean(first_half) else "declining"
+                first_half = scores[: len(scores) // 2]
+                second_half = scores[len(scores) // 2 :]
+                trend_direction = (
+                    "improving"
+                    if statistics.mean(second_half) > statistics.mean(first_half)
+                    else "declining"
+                )
             else:
                 trend_direction = "insufficient_data"
         else:
@@ -249,9 +261,9 @@ async def get_device_health_trends(
                 "average_score": round(avg_score, 1),
                 "min_score": min_score,
                 "max_score": max_score,
-                "trend_direction": trend_direction
+                "trend_direction": trend_direction,
             },
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     except HTTPException:
@@ -263,7 +275,9 @@ async def get_device_health_trends(
 
 @router.get("/comparison")
 async def compare_device_health_scores(
-    device_ids: str | None = Query(default=None, description="Comma-separated list of device IDs to compare")
+    device_ids: str | None = Query(
+        default=None, description="Comma-separated list of device IDs to compare"
+    ),
 ):
     """Compare device health scores."""
     try:
@@ -277,11 +291,8 @@ async def compare_device_health_scores(
         if not target_device_ids:
             return {
                 "comparison": [],
-                "summary": {
-                    "total_devices": 0,
-                    "message": "No devices found for comparison"
-                },
-                "timestamp": datetime.now(UTC).isoformat()
+                "summary": {"total_devices": 0, "message": "No devices found for comparison"},
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
         # Calculate health scores for each device
@@ -300,7 +311,7 @@ async def compare_device_health_scores(
                     "usage_frequency": device_state.get("usage_frequency", 0.5),
                     "cpu_usage": device_state.get("cpu_usage"),
                     "memory_usage": device_state.get("memory_usage"),
-                    "temperature": device_state.get("temperature")
+                    "temperature": device_state.get("temperature"),
                 }
 
                 historical_metrics = device_state_tracker.get_device_metrics(device_id, limit=50)
@@ -323,11 +334,13 @@ async def compare_device_health_scores(
 
             # Health distribution
             health_distribution = {
-                "excellent": len([hs for hs in health_scores if hs["health_status"] == "excellent"]),
+                "excellent": len(
+                    [hs for hs in health_scores if hs["health_status"] == "excellent"]
+                ),
                 "good": len([hs for hs in health_scores if hs["health_status"] == "good"]),
                 "fair": len([hs for hs in health_scores if hs["health_status"] == "fair"]),
                 "poor": len([hs for hs in health_scores if hs["health_status"] == "poor"]),
-                "critical": len([hs for hs in health_scores if hs["health_status"] == "critical"])
+                "critical": len([hs for hs in health_scores if hs["health_status"] == "critical"]),
             }
 
             # Top and bottom performers
@@ -349,9 +362,9 @@ async def compare_device_health_scores(
                 "max_score": max_score,
                 "health_distribution": health_distribution,
                 "top_performers": top_performers,
-                "bottom_performers": bottom_performers
+                "bottom_performers": bottom_performers,
             },
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     except Exception as e:
@@ -368,11 +381,8 @@ async def get_health_summary():
 
         if not device_states:
             return {
-                "summary": {
-                    "total_devices": 0,
-                    "message": "No devices found"
-                },
-                "timestamp": datetime.now(UTC).isoformat()
+                "summary": {"total_devices": 0, "message": "No devices found"},
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
         # Calculate health scores for all devices
@@ -387,7 +397,7 @@ async def get_health_summary():
                     "usage_frequency": state.get("usage_frequency", 0.5),
                     "cpu_usage": state.get("cpu_usage"),
                     "memory_usage": state.get("memory_usage"),
-                    "temperature": state.get("temperature")
+                    "temperature": state.get("temperature"),
                 }
 
                 historical_metrics = device_state_tracker.get_device_metrics(device_id, limit=20)
@@ -404,10 +414,7 @@ async def get_health_summary():
         # Get summary statistics
         summary = health_scorer.get_health_score_summary(health_scores)
 
-        return {
-            "summary": summary,
-            "timestamp": datetime.now(UTC).isoformat()
-        }
+        return {"summary": summary, "timestamp": datetime.now(UTC).isoformat()}
 
     except Exception as e:
         logger.error(f"Error getting health summary: {e}")
@@ -424,7 +431,7 @@ async def calculate_device_health_score(device_id: str, metrics: dict[str, Any])
         return {
             "status": "success",
             "health_score": health_score,
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     except Exception as e:

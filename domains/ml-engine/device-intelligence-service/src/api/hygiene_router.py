@@ -33,9 +33,15 @@ def _serialize_issue(issue: DeviceHygieneIssue) -> dict[str, Any]:
         "suggested_action": issue.suggested_action,
         "suggested_value": issue.suggested_value,
         "metadata": issue.metadata_json or {},
-        "detected_at": issue.detected_at.isoformat() if isinstance(issue.detected_at, datetime) else issue.detected_at,
-        "updated_at": issue.updated_at.isoformat() if isinstance(issue.updated_at, datetime) else issue.updated_at,
-        "resolved_at": issue.resolved_at.isoformat() if isinstance(issue.resolved_at, datetime) else issue.resolved_at,
+        "detected_at": issue.detected_at.isoformat()
+        if isinstance(issue.detected_at, datetime)
+        else issue.detected_at,
+        "updated_at": issue.updated_at.isoformat()
+        if isinstance(issue.updated_at, datetime)
+        else issue.updated_at,
+        "resolved_at": issue.resolved_at.isoformat()
+        if isinstance(issue.resolved_at, datetime)
+        else issue.resolved_at,
     }
 
 
@@ -44,7 +50,10 @@ async def get_ha_client() -> AsyncGenerator[HomeAssistantClient, None]:
     client = HomeAssistantClient(settings.HA_URL, settings.NABU_CASA_URL, settings.HA_TOKEN)
 
     if not await client.connect():
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Unable to connect to Home Assistant")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to connect to Home Assistant",
+        )
 
     await client.start_message_handler()
 
@@ -148,8 +157,9 @@ async def apply_issue_action(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     if not applied:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Action requirements not met")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Action requirements not met"
+        )
 
     await session.refresh(issue)
     return _serialize_issue(issue)
-

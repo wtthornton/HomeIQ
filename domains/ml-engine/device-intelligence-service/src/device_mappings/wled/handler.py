@@ -74,9 +74,7 @@ class WLEDHandler(DeviceHandler):
         return False
 
     def identify_type(
-        self,
-        device: dict[str, Any],
-        entities: list[dict[str, Any]]
+        self, device: dict[str, Any], entities: list[dict[str, Any]]
     ) -> DeviceType | None:
         """
         Identify device type (master or segment).
@@ -102,8 +100,7 @@ class WLEDHandler(DeviceHandler):
         # If we have entities, check if any are segments
         # If no segments found and device is WLED, assume master
         if self.can_handle(device) or any(
-            self.can_handle_entity(entity.get("entity_id", ""), device)
-            for entity in entities
+            self.can_handle_entity(entity.get("entity_id", ""), device) for entity in entities
         ):
             # Check if it's a segment by entity_id
             for entity in entities:
@@ -116,9 +113,7 @@ class WLEDHandler(DeviceHandler):
         return None
 
     def get_relationships(
-        self,
-        device: dict[str, Any],
-        all_devices: list[dict[str, Any]]
+        self, device: dict[str, Any], all_devices: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         """
         Get device relationships.
@@ -153,16 +148,18 @@ class WLEDHandler(DeviceHandler):
 
                 # Master should have same base name and not be a segment
                 if (
-                    other_id != device_id and
-                    other_name.startswith(base_name) and
-                    "_segment_" not in other_name and
-                    "wled" in other_name
+                    other_id != device_id
+                    and other_name.startswith(base_name)
+                    and "_segment_" not in other_name
+                    and "wled" in other_name
                 ):
-                    relationships.append({
-                        "type": "master",
-                        "device_id": other_id,
-                        "description": "Master controller for this segment"
-                    })
+                    relationships.append(
+                        {
+                            "type": "master",
+                            "device_id": other_id,
+                            "description": "Master controller for this segment",
+                        }
+                    )
                     break
         else:
             # This is a master - find all segments
@@ -174,23 +171,21 @@ class WLEDHandler(DeviceHandler):
 
                 # Segment should start with base name and contain "_segment_"
                 if (
-                    other_id != device_id and
-                    other_name.startswith(base_name) and
-                    "_segment_" in other_name
+                    other_id != device_id
+                    and other_name.startswith(base_name)
+                    and "_segment_" in other_name
                 ):
-                    relationships.append({
-                        "type": "segment",
-                        "device_id": other_id,
-                        "description": "Segment controlled by this master"
-                    })
+                    relationships.append(
+                        {
+                            "type": "segment",
+                            "device_id": other_id,
+                            "description": "Segment controlled by this master",
+                        }
+                    )
 
         return relationships
 
-    def enrich_context(
-        self,
-        device: dict[str, Any],
-        entities: list[dict[str, Any]]
-    ) -> str:
+    def enrich_context(self, device: dict[str, Any], entities: list[dict[str, Any]]) -> str:
         """
         Enrich device context with device-specific information.
 
@@ -211,8 +206,7 @@ class WLEDHandler(DeviceHandler):
         elif device_type == DeviceType.MASTER:
             # Count segments
             segment_count = sum(
-                1 for entity in entities
-                if "_segment_" in entity.get("entity_id", "").lower()
+                1 for entity in entities if "_segment_" in entity.get("entity_id", "").lower()
             )
             if segment_count > 0:
                 return f"{device_name} (WLED master - controls {segment_count} segments)"
@@ -221,4 +215,3 @@ class WLEDHandler(DeviceHandler):
         else:
             # Generic WLED device
             return f"{device_name} (WLED device)"
-

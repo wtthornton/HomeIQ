@@ -32,7 +32,9 @@ class TrainingScheduler:
     - Concurrent run prevention
     """
 
-    def __init__(self, settings: Settings, analytics_engine: PredictiveAnalyticsEngine | None = None):
+    def __init__(
+        self, settings: Settings, analytics_engine: PredictiveAnalyticsEngine | None = None
+    ):
         """
         Initialize training scheduler.
 
@@ -73,25 +75,29 @@ class TrainingScheduler:
                 raise ValueError(f"Invalid cron expression: {e}") from e
 
             # Validate training mode
-            if self.settings.ML_TRAINING_MODE not in ['full', 'incremental']:
-                logger.error(f"Invalid training mode '{self.settings.ML_TRAINING_MODE}'. Must be 'full' or 'incremental'")
+            if self.settings.ML_TRAINING_MODE not in ["full", "incremental"]:
+                logger.error(
+                    f"Invalid training mode '{self.settings.ML_TRAINING_MODE}'. Must be 'full' or 'incremental'"
+                )
                 raise ValueError(f"Invalid training mode: {self.settings.ML_TRAINING_MODE}")
 
             # Add scheduled job
             self.scheduler.add_job(
                 self._run_training,
                 CronTrigger.from_crontab(self.settings.ML_TRAINING_SCHEDULE),
-                id='nightly_training',
-                name='Nightly Model Training',
+                id="nightly_training",
+                name="Nightly Model Training",
                 replace_existing=True,
-                misfire_grace_time=3600  # Allow up to 1 hour late start
+                misfire_grace_time=3600,  # Allow up to 1 hour late start
             )
 
             self.scheduler.start()
-            job = self.scheduler.get_job('nightly_training')
+            job = self.scheduler.get_job("nightly_training")
             next_run = job.next_run_time if job else None
 
-            logger.info(f"Training scheduler started: schedule={self.settings.ML_TRAINING_SCHEDULE}")
+            logger.info(
+                f"Training scheduler started: schedule={self.settings.ML_TRAINING_SCHEDULE}"
+            )
             logger.info(f"Mode: {self.settings.ML_TRAINING_MODE}")
             if next_run:
                 logger.info(f"Next run: {next_run}")
@@ -194,7 +200,7 @@ class TrainingScheduler:
         Falls back to full training if incremental learning not available.
         """
         # Check if incremental learning is supported
-        if hasattr(self.analytics_engine, 'update_models_incremental'):
+        if hasattr(self.analytics_engine, "update_models_incremental"):
             try:
                 await self.analytics_engine.update_models_incremental(days_back=180)
                 logger.info("Incremental update completed")
@@ -221,8 +227,10 @@ class TrainingScheduler:
             return {
                 "status": "running",
                 "message": "Training is already running",
-                "last_training_time": self._last_training_time.isoformat() if self._last_training_time else None,
-                "last_training_status": self._last_training_status
+                "last_training_time": self._last_training_time.isoformat()
+                if self._last_training_time
+                else None,
+                "last_training_status": self._last_training_status,
             }
 
         # Use provided mode or default from settings
@@ -235,7 +243,7 @@ class TrainingScheduler:
             "status": "triggered",
             "message": f"Training triggered in {training_mode} mode",
             "mode": training_mode,
-            "estimated_duration": "30-300 seconds (incremental) or 60-600 seconds (full)"
+            "estimated_duration": "30-300 seconds (incremental) or 60-600 seconds (full)",
         }
 
     async def _run_training_with_mode(self, mode: str):
@@ -254,7 +262,7 @@ class TrainingScheduler:
         Returns:
             Dictionary with scheduler status, last training info, and next run time
         """
-        job = self.scheduler.get_job('nightly_training')
+        job = self.scheduler.get_job("nightly_training")
         next_run = job.next_run_time if job else None
 
         return {
@@ -263,8 +271,9 @@ class TrainingScheduler:
             "mode": self.settings.ML_TRAINING_MODE,
             "running": self.is_running,
             "next_run_time": next_run.isoformat() if next_run else None,
-            "last_training_time": self._last_training_time.isoformat() if self._last_training_time else None,
+            "last_training_time": self._last_training_time.isoformat()
+            if self._last_training_time
+            else None,
             "last_training_status": self._last_training_status,
-            "last_training_error": self._last_training_error
+            "last_training_error": self._last_training_error,
         }
-

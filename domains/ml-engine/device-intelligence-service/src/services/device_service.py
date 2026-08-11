@@ -16,6 +16,7 @@ from ..models.database import Device, DeviceCapability, DeviceHealthMetric
 
 logger = logging.getLogger(__name__)
 
+
 class DeviceService:
     """Simple device service for database operations."""
 
@@ -65,17 +66,44 @@ class DeviceService:
             raise
 
     # Whitelist of allowed Device column names to prevent SQL injection (CRIT-2)
-    _ALLOWED_DEVICE_COLUMNS = frozenset({
-        "id", "name", "manufacturer", "model", "area_id", "area_name",
-        "integration", "sw_version", "hw_version", "power_source",
-        "via_device_id", "ha_device_id", "zigbee_device_id", "last_seen",
-        "health_score", "disabled_by", "device_class", "config_entry_id",
-        "connections_json", "identifiers_json", "zigbee_ieee",
-        "is_battery_powered", "lqi", "lqi_updated_at", "availability_status",
-        "name_by_user", "suggested_area", "entry_type", "configuration_url",
-        "labels_json", "serial_number", "model_id",
-        "created_at", "updated_at",
-    })
+    _ALLOWED_DEVICE_COLUMNS = frozenset(
+        {
+            "id",
+            "name",
+            "manufacturer",
+            "model",
+            "area_id",
+            "area_name",
+            "integration",
+            "sw_version",
+            "hw_version",
+            "power_source",
+            "via_device_id",
+            "ha_device_id",
+            "zigbee_device_id",
+            "last_seen",
+            "health_score",
+            "disabled_by",
+            "device_class",
+            "config_entry_id",
+            "connections_json",
+            "identifiers_json",
+            "zigbee_ieee",
+            "is_battery_powered",
+            "lqi",
+            "lqi_updated_at",
+            "availability_status",
+            "name_by_user",
+            "suggested_area",
+            "entry_type",
+            "configuration_url",
+            "labels_json",
+            "serial_number",
+            "model_id",
+            "created_at",
+            "updated_at",
+        }
+    )
 
     async def bulk_upsert_devices(self, devices_data: list[dict[str, Any]]) -> list[Device]:
         """Bulk upsert multiple devices using parameterized queries."""
@@ -84,6 +112,7 @@ class DeviceService:
 
         try:
             from sqlalchemy import text
+
             missing_integrations: list[str] = []
             upserted_count = 0
 
@@ -108,13 +137,17 @@ class DeviceService:
                 quoted_columns = [f'"{col}"' for col in columns]
 
                 # Build UPDATE SET clause for PostgreSQL
-                update_parts_pg = [f'"{col}"=EXCLUDED."{col}"' for col in columns if col not in {"id", "created_at"}]
+                update_parts_pg = [
+                    f'"{col}"=EXCLUDED."{col}"'
+                    for col in columns
+                    if col not in {"id", "created_at"}
+                ]
 
                 sql = f"""
-                INSERT INTO devices ({', '.join(quoted_columns)})
-                VALUES ({', '.join(placeholders)})
+                INSERT INTO devices ({", ".join(quoted_columns)})
+                VALUES ({", ".join(placeholders)})
                 ON CONFLICT(id) DO UPDATE SET
-                {', '.join(update_parts_pg)}
+                {", ".join(update_parts_pg)}
                 """
 
                 await self.session.execute(text(sql), safe_entry)
@@ -123,9 +156,7 @@ class DeviceService:
             await self.session.commit()
 
             device_ids = [entry["id"] for entry in devices_data if entry.get("id")]
-            result = await self.session.execute(
-                select(Device).where(Device.id.in_(device_ids))
-            )
+            result = await self.session.execute(select(Device).where(Device.id.in_(device_ids)))
             devices = result.scalars().all()
 
             if missing_integrations:
@@ -200,12 +231,17 @@ class DeviceService:
             logger.error(f"Error retrieving capabilities for device {device_id}: {e}")
             return []
 
-    async def get_device_health_metrics(self, device_id: str, limit: int = 100) -> list[DeviceHealthMetric]:
+    async def get_device_health_metrics(
+        self, device_id: str, limit: int = 100
+    ) -> list[DeviceHealthMetric]:
         """Get health metrics for a device."""
         try:
-            stmt = select(DeviceHealthMetric).where(
-                DeviceHealthMetric.device_id == device_id
-            ).order_by(DeviceHealthMetric.timestamp.desc()).limit(limit)
+            stmt = (
+                select(DeviceHealthMetric)
+                .where(DeviceHealthMetric.device_id == device_id)
+                .order_by(DeviceHealthMetric.timestamp.desc())
+                .limit(limit)
+            )
             result = await self.session.execute(stmt)
             metrics = result.scalars().all()
             logger.info(f"Retrieved {len(metrics)} health metrics for device {device_id}")
@@ -247,7 +283,9 @@ class DeviceService:
             total_devices = total_devices_result.scalar() or 0
 
             # Devices by integration
-            integration_stmt = select(Device.integration, func.count(Device.id)).group_by(Device.integration)
+            integration_stmt = select(Device.integration, func.count(Device.id)).group_by(
+                Device.integration
+            )
             integration_result = await self.session.execute(integration_stmt)
             devices_by_integration = {row[0]: row[1] for row in integration_result}
 
@@ -257,7 +295,9 @@ class DeviceService:
             devices_by_area = {row[0]: row[1] for row in area_result if row[0]}
 
             # Average health score
-            health_stmt = select(func.avg(Device.health_score)).where(Device.health_score.isnot(None))
+            health_stmt = select(func.avg(Device.health_score)).where(
+                Device.health_score.isnot(None)
+            )
             health_result = await self.session.execute(health_stmt)
             average_health_score = float(health_result.scalar() or 0)
 
@@ -271,10 +311,12 @@ class DeviceService:
                 "devices_by_integration": devices_by_integration,
                 "devices_by_area": devices_by_area,
                 "average_health_score": average_health_score,
-                "total_capabilities": total_capabilities
+                "total_capabilities": total_capabilities,
             }
 
-            logger.info(f"Retrieved device statistics: {total_devices} devices, {total_capabilities} capabilities")
+            logger.info(
+                f"Retrieved device statistics: {total_devices} devices, {total_capabilities} capabilities"
+            )
             return stats
 
         except Exception as e:
@@ -284,5 +326,5 @@ class DeviceService:
                 "devices_by_integration": {},
                 "devices_by_area": {},
                 "average_health_score": 0.0,
-                "total_capabilities": 0
+                "total_capabilities": 0,
             }

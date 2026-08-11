@@ -29,11 +29,8 @@ from src.core.predictive_analytics import PredictiveAnalyticsEngine
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler('training.log')
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler("training.log")],
 )
 logger = logging.getLogger(__name__)
 
@@ -43,11 +40,11 @@ async def train_models(
     force: bool = False,
     verbose: bool = False,
     use_synthetic: bool = False,
-    synthetic_count: int = 1000
+    synthetic_count: int = 1000,
 ):
     """
     Train ML models.
-    
+
     Args:
         days_back: Number of days of historical data to use
         force: Force retrain even if models exist
@@ -84,7 +81,9 @@ async def train_models(
             logger.info("ℹ️  Models are already trained. Use --force to retrain.")
             status = engine.get_model_status()
             logger.info(f"   Current version: {status['model_metadata'].get('version', 'unknown')}")
-            logger.info(f"   Training date: {status['model_metadata'].get('training_date', 'unknown')}")
+            logger.info(
+                f"   Training date: {status['model_metadata'].get('training_date', 'unknown')}"
+            )
             return 0
 
         # Generate synthetic data if requested (Epic 46.3)
@@ -93,10 +92,10 @@ async def train_models(
             logger.info("📊 Generating synthetic device data...")
             try:
                 from src.training.synthetic_device_generator import SyntheticDeviceGenerator
+
                 generator = SyntheticDeviceGenerator()
                 historical_data = generator.generate_training_data(
-                    count=synthetic_count,
-                    days=days_back
+                    count=synthetic_count, days=days_back
                 )
                 logger.info(f"✅ Generated {len(historical_data)} synthetic device samples")
             except Exception as e:
@@ -113,8 +112,8 @@ async def train_models(
         if engine.is_trained:
             # Get training results
             status = engine.get_model_status()
-            metadata = status.get('model_metadata', {})
-            performance = status.get('model_performance', {})
+            metadata = status.get("model_metadata", {})
+            performance = status.get("model_performance", {})
 
             logger.info("")
             logger.info("=" * 80)
@@ -123,10 +122,12 @@ async def train_models(
             logger.info(f"Model Version: {metadata.get('version', 'unknown')}")
             logger.info(f"Training Date: {metadata.get('training_date', 'unknown')}")
             logger.info(f"Data Source: {metadata.get('data_source', 'unknown')}")
-            logger.info(f"Training Duration: {metadata.get('training_duration_seconds', 0):.2f} seconds")
+            logger.info(
+                f"Training Duration: {metadata.get('training_duration_seconds', 0):.2f} seconds"
+            )
             logger.info("")
             logger.info("Training Data Stats:")
-            stats = metadata.get('training_data_stats', {})
+            stats = metadata.get("training_data_stats", {})
             logger.info(f"  - Sample Count: {stats.get('sample_count', 0)}")
             logger.info(f"  - Unique Devices: {stats.get('unique_devices', 0)}")
             logger.info(f"  - Days Back: {stats.get('days_back', 0)}")
@@ -174,53 +175,48 @@ Examples:
   
   # Verbose output
   python scripts/train_models.py --verbose
-        """
+        """,
     )
 
     parser.add_argument(
-        '--days-back',
+        "--days-back",
         type=int,
         default=180,
-        help='Number of days of historical data to use for training (default: 180)'
+        help="Number of days of historical data to use for training (default: 180)",
     )
 
     parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Force retraining even if models already exist'
+        "--force", action="store_true", help="Force retraining even if models already exist"
     )
 
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
     parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose logging'
+        "--synthetic-data",
+        action="store_true",
+        help="Use synthetic device data for training (Epic 46.3: for initial training)",
     )
     parser.add_argument(
-        '--synthetic-data',
-        action='store_true',
-        help='Use synthetic device data for training (Epic 46.3: for initial training)'
-    )
-    parser.add_argument(
-        '--synthetic-count',
+        "--synthetic-count",
         type=int,
         default=1000,
-        help='Number of synthetic samples to generate (default: 1000, only used with --synthetic-data)'
+        help="Number of synthetic samples to generate (default: 1000, only used with --synthetic-data)",
     )
 
     args = parser.parse_args()
 
     # Run training
-    exit_code = asyncio.run(train_models(
-        days_back=args.days_back,
-        force=args.force,
-        verbose=args.verbose,
-        use_synthetic=args.synthetic_data,
-        synthetic_count=args.synthetic_count
-    ))
+    exit_code = asyncio.run(
+        train_models(
+            days_back=args.days_back,
+            force=args.force,
+            verbose=args.verbose,
+            use_synthetic=args.synthetic_data,
+            synthetic_count=args.synthetic_count,
+        )
+    )
 
     sys.exit(exit_code)
 
 
 if __name__ == "__main__":
     main()
-

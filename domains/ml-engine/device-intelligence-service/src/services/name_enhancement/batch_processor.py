@@ -30,7 +30,7 @@ class NameEnhancementBatchProcessor:
         self.settings = settings
         self.scheduler = AsyncIOScheduler()
         self.is_running = False
-        self.batch_size = getattr(settings, 'NAME_ENHANCEMENT_BATCH_SIZE', 20) if settings else 20
+        self.batch_size = getattr(settings, "NAME_ENHANCEMENT_BATCH_SIZE", 20) if settings else 20
 
     def start(self, schedule: str = "0 4 * * *"):
         """
@@ -42,10 +42,10 @@ class NameEnhancementBatchProcessor:
             self.scheduler.add_job(
                 self.process_pending_devices,
                 CronTrigger.from_crontab(schedule),
-                id='name_enhancement_batch',
-                name='Name Enhancement Batch Processing',
+                id="name_enhancement_batch",
+                name="Name Enhancement Batch Processing",
                 replace_existing=True,
-                misfire_grace_time=3600  # 1 hour grace period
+                misfire_grace_time=3600,  # 1 hour grace period
             )
             self.scheduler.start()
             self.is_running = True
@@ -62,9 +62,7 @@ class NameEnhancementBatchProcessor:
         logger.info("Name enhancement batch processor stopped")
 
     async def process_pending_devices(
-        self,
-        use_ai: bool = False,
-        auto_accept_high_confidence: bool = False
+        self, use_ai: bool = False, auto_accept_high_confidence: bool = False
     ):
         """
         Process devices that need name enhancement.
@@ -99,14 +97,16 @@ class NameEnhancementBatchProcessor:
                 total_suggestions = 0
 
                 for i in range(0, len(devices_to_process), self.batch_size):
-                    batch = devices_to_process[i:i + self.batch_size]
-                    logger.info(f"Processing batch {i // self.batch_size + 1} ({len(batch)} devices)")
+                    batch = devices_to_process[i : i + self.batch_size]
+                    logger.info(
+                        f"Processing batch {i // self.batch_size + 1} ({len(batch)} devices)"
+                    )
 
                     suggestions = await self.process_batch(
                         batch,
                         use_ai=use_ai,
                         auto_accept=auto_accept_high_confidence,
-                        session=session
+                        session=session,
                     )
 
                     total_processed += len(batch)
@@ -124,25 +124,22 @@ class NameEnhancementBatchProcessor:
         except Exception as e:
             logger.error(f"Error in batch processing: {e}", exc_info=True)
 
-    async def _find_devices_needing_enhancement(
-        self,
-        session: AsyncSession
-    ) -> list[Device]:
+    async def _find_devices_needing_enhancement(self, session: AsyncSession) -> list[Device]:
         """Find devices that need name enhancement"""
         # Find devices without name_by_user or with low-quality names
         result = await session.execute(
-            select(Device).where(
-                (Device.name_by_user.is_(None)) |  # No user customization
-                (Device.name.like("%% %%%"))  # Has numbers/technical names (simple heuristic)
-            ).limit(500)  # Limit to avoid processing too many
+            select(Device)
+            .where(
+                (Device.name_by_user.is_(None))  # No user customization
+                | (Device.name.like("%% %%%"))  # Has numbers/technical names (simple heuristic)
+            )
+            .limit(500)  # Limit to avoid processing too many
         )
         devices = result.scalars().all()
 
         # Filter out devices that already have pending suggestions
         result = await session.execute(
-            select(NameSuggestion.device_id).where(
-                NameSuggestion.status == "pending"
-            )
+            select(NameSuggestion.device_id).where(NameSuggestion.status == "pending")
         )
         devices_with_pending = {row[0] for row in result}
 
@@ -154,7 +151,7 @@ class NameEnhancementBatchProcessor:
         devices: list[Device],
         use_ai: bool = False,
         auto_accept: bool = False,
-        session: AsyncSession | None = None
+        session: AsyncSession | None = None,
     ) -> list[NameSuggestion]:
         """
         Process batch of devices efficiently.
@@ -192,7 +189,7 @@ class NameEnhancementBatchProcessor:
                     select(NameSuggestion).where(
                         NameSuggestion.device_id == device.id,
                         NameSuggestion.suggested_name == suggestion.name,
-                        NameSuggestion.status == "pending"
+                        NameSuggestion.status == "pending",
                     )
                 )
                 if existing_result.scalar_one_or_none():
@@ -207,7 +204,7 @@ class NameEnhancementBatchProcessor:
                     confidence_score=suggestion.confidence,
                     suggestion_source=suggestion.source,
                     status="pending",
-                    reasoning=suggestion.reasoning
+                    reasoning=suggestion.reasoning,
                 )
                 session.add(name_suggestion)
                 suggestions_created.append(suggestion)
@@ -226,19 +223,14 @@ class NameEnhancementBatchProcessor:
         return suggestions_created
 
     async def _process_single_device(
-        self,
-        device: Device,
-        use_ai: bool = False,
-        session: AsyncSession | None = None
+        self, device: Device, use_ai: bool = False, session: AsyncSession | None = None
     ) -> tuple[NameSuggestion, Device] | None:
         """Process a single device and generate suggestion"""
         try:
             # Get primary entity for this device
             if session:
                 result = await session.execute(
-                    select(DeviceEntity).where(
-                        DeviceEntity.device_id == device.id
-                    ).limit(1)
+                    select(DeviceEntity).where(DeviceEntity.device_id == device.id).limit(1)
                 )
                 entity = result.scalar_one_or_none()
             else:
@@ -246,9 +238,7 @@ class NameEnhancementBatchProcessor:
 
             # Generate suggestion
             suggestion = await self.name_generator.generate_suggested_name(
-                device,
-                entity,
-                use_ai=use_ai
+                device, entity, use_ai=use_ai
             )
 
             # Only return high-confidence suggestions
@@ -260,4 +250,3 @@ class NameEnhancementBatchProcessor:
         except Exception as e:
             logger.warning(f"Failed to process device {device.id}: {e}")
             return None
-

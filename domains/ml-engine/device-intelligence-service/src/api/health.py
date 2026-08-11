@@ -22,6 +22,7 @@ router = APIRouter(prefix="/health", tags=["Health"])
 
 class HealthResponse(BaseModel):
     """Health check response model."""
+
     status: str
     timestamp: datetime
     service: str
@@ -33,6 +34,7 @@ class HealthResponse(BaseModel):
 
 class ServiceStatus(BaseModel):
     """Service status response model."""
+
     service: str
     status: str
     version: str
@@ -60,7 +62,9 @@ async def health_check(_settings: Settings = Depends(lambda: Settings())) -> Hea
 
     # Calculate uptime (simplified - in production you'd track start time)
     uptime_seconds = int(time.time() - process.create_time())
-    uptime_str = f"{uptime_seconds // 3600}h {(uptime_seconds % 3600) // 60}m {uptime_seconds % 60}s"
+    uptime_str = (
+        f"{uptime_seconds // 3600}h {(uptime_seconds % 3600) // 60}m {uptime_seconds % 60}s"
+    )
 
     # Check dependencies with real database test (MED-2)
     db_status = "unknown"
@@ -77,7 +81,7 @@ async def health_check(_settings: Settings = Depends(lambda: Settings())) -> Hea
         "database": db_status,
         "redis": "not_configured",
         "home_assistant": "not_checked",
-        "mqtt": "not_checked"
+        "mqtt": "not_checked",
     }
 
     # Report "degraded" when the database is unavailable, but always
@@ -95,9 +99,9 @@ async def health_check(_settings: Settings = Depends(lambda: Settings())) -> Hea
         memory_usage={
             "rss_mb": round(memory_info.rss / 1024 / 1024, 2),
             "vms_mb": round(memory_info.vms / 1024 / 1024, 2),
-            "percent": round(process.memory_percent(), 2)
+            "percent": round(process.memory_percent(), 2),
         },
-        dependencies=dependencies
+        dependencies=dependencies,
     )
 
 
@@ -118,7 +122,7 @@ async def service_status(settings: Settings = Depends(lambda: Settings())) -> Se
         "database": "operational",
         "cache": "operational",
         "home_assistant": "operational",
-        "mqtt_broker": "operational"
+        "mqtt_broker": "operational",
     }
 
     return ServiceStatus(
@@ -128,7 +132,7 @@ async def service_status(settings: Settings = Depends(lambda: Settings())) -> Se
         port=settings.DEVICE_INTELLIGENCE_PORT,
         host=settings.DEVICE_INTELLIGENCE_HOST,
         environment=environment,
-        dependencies=dependencies
+        dependencies=dependencies,
     )
 
 
@@ -178,5 +182,5 @@ async def liveness_check() -> dict[str, Any]:
     return {
         "status": "alive",
         "timestamp": datetime.now(UTC).isoformat(),
-        "service": "Device Intelligence Service"
+        "service": "Device Intelligence Service",
     }

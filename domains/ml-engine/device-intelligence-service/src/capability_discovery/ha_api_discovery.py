@@ -33,21 +33,15 @@ class HACapabilityDiscoverer:
         if self._session is None or self._session.closed:
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             timeout = aiohttp.ClientTimeout(total=10)
             self._session = aiohttp.ClientSession(
-                headers=headers,
-                timeout=timeout,
-                raise_for_status=False
+                headers=headers, timeout=timeout, raise_for_status=False
             )
         return self._session
 
-    async def discover_capabilities(
-        self,
-        device_id: str,
-        entity_ids: list[str]
-    ) -> dict[str, Any]:
+    async def discover_capabilities(self, device_id: str, entity_ids: list[str]) -> dict[str, Any]:
         """
         Discover device capabilities from HA API.
 
@@ -113,7 +107,7 @@ class HACapabilityDiscoverer:
                 "capabilities": list(set(capabilities)),  # Remove duplicates
                 "features": features,
                 "device_classes": list(device_classes),
-                "state_classes": list(state_classes)
+                "state_classes": list(state_classes),
             }
 
         except Exception as e:
@@ -203,7 +197,9 @@ class HACapabilityDiscoverer:
 
         return features
 
-    async def _get_entity_state(self, session: aiohttp.ClientSession, entity_id: str) -> dict[str, Any] | None:
+    async def _get_entity_state(
+        self, session: aiohttp.ClientSession, entity_id: str
+    ) -> dict[str, Any] | None:
         """Get entity state"""
         try:
             state_url = f"{self.ha_url}/api/states/{entity_id}"
@@ -245,4 +241,3 @@ class HACapabilityDiscoverer:
         await self._close_ws()
         if self._session and not self._session.closed:
             await self._session.close()
-

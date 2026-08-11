@@ -107,7 +107,8 @@ class DeviceMappingCache:
         """
         current_time = time.time()
         expired_keys = [
-            key for key, (_, timestamp) in self._cache.items()
+            key
+            for key, (_, timestamp) in self._cache.items()
             if current_time - timestamp > self._ttl
         ]
 
@@ -166,4 +167,3 @@ def clear_cache() -> None:
     if _cache is not None:
         _cache.stop_periodic_cleanup()
         _cache.clear()
-

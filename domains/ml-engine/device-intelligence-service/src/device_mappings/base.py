@@ -11,6 +11,7 @@ from typing import Any
 
 class DeviceType(Enum):
     """Device type enumeration."""
+
     MASTER = "master"  # Master entity (e.g., WLED master)
     SEGMENT = "segment"  # Segment entity (e.g., WLED segment)
     GROUP = "group"  # Group entity (e.g., Hue Room/Zone)
@@ -53,7 +54,9 @@ class DeviceHandler(ABC):
         pass
 
     @abstractmethod
-    def get_relationships(self, device: dict[str, Any], entities: list[dict[str, Any]]) -> dict[str, Any]:
+    def get_relationships(
+        self, device: dict[str, Any], entities: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Get device relationships (e.g., segments to master, lights to room).
 
@@ -79,4 +82,3 @@ class DeviceHandler(ABC):
             Dictionary with enriched context information
         """
         pass
-

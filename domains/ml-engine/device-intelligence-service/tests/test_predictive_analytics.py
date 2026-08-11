@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from src.api.predictions_router import router
 from src.core.predictive_analytics import PredictiveAnalyticsEngine
@@ -41,7 +41,7 @@ class TestPredictiveAnalyticsEngine:
             "uptime_hours": 100,
             "restart_count": 2,
             "connection_drops": 1,
-            "data_transfer_rate": 1000
+            "data_transfer_rate": 1000,
         }
 
     @pytest.fixture
@@ -50,19 +50,21 @@ class TestPredictiveAnalyticsEngine:
         np.random.seed(42)
         data = []
         for i in range(200):
-            data.append({
-                "response_time": np.random.normal(500, 200),
-                "error_rate": np.random.exponential(0.05),
-                "battery_level": np.random.normal(70, 20),
-                "signal_strength": np.random.normal(-60, 15),
-                "usage_frequency": np.random.uniform(0.1, 1.0),
-                "temperature": np.random.normal(25, 5),
-                "humidity": np.random.normal(50, 10),
-                "uptime_hours": np.random.exponential(100),
-                "restart_count": np.random.poisson(2),
-                "connection_drops": np.random.poisson(1),
-                "data_transfer_rate": np.random.normal(1000, 200)
-            })
+            data.append(
+                {
+                    "response_time": np.random.normal(500, 200),
+                    "error_rate": np.random.exponential(0.05),
+                    "battery_level": np.random.normal(70, 20),
+                    "signal_strength": np.random.normal(-60, 15),
+                    "usage_frequency": np.random.uniform(0.1, 1.0),
+                    "temperature": np.random.normal(25, 5),
+                    "humidity": np.random.normal(50, 10),
+                    "uptime_hours": np.random.exponential(100),
+                    "restart_count": np.random.poisson(2),
+                    "connection_drops": np.random.poisson(1),
+                    "data_transfer_rate": np.random.normal(1000, 200),
+                }
+            )
         return data
 
     def test_feature_extraction(self, analytics_engine, sample_metrics):
@@ -110,7 +112,7 @@ class TestPredictiveAnalyticsEngine:
             "battery_level": 15,
             "error_rate": 0.15,
             "signal_strength": -85,
-            "response_time": 1500
+            "response_time": 1500,
         }
 
         recommendations = await analytics_engine._generate_maintenance_recommendations(
@@ -172,14 +174,14 @@ class TestPredictiveAnalyticsEngine:
         """Test prediction for multiple devices."""
         devices_metrics = {
             "device1": {"response_time": 500, "error_rate": 0.05, "battery_level": 75},
-            "device2": {"response_time": 2000, "error_rate": 0.15, "battery_level": 15}
+            "device2": {"response_time": 2000, "error_rate": 0.15, "battery_level": 15},
         }
 
         # Mock the predict_device_failure method
-        with patch.object(analytics_engine, 'predict_device_failure') as mock_predict:
+        with patch.object(analytics_engine, "predict_device_failure") as mock_predict:
             mock_predict.side_effect = [
                 {"device_id": "device1", "failure_probability": 20.0, "risk_level": "low"},
-                {"device_id": "device2", "failure_probability": 80.0, "risk_level": "critical"}
+                {"device_id": "device2", "failure_probability": 80.0, "risk_level": "critical"},
             ]
 
             predictions = await analytics_engine.predict_all_devices(devices_metrics)
@@ -210,17 +212,17 @@ class TestPredictionsAPI:
         repository = Mock()
         repository.get_devices.return_value = [
             Mock(id="device1", name="Test Device 1"),
-            Mock(id="device2", name="Test Device 2")
+            Mock(id="device2", name="Test Device 2"),
         ]
         repository.get_device.return_value = Mock(id="device1", name="Test Device 1")
         repository.get_all_devices.return_value = [
             Mock(id="device1", name="Test Device 1"),
-            Mock(id="device2", name="Test Device 2")
+            Mock(id="device2", name="Test Device 2"),
         ]
         repository.get_device_metrics.return_value = {
             "response_time": 500,
             "error_rate": 0.05,
-            "battery_level": 75
+            "battery_level": 75,
         }
         return repository
 
@@ -230,18 +232,18 @@ class TestPredictionsAPI:
         engine = Mock()
         engine.predict_all_devices.return_value = [
             {"device_id": "device1", "failure_probability": 20.0, "risk_level": "low"},
-            {"device_id": "device2", "failure_probability": 80.0, "risk_level": "critical"}
+            {"device_id": "device2", "failure_probability": 80.0, "risk_level": "critical"},
         ]
         engine.predict_device_failure.return_value = {
             "device_id": "device1",
             "failure_probability": 20.0,
             "risk_level": "low",
-            "recommendations": ["Device operating normally"]
+            "recommendations": ["Device operating normally"],
         }
         engine.is_trained = True
         engine.get_model_status.return_value = {
             "is_trained": True,
-            "model_performance": {"accuracy": 0.85}
+            "model_performance": {"accuracy": 0.85},
         }
         return engine
 
@@ -254,8 +256,13 @@ class TestPredictionsAPI:
         app = FastAPI()
         app.include_router(router)
 
-        with patch('src.api.predictions_router.get_device_repository', return_value=mock_repository):
-            with patch('src.api.predictions_router.get_analytics_engine', return_value=mock_analytics_engine):
+        with patch(
+            "src.api.predictions_router.get_device_repository", return_value=mock_repository
+        ):
+            with patch(
+                "src.api.predictions_router.get_analytics_engine",
+                return_value=mock_analytics_engine,
+            ):
                 client = TestClient(app)
                 response = client.get("/api/predictions/failures")
 
@@ -274,8 +281,13 @@ class TestPredictionsAPI:
         app = FastAPI()
         app.include_router(router)
 
-        with patch('src.api.predictions_router.get_device_repository', return_value=mock_repository):
-            with patch('src.api.predictions_router.get_analytics_engine', return_value=mock_analytics_engine):
+        with patch(
+            "src.api.predictions_router.get_device_repository", return_value=mock_repository
+        ):
+            with patch(
+                "src.api.predictions_router.get_analytics_engine",
+                return_value=mock_analytics_engine,
+            ):
                 client = TestClient(app)
                 response = client.get("/api/predictions/failures/device1")
 
@@ -294,8 +306,13 @@ class TestPredictionsAPI:
         app = FastAPI()
         app.include_router(router)
 
-        with patch('src.api.predictions_router.get_device_repository', return_value=mock_repository):
-            with patch('src.api.predictions_router.get_analytics_engine', return_value=mock_analytics_engine):
+        with patch(
+            "src.api.predictions_router.get_device_repository", return_value=mock_repository
+        ):
+            with patch(
+                "src.api.predictions_router.get_analytics_engine",
+                return_value=mock_analytics_engine,
+            ):
                 client = TestClient(app)
                 response = client.get("/api/predictions/maintenance")
 
@@ -313,7 +330,9 @@ class TestPredictionsAPI:
         app = FastAPI()
         app.include_router(router)
 
-        with patch('src.api.predictions_router.get_analytics_engine', return_value=mock_analytics_engine):
+        with patch(
+            "src.api.predictions_router.get_analytics_engine", return_value=mock_analytics_engine
+        ):
             client = TestClient(app)
             response = client.get("/api/predictions/models/status")
 
@@ -331,7 +350,9 @@ class TestPredictionsAPI:
         app = FastAPI()
         app.include_router(router)
 
-        with patch('src.api.predictions_router.get_analytics_engine', return_value=mock_analytics_engine):
+        with patch(
+            "src.api.predictions_router.get_analytics_engine", return_value=mock_analytics_engine
+        ):
             client = TestClient(app)
             response = client.post("/api/predictions/train", json={"force_retrain": False})
 
@@ -349,12 +370,17 @@ class TestPredictionsAPI:
         app = FastAPI()
         app.include_router(router)
 
-        with patch('src.api.predictions_router.get_analytics_engine', return_value=mock_analytics_engine):
+        with patch(
+            "src.api.predictions_router.get_analytics_engine", return_value=mock_analytics_engine
+        ):
             client = TestClient(app)
-            response = client.post("/api/predictions/predict", json={
-                "device_id": "test_device",
-                "metrics": {"response_time": 1000, "error_rate": 0.1}
-            })
+            response = client.post(
+                "/api/predictions/predict",
+                json={
+                    "device_id": "test_device",
+                    "metrics": {"response_time": 1000, "error_rate": 0.1},
+                },
+            )
 
             assert response.status_code == 200
             data = response.json()
@@ -388,19 +414,21 @@ async def test_integration_scenario():
     np.random.seed(42)
     training_data = []
     for i in range(200):
-        training_data.append({
-            "response_time": np.random.normal(500, 200),
-            "error_rate": np.random.exponential(0.05),
-            "battery_level": np.random.normal(70, 20),
-            "signal_strength": np.random.normal(-60, 15),
-            "usage_frequency": np.random.uniform(0.1, 1.0),
-            "temperature": np.random.normal(25, 5),
-            "humidity": np.random.normal(50, 10),
-            "uptime_hours": np.random.exponential(100),
-            "restart_count": np.random.poisson(2),
-            "connection_drops": np.random.poisson(1),
-            "data_transfer_rate": np.random.normal(1000, 200)
-        })
+        training_data.append(
+            {
+                "response_time": np.random.normal(500, 200),
+                "error_rate": np.random.exponential(0.05),
+                "battery_level": np.random.normal(70, 20),
+                "signal_strength": np.random.normal(-60, 15),
+                "usage_frequency": np.random.uniform(0.1, 1.0),
+                "temperature": np.random.normal(25, 5),
+                "humidity": np.random.normal(50, 10),
+                "uptime_hours": np.random.exponential(100),
+                "restart_count": np.random.poisson(2),
+                "connection_drops": np.random.poisson(1),
+                "data_transfer_rate": np.random.normal(1000, 200),
+            }
+        )
 
     # Train models
     await engine.train_models(training_data)
@@ -417,7 +445,7 @@ async def test_integration_scenario():
         "uptime_hours": 50,
         "restart_count": 5,
         "connection_drops": 8,
-        "data_transfer_rate": 800
+        "data_transfer_rate": 800,
     }
 
     prediction = await engine.predict_device_failure("test_device", test_metrics)

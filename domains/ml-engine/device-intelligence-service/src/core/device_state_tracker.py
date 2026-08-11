@@ -25,9 +25,9 @@ class DeviceStateTracker:
         self.max_history = max_history
         self.anomaly_thresholds = {
             "response_time": 1000,  # ms
-            "error_rate": 0.1,      # 10%
-            "battery_level": 20,    # %
-            "signal_strength": -80  # dBm
+            "error_rate": 0.1,  # 10%
+            "battery_level": 20,  # %
+            "signal_strength": -80,  # dBm
         }
 
     async def update_device_state(self, device_id: str, state_data: dict[str, Any]):
@@ -35,11 +35,7 @@ class DeviceStateTracker:
         current_time = datetime.now(UTC)
 
         # Update device state
-        self.device_states[device_id] = {
-            **state_data,
-            "last_updated": current_time,
-            "online": True
-        }
+        self.device_states[device_id] = {**state_data, "last_updated": current_time, "online": True}
 
         # Track metrics
         if device_id not in self.device_metrics:
@@ -54,7 +50,7 @@ class DeviceStateTracker:
             "cpu_usage": state_data.get("cpu_usage"),
             "memory_usage": state_data.get("memory_usage"),
             "temperature": state_data.get("temperature"),
-            "uptime": state_data.get("uptime")
+            "uptime": state_data.get("uptime"),
         }
 
         self.device_metrics[device_id].append(metric_entry)
@@ -63,20 +59,20 @@ class DeviceStateTracker:
         if device_id not in self.device_history:
             self.device_history[device_id] = deque(maxlen=self.max_history)
 
-        self.device_history[device_id].append({
-            "timestamp": current_time,
-            "state": state_data
-        })
+        self.device_history[device_id].append({"timestamp": current_time, "state": state_data})
 
         # Check for anomalies
         await self._check_anomalies(device_id, state_data)
 
         # Broadcast update to WebSocket subscribers
-        await websocket_manager.broadcast_device_update(device_id, {
-            "state": state_data,
-            "metrics": metric_entry,
-            "health_score": await self._calculate_basic_health_score(device_id, state_data)
-        })
+        await websocket_manager.broadcast_device_update(
+            device_id,
+            {
+                "state": state_data,
+                "metrics": metric_entry,
+                "health_score": await self._calculate_basic_health_score(device_id, state_data),
+            },
+        )
 
         logger.debug(f"Updated device state for {device_id}")
 
@@ -87,10 +83,9 @@ class DeviceStateTracker:
             self.device_states[device_id]["last_updated"] = datetime.now(UTC)
 
             # Broadcast offline status
-            await websocket_manager.broadcast_device_update(device_id, {
-                "state": {"online": False},
-                "timestamp": datetime.now(UTC).isoformat()
-            })
+            await websocket_manager.broadcast_device_update(
+                device_id, {"state": {"online": False}, "timestamp": datetime.now(UTC).isoformat()}
+            )
 
             logger.info(f"Device {device_id} marked as offline")
 
@@ -101,42 +96,53 @@ class DeviceStateTracker:
         # Check response time
         response_time = state_data.get("response_time", 0)
         if response_time > self.anomaly_thresholds["response_time"]:
-            anomalies_detected.append({
-                "type": "high_response_time",
-                "value": response_time,
-                "threshold": self.anomaly_thresholds["response_time"],
-                "severity": "warning"
-            })
+            anomalies_detected.append(
+                {
+                    "type": "high_response_time",
+                    "value": response_time,
+                    "threshold": self.anomaly_thresholds["response_time"],
+                    "severity": "warning",
+                }
+            )
 
         # Check error rate
         error_rate = state_data.get("error_rate", 0)
         if error_rate > self.anomaly_thresholds["error_rate"]:
-            anomalies_detected.append({
-                "type": "high_error_rate",
-                "value": error_rate,
-                "threshold": self.anomaly_thresholds["error_rate"],
-                "severity": "critical"
-            })
+            anomalies_detected.append(
+                {
+                    "type": "high_error_rate",
+                    "value": error_rate,
+                    "threshold": self.anomaly_thresholds["error_rate"],
+                    "severity": "critical",
+                }
+            )
 
         # Check battery level
         battery_level = state_data.get("battery_level")
         if battery_level is not None and battery_level < self.anomaly_thresholds["battery_level"]:
-            anomalies_detected.append({
-                "type": "low_battery",
-                "value": battery_level,
-                "threshold": self.anomaly_thresholds["battery_level"],
-                "severity": "warning"
-            })
+            anomalies_detected.append(
+                {
+                    "type": "low_battery",
+                    "value": battery_level,
+                    "threshold": self.anomaly_thresholds["battery_level"],
+                    "severity": "warning",
+                }
+            )
 
         # Check signal strength
         signal_strength = state_data.get("signal_strength")
-        if signal_strength is not None and signal_strength < self.anomaly_thresholds["signal_strength"]:
-            anomalies_detected.append({
-                "type": "weak_signal",
-                "value": signal_strength,
-                "threshold": self.anomaly_thresholds["signal_strength"],
-                "severity": "warning"
-            })
+        if (
+            signal_strength is not None
+            and signal_strength < self.anomaly_thresholds["signal_strength"]
+        ):
+            anomalies_detected.append(
+                {
+                    "type": "weak_signal",
+                    "value": signal_strength,
+                    "threshold": self.anomaly_thresholds["signal_strength"],
+                    "severity": "warning",
+                }
+            )
 
         # Check for performance degradation trends
         if device_id in self.device_metrics and len(self.device_metrics[device_id]) >= 5:
@@ -144,13 +150,19 @@ class DeviceStateTracker:
 
         # Broadcast anomalies if any detected
         if anomalies_detected:
-            await websocket_manager.broadcast_health_alert(device_id, "anomalies_detected", {
-                "anomalies": anomalies_detected,
-                "device_id": device_id,
-                "timestamp": datetime.now(UTC).isoformat()
-            })
+            await websocket_manager.broadcast_health_alert(
+                device_id,
+                "anomalies_detected",
+                {
+                    "anomalies": anomalies_detected,
+                    "device_id": device_id,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                },
+            )
 
-            logger.warning(f"Anomalies detected for device {device_id}: {len(anomalies_detected)} issues")
+            logger.warning(
+                f"Anomalies detected for device {device_id}: {len(anomalies_detected)} issues"
+            )
 
     async def _check_performance_trends(self, device_id: str, anomalies: list[dict[str, Any]]):
         """Check for performance degradation trends."""
@@ -163,30 +175,26 @@ class DeviceStateTracker:
         if len(recent_response_times) >= 3:
             trend = self._calculate_trend(recent_response_times)
             if trend > 0.2:  # 20% increase
-                anomalies.append({
-                    "type": "response_time_degradation",
-                    "trend": trend,
-                    "severity": "warning"
-                })
+                anomalies.append(
+                    {"type": "response_time_degradation", "trend": trend, "severity": "warning"}
+                )
 
         # Check error rate trend
         recent_error_rates = [m["error_rate"] for m in metrics[-5:]]
         if len(recent_error_rates) >= 3:
             trend = self._calculate_trend(recent_error_rates)
             if trend > 0.1:  # 10% increase
-                anomalies.append({
-                    "type": "error_rate_increase",
-                    "trend": trend,
-                    "severity": "critical"
-                })
+                anomalies.append(
+                    {"type": "error_rate_increase", "trend": trend, "severity": "critical"}
+                )
 
     def _calculate_trend(self, values: list[float]) -> float:
         """Calculate trend percentage."""
         if len(values) < 2:
             return 0
 
-        first_half = values[:len(values)//2]
-        second_half = values[len(values)//2:]
+        first_half = values[: len(values) // 2]
+        second_half = values[len(values) // 2 :]
 
         if not first_half or not second_half:
             return 0
@@ -199,7 +207,9 @@ class DeviceStateTracker:
 
         return (avg_second - avg_first) / avg_first
 
-    async def _calculate_basic_health_score(self, _device_id: str, state_data: dict[str, Any]) -> float:
+    async def _calculate_basic_health_score(
+        self, _device_id: str, state_data: dict[str, Any]
+    ) -> float:
         """Calculate basic health score (0-100)."""
         score = 100.0
 
@@ -251,14 +261,16 @@ class DeviceStateTracker:
     def get_online_devices(self) -> list[str]:
         """Get list of online device IDs."""
         return [
-            device_id for device_id, state in self.device_states.items()
+            device_id
+            for device_id, state in self.device_states.items()
             if state.get("online", False)
         ]
 
     def get_offline_devices(self) -> list[str]:
         """Get list of offline device IDs."""
         return [
-            device_id for device_id, state in self.device_states.items()
+            device_id
+            for device_id, state in self.device_states.items()
             if not state.get("online", False)
         ]
 
@@ -273,7 +285,7 @@ class DeviceStateTracker:
             "online_devices": online_devices,
             "offline_devices": offline_devices,
             "total_metrics_points": sum(len(metrics) for metrics in self.device_metrics.values()),
-            "anomaly_thresholds": self.anomaly_thresholds
+            "anomaly_thresholds": self.anomaly_thresholds,
         }
 
 

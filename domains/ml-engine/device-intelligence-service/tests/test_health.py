@@ -4,7 +4,6 @@ Device Intelligence Service - Health API Tests
 Tests for the health API endpoints.
 """
 
-
 from fastapi.testclient import TestClient
 
 

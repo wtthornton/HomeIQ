@@ -38,7 +38,7 @@ async def setup_database(tmp_path_factory):
     db_dir = Path("./data")
     db_dir.mkdir(exist_ok=True)
     db_path = tmp_path_factory.mktemp("device-int-api") / "hygiene_api.db"
-    settings = Settings(DATABASE_URL=f"postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq")
+    settings = Settings(DATABASE_URL="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq")
     await initialize_database(settings)
 
     # Seed sample data
@@ -112,9 +112,10 @@ async def test_apply_action_uses_home_assistant_client(test_client):
     # Verify database updated
     async for session in get_db_session():
         result = await session.execute(
-            select(DeviceHygieneIssue).where(DeviceHygieneIssue.issue_key == "duplicate_name:device-1")
+            select(DeviceHygieneIssue).where(
+                DeviceHygieneIssue.issue_key == "duplicate_name:device-1"
+            )
         )
         issue = result.scalar_one()
         assert issue.status == "resolved"
         break
-

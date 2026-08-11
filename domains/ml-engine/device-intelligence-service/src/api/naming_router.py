@@ -124,16 +124,18 @@ async def _load_entities(
 
     entities = []
     for row in rows:
-        entities.append({
-            "entity_id": row.entity_id,
-            "domain": row.domain or "",
-            "area_id": row.area_id or "",
-            "friendly_name": row.friendly_name or row.name or "",
-            "name_by_user": getattr(row, "name_by_user", None) or "",
-            "device_class": row.device_class or "",
-            "aliases": row.aliases if isinstance(row.aliases, list) else [],
-            "labels": row.labels if isinstance(row.labels, list) else [],
-        })
+        entities.append(
+            {
+                "entity_id": row.entity_id,
+                "domain": row.domain or "",
+                "area_id": row.area_id or "",
+                "friendly_name": row.friendly_name or row.name or "",
+                "name_by_user": getattr(row, "name_by_user", None) or "",
+                "device_class": row.device_class or "",
+                "aliases": row.aliases if isinstance(row.aliases, list) else [],
+                "labels": row.labels if isinstance(row.labels, list) else [],
+            }
+        )
 
     return entities
 
@@ -304,10 +306,14 @@ def _build_convention_name(
     if area_name:
         suggested = f"{area_name} {device_type}"
         confidence = 0.9
-        reasoning = f"Convention: area prefix ({area_name}) + device type ({device_type}), Title Case"
+        reasoning = (
+            f"Convention: area prefix ({area_name}) + device type ({device_type}), Title Case"
+        )
     else:
         suggested = f"{device_type}"
         confidence = 0.6
-        reasoning = f"Convention: device type ({device_type}), Title Case. Consider assigning an area."
+        reasoning = (
+            f"Convention: device type ({device_type}), Title Case. Consider assigning an area."
+        )
 
     return suggested, confidence, reasoning

@@ -80,4 +80,3 @@ async def test_get_entity_registry_parses_entities(monkeypatch):
     assert garage.name is None
     assert garage.created_at.year == 2024
     assert garage.updated_at.year == 2024
-

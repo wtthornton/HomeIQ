@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DiscoveryStatus:
     """Discovery service status."""
+
     service_running: bool
     ha_connected: bool
     mqtt_connected: bool
@@ -52,14 +53,16 @@ class DiscoveryService:
                 settings.MQTT_BROKER,
                 settings.MQTT_USERNAME,
                 settings.MQTT_PASSWORD,
-                settings.ZIGBEE2MQTT_BASE_TOPIC
+                settings.ZIGBEE2MQTT_BASE_TOPIC,
             )
 
         # Parser
         self.device_parser = DeviceParser()
 
         # Name enhancement components (optional, can be disabled)
-        self.auto_generate_name_suggestions = getattr(settings, 'AUTO_GENERATE_NAME_SUGGESTIONS', False)
+        self.auto_generate_name_suggestions = getattr(
+            settings, "AUTO_GENERATE_NAME_SUGGESTIONS", False
+        )
         self.name_generator = None
         self.name_validator = None
         self.batch_processor = None
@@ -94,10 +97,11 @@ class DiscoveryService:
 
             # Initialize HA client with configured settings
             from ..clients.ha_client import HomeAssistantClient
+
             self.ha_client = HomeAssistantClient(
                 self.settings.HA_URL,
                 None,  # No fallback URL for now
-                self.settings.HA_TOKEN
+                self.settings.HA_TOKEN,
             )
 
             # Connect to Home Assistant
@@ -120,7 +124,9 @@ class DiscoveryService:
                 self.mqtt_client.register_message_handler("devices", self._on_zigbee_devices_update)
                 self.mqtt_client.register_message_handler("groups", self._on_zigbee_groups_update)
             else:
-                logger.warning("MQTT broker connection failed - will continue without Zigbee devices")
+                logger.warning(
+                    "MQTT broker connection failed - will continue without Zigbee devices"
+                )
 
             # Start discovery task
             self.running = True
@@ -206,7 +212,11 @@ class DiscoveryService:
 
             # Update last discovery timestamp
             self.last_discovery = datetime.now(UTC)
-            logger.info("Discovery completed at %s: %d devices", self.last_discovery.isoformat(), len(self.unified_devices))
+            logger.info(
+                "Discovery completed at %s: %d devices",
+                self.last_discovery.isoformat(),
+                len(self.unified_devices),
+            )
 
         except Exception as e:
             logger.error("Error during discovery: %s", e)
@@ -244,7 +254,13 @@ class DiscoveryService:
             self.device_parser.update_areas(self.ha_areas)
             self.device_parser.update_config_entries(self.ha_config_entries)
 
-            logger.info("HA Discovery: %d devices, %d entities, %d areas, %d config entries", len(self.ha_devices), len(self.ha_entities), len(self.ha_areas), len(self.ha_config_entries))
+            logger.info(
+                "HA Discovery: %d devices, %d entities, %d areas, %d config entries",
+                len(self.ha_devices),
+                len(self.ha_entities),
+                len(self.ha_areas),
+                len(self.ha_config_entries),
+            )
 
         except Exception as e:
             logger.error("Error discovering Home Assistant data: %s", e)
@@ -258,6 +274,7 @@ class DiscoveryService:
         are added, removed, or modified in Home Assistant.
         """
         try:
+
             async def handle_entity_registry_update(event_data: dict[str, Any]):
                 """Handle entity registry update event."""
                 action = event_data.get("event", {}).get("action", "unknown")
@@ -286,7 +303,7 @@ class DiscoveryService:
 
             await self.ha_client.subscribe_to_registry_updates(
                 entity_callback=handle_entity_registry_update,
-                device_callback=handle_device_registry_update
+                device_callback=handle_device_registry_update,
             )
 
             logger.info("Subscribed to registry update events")
@@ -321,9 +338,7 @@ class DiscoveryService:
 
             # Parse devices
             unified_devices = self.device_parser.parse_devices(
-                self.ha_devices,
-                self.ha_entities,
-                self.zigbee_devices
+                self.ha_devices, self.ha_entities, self.zigbee_devices
             )
 
             # Update unified devices in memory
@@ -376,7 +391,9 @@ class DiscoveryService:
                     "disabled_by": device.disabled_by,
                     "last_seen": device.last_seen,
                     "health_score": device.health_score,
-                    "is_battery_powered": device.power_source == "Battery" if device.power_source else False,
+                    "is_battery_powered": device.power_source == "Battery"
+                    if device.power_source
+                    else False,
                     "created_at": device.created_at,
                     "updated_at": device.updated_at,
                     # Initialize all optional fields with None to ensure consistency
@@ -397,13 +414,17 @@ class DiscoveryService:
                     "battery_low": None,
                     "battery_updated_at": None,
                     "device_type": None,
-                    "source": None
+                    "source": None,
                 }
 
                 # Override with actual values if available
                 if device.ha_device:
                     if device.ha_device.config_entries:
-                        device_data["config_entry_id"] = device.ha_device.config_entries[0] if device.ha_device.config_entries else None
+                        device_data["config_entry_id"] = (
+                            device.ha_device.config_entries[0]
+                            if device.ha_device.config_entries
+                            else None
+                        )
                     # SKIP JSON fields for now due to SQLAlchemy insert issues
                     # if device.ha_device.connections:
                     #     device_data["connections_json"] = json.dumps(device.ha_device.connections)
@@ -425,18 +446,20 @@ class DiscoveryService:
                     # This allows Zigbee devices to be identified even without MQTT data
                     # Note: Zigbee2MQTT devices in HA may use 'mqtt' as integration name
                     integration_lower = integration_value.lower()
-                    if ('zigbee' in integration_lower or
-                        integration_lower == 'zigbee2mqtt' or
-                        integration_lower == 'mqtt'):
+                    if (
+                        "zigbee" in integration_lower
+                        or integration_lower == "zigbee2mqtt"
+                        or integration_lower == "mqtt"
+                    ):
                         # For MQTT integration, check if it's a Zigbee device by checking identifiers
                         # Zigbee devices typically have identifiers with 'ieee' or 'zigbee' patterns
                         is_zigbee = False
-                        if integration_lower == 'mqtt':
+                        if integration_lower == "mqtt":
                             # Check if device has Zigbee-like identifiers
                             identifiers = device.ha_device.identifiers or []
                             for identifier in identifiers:
                                 identifier_str = str(identifier).lower()
-                                if 'zigbee' in identifier_str or 'ieee' in identifier_str:
+                                if "zigbee" in identifier_str or "ieee" in identifier_str:
                                     is_zigbee = True
                                     break
                             # Only set source to zigbee2mqtt if we confirm it's a Zigbee device
@@ -493,7 +516,7 @@ class DiscoveryService:
                             "exposed": capability.get("exposed", True),
                             "configured": capability.get("configured", True),
                             "source": capability.get("source", "unknown"),
-                            "last_updated": datetime.now(UTC)
+                            "last_updated": datetime.now(UTC),
                         }
                         capabilities_data.append(capability_data)
 
@@ -529,7 +552,11 @@ class DiscoveryService:
 
                 break  # Only need one session
 
-            logger.info("Stored %d devices and %d capabilities in database", len(devices_data), len(capabilities_data))
+            logger.info(
+                "Stored %d devices and %d capabilities in database",
+                len(devices_data),
+                len(capabilities_data),
+            )
 
         except Exception as e:
             logger.error("Error storing devices in database: %s", e)
@@ -546,10 +573,12 @@ class DiscoveryService:
                 last_seen = None
                 if device_data.get("last_seen"):
                     try:
-                        last_seen_str = device_data["last_seen"].replace('Z', '+00:00')
+                        last_seen_str = device_data["last_seen"].replace("Z", "+00:00")
                         last_seen = datetime.fromisoformat(last_seen_str)
                     except Exception as e:
-                        logger.debug(f"Could not parse last_seen for {device_data.get('ieee_address')}: {e}")
+                        logger.debug(
+                            f"Could not parse last_seen for {device_data.get('ieee_address')}: {e}"
+                        )
 
                 # Extract Zigbee2MQTT-specific fields
                 definition = device_data.get("definition", {})
@@ -579,7 +608,7 @@ class DiscoveryService:
                     network_address=device_data.get("network_address"),
                     supported=device_data.get("supported"),
                     interview_completed=device_data.get("interview_completed"),
-                    settings=device_data.get("settings")
+                    settings=device_data.get("settings"),
                 )
 
                 self.zigbee_devices[zigbee_device.ieee_address] = zigbee_device
@@ -601,7 +630,7 @@ class DiscoveryService:
                     id=group_data["id"],
                     friendly_name=group_data["friendly_name"],
                     members=group_data.get("members", []),
-                    scenes=group_data.get("scenes", [])
+                    scenes=group_data.get("scenes", []),
                 )
 
                 self.zigbee_groups[group.id] = group
@@ -628,7 +657,7 @@ class DiscoveryService:
             last_discovery=self.last_discovery,
             devices_count=len(self.unified_devices),
             areas_count=len(self.ha_areas),
-            errors=self.errors[-10:]  # Last 10 errors
+            errors=self.errors[-10:],  # Last 10 errors
         )
 
     def get_devices(self) -> list[UnifiedDevice]:
@@ -656,9 +685,7 @@ class DiscoveryService:
         return list(self.zigbee_groups.values())
 
     async def _generate_name_suggestions_async(
-        self,
-        unified_devices: list[UnifiedDevice],
-        db_session: AsyncSession
+        self, unified_devices: list[UnifiedDevice], db_session: AsyncSession
     ):
         """Generate name suggestions asynchronously (non-blocking)"""
         if not self.name_generator or not self.name_validator:
@@ -689,16 +716,12 @@ class DiscoveryService:
 
                     # Get primary entity for this device
                     entity_result = await db_session.execute(
-                        select(DeviceEntity).where(
-                            DeviceEntity.device_id == device.id
-                        ).limit(1)
+                        select(DeviceEntity).where(DeviceEntity.device_id == device.id).limit(1)
                     )
                     entity = entity_result.scalar_one_or_none()
 
                     # Generate suggestion
-                    suggestion = await self.name_generator.generate_suggested_name(
-                        device, entity
-                    )
+                    suggestion = await self.name_generator.generate_suggested_name(device, entity)
 
                     # Only store high-confidence suggestions
                     if suggestion.confidence >= 0.7:
@@ -707,15 +730,13 @@ class DiscoveryService:
                             suggestion.name,
                             device_id=device.id,
                             entity_id=entity.entity_id if entity else None,
-                            db_session=db_session
+                            db_session=db_session,
                         )
 
                         if not validation.is_unique:
                             # Generate unique variant
                             unique_name = await self.name_validator.generate_unique_variant(
-                                suggestion.name,
-                                device,
-                                db_session=db_session
+                                suggestion.name, device, db_session=db_session
                             )
                             suggestion.name = unique_name
 
@@ -724,7 +745,7 @@ class DiscoveryService:
                             select(NameSuggestion).where(
                                 NameSuggestion.device_id == device.id,
                                 NameSuggestion.suggested_name == suggestion.name,
-                                NameSuggestion.status == "pending"
+                                NameSuggestion.status == "pending",
                             )
                         )
                         if existing_result.scalar_one_or_none():
@@ -739,7 +760,7 @@ class DiscoveryService:
                             confidence_score=suggestion.confidence,
                             suggestion_source=suggestion.source,
                             status="pending",
-                            reasoning=suggestion.reasoning
+                            reasoning=suggestion.reasoning,
                         )
                         db_session.add(name_suggestion)
                         suggestions_created += 1
@@ -750,7 +771,9 @@ class DiscoveryService:
                         )
 
                 except Exception as e:
-                    logger.warning(f"Failed to generate name suggestion for device {unified_device.id}: {e}")
+                    logger.warning(
+                        f"Failed to generate name suggestion for device {unified_device.id}: {e}"
+                    )
                     continue
 
             if suggestions_created > 0:
@@ -761,7 +784,9 @@ class DiscoveryService:
             logger.warning(f"Name suggestion generation failed: {e}")
             # Graceful degradation: continue without suggestions
 
-    async def _store_zigbee_metadata(self, session: AsyncSession, unified_devices: list[UnifiedDevice]):
+    async def _store_zigbee_metadata(
+        self, session: AsyncSession, unified_devices: list[UnifiedDevice]
+    ):
         """Store Zigbee2MQTT-specific metadata in ZigbeeDeviceMetadata table."""
         try:
             from sqlalchemy import select
@@ -776,9 +801,7 @@ class DiscoveryService:
 
                 # Check if metadata already exists
                 result = await session.execute(
-                    select(ZigbeeDeviceMetadata).where(
-                        ZigbeeDeviceMetadata.device_id == device.id
-                    )
+                    select(ZigbeeDeviceMetadata).where(ZigbeeDeviceMetadata.device_id == device.id)
                 )
                 existing = result.scalar_one_or_none()
 
@@ -792,11 +815,13 @@ class DiscoveryService:
                     "software_build_id": zigbee.software_build_id,
                     "network_address": zigbee.network_address,
                     "supported": zigbee.supported if zigbee.supported is not None else True,
-                    "interview_completed": zigbee.interview_completed if zigbee.interview_completed is not None else False,
+                    "interview_completed": zigbee.interview_completed
+                    if zigbee.interview_completed is not None
+                    else False,
                     "definition_json": zigbee.definition,
                     "settings_json": zigbee.settings,
                     "last_seen_zigbee": zigbee.last_seen,
-                    "updated_at": datetime.now(UTC)
+                    "updated_at": datetime.now(UTC),
                 }
 
                 if existing:

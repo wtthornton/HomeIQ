@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 # Optional import - only needed if ML_FAILURE_MODEL=tabpfn
 try:
     from tabpfn import TabPFNClassifier
+
     TABPFN_AVAILABLE = True
 except ImportError:
     TABPFN_AVAILABLE = False
@@ -58,7 +59,7 @@ class TabPFNFailurePredictor:
         logger.info(f"Training TabPFN on {len(X)} samples with {X.shape[1]} features...")
 
         # Initialize TabPFN (CPU-optimized for NUC)
-        self.model = TabPFNClassifier(device='cpu', n_ensemble_configurations=4)
+        self.model = TabPFNClassifier(device="cpu", n_ensemble_configurations=4)
 
         # TabPFN training is instant (no actual training, just stores data)
         self.model.fit(X, y)
@@ -102,11 +103,10 @@ class TabPFNFailurePredictor:
             "model_type": "tabpfn",
             "version": "2.5",
             "is_trained": self.is_trained,
-            "feature_names": self.feature_names
+            "feature_names": self.feature_names,
         }
 
     def set_params(self, **_params) -> "TabPFNFailurePredictor":
         """Set model parameters (for compatibility with scikit-learn interface)."""
         # TabPFN doesn't have hyperparameters to set
         return self
-

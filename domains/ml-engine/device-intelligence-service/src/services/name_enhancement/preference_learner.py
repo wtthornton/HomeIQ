@@ -48,11 +48,13 @@ class PreferenceLearner:
                     else:
                         pattern_data = pref.pattern_data or {}
 
-                    self.patterns[pattern_type].append({
-                        "data": pattern_data,
-                        "confidence": pref.confidence,
-                        "count": pref.learned_from_count
-                    })
+                    self.patterns[pattern_type].append(
+                        {
+                            "data": pattern_data,
+                            "confidence": pref.confidence,
+                            "count": pref.learned_from_count,
+                        }
+                    )
                 except (json.JSONDecodeError, TypeError) as e:
                     logger.warning(f"Failed to parse pattern data: {e}")
 
@@ -68,7 +70,7 @@ class PreferenceLearner:
         user_customized_name: str,
         device: Device,
         entity: DeviceEntity | None = None,
-        db_session: AsyncSession | None = None
+        db_session: AsyncSession | None = None,
     ) -> None:
         """
         Learn simple patterns from user customizations.
@@ -85,19 +87,19 @@ class PreferenceLearner:
             style = self._detect_naming_style(user_customized_name, device)
             if style:
                 await self._update_pattern(
-                    "naming_style",
-                    {"style": style, "area": device.area_name},
-                    db_session
+                    "naming_style", {"style": style, "area": device.area_name}, db_session
                 )
 
             # Pattern 2: Position extraction from entity ID
             if entity and entity.entity_id:
-                position = self._extract_position_mapping(original_name, user_customized_name, entity.entity_id)
+                position = self._extract_position_mapping(
+                    original_name, user_customized_name, entity.entity_id
+                )
                 if position:
                     await self._update_pattern(
                         "position_mapping",
                         {"entity_pattern": position["pattern"], "position": position["position"]},
-                        db_session
+                        db_session,
                     )
 
             # Pattern 3: Area-specific conventions
@@ -106,18 +108,16 @@ class PreferenceLearner:
                     "area_convention",
                     {
                         "area": device.area_name,
-                        "pattern": self._extract_area_pattern(user_customized_name)
+                        "pattern": self._extract_area_pattern(user_customized_name),
                     },
-                    db_session
+                    db_session,
                 )
 
             # Pattern 4: Modifier preferences (Back, Front, Left, Right, etc.)
             modifiers = self._extract_modifiers(user_customized_name)
             if modifiers:
                 await self._update_pattern(
-                    "modifier_preference",
-                    {"modifiers": modifiers},
-                    db_session
+                    "modifier_preference", {"modifiers": modifiers}, db_session
                 )
 
         except Exception as e:
@@ -127,7 +127,7 @@ class PreferenceLearner:
         self,
         device: Device,
         entity: DeviceEntity | None = None,
-        db_session: AsyncSession | None = None
+        db_session: AsyncSession | None = None,
     ) -> NameSuggestion | None:
         """
         Apply learned preferences to generate suggestion.
@@ -145,7 +145,11 @@ class PreferenceLearner:
                 style = pattern["data"].get("style")
                 area = pattern["data"].get("area")
 
-                if (area == device.area_name or not area) and style == "location_based" and device.area_name:
+                if (
+                    (area == device.area_name or not area)
+                    and style == "location_based"
+                    and device.area_name
+                ):
                     device_type = self._get_device_type(device, entity)
                     if device_type:
                         name = f"{device.area_name} {device_type}"
@@ -153,7 +157,7 @@ class PreferenceLearner:
                             name=name,
                             confidence=pattern["confidence"],
                             source="preference",
-                            reasoning=f"Applied learned {style} naming style"
+                            reasoning=f"Applied learned {style} naming style",
                         )
 
         # Try to apply position mapping
@@ -172,7 +176,7 @@ class PreferenceLearner:
                         name=name,
                         confidence=pattern["confidence"],
                         source="preference",
-                        reasoning="Applied learned position mapping"
+                        reasoning="Applied learned position mapping",
                     )
 
         return None
@@ -184,16 +188,15 @@ class PreferenceLearner:
             return "location_based"
 
         # Check if descriptive (no location, just description)
-        if not any(word.lower() in name.lower() for word in ["room", "office", "kitchen", "bedroom"]):
+        if not any(
+            word.lower() in name.lower() for word in ["room", "office", "kitchen", "bedroom"]
+        ):
             return "descriptive"
 
         return None
 
     def _extract_position_mapping(
-        self,
-        _original_name: str,
-        customized_name: str,
-        entity_id: str
+        self, _original_name: str, customized_name: str, entity_id: str
     ) -> dict[str, str] | None:
         """Extract position mapping from entity ID pattern"""
         # Look for position words in customized name
@@ -211,10 +214,7 @@ class PreferenceLearner:
         match = re.search(r"_(\d+)(?:_(\d+))?$", entity_id)
         if match:
             pattern = match.group(0)
-            return {
-                "pattern": pattern,
-                "position": found_position
-            }
+            return {"pattern": pattern, "position": found_position}
 
         return None
 
@@ -227,7 +227,16 @@ class PreferenceLearner:
     def _extract_modifiers(self, name: str) -> list[str]:
         """Extract modifier words (Back, Front, Left, Right, etc.)"""
         modifiers = []
-        modifier_words = ["back", "front", "left", "right", "center", "main", "primary", "secondary"]
+        modifier_words = [
+            "back",
+            "front",
+            "left",
+            "right",
+            "center",
+            "main",
+            "primary",
+            "secondary",
+        ]
 
         words = name.lower().split()
         for word in words:
@@ -256,26 +265,22 @@ class PreferenceLearner:
         self,
         pattern_type: str,
         pattern_data: dict[str, Any],
-        db_session: AsyncSession | None = None
+        db_session: AsyncSession | None = None,
     ):
         """Update or create a preference pattern"""
         if not db_session:
             # Just update in-memory
             if pattern_type not in self.patterns:
                 self.patterns[pattern_type] = []
-            self.patterns[pattern_type].append({
-                "data": pattern_data,
-                "confidence": 0.5,
-                "count": 1
-            })
+            self.patterns[pattern_type].append(
+                {"data": pattern_data, "confidence": 0.5, "count": 1}
+            )
             return
 
         try:
             # Check if pattern exists
             result = await db_session.execute(
-                select(NamePreference).where(
-                    NamePreference.pattern_type == pattern_type
-                )
+                select(NamePreference).where(NamePreference.pattern_type == pattern_type)
             )
             existing = result.scalars().all()
 
@@ -283,7 +288,11 @@ class PreferenceLearner:
             matching = None
             for pref in existing:
                 try:
-                    existing_data = json.loads(pref.pattern_data) if isinstance(pref.pattern_data, str) else pref.pattern_data
+                    existing_data = (
+                        json.loads(pref.pattern_data)
+                        if isinstance(pref.pattern_data, str)
+                        else pref.pattern_data
+                    )
                     if existing_data == pattern_data:
                         matching = pref
                         break
@@ -301,7 +310,7 @@ class PreferenceLearner:
                     pattern_type=pattern_type,
                     pattern_data=json.dumps(pattern_data),
                     confidence=0.5,
-                    learned_from_count=1
+                    learned_from_count=1,
                 )
                 db_session.add(new_pattern)
 
@@ -314,4 +323,3 @@ class PreferenceLearner:
             logger.warning(f"Failed to update pattern: {e}")
             if db_session:
                 await db_session.rollback()
-

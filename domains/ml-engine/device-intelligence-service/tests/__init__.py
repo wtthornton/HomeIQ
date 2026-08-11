@@ -1,4 +1,3 @@
 """
 Device Intelligence Service Tests
 """
-

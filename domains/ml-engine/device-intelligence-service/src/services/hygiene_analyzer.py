@@ -109,7 +109,9 @@ class DeviceHygieneAnalyzer:
                         device_id=device.id,
                         entity_id=None,
                         metadata={
-                            "conflicting_device_ids": [cid for cid in conflicts if cid != device.id],
+                            "conflicting_device_ids": [
+                                cid for cid in conflicts if cid != device.id
+                            ],
                             "entities": [e.entity_id for e in entity_lookup.get(device.id, [])],
                             "normalized_name": normalized,
                         },
@@ -220,7 +222,10 @@ class DeviceHygieneAnalyzer:
         for entity in ha_entities:
             if not entity.disabled_by:
                 continue
-            if entity.entity_category and entity.entity_category.lower() in {"diagnostic", "config"}:
+            if entity.entity_category and entity.entity_category.lower() in {
+                "diagnostic",
+                "config",
+            }:
                 continue
             findings.append(
                 HygieneFinding(
@@ -313,5 +318,3 @@ class DeviceHygieneAnalyzer:
         elif device.integration:
             parts.append(device.integration.title())
         return " ".join(parts) if parts else None
-
-

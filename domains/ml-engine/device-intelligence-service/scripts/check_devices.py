@@ -1,4 +1,5 @@
 """Script to check device count in database."""
+
 import asyncio
 
 from sqlalchemy import text
@@ -11,15 +12,16 @@ async def check_devices():
 
     # Import and initialize database
     from src.core.database import initialize_database
+
     await initialize_database(settings)
 
     # Now check count
     async for session in get_db_session():
-        result = await session.execute(text('SELECT COUNT(*) FROM devices'))
+        result = await session.execute(text("SELECT COUNT(*) FROM devices"))
         count = result.scalar()
-        print(f'Devices in database: {count}')
+        print(f"Devices in database: {count}")
         break
+
 
 if __name__ == "__main__":
     asyncio.run(check_devices())
-

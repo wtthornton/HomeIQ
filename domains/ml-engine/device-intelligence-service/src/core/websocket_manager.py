@@ -29,7 +29,9 @@ class WebSocketManager:
         """Accept WebSocket connection with connection limit (HIGH-4)."""
         if len(self.active_connections) >= self.MAX_CONNECTIONS:
             await websocket.close(code=1013, reason="Too many connections")
-            logger.warning("WebSocket connection rejected: max connections (%d) reached", self.MAX_CONNECTIONS)
+            logger.warning(
+                "WebSocket connection rejected: max connections (%d) reached", self.MAX_CONNECTIONS
+            )
             return False
 
         await websocket.accept()
@@ -39,17 +41,20 @@ class WebSocketManager:
         self.connection_info[websocket] = {
             "client_id": client_id or f"client_{len(self.active_connections)}",
             "connected_at": datetime.now(UTC),
-            "subscribed_devices": set()
+            "subscribed_devices": set(),
         }
 
         logger.info(f"WebSocket client connected: {self.connection_info[websocket]['client_id']}")
 
         # Send welcome message
-        await self._send_to_client(websocket, {
-            "type": "connection_established",
-            "client_id": self.connection_info[websocket]["client_id"],
-            "timestamp": datetime.now(UTC).isoformat()
-        })
+        await self._send_to_client(
+            websocket,
+            {
+                "type": "connection_established",
+                "client_id": self.connection_info[websocket]["client_id"],
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
+        )
 
         return True
 
@@ -77,14 +82,19 @@ class WebSocketManager:
         if websocket in self.connection_info:
             self.connection_info[websocket]["subscribed_devices"].add(device_id)
 
-        logger.debug(f"Client {self.connection_info.get(websocket, {}).get('client_id', 'unknown')} subscribed to device {device_id}")
+        logger.debug(
+            f"Client {self.connection_info.get(websocket, {}).get('client_id', 'unknown')} subscribed to device {device_id}"
+        )
 
         # Send confirmation
-        await self._send_to_client(websocket, {
-            "type": "subscription_confirmed",
-            "device_id": device_id,
-            "timestamp": datetime.now(UTC).isoformat()
-        })
+        await self._send_to_client(
+            websocket,
+            {
+                "type": "subscription_confirmed",
+                "device_id": device_id,
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
+        )
 
         return True
 
@@ -99,11 +109,14 @@ class WebSocketManager:
         logger.debug(f"Client unsubscribed from device {device_id}")
 
         # Send confirmation
-        await self._send_to_client(websocket, {
-            "type": "unsubscription_confirmed",
-            "device_id": device_id,
-            "timestamp": datetime.now(UTC).isoformat()
-        })
+        await self._send_to_client(
+            websocket,
+            {
+                "type": "unsubscription_confirmed",
+                "device_id": device_id,
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
+        )
 
     async def broadcast_device_update(self, device_id: str, update_data: dict[str, Any]):
         """Broadcast device update to subscribers."""
@@ -114,7 +127,7 @@ class WebSocketManager:
             "type": "device_update",
             "device_id": device_id,
             "data": update_data,
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         # Send to all subscribers of this device
@@ -147,14 +160,16 @@ class WebSocketManager:
         for websocket in disconnected_clients:
             self.disconnect(websocket)
 
-    async def broadcast_health_alert(self, device_id: str, alert_type: str, alert_data: dict[str, Any]):
+    async def broadcast_health_alert(
+        self, device_id: str, alert_type: str, alert_data: dict[str, Any]
+    ):
         """Broadcast health alert to all clients."""
         alert_message = {
             "type": "health_alert",
             "device_id": device_id,
             "alert_type": alert_type,
             "data": alert_data,
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         await self.broadcast_to_all(alert_message)
@@ -164,7 +179,7 @@ class WebSocketManager:
         status_message = {
             "type": "system_status",
             "data": status_data,
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         await self.broadcast_to_all(status_message)
@@ -181,16 +196,18 @@ class WebSocketManager:
         """Get WebSocket connection statistics."""
         return {
             "total_connections": len(self.active_connections),
-            "total_device_subscriptions": sum(len(subscribers) for subscribers in self.device_subscribers.values()),
+            "total_device_subscriptions": sum(
+                len(subscribers) for subscribers in self.device_subscribers.values()
+            ),
             "devices_with_subscribers": len(self.device_subscribers),
             "connection_details": [
                 {
                     "client_id": info["client_id"],
                     "connected_at": info["connected_at"].isoformat(),
-                    "subscribed_devices": list(info["subscribed_devices"])
+                    "subscribed_devices": list(info["subscribed_devices"]),
                 }
                 for info in self.connection_info.values()
-            ]
+            ],
         }
 
     async def handle_client_message(self, websocket: WebSocket, message: dict[str, Any]):
@@ -202,43 +219,54 @@ class WebSocketManager:
             if device_id:
                 await self.subscribe_to_device(websocket, device_id)
             else:
-                await self._send_to_client(websocket, {
-                    "type": "error",
-                    "message": "Missing device_id for subscription",
-                    "timestamp": datetime.now(UTC).isoformat()
-                })
+                await self._send_to_client(
+                    websocket,
+                    {
+                        "type": "error",
+                        "message": "Missing device_id for subscription",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    },
+                )
 
         elif message_type == "unsubscribe_device":
             device_id = message.get("device_id")
             if device_id:
                 await self.unsubscribe_from_device(websocket, device_id)
             else:
-                await self._send_to_client(websocket, {
-                    "type": "error",
-                    "message": "Missing device_id for unsubscription",
-                    "timestamp": datetime.now(UTC).isoformat()
-                })
+                await self._send_to_client(
+                    websocket,
+                    {
+                        "type": "error",
+                        "message": "Missing device_id for unsubscription",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    },
+                )
 
         elif message_type == "ping":
-            await self._send_to_client(websocket, {
-                "type": "pong",
-                "timestamp": datetime.now(UTC).isoformat()
-            })
+            await self._send_to_client(
+                websocket, {"type": "pong", "timestamp": datetime.now(UTC).isoformat()}
+            )
 
         elif message_type == "get_stats":
             stats = self.get_connection_stats()
-            await self._send_to_client(websocket, {
-                "type": "connection_stats",
-                "data": stats,
-                "timestamp": datetime.now(UTC).isoformat()
-            })
+            await self._send_to_client(
+                websocket,
+                {
+                    "type": "connection_stats",
+                    "data": stats,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                },
+            )
 
         else:
-            await self._send_to_client(websocket, {
-                "type": "error",
-                "message": f"Unknown message type: {message_type}",
-                "timestamp": datetime.now(UTC).isoformat()
-            })
+            await self._send_to_client(
+                websocket,
+                {
+                    "type": "error",
+                    "message": f"Unknown message type: {message_type}",
+                    "timestamp": datetime.now(UTC).isoformat(),
+                },
+            )
 
 
 # Global WebSocket manager instance

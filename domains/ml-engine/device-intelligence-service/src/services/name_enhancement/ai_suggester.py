@@ -25,22 +25,22 @@ class AINameSuggester:
         self.local_llm_client = None
 
         # 2025 Best Practice: GPT-5.1 with caching
-        if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
+        if hasattr(settings, "OPENAI_API_KEY") and settings.OPENAI_API_KEY:
             self.openai_client = AsyncOpenAI(
                 api_key=settings.OPENAI_API_KEY.get_secret_value(),
                 default_headers={
                     "OpenAI-Beta": "assistants=v2"  # Enable prompt caching
-                }
+                },
             )
             # Use GPT-4o-mini as fallback (GPT-5.1-mini doesn't exist yet, use current best)
             self.model = "gpt-4o-mini"  # Cost-optimized: $0.15/1M input
 
         # Optional: Local LLM (will be implemented in next step)
-        if hasattr(settings, 'ENABLE_LOCAL_LLM') and settings.ENABLE_LOCAL_LLM:
+        if hasattr(settings, "ENABLE_LOCAL_LLM") and settings.ENABLE_LOCAL_LLM:
             try:
                 self.local_llm_client = AsyncOpenAI(
                     base_url="http://ollama:11434/v1",  # Ollama server
-                    api_key="not-needed"
+                    api_key="not-needed",
                 )
                 self.local_model = "llama3.2:3b"  # 3B model for NUC
             except Exception as e:
@@ -50,7 +50,7 @@ class AINameSuggester:
         self,
         device: Device,
         entity: DeviceEntity | None = None,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> list[NameSuggestion]:
         """
         Generate name suggestions with 2025 optimizations.
@@ -87,7 +87,7 @@ class AINameSuggester:
         self,
         device: Device,
         entity: DeviceEntity | None = None,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> list[NameSuggestion]:
         """Generate suggestions using OpenAI GPT-4o-mini"""
         prompt = self._build_prompt(device, entity, context)
@@ -124,7 +124,7 @@ class AINameSuggester:
                                 name=suggestion_data.get("name", ""),
                                 confidence=float(suggestion_data.get("confidence", 0.8)),
                                 source="ai",
-                                reasoning=suggestion_data.get("reasoning", "")
+                                reasoning=suggestion_data.get("reasoning", ""),
                             )
                         )
                 elif isinstance(parsed, dict):
@@ -133,7 +133,7 @@ class AINameSuggester:
                             name=parsed.get("name", ""),
                             confidence=float(parsed.get("confidence", 0.8)),
                             source="ai",
-                            reasoning=parsed.get("reasoning", "")
+                            reasoning=parsed.get("reasoning", ""),
                         )
                     )
             except (json.JSONDecodeError, KeyError, ValueError) as e:
@@ -145,7 +145,7 @@ class AINameSuggester:
                             name=content[:50],  # Limit length
                             confidence=0.7,
                             source="ai",
-                            reasoning="AI-generated name"
+                            reasoning="AI-generated name",
                         )
                     )
 
@@ -156,9 +156,7 @@ class AINameSuggester:
             raise
 
     async def _suggest_with_local_llm(
-        self,
-        device: Device,
-        entity: DeviceEntity | None = None
+        self, device: Device, entity: DeviceEntity | None = None
     ) -> list[NameSuggestion]:
         """Generate suggestions using local LLM (Ollama)"""
         prompt = self._build_prompt(device, entity)
@@ -167,17 +165,11 @@ class AINameSuggester:
             response = await self.local_llm_client.chat.completions.create(
                 model=self.local_model,
                 messages=[
-                    {
-                        "role": "system",
-                        "content": self._get_system_prompt()
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                    {"role": "system", "content": self._get_system_prompt()},
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.7,
-                max_tokens=200
+                max_tokens=200,
             )
 
             # Parse response (local LLM may not return JSON)
@@ -186,6 +178,7 @@ class AINameSuggester:
             # Try to extract name from response
             # Simple extraction: look for quoted text or first line
             import re
+
             name_match = re.search(r'"([^"]+)"', content)
             if name_match:
                 name = name_match.group(1)
@@ -198,7 +191,7 @@ class AINameSuggester:
                     name=name,
                     confidence=0.75,  # Slightly lower confidence for local LLM
                     source="local_llm",
-                    reasoning="Generated by local LLM"
+                    reasoning="Generated by local LLM",
                 )
             ]
 
@@ -237,7 +230,7 @@ Return your response as JSON with this structure:
         self,
         device: Device,
         entity: DeviceEntity | None = None,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> str:
         """
         Build optimized prompt for name generation.
@@ -260,7 +253,7 @@ Return your response as JSON with this structure:
         parts.append(f"- Manufacturer: {device.manufacturer or 'Unknown'}")
         parts.append(f"- Model: {device.model or 'Unknown'}")
         # Phase 3: Include model_id if available (more precise model identification)
-        if hasattr(device, 'model_id') and device.model_id:
+        if hasattr(device, "model_id") and device.model_id:
             parts.append(f"- Model ID: {device.model_id}")
         if entity:
             parts.append(f"- Type: {entity.domain} ({entity.domain})")
@@ -269,15 +262,15 @@ Return your response as JSON with this structure:
         parts.append(f"- Location: {device.area_name or device.area_id or 'Unknown'}")
         parts.append(f"- Current Name: {device.name or 'Unknown'}")
         # Phase 1: Include name_by_user if available (user-customized name)
-        if hasattr(device, 'name_by_user') and device.name_by_user:
+        if hasattr(device, "name_by_user") and device.name_by_user:
             parts.append(f"- User Custom Name: {device.name_by_user}")
         # Phase 2: Include labels if available (organizational context)
-        if hasattr(device, 'labels') and device.labels:
+        if hasattr(device, "labels") and device.labels:
             parts.append(f"- Labels: {', '.join(device.labels)}")
         if entity:
             parts.append(f"- Entity ID: {entity.entity_id}")
             # Phase 1: Include entity aliases if available
-            if hasattr(entity, 'aliases') and entity.aliases:
+            if hasattr(entity, "aliases") and entity.aliases:
                 parts.append(f"- Entity Aliases: {', '.join(entity.aliases)}")
 
         # Existing devices in same area (for uniqueness)
@@ -291,4 +284,3 @@ Return your response as JSON with this structure:
         parts.append("Return as JSON array with name, confidence, and reasoning for each.")
 
         return "\n".join(parts)
-
