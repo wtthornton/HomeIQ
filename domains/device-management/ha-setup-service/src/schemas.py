@@ -1,4 +1,5 @@
 """Pydantic schemas for API validation (Context7 best practice)"""
+
 from datetime import datetime
 from enum import Enum
 from typing import Any
@@ -8,6 +9,7 @@ from pydantic import BaseModel, Field
 
 class HealthStatus(str, Enum):
     """Health status enum"""
+
     HEALTHY = "healthy"
     WARNING = "warning"
     CRITICAL = "critical"
@@ -16,6 +18,7 @@ class HealthStatus(str, Enum):
 
 class IntegrationStatus(str, Enum):
     """Integration status enum"""
+
     HEALTHY = "healthy"
     WARNING = "warning"
     ERROR = "error"
@@ -24,8 +27,10 @@ class IntegrationStatus(str, Enum):
 
 # Environment Health Schemas
 
+
 class IntegrationHealthDetail(BaseModel):
     """Individual integration health status"""
+
     name: str
     type: str
     status: IntegrationStatus
@@ -38,6 +43,7 @@ class IntegrationHealthDetail(BaseModel):
 
 class PerformanceMetrics(BaseModel):
     """Performance metrics"""
+
     response_time_ms: float = Field(..., description="Average response time in milliseconds")
     cpu_usage_percent: float | None = Field(None, description="CPU usage percentage")
     memory_usage_mb: float | None = Field(None, description="Memory usage in MB")
@@ -46,6 +52,7 @@ class PerformanceMetrics(BaseModel):
 
 class EnvironmentHealthResponse(BaseModel):
     """Environment health response model"""
+
     health_score: int = Field(..., ge=0, le=100, description="Overall health score (0-100)")
     ha_status: HealthStatus
     ha_version: str | None = None
@@ -68,25 +75,27 @@ class EnvironmentHealthResponse(BaseModel):
                         "is_configured": True,
                         "is_connected": True,
                         "error_message": None,
-                        "last_check": "2025-01-18T15:30:00Z"
+                        "last_check": "2025-01-18T15:30:00Z",
                     }
                 ],
                 "performance": {
                     "response_time_ms": 45.2,
                     "cpu_usage_percent": 12.5,
                     "memory_usage_mb": 256.0,
-                    "uptime_seconds": 86400
+                    "uptime_seconds": 86400,
                 },
                 "issues_detected": [],
-                "timestamp": "2025-01-18T15:30:00Z"
+                "timestamp": "2025-01-18T15:30:00Z",
             }
         }
 
 
 # Integration Health Schemas
 
+
 class IntegrationHealthCreate(BaseModel):
     """Create integration health record"""
+
     integration_name: str
     integration_type: str
     status: IntegrationStatus
@@ -98,6 +107,7 @@ class IntegrationHealthCreate(BaseModel):
 
 class IntegrationHealthResponse(BaseModel):
     """Integration health response"""
+
     id: int
     integration_name: str
     integration_type: str
@@ -114,8 +124,10 @@ class IntegrationHealthResponse(BaseModel):
 
 # Performance Metric Schemas
 
+
 class PerformanceMetricCreate(BaseModel):
     """Create performance metric"""
+
     metric_type: str
     metric_value: float
     component: str | None = None
@@ -124,6 +136,7 @@ class PerformanceMetricCreate(BaseModel):
 
 class PerformanceMetricResponse(BaseModel):
     """Performance metric response"""
+
     id: int
     timestamp: datetime
     metric_type: str
@@ -137,8 +150,10 @@ class PerformanceMetricResponse(BaseModel):
 
 # Setup Wizard Schemas
 
+
 class SetupWizardStatus(str, Enum):
     """Setup wizard status enum"""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -148,6 +163,7 @@ class SetupWizardStatus(str, Enum):
 
 class SetupWizardSessionCreate(BaseModel):
     """Create setup wizard session"""
+
     integration_type: str
     total_steps: int
     configuration: dict | None = None
@@ -155,6 +171,7 @@ class SetupWizardSessionCreate(BaseModel):
 
 class SetupWizardSessionResponse(BaseModel):
     """Setup wizard session response"""
+
     session_id: str
     integration_type: str
     status: SetupWizardStatus
@@ -173,8 +190,10 @@ class SetupWizardSessionResponse(BaseModel):
 
 # Health Check Response (Simple)
 
+
 class HealthCheckResponse(BaseModel):
     """Simple health check response"""
+
     status: str
     service: str
     timestamp: datetime
@@ -183,8 +202,10 @@ class HealthCheckResponse(BaseModel):
 
 # Bridge Management Schemas
 
+
 class RecoveryAttemptResponse(BaseModel):
     """Recovery attempt response"""
+
     timestamp: datetime
     action: str
     success: bool
@@ -194,6 +215,7 @@ class RecoveryAttemptResponse(BaseModel):
 
 class BridgeHealthResponse(BaseModel):
     """Bridge health status response"""
+
     bridge_state: str
     is_connected: bool
     health_score: float = Field(ge=0, le=100)
@@ -209,11 +231,13 @@ class BridgeHealthResponse(BaseModel):
 
 class RecoveryRequest(BaseModel):
     """Recovery request"""
+
     force: bool = Field(False, description="Force recovery even if cooldown active")
 
 
 class RecoveryResponse(BaseModel):
     """Recovery response"""
+
     success: bool
     message: str
     timestamp: datetime

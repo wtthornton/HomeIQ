@@ -8,6 +8,7 @@ from .database import Base
 
 class EnvironmentHealth(Base):
     """Environment health metrics storage"""
+
     __tablename__ = "environment_health"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -20,11 +21,14 @@ class EnvironmentHealth(Base):
     issues_detected = Column(JSON)  # List of detected issues
 
     def __repr__(self):
-        return f"<EnvironmentHealth(id={self.id}, score={self.health_score}, status={self.ha_status})>"
+        return (
+            f"<EnvironmentHealth(id={self.id}, score={self.health_score}, status={self.ha_status})>"
+        )
 
 
 class IntegrationHealth(Base):
     """Individual integration health status"""
+
     __tablename__ = "integration_health"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -44,6 +48,7 @@ class IntegrationHealth(Base):
 
 class PerformanceMetric(Base):
     """Performance metrics over time"""
+
     __tablename__ = "performance_metrics"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -51,7 +56,9 @@ class PerformanceMetric(Base):
     metric_type = Column(String, nullable=False, index=True)  # response_time, cpu, memory
     metric_value = Column(Float, nullable=False)
     component = Column(String)  # Which component (ha_core, mqtt, etc.)
-    metric_metadata = Column(JSON)  # Additional metric context (renamed from 'metadata' - reserved in SQLAlchemy)
+    metric_metadata = Column(
+        JSON
+    )  # Additional metric context (renamed from 'metadata' - reserved in SQLAlchemy)
 
     def __repr__(self):
         return f"<PerformanceMetric(type={self.metric_type}, value={self.metric_value})>"
@@ -59,6 +66,7 @@ class PerformanceMetric(Base):
 
 class SetupWizardSession(Base):
     """Setup wizard session tracking"""
+
     __tablename__ = "setup_wizard_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -76,4 +84,3 @@ class SetupWizardSession(Base):
 
     def __repr__(self):
         return f"<SetupWizardSession(id={self.session_id}, type={self.integration_type}, status={self.status})>"
-

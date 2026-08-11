@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI
@@ -58,9 +57,9 @@ def test_root_endpoint() -> None:
 
 def test_verify_api_key_no_key_configured() -> None:
     """verify_api_key raises 503 when no API key configured."""
-    from src.auth import verify_api_key
-
     import asyncio
+
+    from src.auth import verify_api_key
 
     with patch("src.auth._api_key", ""):
         with pytest.raises(Exception) as exc_info:
@@ -70,9 +69,9 @@ def test_verify_api_key_no_key_configured() -> None:
 
 def test_verify_api_key_wrong_key() -> None:
     """verify_api_key raises 403 with wrong key."""
-    from src.auth import verify_api_key
-
     import asyncio
+
+    from src.auth import verify_api_key
 
     with patch("src.auth._api_key", "correct-key"):
         with pytest.raises(Exception) as exc_info:
@@ -82,9 +81,9 @@ def test_verify_api_key_wrong_key() -> None:
 
 def test_verify_api_key_correct_key() -> None:
     """verify_api_key returns key when correct."""
-    from src.auth import verify_api_key
-
     import asyncio
+
+    from src.auth import verify_api_key
 
     with patch("src.auth._api_key", "my-secret"):
         result = asyncio.get_event_loop().run_until_complete(verify_api_key("my-secret"))

@@ -6,6 +6,7 @@ Context7 Best Practices Applied:
 - Proper exception handling
 - Graceful shutdown handling
 """
+
 import asyncio
 import contextlib
 import logging
@@ -36,9 +37,7 @@ class ContinuousHealthMonitor:
     """
 
     def __init__(
-        self,
-        health_service: HealthMonitoringService,
-        integration_checker: IntegrationHealthChecker
+        self, health_service: HealthMonitoringService, integration_checker: IntegrationHealthChecker
     ):
         self.health_service = health_service
         self.integration_checker = integration_checker
@@ -135,7 +134,7 @@ class ContinuousHealthMonitor:
                     await self._send_alert(
                         "CRITICAL: Environment Health Critical",
                         f"Health score: {health_result.health_score}/100. "
-                        f"Issues: {', '.join(health_result.issues_detected)}"
+                        f"Issues: {', '.join(health_result.issues_detected)}",
                     )
 
                 logger.info(f"Health check complete - Score: {health_result.health_score}/100")
@@ -163,18 +162,18 @@ class ContinuousHealthMonitor:
                         is_connected=result.is_connected,
                         error_message=result.error_message,
                         last_check=result.last_check,
-                        check_details=result.check_details
+                        check_details=result.check_details,
                     )
                     db.add(integration_health)
 
                 await db.commit()
 
                 # Check for critical integration issues
-                error_integrations = [r for r in check_results if r.status.value == 'error']
+                error_integrations = [r for r in check_results if r.status.value == "error"]
                 if error_integrations:
                     await self._send_alert(
                         "WARNING: Integration Issues Detected",
-                        f"Integrations with errors: {', '.join([r.integration_name for r in error_integrations])}"
+                        f"Integrations with errors: {', '.join([r.integration_name for r in error_integrations])}",
                     )
 
                 logger.info(
@@ -196,11 +195,7 @@ class ContinuousHealthMonitor:
 
         # Future: Send to alert_manager, email, Slack, etc.
 
-    async def get_health_trends(
-        self,
-        db: AsyncSession,
-        hours: int = 24
-    ) -> dict:
+    async def get_health_trends(self, db: AsyncSession, hours: int = 24) -> dict:
         """
         Get health trends over specified time period
 
@@ -215,9 +210,11 @@ class ContinuousHealthMonitor:
             cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
 
             # Get health metrics from database
-            stmt = select(EnvironmentHealth).where(
-                EnvironmentHealth.timestamp >= cutoff_time
-            ).order_by(EnvironmentHealth.timestamp.asc())
+            stmt = (
+                select(EnvironmentHealth)
+                .where(EnvironmentHealth.timestamp >= cutoff_time)
+                .order_by(EnvironmentHealth.timestamp.asc())
+            )
 
             result = await db.execute(stmt)
             health_metrics = result.scalars().all()
@@ -229,7 +226,7 @@ class ContinuousHealthMonitor:
                     "average_score": 0,
                     "min_score": 0,
                     "max_score": 0,
-                    "trend": "no_data"
+                    "trend": "no_data",
                 }
 
             # Calculate statistics
@@ -265,17 +262,12 @@ class ContinuousHealthMonitor:
                     {
                         "timestamp": m.timestamp.isoformat(),
                         "score": m.health_score,
-                        "status": m.ha_status
+                        "status": m.ha_status,
                     }
                     for m in health_metrics
-                ]
+                ],
             }
 
         except Exception as e:
             logger.error("Error calculating health trends", exc_info=e)
-            return {
-                "period_hours": hours,
-                "data_points": 0,
-                "error": str(e)
-            }
-
+            return {"period_hours": hours, "data_points": 0, "error": str(e)}

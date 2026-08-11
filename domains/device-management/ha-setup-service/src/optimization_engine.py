@@ -6,6 +6,7 @@ Context7 Best Practices Applied:
 - Recommendation generation
 - Automated optimization execution
 """
+
 import asyncio
 from datetime import UTC, datetime
 from enum import Enum
@@ -21,6 +22,7 @@ settings = get_settings()
 
 class OptimizationImpact(str, Enum):
     """Optimization impact level"""
+
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
@@ -28,6 +30,7 @@ class OptimizationImpact(str, Enum):
 
 class OptimizationEffort(str, Enum):
     """Effort required for optimization"""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -35,6 +38,7 @@ class OptimizationEffort(str, Enum):
 
 class OptimizationRecommendation(BaseModel):
     """Optimization recommendation model"""
+
     id: str
     title: str
     description: str
@@ -74,22 +78,24 @@ class PerformanceAnalysisEngine:
             self._analyze_response_times(),
             self._analyze_resource_usage(),
             self._analyze_configuration(),
-            return_exceptions=True
+            return_exceptions=True,
         )
 
         # Identify bottlenecks
         bottlenecks = self._identify_bottlenecks(
-            response_time_analysis,
-            resource_analysis,
-            config_analysis
+            response_time_analysis, resource_analysis, config_analysis
         )
 
         return {
             "timestamp": datetime.now(UTC).isoformat(),
-            "response_time": response_time_analysis if not isinstance(response_time_analysis, Exception) else {},
-            "resource_usage": resource_analysis if not isinstance(resource_analysis, Exception) else {},
+            "response_time": response_time_analysis
+            if not isinstance(response_time_analysis, Exception)
+            else {},
+            "resource_usage": resource_analysis
+            if not isinstance(resource_analysis, Exception)
+            else {},
             "configuration": config_analysis if not isinstance(config_analysis, Exception) else {},
-            "bottlenecks": bottlenecks
+            "bottlenecks": bottlenecks,
         }
 
     async def _analyze_response_times(self) -> dict:
@@ -98,26 +104,26 @@ class PerformanceAnalysisEngine:
             session = await get_http_session()
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             # Test multiple endpoints and measure response time
             start_time = datetime.now(UTC)
             async with session.get(
                 f"{self.ha_url}/api/states",
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    elapsed = (datetime.now(UTC) - start_time).total_seconds() * 1000
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as response:
+                elapsed = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
-                    if response.status == 200:
-                        states = await response.json()
-                        return {
-                            "average_response_time_ms": round(elapsed, 2),
-                            "endpoint": "/api/states",
-                            "entity_count": len(states),
-                            "status": "healthy" if elapsed < 500 else "slow"
-                        }
+                if response.status == 200:
+                    states = await response.json()
+                    return {
+                        "average_response_time_ms": round(elapsed, 2),
+                        "endpoint": "/api/states",
+                        "entity_count": len(states),
+                        "status": "healthy" if elapsed < 500 else "slow",
+                    }
         except Exception as e:
             return {"error": str(e), "status": "error"}
 
@@ -138,14 +144,10 @@ class PerformanceAnalysisEngine:
             return {
                 "cpu_usage_percent": cpu_percent,
                 "memory_usage_mb": memory_mb,
-                "status": status
+                "status": status,
             }
         except Exception:
-            return {
-                "cpu_usage_percent": 0.0,
-                "memory_usage_mb": 0.0,
-                "status": "unknown"
-            }
+            return {"cpu_usage_percent": 0.0, "memory_usage_mb": 0.0, "status": "unknown"}
 
     async def _analyze_configuration(self) -> dict:
         """Analyze configuration efficiency"""
@@ -153,30 +155,27 @@ class PerformanceAnalysisEngine:
             session = await get_http_session()
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             # Get HA configuration
             async with session.get(
                 f"{self.ha_url}/api/config",
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    if response.status == 200:
-                        config = await response.json()
-                        return {
-                            "recorder_configured": "recorder" in config.get("components", []),
-                            "total_components": len(config.get("components", [])),
-                            "status": "healthy"
-                        }
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as response:
+                if response.status == 200:
+                    config = await response.json()
+                    return {
+                        "recorder_configured": "recorder" in config.get("components", []),
+                        "total_components": len(config.get("components", [])),
+                        "status": "healthy",
+                    }
         except Exception as e:
             return {"error": str(e), "status": "error"}
 
     def _identify_bottlenecks(
-        self,
-        response_time: dict,
-        resource_usage: dict,
-        _configuration: dict
+        self, response_time: dict, resource_usage: dict, _configuration: dict
     ) -> list[dict]:
         """Identify performance bottlenecks"""
         bottlenecks = []
@@ -185,30 +184,36 @@ class PerformanceAnalysisEngine:
         if not isinstance(response_time, Exception):
             rt = response_time.get("average_response_time_ms", 0)
             if rt > 1000:
-                bottlenecks.append({
-                    "type": "slow_response",
-                    "severity": "high",
-                    "description": f"High response time: {rt}ms",
-                    "recommendation": "Optimize database queries or reduce entity count"
-                })
+                bottlenecks.append(
+                    {
+                        "type": "slow_response",
+                        "severity": "high",
+                        "description": f"High response time: {rt}ms",
+                        "recommendation": "Optimize database queries or reduce entity count",
+                    }
+                )
             elif rt > 500:
-                bottlenecks.append({
-                    "type": "moderate_response",
-                    "severity": "medium",
-                    "description": f"Moderate response time: {rt}ms",
-                    "recommendation": "Consider enabling recorder purge or optimizing automations"
-                })
+                bottlenecks.append(
+                    {
+                        "type": "moderate_response",
+                        "severity": "medium",
+                        "description": f"Moderate response time: {rt}ms",
+                        "recommendation": "Consider enabling recorder purge or optimizing automations",
+                    }
+                )
 
         # Check resource usage
         if not isinstance(resource_usage, Exception):
             cpu = resource_usage.get("cpu_usage_percent", 0)
             if cpu > 80:
-                bottlenecks.append({
-                    "type": "high_cpu",
-                    "severity": "high",
-                    "description": f"High CPU usage: {cpu}%",
-                    "recommendation": "Review and optimize resource-intensive automations"
-                })
+                bottlenecks.append(
+                    {
+                        "type": "high_cpu",
+                        "severity": "high",
+                        "description": f"High CPU usage: {cpu}%",
+                        "recommendation": "Review and optimize resource-intensive automations",
+                    }
+                )
 
         return bottlenecks
 
@@ -227,8 +232,7 @@ class RecommendationEngine:
         self.performance_analyzer = PerformanceAnalysisEngine()
 
     async def generate_recommendations(
-        self,
-        performance_analysis: dict
+        self, performance_analysis: dict
     ) -> list[OptimizationRecommendation]:
         """
         Generate optimization recommendations based on performance analysis
@@ -243,40 +247,44 @@ class RecommendationEngine:
 
         for bottleneck in bottlenecks:
             if bottleneck["type"] == "slow_response":
-                recommendations.append(OptimizationRecommendation(
-                    id="opt-001",
-                    title="Optimize Database Queries",
-                    description="High response time detected. Optimizing database queries can improve performance by 30-50%.",
-                    category="performance",
-                    impact=OptimizationImpact.HIGH,
-                    effort=OptimizationEffort.MEDIUM,
-                    estimated_improvement="30-50% faster response times",
-                    automated=False,
-                    steps=[
-                        "Enable recorder purge in configuration.yaml",
-                        "Set purge_keep_days to 7 or less",
-                        "Add entity filters to reduce database size",
-                        "Restart Home Assistant to apply changes"
-                    ]
-                ))
+                recommendations.append(
+                    OptimizationRecommendation(
+                        id="opt-001",
+                        title="Optimize Database Queries",
+                        description="High response time detected. Optimizing database queries can improve performance by 30-50%.",
+                        category="performance",
+                        impact=OptimizationImpact.HIGH,
+                        effort=OptimizationEffort.MEDIUM,
+                        estimated_improvement="30-50% faster response times",
+                        automated=False,
+                        steps=[
+                            "Enable recorder purge in configuration.yaml",
+                            "Set purge_keep_days to 7 or less",
+                            "Add entity filters to reduce database size",
+                            "Restart Home Assistant to apply changes",
+                        ],
+                    )
+                )
 
             elif bottleneck["type"] == "high_cpu":
-                recommendations.append(OptimizationRecommendation(
-                    id="opt-002",
-                    title="Optimize Resource-Intensive Automations",
-                    description="High CPU usage detected. Review and optimize automations to reduce CPU load.",
-                    category="performance",
-                    impact=OptimizationImpact.HIGH,
-                    effort=OptimizationEffort.HIGH,
-                    estimated_improvement="20-40% CPU reduction",
-                    automated=False,
-                    steps=[
-                        "Review automations for inefficient triggers",
-                        "Reduce polling frequency for slow devices",
-                        "Consolidate similar automations",
-                        "Use templates instead of multiple condition checks"
-                    ]
-                ))
+                recommendations.append(
+                    OptimizationRecommendation(
+                        id="opt-002",
+                        title="Optimize Resource-Intensive Automations",
+                        description="High CPU usage detected. Review and optimize automations to reduce CPU load.",
+                        category="performance",
+                        impact=OptimizationImpact.HIGH,
+                        effort=OptimizationEffort.HIGH,
+                        estimated_improvement="20-40% CPU reduction",
+                        automated=False,
+                        steps=[
+                            "Review automations for inefficient triggers",
+                            "Reduce polling frequency for slow devices",
+                            "Consolidate similar automations",
+                            "Use templates instead of multiple condition checks",
+                        ],
+                    )
+                )
 
         # Add general recommendations
         recommendations.extend(await self._generate_general_recommendations(performance_analysis))
@@ -285,8 +293,7 @@ class RecommendationEngine:
         return self._prioritize_recommendations(recommendations)
 
     async def _generate_general_recommendations(
-        self,
-        performance_analysis: dict
+        self, performance_analysis: dict
     ) -> list[OptimizationRecommendation]:
         """Generate general optimization recommendations"""
         recommendations = []
@@ -294,34 +301,32 @@ class RecommendationEngine:
         # Check if recorder is configured
         config = performance_analysis.get("configuration", {})
         if not config.get("recorder_configured", True):
-            recommendations.append(OptimizationRecommendation(
-                id="opt-003",
-                title="Enable Recorder Purge",
-                description="Configure database purge to prevent unlimited growth and maintain performance.",
-                category="configuration",
-                impact=OptimizationImpact.MEDIUM,
-                effort=OptimizationEffort.LOW,
-                estimated_improvement="Prevent database bloat",
-                automated=False,
-                steps=[
-                    "Add recorder configuration to configuration.yaml",
-                    "Set purge_keep_days: 7",
-                    "Set commit_interval: 1",
-                    "Restart Home Assistant"
-                ],
-                configuration_changes={
-                    "recorder": {
-                        "purge_keep_days": 7,
-                        "commit_interval": 1
-                    }
-                }
-            ))
+            recommendations.append(
+                OptimizationRecommendation(
+                    id="opt-003",
+                    title="Enable Recorder Purge",
+                    description="Configure database purge to prevent unlimited growth and maintain performance.",
+                    category="configuration",
+                    impact=OptimizationImpact.MEDIUM,
+                    effort=OptimizationEffort.LOW,
+                    estimated_improvement="Prevent database bloat",
+                    automated=False,
+                    steps=[
+                        "Add recorder configuration to configuration.yaml",
+                        "Set purge_keep_days: 7",
+                        "Set commit_interval: 1",
+                        "Restart Home Assistant",
+                    ],
+                    configuration_changes={
+                        "recorder": {"purge_keep_days": 7, "commit_interval": 1}
+                    },
+                )
+            )
 
         return recommendations
 
     def _prioritize_recommendations(
-        self,
-        recommendations: list[OptimizationRecommendation]
+        self, recommendations: list[OptimizationRecommendation]
     ) -> list[OptimizationRecommendation]:
         """
         Prioritize recommendations by impact and effort
@@ -349,8 +354,4 @@ class RecommendationEngine:
             (OptimizationImpact.LOW, OptimizationEffort.HIGH): 9,
         }
 
-        return sorted(
-            recommendations,
-            key=lambda r: priority_map.get((r.impact, r.effort), 10)
-        )
-
+        return sorted(recommendations, key=lambda r: priority_map.get((r.impact, r.effort), 10))

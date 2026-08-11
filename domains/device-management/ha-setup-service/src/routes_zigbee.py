@@ -27,7 +27,10 @@ async def get_bridge_status(request: Request) -> dict[str, Any]:
     try:
         bridge_manager = getattr(request.app.state, "bridge_manager", None)
         if not bridge_manager:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Bridge manager not initialized")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Bridge manager not initialized",
+            )
         health_status = await bridge_manager.get_bridge_health_status()
 
         return {
@@ -66,7 +69,10 @@ async def attempt_bridge_recovery(request: Request, force: bool = False) -> dict
     try:
         bridge_manager = getattr(request.app.state, "bridge_manager", None)
         if not bridge_manager:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Bridge manager not initialized")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Bridge manager not initialized",
+            )
         success, message = await bridge_manager.attempt_bridge_recovery(force=force)
         return {"success": success, "message": message, "timestamp": datetime.now(UTC)}
     except HTTPException:
@@ -82,7 +88,10 @@ async def restart_bridge(request: Request) -> dict[str, Any]:
     try:
         bridge_manager = getattr(request.app.state, "bridge_manager", None)
         if not bridge_manager:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Bridge manager not initialized")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Bridge manager not initialized",
+            )
         success, message = await bridge_manager.attempt_bridge_recovery(force=True)
         return {"success": success, "message": message, "timestamp": datetime.now(UTC)}
     except HTTPException:
@@ -99,8 +108,10 @@ async def get_bridge_health(request: Request) -> dict[str, Any]:
         bridge_manager = getattr(request.app.state, "bridge_manager", None)
         if not bridge_manager:
             return {
-                "healthy": False, "state": "uninitialized",
-                "health_score": 0, "error": "Bridge manager not initialized",
+                "healthy": False,
+                "state": "uninitialized",
+                "health_score": 0,
+                "error": "Bridge manager not initialized",
                 "last_check": datetime.now(UTC),
             }
         health_status = await bridge_manager.get_bridge_health_status()
@@ -113,8 +124,10 @@ async def get_bridge_health(request: Request) -> dict[str, Any]:
         }
     except Exception as e:
         return {
-            "healthy": False, "state": "error",
-            "health_score": 0, "error": str(e),
+            "healthy": False,
+            "state": "error",
+            "health_score": 0,
+            "error": str(e),
             "last_check": datetime.now(UTC),
         }
 
@@ -130,7 +143,10 @@ async def start_zigbee_setup_wizard(req: Request, request: SetupWizardRequest) -
     try:
         setup_wizard = getattr(req.app.state, "zigbee_setup_wizard", None)
         if not setup_wizard:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Setup wizard not initialized")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Setup wizard not initialized",
+            )
         return await setup_wizard.start_setup_wizard(request)
     except HTTPException:
         raise
@@ -145,7 +161,10 @@ async def continue_zigbee_setup_wizard(request: Request, wizard_id: str) -> dict
     try:
         setup_wizard = getattr(request.app.state, "zigbee_setup_wizard", None)
         if not setup_wizard:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Setup wizard not initialized")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Setup wizard not initialized",
+            )
         return await setup_wizard.continue_wizard(wizard_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -160,7 +179,10 @@ async def get_zigbee_setup_wizard_status(request: Request, wizard_id: str) -> di
     try:
         setup_wizard = getattr(request.app.state, "zigbee_setup_wizard", None)
         if not setup_wizard:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Setup wizard not initialized")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Setup wizard not initialized",
+            )
         response = await setup_wizard.get_wizard_status(wizard_id)
         if response is None:
             raise HTTPException(status_code=404, detail="Wizard not found")
@@ -178,7 +200,10 @@ async def cancel_zigbee_setup_wizard(request: Request, wizard_id: str) -> dict[s
     try:
         setup_wizard = getattr(request.app.state, "zigbee_setup_wizard", None)
         if not setup_wizard:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Setup wizard not initialized")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Setup wizard not initialized",
+            )
         success = await setup_wizard.cancel_wizard(wizard_id)
         if success:
             return {"message": "Wizard cancelled successfully", "wizard_id": wizard_id}
