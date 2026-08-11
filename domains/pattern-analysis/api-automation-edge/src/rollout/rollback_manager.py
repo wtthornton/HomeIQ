@@ -35,12 +35,7 @@ class RollbackManager:
         # Track error budgets: (home_id, spec_id) -> error_count
         self.error_budgets: dict[tuple[str, str], dict[str, Any]] = {}
 
-    def set_last_known_good(
-        self,
-        home_id: str,
-        spec_id: str,
-        version: str
-    ):
+    def set_last_known_good(self, home_id: str, spec_id: str, version: str):
         """
         Set last known good version.
 
@@ -53,11 +48,7 @@ class RollbackManager:
         self.last_known_good[key] = version
         logger.info(f"Set last known good for {spec_id}@{home_id}: {version}")
 
-    def get_last_known_good(
-        self,
-        home_id: str,
-        spec_id: str
-    ) -> str | None:
+    def get_last_known_good(self, home_id: str, spec_id: str) -> str | None:
         """
         Get last known good version.
 
@@ -71,11 +62,7 @@ class RollbackManager:
         key = (home_id, spec_id)
         return self.last_known_good.get(key)
 
-    def record_error(
-        self,
-        home_id: str,
-        spec_id: str
-    ):
+    def record_error(self, home_id: str, spec_id: str):
         """
         Record error for error budget tracking.
 
@@ -90,7 +77,7 @@ class RollbackManager:
                 "error_count": 0,
                 "window_start": None,
                 "max_errors": 10,  # Default: 10 errors per window
-                "window_seconds": 300  # Default: 5 minutes
+                "window_seconds": 300,  # Default: 5 minutes
             }
 
         budget = self.error_budgets[key]
@@ -101,11 +88,7 @@ class RollbackManager:
             f"{budget['error_count']}/{budget['max_errors']}"
         )
 
-    def check_error_budget_breach(
-        self,
-        home_id: str,
-        spec_id: str
-    ) -> bool:
+    def check_error_budget_breach(self, home_id: str, spec_id: str) -> bool:
         """
         Check if error budget breached (should rollback).
 
@@ -127,19 +110,13 @@ class RollbackManager:
         # For now, just check count
         if budget["error_count"] >= budget["max_errors"]:
             logger.warning(
-                f"Error budget breached for {spec_id}@{home_id}: "
-                f"{budget['error_count']} errors"
+                f"Error budget breached for {spec_id}@{home_id}: {budget['error_count']} errors"
             )
             return True
 
         return False
 
-    async def rollback(
-        self,
-        home_id: str,
-        spec_id: str,
-        target_version: str | None = None
-    ) -> bool:
+    async def rollback(self, home_id: str, spec_id: str, target_version: str | None = None) -> bool:
         """
         Rollback to last known good or specified version.
 
@@ -162,9 +139,7 @@ class RollbackManager:
         success = self.spec_registry.deploy_spec(spec_id, home_id, target_version)
 
         if success:
-            logger.info(
-                f"Rolled back {spec_id}@{home_id} to version {target_version}"
-            )
+            logger.info(f"Rolled back {spec_id}@{home_id} to version {target_version}")
 
             # Reset error budget
             key = (home_id, spec_id)
@@ -175,11 +150,7 @@ class RollbackManager:
 
         return success
 
-    async def auto_rollback_if_needed(
-        self,
-        home_id: str,
-        spec_id: str
-    ) -> bool:
+    async def auto_rollback_if_needed(self, home_id: str, spec_id: str) -> bool:
         """
         Auto-rollback if error budget breached.
 

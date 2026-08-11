@@ -91,7 +91,7 @@ class EntityInventory:
             return {
                 "entity_count": len(self.entities),
                 "area_count": len(self.area_to_entities),
-                "device_count": len(self.device_to_entities)
+                "device_count": len(self.device_to_entities),
             }
 
         except Exception as e:
@@ -126,7 +126,7 @@ class EntityInventory:
             "device_id": attributes.get("device_id"),
             "unit_of_measurement": attributes.get("unit_of_measurement"),
             "available": state.get("state") != "unavailable",
-            "attributes": attributes
+            "attributes": attributes,
         }
 
     def get_entity(self, entity_id: str) -> dict[str, Any] | None:
@@ -145,15 +145,13 @@ class EntityInventory:
 
     def get_entities_by_domain(self, domain: str) -> list[dict[str, Any]]:
         """Get all entities for a domain"""
-        return [
-            entity for entity in self.entities.values()
-            if entity.get("domain") == domain
-        ]
+        return [entity for entity in self.entities.values() if entity.get("domain") == domain]
 
     def get_entities_by_device_class(self, device_class: str) -> list[dict[str, Any]]:
         """Get all entities with a specific device class"""
         return [
-            entity for entity in self.entities.values()
+            entity
+            for entity in self.entities.values()
             if entity.get("device_class") == device_class
         ]
 

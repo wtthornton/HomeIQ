@@ -36,12 +36,7 @@ class WebhookValidator:
         self.used_nonces: dict[str, float] = {}
         self.nonce_ttl = 300  # 5 minutes
 
-    def generate_signature(
-        self,
-        payload: str,
-        timestamp: str,
-        nonce: str
-    ) -> str:
+    def generate_signature(self, payload: str, timestamp: str, nonce: str) -> str:
         """
         Generate HMAC signature for webhook payload.
 
@@ -54,20 +49,10 @@ class WebhookValidator:
             HMAC signature (hex)
         """
         message = f"{timestamp}:{nonce}:{payload}"
-        signature = hmac.new(
-            self.secret_key,
-            message.encode(),
-            hashlib.sha256
-        ).hexdigest()
+        signature = hmac.new(self.secret_key, message.encode(), hashlib.sha256).hexdigest()
         return signature
 
-    def validate_signature(
-        self,
-        payload: str,
-        timestamp: str,
-        nonce: str,
-        signature: str
-    ) -> bool:
+    def validate_signature(self, payload: str, timestamp: str, nonce: str, signature: str) -> bool:
         """
         Validate HMAC signature.
 
@@ -83,11 +68,7 @@ class WebhookValidator:
         expected_signature = self.generate_signature(payload, timestamp, nonce)
         return hmac.compare_digest(expected_signature, signature)
 
-    def validate_timestamp(
-        self,
-        timestamp: str,
-        max_age_seconds: int = 300
-    ) -> bool:
+    def validate_timestamp(self, timestamp: str, max_age_seconds: int = 300) -> bool:
         """
         Validate timestamp is recent (replay protection).
 
@@ -115,10 +96,7 @@ class WebhookValidator:
         except ValueError:
             return False
 
-    def validate_nonce(
-        self,
-        nonce: str
-    ) -> bool:
+    def validate_nonce(self, nonce: str) -> bool:
         """
         Validate nonce hasn't been used (replay protection).
 
@@ -131,10 +109,7 @@ class WebhookValidator:
         now = time.time()
 
         # Clean up old nonces
-        self.used_nonces = {
-            n: t for n, t in self.used_nonces.items()
-            if (now - t) < self.nonce_ttl
-        }
+        self.used_nonces = {n: t for n, t in self.used_nonces.items() if (now - t) < self.nonce_ttl}
 
         # Check if nonce already used
         if nonce in self.used_nonces:
@@ -144,11 +119,7 @@ class WebhookValidator:
         self.used_nonces[nonce] = now
         return True
 
-    def validate_webhook(
-        self,
-        payload: str,
-        headers: dict[str, str]
-    ) -> tuple[bool, str | None]:
+    def validate_webhook(self, payload: str, headers: dict[str, str]) -> tuple[bool, str | None]:
         """
         Validate webhook request.
 

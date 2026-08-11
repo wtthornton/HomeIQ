@@ -37,7 +37,7 @@ class HARestClient:
         ha_url: str | None = None,
         access_token: str | None = None,
         max_retries: int = 3,
-        timeout: float = 10.0
+        timeout: float = 10.0,
     ):
         """
         Initialize HA REST client.
@@ -48,7 +48,7 @@ class HARestClient:
             max_retries: Maximum retry attempts
             timeout: Request timeout in seconds
         """
-        self.ha_url = (ha_url or settings.ha_http_url or settings.ha_url or "").rstrip('/')
+        self.ha_url = (ha_url or settings.ha_http_url or settings.ha_url or "").rstrip("/")
         self.access_token = access_token or settings.ha_token or ""
         self.max_retries = max_retries
         self.timeout = timeout
@@ -57,27 +57,24 @@ class HARestClient:
             logger.warning("Home Assistant URL or token not configured")
 
         # Convert WebSocket URL to HTTP if needed
-        if self.ha_url.startswith('ws://'):
-            self.ha_url = self.ha_url.replace('ws://', 'http://')
-        elif self.ha_url.startswith('wss://'):
-            self.ha_url = self.ha_url.replace('wss://', 'https://')
+        if self.ha_url.startswith("ws://"):
+            self.ha_url = self.ha_url.replace("ws://", "http://")
+        elif self.ha_url.startswith("wss://"):
+            self.ha_url = self.ha_url.replace("wss://", "https://")
 
         # Remove /api/websocket suffix if present
-        if self.ha_url.endswith('/api/websocket'):
-            self.ha_url = self.ha_url.replace('/api/websocket', '')
+        if self.ha_url.endswith("/api/websocket"):
+            self.ha_url = self.ha_url.replace("/api/websocket", "")
 
         # Create async HTTP client with connection pooling
         self.client = httpx.AsyncClient(
             timeout=self.timeout,
             follow_redirects=True,
-            limits=httpx.Limits(
-                max_keepalive_connections=5,
-                max_connections=10
-            ),
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
             headers={
                 "Authorization": f"Bearer {self.access_token}",
-                "Content-Type": "application/json"
-            }
+                "Content-Type": "application/json",
+            },
         )
 
         logger.info(f"HA REST client initialized with url={self._redact_url(self.ha_url)}")
@@ -85,14 +82,17 @@ class HARestClient:
     def _redact_url(self, url: str) -> str:
         """Redact sensitive parts of URL in logs"""
         # Redact token if present in URL
-        return re.sub(r'[?&]token=[^&]*', '[REDACTED]', url)
+        return re.sub(r"[?&]token=[^&]*", "[REDACTED]", url)
 
     def _redact_secrets(self, data: Any) -> Any:
         """Recursively redact secrets from data structures"""
         if isinstance(data, dict):
             redacted = {}
             for key, value in data.items():
-                if any(secret_key in key.lower() for secret_key in ['token', 'password', 'secret', 'key']):
+                if any(
+                    secret_key in key.lower()
+                    for secret_key in ["token", "password", "secret", "key"]
+                ):
                     redacted[key] = "[REDACTED]"
                 else:
                     redacted[key] = self._redact_secrets(value)
@@ -101,7 +101,7 @@ class HARestClient:
             return [self._redact_secrets(item) for item in data]
         elif isinstance(data, str):
             # Redact if looks like a token
-            if len(data) > 20 and all(c.isalnum() or c in '-_' for c in data):
+            if len(data) > 20 and all(c.isalnum() or c in "-_" for c in data):
                 return "[REDACTED]"
         return data
 
@@ -109,7 +109,7 @@ class HARestClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=True
+        reraise=True,
     )
     async def get(self, endpoint: str, **kwargs) -> dict[str, Any]:
         """
@@ -143,9 +143,11 @@ class HARestClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=True
+        reraise=True,
     )
-    async def post(self, endpoint: str, json_data: dict[str, Any] | None = None, **kwargs) -> dict[str, Any]:
+    async def post(
+        self, endpoint: str, json_data: dict[str, Any] | None = None, **kwargs
+    ) -> dict[str, Any]:
         """
         POST request to HA API.
 
@@ -183,10 +185,7 @@ class HARestClient:
         return await self.get(f"/api/states/{entity_id}")
 
     async def call_service(
-        self,
-        domain: str,
-        service: str,
-        service_data: dict[str, Any] | None = None
+        self, domain: str, service: str, service_data: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Call a Home Assistant service.

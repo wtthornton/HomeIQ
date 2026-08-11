@@ -24,11 +24,7 @@ class ServiceInventory:
     - Map capabilities to domain/service pairs
     """
 
-    def __init__(
-        self,
-        rest_client: HARestClient | None = None,
-        ttl: int = 3600
-    ):
+    def __init__(self, rest_client: HARestClient | None = None, ttl: int = 3600):
         """
         Initialize service inventory.
 
@@ -40,7 +36,9 @@ class ServiceInventory:
         self.ttl = ttl
         self.services: dict[str, dict[str, Any]] = {}
         self.service_schemas: dict[str, dict[str, Any]] = {}
-        self.capability_to_service: dict[str, tuple[str, str]] = {}  # capability -> (domain, service)
+        self.capability_to_service: dict[
+            str, tuple[str, str]
+        ] = {}  # capability -> (domain, service)
         self.last_refresh: float | None = None
 
     async def refresh(self) -> dict[str, Any]:
@@ -66,7 +64,9 @@ class ServiceInventory:
             # Format 2: List format [{"domain": "light", "services": {...}}, ...]
             if isinstance(services_data, list):
                 # Convert list format to dict format
-                logger.debug(f"Converting services from list format ({len(services_data)} items) to dict format")
+                logger.debug(
+                    f"Converting services from list format ({len(services_data)} items) to dict format"
+                )
                 services_dict: dict[str, dict[str, Any]] = {}
                 for item in services_data:
                     if isinstance(item, dict) and "domain" in item and "services" in item:
@@ -88,7 +88,9 @@ class ServiceInventory:
 
                 for service_name, service_data in domain_services.items():
                     if not isinstance(service_data, dict):
-                        logger.warning(f"Skipping service '{domain}.{service_name}' - service_data is not a dict")
+                        logger.warning(
+                            f"Skipping service '{domain}.{service_name}' - service_data is not a dict"
+                        )
                         continue
 
                     service_key = f"{domain}.{service_name}"
@@ -126,7 +128,7 @@ class ServiceInventory:
 
             return {
                 "service_count": len(self.services),
-                "capability_count": len(self.capability_to_service)
+                "capability_count": len(self.capability_to_service),
             }
 
         except Exception as e:

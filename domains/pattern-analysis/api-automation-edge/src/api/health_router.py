@@ -17,6 +17,7 @@ router = APIRouter(prefix="/health", tags=["health"])
 try:
     from ..task_queue.huey_config import huey
     from ..task_queue.scheduler import get_scheduler
+
     HUEY_AVAILABLE = True
 except ImportError:
     HUEY_AVAILABLE = False
@@ -32,10 +33,7 @@ async def health_check() -> dict[str, Any]:
     Returns:
         Health status including queue metrics
     """
-    status: dict[str, Any] = {
-        "status": "healthy",
-        "service": "api-automation-edge"
-    }
+    status: dict[str, Any] = {"status": "healthy", "service": "api-automation-edge"}
 
     # Add queue status if Huey is available
     if HUEY_AVAILABLE and huey and settings.use_task_queue:
@@ -57,17 +55,13 @@ async def health_check() -> dict[str, Any]:
                 "scheduled": scheduled_count,
                 "total": pending_count + scheduled_count,
                 "registered_schedules": registered_schedules,
-                "consumer_status": "running"  # Would track actual consumer status
+                "consumer_status": "running",  # Would track actual consumer status
             }
 
         except Exception as e:
             logger.warning(f"Error getting queue status: {e}")
             status["status"] = "degraded"
-            status["queue"] = {
-                "enabled": True,
-                "error": str(e),
-                "consumer_status": "error"
-            }
+            status["queue"] = {"enabled": True, "error": str(e), "consumer_status": "error"}
     elif settings.use_task_queue:
         # Task queue enabled but Huey not available
         status["status"] = "degraded"
@@ -75,12 +69,10 @@ async def health_check() -> dict[str, Any]:
             "enabled": True,
             "available": False,
             "error": "Huey not configured",
-            "consumer_status": "unavailable"
+            "consumer_status": "unavailable",
         }
     else:
         # Task queue disabled
-        status["queue"] = {
-            "enabled": False
-        }
+        status["queue"] = {"enabled": False}
 
     return status

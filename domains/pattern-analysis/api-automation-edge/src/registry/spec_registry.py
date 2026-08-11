@@ -28,6 +28,7 @@ Base = declarative_base()
 
 class SpecVersion(Base):
     """Database model for spec versions"""
+
     __tablename__ = "spec_versions"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -56,7 +57,7 @@ class SpecVersion(Base):
             "spec_content": spec_content,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "deployed_at": self.deployed_at.isoformat() if self.deployed_at else None,
-            "is_active": self.is_active
+            "is_active": self.is_active,
         }
 
 
@@ -118,10 +119,7 @@ class SpecRegistry:
         return hashlib.sha256(spec_str.encode()).hexdigest()
 
     def store_spec(
-        self,
-        spec: dict[str, Any],
-        home_id: str,
-        deploy: bool = False
+        self, spec: dict[str, Any], home_id: str, deploy: bool = False
     ) -> dict[str, Any]:
         """
         Store automation spec.
@@ -146,9 +144,7 @@ class SpecRegistry:
         db = self.SessionLocal()
         try:
             # Check if this exact spec already exists
-            existing = db.query(SpecVersion).filter(
-                SpecVersion.spec_hash == spec_hash
-            ).first()
+            existing = db.query(SpecVersion).filter(SpecVersion.spec_hash == spec_hash).first()
 
             if existing:
                 logger.info(f"Spec {spec_id} v{version} already exists (hash: {spec_hash[:8]}...)")
@@ -157,8 +153,7 @@ class SpecRegistry:
             # Deactivate previous versions if deploying
             if deploy:
                 db.query(SpecVersion).filter(
-                    SpecVersion.spec_id == spec_id,
-                    SpecVersion.home_id == home_id
+                    SpecVersion.spec_id == spec_id, SpecVersion.home_id == home_id
                 ).update({"is_active": False})
 
             # Create new version
@@ -169,14 +164,16 @@ class SpecRegistry:
                 spec_hash=spec_hash,
                 spec_content=spec_content,
                 deployed_at=datetime.now(UTC) if deploy else None,
-                is_active=bool(deploy)
+                is_active=bool(deploy),
             )
 
             db.add(spec_version)
             db.commit()
             db.refresh(spec_version)
 
-            logger.info(f"Stored spec {spec_id} v{version} for home {home_id} (hash: {spec_hash[:8]}...)")
+            logger.info(
+                f"Stored spec {spec_id} v{version} for home {home_id} (hash: {spec_hash[:8]}...)"
+            )
             return spec_version.to_dict()
 
         except Exception as e:
@@ -187,10 +184,7 @@ class SpecRegistry:
             db.close()
 
     def get_spec(
-        self,
-        spec_id: str,
-        home_id: str,
-        version: str | None = None
+        self, spec_id: str, home_id: str, version: str | None = None
     ) -> dict[str, Any] | None:
         """
         Get automation spec.
@@ -206,8 +200,7 @@ class SpecRegistry:
         db = self.SessionLocal()
         try:
             query = db.query(SpecVersion).filter(
-                SpecVersion.spec_id == spec_id,
-                SpecVersion.home_id == home_id
+                SpecVersion.spec_id == spec_id, SpecVersion.home_id == home_id
             )
 
             if version:
@@ -224,11 +217,7 @@ class SpecRegistry:
         finally:
             db.close()
 
-    def get_spec_history(
-        self,
-        spec_id: str,
-        home_id: str
-    ) -> list[dict[str, Any]]:
+    def get_spec_history(self, spec_id: str, home_id: str) -> list[dict[str, Any]]:
         """
         Get spec version history.
 
@@ -241,10 +230,12 @@ class SpecRegistry:
         """
         db = self.SessionLocal()
         try:
-            versions = db.query(SpecVersion).filter(
-                SpecVersion.spec_id == spec_id,
-                SpecVersion.home_id == home_id
-            ).order_by(SpecVersion.created_at.desc()).all()
+            versions = (
+                db.query(SpecVersion)
+                .filter(SpecVersion.spec_id == spec_id, SpecVersion.home_id == home_id)
+                .order_by(SpecVersion.created_at.desc())
+                .all()
+            )
 
             return [v.to_dict() for v in versions]
         finally:
@@ -262,21 +253,20 @@ class SpecRegistry:
         """
         db = self.SessionLocal()
         try:
-            versions = db.query(SpecVersion).filter(
-                SpecVersion.home_id == home_id,
-                SpecVersion.is_active == True  # noqa: E712
-            ).all()
+            versions = (
+                db.query(SpecVersion)
+                .filter(
+                    SpecVersion.home_id == home_id,
+                    SpecVersion.is_active == True,  # noqa: E712
+                )
+                .all()
+            )
 
             return [json.loads(v.spec_content) for v in versions]
         finally:
             db.close()
 
-    def deploy_spec(
-        self,
-        spec_id: str,
-        home_id: str,
-        version: str
-    ) -> bool:
+    def deploy_spec(self, spec_id: str, home_id: str, version: str) -> bool:
         """
         Deploy a specific spec version (mark as active).
 
@@ -292,19 +282,19 @@ class SpecRegistry:
         try:
             # Deactivate all versions of this spec
             db.query(SpecVersion).filter(
-                SpecVersion.spec_id == spec_id,
-                SpecVersion.home_id == home_id
+                SpecVersion.spec_id == spec_id, SpecVersion.home_id == home_id
             ).update({"is_active": False})
 
             # Activate specified version
-            result = db.query(SpecVersion).filter(
-                SpecVersion.spec_id == spec_id,
-                SpecVersion.home_id == home_id,
-                SpecVersion.version == version
-            ).update({
-                "is_active": True,
-                "deployed_at": datetime.now(UTC)
-            })
+            result = (
+                db.query(SpecVersion)
+                .filter(
+                    SpecVersion.spec_id == spec_id,
+                    SpecVersion.home_id == home_id,
+                    SpecVersion.version == version,
+                )
+                .update({"is_active": True, "deployed_at": datetime.now(UTC)})
+            )
 
             db.commit()
 
@@ -322,11 +312,7 @@ class SpecRegistry:
         finally:
             db.close()
 
-    def get_last_known_good(
-        self,
-        spec_id: str,
-        home_id: str
-    ) -> dict[str, Any] | None:
+    def get_last_known_good(self, spec_id: str, home_id: str) -> dict[str, Any] | None:
         """
         Get last known good version (most recently deployed).
 
@@ -339,11 +325,16 @@ class SpecRegistry:
         """
         db = self.SessionLocal()
         try:
-            version = db.query(SpecVersion).filter(
-                SpecVersion.spec_id == spec_id,
-                SpecVersion.home_id == home_id,
-                SpecVersion.deployed_at.isnot(None)
-            ).order_by(SpecVersion.deployed_at.desc()).first()
+            version = (
+                db.query(SpecVersion)
+                .filter(
+                    SpecVersion.spec_id == spec_id,
+                    SpecVersion.home_id == home_id,
+                    SpecVersion.deployed_at.isnot(None),
+                )
+                .order_by(SpecVersion.deployed_at.desc())
+                .first()
+            )
 
             if version:
                 return json.loads(version.spec_content)

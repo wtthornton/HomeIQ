@@ -39,6 +39,7 @@ capability_graph: CapabilityGraph | None = None
 # Startup / Shutdown helpers
 # ---------------------------------------------------------------------------
 
+
 def _start_huey_consumer() -> None:
     """Initialize Huey in-memory task queue."""
     try:
@@ -66,15 +67,12 @@ async def _startup_service() -> None:
             exc_info=True,
         )
         logger.info(
-            "Service will start without live HA data; "
-            "endpoints requiring HA will return 503"
+            "Service will start without live HA data; endpoints requiring HA will return 503"
         )
 
     if settings.use_task_queue:
         try:
-            consumer_thread = threading.Thread(
-                target=_start_huey_consumer, daemon=True
-            )
+            consumer_thread = threading.Thread(target=_start_huey_consumer, daemon=True)
             consumer_thread.start()
             time.sleep(0.1)
             logger.info("Huey task queue consumer thread started")

@@ -33,7 +33,7 @@ class Executor:
         self,
         rest_client: HARestClient | None = None,
         websocket_client: HAWebSocketClient | None = None,
-        max_parallel: int = 1
+        max_parallel: int = 1,
     ):
         """
         Initialize executor.
@@ -49,18 +49,14 @@ class Executor:
 
         # Initialize components
         retry_manager = RetryManager()
-        confirmation_watcher = (
-            ConfirmationWatcher(websocket_client) if websocket_client else None
-        )
-        self.action_executor = ActionExecutor(
-            rest_client, retry_manager, confirmation_watcher
-        )
+        confirmation_watcher = ConfirmationWatcher(websocket_client) if websocket_client else None
+        self.action_executor = ActionExecutor(rest_client, retry_manager, confirmation_watcher)
 
     async def execute(
         self,
         execution_plan: dict[str, Any],
         spec: dict[str, Any],
-        correlation_id: str | None = None
+        correlation_id: str | None = None,
     ) -> dict[str, Any]:
         """
         Execute automation spec.
@@ -79,17 +75,14 @@ class Executor:
         spec_id = spec.get("id", "unknown")
         spec_version = spec.get("version", "unknown")
 
-        logger.info(
-            f"Executing spec {spec_id} v{spec_version} "
-            f"(correlation_id: {correlation_id})"
-        )
+        logger.info(f"Executing spec {spec_id} v{spec_version} (correlation_id: {correlation_id})")
 
         actions = execution_plan.get("actions", [])
         if not actions:
             return {
                 "success": False,
                 "error": "No actions to execute",
-                "correlation_id": correlation_id
+                "correlation_id": correlation_id,
             }
 
         start_time = asyncio.get_event_loop().time()
@@ -116,14 +109,11 @@ class Executor:
             "success_count": success_count,
             "total_count": total_count,
             "execution_time": execution_time,
-            "action_results": results
+            "action_results": results,
         }
 
     async def _execute_sequential(
-        self,
-        actions: list[dict[str, Any]],
-        spec: dict[str, Any],
-        correlation_id: str
+        self, actions: list[dict[str, Any]], spec: dict[str, Any], correlation_id: str
     ) -> list[dict[str, Any]]:
         """Execute actions sequentially"""
         results = []
@@ -131,7 +121,7 @@ class Executor:
         for i, action in enumerate(actions):
             action_id = action.get("id", f"action_{i}")
             logger.info(
-                f"Executing action {action_id} ({i+1}/{len(actions)}) "
+                f"Executing action {action_id} ({i + 1}/{len(actions)}) "
                 f"[correlation_id: {correlation_id}]"
             )
 
@@ -147,10 +137,7 @@ class Executor:
         return results
 
     async def _execute_parallel(
-        self,
-        actions: list[dict[str, Any]],
-        spec: dict[str, Any],
-        correlation_id: str
+        self, actions: list[dict[str, Any]], spec: dict[str, Any], correlation_id: str
     ) -> list[dict[str, Any]]:
         """Execute actions in parallel (bounded)"""
         semaphore = asyncio.Semaphore(self.max_parallel)
@@ -160,7 +147,7 @@ class Executor:
             async with semaphore:
                 action_id = action.get("id", f"action_{index}")
                 logger.info(
-                    f"Executing action {action_id} ({index+1}/{len(actions)}) "
+                    f"Executing action {action_id} ({index + 1}/{len(actions)}) "
                     f"[correlation_id: {correlation_id}]"
                 )
 
@@ -169,10 +156,7 @@ class Executor:
                 return result
 
         # Create tasks
-        tasks = [
-            execute_with_semaphore(action, i)
-            for i, action in enumerate(actions)
-        ]
+        tasks = [execute_with_semaphore(action, i) for i, action in enumerate(actions)]
 
         # Execute in parallel
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -182,11 +166,9 @@ class Executor:
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 logger.error(f"Action {i} raised exception: {result}")
-                processed_results.append({
-                    "success": False,
-                    "error": str(result),
-                    "correlation_id": correlation_id
-                })
+                processed_results.append(
+                    {"success": False, "error": str(result), "correlation_id": correlation_id}
+                )
             else:
                 processed_results.append(result)
 

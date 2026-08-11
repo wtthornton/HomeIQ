@@ -4,7 +4,6 @@ Observability Router
 Endpoints for metrics and explainability
 """
 
-
 from fastapi import APIRouter, Body, HTTPException
 
 from ..observability.explainer import Explainer
@@ -45,7 +44,9 @@ async def pause_kill_switch(request_data: dict = Body(default={})):
     elif spec_id:
         kill_switch.pause_spec(spec_id)
     else:
-        raise HTTPException(status_code=400, detail="Must specify global_pause, home_id, or spec_id")
+        raise HTTPException(
+            status_code=400, detail="Must specify global_pause, home_id, or spec_id"
+        )
     return {"success": True}
 
 
@@ -63,5 +64,7 @@ async def resume_kill_switch(request_data: dict = Body(default={})):
     elif spec_id:
         kill_switch.resume_spec(spec_id)
     else:
-        raise HTTPException(status_code=400, detail="Must specify global_resume, home_id, or spec_id")
+        raise HTTPException(
+            status_code=400, detail="Must specify global_resume, home_id, or spec_id"
+        )
     return {"success": True}

@@ -4,7 +4,6 @@ Spec Management Router
 CRUD endpoints for automation specs
 """
 
-
 from fastapi import APIRouter, Body, HTTPException
 from homeiq_ha.homeiq_automation.spec_validator import SpecValidator
 
@@ -27,8 +26,7 @@ async def create_spec(spec: dict, home_id: str = settings.home_id):
         if not is_valid:
             error_messages = [e.get("message", str(e)) for e in errors]
             raise HTTPException(
-                status_code=400,
-                detail={"errors": error_messages, "validation_failed": True}
+                status_code=400, detail={"errors": error_messages, "validation_failed": True}
             )
 
         result = spec_registry.store_spec(spec, home_id, deploy=False)
@@ -57,9 +55,7 @@ async def get_spec_history(spec_id: str, home_id: str = settings.home_id):
 
 @router.post("/{spec_id}/deploy")
 async def deploy_spec(
-    spec_id: str,
-    request_data: dict = Body(default={}),
-    home_id: str = settings.home_id
+    spec_id: str, request_data: dict = Body(default={}), home_id: str = settings.home_id
 ):
     """Deploy spec version"""
     version = request_data.get("version")

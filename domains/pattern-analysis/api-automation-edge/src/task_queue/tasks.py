@@ -25,36 +25,32 @@ def _get_task_config(spec: dict[str, Any] | None) -> dict[str, Any]:
     """
     if not spec:
         # Default configuration
-        return {
-            "retries": 3,
-            "retry_delay": 30,
-            "priority": 5
-        }
+        return {"retries": 3, "retry_delay": 30, "priority": 5}
 
     policy = spec.get("policy", {})
     risk = policy.get("risk", "low")
 
     # Priority mapping based on risk
     priority_map = {
-        "high": 10,    # Security/Safety automations
-        "medium": 5,   # Normal automations
-        "low": 1       # Background/analytics automations
+        "high": 10,  # Security/Safety automations
+        "medium": 5,  # Normal automations
+        "low": 1,  # Background/analytics automations
     }
 
     # Retry configuration based on risk
     retry_config = {
         "high": {
             "retries": 10,
-            "retry_delay": 60  # 60 seconds with exponential backoff
+            "retry_delay": 60,  # 60 seconds with exponential backoff
         },
         "medium": {
             "retries": 5,
-            "retry_delay": 30  # 30 seconds with exponential backoff
+            "retry_delay": 30,  # 30 seconds with exponential backoff
         },
         "low": {
             "retries": 3,
-            "retry_delay": 15  # 15 seconds with exponential backoff
-        }
+            "retry_delay": 15,  # 15 seconds with exponential backoff
+        },
     }
 
     retry_cfg = retry_config.get(risk, retry_config["low"])
@@ -62,21 +58,17 @@ def _get_task_config(spec: dict[str, Any] | None) -> dict[str, Any]:
     return {
         "retries": retry_cfg["retries"],
         "retry_delay": retry_cfg["retry_delay"],
-        "priority": priority_map.get(risk, 5)
+        "priority": priority_map.get(risk, 5),
     }
 
 
-@huey.task(
-    retries=5,
-    retry_delay=30,
-    priority=5
-)
+@huey.task(retries=5, retry_delay=30, priority=5)
 def execute_automation_task(
     spec_id: str,
     trigger_data: dict | None,
     home_id: str,
     correlation_id: str,
-    _spec: dict[str, Any] | None = None
+    _spec: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Execute automation as Huey task.
@@ -105,7 +97,7 @@ def execute_automation_task(
             spec_id=spec_id,
             trigger_data=trigger_data,
             home_id=home_id,
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
         )
 
         logger.info(
@@ -119,13 +111,9 @@ def execute_automation_task(
         logger.error(
             f"Automation task failed: spec_id={spec_id}, "
             f"correlation_id={correlation_id}, error={e}",
-            exc_info=True
+            exc_info=True,
         )
-        return {
-            "success": False,
-            "error": str(e),
-            "correlation_id": correlation_id
-        }
+        return {"success": False, "error": str(e), "correlation_id": correlation_id}
 
 
 def queue_automation_task(
@@ -135,7 +123,7 @@ def queue_automation_task(
     correlation_id: str,
     spec: dict[str, Any] | None = None,
     delay: int | None = None,
-    eta: Any | None = None
+    eta: Any | None = None,
 ):
     """
     Queue automation task with proper configuration.
@@ -172,7 +160,7 @@ def queue_automation_task(
             trigger_data=trigger_data,
             home_id=home_id,
             correlation_id=correlation_id,
-            spec=spec
+            spec=spec,
         )
     elif eta:
         # Schedule at specific time
@@ -182,7 +170,7 @@ def queue_automation_task(
             trigger_data=trigger_data,
             home_id=home_id,
             correlation_id=correlation_id,
-            spec=spec
+            spec=spec,
         )
     else:
         # Queue immediately
@@ -191,7 +179,7 @@ def queue_automation_task(
             trigger_data=trigger_data,
             home_id=home_id,
             correlation_id=correlation_id,
-            spec=spec
+            spec=spec,
         )
 
     logger.info(

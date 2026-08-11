@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class CircuitState(Enum):
     """Circuit breaker states"""
+
     CLOSED = "closed"  # Normal operation
     OPEN = "open"  # Failing, reject requests
     HALF_OPEN = "half_open"  # Testing if service recovered
@@ -32,10 +33,7 @@ class CircuitBreaker:
     """
 
     def __init__(
-        self,
-        failure_threshold: int = 5,
-        timeout: float = 60.0,
-        success_threshold: int = 2
+        self, failure_threshold: int = 5, timeout: float = 60.0, success_threshold: int = 2
     ):
         """
         Initialize circuit breaker.
@@ -80,9 +78,7 @@ class CircuitBreaker:
         self.state = CircuitState.OPEN
         self.opened_at = time.time()
         self.success_count = 0
-        logger.warning(
-            f"Circuit breaker opened (failures: {self.failure_count})"
-        )
+        logger.warning(f"Circuit breaker opened (failures: {self.failure_count})")
 
     def _close(self):
         """Close circuit breaker"""
@@ -130,7 +126,7 @@ class RetryManager:
         max_retries: int = 3,
         initial_delay: float = 1.0,
         max_delay: float = 60.0,
-        multiplier: float = 2.0
+        multiplier: float = 2.0,
     ):
         """
         Initialize retry manager.
@@ -194,12 +190,7 @@ class RetryManager:
         # Default: assume transient for unknown errors
         return True
 
-    async def execute_with_retry(
-        self,
-        func: Callable,
-        *args,
-        **kwargs
-    ) -> Any:
+    async def execute_with_retry(self, func: Callable, *args, **kwargs) -> Any:
         """
         Execute function with retry logic.
 
@@ -235,9 +226,7 @@ class RetryManager:
                     raise
 
                 # Wait before retry
-                logger.warning(
-                    f"Retry {attempt + 1}/{self.max_retries} after {delay:.2f}s: {e}"
-                )
+                logger.warning(f"Retry {attempt + 1}/{self.max_retries} after {delay:.2f}s: {e}")
                 await asyncio.sleep(delay)
 
                 # Exponential backoff
