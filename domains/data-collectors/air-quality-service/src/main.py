@@ -183,7 +183,17 @@ class AirQualityService:
             logger.warning("Open-Meteo air-quality response carried no `current` block")
             return None
 
-        aqi = int(round(float(current.get("us_aqi") or 0)))
+        # Open-Meteo has genuine coverage gaps and returns `us_aqi: null` for
+        # some hours and locations. Treat that as no-data and fall back to the
+        # cache: coercing it to 0 would publish "Good" — the best possible
+        # reading — precisely when air quality is unknown. Checked with `is
+        # None` rather than falsiness because 0 is itself a valid AQI.
+        raw_aqi = current.get("us_aqi")
+        if raw_aqi is None:
+            logger.warning("Open-Meteo reported no us_aqi for this hour; treating as no data")
+            return None
+
+        aqi = int(round(float(raw_aqi)))
 
         raw_time = current.get("time")
         try:

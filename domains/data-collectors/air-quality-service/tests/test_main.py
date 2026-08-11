@@ -106,11 +106,24 @@ class TestParsePollutionResponse:
         """EPA category boundaries are inclusive of their upper bound."""
         assert service._aqi_category(aqi) == category
 
-    def test_parse_missing_fields_defaults_to_zero(self, service):
-        """A partial `current` block yields zeros rather than raising."""
-        result = service._parse_pollution_response({"current": {"time": "2026-08-11T17:00"}})
+    def test_parse_null_aqi_is_no_data_not_good(self, service):
+        """A null us_aqi must not be published as AQI 0 / "Good"."""
+        assert service._parse_pollution_response({"current": {"time": "x", "us_aqi": None}}) is None
+        assert service._parse_pollution_response({"current": {"time": "x"}}) is None
 
+    def test_parse_zero_aqi_is_a_real_reading(self, service):
+        """AQI 0 is a valid measurement and must survive the null check."""
+        result = service._parse_pollution_response({"current": {"time": "x", "us_aqi": 0}})
+
+        assert result is not None
         assert result["aqi"] == 0
+        assert result["category"] == "Good"
+
+    def test_parse_missing_pollutants_default_to_zero(self, service):
+        """Absent pollutant fields yield zeros rather than raising."""
+        result = service._parse_pollution_response({"current": {"time": "x", "us_aqi": 42}})
+
+        assert result["aqi"] == 42
         assert result["pm25"] == 0
         assert result["co"] == 0
 

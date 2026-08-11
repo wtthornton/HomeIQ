@@ -14,7 +14,11 @@ class Settings(BaseServiceSettings):
     # Override base defaults
     service_port: int = 8009
     service_name: str = "weather-api"
-    influxdb_bucket: str = "weather_data"
+    # influxdb_bucket is deliberately NOT overridden: BaseServiceSettings
+    # already defaults it to `home_assistant_events`, the bucket that exists.
+    # This class used to pin it to `weather_data`, which was never provisioned,
+    # so writes had nowhere to land whenever the environment did not happen to
+    # supply INFLUXDB_BUCKET.
 
     # Open-Meteo configuration. Open-Meteo's non-commercial tier needs no API
     # key, so there is no credential to lose or rotate here. It is queried by
