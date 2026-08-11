@@ -217,7 +217,7 @@ class TestExecuteEndpoint:
         # Reload settings
         from src.config import Settings
 
-        settings = Settings()
+        Settings()
 
         large_code = "x" * 101
         response = client.post(

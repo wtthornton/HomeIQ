@@ -67,7 +67,7 @@ class TestSettings:
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            settings = Settings()
+            Settings()
             assert len(w) == 1
             assert issubclass(w[0].category, UserWarning)
             assert "default or weak API token" in str(w[0].message)
@@ -79,7 +79,7 @@ class TestSettings:
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            settings = Settings()
+            Settings()
             assert len(w) == 1
 
     def test_api_token_production_validation(self, monkeypatch):

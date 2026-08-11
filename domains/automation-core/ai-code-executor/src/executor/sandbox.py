@@ -16,14 +16,16 @@ import queue
 import resource
 import sys
 import traceback
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import psutil
 from RestrictedPython import compile_restricted_exec
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
