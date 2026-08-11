@@ -31,10 +31,11 @@ class HAClient:
         else:
             raise ValueError("HA_URL or HA_HTTP_URL environment variable must be set")
         self.ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
-        self.headers = {
-            "Authorization": f"Bearer {self.ha_token}",
-            "Content-Type": "application/json"
-        } if self.ha_token else {}
+        self.headers = (
+            {"Authorization": f"Bearer {self.ha_token}", "Content-Type": "application/json"}
+            if self.ha_token
+            else {}
+        )
         self._session: aiohttp.ClientSession | None = None
         self._ws: HAWebSocketClient | None = None
 
@@ -43,9 +44,7 @@ class HAClient:
         if self._session is None or self._session.closed:
             timeout = aiohttp.ClientTimeout(total=10)
             self._session = aiohttp.ClientSession(
-                headers=self.headers,
-                timeout=timeout,
-                raise_for_status=False
+                headers=self.headers, timeout=timeout, raise_for_status=False
             )
         return self._session
 

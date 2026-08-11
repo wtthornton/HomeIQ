@@ -43,11 +43,11 @@ def _patched_ws():
 
 def _make_client():
     from src.ha_client import HAClient
+
     return HAClient()
 
 
 class TestRegistriesOverWebSocket:
-
     @pytest.mark.asyncio
     async def test_device_registry_keyed_by_id(self):
         patcher, ws = _patched_ws()
@@ -101,7 +101,6 @@ class TestRegistriesOverWebSocket:
 
 
 class TestIssueDetectorUsesTheSharedRegistry:
-
     @pytest.mark.asyncio
     async def test_counts_disabled_entities_via_client(self):
         from src.issue_detector import SetupIssueDetector
