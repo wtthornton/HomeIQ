@@ -1,5 +1,6 @@
 """Unit tests for activity-recognition main app."""
 
+
 async def test_root_endpoint(client) -> None:
     """Root returns service name and version."""
     response = await client.get("/")

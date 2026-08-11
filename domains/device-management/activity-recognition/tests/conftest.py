@@ -16,6 +16,7 @@ if str(_service_root) not in sys.path:
 def app():
     """Return the FastAPI app instance."""
     from src.main import app as _app
+
     return _app
 
 
