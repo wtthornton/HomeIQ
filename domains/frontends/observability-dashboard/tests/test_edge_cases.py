@@ -11,7 +11,7 @@ from conftest import make_span, make_trace
 
 # Mock streamlit for page imports
 _st_mock = MagicMock()
-_st_mock.fragment = lambda run_every=None: lambda f: f
+_st_mock.fragment = lambda **_kwargs: lambda f: f
 sys.modules.setdefault("streamlit", _st_mock)
 
 from dashboard_pages.service_performance import _calculate_service_metrics

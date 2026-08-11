@@ -2,12 +2,12 @@
 Unit tests for Calendar Event Parser
 """
 
-import os
 import sys
 from datetime import UTC, datetime
+from pathlib import Path
 
 # Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
+sys.path.insert(0, str(Path(__file__).parent / "../src"))
 
 from event_parser import CalendarEventParser
 

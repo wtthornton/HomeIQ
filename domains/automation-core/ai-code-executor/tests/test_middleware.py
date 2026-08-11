@@ -13,7 +13,7 @@ from starlette.responses import Response
 @pytest.fixture
 def middleware():
     """Create a LoggingMiddleware instance for testing."""
-    return LoggingMiddleware(lambda request: Response())
+    return LoggingMiddleware(lambda _request: Response())
 
 
 class TestMetrics:

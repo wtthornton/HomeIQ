@@ -42,8 +42,6 @@ def client(test_settings):
     # Initialize sandbox
     import asyncio
 
-    from src.main import code_validator, sandbox
-
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 

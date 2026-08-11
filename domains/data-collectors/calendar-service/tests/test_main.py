@@ -403,10 +403,9 @@ class TestCreateApp:
         for route in app.router.routes():
             if hasattr(route, "path"):
                 route_paths.append(route.path)
-            elif hasattr(route, "_resource"):
-                # For ResourceRoute, check the resource path
-                if hasattr(route._resource, "canonical"):
-                    route_paths.append(route._resource.canonical)
+            # For ResourceRoute, check the resource path
+            elif hasattr(route, "_resource") and hasattr(route._resource, "canonical"):
+                route_paths.append(route._resource.canonical)
 
         # Verify app has routes (health endpoint should be registered)
         assert len(list(app.router.routes())) > 0

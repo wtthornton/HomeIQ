@@ -572,11 +572,10 @@ class SyntheticElectricityPricingGenerator:
                     time_diff = abs((event_dt - period_dt).total_seconds())
 
                     # Consider periods within 2 hours for HVAC scheduling
-                    if time_diff <= 2 * 3600 and period_price < best_price:
-                        # Prefer periods before the event (pre-cooling/pre-heating)
-                        if period_dt < event_dt:  # noqa: SIM102
-                            best_period = period_ts
-                            best_price = period_price
+                    # Prefer periods before the event (pre-cooling/pre-heating)
+                    if time_diff <= 2 * 3600 and period_price < best_price and period_dt < event_dt:
+                        best_period = period_ts
+                        best_price = period_price
 
                 # Adjust event if beneficial (only for non-peak events)
                 current_tier = None

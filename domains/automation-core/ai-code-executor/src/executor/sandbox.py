@@ -41,11 +41,11 @@ def _safe_import_factory(allowed_modules: set[str]) -> Callable[..., Any]:
 
     def _safe_import(
         name: str,
-        globals: dict[str, Any] | None = None,
-        locals: dict[str, Any] | None = None,
+        _globals: dict[str, Any] | None = None,
+        _locals: dict[str, Any] | None = None,
         fromlist: tuple[str, ...] = (),
         level: int = 0,
-    ) -> Any:  # noqa: ARG001
+    ) -> Any:
         if level != 0:
             raise ImportError("Relative imports are not permitted inside the sandbox")
 

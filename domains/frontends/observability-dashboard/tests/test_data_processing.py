@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 # Mock streamlit before importing any page module
 _st_mock = MagicMock()
-_st_mock.fragment = lambda run_every=None: lambda f: f
+_st_mock.fragment = lambda **_kwargs: lambda f: f
 sys.modules.setdefault("streamlit", _st_mock)
 
 import pandas as pd
