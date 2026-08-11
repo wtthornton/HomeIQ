@@ -556,6 +556,28 @@ class HomeAssistantClient:
             logger.error(f"Failed to connect to Home Assistant: {e}")
             return []
 
+    async def delete_automation(self, automation_id: str) -> dict[str, Any]:
+        """
+        Delete an automation's config from Home Assistant.
+
+        Args:
+            automation_id: The automation's config id (not the entity_id)
+
+        Returns:
+            HA response dictionary
+
+        Raises:
+            httpx.HTTPError: If the delete fails
+        """
+        if not self.ha_url or not self.access_token:
+            raise ValueError("Home Assistant URL and token must be configured")
+
+        url = f"{self.ha_url}/api/config/automation/config/{automation_id}"
+        response = await self.client.delete(url)
+        response.raise_for_status()
+        logger.info(f"Deleted automation config {automation_id} from HA")
+        return response.json()
+
     async def enable_automation(self, automation_id: str) -> bool:
         """
         Enable an automation.

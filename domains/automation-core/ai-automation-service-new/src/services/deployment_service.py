@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.ha_client import HomeAssistantClient
-from ..database.models import AutomationVersion, Suggestion
+from ..database.models import AutomationVersion, Deployment, Suggestion
 from .safety_validator import SafetyValidator
 from .yaml_generation_service import YAMLGenerationService
 
@@ -261,6 +261,42 @@ class DeploymentService:
             logger.error(f"Failed to list automations: {e}")
             return []
 
+    async def _rollback_by_removal(self, automation_id: str) -> dict[str, Any]:
+        """Roll back a first-version deployment by removing it from HA.
+
+        Compiled-flow deployments record only a Deployment row (no prior
+        AutomationVersion), so their pre-deploy state — absence — is the
+        previous version.
+        """
+        dep_query = (
+            select(Deployment)
+            .where(
+                Deployment.ha_automation_id == automation_id,
+                Deployment.status == "deployed",
+            )
+            .order_by(Deployment.deployed_at.desc())
+            .limit(1)
+        )
+        dep_result = await self.db.execute(dep_query)
+        deployment = dep_result.scalar_one_or_none()
+        if deployment is None:
+            raise DeploymentError("No previous version found for rollback")
+
+        await self.ha_client.delete_automation(automation_id)
+        deployment.status = "rolled_back"
+        await self.db.commit()
+        logger.info(
+            "Rolled back first-version automation %s by removal (deployment %s)",
+            automation_id,
+            deployment.deployment_id,
+        )
+        return {
+            "automation_id": automation_id,
+            "status": "rolled_back",
+            "action": "removed",
+            "deployment_id": deployment.deployment_id,
+        }
+
     async def rollback_automation(self, automation_id: str) -> dict[str, Any]:
         """
         Rollback automation to previous version.
@@ -283,7 +319,7 @@ class DeploymentService:
             versions = result.scalars().all()
 
             if len(versions) < 2:
-                raise DeploymentError("No previous version found for rollback")
+                return await self._rollback_by_removal(automation_id)
 
             # Get previous version (second in list)
             previous_version = versions[1]
