@@ -188,9 +188,7 @@ class TestServiceManager:
 
     def test_fallback_suggestions(self):
         mgr = self._make_manager()
-        result = mgr._generate_fallback_suggestions(
-            {"devices": ["light"], "rooms": ["living"]}, "energy_optimization"
-        )
+        result = mgr._generate_fallback_suggestions({"devices": ["light"], "rooms": ["living"]}, "energy_optimization")
         assert len(result) == 1
         assert "energy_optimization" in result[0]["description"]
 
@@ -222,9 +220,7 @@ class TestServiceManager:
         context = {"devices": "x" * 1000}
         prompt = mgr._build_suggestion_prompt(context, "comfort")
         # Value should be truncated to 500 chars
-        parsed_context = json.loads(
-            prompt.split("```json\n")[1].split("\n```")[0]
-        )
+        parsed_context = json.loads(prompt.split("```json\n")[1].split("\n```")[0])
         assert len(parsed_context["devices"]) <= 500
 
     @pytest.mark.asyncio
@@ -411,9 +407,7 @@ class TestEndpoints:
                 "openai": {"healthy": True, "capabilities": ["suggestions"]},
             }
         )
-        mock_manager.analyze_data = AsyncMock(
-            return_value=({"embeddings": [[0.1]]}, ["openvino"])
-        )
+        mock_manager.analyze_data = AsyncMock(return_value=({"embeddings": [[0.1]]}, ["openvino"]))
         mock_manager.detect_patterns = AsyncMock(
             return_value=([{"description": "test", "category": "automation"}], ["openvino"])
         )

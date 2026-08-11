@@ -151,9 +151,7 @@ class ServiceManager:
                 logger.warning("%s service is unavailable: %s", service_name, e)
 
         if fail_on_unhealthy and unavailable:
-            raise RuntimeError(
-                f"Critical dependencies unavailable: {', '.join(sorted(unavailable))}"
-            )
+            raise RuntimeError(f"Critical dependencies unavailable: {', '.join(sorted(unavailable))}")
 
     async def get_service_status(self) -> dict[str, Any]:
         """Get detailed status of all services (without exposing internal URLs)."""
@@ -195,9 +193,7 @@ class ServiceManager:
         if self.client is None:
             raise RuntimeError("ServiceManager has been closed")
         effective_timeout = timeout or self.client.timeout
-        response = await self.client.post(
-            f"{url}{endpoint}", json=data, timeout=effective_timeout
-        )
+        response = await self.client.post(f"{url}{endpoint}", json=data, timeout=effective_timeout)
         response.raise_for_status()
         return response.json()
 
@@ -219,9 +215,7 @@ class ServiceManager:
             raise RuntimeError(f"Circuit breaker open for service: {service_name}")
 
         try:
-            result = await self._call_service_with_retry(
-                service_name, url, endpoint, data, timeout
-            )
+            result = await self._call_service_with_retry(service_name, url, endpoint, data, timeout)
             if cb:
                 cb.record_success()
             return result
@@ -259,7 +253,11 @@ class ServiceManager:
                     logger.warning("OpenVINO service failed, skipping embeddings: %s", e)
 
             # Step 2: Route based on analysis type
-            if analysis_type in ("clustering", "pattern_detection", "basic") and self.service_health["ml"] and "embeddings" in results:
+            if (
+                analysis_type in ("clustering", "pattern_detection", "basic")
+                and self.service_health["ml"]
+                and "embeddings" in results
+            ):
                 try:
                     clustering_response = await self._call_service(
                         "ml",
@@ -278,7 +276,11 @@ class ServiceManager:
                 except Exception as e:
                     logger.warning("ML service failed, skipping clustering: %s", e)
 
-            if analysis_type in ("anomaly_detection", "pattern_detection", "basic") and self.service_health["ml"] and "embeddings" in results:
+            if (
+                analysis_type in ("anomaly_detection", "pattern_detection", "basic")
+                and self.service_health["ml"]
+                and "embeddings" in results
+            ):
                 try:
                     anomaly_response = await self._call_service(
                         "ml",
@@ -338,9 +340,7 @@ class ServiceManager:
                             logger.warning("Failed to classify pattern: %s", e)
                             return pattern
 
-                detected_patterns = list(
-                    await asyncio.gather(*(classify_one(p) for p in patterns))
-                )
+                detected_patterns = list(await asyncio.gather(*(classify_one(p) for p in patterns)))
                 services_used.append("openvino")
 
             return detected_patterns, services_used
@@ -433,9 +433,7 @@ class ServiceManager:
             }
         ]
 
-    def _generate_fallback_suggestions(
-        self, context: dict[str, Any], suggestion_type: str
-    ) -> list[dict[str, Any]]:
+    def _generate_fallback_suggestions(self, context: dict[str, Any], suggestion_type: str) -> list[dict[str, Any]]:
         """Generate fallback suggestions when AI services are unavailable."""
         # Use context keys for a safe summary (no raw user strings in output)
         context_keys = ", ".join(sorted(context.keys())[:5]) if context else "your configuration"
