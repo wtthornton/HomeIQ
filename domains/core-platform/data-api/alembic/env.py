@@ -4,9 +4,9 @@ Configured for async SQLAlchemy with PostgreSQL.
 """
 
 import asyncio
-import os
 import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import pool, text
@@ -14,7 +14,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.database import DATABASE_SCHEMA, DATABASE_URL, Base
 

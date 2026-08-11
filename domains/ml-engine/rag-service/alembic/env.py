@@ -7,11 +7,12 @@ Uses shared helpers from homeiq_data.alembic_helpers.
 import os
 import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.database.models import RAGKnowledge  # noqa: E402, F401
 from src.database.session import Base  # noqa: E402
