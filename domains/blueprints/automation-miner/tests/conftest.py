@@ -16,7 +16,7 @@ from httpx import AsyncClient
 # Mark for tests that require external services (integration tests)
 needs_external = pytest.mark.skipif(
     not os.getenv("AUTOMATION_MINER_TESTS"),
-    reason="Requires external services (set AUTOMATION_MINER_TESTS=1 to enable)"
+    reason="Requires external services (set AUTOMATION_MINER_TESTS=1 to enable)",
 )
 
 
@@ -46,10 +46,9 @@ async def test_db():
     )
     db = Database.__new__(Database)
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
     db.engine = create_async_engine(test_url, echo=False)
-    db.async_session = async_sessionmaker(
-        db.engine, class_=AsyncSession, expire_on_commit=False
-    )
+    db.async_session = async_sessionmaker(db.engine, class_=AsyncSession, expire_on_commit=False)
     db.db_path = None
     await db.create_tables()
     yield db
@@ -88,15 +87,17 @@ def sample_automation_metadata():
         source="discourse",
         source_id="test123",
         created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC)
+        updated_at=datetime.now(UTC),
     )
 
 
-@pytest.fixture(params=[
-    {"device": "light", "min_quality": 0.7, "limit": 10},
-    {"device": "motion_sensor", "min_quality": 0.8, "limit": 5},
-    {"use_case": "security", "min_quality": 0.9, "limit": 20},
-])
+@pytest.fixture(
+    params=[
+        {"device": "light", "min_quality": 0.7, "limit": 10},
+        {"device": "motion_sensor", "min_quality": 0.8, "limit": 5},
+        {"use_case": "security", "min_quality": 0.9, "limit": 20},
+    ]
+)
 def search_params(request):
     """Parametrized search query fixtures"""
     return request.param
@@ -110,4 +111,3 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "database: Database tests")
     config.addinivalue_line("markers", "api: API tests")
     config.addinivalue_line("markers", "parser: Parser tests")
-

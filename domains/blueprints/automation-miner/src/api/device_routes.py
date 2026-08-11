@@ -5,6 +5,7 @@ API endpoints for device possibilities and recommendations.
 
 Epic AI-4, Story AI4.3
 """
+
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -23,7 +24,7 @@ router = APIRouter(prefix="/devices", tags=["devices"])
 async def get_device_possibilities(
     device_type: str,
     user_devices: str = Query("", description="Comma-separated list of user's devices"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ):
     """
     Get automation possibilities for a specific device type
@@ -41,12 +42,11 @@ async def get_device_possibilities(
     repo = CorpusRepository(db)
     recommender = DeviceRecommender(repo)
 
-    user_device_list = [d.strip() for d in user_devices.split(',') if d.strip()]
+    user_device_list = [d.strip() for d in user_devices.split(",") if d.strip()]
 
     try:
         possibilities = await recommender.get_device_possibilities(
-            device_type=device_type,
-            user_devices=user_device_list
+            device_type=device_type, user_devices=user_device_list
         )
 
         logger.info(f"Found {len(possibilities)} use cases for {device_type}")
@@ -54,7 +54,7 @@ async def get_device_possibilities(
         return {
             "device_type": device_type,
             "possibilities": possibilities,
-            "count": len(possibilities)
+            "count": len(possibilities),
         }
 
     except Exception as e:
@@ -67,7 +67,7 @@ async def get_device_recommendations(
     user_devices: str = Query(..., description="Comma-separated list of user's current devices"),
     user_integrations: str = Query("", description="Comma-separated list of user's integrations"),
     limit: int = Query(10, ge=1, le=50, description="Maximum recommendations"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ):
     """
     Get device purchase recommendations based on ROI
@@ -83,29 +83,30 @@ async def get_device_recommendations(
     """
     logger.info("Device recommendations request")
 
-    user_device_list = [d.strip() for d in user_devices.split(',') if d.strip()]
-    user_integration_list = [i.strip() for i in user_integrations.split(',') if i.strip()]
+    user_device_list = [d.strip() for d in user_devices.split(",") if d.strip()]
+    user_integration_list = [i.strip() for i in user_integrations.split(",") if i.strip()]
 
-    logger.info(f"User has {len(user_device_list)} devices, {len(user_integration_list)} integrations")
+    logger.info(
+        f"User has {len(user_device_list)} devices, {len(user_integration_list)} integrations"
+    )
 
     repo = CorpusRepository(db)
     recommender = DeviceRecommender(repo)
 
     try:
         recommendations = await recommender.recommend_devices(
-            user_devices=user_device_list,
-            user_integrations=user_integration_list,
-            limit=limit
+            user_devices=user_device_list, user_integrations=user_integration_list, limit=limit
         )
 
         logger.info(f"Generated {len(recommendations)} recommendations")
 
         if recommendations:
-            logger.info(f"Top recommendation: {recommendations[0].device_type} (ROI: {recommendations[0].roi_score})")
+            logger.info(
+                f"Top recommendation: {recommendations[0].device_type} (ROI: {recommendations[0].roi_score})"
+            )
 
         return recommendations
 
     except Exception as e:
         logger.error(f"Failed to generate recommendations: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e
-

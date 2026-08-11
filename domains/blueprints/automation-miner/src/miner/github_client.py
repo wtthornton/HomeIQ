@@ -7,6 +7,7 @@ Implements async HTTP client for GitHub API to crawl blueprint repositories with
 - Rate limiting (GitHub API limits)
 - Connection pooling
 """
+
 import asyncio
 import base64
 import logging
@@ -26,10 +27,7 @@ class GitHubClient:
     """Async client for GitHub API with retry and rate limiting"""
 
     def __init__(
-        self,
-        token: str | None = None,
-        rate_limit_per_sec: float = None,
-        retries: int = None
+        self, token: str | None = None, rate_limit_per_sec: float = None, retries: int = None
     ):
         self.token = token or settings.github_token
         self.rate_limit = rate_limit_per_sec or 5.0  # GitHub allows 5000/hour, ~83/min, ~1.4/sec
@@ -48,13 +46,13 @@ class GitHubClient:
             connect=settings.http_timeout_connect,
             read=settings.http_timeout_read,
             write=settings.http_timeout_write,
-            pool=settings.http_timeout_pool
+            pool=settings.http_timeout_pool,
         )
 
         # Configure connection limits
         self._limits = httpx.Limits(
             max_keepalive_connections=settings.http_max_keepalive,
-            max_connections=settings.http_max_connections
+            max_connections=settings.http_max_connections,
         )
 
         # Client will be created in async context
@@ -67,10 +65,7 @@ class GitHubClient:
             headers["Authorization"] = f"token {self.token}"
 
         self._client = httpx.AsyncClient(
-            transport=self._transport,
-            timeout=self._timeout,
-            limits=self._limits,
-            headers=headers
+            transport=self._transport, timeout=self._timeout, limits=self._limits, headers=headers
         )
         return self
 
@@ -95,7 +90,7 @@ class GitHubClient:
         method: str,
         endpoint: str,
         params: dict[str, Any] | None = None,
-        correlation_id: str | None = None
+        correlation_id: str | None = None,
     ) -> dict[str, Any] | list[Any]:
         """Make HTTP request with rate limiting and error handling"""
         if not self._client:
@@ -139,10 +134,7 @@ class GitHubClient:
             raise
 
     async def get_repository(
-        self,
-        owner: str,
-        repo: str,
-        correlation_id: str | None = None
+        self, owner: str, repo: str, correlation_id: str | None = None
     ) -> dict[str, Any]:
         """
         Get repository metadata
@@ -159,20 +151,12 @@ class GitHubClient:
 
         logger.debug(f"[{correlation_id}] Fetching repository: {owner}/{repo}")
 
-        data = await self._request(
-            "GET",
-            f"/repos/{owner}/{repo}",
-            correlation_id=correlation_id
-        )
+        data = await self._request("GET", f"/repos/{owner}/{repo}", correlation_id=correlation_id)
 
         return data
 
     async def get_repository_contents(
-        self,
-        owner: str,
-        repo: str,
-        path: str = "",
-        correlation_id: str | None = None
+        self, owner: str, repo: str, path: str = "", correlation_id: str | None = None
     ) -> list[dict[str, Any]]:
         """
         Get repository contents (files and directories)
@@ -191,9 +175,7 @@ class GitHubClient:
         logger.debug(f"[{correlation_id}] Fetching contents: {owner}/{repo}/{path}")
 
         data = await self._request(
-            "GET",
-            f"/repos/{owner}/{repo}/contents/{path}",
-            correlation_id=correlation_id
+            "GET", f"/repos/{owner}/{repo}/contents/{path}", correlation_id=correlation_id
         )
 
         if isinstance(data, dict):
@@ -206,11 +188,7 @@ class GitHubClient:
             return []
 
     async def get_file_content(
-        self,
-        owner: str,
-        repo: str,
-        path: str,
-        correlation_id: str | None = None
+        self, owner: str, repo: str, path: str, correlation_id: str | None = None
     ) -> str:
         """
         Get raw file content from repository
@@ -229,9 +207,7 @@ class GitHubClient:
         logger.debug(f"[{correlation_id}] Fetching file: {owner}/{repo}/{path}")
 
         data = await self._request(
-            "GET",
-            f"/repos/{owner}/{repo}/contents/{path}",
-            correlation_id=correlation_id
+            "GET", f"/repos/{owner}/{repo}/contents/{path}", correlation_id=correlation_id
         )
 
         if isinstance(data, dict) and data.get("encoding") == "base64":
@@ -249,7 +225,7 @@ class GitHubClient:
         repo: str,
         path: str = "",
         correlation_id: str | None = None,
-        _depth: int = 0
+        _depth: int = 0,
     ) -> list[dict[str, Any]]:
         """
         Recursively find blueprint YAML files in repository
@@ -268,7 +244,9 @@ class GitHubClient:
         blueprint_files = []
 
         if _depth >= self.MAX_TRAVERSAL_DEPTH:
-            logger.warning(f"[{correlation_id}] Max traversal depth ({self.MAX_TRAVERSAL_DEPTH}) reached at {path}")
+            logger.warning(
+                f"[{correlation_id}] Max traversal depth ({self.MAX_TRAVERSAL_DEPTH}) reached at {path}"
+            )
             return blueprint_files
 
         try:
@@ -286,15 +264,21 @@ class GitHubClient:
                             )
                             # Check if it's a blueprint (contains "blueprint:" key)
                             if "blueprint:" in file_content.lower():
-                                blueprint_files.append({
-                                    "path": item.get("path", ""),
-                                    "name": name,
-                                    "size": item.get("size", 0),
-                                    "content": file_content
-                                })
-                                logger.debug(f"[{correlation_id}] Found blueprint: {item.get('path')}")
+                                blueprint_files.append(
+                                    {
+                                        "path": item.get("path", ""),
+                                        "name": name,
+                                        "size": item.get("size", 0),
+                                        "content": file_content,
+                                    }
+                                )
+                                logger.debug(
+                                    f"[{correlation_id}] Found blueprint: {item.get('path')}"
+                                )
                         except Exception as e:
-                            logger.warning(f"[{correlation_id}] Error reading file {item.get('path')}: {e}")
+                            logger.warning(
+                                f"[{correlation_id}] Error reading file {item.get('path')}: {e}"
+                            )
                             continue
 
                 elif item.get("type") == "dir":
@@ -306,24 +290,24 @@ class GitHubClient:
                     # Recursively search subdirectories
                     try:
                         sub_files = await self.find_blueprint_files(
-                            owner, repo, item.get("path", ""), correlation_id,
-                            _depth=_depth + 1
+                            owner, repo, item.get("path", ""), correlation_id, _depth=_depth + 1
                         )
                         blueprint_files.extend(sub_files)
                     except Exception as e:
-                        logger.warning(f"[{correlation_id}] Error searching directory {item.get('path')}: {e}")
+                        logger.warning(
+                            f"[{correlation_id}] Error searching directory {item.get('path')}: {e}"
+                        )
                         continue
 
         except Exception as e:
-            logger.error(f"[{correlation_id}] Error finding blueprints in {owner}/{repo}/{path}: {e}")
+            logger.error(
+                f"[{correlation_id}] Error finding blueprints in {owner}/{repo}/{path}: {e}"
+            )
 
         return blueprint_files
 
     async def crawl_repository(
-        self,
-        owner: str,
-        repo: str,
-        correlation_id: str | None = None
+        self, owner: str, repo: str, correlation_id: str | None = None
     ) -> list[dict[str, Any]]:
         """
         Crawl a GitHub repository and extract blueprint data
@@ -355,14 +339,22 @@ class GitHubClient:
         results = []
         for blueprint_file in blueprint_files:
             # Extract title from filename or first line of blueprint
-            title = blueprint_file["name"].replace(".yaml", "").replace(".yml", "").replace("_", " ").replace("-", " ")
+            title = (
+                blueprint_file["name"]
+                .replace(".yaml", "")
+                .replace(".yml", "")
+                .replace("_", " ")
+                .replace("-", " ")
+            )
 
             # Try to extract description from blueprint metadata
             content = blueprint_file["content"]
             description = ""
             if "description:" in content.lower():
                 # Try to extract description from blueprint metadata
-                desc_match = re.search(r'description:\s*["\']([^"\']+)["\']', content, re.IGNORECASE)
+                desc_match = re.search(
+                    r'description:\s*["\']([^"\']+)["\']', content, re.IGNORECASE
+                )
                 if desc_match:
                     description = desc_match.group(1)
 
@@ -377,24 +369,17 @@ class GitHubClient:
                 "yaml_blocks": [blueprint_file["content"]],
                 "author": owner,
                 "created_at": repo_data.get("created_at", datetime.now(UTC).isoformat()),
-                "updated_at": repo_data.get("updated_at", repo_data.get("pushed_at", datetime.now(UTC).isoformat())),
+                "updated_at": repo_data.get(
+                    "updated_at", repo_data.get("pushed_at", datetime.now(UTC).isoformat())
+                ),
                 "likes": stars,  # Use stars as likes for quality scoring
                 "tags": repo_data.get("topics", []),
                 "category_id": None,
                 "views": 0,
                 "source_url": repo_data.get("html_url", ""),
-                "file_path": blueprint_file["path"]
+                "file_path": blueprint_file["path"],
             }
 
             results.append(result)
 
         return results
-
-
-
-
-
-
-
-
-

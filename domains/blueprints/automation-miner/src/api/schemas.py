@@ -3,6 +3,7 @@ API Request/Response Schemas
 
 Pydantic models for API validation and documentation.
 """
+
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -10,6 +11,7 @@ from pydantic import BaseModel, Field
 
 class SearchFilters(BaseModel):
     """Search filter parameters"""
+
     device: str | None = None
     integration: str | None = None
     use_case: str | None = None
@@ -19,6 +21,7 @@ class SearchFilters(BaseModel):
 
 class AutomationResponse(BaseModel):
     """Single automation response"""
+
     id: int
     source: str
     source_id: str
@@ -58,13 +61,14 @@ class AutomationResponse(BaseModel):
                 "created_at": "2024-01-01T00:00:00",
                 "updated_at": "2024-10-01T00:00:00",
                 "last_crawled": "2025-10-18T00:00:00",
-                "metadata": {"tags": ["lighting", "motion"], "views": 1500}
+                "metadata": {"tags": ["lighting", "motion"], "views": 1500},
             }
         }
 
 
 class SearchResponse(BaseModel):
     """Search results response"""
+
     automations: list[dict[str, Any]]
     count: int
     filters: dict[str, Any]
@@ -77,7 +81,7 @@ class SearchResponse(BaseModel):
                         "id": 1,
                         "title": "Motion-activated night lighting",
                         "use_case": "comfort",
-                        "quality_score": 0.85
+                        "quality_score": 0.85,
                     }
                 ],
                 "count": 1,
@@ -85,14 +89,15 @@ class SearchResponse(BaseModel):
                     "device": "motion_sensor",
                     "use_case": "comfort",
                     "min_quality": 0.7,
-                    "limit": 50
-                }
+                    "limit": 50,
+                },
             }
         }
 
 
 class StatsResponse(BaseModel):
     """Corpus statistics response"""
+
     total: int
     avg_quality: float
     device_count: int
@@ -113,18 +118,8 @@ class StatsResponse(BaseModel):
                 "integration_count": 35,
                 "devices": ["light", "motion_sensor", "switch", "..."],
                 "integrations": ["mqtt", "zigbee2mqtt", "zha", "..."],
-                "by_use_case": {
-                    "energy": 450,
-                    "comfort": 890,
-                    "security": 780,
-                    "convenience": 423
-                },
-                "by_complexity": {
-                    "low": 1200,
-                    "medium": 980,
-                    "high": 363
-                },
-                "last_crawl_time": "2025-10-18T02:00:00"
+                "by_use_case": {"energy": 450, "comfort": 890, "security": 780, "convenience": 423},
+                "by_complexity": {"low": 1200, "medium": 980, "high": 363},
+                "last_crawl_time": "2025-10-18T02:00:00",
             }
         }
-

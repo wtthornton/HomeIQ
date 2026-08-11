@@ -5,6 +5,7 @@ Manual job triggers and management endpoints.
 
 Epic AI-4, Story AI4.4
 """
+
 import logging
 from datetime import UTC, datetime
 
@@ -35,7 +36,7 @@ async def trigger_manual_refresh(background_tasks: BackgroundTasks):
     return {
         "status": "triggered",
         "message": "Weekly refresh job started in background",
-        "timestamp": datetime.now(UTC).isoformat()
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -72,9 +73,11 @@ async def get_refresh_status(db: AsyncSession = Depends(get_db_session)):
         next_sunday = now.replace(hour=2, minute=0, second=0, microsecond=0)
         if days_until_sunday > 0:
             from datetime import timedelta
+
             next_sunday = next_sunday + timedelta(days=days_until_sunday)
         elif now.hour >= 2:
             from datetime import timedelta
+
             next_sunday = next_sunday + timedelta(days=7)
 
         next_refresh = next_sunday.isoformat()
@@ -83,12 +86,11 @@ async def get_refresh_status(db: AsyncSession = Depends(get_db_session)):
             "last_refresh": last_crawl.isoformat() if last_crawl else None,
             "days_since_refresh": days_since,
             "next_refresh": next_refresh,
-            "corpus_total": stats['total'],
-            "corpus_quality": stats['avg_quality'],
-            "status": "healthy" if (not last_crawl or days_since <= 7) else "stale"
+            "corpus_total": stats["total"],
+            "corpus_quality": stats["avg_quality"],
+            "status": "healthy" if (not last_crawl or days_since <= 7) else "stale",
         }
 
     except Exception as e:
         logger.error(f"Failed to get refresh status: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e
-

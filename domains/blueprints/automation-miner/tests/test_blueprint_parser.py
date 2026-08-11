@@ -2,6 +2,7 @@
 Unit tests for blueprint parser
 Tests YAML parsing for Home Assistant blueprints
 """
+
 import sys
 from pathlib import Path
 
@@ -39,4 +40,3 @@ blueprint:
         result = parser.parse_yaml(blueprint_yaml)
         assert result is not None
         assert "_blueprint_metadata" in result
-

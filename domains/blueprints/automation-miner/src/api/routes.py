@@ -3,6 +3,7 @@ API Routes for Automation Miner
 
 Implements corpus query endpoints.
 """
+
 import logging
 from typing import Literal
 
@@ -20,12 +21,18 @@ router = APIRouter(tags=["corpus"])
 
 @router.get("/corpus/search", response_model=SearchResponse)
 async def search_corpus(
-    device: str | None = Query(None, description="Filter by device type (e.g., 'light', 'motion_sensor')"),
-    integration: str | None = Query(None, description="Filter by integration (e.g., 'mqtt', 'zigbee2mqtt')"),
-    use_case: Literal['energy', 'comfort', 'security', 'convenience'] | None = Query(None, description="Filter by use case"),
+    device: str | None = Query(
+        None, description="Filter by device type (e.g., 'light', 'motion_sensor')"
+    ),
+    integration: str | None = Query(
+        None, description="Filter by integration (e.g., 'mqtt', 'zigbee2mqtt')"
+    ),
+    use_case: Literal["energy", "comfort", "security", "convenience"] | None = Query(
+        None, description="Filter by use case"
+    ),
     min_quality: float = Query(0.7, ge=0.0, le=1.0, description="Minimum quality score"),
     limit: int = Query(50, ge=1, le=500, description="Maximum results"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ):
     """
     Search community automation corpus
@@ -43,11 +50,11 @@ async def search_corpus(
     repo = CorpusRepository(db)
 
     filters = {
-        'device': device,
-        'integration': integration,
-        'use_case': use_case,
-        'min_quality': min_quality,
-        'limit': limit
+        "device": device,
+        "integration": integration,
+        "use_case": use_case,
+        "min_quality": min_quality,
+        "limit": limit,
     }
 
     try:
@@ -55,11 +62,7 @@ async def search_corpus(
 
         logger.info(f"Search returned {len(automations)} results")
 
-        return SearchResponse(
-            automations=automations,
-            count=len(automations),
-            filters=filters
-        )
+        return SearchResponse(automations=automations, count=len(automations), filters=filters)
 
     except Exception as e:
         logger.error(f"Search failed: {e}", exc_info=True)
@@ -68,12 +71,18 @@ async def search_corpus(
 
 @router.get("/corpus/blueprints", response_model=SearchResponse)
 async def search_blueprints(
-    device: str | None = Query(None, description="Filter by device type (e.g., 'light', 'motion_sensor')"),
-    integration: str | None = Query(None, description="Filter by integration (e.g., 'mqtt', 'zigbee2mqtt')"),
-    use_case: Literal['energy', 'comfort', 'security', 'convenience'] | None = Query(None, description="Filter by use case"),
+    device: str | None = Query(
+        None, description="Filter by device type (e.g., 'light', 'motion_sensor')"
+    ),
+    integration: str | None = Query(
+        None, description="Filter by integration (e.g., 'mqtt', 'zigbee2mqtt')"
+    ),
+    use_case: Literal["energy", "comfort", "security", "convenience"] | None = Query(
+        None, description="Filter by use case"
+    ),
     min_quality: float = Query(0.7, ge=0.0, le=1.0, description="Minimum quality score"),
     limit: int = Query(50, ge=1, le=500, description="Maximum results"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ):
     """
     Search for Home Assistant automation blueprints
@@ -92,11 +101,11 @@ async def search_blueprints(
     repo = CorpusRepository(db)
 
     filters = {
-        'device': device,
-        'integration': integration,
-        'use_case': use_case,
-        'min_quality': min_quality,
-        'limit': limit
+        "device": device,
+        "integration": integration,
+        "use_case": use_case,
+        "min_quality": min_quality,
+        "limit": limit,
     }
 
     try:
@@ -104,11 +113,7 @@ async def search_blueprints(
 
         logger.info(f"Blueprint search returned {len(blueprints)} results")
 
-        return SearchResponse(
-            automations=blueprints,
-            count=len(blueprints),
-            filters=filters
-        )
+        return SearchResponse(automations=blueprints, count=len(blueprints), filters=filters)
 
     except Exception as e:
         logger.error(f"Blueprint search failed: {e}", exc_info=True)
@@ -116,9 +121,7 @@ async def search_blueprints(
 
 
 @router.get("/corpus/stats", response_model=StatsResponse)
-async def get_stats(
-    db: AsyncSession = Depends(get_db_session)
-):
+async def get_stats(db: AsyncSession = Depends(get_db_session)):
     """
     Get corpus statistics
 
@@ -152,10 +155,7 @@ async def get_stats(
 
 
 @router.get("/corpus/{automation_id}", response_model=AutomationResponse)
-async def get_automation(
-    automation_id: int,
-    db: AsyncSession = Depends(get_db_session)
-):
+async def get_automation(automation_id: int, db: AsyncSession = Depends(get_db_session)):
     """
     Get single automation by ID
 
@@ -182,4 +182,3 @@ async def get_automation(
     except Exception as e:
         logger.error(f"Get automation failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e
-

@@ -18,6 +18,7 @@ Key Features:
 - Device-based discovery endpoints
 - Admin endpoints for corpus management
 """
+
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -37,10 +38,11 @@ from .routes import router
 # Configure logging
 logging.basicConfig(
     level=logging.getLevelName(settings.log_level),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
 logger = logging.getLogger(__name__)
+
 
 async def _check_and_initialize_corpus(app_instance: FastAPI, db) -> None:
     """Check corpus status and initialize if needed."""
@@ -60,7 +62,7 @@ async def _check_and_initialize_corpus(app_instance: FastAPI, db) -> None:
             should_initialize = False
             reason = ""
 
-            if stats['total'] == 0:
+            if stats["total"] == 0:
                 should_initialize = True
                 reason = "empty corpus"
                 logger.info("Corpus is empty - will run initial population on startup")
@@ -103,8 +105,7 @@ async def _check_and_initialize_corpus(app_instance: FastAPI, db) -> None:
             else:
                 app_instance.state.initialization_complete = True
                 logger.info(
-                    f"Corpus is fresh ({stats['total']} automations, "
-                    f"last crawl: {last_crawl})"
+                    f"Corpus is fresh ({stats['total']} automations, last crawl: {last_crawl})"
                 )
 
     except Exception as e:
@@ -140,9 +141,11 @@ async def _initialize_database() -> Any:
         # Migrate existing databases: add is_blueprint column if missing
         async with db.engine.begin() as conn:
             try:
-                await conn.execute(text(
-                    "ALTER TABLE community_automations ADD COLUMN is_blueprint BOOLEAN NOT NULL DEFAULT 0"
-                ))
+                await conn.execute(
+                    text(
+                        "ALTER TABLE community_automations ADD COLUMN is_blueprint BOOLEAN NOT NULL DEFAULT 0"
+                    )
+                )
                 logger.info("Migration: added is_blueprint column")
             except Exception:
                 pass  # Column already exists
@@ -209,7 +212,7 @@ app = FastAPI(
     title="Automation Miner API",
     description="Community knowledge crawler for Home Assistant automations",
     version="0.1.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -223,7 +226,7 @@ app.add_middleware(
         "http://ai-automation-ui",
         "http://ai-automation-ui:80",
         "http://homeiq-dashboard",
-        "http://homeiq-dashboard:80"
+        "http://homeiq-dashboard:80",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
@@ -253,8 +256,8 @@ async def health_check() -> dict[str, Any]:
             last_crawl = await repo.get_last_crawl_timestamp()
 
             # Check initialization status
-            init_complete = getattr(app.state, 'initialization_complete', False)
-            init_in_progress = getattr(app.state, 'initialization_in_progress', False)
+            init_complete = getattr(app.state, "initialization_complete", False)
+            init_in_progress = getattr(app.state, "initialization_in_progress", False)
 
             if init_complete:
                 init_status = "complete"
@@ -269,27 +272,21 @@ async def health_check() -> dict[str, Any]:
                 "version": "0.1.0",
                 "git_sha": os.environ.get("GIT_SHA", "unknown"),
                 "build_time": os.environ.get("BUILD_TIME", "unknown"),
-                "initialization": {
-                    "status": init_status,
-                    "in_progress": init_in_progress
-                },
+                "initialization": {"status": init_status, "in_progress": init_in_progress},
                 "corpus": {
-                    "total_automations": stats['total'],
-                    "avg_quality": stats['avg_quality'],
-                    "last_crawl": last_crawl.isoformat() if last_crawl else None
+                    "total_automations": stats["total"],
+                    "avg_quality": stats["avg_quality"],
+                    "last_crawl": last_crawl.isoformat() if last_crawl else None,
                 },
-                "enabled": settings.enable_automation_miner
+                "enabled": settings.enable_automation_miner,
             }
 
         except Exception as e:
             logger.error(f"Health check failed: {e}", exc_info=True)
             from fastapi.responses import JSONResponse
+
             return JSONResponse(
-                status_code=503,
-                content={
-                    "status": "unhealthy",
-                    "service": "automation-miner"
-                }
+                status_code=503, content={"status": "unhealthy", "service": "automation-miner"}
             )
 
 
@@ -305,11 +302,11 @@ async def root() -> dict[str, str]:
         "message": "Automation Miner API",
         "version": "0.1.0",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
     }
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8019)  # noqa: S104
 
+    uvicorn.run(app, host="0.0.0.0", port=8019)  # noqa: S104

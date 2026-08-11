@@ -4,6 +4,7 @@ Corpus Repository
 Handles all database operations for the automation corpus.
 Uses SQLAlchemy async session management (Context7 pattern).
 """
+
 import logging
 from datetime import UTC, datetime
 from typing import Any
@@ -29,10 +30,7 @@ class CorpusRepository:
         """
         self.session = session
 
-    async def _upsert_automation(
-        self,
-        metadata: AutomationMetadata
-    ) -> CommunityAutomation:
+    async def _upsert_automation(self, metadata: AutomationMetadata) -> CommunityAutomation:
         """
         Upsert automation without committing (for batch use).
 
@@ -46,7 +44,7 @@ class CorpusRepository:
         stmt = select(CommunityAutomation).where(
             and_(
                 CommunityAutomation.source == metadata.source,
-                CommunityAutomation.source_id == metadata.source_id
+                CommunityAutomation.source_id == metadata.source_id,
             )
         )
         result = await self.session.execute(stmt)
@@ -54,8 +52,7 @@ class CorpusRepository:
 
         # Determine if this is a blueprint
         is_blueprint = (
-            isinstance(metadata.metadata, dict)
-            and '_blueprint_metadata' in metadata.metadata
+            isinstance(metadata.metadata, dict) and "_blueprint_metadata" in metadata.metadata
         )
 
         if existing:
@@ -97,7 +94,7 @@ class CorpusRepository:
                 updated_at=metadata.updated_at,
                 last_crawled=datetime.now(UTC),
                 extra_metadata=metadata.metadata,
-                is_blueprint=is_blueprint
+                is_blueprint=is_blueprint,
             )
             self.session.add(existing)
 
@@ -105,10 +102,7 @@ class CorpusRepository:
 
         return existing
 
-    async def save_automation(
-        self,
-        metadata: AutomationMetadata
-    ) -> CommunityAutomation:
+    async def save_automation(self, metadata: AutomationMetadata) -> CommunityAutomation:
         """
         Save or update a single automation in corpus (commits immediately).
 
@@ -123,10 +117,7 @@ class CorpusRepository:
         await self.session.refresh(existing)
         return existing
 
-    async def save_batch(
-        self,
-        metadata_list: list[AutomationMetadata]
-    ) -> int:
+    async def save_batch(self, metadata_list: list[AutomationMetadata]) -> int:
         """
         Save multiple automations in a batch (single commit).
 
@@ -164,11 +155,7 @@ class CorpusRepository:
 
         return self._to_dict(automation)
 
-    async def get_by_source_id(
-        self,
-        source: str,
-        source_id: str
-    ) -> CommunityAutomation | None:
+    async def get_by_source_id(self, source: str, source_id: str) -> CommunityAutomation | None:
         """
         Get automation by source and source_id
 
@@ -180,18 +167,12 @@ class CorpusRepository:
             CommunityAutomation or None
         """
         stmt = select(CommunityAutomation).where(
-            and_(
-                CommunityAutomation.source == source,
-                CommunityAutomation.source_id == source_id
-            )
+            and_(CommunityAutomation.source == source, CommunityAutomation.source_id == source_id)
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def search(
-        self,
-        filters: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    async def search(self, filters: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Search automations with filters
 
@@ -213,27 +194,23 @@ class CorpusRepository:
         conditions = []
 
         # Device filter (JSON contains check)
-        if 'device' in filters and filters['device']:
-            device = filters['device']
+        if "device" in filters and filters["device"]:
+            device = filters["device"]
             # JSON array containment check
-            conditions.append(
-                CommunityAutomation.devices.contains([device])
-            )
+            conditions.append(CommunityAutomation.devices.contains([device]))
 
         # Integration filter
-        if 'integration' in filters and filters['integration']:
-            integration = filters['integration']
-            conditions.append(
-                CommunityAutomation.integrations.contains([integration])
-            )
+        if "integration" in filters and filters["integration"]:
+            integration = filters["integration"]
+            conditions.append(CommunityAutomation.integrations.contains([integration]))
 
         # Use case filter
-        if 'use_case' in filters and filters['use_case']:
-            use_case = filters['use_case']
+        if "use_case" in filters and filters["use_case"]:
+            use_case = filters["use_case"]
             conditions.append(CommunityAutomation.use_case == use_case)
 
         # Quality filter
-        min_quality = filters.get('min_quality', 0.7)
+        min_quality = filters.get("min_quality", 0.7)
         conditions.append(CommunityAutomation.quality_score >= min_quality)
 
         # Apply all conditions
@@ -244,7 +221,7 @@ class CorpusRepository:
         stmt = stmt.order_by(CommunityAutomation.quality_score.desc())
 
         # Limit
-        limit = filters.get('limit', 50)
+        limit = filters.get("limit", 50)
         stmt = stmt.limit(limit)
 
         # Execute query
@@ -254,9 +231,7 @@ class CorpusRepository:
         return [self._to_dict(auto) for auto in automations]
 
     async def get_all(
-        self,
-        source: str | None = None,
-        min_quality: float = 0.0
+        self, source: str | None = None, min_quality: float = 0.0
     ) -> list[CommunityAutomation]:
         """
         Get all automations (optionally filtered)
@@ -283,8 +258,7 @@ class CorpusRepository:
         return list(result.scalars().all())
 
     async def search_blueprints(
-        self,
-        filters: dict[str, Any] | None = None
+        self, filters: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
         """
         Search for blueprints specifically (automations with is_blueprint=True)
@@ -305,30 +279,28 @@ class CorpusRepository:
         conditions = [CommunityAutomation.is_blueprint == True]  # noqa: E712
 
         if filters:
-            if filters.get('source'):
-                conditions.append(CommunityAutomation.source == filters['source'])
+            if filters.get("source"):
+                conditions.append(CommunityAutomation.source == filters["source"])
 
-            min_quality = filters.get('min_quality', 0.0)
+            min_quality = filters.get("min_quality", 0.0)
             if min_quality > 0.0:
                 conditions.append(CommunityAutomation.quality_score >= min_quality)
 
-            if filters.get('device'):
+            if filters.get("device"):
+                conditions.append(CommunityAutomation.devices.contains([filters["device"]]))
+
+            if filters.get("integration"):
                 conditions.append(
-                    CommunityAutomation.devices.contains([filters['device']])
+                    CommunityAutomation.integrations.contains([filters["integration"]])
                 )
 
-            if filters.get('integration'):
-                conditions.append(
-                    CommunityAutomation.integrations.contains([filters['integration']])
-                )
-
-            if filters.get('use_case'):
-                conditions.append(CommunityAutomation.use_case == filters['use_case'])
+            if filters.get("use_case"):
+                conditions.append(CommunityAutomation.use_case == filters["use_case"])
 
         stmt = stmt.where(and_(*conditions))
         stmt = stmt.order_by(CommunityAutomation.quality_score.desc())
 
-        limit = filters.get('limit', 50) if filters else 50
+        limit = filters.get("limit", 50) if filters else 50
         stmt = stmt.limit(limit)
 
         result = await self.session.execute(stmt)
@@ -362,16 +334,14 @@ class CorpusRepository:
 
         # Count by use case
         use_case_stmt = select(
-            CommunityAutomation.use_case,
-            func.count(CommunityAutomation.id)
+            CommunityAutomation.use_case, func.count(CommunityAutomation.id)
         ).group_by(CommunityAutomation.use_case)
         use_case_result = await self.session.execute(use_case_stmt)
         by_use_case = {row[0]: row[1] for row in use_case_result.all()}
 
         # Count by complexity
         complexity_stmt = select(
-            CommunityAutomation.complexity,
-            func.count(CommunityAutomation.id)
+            CommunityAutomation.complexity, func.count(CommunityAutomation.id)
         ).group_by(CommunityAutomation.complexity)
         complexity_result = await self.session.execute(complexity_stmt)
         by_complexity = {row[0]: row[1] for row in complexity_result.all()}
@@ -401,16 +371,16 @@ class CorpusRepository:
         blueprint_count = blueprint_result.scalar() or 0
 
         return {
-            'total': total,
-            'avg_quality': round(avg_quality, 3),
-            'device_count': len(unique_devices),
-            'integration_count': len(unique_integrations),
-            'devices': sorted(unique_devices),
-            'integrations': sorted(unique_integrations),
-            'by_use_case': by_use_case,
-            'by_complexity': by_complexity,
-            'blueprint_count': blueprint_count,
-            'last_crawl_time': last_crawl_time.isoformat() if last_crawl_time else None
+            "total": total,
+            "avg_quality": round(avg_quality, 3),
+            "device_count": len(unique_devices),
+            "integration_count": len(unique_integrations),
+            "devices": sorted(unique_devices),
+            "integrations": sorted(unique_integrations),
+            "by_use_case": by_use_case,
+            "by_complexity": by_complexity,
+            "blueprint_count": blueprint_count,
+            "last_crawl_time": last_crawl_time.isoformat() if last_crawl_time else None,
         }
 
     async def set_state(self, key: str, value: str):
@@ -437,19 +407,16 @@ class CorpusRepository:
 
     async def get_last_crawl_timestamp(self) -> datetime | None:
         """Get last crawl timestamp from state"""
-        value = await self.get_state('last_crawl_timestamp')
+        value = await self.get_state("last_crawl_timestamp")
         if value:
             return datetime.fromisoformat(value)
         return None
 
     async def set_last_crawl_timestamp(self, timestamp: datetime):
         """Set last crawl timestamp"""
-        await self.set_state('last_crawl_timestamp', timestamp.isoformat())
+        await self.set_state("last_crawl_timestamp", timestamp.isoformat())
 
-    async def is_duplicate(
-        self,
-        metadata: AutomationMetadata
-    ) -> bool:
+    async def is_duplicate(self, metadata: AutomationMetadata) -> bool:
         """
         Quick check if automation already exists
 
@@ -462,11 +429,7 @@ class CorpusRepository:
         existing = await self.get_by_source_id(metadata.source, metadata.source_id)
         return existing is not None
 
-    async def prune_low_quality(
-        self,
-        quality_threshold: float,
-        age_days: int
-    ) -> int:
+    async def prune_low_quality(self, quality_threshold: float, age_days: int) -> int:
         """
         Prune low-quality automations that are old
 
@@ -489,7 +452,7 @@ class CorpusRepository:
         stmt = select(CommunityAutomation).where(
             and_(
                 CommunityAutomation.quality_score < quality_threshold,
-                CommunityAutomation.created_at < cutoff_date
+                CommunityAutomation.created_at < cutoff_date,
             )
         )
 
@@ -504,30 +467,31 @@ class CorpusRepository:
 
         if pruned_count > 0:
             await self.session.commit()
-            logger.info(f"Pruned {pruned_count} low-quality automations (quality < {quality_threshold}, age > {age_days} days)")
+            logger.info(
+                f"Pruned {pruned_count} low-quality automations (quality < {quality_threshold}, age > {age_days} days)"
+            )
 
         return pruned_count
 
     def _to_dict(self, automation: CommunityAutomation) -> dict[str, Any]:
         """Convert CommunityAutomation to dictionary"""
         return {
-            'id': automation.id,
-            'source': automation.source,
-            'source_id': automation.source_id,
-            'title': automation.title,
-            'description': automation.description,
-            'devices': automation.devices,
-            'integrations': automation.integrations,
-            'triggers': automation.triggers,
-            'conditions': automation.conditions,
-            'actions': automation.actions,
-            'use_case': automation.use_case,
-            'complexity': automation.complexity,
-            'quality_score': automation.quality_score,
-            'vote_count': automation.vote_count,
-            'created_at': automation.created_at.isoformat(),
-            'updated_at': automation.updated_at.isoformat(),
-            'last_crawled': automation.last_crawled.isoformat(),
-            'metadata': automation.extra_metadata
+            "id": automation.id,
+            "source": automation.source,
+            "source_id": automation.source_id,
+            "title": automation.title,
+            "description": automation.description,
+            "devices": automation.devices,
+            "integrations": automation.integrations,
+            "triggers": automation.triggers,
+            "conditions": automation.conditions,
+            "actions": automation.actions,
+            "use_case": automation.use_case,
+            "complexity": automation.complexity,
+            "quality_score": automation.quality_score,
+            "vote_count": automation.vote_count,
+            "created_at": automation.created_at.isoformat(),
+            "updated_at": automation.updated_at.isoformat(),
+            "last_crawled": automation.last_crawled.isoformat(),
+            "metadata": automation.extra_metadata,
         }
-
