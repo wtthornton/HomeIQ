@@ -41,7 +41,7 @@ class FakeHaClient:
 async def db_setup(tmp_path_factory):
     data_dir = Path("./data")
     data_dir.mkdir(exist_ok=True)
-    db_path = tmp_path_factory.mktemp("device-int") / "remediation.db"
+    tmp_path_factory.mktemp("device-int") / "remediation.db"
     settings = Settings(DATABASE_URL="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq")
     await initialize_database(settings)
     yield

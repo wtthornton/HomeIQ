@@ -5,6 +5,7 @@ WebSocket client for connecting to Home Assistant and discovering devices, entit
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 from collections.abc import Awaitable, Callable
@@ -190,10 +191,8 @@ class HomeAssistantClient:
         """Disconnect from Home Assistant."""
         if self._message_handler_task:
             self._message_handler_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._message_handler_task
-            except asyncio.CancelledError:
-                pass
             self._message_handler_task = None
 
         if self.websocket:

@@ -5,6 +5,7 @@ Main discovery service that orchestrates device discovery from multiple sources.
 """
 
 import asyncio
+import contextlib
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -157,10 +158,8 @@ class DiscoveryService:
         # Cancel discovery task
         if self.discovery_task:
             self.discovery_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.discovery_task
-            except asyncio.CancelledError:
-                pass
 
         # Stop batch processor
         if self.batch_processor:

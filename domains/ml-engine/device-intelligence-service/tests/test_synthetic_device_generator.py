@@ -300,7 +300,7 @@ class TestSyntheticDeviceGenerator:
         """Test progressive failure scenario affects metrics."""
         generator = SyntheticDeviceGenerator(random_seed=42)
 
-        normal_sample = generator._generate_device_sample(
+        generator._generate_device_sample(
             device_id="normal", device_type="sensor", days=30, failure_scenario=None
         )
 

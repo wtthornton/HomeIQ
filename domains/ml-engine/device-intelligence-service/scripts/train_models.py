@@ -166,13 +166,13 @@ def main():
 Examples:
   # Train with default settings (180 days)
   python scripts/train_models.py
-  
+
   # Train with custom days back
   python scripts/train_models.py --days-back 90
-  
+
   # Force retrain even if models exist
   python scripts/train_models.py --force
-  
+
   # Verbose output
   python scripts/train_models.py --verbose
         """,

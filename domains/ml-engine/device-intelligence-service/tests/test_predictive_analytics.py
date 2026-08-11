@@ -49,7 +49,7 @@ class TestPredictiveAnalyticsEngine:
         """Sample training data for testing."""
         np.random.seed(42)
         data = []
-        for i in range(200):
+        for _i in range(200):
             data.append(
                 {
                     "response_time": np.random.normal(500, 200),
@@ -413,7 +413,7 @@ async def test_integration_scenario():
     # Generate sample training data
     np.random.seed(42)
     training_data = []
-    for i in range(200):
+    for _i in range(200):
         training_data.append(
             {
                 "response_time": np.random.normal(500, 200),

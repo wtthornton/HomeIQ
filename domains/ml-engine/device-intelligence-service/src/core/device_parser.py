@@ -326,7 +326,7 @@ class DeviceParser:
         capabilities = []
 
         # Extract unique domains from entities
-        domains = set(e.domain for e in entities)
+        domains = {e.domain for e in entities}
 
         # Map domains to common capabilities
         domain_capabilities = {

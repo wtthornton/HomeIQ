@@ -201,7 +201,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        samples = generate_large_dataset(
+        generate_large_dataset(
             total_samples=args.samples,
             days=args.days,
             failure_rate=args.failure_rate,

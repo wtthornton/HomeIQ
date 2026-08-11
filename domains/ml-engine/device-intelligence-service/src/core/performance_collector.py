@@ -5,6 +5,7 @@ Collects and aggregates device performance metrics for analysis.
 """
 
 import asyncio
+import contextlib
 import logging
 import statistics
 from collections import defaultdict, deque
@@ -35,10 +36,8 @@ class PerformanceCollector:
         """Stop the cleanup task."""
         if self._cleanup_task:
             self._cleanup_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._cleanup_task
-            except asyncio.CancelledError:
-                pass
             self._cleanup_task = None
 
     async def collect_device_metrics(self, device_id: str, metrics: dict[str, Any]):
@@ -202,10 +201,7 @@ class PerformanceCollector:
         avg_first = statistics.mean(first_half)
         avg_second = statistics.mean(second_half)
 
-        if avg_first == 0:
-            change_percent = 0
-        else:
-            change_percent = ((avg_second - avg_first) / avg_first) * 100
+        change_percent = 0 if avg_first == 0 else (avg_second - avg_first) / avg_first * 100
 
         # Determine trend direction
         if abs(change_percent) < 5:

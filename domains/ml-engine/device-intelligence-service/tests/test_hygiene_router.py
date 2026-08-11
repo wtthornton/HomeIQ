@@ -37,7 +37,7 @@ class StubHomeAssistantClient:
 async def setup_database(tmp_path_factory):
     db_dir = Path("./data")
     db_dir.mkdir(exist_ok=True)
-    db_path = tmp_path_factory.mktemp("device-int-api") / "hygiene_api.db"
+    tmp_path_factory.mktemp("device-int-api") / "hygiene_api.db"
     settings = Settings(DATABASE_URL="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq")
     await initialize_database(settings)
 

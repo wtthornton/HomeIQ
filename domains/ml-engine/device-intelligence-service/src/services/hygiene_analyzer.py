@@ -4,16 +4,20 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..clients.ha_client import HAArea, HADevice, HAEntity
 from ..models.database import DeviceHygieneIssue
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from ..clients.ha_client import HAArea, HADevice, HAEntity
 
 logger = logging.getLogger(__name__)
 

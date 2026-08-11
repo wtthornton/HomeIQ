@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..clients.ha_client import HomeAssistantClient
-from ..models.database import DeviceHygieneIssue
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from ..clients.ha_client import HomeAssistantClient
+    from ..models.database import DeviceHygieneIssue
 
 
 class DeviceHygieneRemediationService:

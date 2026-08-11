@@ -173,7 +173,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        output_files = generate_home_type_datasets(
+        generate_home_type_datasets(
             samples_per_type=args.samples_per_type,
             days=args.days,
             failure_rate=args.failure_rate,

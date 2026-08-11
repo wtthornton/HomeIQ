@@ -194,10 +194,7 @@ class IncrementalFailurePredictor:
                     prob_1 = proba_dict.get(1, 0.0)
                     # Normalize if needed
                     total = prob_0 + prob_1
-                    if total > 0:
-                        prob = [prob_0 / total, prob_1 / total]
-                    else:
-                        prob = [0.5, 0.5]
+                    prob = [prob_0 / total, prob_1 / total] if total > 0 else [0.5, 0.5]
                 else:
                     pred = self.model.predict_one(features_dict)
                     prob = [0.2, 0.8] if pred == 1 else [0.8, 0.2]

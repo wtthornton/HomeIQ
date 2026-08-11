@@ -133,7 +133,7 @@ def main():
     # Print statistics
     logger.info("\n📊 Generation Statistics:")
     logger.info(f"  - Total samples: {len(training_data)}")
-    logger.info(f"  - Unique devices: {len(set(d['device_id'] for d in training_data))}")
+    logger.info(f"  - Unique devices: {len({d['device_id'] for d in training_data})}")
 
     # Calculate averages
     avg_response_time = sum(d["response_time"] for d in training_data) / len(training_data)
