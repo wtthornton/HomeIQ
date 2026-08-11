@@ -7,6 +7,7 @@ test coverage from 70% to 80% target.
 """
 
 import asyncio
+import contextlib
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -154,12 +155,10 @@ class TestNullNoneHandling:
 
         processor = BatchProcessor(batch_size=10, batch_timeout=1.0)
 
-        # Try to add None event (should handle gracefully)
-        try:
+        # Either outcome is acceptable here: the processor may reject None
+        # outright or absorb it, but it must not fail in any other way.
+        with contextlib.suppress(TypeError, ValueError, AttributeError):
             await processor.add_event(None)
-        except (TypeError, ValueError, AttributeError):
-            # Acceptable if None raises error
-            pass
 
         assert processor is not None
 

@@ -40,10 +40,11 @@ async def correlator_with_mock(mock_influxdb_client):
         correlation_window_seconds=10,
         min_power_delta=10.0,
     )
-    correlator.client = mock_influxdb_client
-
-    # Initialize correlator
+    # Inject the mock *after* startup: startup() constructs a real
+    # InfluxDBWrapper and assigns it to self.client (src/correlator.py:127), so
+    # injecting beforehand was overwritten and the tests reached the network.
     await correlator.startup()
+    correlator.client = mock_influxdb_client
 
     yield correlator
 
@@ -158,15 +159,16 @@ async def test_process_recent_events_no_correlation(correlator_with_mock, mock_i
 @pytest.mark.asyncio
 async def test_process_recent_events_error_recovery(correlator_with_mock, mock_influxdb_client):
     """Test error recovery during event processing"""
-    # Mock query to raise error
-    mock_influxdb_client.query.side_effect = Exception("InfluxDB error")
+    # A specific type, so the assertion below cannot be satisfied by an
+    # unrelated failure (a bare Exception would also match a typo or a
+    # connection error, which is what this test used to do).
+    mock_influxdb_client.query.side_effect = RuntimeError("InfluxDB error")
 
-    # Process should handle error gracefully
-    try:
+    # process_recent_events records the error and re-raises it by design
+    # (src/correlator.py:206-209) so the caller can decide what to do. The
+    # contract under test is the accounting, not silent absorption.
+    with pytest.raises(RuntimeError, match="InfluxDB error"):
         await correlator_with_mock.process_recent_events(lookback_minutes=5)
-    except Exception:
-        # Error should be logged but not crash the service
-        pass
 
     # Statistics should reflect error
     stats = correlator_with_mock.get_statistics()

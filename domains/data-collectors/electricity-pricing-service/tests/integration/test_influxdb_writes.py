@@ -118,12 +118,8 @@ async def test_write_error_handling(service_with_mock, mock_influxdb_client):
         "forecast_24h": [],
     }
 
-    # Store should handle error gracefully (not raise)
-    try:
-        await service_with_mock.store_in_influxdb(test_data)
-    except Exception:
-        # Error should be logged but not crash
-        pass
+    # Store must handle the error internally: if it raises, this test fails.
+    await service_with_mock.store_in_influxdb(test_data)
 
     # Verify write was attempted
     assert mock_influxdb_client.write.called

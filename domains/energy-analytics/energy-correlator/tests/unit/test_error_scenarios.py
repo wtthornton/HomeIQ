@@ -468,12 +468,8 @@ class TestErrorStatistics:
         # Mock query to fail
         mock_client.query = AsyncMock(side_effect=Exception("InfluxDB error"))
 
-        # Process should handle error gracefully
-        try:
-            await correlator.process_recent_events(lookback_minutes=5)
-        except Exception:
-            # Error should be logged but service should continue
-            pass
+        # Must handle the error internally: if it raises, this test fails.
+        await correlator.process_recent_events(lookback_minutes=5)
 
         # Service should still be functional
         stats = correlator.get_statistics()
