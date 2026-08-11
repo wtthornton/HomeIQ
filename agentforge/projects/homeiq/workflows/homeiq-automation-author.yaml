@@ -1,0 +1,80 @@
+# Author one HA automation from an inventory, then judge it. Verdict is data:
+# deploy gating happens in HomeIQ's deterministic pipeline (lint :8016,
+# validate :8037, entity cross-check), per expert-architecture consultation
+# 439e3c56 — AgentForge cannot reach the HomeIQ network, so the deterministic
+# steps run caller-side between/after this workflow.
+#
+# Inventory is passed IN by the caller — AgentForge containers cannot see the
+# HomeIQ working tree or network.
+name: homeiq-automation-author
+spec_version: 2
+
+inputs:
+  - name: inventory
+    description: "Machine-readable JSON inventory of the live HA instance: entities with labels, areas, devices, presence sources"
+  - name: area
+    description: "Target area name, e.g. Office"
+  - name: behavior_requirement
+    description: "Plain-text behavioral requirement for the automation"
+
+nodes:
+  author:
+    kind: task
+    agent: homeiq-ha-automation-author
+    inputs:
+      inventory: $inventory
+      area: $area
+      behavior_requirement: $behavior_requirement
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      additionalProperties: false
+      required: [assessment_status, confidence, build_summary, reason, spend_usd, automation_yaml, design_notes, entities_referenced]
+      properties:
+        assessment_status: {type: string, enum: [complete, needs_revision, blocked, skipped]}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        build_summary: {type: string}
+        reason: {type: string}
+        spend_usd: {type: number, minimum: 0}
+        automation_yaml: {type: string}
+        design_notes: {type: string}
+        entities_referenced:
+          type: array
+          items: {type: string}
+
+  judge:
+    kind: task
+    agent: homeiq-automation-judge
+    depends_on: [author]
+    inputs:
+      inventory: $inventory
+      area: $area
+      behavior_requirement: $behavior_requirement
+      authored: $author
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      additionalProperties: false
+      required: [assessment_status, confidence, build_summary, reason, spend_usd, pass, score, findings]
+      properties:
+        assessment_status: {type: string, enum: [complete, needs_revision, blocked, skipped]}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        build_summary: {type: string}
+        reason: {type: string}
+        spend_usd: {type: number, minimum: 0}
+        pass: {type: boolean}
+        score: {type: number, minimum: 0, maximum: 100}
+        findings:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [severity, dimension, finding, recommendation]
+            properties:
+              severity: {type: string, enum: [critical, high, medium, low]}
+              dimension: {type: string, enum: [correctness, safety, extensibility, schema]}
+              finding: {type: string}
+              recommendation: {type: string}
+
+output: judge
+on_error: fail
