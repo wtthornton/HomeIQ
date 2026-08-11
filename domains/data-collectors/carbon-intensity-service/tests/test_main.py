@@ -13,6 +13,7 @@ from main import CarbonIntensityService
 
 # --- Helpers ---
 
+
 def _make_v3_response(current_moer=500.0, forecast_1h_moer=400.0, num_entries=13):
     """Build a WattTime v3 /forecast response with the given MOER values.
 
@@ -32,13 +33,14 @@ def _make_v3_response(current_moer=500.0, forecast_1h_moer=400.0, num_entries=13
 
 # --- Fixtures ---
 
+
 @pytest.fixture
 def mock_env(monkeypatch):
     """Mock environment variables"""
-    monkeypatch.setenv('WATTTIME_API_TOKEN', 'test_token')
-    monkeypatch.setenv('GRID_REGION', 'CAISO_NORTH')
-    monkeypatch.setenv('INFLUXDB_TOKEN', 'test_influx_token')
-    monkeypatch.setenv('INFLUXDB_URL', 'http://localhost:8086')
+    monkeypatch.setenv("WATTTIME_API_TOKEN", "test_token")
+    monkeypatch.setenv("GRID_REGION", "CAISO_NORTH")
+    monkeypatch.setenv("INFLUXDB_TOKEN", "test_influx_token")
+    monkeypatch.setenv("INFLUXDB_URL", "http://localhost:8086")
 
 
 @pytest.fixture
@@ -54,13 +56,14 @@ def service(_mock_env):
 
 # --- Initialization ---
 
+
 @pytest.mark.asyncio
 async def test_service_initialization(_mock_env):
     """Test service initializes correctly"""
     svc = CarbonIntensityService()
 
-    assert svc.api_token == 'test_token'
-    assert svc.region == 'CAISO_NORTH'
+    assert svc.api_token == "test_token"
+    assert svc.region == "CAISO_NORTH"
     assert svc.fetch_interval == 900
     assert svc.cached_data is None
 
@@ -75,9 +78,9 @@ async def test_influxdb_url_preserved(_mock_env):
 @pytest.mark.asyncio
 async def test_influxdb_bare_hostname_gets_scheme(monkeypatch):
     """Test bare hostname gets http:// scheme and default port"""
-    monkeypatch.setenv('WATTTIME_API_TOKEN', 'test_token')
-    monkeypatch.setenv('INFLUXDB_TOKEN', 'test_influx_token')
-    monkeypatch.setenv('INFLUXDB_URL', 'influxdb')
+    monkeypatch.setenv("WATTTIME_API_TOKEN", "test_token")
+    monkeypatch.setenv("INFLUXDB_TOKEN", "test_influx_token")
+    monkeypatch.setenv("INFLUXDB_URL", "influxdb")
     svc = CarbonIntensityService()
     assert svc.influxdb_url == "http://influxdb:8086"
 
@@ -92,7 +95,7 @@ async def test_missing_influxdb_token_raises():
 @pytest.mark.asyncio
 async def test_missing_watttime_credentials_enters_standby(monkeypatch):
     """Test service enters standby mode when WattTime credentials are missing"""
-    monkeypatch.setenv('INFLUXDB_TOKEN', 'test_token')
+    monkeypatch.setenv("INFLUXDB_TOKEN", "test_token")
     svc = CarbonIntensityService()
     assert svc.credentials_configured is False
 
@@ -100,14 +103,15 @@ async def test_missing_watttime_credentials_enters_standby(monkeypatch):
 @pytest.mark.asyncio
 async def test_invalid_grid_region_raises(monkeypatch):
     """Test invalid GRID_REGION is rejected"""
-    monkeypatch.setenv('WATTTIME_API_TOKEN', 'test_token')
-    monkeypatch.setenv('INFLUXDB_TOKEN', 'test_token')
-    monkeypatch.setenv('GRID_REGION', 'INVALID;REGION')
+    monkeypatch.setenv("WATTTIME_API_TOKEN", "test_token")
+    monkeypatch.setenv("INFLUXDB_TOKEN", "test_token")
+    monkeypatch.setenv("GRID_REGION", "INVALID;REGION")
     with pytest.raises(ValueError, match="Invalid GRID_REGION"):
         CarbonIntensityService()
 
 
 # --- Fetch (v3 API format) ---
+
 
 @pytest.mark.asyncio
 async def test_fetch_carbon_intensity_success(service):
@@ -116,7 +120,7 @@ async def test_fetch_carbon_intensity_success(service):
     forecast_1h_moer = 400.0
     mock_response = _make_v3_response(current_moer, forecast_1h_moer, num_entries=13)
 
-    with patch.object(service.session, 'get') as mock_get:
+    with patch.object(service.session, "get") as mock_get:
         mock_resp = AsyncMock()
         mock_resp.status = 200
         mock_resp.json = AsyncMock(return_value=mock_response)
@@ -127,11 +131,11 @@ async def test_fetch_carbon_intensity_success(service):
         data = await service.fetch_carbon_intensity()
 
         assert data is not None
-        assert data['carbon_intensity'] == pytest.approx(current_moer * 0.4536)
-        assert data['carbon_intensity_raw_moer'] == current_moer
-        assert 'renewable_percentage' not in data
-        assert 'fossil_percentage' not in data
-        assert data['forecast_1h'] == pytest.approx(forecast_1h_moer * 0.4536)
+        assert data["carbon_intensity"] == pytest.approx(current_moer * 0.4536)
+        assert data["carbon_intensity_raw_moer"] == current_moer
+        assert "renewable_percentage" not in data
+        assert "fossil_percentage" not in data
+        assert data["forecast_1h"] == pytest.approx(forecast_1h_moer * 0.4536)
         assert service.cached_data == data
         assert service.health_handler.total_fetches == 1
 
@@ -140,11 +144,11 @@ async def test_fetch_carbon_intensity_success(service):
 async def test_fetch_carbon_intensity_api_failure_returns_cache(service):
     """Test non-retryable API failure returns cached data"""
     service.cached_data = {
-        'carbon_intensity': 200.0,
-        'timestamp': datetime.now(UTC),
+        "carbon_intensity": 200.0,
+        "timestamp": datetime.now(UTC),
     }
 
-    with patch.object(service.session, 'get') as mock_get:
+    with patch.object(service.session, "get") as mock_get:
         mock_resp = AsyncMock()
         mock_resp.status = 400  # Non-retryable status — immediate failure
         mock_resp.request_info = MagicMock()
@@ -160,7 +164,7 @@ async def test_fetch_carbon_intensity_api_failure_returns_cache(service):
 @pytest.mark.asyncio
 async def test_fetch_403_subscription_required(service):
     """Test 403 from WattTime returns None (subscription-restricted endpoint)"""
-    with patch.object(service.session, 'get') as mock_get:
+    with patch.object(service.session, "get") as mock_get:
         mock_resp = AsyncMock()
         mock_resp.status = 403
         mock_resp.request_info = MagicMock()
@@ -176,18 +180,19 @@ async def test_fetch_403_subscription_required(service):
 
 # --- InfluxDB Storage ---
 
+
 @pytest.mark.asyncio
 async def test_store_in_influxdb(service):
     """Test data storage in InfluxDB"""
     test_data = {
-        'carbon_intensity': 226.8,
-        'carbon_intensity_raw_moer': 500.0,
-        'forecast_1h': 181.44,
-        'forecast_24h': 181.44,
-        'timestamp': datetime.now(UTC),
+        "carbon_intensity": 226.8,
+        "carbon_intensity_raw_moer": 500.0,
+        "forecast_1h": 181.44,
+        "forecast_24h": 181.44,
+        "timestamp": datetime.now(UTC),
     }
 
-    with patch.object(service.influxdb_client, 'write') as mock_write:
+    with patch.object(service.influxdb_client, "write") as mock_write:
         await service.store_in_influxdb(test_data)
 
         assert mock_write.called
@@ -197,12 +202,13 @@ async def test_store_in_influxdb(service):
 
 # --- Cache ---
 
+
 @pytest.mark.asyncio
 async def test_cache_functionality(service):
     """Test caching behavior — second fetch within TTL skips API call"""
     mock_response = _make_v3_response(500.0, 400.0, num_entries=13)
 
-    with patch.object(service.session, 'get') as mock_get:
+    with patch.object(service.session, "get") as mock_get:
         mock_resp = AsyncMock()
         mock_resp.status = 200
         mock_resp.json = AsyncMock(return_value=mock_response)
@@ -213,7 +219,7 @@ async def test_cache_functionality(service):
         # First fetch — hits API
         data1 = await service.fetch_carbon_intensity()
         assert service.cached_data == data1
-        assert service.cached_data['carbon_intensity'] == pytest.approx(500.0 * 0.4536)
+        assert service.cached_data["carbon_intensity"] == pytest.approx(500.0 * 0.4536)
         assert service.last_fetch_time is not None
 
         # Second fetch — should return cache without calling API again

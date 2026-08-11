@@ -18,7 +18,9 @@ class Settings(BaseServiceSettings):
     # WattTime credentials
     watttime_username: str | None = Field(default=None, description="WattTime username")
     watttime_password: str | None = Field(default=None, description="WattTime password")
-    watttime_api_token: str | None = Field(default=None, description="Optional static WattTime token")
+    watttime_api_token: str | None = Field(
+        default=None, description="Optional static WattTime token"
+    )
 
     # Grid configuration
     grid_region: str = Field(default="CAISO_NORTH", description="WattTime grid region")

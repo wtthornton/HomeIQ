@@ -13,25 +13,20 @@ import aiohttp
 async def register_watttime(username: str, password: str, email: str, org: str):
     """
     Register a new WattTime account
-    
+
     Args:
         username: Desired username (must be unique)
         password: Strong password
         email: Valid email address
         org: Organization name
-        
+
     Returns:
         bool: True if registration successful
     """
 
     url = "https://api.watttime.org/register"
 
-    data = {
-        "username": username,
-        "password": password,
-        "email": email,
-        "org": org
-    }
+    data = {"username": username, "password": password, "email": email, "org": org}
 
     print("\n[AUTH] Registering WattTime Account")
     print(f"   Username: {username}")
@@ -101,7 +96,7 @@ async def test_login(username: str, password: str):
             async with session.post(url, auth=auth) as response:
                 if response.status == 200:
                     data = await response.json()
-                    token = data.get('token', '')
+                    token = data.get("token", "")
                     print(f"   Token received: {'*' * 20} (length: {len(token)})")
                     return True
                 else:
@@ -205,4 +200,3 @@ if __name__ == "__main__":
         print("   https://watttime.org")
         print()
         sys.exit(1)
-
