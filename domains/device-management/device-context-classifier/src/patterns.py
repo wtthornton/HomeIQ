@@ -12,53 +12,53 @@ DEVICE_PATTERNS: dict[str, dict[str, Any]] = {
     "fridge": {
         "required": ["temperature", "door"],
         "optional": ["light", "humidity", "water_leak"],
-        "description": "Refrigerator with temperature sensors and door sensor"
+        "description": "Refrigerator with temperature sensors and door sensor",
     },
     "car": {
         "required": ["location", "battery"],
         "optional": ["charging", "range", "lock"],
-        "description": "Vehicle with location tracking and battery"
+        "description": "Vehicle with location tracking and battery",
     },
     "3d_printer": {
         "required": ["temperature", "progress"],
         "optional": ["status", "bed_temperature"],
-        "description": "3D printer with temperature and progress tracking"
+        "description": "3D printer with temperature and progress tracking",
     },
     "thermostat": {
         "required": ["temperature", "mode"],
         "optional": ["humidity", "fan", "setpoint"],
-        "description": "Thermostat with temperature and mode control"
+        "description": "Thermostat with temperature and mode control",
     },
     "light": {
         "required": ["brightness", "state"],
         "optional": ["color", "color_temp", "effect"],
-        "description": "Light with brightness control"
+        "description": "Light with brightness control",
     },
     "sensor": {
         "required": ["state"],
         "optional": ["battery", "temperature", "humidity"],
-        "description": "Generic sensor device"
+        "description": "Generic sensor device",
     },
     "switch": {
         "required": ["state"],
         "optional": ["power", "current", "voltage"],
-        "description": "Switch or outlet"
+        "description": "Switch or outlet",
     },
     "camera": {
         "required": ["stream"],
         "optional": ["motion", "recording"],
-        "description": "Camera device"
+        "description": "Camera device",
     },
     "lock": {
         "required": ["lock_state"],
         "optional": ["battery", "keypad"],
-        "description": "Smart lock"
+        "description": "Smart lock",
     },
     "fan": {
         "required": ["state", "speed"],
         "optional": ["oscillate", "direction"],
-        "description": "Fan with speed control"
-    }
+        "description": "Fan with speed control",
+    },
 }
 
 
@@ -66,33 +66,25 @@ DEVICE_PATTERNS: dict[str, dict[str, Any]] = {
 DOMAIN_TO_DEVICE_TYPE: dict[str, str] = {
     # Lighting
     "light": "light",
-
     # Switches and outlets
     "switch": "switch",
-
     # Sensors
     "sensor": "sensor",
     "binary_sensor": "sensor",
-
     # Climate
     "climate": "thermostat",
     "fan": "fan",
-
     # Security
     "lock": "lock",
     "camera": "camera",
     "alarm_control_panel": "alarm",
-
     # Covers
     "cover": "cover",
     "garage_door": "cover",
-
     # Media
     "media_player": "media_player",
-
     # Vacuum
     "vacuum": "vacuum",
-
     # Other
     "valve": "valve",
     "button": "button",
@@ -101,15 +93,27 @@ DOMAIN_TO_DEVICE_TYPE: dict[str, str] = {
 
 # Priority order for domain-based classification (most specific first)
 DOMAIN_PRIORITY = [
-    "light", "switch", "climate", "fan", "lock", "camera",
-    "alarm_control_panel", "sensor", "binary_sensor", "cover",
-    "media_player", "vacuum", "garage_door", "valve", "button", "remote"
+    "light",
+    "switch",
+    "climate",
+    "fan",
+    "lock",
+    "camera",
+    "alarm_control_panel",
+    "sensor",
+    "binary_sensor",
+    "cover",
+    "media_player",
+    "vacuum",
+    "garage_door",
+    "valve",
+    "button",
+    "remote",
 ]
 
 
 def match_device_pattern(
-    entity_domains: list[str],
-    attribute_keys: set[str]
+    entity_domains: list[str], attribute_keys: set[str]
 ) -> tuple[str | None, float]:
     """
     Match entities to device patterns.

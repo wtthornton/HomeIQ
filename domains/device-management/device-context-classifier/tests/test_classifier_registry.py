@@ -27,6 +27,7 @@ def configured(monkeypatch):
 
 def _classifier():
     from src.classifier import DeviceContextClassifier
+
     return DeviceContextClassifier()
 
 
@@ -41,7 +42,6 @@ def _patched(entities=ENTITIES, side_effect=None):
 
 
 class TestRegistryOverWebSocket:
-
     @pytest.mark.asyncio
     async def test_classifies_instead_of_bailing_out(self):
         patcher, ws = _patched()
