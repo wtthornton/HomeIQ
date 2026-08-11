@@ -188,6 +188,14 @@ class HomeAssistantClient:
         except yaml.YAMLError as e:
             raise ValueError(f"Invalid YAML: {e}") from e
 
+        # automations.yaml-style single-item list is equivalent to dict form
+        if (
+            isinstance(automation_data, list)
+            and len(automation_data) == 1
+            and isinstance(automation_data[0], dict)
+        ):
+            automation_data = automation_data[0]
+
         if not automation_data or not isinstance(automation_data, dict):
             raise ValueError("YAML must contain a valid automation dictionary")
 
@@ -271,15 +279,15 @@ class HomeAssistantClient:
         # 'at' is only valid for 'time' platform triggers
         _AT_ONLY_PLATFORMS = {"time", "time_pattern"}
 
-        # --- Sanitize triggers ---
-        triggers = automation_data.get("trigger", [])
+        # --- Sanitize triggers (modern plural 'triggers' or legacy 'trigger') ---
+        triggers = automation_data.get("triggers", automation_data.get("trigger", []))
         if isinstance(triggers, dict):
             triggers = [triggers]
 
         for trigger in triggers:
             if not isinstance(trigger, dict):
                 continue
-            platform = trigger.get("platform", "")
+            platform = trigger.get("platform") or trigger.get("trigger") or ""
             # Strip 'at' from non-time triggers
             if platform not in _AT_ONLY_PLATFORMS and "at" in trigger:
                 logger.info(
@@ -293,7 +301,7 @@ class HomeAssistantClient:
                     del trigger[field]
 
         # --- Sanitize actions: remove empty area_id from targets ---
-        actions = automation_data.get("action", [])
+        actions = automation_data.get("actions", automation_data.get("action", []))
         if isinstance(actions, dict):
             actions = [actions]
 
@@ -309,10 +317,12 @@ class HomeAssistantClient:
                 del target["area_id"]
                 logger.info("Stripping empty 'area_id' from action target")
 
-        # --- Sanitize conditions: fix common GPT-generated condition format issues ---
-        conditions = automation_data.get("condition", [])
+        # --- Sanitize conditions under whichever key form is present; never
+        # add the other form (HA rejects mixed singular+plural sections) ---
+        condition_key = "conditions" if "conditions" in automation_data else "condition"
+        conditions = automation_data.get(condition_key)
         if isinstance(conditions, list):
-            automation_data["condition"] = self._sanitize_conditions(conditions)
+            automation_data[condition_key] = self._sanitize_conditions(conditions)
 
         # --- Sanitize action data: strip non-HA fields ---
         for action in actions:
@@ -368,6 +378,9 @@ class HomeAssistantClient:
             "trigger",
             "condition",
             "action",
+            "triggers",
+            "conditions",
+            "actions",
             "mode",
             "max",
             "max_exceeded",

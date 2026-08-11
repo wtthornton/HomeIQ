@@ -109,3 +109,80 @@ async def compile_plan(
         raise HTTPException(
             status_code=500, detail="Failed to compile plan. Check server logs for details."
         ) from e
+
+
+class RegisterExternalRequest(BaseModel):
+    """Register an externally-compiled automation artifact for deployment.
+
+    The AgentForge author->judge pipeline is an external compiler: it produces
+    finished HA YAML that must flow through the same deploy/version/rollback
+    machinery as template-compiled artifacts.
+    """
+
+    yaml: str = Field(..., min_length=1, description="Complete HA automation YAML")
+    human_summary: str = Field(..., min_length=1, description="Human-readable summary")
+    source: str = Field(..., description="Producing system, e.g. 'agentforge'")
+    source_run_id: str = Field(default="", description="Producer run id for provenance")
+    area_id: str | None = Field(default=None, description="Target area")
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    safety_class: str = Field(default="medium", pattern="^(low|medium|high|critical)$")
+
+
+@router.post("/compiled/register", response_model=CompileResponse)
+@handle_route_errors("register external compiled artifact")
+async def register_external_artifact(
+    request: RegisterExternalRequest,
+    db: DatabaseSession,
+) -> CompileResponse:
+    """Register externally-authored YAML as a compiled artifact.
+
+    Creates the provenance Plan row (template_id 'external:<source>') and the
+    CompiledArtifact row, returning a compiled_id accepted by
+    POST /api/deploy/automation/deploy.
+    """
+    import uuid
+
+    from ..database.models import CompiledArtifact, Plan
+
+    plan_id = f"p_{uuid.uuid4().hex[:8]}"
+    compiled_id = f"c_{uuid.uuid4().hex[:8]}"
+
+    plan = Plan(
+        plan_id=plan_id,
+        template_id=f"external:{request.source}",
+        template_version=0,
+        parameters={"source_run_id": request.source_run_id},
+        confidence=request.confidence,
+        safety_class=request.safety_class,
+        explanation=f"Externally compiled by {request.source} run {request.source_run_id}",
+    )
+    artifact = CompiledArtifact(
+        compiled_id=compiled_id,
+        plan_id=plan_id,
+        template_id=f"external:{request.source}",
+        area_id=request.area_id,
+        yaml=request.yaml,
+        human_summary=request.human_summary,
+        diff_summary=[],
+        risk_notes=[],
+    )
+    db.add(plan)
+    await db.flush()  # plan row must exist before the artifact's FK insert
+    db.add(artifact)
+    await db.commit()
+
+    logger.info(
+        "Registered external compiled artifact %s (plan %s, source %s)",
+        compiled_id,
+        plan_id,
+        request.source,
+    )
+
+    return CompileResponse(
+        compiled_id=compiled_id,
+        plan_id=plan_id,
+        yaml=request.yaml,
+        human_summary=request.human_summary,
+        diff_summary=[],
+        risk_notes=[],
+    )
