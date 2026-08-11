@@ -130,11 +130,15 @@ class AliasGenerator:
             area_name = area_id.replace("_", " ")
             name_lower = friendly_name.lower()
             if name_lower.startswith(area_name.lower()):
-                short = friendly_name[len(area_name):].strip()
+                short = friendly_name[len(area_name) :].strip()
                 if short and len(short) > 2:
-                    candidates.append(AliasSuggestion(
-                        alias=short, source="area_less", confidence=0.85,
-                    ))
+                    candidates.append(
+                        AliasSuggestion(
+                            alias=short,
+                            source="area_less",
+                            confidence=0.85,
+                        )
+                    )
 
         # Strategy 2: Abbreviations
         if friendly_name:
@@ -143,11 +147,13 @@ class AliasGenerator:
                 if long_form in name_lower:
                     for short in short_forms:
                         abbrev_name = name_lower.replace(long_form, short)
-                        candidates.append(AliasSuggestion(
-                            alias=abbrev_name.strip().title(),
-                            source="abbreviation",
-                            confidence=0.8,
-                        ))
+                        candidates.append(
+                            AliasSuggestion(
+                                alias=abbrev_name.strip().title(),
+                                source="abbreviation",
+                                confidence=0.8,
+                            )
+                        )
 
         # Strategy 3: Type shorthand (domain-based casual name)
         if domain in _CASUAL_VARIANTS and friendly_name:
@@ -156,45 +162,62 @@ class AliasGenerator:
                 domain_word = domain.replace("_", " ")
                 if domain_word in friendly_name.lower():
                     casual = re.sub(
-                        re.escape(domain_word), variant,
-                        friendly_name, count=1, flags=re.IGNORECASE,
+                        re.escape(domain_word),
+                        variant,
+                        friendly_name,
+                        count=1,
+                        flags=re.IGNORECASE,
                     )
-                    candidates.append(AliasSuggestion(
-                        alias=casual.strip(), source="casual", confidence=0.7,
-                    ))
+                    candidates.append(
+                        AliasSuggestion(
+                            alias=casual.strip(),
+                            source="casual",
+                            confidence=0.7,
+                        )
+                    )
                 elif area_id:
                     # Build "Area Variant" alias
                     area_name = area_id.replace("_", " ").title()
-                    candidates.append(AliasSuggestion(
-                        alias=f"{area_name} {variant.title()}",
-                        source="casual",
-                        confidence=0.65,
-                    ))
+                    candidates.append(
+                        AliasSuggestion(
+                            alias=f"{area_name} {variant.title()}",
+                            source="casual",
+                            confidence=0.65,
+                        )
+                    )
 
         # Strategy 4: Singular/plural variant
         if friendly_name:
             name_lower = friendly_name.lower()
             for singular, plural in _PLURALS.items():
                 if name_lower.endswith(f" {singular}"):
-                    candidates.append(AliasSuggestion(
-                        alias=friendly_name[: -len(singular)] + plural,
-                        source="plural",
-                        confidence=0.6,
-                    ))
+                    candidates.append(
+                        AliasSuggestion(
+                            alias=friendly_name[: -len(singular)] + plural,
+                            source="plural",
+                            confidence=0.6,
+                        )
+                    )
                     break
                 elif name_lower.endswith(f" {plural}"):
-                    candidates.append(AliasSuggestion(
-                        alias=friendly_name[: -len(plural)] + singular,
-                        source="plural",
-                        confidence=0.6,
-                    ))
+                    candidates.append(
+                        AliasSuggestion(
+                            alias=friendly_name[: -len(plural)] + singular,
+                            source="plural",
+                            confidence=0.6,
+                        )
+                    )
                     break
 
         # Strategy 5: Just the friendly name as-is (if no aliases at all)
         if not current_aliases and friendly_name:
-            candidates.append(AliasSuggestion(
-                alias=friendly_name, source="shorthand", confidence=0.5,
-            ))
+            candidates.append(
+                AliasSuggestion(
+                    alias=friendly_name,
+                    source="shorthand",
+                    confidence=0.5,
+                )
+            )
 
         # Deduplicate and filter
         seen: set[str] = set()
@@ -212,9 +235,7 @@ class AliasGenerator:
             if alias_lower in existing_map:
                 owners = existing_map[alias_lower]
                 if entity_id not in owners:
-                    conflicts.append(
-                        f"'{candidate.alias}' conflicts with {', '.join(owners)}"
-                    )
+                    conflicts.append(f"'{candidate.alias}' conflicts with {', '.join(owners)}")
                     continue
 
             seen.add(alias_lower)

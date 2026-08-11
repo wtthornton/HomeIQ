@@ -12,7 +12,6 @@ from typing import Any
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from .api.database_management import router as database_management_router
@@ -134,6 +133,7 @@ app = create_app(
 # Custom middleware (service-specific, not in shared library)
 # ---------------------------------------------------------------------------
 
+
 @app.middleware("http")
 async def check_api_key(request: Request, call_next: Any) -> Any:
     """Check API key for non-health endpoints (CRIT-3)."""
@@ -156,8 +156,11 @@ async def check_api_key(request: Request, call_next: Any) -> Any:
 # Custom exception handlers
 # ---------------------------------------------------------------------------
 
+
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
     """Handle request validation errors."""
     logger.error("Validation error: %s", exc)
     return JSONResponse(
@@ -173,6 +176,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # ---------------------------------------------------------------------------
 # Inject analytics engine into app.state for route handlers
 # ---------------------------------------------------------------------------
+
 
 @app.middleware("http")
 async def _inject_state(request: Request, call_next: Any) -> Any:

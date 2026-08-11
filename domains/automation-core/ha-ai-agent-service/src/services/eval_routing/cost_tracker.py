@@ -10,9 +10,8 @@ from __future__ import annotations
 
 import logging
 import time
-from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -95,10 +94,10 @@ class CostTracker:
         )
         self._records.append(record)
         if len(self._records) > self._max_records:
-            self._records = self._records[-self._max_records:]
+            self._records = self._records[-self._max_records :]
 
         # Update daily summary
-        date_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        date_key = datetime.now(UTC).strftime("%Y-%m-%d")
         if date_key not in self._daily_summaries:
             self._daily_summaries[date_key] = DailyCostSummary(date=date_key)
 
@@ -122,8 +121,7 @@ class CostTracker:
         # Baseline: what it would cost if all requests used primary model
         primary_costs = _MODEL_COSTS.get("gpt-5.2-codex", _MODEL_COSTS["default"])
         baseline_cost = sum(
-            (r.input_tokens / 1000 * primary_costs["input"])
-            + (r.output_tokens / 1000 * primary_costs["output"])
+            (r.input_tokens / 1000 * primary_costs["input"]) + (r.output_tokens / 1000 * primary_costs["output"])
             for r in self._records
         )
 
@@ -185,7 +183,4 @@ class CostTracker:
     ) -> float:
         """Estimate cost in USD based on model and token counts."""
         costs = _MODEL_COSTS.get(model, _MODEL_COSTS["default"])
-        return (
-            (input_tokens / 1000 * costs["input"])
-            + (output_tokens / 1000 * costs["output"])
-        )
+        return (input_tokens / 1000 * costs["input"]) + (output_tokens / 1000 * costs["output"])

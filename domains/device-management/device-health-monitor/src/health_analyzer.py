@@ -31,7 +31,7 @@ class HealthAnalyzer:
         device_name: str,
         device_entities: list[str],
         power_spec_w: float | None = None,
-        actual_power_w: float | None = None
+        actual_power_w: float | None = None,
     ) -> dict[str, Any]:
         """
         Analyze health for a single device.
@@ -52,72 +52,90 @@ class HealthAnalyzer:
         # Analyze response time
         response_time = await self._calculate_response_time(device_entities)
         if response_time and response_time > 5000.0:  # 5 seconds
-            issues.append(HealthIssue(
-                type="slow_response",
-                severity=HealthSeverity.WARNING,
-                message=f"Device responding slowly ({response_time:.0f}ms)",
-                details={"response_time_ms": response_time}
-            ))
-            recommendations.append(MaintenanceRecommendation(
-                title="Check device connectivity",
-                description="Device is responding slowly. Check network connection and device status.",
-                priority="medium",
-                action="Check device network connection and restart if needed"
-            ))
+            issues.append(
+                HealthIssue(
+                    type="slow_response",
+                    severity=HealthSeverity.WARNING,
+                    message=f"Device responding slowly ({response_time:.0f}ms)",
+                    details={"response_time_ms": response_time},
+                )
+            )
+            recommendations.append(
+                MaintenanceRecommendation(
+                    title="Check device connectivity",
+                    description="Device is responding slowly. Check network connection and device status.",
+                    priority="medium",
+                    action="Check device network connection and restart if needed",
+                )
+            )
 
         # Check battery levels
         battery_level = await self._get_battery_level(device_entities)
         if battery_level is not None and battery_level < 20:
-            issues.append(HealthIssue(
-                type="low_battery",
-                severity=HealthSeverity.WARNING if battery_level > 10 else HealthSeverity.ERROR,
-                message=f"Battery level at {battery_level:.0f}%",
-                details={"battery_level": battery_level}
-            ))
-            recommendations.append(MaintenanceRecommendation(
-                title="Replace or recharge battery",
-                description=f"Device battery is at {battery_level:.0f}%. Consider replacing or recharging soon.",
-                priority="high" if battery_level < 10 else "medium",
-                action="Replace or recharge device battery"
-            ))
+            issues.append(
+                HealthIssue(
+                    type="low_battery",
+                    severity=HealthSeverity.WARNING if battery_level > 10 else HealthSeverity.ERROR,
+                    message=f"Battery level at {battery_level:.0f}%",
+                    details={"battery_level": battery_level},
+                )
+            )
+            recommendations.append(
+                MaintenanceRecommendation(
+                    title="Replace or recharge battery",
+                    description=f"Device battery is at {battery_level:.0f}%. Consider replacing or recharging soon.",
+                    priority="high" if battery_level < 10 else "medium",
+                    action="Replace or recharge device battery",
+                )
+            )
 
         # Check last seen
         last_seen = await self._get_last_seen(device_entities)
         if last_seen:
             hours_ago = (datetime.now(UTC) - last_seen).total_seconds() / 3600
             if hours_ago > 24:
-                issues.append(HealthIssue(
-                    type="device_not_responding",
-                    severity=HealthSeverity.ERROR if hours_ago > 48 else HealthSeverity.WARNING,
-                    message=f"Device not seen in {hours_ago:.1f} hours",
-                    details={"hours_ago": hours_ago, "last_seen": last_seen.isoformat()}
-                ))
-                recommendations.append(MaintenanceRecommendation(
-                    title="Check device status",
-                    description=f"Device has not sent any events in {hours_ago:.1f} hours. Check power and network connection.",
-                    priority="high" if hours_ago > 48 else "medium",
-                    action="Check device power and network connection"
-                ))
+                issues.append(
+                    HealthIssue(
+                        type="device_not_responding",
+                        severity=HealthSeverity.ERROR if hours_ago > 48 else HealthSeverity.WARNING,
+                        message=f"Device not seen in {hours_ago:.1f} hours",
+                        details={"hours_ago": hours_ago, "last_seen": last_seen.isoformat()},
+                    )
+                )
+                recommendations.append(
+                    MaintenanceRecommendation(
+                        title="Check device status",
+                        description=f"Device has not sent any events in {hours_ago:.1f} hours. Check power and network connection.",
+                        priority="high" if hours_ago > 48 else "medium",
+                        action="Check device power and network connection",
+                    )
+                )
 
         # Check power consumption
         power_anomaly = False
         if power_spec_w and actual_power_w and actual_power_w > power_spec_w * 1.5:
             power_anomaly = True
-            issues.append(HealthIssue(
-                type="high_power_consumption",
-                severity=HealthSeverity.WARNING,
-                message=f"Device consuming {actual_power_w:.1f}W, expected {power_spec_w:.1f}W",
-                details={"actual_w": actual_power_w, "expected_w": power_spec_w}
-            ))
-            recommendations.append(MaintenanceRecommendation(
-                title="Investigate power consumption",
-                description=f"Device is consuming {actual_power_w:.1f}W, which is {((actual_power_w / power_spec_w - 1) * 100):.0f}% more than expected. May need maintenance.",
-                priority="medium",
-                action="Check device for issues or consider maintenance"
-            ))
+            issues.append(
+                HealthIssue(
+                    type="high_power_consumption",
+                    severity=HealthSeverity.WARNING,
+                    message=f"Device consuming {actual_power_w:.1f}W, expected {power_spec_w:.1f}W",
+                    details={"actual_w": actual_power_w, "expected_w": power_spec_w},
+                )
+            )
+            recommendations.append(
+                MaintenanceRecommendation(
+                    title="Investigate power consumption",
+                    description=f"Device is consuming {actual_power_w:.1f}W, which is {((actual_power_w / power_spec_w - 1) * 100):.0f}% more than expected. May need maintenance.",
+                    priority="medium",
+                    action="Check device for issues or consider maintenance",
+                )
+            )
 
         # Determine overall status
-        if any(issue.severity in (HealthSeverity.ERROR, HealthSeverity.CRITICAL) for issue in issues):
+        if any(
+            issue.severity in (HealthSeverity.ERROR, HealthSeverity.CRITICAL) for issue in issues
+        ):
             overall_status = "error"
         elif any(issue.severity == HealthSeverity.WARNING for issue in issues):
             overall_status = "warning"
@@ -135,7 +153,7 @@ class HealthAnalyzer:
             "power_consumption_w": actual_power_w,
             "power_anomaly": power_anomaly,
             "issues": [issue.model_dump() for issue in issues],
-            "maintenance_recommendations": [rec.model_dump() for rec in recommendations]
+            "maintenance_recommendations": [rec.model_dump() for rec in recommendations],
         }
 
     async def _calculate_response_time(self, entity_ids: list[str]) -> float | None:
@@ -154,8 +172,12 @@ class HealthAnalyzer:
                 if history:
                     # Calculate time between state changes
                     for i in range(1, len(history)):
-                        prev_time = datetime.fromisoformat(history[i-1]["last_changed"].replace("Z", "+00:00"))
-                        curr_time = datetime.fromisoformat(history[i]["last_changed"].replace("Z", "+00:00"))
+                        prev_time = datetime.fromisoformat(
+                            history[i - 1]["last_changed"].replace("Z", "+00:00")
+                        )
+                        curr_time = datetime.fromisoformat(
+                            history[i]["last_changed"].replace("Z", "+00:00")
+                        )
                         delta = (curr_time - prev_time).total_seconds() * 1000  # Convert to ms
                         if delta < 10000:  # Ignore very long gaps
                             total_time += delta
@@ -194,4 +216,3 @@ class HealthAnalyzer:
                     except (ValueError, TypeError):
                         logger.debug("Failed to parse last_changed for %s", entity_id)
         return latest
-

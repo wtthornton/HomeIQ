@@ -21,4 +21,3 @@ class WebSocketIngestionServiceContainer(BaseServiceContainer):
     def __init__(self):
         super().__init__()
         # Services will be registered in main.py during initialization
-

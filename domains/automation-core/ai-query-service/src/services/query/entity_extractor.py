@@ -40,10 +40,27 @@ _DOMAIN_KEYWORDS: dict[str, list[str]] = {
 
 # Common room/area names
 _AREA_KEYWORDS: list[str] = [
-    "kitchen", "living room", "bedroom", "bathroom", "office", "garage",
-    "hallway", "dining room", "basement", "attic", "porch", "patio",
-    "laundry", "nursery", "guest room", "master bedroom", "den",
-    "front door", "back door", "backyard", "front yard",
+    "kitchen",
+    "living room",
+    "bedroom",
+    "bathroom",
+    "office",
+    "garage",
+    "hallway",
+    "dining room",
+    "basement",
+    "attic",
+    "porch",
+    "patio",
+    "laundry",
+    "nursery",
+    "guest room",
+    "master bedroom",
+    "den",
+    "front door",
+    "back door",
+    "backyard",
+    "front yard",
 ]
 
 
@@ -102,7 +119,9 @@ class EntityExtractor:
         if entities:
             logger.info(
                 "Extracted %d entities (domains=%s, areas=%s)",
-                len(entities), detected_domains, detected_areas,
+                len(entities),
+                detected_domains,
+                detected_areas,
             )
         else:
             logger.debug("No entities extracted from query")
@@ -139,7 +158,9 @@ class EntityExtractor:
         """
         try:
             response = await self._cross_client.call(
-                "GET", "/api/entities", params={"limit": 500},
+                "GET",
+                "/api/entities",
+                params={"limit": 500},
             )
             response.raise_for_status()
             data = response.json()
@@ -171,12 +192,16 @@ class EntityExtractor:
             area_match = not areas or any(a in entity_area for a in areas)
 
             if domain_match and area_match:
-                results.append({
-                    "entity_id": entity_id,
-                    "name": friendly_name,
-                    "domain": entity_domain,
-                    "area": entity_area,
-                    "type": "device" if entity_domain not in ("sensor", "binary_sensor") else "sensor",
-                })
+                results.append(
+                    {
+                        "entity_id": entity_id,
+                        "name": friendly_name,
+                        "domain": entity_domain,
+                        "area": entity_area,
+                        "type": "device"
+                        if entity_domain not in ("sensor", "binary_sensor")
+                        else "sensor",
+                    }
+                )
 
         return results

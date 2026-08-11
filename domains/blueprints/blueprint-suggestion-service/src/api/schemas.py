@@ -73,13 +73,29 @@ class SuggestionStatsResponse(BaseModel):
 class GenerateSuggestionsRequest(BaseModel):
     """Request schema for generating suggestions with parameters."""
 
-    device_ids: list[str] | None = Field(default=None, description="Specific device entity IDs to use, or None for all devices")
-    complexity: str | None = Field(default=None, description="Filter by complexity: 'simple', 'medium', 'high', or None for all")
-    use_case: str | None = Field(default=None, description="Filter by use case: 'convenience', 'security', 'energy', 'comfort', or None for all")
-    min_score: float = Field(default=0.6, ge=0.0, le=1.0, description="Minimum suggestion score threshold")
-    max_suggestions: int = Field(default=10, ge=1, le=100, description="Maximum number of suggestions to generate")
-    min_quality_score: float | None = Field(default=None, ge=0.0, le=1.0, description="Minimum blueprint quality score filter")
-    domain: str | None = Field(default=None, description="Filter by device domain (e.g., 'light', 'switch', 'sensor')")
+    device_ids: list[str] | None = Field(
+        default=None, description="Specific device entity IDs to use, or None for all devices"
+    )
+    complexity: str | None = Field(
+        default=None,
+        description="Filter by complexity: 'simple', 'medium', 'high', or None for all",
+    )
+    use_case: str | None = Field(
+        default=None,
+        description="Filter by use case: 'convenience', 'security', 'energy', 'comfort', or None for all",
+    )
+    min_score: float = Field(
+        default=0.6, ge=0.0, le=1.0, description="Minimum suggestion score threshold"
+    )
+    max_suggestions: int = Field(
+        default=10, ge=1, le=100, description="Maximum number of suggestions to generate"
+    )
+    min_quality_score: float | None = Field(
+        default=None, ge=0.0, le=1.0, description="Minimum blueprint quality score filter"
+    )
+    domain: str | None = Field(
+        default=None, description="Filter by device domain (e.g., 'light', 'switch', 'sensor')"
+    )
 
 
 class GenerateSuggestionsResponse(BaseModel):

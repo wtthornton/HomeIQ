@@ -24,15 +24,15 @@ alert_manager = AnomalyAlertManager(max_alerts=1000)
 # Request/Response Models
 class TrainRequest(BaseModel):
     """Request to train anomaly detector for a device."""
+
     device_id: str = Field(..., description="Unique device identifier")
     data: list[list[float]] = Field(..., description="Training data (samples x features)")
-    feature_names: list[str] | None = Field(
-        None, description="Optional feature names"
-    )
+    feature_names: list[str] | None = Field(None, description="Optional feature names")
 
 
 class PredictRequest(BaseModel):
     """Request to detect anomalies."""
+
     device_id: str = Field(..., description="Device identifier")
     data: list[list[float]] = Field(..., description="Data to check (samples x features)")
     device_name: str | None = Field(None, description="Human-readable device name")
@@ -41,6 +41,7 @@ class PredictRequest(BaseModel):
 
 class AlertResponse(BaseModel):
     """Response with anomaly alerts."""
+
     alerts: list[dict[str, Any]]
     total: int
     summary: dict[str, Any] | None = None
@@ -48,6 +49,7 @@ class AlertResponse(BaseModel):
 
 class TrainResponse(BaseModel):
     """Response after training."""
+
     success: bool
     device_id: str
     message: str
@@ -56,6 +58,7 @@ class TrainResponse(BaseModel):
 
 class PredictResponse(BaseModel):
     """Response with predictions."""
+
     device_id: str
     anomalies_detected: int
     results: list[dict[str, Any]]
@@ -76,8 +79,7 @@ async def train_detector(request: TrainRequest) -> TrainResponse:
 
         if len(data) < 100:
             raise HTTPException(
-                status_code=400,
-                detail=f"Insufficient training data: {len(data)} < 100 required"
+                status_code=400, detail=f"Insufficient training data: {len(data)} < 100 required"
             )
 
         success = detector.fit(
@@ -116,8 +118,7 @@ async def predict_anomalies(request: PredictRequest) -> PredictResponse:
 
     if request.device_id not in detector.device_models:
         raise HTTPException(
-            status_code=404,
-            detail=f"No trained model for device: {request.device_id}"
+            status_code=404, detail=f"No trained model for device: {request.device_id}"
         )
 
     try:
@@ -205,10 +206,7 @@ async def get_model_info(device_id: str) -> dict[str, Any]:
     info = detector.get_model_info(device_id)
 
     if not info:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No trained model for device: {device_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"No trained model for device: {device_id}")
 
     return info
 

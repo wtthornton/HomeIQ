@@ -33,9 +33,7 @@ class DeviceDatabaseClient:
 
             timeout = aiohttp.ClientTimeout(total=self.timeout)
             self._session = aiohttp.ClientSession(
-                headers=headers,
-                timeout=timeout,
-                raise_for_status=False
+                headers=headers, timeout=timeout, raise_for_status=False
             )
         return self._session
 
@@ -43,11 +41,7 @@ class DeviceDatabaseClient:
         """Check if Device Database API is configured"""
         return self.api_url is not None
 
-    async def get_device_info(
-        self,
-        manufacturer: str,
-        model: str
-    ) -> dict[str, Any] | None:
+    async def get_device_info(self, manufacturer: str, model: str) -> dict[str, Any] | None:
         """
         Get device information from Device Database.
 
@@ -67,10 +61,7 @@ class DeviceDatabaseClient:
             # Query Device Database API
             # Note: Actual endpoint structure will depend on Device Database API design
             url = f"{self.api_url}/devices/search"
-            params = {
-                "manufacturer": manufacturer,
-                "model": model
-            }
+            params = {"manufacturer": manufacturer, "model": model}
 
             async with session.get(url, params=params) as response:
                 if response.status == 200:
@@ -91,9 +82,7 @@ class DeviceDatabaseClient:
             return None
 
     async def search_devices(
-        self,
-        device_type: str | None = None,
-        filters: dict[str, Any] | None = None
+        self, device_type: str | None = None, filters: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
         """
         Search devices in Device Database.

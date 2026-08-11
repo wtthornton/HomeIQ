@@ -24,9 +24,7 @@ class GraphUpdater:
     """
 
     def __init__(
-        self,
-        entity_inventory: EntityInventory,
-        websocket_client: HAWebSocketClient | None = None
+        self, entity_inventory: EntityInventory, websocket_client: HAWebSocketClient | None = None
     ):
         """
         Initialize graph updater.
@@ -56,8 +54,7 @@ class GraphUpdater:
 
         # Subscribe to state_changed events
         self._subscription_id = await websocket_client.subscribe_events(
-            event_type="state_changed",
-            handler=self._handle_state_changed
+            event_type="state_changed", handler=self._handle_state_changed
         )
 
         logger.info(f"Graph updater started (subscription ID: {self._subscription_id})")

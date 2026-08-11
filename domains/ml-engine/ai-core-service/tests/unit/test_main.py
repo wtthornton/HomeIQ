@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 
@@ -19,9 +18,7 @@ def app_with_mocks():
             "ml": {"healthy": True, "capabilities": ["clustering"]},
         }
     )
-    mock_manager.analyze_data = AsyncMock(
-        return_value=({"embeddings": [[0.1]]}, ["openvino"])
-    )
+    mock_manager.analyze_data = AsyncMock(return_value=({"embeddings": [[0.1]]}, ["openvino"]))
     mock_manager.detect_patterns = AsyncMock(
         return_value=([{"description": "test", "category": "automation"}], ["openvino"])
     )
@@ -69,22 +66,36 @@ class TestAnalyzeEndpoint:
     """Tests for the /analyze endpoint."""
 
     def test_analyze_requires_auth(self, client: TestClient) -> None:
-        response = client.post("/analyze", json={
-            "data": [{"x": 1}], "analysis_type": "basic",
-        })
+        response = client.post(
+            "/analyze",
+            json={
+                "data": [{"x": 1}],
+                "analysis_type": "basic",
+            },
+        )
         assert response.status_code == 401
 
     def test_analyze_success(self, client: TestClient, auth_headers: dict) -> None:
-        response = client.post("/analyze", json={
-            "data": [{"x": 1}], "analysis_type": "basic",
-        }, headers=auth_headers)
+        response = client.post(
+            "/analyze",
+            json={
+                "data": [{"x": 1}],
+                "analysis_type": "basic",
+            },
+            headers=auth_headers,
+        )
         assert response.status_code == 200
         assert "results" in response.json()
 
     def test_analyze_invalid_type(self, client: TestClient, auth_headers: dict) -> None:
-        response = client.post("/analyze", json={
-            "data": [{"x": 1}], "analysis_type": "invalid",
-        }, headers=auth_headers)
+        response = client.post(
+            "/analyze",
+            json={
+                "data": [{"x": 1}],
+                "analysis_type": "invalid",
+            },
+            headers=auth_headers,
+        )
         assert response.status_code == 422
 
 
@@ -92,9 +103,14 @@ class TestPatternsEndpoint:
     """Tests for the /patterns endpoint."""
 
     def test_detect_patterns_success(self, client: TestClient, auth_headers: dict) -> None:
-        response = client.post("/patterns", json={
-            "patterns": [{"description": "test"}], "detection_type": "full",
-        }, headers=auth_headers)
+        response = client.post(
+            "/patterns",
+            json={
+                "patterns": [{"description": "test"}],
+                "detection_type": "full",
+            },
+            headers=auth_headers,
+        )
         assert response.status_code == 200
         assert "detected_patterns" in response.json()
 
@@ -103,18 +119,26 @@ class TestSuggestionsEndpoint:
     """Tests for the /suggestions endpoint."""
 
     def test_suggestions_success(self, client: TestClient, auth_headers: dict) -> None:
-        response = client.post("/suggestions", json={
-            "context": {"devices": ["light"]},
-            "suggestion_type": "energy_optimization",
-        }, headers=auth_headers)
+        response = client.post(
+            "/suggestions",
+            json={
+                "context": {"devices": ["light"]},
+                "suggestion_type": "energy_optimization",
+            },
+            headers=auth_headers,
+        )
         assert response.status_code == 200
         assert "suggestions" in response.json()
 
     def test_suggestions_invalid_type(self, client: TestClient, auth_headers: dict) -> None:
-        response = client.post("/suggestions", json={
-            "context": {"devices": ["light"]},
-            "suggestion_type": "bad_type",
-        }, headers=auth_headers)
+        response = client.post(
+            "/suggestions",
+            json={
+                "context": {"devices": ["light"]},
+                "suggestion_type": "bad_type",
+            },
+            headers=auth_headers,
+        )
         assert response.status_code == 422
 
 

@@ -170,7 +170,8 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       
       - name: Install ruff
-        run: pip install ruff
+        # Pinned — see reusable-group-ci.yml.
+        run: pip install ruff==0.15.15
       
       - name: Lint tests/ml/
         run: |

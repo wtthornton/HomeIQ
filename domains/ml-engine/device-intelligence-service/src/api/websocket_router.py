@@ -49,18 +49,24 @@ async def websocket_endpoint(websocket: WebSocket):
                 message = json.loads(data)
                 await websocket_manager.handle_client_message(websocket, message)
             except json.JSONDecodeError:
-                await websocket_manager._send_to_client(websocket, {
-                    "type": "error",
-                    "message": "Invalid JSON format",
-                    "timestamp": datetime.now(UTC).isoformat()
-                })
+                await websocket_manager._send_to_client(
+                    websocket,
+                    {
+                        "type": "error",
+                        "message": "Invalid JSON format",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    },
+                )
             except Exception as e:
                 logger.error(f"Error handling WebSocket message: {e}")
-                await websocket_manager._send_to_client(websocket, {
-                    "type": "error",
-                    "message": f"Internal error: {str(e)}",
-                    "timestamp": datetime.now(UTC).isoformat()
-                })
+                await websocket_manager._send_to_client(
+                    websocket,
+                    {
+                        "type": "error",
+                        "message": f"Internal error: {str(e)}",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    },
+                )
 
     except WebSocketDisconnect:
         websocket_manager.disconnect(websocket)
@@ -241,23 +247,21 @@ async def get_websocket_stats():
         "websocket_manager": websocket_manager.get_connection_stats(),
         "device_state_tracker": device_state_tracker.get_stats(),
         "performance_collector": performance_collector.get_stats(),
-        "timestamp": datetime.now(UTC).isoformat()
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
 @router.post("/broadcast/test", dependencies=[Depends(verify_admin_token)])
 async def broadcast_test_message(message: dict[str, Any]):
     """Broadcast test message to all connected clients."""
-    await websocket_manager.broadcast_to_all({
-        "type": "test_message",
-        "data": message,
-        "timestamp": datetime.now(UTC).isoformat()
-    })
+    await websocket_manager.broadcast_to_all(
+        {"type": "test_message", "data": message, "timestamp": datetime.now(UTC).isoformat()}
+    )
 
     return {
         "status": "success",
         "message": "Test message broadcasted",
-        "timestamp": datetime.now(UTC).isoformat()
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -273,7 +277,7 @@ async def simulate_device_update(device_id: str, update_data: dict[str, Any] = N
             "cpu_usage": 25,
             "memory_usage": 40,
             "temperature": 35,
-            "uptime": 86400
+            "uptime": 86400,
         }
 
     # Update device state
@@ -287,5 +291,5 @@ async def simulate_device_update(device_id: str, update_data: dict[str, Any] = N
         "message": f"Simulated update for device {device_id}",
         "device_id": device_id,
         "update_data": update_data,
-        "timestamp": datetime.now(UTC).isoformat()
+        "timestamp": datetime.now(UTC).isoformat(),
     }

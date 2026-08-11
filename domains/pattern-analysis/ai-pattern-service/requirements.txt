@@ -49,3 +49,8 @@ homeiq-resilience>=1.0.0
 homeiq-observability>=1.0.0
 homeiq-data>=1.0.0
 homeiq-ha>=1.0.0
+
+# Property-based tests in tests/test_pattern_detection_properties.py import
+# hypothesis. CI installs only requirements.txt, and the module was in no
+# requirements file at all, so the whole suite aborted during collection.
+hypothesis>=6.100.0,<7.0.0

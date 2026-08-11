@@ -54,13 +54,16 @@ async def test_semantic_dissimilarity(embedding_manager, embedding_data):
         assert similarity < 0.3
 
 
-@pytest.mark.parametrize("text", [
-    "Turn on the lights",
-    "Set temperature to 72 degrees",
-    "Close the garage door",
-    "Start the vacuum cleaner",
-    "A" * 240  # Max length test
-])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Turn on the lights",
+        "Set temperature to 72 degrees",
+        "Close the garage door",
+        "Start the vacuum cleaner",
+        "A" * 240,  # Max length test
+    ],
+)
 @pytest.mark.asyncio
 async def test_embedding_properties_property(text):
     """Test embedding properties for various text inputs"""

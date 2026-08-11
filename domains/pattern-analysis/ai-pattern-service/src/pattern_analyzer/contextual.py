@@ -39,41 +39,61 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 EXCLUDED_DOMAINS = {
-    'image', 'event', 'update', 'camera', 'button',
+    "image",
+    "event",
+    "update",
+    "camera",
+    "button",
 }
 
 EXCLUDED_ENTITY_PREFIXES = [
-    'sensor.home_assistant_',
-    'sensor.slzb_',
-    'image.',
-    'event.',
-    'binary_sensor.system_',
-    'camera.',
-    'button.',
-    'update.',
+    "sensor.home_assistant_",
+    "sensor.slzb_",
+    "image.",
+    "event.",
+    "binary_sensor.system_",
+    "camera.",
+    "button.",
+    "update.",
 ]
 
 EXCLUDED_PATTERNS = [
-    '_tracker', 'team_tracker',
-    'nfl_', 'nhl_', 'mlb_', 'nba_', 'ncaa_',
-    'weather_', 'openweathermap_',
-    'carbon_intensity_', 'electricity_pricing_', 'national_grid_',
-    'calendar_',
-    '_cpu_', '_temp', '_chip_',
-    'coordinator_', '_battery', '_memory_',
-    '_signal_strength', '_linkquality',
-    '_update_', '_uptime', '_last_seen',
+    "_tracker",
+    "team_tracker",
+    "nfl_",
+    "nhl_",
+    "mlb_",
+    "nba_",
+    "ncaa_",
+    "weather_",
+    "openweathermap_",
+    "carbon_intensity_",
+    "electricity_pricing_",
+    "national_grid_",
+    "calendar_",
+    "_cpu_",
+    "_temp",
+    "_chip_",
+    "coordinator_",
+    "_battery",
+    "_memory_",
+    "_signal_strength",
+    "_linkquality",
+    "_update_",
+    "_uptime",
+    "_last_seen",
 ]
 
 # Context types detected
-CONTEXT_SUNRISE = 'sunrise'
-CONTEXT_SUNSET = 'sunset'
-CONTEXT_TEMPERATURE = 'temperature'
+CONTEXT_SUNRISE = "sunrise"
+CONTEXT_SUNSET = "sunset"
+CONTEXT_TEMPERATURE = "temperature"
 
 
 @dataclass
 class SunTimes:
     """Sunrise and sunset times for a specific date."""
+
     date: str
     sunrise_hour: float
     sunset_hour: float
@@ -82,6 +102,7 @@ class SunTimes:
 @dataclass
 class ContextCorrelation:
     """A detected correlation between device activity and context."""
+
     device_id: str
     context_type: str
     correlation_score: float
@@ -144,10 +165,8 @@ class ContextualPatternDetector:
 
         correlations = self._find_correlations(events)
 
-        patterns = [
-            self._correlation_to_pattern(c) for c in correlations
-        ]
-        patterns.sort(key=lambda p: p['confidence'], reverse=True)
+        patterns = [self._correlation_to_pattern(c) for c in correlations]
+        patterns.sort(key=lambda p: p["confidence"], reverse=True)
 
         logger.info(f"Detected {len(patterns)} contextual patterns")
 
@@ -162,7 +181,7 @@ class ContextualPatternDetector:
             logger.warning("No events provided for contextual detection")
             return None
 
-        required_cols = ['device_id', 'timestamp']
+        required_cols = ["device_id", "timestamp"]
         missing = [c for c in required_cols if c not in events.columns]
         if missing:
             logger.error(f"Missing required columns: {missing}")
@@ -174,69 +193,52 @@ class ContextualPatternDetector:
             original_count = len(events)
             events = self._filter_system_noise(events)
             if len(events) < original_count:
-                logger.info(
-                    f"Filtered noise: {original_count} -> {len(events)} events"
-                )
+                logger.info(f"Filtered noise: {original_count} -> {len(events)} events")
 
         if events.empty:
             return None
 
-        events = events.sort_values('timestamp').copy()
+        events = events.sort_values("timestamp").copy()
         return events.reset_index(drop=True)
 
     def _enrich_with_sun_times(self, events: pd.DataFrame) -> pd.DataFrame:
         """Add sunrise/sunset hours to events if not already present."""
         events = events.copy()
 
-        if 'sunrise_hour' not in events.columns:
-            events['sunrise_hour'] = events['timestamp'].apply(
+        if "sunrise_hour" not in events.columns:
+            events["sunrise_hour"] = events["timestamp"].apply(
                 lambda ts: self._approx_sunrise(ts.timetuple().tm_yday)
             )
-        if 'sunset_hour' not in events.columns:
-            events['sunset_hour'] = events['timestamp'].apply(
+        if "sunset_hour" not in events.columns:
+            events["sunset_hour"] = events["timestamp"].apply(
                 lambda ts: self._approx_sunset(ts.timetuple().tm_yday)
             )
 
-        events['event_hour'] = (
-            events['timestamp'].dt.hour
-            + events['timestamp'].dt.minute / 60.0
-        )
-        events['sunrise_offset'] = (
-            (events['event_hour'] - events['sunrise_hour']) * 60
-        )
-        events['sunset_offset'] = (
-            (events['event_hour'] - events['sunset_hour']) * 60
-        )
-        events['event_date'] = events['timestamp'].dt.date
+        events["event_hour"] = events["timestamp"].dt.hour + events["timestamp"].dt.minute / 60.0
+        events["sunrise_offset"] = (events["event_hour"] - events["sunrise_hour"]) * 60
+        events["sunset_offset"] = (events["event_hour"] - events["sunset_hour"]) * 60
+        events["event_date"] = events["timestamp"].dt.date
 
         return events
 
-    def _find_correlations(
-        self, events: pd.DataFrame
-    ) -> list[ContextCorrelation]:
+    def _find_correlations(self, events: pd.DataFrame) -> list[ContextCorrelation]:
         """Find all significant context correlations across devices."""
         correlations: list[ContextCorrelation] = []
 
-        for device_id, dev_events in events.groupby('device_id'):
+        for device_id, dev_events in events.groupby("device_id"):
             if len(dev_events) < self.min_events:
                 continue
 
-            sunrise_corr = self._check_sun_correlation(
-                str(device_id), dev_events, CONTEXT_SUNRISE
-            )
+            sunrise_corr = self._check_sun_correlation(str(device_id), dev_events, CONTEXT_SUNRISE)
             if sunrise_corr is not None:
                 correlations.append(sunrise_corr)
 
-            sunset_corr = self._check_sun_correlation(
-                str(device_id), dev_events, CONTEXT_SUNSET
-            )
+            sunset_corr = self._check_sun_correlation(str(device_id), dev_events, CONTEXT_SUNSET)
             if sunset_corr is not None:
                 correlations.append(sunset_corr)
 
-            if 'outdoor_temp' in dev_events.columns:
-                temp_corr = self._check_temp_correlation(
-                    str(device_id), dev_events
-                )
+            if "outdoor_temp" in dev_events.columns:
+                temp_corr = self._check_temp_correlation(str(device_id), dev_events)
                 if temp_corr is not None:
                     correlations.append(temp_corr)
 
@@ -264,9 +266,7 @@ class ContextualPatternDetector:
             return None
 
         avg_offset = float(near_sun[offset_col].mean())
-        confidence = self._calculate_sun_confidence(
-            near_count, total, near_sun[offset_col].std()
-        )
+        confidence = self._calculate_sun_confidence(near_count, total, near_sun[offset_col].std())
 
         if confidence < self.min_confidence:
             return None
@@ -287,21 +287,23 @@ class ContextualPatternDetector:
         dev_events: pd.DataFrame,
     ) -> ContextCorrelation | None:
         """Check if device activity correlates with temperature."""
-        temps = dev_events['outdoor_temp'].dropna()
+        temps = dev_events["outdoor_temp"].dropna()
         if len(temps) < self.min_events:
             return None
 
-        daily = dev_events.groupby('event_date').agg(
-            count=('device_id', 'size'),
-            avg_temp=('outdoor_temp', 'mean'),
-        ).dropna()
+        daily = (
+            dev_events.groupby("event_date")
+            .agg(
+                count=("device_id", "size"),
+                avg_temp=("outdoor_temp", "mean"),
+            )
+            .dropna()
+        )
 
         if len(daily) < 7:
             return None
 
-        corr_val = self._safe_correlation(
-            daily['count'].values, daily['avg_temp'].values
-        )
+        corr_val = self._safe_correlation(daily["count"].values, daily["avg_temp"].values)
         abs_corr = abs(corr_val)
 
         if abs_corr < self.correlation_threshold:
@@ -326,22 +328,22 @@ class ContextualPatternDetector:
         description = self._build_description(corr)
 
         return {
-            'pattern_type': 'contextual',
-            'device_id': corr.device_id,
-            'context_type': corr.context_type,
-            'correlation_score': float(corr.correlation_score),
-            'confidence': float(corr.confidence),
-            'metadata': {
-                'avg_offset_minutes': float(corr.avg_offset_minutes),
-                'events_in_window': corr.event_count,
-                'total_events': corr.total_events,
-                'domain': self._get_domain(corr.device_id),
-                'description': description,
-                'thresholds': {
-                    'sun_window_minutes': self.sun_window_minutes,
-                    'min_events': self.min_events,
-                    'min_confidence': self.min_confidence,
-                    'correlation_threshold': self.correlation_threshold,
+            "pattern_type": "contextual",
+            "device_id": corr.device_id,
+            "context_type": corr.context_type,
+            "correlation_score": float(corr.correlation_score),
+            "confidence": float(corr.confidence),
+            "metadata": {
+                "avg_offset_minutes": float(corr.avg_offset_minutes),
+                "events_in_window": corr.event_count,
+                "total_events": corr.total_events,
+                "domain": self._get_domain(corr.device_id),
+                "description": description,
+                "thresholds": {
+                    "sun_window_minutes": self.sun_window_minutes,
+                    "min_events": self.min_events,
+                    "min_confidence": self.min_confidence,
+                    "correlation_threshold": self.correlation_threshold,
                 },
             },
         }
@@ -353,54 +355,49 @@ class ContextualPatternDetector:
             offset = corr.avg_offset_minutes
             before_after = "after" if offset >= 0 else "before"
             mins = abs(int(offset))
-            return (
-                f"{corr.device_id} activates ~{mins}min "
-                f"{before_after} {corr.context_type}"
-            )
+            return f"{corr.device_id} activates ~{mins}min {before_after} {corr.context_type}"
         if corr.context_type == CONTEXT_TEMPERATURE:
             direction = "increases" if corr.correlation_score > 0 else "decreases"
-            return (
-                f"{corr.device_id} usage {direction} with temperature"
-            )
+            return f"{corr.device_id} usage {direction} with temperature"
         return f"{corr.device_id} correlates with {corr.context_type}"
 
     def suggest_automation(self, pattern: dict) -> dict[str, Any]:
         """Suggest automation from contextual pattern."""
-        if pattern.get('pattern_type') != 'contextual':
+        if pattern.get("pattern_type") != "contextual":
             return {}
 
-        device_id = pattern.get('device_id', '')
+        device_id = pattern.get("device_id", "")
         if not device_id:
             return {}
 
-        context_type = pattern.get('context_type', '')
-        confidence = pattern.get('confidence', 0.0)
-        metadata = pattern.get('metadata', {})
+        context_type = pattern.get("context_type", "")
+        confidence = pattern.get("confidence", 0.0)
+        metadata = pattern.get("metadata", {})
 
         domain = self._get_domain(device_id)
         service = self._get_default_service(domain)
 
         trigger = self._build_trigger(context_type, metadata)
-        description = metadata.get('description', f"Contextual: {device_id}")
+        description = metadata.get("description", f"Contextual: {device_id}")
 
         return {
-            'automation_type': 'contextual_trigger',
-            'trigger': trigger,
-            'action': {
-                'service': f"{domain}.{service}",
-                'entity_id': device_id,
-                'target': {'entity_id': device_id},
+            "automation_type": "contextual_trigger",
+            "trigger": trigger,
+            "action": {
+                "service": f"{domain}.{service}",
+                "entity_id": device_id,
+                "target": {"entity_id": device_id},
             },
-            'confidence': float(confidence),
-            'description': description,
-            'device_id': device_id,
-            'requires_confirmation': True,
-            'safety_level': 'normal',
-            'safety_warnings': [],
-            'metadata': {
-                'source': 'contextual_pattern',
-                'context_type': context_type,
-                'correlation_score': pattern.get('correlation_score', 0.0),
+            "confidence": float(confidence),
+            "description": description,
+            "device_id": device_id,
+            "requires_confirmation": True,
+            "safety_level": "normal",
+            "safety_warnings": [],
+            "metadata": {
+                "source": "contextual_pattern",
+                "context_type": context_type,
+                "correlation_score": pattern.get("correlation_score", 0.0),
             },
         }
 
@@ -408,42 +405,40 @@ class ContextualPatternDetector:
     def _build_trigger(context_type: str, metadata: dict) -> dict:
         """Build automation trigger based on context type."""
         if context_type in (CONTEXT_SUNRISE, CONTEXT_SUNSET):
-            offset_min = int(metadata.get('avg_offset_minutes', 0))
+            offset_min = int(metadata.get("avg_offset_minutes", 0))
             return {
-                'platform': 'sun',
-                'event': context_type,
-                'offset': f"00:{abs(offset_min):02d}:00"
+                "platform": "sun",
+                "event": context_type,
+                "offset": f"00:{abs(offset_min):02d}:00"
                 if offset_min >= 0
                 else f"-00:{abs(offset_min):02d}:00",
             }
         if context_type == CONTEXT_TEMPERATURE:
             return {
-                'platform': 'numeric_state',
-                'entity_id': 'sensor.outdoor_temperature',
-                'above': 0,
+                "platform": "numeric_state",
+                "entity_id": "sensor.outdoor_temperature",
+                "above": 0,
             }
-        return {'platform': 'state'}
+        return {"platform": "state"}
 
     def get_pattern_summary(self, patterns: list[dict]) -> dict:
         """Get summary statistics for detected contextual patterns."""
         if not patterns:
             return {
-                'total_patterns': 0,
-                'avg_confidence': 0.0,
-                'context_types': {},
+                "total_patterns": 0,
+                "avg_confidence": 0.0,
+                "context_types": {},
             }
 
         type_counts: dict[str, int] = {}
         for p in patterns:
-            ct = p.get('context_type', 'unknown')
+            ct = p.get("context_type", "unknown")
             type_counts[ct] = type_counts.get(ct, 0) + 1
 
         return {
-            'total_patterns': len(patterns),
-            'avg_confidence': float(
-                np.mean([p['confidence'] for p in patterns])
-            ),
-            'context_types': type_counts,
+            "total_patterns": len(patterns),
+            "avg_confidence": float(np.mean([p["confidence"] for p in patterns])),
+            "context_types": type_counts,
         }
 
     def _approx_sunrise(self, day_of_year: int) -> float:
@@ -454,9 +449,7 @@ class ContextualPatternDetector:
         """Approximate sunset hour for a given day of year."""
         return self._approx_sun_event(day_of_year, is_sunrise=False)
 
-    def _approx_sun_event(
-        self, day_of_year: int, *, is_sunrise: bool
-    ) -> float:
+    def _approx_sun_event(self, day_of_year: int, *, is_sunrise: bool) -> float:
         """
         Approximate sunrise/sunset hour using simplified solar calculation.
 
@@ -466,9 +459,7 @@ class ContextualPatternDetector:
         lat_rad = math.radians(self.latitude)
 
         # Solar declination (simplified)
-        declination = 23.45 * math.sin(
-            math.radians(360 / 365 * (day_of_year - 81))
-        )
+        declination = 23.45 * math.sin(math.radians(360 / 365 * (day_of_year - 81)))
         decl_rad = math.radians(declination)
 
         # Hour angle at sunrise/sunset
@@ -487,9 +478,7 @@ class ContextualPatternDetector:
         return solar_noon + day_length / 2.0
 
     @staticmethod
-    def _calculate_sun_confidence(
-        near_count: int, total: int, offset_std: float
-    ) -> float:
+    def _calculate_sun_confidence(near_count: int, total: int, offset_std: float) -> float:
         """Calculate confidence for sun correlation."""
         # Volume factor: saturates at 30 events near sun event
         volume = min(near_count / 30.0, 1.0)
@@ -525,14 +514,14 @@ class ContextualPatternDetector:
 
     @staticmethod
     def _get_domain(device_id: str) -> str:
-        if not device_id or '.' not in str(device_id):
-            return 'default'
-        return str(device_id).split('.', 1)[0]
+        if not device_id or "." not in str(device_id):
+            return "default"
+        return str(device_id).split(".", 1)[0]
 
     def _filter_system_noise(self, events: pd.DataFrame) -> pd.DataFrame:
-        if 'device_id' not in events.columns:
+        if "device_id" not in events.columns:
             return events
-        mask = events['device_id'].apply(self._is_actionable_entity)
+        mask = events["device_id"].apply(self._is_actionable_entity)
         return events[mask].copy()
 
     def _is_actionable_entity(self, device_id: str) -> bool:
@@ -548,27 +537,29 @@ class ContextualPatternDetector:
     @staticmethod
     def _get_default_service(domain: str) -> str:
         service_map = {
-            'light': 'turn_on', 'switch': 'turn_on', 'fan': 'turn_on',
-            'cover': 'open_cover', 'lock': 'lock',
-            'climate': 'set_temperature', 'media_player': 'turn_on',
+            "light": "turn_on",
+            "switch": "turn_on",
+            "fan": "turn_on",
+            "cover": "open_cover",
+            "lock": "lock",
+            "climate": "set_temperature",
+            "media_player": "turn_on",
         }
-        return service_map.get(domain, 'turn_on')
+        return service_map.get(domain, "turn_on")
 
-    def _store_daily_aggregates(
-        self, patterns: list[dict], events: pd.DataFrame
-    ) -> None:
+    def _store_daily_aggregates(self, patterns: list[dict], events: pd.DataFrame) -> None:
         try:
-            if events.empty or 'timestamp' not in events.columns:
+            if events.empty or "timestamp" not in events.columns:
                 return
-            date_str = events['timestamp'].min().date().strftime("%Y-%m-%d")
+            date_str = events["timestamp"].min().date().strftime("%Y-%m-%d")
             for pattern in patterns:
                 try:
                     self.aggregate_client.write_contextual_daily(
                         date=date_str,
-                        device_id=pattern.get('device_id', ''),
-                        context_type=pattern.get('context_type', ''),
-                        correlation_score=pattern.get('correlation_score', 0.0),
-                        confidence=pattern.get('confidence', 0.0),
+                        device_id=pattern.get("device_id", ""),
+                        context_type=pattern.get("context_type", ""),
+                        correlation_score=pattern.get("correlation_score", 0.0),
+                        confidence=pattern.get("confidence", 0.0),
                     )
                 except Exception as e:
                     logger.error(
@@ -576,6 +567,4 @@ class ContextualPatternDetector:
                         exc_info=True,
                     )
         except Exception as e:
-            logger.error(
-                f"Error storing daily aggregates: {e}", exc_info=True
-            )
+            logger.error(f"Error storing daily aggregates: {e}", exc_info=True)

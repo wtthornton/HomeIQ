@@ -23,11 +23,7 @@ class PreflightChecker:
     - Use GET /api/states/<entity_id> for preflight
     """
 
-    def __init__(
-        self,
-        capability_graph: CapabilityGraph,
-        rest_client: HARestClient | None = None
-    ):
+    def __init__(self, capability_graph: CapabilityGraph, rest_client: HARestClient | None = None):
         """
         Initialize preflight checker.
 
@@ -38,10 +34,7 @@ class PreflightChecker:
         self.capability_graph = capability_graph
         self.rest_client = rest_client
 
-    async def check_entity_availability(
-        self,
-        entity_id: str
-    ) -> tuple[bool, str | None]:
+    async def check_entity_availability(self, entity_id: str) -> tuple[bool, str | None]:
         """
         Check if entity is available/online.
 
@@ -77,8 +70,7 @@ class PreflightChecker:
             return False, f"Failed to check entity '{entity_id}': {str(e)}"
 
     async def check_entities_availability(
-        self,
-        entity_ids: list[str]
+        self, entity_ids: list[str]
     ) -> dict[str, tuple[bool, str | None]]:
         """
         Check availability for multiple entities.
@@ -98,9 +90,7 @@ class PreflightChecker:
         return results
 
     async def preflight_check(
-        self,
-        spec: dict[str, Any],
-        required_for_risk: str | None = None
+        self, spec: dict[str, Any], required_for_risk: str | None = None
     ) -> tuple[bool, list[str]]:
         """
         Perform preflight check for a spec.

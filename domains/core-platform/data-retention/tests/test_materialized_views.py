@@ -135,9 +135,7 @@ class TestBlockingCallsOffloaded:
     """query/write must never run on the event-loop thread."""
 
     @pytest.mark.parametrize(("method_name", "row"), _VIEW_CASES)
-    def test_create_view_offloads_query_and_write(
-        self, stub_point_module, method_name, row
-    ):
+    def test_create_view_offloads_query_and_write(self, stub_point_module, method_name, row):
         client, call_threads = _recording_client(_FakeFrame([row]))
         manager = _enabled_manager(client)
 
@@ -193,7 +191,7 @@ class TestBlockingCallsOffloaded:
         )
 
     def test_refresh_all_views_offloads_every_call(self, stub_point_module):
-        rows = {name: row for name, row in _VIEW_CASES}
+        rows = dict(_VIEW_CASES)
         frames = iter(
             [
                 _FakeFrame([rows["create_daily_energy_view"]]),

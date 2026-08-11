@@ -6,7 +6,6 @@ Tests use mocked Anthropic API responses.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -14,10 +13,10 @@ import pytest
 from src.clients.anthropic_client import AnthropicLLMClient
 from src.models.llm_models import LLMResponse
 
-
 # ---------------------------------------------------------------------------
 # Mock Anthropic response objects
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class MockUsage:
@@ -71,6 +70,7 @@ class MockResponse:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def client():
@@ -136,12 +136,14 @@ class TestChatCompletion:
         result = await client.chat_completion(
             system_prompt="You are HomeIQ AI.",
             messages=[{"role": "user", "content": "Create automation"}],
-            tools=[{
-                "type": "function",
-                "name": "preview_automation_from_prompt",
-                "description": "Preview automation",
-                "parameters": {"type": "object", "properties": {}},
-            }],
+            tools=[
+                {
+                    "type": "function",
+                    "name": "preview_automation_from_prompt",
+                    "description": "Preview automation",
+                    "parameters": {"type": "object", "properties": {}},
+                }
+            ],
         )
 
         assert result.content == "Let me preview that."
@@ -329,9 +331,7 @@ class TestTokenStats:
 
     @pytest.mark.asyncio
     async def test_error_count_tracked(self, client):
-        client.client.messages.create = AsyncMock(
-            side_effect=Exception("API error")
-        )
+        client.client.messages.create = AsyncMock(side_effect=Exception("API error"))
 
         # Patch the anthropic module's APIError to be a regular Exception
         with patch("src.clients.anthropic_client.anthropic") as mock_mod:

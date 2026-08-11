@@ -477,9 +477,7 @@ class BlueprintDeployer:
             else:
                 # Required input without match
                 result["missing_required"].append(input_name)
-                result["warnings"].append(
-                    f"Required input '{input_name}' could not be auto-filled"
-                )
+                result["warnings"].append(f"Required input '{input_name}' could not be auto-filled")
 
         return result
 
@@ -535,10 +533,12 @@ class BlueprintDeployer:
                 elif domain and device_domain == domain:
                     confidence = 0.8
 
-                candidates.append({
-                    "entity_id": entity_id,
-                    "confidence": confidence,
-                })
+                candidates.append(
+                    {
+                        "entity_id": entity_id,
+                        "confidence": confidence,
+                    }
+                )
 
             if candidates:
                 # Sort by confidence and return best match

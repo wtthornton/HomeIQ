@@ -13,12 +13,12 @@ from health_check import HealthCheckHandler
 async def get_response_json(response):
     """Helper to extract JSON from aiohttp Response object."""
     # aiohttp Response: text can be a property or method depending on version
-    if hasattr(response, 'text') and callable(response.text):
+    if hasattr(response, "text") and callable(response.text):
         text = await response.text()
-    elif hasattr(response, 'text'):
+    elif hasattr(response, "text"):
         text = response.text
-    elif hasattr(response, 'body'):
-        text = response.body.decode('utf-8') if isinstance(response.body, bytes) else response.body
+    elif hasattr(response, "body"):
+        text = response.body.decode("utf-8") if isinstance(response.body, bytes) else response.body
     else:
         raise AttributeError("Response object has no text or body attribute")
     return json.loads(text)
@@ -201,7 +201,7 @@ class TestHealthCheckHandlerWithSubscription:
                 "total_events_received": 100,
                 "events_by_type": {"state_changed": 90, "service_registered": 10},
                 "last_event_time": datetime.now(UTC).isoformat(),
-                "subscription_start_time": mock_subscription.subscription_start_time.isoformat()
+                "subscription_start_time": mock_subscription.subscription_start_time.isoformat(),
             }
 
         mock_subscription.get_subscription_status = get_subscription_status
@@ -240,7 +240,7 @@ class TestHealthCheckHandlerWithSubscription:
                 "active_subscriptions": 0,
                 "total_events_received": 0,
                 "events_by_type": {},
-                "last_event_time": None
+                "last_event_time": None,
             }
 
         mock_subscription.get_subscription_status = get_subscription_status
@@ -276,7 +276,7 @@ class TestHealthCheckHandlerWithSubscription:
                 "active_subscriptions": 1,
                 "total_events_received": 0,
                 "events_by_type": {},
-                "last_event_time": None
+                "last_event_time": None,
             }
 
         mock_subscription.get_subscription_status = get_subscription_status
@@ -315,7 +315,7 @@ class TestHealthCheckHandlerWithHistoricalCounter:
                 "total_events_received": 50,  # Current session
                 "events_by_type": {"state_changed": 50},
                 "last_event_time": datetime.now(UTC).isoformat(),
-                "subscription_start_time": (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
+                "subscription_start_time": (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
             }
 
         mock_subscription.get_subscription_status = get_subscription_status
@@ -358,7 +358,7 @@ class TestHealthCheckHandlerWithHistoricalCounter:
                 "total_events_received": 50,
                 "events_by_type": {"state_changed": 50},
                 "last_event_time": datetime.now(UTC).isoformat(),
-                "subscription_start_time": (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
+                "subscription_start_time": (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
             }
 
         mock_subscription.get_subscription_status = get_subscription_status
@@ -452,7 +452,7 @@ class TestHealthCheckHandlerEventRate:
                 "total_events_received": 100,
                 "events_by_type": {"state_changed": 100},
                 "last_event_time": last_event_time.isoformat(),
-                "subscription_start_time": start_time.isoformat()
+                "subscription_start_time": start_time.isoformat(),
             }
 
         mock_subscription.get_subscription_status = get_subscription_status
@@ -466,7 +466,9 @@ class TestHealthCheckHandlerEventRate:
 
         assert "event_rate_per_minute" in data["subscription"]
         assert data["subscription"]["event_rate_per_minute"] > 0
-        assert data["subscription"]["event_rate_per_minute"] <= 12  # ~10 events/min with some tolerance
+        assert (
+            data["subscription"]["event_rate_per_minute"] <= 12
+        )  # ~10 events/min with some tolerance
 
     @pytest.mark.asyncio
     async def test_event_rate_with_no_events(self):
@@ -488,7 +490,7 @@ class TestHealthCheckHandlerEventRate:
                 "total_events_received": 0,
                 "events_by_type": {},
                 "last_event_time": None,
-                "subscription_start_time": None
+                "subscription_start_time": None,
             }
 
         mock_subscription.get_subscription_status = get_subscription_status

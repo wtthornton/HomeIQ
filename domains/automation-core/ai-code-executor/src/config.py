@@ -8,9 +8,8 @@ from __future__ import annotations
 import os
 import warnings
 
-from pydantic import Field, field_validator
-
 from homeiq_data import BaseServiceSettings
+from pydantic import Field, field_validator
 
 
 class Settings(BaseServiceSettings):

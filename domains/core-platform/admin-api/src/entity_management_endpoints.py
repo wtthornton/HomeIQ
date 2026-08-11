@@ -29,8 +29,10 @@ _LABEL_PATTERN = re.compile(r"^[a-z][a-z0-9_-]*:[a-z][a-z0-9_-]*$")
 
 # ── Request Models ──────────────────────────────────────────────────────────
 
+
 class SetLabelsRequest(BaseModel):
     """Set labels for an entity."""
+
     labels: list[str] = Field(description="Labels in prefix:name format")
 
     @field_validator("labels")
@@ -45,22 +47,26 @@ class SetLabelsRequest(BaseModel):
 
 class SetAliasesRequest(BaseModel):
     """Set aliases for an entity."""
+
     aliases: list[str] = Field(description="Alternative names for the entity")
 
 
 class SetNameRequest(BaseModel):
     """Set user-customized friendly name."""
+
     name_by_user: str = Field(min_length=1, max_length=200)
 
 
 class BulkLabelRequest(BaseModel):
     """Add or remove labels across multiple entities."""
+
     entity_ids: list[str] = Field(min_length=1)
     add_labels: list[str] = Field(default_factory=list)
     remove_labels: list[str] = Field(default_factory=list)
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
+
 
 def _validate_entity_id(entity_id: str) -> str:
     """Validate entity_id format to prevent injection."""
@@ -124,6 +130,7 @@ async def _sync_to_ha(entity_id: str, ha_patch: dict[str, Any]) -> None:
 
 # ── Endpoints ───────────────────────────────────────────────────────────────
 
+
 @router.put("/{entity_id}/labels")
 async def set_entity_labels(entity_id: str, body: SetLabelsRequest) -> dict[str, Any]:
     """Set labels for an entity — Story 62.4"""
@@ -148,7 +155,12 @@ async def set_entity_name(entity_id: str, body: SetNameRequest) -> dict[str, Any
     entity_id = _validate_entity_id(entity_id)
     result = await _patch_data_api(entity_id, {"name_by_user": body.name_by_user})
     await _sync_to_ha(entity_id, {"name": body.name_by_user})
-    return {"success": True, "entity_id": entity_id, "name_by_user": body.name_by_user, "data_api": result}
+    return {
+        "success": True,
+        "entity_id": entity_id,
+        "name_by_user": body.name_by_user,
+        "data_api": result,
+    }
 
 
 @router.post("/bulk-label")
@@ -175,9 +187,7 @@ async def bulk_label_entities(body: BulkLabelRequest) -> dict[str, Any]:
             try:
                 eid = _validate_entity_id(eid)
                 # Fetch current entity
-                resp = await client.get(
-                    f"{DATA_API_URL}/api/entities/{eid}", headers=headers
-                )
+                resp = await client.get(f"{DATA_API_URL}/api/entities/{eid}", headers=headers)
                 if resp.status_code == 404:
                     errors.append(f"{eid}: not found")
                     continue

@@ -34,11 +34,7 @@ class DataAPIClient:
         influxdb_bucket: str | None = None,
     ):
         self.base_url = base_url.rstrip("/")
-        api_key = (
-            os.getenv("DATA_API_API_KEY")
-            or os.getenv("DATA_API_KEY")
-            or os.getenv("API_KEY")
-        )
+        api_key = os.getenv("DATA_API_API_KEY") or os.getenv("DATA_API_KEY") or os.getenv("API_KEY")
         self._cross_client = CrossGroupClient(
             base_url=self.base_url,
             group_name="core-platform",
@@ -87,11 +83,15 @@ class DataAPIClient:
 
             logger.info(
                 "Fetching events from Data API: start=%s, end=%s, limit=%s",
-                start_time, end_time, limit,
+                start_time,
+                end_time,
+                limit,
             )
 
             response = await self._cross_client.call(
-                "GET", "/api/v1/events", params=params,
+                "GET",
+                "/api/v1/events",
+                params=params,
             )
             response.raise_for_status()
             events_data = response.json()
@@ -106,7 +106,8 @@ class DataAPIClient:
             if not events:
                 logger.warning(
                     "No events returned from Data API for period %s to %s",
-                    start_time, end_time,
+                    start_time,
+                    end_time,
                 )
                 return pd.DataFrame()
 
@@ -116,9 +117,7 @@ class DataAPIClient:
                 if isinstance(timestamp_str, str):
                     timestamp = pd.to_datetime(timestamp_str)
                 else:
-                    timestamp = pd.to_datetime(
-                        event.get("_time", datetime.now(UTC))
-                    )
+                    timestamp = pd.to_datetime(event.get("_time", datetime.now(UTC)))
 
                 entity_id_val = event.get("entity_id", "")
                 new_state = event.get("new_state")
@@ -127,17 +126,19 @@ class DataAPIClient:
                 else:
                     state = event.get("state", event.get("state_value", ""))
 
-                df_data.append({
-                    "timestamp": timestamp,
-                    "_time": timestamp,
-                    "last_changed": timestamp,
-                    "entity_id": entity_id_val,
-                    "device_id": event.get("device_id", entity_id_val),
-                    "state": state,
-                    "event_type": event.get("event_type", "state_changed"),
-                    "domain": entity_id_val.split(".")[0] if "." in entity_id_val else "",
-                    "friendly_name": event.get("friendly_name", entity_id_val),
-                })
+                df_data.append(
+                    {
+                        "timestamp": timestamp,
+                        "_time": timestamp,
+                        "last_changed": timestamp,
+                        "entity_id": entity_id_val,
+                        "device_id": event.get("device_id", entity_id_val),
+                        "state": state,
+                        "event_type": event.get("event_type", "state_changed"),
+                        "domain": entity_id_val.split(".")[0] if "." in entity_id_val else "",
+                        "friendly_name": event.get("friendly_name", entity_id_val),
+                    }
+                )
 
             df = pd.DataFrame(df_data)
             logger.info("Fetched %d events from Data API", len(df))
@@ -172,7 +173,9 @@ class DataAPIClient:
 
             logger.info("Fetching devices from Data API (limit=%d)", limit)
             response = await self._cross_client.call(
-                "GET", "/api/devices", params=params,
+                "GET",
+                "/api/devices",
+                params=params,
             )
             response.raise_for_status()
             data = response.json()
@@ -220,7 +223,9 @@ class DataAPIClient:
 
             logger.info("Fetching entities from Data API (limit=%d)", limit)
             response = await self._cross_client.call(
-                "GET", "/api/entities", params=params,
+                "GET",
+                "/api/entities",
+                params=params,
             )
             response.raise_for_status()
             data = response.json()
@@ -260,7 +265,9 @@ class DataAPIClient:
         try:
             params: dict[str, Any] = {"hours": hours, "limit": limit}
             response = await self._cross_client.call(
-                "GET", "/api/v1/activity/history", params=params,
+                "GET",
+                "/api/v1/activity/history",
+                params=params,
             )
             response.raise_for_status()
             data = response.json()

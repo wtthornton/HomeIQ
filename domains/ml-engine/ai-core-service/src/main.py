@@ -83,11 +83,7 @@ class RateLimiter:
 
             # Periodic cleanup: remove stale identifiers when dict grows large
             if len(self._requests) > 1000:
-                stale_keys = [
-                    k
-                    for k, v in self._requests.items()
-                    if not v or v[-1] < window_start
-                ]
+                stale_keys = [k for k, v in self._requests.items() if not v or v[-1] < window_start]
                 for k in stale_keys:
                     del self._requests[k]
 
@@ -113,9 +109,7 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.max_content_length = max_content_length
 
-    async def dispatch(
-        self, request: StarletteRequest, call_next: Any
-    ) -> StarletteResponse:
+    async def dispatch(self, request: StarletteRequest, call_next: Any) -> StarletteResponse:
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > self.max_content_length:
             return JSONResponse(

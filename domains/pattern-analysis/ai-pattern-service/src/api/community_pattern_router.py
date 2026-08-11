@@ -42,16 +42,22 @@ router = APIRouter(prefix="/api/v1/community/patterns", tags=["community-pattern
 
 class CommunityPatternSubmission(BaseModel):
     """Model for submitting a pattern to the community."""
-    pattern_type: str = Field(..., description="Type of pattern (e.g., 'time_of_day', 'co_occurrence')")
+
+    pattern_type: str = Field(
+        ..., description="Type of pattern (e.g., 'time_of_day', 'co_occurrence')"
+    )
     device_id: str | None = Field(None, description="Device ID if pattern is device-specific")
     pattern_metadata: dict[str, Any] = Field(..., description="Pattern metadata and configuration")
-    description: str = Field(..., min_length=10, max_length=500, description="Human-readable description")
+    description: str = Field(
+        ..., min_length=10, max_length=500, description="Human-readable description"
+    )
     tags: list[str] = Field(default_factory=list, description="Tags for categorization")
     author: str | None = Field(None, description="Author name (optional)")
 
 
 class CommunityPatternRating(BaseModel):
     """Model for rating a community pattern."""
+
     rating: int = Field(..., ge=1, le=5, description="Rating from 1 to 5")
     comment: str | None = Field(None, max_length=500, description="Optional comment")
     user_id: str | None = Field(None, description="Optional user identifier")

@@ -182,9 +182,7 @@ class TestAutomationAnalyticsEndpoints:
         mock_result.scalars.return_value = mock_scalars
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        result = await list_automations(
-            enabled_only=False, sort_by="alias", limit=100, db=mock_db
-        )
+        result = await list_automations(enabled_only=False, sort_by="alias", limit=100, db=mock_db)
         assert result["count"] == 1
         assert result["automations"][0]["automation_id"] == "auto-001"
 
@@ -275,13 +273,15 @@ class TestAutomationInternalEndpoints:
 
         mock_db.execute = AsyncMock(side_effect=[mock_dup_result, mock_auto_result])
 
-        data = [{
-            "run_id": "run-001",
-            "automation_id": "auto-001",
-            "started_at": "2026-03-15T10:00:00+00:00",
-            "duration_seconds": 3.0,
-            "execution_result": "success",
-        }]
+        data = [
+            {
+                "run_id": "run-001",
+                "automation_id": "auto-001",
+                "started_at": "2026-03-15T10:00:00+00:00",
+                "duration_seconds": 3.0,
+                "execution_result": "success",
+            }
+        ]
         result = await bulk_upsert_executions(executions=data, db=mock_db)
         assert result["success"] is True
         assert result["upserted"] == 1

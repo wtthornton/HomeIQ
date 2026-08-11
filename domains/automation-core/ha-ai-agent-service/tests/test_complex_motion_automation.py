@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import yaml
+
 from src.clients.data_api_client import DataAPIClient
 from src.clients.ha_client import HomeAssistantClient
 from src.clients.yaml_validation_client import YAMLValidationClient
@@ -28,26 +29,28 @@ def mock_ha_client():
 def mock_data_api_client():
     """Mock Data API client"""
     client = MagicMock(spec=DataAPIClient)
-    client.fetch_entities = AsyncMock(return_value=[
-        {
-            "entity_id": "binary_sensor.office_motion_1",
-            "friendly_name": "Office Motion Sensor 1",
-            "domain": "binary_sensor",
-            "area_id": "office"
-        },
-        {
-            "entity_id": "binary_sensor.office_motion_2",
-            "friendly_name": "Office Motion Sensor 2",
-            "domain": "binary_sensor",
-            "area_id": "office"
-        },
-        {
-            "entity_id": "light.office_desk",
-            "friendly_name": "Office Desk Light",
-            "domain": "light",
-            "area_id": "office"
-        }
-    ])
+    client.fetch_entities = AsyncMock(
+        return_value=[
+            {
+                "entity_id": "binary_sensor.office_motion_1",
+                "friendly_name": "Office Motion Sensor 1",
+                "domain": "binary_sensor",
+                "area_id": "office",
+            },
+            {
+                "entity_id": "binary_sensor.office_motion_2",
+                "friendly_name": "Office Motion Sensor 2",
+                "domain": "binary_sensor",
+                "area_id": "office",
+            },
+            {
+                "entity_id": "light.office_desk",
+                "friendly_name": "Office Desk Light",
+                "domain": "light",
+                "area_id": "office",
+            },
+        ]
+    )
     client.get_devices = AsyncMock(return_value=[])
     return client
 
@@ -56,33 +59,20 @@ def mock_data_api_client():
 def mock_yaml_validation_client():
     """Mock YAML Validation Service client"""
     client = MagicMock(spec=YAMLValidationClient)
-    client.validate_yaml = AsyncMock(return_value={
-        "valid": True,
-        "errors": [],
-        "warnings": [],
-        "score": 100.0
-    })
+    client.validate_yaml = AsyncMock(return_value={"valid": True, "errors": [], "warnings": [], "score": 100.0})
     return client
 
 
 @pytest.fixture
 def tool_handler(mock_ha_client, mock_data_api_client, mock_yaml_validation_client):
     """Create tool handler with mocked clients (with YAML validation service)"""
-    return HAToolHandler(
-        mock_ha_client,
-        mock_data_api_client,
-        yaml_validation_client=mock_yaml_validation_client
-    )
+    return HAToolHandler(mock_ha_client, mock_data_api_client, yaml_validation_client=mock_yaml_validation_client)
 
 
 @pytest.fixture
 def tool_handler_no_yaml_service(mock_ha_client, mock_data_api_client):
     """Create tool handler without YAML validation service (tests basic validation fallback)"""
-    return HAToolHandler(
-        mock_ha_client,
-        mock_data_api_client,
-        yaml_validation_client=None
-    )
+    return HAToolHandler(mock_ha_client, mock_data_api_client, yaml_validation_client=None)
 
 
 @pytest.mark.asyncio
@@ -120,7 +110,7 @@ action:
 """
     # Use validation chain directly
     result = await tool_handler.validation_chain.validate(automation_yaml)
-    
+
     assert result.valid is True
     # Should not have warnings about group entities or templates
     warnings = result.warnings or []
@@ -144,7 +134,7 @@ action:
 """
     # Use validation chain directly
     result = await tool_handler_no_yaml_service.validation_chain.validate(automation_yaml)
-    
+
     # Should have warning about group entities (from basic validation)
     warnings = result.warnings or []
     # Basic validation may or may not warn about groups, so just check validation passes
@@ -173,19 +163,21 @@ action:
       entity_id: light.office_desk
 """
     # Mock the YAML validation service to return warnings about group.last_changed
-    tool_handler.yaml_validation_client.validate_yaml = AsyncMock(return_value={
-        "valid": True,
-        "errors": [],
-        "warnings": [
-            "Template accesses group.last_changed: 'group.office_motion_sensors.last_changed'. "
-            "Groups don't have 'last_changed' attribute. Use individual entities with condition: state and for: option instead."
-        ],
-        "score": 85.0
-    })
-    
+    tool_handler.yaml_validation_client.validate_yaml = AsyncMock(
+        return_value={
+            "valid": True,
+            "errors": [],
+            "warnings": [
+                "Template accesses group.last_changed: 'group.office_motion_sensors.last_changed'. "
+                "Groups don't have 'last_changed' attribute. Use individual entities with condition: state and for: option instead."
+            ],
+            "score": 85.0,
+        }
+    )
+
     # Use validation chain directly
     result = await tool_handler.validation_chain.validate(automation_yaml)
-    
+
     # Should have warnings about group.last_changed from YAML validation service
     warnings = result.warnings or []
     assert any("group" in str(w).lower() and "last_changed" in str(w).lower() for w in warnings)
@@ -206,7 +198,7 @@ action:
 """
     # Use validation chain directly
     result = await tool_handler_no_yaml_service.validation_chain.validate(automation_yaml)
-    
+
     # Basic validation may or may not warn about initial_state, so just check validation passes
     assert result.valid is True or len(result.errors) > 0
 
@@ -253,7 +245,7 @@ action:
 """
     # Use validation chain directly
     result = await tool_handler.validation_chain.validate(automation_yaml)
-    
+
     assert result.valid is True
     # Verify entities are extracted correctly
     automation_dict = yaml.safe_load(automation_yaml)
@@ -282,7 +274,7 @@ actions:
 """
     # Use validation chain directly
     result = await tool_handler_no_yaml_service.validation_chain.validate(automation_yaml)
-    
+
     errors = result.errors or []
     # Basic validation should catch the plural keys issue
     # Should mention 2025.10+ format in error messages or have validation errors

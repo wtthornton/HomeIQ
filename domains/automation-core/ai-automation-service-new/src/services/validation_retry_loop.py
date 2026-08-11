@@ -170,7 +170,8 @@ class ValidationRetryLoop:
 
                 logger.info(
                     "Validation passed on attempt %d/%d (%.0fms)",
-                    attempt_num, self.max_retries,
+                    attempt_num,
+                    self.max_retries,
                     (time.monotonic() - start_time) * 1000,
                 )
                 return ValidationRetryResult(
@@ -191,7 +192,9 @@ class ValidationRetryLoop:
             # --- Build error feedback and retry ---
             logger.info(
                 "Validation failed on attempt %d/%d (%d errors). Retrying with error context.",
-                attempt_num, self.max_retries, len(error_findings),
+                attempt_num,
+                self.max_retries,
+                len(error_findings),
             )
             current_yaml = await self._retry_with_error_feedback(
                 original_request=original_request,
@@ -206,7 +209,9 @@ class ValidationRetryLoop:
 
         logger.warning(
             "All %d validation attempts exhausted. Returning best attempt #%d (%d errors).",
-            self.max_retries, best_attempt_idx + 1, int(best_error_count),
+            self.max_retries,
+            best_attempt_idx + 1,
+            int(best_error_count),
         )
 
         return ValidationRetryResult(
@@ -257,17 +262,21 @@ class ValidationRetryLoop:
             )
             findings = []
             for error_msg in result.get("errors", []):
-                findings.append(ValidationFinding(
-                    source="validator",
-                    severity="error",
-                    message=error_msg,
-                ))
+                findings.append(
+                    ValidationFinding(
+                        source="validator",
+                        severity="error",
+                        message=error_msg,
+                    )
+                )
             for warning_msg in result.get("warnings", []):
-                findings.append(ValidationFinding(
-                    source="validator",
-                    severity="warning",
-                    message=warning_msg,
-                ))
+                findings.append(
+                    ValidationFinding(
+                        source="validator",
+                        severity="warning",
+                        message=warning_msg,
+                    )
+                )
             return findings
         except Exception as e:
             logger.warning("AI FALLBACK: yaml-validation-service unavailable: %s", e)
@@ -332,13 +341,15 @@ class ValidationRetryLoop:
         merged: list[ValidationFinding] = []
         if lint_result:
             for f in lint_result.findings:
-                merged.append(ValidationFinding(
-                    source="linter",
-                    severity=f.severity,
-                    message=f.message,
-                    rule_id=f.rule_id,
-                    path=f.path,
-                ))
+                merged.append(
+                    ValidationFinding(
+                        source="linter",
+                        severity=f.severity,
+                        message=f.message,
+                        rule_id=f.rule_id,
+                        path=f.path,
+                    )
+                )
         merged.extend(validation_findings)
         return merged
 

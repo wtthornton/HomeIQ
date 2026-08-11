@@ -16,17 +16,14 @@ async def test_websocket():
     print("=" * 60)
     print("Testing WebSocket Area Registry API")
     print("=" * 60)
-    
+
     settings = Settings()
     print(f"HA URL: {settings.ha_url}")
     print(f"Token: {settings.ha_token[:20]}...")
     print()
-    
-    client = HomeAssistantClient(
-        ha_url=settings.ha_url,
-        access_token=settings.ha_token
-    )
-    
+
+    client = HomeAssistantClient(ha_url=settings.ha_url, access_token=settings.ha_token)
+
     try:
         print("1. Testing WebSocket API directly...")
         areas = await client._get_area_registry_websocket()
@@ -59,4 +56,3 @@ if __name__ == "__main__":
     else:
         print("❌ FAILED: No areas found")
     print("=" * 60)
-

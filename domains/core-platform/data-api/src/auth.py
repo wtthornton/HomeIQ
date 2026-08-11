@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class User(BaseModel):
     """User model"""
+
     username: str
     permissions: list[str] = []
     created_at: datetime
@@ -41,9 +42,7 @@ class AuthManager:
 
         # Default user
         self.default_user = User(
-            username="admin",
-            permissions=["read", "write", "admin"],
-            created_at=datetime.now()
+            username="admin", permissions=["read", "write", "admin"], created_at=datetime.now()
         )
 
         # Session management
@@ -52,7 +51,10 @@ class AuthManager:
 
         logger.info(f"Authentication manager initialized (enabled: {enable_auth})")
 
-    async def get_current_user(self, credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False))):
+    async def get_current_user(
+        self,
+        credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
+    ):
         """
         Get current authenticated user
 
@@ -128,7 +130,7 @@ class AuthManager:
         self.sessions[session_token] = {
             "user": user,
             "created_at": datetime.now(),
-            "expires_at": datetime.now() + timedelta(seconds=self.session_timeout)
+            "expires_at": datetime.now() + timedelta(seconds=self.session_timeout),
         }
 
         logger.debug(f"Created session for user {user.username}")
@@ -199,7 +201,7 @@ class AuthManager:
             "active_sessions": active_sessions,
             "expired_sessions": expired_sessions,
             "session_timeout": self.session_timeout,
-            "authentication_enabled": self.enable_auth
+            "authentication_enabled": self.enable_auth,
         }
 
     def configure_auth(self, api_key: str | None, enable_auth: bool):

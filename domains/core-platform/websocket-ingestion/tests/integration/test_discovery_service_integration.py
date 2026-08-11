@@ -8,12 +8,13 @@ DiscoveryService uses HA HTTP/WebSocket, not data-api, for discover_devices/enti
 
 import os
 import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, str(Path(__file__).parent / "../.."))
 
 from src.discovery_service import DiscoveryService
 
@@ -49,7 +50,10 @@ async def discovery_service():
 async def test_device_discovery(discovery_service, mock_ha_device_list):
     """discover_devices returns a list of devices from HA (HTTP/WebSocket)."""
     with patch.object(
-        DiscoveryService, "_discover_devices_websocket", new_callable=AsyncMock, return_value=mock_ha_device_list
+        DiscoveryService,
+        "_discover_devices_websocket",
+        new_callable=AsyncMock,
+        return_value=mock_ha_device_list,
     ):
         devices = await discovery_service.discover_devices(connection_manager=MagicMock())
     assert devices is not None
@@ -61,6 +65,7 @@ async def test_device_discovery(discovery_service, mock_ha_device_list):
 @pytest.mark.asyncio
 async def test_entity_discovery(discovery_service, mock_ha_states_list):
     """discover_entities returns a list of entities from HA /api/states."""
+
     # discover_entities uses aiohttp.ClientSession().get(...) to /api/states
     class FakeGetCM:
         async def __aenter__(self):
@@ -73,7 +78,7 @@ async def test_entity_discovery(discovery_service, mock_ha_states_list):
             return None
 
     mock_sess = MagicMock()
-    mock_sess.get = lambda *a, **k: FakeGetCM()
+    mock_sess.get = lambda *_a, **_k: FakeGetCM()
     mock_sess.__aenter__ = AsyncMock(return_value=mock_sess)
     mock_sess.__aexit__ = AsyncMock(return_value=None)
 
@@ -119,8 +124,11 @@ def test_get_device_metadata(discovery_service):
 
 
 @pytest.mark.asyncio
-async def test_discover_devices_and_entities_return_lists(discovery_service, mock_ha_device_list, mock_ha_states_list):
+async def test_discover_devices_and_entities_return_lists(
+    discovery_service, mock_ha_device_list, mock_ha_states_list
+):
     """discover_devices and discover_entities return lists when HA is available (mocked)."""
+
     class FakeGetCM:
         async def __aenter__(self):
             r = MagicMock()
@@ -132,13 +140,19 @@ async def test_discover_devices_and_entities_return_lists(discovery_service, moc
             return None
 
     mock_sess = MagicMock()
-    mock_sess.get = lambda *a, **k: FakeGetCM()
+    mock_sess.get = lambda *_a, **_k: FakeGetCM()
     mock_sess.__aenter__ = AsyncMock(return_value=mock_sess)
     mock_sess.__aexit__ = AsyncMock(return_value=None)
 
-    with patch.object(
-        DiscoveryService, "_discover_devices_websocket", new_callable=AsyncMock, return_value=mock_ha_device_list
-    ), patch("aiohttp.ClientSession", return_value=mock_sess):
+    with (
+        patch.object(
+            DiscoveryService,
+            "_discover_devices_websocket",
+            new_callable=AsyncMock,
+            return_value=mock_ha_device_list,
+        ),
+        patch("aiohttp.ClientSession", return_value=mock_sess),
+    ):
         devices = await discovery_service.discover_devices(connection_manager=MagicMock())
         entities = await discovery_service.discover_entities()
     assert isinstance(devices, list) and len(devices) >= 1
@@ -163,7 +177,9 @@ async def test_discovery_error_handling(discovery_service):
 
 
 @pytest.mark.asyncio
-async def test_store_discovery_results_posts_to_data_api(discovery_service, mock_ha_device_list, mock_ha_states_list):
+async def test_store_discovery_results_posts_to_data_api(
+    discovery_service, mock_ha_device_list, mock_ha_states_list
+):
     """store_discovery_results POSTs devices/entities to data-api (mocked)."""
     with patch("aiohttp.ClientSession") as MockSession:
         mock_post = AsyncMock()

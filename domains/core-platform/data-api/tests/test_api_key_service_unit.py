@@ -3,15 +3,13 @@
 Tests APIKeyService pure logic: masking, format validation, status checks.
 """
 
-import os
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
+import pytest
 from src.api_key_service import APIKeyInfo, APIKeyService, APIKeyStatus
 
 
 class TestAPIKeyStatus:
-
     def test_enum_values(self):
         assert APIKeyStatus.CONFIGURED.value == "configured"
         assert APIKeyStatus.INVALID.value == "invalid"
@@ -21,7 +19,6 @@ class TestAPIKeyStatus:
 
 
 class TestAPIKeyInfo:
-
     def test_defaults(self):
         info = APIKeyInfo(
             service="weather",
@@ -47,7 +44,6 @@ class TestAPIKeyInfo:
 
 
 class TestMaskApiKey:
-
     def setup_method(self):
         self.svc = APIKeyService()
 
@@ -71,7 +67,6 @@ class TestMaskApiKey:
 
 
 class TestValidateKeyFormat:
-
     def setup_method(self):
         self.svc = APIKeyService()
 
@@ -104,7 +99,6 @@ class TestValidateKeyFormat:
 
 
 class TestGetApiKeyStatus:
-
     def setup_method(self):
         self.svc = APIKeyService()
 
@@ -125,7 +119,6 @@ class TestGetApiKeyStatus:
 
 
 class TestAPIKeyServiceInit:
-
     def test_has_config(self):
         svc = APIKeyService()
         assert "weather" in svc.api_key_config
@@ -142,7 +135,6 @@ class TestAPIKeyServiceInit:
 
 
 class TestTestApiKey:
-
     @pytest.mark.asyncio
     async def test_unknown_service(self):
         svc = APIKeyService()
@@ -166,7 +158,6 @@ class TestTestApiKey:
 
 
 class TestUpdateApiKey:
-
     @pytest.mark.asyncio
     async def test_unknown_service(self):
         svc = APIKeyService()

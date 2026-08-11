@@ -67,10 +67,14 @@ class HATraceClient:
                 logger.error("Expected auth_required, got %s", data.get("type"))
                 return False
 
-            await self.ws.send_str(json.dumps({
-                "type": "auth",
-                "access_token": self.token,
-            }))
+            await self.ws.send_str(
+                json.dumps(
+                    {
+                        "type": "auth",
+                        "access_token": self.token,
+                    }
+                )
+            )
 
             msg = await self.ws.receive()
             if msg.type != WSMsgType.TEXT:
@@ -133,9 +137,9 @@ class HATraceClient:
 
         try:
             result = await asyncio.wait_for(fut, timeout=timeout)
-        except TimeoutError:
+        except TimeoutError as err:
             self._pending.pop(msg_id, None)
-            raise TimeoutError(f"HA command timed out after {timeout}s: {payload.get('type')}")
+            raise TimeoutError(f"HA command timed out after {timeout}s: {payload.get('type')}") from err
         finally:
             self._pending.pop(msg_id, None)
 
@@ -200,12 +204,14 @@ class HATraceClient:
 
     async def get_trace(self, automation_id: str, run_id: str) -> dict[str, Any]:
         """Get full trace detail for a specific run."""
-        result = await self._send_command({
-            "type": "trace/get",
-            "domain": "automation",
-            "item_id": automation_id,
-            "run_id": run_id,
-        })
+        result = await self._send_command(
+            {
+                "type": "trace/get",
+                "domain": "automation",
+                "item_id": automation_id,
+                "run_id": run_id,
+            }
+        )
         return result if isinstance(result, dict) else {}
 
     async def get_automation_entities(self) -> list[dict[str, Any]]:

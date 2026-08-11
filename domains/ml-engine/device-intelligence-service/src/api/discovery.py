@@ -24,6 +24,7 @@ _discovery_service: DiscoveryService | None = None
 
 class DiscoveryStatusResponse(BaseModel):
     """Discovery service status response."""
+
     service_running: bool
     ha_connected: bool
     mqtt_connected: bool
@@ -35,11 +36,13 @@ class DiscoveryStatusResponse(BaseModel):
 
 class DiscoverySourcesResponse(BaseModel):
     """Available discovery sources response."""
+
     sources: list[dict[str, Any]]
 
 
 class DeviceSummaryResponse(BaseModel):
     """Device discovery summary response."""
+
     total_devices: int
     devices_by_integration: dict[str, int]
     devices_by_area: dict[str, int]
@@ -49,6 +52,7 @@ class DeviceSummaryResponse(BaseModel):
 
 class DeviceResponse(BaseModel):
     """Individual device response."""
+
     id: str
     name: str
     manufacturer: str
@@ -92,7 +96,7 @@ async def shutdown_discovery_service():
 
 @router.get("/status", response_model=DiscoveryStatusResponse)
 async def get_discovery_status(
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> DiscoveryStatusResponse:
     """
     Get discovery service status.
@@ -110,7 +114,7 @@ async def get_discovery_status(
             last_discovery=status.last_discovery.isoformat() if status.last_discovery else None,
             devices_count=status.devices_count,
             areas_count=status.areas_count,
-            errors=status.errors
+            errors=status.errors,
         )
 
     except Exception as e:
@@ -120,7 +124,7 @@ async def get_discovery_status(
 
 @router.get("/sources", response_model=DiscoverySourcesResponse)
 async def get_discovery_sources(
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> DiscoverySourcesResponse:
     """
     Get available discovery sources and their status.
@@ -136,14 +140,14 @@ async def get_discovery_sources(
                 "name": "Home Assistant",
                 "type": "websocket",
                 "connected": status.ha_connected,
-                "description": "Device, entity, and area registry discovery via WebSocket API"
+                "description": "Device, entity, and area registry discovery via WebSocket API",
             },
             {
                 "name": "Zigbee2MQTT",
                 "type": "mqtt",
                 "connected": status.mqtt_connected,
-                "description": "Device capabilities and network topology via MQTT bridge"
-            }
+                "description": "Device capabilities and network topology via MQTT bridge",
+            },
         ]
 
         return DiscoverySourcesResponse(sources=sources)
@@ -155,7 +159,7 @@ async def get_discovery_sources(
 
 @router.post("/refresh")
 async def refresh_discovery(
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> dict[str, Any]:
     """
     Force a complete discovery refresh.
@@ -174,13 +178,13 @@ async def refresh_discovery(
                 "status": "success",
                 "message": "Discovery refresh completed",
                 "devices_discovered": status.devices_count,
-                "timestamp": datetime.now(UTC).isoformat()
+                "timestamp": datetime.now(UTC).isoformat(),
             }
         else:
             return {
                 "status": "error",
                 "message": "Discovery refresh failed",
-                "timestamp": datetime.now(UTC).isoformat()
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
     except Exception as e:
@@ -190,7 +194,7 @@ async def refresh_discovery(
 
 @router.get("/devices", response_model=DeviceSummaryResponse)
 async def get_devices_summary(
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> DeviceSummaryResponse:
     """
     Get summary of discovered devices.
@@ -204,7 +208,11 @@ async def get_devices_summary(
         # Count devices by integration
         devices_by_integration = {}
         for device in devices:
-            integration = device.integration if isinstance(device.integration, str) and device.integration.strip() else "Unknown"
+            integration = (
+                device.integration
+                if isinstance(device.integration, str) and device.integration.strip()
+                else "Unknown"
+            )
             devices_by_integration[integration] = devices_by_integration.get(integration, 0) + 1
 
         # Count devices by area
@@ -221,7 +229,7 @@ async def get_devices_summary(
             devices_by_integration=devices_by_integration,
             devices_by_area=devices_by_area,
             devices_with_capabilities=devices_with_capabilities,
-            last_updated=datetime.now(UTC).isoformat()
+            last_updated=datetime.now(UTC).isoformat(),
         )
 
     except Exception as e:
@@ -231,8 +239,7 @@ async def get_devices_summary(
 
 @router.get("/devices/{device_id}", response_model=DeviceResponse)
 async def get_device(
-    device_id: str,
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    device_id: str, discovery_service: DiscoveryService = Depends(get_discovery_service)
 ) -> DeviceResponse:
     """
     Get specific device by ID.
@@ -265,7 +272,7 @@ async def get_device(
             health_score=device.health_score,
             last_seen=device.last_seen.isoformat() if device.last_seen else None,
             created_at=device.created_at.isoformat(),
-            updated_at=device.updated_at.isoformat()
+            updated_at=device.updated_at.isoformat(),
         )
 
     except HTTPException:
@@ -280,7 +287,7 @@ async def get_all_devices(
     area_id: str | None = None,
     integration: str | None = None,
     limit: int = 100,
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> list[DeviceResponse]:
     """
     Get all discovered devices with optional filtering (MED-1: moved to /devices/list to fix duplicate route).
@@ -309,21 +316,23 @@ async def get_all_devices(
         # Convert to response format
         device_responses = []
         for device in devices:
-            device_responses.append(DeviceResponse(
-                id=device.id,
-                name=device.name,
-                manufacturer=device.manufacturer,
-                model=device.model,
-                area_id=device.area_id,
-                area_name=device.area_name,
-                integration=device.integration,
-                capabilities=device.capabilities,
-                entities=device.entities,
-                health_score=device.health_score,
-                last_seen=device.last_seen.isoformat() if device.last_seen else None,
-                created_at=device.created_at.isoformat(),
-                updated_at=device.updated_at.isoformat()
-            ))
+            device_responses.append(
+                DeviceResponse(
+                    id=device.id,
+                    name=device.name,
+                    manufacturer=device.manufacturer,
+                    model=device.model,
+                    area_id=device.area_id,
+                    area_name=device.area_name,
+                    integration=device.integration,
+                    capabilities=device.capabilities,
+                    entities=device.entities,
+                    health_score=device.health_score,
+                    last_seen=device.last_seen.isoformat() if device.last_seen else None,
+                    created_at=device.created_at.isoformat(),
+                    updated_at=device.updated_at.isoformat(),
+                )
+            )
 
         return device_responses
 
@@ -334,7 +343,7 @@ async def get_all_devices(
 
 @router.get("/areas")
 async def get_areas(
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> list[dict[str, Any]]:
     """
     Get all discovered areas.
@@ -352,7 +361,7 @@ async def get_areas(
                 "normalized_name": area.normalized_name,
                 "aliases": area.aliases,
                 "created_at": area.created_at.isoformat(),
-                "updated_at": area.updated_at.isoformat()
+                "updated_at": area.updated_at.isoformat(),
             }
             for area in areas
         ]
@@ -364,7 +373,7 @@ async def get_areas(
 
 @router.get("/groups")
 async def get_zigbee_groups(
-    discovery_service: DiscoveryService = Depends(get_discovery_service)
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
 ) -> list[dict[str, Any]]:
     """
     Get all discovered Zigbee groups.
@@ -380,7 +389,7 @@ async def get_zigbee_groups(
                 "id": group.id,
                 "friendly_name": group.friendly_name,
                 "members": group.members,
-                "scenes": group.scenes
+                "scenes": group.scenes,
             }
             for group in groups
         ]

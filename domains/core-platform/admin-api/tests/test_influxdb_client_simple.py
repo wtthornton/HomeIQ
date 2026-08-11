@@ -4,12 +4,13 @@ Simple tests for InfluxDB client
 
 import os
 import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
+sys.path.insert(0, str(Path(__file__).parent / "../src"))
 
 from src.influxdb_client import AdminAPIInfluxDBClient
 
@@ -61,10 +62,9 @@ async def test_period_to_seconds():
 @pytest.mark.asyncio
 async def test_connection_failure_handling():
     """Test that connection failures are handled gracefully"""
-    with patch.dict(os.environ, {
-        'INFLUXDB_URL': 'http://invalid-host:8086',
-        'INFLUXDB_TOKEN': 'fake-token'
-    }):
+    with patch.dict(
+        os.environ, {"INFLUXDB_URL": "http://invalid-host:8086", "INFLUXDB_TOKEN": "fake-token"}
+    ):
         client = AdminAPIInfluxDBClient()
 
         # Connection should fail but not raise exception
@@ -100,8 +100,8 @@ async def test_close_without_connection():
 
 
 @pytest.mark.asyncio
-@patch('src.influxdb_client.AdminAPIInfluxDBClient._test_connection')
-@patch('src.influxdb_client.InfluxDBClient')
+@patch("src.influxdb_client.AdminAPIInfluxDBClient._test_connection")
+@patch("src.influxdb_client.InfluxDBClient")
 async def test_successful_connection(mock_client_class, mock_test_connection):
     """Test successful connection flow"""
     # Mock the InfluxDB client
@@ -113,7 +113,7 @@ async def test_successful_connection(mock_client_class, mock_test_connection):
 
     # Mock query_api
     client.client = mock_client
-    result = await client.connect()
+    await client.connect()
 
     # Should succeed but will fail due to missing query_api in mock
     # This is a simple test, just verify it tried to connect
@@ -133,11 +133,11 @@ async def test_get_service_metrics_invalid_service_name_raises_value_error():
     invalid_names = [
         'evil" |> drop()',
         'x">',
-        'a\nb',
-        'pipe|>',
-        'semicolon;',
-        'backtick`',
-        'x' * 129,
+        "a\nb",
+        "pipe|>",
+        "semicolon;",
+        "backtick`",
+        "x" * 129,
     ]
     for name in invalid_names:
         with pytest.raises(ValueError, match=r"Invalid service_name"):
@@ -168,4 +168,3 @@ async def test_get_service_metrics_valid_service_name_passes_validation():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

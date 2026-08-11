@@ -46,7 +46,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
@@ -68,8 +68,9 @@ async def fresh_db():
 # ---------------------------------------------------------------------------
 
 
-def _make_mock_entity(entity_id="light.living_room", device_id="dev-001",
-                       domain="light", platform="hue", **kwargs):
+def _make_mock_entity(
+    entity_id="light.living_room", device_id="dev-001", domain="light", platform="hue", **kwargs
+):
     """Create a MagicMock that looks like an Entity ORM instance."""
     now = datetime.now(UTC)
     e = MagicMock()
@@ -100,44 +101,89 @@ def _make_mock_entity(entity_id="light.living_room", device_id="dev-001",
     return e
 
 
-def _make_device_row(device_id="dev-001", name="Test Light", manufacturer="TestCo",
-                     model="Bulb-v2", integration="hue", sw_version="1.0.0",
-                     area_id="living_room", config_entry_id="cfg-001", via_device=None,
-                     last_seen=None, device_type=None, device_category=None,
-                     labels=None, serial_number=None, model_id=None, entity_count=0):
+def _make_device_row(
+    device_id="dev-001",
+    name="Test Light",
+    manufacturer="TestCo",
+    model="Bulb-v2",
+    integration="hue",
+    sw_version="1.0.0",
+    area_id="living_room",
+    config_entry_id="cfg-001",
+    via_device=None,
+    last_seen=None,
+    device_type=None,
+    device_category=None,
+    labels=None,
+    serial_number=None,
+    model_id=None,
+    entity_count=0,
+):
     """Create a tuple matching the list_devices query column order."""
     if last_seen is None:
         last_seen = datetime.now(UTC)
     return (
-        device_id, name, manufacturer, model, integration, sw_version,
-        area_id, config_entry_id, via_device, last_seen,
-        device_type, device_category, labels, serial_number, model_id, entity_count,
+        device_id,
+        name,
+        manufacturer,
+        model,
+        integration,
+        sw_version,
+        area_id,
+        config_entry_id,
+        via_device,
+        last_seen,
+        device_type,
+        device_category,
+        labels,
+        serial_number,
+        model_id,
+        entity_count,
     )
 
 
-def _make_get_device_row(device_id="dev-001", name="Test Light", manufacturer="TestCo",
-                          model="Bulb-v2", entity_count=2, **kwargs):
+def _make_get_device_row(
+    device_id="dev-001",
+    name="Test Light",
+    manufacturer="TestCo",
+    model="Bulb-v2",
+    entity_count=2,
+    **kwargs,
+):
     """Create a tuple matching the get_device query column order."""
     now = kwargs.get("last_seen", datetime.now(UTC))
     return (
-        device_id, name, manufacturer, model, kwargs.get("sw_version", "1.0.0"),
+        device_id,
+        name,
+        manufacturer,
+        model,
+        kwargs.get("sw_version", "1.0.0"),
         kwargs.get("area_id", "living_room"),
-        kwargs.get("integration", "hue"), kwargs.get("config_entry_id", "cfg-001"),
-        kwargs.get("via_device"), kwargs.get("device_type"),
+        kwargs.get("integration", "hue"),
+        kwargs.get("config_entry_id", "cfg-001"),
+        kwargs.get("via_device"),
+        kwargs.get("device_type"),
         kwargs.get("device_category"),
-        kwargs.get("power_idle"), kwargs.get("power_active"), kwargs.get("power_max"),
-        kwargs.get("setup_url"), kwargs.get("troubleshoot"), kwargs.get("features_json"),
-        kwargs.get("community_rating"), kwargs.get("last_capability_sync"),
+        kwargs.get("power_idle"),
+        kwargs.get("power_active"),
+        kwargs.get("power_max"),
+        kwargs.get("setup_url"),
+        kwargs.get("troubleshoot"),
+        kwargs.get("features_json"),
+        kwargs.get("community_rating"),
+        kwargs.get("last_capability_sync"),
         now,
-        kwargs.get("labels"), kwargs.get("serial_number"), kwargs.get("model_id"),
+        kwargs.get("labels"),
+        kwargs.get("serial_number"),
+        kwargs.get("model_id"),
         entity_count,
     )
 
 
 def _build_app_with_mock_db(mock_session):
     """Build a FastAPI app that uses a mock session for get_db dependency."""
-    from src.devices_endpoints import router
     from src.database import get_db
+    from src.devices_endpoints import router
 
     @asynccontextmanager
     async def _override_get_db():
@@ -152,8 +198,10 @@ def _build_app_with_mock_db(mock_session):
 # FastAPI dependency override — must be an async generator matching get_db signature
 def _make_db_override(mock_session):
     """Return a dependency function that yields the mock session."""
+
     async def _override():
         yield mock_session
+
     return _override
 
 
@@ -167,28 +215,34 @@ class TestComputeDeviceStatus:
 
     def test_active_within_30_days(self):
         from src.devices_endpoints import compute_device_status
+
         assert compute_device_status(datetime.now(UTC) - timedelta(days=5)) == "active"
 
     def test_inactive_after_30_days(self):
         from src.devices_endpoints import compute_device_status
+
         assert compute_device_status(datetime.now(UTC) - timedelta(days=45)) == "inactive"
 
     def test_inactive_when_none(self):
         from src.devices_endpoints import compute_device_status
+
         assert compute_device_status(None) == "inactive"
 
     def test_custom_inactive_days(self):
         from src.devices_endpoints import compute_device_status
+
         ts = datetime.now(UTC) - timedelta(days=10)
         assert compute_device_status(ts, inactive_days=5) == "inactive"
         assert compute_device_status(ts, inactive_days=15) == "active"
 
     def test_naive_datetime_treated_as_utc(self):
         from src.devices_endpoints import compute_device_status
+
         assert compute_device_status(datetime.now() - timedelta(days=1)) == "active"
 
     def test_boundary_exactly_30_days(self):
         from src.devices_endpoints import compute_device_status
+
         assert compute_device_status(datetime.now(UTC) - timedelta(days=30)) == "active"
 
 
@@ -202,9 +256,14 @@ class TestResponseModels:
 
     def test_device_response(self):
         from src.devices_endpoints import DeviceResponse
+
         d = DeviceResponse(
-            device_id="dev-001", name="Test Light", manufacturer="TestCo",
-            model="Bulb-v2", entity_count=3, timestamp=datetime.now(UTC).isoformat(),
+            device_id="dev-001",
+            name="Test Light",
+            manufacturer="TestCo",
+            model="Bulb-v2",
+            entity_count=3,
+            timestamp=datetime.now(UTC).isoformat(),
         )
         assert d.device_id == "dev-001"
         assert d.status == "active"
@@ -212,10 +271,15 @@ class TestResponseModels:
 
     def test_entity_response(self):
         from src.devices_endpoints import EntityResponse
+
         e = EntityResponse(
-            entity_id="light.living_room", domain="light", platform="hue",
-            supported_features=44, capabilities=["brightness", "color"],
-            aliases=["lounge light"], labels=["ai:automatable"],
+            entity_id="light.living_room",
+            domain="light",
+            platform="hue",
+            supported_features=44,
+            capabilities=["brightness", "color"],
+            aliases=["lounge light"],
+            labels=["ai:automatable"],
             timestamp=datetime.now(UTC).isoformat(),
         )
         assert "brightness" in e.capabilities
@@ -223,25 +287,37 @@ class TestResponseModels:
 
     def test_area_response(self):
         from src.devices_endpoints import AreaResponse
-        a = AreaResponse(area_id="kitchen", display_name="Kitchen",
-                         entity_count=5, domains=["light", "sensor"])
+
+        a = AreaResponse(
+            area_id="kitchen", display_name="Kitchen", entity_count=5, domains=["light", "sensor"]
+        )
         assert a.display_name == "Kitchen"
 
     def test_label_response_prefix(self):
         from src.devices_endpoints import LabelResponse
+
         l = LabelResponse(label="ai:automatable", entity_count=10, prefix="ai")
         assert l.prefix == "ai"
 
     def test_devices_list_response(self):
         from src.devices_endpoints import DeviceResponse, DevicesListResponse
-        d = DeviceResponse(device_id="dev-001", name="T", manufacturer="X",
-                           model="Y", entity_count=0, timestamp="2026-01-01")
+
+        d = DeviceResponse(
+            device_id="dev-001",
+            name="T",
+            manufacturer="X",
+            model="Y",
+            entity_count=0,
+            timestamp="2026-01-01",
+        )
         assert DevicesListResponse(devices=[d], count=1, limit=100).count == 1
 
     def test_entities_list_response(self):
         from src.devices_endpoints import EntitiesListResponse, EntityResponse
-        e = EntityResponse(entity_id="light.t", domain="light",
-                           platform="hue", timestamp="2026-01-01")
+
+        e = EntityResponse(
+            entity_id="light.t", domain="light", platform="hue", timestamp="2026-01-01"
+        )
         assert EntitiesListResponse(entities=[e], count=1, limit=100).count == 1
 
 
@@ -255,9 +331,9 @@ class TestListDevicesEndpoint:
 
     @pytest.mark.asyncio
     async def test_empty_list(self):
+        from src.cache import cache
         from src.database import get_db
         from src.devices_endpoints import router
-        from src.cache import cache
 
         await cache.clear()
 
@@ -277,9 +353,9 @@ class TestListDevicesEndpoint:
 
     @pytest.mark.asyncio
     async def test_returns_devices_with_entity_count(self):
+        from src.cache import cache
         from src.database import get_db
         from src.devices_endpoints import router
-        from src.cache import cache
 
         await cache.clear()
 
@@ -303,9 +379,9 @@ class TestListDevicesEndpoint:
 
     @pytest.mark.asyncio
     async def test_manufacturer_filter(self):
+        from src.cache import cache
         from src.database import get_db
         from src.devices_endpoints import router
-        from src.cache import cache
 
         await cache.clear()
 
@@ -325,9 +401,9 @@ class TestListDevicesEndpoint:
 
     @pytest.mark.asyncio
     async def test_area_filter(self):
+        from src.cache import cache
         from src.database import get_db
         from src.devices_endpoints import router
-        from src.cache import cache
 
         await cache.clear()
 
@@ -346,9 +422,9 @@ class TestListDevicesEndpoint:
 
     @pytest.mark.asyncio
     async def test_limit_parameter(self):
+        from src.cache import cache
         from src.database import get_db
         from src.devices_endpoints import router
-        from src.cache import cache
 
         await cache.clear()
 
@@ -368,9 +444,9 @@ class TestListDevicesEndpoint:
 
     @pytest.mark.asyncio
     async def test_cache_works(self):
+        from src.cache import cache
         from src.database import get_db
         from src.devices_endpoints import router
-        from src.cache import cache
 
         await cache.clear()
 
@@ -562,9 +638,9 @@ class TestListAreasEndpoint:
 
     @pytest.mark.asyncio
     async def test_returns_areas(self):
+        from src.cache import cache
         from src.database import get_db
         from src.devices_endpoints import router
-        from src.cache import cache
 
         await cache.clear()
 
@@ -591,9 +667,9 @@ class TestListAreasEndpoint:
 
     @pytest.mark.asyncio
     async def test_empty_areas(self):
+        from src.cache import cache
         from src.database import get_db
         from src.devices_endpoints import router
-        from src.cache import cache
 
         await cache.clear()
 
@@ -617,9 +693,9 @@ class TestListLabelsEndpoint:
 
     @pytest.mark.asyncio
     async def test_returns_labels(self):
+        from src.cache import cache
         from src.database import get_db
         from src.devices_endpoints import router
-        from src.cache import cache
 
         await cache.clear()
 
@@ -644,9 +720,9 @@ class TestListLabelsEndpoint:
 
     @pytest.mark.asyncio
     async def test_empty_labels(self):
+        from src.cache import cache
         from src.database import get_db
         from src.devices_endpoints import router
-        from src.cache import cache
 
         await cache.clear()
 

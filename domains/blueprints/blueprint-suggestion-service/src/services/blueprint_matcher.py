@@ -45,7 +45,9 @@ class BlueprintMatcher:
         # Fetch blueprints and devices
         data_client = DataApiClient()
         async with BlueprintClient() as blueprint_client:
-            blueprints = await blueprint_client.get_all_blueprints(limit=settings.max_blueprints_fetch)
+            blueprints = await blueprint_client.get_all_blueprints(
+                limit=settings.max_blueprints_fetch
+            )
             entities = await data_client.get_all_entities(limit=settings.max_entities_fetch)
 
             logger.info(f"Processing {len(blueprints)} blueprints against {len(entities)} entities")
@@ -108,8 +110,7 @@ class BlueprintMatcher:
             if device_ids:
                 device_id_set = set(device_ids)
                 entities = [
-                    e for e in entities
-                    if (e.get("entity_id") or e.get("id")) in device_id_set
+                    e for e in entities if (e.get("entity_id") or e.get("id")) in device_id_set
                 ]
 
             # Filter entities by domain if specified
@@ -182,14 +183,14 @@ class BlueprintMatcher:
 
         # Filter entities by domain
         matching_entities = [
-            e for e in entities
-            if e.get("domain") in required_domains or not required_domains
+            e for e in entities if e.get("domain") in required_domains or not required_domains
         ]
 
         # Filter by device class if specified
         if required_classes:
             matching_entities = [
-                e for e in matching_entities
+                e
+                for e in matching_entities
                 if e.get("device_class") in required_classes or e.get("device_class") is None
             ]
 
@@ -205,7 +206,7 @@ class BlueprintMatcher:
 
         # Single device suggestions (if blueprint only needs one domain)
         if required_count == 1 and matching_entities:
-            for entity in matching_entities[:settings.max_single_device_candidates]:
+            for entity in matching_entities[: settings.max_single_device_candidates]:
                 device_combinations.append([entity])
 
         # Two device combinations
@@ -225,22 +226,26 @@ class BlueprintMatcher:
                     if domain1 == domain2:
                         # Same domain: take 2 from same domain
                         if len(by_domain[domain1]) >= 2:
-                            for combo in combinations(by_domain[domain1][:settings.max_per_domain_candidates], 2):
+                            for combo in combinations(
+                                by_domain[domain1][: settings.max_per_domain_candidates], 2
+                            ):
                                 device_combinations.append(list(combo))
                     else:
                         # Different domains: take one from each
-                        for e1 in by_domain[domain1][:settings.max_cross_domain_candidates]:
-                            for e2 in by_domain[domain2][:settings.max_cross_domain_candidates]:
+                        for e1 in by_domain[domain1][: settings.max_cross_domain_candidates]:
+                            for e2 in by_domain[domain2][: settings.max_cross_domain_candidates]:
                                 device_combinations.append([e1, e2])
 
         # Three+ device combinations (limit to avoid explosion)
         if required_count >= 3 and len(matching_entities) >= 3:
-            for combo in combinations(matching_entities[:settings.max_multi_device_entity_pool], min(required_count, 3)):
+            for combo in combinations(
+                matching_entities[: settings.max_multi_device_entity_pool], min(required_count, 3)
+            ):
                 device_combinations.append(list(combo))
 
         # Score each combination
         scored_combinations = []
-        for device_combo in device_combinations[:settings.max_combinations_to_score]:
+        for device_combo in device_combinations[: settings.max_combinations_to_score]:
             score = self.scorer.calculate_suggestion_score(
                 blueprint=blueprint,
                 devices=device_combo,
@@ -248,10 +253,12 @@ class BlueprintMatcher:
             )
 
             if score >= min_score:
-                scored_combinations.append({
-                    "devices": device_combo,
-                    "score": score,
-                })
+                scored_combinations.append(
+                    {
+                        "devices": device_combo,
+                        "score": score,
+                    }
+                )
 
         # Sort by score and take top N
         scored_combinations.sort(key=lambda x: x["score"], reverse=True)

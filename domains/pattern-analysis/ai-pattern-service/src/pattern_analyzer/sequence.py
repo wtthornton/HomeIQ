@@ -37,30 +37,49 @@ logger = logging.getLogger(__name__)
 
 # Reuse filter constants from co_occurrence
 EXCLUDED_DOMAINS = {
-    'image', 'event', 'update', 'camera', 'button',
+    "image",
+    "event",
+    "update",
+    "camera",
+    "button",
 }
 
 EXCLUDED_ENTITY_PREFIXES = [
-    'sensor.home_assistant_',
-    'sensor.slzb_',
-    'image.',
-    'event.',
-    'binary_sensor.system_',
-    'camera.',
-    'button.',
-    'update.',
+    "sensor.home_assistant_",
+    "sensor.slzb_",
+    "image.",
+    "event.",
+    "binary_sensor.system_",
+    "camera.",
+    "button.",
+    "update.",
 ]
 
 EXCLUDED_PATTERNS = [
-    '_tracker', 'team_tracker',
-    'nfl_', 'nhl_', 'mlb_', 'nba_', 'ncaa_',
-    'weather_', 'openweathermap_',
-    'carbon_intensity_', 'electricity_pricing_', 'national_grid_',
-    'calendar_',
-    '_cpu_', '_temp', '_chip_',
-    'coordinator_', '_battery', '_memory_',
-    '_signal_strength', '_linkquality',
-    '_update_', '_uptime', '_last_seen',
+    "_tracker",
+    "team_tracker",
+    "nfl_",
+    "nhl_",
+    "mlb_",
+    "nba_",
+    "ncaa_",
+    "weather_",
+    "openweathermap_",
+    "carbon_intensity_",
+    "electricity_pricing_",
+    "national_grid_",
+    "calendar_",
+    "_cpu_",
+    "_temp",
+    "_chip_",
+    "coordinator_",
+    "_battery",
+    "_memory_",
+    "_signal_strength",
+    "_linkquality",
+    "_update_",
+    "_uptime",
+    "_last_seen",
 ]
 
 
@@ -117,9 +136,7 @@ class MarkovSequencePredictor:
             }
 
         # Average delays
-        self.avg_delays = {
-            k: float(np.mean(v)) if v else 0.0 for k, v in delay_sums.items()
-        }
+        self.avg_delays = {k: float(np.mean(v)) if v else 0.0 for k, v in delay_sums.items()}
 
         self._is_trained = bool(self.transition_matrix)
         if self._is_trained:
@@ -148,11 +165,13 @@ class MarkovSequencePredictor:
         predictions = []
         for device, probability in sorted_transitions:
             delay = self.avg_delays.get((current_device, device), 0.0)
-            predictions.append({
-                'device': device,
-                'confidence': float(probability),
-                'expected_delay_seconds': float(delay),
-            })
+            predictions.append(
+                {
+                    "device": device,
+                    "confidence": float(probability),
+                    "expected_delay_seconds": float(delay),
+                }
+            )
 
         return predictions
 
@@ -164,12 +183,13 @@ class MarkovSequencePredictor:
         """
         import json
         from pathlib import Path
+
         data = {
-            'transition_matrix': self.transition_matrix,
-            'transition_counts': self.transition_counts,
-            'avg_delays': {f"{k[0]}|{k[1]}": v for k, v in self.avg_delays.items()},
+            "transition_matrix": self.transition_matrix,
+            "transition_counts": self.transition_counts,
+            "avg_delays": {f"{k[0]}|{k[1]}": v for k, v in self.avg_delays.items()},
         }
-        with Path(path).open('w') as f:
+        with Path(path).open("w") as f:
             json.dump(data, f)
 
     def load(self, path: str) -> bool:
@@ -183,14 +203,13 @@ class MarkovSequencePredictor:
         """
         import json
         from pathlib import Path
+
         try:
             with Path(path).open() as f:
                 data = json.load(f)
-            self.transition_matrix = data['transition_matrix']
-            self.transition_counts = data['transition_counts']
-            self.avg_delays = {
-                tuple(k.split('|')): v for k, v in data['avg_delays'].items()
-            }
+            self.transition_matrix = data["transition_matrix"]
+            self.transition_counts = data["transition_counts"]
+            self.avg_delays = {tuple(k.split("|")): v for k, v in data["avg_delays"].items()}
             self._is_trained = True
             return True
         except Exception as e:
@@ -275,7 +294,7 @@ class SequencePatternDetector:
             logger.warning("No events provided for sequence detection")
             return []
 
-        required_cols = ['device_id', 'timestamp']
+        required_cols = ["device_id", "timestamp"]
         missing_cols = [col for col in required_cols if col not in events.columns]
         if missing_cols:
             logger.error(f"Missing required columns: {missing_cols}")
@@ -288,16 +307,14 @@ class SequencePatternDetector:
             original_count = len(events)
             events = self._filter_system_noise(events)
             if len(events) < original_count:
-                logger.info(
-                    f"Filtered system noise: {original_count} → {len(events)} events"
-                )
+                logger.info(f"Filtered system noise: {original_count} → {len(events)} events")
 
         if events.empty or len(events) < self.min_sequence_length:
             logger.warning("Insufficient events after filtering")
             return []
 
         # Sort by timestamp
-        events = events.sort_values('timestamp').copy()
+        events = events.sort_values("timestamp").copy()
         events = events.reset_index(drop=True)
 
         # Extract sequences using sliding window
@@ -321,9 +338,7 @@ class SequencePatternDetector:
 
         return patterns
 
-    def _extract_sequences(
-        self, events: pd.DataFrame
-    ) -> list[tuple[tuple[str, ...], list[float]]]:
+    def _extract_sequences(self, events: pd.DataFrame) -> list[tuple[tuple[str, ...], list[float]]]:
         """
         Extract all potential sequences from events using sliding window.
 
@@ -347,17 +362,17 @@ class SequencePatternDetector:
 
         for start_idx in range(n_events):
             start_event = events.iloc[start_idx]
-            start_time = start_event['timestamp']
+            start_time = start_event["timestamp"]
             window_end = start_time + window_duration
 
             # Build sequence from this starting point
-            current_sequence = [start_event['device_id']]
+            current_sequence = [start_event["device_id"]]
             step_times = []
             last_time = start_time
 
             for next_idx in range(start_idx + 1, n_events):
                 next_event = events.iloc[next_idx]
-                next_time = next_event['timestamp']
+                next_time = next_event["timestamp"]
 
                 # Check if within window
                 if next_time > window_end:
@@ -373,12 +388,12 @@ class SequencePatternDetector:
                     break
 
                 # Skip if same device (no self-loops)
-                if next_event['device_id'] == current_sequence[-1]:
+                if next_event["device_id"] == current_sequence[-1]:
                     continue
 
                 # Add to sequence
                 step_times.append(time_gap.total_seconds())
-                current_sequence.append(next_event['device_id'])
+                current_sequence.append(next_event["device_id"])
                 last_time = next_time
 
                 # Check max length
@@ -412,9 +427,9 @@ class SequencePatternDetector:
         """
         sequence_data: dict[tuple[str, ...], dict] = defaultdict(
             lambda: {
-                'count': 0,
-                'step_times': [],  # List of step time lists
-                'total_durations': [],
+                "count": 0,
+                "step_times": [],  # List of step time lists
+                "total_durations": [],
             }
         )
 
@@ -422,20 +437,18 @@ class SequencePatternDetector:
             # Also count all subsequences of length >= min_sequence_length
             for length in range(self.min_sequence_length, len(seq_tuple) + 1):
                 for start in range(len(seq_tuple) - length + 1):
-                    subseq = seq_tuple[start:start + length]
-                    substep_times = step_times[start:start + length - 1] if step_times else []
+                    subseq = seq_tuple[start : start + length]
+                    substep_times = step_times[start : start + length - 1] if step_times else []
 
-                    sequence_data[subseq]['count'] += 1
+                    sequence_data[subseq]["count"] += 1
                     if substep_times:
-                        sequence_data[subseq]['step_times'].append(substep_times)
-                        sequence_data[subseq]['total_durations'].append(sum(substep_times))
+                        sequence_data[subseq]["step_times"].append(substep_times)
+                        sequence_data[subseq]["total_durations"].append(sum(substep_times))
 
         return dict(sequence_data)
 
     def _build_patterns(
-        self,
-        sequence_counts: dict[tuple[str, ...], dict],
-        events: pd.DataFrame
+        self, sequence_counts: dict[tuple[str, ...], dict], events: pd.DataFrame
     ) -> list[dict]:
         """
         Build pattern dictionaries from counted sequences.
@@ -453,7 +466,7 @@ class SequencePatternDetector:
         patterns = []
 
         for sequence, data in sequence_counts.items():
-            count = data['count']
+            count = data["count"]
 
             if count < self.min_occurrences:
                 continue
@@ -461,7 +474,7 @@ class SequencePatternDetector:
             # Calculate confidence based on occurrence consistency
             # Higher counts relative to opportunities = higher confidence
             first_device = sequence[0]
-            first_device_count = len(events[events['device_id'] == first_device])
+            first_device_count = len(events[events["device_id"] == first_device])
 
             if first_device_count == 0:
                 continue
@@ -473,8 +486,8 @@ class SequencePatternDetector:
                 continue
 
             # Calculate timing statistics
-            step_times_list = data['step_times']
-            total_durations = data['total_durations']
+            step_times_list = data["step_times"]
+            total_durations = data["total_durations"]
 
             avg_step_times = []
             step_time_stds = []
@@ -483,11 +496,7 @@ class SequencePatternDetector:
                 # Transpose to get times per step
                 n_steps = len(sequence) - 1
                 for step_idx in range(n_steps):
-                    step_values = [
-                        st[step_idx]
-                        for st in step_times_list
-                        if len(st) > step_idx
-                    ]
+                    step_values = [st[step_idx] for st in step_times_list if len(st) > step_idx]
                     if step_values:
                         avg_step_times.append(float(np.mean(step_values)))
                         step_time_stds.append(float(np.std(step_values)))
@@ -506,28 +515,28 @@ class SequencePatternDetector:
             adjusted_confidence = min(adjusted_confidence, 1.0)
 
             pattern = {
-                'pattern_type': 'sequence',
-                'device_id': sequence[0],  # First device for compatibility
-                'sequence': list(sequence),
-                'occurrences': count,
-                'confidence': float(adjusted_confidence),
-                'avg_step_times': avg_step_times,
-                'total_duration': avg_total_duration,
-                'metadata': {
-                    'sequence_length': len(sequence),
-                    'first_device_count': first_device_count,
-                    'raw_confidence': float(confidence),
-                    'timing_consistency': float(timing_consistency),
-                    'step_time_stds': step_time_stds,
-                    'std_total_duration': std_total_duration,
-                    'sequence_str': ' → '.join(sequence),
-                    'thresholds': {
-                        'min_occurrences': self.min_occurrences,
-                        'min_confidence': self.min_confidence,
-                        'window_minutes': self.window_minutes,
-                        'gap_tolerance_minutes': self.gap_tolerance_minutes,
-                    }
-                }
+                "pattern_type": "sequence",
+                "device_id": sequence[0],  # First device for compatibility
+                "sequence": list(sequence),
+                "occurrences": count,
+                "confidence": float(adjusted_confidence),
+                "avg_step_times": avg_step_times,
+                "total_duration": avg_total_duration,
+                "metadata": {
+                    "sequence_length": len(sequence),
+                    "first_device_count": first_device_count,
+                    "raw_confidence": float(confidence),
+                    "timing_consistency": float(timing_consistency),
+                    "step_time_stds": step_time_stds,
+                    "std_total_duration": std_total_duration,
+                    "sequence_str": " → ".join(sequence),
+                    "thresholds": {
+                        "min_occurrences": self.min_occurrences,
+                        "min_confidence": self.min_confidence,
+                        "window_minutes": self.window_minutes,
+                        "gap_tolerance_minutes": self.gap_tolerance_minutes,
+                    },
+                },
             }
 
             # Story 40.2: Add Markov predictions
@@ -535,7 +544,7 @@ class SequencePatternDetector:
                 last_device = sequence[-1]
                 predictions = self.predictor.predict_next(last_device)
                 if predictions:
-                    pattern['metadata']['next_predictions'] = predictions
+                    pattern["metadata"]["next_predictions"] = predictions
 
             patterns.append(pattern)
 
@@ -546,14 +555,12 @@ class SequencePatternDetector:
             )
 
         # Sort by confidence descending
-        patterns.sort(key=lambda p: p['confidence'], reverse=True)
+        patterns.sort(key=lambda p: p["confidence"], reverse=True)
 
         return patterns
 
     def _calculate_timing_consistency(
-        self,
-        step_stds: list[float],
-        step_avgs: list[float]
+        self, step_stds: list[float], step_avgs: list[float]
     ) -> float:
         """
         Calculate timing consistency score (0-1).
@@ -577,10 +584,10 @@ class SequencePatternDetector:
 
     def _filter_system_noise(self, events: pd.DataFrame) -> pd.DataFrame:
         """Filter out system sensors, trackers, and non-actionable entities."""
-        if 'device_id' not in events.columns:
+        if "device_id" not in events.columns:
             return events
 
-        mask = events['device_id'].apply(self._is_actionable_entity)
+        mask = events["device_id"].apply(self._is_actionable_entity)
         return events[mask].copy()
 
     def _is_actionable_entity(self, device_id: str) -> bool:
@@ -602,38 +609,33 @@ class SequencePatternDetector:
     @staticmethod
     def _get_domain(device_id: str) -> str:
         """Extract entity domain from device ID."""
-        if not device_id or '.' not in str(device_id):
-            return 'default'
-        return str(device_id).split('.', 1)[0]
+        if not device_id or "." not in str(device_id):
+            return "default"
+        return str(device_id).split(".", 1)[0]
 
-    def _store_daily_aggregates(
-        self, patterns: list[dict], events: pd.DataFrame
-    ) -> None:
+    def _store_daily_aggregates(self, patterns: list[dict], events: pd.DataFrame) -> None:
         """Store daily aggregates to InfluxDB."""
         try:
-            if events.empty or 'timestamp' not in events.columns:
+            if events.empty or "timestamp" not in events.columns:
                 return
 
-            date = events['timestamp'].min().date()
+            date = events["timestamp"].min().date()
             date_str = date.strftime("%Y-%m-%d")
 
             logger.info(f"Storing {len(patterns)} sequence aggregates for {date_str}")
 
             for pattern in patterns:
                 try:
-                    sequence = pattern.get('sequence', [])
+                    sequence = pattern.get("sequence", [])
                     self.aggregate_client.write_sequence_daily(
                         date=date_str,
                         sequence=sequence,
-                        occurrences=pattern.get('occurrences', 0),
-                        confidence=pattern.get('confidence', 0.0),
-                        avg_duration=pattern.get('total_duration', 0.0),
+                        occurrences=pattern.get("occurrences", 0),
+                        confidence=pattern.get("confidence", 0.0),
+                        avg_duration=pattern.get("total_duration", 0.0),
                     )
                 except Exception as e:
-                    logger.error(
-                        f"Failed to store aggregate for sequence: {e}",
-                        exc_info=True
-                    )
+                    logger.error(f"Failed to store aggregate for sequence: {e}", exc_info=True)
 
         except Exception as e:
             logger.error(f"Error storing daily aggregates: {e}", exc_info=True)
@@ -642,32 +644,32 @@ class SequencePatternDetector:
         """Get summary statistics for detected patterns."""
         if not patterns:
             return {
-                'total_patterns': 0,
-                'unique_sequences': 0,
-                'avg_confidence': 0.0,
-                'avg_sequence_length': 0.0,
-                'avg_duration': 0.0,
+                "total_patterns": 0,
+                "unique_sequences": 0,
+                "avg_confidence": 0.0,
+                "avg_sequence_length": 0.0,
+                "avg_duration": 0.0,
             }
 
         return {
-            'total_patterns': len(patterns),
-            'unique_sequences': len(patterns),
-            'avg_confidence': float(np.mean([p['confidence'] for p in patterns])),
-            'avg_sequence_length': float(np.mean([len(p['sequence']) for p in patterns])),
-            'avg_duration': float(np.mean([p['total_duration'] for p in patterns])),
-            'min_confidence': float(np.min([p['confidence'] for p in patterns])),
-            'max_confidence': float(np.max([p['confidence'] for p in patterns])),
-            'sequence_lengths': {
-                '2-step': sum(1 for p in patterns if len(p['sequence']) == 2),
-                '3-step': sum(1 for p in patterns if len(p['sequence']) == 3),
-                '4-step': sum(1 for p in patterns if len(p['sequence']) == 4),
-                '5-step': sum(1 for p in patterns if len(p['sequence']) >= 5),
+            "total_patterns": len(patterns),
+            "unique_sequences": len(patterns),
+            "avg_confidence": float(np.mean([p["confidence"] for p in patterns])),
+            "avg_sequence_length": float(np.mean([len(p["sequence"]) for p in patterns])),
+            "avg_duration": float(np.mean([p["total_duration"] for p in patterns])),
+            "min_confidence": float(np.min([p["confidence"] for p in patterns])),
+            "max_confidence": float(np.max([p["confidence"] for p in patterns])),
+            "sequence_lengths": {
+                "2-step": sum(1 for p in patterns if len(p["sequence"]) == 2),
+                "3-step": sum(1 for p in patterns if len(p["sequence"]) == 3),
+                "4-step": sum(1 for p in patterns if len(p["sequence"]) == 4),
+                "5-step": sum(1 for p in patterns if len(p["sequence"]) >= 5),
             },
-            'confidence_distribution': {
-                '70-80%': sum(1 for p in patterns if 0.7 <= p['confidence'] < 0.8),
-                '80-90%': sum(1 for p in patterns if 0.8 <= p['confidence'] < 0.9),
-                '90-100%': sum(1 for p in patterns if 0.9 <= p['confidence'] <= 1.0),
-            }
+            "confidence_distribution": {
+                "70-80%": sum(1 for p in patterns if 0.7 <= p["confidence"] < 0.8),
+                "80-90%": sum(1 for p in patterns if 0.8 <= p["confidence"] < 0.9),
+                "90-100%": sum(1 for p in patterns if 0.9 <= p["confidence"] <= 1.0),
+            },
         }
 
     def suggest_automation(self, pattern: dict) -> dict[str, Any]:
@@ -683,18 +685,18 @@ class SequencePatternDetector:
         Returns:
             Automation suggestion dictionary
         """
-        if pattern.get('pattern_type') != 'sequence':
+        if pattern.get("pattern_type") != "sequence":
             logger.warning(f"Pattern type {pattern.get('pattern_type')} is not sequence")
             return {}
 
-        sequence = pattern.get('sequence', [])
+        sequence = pattern.get("sequence", [])
         if len(sequence) < 2:
             return {}
 
         trigger_device = sequence[0]
         action_devices = sequence[1:]
-        avg_step_times = pattern.get('avg_step_times', [])
-        confidence = pattern.get('confidence', 0.0)
+        avg_step_times = pattern.get("avg_step_times", [])
+        confidence = pattern.get("confidence", 0.0)
 
         # Extract domains
         trigger_domain = self._get_domain(trigger_device)
@@ -708,87 +710,86 @@ class SequencePatternDetector:
             service = self._get_default_service(domain)
 
             action: dict[str, Any] = {
-                'service': f"{domain}.{service}",
-                'entity_id': device,
-                'target': {'entity_id': device},
+                "service": f"{domain}.{service}",
+                "entity_id": device,
+                "target": {"entity_id": device},
             }
 
             # Add delay if we have timing data
             if i < len(avg_step_times):
                 cumulative_delay += avg_step_times[i]
                 if cumulative_delay > 0:
-                    action['delay'] = {'seconds': int(cumulative_delay)}
+                    action["delay"] = {"seconds": int(cumulative_delay)}
 
             actions.append(action)
 
         # Build description
-        sequence_str = pattern.get('metadata', {}).get('sequence_str', ' → '.join(sequence))
+        sequence_str = pattern.get("metadata", {}).get("sequence_str", " → ".join(sequence))
         description = f"Sequence automation: {sequence_str}"
 
         # Determine trigger type based on domain
         trigger = self._build_trigger(trigger_device, trigger_domain)
 
         suggestion = {
-            'automation_type': 'sequence',
-            'trigger': trigger,
-            'action': actions if len(actions) > 1 else actions[0],
-            'confidence': float(confidence),
-            'description': description,
-            'device_id': trigger_device,
-            'requires_confirmation': False,
-            'safety_level': 'normal',
-            'safety_warnings': [],
-            'metadata': {
-                'source': 'sequence_pattern',
-                'sequence': sequence,
-                'occurrences': pattern.get('occurrences', 0),
-                'avg_duration': pattern.get('total_duration', 0.0),
-            }
+            "automation_type": "sequence",
+            "trigger": trigger,
+            "action": actions if len(actions) > 1 else actions[0],
+            "confidence": float(confidence),
+            "description": description,
+            "device_id": trigger_device,
+            "requires_confirmation": False,
+            "safety_level": "normal",
+            "safety_warnings": [],
+            "metadata": {
+                "source": "sequence_pattern",
+                "sequence": sequence,
+                "occurrences": pattern.get("occurrences", 0),
+                "avg_duration": pattern.get("total_duration", 0.0),
+            },
         }
 
         logger.info(
-            f"✅ Suggested sequence automation: {description} "
-            f"(confidence={confidence:.0%})"
+            f"✅ Suggested sequence automation: {description} (confidence={confidence:.0%})"
         )
 
         return suggestion
 
     def _build_trigger(self, device_id: str, domain: str) -> dict:
         """Build appropriate trigger based on device domain."""
-        if domain == 'binary_sensor':
+        if domain == "binary_sensor":
             return {
-                'platform': 'state',
-                'entity_id': device_id,
-                'to': 'on',
+                "platform": "state",
+                "entity_id": device_id,
+                "to": "on",
             }
-        elif domain in ('sensor', 'input_number'):
+        elif domain in ("sensor", "input_number"):
             return {
-                'platform': 'state',
-                'entity_id': device_id,
+                "platform": "state",
+                "entity_id": device_id,
             }
-        elif domain in ('light', 'switch', 'fan'):
+        elif domain in ("light", "switch", "fan"):
             return {
-                'platform': 'state',
-                'entity_id': device_id,
-                'to': 'on',
+                "platform": "state",
+                "entity_id": device_id,
+                "to": "on",
             }
         else:
             return {
-                'platform': 'state',
-                'entity_id': device_id,
+                "platform": "state",
+                "entity_id": device_id,
             }
 
     def _get_default_service(self, domain: str) -> str:
         """Get default service for domain."""
         service_map = {
-            'light': 'turn_on',
-            'switch': 'turn_on',
-            'fan': 'turn_on',
-            'cover': 'open_cover',
-            'lock': 'lock',
-            'climate': 'set_temperature',
-            'media_player': 'turn_on',
-            'vacuum': 'start',
-            'scene': 'turn_on',
+            "light": "turn_on",
+            "switch": "turn_on",
+            "fan": "turn_on",
+            "cover": "open_cover",
+            "lock": "lock",
+            "climate": "set_temperature",
+            "media_player": "turn_on",
+            "vacuum": "start",
+            "scene": "turn_on",
         }
-        return service_map.get(domain, 'turn_on')
+        return service_map.get(domain, "turn_on")

@@ -106,9 +106,13 @@ class FeedbackRecorder:
                     history.rejection_count += 1
 
                 # Recalculate acceptance rate
-                total = history.acceptance_count + history.rejection_count + history.auto_execute_count
+                total = (
+                    history.acceptance_count + history.rejection_count + history.auto_execute_count
+                )
                 if total > 0:
-                    positive = history.acceptance_count + history.auto_execute_count - history.undo_count
+                    positive = (
+                        history.acceptance_count + history.auto_execute_count - history.undo_count
+                    )
                     history.acceptance_rate = max(0.0, min(1.0, positive / total))
 
                 await session.commit()

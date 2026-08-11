@@ -2,8 +2,8 @@
 Tests for validation_chain.py
 """
 
-
 import pytest
+
 from src.models.automation_models import ValidationResult
 from src.services.validation.validation_chain import ValidationChain
 from src.services.validation.validation_strategy import ValidationStrategy
@@ -25,18 +25,8 @@ class MockValidationStrategy(ValidationStrategy):
         if self._should_raise:
             raise Exception(f"Strategy {self._name} failed")
         if self._should_succeed:
-            return ValidationResult(
-                valid=True,
-                errors=[],
-                warnings=[],
-                score=100.0
-            )
-        return ValidationResult(
-            valid=False,
-            errors=[f"Error from {self._name}"],
-            warnings=[],
-            score=50.0
-        )
+            return ValidationResult(valid=True, errors=[], warnings=[], score=100.0)
+        return ValidationResult(valid=False, errors=[f"Error from {self._name}"], warnings=[], score=50.0)
 
 
 class TestValidationChain:
@@ -44,10 +34,7 @@ class TestValidationChain:
 
     def test___init__(self):
         """Test __init__ method."""
-        strategies = [
-            MockValidationStrategy("strategy1"),
-            MockValidationStrategy("strategy2")
-        ]
+        strategies = [MockValidationStrategy("strategy1"), MockValidationStrategy("strategy2")]
         chain = ValidationChain(strategies)
         assert len(chain.strategies) == 2
         assert chain.strategies[0].name == "strategy1"
@@ -58,7 +45,7 @@ class TestValidationChain:
         """Test validation when first strategy succeeds."""
         strategies = [
             MockValidationStrategy("strategy1", should_succeed=True),
-            MockValidationStrategy("strategy2", should_succeed=False)
+            MockValidationStrategy("strategy2", should_succeed=False),
         ]
         chain = ValidationChain(strategies)
 
@@ -72,7 +59,7 @@ class TestValidationChain:
         """Test validation when first fails but second succeeds."""
         strategies = [
             MockValidationStrategy("strategy1", should_succeed=False),
-            MockValidationStrategy("strategy2", should_succeed=True)
+            MockValidationStrategy("strategy2", should_succeed=True),
         ]
         chain = ValidationChain(strategies)
 
@@ -86,7 +73,7 @@ class TestValidationChain:
         """Test validation when all strategies fail."""
         strategies = [
             MockValidationStrategy("strategy1", should_succeed=False),
-            MockValidationStrategy("strategy2", should_succeed=False)
+            MockValidationStrategy("strategy2", should_succeed=False),
         ]
         chain = ValidationChain(strategies)
 
@@ -101,7 +88,7 @@ class TestValidationChain:
         """Test validation when strategy raises exception."""
         strategies = [
             MockValidationStrategy("strategy1", should_raise=True),
-            MockValidationStrategy("strategy2", should_succeed=True)
+            MockValidationStrategy("strategy2", should_succeed=True),
         ]
         chain = ValidationChain(strategies)
 

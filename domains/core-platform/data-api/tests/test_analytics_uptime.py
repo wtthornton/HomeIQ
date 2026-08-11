@@ -3,15 +3,15 @@ Unit tests for analytics endpoint uptime calculation
 Story 24.1: Fix Hardcoded Monitoring Metrics
 """
 
-import os
 import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 # Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, str(Path(__file__).parent / ".."))
 
 from src.analytics_endpoints import calculate_service_uptime
 
@@ -21,7 +21,7 @@ def test_calculate_service_uptime_returns_100():
     # Mock SERVICE_START_TIME to be 1 hour ago
     start_time = datetime.now(UTC) - timedelta(hours=1)
 
-    with patch('src.main.SERVICE_START_TIME', start_time):
+    with patch("src.main.SERVICE_START_TIME", start_time):
         uptime = calculate_service_uptime()
 
         # Service has been running, should return 100%
@@ -31,7 +31,7 @@ def test_calculate_service_uptime_returns_100():
 def test_calculate_service_uptime_handles_errors():
     """Test that uptime calculation handles errors gracefully"""
     # SERVICE_START_TIME=None raises TypeError on (datetime.now(UTC) - None)
-    with patch('src.main.SERVICE_START_TIME', None):
+    with patch("src.main.SERVICE_START_TIME", None):
         uptime = calculate_service_uptime()
 
         # A failed calculation must not report perfect availability
@@ -43,7 +43,7 @@ def test_calculate_service_uptime_recent_start():
     # Mock SERVICE_START_TIME to be 30 seconds ago
     start_time = datetime.now(UTC) - timedelta(seconds=30)
 
-    with patch('src.main.SERVICE_START_TIME', start_time):
+    with patch("src.main.SERVICE_START_TIME", start_time):
         uptime = calculate_service_uptime()
 
         # Service just started, should still return 100%
@@ -54,7 +54,7 @@ def test_calculate_service_uptime_not_hardcoded():
     """Regression test: Ensure uptime is NOT hardcoded to 99.9"""
     start_time = datetime.now(UTC) - timedelta(hours=1)
 
-    with patch('src.main.SERVICE_START_TIME', start_time):
+    with patch("src.main.SERVICE_START_TIME", start_time):
         uptime = calculate_service_uptime()
 
         # Should NOT be the old hardcoded value
@@ -65,4 +65,3 @@ def test_calculate_service_uptime_not_hardcoded():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

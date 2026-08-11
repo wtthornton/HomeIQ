@@ -20,7 +20,7 @@ class TestLogEntry:
             level="INFO",
             service="test-service",
             component="test-component",
-            message="Test message"
+            message="Test message",
         )
 
         assert entry.timestamp == "2024-01-01T00:00:00Z"
@@ -38,7 +38,7 @@ class TestLogEntry:
             component="test-component",
             message="Test message",
             event_id="test-event-123",
-            metadata={"key": "value"}
+            metadata={"key": "value"},
         )
 
         data = entry.to_dict()
@@ -58,7 +58,7 @@ class TestLogEntry:
             level="INFO",
             service="test-service",
             component="test-component",
-            message="Test message"
+            message="Test message",
         )
 
         json_str = entry.to_json()
@@ -88,17 +88,13 @@ class TestStructuredLogger:
         """Test setting logging context."""
         logger = StructuredLogger("test-service", "test-component")
 
-        logger.set_context(
-            correlation_id="corr-123",
-            session_id="session-456",
-            user_id="user-789"
-        )
+        logger.set_context(correlation_id="corr-123", session_id="session-456", user_id="user-789")
 
         assert logger.correlation_id == "corr-123"
         assert logger.session_id == "session-456"
         assert logger.user_id == "user-789"
 
-    @patch('src.logging_service.logging.getLogger')
+    @patch("src.logging_service.logging.getLogger")
     def test_log_methods(self, mock_get_logger):
         """Test logging methods."""
         mock_logger = Mock()
@@ -155,7 +151,7 @@ class TestLogAggregator:
             level="INFO",
             service="test-service",
             component="test-component",
-            message="Test message"
+            message="Test message",
         )
 
         aggregator.add_log_entry(entry)
@@ -174,7 +170,7 @@ class TestLogAggregator:
                 level="INFO",
                 service="test-service",
                 component="test-component",
-                message=f"Test message {i}"
+                message=f"Test message {i}",
             )
             aggregator.add_log_entry(entry)
 
@@ -299,7 +295,7 @@ class TestLoggingService:
             level="INFO",
             service="test-service",
             component="test-component",
-            message="Test message"
+            message="Test message",
         )
         service.aggregator.add_log_entry(entry)
 

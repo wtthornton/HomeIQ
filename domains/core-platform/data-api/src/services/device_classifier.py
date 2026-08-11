@@ -15,13 +15,16 @@ logger = logging.getLogger(__name__)
 # Import patterns from device-context-classifier
 try:
     import sys
-    sys.path.append(str(Path(__file__).resolve().parent / '../../../device-context-classifier/src'))
+
+    sys.path.append(str(Path(__file__).resolve().parent / "../../../device-context-classifier/src"))
     from patterns import get_device_category, match_device_pattern
 except ImportError:
     # Fallback if classifier service not available
     logger.warning("Device context classifier patterns not available, using fallback")
+
     def match_device_pattern(_entity_domains, _entity_attributes):
         return None
+
     def get_device_category(_device_type):
         return None
 
@@ -40,21 +43,15 @@ class DeviceClassifierService:
         if self._session is None or self._session.closed:
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             timeout = aiohttp.ClientTimeout(total=10)
             self._session = aiohttp.ClientSession(
-                headers=headers,
-                timeout=timeout,
-                raise_for_status=False
+                headers=headers, timeout=timeout, raise_for_status=False
             )
         return self._session
 
-    async def classify_device(
-        self,
-        device_id: str,
-        entity_ids: list[str]
-    ) -> dict[str, Any]:
+    async def classify_device(self, device_id: str, entity_ids: list[str]) -> dict[str, Any]:
         """
         Classify a device based on its entities (legacy method - extracts domains from entity_ids).
 
@@ -78,7 +75,7 @@ class DeviceClassifierService:
         self,
         device_id: str,
         entity_domains: list[str],
-        entity_ids: list[str] | None = None  # noqa: ARG002
+        entity_ids: list[str] | None = None,  # noqa: ARG002
     ) -> dict[str, Any]:
         """
         Classify a device based on entity domains.
@@ -96,11 +93,7 @@ class DeviceClassifierService:
         """
         try:
             if not entity_domains:
-                return {
-                    "device_id": device_id,
-                    "device_type": None,
-                    "device_category": None
-                }
+                return {"device_id": device_id, "device_type": None, "device_category": None}
 
             # PRIMARY: Domain-based classification (no HA API needed)
             # Use improved match_device_pattern which uses domain mapping first
@@ -110,23 +103,15 @@ class DeviceClassifierService:
             return {
                 "device_id": device_id,
                 "device_type": device_type,
-                "device_category": device_category
+                "device_category": device_category,
             }
 
         except Exception as e:
             logger.error(f"Error classifying device {device_id}: {e}")
-            return {
-                "device_id": device_id,
-                "device_type": None,
-                "device_category": None
-            }
+            return {"device_id": device_id, "device_type": None, "device_category": None}
 
     def classify_device_by_metadata(
-        self,
-        device_id: str,
-        name: str,
-        manufacturer: str | None = None,
-        model: str | None = None
+        self, device_id: str, name: str, manufacturer: str | None = None, model: str | None = None
     ) -> dict[str, Any]:
         """
         Classify device by name/manufacturer/model patterns (fallback when entities unavailable).
@@ -152,21 +137,37 @@ class DeviceClassifierService:
             # Check patterns in priority order (most specific first)
 
             # Lights (check first - many devices have "light" in name)
-            if any(keyword in combined for keyword in ["hue", "downlight", "lightstrip", "light strip", "lightstrip", "bulb", "lamp", "led", "signify"]):
+            if (
+                any(
+                    keyword in combined
+                    for keyword in [
+                        "hue",
+                        "downlight",
+                        "lightstrip",
+                        "light strip",
+                        "lightstrip",
+                        "bulb",
+                        "lamp",
+                        "led",
+                        "signify",
+                    ]
+                )
+                or "light" in combined
+                and not any(
+                    skip in combined for skip in ["lightweight", "flight", "highlight", "lightning"]
+                )
+            ):
                 return {
                     "device_id": device_id,
                     "device_type": "light",
-                    "device_category": "lighting"
-                }
-            elif "light" in combined and not any(skip in combined for skip in ["lightweight", "flight", "highlight", "lightning"]):
-                return {
-                    "device_id": device_id,
-                    "device_type": "light",
-                    "device_category": "lighting"
+                    "device_category": "lighting",
                 }
 
             # Media players (check before "tv" to avoid false matches like "ATV")
-            if any(keyword in combined for keyword in ["television", "frame tv", "samsung tv", "sony tv", "lg tv"]):
+            if any(
+                keyword in combined
+                for keyword in ["television", "frame tv", "samsung tv", "sony tv", "lg tv"]
+            ):
                 # Avoid matching "ATV" (all-terrain vehicle) - check it's not standalone "atv"
                 if " atv " in combined or combined.endswith(" atv") or combined.startswith("atv "):
                     pass  # Skip - might be all-terrain vehicle
@@ -174,37 +175,51 @@ class DeviceClassifierService:
                     return {
                         "device_id": device_id,
                         "device_type": "media_player",
-                        "device_category": "entertainment"
+                        "device_category": "entertainment",
                     }
             elif "tv" in combined and "atv" not in combined.lower():  # Avoid "ATV"
                 return {
                     "device_id": device_id,
                     "device_type": "media_player",
-                    "device_category": "entertainment"
+                    "device_category": "entertainment",
                 }
 
             # Switches and outlets
-            elif any(keyword in combined for keyword in ["switch", "outlet", "smart plug", "smartplug"]) or ("plug" in combined and "smart" in combined):
+            elif any(
+                keyword in combined for keyword in ["switch", "outlet", "smart plug", "smartplug"]
+            ) or ("plug" in combined and "smart" in combined):
                 return {
                     "device_id": device_id,
                     "device_type": "switch",
-                    "device_category": "control"
+                    "device_category": "control",
                 }
 
             # Sensors
-            elif any(keyword in combined for keyword in ["sensor", "motion", "presence", "temperature", "humidity", "binary_sensor"]):
+            elif any(
+                keyword in combined
+                for keyword in [
+                    "sensor",
+                    "motion",
+                    "presence",
+                    "temperature",
+                    "humidity",
+                    "binary_sensor",
+                ]
+            ):
                 return {
                     "device_id": device_id,
                     "device_type": "sensor",
-                    "device_category": "sensor"
+                    "device_category": "sensor",
                 }
 
             # Vacuum
-            elif any(keyword in combined for keyword in ["vacuum", "roborock", "robotic vacuum", "dock"]):
+            elif any(
+                keyword in combined for keyword in ["vacuum", "roborock", "robotic vacuum", "dock"]
+            ):
                 return {
                     "device_id": device_id,
                     "device_type": "vacuum",
-                    "device_category": "appliance"
+                    "device_category": "appliance",
                 }
 
             # Thermostat
@@ -212,7 +227,7 @@ class DeviceClassifierService:
                 return {
                     "device_id": device_id,
                     "device_type": "thermostat",
-                    "device_category": "climate"
+                    "device_category": "climate",
                 }
 
             # Lock
@@ -220,31 +235,30 @@ class DeviceClassifierService:
                 return {
                     "device_id": device_id,
                     "device_type": "lock",
-                    "device_category": "security"
+                    "device_category": "security",
                 }
 
             # Camera
-            elif any(keyword in combined for keyword in ["camera", "cam", "security camera", "stick up cam"]):
+            elif any(
+                keyword in combined
+                for keyword in ["camera", "cam", "security camera", "stick up cam"]
+            ):
                 return {
                     "device_id": device_id,
                     "device_type": "camera",
-                    "device_category": "security"
+                    "device_category": "security",
                 }
 
             # Fan
             elif any(keyword in combined for keyword in ["fan", "ceiling fan"]):
-                return {
-                    "device_id": device_id,
-                    "device_type": "fan",
-                    "device_category": "climate"
-                }
+                return {"device_id": device_id, "device_type": "fan", "device_category": "climate"}
 
             # Button/Remote
             elif any(keyword in combined for keyword in ["button", "smart button", "remote"]):
                 return {
                     "device_id": device_id,
                     "device_type": "button",
-                    "device_category": "control"
+                    "device_category": "control",
                 }
 
             # TV/Media Player (fallback - check after other patterns)
@@ -252,22 +266,14 @@ class DeviceClassifierService:
                 return {
                     "device_id": device_id,
                     "device_type": "media_player",
-                    "device_category": "entertainment"
+                    "device_category": "entertainment",
                 }
 
-            return {
-                "device_id": device_id,
-                "device_type": None,
-                "device_category": None
-            }
+            return {"device_id": device_id, "device_type": None, "device_category": None}
 
         except Exception as e:
             logger.error(f"Error classifying device {device_id} by metadata: {e}")
-            return {
-                "device_id": device_id,
-                "device_type": None,
-                "device_category": None
-            }
+            return {"device_id": device_id, "device_type": None, "device_category": None}
 
 
 # Singleton instance
@@ -280,4 +286,3 @@ def get_classifier_service() -> DeviceClassifierService:
     if _classifier_service is None:
         _classifier_service = DeviceClassifierService()
     return _classifier_service
-

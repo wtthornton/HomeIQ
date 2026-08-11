@@ -37,7 +37,7 @@ def validate_bucket_name(bucket: str) -> str:
         )
 
     # InfluxDB bucket names: alphanumeric, hyphens, underscores only
-    if not re.match(r'^[a-zA-Z0-9_-]+$', bucket):
+    if not re.match(r"^[a-zA-Z0-9_-]+$", bucket):
         raise ValueError(
             f"Invalid bucket name format: '{bucket}'. "
             "Bucket names must contain only alphanumeric characters, hyphens, and underscores."
@@ -61,9 +61,12 @@ def validate_internal_request(request: Request, allowed_networks: list[str] | No
     """
     # Default to common internal network ranges if not specified
     default_networks = [
-        '127.0.0.1/32', '::1/128',
-        '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16',
-        'fe80::/10'  # Link-local
+        "127.0.0.1/32",
+        "::1/128",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "fe80::/10",  # Link-local
     ]
 
     if allowed_networks is None:
@@ -77,14 +80,14 @@ def validate_internal_request(request: Request, allowed_networks: list[str] | No
         return False
 
     # Extract IP from address, handling IPv6 properly
-    if peername.startswith('['):
+    if peername.startswith("["):
         # IPv6 with port: [::1]:54321
-        bracket_end = peername.find(']')
+        bracket_end = peername.find("]")
         if bracket_end != -1:
             peername = peername[1:bracket_end]
-    elif peername.count(':') == 1:
+    elif peername.count(":") == 1:
         # IPv4 with port: 192.168.1.1:54321
-        peername = peername.split(':')[0]
+        peername = peername.split(":")[0]
     # else: bare IPv6 address (no port) or bare IPv4 - use as-is
 
     try:

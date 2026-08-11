@@ -29,29 +29,29 @@ class DeviceContextClassifier:
 
         # Validate token at construction
         if not self.ha_token:
-            logger.warning("HA_TOKEN not configured - classifier will not be able to query Home Assistant")
+            logger.warning(
+                "HA_TOKEN not configured - classifier will not be able to query Home Assistant"
+            )
         if not self.ha_url:
-            logger.warning("HA_URL not configured - classifier will not be able to query Home Assistant")
+            logger.warning(
+                "HA_URL not configured - classifier will not be able to query Home Assistant"
+            )
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create HA API session."""
         if self._session is None or self._session.closed:
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             timeout = aiohttp.ClientTimeout(total=10)
             self._session = aiohttp.ClientSession(
-                headers=headers,
-                timeout=timeout,
-                raise_for_status=False
+                headers=headers, timeout=timeout, raise_for_status=False
             )
         return self._session
 
     async def _fetch_entity_state(
-        self,
-        session: aiohttp.ClientSession,
-        entity_id: str
+        self, session: aiohttp.ClientSession, entity_id: str
     ) -> dict[str, Any] | None:
         """Fetch a single entity's state from HA. Returns state data or None on failure."""
         state_url = f"{self.ha_url}/api/states/{entity_id}"
@@ -60,20 +60,20 @@ class DeviceContextClassifier:
                 if response.status == 200:
                     return await response.json()
                 elif response.status == 401:
-                    logger.warning("HA API returned 401 Unauthorized for %s - check HA_TOKEN", entity_id)
+                    logger.warning(
+                        "HA API returned 401 Unauthorized for %s - check HA_TOKEN", entity_id
+                    )
                 elif response.status == 404:
                     logger.debug("Entity %s not found in HA (404)", entity_id)
                 else:
-                    logger.warning("Failed to fetch state for %s: HTTP %d", entity_id, response.status)
+                    logger.warning(
+                        "Failed to fetch state for %s: HTTP %d", entity_id, response.status
+                    )
         except Exception as e:
             logger.error("Error fetching state for %s: %s", entity_id, e)
         return None
 
-    async def classify_device(
-        self,
-        device_id: str,
-        entity_ids: list[str]
-    ) -> dict[str, Any]:
+    async def classify_device(self, device_id: str, entity_ids: list[str]) -> dict[str, Any]:
         """
         Classify a device based on its entities.
 
@@ -91,7 +91,7 @@ class DeviceContextClassifier:
                 "device_type": None,
                 "device_category": None,
                 "confidence": 0.0,
-                "matched_entities": 0
+                "matched_entities": 0,
             }
 
         try:
@@ -110,10 +110,7 @@ class DeviceContextClassifier:
                     entity_domains.append(domain)
 
             # FIX: Use asyncio.gather() for concurrent entity state fetches (not N+1 sequential)
-            state_tasks = [
-                self._fetch_entity_state(session, entity_id)
-                for entity_id in entity_ids
-            ]
+            state_tasks = [self._fetch_entity_state(session, entity_id) for entity_id in entity_ids]
             state_results = await asyncio.gather(*state_tasks)
 
             # FIX: Collect unique attribute keys instead of merging dicts (avoids overwrites)
@@ -145,7 +142,7 @@ class DeviceContextClassifier:
                 "device_type": None,
                 "device_category": None,
                 "confidence": 0.0,
-                "matched_entities": 0
+                "matched_entities": 0,
             }
 
     async def _entity_registry(self) -> dict[str, dict[str, Any]]:

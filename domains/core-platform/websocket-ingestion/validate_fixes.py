@@ -5,20 +5,20 @@ Validation script to test websocket fixes
 
 import asyncio
 import logging
-import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 # Setup path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 logger = logging.getLogger(__name__)
+
 
 async def validate_imports():
     """Validate all modules can be imported"""
@@ -49,8 +49,10 @@ async def validate_imports():
         logger.error(f"❌ IMPORT FAILED: {e}")
         logger.error("=" * 80)
         import traceback
+
         logger.error(traceback.format_exc())
         return False
+
 
 async def validate_subscription_logging():
     """Validate subscription manager has enhanced logging"""
@@ -84,8 +86,10 @@ async def validate_subscription_logging():
         logger.error(f"❌ VALIDATION FAILED: {e}")
         logger.error("=" * 80)
         import traceback
+
         logger.error(traceback.format_exc())
         return False
+
 
 async def validate_connection_manager_enhancements():
     """Validate connection manager has enhanced logging"""
@@ -120,8 +124,10 @@ async def validate_connection_manager_enhancements():
         logger.error(f"❌ VALIDATION FAILED: {e}")
         logger.error("=" * 80)
         import traceback
+
         logger.error(traceback.format_exc())
         return False
+
 
 async def validate_health_check_enhancements():
     """Validate health check has subscription monitoring"""
@@ -143,7 +149,7 @@ async def validate_health_check_enhancements():
         logger.info("✅ Connection manager set")
 
         # Verify event subscription is accessible
-        if hasattr(manager, 'event_subscription'):
+        if hasattr(manager, "event_subscription"):
             logger.info("✅ Event subscription accessible from connection manager")
         else:
             logger.warning("⚠️  Event subscription not directly accessible")
@@ -158,8 +164,10 @@ async def validate_health_check_enhancements():
         logger.error(f"❌ VALIDATION FAILED: {e}")
         logger.error("=" * 80)
         import traceback
+
         logger.error(traceback.format_exc())
         return False
+
 
 async def main():
     """Run all validations"""
@@ -199,7 +207,7 @@ async def main():
         logger.error("⚠️  Please review the errors above")
         return 1
 
+
 if __name__ == "__main__":
     exit_code = asyncio.run(main())
     sys.exit(exit_code)
-

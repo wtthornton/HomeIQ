@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 # Request/Response Models
 class GameStatusResponse(BaseModel):
     """Quick game status response (<50ms target)"""
+
     status: str  # "no_game", "upcoming", "live", "finished"
     team: str
     game_id: str | None = None
@@ -37,6 +38,7 @@ class GameStatusResponse(BaseModel):
 
 class GameContextResponse(BaseModel):
     """Rich game context response"""
+
     status: str
     team: str
     game_id: str | None = None
@@ -54,6 +56,7 @@ class GameContextResponse(BaseModel):
 
 class WebhookRegistration(BaseModel):
     """Webhook registration model"""
+
     webhook_url: HttpUrl
     secret: str
     team: str
@@ -64,6 +67,7 @@ class WebhookRegistration(BaseModel):
 
 class WebhookResponse(BaseModel):
     """Webhook registration response"""
+
     id: str
     webhook_url: str
     team: str
@@ -115,10 +119,7 @@ async def get_game_status(team: str):
         results = await influxdb_client._execute_query(query)
 
         if not results:
-            return GameStatusResponse(
-                status="no_game",
-                team=team
-            )
+            return GameStatusResponse(status="no_game", team=team)
 
         game = results[0]
         game_status = game.get("status", "unknown")
@@ -132,7 +133,7 @@ async def get_game_status(team: str):
             team=team,
             game_id=game.get("game_id"),
             opponent=opponent,
-            start_time=game.get("_time")
+            start_time=game.get("_time"),
         )
 
         if game_status == "live":
@@ -145,7 +146,7 @@ async def get_game_status(team: str):
         logger.error(f"Error getting game status for {team}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get game status: {str(e)}"
+            detail=f"Failed to get game status: {str(e)}",
         ) from e
 
 
@@ -180,10 +181,7 @@ async def get_game_context(team: str):
         results = await influxdb_client._execute_query(query)
 
         if not results:
-            return GameContextResponse(
-                status="no_game",
-                team=team
-            )
+            return GameContextResponse(status="no_game", team=team)
 
         game = results[0]
         is_home = game.get("home_team") == team
@@ -192,7 +190,7 @@ async def get_game_context(team: str):
             status=game.get("status", "unknown"),
             team=team,
             game_id=game.get("game_id"),
-            league=game.get("_measurement", "").split('_')[0].upper(),
+            league=game.get("_measurement", "").split("_")[0].upper(),
             opponent=game.get("away_team") if is_home else game.get("home_team"),
             home_team=game.get("home_team"),
             away_team=game.get("away_team"),
@@ -201,14 +199,14 @@ async def get_game_context(team: str):
             quarter_period=game.get("quarter") or game.get("period"),
             time_remaining=game.get("time_remaining"),
             start_time=game.get("_time"),
-            is_home_game=is_home
+            is_home_game=is_home,
         )
 
     except Exception as e:
         logger.error(f"Error getting game context for {team}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get game context: {str(e)}"
+            detail=f"Failed to get game context: {str(e)}",
         ) from e
 
 
@@ -235,7 +233,9 @@ async def register_webhook(registration: WebhookRegistration):
         registration.created_at = datetime.now().isoformat()
         webhooks[webhook_id] = registration
 
-        logger.info(f"Registered webhook {webhook_id} for team {registration.team}, events: {registration.events}")
+        logger.info(
+            f"Registered webhook {webhook_id} for team {registration.team}, events: {registration.events}"
+        )
 
         return WebhookResponse(
             id=webhook_id,
@@ -243,14 +243,14 @@ async def register_webhook(registration: WebhookRegistration):
             team=registration.team,
             events=registration.events,
             created_at=registration.created_at,
-            status="active"
+            status="active",
         )
 
     except Exception as e:
         logger.error(f"Error registering webhook: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to register webhook: {str(e)}"
+            detail=f"Failed to register webhook: {str(e)}",
         ) from e
 
 
@@ -265,14 +265,16 @@ async def list_webhooks():
     try:
         webhook_list = []
         for webhook_id, registration in webhooks.items():
-            webhook_list.append(WebhookResponse(
-                id=webhook_id,
-                webhook_url=str(registration.webhook_url),
-                team=registration.team,
-                events=registration.events,
-                created_at=registration.created_at,
-                status="active"
-            ))
+            webhook_list.append(
+                WebhookResponse(
+                    id=webhook_id,
+                    webhook_url=str(registration.webhook_url),
+                    team=registration.team,
+                    events=registration.events,
+                    created_at=registration.created_at,
+                    status="active",
+                )
+            )
 
         return webhook_list
 
@@ -280,7 +282,7 @@ async def list_webhooks():
         logger.error(f"Error listing webhooks: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list webhooks: {str(e)}"
+            detail=f"Failed to list webhooks: {str(e)}",
         ) from e
 
 
@@ -298,8 +300,7 @@ async def delete_webhook(webhook_id: str):
     try:
         if webhook_id not in webhooks:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Webhook {webhook_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Webhook {webhook_id} not found"
             )
 
         del webhooks[webhook_id]
@@ -308,7 +309,7 @@ async def delete_webhook(webhook_id: str):
         return {
             "success": True,
             "message": f"Webhook {webhook_id} deleted",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except HTTPException:
@@ -317,7 +318,7 @@ async def delete_webhook(webhook_id: str):
         logger.error(f"Error deleting webhook: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete webhook: {str(e)}"
+            detail=f"Failed to delete webhook: {str(e)}",
         ) from e
 
 
@@ -336,25 +337,24 @@ async def deliver_webhook(webhook: WebhookRegistration, event_type: str, payload
     try:
         # Generate HMAC signature
         message = json.dumps(payload, sort_keys=True)
-        signature = hmac.new(
-            webhook.secret.encode(),
-            message.encode(),
-            hashlib.sha256
-        ).hexdigest()
+        signature = hmac.new(webhook.secret.encode(), message.encode(), hashlib.sha256).hexdigest()
 
         # Deliver webhook
         headers = {
-            'Content-Type': 'application/json',
-            'X-Signature': signature,
-            'X-Event-Type': event_type
+            "Content-Type": "application/json",
+            "X-Signature": signature,
+            "X-Event-Type": event_type,
         }
 
-        async with aiohttp.ClientSession() as session, session.post(
-            str(webhook.webhook_url),
-            json=payload,
-            headers=headers,
-            timeout=aiohttp.ClientTimeout(total=5)
-        ) as response:
+        async with (
+            aiohttp.ClientSession() as session,
+            session.post(
+                str(webhook.webhook_url),
+                json=payload,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=5),
+            ) as response,
+        ):
             if response.status in [200, 201, 204]:
                 logger.info(f"Webhook delivered successfully: {event_type} for {webhook.team}")
                 return True
@@ -410,9 +410,13 @@ async def get_monitored_teams(user_id: str = "default") -> list[str]:
                 for team in prefs.nhl_teams:
                     if team:
                         teams.add(team.lower())
-                logger.debug(f"Loaded {len(prefs.nfl_teams)} NFL and {len(prefs.nhl_teams)} NHL teams from database for user {user_id}")
+                logger.debug(
+                    f"Loaded {len(prefs.nfl_teams)} NFL and {len(prefs.nhl_teams)} NHL teams from database for user {user_id}"
+                )
     except Exception as e:
-        logger.warning(f"Failed to load teams from database: {e}, falling back to environment variable")
+        logger.warning(
+            f"Failed to load teams from database: {e}, falling back to environment variable"
+        )
 
     # Fallback: Get teams from environment variable (comma-separated)
     if not teams:
@@ -451,7 +455,11 @@ async def webhook_event_detector():
             await asyncio.sleep(15)  # Check every 15 seconds
 
             # Safety check: Ensure InfluxDB client is connected
-            if not influxdb_client or not hasattr(influxdb_client, '_query_api') or influxdb_client._query_api is None:
+            if (
+                not influxdb_client
+                or not hasattr(influxdb_client, "_query_api")
+                or influxdb_client._query_api is None
+            ):
                 logger.debug("InfluxDB client not ready, skipping webhook detection cycle")
                 continue
 
@@ -460,18 +468,22 @@ async def webhook_event_detector():
 
             if not monitored_teams and not webhooks:
                 # No teams to monitor and no webhooks registered - skip this cycle
-                logger.debug("No teams to monitor and no webhooks registered, skipping detection cycle")
+                logger.debug(
+                    "No teams to monitor and no webhooks registered, skipping detection cycle"
+                )
                 continue
 
             # Build query - filter by monitored teams if specified
             if monitored_teams:
                 # Build team filter with case-insensitive matching (OR condition for home_team or away_team)
                 # Sanitize team names from database to prevent Flux injection
-                team_filters = " or ".join([
-                    f'strings.toLower(v: r.home_team) == "{sanitize_flux_value(team.lower())}" or strings.toLower(v: r.away_team) == "{sanitize_flux_value(team.lower())}"'
-                    for team in monitored_teams
-                ])
-                query = f'''
+                team_filters = " or ".join(
+                    [
+                        f'strings.toLower(v: r.home_team) == "{sanitize_flux_value(team.lower())}" or strings.toLower(v: r.away_team) == "{sanitize_flux_value(team.lower())}"'
+                        for team in monitored_teams
+                    ]
+                )
+                query = f"""
                     from(bucket: "sports_data")
                         |> range(start: -24h)
                         |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
@@ -479,18 +491,20 @@ async def webhook_event_detector():
                         |> filter(fn: (r) => {team_filters})
                         |> sort(columns: ["_time"], desc: true)
                         |> limit(n: 100)
-                '''
-                logger.debug(f"Monitoring {len(monitored_teams)} teams: {', '.join(monitored_teams)}")
+                """
+                logger.debug(
+                    f"Monitoring {len(monitored_teams)} teams: {', '.join(monitored_teams)}"
+                )
             else:
                 # No teams specified - monitor all games (for backward compatibility)
-                query = '''
+                query = """
                     from(bucket: "sports_data")
                         |> range(start: -24h)
                         |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
                         |> filter(fn: (r) => r.status == "live" or r.status == "upcoming")
                         |> sort(columns: ["_time"], desc: true)
                         |> limit(n: 100)
-                '''
+                """
                 logger.debug("No teams specified - monitoring all games")
 
             results = await influxdb_client._execute_query(query)
@@ -519,32 +533,48 @@ async def webhook_event_detector():
                     previous = previous_state.get(game_id, {})
 
                     # Game start event
-                    if "game_start" in webhook.events and current_status == "live" and previous.get("status") != "live":
+                    if (
+                        "game_start" in webhook.events
+                        and current_status == "live"
+                        and previous.get("status") != "live"
+                    ):
                         payload = {
                             "event": "game_start",
                             "game_id": game_id,
                             "team": webhook.team,
                             "opponent": away_team if home_team == webhook.team else home_team,
-                            "timestamp": datetime.now().isoformat()
+                            "timestamp": datetime.now().isoformat(),
                         }
                         await deliver_webhook(webhook, "game_start", payload)
 
                     # Game end event
-                    if "game_end" in webhook.events and current_status == "finished" and previous.get("status") == "live":
+                    if (
+                        "game_end" in webhook.events
+                        and current_status == "finished"
+                        and previous.get("status") == "live"
+                    ):
                         payload = {
                             "event": "game_end",
                             "game_id": game_id,
                             "team": webhook.team,
                             "final_score": f"{game.get('home_score')}-{game.get('away_score')}",
                             "result": "win" if _team_won(game, webhook.team) else "loss",
-                            "timestamp": datetime.now().isoformat()
+                            "timestamp": datetime.now().isoformat(),
                         }
                         await deliver_webhook(webhook, "game_end", payload)
 
                     # Score change event
                     if "score_change" in webhook.events:
-                        prev_score = previous.get("home_score", 0) if home_team == webhook.team else previous.get("away_score", 0)
-                        curr_score = game.get("home_score", 0) if home_team == webhook.team else game.get("away_score", 0)
+                        prev_score = (
+                            previous.get("home_score", 0)
+                            if home_team == webhook.team
+                            else previous.get("away_score", 0)
+                        )
+                        curr_score = (
+                            game.get("home_score", 0)
+                            if home_team == webhook.team
+                            else game.get("away_score", 0)
+                        )
 
                         if curr_score > prev_score:
                             score_change = curr_score - prev_score
@@ -554,7 +584,7 @@ async def webhook_event_detector():
                                 "team": webhook.team,
                                 "score_change": score_change,
                                 "new_score": f"{game.get('home_score')}-{game.get('away_score')}",
-                                "timestamp": datetime.now().isoformat()
+                                "timestamp": datetime.now().isoformat(),
                             }
                             await deliver_webhook(webhook, "score_change", payload)
 
@@ -562,7 +592,7 @@ async def webhook_event_detector():
                 previous_state[game_id] = {
                     "status": current_status,
                     "home_score": game.get("home_score"),
-                    "away_score": game.get("away_score")
+                    "away_score": game.get("away_score"),
                 }
 
         except Exception as e:
@@ -600,4 +630,3 @@ def stop_webhook_detector():
         webhook_detector_task.cancel()
         webhook_detector_task = None
         logger.info("Webhook event detector stopped")
-

@@ -6,7 +6,6 @@ Manages statistics metadata tracking and entity eligibility detection.
 
 import logging
 from datetime import UTC, datetime
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,7 +39,7 @@ class StatisticsMetadataService:
         return meta is not None
 
     @staticmethod
-    async def get_metadata(entity_id: str, session: AsyncSession) -> Optional[StatisticsMeta]:
+    async def get_metadata(entity_id: str, session: AsyncSession) -> StatisticsMeta | None:
         """
         Get statistics metadata for an entity.
 
@@ -59,9 +58,9 @@ class StatisticsMetadataService:
     @staticmethod
     async def sync_metadata_from_entity(
         entity: Entity,
-        state_class: Optional[str] = None,
-        unit_of_measurement: Optional[str] = None,
-        session: AsyncSession = None
+        state_class: str | None = None,
+        unit_of_measurement: str | None = None,
+        session: AsyncSession = None,
     ) -> StatisticsMeta:
         """
         Sync statistics metadata from entity registry entry.
@@ -113,7 +112,9 @@ class StatisticsMetadataService:
             state_class = "measurement"  # Default assumption
 
         if not is_eligible:
-            logger.debug(f"Entity {entity.entity_id} not eligible for statistics (state_class={state_class}, unit={unit_of_measurement})")
+            logger.debug(
+                f"Entity {entity.entity_id} not eligible for statistics (state_class={state_class}, unit={unit_of_measurement})"
+            )
             return None
 
         # Check if metadata already exists
@@ -140,11 +141,13 @@ class StatisticsMetadataService:
                 unit_of_measurement=unit_of_measurement,
                 state_class=state_class,
                 has_mean=has_mean,
-                has_sum=has_sum
+                has_sum=has_sum,
             )
             session.add(meta)
             await session.commit()
-            logger.info(f"Created statistics metadata for {entity.entity_id} (state_class={state_class})")
+            logger.info(
+                f"Created statistics metadata for {entity.entity_id} (state_class={state_class})"
+            )
             return meta
 
     @staticmethod
@@ -161,9 +164,7 @@ class StatisticsMetadataService:
             Number of entities synced
         """
         # Get all entities with unit_of_measurement (potential candidates)
-        result = await session.execute(
-            select(Entity).where(Entity.unit_of_measurement.isnot(None))
-        )
+        result = await session.execute(select(Entity).where(Entity.unit_of_measurement.isnot(None)))
         entities = result.scalars().all()
 
         synced_count = 0
@@ -174,7 +175,7 @@ class StatisticsMetadataService:
             meta = await StatisticsMetadataService.sync_metadata_from_entity(
                 entity,
                 state_class=None,  # Will be determined from unit_of_measurement
-                session=session
+                session=session,
             )
             if meta:
                 synced_count += 1
@@ -195,4 +196,3 @@ class StatisticsMetadataService:
         """
         result = await session.execute(select(StatisticsMeta.statistic_id))
         return [row[0] for row in result.fetchall()]
-

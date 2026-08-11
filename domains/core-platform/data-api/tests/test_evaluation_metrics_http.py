@@ -47,7 +47,6 @@ import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-
 # ---------------------------------------------------------------------------
 # Override conftest fresh_db — no real DB needed for these HTTP tests
 # ---------------------------------------------------------------------------
@@ -532,8 +531,10 @@ class TestAcknowledgeAlert:
         """Known issue: _agent_name vs {agent_name} path param mismatch causes 422."""
         mock_engine = MagicMock()
         mock_engine.acknowledge.return_value = MagicMock(
-            alert_id="alert-001", status="acknowledged",
-            acknowledged_by="admin", note="investigating"
+            alert_id="alert-001",
+            status="acknowledged",
+            acknowledged_by="admin",
+            note="investigating",
         )
 
         with patch("src.evaluation_endpoints._get_alert_engine", return_value=mock_engine):

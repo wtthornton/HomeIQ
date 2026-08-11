@@ -145,10 +145,7 @@ class AsyncEventProcessor:
         while current_state == ProcessingState.RUNNING:
             try:
                 # Get event from queue with timeout
-                event_data = await asyncio.wait_for(
-                    self.event_queue.get(),
-                    timeout=1.0
-                )
+                event_data = await asyncio.wait_for(self.event_queue.get(), timeout=1.0)
 
                 # Process the event
                 start_time = datetime.now(UTC)
@@ -257,8 +254,10 @@ class AsyncEventProcessor:
             "queue_size": self.event_queue.qsize(),
             "queue_maxsize": self.event_queue.maxsize,
             "uptime_seconds": round(uptime, 2),
-            "last_processing_time": self.last_processing_time.isoformat() if self.last_processing_time else None,
-            "event_handlers_count": len(self.event_handlers)
+            "last_processing_time": self.last_processing_time.isoformat()
+            if self.last_processing_time
+            else None,
+            "event_handlers_count": len(self.event_handlers),
         }
 
     def reset_statistics(self):

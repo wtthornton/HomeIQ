@@ -37,9 +37,7 @@ class ConversationResponse(BaseModel):
     message_count: int = Field(..., description="Number of messages in conversation")
     created_at: datetime = Field(..., description="Conversation creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
-    messages: list[MessageResponse] | None = Field(
-        None, description="Message history (included in detail view)"
-    )
+    messages: list[MessageResponse] | None = Field(None, description="Message history (included in detail view)")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -47,9 +45,7 @@ class ConversationResponse(BaseModel):
 class ConversationListResponse(BaseModel):
     """Paginated conversation list response"""
 
-    conversations: list[ConversationResponse] = Field(
-        ..., description="List of conversations"
-    )
+    conversations: list[ConversationResponse] = Field(..., description="List of conversations")
     total: int = Field(..., description="Total number of conversations")
     limit: int = Field(..., description="Page size limit")
     offset: int = Field(..., description="Offset for pagination")
@@ -61,15 +57,9 @@ class ConversationListResponse(BaseModel):
 class CreateConversationRequest(BaseModel):
     """Request model for creating a new conversation"""
 
-    initial_message: str | None = Field(
-        None, description="Optional initial message to start the conversation"
-    )
-    title: str | None = Field(
-        None, max_length=200, description="Optional conversation title (max 200 chars)"
-    )
-    source: str | None = Field(
-        "user", description="Conversation source: user, proactive, or pattern"
-    )
+    initial_message: str | None = Field(None, description="Optional initial message to start the conversation")
+    title: str | None = Field(None, max_length=200, description="Optional conversation title (max 200 chars)")
+    source: str | None = Field("user", description="Conversation source: user, proactive, or pattern")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -85,12 +75,8 @@ class CreateConversationRequest(BaseModel):
 class UpdateConversationRequest(BaseModel):
     """Request model for updating a conversation (Epic AI-20.9)"""
 
-    title: str | None = Field(
-        None, max_length=200, description="New conversation title (max 200 chars)"
-    )
-    state: str | None = Field(
-        None, description="New conversation state (active, archived)"
-    )
+    title: str | None = Field(None, max_length=200, description="New conversation title (max 200 chars)")
+    state: str | None = Field(None, description="New conversation state (active, archived)")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -107,15 +93,8 @@ class ConversationListQueryParams(BaseModel):
 
     limit: int = Field(default=20, ge=1, le=100, description="Page size (1-100)")
     offset: int = Field(default=0, ge=0, description="Offset for pagination")
-    state: ConversationState | None = Field(
-        None, description="Filter by conversation state"
-    )
-    start_date: datetime | None = Field(
-        None, description="Filter conversations created after this date"
-    )
-    end_date: datetime | None = Field(
-        None, description="Filter conversations created before this date"
-    )
+    state: ConversationState | None = Field(None, description="Filter by conversation state")
+    start_date: datetime | None = Field(None, description="Filter conversations created after this date")
+    end_date: datetime | None = Field(None, description="Filter conversations created before this date")
 
     model_config = ConfigDict(from_attributes=True)
-

@@ -42,20 +42,16 @@ class EntityInventoryService:
         """
         self.settings = settings
         self.context_builder = context_builder
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
-        self.ha_client = HomeAssistantClient(
-            ha_url=settings.ha_url,
-            access_token=settings.ha_token.get_secret_value()
+        self.data_api_client = DataAPIClient(
+            base_url=settings.data_api_url,
+            api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None,
         )
+        self.ha_client = HomeAssistantClient(ha_url=settings.ha_url, access_token=settings.ha_token.get_secret_value())
         self.device_intelligence_client = DeviceIntelligenceClient(settings)
         self._cache_key = "entity_inventory_summary"
         self._cache_ttl = 300  # 5 minutes
 
-    async def _get_device_mapping_info(
-        self,
-        device_id: str,
-        device_data: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    async def _get_device_mapping_info(self, device_id: str, device_data: dict[str, Any]) -> dict[str, Any] | None:
         """
         Get device mapping information from Device Intelligence Service.
 
@@ -73,27 +69,23 @@ class EntityInventoryService:
                 "manufacturer": device_data.get("manufacturer"),
                 "model": device_data.get("model"),
                 "name": device_data.get("name"),
-                "area_id": device_data.get("area_id")
+                "area_id": device_data.get("area_id"),
             }
 
             # Get device type
-            type_result = await self.device_intelligence_client.get_device_type(
-                device_id, device_payload
-            )
+            type_result = await self.device_intelligence_client.get_device_type(device_id, device_payload)
 
             if not type_result:
                 return None
 
             # Get device context
-            context_result = await self.device_intelligence_client.get_device_context(
-                device_id, device_payload
-            )
+            context_result = await self.device_intelligence_client.get_device_context(device_id, device_payload)
 
             # Combine results
             result = {
                 "type": type_result.get("type"),
                 "handler": type_result.get("handler"),
-                "context": context_result.get("context") if context_result else None
+                "context": context_result.get("context") if context_result else None,
             }
 
             # Get relationships if available
@@ -135,9 +127,7 @@ class EntityInventoryService:
 
             if not entities:
                 summary = "No entities found in system."
-                await self.context_builder._set_cached_value(
-                    self._cache_key, summary, self._cache_ttl
-                )
+                await self.context_builder._set_cached_value(self._cache_key, summary, self._cache_ttl)
                 return summary
 
             # Fetch entity states for current state information
@@ -181,9 +171,11 @@ class EntityInventoryService:
                             "sw_version": device.get("sw_version"),
                             "hw_version": device.get("hw_version"),
                             "name": device.get("name"),
-                            "disabled_by": device.get("disabled_by")
+                            "disabled_by": device.get("disabled_by"),
                         }
-                logger.info(f"✅ Mapped {len(device_area_map)} devices with areas, {len(device_metadata_map)} devices with metadata")
+                logger.info(
+                    f"✅ Mapped {len(device_area_map)} devices with areas, {len(device_metadata_map)} devices with metadata"
+                )
             except Exception as e:
                 logger.warning(f"⚠️ Could not fetch device registry: {e}")
                 # Continue without device registry (backward compatible)
@@ -208,14 +200,18 @@ class EntityInventoryService:
                 device_mapping_result = await self._get_device_mapping_info(device_id, device_data)
                 if device_mapping_result:
                     device_mapping_cache[device_id] = device_mapping_result
-                    logger.debug(f"✅ Device mapping library detected device type for {device_id}: {device_mapping_result.get('type')}")
+                    logger.debug(
+                        f"✅ Device mapping library detected device type for {device_id}: {device_mapping_result.get('type')}"
+                    )
                 else:
                     # Fallback to legacy detection (Epic AI-23)
                     model = (device_data.get("model") or "").lower()
                     manufacturer = (device_data.get("manufacturer") or "").lower()
 
                     # Detect Hue Room/Zone groups (legacy)
-                    if ("room" in model or "zone" in model) and ("signify" in manufacturer or "philips" in manufacturer):
+                    if ("room" in model or "zone" in model) and (
+                        "signify" in manufacturer or "philips" in manufacturer
+                    ):
                         hue_room_devices[device_id] = device_data
                         logger.debug(f"✅ Legacy detection: Hue Room/Zone group: {device_id}")
 
@@ -264,7 +260,7 @@ class EntityInventoryService:
                             "hidden_by": entity_reg.get("hidden_by"),
                             "labels": entity_reg.get("labels", []),
                             "name": entity_reg.get("name"),
-                            "original_name": entity_reg.get("original_name")
+                            "original_name": entity_reg.get("original_name"),
                         }
                 logger.info(f"✅ Mapped {len(entity_registry_map)} entities with registry data")
             except Exception as e:
@@ -295,7 +291,9 @@ class EntityInventoryService:
                 if not entity_area_id and entity_device_id:
                     entity_area_id = device_area_map.get(entity_device_id)
                     if entity_area_id:
-                        logger.debug(f"✅ Resolved area_id for {entity.get('entity_id')} from device {entity_device_id}: {entity_area_id}")
+                        logger.debug(
+                            f"✅ Resolved area_id for {entity.get('entity_id')} from device {entity_device_id}: {entity_area_id}"
+                        )
 
                 area_id = entity_area_id or "unassigned"
                 domain_area_counts[domain][area_id] += 1
@@ -331,7 +329,9 @@ class EntityInventoryService:
                 area_parts = []
                 for area_id in sorted(area_counts.keys()):
                     count = area_counts[area_id]
-                    area_name = area_name_map.get(area_id, area_id.replace("_", " ").title() if area_id != "unassigned" else "unassigned")
+                    area_name = area_name_map.get(
+                        area_id, area_id.replace("_", " ").title() if area_id != "unassigned" else "unassigned"
+                    )
                     area_parts.append(f"{area_name}: {count}")
 
                 area_str = ", ".join(area_parts)
@@ -358,11 +358,11 @@ class EntityInventoryService:
 
             # Cache the result (only if not skipping truncation)
             if not skip_truncation:
-                await self.context_builder._set_cached_value(
-                    self._cache_key, summary, self._cache_ttl
-                )
+                await self.context_builder._set_cached_value(self._cache_key, summary, self._cache_ttl)
 
-            logger.info(f"✅ Generated optimized entity inventory summary ({len(summary)} chars, ~{len(summary)//4} tokens)")
+            logger.info(
+                f"✅ Generated optimized entity inventory summary ({len(summary)} chars, ~{len(summary) // 4} tokens)"
+            )
             return summary
 
         except Exception as e:
@@ -374,4 +374,3 @@ class EntityInventoryService:
         """Close service resources"""
         await self.data_api_client.close()
         await self.ha_client.close()
-

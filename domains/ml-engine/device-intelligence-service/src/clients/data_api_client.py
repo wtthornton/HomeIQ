@@ -24,7 +24,9 @@ class DataAPIClient:
         Args:
             base_url: Base URL for Data API (default: from env or http://data-api:8006)
         """
-        self.base_url = (base_url or os.getenv("DATA_API_URL") or "http://data-api:8006").rstrip('/')
+        self.base_url = (base_url or os.getenv("DATA_API_URL") or "http://data-api:8006").rstrip(
+            "/"
+        )
 
         # Optional API key for authenticated Data API access
         api_key = os.getenv("DATA_API_API_KEY") or os.getenv("DATA_API_KEY") or os.getenv("API_KEY")
@@ -37,7 +39,7 @@ class DataAPIClient:
             timeout=30.0,
             follow_redirects=True,
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
-            headers=default_headers
+            headers=default_headers,
         )
 
         logger.info(f"Data API client initialized with base_url={self.base_url}")
@@ -46,7 +48,7 @@ class DataAPIClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=True
+        reraise=True,
     )
     async def fetch_entities(
         self,
@@ -54,7 +56,7 @@ class DataAPIClient:
         domain: str | None = None,
         platform: str | None = None,
         area_id: str | None = None,
-        limit: int = 10000
+        limit: int = 10000,
     ) -> list[dict[str, Any]]:
         """
         Fetch entities from Data API.
@@ -86,10 +88,7 @@ class DataAPIClient:
 
             logger.debug(f"Fetching entities from Data API: {params}")
 
-            response = await self.client.get(
-                f"{self.base_url}/api/entities",
-                params=params
-            )
+            response = await self.client.get(f"{self.base_url}/api/entities", params=params)
             response.raise_for_status()
 
             data = response.json()
@@ -130,4 +129,3 @@ class DataAPIClient:
     async def close(self):
         """Close the HTTP client."""
         await self.client.aclose()
-

@@ -27,14 +27,16 @@ logger = logging.getLogger(__name__)
 class InfluxDBConnectionManager:
     """Manages InfluxDB connection with automatic reconnection"""
 
-    def __init__(self,
-                 url: str,
-                 token: str,
-                 org: str,
-                 bucket: str,
-                 timeout: int = 30,
-                 retry_attempts: int = 3,
-                 retry_delay: float = 1.0):
+    def __init__(
+        self,
+        url: str,
+        token: str,
+        org: str,
+        bucket: str,
+        timeout: int = 30,
+        retry_attempts: int = 3,
+        retry_delay: float = 1.0,
+    ):
         """
         Initialize InfluxDB connection manager
 
@@ -118,7 +120,7 @@ class InfluxDBConnectionManager:
                 url=self.url,
                 token=self.token,
                 org=self.org,
-                timeout=self.timeout * 1000  # Convert to milliseconds
+                timeout=self.timeout * 1000,  # Convert to milliseconds
             )
 
             # Test connection
@@ -153,25 +155,35 @@ class InfluxDBConnectionManager:
         import aiohttp
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"{self.url}/health", timeout=aiohttp.ClientTimeout(total=self.timeout)) as response:
-                    if response.status == 200:
-                        logger.debug("InfluxDB health check passed")
-                        return
-                    else:
-                        raise Exception(f"InfluxDB health check failed with status {response.status}")
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(
+                    f"{self.url}/health", timeout=aiohttp.ClientTimeout(total=self.timeout)
+                ) as response,
+            ):
+                if response.status == 200:
+                    logger.debug("InfluxDB health check passed")
+                    return
+                else:
+                    raise Exception(f"InfluxDB health check failed with status {response.status}")
         except Exception as e:
             # Fallback to simple ping endpoint
             try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(f"{self.url}/ping", timeout=aiohttp.ClientTimeout(total=self.timeout)) as response:
-                        if response.status == 204:  # Ping returns 204 No Content on success
-                            logger.debug("InfluxDB ping check passed")
-                            return
-                        else:
-                            raise Exception(f"InfluxDB ping check failed with status {response.status}")
+                async with (
+                    aiohttp.ClientSession() as session,
+                    session.get(
+                        f"{self.url}/ping", timeout=aiohttp.ClientTimeout(total=self.timeout)
+                    ) as response,
+                ):
+                    if response.status == 204:  # Ping returns 204 No Content on success
+                        logger.debug("InfluxDB ping check passed")
+                        return
+                    else:
+                        raise Exception(f"InfluxDB ping check failed with status {response.status}")
             except Exception as ping_error:
-                raise Exception(f"InfluxDB connection test failed: {e}, ping also failed: {ping_error}") from ping_error
+                raise Exception(
+                    f"InfluxDB connection test failed: {e}, ping also failed: {ping_error}"
+                ) from ping_error
 
     async def _disconnect(self):
         """Disconnect from InfluxDB"""
@@ -242,10 +254,7 @@ class InfluxDBConnectionManager:
         try:
             # Write points asynchronously
             await asyncio.to_thread(
-                self.write_api.write,
-                bucket=self.bucket,
-                org=self.org,
-                record=points
+                self.write_api.write, bucket=self.bucket, org=self.org, record=points
             )
 
             logger.debug(f"Successfully wrote {len(points)} points to InfluxDB")
@@ -272,22 +281,20 @@ class InfluxDBConnectionManager:
 
         try:
             # Execute query
-            result = await asyncio.to_thread(
-                self.query_api.query,
-                query,
-                org=self.org
-            )
+            result = await asyncio.to_thread(self.query_api.query, query, org=self.org)
 
             # Convert result to list of dictionaries
             data = []
             for table in result:
                 for record in table.records:
-                    data.append({
-                        "time": record.get_time(),
-                        "measurement": record.get_measurement(),
-                        "tags": record.values,
-                        "fields": record.values
-                    })
+                    data.append(
+                        {
+                            "time": record.get_time(),
+                            "measurement": record.get_measurement(),
+                            "tags": record.values,
+                            "fields": record.values,
+                        }
+                    )
 
             logger.debug(f"Successfully queried {len(data)} records from InfluxDB")
             return data
@@ -365,7 +372,9 @@ class InfluxDBConnectionManager:
             logger.error(f"Error writing entity to InfluxDB: {e}")
             return False
 
-    async def batch_write_devices(self, device_points: list[dict[str, Any]], bucket: str = None) -> bool:
+    async def batch_write_devices(
+        self, device_points: list[dict[str, Any]], bucket: str = None
+    ) -> bool:
         """
         Batch write multiple devices to InfluxDB
 
@@ -400,7 +409,9 @@ class InfluxDBConnectionManager:
             logger.error(f"Error batch writing devices to InfluxDB: {e}")
             return False
 
-    async def batch_write_entities(self, entity_points: list[dict[str, Any]], bucket: str = None) -> bool:
+    async def batch_write_entities(
+        self, entity_points: list[dict[str, Any]], bucket: str = None
+    ) -> bool:
         """
         Batch write multiple entities to InfluxDB
 
@@ -442,12 +453,7 @@ class InfluxDBConnectionManager:
             return False
 
         try:
-            await asyncio.to_thread(
-                self.write_api.write,
-                bucket=bucket,
-                org=self.org,
-                record=point
-            )
+            await asyncio.to_thread(self.write_api.write, bucket=bucket, org=self.org, record=point)
             return True
         except Exception as e:
             logger.error(f"Error writing point to bucket {bucket}: {e}")
@@ -461,10 +467,7 @@ class InfluxDBConnectionManager:
 
         try:
             await asyncio.to_thread(
-                self.write_api.write,
-                bucket=bucket,
-                org=self.org,
-                record=points
+                self.write_api.write, bucket=bucket, org=self.org, record=points
             )
             logger.info(f"Successfully wrote {len(points)} points to bucket {bucket}")
             return True
@@ -474,9 +477,11 @@ class InfluxDBConnectionManager:
 
     def _sanitize_flux_value(self, value: str) -> str:
         """Sanitize a value for use in Flux query string literals."""
-        return value.replace('\\', '\\\\').replace('"', '\\"')
+        return value.replace("\\", "\\\\").replace('"', '\\"')
 
-    async def query_devices(self, filters: dict[str, Any] = None, bucket: str = "devices") -> list[dict[str, Any]]:
+    async def query_devices(
+        self, filters: dict[str, Any] = None, bucket: str = "devices"
+    ) -> list[dict[str, Any]]:
         """
         Query devices from InfluxDB
 
@@ -504,11 +509,13 @@ class InfluxDBConnectionManager:
         if filters.get("area_id"):
             query += f'\n    |> filter(fn: (r) => r["area_id"] == "{self._sanitize_flux_value(filters["area_id"])}")'
 
-        query += '\n    |> last()'
+        query += "\n    |> last()"
 
         return await self.query_data(query)
 
-    async def query_entities(self, filters: dict[str, Any] = None, bucket: str = "entities") -> list[dict[str, Any]]:
+    async def query_entities(
+        self, filters: dict[str, Any] = None, bucket: str = "entities"
+    ) -> list[dict[str, Any]]:
         """
         Query entities from InfluxDB
 
@@ -536,7 +543,7 @@ class InfluxDBConnectionManager:
         if filters.get("device_id"):
             query += f'\n    |> filter(fn: (r) => r["device_id"] == "{self._sanitize_flux_value(filters["device_id"])}")'
 
-        query += '\n    |> last()'
+        query += "\n    |> last()"
 
         return await self.query_data(query)
 
@@ -550,13 +557,17 @@ class InfluxDBConnectionManager:
             "connection_attempts": self.connection_attempts,
             "successful_connections": self.successful_connections,
             "failed_connections": self.failed_connections,
-            "last_connection_time": self.last_connection_time.isoformat() if self.last_connection_time else None,
+            "last_connection_time": self.last_connection_time.isoformat()
+            if self.last_connection_time
+            else None,
             "last_error": self.last_error,
-            "last_health_check": self.last_health_check.isoformat() if self.last_health_check else None,
+            "last_health_check": self.last_health_check.isoformat()
+            if self.last_health_check
+            else None,
             "health_check_interval": self.health_check_interval,
             "timeout": self.timeout,
             "retry_attempts": self.retry_attempts,
-            "retry_delay": self.retry_delay
+            "retry_delay": self.retry_delay,
         }
 
     def configure_health_check_interval(self, interval: int):

@@ -14,9 +14,10 @@ from src.main import app
 @pytest.fixture
 def client(test_db: AsyncSession):
     """Create test client with database dependency override."""
+
     def override_get_db():
         return test_db
-    
+
     app.dependency_overrides[get_db] = override_get_db
     yield TestClient(app)
     app.dependency_overrides.clear()
@@ -24,7 +25,7 @@ def client(test_db: AsyncSession):
 
 class TestHealthRouter:
     """Test suite for health endpoints."""
-    
+
     @pytest.mark.unit
     def test_health_check(self, client: TestClient):
         """Test health check endpoint."""
@@ -33,7 +34,7 @@ class TestHealthRouter:
         data = response.json()
         assert data["status"] == "ok"
         assert "database" in data
-    
+
     @pytest.mark.unit
     def test_readiness_check(self, client: TestClient):
         """Test readiness check endpoint."""
@@ -41,7 +42,7 @@ class TestHealthRouter:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ready"
-    
+
     @pytest.mark.unit
     def test_liveness_check(self, client: TestClient):
         """Test liveness check endpoint."""
@@ -49,7 +50,7 @@ class TestHealthRouter:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "live"
-    
+
     @pytest.mark.unit
     def test_root_endpoint(self, client: TestClient):
         """Test root endpoint."""
@@ -59,4 +60,3 @@ class TestHealthRouter:
         assert data["service"] == "ai-pattern-service"
         assert data["version"] == "1.0.0"
         assert data["status"] == "operational"
-

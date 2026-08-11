@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx  # noqa: F401 - used in test side_effect values
 import pytest
+
 from src.clients.data_api_client import DataAPIClient
 
 
@@ -30,7 +31,9 @@ async def test_fetch_entities_success(data_api_client):
         {"entity_id": "sensor.temp_1", "domain": "sensor", "area_id": "kitchen"},
     ]
 
-    with patch.object(data_api_client._cross_client, "call", new_callable=AsyncMock, return_value=_mock_response(mock_entities)):
+    with patch.object(
+        data_api_client._cross_client, "call", new_callable=AsyncMock, return_value=_mock_response(mock_entities)
+    ):
         entities = await data_api_client.fetch_entities()
 
         assert len(entities) == 2
@@ -42,12 +45,10 @@ async def test_fetch_entities_with_filters(data_api_client):
     """Test fetching entities with filters"""
     mock_entities = [{"entity_id": "light.office_1", "domain": "light"}]
 
-    with patch.object(data_api_client._cross_client, "call", new_callable=AsyncMock, return_value=_mock_response(mock_entities)) as mock_call:
-        await data_api_client.fetch_entities(
-            domain="light",
-            area_id="office",
-            limit=100
-        )
+    with patch.object(
+        data_api_client._cross_client, "call", new_callable=AsyncMock, return_value=_mock_response(mock_entities)
+    ) as mock_call:
+        await data_api_client.fetch_entities(domain="light", area_id="office", limit=100)
 
         # Verify params were passed
         call_kwargs = mock_call.call_args[1]
@@ -58,13 +59,11 @@ async def test_fetch_entities_with_filters(data_api_client):
 @pytest.mark.asyncio
 async def test_fetch_entities_dict_response(data_api_client):
     """Test handling dict response with 'entities' key"""
-    mock_response_data = {
-        "entities": [
-            {"entity_id": "light.office_1", "domain": "light"}
-        ]
-    }
+    mock_response_data = {"entities": [{"entity_id": "light.office_1", "domain": "light"}]}
 
-    with patch.object(data_api_client._cross_client, "call", new_callable=AsyncMock, return_value=_mock_response(mock_response_data)):
+    with patch.object(
+        data_api_client._cross_client, "call", new_callable=AsyncMock, return_value=_mock_response(mock_response_data)
+    ):
         entities = await data_api_client.fetch_entities()
 
         assert len(entities) == 1
@@ -77,9 +76,7 @@ async def test_fetch_entities_http_error(data_api_client):
     mock_resp = MagicMock()
     mock_resp.status_code = 500
     mock_resp.text = "Internal Server Error"
-    mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
-        "Error", request=MagicMock(), response=mock_resp
-    )
+    mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError("Error", request=MagicMock(), response=mock_resp)
 
     with (
         patch.object(data_api_client._cross_client, "call", new_callable=AsyncMock, return_value=mock_resp),
@@ -92,7 +89,12 @@ async def test_fetch_entities_http_error(data_api_client):
 async def test_fetch_entities_connection_error(data_api_client):
     """Test handling connection errors"""
     with (
-        patch.object(data_api_client._cross_client, "call", new_callable=AsyncMock, side_effect=httpx.ConnectError("Connection failed")),
+        patch.object(
+            data_api_client._cross_client,
+            "call",
+            new_callable=AsyncMock,
+            side_effect=httpx.ConnectError("Connection failed"),
+        ),
         pytest.raises(Exception, match="Error fetching entities"),
     ):
         await data_api_client.fetch_entities()
@@ -102,7 +104,12 @@ async def test_fetch_entities_connection_error(data_api_client):
 async def test_fetch_entities_timeout(data_api_client):
     """Test handling timeout errors"""
     with (
-        patch.object(data_api_client._cross_client, "call", new_callable=AsyncMock, side_effect=httpx.TimeoutException("Request timed out")),
+        patch.object(
+            data_api_client._cross_client,
+            "call",
+            new_callable=AsyncMock,
+            side_effect=httpx.TimeoutException("Request timed out"),
+        ),
         pytest.raises(Exception, match="Error fetching entities"),
     ):
         await data_api_client.fetch_entities()

@@ -36,7 +36,7 @@ async def create_backup(request: Request, backup_request: BackupCreateRequest):
             backup_type=backup_request.backup_type,
             include_data=backup_request.include_data,
             include_config=backup_request.include_config,
-            include_logs=backup_request.include_logs
+            include_logs=backup_request.include_logs,
         )
         return BackupResponse(
             backup_id=backup_info["backup_id"],
@@ -63,7 +63,7 @@ async def restore_backup(request: Request, restore_request: RestoreRequest):
             backup_id=restore_request.backup_id,
             restore_data=restore_request.restore_data,
             restore_config=restore_request.restore_config,
-            restore_logs=restore_request.restore_logs
+            restore_logs=restore_request.restore_logs,
         )
 
         if success:
@@ -79,8 +79,7 @@ async def restore_backup(request: Request, restore_request: RestoreRequest):
 
 @router.get("/backups", response_model=BackupHistoryResponse)
 async def get_backup_history(
-    request: Request,
-    limit: int = Query(100, description="Maximum number of backups to return")
+    request: Request, limit: int = Query(100, description="Maximum number of backups to return")
 ):
     """
     Get backup history.
@@ -114,8 +113,7 @@ async def get_backup_statistics(request: Request):
 
 @router.delete("/cleanup", response_model=CleanupBackupsResponse)
 async def cleanup_old_backups(
-    request: Request,
-    days_to_keep: int = Query(30, description="Number of days to keep backups")
+    request: Request, days_to_keep: int = Query(30, description="Number of days to keep backups")
 ):
     """
     Clean up old backup files.
@@ -127,9 +125,8 @@ async def cleanup_old_backups(
         deleted_count = service.cleanup_old_backups(days_to_keep)
         return {
             "message": f"Cleaned up {deleted_count} old backup files",
-            "deleted_count": deleted_count
+            "deleted_count": deleted_count,
         }
     except Exception as e:
         logger.error(f"Backup cleanup failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail={"error": "Internal server error"}) from None
-

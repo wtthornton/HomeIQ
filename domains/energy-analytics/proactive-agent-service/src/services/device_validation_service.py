@@ -56,17 +56,13 @@ class DeviceValidationService:
     # Patterns to extract device mentions from suggestion text
     DEVICE_PATTERNS = [
         # "Smart X" pattern (e.g., "Smart Humidifier", "Smart Thermostat")
-        r'\bSmart\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b',
-
+        r"\bSmart\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b",
         # "your X" pattern (e.g., "your Thermostat", "your Living Room Light")
-        r'\byour\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b',
-
+        r"\byour\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b",
         # "the X" with device keywords
-        r'\bthe\s+([\w\s]+(?:light|switch|sensor|thermostat|fan|lock|camera|speaker|humidifier|dehumidifier|plug|outlet|shade|blind|curtain|door|garage|ac|heater|hvac)s?)\b',
-
+        r"\bthe\s+([\w\s]+(?:light|switch|sensor|thermostat|fan|lock|camera|speaker|humidifier|dehumidifier|plug|outlet|shade|blind|curtain|door|garage|ac|heater|hvac)s?)\b",
         # "set/turn/adjust X" pattern
-        r'\b(?:set|turn|adjust|activate|enable|disable)\s+(?:the\s+|your\s+)?([\w\s]+(?:light|switch|sensor|thermostat|fan|lock|camera|speaker|humidifier|plug|shade)s?)\b',
-
+        r"\b(?:set|turn|adjust|activate|enable|disable)\s+(?:the\s+|your\s+)?([\w\s]+(?:light|switch|sensor|thermostat|fan|lock|camera|speaker|humidifier|plug|shade)s?)\b",
         # Quoted names
         r'"([^"]+)"',
         r"'([^']+)'",
@@ -125,9 +121,13 @@ class DeviceValidationService:
             List of device dicts with keys: entity_id, friendly_name, domain
         """
         # Check cache
-        if self._device_cache is not None and self._cache_expires_at and datetime.now() < self._cache_expires_at:
-                logger.debug(f"Using cached device inventory ({len(self._device_cache)} devices)")
-                return self._device_cache
+        if (
+            self._device_cache is not None
+            and self._cache_expires_at
+            and datetime.now() < self._cache_expires_at
+        ):
+            logger.debug(f"Using cached device inventory ({len(self._device_cache)} devices)")
+            return self._device_cache
 
         # Circuit breaker: if ha-ai-agent-service is known to be down, use cache
         if not _ha_agent_breaker.allow_request():
@@ -143,9 +143,7 @@ class DeviceValidationService:
             logger.info("Fetching device inventory from ha-ai-agent-service...")
 
             # Use /api/v1/context endpoint (not tier1)
-            response = await self.http_client.get(
-                f"{self.ha_agent_url}/api/v1/context"
-            )
+            response = await self.http_client.get(f"{self.ha_agent_url}/api/v1/context")
 
             if response.status_code != 200:
                 await _ha_agent_breaker.record_failure()
@@ -194,18 +192,20 @@ class DeviceValidationService:
 
         # Look for entity patterns in context
         # Format: entity_id (friendly_name) or entity_id: friendly_name
-        entity_pattern = r'([\w]+\.[\w_]+)(?:\s*[:\(]\s*([^\)\n]+))?'
+        entity_pattern = r"([\w]+\.[\w_]+)(?:\s*[:\(]\s*([^\)\n]+))?"
 
         for match in re.finditer(entity_pattern, context):
             entity_id = match.group(1)
             friendly_name = match.group(2) or entity_id.split(".")[-1].replace("_", " ").title()
             domain = entity_id.split(".")[0]
 
-            devices.append({
-                "entity_id": entity_id,
-                "friendly_name": friendly_name.strip(),
-                "domain": domain,
-            })
+            devices.append(
+                {
+                    "entity_id": entity_id,
+                    "friendly_name": friendly_name.strip(),
+                    "domain": domain,
+                }
+            )
 
         # Deduplicate by entity_id
         seen = set()
@@ -289,9 +289,7 @@ class DeviceValidationService:
                     invalid_devices.append(mentioned)
 
         if invalid_devices:
-            logger.warning(
-                f"Suggestion references non-existent devices: {invalid_devices}"
-            )
+            logger.warning(f"Suggestion references non-existent devices: {invalid_devices}")
             return ValidationResult(
                 is_valid=False,
                 suggestion_text=suggestion_text,

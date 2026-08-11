@@ -67,11 +67,11 @@ class RAGMetrics:
         with self._lock:
             self.total_calls += 1
 
-            if operation == 'store':
+            if operation == "store":
                 self.store_calls += 1
-            elif operation == 'retrieve':
+            elif operation == "retrieve":
                 self.retrieve_calls += 1
-            elif operation == 'search':
+            elif operation == "search":
                 self.search_calls += 1
 
             if cache_hit:
@@ -91,9 +91,9 @@ class RAGMetrics:
         """
         with self._lock:
             self.errors += 1
-            if error_type == 'embedding':
+            if error_type == "embedding":
                 self.embedding_errors += 1
-            elif error_type == 'storage':
+            elif error_type == "storage":
                 self.storage_errors += 1
 
     def record_success_score(self, score: float) -> None:
@@ -116,46 +116,42 @@ class RAGMetrics:
         """
         with self._lock:
             latencies_list = list(self._latencies)
-            avg_latency_ms = (
-                sum(latencies_list) / len(latencies_list)
-                if latencies_list else 0.0
-            )
+            avg_latency_ms = sum(latencies_list) / len(latencies_list) if latencies_list else 0.0
             min_latency_ms = min(latencies_list) if latencies_list else 0.0
             max_latency_ms = max(latencies_list) if latencies_list else 0.0
 
             cache_hit_rate = (
                 self.cache_hits / (self.cache_hits + self.cache_misses)
-                if (self.cache_hits + self.cache_misses) > 0 else 0.0
+                if (self.cache_hits + self.cache_misses) > 0
+                else 0.0
             )
 
             avg_success_score = (
                 sum(self._success_scores) / len(self._success_scores)
-                if self._success_scores else 0.5
+                if self._success_scores
+                else 0.5
             )
 
-            error_rate = (
-                self.errors / self.total_calls
-                if self.total_calls > 0 else 0.0
-            )
+            error_rate = self.errors / self.total_calls if self.total_calls > 0 else 0.0
 
             return {
-                'total_calls': self.total_calls,
-                'store_calls': self.store_calls,
-                'retrieve_calls': self.retrieve_calls,
-                'search_calls': self.search_calls,
-                'cache_hits': self.cache_hits,
-                'cache_misses': self.cache_misses,
-                'cache_hit_rate': cache_hit_rate,
-                'avg_latency_ms': avg_latency_ms,
-                'min_latency_ms': min_latency_ms,
-                'max_latency_ms': max_latency_ms,
-                'total_latency_ms': self.total_latency_ms,
-                'errors': self.errors,
-                'embedding_errors': self.embedding_errors,
-                'storage_errors': self.storage_errors,
-                'error_rate': error_rate,
-                'avg_success_score': avg_success_score,
-                'total_success_scores': len(self._success_scores),
+                "total_calls": self.total_calls,
+                "store_calls": self.store_calls,
+                "retrieve_calls": self.retrieve_calls,
+                "search_calls": self.search_calls,
+                "cache_hits": self.cache_hits,
+                "cache_misses": self.cache_misses,
+                "cache_hit_rate": cache_hit_rate,
+                "avg_latency_ms": avg_latency_ms,
+                "min_latency_ms": min_latency_ms,
+                "max_latency_ms": max_latency_ms,
+                "total_latency_ms": self.total_latency_ms,
+                "errors": self.errors,
+                "embedding_errors": self.embedding_errors,
+                "storage_errors": self.storage_errors,
+                "error_rate": error_rate,
+                "avg_success_score": avg_success_score,
+                "total_success_scores": len(self._success_scores),
             }
 
     def reset(self) -> None:

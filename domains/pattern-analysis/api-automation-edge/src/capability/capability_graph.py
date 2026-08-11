@@ -5,6 +5,7 @@ Main service that coordinates inventory, updates, and drift detection
 """
 
 import asyncio
+import contextlib
 import logging
 from typing import Any
 
@@ -38,7 +39,7 @@ class CapabilityGraph:
     def __init__(
         self,
         rest_client: HARestClient | None = None,
-        websocket_client: HAWebSocketClient | None = None
+        websocket_client: HAWebSocketClient | None = None,
     ):
         """
         Initialize capability graph.
@@ -54,10 +55,7 @@ class CapabilityGraph:
         self.entity_inventory = EntityInventory(self.rest_client)
         self.service_inventory = ServiceInventory(self.rest_client)
         self.graph_updater = GraphUpdater(self.entity_inventory)
-        self.drift_detector = DriftDetector(
-            self.entity_inventory,
-            self.service_inventory
-        )
+        self.drift_detector = DriftDetector(self.entity_inventory, self.service_inventory)
 
         # Background task
         self._refresh_task: asyncio.Task | None = None
@@ -103,10 +101,8 @@ class CapabilityGraph:
 
         if self._refresh_task:
             self._refresh_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._refresh_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Capability graph stopped")
 
@@ -135,8 +131,7 @@ class CapabilityGraph:
                 if entity_drift["has_drift"] or service_drift["has_drift"]:
                     # Get affected specs
                     affected = self.drift_detector.get_affected_specs(
-                        entity_drift["removed_entities"],
-                        service_drift["removed_services"]
+                        entity_drift["removed_entities"], service_drift["removed_services"]
                     )
 
                     if affected:
@@ -193,5 +188,5 @@ class CapabilityGraph:
             "area_count": len(self.entity_inventory.area_to_entities),
             "device_count": len(self.entity_inventory.device_to_entities),
             "capability_count": len(self.service_inventory.capability_to_service),
-            "running": self._running
+            "running": self._running,
         }

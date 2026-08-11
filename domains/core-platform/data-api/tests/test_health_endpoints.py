@@ -18,14 +18,12 @@ Covers 12 scenarios:
 
 from __future__ import annotations
 
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-
-from src.health_endpoints import HealthEndpoints, HealthStatus, ServiceHealth
+from src.health_endpoints import HealthEndpoints
 
 # ---------------------------------------------------------------------------
 # Override conftest fresh_db — health endpoints have no DB dependency
@@ -73,7 +71,6 @@ class TestResourceUsage:
         ep = HealthEndpoints()
         with patch.dict("sys.modules", {"psutil": None}):
             # Force ImportError by removing psutil temporarily
-            import importlib
             try:
                 result = ep._get_memory_usage()
                 # Either returns real data or error dict
@@ -108,8 +105,14 @@ class TestHealthEndpoint:
         ep = HealthEndpoints()
         app = self._make_app(ep)
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            with patch.object(ep, "_check_influxdb_health", new_callable=AsyncMock, return_value=True), \
-                 patch.object(ep, "_check_service_health", new_callable=AsyncMock, return_value=True):
+            with (
+                patch.object(
+                    ep, "_check_influxdb_health", new_callable=AsyncMock, return_value=True
+                ),
+                patch.object(
+                    ep, "_check_service_health", new_callable=AsyncMock, return_value=True
+                ),
+            ):
                 resp = await client.get("/health")
                 assert resp.status_code == 200
                 data = resp.json()
@@ -122,8 +125,14 @@ class TestHealthEndpoint:
         ep = HealthEndpoints()
         app = self._make_app(ep)
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            with patch.object(ep, "_check_influxdb_health", new_callable=AsyncMock, return_value=True), \
-                 patch.object(ep, "_check_service_health", new_callable=AsyncMock, return_value=True):
+            with (
+                patch.object(
+                    ep, "_check_influxdb_health", new_callable=AsyncMock, return_value=True
+                ),
+                patch.object(
+                    ep, "_check_service_health", new_callable=AsyncMock, return_value=True
+                ),
+            ):
                 resp = await client.get("/health")
                 data = resp.json()
                 assert "metrics" in data
@@ -135,8 +144,14 @@ class TestHealthEndpoint:
         ep = HealthEndpoints()
         app = self._make_app(ep)
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            with patch.object(ep, "_check_influxdb_health", new_callable=AsyncMock, return_value=False), \
-                 patch.object(ep, "_check_service_health", new_callable=AsyncMock, return_value=False):
+            with (
+                patch.object(
+                    ep, "_check_influxdb_health", new_callable=AsyncMock, return_value=False
+                ),
+                patch.object(
+                    ep, "_check_service_health", new_callable=AsyncMock, return_value=False
+                ),
+            ):
                 resp = await client.get("/health")
                 # Should still return 200 (degraded, not broken)
                 assert resp.status_code == 200
@@ -144,6 +159,7 @@ class TestHealthEndpoint:
     @staticmethod
     def _make_app(ep: HealthEndpoints):
         from fastapi import FastAPI
+
         app = FastAPI()
         app.include_router(ep.router)
         return app

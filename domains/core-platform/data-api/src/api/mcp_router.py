@@ -11,7 +11,8 @@ from pydantic import BaseModel
 
 def _sanitize_flux_value(value: str) -> str:
     """Sanitize a value for use in Flux query string literals."""
-    return str(value).replace('\\', '\\\\').replace('"', '\\"')
+    return str(value).replace("\\", "\\\\").replace('"', '\\"')
+
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ router = APIRouter(prefix="/mcp/tools", tags=["mcp"])
 
 class QueryDeviceHistoryRequest(BaseModel):
     """Request for device history query"""
+
     entity_id: str
     start_time: str
     end_time: str
@@ -64,10 +66,10 @@ async def query_device_history(request: QueryDeviceHistoryRequest):
         '''
 
         if request.fields:
-            fields_filter = ' or '.join(
+            fields_filter = " or ".join(
                 f'r._field == "{_sanitize_flux_value(field)}"' for field in request.fields
             )
-            query += f'\n    |> filter(fn: (r) => {fields_filter})'
+            query += f"\n    |> filter(fn: (r) => {fields_filter})"
 
         results = await influx_client.query(query)
 
@@ -76,7 +78,7 @@ async def query_device_history(request: QueryDeviceHistoryRequest):
             "start_time": request.start_time,
             "end_time": request.end_time,
             "data_points": len(results),
-            "data": results[:1000]  # Limit to prevent huge responses
+            "data": results[:1000],  # Limit to prevent huge responses
         }
 
     except Exception as e:
@@ -104,13 +106,11 @@ async def get_devices():
 
         async for session in get_db_session():
             from sqlalchemy import text
+
             result = await session.execute(text("SELECT * FROM devices ORDER BY entity_id"))
             devices = [dict(row._mapping) for row in result.fetchall()]
 
-        return {
-            "count": len(devices),
-            "devices": devices
-        }
+        return {"count": len(devices), "devices": devices}
 
     except Exception as e:
         logger.error(f"MCP tool error: {e}")
@@ -123,7 +123,7 @@ async def search_events(
     event_type: str | None = None,
     start_time: str = "-24h",
     end_time: str = "now",
-    limit: int = 100
+    limit: int = 100,
 ):
     """
     MCP Tool: Search events by criteria.
@@ -149,10 +149,10 @@ async def search_events(
         safe_start_time = _sanitize_flux_value(start_time)
         safe_end_time = _sanitize_flux_value(end_time)
 
-        query = f'''
+        query = f"""
         from(bucket: "home_assistant_events")
             |> range(start: {safe_start_time}, stop: {safe_end_time})
-        '''
+        """
 
         if entity_id:
             safe_entity_id = _sanitize_flux_value(entity_id)
@@ -162,14 +162,11 @@ async def search_events(
             safe_event_type = _sanitize_flux_value(event_type)
             query += f'\n    |> filter(fn: (r) => r.event_type == "{safe_event_type}")'
 
-        query += f'\n    |> limit(n: {limit})'
+        query += f"\n    |> limit(n: {limit})"
 
         results = await influx_client.query(query)
 
-        return {
-            "count": len(results),
-            "events": results
-        }
+        return {"count": len(results), "events": results}
 
     except Exception as e:
         logger.error(f"MCP tool error: {e}")

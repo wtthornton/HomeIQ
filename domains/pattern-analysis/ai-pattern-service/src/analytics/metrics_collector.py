@@ -65,8 +65,7 @@ class MetricsCollector:
         self._in_memory_metrics: list[MetricPoint] = []
 
         logger.info(
-            f"MetricsCollector initialized "
-            f"(InfluxDB: {'enabled' if influx_client else 'disabled'})"
+            f"MetricsCollector initialized (InfluxDB: {'enabled' if influx_client else 'disabled'})"
         )
 
     async def record_deployment(
@@ -213,8 +212,14 @@ class MetricsCollector:
             """
             results = await self.influx_client.query(query)
 
-            synergy_views = sum(r.get("_value", 0) for r in results if r.get("_measurement") == "synergy_view")
-            deployments = sum(r.get("_value", 0) for r in results if r.get("_measurement") == "automation_deployment")
+            synergy_views = sum(
+                r.get("_value", 0) for r in results if r.get("_measurement") == "synergy_view"
+            )
+            deployments = sum(
+                r.get("_value", 0)
+                for r in results
+                if r.get("_measurement") == "automation_deployment"
+            )
 
             return {
                 "period_days": days,
@@ -229,7 +234,9 @@ class MetricsCollector:
             period_metrics = [m for m in self._in_memory_metrics if m.timestamp >= cutoff]
 
             synergy_views = len([m for m in period_metrics if m.measurement == "synergy_view"])
-            deployments = len([m for m in period_metrics if m.measurement == "automation_deployment"])
+            deployments = len(
+                [m for m in period_metrics if m.measurement == "automation_deployment"]
+            )
 
             return {
                 "period_days": days,
@@ -274,7 +281,8 @@ class MetricsCollector:
         else:
             cutoff = datetime.now(UTC) - timedelta(days=days)
             period_metrics = [
-                m for m in self._in_memory_metrics
+                m
+                for m in self._in_memory_metrics
                 if m.measurement == "automation_execution" and m.timestamp >= cutoff
             ]
 
@@ -322,7 +330,8 @@ class MetricsCollector:
         else:
             cutoff = datetime.now(UTC) - timedelta(days=days)
             period_metrics = [
-                m for m in self._in_memory_metrics
+                m
+                for m in self._in_memory_metrics
                 if m.measurement == "automation_rating" and m.timestamp >= cutoff
             ]
 
@@ -365,10 +374,7 @@ class MetricsCollector:
         cutoff = datetime.now(UTC) - timedelta(days=days)
         original_count = len(self._in_memory_metrics)
 
-        self._in_memory_metrics = [
-            m for m in self._in_memory_metrics
-            if m.timestamp >= cutoff
-        ]
+        self._in_memory_metrics = [m for m in self._in_memory_metrics if m.timestamp >= cutoff]
 
         removed = original_count - len(self._in_memory_metrics)
         if removed > 0:

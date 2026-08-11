@@ -66,7 +66,9 @@ class DataAPIClient:
 
             logger.debug("Fetching events from Data API: %s", params)
             response = await self._cross_client.call(
-                "GET", "/api/v1/events", params=params,
+                "GET",
+                "/api/v1/events",
+                params=params,
             )
             response.raise_for_status()
             data = response.json()
@@ -87,7 +89,8 @@ class DataAPIClient:
         """Get current activity. Returns None on failure (5s timeout)."""
         try:
             response = await self._activity_client.call(
-                "GET", "/api/v1/activity",
+                "GET",
+                "/api/v1/activity",
             )
             if response.status_code in (404, 503):
                 return None
@@ -105,7 +108,9 @@ class DataAPIClient:
         """Get activity history. Returns [] on failure (5s timeout)."""
         try:
             response = await self._activity_client.call(
-                "GET", "/api/v1/activity/history", params={"hours": hours},
+                "GET",
+                "/api/v1/activity/history",
+                params={"hours": hours},
             )
             if response.status_code != 200:
                 return []

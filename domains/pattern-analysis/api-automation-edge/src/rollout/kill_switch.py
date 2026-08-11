@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 try:
     from ..task_queue.huey_config import huey
     from ..task_queue.scheduler import get_scheduler
+
     HUEY_AVAILABLE = True
 except ImportError:
     HUEY_AVAILABLE = False
@@ -100,11 +101,7 @@ class KillSwitch:
         self.paused_specs.discard(spec_id)
         logger.info(f"Kill switch deactivated for spec {spec_id}")
 
-    def is_allowed(
-        self,
-        spec: dict,
-        home_id: str
-    ) -> tuple[bool, str | None]:
+    def is_allowed(self, spec: dict, home_id: str) -> tuple[bool, str | None]:
         """
         Check if automation is allowed to execute.
 
@@ -142,5 +139,5 @@ class KillSwitch:
         return {
             "global_paused": self.global_paused,
             "paused_homes": list(self.paused_homes),
-            "paused_specs": list(self.paused_specs)
+            "paused_specs": list(self.paused_specs),
         }

@@ -7,9 +7,12 @@ Extracted from ai-automation-service for pattern service notifications.
 
 import json
 import logging
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import paho.mqtt.client as mqtt
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +29,14 @@ class MQTTNotificationClient:
     - QoS support for reliable delivery
     """
 
-    def __init__(self, broker: str | None = None, port: int = 1883, username: str | None = None, password: str | None = None, enabled: bool = True):
+    def __init__(
+        self,
+        broker: str | None = None,
+        port: int = 1883,
+        username: str | None = None,
+        password: str | None = None,
+        enabled: bool = True,
+    ):
         """
         Initialize MQTT client.
 
@@ -40,12 +50,13 @@ class MQTTNotificationClient:
         # Parse broker URL if provided (e.g., mqtt://host:port)
         self._use_tls = False
         if broker:
-            if broker.startswith(('mqtt://', 'mqtts://', 'ws://', 'wss://')):
+            if broker.startswith(("mqtt://", "mqtts://", "ws://", "wss://")):
                 from urllib.parse import urlparse
+
                 parsed = urlparse(broker)
-                self.broker = parsed.hostname or parsed.netloc.split(':')[0]
+                self.broker = parsed.hostname or parsed.netloc.split(":")[0]
                 self.port = parsed.port or port
-                if broker.startswith(('mqtts://', 'wss://')):
+                if broker.startswith(("mqtts://", "wss://")):
                     self._use_tls = True
             else:
                 self.broker = broker
@@ -84,6 +95,7 @@ class MQTTNotificationClient:
 
                 # Use unique client ID to avoid conflicts
                 import uuid
+
                 client_id = f"ai-pattern-service-{uuid.uuid4().hex[:8]}"
                 self.client = mqtt.Client(client_id=client_id)
 
@@ -92,6 +104,7 @@ class MQTTNotificationClient:
 
                 if self._use_tls:
                     import ssl
+
                     self.client.tls_set(cert_reqs=ssl.CERT_REQUIRED)
 
                 self.client.on_connect = self._on_connect
@@ -108,6 +121,7 @@ class MQTTNotificationClient:
 
                 # Wait for connection with timeout
                 import time
+
                 timeout = 5.0  # 5 second timeout
                 start_time = time.time()
 
@@ -115,7 +129,9 @@ class MQTTNotificationClient:
                     time.sleep(0.1)
 
                 if self.is_connected:
-                    logger.info(f"✅ MQTT connected to {self.broker}:{self.port} (attempt {attempt + 1})")
+                    logger.info(
+                        f"✅ MQTT connected to {self.broker}:{self.port} (attempt {attempt + 1})"
+                    )
                     return True
                 else:
                     logger.warning(f"⚠️ MQTT connection timeout on attempt {attempt + 1}")
@@ -128,6 +144,7 @@ class MQTTNotificationClient:
                 if attempt < max_retries - 1:
                     logger.info(f"🔄 Retrying in {retry_delay} seconds...")
                     import time
+
                     time.sleep(retry_delay)
                 else:
                     logger.error("❌ All MQTT connection attempts failed")
@@ -156,7 +173,7 @@ class MQTTNotificationClient:
                 2: "Connection refused - invalid client identifier",
                 3: "Connection refused - server unavailable",
                 4: "Connection refused - bad username or password",
-                5: "Connection refused - not authorised"
+                5: "Connection refused - not authorised",
             }
             error_msg = error_messages.get(rc, f"Unknown error code {rc}")
             logger.error(f"❌ MQTT connection failed with code {rc}: {error_msg}")
@@ -237,7 +254,7 @@ class MQTTNotificationClient:
             "patterns_detected": result_summary.get("patterns_detected", 0),
             "synergies_detected": result_summary.get("synergies_detected", 0),
             "processing_time_sec": result_summary.get("processing_time_sec", 0),
-            "success": result_summary.get("success", True)
+            "success": result_summary.get("success", True),
         }
         return self.publish(topic, message)
 
@@ -255,4 +272,3 @@ class MQTTNotificationClient:
                 logger.info("✅ MQTT disconnected")
         except Exception as e:
             logger.error(f"❌ MQTT disconnect error: {e}")
-

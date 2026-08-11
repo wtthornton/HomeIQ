@@ -37,7 +37,6 @@ def _facade(ws):
 
 
 class TestValidationServiceRegistry:
-
     @pytest.mark.asyncio
     async def test_apply_fix_uses_update_entity_command(self):
         from src.validation_service import ValidationService
@@ -78,7 +77,6 @@ class TestValidationServiceRegistry:
 
 
 class TestIntegrationCheckerRegistry:
-
     @pytest.mark.asyncio
     async def test_device_registry_read_over_websocket(self):
         from src.integration_checker import IntegrationHealthChecker
@@ -93,7 +91,6 @@ class TestIntegrationCheckerRegistry:
 
 
 class TestDeadRestPathsRemoved:
-
     def test_no_rest_registry_paths_remain(self):
         import ast
         import inspect

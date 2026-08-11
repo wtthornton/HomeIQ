@@ -29,7 +29,9 @@ try:
 except ImportError:
     # Fallback if shared module not available
     PromptBuilder = None  # type: ignore
-    logging.warning("Could not import PromptBuilder from homeiq_ha.prompt_guidance.builder - using fallback prompt")
+    logging.warning(
+        "Could not import PromptBuilder from homeiq_ha.prompt_guidance.builder - using fallback prompt"
+    )
 
 from .device_validation_service import DeviceValidationService  # noqa: E402
 
@@ -89,7 +91,9 @@ class AIPromptGenerationService:
 
         self.http_client = httpx.AsyncClient(timeout=60.0)
         rag_status = f", rag_services={len(rag_registry.services)}" if rag_registry else ""
-        logger.info(f"AI Prompt Generation Service initialized (model={self.model}, device_validation=enabled{rag_status})")
+        logger.info(
+            f"AI Prompt Generation Service initialized (model={self.model}, device_validation=enabled{rag_status})"
+        )
 
     async def generate_prompts(
         self,
@@ -121,7 +125,9 @@ class AIPromptGenerationService:
             # Step 1: Get device inventory for validation and LLM context
             device_inventory = await self.device_validation.get_device_list_for_llm()
             device_domains = set(device_inventory.get("device_domains_available", []))
-            logger.info(f"Device inventory: {device_inventory.get('total_devices', 0)} devices, domains: {device_domains}")
+            logger.info(
+                f"Device inventory: {device_inventory.get('total_devices', 0)} devices, domains: {device_domains}"
+            )
 
             # Step 2: Get rich home context from HA AI Agent
             home_context = await self._get_home_context()
@@ -174,15 +180,11 @@ class AIPromptGenerationService:
         """
         try:
             # Get context (devices, areas, services)
-            response = await self.http_client.get(
-                f"{self.ha_agent_url}/api/v1/context"
-            )
+            response = await self.http_client.get(f"{self.ha_agent_url}/api/v1/context")
             tier1 = response.json() if response.status_code == 200 else {}
 
             # Get system prompt (contains capability patterns)
-            response = await self.http_client.get(
-                f"{self.ha_agent_url}/api/v1/system-prompt"
-            )
+            response = await self.http_client.get(f"{self.ha_agent_url}/api/v1/system-prompt")
             system_info = response.json() if response.status_code == 200 else {}
 
             return {
@@ -225,17 +227,20 @@ class AIPromptGenerationService:
         if weather.get("available"):
             current = weather.get("current", {})
             temp_c = current.get("temperature")
-            temp_f = round((temp_c * 9/5) + 32) if temp_c else None
+            temp_f = round((temp_c * 9 / 5) + 32) if temp_c else None
             # Filter out misleading insights about non-existent devices
-            device_domains = set(device_inventory.get("device_domains_available", [])) if device_inventory else set()
+            device_domains = (
+                set(device_inventory.get("device_domains_available", []))
+                if device_inventory
+                else set()
+            )
             filtered_insights = self._filter_weather_insights(
-                weather.get("insights", []),
-                device_domains
+                weather.get("insights", []), device_domains
             )
             parts.append(f"""### Weather
-- Current: {temp_f}F ({temp_c}C), {current.get('condition', 'unknown')}
-- Humidity: {current.get('humidity', 'unknown')}%
-- Relevant insights: {', '.join(filtered_insights) if filtered_insights else 'None'}
+- Current: {temp_f}F ({temp_c}C), {current.get("condition", "unknown")}
+- Humidity: {current.get("humidity", "unknown")}%
+- Relevant insights: {", ".join(filtered_insights) if filtered_insights else "None"}
 """)
 
         # Sports context - ENHANCED with game time, team colors, trigger info
@@ -247,19 +252,19 @@ class AIPromptGenerationService:
                 # Build rich game info with automation-relevant data
                 games_info = []
                 for g in (live + upcoming)[:3]:
-                    team = g.get('home_team') or g.get('team_abbr') or g.get('team', 'unknown')
-                    opponent = g.get('away_team') or g.get('opponent_abbr') or g.get('opponent', '')
-                    league = g.get('league', '')
-                    status = g.get('status', '')
-                    time_remaining = g.get('time_remaining', '')
+                    team = g.get("home_team") or g.get("team_abbr") or g.get("team", "unknown")
+                    opponent = g.get("away_team") or g.get("opponent_abbr") or g.get("opponent", "")
+                    league = g.get("league", "")
+                    status = g.get("status", "")
+                    time_remaining = g.get("time_remaining", "")
                     # NEW: Include game time and team colors for automations
-                    game_date = g.get('date', '')
-                    kickoff_in = g.get('kickoff_in', '')
-                    team_colors = g.get('team_colors', [])
+                    game_date = g.get("date", "")
+                    kickoff_in = g.get("kickoff_in", "")
+                    team_colors = g.get("team_colors", [])
                     # game_id maps to entity_id in data-api response
-                    entity_id = g.get('entity_id') or g.get('game_id', '')
-                    team_color_primary = g.get('team_color_primary', '')
-                    team_color_secondary = g.get('team_color_secondary', '')
+                    entity_id = g.get("entity_id") or g.get("game_id", "")
+                    team_color_primary = g.get("team_color_primary", "")
+                    team_color_secondary = g.get("team_color_secondary", "")
 
                     game_str = f"{team} vs {opponent} ({league}, {status})"
                     if game_date:
@@ -270,7 +275,9 @@ class AIPromptGenerationService:
                         game_str += f" [{time_remaining}]"
                     # Include team colors (prefer individual fields, fallback to array)
                     if team_color_primary or team_color_secondary:
-                        colors_str = f"primary: {team_color_primary}, secondary: {team_color_secondary}"
+                        colors_str = (
+                            f"primary: {team_color_primary}, secondary: {team_color_secondary}"
+                        )
                         game_str += f" colors: {colors_str}"
                     elif team_colors:
                         game_str += f" colors: {team_colors}"
@@ -281,8 +288,8 @@ class AIPromptGenerationService:
                 parts.append(f"""### Sports Events
 - Live games: {len(live)}
 - Upcoming games: {len(upcoming)}
-- Games: {'; '.join(games_info)}
-- Sports insights: {', '.join(sports.get('insights', []))}
+- Games: {"; ".join(games_info)}
+- Sports insights: {", ".join(sports.get("insights", []))}
 
 ⚠️ CRITICAL FOR SPORTS AUTOMATIONS:
 - DO NOT hardcode specific game times or dates - game times change frequently and differ for each game
@@ -299,8 +306,8 @@ class AIPromptGenerationService:
         if energy.get("available"):
             intensity = energy.get("current_intensity", {})
             parts.append(f"""### Energy Grid
-- Carbon intensity: {intensity.get('intensity', 'unknown')} gCO2/kWh
-- Status: {'Clean' if intensity.get('intensity', 500) < 200 else 'High carbon'}
+- Carbon intensity: {intensity.get("intensity", "unknown")} gCO2/kWh
+- Status: {"Clean" if intensity.get("intensity", 500) < 200 else "High carbon"}
 """)
 
         # Historical patterns
@@ -309,7 +316,7 @@ class AIPromptGenerationService:
             detected = patterns.get("patterns", [])
             parts.append(f"""### User Patterns
 - Patterns detected: {len(detected)}
-- Insights: {', '.join(patterns.get('insights', [])[:3])}
+- Insights: {", ".join(patterns.get("insights", [])[:3])}
 """)
 
         # Activity context (Story 2.2)
@@ -322,7 +329,7 @@ class AIPromptGenerationService:
             recent_activities = [r.get("activity") for r in recent[:5] if r.get("activity")]
             parts.append(f"""### Household Activity
 - Current: {act_name} (confidence {conf:.2f})
-- Recent: {', '.join(recent_activities) if recent_activities else 'N/A'}
+- Recent: {", ".join(recent_activities) if recent_activities else "N/A"}
 - Consider suggesting automations that improve comfort for current activity (e.g. kitchen/mealtime when cooking, dimming when relaxing)
 """)
 
@@ -342,7 +349,13 @@ class AIPromptGenerationService:
             try:
                 # Build a probe from all available insights for keyword matching
                 insights: list[str] = []
-                for source_key in ("weather", "energy", "sports", "historical_patterns", "activity"):
+                for source_key in (
+                    "weather",
+                    "energy",
+                    "sports",
+                    "historical_patterns",
+                    "activity",
+                ):
                     source = context_analysis.get(source_key, {})
                     insights.extend(source.get("insights", []))
                 probe = " ".join(insights)
@@ -361,9 +374,9 @@ class AIPromptGenerationService:
         # Summary
         summary = context_analysis.get("summary", {})
         parts.append(f"""### Context Summary
-- Data sources available: {summary.get('available_sources', 0)}/{summary.get('total_sources', 5)}
-- Total insights: {summary.get('total_insights', 0)}
-- Device count: {device_inventory.get('total_devices', 0) if device_inventory else 'unknown'}
+- Data sources available: {summary.get("available_sources", 0)}/{summary.get("total_sources", 5)}
+- Total insights: {summary.get("total_insights", 0)}
+- Device count: {device_inventory.get("total_devices", 0) if device_inventory else "unknown"}
 """)
 
         return "\n".join(parts)
@@ -423,10 +436,9 @@ class AIPromptGenerationService:
         """
         # Look for AREAS section
         import re
+
         areas_match = re.search(
-            r'AREAS:?\s*\n((?:[^\n]+\n)*?)(?=\n[A-Z]+:|$)',
-            tier1_context,
-            re.IGNORECASE
+            r"AREAS:?\s*\n((?:[^\n]+\n)*?)(?=\n[A-Z]+:|$)", tier1_context, re.IGNORECASE
         )
 
         if areas_match:
@@ -451,8 +463,7 @@ class AIPromptGenerationService:
         # Use shared prompt guidance system if available
         if PromptBuilder:
             system_prompt = PromptBuilder.build_suggestion_generation_prompt(
-                device_inventory=device_inventory,
-                home_context=context
+                device_inventory=device_inventory, home_context=context
             )
         else:
             # Fallback to basic prompt if PromptBuilder not available
@@ -470,7 +481,9 @@ class AIPromptGenerationService:
                     "model": self.model,
                     "messages": [
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"""Based on this home context, generate up to {max_prompts} proactive automation suggestions:
+                        {
+                            "role": "user",
+                            "content": f"""Based on this home context, generate up to {max_prompts} proactive automation suggestions:
 
 {context}
 
@@ -478,7 +491,8 @@ Remember:
 - Be specific to THIS home's actual devices and conditions
 - Only suggest things that would genuinely help
 - Return valid JSON array of suggestions
-- Quality over quantity - empty array is fine if nothing valuable to suggest"""},
+- Quality over quantity - empty array is fine if nothing valuable to suggest""",
+                        },
                     ],
                     "temperature": 0.7,
                     "max_tokens": 1000,
@@ -534,19 +548,21 @@ Remember:
             automation_hints = suggestion.get("automation_hints", {})
 
             # Normalize structure
-            validated.append({
-                "prompt": suggestion["prompt"],
-                "context_type": suggestion.get("context_type", "ai_generated"),
-                "quality_score": suggestion.get("confidence", 0.8),
-                "automation_hints": automation_hints,  # Pass structured hints to HA Agent
-                "metadata": {
-                    "trigger": suggestion.get("trigger", "ai_suggestion"),
-                    "reasoning": suggestion.get("reasoning", ""),
-                    "ai_generated": True,
-                    "referenced_devices": suggestion.get("referenced_devices", []),
-                    "automation_hints": automation_hints,  # Also in metadata for storage
-                },
-            })
+            validated.append(
+                {
+                    "prompt": suggestion["prompt"],
+                    "context_type": suggestion.get("context_type", "ai_generated"),
+                    "quality_score": suggestion.get("confidence", 0.8),
+                    "automation_hints": automation_hints,  # Pass structured hints to HA Agent
+                    "metadata": {
+                        "trigger": suggestion.get("trigger", "ai_suggestion"),
+                        "reasoning": suggestion.get("reasoning", ""),
+                        "ai_generated": True,
+                        "referenced_devices": suggestion.get("referenced_devices", []),
+                        "automation_hints": automation_hints,  # Also in metadata for storage
+                    },
+                }
+            )
 
         return validated
 
@@ -568,21 +584,25 @@ Remember:
             current = weather.get("current", {})
             temp_c = current.get("temperature")
             if temp_c is not None:
-                temp_f = round((temp_c * 9/5) + 32)
+                temp_f = round((temp_c * 9 / 5) + 32)
                 if temp_c < 10:
-                    prompts.append({
-                        "prompt": f"It's {temp_f}F outside. Would you like to set up automatic heating?",
-                        "context_type": "weather",
-                        "quality_score": 0.7,
-                        "metadata": {"trigger": "low_temperature", "ai_generated": False},
-                    })
+                    prompts.append(
+                        {
+                            "prompt": f"It's {temp_f}F outside. Would you like to set up automatic heating?",
+                            "context_type": "weather",
+                            "quality_score": 0.7,
+                            "metadata": {"trigger": "low_temperature", "ai_generated": False},
+                        }
+                    )
                 elif temp_c > 29:
-                    prompts.append({
-                        "prompt": f"It's {temp_f}F today. Should I set up cooling automation?",
-                        "context_type": "weather",
-                        "quality_score": 0.7,
-                        "metadata": {"trigger": "high_temperature", "ai_generated": False},
-                    })
+                    prompts.append(
+                        {
+                            "prompt": f"It's {temp_f}F today. Should I set up cooling automation?",
+                            "context_type": "weather",
+                            "quality_score": 0.7,
+                            "metadata": {"trigger": "high_temperature", "ai_generated": False},
+                        }
+                    )
 
         return prompts[:max_prompts]
 

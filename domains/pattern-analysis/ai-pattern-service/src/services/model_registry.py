@@ -1,4 +1,5 @@
 """Model registry for ML pattern detectors. Story 40.7."""
+
 import logging
 import shutil
 from pathlib import Path

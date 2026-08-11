@@ -7,18 +7,18 @@ Tests the pure business logic in entity_enrichment.py:
 - Singleton accessor
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.services.entity_enrichment import (
     EntityEnrichmentService,
     get_entity_enrichment_service,
 )
 
-
 # ---------------------------------------------------------------------------
 # _extract_capabilities — pure logic, no I/O
 # ---------------------------------------------------------------------------
+
 
 class TestExtractCapabilities:
     """Test _extract_capabilities for all supported domains."""
@@ -187,6 +187,7 @@ class TestExtractCapabilities:
 # enrich_entity_capabilities — async with mocked HA API
 # ---------------------------------------------------------------------------
 
+
 class TestEnrichEntityCapabilities:
     """Test enrich_entity_capabilities with mocked HTTP session."""
 
@@ -206,10 +207,12 @@ class TestEnrichEntityCapabilities:
     async def test_returns_capabilities_on_200(self):
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={
-            "state": "on",
-            "attributes": {"supported_features": 1, "brightness": 200},
-        })
+        mock_response.json = AsyncMock(
+            return_value={
+                "state": "on",
+                "attributes": {"supported_features": 1, "brightness": 200},
+            }
+        )
         mock_response.__aenter__ = AsyncMock(return_value=mock_response)
         mock_response.__aexit__ = AsyncMock(return_value=False)
 
@@ -256,10 +259,12 @@ class TestEnrichEntityCapabilities:
         """String supported_features should be cast to int."""
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={
-            "state": "on",
-            "attributes": {"supported_features": "3"},
-        })
+        mock_response.json = AsyncMock(
+            return_value={
+                "state": "on",
+                "attributes": {"supported_features": "3"},
+            }
+        )
         mock_response.__aenter__ = AsyncMock(return_value=mock_response)
         mock_response.__aexit__ = AsyncMock(return_value=False)
 
@@ -278,10 +283,12 @@ class TestEnrichEntityCapabilities:
         """Non-numeric supported_features should become None."""
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={
-            "state": "on",
-            "attributes": {"supported_features": "not_a_number"},
-        })
+        mock_response.json = AsyncMock(
+            return_value={
+                "state": "on",
+                "attributes": {"supported_features": "not_a_number"},
+            }
+        )
         mock_response.__aenter__ = AsyncMock(return_value=mock_response)
         mock_response.__aexit__ = AsyncMock(return_value=False)
 
@@ -304,8 +311,8 @@ class TestEnrichEntityCapabilities:
 # get_available_services_for_domain — mocked DB
 # ---------------------------------------------------------------------------
 
-class TestGetAvailableServicesForDomain:
 
+class TestGetAvailableServicesForDomain:
     def setup_method(self):
         self.svc = EntityEnrichmentService()
 
@@ -342,20 +349,20 @@ class TestGetAvailableServicesForDomain:
 # enrich_entity — combined enrichment
 # ---------------------------------------------------------------------------
 
-class TestEnrichEntity:
 
+class TestEnrichEntity:
     def setup_method(self):
         self.svc = EntityEnrichmentService()
 
     @pytest.mark.asyncio
     async def test_combines_capabilities_and_services(self):
-        self.svc.enrich_entity_capabilities = AsyncMock(return_value={
-            "supported_features": 1,
-            "capabilities": ["brightness"],
-        })
-        self.svc.get_available_services_for_domain = AsyncMock(
-            return_value=["light.turn_on"]
+        self.svc.enrich_entity_capabilities = AsyncMock(
+            return_value={
+                "supported_features": 1,
+                "capabilities": ["brightness"],
+            }
         )
+        self.svc.get_available_services_for_domain = AsyncMock(return_value=["light.turn_on"])
         mock_db = AsyncMock()
 
         result = await self.svc.enrich_entity("light.kitchen", "light", mock_db)
@@ -365,15 +372,16 @@ class TestEnrichEntity:
 
 
 class TestSingleton:
-
     def test_get_entity_enrichment_service_returns_instance(self):
         import src.services.entity_enrichment as mod
+
         mod._enrichment_service = None  # reset
         svc = get_entity_enrichment_service()
         assert isinstance(svc, EntityEnrichmentService)
 
     def test_get_entity_enrichment_service_returns_same_instance(self):
         import src.services.entity_enrichment as mod
+
         mod._enrichment_service = None
         svc1 = get_entity_enrichment_service()
         svc2 = get_entity_enrichment_service()

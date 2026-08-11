@@ -5,14 +5,12 @@ Epic 37, Story 37.2: Duration Detector tests.
 Target: >80% coverage.
 """
 
-import pytest
-import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
 
+import pandas as pd
+import pytest
 from src.pattern_analyzer.duration import (
     DurationPatternDetector,
-    StateDuration,
     DurationStats,
 )
 
@@ -74,32 +72,36 @@ class TestDurationPatternDetection:
 
     def test_empty_events(self, detector):
         """Test with empty DataFrame."""
-        events = pd.DataFrame(columns=['device_id', 'timestamp', 'state'])
+        events = pd.DataFrame(columns=["device_id", "timestamp", "state"])
         patterns = detector.detect_patterns(events)
         assert patterns == []
 
     def test_missing_columns(self, detector):
         """Test with missing required columns."""
-        events = pd.DataFrame({'device_id': ['light.bedroom']})
+        events = pd.DataFrame({"device_id": ["light.bedroom"]})
         patterns = detector.detect_patterns(events)
         assert patterns == []
 
     def test_missing_state_column(self, detector):
         """Test with missing state column."""
-        events = pd.DataFrame({
-            'device_id': ['light.bedroom'],
-            'timestamp': [datetime.now()],
-        })
+        events = pd.DataFrame(
+            {
+                "device_id": ["light.bedroom"],
+                "timestamp": [datetime.now()],
+            }
+        )
         patterns = detector.detect_patterns(events)
         assert patterns == []
 
     def test_single_event(self, detector, base_time):
         """Test with single event (no state transition)."""
-        events = pd.DataFrame({
-            'device_id': ['light.bedroom'],
-            'timestamp': [base_time],
-            'state': ['on'],
-        })
+        events = pd.DataFrame(
+            {
+                "device_id": ["light.bedroom"],
+                "timestamp": [base_time],
+                "state": ["on"],
+            }
+        )
         patterns = detector.detect_patterns(events)
         assert patterns == []
 
@@ -109,20 +111,17 @@ class TestDurationPatternDetection:
         for i in range(8):
             on_time = base_time + timedelta(hours=i * 2)
             off_time = on_time + timedelta(minutes=5)
-            events.append({'device_id': 'light.bathroom', 'timestamp': on_time, 'state': 'on'})
-            events.append({'device_id': 'light.bathroom', 'timestamp': off_time, 'state': 'off'})
+            events.append({"device_id": "light.bathroom", "timestamp": on_time, "state": "on"})
+            events.append({"device_id": "light.bathroom", "timestamp": off_time, "state": "off"})
 
         df = pd.DataFrame(events)
         patterns = detector.detect_patterns(df)
 
         assert len(patterns) >= 1
-        on_pattern = next(
-            (p for p in patterns if p['state'] == 'on'),
-            None
-        )
+        on_pattern = next((p for p in patterns if p["state"] == "on"), None)
         assert on_pattern is not None
-        assert on_pattern['device_id'] == 'light.bathroom'
-        assert on_pattern['avg_duration'] == pytest.approx(300.0, rel=0.1)
+        assert on_pattern["device_id"] == "light.bathroom"
+        assert on_pattern["avg_duration"] == pytest.approx(300.0, rel=0.1)
 
     def test_consistent_off_duration(self, detector, base_time):
         """Test detection of consistent off duration pattern."""
@@ -130,20 +129,17 @@ class TestDurationPatternDetection:
         for i in range(8):
             off_time = base_time + timedelta(hours=i * 2)
             on_time = off_time + timedelta(minutes=10)
-            events.append({'device_id': 'switch.coffee', 'timestamp': off_time, 'state': 'off'})
-            events.append({'device_id': 'switch.coffee', 'timestamp': on_time, 'state': 'on'})
+            events.append({"device_id": "switch.coffee", "timestamp": off_time, "state": "off"})
+            events.append({"device_id": "switch.coffee", "timestamp": on_time, "state": "on"})
 
         df = pd.DataFrame(events)
         patterns = detector.detect_patterns(df)
 
         assert len(patterns) >= 1
-        off_pattern = next(
-            (p for p in patterns if p['state'] == 'off'),
-            None
-        )
+        off_pattern = next((p for p in patterns if p["state"] == "off"), None)
         assert off_pattern is not None
-        assert off_pattern['device_id'] == 'switch.coffee'
-        assert off_pattern['avg_duration'] == pytest.approx(600.0, rel=0.1)
+        assert off_pattern["device_id"] == "switch.coffee"
+        assert off_pattern["avg_duration"] == pytest.approx(600.0, rel=0.1)
 
     def test_variable_duration_filtered(self, base_time):
         """Test that highly variable durations are filtered out."""
@@ -159,13 +155,15 @@ class TestDurationPatternDetection:
         for i, duration in enumerate(durations):
             on_time = base_time + timedelta(hours=i * 2)
             off_time = on_time + timedelta(seconds=duration)
-            events.append({'device_id': 'light.random', 'timestamp': on_time, 'state': 'on'})
-            events.append({'device_id': 'light.random', 'timestamp': off_time, 'state': 'off'})
+            events.append({"device_id": "light.random", "timestamp": on_time, "state": "on"})
+            events.append({"device_id": "light.random", "timestamp": off_time, "state": "off"})
 
         df = pd.DataFrame(events)
         patterns = detector.detect_patterns(df)
 
-        on_patterns = [p for p in patterns if p['device_id'] == 'light.random' and p['state'] == 'on']
+        on_patterns = [
+            p for p in patterns if p["device_id"] == "light.random" and p["state"] == "on"
+        ]
         assert len(on_patterns) == 0
 
     def test_multiple_devices(self, detector, base_time):
@@ -175,21 +173,21 @@ class TestDurationPatternDetection:
         for i in range(5):
             on_time = base_time + timedelta(hours=i)
             off_time = on_time + timedelta(minutes=5)
-            events.append({'device_id': 'light.bedroom', 'timestamp': on_time, 'state': 'on'})
-            events.append({'device_id': 'light.bedroom', 'timestamp': off_time, 'state': 'off'})
+            events.append({"device_id": "light.bedroom", "timestamp": on_time, "state": "on"})
+            events.append({"device_id": "light.bedroom", "timestamp": off_time, "state": "off"})
 
         for i in range(5):
             on_time = base_time + timedelta(hours=i, minutes=30)
             off_time = on_time + timedelta(minutes=10)
-            events.append({'device_id': 'light.kitchen', 'timestamp': on_time, 'state': 'on'})
-            events.append({'device_id': 'light.kitchen', 'timestamp': off_time, 'state': 'off'})
+            events.append({"device_id": "light.kitchen", "timestamp": on_time, "state": "on"})
+            events.append({"device_id": "light.kitchen", "timestamp": off_time, "state": "off"})
 
         df = pd.DataFrame(events)
         patterns = detector.detect_patterns(df)
 
-        devices = set(p['device_id'] for p in patterns)
-        assert 'light.bedroom' in devices
-        assert 'light.kitchen' in devices
+        devices = {p["device_id"] for p in patterns}
+        assert "light.bedroom" in devices
+        assert "light.kitchen" in devices
 
     def test_insufficient_samples(self, base_time):
         """Test that patterns with insufficient samples are skipped."""
@@ -202,8 +200,8 @@ class TestDurationPatternDetection:
         for i in range(3):
             on_time = base_time + timedelta(hours=i)
             off_time = on_time + timedelta(minutes=5)
-            events.append({'device_id': 'light.bedroom', 'timestamp': on_time, 'state': 'on'})
-            events.append({'device_id': 'light.bedroom', 'timestamp': off_time, 'state': 'off'})
+            events.append({"device_id": "light.bedroom", "timestamp": on_time, "state": "on"})
+            events.append({"device_id": "light.bedroom", "timestamp": off_time, "state": "off"})
 
         df = pd.DataFrame(events)
         patterns = detector.detect_patterns(df)
@@ -220,42 +218,42 @@ class TestStateNormalization:
 
     def test_normalize_on_states(self, detector):
         """Test normalization of various 'on' states."""
-        assert detector._normalize_state('on') == 'on'
-        assert detector._normalize_state('ON') == 'on'
-        assert detector._normalize_state('true') == 'on'
-        assert detector._normalize_state('True') == 'on'
-        assert detector._normalize_state('home') == 'on'
-        assert detector._normalize_state('open') == 'on'
-        assert detector._normalize_state('unlocked') == 'on'
-        assert detector._normalize_state('playing') == 'on'
-        assert detector._normalize_state('active') == 'on'
+        assert detector._normalize_state("on") == "on"
+        assert detector._normalize_state("ON") == "on"
+        assert detector._normalize_state("true") == "on"
+        assert detector._normalize_state("True") == "on"
+        assert detector._normalize_state("home") == "on"
+        assert detector._normalize_state("open") == "on"
+        assert detector._normalize_state("unlocked") == "on"
+        assert detector._normalize_state("playing") == "on"
+        assert detector._normalize_state("active") == "on"
 
     def test_normalize_off_states(self, detector):
         """Test normalization of various 'off' states."""
-        assert detector._normalize_state('off') == 'off'
-        assert detector._normalize_state('OFF') == 'off'
-        assert detector._normalize_state('false') == 'off'
-        assert detector._normalize_state('False') == 'off'
-        assert detector._normalize_state('away') == 'off'
-        assert detector._normalize_state('closed') == 'off'
-        assert detector._normalize_state('locked') == 'off'
-        assert detector._normalize_state('idle') == 'off'
-        assert detector._normalize_state('standby') == 'off'
-        assert detector._normalize_state('paused') == 'off'
+        assert detector._normalize_state("off") == "off"
+        assert detector._normalize_state("OFF") == "off"
+        assert detector._normalize_state("false") == "off"
+        assert detector._normalize_state("False") == "off"
+        assert detector._normalize_state("away") == "off"
+        assert detector._normalize_state("closed") == "off"
+        assert detector._normalize_state("locked") == "off"
+        assert detector._normalize_state("idle") == "off"
+        assert detector._normalize_state("standby") == "off"
+        assert detector._normalize_state("paused") == "off"
 
     def test_normalize_numeric_states(self, detector):
         """Test normalization of numeric states."""
-        assert detector._normalize_state('1') == 'on'
-        assert detector._normalize_state('100') == 'on'
-        assert detector._normalize_state('0.5') == 'on'
-        assert detector._normalize_state('0') == 'off'
-        assert detector._normalize_state('0.0') == 'off'
+        assert detector._normalize_state("1") == "on"
+        assert detector._normalize_state("100") == "on"
+        assert detector._normalize_state("0.5") == "on"
+        assert detector._normalize_state("0") == "off"
+        assert detector._normalize_state("0.0") == "off"
 
     def test_normalize_unknown_states(self, detector):
         """Test that unknown states are preserved."""
-        assert detector._normalize_state('heating') == 'heating'
-        assert detector._normalize_state('cooling') == 'cooling'
-        assert detector._normalize_state('unknown') == 'unknown'
+        assert detector._normalize_state("heating") == "heating"
+        assert detector._normalize_state("cooling") == "cooling"
+        assert detector._normalize_state("unknown") == "unknown"
 
 
 class TestAnomalyDetection:
@@ -281,24 +279,21 @@ class TestAnomalyDetection:
         for i in range(5):
             on_time = base_time + timedelta(hours=i)
             off_time = on_time + timedelta(minutes=5)
-            events.append({'device_id': 'light.test', 'timestamp': on_time, 'state': 'on'})
-            events.append({'device_id': 'light.test', 'timestamp': off_time, 'state': 'off'})
+            events.append({"device_id": "light.test", "timestamp": on_time, "state": "on"})
+            events.append({"device_id": "light.test", "timestamp": off_time, "state": "off"})
 
         anomaly_on = base_time + timedelta(hours=10)
         anomaly_off = anomaly_on + timedelta(minutes=30)
-        events.append({'device_id': 'light.test', 'timestamp': anomaly_on, 'state': 'on'})
-        events.append({'device_id': 'light.test', 'timestamp': anomaly_off, 'state': 'off'})
+        events.append({"device_id": "light.test", "timestamp": anomaly_on, "state": "on"})
+        events.append({"device_id": "light.test", "timestamp": anomaly_off, "state": "off"})
 
         df = pd.DataFrame(events)
         patterns = detector.detect_patterns(df)
 
-        on_pattern = next(
-            (p for p in patterns if p['state'] == 'on'),
-            None
-        )
+        on_pattern = next((p for p in patterns if p["state"] == "on"), None)
         assert on_pattern is not None
-        anomalies = on_pattern['anomalies']
-        long_anomalies = [a for a in anomalies if a['direction'] == 'long']
+        anomalies = on_pattern["anomalies"]
+        long_anomalies = [a for a in anomalies if a["direction"] == "long"]
         assert len(long_anomalies) >= 1
 
     def test_detects_short_anomaly(self, detector, base_time):
@@ -307,24 +302,21 @@ class TestAnomalyDetection:
         for i in range(5):
             on_time = base_time + timedelta(hours=i)
             off_time = on_time + timedelta(minutes=10)
-            events.append({'device_id': 'light.test', 'timestamp': on_time, 'state': 'on'})
-            events.append({'device_id': 'light.test', 'timestamp': off_time, 'state': 'off'})
+            events.append({"device_id": "light.test", "timestamp": on_time, "state": "on"})
+            events.append({"device_id": "light.test", "timestamp": off_time, "state": "off"})
 
         anomaly_on = base_time + timedelta(hours=10)
         anomaly_off = anomaly_on + timedelta(seconds=30)
-        events.append({'device_id': 'light.test', 'timestamp': anomaly_on, 'state': 'on'})
-        events.append({'device_id': 'light.test', 'timestamp': anomaly_off, 'state': 'off'})
+        events.append({"device_id": "light.test", "timestamp": anomaly_on, "state": "on"})
+        events.append({"device_id": "light.test", "timestamp": anomaly_off, "state": "off"})
 
         df = pd.DataFrame(events)
         patterns = detector.detect_patterns(df)
 
-        on_pattern = next(
-            (p for p in patterns if p['state'] == 'on'),
-            None
-        )
+        on_pattern = next((p for p in patterns if p["state"] == "on"), None)
         assert on_pattern is not None
-        anomalies = on_pattern['anomalies']
-        short_anomalies = [a for a in anomalies if a['direction'] == 'short']
+        anomalies = on_pattern["anomalies"]
+        short_anomalies = [a for a in anomalies if a["direction"] == "short"]
         assert len(short_anomalies) >= 1
 
     def test_no_anomalies_for_consistent_data(self, detector, base_time):
@@ -333,18 +325,15 @@ class TestAnomalyDetection:
         for i in range(6):
             on_time = base_time + timedelta(hours=i)
             off_time = on_time + timedelta(minutes=5)
-            events.append({'device_id': 'light.test', 'timestamp': on_time, 'state': 'on'})
-            events.append({'device_id': 'light.test', 'timestamp': off_time, 'state': 'off'})
+            events.append({"device_id": "light.test", "timestamp": on_time, "state": "on"})
+            events.append({"device_id": "light.test", "timestamp": off_time, "state": "off"})
 
         df = pd.DataFrame(events)
         patterns = detector.detect_patterns(df)
 
-        on_pattern = next(
-            (p for p in patterns if p['state'] == 'on'),
-            None
-        )
+        on_pattern = next((p for p in patterns if p["state"] == "on"), None)
         assert on_pattern is not None
-        assert len(on_pattern['anomalies']) == 0
+        assert len(on_pattern["anomalies"]) == 0
 
 
 class TestSystemNoiseFiltering:
@@ -368,32 +357,50 @@ class TestSystemNoiseFiltering:
         for i in range(5):
             on_time = base_time + timedelta(hours=i)
             off_time = on_time + timedelta(minutes=5)
-            events.append({'device_id': 'sensor.home_assistant_cpu', 'timestamp': on_time, 'state': '50'})
-            events.append({'device_id': 'sensor.home_assistant_cpu', 'timestamp': off_time, 'state': '60'})
-            events.append({'device_id': 'light.bedroom', 'timestamp': on_time, 'state': 'on'})
-            events.append({'device_id': 'light.bedroom', 'timestamp': off_time, 'state': 'off'})
+            events.append(
+                {"device_id": "sensor.home_assistant_cpu", "timestamp": on_time, "state": "50"}
+            )
+            events.append(
+                {"device_id": "sensor.home_assistant_cpu", "timestamp": off_time, "state": "60"}
+            )
+            events.append({"device_id": "light.bedroom", "timestamp": on_time, "state": "on"})
+            events.append({"device_id": "light.bedroom", "timestamp": off_time, "state": "off"})
 
         df = pd.DataFrame(events)
         patterns = detector_with_filter.detect_patterns(df)
 
         for pattern in patterns:
-            assert 'home_assistant' not in pattern['device_id']
+            assert "home_assistant" not in pattern["device_id"]
 
     def test_filters_external_trackers(self, detector_with_filter, base_time):
         """Test that external trackers are filtered out."""
         events = []
         for i in range(5):
             time = base_time + timedelta(hours=i)
-            events.append({'device_id': 'sensor.nfl_team_tracker', 'timestamp': time, 'state': 'on'})
-            events.append({'device_id': 'sensor.nfl_team_tracker', 'timestamp': time + timedelta(minutes=5), 'state': 'off'})
-            events.append({'device_id': 'light.living_room', 'timestamp': time, 'state': 'on'})
-            events.append({'device_id': 'light.living_room', 'timestamp': time + timedelta(minutes=5), 'state': 'off'})
+            events.append(
+                {"device_id": "sensor.nfl_team_tracker", "timestamp": time, "state": "on"}
+            )
+            events.append(
+                {
+                    "device_id": "sensor.nfl_team_tracker",
+                    "timestamp": time + timedelta(minutes=5),
+                    "state": "off",
+                }
+            )
+            events.append({"device_id": "light.living_room", "timestamp": time, "state": "on"})
+            events.append(
+                {
+                    "device_id": "light.living_room",
+                    "timestamp": time + timedelta(minutes=5),
+                    "state": "off",
+                }
+            )
 
         df = pd.DataFrame(events)
         patterns = detector_with_filter.detect_patterns(df)
 
         for pattern in patterns:
-            assert 'tracker' not in pattern['device_id']
+            assert "tracker" not in pattern["device_id"]
 
     def test_keeps_actionable_devices(self, detector_with_filter, base_time):
         """Test that actionable devices are kept."""
@@ -401,14 +408,14 @@ class TestSystemNoiseFiltering:
         for i in range(5):
             on_time = base_time + timedelta(hours=i)
             off_time = on_time + timedelta(minutes=5)
-            events.append({'device_id': 'light.bedroom', 'timestamp': on_time, 'state': 'on'})
-            events.append({'device_id': 'light.bedroom', 'timestamp': off_time, 'state': 'off'})
+            events.append({"device_id": "light.bedroom", "timestamp": on_time, "state": "on"})
+            events.append({"device_id": "light.bedroom", "timestamp": off_time, "state": "off"})
 
         df = pd.DataFrame(events)
         patterns = detector_with_filter.detect_patterns(df)
 
-        devices = [p['device_id'] for p in patterns]
-        assert 'light.bedroom' in devices
+        devices = [p["device_id"] for p in patterns]
+        assert "light.bedroom" in devices
 
 
 class TestPatternSummary:
@@ -419,40 +426,40 @@ class TestPatternSummary:
         detector = DurationPatternDetector()
         summary = detector.get_pattern_summary([])
 
-        assert summary['total_patterns'] == 0
-        assert summary['unique_devices'] == 0
-        assert summary['avg_confidence'] == 0.0
-        assert summary['total_anomalies'] == 0
+        assert summary["total_patterns"] == 0
+        assert summary["unique_devices"] == 0
+        assert summary["avg_confidence"] == 0.0
+        assert summary["total_anomalies"] == 0
 
     def test_patterns_summary(self):
         """Test summary calculation."""
         detector = DurationPatternDetector()
         patterns = [
             {
-                'pattern_type': 'duration',
-                'device_id': 'light.bedroom',
-                'state': 'on',
-                'confidence': 0.8,
-                'avg_duration': 300.0,
-                'anomalies': [{'direction': 'long'}],
+                "pattern_type": "duration",
+                "device_id": "light.bedroom",
+                "state": "on",
+                "confidence": 0.8,
+                "avg_duration": 300.0,
+                "anomalies": [{"direction": "long"}],
             },
             {
-                'pattern_type': 'duration',
-                'device_id': 'light.kitchen',
-                'state': 'on',
-                'confidence': 0.9,
-                'avg_duration': 600.0,
-                'anomalies': [],
+                "pattern_type": "duration",
+                "device_id": "light.kitchen",
+                "state": "on",
+                "confidence": 0.9,
+                "avg_duration": 600.0,
+                "anomalies": [],
             },
         ]
 
         summary = detector.get_pattern_summary(patterns)
 
-        assert summary['total_patterns'] == 2
-        assert summary['unique_devices'] == 2
-        assert summary['avg_confidence'] == pytest.approx(0.85, rel=0.01)
-        assert summary['avg_duration'] == pytest.approx(450.0, rel=0.01)
-        assert summary['total_anomalies'] == 1
+        assert summary["total_patterns"] == 2
+        assert summary["unique_devices"] == 2
+        assert summary["avg_confidence"] == pytest.approx(0.85, rel=0.01)
+        assert summary["avg_duration"] == pytest.approx(450.0, rel=0.01)
+        assert summary["total_anomalies"] == 1
 
 
 class TestAutomationSuggestion:
@@ -465,47 +472,47 @@ class TestAutomationSuggestion:
     def test_suggest_auto_off_for_light(self, detector):
         """Test auto-off suggestion for light pattern."""
         pattern = {
-            'pattern_type': 'duration',
-            'device_id': 'light.bathroom',
-            'state': 'on',
-            'occurrences': 20,
-            'confidence': 0.85,
-            'avg_duration': 300.0,
-            'std_duration': 30.0,
+            "pattern_type": "duration",
+            "device_id": "light.bathroom",
+            "state": "on",
+            "occurrences": 20,
+            "confidence": 0.85,
+            "avg_duration": 300.0,
+            "std_duration": 30.0,
         }
 
         suggestion = detector.suggest_automation(pattern)
 
-        assert suggestion['automation_type'] == 'duration_auto_off'
-        assert suggestion['confidence'] == 0.85
-        assert 'trigger' in suggestion
-        assert 'action' in suggestion
-        assert suggestion['trigger']['entity_id'] == 'light.bathroom'
-        assert suggestion['action']['service'] == 'light.turn_off'
+        assert suggestion["automation_type"] == "duration_auto_off"
+        assert suggestion["confidence"] == 0.85
+        assert "trigger" in suggestion
+        assert "action" in suggestion
+        assert suggestion["trigger"]["entity_id"] == "light.bathroom"
+        assert suggestion["action"]["service"] == "light.turn_off"
 
     def test_suggest_alert_for_off_state(self, detector):
         """Test alert suggestion for off state pattern."""
         pattern = {
-            'pattern_type': 'duration',
-            'device_id': 'sensor.motion',
-            'state': 'off',
-            'occurrences': 15,
-            'confidence': 0.8,
-            'avg_duration': 3600.0,
-            'std_duration': 300.0,
+            "pattern_type": "duration",
+            "device_id": "sensor.motion",
+            "state": "off",
+            "occurrences": 15,
+            "confidence": 0.8,
+            "avg_duration": 3600.0,
+            "std_duration": 300.0,
         }
 
         suggestion = detector.suggest_automation(pattern)
 
-        assert suggestion['automation_type'] == 'duration_alert'
-        assert suggestion['safety_level'] == 'informational'
-        assert 'notify' in suggestion['action']['service']
+        assert suggestion["automation_type"] == "duration_alert"
+        assert suggestion["safety_level"] == "informational"
+        assert "notify" in suggestion["action"]["service"]
 
     def test_suggest_automation_wrong_type(self, detector):
         """Test that non-duration patterns return empty."""
         pattern = {
-            'pattern_type': 'sequence',
-            'device_id': 'light.bedroom',
+            "pattern_type": "sequence",
+            "device_id": "light.bedroom",
         }
 
         suggestion = detector.suggest_automation(pattern)
@@ -514,10 +521,10 @@ class TestAutomationSuggestion:
     def test_suggest_automation_invalid_duration(self, detector):
         """Test that zero/negative duration returns empty."""
         pattern = {
-            'pattern_type': 'duration',
-            'device_id': 'light.bedroom',
-            'state': 'on',
-            'avg_duration': 0,
+            "pattern_type": "duration",
+            "device_id": "light.bedroom",
+            "state": "on",
+            "avg_duration": 0,
         }
 
         suggestion = detector.suggest_automation(pattern)
@@ -531,71 +538,71 @@ class TestHelperMethods:
         """Test domain extraction."""
         detector = DurationPatternDetector()
 
-        assert detector._get_domain('light.bedroom') == 'light'
-        assert detector._get_domain('binary_sensor.motion') == 'binary_sensor'
-        assert detector._get_domain('switch.coffee_maker') == 'switch'
-        assert detector._get_domain('no_domain') == 'default'
-        assert detector._get_domain('') == 'default'
+        assert detector._get_domain("light.bedroom") == "light"
+        assert detector._get_domain("binary_sensor.motion") == "binary_sensor"
+        assert detector._get_domain("switch.coffee_maker") == "switch"
+        assert detector._get_domain("no_domain") == "default"
+        assert detector._get_domain("") == "default"
 
     def test_format_duration_seconds(self):
         """Test duration formatting for seconds."""
         detector = DurationPatternDetector()
 
-        assert detector._format_duration(30) == '30s'
-        assert detector._format_duration(59) == '59s'
+        assert detector._format_duration(30) == "30s"
+        assert detector._format_duration(59) == "59s"
 
     def test_format_duration_minutes(self):
         """Test duration formatting for minutes."""
         detector = DurationPatternDetector()
 
-        assert detector._format_duration(60) == '1.0min'
-        assert detector._format_duration(300) == '5.0min'
-        assert detector._format_duration(3599) == '60.0min'
+        assert detector._format_duration(60) == "1.0min"
+        assert detector._format_duration(300) == "5.0min"
+        assert detector._format_duration(3599) == "60.0min"
 
     def test_format_duration_hours(self):
         """Test duration formatting for hours."""
         detector = DurationPatternDetector()
 
-        assert detector._format_duration(3600) == '1.0h'
-        assert detector._format_duration(7200) == '2.0h'
-        assert detector._format_duration(86400) == '24.0h'
+        assert detector._format_duration(3600) == "1.0h"
+        assert detector._format_duration(7200) == "2.0h"
+        assert detector._format_duration(86400) == "24.0h"
 
     def test_is_actionable_entity(self):
         """Test actionable entity detection."""
         detector = DurationPatternDetector()
 
-        assert detector._is_actionable_entity('light.bedroom') is True
-        assert detector._is_actionable_entity('switch.coffee_maker') is True
-        assert detector._is_actionable_entity('binary_sensor.motion') is True
+        assert detector._is_actionable_entity("light.bedroom") is True
+        assert detector._is_actionable_entity("switch.coffee_maker") is True
+        assert detector._is_actionable_entity("binary_sensor.motion") is True
 
-        assert detector._is_actionable_entity('sensor.home_assistant_cpu') is False
-        assert detector._is_actionable_entity('image.roborock_map') is False
-        assert detector._is_actionable_entity('camera.front_door') is False
+        assert detector._is_actionable_entity("sensor.home_assistant_cpu") is False
+        assert detector._is_actionable_entity("image.roborock_map") is False
+        assert detector._is_actionable_entity("camera.front_door") is False
 
     def test_get_anomalies_for_device(self):
         """Test retrieving anomalies for specific device."""
         detector = DurationPatternDetector()
         patterns = [
             {
-                'device_id': 'light.bedroom',
-                'state': 'on',
-                'anomalies': [
-                    {'duration_seconds': 1800, 'direction': 'long'},
+                "device_id": "light.bedroom",
+                "state": "on",
+                "anomalies": [
+                    {"duration_seconds": 1800, "direction": "long"},
                 ],
             },
             {
-                'device_id': 'light.kitchen',
-                'state': 'on',
-                'anomalies': [
-                    {'duration_seconds': 10, 'direction': 'short'},
+                "device_id": "light.kitchen",
+                "state": "on",
+                "anomalies": [
+                    {"duration_seconds": 10, "direction": "short"},
                 ],
             },
         ]
 
-        bedroom_anomalies = detector.get_anomalies_for_device(patterns, 'light.bedroom')
+        bedroom_anomalies = detector.get_anomalies_for_device(patterns, "light.bedroom")
         assert len(bedroom_anomalies) == 1
-        assert bedroom_anomalies[0]['direction'] == 'long'
-        assert bedroom_anomalies[0]['device_id'] == 'light.bedroom'
+        assert bedroom_anomalies[0]["direction"] == "long"
+        assert bedroom_anomalies[0]["device_id"] == "light.bedroom"
 
 
 class TestDurationExtraction:
@@ -620,11 +627,13 @@ class TestDurationExtraction:
             filter_system_noise=False,
         )
 
-        events = pd.DataFrame({
-            'device_id': ['light.test', 'light.test'],
-            'timestamp': [base_time, base_time + timedelta(seconds=5)],
-            'state': ['on', 'off'],
-        })
+        events = pd.DataFrame(
+            {
+                "device_id": ["light.test", "light.test"],
+                "timestamp": [base_time, base_time + timedelta(seconds=5)],
+                "state": ["on", "off"],
+            }
+        )
 
         durations = detector._extract_durations(events)
         assert len(durations) == 0
@@ -636,26 +645,30 @@ class TestDurationExtraction:
             filter_system_noise=False,
         )
 
-        events = pd.DataFrame({
-            'device_id': ['light.test', 'light.test'],
-            'timestamp': [base_time, base_time + timedelta(hours=2)],
-            'state': ['on', 'off'],
-        })
+        events = pd.DataFrame(
+            {
+                "device_id": ["light.test", "light.test"],
+                "timestamp": [base_time, base_time + timedelta(hours=2)],
+                "state": ["on", "off"],
+            }
+        )
 
         durations = detector._extract_durations(events)
         assert len(durations) == 0
 
     def test_handles_same_state_transitions(self, detector, base_time):
         """Test that same-state 'transitions' don't create durations."""
-        events = pd.DataFrame({
-            'device_id': ['light.test', 'light.test', 'light.test'],
-            'timestamp': [
-                base_time,
-                base_time + timedelta(minutes=5),
-                base_time + timedelta(minutes=10),
-            ],
-            'state': ['on', 'on', 'off'],
-        })
+        events = pd.DataFrame(
+            {
+                "device_id": ["light.test", "light.test", "light.test"],
+                "timestamp": [
+                    base_time,
+                    base_time + timedelta(minutes=5),
+                    base_time + timedelta(minutes=10),
+                ],
+                "state": ["on", "on", "off"],
+            }
+        )
 
         durations = detector._extract_durations(events)
 
@@ -671,8 +684,8 @@ class TestConfidenceCalculation:
         detector = DurationPatternDetector(min_state_changes=5)
 
         stats = DurationStats(
-            device_id='light.test',
-            state='on',
+            device_id="light.test",
+            state="on",
             count=50,
             mean_seconds=300.0,
             std_seconds=15.0,
@@ -690,8 +703,8 @@ class TestConfidenceCalculation:
         detector = DurationPatternDetector(min_state_changes=5)
 
         stats = DurationStats(
-            device_id='light.test',
-            state='on',
+            device_id="light.test",
+            state="on",
             count=6,
             mean_seconds=300.0,
             std_seconds=15.0,
@@ -709,8 +722,8 @@ class TestConfidenceCalculation:
         detector = DurationPatternDetector(min_state_changes=5, max_cv=1.0)
 
         stats = DurationStats(
-            device_id='light.test',
-            state='on',
+            device_id="light.test",
+            state="on",
             count=50,
             mean_seconds=300.0,
             std_seconds=150.0,

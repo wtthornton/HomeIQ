@@ -15,30 +15,30 @@ class CalendarEventParser:
 
     # Pre-compiled patterns for detecting work-from-home indicators
     WFH_PATTERNS = [
-        re.compile(r'\bWFH\b', re.IGNORECASE),
-        re.compile(r'\bWork From Home\b', re.IGNORECASE),
-        re.compile(r'\bHome Office\b', re.IGNORECASE),
-        re.compile(r'\bRemote Work\b', re.IGNORECASE),
-        re.compile(r'\bWorking From Home\b', re.IGNORECASE),
+        re.compile(r"\bWFH\b", re.IGNORECASE),
+        re.compile(r"\bWork From Home\b", re.IGNORECASE),
+        re.compile(r"\bHome Office\b", re.IGNORECASE),
+        re.compile(r"\bRemote Work\b", re.IGNORECASE),
+        re.compile(r"\bWorking From Home\b", re.IGNORECASE),
     ]
 
     # Pre-compiled patterns for detecting home location indicators
     HOME_PATTERNS = [
-        re.compile(r'\bHome\b', re.IGNORECASE),
-        re.compile(r'\bHouse\b', re.IGNORECASE),
-        re.compile(r'\bResidence\b', re.IGNORECASE),
-        re.compile(r'\bApartment\b', re.IGNORECASE),
+        re.compile(r"\bHome\b", re.IGNORECASE),
+        re.compile(r"\bHouse\b", re.IGNORECASE),
+        re.compile(r"\bResidence\b", re.IGNORECASE),
+        re.compile(r"\bApartment\b", re.IGNORECASE),
     ]
 
     # Pre-compiled patterns for detecting away/out indicators
     AWAY_PATTERNS = [
-        re.compile(r'\bOffice\b', re.IGNORECASE),
-        re.compile(r'\bWork\b', re.IGNORECASE),
-        re.compile(r'\bTravel\b', re.IGNORECASE),
-        re.compile(r'\bTrip\b', re.IGNORECASE),
-        re.compile(r'\bVacation\b', re.IGNORECASE),
-        re.compile(r'\bOut of Town\b', re.IGNORECASE),
-        re.compile(r'\bBusiness\b', re.IGNORECASE),
+        re.compile(r"\bOffice\b", re.IGNORECASE),
+        re.compile(r"\bWork\b", re.IGNORECASE),
+        re.compile(r"\bTravel\b", re.IGNORECASE),
+        re.compile(r"\bTrip\b", re.IGNORECASE),
+        re.compile(r"\bVacation\b", re.IGNORECASE),
+        re.compile(r"\bOut of Town\b", re.IGNORECASE),
+        re.compile(r"\bBusiness\b", re.IGNORECASE),
     ]
 
     @staticmethod
@@ -65,7 +65,7 @@ class CalendarEventParser:
         # String format
         if isinstance(dt_value, str):
             try:
-                dt_str = dt_value.replace('Z', '+00:00')
+                dt_str = dt_value.replace("Z", "+00:00")
                 dt = datetime.fromisoformat(dt_str)
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=UTC)
@@ -77,13 +77,13 @@ class CalendarEventParser:
         # Dict format (HA calendar format)
         if isinstance(dt_value, dict):
             # Timed event (has time component)
-            if 'dateTime' in dt_value:
-                return CalendarEventParser.parse_datetime(dt_value['dateTime'])
+            if "dateTime" in dt_value:
+                return CalendarEventParser.parse_datetime(dt_value["dateTime"])
 
             # All-day event (date only)
-            elif 'date' in dt_value:
+            elif "date" in dt_value:
                 try:
-                    date_str = dt_value['date']
+                    date_str = dt_value["date"]
                     dt = datetime.fromisoformat(date_str)
                     # Set to start/end of day
                     if dt.tzinfo is None:
@@ -124,28 +124,28 @@ class CalendarEventParser:
             }
         """
         # Extract basic fields
-        summary = event.get('summary', 'Untitled Event')
-        location = event.get('location', '')
-        description = event.get('description', '')
+        summary = event.get("summary", "Untitled Event")
+        location = event.get("location", "")
+        description = event.get("description", "")
 
         # Parse start and end times
-        start_dt = CalendarEventParser.parse_datetime(event.get('start'))
-        end_dt = CalendarEventParser.parse_datetime(event.get('end'))
+        start_dt = CalendarEventParser.parse_datetime(event.get("start"))
+        end_dt = CalendarEventParser.parse_datetime(event.get("end"))
 
         # Determine if all-day event
         # All-day events have 'date' key instead of 'dateTime'
         is_all_day = False
-        if isinstance(event.get('start'), dict):
-            is_all_day = 'date' in event['start'] and 'dateTime' not in event['start']
+        if isinstance(event.get("start"), dict):
+            is_all_day = "date" in event["start"] and "dateTime" not in event["start"]
 
         parsed_event = {
-            'summary': summary,
-            'location': location,
-            'description': description,
-            'start': start_dt,
-            'end': end_dt,
-            'is_all_day': is_all_day,
-            'raw_event': event
+            "summary": summary,
+            "location": location,
+            "description": description,
+            "start": start_dt,
+            "end": end_dt,
+            "is_all_day": is_all_day,
+            "raw_event": event,
         }
 
         logger.debug(f"Parsed event: {summary} ({start_dt} - {end_dt})")
@@ -186,9 +186,9 @@ class CalendarEventParser:
                 "confidence": float    # Confidence level (0.0-1.0)
             }
         """
-        summary = event.get('summary', '')
-        location = event.get('location', '')
-        description = event.get('description', '')
+        summary = event.get("summary", "")
+        location = event.get("location", "")
+        description = event.get("description", "")
 
         # Combine all text for pattern matching
         all_text = f"{summary} {location} {description}"
@@ -213,10 +213,10 @@ class CalendarEventParser:
             confidence = min(confidence + 0.1, 0.95)
 
         indicators = {
-            'is_wfh': is_wfh,
-            'is_home': is_home or is_wfh,  # WFH implies home
-            'is_away': is_away and not is_wfh and not is_home,  # Away only if not home
-            'confidence': confidence
+            "is_wfh": is_wfh,
+            "is_home": is_home or is_wfh,  # WFH implies home
+            "is_away": is_away and not is_wfh and not is_home,  # Away only if not home
+            "confidence": confidence,
         }
 
         if is_wfh or is_home or is_away:
@@ -273,7 +273,7 @@ class CalendarEventParser:
     def filter_events_by_time(
         events: list[dict[str, Any]],
         start_time: datetime | None = None,
-        end_time: datetime | None = None
+        end_time: datetime | None = None,
     ) -> list[dict[str, Any]]:
         """
         Filter events by time range
@@ -289,17 +289,19 @@ class CalendarEventParser:
         filtered = events
 
         if start_time:
-            filtered = [e for e in filtered if e.get('start') and e['start'] >= start_time]
+            filtered = [e for e in filtered if e.get("start") and e["start"] >= start_time]
 
         if end_time:
-            filtered = [e for e in filtered if e.get('start') and e['start'] < end_time]
+            filtered = [e for e in filtered if e.get("start") and e["start"] < end_time]
 
         logger.debug(f"Filtered {len(events)} events to {len(filtered)} within time range")
 
         return filtered
 
     @staticmethod
-    def get_current_events(events: list[dict[str, Any]], now: datetime | None = None) -> list[dict[str, Any]]:
+    def get_current_events(
+        events: list[dict[str, Any]], now: datetime | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get events that are currently active
 
@@ -314,9 +316,9 @@ class CalendarEventParser:
             now = datetime.now(UTC)
 
         current = [
-            event for event in events
-            if event.get('start') and event.get('end')
-            and event['start'] <= now < event['end']
+            event
+            for event in events
+            if event.get("start") and event.get("end") and event["start"] <= now < event["end"]
         ]
 
         logger.debug(f"Found {len(current)} current events out of {len(events)}")
@@ -325,9 +327,7 @@ class CalendarEventParser:
 
     @staticmethod
     def get_upcoming_events(
-        events: list[dict[str, Any]],
-        now: datetime | None = None,
-        limit: int | None = None
+        events: list[dict[str, Any]], now: datetime | None = None, limit: int | None = None
     ) -> list[dict[str, Any]]:
         """
         Get upcoming events (sorted by start time)
@@ -344,13 +344,10 @@ class CalendarEventParser:
             now = datetime.now(UTC)
 
         # Filter to future events
-        upcoming = [
-            event for event in events
-            if event.get('start') and event['start'] > now
-        ]
+        upcoming = [event for event in events if event.get("start") and event["start"] > now]
 
         # Sort by start time
-        upcoming.sort(key=lambda e: e['start'])
+        upcoming.sort(key=lambda e: e["start"])
 
         # Limit if specified
         if limit:
@@ -359,4 +356,3 @@ class CalendarEventParser:
         logger.debug(f"Found {len(upcoming)} upcoming events out of {len(events)}")
 
         return upcoming
-

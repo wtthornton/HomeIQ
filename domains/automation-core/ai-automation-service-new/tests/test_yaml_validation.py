@@ -521,9 +521,7 @@ action:
     def mock_data_api_client(self):
         """Mock Data API client (entity validation)."""
         client = AsyncMock(spec=DataAPIClient)
-        client.fetch_entities = AsyncMock(
-            return_value=[{"entity_id": "light.office_lamp"}]
-        )
+        client.fetch_entities = AsyncMock(return_value=[{"entity_id": "light.office_lamp"}])
         return client
 
     @pytest.fixture
@@ -600,7 +598,10 @@ action:
         with pytest.raises(YAMLGenerationError) as exc_info:
             await yaml_service.generate_automation_yaml(suggestion)
 
-        assert "YAML generation failed" in str(exc_info.value) or "failed" in str(exc_info.value).lower()
+        assert (
+            "YAML generation failed" in str(exc_info.value)
+            or "failed" in str(exc_info.value).lower()
+        )
 
     @pytest.mark.asyncio
     async def test_generate_yaml_handles_openai_error(self, yaml_service: YAMLGenerationService):

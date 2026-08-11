@@ -179,6 +179,7 @@ def ensure_dependencies():
         import torch  # noqa: F401
         from peft import LoraConfig  # noqa: F401
         from transformers import AutoTokenizer  # noqa: F401
+
         try:
             import psutil  # noqa: F401
         except ImportError:
@@ -277,28 +278,31 @@ def main():
 
     # Use cached model if available (set via HF_HOME environment variable)
     # Note: TRANSFORMERS_CACHE is deprecated, use HF_HOME only
-    cache_dir = os.environ.get('HF_HOME') or None
+    cache_dir = os.environ.get("HF_HOME") or None
     if cache_dir is None:
         # Fallback to TRANSFORMERS_CACHE only if HF_HOME not set (for backward compatibility)
-        cache_dir = os.environ.get('TRANSFORMERS_CACHE')
-    logger.info("Model cache directory: %s", cache_dir if cache_dir else "default location (~/.cache/huggingface/)")
+        cache_dir = os.environ.get("TRANSFORMERS_CACHE")
+    logger.info(
+        "Model cache directory: %s",
+        cache_dir if cache_dir else "default location (~/.cache/huggingface/)",
+    )
 
     # Try to load from cache first, fall back to download if needed
     try:
-        logger.info(f"Attempting to load tokenizer from cache: {cache_dir if cache_dir else 'default location'}")
+        logger.info(
+            f"Attempting to load tokenizer from cache: {cache_dir if cache_dir else 'default location'}"
+        )
         tokenizer = AutoTokenizer.from_pretrained(
             args.base_model,
             cache_dir=cache_dir,
-            local_files_only=True  # Use cache only
+            local_files_only=True,  # Use cache only
         )
         logger.info("Tokenizer loaded from cache successfully")
     except (OSError, FileNotFoundError) as e:
         logger.warning(f"Tokenizer not found in cache ({e}), downloading from HuggingFace Hub...")
         try:
             tokenizer = AutoTokenizer.from_pretrained(
-                args.base_model,
-                cache_dir=cache_dir,
-                local_files_only=False
+                args.base_model, cache_dir=cache_dir, local_files_only=False
             )
             logger.info("Tokenizer downloaded and loaded successfully")
         except Exception as download_error:
@@ -323,11 +327,14 @@ def main():
 
     try:
         import torch
+
         # Explicitly set device to CPU for NUC deployment (no GPU)
         device = torch.device("cpu")
         logger.info("Using device: %s", device)
 
-        logger.info("Loading model from cache: %s...", cache_dir if cache_dir else "default location")
+        logger.info(
+            "Loading model from cache: %s...", cache_dir if cache_dir else "default location"
+        )
         try:
             model = AutoModelForSeq2SeqLM.from_pretrained(
                 args.base_model,
@@ -339,7 +346,9 @@ def main():
             model = model.to(device)
             logger.info("Model loaded from cache successfully and moved to CPU")
         except (OSError, FileNotFoundError) as cache_error:
-            logger.warning(f"Model not found in cache ({cache_error}), downloading from HuggingFace Hub...")
+            logger.warning(
+                f"Model not found in cache ({cache_error}), downloading from HuggingFace Hub..."
+            )
             model = AutoModelForSeq2SeqLM.from_pretrained(
                 args.base_model,
                 cache_dir=cache_dir,
@@ -392,6 +401,7 @@ def main():
 
     try:
         import torch
+
         logger.info("Configuring training arguments...")
         training_args = TrainingArguments(
             output_dir=str(run_dir),
@@ -438,10 +448,13 @@ def main():
         process = None
         try:
             import psutil
+
             process = psutil.Process(os.getpid())
             memory_info = process.memory_info()
             logger.info(f"Memory usage before training: {memory_info.rss / 1024 / 1024:.2f} MB")
-            logger.info(f"Available memory: {psutil.virtual_memory().available / 1024 / 1024:.2f} MB")
+            logger.info(
+                f"Available memory: {psutil.virtual_memory().available / 1024 / 1024:.2f} MB"
+            )
         except ImportError:
             logger.info("Memory logging unavailable (psutil not installed)")
 
@@ -467,7 +480,9 @@ def main():
         if process is not None:
             try:
                 memory_info_after = process.memory_info()
-                logger.info(f"Memory usage after training: {memory_info_after.rss / 1024 / 1024:.2f} MB")
+                logger.info(
+                    f"Memory usage after training: {memory_info_after.rss / 1024 / 1024:.2f} MB"
+                )
             except Exception:
                 pass  # Ignore errors in post-training memory logging
     except torch.cuda.OutOfMemoryError as e:
@@ -491,10 +506,12 @@ def main():
         logger.error("Error type: %s", type(e).__name__)
 
         # Check if this might be an OOM kill (process was killed)
-        if hasattr(e, 'errno') and e.errno == -9:
+        if hasattr(e, "errno") and e.errno == -9:
             logger.error("Process was killed (likely OOM). Container memory limit may be too low.")
             logger.error("Current container limit: Check docker-compose.yml (ai-training-service)")
-            logger.error("Recommendation: Increase memory limit to 2GB or reduce training parameters")
+            logger.error(
+                "Recommendation: Increase memory limit to 2GB or reduce training parameters"
+            )
 
         sys.exit(1)
     except Exception as e:
@@ -524,7 +541,7 @@ def main():
         }
 
         metadata_path = run_dir / "training_run.json"
-        with open(metadata_path, "w", encoding="utf-8") as fp:
+        with Path(metadata_path).open("w", encoding="utf-8") as fp:
             json.dump(metadata, fp, indent=2)
         logger.info("Training metadata saved to %s", metadata_path)
     except Exception as e:
@@ -545,4 +562,3 @@ def main():
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point
     main()
-

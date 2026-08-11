@@ -1,4 +1,5 @@
 """Script to show a sample of devices from the database with raw data."""
+
 import asyncio
 
 from sqlalchemy import text
@@ -12,13 +13,15 @@ async def show_device_sample():
 
     async for session in get_db_session():
         # Get ALL device fields
-        result = await session.execute(text('''
+        result = await session.execute(
+            text("""
             SELECT id, name, manufacturer, model, integration, area_id, area_name,
                    device_class, sw_version, hw_version, power_source, via_device_id,
                    config_entry_id, connections_json, identifiers_json, zigbee_ieee, is_battery_powered
-            FROM devices 
+            FROM devices
             LIMIT 10
-        '''))
+        """)
+        )
 
         devices = result.fetchall()
 
@@ -29,9 +32,9 @@ async def show_device_sample():
         print(f"Sample of {len(devices)} devices from database:\n")
 
         for idx, device in enumerate(devices, 1):
-            print(f"\n{'='*80}")
+            print(f"\n{'=' * 80}")
             print(f"DEVICE {idx}:")
-            print(f"{'='*80}")
+            print(f"{'=' * 80}")
             print(f"ID:                 {device[0]}")
             print(f"Name:               {device[1]}")
             print(f"Manufacturer:       {device[2]}")
@@ -50,6 +53,6 @@ async def show_device_sample():
             print(f"Zigbee IEEE:        {device[15]}")
             print(f"Is Battery Powered: {device[16]}")
 
+
 if __name__ == "__main__":
     asyncio.run(show_device_sample())
-

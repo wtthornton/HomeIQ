@@ -14,13 +14,20 @@ from enum import Enum
 from homeiq_data.state_machine import InvalidStateTransition, StateMachine
 
 # Re-export for backward compatibility
-__all__ = ["InvalidStateTransition", "ConnectionState", "ConnectionStateMachine", "ProcessingState", "ProcessingStateMachine"]
+__all__ = [
+    "InvalidStateTransition",
+    "ConnectionState",
+    "ConnectionStateMachine",
+    "ProcessingState",
+    "ProcessingStateMachine",
+]
 
 logger = logging.getLogger(__name__)
 
 
 class ConnectionState(Enum):
     """Connection state enumeration"""
+
     DISCONNECTED = "disconnected"
     CONNECTING = "connecting"
     AUTHENTICATING = "authenticating"
@@ -68,7 +75,7 @@ class ConnectionStateMachine(StateMachine):
         ConnectionState.AUTHENTICATING: [ConnectionState.CONNECTED, ConnectionState.FAILED],
         ConnectionState.CONNECTED: [ConnectionState.RECONNECTING, ConnectionState.DISCONNECTED],
         ConnectionState.RECONNECTING: [ConnectionState.CONNECTING, ConnectionState.FAILED],
-        ConnectionState.FAILED: [ConnectionState.RECONNECTING]
+        ConnectionState.FAILED: [ConnectionState.RECONNECTING],
     }
 
     def __init__(self):
@@ -77,6 +84,7 @@ class ConnectionStateMachine(StateMachine):
 
 class ProcessingState(Enum):
     """Processing state enumeration"""
+
     STOPPED = "stopped"
     STARTING = "starting"
     RUNNING = "running"
@@ -101,12 +109,15 @@ class ProcessingStateMachine(StateMachine):
     VALID_TRANSITIONS = {
         ProcessingState.STOPPED: [ProcessingState.STARTING],
         ProcessingState.STARTING: [ProcessingState.RUNNING, ProcessingState.ERROR],
-        ProcessingState.RUNNING: [ProcessingState.PAUSED, ProcessingState.STOPPING, ProcessingState.ERROR],
+        ProcessingState.RUNNING: [
+            ProcessingState.PAUSED,
+            ProcessingState.STOPPING,
+            ProcessingState.ERROR,
+        ],
         ProcessingState.PAUSED: [ProcessingState.RUNNING, ProcessingState.STOPPING],
         ProcessingState.STOPPING: [ProcessingState.STOPPED],
-        ProcessingState.ERROR: [ProcessingState.STOPPED, ProcessingState.STARTING]
+        ProcessingState.ERROR: [ProcessingState.STOPPED, ProcessingState.STARTING],
     }
 
     def __init__(self):
         super().__init__(ProcessingState.STOPPED, self.VALID_TRANSITIONS)
-

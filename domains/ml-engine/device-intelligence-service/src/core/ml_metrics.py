@@ -46,7 +46,7 @@ class MLMetricsTracker:
         performance: dict[str, float],
         training_time: float,
         data_source: str,
-        sample_count: int
+        sample_count: int,
     ):
         """
         Record training metrics.
@@ -67,20 +67,20 @@ class MLMetricsTracker:
             "performance": performance,
             "training_time_seconds": training_time,
             "data_source": data_source,
-            "sample_count": sample_count
+            "sample_count": sample_count,
         }
 
         self.metrics_history.append(metric_entry)
         self._save_metrics()
 
-        logger.info("Training metrics recorded: %s v%s, accuracy=%.3f", model_type, model_version, performance.get('accuracy', 0))
+        logger.info(
+            "Training metrics recorded: %s v%s, accuracy=%.3f",
+            model_type,
+            model_version,
+            performance.get("accuracy", 0),
+        )
 
-    def record_incremental_update(
-        self,
-        samples: int,
-        update_time: float,
-        accuracy: float
-    ):
+    def record_incremental_update(self, samples: int, update_time: float, accuracy: float):
         """
         Record incremental update metrics.
 
@@ -94,19 +94,20 @@ class MLMetricsTracker:
             "event_type": "incremental_update",
             "samples": samples,
             "update_time_seconds": update_time,
-            "accuracy": accuracy
+            "accuracy": accuracy,
         }
 
         self.metrics_history.append(metric_entry)
         self._save_metrics()
 
-        logger.info("Incremental update recorded: %d samples, %.3fs, accuracy=%.3f", samples, update_time, accuracy)
+        logger.info(
+            "Incremental update recorded: %d samples, %.3fs, accuracy=%.3f",
+            samples,
+            update_time,
+            accuracy,
+        )
 
-    def record_inference(
-        self,
-        inference_time: float,
-        batch_size: int = 1
-    ):
+    def record_inference(self, inference_time: float, batch_size: int = 1):
         """
         Record inference metrics.
 
@@ -119,7 +120,7 @@ class MLMetricsTracker:
             "event_type": "inference",
             "inference_time_seconds": inference_time,
             "batch_size": batch_size,
-            "avg_time_per_prediction": inference_time / batch_size if batch_size > 0 else 0
+            "avg_time_per_prediction": inference_time / batch_size if batch_size > 0 else 0,
         }
 
         self.metrics_history.append(metric_entry)
@@ -137,8 +138,9 @@ class MLMetricsTracker:
         """
         cutoff = datetime.now(UTC).timestamp() - (hours * 3600)
         return [
-            m for m in self.metrics_history
-            if datetime.fromisoformat(m["timestamp"].replace('Z', '+00:00')).timestamp() > cutoff
+            m
+            for m in self.metrics_history
+            if datetime.fromisoformat(m["timestamp"].replace("Z", "+00:00")).timestamp() > cutoff
         ]
 
     def get_performance_trend(self) -> dict[str, Any]:
@@ -153,7 +155,7 @@ class MLMetricsTracker:
         if len(training_metrics) < 2:
             return {
                 "status": "insufficient_data",
-                "message": "Need at least 2 training events for trend analysis"
+                "message": "Need at least 2 training events for trend analysis",
             }
 
         # Get latest and previous training
@@ -175,14 +177,18 @@ class MLMetricsTracker:
                     "previous": previous_val,
                     "change": change,
                     "percent_change": percent_change,
-                    "direction": "improving" if change > 0 else "degrading" if change < 0 else "stable"
+                    "direction": "improving"
+                    if change > 0
+                    else "degrading"
+                    if change < 0
+                    else "stable",
                 }
 
         return {
             "status": "ok",
             "trends": trends,
             "latest_training": latest.get("timestamp"),
-            "previous_training": previous.get("timestamp")
+            "previous_training": previous.get("timestamp"),
         }
 
     def check_accuracy_degradation(self, threshold: float = 0.05) -> dict[str, Any]:
@@ -198,10 +204,7 @@ class MLMetricsTracker:
         training_metrics = [m for m in self.metrics_history if m.get("event_type") == "training"]
 
         if len(training_metrics) < 2:
-            return {
-                "degraded": False,
-                "message": "Insufficient data for degradation check"
-            }
+            return {"degraded": False, "message": "Insufficient data for degradation check"}
 
         latest = training_metrics[-1]
         previous = training_metrics[-2]
@@ -210,10 +213,7 @@ class MLMetricsTracker:
         previous_acc = previous.get("performance", {}).get("accuracy", 0)
 
         if previous_acc == 0:
-            return {
-                "degraded": False,
-                "message": "Cannot compare - previous accuracy is 0"
-            }
+            return {"degraded": False, "message": "Cannot compare - previous accuracy is 0"}
 
         accuracy_drop = previous_acc - latest_acc
         percent_drop = (accuracy_drop / previous_acc) * 100
@@ -227,14 +227,16 @@ class MLMetricsTracker:
             "latest_accuracy": latest_acc,
             "previous_accuracy": previous_acc,
             "threshold": threshold,
-            "message": f"Accuracy dropped by {percent_drop:.2f}%" if degraded else "Accuracy within acceptable range"
+            "message": f"Accuracy dropped by {percent_drop:.2f}%"
+            if degraded
+            else "Accuracy within acceptable range",
         }
 
     def _save_metrics(self):
         """Save metrics history to file."""
         try:
             metrics_file = self.metrics_dir / "metrics_history.json"
-            with metrics_file.open('w') as f:
+            with metrics_file.open("w") as f:
                 json.dump(list(self.metrics_history), f, indent=2)
         except Exception as e:
             logger.warning("Could not save metrics: %s", e)
@@ -251,4 +253,3 @@ class MLMetricsTracker:
         except Exception as e:
             logger.warning("Could not load metrics: %s", e)
             self.metrics_history = deque(maxlen=10_000)
-

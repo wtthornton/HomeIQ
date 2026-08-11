@@ -125,13 +125,13 @@ class CronTaskScheduler:
         for job in self._scheduler.get_jobs():
             if not job.id.startswith(_JOB_PREFIX):
                 continue
-            result.append({
-                "job_id": job.id,
-                "name": job.name,
-                "next_run_time": (
-                    job.next_run_time.isoformat() if job.next_run_time else None
-                ),
-            })
+            result.append(
+                {
+                    "job_id": job.id,
+                    "name": job.name,
+                    "next_run_time": (job.next_run_time.isoformat() if job.next_run_time else None),
+                }
+            )
         return result
 
     # ------------------------------------------------------------------
@@ -186,7 +186,8 @@ class CronTaskScheduler:
         except ValueError:
             logger.warning(
                 "Invalid cron expression %r for task %s — skipping",
-                task.cron_expression, task.id,
+                task.cron_expression,
+                task.id,
             )
             return
 
@@ -216,6 +217,7 @@ class CronTaskScheduler:
         jitter = random.uniform(0, _MAX_JITTER_SECONDS / 2)  # noqa: S311
         if jitter > 1:
             import asyncio
+
             await asyncio.sleep(jitter)
 
         async with db.get_db() as session:
@@ -239,7 +241,9 @@ class CronTaskScheduler:
                 if datetime.now(UTC) < cooldown_end:
                     logger.info(
                         "Task %d (%s) still in cooldown until %s — skipping",
-                        task_id, task.name, cooldown_end.isoformat(),
+                        task_id,
+                        task.name,
+                        cooldown_end.isoformat(),
                     )
                     return
 

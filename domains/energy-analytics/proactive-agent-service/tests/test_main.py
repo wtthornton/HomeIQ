@@ -31,15 +31,15 @@ def test_health_check_includes_scheduler_status(client):
     mock_scheduler = MagicMock()
     mock_scheduler.is_running = MagicMock(return_value=True)
     mock_scheduler.get_next_run_time = MagicMock(return_value=datetime(2025, 1, 8, 3, 0, 0))
-    
+
     # Set the scheduler service for health endpoint
     set_scheduler_service_for_health(mock_scheduler)
-    
+
     try:
         response = client.get("/health")
         assert response.status_code == 200
         data = response.json()
-        
+
         assert "scheduler" in data
         assert data["scheduler"]["enabled"] is True
         assert data["scheduler"]["running"] is True
@@ -53,13 +53,12 @@ def test_health_check_scheduler_disabled_when_not_set(client):
     """Test health check endpoint shows scheduler as disabled when not set"""
     # Ensure scheduler service is not set
     set_scheduler_service_for_health(None)
-    
+
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "scheduler" in data
     assert data["scheduler"]["enabled"] is False
     assert data["scheduler"]["running"] is False
     assert data["scheduler"]["next_run"] is None
-

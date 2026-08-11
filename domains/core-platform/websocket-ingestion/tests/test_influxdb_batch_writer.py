@@ -10,7 +10,7 @@ def _stub_schema():
     schema = SimpleNamespace()
     schema.create_event_point = lambda event: {"id": event["id"]}
     schema.create_weather_point = lambda weather, location: {"loc": location, **weather}
-    schema.validate_point = lambda point: (True, [])
+    schema.validate_point = lambda _point: (True, [])
     return schema
 
 

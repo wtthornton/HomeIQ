@@ -34,14 +34,12 @@ class CalendarService:
     def __init__(self) -> None:
         """Initialize the calendar service with HA connection and InfluxDB settings."""
         # Calendar configuration
-        self.calendar_entities = settings.calendar_entities.split(',')
+        self.calendar_entities = settings.calendar_entities.split(",")
 
         # InfluxDB configuration
         self.influxdb_url = settings.influxdb_url
         self.influxdb_token = (
-            settings.influxdb_token.get_secret_value()
-            if settings.influxdb_token
-            else ""
+            settings.influxdb_token.get_secret_value() if settings.influxdb_token else ""
         )
         self.influxdb_org = settings.influxdb_org
         self.influxdb_bucket = settings.influxdb_bucket
@@ -85,9 +83,9 @@ class CalendarService:
         logger.info("Using HA connection: %s (%s)", connection_config.name, connection_config.url)
 
         # Convert WebSocket URL to HTTP URL for calendar client
-        http_url = connection_config.url.replace('ws://', 'http://').replace('wss://', 'https://')
-        if http_url.endswith('/api/websocket'):
-            http_url = http_url.replace('/api/websocket', '')
+        http_url = connection_config.url.replace("ws://", "http://").replace("wss://", "https://")
+        if http_url.endswith("/api/websocket"):
+            http_url = http_url.replace("/api/websocket", "")
 
         # Initialize Home Assistant client
         self.ha_client = HomeAssistantCalendarClient(
@@ -116,7 +114,10 @@ class CalendarService:
 
         # Validate configured calendars exist
         for calendar_id in self.calendar_entities:
-            if calendar_id not in available_calendars and f"calendar.{calendar_id}" not in available_calendars:
+            if (
+                calendar_id not in available_calendars
+                and f"calendar.{calendar_id}" not in available_calendars
+            ):
                 logger.warning("Configured calendar '%s' not found in Home Assistant", calendar_id)
 
         self.health_state.calendar_count = len(self.calendar_entities)
@@ -168,7 +169,7 @@ class CalendarService:
 
             # Combine events from all calendars with source tagging
             combined_events = [
-                {**event, 'calendar_source': calendar_id}
+                {**event, "calendar_source": calendar_id}
                 for calendar_id, events in all_events_raw.items()
                 for event in events
             ]
@@ -183,7 +184,7 @@ class CalendarService:
             parsed_events = self.event_parser.parse_multiple_events(combined_events)
 
             # Sort by start time
-            parsed_events.sort(key=lambda e: e['start'] if e.get('start') else now)
+            parsed_events.sort(key=lambda e: e["start"] if e.get("start") else now)
 
             self.health_state.last_successful_fetch = datetime.now(UTC)
             self.health_state.total_fetches += 1
@@ -212,15 +213,18 @@ class CalendarService:
             return []
 
     def _calculate_arrival_info(
-        self, next_home_event: dict[str, Any] | None, now: datetime, wfh_today: bool,
+        self,
+        next_home_event: dict[str, Any] | None,
+        now: datetime,
+        wfh_today: bool,
     ) -> tuple[datetime | None, datetime | None, float | None, float]:
         """Calculate arrival time, prepare time, and confidence from the next home event."""
         if next_home_event:
-            arrival_time = next_home_event['start']
+            arrival_time = next_home_event["start"]
             travel_time = timedelta(minutes=settings.default_travel_time_minutes)
             prepare_time = arrival_time - travel_time
             hours_until_arrival = (arrival_time - now).total_seconds() / 3600
-            confidence = next_home_event.get('confidence', 0.75)
+            confidence = next_home_event.get("confidence", 0.75)
         else:
             arrival_time = None
             prepare_time = None
@@ -251,38 +255,40 @@ class CalendarService:
             if not events:
                 logger.info("No calendar events found, assuming default status")
                 return {
-                    'currently_home': False,
-                    'wfh_today': False,
-                    'next_arrival': None,
-                    'prepare_time': None,
-                    'hours_until_arrival': None,
-                    'confidence': 0.5,
-                    'timestamp': datetime.now(UTC),
-                    'event_count': 0,
+                    "currently_home": False,
+                    "wfh_today": False,
+                    "next_arrival": None,
+                    "prepare_time": None,
+                    "hours_until_arrival": None,
+                    "confidence": 0.5,
+                    "timestamp": datetime.now(UTC),
+                    "event_count": 0,
                 }
 
-            wfh_today = any(e.get('is_wfh', False) for e in events)
+            wfh_today = any(e.get("is_wfh", False) for e in events)
             current_events = self.event_parser.get_current_events(events, now)
-            currently_home = wfh_today or any(e.get('is_home', False) for e in current_events)
+            currently_home = wfh_today or any(e.get("is_home", False) for e in current_events)
             future_events = self.event_parser.get_upcoming_events(events, now)
-            next_home_event = next((e for e in future_events if e.get('is_home', False)), None)
+            next_home_event = next((e for e in future_events if e.get("is_home", False)), None)
 
             arrival_time, prepare_time, hours_until_arrival, confidence = (
                 self._calculate_arrival_info(next_home_event, now, wfh_today)
             )
-            confidence = self._adjust_confidence(confidence, wfh_today, currently_home, current_events)
+            confidence = self._adjust_confidence(
+                confidence, wfh_today, currently_home, current_events
+            )
 
             prediction = {
-                'currently_home': currently_home,
-                'wfh_today': wfh_today,
-                'next_arrival': arrival_time,
-                'prepare_time': prepare_time,
-                'hours_until_arrival': hours_until_arrival,
-                'confidence': confidence,
-                'timestamp': datetime.now(UTC),
-                'event_count': len(events),
-                'current_event_count': len(current_events),
-                'upcoming_event_count': len(future_events),
+                "currently_home": currently_home,
+                "wfh_today": wfh_today,
+                "next_arrival": arrival_time,
+                "prepare_time": prepare_time,
+                "hours_until_arrival": hours_until_arrival,
+                "confidence": confidence,
+                "timestamp": datetime.now(UTC),
+                "event_count": len(events),
+                "current_event_count": len(current_events),
+                "upcoming_event_count": len(future_events),
             }
 
             logger.info(
@@ -329,19 +335,19 @@ class CalendarService:
                 Point("occupancy_prediction")
                 .tag("source", "calendar")
                 .tag("user", "primary")
-                .field("currently_home", bool(prediction['currently_home']))
-                .field("wfh_today", bool(prediction['wfh_today']))
-                .field("confidence", float(prediction['confidence']))
+                .field("currently_home", bool(prediction["currently_home"]))
+                .field("wfh_today", bool(prediction["wfh_today"]))
+                .field("confidence", float(prediction["confidence"]))
                 .field(
                     "hours_until_arrival",
-                    float(prediction['hours_until_arrival'])
-                    if prediction['hours_until_arrival'] is not None
+                    float(prediction["hours_until_arrival"])
+                    if prediction["hours_until_arrival"] is not None
                     else -1.0,
                 )
-                .field("event_count", int(prediction.get('event_count', 0)))
-                .field("current_event_count", int(prediction.get('current_event_count', 0)))
-                .field("upcoming_event_count", int(prediction.get('upcoming_event_count', 0)))
-                .time(prediction['timestamp'])
+                .field("event_count", int(prediction.get("event_count", 0)))
+                .field("current_event_count", int(prediction.get("current_event_count", 0)))
+                .field("upcoming_event_count", int(prediction.get("upcoming_event_count", 0)))
+                .time(prediction["timestamp"])
             )
 
             await asyncio.to_thread(self.influxdb_client.write, point)
@@ -375,7 +381,9 @@ class CalendarService:
                             service="calendar-service",
                             error=str(e),
                         )
-                        logger.debug("Exception context: %s: %s", type(e).__name__, e, exc_info=True)
+                        logger.debug(
+                            "Exception context: %s: %s", type(e).__name__, e, exc_info=True
+                        )
 
                 self.health_state.ha_connected = True
                 await asyncio.sleep(self.fetch_interval)
@@ -486,7 +494,7 @@ async def get_prediction() -> dict[str, Any]:
         return {"error": "Failed to generate prediction"}
     # Serialize datetime fields for JSON
     result = dict(prediction)
-    for key in ('next_arrival', 'prepare_time', 'timestamp'):
+    for key in ("next_arrival", "prepare_time", "timestamp"):
         if result.get(key) and isinstance(result[key], datetime):
             result[key] = result[key].isoformat()
     return result
@@ -502,10 +510,10 @@ async def get_events() -> dict[str, Any]:
     serialized = []
     for event in events:
         entry = dict(event)
-        for key in ('start', 'end'):
+        for key in ("start", "end"):
             if entry.get(key) and isinstance(entry[key], datetime):
                 entry[key] = entry[key].isoformat()
-        entry.pop('raw_event', None)
+        entry.pop("raw_event", None)
         serialized.append(entry)
     return {"events": serialized, "count": len(serialized)}
 

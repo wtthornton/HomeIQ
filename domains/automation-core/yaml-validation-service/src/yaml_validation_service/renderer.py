@@ -51,7 +51,7 @@ class AutomationRenderer:
             sort_keys=False,
             allow_unicode=True,
             width=1000,  # Prevent line wrapping
-            indent=2
+            indent=2,
         )
 
         return yaml_str.strip()
@@ -81,7 +81,11 @@ class AutomationRenderer:
 
         # Optional fields
         if spec.max_exceeded:
-            result["max_exceeded"] = spec.max_exceeded.value if hasattr(spec.max_exceeded, "value") else spec.max_exceeded
+            result["max_exceeded"] = (
+                spec.max_exceeded.value
+                if hasattr(spec.max_exceeded, "value")
+                else spec.max_exceeded
+            )
         if spec.tags:
             result["tags"] = spec.tags
 
@@ -186,4 +190,3 @@ class AutomationRenderer:
             result.update(action.extra)
 
         return result
-

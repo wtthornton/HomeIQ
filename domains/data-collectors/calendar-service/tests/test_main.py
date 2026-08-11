@@ -21,6 +21,8 @@ os.environ.setdefault("CALENDAR_ENTITIES", "calendar.personal,calendar.work")
 os.environ.setdefault("CALENDAR_FETCH_INTERVAL", "60")
 os.environ.setdefault("SERVICE_PORT", "8011")
 
+import contextlib
+
 from main import CalendarService, create_app
 
 
@@ -30,7 +32,7 @@ class TestCalendarService:
     @pytest.fixture
     def mock_settings(self):
         """Mock settings configuration."""
-        with patch('main.settings') as mock:
+        with patch("main.settings") as mock:
             mock.calendar_entities = "calendar.personal,calendar.work"
             mock.influxdb_url = "http://localhost:8086"
             mock.influxdb_token = "test-token"
@@ -43,7 +45,7 @@ class TestCalendarService:
     @pytest.fixture
     def service(self, mock_settings):
         """Create CalendarService instance."""
-        with patch('main.settings', mock_settings):
+        with patch("main.settings", mock_settings):
             return CalendarService()
 
     @pytest.mark.asyncio
@@ -62,20 +64,17 @@ class TestCalendarService:
     async def test_service_initialization_missing_token(self, mock_settings):
         """Test service raises error when InfluxDB token is missing."""
         mock_settings.influxdb_token = ""
-        with patch('main.settings', mock_settings):
-            with pytest.raises(ValueError, match="INFLUXDB_TOKEN required"):
-                CalendarService()
+        with (
+            patch("main.settings", mock_settings),
+            pytest.raises(ValueError, match="INFLUXDB_TOKEN required"),
+        ):
+            CalendarService()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('main.ha_connection_manager')
-    @patch('main.InfluxDBClient3')
-    async def test_startup_success(
-        self,
-        _mock_influxdb_client,
-        mock_ha_manager,
-        service
-    ):
+    @patch("main.ha_connection_manager")
+    @patch("main.InfluxDBClient3")
+    async def test_startup_success(self, _mock_influxdb_client, mock_ha_manager, service):
         """Test successful service startup."""
         # Mock HA connection manager
         mock_connection = MagicMock()
@@ -93,7 +92,7 @@ class TestCalendarService:
             return_value=["calendar.personal", "calendar.work"]
         )
 
-        with patch('main.HomeAssistantCalendarClient', return_value=mock_ha_client):
+        with patch("main.HomeAssistantCalendarClient", return_value=mock_ha_client):
             await service.startup()
 
         assert service.ha_client is not None
@@ -103,12 +102,10 @@ class TestCalendarService:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('main.ha_connection_manager')
+    @patch("main.ha_connection_manager")
     async def test_startup_no_ha_connection(self, mock_ha_manager, service):
         """Test startup fails when no HA connection available."""
-        mock_ha_manager.get_connection_with_circuit_breaker = AsyncMock(
-            return_value=None
-        )
+        mock_ha_manager.get_connection_with_circuit_breaker = AsyncMock(return_value=None)
 
         with pytest.raises(ConnectionError, match="No Home Assistant connections available"):
             await service.startup()
@@ -117,7 +114,7 @@ class TestCalendarService:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('main.ha_connection_manager')
+    @patch("main.ha_connection_manager")
     async def test_startup_ha_connection_fails(self, mock_ha_manager, service):
         """Test startup fails when HA connection test fails."""
         mock_connection = MagicMock()
@@ -131,9 +128,11 @@ class TestCalendarService:
         mock_ha_client = AsyncMock()
         mock_ha_client.test_connection = AsyncMock(return_value=False)
 
-        with patch('main.HomeAssistantCalendarClient', return_value=mock_ha_client):
-            with pytest.raises(ConnectionError, match="Cannot connect to Home Assistant"):
-                await service.startup()
+        with (
+            patch("main.HomeAssistantCalendarClient", return_value=mock_ha_client),
+            pytest.raises(ConnectionError, match="Cannot connect to Home Assistant"),
+        ):
+            await service.startup()
 
         assert service.health_handler.ha_connected is False
 
@@ -162,7 +161,7 @@ class TestCalendarService:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('main.datetime')
+    @patch("main.datetime")
     async def test_get_today_events_success(self, mock_datetime, service):
         """Test successful event fetching."""
         # Mock current time
@@ -177,7 +176,7 @@ class TestCalendarService:
                     {
                         "summary": "Test Event",
                         "start": "2025-12-23T14:00:00Z",
-                        "end": "2025-12-23T15:00:00Z"
+                        "end": "2025-12-23T15:00:00Z",
                     }
                 ]
             }
@@ -191,7 +190,7 @@ class TestCalendarService:
                 {
                     "summary": "Test Event",
                     "start": datetime(2025, 12, 23, 14, 0, 0, tzinfo=UTC),
-                    "calendar_source": "calendar.personal"
+                    "calendar_source": "calendar.personal",
                 }
             ]
         )
@@ -223,7 +222,7 @@ class TestCalendarService:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('main.datetime')
+    @patch("main.datetime")
     async def test_predict_home_status_no_events(self, mock_datetime, service):
         """Test occupancy prediction with no events."""
         now = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
@@ -242,7 +241,7 @@ class TestCalendarService:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('main.datetime')
+    @patch("main.datetime")
     async def test_predict_home_status_with_events(self, mock_datetime, service):
         """Test occupancy prediction with events."""
         now = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
@@ -255,7 +254,7 @@ class TestCalendarService:
                 "start": datetime(2025, 12, 23, 9, 0, 0, tzinfo=UTC),
                 "end": datetime(2025, 12, 23, 17, 0, 0, tzinfo=UTC),
                 "is_wfh": True,
-                "is_home": True
+                "is_home": True,
             }
         ]
 
@@ -285,7 +284,7 @@ class TestCalendarService:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('main.asyncio.to_thread')
+    @patch("main.asyncio.to_thread")
     async def test_store_in_influxdb_success(self, mock_to_thread, service):
         """Test successful InfluxDB write."""
         mock_influxdb_client = MagicMock()
@@ -297,7 +296,7 @@ class TestCalendarService:
             "wfh_today": False,
             "confidence": 0.85,
             "hours_until_arrival": 2.5,
-            "timestamp": datetime.now(UTC)
+            "timestamp": datetime.now(UTC),
         }
 
         await service.store_in_influxdb(prediction)
@@ -324,31 +323,26 @@ class TestCalendarService:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('main.asyncio.to_thread')
+    @patch("main.asyncio.to_thread")
     async def test_store_in_influxdb_error(self, mock_to_thread, service):
         """Test InfluxDB write handles errors."""
         mock_influxdb_client = MagicMock()
         service.influxdb_client = mock_influxdb_client
         mock_to_thread.side_effect = Exception("Write error")
 
-        prediction = {
-            "currently_home": True,
-            "timestamp": datetime.now(UTC)
-        }
+        prediction = {"currently_home": True, "timestamp": datetime.now(UTC)}
 
         with pytest.raises(RuntimeError, match="Failed to write occupancy prediction"):
             await service.store_in_influxdb(prediction)
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('main.asyncio.sleep')
+    @patch("main.asyncio.sleep")
     async def test_run_continuous_success(self, mock_sleep, service):
         """Test continuous loop runs successfully."""
         mock_sleep.return_value = AsyncMock()
 
-        service.predict_home_status = AsyncMock(
-            return_value={"currently_home": True}
-        )
+        service.predict_home_status = AsyncMock(return_value={"currently_home": True})
         service.store_in_influxdb = AsyncMock()
         service.health_handler.ha_connected = False  # Initialize to False
 
@@ -357,10 +351,8 @@ class TestCalendarService:
         await asyncio.sleep(0.1)  # Let it run briefly
         task.cancel()
 
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
 
         # After successful run, ha_connected should be True
         # (set in run_continuous after successful fetch and store)
@@ -368,18 +360,17 @@ class TestCalendarService:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('main.asyncio.sleep')
+    @patch("main.asyncio.sleep")
     async def test_run_continuous_influxdb_error(self, mock_sleep, service):
         """Test continuous loop handles InfluxDB errors."""
+
         # Make sleep actually sleep briefly to allow loop to run
         async def mock_sleep_impl(_delay):
             await asyncio.sleep(0.01)  # Brief sleep to allow task to run
-        
+
         mock_sleep.side_effect = mock_sleep_impl
 
-        service.predict_home_status = AsyncMock(
-            return_value={"currently_home": True}
-        )
+        service.predict_home_status = AsyncMock(return_value={"currently_home": True})
         service.store_in_influxdb = AsyncMock(side_effect=Exception("InfluxDB error"))
 
         # Run for a few iterations
@@ -387,10 +378,8 @@ class TestCalendarService:
         await asyncio.sleep(0.05)  # Let it run briefly
         task.cancel()
 
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
 
         # Should continue running despite InfluxDB error
         assert service.predict_home_status.call_count > 0
@@ -412,13 +401,11 @@ class TestCreateApp:
         # Check health route is registered by checking route resources
         route_paths = []
         for route in app.router.routes():
-            if hasattr(route, 'path'):
+            if hasattr(route, "path"):
                 route_paths.append(route.path)
-            elif hasattr(route, '_resource'):
-                # For ResourceRoute, check the resource path
-                if hasattr(route._resource, 'canonical'):
-                    route_paths.append(route._resource.canonical)
-        
+            # For ResourceRoute, check the resource path
+            elif hasattr(route, "_resource") and hasattr(route._resource, "canonical"):
+                route_paths.append(route._resource.canonical)
+
         # Verify app has routes (health endpoint should be registered)
         assert len(list(app.router.routes())) > 0
-

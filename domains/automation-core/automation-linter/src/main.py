@@ -170,9 +170,7 @@ async def lint_automation(request: LintRequest):
                 "why_it_matters": f.why_it_matters,
                 "path": f.path,
                 "suggested_fix": (
-                    {"type": f.suggested_fix.type, "summary": f.suggested_fix.summary}
-                    if f.suggested_fix
-                    else None
+                    {"type": f.suggested_fix.type, "summary": f.suggested_fix.summary} if f.suggested_fix else None
                 ),
             }
             for f in report.findings
@@ -258,9 +256,7 @@ async def fix_automation(request: FixRequest):
                 "why_it_matters": f.why_it_matters,
                 "path": f.path,
                 "suggested_fix": (
-                    {"type": f.suggested_fix.type, "summary": f.suggested_fix.summary}
-                    if f.suggested_fix
-                    else None
+                    {"type": f.suggested_fix.type, "summary": f.suggested_fix.summary} if f.suggested_fix else None
                 ),
             }
             for f in report.findings

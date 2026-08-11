@@ -11,11 +11,11 @@ import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 
-class LogLevel(str, Enum):
+class LogLevel(StrEnum):
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARNING = "WARNING"
@@ -207,4 +207,3 @@ class LoggingService:
 
 # Module-level singleton used by other services/tests
 logging_service = LoggingService()
-

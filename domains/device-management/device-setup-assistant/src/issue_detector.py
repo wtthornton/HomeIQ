@@ -34,7 +34,7 @@ class SetupIssueDetector:
         device_id: str,
         device_name: str,
         entity_ids: list[str],
-        expected_entities: list[str] | None = None
+        expected_entities: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Detect setup issues for a device.
@@ -55,75 +55,81 @@ class SetupIssueDetector:
 
             # Check 1: No entities at all (must come before activity check)
             if not entity_ids:
-                issues.append({
-                    "type": "no_entities",
-                    "severity": "error",
-                    "message": f"{device_name} has no entities configured",
-                    "solution": "Check device integration configuration",
-                    "details": {
-                        "device_id": device_id
+                issues.append(
+                    {
+                        "type": "no_entities",
+                        "severity": "error",
+                        "message": f"{device_name} has no entities configured",
+                        "solution": "Check device integration configuration",
+                        "details": {"device_id": device_id},
                     }
-                })
+                )
             else:
                 # Check 2: Device not responding (no events in 24h) - only if entities exist
                 activity_result = await self._is_device_active(session, entity_ids)
                 if activity_result is not None and not activity_result["active"]:
-                    issues.append({
-                        "type": "device_not_responding",
-                        "severity": "error",
-                        "message": f"{device_name} has not sent any events in {activity_result['hours_since']:.0f} hours",
-                        "solution": "Check device power and network connection",
-                        "details": {
-                            "device_id": device_id,
-                            "hours_since_last_event": round(activity_result["hours_since"])
+                    issues.append(
+                        {
+                            "type": "device_not_responding",
+                            "severity": "error",
+                            "message": f"{device_name} has not sent any events in {activity_result['hours_since']:.0f} hours",
+                            "solution": "Check device power and network connection",
+                            "details": {
+                                "device_id": device_id,
+                                "hours_since_last_event": round(activity_result["hours_since"]),
+                            },
                         }
-                    })
+                    )
 
             # Check 3: Missing expected entities
             if expected_entities:
                 missing = set(expected_entities) - set(entity_ids)
                 if missing:
-                    issues.append({
-                        "type": "missing_entities",
-                        "severity": "warning",
-                        "message": f"Expected entities not found: {', '.join(missing)}",
-                        "solution": "Check device configuration in Home Assistant",
-                        "details": {
-                            "missing_entities": list(missing),
-                            "found_entities": entity_ids
+                    issues.append(
+                        {
+                            "type": "missing_entities",
+                            "severity": "warning",
+                            "message": f"Expected entities not found: {', '.join(missing)}",
+                            "solution": "Check device configuration in Home Assistant",
+                            "details": {
+                                "missing_entities": list(missing),
+                                "found_entities": entity_ids,
+                            },
                         }
-                    })
+                    )
 
             # Check 4: All entities disabled
             if entity_ids:
                 disabled_count = await self._count_disabled_entities(entity_ids)
                 if disabled_count == len(entity_ids):
-                    issues.append({
-                        "type": "all_entities_disabled",
-                        "severity": "warning",
-                        "message": f"All {disabled_count} entities for {device_name} are disabled",
-                        "solution": "Enable entities in Home Assistant entity registry",
-                        "details": {
-                            "disabled_count": disabled_count,
-                            "total_entities": len(entity_ids)
+                    issues.append(
+                        {
+                            "type": "all_entities_disabled",
+                            "severity": "warning",
+                            "message": f"All {disabled_count} entities for {device_name} are disabled",
+                            "solution": "Enable entities in Home Assistant entity registry",
+                            "details": {
+                                "disabled_count": disabled_count,
+                                "total_entities": len(entity_ids),
+                            },
                         }
-                    })
+                    )
 
         except Exception as e:
             logger.error(f"Error detecting setup issues for {device_id}: {e}")
-            issues.append({
-                "type": "detection_error",
-                "severity": "warning",
-                "message": "Failed to detect setup issues due to an internal error",
-                "solution": "Check Home Assistant connection",
-                "details": {}
-            })
+            issues.append(
+                {
+                    "type": "detection_error",
+                    "severity": "warning",
+                    "message": "Failed to detect setup issues due to an internal error",
+                    "solution": "Check Home Assistant connection",
+                    "details": {},
+                }
+            )
 
         return issues
 
-    async def _is_device_active(
-        self, session, entity_ids: list[str]
-    ) -> dict[str, Any] | None:
+    async def _is_device_active(self, session, entity_ids: list[str]) -> dict[str, Any] | None:
         """
         Check if device has sent events in last 24 hours.
         Checks ALL entities, returns True if ANY is active.
@@ -153,7 +159,9 @@ class SetupIssueDetector:
                                 if hours_ago < 24:
                                     any_active = True
                             except (ValueError, TypeError) as exc:
-                                logger.debug("Could not parse last_changed for %s: %s", entity_id, exc)
+                                logger.debug(
+                                    "Could not parse last_changed for %s: %s", entity_id, exc
+                                )
             except Exception as e:
                 logger.error(f"Error checking activity for entity {entity_id}: {e}")
                 return None

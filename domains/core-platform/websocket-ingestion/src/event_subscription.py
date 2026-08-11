@@ -41,7 +41,7 @@ class EventSubscriptionManager:
             True if subscription successful, False otherwise
         """
         if event_types is None:
-            event_types = ['state_changed']
+            event_types = ["state_changed"]
 
         try:
             logger.info("=" * 80)
@@ -68,7 +68,7 @@ class EventSubscriptionManager:
             subscription_message = {
                 "id": subscription_id,
                 "type": "subscribe_events",
-                "event_type": event_types[0] if len(event_types) == 1 else None
+                "event_type": event_types[0] if len(event_types) == 1 else None,
             }
 
             logger.info("📤 Sending subscription message:")
@@ -86,7 +86,7 @@ class EventSubscriptionManager:
                     sub_message = {
                         "id": sub_id,
                         "type": "subscribe_events",
-                        "event_type": event_type
+                        "event_type": event_type,
                     }
 
                     if not await websocket_client.send_message(sub_message):
@@ -97,7 +97,7 @@ class EventSubscriptionManager:
                     self.subscriptions[sub_id] = {
                         "event_type": event_type,
                         "subscribed_at": datetime.now(UTC),
-                        "status": "pending"
+                        "status": "pending",
                     }
 
                 if success:
@@ -115,7 +115,7 @@ class EventSubscriptionManager:
                     self.subscriptions[subscription_id] = {
                         "event_type": event_types[0],
                         "subscribed_at": datetime.now(UTC),
-                        "status": "pending"
+                        "status": "pending",
                     }
                     self.is_subscribed = True
                     self.subscription_start_time = datetime.now(UTC)
@@ -159,7 +159,9 @@ class EventSubscriptionManager:
                 if subscription_id in self.subscriptions:
                     if success:
                         self.subscriptions[subscription_id]["status"] = "active"
-                        logger.info(f"🎉 Subscription {subscription_id} CONFIRMED for {self.subscriptions[subscription_id]['event_type']}")
+                        logger.info(
+                            f"🎉 Subscription {subscription_id} CONFIRMED for {self.subscriptions[subscription_id]['event_type']}"
+                        )
                         logger.info("=" * 80)
                     else:
                         self.subscriptions[subscription_id]["status"] = "failed"
@@ -168,7 +170,9 @@ class EventSubscriptionManager:
                         logger.error("=" * 80)
                         return False
                 elif subscription_id in self._stale_subscription_ids:
-                    logger.debug(f"Ignoring stale result for previous subscription {subscription_id}")
+                    logger.debug(
+                        f"Ignoring stale result for previous subscription {subscription_id}"
+                    )
                     self._stale_subscription_ids.discard(subscription_id)
                 else:
                     logger.warning(f"⚠️  Received result for unknown subscription {subscription_id}")
@@ -206,7 +210,9 @@ class EventSubscriptionManager:
 
                     # Log basic event information (every 10th event to avoid spam)
                     if self.total_events_received % 10 == 1:
-                        logger.info(f"📨 Received event #{self.total_events_received}: {event_type} - {self._extract_event_summary(event_data)}")
+                        logger.info(
+                            f"📨 Received event #{self.total_events_received}: {event_type} - {self._extract_event_summary(event_data)}"
+                        )
                     else:
                         logger.debug(f"📨 Event #{self.total_events_received}: {event_type}")
 
@@ -251,8 +257,12 @@ class EventSubscriptionManager:
                     entity_id = "unknown"
 
                 # Safely extract state values (handle None states)
-                old_state_value = old_state.get("state", "unknown") if isinstance(old_state, dict) else "unknown"
-                new_state_value = new_state.get("state", "deleted") if isinstance(new_state, dict) else "deleted"
+                old_state_value = (
+                    old_state.get("state", "unknown") if isinstance(old_state, dict) else "unknown"
+                )
+                new_state_value = (
+                    new_state.get("state", "deleted") if isinstance(new_state, dict) else "deleted"
+                )
 
                 return f"entity_id={entity_id}, {old_state_value} -> {new_state_value}"
             else:
@@ -307,9 +317,15 @@ class EventSubscriptionManager:
         Returns:
             Dictionary with subscription status information
         """
-        active_subscriptions = sum(1 for sub in self.subscriptions.values() if sub["status"] == "active")
-        pending_subscriptions = sum(1 for sub in self.subscriptions.values() if sub["status"] == "pending")
-        failed_subscriptions = sum(1 for sub in self.subscriptions.values() if sub["status"] == "failed")
+        active_subscriptions = sum(
+            1 for sub in self.subscriptions.values() if sub["status"] == "active"
+        )
+        pending_subscriptions = sum(
+            1 for sub in self.subscriptions.values() if sub["status"] == "pending"
+        )
+        failed_subscriptions = sum(
+            1 for sub in self.subscriptions.values() if sub["status"] == "failed"
+        )
 
         return {
             "is_subscribed": self.is_subscribed,
@@ -317,11 +333,13 @@ class EventSubscriptionManager:
             "active_subscriptions": active_subscriptions,
             "pending_subscriptions": pending_subscriptions,
             "failed_subscriptions": failed_subscriptions,
-            "subscription_start_time": self.subscription_start_time.isoformat() if self.subscription_start_time else None,
+            "subscription_start_time": self.subscription_start_time.isoformat()
+            if self.subscription_start_time
+            else None,
             "total_events_received": self.total_events_received,
             "events_by_type": self.events_by_type.copy(),
             "last_event_time": self.last_event_time.isoformat() if self.last_event_time else None,
-            "registered_handlers": list(self.subscription_handlers.keys())
+            "registered_handlers": list(self.subscription_handlers.keys()),
         }
 
     def reset_statistics(self):

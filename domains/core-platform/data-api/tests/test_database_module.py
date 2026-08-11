@@ -10,7 +10,6 @@ Story: database module unit coverage
 
 from __future__ import annotations
 
-import os
 import sys
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -18,11 +17,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import pytest_asyncio
 
-
 # ---------------------------------------------------------------------------
 # Override the autouse fresh_db fixture from conftest.py so unit tests here
 # do not attempt to connect to a real PostgreSQL engine.
 # ---------------------------------------------------------------------------
+
 
 @pytest_asyncio.fixture(autouse=True)
 async def fresh_db():  # noqa: PT004
@@ -33,6 +32,7 @@ async def fresh_db():  # noqa: PT004
 # ---------------------------------------------------------------------------
 # Helpers — fresh module import per test
 # ---------------------------------------------------------------------------
+
 
 def _reload_database_module():
     """Force a clean import of src.database so module-level code re-executes."""
@@ -111,6 +111,7 @@ class TestModuleLevelConstants:
         mock_db_cls = MagicMock(return_value=MagicMock())
         with patch("homeiq_data.DatabaseManager", mock_db_cls):
             import src.database as db_module
+
             assert db_module.DATABASE_URL == ""
 
     def test_database_url_reads_from_env(self, monkeypatch):
@@ -119,6 +120,7 @@ class TestModuleLevelConstants:
         mock_db_cls = MagicMock(return_value=MagicMock())
         with patch("homeiq_data.DatabaseManager", mock_db_cls):
             import src.database as db_module
+
             assert db_module.DATABASE_URL == "postgresql+asyncpg://user:pw@host/db"
 
     def test_database_schema_default_is_core(self, monkeypatch):
@@ -127,6 +129,7 @@ class TestModuleLevelConstants:
         mock_db_cls = MagicMock(return_value=MagicMock())
         with patch("homeiq_data.DatabaseManager", mock_db_cls):
             import src.database as db_module
+
             assert db_module.DATABASE_SCHEMA == "core"
 
     def test_database_schema_reads_from_env(self, monkeypatch):
@@ -135,6 +138,7 @@ class TestModuleLevelConstants:
         mock_db_cls = MagicMock(return_value=MagicMock())
         with patch("homeiq_data.DatabaseManager", mock_db_cls):
             import src.database as db_module
+
             assert db_module.DATABASE_SCHEMA == "myschema"
 
 
@@ -154,6 +158,7 @@ class TestDatabaseManagerInstantiation:
         mock_db_cls = MagicMock(return_value=MagicMock())
         with patch("homeiq_data.DatabaseManager", mock_db_cls):
             import src.database  # noqa: F401
+
             call_kwargs = mock_db_cls.call_args.kwargs
             assert call_kwargs["schema"] == "core"
             assert call_kwargs["service_name"] == "data-api"
@@ -170,6 +175,7 @@ class TestDatabaseManagerInstantiation:
         mock_db_cls = MagicMock(return_value=MagicMock())
         with patch("homeiq_data.DatabaseManager", mock_db_cls):
             import src.database  # noqa: F401
+
             call_kwargs = mock_db_cls.call_args.kwargs
             assert call_kwargs["schema"] == "tenant_schema"
 
@@ -188,6 +194,7 @@ class TestBaseMetadata:
         mock_db_cls = MagicMock(return_value=MagicMock())
         with patch("homeiq_data.DatabaseManager", mock_db_cls):
             import src.database as db_module
+
             assert db_module.Base.metadata.schema == "core"
 
     def test_base_metadata_schema_from_custom_env(self, monkeypatch):
@@ -196,6 +203,7 @@ class TestBaseMetadata:
         mock_db_cls = MagicMock(return_value=MagicMock())
         with patch("homeiq_data.DatabaseManager", mock_db_cls):
             import src.database as db_module
+
             assert db_module.Base.metadata.schema == "alt_schema"
 
 
@@ -408,9 +416,7 @@ class TestInitDbCreatesSchema:
                 raise RuntimeError("schema creation failed")
             # Second call (migration check) succeeds
             conn = AsyncMock()
-            conn.execute = AsyncMock(
-                return_value=MagicMock(scalar=MagicMock(return_value=None))
-            )
+            conn.execute = AsyncMock(return_value=MagicMock(scalar=MagicMock(return_value=None)))
             yield conn
 
         mock_db.engine.begin = _failing_begin
@@ -510,9 +516,7 @@ class TestInitDbMigrationSkipped:
             executed_sqls.append(sql_text)
             if "data_type" in sql_text.lower():
                 # Already timezone-aware — no "without" in type name
-                return MagicMock(
-                    scalar=MagicMock(return_value="timestamp with time zone")
-                )
+                return MagicMock(scalar=MagicMock(return_value="timestamp with time zone"))
             return MagicMock(scalar=MagicMock(return_value=None))
 
         conn = AsyncMock()
@@ -575,9 +579,7 @@ class TestCheckDbHealthHealthy:
         mock_session = AsyncMock()
         mock_session.execute = AsyncMock(return_value=version_result)
 
-        mock_db.session_maker = MagicMock(
-            return_value=_async_cm_session(mock_session)
-        )
+        mock_db.session_maker = MagicMock(return_value=_async_cm_session(mock_session))
 
         with patch("src.database.db", mock_db):
             health = await check_db_health()
@@ -599,9 +601,7 @@ class TestCheckDbHealthHealthy:
         mock_session = AsyncMock()
         mock_session.execute = AsyncMock(side_effect=Exception("DB error"))
 
-        mock_db.session_maker = MagicMock(
-            return_value=_async_cm_session(mock_session)
-        )
+        mock_db.session_maker = MagicMock(return_value=_async_cm_session(mock_session))
 
         with patch("src.database.db", mock_db):
             health = await check_db_health()

@@ -42,7 +42,12 @@ class InfluxDBTraceWriter:
                 org=config.INFLUXDB_ORG,
             )
             # Verify with a write-path ping (InfluxDB 2.x doesn't support Arrow Flight queries)
-            test_point = Point("automation_traces").tag("automation_id", "_healthcheck").field("run_id", "test").time(datetime.now(UTC))
+            test_point = (
+                Point("automation_traces")
+                .tag("automation_id", "_healthcheck")
+                .field("run_id", "test")
+                .time(datetime.now(UTC))
+            )
             await asyncio.to_thread(self.client.write, test_point)
             logger.info("InfluxDB connection verified at %s", config.INFLUXDB_URL)
             return True
@@ -138,8 +143,12 @@ class InfluxDBTraceWriter:
                     logger.error("InfluxDB write failed after %d attempts: %s", attempt, e)
                 else:
                     backoff = 2 ** (attempt - 1)
-                    logger.warning("InfluxDB write failed (attempt %d/%d), retrying in %ds",
-                                   attempt, config.INFLUXDB_WRITE_RETRIES, backoff)
+                    logger.warning(
+                        "InfluxDB write failed (attempt %d/%d), retrying in %ds",
+                        attempt,
+                        config.INFLUXDB_WRITE_RETRIES,
+                        backoff,
+                    )
                     await asyncio.sleep(backoff)
 
     # ------------------------------------------------------------------

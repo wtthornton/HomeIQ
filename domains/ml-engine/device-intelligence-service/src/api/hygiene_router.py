@@ -2,20 +2,23 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.ha_client import HomeAssistantClient
 from ..config import Settings
 from ..core.database import get_db_session
 from ..models.database import DeviceHygieneIssue
 from ..services.remediation_service import DeviceHygieneRemediationService
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/hygiene", tags=["Device Hygiene"])
 
@@ -33,9 +36,15 @@ def _serialize_issue(issue: DeviceHygieneIssue) -> dict[str, Any]:
         "suggested_action": issue.suggested_action,
         "suggested_value": issue.suggested_value,
         "metadata": issue.metadata_json or {},
-        "detected_at": issue.detected_at.isoformat() if isinstance(issue.detected_at, datetime) else issue.detected_at,
-        "updated_at": issue.updated_at.isoformat() if isinstance(issue.updated_at, datetime) else issue.updated_at,
-        "resolved_at": issue.resolved_at.isoformat() if isinstance(issue.resolved_at, datetime) else issue.resolved_at,
+        "detected_at": issue.detected_at.isoformat()
+        if isinstance(issue.detected_at, datetime)
+        else issue.detected_at,
+        "updated_at": issue.updated_at.isoformat()
+        if isinstance(issue.updated_at, datetime)
+        else issue.updated_at,
+        "resolved_at": issue.resolved_at.isoformat()
+        if isinstance(issue.resolved_at, datetime)
+        else issue.resolved_at,
     }
 
 
@@ -44,7 +53,10 @@ async def get_ha_client() -> AsyncGenerator[HomeAssistantClient, None]:
     client = HomeAssistantClient(settings.HA_URL, settings.NABU_CASA_URL, settings.HA_TOKEN)
 
     if not await client.connect():
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Unable to connect to Home Assistant")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to connect to Home Assistant",
+        )
 
     await client.start_message_handler()
 
@@ -148,8 +160,9 @@ async def apply_issue_action(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     if not applied:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Action requirements not met")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Action requirements not met"
+        )
 
     await session.refresh(issue)
     return _serialize_issue(issue)
-

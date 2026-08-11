@@ -57,25 +57,25 @@ class LogAggregator:
 
         try:
             parsed = json.loads(stripped)
-            message = str(parsed.get('message', ''))[: self._MAX_MESSAGE_LENGTH]
+            message = str(parsed.get("message", ""))[: self._MAX_MESSAGE_LENGTH]
             return {
-                'timestamp': parsed.get('timestamp', ''),
-                'message': message,
-                'level': str(parsed.get('level', 'INFO')),
-                'service': container_name,
-                'container_name': container_name,
-                'container_id': container_id,
+                "timestamp": parsed.get("timestamp", ""),
+                "message": message,
+                "level": str(parsed.get("level", "INFO")),
+                "service": container_name,
+                "container_name": container_name,
+                "container_id": container_id,
             }
         except json.JSONDecodeError:
-            parts = stripped.split(' ', 1)
+            parts = stripped.split(" ", 1)
             if len(parts) == 2:
                 return {
-                    'timestamp': parts[0],
-                    'message': parts[1][: self._MAX_MESSAGE_LENGTH],
-                    'service': container_name,
-                    'container_name': container_name,
-                    'container_id': container_id,
-                    'level': 'INFO',
+                    "timestamp": parts[0],
+                    "message": parts[1][: self._MAX_MESSAGE_LENGTH],
+                    "service": container_name,
+                    "container_name": container_name,
+                    "container_id": container_id,
+                    "level": "INFO",
                 }
         return None
 
@@ -89,17 +89,17 @@ class LogAggregator:
                     since=last_seen,
                     timestamps=True,
                     stream=False,
-                ).decode('utf-8', errors='ignore')
+                ).decode("utf-8", errors="ignore")
             else:
                 container_logs = container.logs(
                     tail=100,
                     timestamps=True,
                     stream=False,
-                ).decode('utf-8', errors='ignore')
+                ).decode("utf-8", errors="ignore")
 
             self._last_seen[container.short_id] = datetime.now(UTC)
 
-            for line in container_logs.split('\n'):
+            for line in container_logs.split("\n"):
                 log_entry = self._parse_log_line(line, container.name, container.short_id)
                 if log_entry:
                     logs.append(log_entry)
@@ -117,13 +117,16 @@ class LogAggregator:
         try:
             loop = asyncio.get_event_loop()
             containers = await loop.run_in_executor(
-                None, lambda: self.docker_client.containers.list(all=False),
+                None,
+                lambda: self.docker_client.containers.list(all=False),
             )
             logs: list[dict] = []
 
             for container in containers:
                 container_logs = await loop.run_in_executor(
-                    None, self._process_container_logs, container,
+                    None,
+                    self._process_container_logs,
+                    container,
                 )
                 logs.extend(container_logs)
 
@@ -150,13 +153,13 @@ class LogAggregator:
 
         filtered = []
         for log in self.aggregated_logs:
-            if service and log.get('service') != service:
+            if service and log.get("service") != service:
                 continue
-            if level_upper and log.get('level') != level_upper:
+            if level_upper and log.get("level") != level_upper:
                 continue
             filtered.append(log)
 
-        filtered.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        filtered.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
         return filtered[:limit]
 
     async def search_logs(self, query: str, limit: int = 100) -> list[dict]:
@@ -165,8 +168,8 @@ class LogAggregator:
         logs = []
 
         for log in self.aggregated_logs:
-            if query_lower in log.get('message', '').lower():
+            if query_lower in log.get("message", "").lower():
                 logs.append(log)
 
-        logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        logs.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
         return logs[:limit]

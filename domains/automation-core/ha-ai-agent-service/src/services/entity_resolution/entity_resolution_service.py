@@ -18,8 +18,16 @@ logger = logging.getLogger(__name__)
 
 # Story 62.5: Fallback areas used only when data-api is unreachable
 _FALLBACK_AREAS = [
-    "office", "kitchen", "bedroom", "living room", "bathroom",
-    "garage", "basement", "attic", "hallway", "dining room",
+    "office",
+    "kitchen",
+    "bedroom",
+    "living room",
+    "bathroom",
+    "garage",
+    "basement",
+    "attic",
+    "hallway",
+    "dining room",
 ]
 
 
@@ -131,10 +139,7 @@ class EntityResolutionService:
                 entities = self._filter_by_domain(entities, target_domain)
 
             # Step 4.5: Story 62.6 — Exclude ai:ignore entities
-            entities = [
-                e for e in entities
-                if "ai:ignore" not in (e.get("labels") or [])
-            ]
+            entities = [e for e in entities if "ai:ignore" not in (e.get("labels") or [])]
 
             # Step 5: Extract keywords from prompt
             # Check patterns FIRST (before device type keywords) to prevent false matches
@@ -142,11 +147,7 @@ class EntityResolutionService:
             positional_keywords = self._extract_positional_keywords(user_prompt)
             # Only extract device type keywords if no pattern matched
             # (prevents "switch LED" matching LED devices)
-            device_type_keywords = (
-                set()
-                if pattern_keywords
-                else self._extract_device_type_keywords(user_prompt)
-            )
+            device_type_keywords = set() if pattern_keywords else self._extract_device_type_keywords(user_prompt)
 
             # Step 6: Score and match entities
             scored_entities = self._score_entities(
@@ -161,14 +162,10 @@ class EntityResolutionService:
             matched_entities = self._select_matches(scored_entities, user_prompt)
 
             # Step 8: Validate matches
-            validation_result = self._validate_matches(
-                matched_entities, user_prompt, area_id
-            )
+            validation_result = self._validate_matches(matched_entities, user_prompt, area_id)
 
             # Story 62.6: Check if any matched entity requires confirmation
-            needs_confirm = any(
-                e.get("requires_confirmation", False) for e in matched_entities
-            )
+            needs_confirm = any(e.get("requires_confirmation", False) for e in matched_entities)
 
             return EntityResolutionResult(
                 success=validation_result["valid"],
@@ -235,9 +232,7 @@ class EntityResolutionService:
 
         return None
 
-    def _filter_by_area(
-        self, entities: list[dict[str, Any]], area_id: str
-    ) -> list[dict[str, Any]]:
+    def _filter_by_area(self, entities: list[dict[str, Any]], area_id: str) -> list[dict[str, Any]]:
         """
         Filter entities by area ID.
 
@@ -259,9 +254,7 @@ class EntityResolutionService:
 
         return filtered
 
-    def _filter_by_domain(
-        self, entities: list[dict[str, Any]], domain: str
-    ) -> list[dict[str, Any]]:
+    def _filter_by_domain(self, entities: list[dict[str, Any]], domain: str) -> list[dict[str, Any]]:
         """
         Filter entities by domain.
 
@@ -275,8 +268,7 @@ class EntityResolutionService:
         return [
             e
             for e in entities
-            if e.get("domain", "").lower() == domain.lower()
-            or e.get("entity_id", "").startswith(f"{domain}.")
+            if e.get("domain", "").lower() == domain.lower() or e.get("entity_id", "").startswith(f"{domain}.")
         ]
 
     def _extract_positional_keywords(self, user_prompt: str) -> set[str]:
@@ -414,9 +406,7 @@ class EntityResolutionService:
                         break
 
             # Bonus for whole-word matches in friendly_name (avoid substring false positives)
-            if friendly_name and any(
-                word in friendly_name.split() for word in prompt_lower.split()
-            ):
+            if friendly_name and any(word in friendly_name.split() for word in prompt_lower.split()):
                 score += 0.5
 
             # Story 62.6: Label-aware scoring boosts
@@ -439,9 +429,7 @@ class EntityResolutionService:
 
         return scored
 
-    def _select_matches(
-        self, scored_entities: list[dict[str, Any]], _user_prompt: str
-    ) -> list[dict[str, Any]]:
+    def _select_matches(self, scored_entities: list[dict[str, Any]], _user_prompt: str) -> list[dict[str, Any]]:
         """
         Select best matching entities based on scores.
 
@@ -458,9 +446,7 @@ class EntityResolutionService:
             List of selected entities
         """
         # Sort by score descending
-        sorted_entities = sorted(
-            scored_entities, key=lambda e: e.get("score", 0.0), reverse=True
-        )
+        sorted_entities = sorted(scored_entities, key=lambda e: e.get("score", 0.0), reverse=True)
 
         # Filter entities with score > 0
         matched = [e for e in sorted_entities if e.get("score", 0.0) > 0]
@@ -521,9 +507,7 @@ class EntityResolutionService:
         if confidence < 0.5:
             warnings.append("Low confidence match - verify entities are correct")
         if len(matched_entities) > 3:
-            warnings.append(
-                f"Multiple matches ({len(matched_entities)}) - using most specific"
-            )
+            warnings.append(f"Multiple matches ({len(matched_entities)}) - using most specific")
 
         return {
             "valid": True,

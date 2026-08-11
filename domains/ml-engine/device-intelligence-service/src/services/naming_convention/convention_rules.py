@@ -29,11 +29,31 @@ class RuleResult:
 _TITLE_CASE_RE = re.compile(r"^[A-Z][a-z]+(?:\s+[A-Z][a-z]+|\s+\d+|\s+[A-Z]{2,})*$")
 
 # Common brand names to detect in friendly names
-_BRAND_NAMES = frozenset({
-    "philips", "hue", "ikea", "tradfri", "xiaomi", "aqara", "sonoff",
-    "shelly", "tuya", "zigbee", "zwave", "z-wave", "esp32", "esp8266",
-    "tasmota", "wled", "gosund", "meross", "kasa", "tp-link", "tplink",
-})
+_BRAND_NAMES = frozenset(
+    {
+        "philips",
+        "hue",
+        "ikea",
+        "tradfri",
+        "xiaomi",
+        "aqara",
+        "sonoff",
+        "shelly",
+        "tuya",
+        "zigbee",
+        "zwave",
+        "z-wave",
+        "esp32",
+        "esp8266",
+        "tasmota",
+        "wled",
+        "gosund",
+        "meross",
+        "kasa",
+        "tp-link",
+        "tplink",
+    }
+)
 
 
 def score_area_id(entity: dict[str, Any]) -> RuleResult:
@@ -75,7 +95,9 @@ def score_aliases(entity: dict[str, Any]) -> RuleResult:
         max_points=20,
         earned_points=0,
         issues=["Entity has no aliases"],
-        suggestions=["Add aliases for voice and chat recognition (e.g., 'kitchen light', 'the big lamp')"],
+        suggestions=[
+            "Add aliases for voice and chat recognition (e.g., 'kitchen light', 'the big lamp')"
+        ],
     )
 
 

@@ -32,10 +32,7 @@ def validate_hours_parameter(hours_str: str | None, default: int = 4) -> int:
     try:
         hours = int(hours_str)
     except (ValueError, TypeError) as err:
-        msg = (
-            f"Invalid hours parameter: '{hours_str}'. "
-            "Hours must be an integer between 1 and 24."
-        )
+        msg = f"Invalid hours parameter: '{hours_str}'. Hours must be an integer between 1 and 24."
         raise ValueError(msg) from err
 
     if hours < 1 or hours > 24:

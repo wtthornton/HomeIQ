@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
-
-import aiohttp
+from typing import TYPE_CHECKING, Any
 
 from .helpers import parse_event_timestamp
+
+if TYPE_CHECKING:
+    import aiohttp
 
 logger = logging.getLogger("activity-writer")
 

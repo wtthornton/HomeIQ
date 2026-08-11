@@ -90,7 +90,10 @@ class SubagentRunner:
                 if tokens_used >= self.max_tokens:
                     logger.warning(
                         "Subagent '%s' exceeded token budget (%d/%d) at iteration %d",
-                        area, tokens_used, self.max_tokens, iteration,
+                        area,
+                        tokens_used,
+                        self.max_tokens,
+                        iteration,
                     )
                     return SubagentResult(
                         area=area,
@@ -103,50 +106,56 @@ class SubagentRunner:
 
                 # Call OpenAI
                 response = await self.openai_client.chat_completion(
-                    messages=messages, tools=tools, tool_choice="auto",
+                    messages=messages,
+                    tools=tools,
+                    tool_choice="auto",
                 )
 
                 # Track tokens
                 if response.usage:
-                    tokens_used += (
-                        getattr(response.usage, "input_tokens", 0)
-                        + getattr(response.usage, "output_tokens", 0)
+                    tokens_used += getattr(response.usage, "input_tokens", 0) + getattr(
+                        response.usage, "output_tokens", 0
                     )
 
                 assistant_content = response.output_text or ""
-                function_calls = [
-                    item for item in response.output
-                    if getattr(item, "type", None) == "function_call"
-                ]
+                function_calls = [item for item in response.output if getattr(item, "type", None) == "function_call"]
 
                 if not function_calls:
                     break  # Done — final response
 
                 # Execute tool calls
                 for fc in function_calls:
-                    tool_trace.append({
-                        "name": fc.name,
-                        "arguments": fc.arguments,
-                        "iteration": iteration,
-                    })
+                    tool_trace.append(
+                        {
+                            "name": fc.name,
+                            "arguments": fc.arguments,
+                            "iteration": iteration,
+                        }
+                    )
 
                     # Execute via tool service
                     try:
                         result = await self.tool_service.execute_tool(
-                            fc.name, fc.arguments, conversation_id,
+                            fc.name,
+                            fc.arguments,
+                            conversation_id,
                         )
                         messages.append({"role": "tool_call", "_function_call": fc})
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": fc.call_id,
-                            "content": str(result)[:2000],
-                        })
+                        messages.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": fc.call_id,
+                                "content": str(result)[:2000],
+                            }
+                        )
                     except Exception as e:
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": fc.call_id,
-                            "content": f"Error: {e}",
-                        })
+                        messages.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": fc.call_id,
+                                "content": f"Error: {e}",
+                            }
+                        )
 
             return SubagentResult(
                 area=area,

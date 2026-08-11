@@ -6,6 +6,7 @@ Context7 Best Practices Applied:
 - Proper exception handling
 - Type hints throughout
 """
+
 import asyncio
 import logging
 from datetime import UTC, datetime
@@ -46,12 +47,11 @@ class HealthMonitoringService:
         self.data_api_url = settings.data_api_url
         self.admin_api_url = settings.admin_api_url
         self.scoring_algorithm = HealthScoringAlgorithm()  # Enhanced scoring
-        logger.info(f"HealthMonitoringService initialized: URL={self.ha_url}, Token={'SET' if self.ha_token else 'NOT SET'}")
+        logger.info(
+            f"HealthMonitoringService initialized: URL={self.ha_url}, Token={'SET' if self.ha_token else 'NOT SET'}"
+        )
 
-    async def check_environment_health(
-        self,
-        db: AsyncSession
-    ) -> EnvironmentHealthResponse:
+    async def check_environment_health(self, db: AsyncSession) -> EnvironmentHealthResponse:
         """
         Comprehensive environment health check
 
@@ -66,7 +66,7 @@ class HealthMonitoringService:
             self._check_ha_core(),
             self._check_integrations(),
             self._check_performance(),
-            return_exceptions=True
+            return_exceptions=True,
         )
 
         # Handle exceptions gracefully
@@ -76,20 +76,24 @@ class HealthMonitoringService:
         else:
             ha_status = ha_check
             # Log the actual result to see what we're getting
-            logger.info(f"HA core check result: status={ha_status.get('status')}, version={ha_status.get('version')}, error={ha_status.get('error', 'None')}")
+            logger.info(
+                f"HA core check result: status={ha_status.get('status')}, version={ha_status.get('version')}, error={ha_status.get('error', 'None')}"
+            )
         integrations = integrations_check if not isinstance(integrations_check, Exception) else []
-        performance = performance_check if not isinstance(performance_check, Exception) else {
-            "response_time_ms": 0,
-            "cpu_usage_percent": 0,
-            "memory_usage_mb": 0,
-            "uptime_seconds": 0
-        }
+        performance = (
+            performance_check
+            if not isinstance(performance_check, Exception)
+            else {
+                "response_time_ms": 0,
+                "cpu_usage_percent": 0,
+                "memory_usage_mb": 0,
+                "uptime_seconds": 0,
+            }
+        )
 
         # Calculate overall health score using enhanced algorithm
         health_score, component_scores = self.scoring_algorithm.calculate_score(
-            ha_status,
-            integrations,
-            performance
+            ha_status, integrations, performance
         )
 
         # Log health score calculation breakdown for debugging
@@ -103,7 +107,7 @@ class HealthMonitoringService:
                 "ha_error": ha_status.get("error"),
                 "integration_count": len(integrations),
                 "performance": performance,
-            }
+            },
         )
 
         # Detect issues
@@ -118,8 +122,8 @@ class HealthMonitoringService:
                 "overall_status": overall_status,
                 "health_score": health_score,
                 "issues_count": len(issues),
-                "issues": issues
-            }
+                "issues": issues,
+            },
         )
 
         # Store health metric in database
@@ -130,7 +134,7 @@ class HealthMonitoringService:
             ha_status.get("version"),
             integrations,
             performance,
-            issues
+            issues,
         )
 
         # Normalize integrations to schema shape
@@ -147,7 +151,7 @@ class HealthMonitoringService:
                 "is_configured": integration.get("is_configured", False),
                 "is_connected": integration.get("is_connected", False),
                 "error_message": integration.get("error_message"),
-                "last_check": integration.get("last_check")
+                "last_check": integration.get("last_check"),
             }
 
             if "check_details" in integration:
@@ -158,10 +162,7 @@ class HealthMonitoringService:
             except Exception as exc:  # ValidationError or unexpected issue
                 logger.warning(
                     "Failed to normalize integration detail; using fallback",
-                    extra={
-                        "integration": integration,
-                        "error": str(exc)
-                    }
+                    extra={"integration": integration, "error": str(exc)},
                 )
                 normalized_integrations.append(
                     IntegrationHealthDetail(
@@ -172,7 +173,7 @@ class HealthMonitoringService:
                         is_connected=detail_data["is_connected"],
                         error_message=detail_data.get("error_message") or str(exc),
                         check_details=None,
-                        last_check=detail_data.get("last_check")
+                        last_check=detail_data.get("last_check"),
                     )
                 )
 
@@ -184,7 +185,7 @@ class HealthMonitoringService:
             integrations=normalized_integrations,
             performance=PerformanceMetrics(**performance),
             issues_detected=issues,
-            timestamp=datetime.now(UTC)
+            timestamp=datetime.now(UTC),
         )
 
     async def _check_ha_core(self) -> dict:
@@ -204,41 +205,41 @@ class HealthMonitoringService:
             ha_url = self.ha_url
             ha_token = self.ha_token
 
-            logger.info("HA core check starting", extra={"ha_url": ha_url, "token_configured": bool(ha_token)})
+            logger.info(
+                "HA core check starting",
+                extra={"ha_url": ha_url, "token_configured": bool(ha_token)},
+            )
 
             if not ha_token:
                 logger.warning("HA core check: No token available")
                 return {
                     "status": "warning",
                     "version": "unknown",
-                    "error": "HA_TOKEN not configured. Set HA_TOKEN or HOME_ASSISTANT_TOKEN environment variable."
+                    "error": "HA_TOKEN not configured. Set HA_TOKEN or HOME_ASSISTANT_TOKEN environment variable.",
                 }
 
             session = await get_http_session()
-            headers = {
-                "Authorization": f"Bearer {ha_token}",
-                "Content-Type": "application/json"
-            }
+            headers = {"Authorization": f"Bearer {ha_token}", "Content-Type": "application/json"}
 
             url = f"{ha_url}/api/config"
             logger.info(f"HA core check: Calling {url}")
 
             # Check HA API availability and get config (includes version)
             async with session.get(
-                url,
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=10)
+                url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
             ) as response:
                 logger.info(f"HA core check: Response status={response.status}")
 
                 if response.status == 200:
                     data = await response.json()
                     version = data.get("version", "unknown")
-                    logger.info(f"HA core check: API returned version={version}, data keys={list(data.keys())[:5]}")
+                    logger.info(
+                        f"HA core check: API returned version={version}, data keys={list(data.keys())[:5]}"
+                    )
                     # Always return the version we got from the API
                     return {
                         "status": "healthy" if version and version != "unknown" else "warning",
-                        "version": version
+                        "version": version,
                     }
                 elif response.status == 401:
                     logger.warning("HA core check: Authentication failed (401)")
@@ -250,14 +251,14 @@ class HealthMonitoringService:
                             return {
                                 "status": "warning",
                                 "version": version,
-                                "error": "Authentication failed - invalid token"
+                                "error": "Authentication failed - invalid token",
                             }
                     except (aiohttp.ContentTypeError, ValueError, KeyError):
                         pass
                     return {
                         "status": "warning",
                         "version": "unknown",
-                        "error": "Authentication failed - check HA_TOKEN configuration"
+                        "error": "Authentication failed - check HA_TOKEN configuration",
                     }
                 else:
                     logger.warning(f"HA core check: Unexpected status {response.status}")
@@ -269,7 +270,7 @@ class HealthMonitoringService:
                             return {
                                 "status": "warning",
                                 "version": version,
-                                "error": f"HTTP {response.status}"
+                                "error": f"HTTP {response.status}",
                             }
                     except (aiohttp.ContentTypeError, ValueError, KeyError):
                         pass
@@ -278,7 +279,7 @@ class HealthMonitoringService:
                     return {
                         "status": "warning",
                         "version": "unknown",
-                        "error": f"HTTP {response.status}"
+                        "error": f"HTTP {response.status}",
                     }
         except TimeoutError as e:
             logger.warning(f"HA core check: Timeout - {e}")
@@ -302,15 +303,17 @@ class HealthMonitoringService:
             integrations.append(mqtt_status)
         except Exception as e:
             logger.error(f"MQTT check failed: {e}", exc_info=True)
-            integrations.append({
-                "name": "MQTT",
-                "type": "mqtt",
-                "status": IntegrationStatus.ERROR.value,
-                "is_configured": False,
-                "is_connected": False,
-                "error_message": str(e),
-                "last_check": datetime.now(UTC)
-            })
+            integrations.append(
+                {
+                    "name": "MQTT",
+                    "type": "mqtt",
+                    "status": IntegrationStatus.ERROR.value,
+                    "is_configured": False,
+                    "is_connected": False,
+                    "error_message": str(e),
+                    "last_check": datetime.now(UTC),
+                }
+            )
 
         # Check HA Ingestor services (always include, even if check fails)
         try:
@@ -318,15 +321,17 @@ class HealthMonitoringService:
             integrations.append(data_api_status)
         except Exception as e:
             logger.error(f"Data API check failed: {e}", exc_info=True)
-            integrations.append({
-                "name": "Data API",
-                "type": "homeiq",
-                "status": IntegrationStatus.ERROR.value,
-                "is_configured": True,  # Service exists, just not reachable
-                "is_connected": False,
-                "error_message": str(e),
-                "last_check": datetime.now(UTC)
-            })
+            integrations.append(
+                {
+                    "name": "Data API",
+                    "type": "homeiq",
+                    "status": IntegrationStatus.ERROR.value,
+                    "is_configured": True,  # Service exists, just not reachable
+                    "is_connected": False,
+                    "error_message": str(e),
+                    "last_check": datetime.now(UTC),
+                }
+            )
 
         return integrations
 
@@ -336,50 +341,50 @@ class HealthMonitoringService:
             session = await get_http_session()
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             # Check MQTT config entry
             async with session.get(
                 f"{self.ha_url}/api/config/config_entries/entry",
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    if response.status == 200:
-                        entries = await response.json()
-                        mqtt_entry = next((e for e in entries if e.get('domain') == 'mqtt'), None)
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as response:
+                if response.status == 200:
+                    entries = await response.json()
+                    mqtt_entry = next((e for e in entries if e.get("domain") == "mqtt"), None)
 
-                        if mqtt_entry:
-                            return {
-                                "name": "MQTT",
-                                "type": "mqtt",
-                                "status": IntegrationStatus.HEALTHY.value,
-                                "is_configured": True,
-                                "is_connected": True,
-                                "error_message": None,
-                                "last_check": datetime.now(UTC)
-                            }
-                        else:
-                            return {
-                                "name": "MQTT",
-                                "type": "mqtt",
-                                "status": IntegrationStatus.NOT_CONFIGURED.value,
-                                "is_configured": False,
-                                "is_connected": False,
-                                "error_message": "MQTT integration not found",
-                                "last_check": datetime.now(UTC)
-                            }
+                    if mqtt_entry:
+                        return {
+                            "name": "MQTT",
+                            "type": "mqtt",
+                            "status": IntegrationStatus.HEALTHY.value,
+                            "is_configured": True,
+                            "is_connected": True,
+                            "error_message": None,
+                            "last_check": datetime.now(UTC),
+                        }
+                    else:
+                        return {
+                            "name": "MQTT",
+                            "type": "mqtt",
+                            "status": IntegrationStatus.NOT_CONFIGURED.value,
+                            "is_configured": False,
+                            "is_connected": False,
+                            "error_message": "MQTT integration not found",
+                            "last_check": datetime.now(UTC),
+                        }
 
-                    # Non-200 responses should produce a structured error result
-                    return {
-                        "name": "MQTT",
-                        "type": "mqtt",
-                        "status": IntegrationStatus.ERROR.value,
-                        "is_configured": False,
-                        "is_connected": False,
-                        "error_message": f"Failed to fetch config entries: HTTP {response.status}",
-                        "last_check": datetime.now(UTC)
-                    }
+                # Non-200 responses should produce a structured error result
+                return {
+                    "name": "MQTT",
+                    "type": "mqtt",
+                    "status": IntegrationStatus.ERROR.value,
+                    "is_configured": False,
+                    "is_connected": False,
+                    "error_message": f"Failed to fetch config entries: HTTP {response.status}",
+                    "last_check": datetime.now(UTC),
+                }
         except Exception as e:
             return {
                 "name": "MQTT",
@@ -388,7 +393,7 @@ class HealthMonitoringService:
                 "is_configured": False,
                 "is_connected": False,
                 "error_message": str(e),
-                "last_check": datetime.now(UTC)
+                "last_check": datetime.now(UTC),
             }
 
     async def _check_zigbee2mqtt_integration(self) -> dict:
@@ -409,11 +414,8 @@ class HealthMonitoringService:
                 "is_configured": result.is_configured,
                 "is_connected": result.is_connected,
                 "error_message": result.error_message,
-                "check_details": {
-                    **(result.check_details or {}),
-                    "monitoring_method": "ha_api"
-                },
-                "last_check": result.last_check
+                "check_details": {**(result.check_details or {}), "monitoring_method": "ha_api"},
+                "last_check": result.last_check,
             }
         except Exception as e:
             return {
@@ -424,7 +426,7 @@ class HealthMonitoringService:
                 "is_connected": False,
                 "error_message": f"HA API check failed: {str(e)}",
                 "check_details": {"error_type": type(e).__name__},
-                "last_check": datetime.now(UTC)
+                "last_check": datetime.now(UTC),
             }
 
     async def _check_data_api(self) -> dict:
@@ -432,8 +434,7 @@ class HealthMonitoringService:
         try:
             session = await get_http_session()
             async with session.get(
-                f"{self.data_api_url}/health",
-                timeout=aiohttp.ClientTimeout(total=5)
+                f"{self.data_api_url}/health", timeout=aiohttp.ClientTimeout(total=5)
             ) as response:
                 if response.status == 200:
                     return {
@@ -443,7 +444,7 @@ class HealthMonitoringService:
                         "is_configured": True,
                         "is_connected": True,
                         "error_message": None,
-                        "last_check": datetime.now(UTC)
+                        "last_check": datetime.now(UTC),
                     }
                 # Surface non-200 responses as warning/error data instead of None
                 return {
@@ -453,7 +454,7 @@ class HealthMonitoringService:
                     "is_configured": True,
                     "is_connected": False,
                     "error_message": f"Health endpoint returned HTTP {response.status}",
-                    "last_check": datetime.now(UTC)
+                    "last_check": datetime.now(UTC),
                 }
         except Exception as e:
             return {
@@ -463,7 +464,7 @@ class HealthMonitoringService:
                 "is_configured": True,
                 "is_connected": False,
                 "error_message": str(e),
-                "last_check": datetime.now(UTC)
+                "last_check": datetime.now(UTC),
             }
 
     async def _check_performance(self) -> dict:
@@ -481,13 +482,11 @@ class HealthMonitoringService:
                 session = await get_http_session()
                 headers = {
                     "Authorization": f"Bearer {self.ha_token}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 }
                 start = time.monotonic()
                 async with session.get(
-                    f"{self.ha_url}/api/",
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=10)
+                    f"{self.ha_url}/api/", headers=headers, timeout=aiohttp.ClientTimeout(total=10)
                 ) as _response:
                     response_time_ms = round((time.monotonic() - start) * 1000, 2)
             except Exception:
@@ -498,7 +497,7 @@ class HealthMonitoringService:
                 "response_time_ms": response_time_ms,
                 "cpu_usage_percent": process.cpu_percent(),
                 "memory_usage_mb": round(mem_info.rss / 1024 / 1024, 1),
-                "uptime_seconds": int(time.time() - process.create_time())
+                "uptime_seconds": int(time.time() - process.create_time()),
             }
             logger.debug(f"Performance metrics: {performance}")
             return performance
@@ -509,14 +508,11 @@ class HealthMonitoringService:
                 "response_time_ms": 0.0,
                 "cpu_usage_percent": None,
                 "memory_usage_mb": None,
-                "uptime_seconds": None
+                "uptime_seconds": None,
             }
 
     def _detect_issues(
-        self,
-        ha_status: dict,
-        integrations: list[dict],
-        performance: dict
+        self, ha_status: dict, integrations: list[dict], performance: dict
     ) -> list[str]:
         """Detect and list issues"""
         issues = []
@@ -558,7 +554,7 @@ class HealthMonitoringService:
         ha_version: str | None,
         integrations: list[dict],
         performance: dict,
-        issues: list[str]
+        issues: list[str],
     ):
         """Store health metric in database"""
         try:
@@ -570,12 +566,12 @@ class HealthMonitoringService:
                     {
                         "name": i.get("name"),
                         "status": i.get("status"),
-                        "is_connected": i.get("is_connected")
+                        "is_connected": i.get("is_connected"),
                     }
                     for i in integrations
                 ],
                 performance_metrics=performance,
-                issues_detected=issues
+                issues_detected=issues,
             )
 
             db.add(health_metric)
@@ -586,4 +582,3 @@ class HealthMonitoringService:
             await db.rollback()
             # Log error but don't fail the health check
             logger.error("Error storing health metric", exc_info=e)
-

@@ -78,9 +78,7 @@ async def init_db() -> bool:
     if result and db.engine is not None:
         try:
             async with db.engine.begin() as conn:
-                await conn.execute(
-                    text(f"CREATE SCHEMA IF NOT EXISTS {DATABASE_SCHEMA}")
-                )
+                await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {DATABASE_SCHEMA}"))
         except Exception as e:
             logger.error("Failed to create schema: %s", e)
 
@@ -89,14 +87,18 @@ async def init_db() -> bool:
         try:
             async with db.engine.begin() as conn:
                 # Check if migration is needed (only run if columns are still naive)
-                row = await conn.execute(text(
-                    "SELECT data_type FROM information_schema.columns "
-                    f"WHERE table_schema='{DATABASE_SCHEMA}' "
-                    "AND table_name='devices' AND column_name='last_seen'"
-                ))
+                row = await conn.execute(
+                    text(
+                        "SELECT data_type FROM information_schema.columns "
+                        f"WHERE table_schema='{DATABASE_SCHEMA}' "
+                        "AND table_name='devices' AND column_name='last_seen'"
+                    )
+                )
                 col_type = row.scalar()
                 if col_type and "without" in col_type.lower():
-                    logger.info("Running migration 010: converting timestamp columns to timezone-aware")
+                    logger.info(
+                        "Running migration 010: converting timestamp columns to timezone-aware"
+                    )
                     for tbl, col in [
                         ("devices", "last_seen"),
                         ("devices", "created_at"),
@@ -104,12 +106,16 @@ async def init_db() -> bool:
                         ("entities", "created_at"),
                         ("entities", "updated_at"),
                     ]:
-                        await conn.execute(text(
-                            f"ALTER TABLE {DATABASE_SCHEMA}.{tbl} "
-                            f"ALTER COLUMN {col} TYPE TIMESTAMP WITH TIME ZONE "
-                            f"USING {col} AT TIME ZONE 'UTC'"
-                        ))
-                    logger.info("Migration 010 complete: all timestamp columns are now timezone-aware")
+                        await conn.execute(
+                            text(
+                                f"ALTER TABLE {DATABASE_SCHEMA}.{tbl} "
+                                f"ALTER COLUMN {col} TYPE TIMESTAMP WITH TIME ZONE "
+                                f"USING {col} AT TIME ZONE 'UTC'"
+                            )
+                        )
+                    logger.info(
+                        "Migration 010 complete: all timestamp columns are now timezone-aware"
+                    )
         except Exception as e:
             logger.warning("Timestamp timezone migration skipped: %s", e)
 

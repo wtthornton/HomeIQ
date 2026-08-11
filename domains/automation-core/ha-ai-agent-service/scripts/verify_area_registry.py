@@ -23,33 +23,30 @@ async def verify_area_registry():
     """Verify area registry functionality"""
     print("🔍 Verifying Area Registry Implementation...")
     print("=" * 60)
-    
+
     # Load settings
     try:
         settings = Settings()
-        print(f"✅ Settings loaded")
+        print("✅ Settings loaded")
         print(f"   HA URL: {settings.ha_url}")
         print(f"   Data API URL: {settings.data_api_url}")
     except Exception as e:
         print(f"❌ Failed to load settings: {e}")
         return False
-    
+
     # Create client
     try:
-        client = HomeAssistantClient(
-            ha_url=settings.ha_url,
-            access_token=settings.ha_token
-        )
-        print(f"✅ Home Assistant client created")
+        client = HomeAssistantClient(ha_url=settings.ha_url, access_token=settings.ha_token)
+        print("✅ Home Assistant client created")
     except Exception as e:
         print(f"❌ Failed to create client: {e}")
         return False
-    
+
     # Test area registry fetch
     try:
         print("\n🔌 Attempting to fetch area registry...")
         areas = await client.get_area_registry()
-        
+
         if areas:
             print(f"✅ Successfully fetched {len(areas)} areas:")
             for area in areas[:5]:  # Show first 5
@@ -57,17 +54,17 @@ async def verify_area_registry():
                 name = area.get("name", area_id)
                 aliases = area.get("aliases", [])
                 icon = area.get("icon", "")
-                
+
                 print(f"   - {name} (area_id: {area_id})")
                 if aliases:
                     print(f"     Aliases: {', '.join(aliases[:3])}")
                 if icon:
                     print(f"     Icon: {icon}")
-            
+
             if len(areas) > 5:
                 print(f"   ... and {len(areas) - 5} more areas")
-            
-            print(f"\n✅ Area registry verification PASSED")
+
+            print("\n✅ Area registry verification PASSED")
             return True
         else:
             print("⚠️  No areas found")
@@ -76,12 +73,13 @@ async def verify_area_registry():
             print("   - WebSocket API is not available (fallback may have been used)")
             print("   - Check Home Assistant logs for details")
             return True  # Not an error, just no areas configured
-        
+
     except Exception as e:
         print(f"❌ Failed to fetch area registry: {e}")
         print(f"   Error type: {type(e).__name__}")
         import traceback
-        print(f"   Traceback:")
+
+        print("   Traceback:")
         traceback.print_exc()
         return False
     finally:
@@ -102,4 +100,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

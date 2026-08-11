@@ -47,9 +47,9 @@ class InfluxDBSchema:
         """Initialize schema design"""
         # Measurement names (Updated January 2025)
         self.MEASUREMENT_EVENTS = "home_assistant_events"  # Primary bucket
-        self.MEASUREMENT_WEATHER = "weather_data"          # weather_data bucket
-        self.MEASUREMENT_SPORTS = "sports_data"            # sports_data bucket
-        self.MEASUREMENT_SYSTEM = "system_metrics"         # system_metrics bucket
+        self.MEASUREMENT_WEATHER = "weather_data"  # weather_data bucket
+        self.MEASUREMENT_SPORTS = "sports_data"  # sports_data bucket
+        self.MEASUREMENT_SYSTEM = "system_metrics"  # system_metrics bucket
 
         # Tag keys for efficient querying (Epic 23 Enhanced)
         self.TAG_ENTITY_ID = "entity_id"
@@ -88,10 +88,10 @@ class InfluxDBSchema:
         self.FIELD_SW_VERSION = "sw_version"
 
         # Retention policies (Current Configuration - January 2025)
-        self.RETENTION_HA_EVENTS = "365d"        # home_assistant_events bucket
-        self.RETENTION_SPORTS_DATA = "90d"       # sports_data bucket
-        self.RETENTION_WEATHER_DATA = "180d"     # weather_data bucket
-        self.RETENTION_SYSTEM_METRICS = "30d"    # system_metrics bucket
+        self.RETENTION_HA_EVENTS = "365d"  # home_assistant_events bucket
+        self.RETENTION_SPORTS_DATA = "90d"  # sports_data bucket
+        self.RETENTION_WEATHER_DATA = "180d"  # weather_data bucket
+        self.RETENTION_SYSTEM_METRICS = "30d"  # system_metrics bucket
 
     def create_event_point(self, event_data: dict[str, Any]) -> Point | None:
         """
@@ -121,7 +121,7 @@ class InfluxDBSchema:
             if timestamp:
                 try:
                     if isinstance(timestamp, str):
-                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
                     else:
                         dt = timestamp
                 except Exception:
@@ -131,8 +131,7 @@ class InfluxDBSchema:
                 dt = datetime.now(UTC)
 
             # Create point
-            point = Point(self.MEASUREMENT_EVENTS) \
-                .time(dt, WritePrecision.MS)
+            point = Point(self.MEASUREMENT_EVENTS).time(dt, WritePrecision.MS)
 
             # Add tags for efficient querying
             point = self._add_event_tags(point, event_data)
@@ -167,7 +166,7 @@ class InfluxDBSchema:
             if timestamp:
                 try:
                     if isinstance(timestamp, str):
-                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
                     else:
                         dt = timestamp
                 except Exception:
@@ -176,8 +175,7 @@ class InfluxDBSchema:
                 dt = datetime.now(UTC)
 
             # Create point
-            point = Point(self.MEASUREMENT_WEATHER) \
-                .time(dt, WritePrecision.MS)
+            point = Point(self.MEASUREMENT_WEATHER).time(dt, WritePrecision.MS)
 
             # Add tags
             point = point.tag(self.TAG_LOCATION, location)
@@ -245,7 +243,7 @@ class InfluxDBSchema:
             point = point.tag(self.TAG_ENTITY_ID, entity_id)
 
             # Extract domain from entity_id (e.g., "sensor.temperature" -> "sensor")
-            domain = entity_id.split('.')[0] if '.' in entity_id else "unknown"
+            domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
             point = point.tag(self.TAG_DOMAIN, domain)
 
         # Event type tag
@@ -296,13 +294,18 @@ class InfluxDBSchema:
         """
         try:
             entity_id = event_data.get("entity_id", "")
-            domain = entity_id.split('.')[0] if '.' in entity_id else ""
+            domain = entity_id.split(".")[0] if "." in entity_id else ""
             # FIX: Extract attributes from nested state structure
             attributes = self._extract_attributes(event_data)
             device_class = attributes.get("device_class", "")
 
             # Security category
-            if domain in ["alarm_control_panel", "lock"] or device_class in ["door", "window", "motion", "lock"]:
+            if domain in ["alarm_control_panel", "lock"] or device_class in [
+                "door",
+                "window",
+                "motion",
+                "lock",
+            ]:
                 return "security"
 
             # Climate category
@@ -395,11 +398,9 @@ class InfluxDBSchema:
 
         return point
 
-    def create_summary_point(self,
-                           measurement: str,
-                           tags: dict[str, str],
-                           fields: dict[str, Any],
-                           timestamp: datetime) -> Point | None:
+    def create_summary_point(
+        self, measurement: str, tags: dict[str, str], fields: dict[str, Any], timestamp: datetime
+    ) -> Point | None:
         """
         Create InfluxDB Point for summary data
 
@@ -446,29 +447,29 @@ class InfluxDBSchema:
                 "duration": self.RETENTION_HA_EVENTS,
                 "shard_duration": "7d",
                 "replication": 1,
-                "description": "Home Assistant events retention for 1 year"
+                "description": "Home Assistant events retention for 1 year",
             },
             {
                 "name": self.MEASUREMENT_WEATHER,
                 "duration": self.RETENTION_WEATHER_DATA,
                 "shard_duration": "30d",
                 "replication": 1,
-                "description": "Weather data retention for 180 days"
+                "description": "Weather data retention for 180 days",
             },
             {
                 "name": self.MEASUREMENT_SPORTS,
                 "duration": self.RETENTION_SPORTS_DATA,
                 "shard_duration": "30d",
                 "replication": 1,
-                "description": "Sports data retention for 90 days"
+                "description": "Sports data retention for 90 days",
             },
             {
                 "name": self.MEASUREMENT_SYSTEM,
                 "duration": self.RETENTION_SYSTEM_METRICS,
                 "shard_duration": "7d",
                 "replication": 1,
-                "description": "System metrics retention for 30 days"
-            }
+                "description": "System metrics retention for 30 days",
+            },
         ]
 
     def get_schema_validation_rules(self) -> dict[str, Any]:
@@ -479,7 +480,7 @@ class InfluxDBSchema:
             "tag_patterns": {
                 self.TAG_ENTITY_ID: r"^[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+$",
                 self.TAG_DOMAIN: r"^[a-zA-Z0-9_]+$",
-                self.TAG_DEVICE_CLASS: r"^[a-zA-Z0-9_]+$"
+                self.TAG_DEVICE_CLASS: r"^[a-zA-Z0-9_]+$",
             },
             "field_types": {
                 self.FIELD_STATE: "string",
@@ -491,8 +492,8 @@ class InfluxDBSchema:
                 self.FIELD_WIND_SPEED: "float",
                 self.FIELD_WEATHER_DESCRIPTION: "string",
                 self.FIELD_CONTEXT_ID: "string",
-                self.FIELD_CONTEXT_USER_ID: "string"
-            }
+                self.FIELD_CONTEXT_USER_ID: "string",
+            },
         }
 
     def validate_point(self, point: Point) -> tuple[bool, list[str]]:

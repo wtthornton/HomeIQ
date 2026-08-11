@@ -3,15 +3,14 @@
 Tests health analysis logic with mocked HA API.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock
 
+import pytest
 from src.services.device_health import DeviceHealthService, get_health_service
 
 
 class TestDeviceHealthNoConfig:
-
     def test_init(self):
         svc = DeviceHealthService()
         assert svc._session is None
@@ -36,7 +35,6 @@ class TestDeviceHealthNoConfig:
 
 
 class TestDeviceHealthWithMockedHA:
-
     def _make_svc(self):
         svc = DeviceHealthService()
         svc.ha_url = "http://ha:8123"
@@ -74,9 +72,7 @@ class TestDeviceHealthWithMockedHA:
     async def test_device_not_seen_warning(self):
         svc = self._make_svc()
         svc._get_battery_level = AsyncMock(return_value=None)
-        svc._get_last_seen = AsyncMock(
-            return_value=datetime.now() - timedelta(hours=30)
-        )
+        svc._get_last_seen = AsyncMock(return_value=datetime.now() - timedelta(hours=30))
         result = await svc.get_device_health("dev-1", "Test", ["sensor.x"])
         assert result["overall_status"] == "warning"
         assert any(i["type"] == "device_not_responding" for i in result["issues"])
@@ -85,9 +81,7 @@ class TestDeviceHealthWithMockedHA:
     async def test_device_not_seen_error(self):
         svc = self._make_svc()
         svc._get_battery_level = AsyncMock(return_value=None)
-        svc._get_last_seen = AsyncMock(
-            return_value=datetime.now() - timedelta(hours=50)
-        )
+        svc._get_last_seen = AsyncMock(return_value=datetime.now() - timedelta(hours=50))
         result = await svc.get_device_health("dev-1", "Test", ["sensor.x"])
         assert result["overall_status"] == "error"
 
@@ -109,15 +103,16 @@ class TestDeviceHealthWithMockedHA:
 
 
 class TestSingleton:
-
     def test_returns_instance(self):
         import src.services.device_health as mod
+
         mod._health_service = None
         svc = get_health_service()
         assert isinstance(svc, DeviceHealthService)
 
     def test_returns_same_instance(self):
         import src.services.device_health as mod
+
         mod._health_service = None
         s1 = get_health_service()
         s2 = get_health_service()

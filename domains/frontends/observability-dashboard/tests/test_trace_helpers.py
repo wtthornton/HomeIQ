@@ -17,15 +17,11 @@ class TestHasErrors:
         assert has_errors(error_trace) is True
 
     def test_error_tag_false_value(self):
-        trace = make_trace(
-            spans=[make_span(tags=[{"key": "error", "value": False}])]
-        )
+        trace = make_trace(spans=[make_span(tags=[{"key": "error", "value": False}])])
         assert has_errors(trace) is False
 
     def test_error_tag_empty_string(self):
-        trace = make_trace(
-            spans=[make_span(tags=[{"key": "error", "value": ""}])]
-        )
+        trace = make_trace(spans=[make_span(tags=[{"key": "error", "value": ""}])])
         assert has_errors(trace) is False
 
     def test_multiple_spans_one_has_error(self):
@@ -38,9 +34,7 @@ class TestHasErrors:
         assert has_errors(trace) is True
 
     def test_non_error_tags_ignored(self):
-        trace = make_trace(
-            spans=[make_span(tags=[{"key": "http.status_code", "value": 500}])]
-        )
+        trace = make_trace(spans=[make_span(tags=[{"key": "http.status_code", "value": 500}])])
         assert has_errors(trace) is False
 
 
@@ -65,9 +59,7 @@ class TestTraceWallClockMs:
 
     def test_single_span(self):
         # span: startTime=1000000us, duration=50000us => 50ms
-        trace = make_trace(
-            spans=[make_span(start_time=1000000, duration=50000)]
-        )
+        trace = make_trace(spans=[make_span(start_time=1000000, duration=50000)])
         assert trace_wall_clock_ms(trace) == 50.0
 
     def test_overlapping_spans(self, multi_span_trace):

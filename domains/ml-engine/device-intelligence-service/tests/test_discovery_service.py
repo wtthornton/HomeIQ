@@ -45,7 +45,7 @@ def mock_ha_device():
         via_device_id=None,
         disabled_by=None,
         created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC)
+        updated_at=datetime.now(UTC),
     )
 
 
@@ -66,22 +66,10 @@ def mock_zigbee_device():
         date_code="20240101",
         last_seen=datetime.now(UTC),
         definition={
-            "exposes": [
-                {
-                    "name": "state",
-                    "type": "binary",
-                    "properties": {"state": "ON"}
-                }
-            ]
+            "exposes": [{"name": "state", "type": "binary", "properties": {"state": "ON"}}]
         },
-        exposes=[
-            {
-                "name": "state",
-                "type": "binary",
-                "properties": {"state": "ON"}
-            }
-        ],
-        capabilities={}
+        exposes=[{"name": "state", "type": "binary", "properties": {"state": "ON"}}],
+        capabilities={},
     )
 
 
@@ -94,7 +82,7 @@ def mock_ha_area():
         normalized_name="living_room",
         aliases=[],
         created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC)
+        updated_at=datetime.now(UTC),
     )
 
 
@@ -133,9 +121,10 @@ async def test_discovery_service_start_success(mock_settings):
     service = DiscoveryService(mock_settings)
 
     # Mock successful connections
-    with patch("src.clients.ha_client.HomeAssistantClient") as mock_client_cls, \
-         patch.object(service.mqtt_client, 'connect', return_value=True):
-
+    with (
+        patch("src.clients.ha_client.HomeAssistantClient") as mock_client_cls,
+        patch.object(service.mqtt_client, "connect", return_value=True),
+    ):
         mock_client = AsyncMock()
         mock_client.connect.return_value = True
         mock_client.start_message_handler.return_value = None
@@ -163,8 +152,7 @@ async def test_discovery_service_stop(mock_settings):
 
     service.discovery_task = asyncio.create_task(dummy_task())
 
-    with patch.object(service.mqtt_client, 'disconnect', return_value=None):
-
+    with patch.object(service.mqtt_client, "disconnect", return_value=None):
         await service.stop()
         assert not service.running
 
@@ -196,7 +184,7 @@ async def test_force_refresh(mock_settings):
     """Test forcing discovery refresh."""
     service = DiscoveryService(mock_settings)
 
-    with patch.object(service, '_perform_discovery', return_value=None) as mock_discovery:
+    with patch.object(service, "_perform_discovery", return_value=None) as mock_discovery:
         result = await service.force_refresh()
 
         assert result is True
@@ -240,10 +228,7 @@ async def test_get_devices_by_area(mock_settings):
     mock_device2 = MagicMock()
     mock_device2.area_id = "bedroom"
 
-    service.unified_devices = {
-        "device1": mock_device1,
-        "device2": mock_device2
-    }
+    service.unified_devices = {"device1": mock_device1, "device2": mock_device2}
 
     devices = service.get_devices_by_area("living_room")
     assert len(devices) == 1
@@ -260,10 +245,7 @@ async def test_get_devices_by_integration(mock_settings):
     mock_device2 = MagicMock()
     mock_device2.integration = "homeassistant"
 
-    service.unified_devices = {
-        "device1": mock_device1,
-        "device2": mock_device2
-    }
+    service.unified_devices = {"device1": mock_device1, "device2": mock_device2}
 
     devices = service.get_devices_by_integration("zigbee2mqtt")
     assert len(devices) == 1

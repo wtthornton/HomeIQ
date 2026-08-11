@@ -17,11 +17,12 @@ logger = logging.getLogger(__name__)
 
 def _sanitize_flux_value(value: str) -> str:
     """Sanitize a value for use in Flux query string literals."""
-    return str(value).replace('\\', '\\\\').replace('"', '\\"')
+    return str(value).replace("\\", "\\\\").replace('"', '\\"')
 
 
 class EventData(BaseModel):
     """Event data model"""
+
     id: str
     timestamp: datetime
     entity_id: str
@@ -34,6 +35,7 @@ class EventData(BaseModel):
 
 class EventFilter(BaseModel):
     """Event filter model"""
+
     entity_id: str | None = None
     event_type: str | None = None
     start_time: datetime | None = None
@@ -43,6 +45,7 @@ class EventFilter(BaseModel):
 
 class EventSearch(BaseModel):
     """Event search model"""
+
     query: str
     fields: list[str] = ["entity_id", "event_type", "attributes"]
     limit: int = 100
@@ -71,7 +74,7 @@ class EventsEndpoints:
             event_type: str | None = Query(None, description="Filter by event type"),
             start_time: datetime | None = Query(None, description="Start time filter"),
             end_time: datetime | None = Query(None, description="End time filter"),
-            service: str | None = Query(None, description="Specific service to query")
+            service: str | None = Query(None, description="Specific service to query"),
         ):
             """Get recent events with optional filtering"""
             try:
@@ -80,7 +83,7 @@ class EventsEndpoints:
                     entity_id=entity_id,
                     event_type=event_type,
                     start_time=start_time,
-                    end_time=end_time
+                    end_time=end_time,
                 )
 
                 if service and service in self.service_urls:
@@ -96,13 +99,11 @@ class EventsEndpoints:
                 logger.error(f"Error getting recent events: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get recent events"
+                    detail="Failed to get recent events",
                 ) from e
 
         @self.router.post("/events/search", response_model=list[EventData])
-        async def search_events(
-            search: EventSearch
-        ):
+        async def search_events(search: EventSearch):
             """Search events with text query"""
             try:
                 events = await self._search_events(search)
@@ -112,13 +113,13 @@ class EventsEndpoints:
                 logger.error(f"Error searching events: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to search events"
+                    detail="Failed to search events",
                 ) from e
 
         @self.router.get("/events/stats", response_model=dict[str, Any])
         async def get_events_stats(
             period: str = Query("1h", description="Time period for statistics"),
-            service: str | None = Query(None, description="Specific service")
+            service: str | None = Query(None, description="Specific service"),
         ):
             """Get event statistics"""
             try:
@@ -133,13 +134,13 @@ class EventsEndpoints:
                 logger.error(f"Error getting events stats: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get events statistics"
+                    detail="Failed to get events statistics",
                 ) from e
 
         @self.router.get("/events/entities", response_model=list[dict[str, Any]])
         async def get_active_entities(
             limit: int = Query(100, description="Maximum number of entities to return"),
-            service: str | None = Query(None, description="Specific service")
+            service: str | None = Query(None, description="Specific service"),
         ):
             """Get list of active entities"""
             try:
@@ -154,13 +155,13 @@ class EventsEndpoints:
                 logger.error(f"Error getting active entities: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get active entities"
+                    detail="Failed to get active entities",
                 ) from e
 
         @self.router.get("/events/types", response_model=list[dict[str, Any]])
         async def get_event_types(
             limit: int = Query(50, description="Maximum number of event types to return"),
-            service: str | None = Query(None, description="Specific service")
+            service: str | None = Query(None, description="Specific service"),
         ):
             """Get list of event types"""
             try:
@@ -175,13 +176,13 @@ class EventsEndpoints:
                 logger.error(f"Error getting event types: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get event types"
+                    detail="Failed to get event types",
                 ) from e
 
         @self.router.get("/events/stream", response_model=dict[str, Any])
         async def get_events_stream(
             duration: int = Query(60, description="Stream duration in seconds"),
-            entity_id: str | None = Query(None, description="Filter by entity ID")
+            entity_id: str | None = Query(None, description="Filter by entity ID"),
         ):
             """Get real-time event stream"""
             try:
@@ -192,7 +193,7 @@ class EventsEndpoints:
                 logger.error(f"Error getting events stream: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get events stream"
+                    detail="Failed to get events stream",
                 ) from e
 
         # Declared last on purpose: this catch-all would otherwise shadow the
@@ -218,7 +219,9 @@ class EventsEndpoints:
                     content={"detail": "Failed to get event"},
                 )
 
-    async def _get_all_events(self, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
+    async def _get_all_events(
+        self, event_filter: EventFilter, limit: int, offset: int
+    ) -> list[EventData]:
         """Get events from InfluxDB directly"""
         try:
             # Get events directly from InfluxDB instead of calling other services
@@ -229,16 +232,15 @@ class EventsEndpoints:
             # Return mock data for now to prevent 503 errors
             return self._get_mock_events(limit)
 
-    async def _get_service_events(self, service: str, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
+    async def _get_service_events(
+        self, service: str, event_filter: EventFilter, limit: int, offset: int
+    ) -> list[EventData]:
         """Get events from a specific service"""
         service_url = self.service_urls[service]
 
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
-                params = {
-                    "limit": limit,
-                    "offset": offset
-                }
+                params = {"limit": limit, "offset": offset}
 
                 if event_filter.entity_id:
                     params["entity_id"] = event_filter.entity_id
@@ -263,17 +265,19 @@ class EventsEndpoints:
         """Get a specific event by ID"""
         for service_name, service_url in self.service_urls.items():
             try:
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
-                    async with session.get(f"{service_url}/events/{event_id}") as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            event = EventData(**data)
-                            event.tags["service"] = service_name
-                            return event
-                        elif response.status == 404:
-                            continue  # Try next service
-                        else:
-                            raise Exception(f"HTTP {response.status}")
+                async with (
+                    aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session,
+                    session.get(f"{service_url}/events/{event_id}") as response,
+                ):
+                    if response.status == 200:
+                        data = await response.json()
+                        event = EventData(**data)
+                        event.tags["service"] = service_name
+                        return event
+                    elif response.status == 404:
+                        continue  # Try next service
+                    else:
+                        raise Exception(f"HTTP {response.status}")
             except Exception as e:
                 logger.warning(f"Failed to get event {event_id} from {service_name}: {e}")
 
@@ -285,23 +289,27 @@ class EventsEndpoints:
 
         for service_name, service_url in self.service_urls.items():
             try:
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
-                    async with session.post(f"{service_url}/events/search", json=search.model_dump()) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            events = [EventData(**event) for event in data]
-                            for event in events:
-                                event.tags["service"] = service_name
-                            all_events.extend(events)
-                        else:
-                            raise Exception(f"HTTP {response.status}")
+                async with (
+                    aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session,
+                    session.post(
+                        f"{service_url}/events/search", json=search.model_dump()
+                    ) as response,
+                ):
+                    if response.status == 200:
+                        data = await response.json()
+                        events = [EventData(**event) for event in data]
+                        for event in events:
+                            event.tags["service"] = service_name
+                        all_events.extend(events)
+                    else:
+                        raise Exception(f"HTTP {response.status}")
             except Exception as e:
                 logger.warning(f"Failed to search events in {service_name}: {e}")
 
         # Sort by timestamp (newest first)
         all_events.sort(key=lambda x: x.timestamp, reverse=True)
 
-        return all_events[:search.limit]
+        return all_events[: search.limit]
 
     async def _get_all_events_stats(self, period: str) -> dict[str, Any]:
         """Get event statistics for all services"""
@@ -310,7 +318,7 @@ class EventsEndpoints:
             "events_per_minute": 0,
             "unique_entities": 0,
             "event_types": {},
-            "services": {}
+            "services": {},
         }
 
         for service_name, _service_url in self.service_urls.items():
@@ -323,7 +331,9 @@ class EventsEndpoints:
 
                 # Merge event types
                 for event_type, count in stats.get("event_types", {}).items():
-                    all_stats["event_types"][event_type] = all_stats["event_types"].get(event_type, 0) + count
+                    all_stats["event_types"][event_type] = (
+                        all_stats["event_types"].get(event_type, 0) + count
+                    )
             except Exception as e:
                 logger.warning(f"Failed to get stats from {service_name}: {e}")
                 all_stats["services"][service_name] = {"error": str(e)}
@@ -363,11 +373,16 @@ class EventsEndpoints:
         unique_entities = {}
         for entity in all_entities:
             entity_id = entity["entity_id"]
-            if entity_id not in unique_entities or entity["last_activity"] > unique_entities[entity_id]["last_activity"]:
+            if (
+                entity_id not in unique_entities
+                or entity["last_activity"] > unique_entities[entity_id]["last_activity"]
+            ):
                 unique_entities[entity_id] = entity
 
         # Sort by last activity (most recent first)
-        sorted_entities = sorted(unique_entities.values(), key=lambda x: x["last_activity"], reverse=True)
+        sorted_entities = sorted(
+            unique_entities.values(), key=lambda x: x["last_activity"], reverse=True
+        )
 
         return sorted_entities[:limit]
 
@@ -400,7 +415,7 @@ class EventsEndpoints:
                         all_event_types[event_type_name] = {
                             "event_type": event_type_name,
                             "count": 0,
-                            "services": []
+                            "services": [],
                         }
                     all_event_types[event_type_name]["count"] += event_type["count"]
                     all_event_types[event_type_name]["services"].append(service_name)
@@ -408,7 +423,9 @@ class EventsEndpoints:
                 logger.warning(f"Failed to get event types from {service_name}: {e}")
 
         # Sort by count (most frequent first)
-        sorted_event_types = sorted(all_event_types.values(), key=lambda x: x["count"], reverse=True)
+        sorted_event_types = sorted(
+            all_event_types.values(), key=lambda x: x["count"], reverse=True
+        )
 
         return sorted_event_types[:limit]
 
@@ -435,7 +452,7 @@ class EventsEndpoints:
             "entity_id": entity_id,
             "events": [],
             "start_time": datetime.now().isoformat(),
-            "end_time": None
+            "end_time": None,
         }
 
         # This would typically involve WebSocket connections or Server-Sent Events
@@ -443,11 +460,7 @@ class EventsEndpoints:
         end_time = datetime.now()
         start_time = end_time - timedelta(seconds=duration)
 
-        event_filter = EventFilter(
-            entity_id=entity_id,
-            start_time=start_time,
-            end_time=end_time
-        )
+        event_filter = EventFilter(entity_id=entity_id, start_time=start_time, end_time=end_time)
 
         events = await self._get_all_events(event_filter, limit=1000, offset=0)
         stream_data["events"] = [event.dict() for event in events]
@@ -455,7 +468,9 @@ class EventsEndpoints:
 
         return stream_data
 
-    async def _get_events_from_influxdb(self, event_filter: EventFilter, limit: int, offset: int) -> list[EventData]:
+    async def _get_events_from_influxdb(
+        self, event_filter: EventFilter, limit: int, offset: int
+    ) -> list[EventData]:
         """Get events directly from InfluxDB"""
         try:
             # Import InfluxDB client
@@ -489,12 +504,12 @@ class EventsEndpoints:
                 query += f'  |> filter(fn: (r) => r.event_type == "{_sanitize_flux_value(event_filter.event_type)}")\n'
 
             # Group and limit
-            query += '  |> group()\n'
+            query += "  |> group()\n"
             query += '  |> sort(columns: ["_time"], desc: true)\n'
-            query += f'  |> limit(n: {limit})\n'
+            query += f"  |> limit(n: {limit})\n"
 
             if offset > 0:
-                query += f'  |> offset(n: {offset})\n'
+                query += f"  |> offset(n: {offset})\n"
 
             # Log query for debugging
             logger.debug(f"Executing Flux query:\n{query}")
@@ -510,7 +525,9 @@ class EventsEndpoints:
                     # Get tags from record (always present)
                     entity_id_val = record.values.get("entity_id") or "unknown"
                     event_type_val = record.values.get("event_type") or "unknown"
-                    context_id = record.values.get("_value") or f"event_{record.get_time().timestamp()}"
+                    context_id = (
+                        record.values.get("_value") or f"event_{record.get_time().timestamp()}"
+                    )
 
                     # Skip duplicates (safety check)
                     if context_id in seen_event_ids:
@@ -528,8 +545,8 @@ class EventsEndpoints:
                         attributes={},  # Not available in single-field query
                         tags={
                             "domain": record.values.get("domain") or "unknown",
-                            "device_class": record.values.get("device_class") or "unknown"
-                        }
+                            "device_class": record.values.get("device_class") or "unknown",
+                        },
                     )
                     events.append(event)
 
@@ -544,7 +561,9 @@ class EventsEndpoints:
                         break
 
             client.close()
-            logger.info(f"admin-api: Returning {len(unique_events)} unique events (requested: {limit})")
+            logger.info(
+                f"admin-api: Returning {len(unique_events)} unique events (requested: {limit})"
+            )
             return unique_events
 
         except Exception as e:
@@ -566,7 +585,7 @@ class EventsEndpoints:
                 old_state={"state": "20.5"},
                 new_state={"state": "21.0"},
                 attributes={"unit_of_measurement": "°C", "friendly_name": f"Temperature {i % 3}"},
-                tags={"domain": "sensor", "device_class": "temperature"}
+                tags={"domain": "sensor", "device_class": "temperature"},
             )
             mock_events.append(event)
 

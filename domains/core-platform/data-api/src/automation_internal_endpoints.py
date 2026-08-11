@@ -5,6 +5,7 @@ registry and execution records.
 Follows the pattern from devices_endpoints.py /internal/devices/bulk_upsert.
 """
 
+import contextlib
 import logging
 from datetime import UTC, datetime
 from typing import Any
@@ -122,10 +123,8 @@ async def bulk_upsert_executions(
                 except (ValueError, TypeError):
                     started_at = datetime.now(UTC)
             if data.get("finished_at"):
-                try:
+                with contextlib.suppress(ValueError, TypeError):
                     finished_at = datetime.fromisoformat(data["finished_at"])
-                except (ValueError, TypeError):
-                    pass
 
             execution = AutomationExecution(
                 automation_id=automation_id,

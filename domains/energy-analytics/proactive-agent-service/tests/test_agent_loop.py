@@ -11,14 +11,12 @@ Tests:
 """
 
 import pytest
-
 from src.models.autonomous_action import ActionOutcome
 from src.services.confidence_scorer import (
+    SAFETY_BLOCKED_DOMAINS,
     ActionScore,
     ConfidenceScorer,
-    SAFETY_BLOCKED_DOMAINS,
 )
-
 
 # ---------------------------------------------------------------------------
 # Confidence Scorer Tests (Story 68.3)

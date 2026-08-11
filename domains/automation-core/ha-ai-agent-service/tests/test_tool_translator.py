@@ -7,14 +7,11 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from src.utils.tool_translator import (
     build_anthropic_tool_result,
     openai_messages_to_anthropic,
     openai_tools_to_anthropic,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures — sample tool schemas from tool_schemas.py
@@ -101,14 +98,16 @@ class TestOpenAIToolsToAnthropic:
         assert openai_tools_to_anthropic([]) == []
 
     def test_legacy_openai_format_with_function_wrapper(self):
-        legacy = [{
-            "type": "function",
-            "function": {
-                "name": "my_tool",
-                "description": "A tool",
-                "parameters": {"type": "object", "properties": {}},
-            },
-        }]
+        legacy = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "my_tool",
+                    "description": "A tool",
+                    "parameters": {"type": "object", "properties": {}},
+                },
+            }
+        ]
         result = openai_tools_to_anthropic(legacy)
         assert result[0]["name"] == "my_tool"
         assert result[0]["description"] == "A tool"
@@ -142,17 +141,21 @@ class TestOpenAIMessagesToAnthropic:
             {
                 "role": "assistant",
                 "content": "I'll create that for you.",
-                "tool_calls": [{
-                    "id": "call_123",
-                    "function": {
-                        "name": "preview_automation_from_prompt",
-                        "arguments": json.dumps({
-                            "user_prompt": "lights on at sunset",
-                            "automation_yaml": "alias: test",
-                            "alias": "test",
-                        }),
-                    },
-                }],
+                "tool_calls": [
+                    {
+                        "id": "call_123",
+                        "function": {
+                            "name": "preview_automation_from_prompt",
+                            "arguments": json.dumps(
+                                {
+                                    "user_prompt": "lights on at sunset",
+                                    "automation_yaml": "alias: test",
+                                    "alias": "test",
+                                }
+                            ),
+                        },
+                    }
+                ],
             },
         ]
         anthropic_msgs, _ = openai_messages_to_anthropic(messages)
@@ -217,13 +220,15 @@ class TestRoundTrip:
             {
                 "role": "assistant",
                 "content": "Let me preview that.",
-                "tool_calls": [{
-                    "id": "call_1",
-                    "function": {
-                        "name": "preview_automation_from_prompt",
-                        "arguments": '{"user_prompt": "lights at sunset", "automation_yaml": "alias: test", "alias": "test"}',
-                    },
-                }],
+                "tool_calls": [
+                    {
+                        "id": "call_1",
+                        "function": {
+                            "name": "preview_automation_from_prompt",
+                            "arguments": '{"user_prompt": "lights at sunset", "automation_yaml": "alias: test", "alias": "test"}',
+                        },
+                    }
+                ],
             },
             {
                 "role": "tool",

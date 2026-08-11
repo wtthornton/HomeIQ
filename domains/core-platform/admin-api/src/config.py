@@ -66,10 +66,7 @@ class Settings(BaseServiceSettings):
                 "Set ADMIN_API_API_KEY to enforce authentication."
             )
         else:
-            raise ValueError(
-                "API_KEY (or ADMIN_API_API_KEY) must be set "
-                "before starting admin-api"
-            )
+            raise ValueError("API_KEY (or ADMIN_API_API_KEY) must be set before starting admin-api")
         return self
 
     def get_cors_methods_list(self) -> list[str]:

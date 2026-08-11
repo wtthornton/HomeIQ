@@ -71,9 +71,11 @@ jobs:
 
       - name: Install shared libraries
         run: |
-          for lib in libs/homeiq-*/; do
-            pip install "$lib" 2>/dev/null || true
-          done
+          # One invocation so intra-repo deps resolve from local paths, and no
+          # `|| true` — the suppression was silently dropping homeiq-data and
+          # homeiq-memory, whose absence surfaced later as unrelated-looking
+          # ModuleNotFoundErrors. See reusable-group-ci.yml for the full note.
+          pip install libs/homeiq-*/
 
       - name: Install test dependencies
         run: |
@@ -146,9 +148,11 @@ jobs:
 
       - name: Install shared libraries
         run: |
-          for lib in libs/homeiq-*/; do
-            pip install "$lib" 2>/dev/null || true
-          done
+          # One invocation so intra-repo deps resolve from local paths, and no
+          # `|| true` — the suppression was silently dropping homeiq-data and
+          # homeiq-memory, whose absence surfaced later as unrelated-looking
+          # ModuleNotFoundErrors. See reusable-group-ci.yml for the full note.
+          pip install libs/homeiq-*/
 
       - name: Install test dependencies
         run: |
@@ -219,9 +223,11 @@ jobs:
 
       - name: Install shared libraries
         run: |
-          for lib in libs/homeiq-*/; do
-            pip install "$lib" 2>/dev/null || true
-          done
+          # One invocation so intra-repo deps resolve from local paths, and no
+          # `|| true` — the suppression was silently dropping homeiq-data and
+          # homeiq-memory, whose absence surfaced later as unrelated-looking
+          # ModuleNotFoundErrors. See reusable-group-ci.yml for the full note.
+          pip install libs/homeiq-*/
 
       - name: Install test dependencies
         run: |
@@ -259,9 +265,11 @@ jobs:
 
       - name: Install shared libraries
         run: |
-          for lib in libs/homeiq-*/; do
-            pip install "$lib" 2>/dev/null || true
-          done
+          # One invocation so intra-repo deps resolve from local paths, and no
+          # `|| true` — the suppression was silently dropping homeiq-data and
+          # homeiq-memory, whose absence surfaced later as unrelated-looking
+          # ModuleNotFoundErrors. See reusable-group-ci.yml for the full note.
+          pip install libs/homeiq-*/
 
       - name: Install test dependencies
         run: |
@@ -298,9 +306,11 @@ jobs:
 
       - name: Install shared libraries
         run: |
-          for lib in libs/homeiq-*/; do
-            pip install "$lib" 2>/dev/null || true
-          done
+          # One invocation so intra-repo deps resolve from local paths, and no
+          # `|| true` — the suppression was silently dropping homeiq-data and
+          # homeiq-memory, whose absence surfaced later as unrelated-looking
+          # ModuleNotFoundErrors. See reusable-group-ci.yml for the full note.
+          pip install libs/homeiq-*/
 
       - name: Install Zeek service dependencies
         run: |
@@ -343,9 +353,11 @@ jobs:
 
       - name: Install shared libraries
         run: |
-          for lib in libs/homeiq-*/; do
-            pip install "$lib" 2>/dev/null || true
-          done
+          # One invocation so intra-repo deps resolve from local paths, and no
+          # `|| true` — the suppression was silently dropping homeiq-data and
+          # homeiq-memory, whose absence surfaced later as unrelated-looking
+          # ModuleNotFoundErrors. See reusable-group-ci.yml for the full note.
+          pip install libs/homeiq-*/
 
       - name: Install test dependencies
         run: |
@@ -382,9 +394,11 @@ jobs:
 
       - name: Install shared libraries
         run: |
-          for lib in libs/homeiq-*/; do
-            pip install "$lib" 2>/dev/null || true
-          done
+          # One invocation so intra-repo deps resolve from local paths, and no
+          # `|| true` — the suppression was silently dropping homeiq-data and
+          # homeiq-memory, whose absence surfaced later as unrelated-looking
+          # ModuleNotFoundErrors. See reusable-group-ci.yml for the full note.
+          pip install libs/homeiq-*/
 
       - name: Install test dependencies
         run: |
@@ -417,9 +431,10 @@ jobs:
 
       - name: Install all shared libraries
         run: |
-          for lib in libs/homeiq-*/; do
-            pip install "$lib"
-          done
+          # One invocation: installing these one at a time resolves each in
+          # isolation, so homeiq-data looks for the unpublished homeiq-resilience
+          # on PyPI and 404s. See reusable-group-ci.yml for the full note.
+          pip install libs/homeiq-*/
 
       - name: Verify cross-library imports
         run: |
@@ -485,6 +500,11 @@ jobs:
           echo "**Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+          # FAILED was computed above and then never used, so this job reported
+          # success while the jobs it summarizes were red — shared-lib-compat
+          # among them. Propagate it.
+          exit "$FAILED"
 
           if [ "$FAILED" -eq 1 ]; then
             echo "" >> $GITHUB_STEP_SUMMARY

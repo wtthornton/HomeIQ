@@ -3,6 +3,7 @@ Integration Tests for API
 
 Tests FastAPI endpoints.
 """
+
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -14,7 +15,7 @@ if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from src.api.main import app
 from src.miner.models import AutomationMetadata
 from src.miner.repository import CorpusRepository
@@ -34,9 +35,7 @@ async def test_db():
     )
     db = Database.__new__(Database)
     db.engine = create_async_engine(test_url, echo=False)
-    db.async_session = async_sessionmaker(
-        db.engine, class_=AsyncSession, expire_on_commit=False
-    )
+    db.async_session = async_sessionmaker(db.engine, class_=AsyncSession, expire_on_commit=False)
     db.db_path = None
     await db.create_tables()
     yield db
@@ -65,7 +64,7 @@ async def sample_automation(test_db):
             source="discourse",
             source_id="test123",
             created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC)
+            updated_at=datetime.now(UTC),
         )
 
         await repo.save_automation(metadata)
@@ -74,56 +73,55 @@ async def sample_automation(test_db):
 @pytest.mark.asyncio
 async def test_health_endpoint():
     """Test health check endpoint"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/health")
 
         assert response.status_code == 200
         data = response.json()
-        assert data['status'] in ['healthy', 'unhealthy']
-        assert data['service'] == 'automation-miner'
+        assert data["status"] in ["healthy", "unhealthy"]
+        assert data["service"] == "automation-miner"
 
 
 @pytest.mark.asyncio
 async def test_root_endpoint():
     """Test root endpoint"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/")
 
         assert response.status_code == 200
         data = response.json()
-        assert 'message' in data
-        assert 'version' in data
+        assert "message" in data
+        assert "version" in data
 
 
 @pytest.mark.asyncio
 async def test_search_endpoint(_sample_automation):
     """Test search endpoint"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get(
             "/api/automation-miner/corpus/search",
-            params={"device": "light", "min_quality": 0.7, "limit": 10}
+            params={"device": "light", "min_quality": 0.7, "limit": 10},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert 'automations' in data
-        assert 'count' in data
-        assert data['count'] >= 0
+        assert "automations" in data
+        assert "count" in data
+        assert data["count"] >= 0
 
 
 @pytest.mark.asyncio
 async def test_stats_endpoint(_sample_automation):
     """Test stats endpoint"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/api/automation-miner/corpus/stats")
 
         assert response.status_code == 200
         data = response.json()
-        assert 'total' in data
-        assert 'avg_quality' in data
-        assert 'device_count' in data
+        assert "total" in data
+        assert "avg_quality" in data
+        assert "device_count" in data
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
-
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

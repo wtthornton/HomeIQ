@@ -11,6 +11,7 @@ from src.api_key_service import APIKeyInfo, APIKeyService, APIKeyStatus
 # APIKeyStatus enum
 # ---------------------------------------------------------------------------
 
+
 class TestAPIKeyStatus:
     """Tests for APIKeyStatus enum values."""
 
@@ -44,13 +45,21 @@ class TestAPIKeyStatus:
 # APIKeyInfo dataclass
 # ---------------------------------------------------------------------------
 
+
 class TestAPIKeyInfo:
     """Tests for APIKeyInfo dataclass structure."""
 
     def test_required_fields_exist(self):
         """Dataclass exposes all mandatory fields."""
         field_names = {f.name for f in fields(APIKeyInfo)}
-        assert {"service", "key_name", "status", "masked_key", "is_required", "description"}.issubset(field_names)
+        assert {
+            "service",
+            "key_name",
+            "status",
+            "masked_key",
+            "is_required",
+            "description",
+        }.issubset(field_names)
 
     def test_validation_url_optional(self):
         """validation_url field has a default of None."""
@@ -87,6 +96,7 @@ class TestAPIKeyInfo:
 # ---------------------------------------------------------------------------
 # APIKeyService initialisation
 # ---------------------------------------------------------------------------
+
 
 class TestAPIKeyServiceInit:
     """Tests for APIKeyService.__init__ defaults."""
@@ -127,13 +137,21 @@ class TestAPIKeyServiceInit:
     def test_api_key_config_contains_expected_services(self):
         """api_key_config is pre-populated with the six known services."""
         svc = APIKeyService()
-        expected = {"weather", "carbon-intensity", "electricity-pricing", "air-quality", "calendar", "smart-meter"}
+        expected = {
+            "weather",
+            "carbon-intensity",
+            "electricity-pricing",
+            "air-quality",
+            "calendar",
+            "smart-meter",
+        }
         assert set(svc.api_key_config.keys()) == expected
 
 
 # ---------------------------------------------------------------------------
 # get_api_keys
 # ---------------------------------------------------------------------------
+
 
 class TestGetApiKeys:
     """Tests for APIKeyService.get_api_keys."""
@@ -175,6 +193,7 @@ class TestGetApiKeys:
     async def test_key_set_with_no_validation_url_returns_configured(self):
         """A key that is set for a service with no validation_url → CONFIGURED."""
         svc = APIKeyService()
+
         # 'smart-meter' has no validation_url
         def fake_getenv(key, *_args):
             if key == "METER_API_TOKEN":
@@ -196,9 +215,11 @@ class TestGetApiKeys:
                 return "a" * 32
             return None
 
-        with patch("src.api_key_service.os.getenv", side_effect=fake_getenv):
-            with patch.object(svc, "_test_api_key", new=AsyncMock(return_value=True)):
-                result = await svc.get_api_keys()
+        with (
+            patch("src.api_key_service.os.getenv", side_effect=fake_getenv),
+            patch.object(svc, "_test_api_key", new=AsyncMock(return_value=True)),
+        ):
+            result = await svc.get_api_keys()
 
         result_map = {info.service: info for info in result}
         assert result_map["weather"].status == APIKeyStatus.CONFIGURED
@@ -212,9 +233,11 @@ class TestGetApiKeys:
                 return "a" * 32
             return None
 
-        with patch("src.api_key_service.os.getenv", side_effect=fake_getenv):
-            with patch.object(svc, "_test_api_key", new=AsyncMock(return_value=False)):
-                result = await svc.get_api_keys()
+        with (
+            patch("src.api_key_service.os.getenv", side_effect=fake_getenv),
+            patch.object(svc, "_test_api_key", new=AsyncMock(return_value=False)),
+        ):
+            result = await svc.get_api_keys()
 
         result_map = {info.service: info for info in result}
         assert result_map["weather"].status == APIKeyStatus.INVALID
@@ -247,6 +270,7 @@ class TestGetApiKeys:
 # update_api_key
 # ---------------------------------------------------------------------------
 
+
 class TestUpdateApiKey:
     """Tests for APIKeyService.update_api_key."""
 
@@ -277,9 +301,11 @@ class TestUpdateApiKey:
         """Valid key that passes _test_api_key returns (True, message)."""
         svc = APIKeyService()
         good_key = "a" * 32
-        with patch.object(svc, "_test_api_key", new=AsyncMock(return_value=True)):
-            with patch.object(svc, "_update_config_file", new=AsyncMock()):
-                success, msg = await svc.update_api_key("weather", good_key)
+        with (
+            patch.object(svc, "_test_api_key", new=AsyncMock(return_value=True)),
+            patch.object(svc, "_update_config_file", new=AsyncMock()),
+        ):
+            success, msg = await svc.update_api_key("weather", good_key)
         assert success is True
 
     async def test_valid_key_validation_fails_returns_false(self):
@@ -294,7 +320,9 @@ class TestUpdateApiKey:
     async def test_exception_returns_false_with_error_message(self):
         """Unexpected exception inside update_api_key returns (False, error detail)."""
         svc = APIKeyService()
-        with patch.object(svc, "_update_config_file", new=AsyncMock(side_effect=RuntimeError("disk full"))):
+        with patch.object(
+            svc, "_update_config_file", new=AsyncMock(side_effect=RuntimeError("disk full"))
+        ):
             success, msg = await svc.update_api_key("smart-meter", "validtoken12345")
         assert success is False
         assert "disk full" in msg
@@ -327,7 +355,9 @@ class TestUpdateApiKey:
         """os.environ only changes after the config-file write succeeds."""
         svc = APIKeyService()
         with (
-            patch.object(svc, "_update_config_file", new=AsyncMock(side_effect=RuntimeError("disk full"))),
+            patch.object(
+                svc, "_update_config_file", new=AsyncMock(side_effect=RuntimeError("disk full"))
+            ),
             patch.dict(os.environ, {"METER_API_TOKEN": "original-token"}),
         ):
             success, _ = await svc.update_api_key("smart-meter", "validtoken12345")
@@ -350,6 +380,7 @@ class TestUpdateApiKey:
 # ---------------------------------------------------------------------------
 # test_api_key (public)
 # ---------------------------------------------------------------------------
+
 
 class TestTestApiKey:
     """Tests for APIKeyService.test_api_key."""
@@ -387,6 +418,7 @@ class TestTestApiKey:
 # ---------------------------------------------------------------------------
 # get_api_key_status
 # ---------------------------------------------------------------------------
+
 
 class TestGetApiKeyStatus:
     """Tests for APIKeyService.get_api_key_status."""
@@ -427,6 +459,7 @@ class TestGetApiKeyStatus:
 # ---------------------------------------------------------------------------
 # _validate_key_format
 # ---------------------------------------------------------------------------
+
 
 class TestValidateKeyFormat:
     """Tests for APIKeyService._validate_key_format."""
@@ -481,6 +514,7 @@ class TestValidateKeyFormat:
 # _mask_api_key
 # ---------------------------------------------------------------------------
 
+
 class TestMaskApiKey:
     """Tests for APIKeyService._mask_api_key."""
 
@@ -522,6 +556,7 @@ class TestMaskApiKey:
 # ---------------------------------------------------------------------------
 # _update_config_file
 # ---------------------------------------------------------------------------
+
 
 class TestUpdateConfigFile:
     """Tests for APIKeyService._update_config_file."""
@@ -575,6 +610,7 @@ class TestUpdateConfigFile:
 # _test_api_key (internal) — network mocked via aiohttp.ClientSession
 # ---------------------------------------------------------------------------
 
+
 class TestInternalTestApiKey:
     """Tests for APIKeyService._test_api_key with mocked network layer."""
 
@@ -627,7 +663,9 @@ class TestInternalTestApiKey:
     async def test_returns_false_on_network_exception(self):
         """Network exception during request returns False without raising."""
         svc = APIKeyService()
-        with patch("src.api_key_service.aiohttp.ClientSession", side_effect=Exception("connection refused")):
+        with patch(
+            "src.api_key_service.aiohttp.ClientSession", side_effect=Exception("connection refused")
+        ):
             result = await svc._test_api_key("weather", "a" * 32)
         assert result is False
 

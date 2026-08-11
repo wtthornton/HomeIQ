@@ -78,9 +78,7 @@ class SuggestionService:
         Returns:
             Suggestion object or None if not found
         """
-        result = await self.db.execute(
-            select(Suggestion).where(Suggestion.id == suggestion_id)
-        )
+        result = await self.db.execute(select(Suggestion).where(Suggestion.id == suggestion_id))
         return result.scalar_one_or_none()
 
     async def list_suggestions(
@@ -244,4 +242,3 @@ class SuggestionService:
             "approved": approved or 0,
             "rejected": rejected or 0,
         }
-

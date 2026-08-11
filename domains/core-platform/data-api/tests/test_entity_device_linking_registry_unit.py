@@ -41,7 +41,6 @@ def _facade(entities=REGISTRY, side_effect=None):
 
 
 class TestRegistryFailureIsSurfaced:
-
     @pytest.mark.asyncio
     async def test_registry_failure_raises_502_not_a_linked_count(self):
         """The old code answered 200 with a count sourced from config_entry_id."""
@@ -55,8 +54,10 @@ class TestRegistryFailureIsSurfaced:
             return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=lambda: [entity])))
         )
 
-        with patch("homeiq_ha.client.HAClient", return_value=facade), \
-             pytest.raises(HTTPException) as excinfo:
+        with (
+            patch("homeiq_ha.client.HAClient", return_value=facade),
+            pytest.raises(HTTPException) as excinfo,
+        ):
             await link_entities_to_devices(limit=10, db=db)
 
         assert excinfo.value.status_code == 502
@@ -64,7 +65,6 @@ class TestRegistryFailureIsSurfaced:
 
 
 class TestNoSilentConfigEntryFallback:
-
     def test_config_entry_id_fallback_is_gone(self):
         """Matching on config_entry_id was the mask over the failed registry read."""
         import ast

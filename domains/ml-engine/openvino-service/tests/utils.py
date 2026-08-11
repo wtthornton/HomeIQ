@@ -21,6 +21,7 @@ except ImportError:
     # Fallback for when path setup hasn't run yet
     import sys
     from pathlib import Path
+
     test_dir = Path(__file__).resolve().parent
     service_dir = test_dir.parent
     src_dir = service_dir / "src"

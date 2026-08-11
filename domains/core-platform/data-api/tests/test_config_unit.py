@@ -3,18 +3,13 @@
 Tests Settings construction, ConfigManager CRUD, validation, and sanitization.
 """
 
-import os
-import tempfile
-from pathlib import Path
-
 import pytest
-
-from src.config_manager import ConfigManager, MASK_VALUE, SENSITIVE_KEY_PATTERNS
-
+from src.config_manager import MASK_VALUE, ConfigManager
 
 # ---------------------------------------------------------------------------
 # Settings — tested via monkeypatch (Story 85.8)
 # ---------------------------------------------------------------------------
+
 
 class TestSettings:
     """Test Settings (BaseServiceSettings subclass) construction."""
@@ -24,6 +19,7 @@ class TestSettings:
         monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
         # Force re-import to pick up new env
         from src.config import Settings
+
         s = Settings()
         assert s.api_key == "test-secret-key"
 
@@ -33,6 +29,7 @@ class TestSettings:
         monkeypatch.setenv("DATA_API_ALLOW_ANONYMOUS", "true")
         monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
         from src.config import Settings
+
         s = Settings()
         assert s.api_key is not None
         assert len(s.api_key) > 10
@@ -43,6 +40,7 @@ class TestSettings:
         monkeypatch.delenv("DATA_API_ALLOW_ANONYMOUS", raising=False)
         monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
         from src.config import Settings
+
         with pytest.raises(ValueError, match="DATA_API_API_KEY must be set"):
             Settings(allow_anonymous=False)
 
@@ -50,6 +48,7 @@ class TestSettings:
         monkeypatch.setenv("DATA_API_API_KEY", "key")
         monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
         from src.config import Settings
+
         s = Settings()
         assert s.service_port == 8006
         assert s.service_name == "data-api"
@@ -63,6 +62,7 @@ class TestSettings:
         monkeypatch.setenv("DATA_API_KEY", "fallback-key")
         monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
         from src.config import Settings
+
         s = Settings()
         assert s.api_key == "fallback-key"
 
@@ -71,8 +71,8 @@ class TestSettings:
 # ConfigManager — CRUD and validation
 # ---------------------------------------------------------------------------
 
-class TestConfigManagerReadWrite:
 
+class TestConfigManagerReadWrite:
     def _make_manager(self, tmp_path):
         return ConfigManager(config_dir=str(tmp_path))
 
@@ -154,15 +154,17 @@ class TestConfigManagerReadWrite:
 
 
 class TestConfigManagerValidation:
-
     def _mgr(self):
         return ConfigManager(config_dir="nonexistent")
 
     def test_websocket_valid(self):
-        result = self._mgr().validate_config("websocket", {
-            "HA_URL": "ws://192.168.1.86:8123",
-            "HA_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
-        })
+        result = self._mgr().validate_config(
+            "websocket",
+            {
+                "HA_URL": "ws://192.168.1.86:8123",
+                "HA_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+            },
+        )
         assert result["valid"] is True
         assert result["errors"] == []
 
@@ -172,48 +174,45 @@ class TestConfigManagerValidation:
         assert any("HA_URL" in e for e in result["errors"])
 
     def test_websocket_invalid_url_scheme(self):
-        result = self._mgr().validate_config("websocket", {
-            "HA_URL": "http://wrong",
-            "HA_TOKEN": "longtoken123"
-        })
+        result = self._mgr().validate_config(
+            "websocket", {"HA_URL": "http://wrong", "HA_TOKEN": "longtoken123"}
+        )
         assert any("ws://" in e for e in result["errors"])
 
     def test_websocket_short_token_warning(self):
-        result = self._mgr().validate_config("websocket", {
-            "HA_URL": "ws://localhost",
-            "HA_TOKEN": "short"
-        })
+        result = self._mgr().validate_config(
+            "websocket", {"HA_URL": "ws://localhost", "HA_TOKEN": "short"}
+        )
         assert any("short" in w for w in result["warnings"])
 
     def test_weather_valid(self):
-        result = self._mgr().validate_config("weather", {
-            "WEATHER_API_KEY": "abc123",
-            "WEATHER_LAT": "51.5",
-            "WEATHER_LON": "-0.12"
-        })
+        result = self._mgr().validate_config(
+            "weather", {"WEATHER_API_KEY": "abc123", "WEATHER_LAT": "51.5", "WEATHER_LON": "-0.12"}
+        )
         assert result["valid"] is True
 
     def test_weather_invalid_lat(self):
-        result = self._mgr().validate_config("weather", {
-            "WEATHER_API_KEY": "abc",
-            "WEATHER_LAT": "999"
-        })
+        result = self._mgr().validate_config(
+            "weather", {"WEATHER_API_KEY": "abc", "WEATHER_LAT": "999"}
+        )
         assert any("LAT" in e for e in result["errors"])
 
     def test_weather_invalid_lon(self):
-        result = self._mgr().validate_config("weather", {
-            "WEATHER_API_KEY": "abc",
-            "WEATHER_LON": "-999"
-        })
+        result = self._mgr().validate_config(
+            "weather", {"WEATHER_API_KEY": "abc", "WEATHER_LON": "-999"}
+        )
         assert any("LON" in e for e in result["errors"])
 
     def test_influxdb_valid(self):
-        result = self._mgr().validate_config("influxdb", {
-            "INFLUXDB_URL": "http://influxdb:8086",
-            "INFLUXDB_TOKEN": "token",
-            "INFLUXDB_ORG": "homeiq",
-            "INFLUXDB_BUCKET": "events"
-        })
+        result = self._mgr().validate_config(
+            "influxdb",
+            {
+                "INFLUXDB_URL": "http://influxdb:8086",
+                "INFLUXDB_TOKEN": "token",
+                "INFLUXDB_ORG": "homeiq",
+                "INFLUXDB_BUCKET": "events",
+            },
+        )
         assert result["valid"] is True
 
     def test_influxdb_missing_fields(self):
@@ -226,9 +225,7 @@ class TestConfigManagerValidation:
         assert result["valid"] is True
 
     def test_websocket_missing_token(self):
-        result = self._mgr().validate_config("websocket", {
-            "HA_URL": "ws://localhost"
-        })
+        result = self._mgr().validate_config("websocket", {"HA_URL": "ws://localhost"})
         assert any("HA_TOKEN" in e for e in result["errors"])
 
     def test_weather_missing_key(self):
@@ -236,31 +233,31 @@ class TestConfigManagerValidation:
         assert any("WEATHER_API_KEY" in e for e in result["errors"])
 
     def test_weather_non_numeric_lat(self):
-        result = self._mgr().validate_config("weather", {
-            "WEATHER_API_KEY": "abc",
-            "WEATHER_LAT": "not_a_number"
-        })
+        result = self._mgr().validate_config(
+            "weather", {"WEATHER_API_KEY": "abc", "WEATHER_LAT": "not_a_number"}
+        )
         assert any("number" in e.lower() for e in result["errors"])
 
     def test_weather_non_numeric_lon(self):
-        result = self._mgr().validate_config("weather", {
-            "WEATHER_API_KEY": "abc",
-            "WEATHER_LON": "not_a_number"
-        })
+        result = self._mgr().validate_config(
+            "weather", {"WEATHER_API_KEY": "abc", "WEATHER_LON": "not_a_number"}
+        )
         assert any("number" in e.lower() for e in result["errors"])
 
     def test_influxdb_invalid_url_scheme(self):
-        result = self._mgr().validate_config("influxdb", {
-            "INFLUXDB_URL": "ftp://wrong",
-            "INFLUXDB_TOKEN": "token",
-            "INFLUXDB_ORG": "org",
-            "INFLUXDB_BUCKET": "bucket"
-        })
+        result = self._mgr().validate_config(
+            "influxdb",
+            {
+                "INFLUXDB_URL": "ftp://wrong",
+                "INFLUXDB_TOKEN": "token",
+                "INFLUXDB_ORG": "org",
+                "INFLUXDB_BUCKET": "bucket",
+            },
+        )
         assert any("http" in e.lower() for e in result["errors"])
 
 
 class TestConfigManagerSanitize:
-
     def test_masks_sensitive_keys(self):
         mgr = ConfigManager(config_dir=".")
         config = {"HA_TOKEN": "secret123", "HA_URL": "ws://localhost"}
@@ -292,7 +289,6 @@ class TestConfigManagerSanitize:
 
 
 class TestConfigManagerTemplate:
-
     def test_websocket_template(self):
         mgr = ConfigManager(config_dir=".")
         template = mgr.get_config_template("websocket")
@@ -306,7 +302,6 @@ class TestConfigManagerTemplate:
 
 
 class TestIsSensitiveKey:
-
     def test_token_is_sensitive(self):
         mgr = ConfigManager(config_dir=".")
         assert mgr._is_sensitive_key("HA_TOKEN") is True

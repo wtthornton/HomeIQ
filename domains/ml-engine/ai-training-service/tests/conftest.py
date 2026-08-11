@@ -5,8 +5,8 @@ Epic 39, Story 39.4: Training Service Testing & Validation
 """
 
 import os
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
-from typing import AsyncGenerator
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -31,26 +31,26 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
         test_url,
         echo=False,
     )
-    
+
     # Create all tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     # Create session factory
     async_session_maker = async_sessionmaker(
         engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     # Create session for test
     async with async_session_maker() as session:
         yield session
-    
+
     # Cleanup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    
+
     await engine.dispose()
 
 
@@ -82,4 +82,3 @@ def sample_training_run_completed_data():
         "base_model": "google/flan-t5-small",
         "final_loss": 0.5,
     }
-

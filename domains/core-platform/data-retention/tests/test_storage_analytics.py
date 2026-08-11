@@ -3,7 +3,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from src.storage_analytics import StorageAnalytics
 
 

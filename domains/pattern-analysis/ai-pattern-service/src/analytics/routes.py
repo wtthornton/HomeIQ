@@ -26,12 +26,8 @@ metrics_collector = MetricsCollector()
 class TargetProgressResponse(BaseModel):
     """Response model for target progress."""
 
-    adoption_rate: dict[str, Any] = Field(
-        ..., description="Adoption rate progress (target: 30%)"
-    )
-    success_rate: dict[str, Any] = Field(
-        ..., description="Success rate progress (target: 85%)"
-    )
+    adoption_rate: dict[str, Any] = Field(..., description="Adoption rate progress (target: 30%)")
+    success_rate: dict[str, Any] = Field(..., description="Success rate progress (target: 85%)")
     pattern_quality: dict[str, Any] = Field(
         ..., description="Pattern quality progress (target: 90%)"
     )

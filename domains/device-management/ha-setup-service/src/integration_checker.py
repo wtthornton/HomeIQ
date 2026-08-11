@@ -7,6 +7,7 @@ Context7 Best Practices Applied:
 - Retry logic with exponential backoff
 - Pydantic models for validation
 """
+
 import asyncio
 import logging
 from datetime import datetime
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 class CheckResult(BaseModel):
     """Integration check result model"""
+
     integration_name: str
     integration_type: str
     status: IntegrationStatus
@@ -71,19 +73,21 @@ class IntegrationHealthChecker:
             self.check_data_api_integration(),
             self.check_admin_api_integration(),
             self.check_hacs_integration(),
-            return_exceptions=True
+            return_exceptions=True,
         )
 
         # Convert exceptions to error results
         check_results = []
         for result in results:
             if isinstance(result, Exception):
-                check_results.append(CheckResult(
-                    integration_name="Unknown",
-                    integration_type="error",
-                    status=IntegrationStatus.ERROR,
-                    error_message=str(result)
-                ))
+                check_results.append(
+                    CheckResult(
+                        integration_name="Unknown",
+                        integration_type="error",
+                        status=IntegrationStatus.ERROR,
+                        error_message=str(result),
+                    )
+                )
             else:
                 check_results.append(result)
 
@@ -108,62 +112,60 @@ class IntegrationHealthChecker:
                 error_message="HA_TOKEN not configured",
                 check_details={
                     "token_present": False,
-                    "recommendation": "Set HA_TOKEN environment variable with long-lived access token"
-                }
+                    "recommendation": "Set HA_TOKEN environment variable with long-lived access token",
+                },
             )
 
         try:
             session = await get_http_session()
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             # Test auth with /api/config endpoint
             async with session.get(
-                f"{self.ha_url}/api/config",
-                headers=headers,
-                timeout=self.timeout
+                f"{self.ha_url}/api/config", headers=headers, timeout=self.timeout
             ) as response:
-                    if response.status == 200:
-                        config_data = await response.json()
-                        return CheckResult(
-                            integration_name="HA Authentication",
-                            integration_type="auth",
-                            status=IntegrationStatus.HEALTHY,
-                            is_configured=True,
-                            is_connected=True,
-                            check_details={
-                                "token_valid": True,
-                                "ha_version": config_data.get("version", "unknown"),
-                                "location": config_data.get("location_name", "unknown"),
-                                "permissions": "read/write"
-                            }
-                        )
-                    elif response.status == 401:
-                        return CheckResult(
-                            integration_name="HA Authentication",
-                            integration_type="auth",
-                            status=IntegrationStatus.ERROR,
-                            is_configured=True,
-                            is_connected=False,
-                            error_message="Invalid or expired token",
-                            check_details={
-                                "token_valid": False,
-                                "http_status": 401,
-                                "recommendation": "Generate new long-lived access token in HA"
-                            }
-                        )
-                    else:
-                        return CheckResult(
-                            integration_name="HA Authentication",
-                            integration_type="auth",
-                            status=IntegrationStatus.WARNING,
-                            is_configured=True,
-                            is_connected=False,
-                            error_message=f"Unexpected response: HTTP {response.status}",
-                            check_details={"http_status": response.status}
-                        )
+                if response.status == 200:
+                    config_data = await response.json()
+                    return CheckResult(
+                        integration_name="HA Authentication",
+                        integration_type="auth",
+                        status=IntegrationStatus.HEALTHY,
+                        is_configured=True,
+                        is_connected=True,
+                        check_details={
+                            "token_valid": True,
+                            "ha_version": config_data.get("version", "unknown"),
+                            "location": config_data.get("location_name", "unknown"),
+                            "permissions": "read/write",
+                        },
+                    )
+                elif response.status == 401:
+                    return CheckResult(
+                        integration_name="HA Authentication",
+                        integration_type="auth",
+                        status=IntegrationStatus.ERROR,
+                        is_configured=True,
+                        is_connected=False,
+                        error_message="Invalid or expired token",
+                        check_details={
+                            "token_valid": False,
+                            "http_status": 401,
+                            "recommendation": "Generate new long-lived access token in HA",
+                        },
+                    )
+                else:
+                    return CheckResult(
+                        integration_name="HA Authentication",
+                        integration_type="auth",
+                        status=IntegrationStatus.WARNING,
+                        is_configured=True,
+                        is_connected=False,
+                        error_message=f"Unexpected response: HTTP {response.status}",
+                        check_details={"http_status": response.status},
+                    )
 
         except TimeoutError:
             return CheckResult(
@@ -176,8 +178,8 @@ class IntegrationHealthChecker:
                 check_details={
                     "timeout_seconds": 10,
                     "ha_url": self.ha_url,
-                    "recommendation": "Check network connectivity and HA URL"
-                }
+                    "recommendation": "Check network connectivity and HA URL",
+                },
             )
         except Exception as e:
             return CheckResult(
@@ -187,7 +189,7 @@ class IntegrationHealthChecker:
                 is_configured=True,
                 is_connected=False,
                 error_message=str(e),
-                check_details={"error_type": type(e).__name__}
+                check_details={"error_type": type(e).__name__},
             )
 
     async def check_mqtt_integration(self) -> CheckResult:
@@ -203,72 +205,75 @@ class IntegrationHealthChecker:
             session = await get_http_session()
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             # Get all config entries
             async with session.get(
                 f"{self.ha_url}/api/config/config_entries/entry",
-                    headers=headers,
-                    timeout=self.timeout
-                ) as response:
-                    if response.status == 200:
-                        entries = await response.json()
-                        mqtt_entry = next(
-                            (e for e in entries if e.get('domain') == 'mqtt'),
-                            None
-                        )
+                headers=headers,
+                timeout=self.timeout,
+            ) as response:
+                if response.status == 200:
+                    entries = await response.json()
+                    mqtt_entry = next((e for e in entries if e.get("domain") == "mqtt"), None)
 
-                        if not mqtt_entry:
-                            return CheckResult(
-                                integration_name="MQTT",
-                                integration_type="mqtt",
-                                status=IntegrationStatus.NOT_CONFIGURED,
-                                is_configured=False,
-                                is_connected=False,
-                                error_message="MQTT integration not found in Home Assistant",
-                                check_details={
-                                    "recommendation": "Add MQTT integration via HA UI: Settings → Devices & Services → Add Integration → MQTT"
-                                }
-                            )
-
-                        # MQTT integration found - check details
-                        entry_data = mqtt_entry.get('data', {})
-                        broker_host = entry_data.get('broker', 'unknown')
-                        broker_port = entry_data.get('port', 1883)
-                        discovery = entry_data.get('discovery', False)
-
-                        # Check if broker is reachable
-                        is_connected = await self._check_mqtt_broker_connectivity(broker_host, broker_port)
-
-                        status = IntegrationStatus.HEALTHY if is_connected else IntegrationStatus.WARNING
-
+                    if not mqtt_entry:
                         return CheckResult(
                             integration_name="MQTT",
                             integration_type="mqtt",
-                            status=status,
-                            is_configured=True,
-                            is_connected=is_connected,
-                            error_message=None if is_connected else "MQTT broker not reachable",
-                            check_details={
-                                "broker": broker_host,
-                                "port": broker_port,
-                                "discovery_enabled": discovery,
-                                "entry_id": mqtt_entry.get('entry_id'),
-                                "title": mqtt_entry.get('title', 'MQTT'),
-                                "recommendation": "Enable discovery for automatic device detection" if not discovery else None
-                            }
-                        )
-                    else:
-                        return CheckResult(
-                            integration_name="MQTT",
-                            integration_type="mqtt",
-                            status=IntegrationStatus.ERROR,
+                            status=IntegrationStatus.NOT_CONFIGURED,
                             is_configured=False,
                             is_connected=False,
-                            error_message=f"Failed to get config entries: HTTP {response.status}",
-                            check_details={"http_status": response.status}
+                            error_message="MQTT integration not found in Home Assistant",
+                            check_details={
+                                "recommendation": "Add MQTT integration via HA UI: Settings → Devices & Services → Add Integration → MQTT"
+                            },
                         )
+
+                    # MQTT integration found - check details
+                    entry_data = mqtt_entry.get("data", {})
+                    broker_host = entry_data.get("broker", "unknown")
+                    broker_port = entry_data.get("port", 1883)
+                    discovery = entry_data.get("discovery", False)
+
+                    # Check if broker is reachable
+                    is_connected = await self._check_mqtt_broker_connectivity(
+                        broker_host, broker_port
+                    )
+
+                    status = (
+                        IntegrationStatus.HEALTHY if is_connected else IntegrationStatus.WARNING
+                    )
+
+                    return CheckResult(
+                        integration_name="MQTT",
+                        integration_type="mqtt",
+                        status=status,
+                        is_configured=True,
+                        is_connected=is_connected,
+                        error_message=None if is_connected else "MQTT broker not reachable",
+                        check_details={
+                            "broker": broker_host,
+                            "port": broker_port,
+                            "discovery_enabled": discovery,
+                            "entry_id": mqtt_entry.get("entry_id"),
+                            "title": mqtt_entry.get("title", "MQTT"),
+                            "recommendation": "Enable discovery for automatic device detection"
+                            if not discovery
+                            else None,
+                        },
+                    )
+                else:
+                    return CheckResult(
+                        integration_name="MQTT",
+                        integration_type="mqtt",
+                        status=IntegrationStatus.ERROR,
+                        is_configured=False,
+                        is_connected=False,
+                        error_message=f"Failed to get config entries: HTTP {response.status}",
+                        check_details={"http_status": response.status},
+                    )
 
         except Exception as e:
             return CheckResult(
@@ -278,7 +283,7 @@ class IntegrationHealthChecker:
                 is_configured=False,
                 is_connected=False,
                 error_message=str(e),
-                check_details={"error_type": type(e).__name__}
+                check_details={"error_type": type(e).__name__},
             )
 
     async def _check_mqtt_broker_connectivity(self, broker: str, port: int) -> bool:
@@ -295,8 +300,7 @@ class IntegrationHealthChecker:
         try:
             # Try to open TCP connection
             reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(broker, port),
-                timeout=5.0
+                asyncio.open_connection(broker, port), timeout=5.0
             )
             writer.close()
             await writer.wait_closed()
@@ -321,14 +325,14 @@ class IntegrationHealthChecker:
             session = await get_http_session()
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             # Check for Zigbee2MQTT bridge state using single-entity endpoint
             async with session.get(
                 f"{self.ha_url}/api/states/sensor.zigbee2mqtt_bridge_state",
                 headers=headers,
-                timeout=self.timeout
+                timeout=self.timeout,
             ) as response:
                 if response.status == 200:
                     z2m_bridge = await response.json()
@@ -342,7 +346,7 @@ class IntegrationHealthChecker:
                         is_configured=False,
                         is_connected=False,
                         error_message=f"Failed to get HA states: HTTP {response.status}",
-                        check_details={"http_status": response.status}
+                        check_details={"http_status": response.status},
                     )
 
             if not z2m_bridge:
@@ -355,11 +359,11 @@ class IntegrationHealthChecker:
                     error_message="Zigbee2MQTT not detected in Home Assistant",
                     check_details={
                         "recommendation": "Install Zigbee2MQTT addon and configure MQTT integration"
-                    }
+                    },
                 )
 
-            bridge_state = z2m_bridge.get('state', 'unknown')
-            is_online = bridge_state.lower() == 'online'
+            bridge_state = z2m_bridge.get("state", "unknown")
+            is_online = bridge_state.lower() == "online"
 
             status = IntegrationStatus.HEALTHY if is_online else IntegrationStatus.WARNING
 
@@ -372,9 +376,11 @@ class IntegrationHealthChecker:
                 error_message=None if is_online else f"Bridge state: {bridge_state}",
                 check_details={
                     "bridge_state": bridge_state,
-                    "bridge_entity": z2m_bridge.get('entity_id') if z2m_bridge else None,
-                    "recommendation": "Check Zigbee2MQTT addon logs if offline" if not is_online else None
-                }
+                    "bridge_entity": z2m_bridge.get("entity_id") if z2m_bridge else None,
+                    "recommendation": "Check Zigbee2MQTT addon logs if offline"
+                    if not is_online
+                    else None,
+                },
             )
 
         except Exception as e:
@@ -385,7 +391,7 @@ class IntegrationHealthChecker:
                 is_configured=False,
                 is_connected=False,
                 error_message=str(e),
-                check_details={"error_type": type(e).__name__}
+                check_details={"error_type": type(e).__name__},
             )
 
     async def check_device_discovery(self) -> CheckResult:
@@ -422,8 +428,10 @@ class IntegrationHealthChecker:
                     "ingestor_device_count": ingestor_sync.get("count", 0),
                     "sync_status": ingestor_sync.get("status", "unknown"),
                     "sync_percentage": ingestor_sync.get("percentage", 0),
-                    "recommendation": "Check device integrations if count is low" if device_count < 5 else None
-                }
+                    "recommendation": "Check device integrations if count is low"
+                    if device_count < 5
+                    else None,
+                },
             )
 
         except Exception as e:
@@ -434,7 +442,7 @@ class IntegrationHealthChecker:
                 is_configured=False,
                 is_connected=False,
                 error_message=str(e),
-                check_details={"error_type": type(e).__name__}
+                check_details={"error_type": type(e).__name__},
             )
 
     async def _device_registry(self) -> list[dict]:
@@ -466,33 +474,38 @@ class IntegrationHealthChecker:
         try:
             session = await get_http_session()
             async with session.get(
-                f"{self.data_api_url}/api/devices",
-                timeout=aiohttp.ClientTimeout(total=5)
+                f"{self.data_api_url}/api/devices", timeout=aiohttp.ClientTimeout(total=5)
             ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        ingestor_count = len(data.get('devices', []))
+                if response.status == 200:
+                    data = await response.json()
+                    ingestor_count = len(data.get("devices", []))
 
-                        if ha_device_count > 0:
-                            sync_percentage = (ingestor_count / ha_device_count) * 100
-                        else:
-                            sync_percentage = 0
+                    if ha_device_count > 0:
+                        sync_percentage = (ingestor_count / ha_device_count) * 100
+                    else:
+                        sync_percentage = 0
 
-                        status = "synced" if sync_percentage >= 90 else "partial" if sync_percentage > 0 else "not_synced"
+                    status = (
+                        "synced"
+                        if sync_percentage >= 90
+                        else "partial"
+                        if sync_percentage > 0
+                        else "not_synced"
+                    )
 
-                        return {
-                            "count": ingestor_count,
-                            "status": status,
-                            "percentage": round(sync_percentage, 1)
-                        }
-
-                    # Non-200 responses should still return structured error information
                     return {
-                        "count": 0,
-                        "status": "error",
-                        "percentage": 0,
-                        "error": f"HTTP {response.status}"
+                        "count": ingestor_count,
+                        "status": status,
+                        "percentage": round(sync_percentage, 1),
                     }
+
+                # Non-200 responses should still return structured error information
+                return {
+                    "count": 0,
+                    "status": "error",
+                    "percentage": 0,
+                    "error": f"HTTP {response.status}",
+                }
         except Exception as exc:
             return {
                 "count": 0,
@@ -507,8 +520,7 @@ class IntegrationHealthChecker:
         try:
             session = await get_http_session()
             async with session.get(
-                f"{self.data_api_url}/health",
-                timeout=aiohttp.ClientTimeout(total=5)
+                f"{self.data_api_url}/health", timeout=aiohttp.ClientTimeout(total=5)
             ) as response:
                 if response.status == 200:
                     health_data = await response.json()
@@ -521,8 +533,8 @@ class IntegrationHealthChecker:
                         check_details={
                             "service": "data-api",
                             "port": 8006,
-                            "health_status": health_data.get("status", "unknown")
-                        }
+                            "health_status": health_data.get("status", "unknown"),
+                        },
                     )
                 else:
                     return CheckResult(
@@ -532,7 +544,7 @@ class IntegrationHealthChecker:
                         is_configured=True,
                         is_connected=False,
                         error_message=f"Data API returned HTTP {response.status}",
-                        check_details={"http_status": response.status}
+                        check_details={"http_status": response.status},
                     )
         except Exception as e:
             return CheckResult(
@@ -544,8 +556,8 @@ class IntegrationHealthChecker:
                 error_message=str(e),
                 check_details={
                     "error_type": type(e).__name__,
-                    "recommendation": "Check if data-api service is running"
-                }
+                    "recommendation": "Check if data-api service is running",
+                },
             )
 
     async def check_admin_api_integration(self) -> CheckResult:
@@ -554,8 +566,7 @@ class IntegrationHealthChecker:
             admin_api_url = settings.admin_api_url
             session = await get_http_session()
             async with session.get(
-                f"{admin_api_url}/health",
-                timeout=aiohttp.ClientTimeout(total=5)
+                f"{admin_api_url}/health", timeout=aiohttp.ClientTimeout(total=5)
             ) as response:
                 if response.status == 200:
                     return CheckResult(
@@ -564,10 +575,7 @@ class IntegrationHealthChecker:
                         status=IntegrationStatus.HEALTHY,
                         is_configured=True,
                         is_connected=True,
-                        check_details={
-                            "service": "admin-api",
-                            "port": 8003
-                        }
+                        check_details={"service": "admin-api", "port": 8003},
                     )
                 else:
                     return CheckResult(
@@ -576,7 +584,7 @@ class IntegrationHealthChecker:
                         status=IntegrationStatus.WARNING,
                         is_configured=True,
                         is_connected=False,
-                        error_message=f"Admin API returned HTTP {response.status}"
+                        error_message=f"Admin API returned HTTP {response.status}",
                     )
         except Exception as e:
             return CheckResult(
@@ -588,8 +596,8 @@ class IntegrationHealthChecker:
                 error_message=str(e),
                 check_details={
                     "error_type": type(e).__name__,
-                    "recommendation": "Check if admin-api service is running"
-                }
+                    "recommendation": "Check if admin-api service is running",
+                },
             )
 
     async def check_hacs_integration(self) -> CheckResult:
@@ -608,14 +616,12 @@ class IntegrationHealthChecker:
             session = await get_http_session()
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             # Get all config entries to check for HACS
             async with session.get(
-                f"{self.ha_url}/api/config/config_entries",
-                headers=headers,
-                timeout=self.timeout
+                f"{self.ha_url}/api/config/config_entries", headers=headers, timeout=self.timeout
             ) as config_response:
                 if config_response.status != 200:
                     return CheckResult(
@@ -627,7 +633,7 @@ class IntegrationHealthChecker:
                         error_message=f"Cannot access HA config: HTTP {config_response.status}",
                         check_details={
                             "recommendation": "Check HA connectivity and token permissions"
-                        }
+                        },
                     )
 
                 config_entries = await config_response.json()
@@ -635,9 +641,9 @@ class IntegrationHealthChecker:
                 # Look for HACS in config entries
                 hacs_entry = None
                 for entry in config_entries:
-                    entry_domain = entry.get('domain', '').lower()
-                    entry_title = entry.get('title', '').lower()
-                    if entry_domain == 'hacs' or 'hacs' in entry_title:
+                    entry_domain = entry.get("domain", "").lower()
+                    entry_title = entry.get("title", "").lower()
+                    if entry_domain == "hacs" or "hacs" in entry_title:
                         hacs_entry = entry
                         break
 
@@ -645,16 +651,18 @@ class IntegrationHealthChecker:
             hacs_entities_exist = False
             tt_sensors = []
             async with session.get(
-                f"{self.ha_url}/api/states",
-                headers=headers,
-                timeout=self.timeout
+                f"{self.ha_url}/api/states", headers=headers, timeout=self.timeout
             ) as states_response:
                 if states_response.status == 200:
                     states = await states_response.json()
-                    hacs_entities = [s for s in states if s['entity_id'].startswith('sensor.hacs') or
-                                   s['entity_id'].startswith('binary_sensor.hacs')]
+                    hacs_entities = [
+                        s
+                        for s in states
+                        if s["entity_id"].startswith("sensor.hacs")
+                        or s["entity_id"].startswith("binary_sensor.hacs")
+                    ]
                     hacs_entities_exist = len(hacs_entities) > 0
-                    tt_sensors = [s for s in states if 'team_tracker' in s['entity_id'].lower()]
+                    tt_sensors = [s for s in states if "team_tracker" in s["entity_id"].lower()]
 
             # Determine HACS status
             hacs_installed = hacs_entry is not None or hacs_entities_exist
@@ -662,8 +670,7 @@ class IntegrationHealthChecker:
             if hacs_installed:
                 # Check for Team Tracker
                 team_tracker_installed = any(
-                    'team_tracker' in entry.get('domain', '').lower()
-                    for entry in config_entries
+                    "team_tracker" in entry.get("domain", "").lower() for entry in config_entries
                 )
                 team_tracker_installed = team_tracker_installed or len(tt_sensors) > 0
 
@@ -677,8 +684,10 @@ class IntegrationHealthChecker:
                         "hacs_installed": True,
                         "hacs_entities_found": hacs_entities_exist,
                         "team_tracker_installed": team_tracker_installed,
-                        "recommendation": "Install Team Tracker via HACS" if not team_tracker_installed else "Ready to use sports features"
-                    }
+                        "recommendation": "Install Team Tracker via HACS"
+                        if not team_tracker_installed
+                        else "Ready to use sports features",
+                    },
                 )
             else:
                 # HACS not installed
@@ -693,8 +702,8 @@ class IntegrationHealthChecker:
                         "hacs_installed": False,
                         "installation_note": "HACS must be installed manually via filesystem access",
                         "recommendation": "See installation guide at https://hacs.xyz/docs/setup/download",
-                        "manual_steps_required": True
-                    }
+                        "manual_steps_required": True,
+                    },
                 )
         except Exception as e:
             return CheckResult(
@@ -706,7 +715,6 @@ class IntegrationHealthChecker:
                 error_message=str(e),
                 check_details={
                     "error_type": type(e).__name__,
-                    "recommendation": "Check HA connectivity and permissions"
-                }
+                    "recommendation": "Check HA connectivity and permissions",
+                },
             )
-

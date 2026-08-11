@@ -51,9 +51,7 @@ class MockVerificationStore:
     ) -> list[dict]:
         return self._successes
 
-    async def query_failures(
-        self, _entity_id: str, _lookback_hours: int = 24
-    ) -> list[dict]:
+    async def query_failures(self, _entity_id: str, _lookback_hours: int = 24) -> list[dict]:
         return self._failures
 
 
@@ -84,24 +82,16 @@ async def _apply_feedback(synergies, store):
             continue
 
         try:
-            successes = await store.query_successes(
-                [trigger, action], lookback_hours=168
-            )
+            successes = await store.query_successes([trigger, action], lookback_hours=168)
             if len(successes) >= 3:
-                synergy["confidence"] = min(
-                    1.0, synergy.get("confidence", 0.7) + 0.15
-                )
-                synergy["impact_score"] = min(
-                    1.0, synergy.get("impact_score", 0.5) + 0.10
-                )
+                synergy["confidence"] = min(1.0, synergy.get("confidence", 0.7) + 0.15)
+                synergy["impact_score"] = min(1.0, synergy.get("impact_score", 0.5) + 0.10)
                 synergy["verification_boosted"] = True
 
             for eid in (trigger, action):
                 failures = await store.query_failures(eid, lookback_hours=24)
                 if len(failures) >= 2:
-                    synergy["confidence"] = max(
-                        0.0, synergy.get("confidence", 0.7) - 0.2
-                    )
+                    synergy["confidence"] = max(0.0, synergy.get("confidence", 0.7) - 0.2)
                     synergy["recent_failures"] = True
                     break
         except Exception:

@@ -33,13 +33,18 @@ class SynergyOpportunity(Base):
     Epic AI-3: Cross-Device Synergy & Contextual Opportunities
     Phase 3.3: Enhanced with 2025 improvements (explanation, context_breakdown)
     """
-    __tablename__ = 'synergy_opportunities'
+
+    __tablename__ = "synergy_opportunities"
 
     id = Column(Integer, primary_key=True)
     synergy_id = Column(String(36), unique=True, nullable=False, index=True)  # UUID
-    synergy_type = Column(String(50), nullable=False, index=True)  # 'device_pair', 'device_chain', etc.
+    synergy_type = Column(
+        String(50), nullable=False, index=True
+    )  # 'device_pair', 'device_chain', etc.
     device_ids = Column(Text, nullable=False)  # JSON array of device IDs
-    opportunity_metadata = Column(JSON)  # Synergy-specific data (trigger, action, relationship, etc.)
+    opportunity_metadata = Column(
+        JSON
+    )  # Synergy-specific data (trigger, action, relationship, etc.)
     impact_score = Column(Float, nullable=False)
     complexity = Column(String(20), nullable=False)  # 'low', 'medium', 'high'
     confidence = Column(Float, nullable=False)
@@ -52,15 +57,19 @@ class SynergyOpportunity(Base):
     supporting_pattern_ids = Column(Text, nullable=True)  # JSON array of pattern IDs
 
     # Epic AI-4: N-level synergy fields
-    synergy_depth = Column(Integer, default=2, nullable=False, server_default='2')
+    synergy_depth = Column(Integer, default=2, nullable=False, server_default="2")
     chain_devices = Column(Text, nullable=True)  # JSON array of entity_ids in automation chain
     embedding_similarity = Column(Float, nullable=True)
     rerank_score = Column(Float, nullable=True)
     final_score = Column(Float, nullable=True)
 
     # 2025 Enhancement: XAI and Multi-modal context (Phase 3.3)
-    explanation = Column(JSON, nullable=True)  # XAI explanation (summary, detailed, score_breakdown, evidence, benefits, visualization)
-    context_breakdown = Column(JSON, nullable=True)  # Multi-modal context breakdown (temporal_boost, weather_boost, energy_boost, behavior_boost)
+    explanation = Column(
+        JSON, nullable=True
+    )  # XAI explanation (summary, detailed, score_breakdown, evidence, benefits, visualization)
+    context_breakdown = Column(
+        JSON, nullable=True
+    )  # Multi-modal context breakdown (temporal_boost, weather_boost, energy_boost, behavior_boost)
 
     # 2025 Enhancement: Quality scoring and filtering (Phase 1)
     quality_score = Column(Float, nullable=True)  # Calculated quality score (0.0-1.0)
@@ -70,7 +79,7 @@ class SynergyOpportunity(Base):
 
     def __repr__(self) -> str:
         validated = "✓" if self.validated_by_patterns else "✗"
-        depth = getattr(self, 'synergy_depth', 2)
+        depth = getattr(self, "synergy_depth", 2)
         return f"<SynergyOpportunity(id={self.id}, type={self.synergy_type}, depth={depth}, area={self.area}, impact={self.impact_score}, validated={validated})>"
 
 
@@ -83,12 +92,19 @@ class SynergyFeedback(Base):
 
     Phase 3.3: Created for RL feedback loop (Phase 4.1)
     """
-    __tablename__ = 'synergy_feedback'
+
+    __tablename__ = "synergy_feedback"
 
     id = Column(Integer, primary_key=True)
-    synergy_id = Column(String(36), ForeignKey('synergy_opportunities.synergy_id'), nullable=False, index=True)
-    feedback_type = Column(String(20), nullable=False, index=True)  # 'accept', 'reject', 'deploy', 'rate'
-    feedback_data = Column(JSON, nullable=False)  # Feedback details (rating, comment, accepted, deployed, etc.)
+    synergy_id = Column(
+        String(36), ForeignKey("synergy_opportunities.synergy_id"), nullable=False, index=True
+    )
+    feedback_type = Column(
+        String(20), nullable=False, index=True
+    )  # 'accept', 'reject', 'deploy', 'rate'
+    feedback_data = Column(
+        JSON, nullable=False
+    )  # Feedback details (rating, comment, accepted, deployed, etc.)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False, index=True)
 
     def __repr__(self) -> str:
@@ -104,21 +120,31 @@ class CommunityPattern(Base):
 
     Phase 3.3: Community pattern sharing for knowledge transfer.
     """
-    __tablename__ = 'community_patterns'
+
+    __tablename__ = "community_patterns"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    pattern_type = Column(String(50), nullable=False, index=True)  # e.g., 'time_of_day', 'co_occurrence'
+    pattern_type = Column(
+        String(50), nullable=False, index=True
+    )  # e.g., 'time_of_day', 'co_occurrence'
     device_id = Column(String(255), nullable=True)  # Device ID if pattern is device-specific
     pattern_metadata = Column(JSON, nullable=False)  # Pattern metadata and configuration
     description = Column(Text, nullable=False)
     tags = Column(JSON, default=list)  # Tags for categorization
     author = Column(String(255), nullable=True)
-    status = Column(String(20), nullable=False, default='pending', index=True)  # 'pending', 'approved', 'rejected'
+    status = Column(
+        String(20), nullable=False, default="pending", index=True
+    )  # 'pending', 'approved', 'rejected'
     rating_avg = Column(Float, default=0.0, nullable=False)
     rating_count = Column(Integer, default=0, nullable=False)
     download_count = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
-    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC), nullable=True)
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=True,
+    )
 
     def __repr__(self) -> str:
         return (
@@ -136,10 +162,11 @@ class PatternRating(Base):
 
     Phase 3.3: Community pattern rating system.
     """
-    __tablename__ = 'pattern_ratings'
+
+    __tablename__ = "pattern_ratings"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    pattern_id = Column(String(36), ForeignKey('community_patterns.id'), nullable=False, index=True)
+    pattern_id = Column(String(36), ForeignKey("community_patterns.id"), nullable=False, index=True)
     user_id = Column(String(255), nullable=True)  # Anonymous if not provided
     rating = Column(Integer, nullable=False)  # 1-5
     comment = Column(Text, nullable=True)
@@ -151,15 +178,20 @@ class PatternRating(Base):
 
 class PatternTrainingData(Base):
     """Training data for ML pattern detectors. Story 40.1."""
-    __tablename__ = 'pattern_training_data'
+
+    __tablename__ = "pattern_training_data"
 
     id = Column(Integer, primary_key=True)
     run_id = Column(String(36), nullable=False, index=True)  # UUID for each analysis run
     pattern_type = Column(String(50), nullable=False, index=True)
     device_id = Column(String(255), nullable=True)
-    raw_events_summary = Column(JSON, nullable=False)  # Summary of input events (counts, time range)
+    raw_events_summary = Column(
+        JSON, nullable=False
+    )  # Summary of input events (counts, time range)
     detected_pattern = Column(JSON, nullable=False)  # The detected pattern dict
-    user_action = Column(String(20), nullable=True, index=True)  # 'accept', 'reject', 'ignore', None
+    user_action = Column(
+        String(20), nullable=True, index=True
+    )  # 'accept', 'reject', 'ignore', None
     user_feedback_at = Column(DateTime, nullable=True)
     confidence = Column(Float, nullable=False)
     ml_model_version = Column(String(50), nullable=True)  # Which model version generated this
@@ -171,7 +203,8 @@ class PatternTrainingData(Base):
 
 class MLModel(Base):
     """ML model registry entry. Story 40.7."""
-    __tablename__ = 'ml_models'
+
+    __tablename__ = "ml_models"
 
     id = Column(Integer, primary_key=True)
     model_name = Column(String(100), nullable=False, index=True)
@@ -184,5 +217,3 @@ class MLModel(Base):
 
     def __repr__(self) -> str:
         return f"<MLModel(id={self.id}, name={self.model_name}, version={self.version}, active={self.is_active})>"
-
-

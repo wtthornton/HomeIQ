@@ -20,19 +20,19 @@ logger = setup_logging("device-context-classifier")
 
 # --- Pydantic request/response models ---
 
+
 class ClassifyRequest(BaseModel):
     """Request model for device classification."""
+
     device_id: str = Field(..., min_length=1, description="Device identifier")
     entity_ids: list[str] = Field(
-        ...,
-        min_length=1,
-        max_length=50,
-        description="List of entity IDs for this device (max 50)"
+        ..., min_length=1, max_length=50, description="List of entity IDs for this device (max 50)"
     )
 
 
 class ClassifyResponse(BaseModel):
     """Response model for device classification."""
+
     device_id: str
     device_type: str | None
     device_category: str | None
@@ -46,6 +46,7 @@ _classifier: DeviceContextClassifier | None = None
 
 
 # --- Lifespan ---
+
 
 async def _startup() -> None:
     global _classifier
@@ -69,6 +70,7 @@ lifespan.on_shutdown(_shutdown, name="classifier")
 
 # --- Health check ---
 
+
 async def _check_ha_config() -> bool:
     ha_url = os.getenv("HA_URL") or os.getenv("HA_HTTP_URL")
     ha_token = os.getenv("HA_TOKEN") or os.getenv("HOME_ASSISTANT_TOKEN")
@@ -91,6 +93,7 @@ app = create_app(
 
 
 # --- Endpoints ---
+
 
 @app.post("/api/v1/classify", response_model=ClassifyResponse)
 async def classify_device(request: ClassifyRequest) -> ClassifyResponse:
@@ -128,5 +131,5 @@ if __name__ == "__main__":
         host=host,
         port=port,
         reload=os.getenv("RELOAD", "false").lower() == "true",
-        log_level=os.getenv("LOG_LEVEL", "info").lower()
+        log_level=os.getenv("LOG_LEVEL", "info").lower(),
     )

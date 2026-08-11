@@ -5,7 +5,7 @@ Phase 3.2: Discover device capabilities from HA API only
 
 import json
 import logging
-import os
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -23,8 +23,12 @@ class CapabilityDiscoveryService:
         if self._discoverer is None:
             try:
                 import sys
-                sys.path.append(os.path.join(os.path.dirname(__file__), '../../../device-intelligence-service/src'))
+
+                sys.path.append(
+                    str(Path(__file__).parent / "../../../device-intelligence-service/src")
+                )
                 from capability_discovery.ha_api_discovery import HACapabilityDiscoverer
+
                 self._discoverer = HACapabilityDiscoverer()
             except ImportError:
                 logger.warning("HA capability discoverer not available")
@@ -32,9 +36,7 @@ class CapabilityDiscoveryService:
         return self._discoverer
 
     async def discover_device_capabilities(
-        self,
-        device_id: str,
-        entity_ids: list[str]
+        self, device_id: str, entity_ids: list[str]
     ) -> dict[str, Any]:
         """
         Discover capabilities for a device.
@@ -87,4 +89,3 @@ def get_capability_service() -> CapabilityDiscoveryService:
     if _capability_service is None:
         _capability_service = CapabilityDiscoveryService()
     return _capability_service
-

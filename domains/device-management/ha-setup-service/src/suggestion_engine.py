@@ -4,6 +4,7 @@ Suggestion Engine for Area Assignment
 Generates intelligent suggestions for area assignments based on entity names.
 Epic 32: Home Assistant Configuration Validation & Suggestions
 """
+
 import logging
 import re
 from typing import Any
@@ -40,10 +41,7 @@ class SuggestionEngine:
         self.logger = logger
 
     async def suggest_area(
-        self,
-        entity_id: str,
-        entity_name: str | None,
-        areas: list[dict[str, Any]]
+        self, entity_id: str, entity_name: str | None, areas: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         """
         Suggest area assignments for an entity
@@ -73,20 +71,18 @@ class SuggestionEngine:
 
             # Calculate confidence score
             confidence, reasoning = self._calculate_confidence(
-                entity_id_lower,
-                entity_name_lower,
-                entity_keywords,
-                area_id,
-                area_name_lower
+                entity_id_lower, entity_name_lower, entity_keywords, area_id, area_name_lower
             )
 
             if confidence > 0:
-                suggestions.append({
-                    "area_id": area_id,
-                    "area_name": area_name,
-                    "confidence": confidence,
-                    "reasoning": reasoning
-                })
+                suggestions.append(
+                    {
+                        "area_id": area_id,
+                        "area_name": area_name,
+                        "confidence": confidence,
+                        "reasoning": reasoning,
+                    }
+                )
 
         # Sort by confidence (highest first)
         suggestions.sort(key=lambda x: x["confidence"], reverse=True)
@@ -94,17 +90,13 @@ class SuggestionEngine:
         # Return top 3 suggestions
         return suggestions[:3]
 
-    def _extract_keywords(
-        self,
-        entity_id: str,
-        entity_name: str
-    ) -> set[str]:
+    def _extract_keywords(self, entity_id: str, entity_name: str) -> set[str]:
         """Extract location keywords from entity identifiers"""
         keywords = set()
 
         # Extract from entity_id (e.g., "light.hue_office_back_left" -> ["office"])
         # Split by common separators
-        parts = re.split(r'[._-]', entity_id)
+        parts = re.split(r"[._-]", entity_id)
         for part in parts:
             part_clean = part.strip()
             if len(part_clean) > 2:  # Ignore short parts
@@ -112,7 +104,7 @@ class SuggestionEngine:
 
         # Extract from entity_name (e.g., "Office Back Left" -> ["office"])
         if entity_name:
-            name_parts = re.split(r'[\s_-]+', entity_name)
+            name_parts = re.split(r"[\s_-]+", entity_name)
             for part in name_parts:
                 part_clean = part.strip().lower()
                 if len(part_clean) > 2:
@@ -126,7 +118,7 @@ class SuggestionEngine:
         entity_name: str,
         entity_keywords: set[str],
         area_id: str,
-        area_name: str
+        area_name: str,
     ) -> tuple[float, str]:
         """
         Calculate confidence score for area assignment
@@ -148,13 +140,15 @@ class SuggestionEngine:
             return confidence, "; ".join(reasoning_parts)
 
         # 2. Exact match in entity_name (95% confidence)
-        if entity_name and (area_id_lower in entity_name.lower() or area_name_lower in entity_name.lower()):
+        if entity_name and (
+            area_id_lower in entity_name.lower() or area_name_lower in entity_name.lower()
+        ):
             confidence = 95.0
             reasoning_parts.append(f"Exact match: '{area_name}' found in entity name")
             return confidence, "; ".join(reasoning_parts)
 
         # 3. Partial match in entity_id (80% confidence)
-        area_words = re.split(r'[\s_-]+', area_name_lower)
+        area_words = re.split(r"[\s_-]+", area_name_lower)
         for word in area_words:
             if len(word) > 3 and word in entity_id:
                 confidence = max(confidence, 80.0)
@@ -171,7 +165,9 @@ class SuggestionEngine:
             for area_key, keywords_list in self.LOCATION_KEYWORDS.items():
                 if keyword in keywords_list and area_id_lower == area_key:
                     confidence = max(confidence, 60.0)
-                    reasoning_parts.append(f"Location keyword match: '{keyword}' maps to '{area_name}'")
+                    reasoning_parts.append(
+                        f"Location keyword match: '{keyword}' maps to '{area_name}'"
+                    )
 
         # 5. Partial word match (40% confidence)
         for keyword in entity_keywords:
@@ -184,4 +180,3 @@ class SuggestionEngine:
             return 0.0, "No matches found"
 
         return confidence, "; ".join(reasoning_parts) if reasoning_parts else "Low confidence match"
-

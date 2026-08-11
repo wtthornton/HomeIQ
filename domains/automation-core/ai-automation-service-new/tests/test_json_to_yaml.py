@@ -48,9 +48,7 @@ def test_json_to_yaml_preserves_metadata():
         triggers=[
             HomeIQTrigger(
                 platform="state",
-                config=TriggerConfig(
-                    entity_id="lock.front_door", parameters={"to": "unlocked"}
-                ),
+                config=TriggerConfig(entity_id="lock.front_door", parameters={"to": "unlocked"}),
             )
         ],
         actions=[HomeIQAction(service="lock.lock", target={"entity_id": "lock.front_door"})],

@@ -5,12 +5,8 @@ Story 94.5: Validation & Regression Tests
 
 from __future__ import annotations
 
-import os
-import shutil
-import textwrap
 from pathlib import Path
 
-import pytest
 import yaml
 
 # ── Path setup ──────────────────────────────────────────────────────
@@ -22,10 +18,10 @@ sys.path.insert(0, str(SRC_DIR))
 from prompts.prompt_loader import PromptLoader
 from prompts.system_prompt import SYSTEM_PROMPT
 
-
 # ═══════════════════════════════════════════════════════════════════
 # 94.5.1  Byte-identical regression test
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestRegressionByteIdentical:
     """Assembled prompt from PromptLoader must equal SYSTEM_PROMPT constant."""
@@ -58,8 +54,8 @@ class TestRegressionByteIdentical:
 # 94.5.3  Config validation tests
 # ═══════════════════════════════════════════════════════════════════
 
-class TestConfigValidation:
 
+class TestConfigValidation:
     def test_missing_config_falls_back(self, tmp_path):
         """Missing config file → fallback to SYSTEM_PROMPT constant."""
         loader = PromptLoader(config_path=str(tmp_path / "nonexistent.yaml"))
@@ -79,8 +75,8 @@ class TestConfigValidation:
 # 94.5.4  Missing section file fallback
 # ═══════════════════════════════════════════════════════════════════
 
-class TestMissingSectionFallback:
 
+class TestMissingSectionFallback:
     def test_missing_section_file_falls_back(self, tmp_path):
         """If a section file is absent, loader falls back to constant."""
         # Create minimal config pointing to nonexistent section file
@@ -112,8 +108,8 @@ class TestMissingSectionFallback:
 # 94.5.5  Section ordering test
 # ═══════════════════════════════════════════════════════════════════
 
-class TestSectionOrdering:
 
+class TestSectionOrdering:
     def _make_config(self, tmp_path, sections_order):
         """Helper to build a minimal config in tmp_path."""
         sections_dir = tmp_path / "sections"
@@ -171,8 +167,8 @@ class TestSectionOrdering:
 # 94.5.6  Disabled section test
 # ═══════════════════════════════════════════════════════════════════
 
-class TestDisabledSections:
 
+class TestDisabledSections:
     def test_disabled_section_excluded(self, tmp_path):
         sections_dir = tmp_path / "sections"
         sections_dir.mkdir()
@@ -205,25 +201,23 @@ class TestDisabledSections:
 # 94.5.7  Token budget test
 # ═══════════════════════════════════════════════════════════════════
 
-class TestTokenBudget:
 
+class TestTokenBudget:
     def test_fits_within_32k_tokens(self):
         """Assembled prompt should fit within MAX_INPUT_TOKENS (32K)."""
         loader = PromptLoader()
         prompt = loader.load()
         # Rough estimate: 4 chars ≈ 1 token
         approx_tokens = len(prompt) // 4
-        assert approx_tokens < 32_000, (
-            f"Prompt is ~{approx_tokens} tokens, exceeds 32K budget"
-        )
+        assert approx_tokens < 32_000, f"Prompt is ~{approx_tokens} tokens, exceeds 32K budget"
 
 
 # ═══════════════════════════════════════════════════════════════════
 # 94.4.5  Variable substitution tests
 # ═══════════════════════════════════════════════════════════════════
 
-class TestVariableSubstitution:
 
+class TestVariableSubstitution:
     def test_default_variables_produce_identical_output(self):
         """Default config variables → byte-identical to SYSTEM_PROMPT."""
         loader = PromptLoader()
@@ -249,9 +243,7 @@ class TestVariableSubstitution:
         sections_dir = tmp_path / "sections"
         sections_dir.mkdir()
         (sections_dir / "preamble.txt").write_text("Hello", encoding="utf-8")
-        (sections_dir / "a.txt").write_text(
-            "Use {unknown_var} here", encoding="utf-8"
-        )
+        (sections_dir / "a.txt").write_text("Use {unknown_var} here", encoding="utf-8")
 
         config = {
             "version": "test",
@@ -275,8 +267,8 @@ class TestVariableSubstitution:
 # 94.3.5  PromptLoader unit tests
 # ═══════════════════════════════════════════════════════════════════
 
-class TestPromptLoaderUnit:
 
+class TestPromptLoaderUnit:
     def test_get_section(self):
         loader = PromptLoader()
         loader.load()

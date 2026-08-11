@@ -54,9 +54,7 @@ class ActivityContextService:
         activity_str = await self._fetch_and_format()
         if activity_str:
             with contextlib.suppress(Exception):
-                await self.context_builder._set_cached_value(
-                    cache_key, activity_str, self._cache_ttl
-                )
+                await self.context_builder._set_cached_value(cache_key, activity_str, self._cache_ttl)
         return activity_str
 
     async def _fetch_and_format(self) -> str:

@@ -5,9 +5,8 @@ from __future__ import annotations
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from src.main import app
-
 from src import hygiene_endpoints
+from src.main import app
 
 
 @pytest_asyncio.fixture
@@ -101,4 +100,3 @@ async def test_apply_issue_action(monkeypatch, client):
     payload = response.json()
     assert payload["status"] == "resolved"
     assert payload["metadata"]["applied_value"] == "Kitchen"
-

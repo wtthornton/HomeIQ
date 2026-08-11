@@ -11,7 +11,7 @@ from typing import Any
 import aiohttp
 from aiohttp import ClientError, ClientTimeout
 
-CALENDAR_ID_PATTERN = re.compile(r'^(calendar\.)?[a-z0-9_]+$')
+CALENDAR_ID_PATTERN = re.compile(r"^(calendar\.)?[a-z0-9_]+$")
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +28,10 @@ class HomeAssistantCalendarClient:
             token: Long-lived access token
             timeout: Request timeout in seconds
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.timeout = ClientTimeout(total=timeout)
         self.session: aiohttp.ClientSession | None = None
-        self._headers = {
-            'Authorization': f'Bearer {token}',
-            'Content-Type': 'application/json'
-        }
+        self._headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
     def __repr__(self) -> str:
         return f"HomeAssistantCalendarClient(base_url={self.base_url!r})"
@@ -56,10 +53,7 @@ class HomeAssistantCalendarClient:
     async def connect(self):
         """Initialize HTTP session"""
         if self.session is None:
-            self.session = aiohttp.ClientSession(
-                headers=self._headers,
-                timeout=self.timeout
-            )
+            self.session = aiohttp.ClientSession(headers=self._headers, timeout=self.timeout)
             logger.info("Home Assistant client session created")
 
     async def close(self):
@@ -103,7 +97,7 @@ class HomeAssistantCalendarClient:
                     return []
 
                 calendars_data = await response.json()
-                calendars = [cal['entity_id'] for cal in calendars_data]
+                calendars = [cal["entity_id"] for cal in calendars_data]
 
                 logger.info(f"Found {len(calendars)} calendar entities: {calendars}")
                 return calendars
@@ -116,10 +110,7 @@ class HomeAssistantCalendarClient:
             return []
 
     async def get_events(
-        self,
-        calendar_id: str,
-        start: datetime,
-        end: datetime
+        self, calendar_id: str, start: datetime, end: datetime
     ) -> list[dict[str, Any]]:
         """
         Get calendar events within time range
@@ -144,7 +135,7 @@ class HomeAssistantCalendarClient:
         self._validate_calendar_id(calendar_id)
 
         # Ensure calendar_id doesn't have 'calendar.' prefix for API call
-        if calendar_id.startswith('calendar.'):
+        if calendar_id.startswith("calendar."):
             calendar_id = calendar_id[9:]  # Remove 'calendar.' prefix
 
         # Format timestamps for HA API
@@ -152,13 +143,12 @@ class HomeAssistantCalendarClient:
         end_str = end.isoformat()
 
         url = f"{self.base_url}/api/calendars/calendar.{calendar_id}"
-        params = {
-            'start': start_str,
-            'end': end_str
-        }
+        params = {"start": start_str, "end": end_str}
 
         try:
-            logger.debug(f"Fetching events for calendar.{calendar_id} from {start_str} to {end_str}")
+            logger.debug(
+                f"Fetching events for calendar.{calendar_id} from {start_str} to {end_str}"
+            )
 
             async with self.session.get(url, params=params) as response:
                 if response.status == 404:
@@ -206,8 +196,8 @@ class HomeAssistantCalendarClient:
         self._validate_calendar_id(calendar_id)
 
         # Ensure calendar_id has 'calendar.' prefix for state API
-        if not calendar_id.startswith('calendar.'):
-            calendar_id = f'calendar.{calendar_id}'
+        if not calendar_id.startswith("calendar."):
+            calendar_id = f"calendar.{calendar_id}"
 
         url = f"{self.base_url}/api/states/{calendar_id}"
 
@@ -233,10 +223,7 @@ class HomeAssistantCalendarClient:
             return None
 
     async def get_events_from_multiple_calendars(
-        self,
-        calendar_ids: list[str],
-        start: datetime,
-        end: datetime
+        self, calendar_ids: list[str], start: datetime, end: datetime
     ) -> dict[str, list[dict[str, Any]]]:
         """
         Get events from multiple calendars concurrently
@@ -253,10 +240,7 @@ class HomeAssistantCalendarClient:
                 "calendar.work": [...events...]
             }
         """
-        tasks = [
-            self.get_events(calendar_id, start, end)
-            for calendar_id in calendar_ids
-        ]
+        tasks = [self.get_events(calendar_id, start, end) for calendar_id in calendar_ids]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -272,4 +256,3 @@ class HomeAssistantCalendarClient:
         logger.info(f"Retrieved {total_events} total events from {len(calendar_ids)} calendars")
 
         return events_by_calendar
-

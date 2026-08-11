@@ -86,9 +86,7 @@ class PolicyValidator:
         self._entity_area_map: dict[str, str] = entity_area_map or {}
 
     def validate_risk_level(
-        self,
-        policy: dict[str, Any],
-        current_risk_state: dict[str, Any] | None = None
+        self, policy: dict[str, Any], current_risk_state: dict[str, Any] | None = None
     ) -> tuple[bool, str | None]:
         """
         Validate risk level allows execution.
@@ -105,9 +103,8 @@ class PolicyValidator:
 
         # Check HA stability
         ha_unstable = current_risk_state and current_risk_state.get("ha_unstable", False)
-        if ha_unstable and not allow_when_ha_unstable:
-            if risk in ["medium", "high"]:
-                return False, "HA unstable and policy does not allow execution"
+        if (ha_unstable and not allow_when_ha_unstable) and (risk in ["medium", "high"]):
+            return False, "HA unstable and policy does not allow execution"
 
         # High risk requires additional checks
         if risk == "high":
@@ -120,8 +117,7 @@ class PolicyValidator:
         return True, None
 
     def validate_quiet_hours(
-        self,
-        conditions: list[dict[str, Any]] | None = None
+        self, conditions: list[dict[str, Any]] | None = None
     ) -> tuple[bool, str | None]:
         """
         Validate quiet hours constraints.
@@ -161,26 +157,19 @@ class PolicyValidator:
             condition_type = condition.get("type")
 
             if condition_type == "not_in_time_range":
-                result = self._check_time_range(
-                    condition, now, is_blocking=True
-                )
+                result = self._check_time_range(condition, now, is_blocking=True)
                 if not result[0]:
                     return result
 
             elif condition_type == "in_time_range":
-                result = self._check_time_range(
-                    condition, now, is_blocking=False
-                )
+                result = self._check_time_range(condition, now, is_blocking=False)
                 if not result[0]:
                     return result
 
         return True, None
 
     def _check_time_range(
-        self,
-        condition: dict[str, Any],
-        current_time: time,
-        is_blocking: bool
+        self, condition: dict[str, Any], current_time: time, is_blocking: bool
     ) -> tuple[bool, str | None]:
         """
         Check if current time is within a time range.
@@ -235,9 +224,7 @@ class PolicyValidator:
         return True, None
 
     def validate_manual_override(
-        self,
-        conditions: list[dict[str, Any]] | None = None,
-        entity_ids: list[str] | None = None
+        self, conditions: list[dict[str, Any]] | None = None, entity_ids: list[str] | None = None
     ) -> tuple[bool, str | None]:
         """
         Validate manual override TTL.
@@ -267,10 +254,7 @@ class PolicyValidator:
         now = datetime.now().timestamp()
 
         # Clean up expired overrides (performance optimization)
-        expired_entities = [
-            eid for eid, until in self.manual_overrides.items()
-            if now >= until
-        ]
+        expired_entities = [eid for eid, until in self.manual_overrides.items() if now >= until]
         for eid in expired_entities:
             del self.manual_overrides[eid]
 
@@ -281,14 +265,11 @@ class PolicyValidator:
                 scope = condition.get("scope", "all")
 
                 # Check entities based on scope
-                blocked_entity = self._check_override_scope(
-                    scope, entity_ids, now
-                )
+                blocked_entity = self._check_override_scope(scope, entity_ids, now)
                 if blocked_entity:
                     entity_id, remaining = blocked_entity
                     return False, (
-                        f"Manual override active for {entity_id} "
-                        f"(TTL: {remaining:.0f}s remaining)"
+                        f"Manual override active for {entity_id} (TTL: {remaining:.0f}s remaining)"
                     )
 
         return True, None
@@ -358,9 +339,7 @@ class PolicyValidator:
         logger.info(f"Manual override cleared for {entity_id}")
 
     def validate_policy(
-        self,
-        spec: dict[str, Any],
-        current_risk_state: dict[str, Any] | None = None
+        self, spec: dict[str, Any], current_risk_state: dict[str, Any] | None = None
     ) -> tuple[bool, list[str]]:
         """
         Validate all policy gates for an automation spec.

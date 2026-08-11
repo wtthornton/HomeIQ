@@ -283,6 +283,11 @@ phase2_results_*.json
 # ML model binaries (regenerated at deploy time)
 *.pkl
 !**/tests/**/*.pkl
+# Timestamped copies predictive_analytics.py writes before overwriting a
+# model (and predictions_router.py reads back). Real behaviour, but running
+# the suite leaves them in the working tree, and .pkl.backup_<ts> does not
+# match the *.pkl rule above.
+domains/ml-engine/device-intelligence-service/models/*.backup_*
 .tapps-mcp/backups/
 .tapps-mcp/hook-backups/
 .tapps-mcp/.lookup-docs-events.jsonl

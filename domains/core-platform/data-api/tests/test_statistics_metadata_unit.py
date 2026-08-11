@@ -3,14 +3,13 @@
 Tests statistics eligibility logic and metadata sync with mocked DB sessions.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.services.statistics_metadata import StatisticsMetadataService
 
 
 class TestIsStatisticsEligible:
-
     @pytest.mark.asyncio
     async def test_eligible_when_meta_exists(self):
         mock_result = MagicMock()
@@ -18,7 +17,10 @@ class TestIsStatisticsEligible:
         mock_session = AsyncMock()
         mock_session.execute.return_value = mock_result
 
-        assert await StatisticsMetadataService.is_statistics_eligible("sensor.temp", mock_session) is True
+        assert (
+            await StatisticsMetadataService.is_statistics_eligible("sensor.temp", mock_session)
+            is True
+        )
 
     @pytest.mark.asyncio
     async def test_not_eligible_when_no_meta(self):
@@ -27,11 +29,13 @@ class TestIsStatisticsEligible:
         mock_session = AsyncMock()
         mock_session.execute.return_value = mock_result
 
-        assert await StatisticsMetadataService.is_statistics_eligible("sensor.temp", mock_session) is False
+        assert (
+            await StatisticsMetadataService.is_statistics_eligible("sensor.temp", mock_session)
+            is False
+        )
 
 
 class TestGetMetadata:
-
     @pytest.mark.asyncio
     async def test_returns_meta_when_exists(self):
         meta = MagicMock()
@@ -72,7 +76,7 @@ class TestSyncMetadataFromEntity:
         mock_session = AsyncMock()
         mock_session.execute.return_value = mock_result
 
-        result = await StatisticsMetadataService.sync_metadata_from_entity(
+        await StatisticsMetadataService.sync_metadata_from_entity(
             entity, state_class="measurement", session=mock_session
         )
         mock_session.add.assert_called_once()
@@ -86,7 +90,7 @@ class TestSyncMetadataFromEntity:
         mock_session = AsyncMock()
         mock_session.execute.return_value = mock_result
 
-        result = await StatisticsMetadataService.sync_metadata_from_entity(
+        await StatisticsMetadataService.sync_metadata_from_entity(
             entity, state_class="total_increasing", session=mock_session
         )
         mock_session.add.assert_called_once()
@@ -99,7 +103,7 @@ class TestSyncMetadataFromEntity:
         mock_session = AsyncMock()
         mock_session.execute.return_value = mock_result
 
-        result = await StatisticsMetadataService.sync_metadata_from_entity(
+        await StatisticsMetadataService.sync_metadata_from_entity(
             entity, state_class="total", session=mock_session
         )
         mock_session.add.assert_called_once()
@@ -113,7 +117,7 @@ class TestSyncMetadataFromEntity:
         mock_session = AsyncMock()
         mock_session.execute.return_value = mock_result
 
-        result = await StatisticsMetadataService.sync_metadata_from_entity(
+        await StatisticsMetadataService.sync_metadata_from_entity(
             entity, state_class=None, session=mock_session
         )
         mock_session.add.assert_called_once()
@@ -138,7 +142,7 @@ class TestSyncMetadataFromEntity:
         mock_session = AsyncMock()
         mock_session.execute.return_value = mock_result
 
-        result = await StatisticsMetadataService.sync_metadata_from_entity(
+        await StatisticsMetadataService.sync_metadata_from_entity(
             entity, state_class="measurement", session=mock_session
         )
         assert existing.state_class == "measurement"
@@ -147,7 +151,6 @@ class TestSyncMetadataFromEntity:
 
 
 class TestGetAllEligibleEntityIds:
-
     @pytest.mark.asyncio
     async def test_returns_entity_ids(self):
         mock_result = MagicMock()

@@ -15,16 +15,30 @@ logger = logging.getLogger(__name__)
 
 BLUEPRINT_KEYWORDS = (
     # Direct references
-    "blueprint", "blueprints",
+    "blueprint",
+    "blueprints",
     # Synonyms
-    "template", "templates", "prebuilt", "pre-built", "pre-made", "premade",
-    "starter", "ready-made", "readymade", "out-of-the-box",
+    "template",
+    "templates",
+    "prebuilt",
+    "pre-built",
+    "pre-made",
+    "premade",
+    "starter",
+    "ready-made",
+    "readymade",
+    "out-of-the-box",
     # Blueprint actions
-    "import blueprint", "use blueprint", "apply blueprint",
-    "blueprint suggestion", "suggest blueprint", "suggest blueprints",
+    "import blueprint",
+    "use blueprint",
+    "apply blueprint",
+    "blueprint suggestion",
+    "suggest blueprint",
+    "suggest blueprints",
     "recommend blueprint",
     # Blueprint discovery
-    "blueprint exchange", "community blueprint",
+    "blueprint exchange",
+    "community blueprint",
 )
 
 

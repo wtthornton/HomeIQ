@@ -9,13 +9,13 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class ExecutionStatus(str, Enum):
+class ExecutionStatus(StrEnum):
     """Status of an automation execution."""
 
     SUCCESS = "success"
@@ -263,7 +263,8 @@ class ExecutionTracker:
         """
         cutoff = datetime.now(UTC) - timedelta(days=days)
         failed_executions = [
-            e for e in self._executions
+            e
+            for e in self._executions
             if e.triggered_at >= cutoff and e.status == ExecutionStatus.FAILURE
         ]
 
@@ -295,7 +296,8 @@ class ExecutionTracker:
         """
         cutoff = datetime.now(UTC) - timedelta(days=days)
         period_executions = [
-            e for e in self._executions
+            e
+            for e in self._executions
             if e.triggered_at >= cutoff and e.execution_time_ms is not None
         ]
 
@@ -320,7 +322,9 @@ class ExecutionTracker:
             "avg_execution_time_ms": sum(execution_times) / len(execution_times),
             "min_execution_time_ms": min(execution_times),
             "max_execution_time_ms": max(execution_times),
-            "p95_execution_time_ms": execution_times[p95_index] if p95_index < len(execution_times) else execution_times[-1],
+            "p95_execution_time_ms": execution_times[p95_index]
+            if p95_index < len(execution_times)
+            else execution_times[-1],
         }
 
     def get_problematic_automations(
@@ -342,18 +346,22 @@ class ExecutionTracker:
 
         for automation_id, stats in self._automation_stats.items():
             if stats.total_executions >= min_executions and stats.success_rate <= max_success_rate:
-                problematic.append({
-                    "automation_id": automation_id,
-                    "total_executions": stats.total_executions,
-                    "success_rate": stats.success_rate,
-                    "last_error": stats.last_error,
-                    "last_error_at": stats.last_error_at.isoformat() if stats.last_error_at else None,
-                    "top_errors": sorted(
-                        stats.error_counts.items(),
-                        key=lambda x: x[1],
-                        reverse=True,
-                    )[:3],
-                })
+                problematic.append(
+                    {
+                        "automation_id": automation_id,
+                        "total_executions": stats.total_executions,
+                        "success_rate": stats.success_rate,
+                        "last_error": stats.last_error,
+                        "last_error_at": stats.last_error_at.isoformat()
+                        if stats.last_error_at
+                        else None,
+                        "top_errors": sorted(
+                            stats.error_counts.items(),
+                            key=lambda x: x[1],
+                            reverse=True,
+                        )[:3],
+                    }
+                )
 
         # Sort by success rate (lowest first)
         problematic.sort(key=lambda x: x["success_rate"])
@@ -383,9 +391,7 @@ class ExecutionTracker:
         automation_id = record.automation_id
 
         if automation_id not in self._automation_stats:
-            self._automation_stats[automation_id] = AutomationStats(
-                automation_id=automation_id
-            )
+            self._automation_stats[automation_id] = AutomationStats(automation_id=automation_id)
 
         stats = self._automation_stats[automation_id]
         stats.total_executions += 1
@@ -395,7 +401,9 @@ class ExecutionTracker:
         elif record.status == ExecutionStatus.FAILURE:
             stats.failed_executions += 1
             if record.error_type:
-                stats.error_counts[record.error_type] = stats.error_counts.get(record.error_type, 0) + 1
+                stats.error_counts[record.error_type] = (
+                    stats.error_counts.get(record.error_type, 0) + 1
+                )
             stats.last_error = record.error_message
             stats.last_error_at = record.triggered_at
 
@@ -405,10 +413,16 @@ class ExecutionTracker:
             prev_avg = stats.avg_execution_time_ms
             prev_count = stats.total_executions - 1
             stats.avg_execution_time_ms = (
-                (prev_avg * prev_count + record.execution_time_ms) / stats.total_executions
-            )
+                prev_avg * prev_count + record.execution_time_ms
+            ) / stats.total_executions
 
-            if stats.min_execution_time_ms is None or record.execution_time_ms < stats.min_execution_time_ms:
+            if (
+                stats.min_execution_time_ms is None
+                or record.execution_time_ms < stats.min_execution_time_ms
+            ):
                 stats.min_execution_time_ms = record.execution_time_ms
-            if stats.max_execution_time_ms is None or record.execution_time_ms > stats.max_execution_time_ms:
+            if (
+                stats.max_execution_time_ms is None
+                or record.execution_time_ms > stats.max_execution_time_ms
+            ):
                 stats.max_execution_time_ms = record.execution_time_ms

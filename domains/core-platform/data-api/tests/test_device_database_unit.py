@@ -3,9 +3,9 @@
 Tests device enrichment and update logic with mocked external client.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.services.device_database import (
     DeviceDatabaseService,
     get_device_database_service,
@@ -141,8 +141,8 @@ class TestUpdateDeviceFromDatabase:
 
 
 class TestSingleton:
-
     def test_returns_same_instance(self):
         import src.services.device_database as mod
+
         mod._device_db_service = None
         assert get_device_database_service() is get_device_database_service()

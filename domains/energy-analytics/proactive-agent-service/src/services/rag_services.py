@@ -18,10 +18,27 @@ logger = logging.getLogger(__name__)
 DATA_DIR = Path(__file__).parent.parent / "data"
 
 ENERGY_SAVINGS_KEYWORDS = (
-    "energy", "electricity", "solar", "battery", "peak", "off-peak",
-    "tariff", "tou", "time-of-use", "kwh", "power bill", "smart meter",
-    "load shift", "demand response", "carbon", "grid", "ev charging",
-    "consumption", "standby", "export", "self-consumption",
+    "energy",
+    "electricity",
+    "solar",
+    "battery",
+    "peak",
+    "off-peak",
+    "tariff",
+    "tou",
+    "time-of-use",
+    "kwh",
+    "power bill",
+    "smart meter",
+    "load shift",
+    "demand response",
+    "carbon",
+    "grid",
+    "ev charging",
+    "consumption",
+    "standby",
+    "export",
+    "self-consumption",
 )
 
 
@@ -44,10 +61,24 @@ class EnergySavingsRAGService(RAGContextService):
 
 
 SECURITY_KEYWORDS = (
-    "security", "alarm", "lock", "camera", "motion", "presence",
-    "away", "intrusion", "doorbell", "surveillance", "geofence",
-    "arm", "disarm", "notification", "vacation", "door",
-    "window sensor", "siren",
+    "security",
+    "alarm",
+    "lock",
+    "camera",
+    "motion",
+    "presence",
+    "away",
+    "intrusion",
+    "doorbell",
+    "surveillance",
+    "geofence",
+    "arm",
+    "disarm",
+    "notification",
+    "vacation",
+    "door",
+    "window sensor",
+    "siren",
 )
 
 
@@ -70,10 +101,25 @@ class SecurityBestPracticesRAGService(RAGContextService):
 
 
 COMFORT_KEYWORDS = (
-    "comfort", "temperature", "humidity", "thermostat", "climate",
-    "heating", "cooling", "schedule", "seasonal", "occupancy",
-    "sleep", "morning", "routine", "scene", "lighting", "ventilation",
-    "air quality", "blinds", "fan",
+    "comfort",
+    "temperature",
+    "humidity",
+    "thermostat",
+    "climate",
+    "heating",
+    "cooling",
+    "schedule",
+    "seasonal",
+    "occupancy",
+    "sleep",
+    "morning",
+    "routine",
+    "scene",
+    "lighting",
+    "ventilation",
+    "air quality",
+    "blinds",
+    "fan",
 )
 
 

@@ -21,6 +21,7 @@ ENTITIES = [
 
 def _client():
     from src.ha_client import HAClient
+
     return HAClient("http://ha.local:8123", "test-token")
 
 
@@ -35,7 +36,6 @@ def _patched(entities=ENTITIES, side_effect=None):
 
 
 class TestEntityRegistryOverWebSocket:
-
     @pytest.mark.asyncio
     async def test_returns_registry_keyed_by_entity_id(self):
         patcher, ws = _patched()

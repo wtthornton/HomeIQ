@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from .threat_patterns import THREAT_PATTERNS, ThreatCategory, ThreatPattern
+from .threat_patterns import THREAT_PATTERNS, ThreatPattern
 
 logger = logging.getLogger(__name__)
 
@@ -78,12 +78,14 @@ class SkillsGuard:
             matches = pattern.pattern.findall(content)
             if matches:
                 matched_text = str(matches[0])[:100] if matches else ""
-                findings.append(ScanFinding(
-                    category=pattern.category.value,
-                    severity=pattern.severity,
-                    description=pattern.description,
-                    matched_text=matched_text,
-                ))
+                findings.append(
+                    ScanFinding(
+                        category=pattern.category.value,
+                        severity=pattern.severity,
+                        description=pattern.description,
+                        matched_text=matched_text,
+                    )
+                )
 
         safe = not any(f.severity in ("critical", "high") for f in findings)
 
@@ -104,7 +106,8 @@ class SkillsGuard:
         elif findings:
             logger.info(
                 "Skills Guard CAUTION on skill '%s': %d low/medium findings",
-                name, len(findings),
+                name,
+                len(findings),
             )
 
         return result
@@ -137,6 +140,7 @@ class SkillsGuard:
             else:
                 logger.warning(
                     "Excluding unsafe skill '%s' from context: %s",
-                    name, result.verdict,
+                    name,
+                    result.verdict,
                 )
         return safe_skills

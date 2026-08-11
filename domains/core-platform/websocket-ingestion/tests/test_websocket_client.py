@@ -48,7 +48,7 @@ class TestHomeAssistantWebSocketClient:
         """Test connection with invalid token"""
         client = HomeAssistantWebSocketClient(self.base_url, "invalid")
 
-        with patch('src.websocket_client.ClientSession') as mock_session:
+        with patch("src.websocket_client.ClientSession"):
             result = await client.connect()
 
             assert result is False
@@ -65,10 +65,10 @@ class TestHomeAssistantWebSocketClient:
         # Mock authentication flow
         mock_websocket.receive.side_effect = [
             AsyncMock(type=1, data='{"type": "auth_required"}'),  # auth_required
-            AsyncMock(type=1, data='{"type": "auth_ok"}')  # auth_ok
+            AsyncMock(type=1, data='{"type": "auth_ok"}'),  # auth_ok
         ]
 
-        with patch('src.websocket_client.ClientSession', return_value=mock_session):
+        with patch("src.websocket_client.ClientSession", return_value=mock_session):
             result = await self.client.connect()
 
             assert result is True
@@ -85,10 +85,10 @@ class TestHomeAssistantWebSocketClient:
         # Mock authentication flow with failure
         mock_websocket.receive.side_effect = [
             AsyncMock(type=1, data='{"type": "auth_required"}'),  # auth_required
-            AsyncMock(type=1, data='{"type": "auth_invalid"}')  # auth_invalid
+            AsyncMock(type=1, data='{"type": "auth_invalid"}'),  # auth_invalid
         ]
 
-        with patch('src.websocket_client.ClientSession', return_value=mock_session):
+        with patch("src.websocket_client.ClientSession", return_value=mock_session):
             result = await self.client.connect()
 
             assert result is False
@@ -146,13 +146,15 @@ class TestHomeAssistantWebSocketClient:
         """Test successful reconnection"""
         self.client.connection_attempts = 1
 
-        with patch.object(self.client, 'connect', return_value=True) as mock_connect:
-            with patch.object(self.client, 'disconnect') as mock_disconnect:
-                result = await self.client.reconnect()
+        with (
+            patch.object(self.client, "connect", return_value=True) as mock_connect,
+            patch.object(self.client, "disconnect") as mock_disconnect,
+        ):
+            result = await self.client.reconnect()
 
-                assert result is True
-                mock_disconnect.assert_called_once()
-                mock_connect.assert_called_once()
+            assert result is True
+            mock_disconnect.assert_called_once()
+            mock_connect.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_reconnect_max_attempts(self):
@@ -187,7 +189,7 @@ class TestHomeAssistantWebSocketClient:
         mock_websocket = AsyncMock()
         mock_websocket.__aiter__.return_value = [
             AsyncMock(type=1, data='{"type": "test", "data": "hello"}'),
-            AsyncMock(type=8)  # CLOSE message
+            AsyncMock(type=8),  # CLOSE message
         ]
         self.client.websocket = mock_websocket
 
@@ -207,8 +209,8 @@ class TestHomeAssistantWebSocketClient:
 
         mock_websocket = AsyncMock()
         mock_websocket.__aiter__.return_value = [
-            AsyncMock(type=1, data='invalid json'),
-            AsyncMock(type=8)  # CLOSE message
+            AsyncMock(type=1, data="invalid json"),
+            AsyncMock(type=8),  # CLOSE message
         ]
         self.client.websocket = mock_websocket
 
@@ -224,8 +226,9 @@ class TestHomeAssistantWebSocketClient:
         mock_websocket = AsyncMock()
         # Use WSMsgType.ERROR which is 8
         from aiohttp import WSMsgType
+
         mock_websocket.__aiter__.return_value = [
-            AsyncMock(type=WSMsgType.ERROR, data='error'),  # ERROR message
+            AsyncMock(type=WSMsgType.ERROR, data="error"),  # ERROR message
         ]
         self.client.websocket = mock_websocket
 

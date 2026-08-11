@@ -2,6 +2,7 @@
 
 import json
 import pickle
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -125,7 +126,7 @@ class TestEnergyForecasterSaveLoad:
         config_path = model_save_path.with_suffix(".config.json")
         assert config_path.exists()
 
-        with open(config_path, "r") as f:
+        with Path(config_path).open() as f:
             config = json.load(f)
 
         assert config["model_type"] == "naive"
@@ -163,12 +164,12 @@ class TestEnergyForecasterSaveLoad:
 
         # Remove JSON config and create pickle config instead
         json_path = model_save_path.with_suffix(".config.json")
-        with open(json_path, "r") as f:
+        with Path(json_path).open() as f:
             config = json.load(f)
         json_path.unlink()
 
         pkl_path = model_save_path.with_suffix(".config.pkl")
-        with open(pkl_path, "wb") as f:
+        with Path(pkl_path).open("wb") as f:
             pickle.dump(config, f)
 
         # Should load from pickle with warning
@@ -190,10 +191,10 @@ class TestEnergyForecasterSaveLoad:
 
         # Tamper with config
         config_path = model_save_path.with_suffix(".config.json")
-        with open(config_path, "r") as f:
+        with Path(config_path).open() as f:
             config = json.load(f)
         config["model_type"] = "invalid"
-        with open(config_path, "w") as f:
+        with Path(config_path).open("w") as f:
             json.dump(config, f)
 
         with pytest.raises(ValueError, match="Unknown model_type"):
@@ -207,7 +208,7 @@ class TestEnergyForecasterSaveLoad:
 
         # Tamper with config - remove required key
         config_path = model_save_path.with_suffix(".config.json")
-        with open(config_path, "w") as f:
+        with Path(config_path).open("w") as f:
             json.dump({"model_type": "naive"}, f)  # missing input/output chunk lengths
 
         with pytest.raises(ValueError, match="Invalid model config"):
@@ -241,7 +242,7 @@ class TestEnergyForecasterEvaluate:
         """Test that evaluate returns expected metrics."""
         _, test = sample_series.split_after(0.8)
         # Use only output_chunk_length points to avoid auto-regression warning
-        test_subset = test[:trained_forecaster.output_chunk_length]
+        test_subset = test[: trained_forecaster.output_chunk_length]
 
         results = trained_forecaster.evaluate(test_subset)
 
@@ -253,7 +254,7 @@ class TestEnergyForecasterEvaluate:
     def test_evaluate_custom_metrics(self, trained_forecaster, sample_series):
         """Test evaluate with custom metric list."""
         _, test = sample_series.split_after(0.8)
-        test_subset = test[:trained_forecaster.output_chunk_length]
+        test_subset = test[: trained_forecaster.output_chunk_length]
 
         results = trained_forecaster.evaluate(test_subset, metrics=["rmse"])
         assert "rmse" in results

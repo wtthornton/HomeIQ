@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
-import os
 from pathlib import Path
 
-import pytest
 
 # Load path_setup dynamically from repo root
 def _load_add_service_src():
@@ -16,6 +14,7 @@ def _load_add_service_src():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.add_service_src
+
 
 add_service_src = _load_add_service_src()
 add_service_src(__file__)

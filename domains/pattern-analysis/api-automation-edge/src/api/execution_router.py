@@ -22,6 +22,7 @@ from ..validation.validator import Validator
 # Huey task queue (optional, imported if available)
 try:
     from ..task_queue.tasks import queue_automation_task
+
     HUEY_AVAILABLE = True
 except ImportError:
     HUEY_AVAILABLE = False
@@ -49,7 +50,7 @@ async def execute_spec(
     home_id: str = settings.home_id,
     delay: int | None = Query(None, description="Delay execution by N seconds"),
     eta: str | None = Query(None, description="Execute at ISO datetime string"),
-    use_queue: bool | None = Query(None, description="Use task queue (overrides config)")
+    use_queue: bool | None = Query(None, description="Use task queue (overrides config)"),
 ):
     """
     Execute automation spec
@@ -77,11 +78,10 @@ async def execute_spec(
     eta_datetime = None
     if eta:
         try:
-            eta_datetime = datetime.fromisoformat(eta.replace('Z', '+00:00'))
+            eta_datetime = datetime.fromisoformat(eta.replace("Z", "+00:00"))
         except ValueError as exc:
             raise HTTPException(
-                status_code=400,
-                detail=f"Invalid ETA format: {eta}. Expected ISO format."
+                status_code=400, detail=f"Invalid ETA format: {eta}. Expected ISO format."
             ) from exc
 
     # If using task queue, queue the task
@@ -90,21 +90,12 @@ async def execute_spec(
         validation_result = await validator.validate(spec, perform_preflight=False)
 
         if not validation_result["is_valid"]:
-            structured_logger.log_validation(
-                spec_id, False, validation_result["errors"]
-            )
-            raise HTTPException(
-                status_code=400,
-                detail={"errors": validation_result["errors"]}
-            )
+            structured_logger.log_validation(spec_id, False, validation_result["errors"])
+            raise HTTPException(status_code=400, detail={"errors": validation_result["errors"]})
 
         # Log trigger
         if trigger_data:
-            structured_logger.log_trigger(
-                trigger_data.get("type", "manual"),
-                trigger_data,
-                spec_id
-            )
+            structured_logger.log_trigger(trigger_data.get("type", "manual"), trigger_data, spec_id)
 
         # Queue task
         task = queue_automation_task(
@@ -114,7 +105,7 @@ async def execute_spec(
             correlation_id=correlation_id,
             spec=spec,
             delay=delay,
-            eta=eta_datetime
+            eta=eta_datetime,
         )
 
         return {
@@ -122,33 +113,22 @@ async def execute_spec(
             "task_id": task.id,
             "status": "queued",
             "correlation_id": correlation_id,
-            "execution_mode": "async"
+            "execution_mode": "async",
         }
 
     # Synchronous execution (original behavior)
     # Log trigger
     if trigger_data:
-        structured_logger.log_trigger(
-            trigger_data.get("type", "manual"),
-            trigger_data,
-            spec_id
-        )
+        structured_logger.log_trigger(trigger_data.get("type", "manual"), trigger_data, spec_id)
 
     # Validate
     validation_result = await validator.validate(spec, perform_preflight=False)
 
     if not validation_result["is_valid"]:
-        structured_logger.log_validation(
-            spec_id, False, validation_result["errors"]
-        )
-        raise HTTPException(
-            status_code=400,
-            detail={"errors": validation_result["errors"]}
-        )
+        structured_logger.log_validation(spec_id, False, validation_result["errors"])
+        raise HTTPException(status_code=400, detail={"errors": validation_result["errors"]})
 
-    structured_logger.log_validation(
-        spec_id, True, [], validation_result["execution_plan"]
-    )
+    structured_logger.log_validation(spec_id, True, [], validation_result["execution_plan"])
 
     # Record decision factors
     explainer.record_decision_factors(
@@ -161,14 +141,12 @@ async def execute_spec(
             for action in validation_result["execution_plan"]["actions"]
         },
         policy_checks={},
-        execution_plan=validation_result["execution_plan"]
+        execution_plan=validation_result["execution_plan"],
     )
 
     # Execute
     execution_result = await executor.execute(
-        validation_result["execution_plan"],
-        spec,
-        correlation_id
+        validation_result["execution_plan"], spec, correlation_id
     )
 
     # Log execution
@@ -183,12 +161,12 @@ async def execute_spec(
             "unknown",  # Would extract from actions
             True,
             execution_result.get("execution_time", 0.0),
-            correlation_id
+            correlation_id,
         )
 
     return {
         "success": True,
         "correlation_id": correlation_id,
         "execution_result": execution_result,
-        "execution_mode": "sync"
+        "execution_mode": "sync",
     }

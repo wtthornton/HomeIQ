@@ -1,6 +1,5 @@
 """Tests for metrics service."""
 
-
 import pytest
 from src.metrics_service import (
     Metric,
@@ -18,9 +17,7 @@ class TestMetricValue:
     def test_metric_value_creation(self):
         """Test metric value creation."""
         value = MetricValue(
-            timestamp="2024-01-01T00:00:00Z",
-            value=42.5,
-            labels={"service": "test"}
+            timestamp="2024-01-01T00:00:00Z", value=42.5, labels={"service": "test"}
         )
 
         assert value.timestamp == "2024-01-01T00:00:00Z"
@@ -30,9 +27,7 @@ class TestMetricValue:
     def test_metric_value_to_dict(self):
         """Test metric value to dictionary conversion."""
         value = MetricValue(
-            timestamp="2024-01-01T00:00:00Z",
-            value=42.5,
-            labels={"service": "test"}
+            timestamp="2024-01-01T00:00:00Z", value=42.5, labels={"service": "test"}
         )
 
         data = value.to_dict()
@@ -52,7 +47,7 @@ class TestMetric:
             type=MetricType.GAUGE,
             description="Test metric",
             unit="count",
-            values=[]
+            values=[],
         )
 
         assert metric.name == "test_metric"
@@ -70,7 +65,7 @@ class TestMetric:
             description="Test metric",
             unit="count",
             values=[value],
-            labels={"service": "test"}
+            labels={"service": "test"},
         )
 
         data = metric.to_dict()
@@ -103,7 +98,7 @@ class TestMetricsCollector:
             name="test_metric",
             metric_type=MetricType.GAUGE,
             description="Test metric",
-            unit="count"
+            unit="count",
         )
 
         assert "test_metric" in collector.metrics
@@ -121,7 +116,7 @@ class TestMetricsCollector:
             name="test_metric",
             metric_type=MetricType.GAUGE,
             description="Test metric",
-            unit="count"
+            unit="count",
         )
 
         collector.record_value("test_metric", 42.5, {"service": "test"})
@@ -139,7 +134,7 @@ class TestMetricsCollector:
             name="test_counter",
             metric_type=MetricType.COUNTER,
             description="Test counter",
-            unit="count"
+            unit="count",
         )
 
         # First increment
@@ -155,10 +150,7 @@ class TestMetricsCollector:
         collector = MetricsCollector()
 
         collector.register_metric(
-            name="test_gauge",
-            metric_type=MetricType.GAUGE,
-            description="Test gauge",
-            unit="count"
+            name="test_gauge", metric_type=MetricType.GAUGE, description="Test gauge", unit="count"
         )
 
         collector.set_gauge("test_gauge", 42.5)
@@ -175,7 +167,7 @@ class TestMetricsCollector:
             name="test_timer",
             metric_type=MetricType.TIMER,
             description="Test timer",
-            unit="seconds"
+            unit="seconds",
         )
 
         collector.record_timer("test_timer", 1.5, {"operation": "test"})
@@ -193,7 +185,7 @@ class TestMetricsCollector:
             name="test_metric",
             metric_type=MetricType.GAUGE,
             description="Test metric",
-            unit="count"
+            unit="count",
         )
 
         # No values yet
@@ -214,7 +206,7 @@ class TestMetricsCollector:
             name="test_metric",
             metric_type=MetricType.GAUGE,
             description="Test metric",
-            unit="count"
+            unit="count",
         )
 
         # Add values with different labels
@@ -233,7 +225,7 @@ class TestMetricsCollector:
             name="test_metric",
             metric_type=MetricType.GAUGE,
             description="Test metric",
-            unit="count"
+            unit="count",
         )
 
         metric = collector.get_metric("test_metric")
@@ -310,7 +302,7 @@ class TestPerformanceTracker:
             name="operation_duration_seconds",
             metric_type=MetricType.TIMER,
             description="Operation duration",
-            unit="seconds"
+            unit="seconds",
         )
 
         # Start operation
@@ -333,8 +325,15 @@ class TestPerformanceTracker:
         tracker = PerformanceTracker(collector)
 
         # Register metrics
-        collector.register_metric("event_processing_duration_seconds", MetricType.TIMER, "Event processing duration", "seconds")
-        collector.register_metric("events_processed_total", MetricType.COUNTER, "Total events processed", "count")
+        collector.register_metric(
+            "event_processing_duration_seconds",
+            MetricType.TIMER,
+            "Event processing duration",
+            "seconds",
+        )
+        collector.register_metric(
+            "events_processed_total", MetricType.COUNTER, "Total events processed", "count"
+        )
 
         tracker.record_event_processed("state_changed", 150.0, "sensor.temperature")
 
@@ -342,13 +341,19 @@ class TestPerformanceTracker:
         timer_metric = collector.get_metric("event_processing_duration_seconds")
         assert len(timer_metric.values) == 1
         assert timer_metric.values[0].value == 0.15  # 150ms = 0.15s
-        assert timer_metric.values[0].labels == {"event_type": "state_changed", "entity_id": "sensor.temperature"}
+        assert timer_metric.values[0].labels == {
+            "event_type": "state_changed",
+            "entity_id": "sensor.temperature",
+        }
 
         # Check counter metric
         counter_metric = collector.get_metric("events_processed_total")
         assert len(counter_metric.values) == 1
         assert counter_metric.values[0].value == 1.0
-        assert counter_metric.values[0].labels == {"event_type": "state_changed", "entity_id": "sensor.temperature"}
+        assert counter_metric.values[0].labels == {
+            "event_type": "state_changed",
+            "entity_id": "sensor.temperature",
+        }
 
     def test_record_error(self):
         """Test recording error metrics."""
@@ -362,15 +367,22 @@ class TestPerformanceTracker:
         metric = collector.get_metric("errors_total")
         assert len(metric.values) == 1
         assert metric.values[0].value == 1.0
-        assert metric.values[0].labels == {"error_type": "validation_error", "service": "websocket-service"}
+        assert metric.values[0].labels == {
+            "error_type": "validation_error",
+            "service": "websocket-service",
+        }
 
     def test_record_api_request(self):
         """Test recording API request metrics."""
         collector = MetricsCollector()
         tracker = PerformanceTracker(collector)
 
-        collector.register_metric("api_request_duration_seconds", MetricType.TIMER, "API request duration", "seconds")
-        collector.register_metric("api_requests_total", MetricType.COUNTER, "Total API requests", "count")
+        collector.register_metric(
+            "api_request_duration_seconds", MetricType.TIMER, "API request duration", "seconds"
+        )
+        collector.register_metric(
+            "api_requests_total", MetricType.COUNTER, "Total API requests", "count"
+        )
 
         tracker.record_api_request("/api/v1/health", "GET", 200, 50.0)
 
@@ -378,13 +390,21 @@ class TestPerformanceTracker:
         timer_metric = collector.get_metric("api_request_duration_seconds")
         assert len(timer_metric.values) == 1
         assert timer_metric.values[0].value == 0.05  # 50ms = 0.05s
-        assert timer_metric.values[0].labels == {"endpoint": "/api/v1/health", "method": "GET", "status_code": "200"}
+        assert timer_metric.values[0].labels == {
+            "endpoint": "/api/v1/health",
+            "method": "GET",
+            "status_code": "200",
+        }
 
         # Check counter metric
         counter_metric = collector.get_metric("api_requests_total")
         assert len(counter_metric.values) == 1
         assert counter_metric.values[0].value == 1.0
-        assert counter_metric.values[0].labels == {"endpoint": "/api/v1/health", "method": "GET", "status_code": "200"}
+        assert counter_metric.values[0].labels == {
+            "endpoint": "/api/v1/health",
+            "method": "GET",
+            "status_code": "200",
+        }
 
 
 class TestMetricsService:

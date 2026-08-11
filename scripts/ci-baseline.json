@@ -1,0 +1,419 @@
+{
+    "generated_by": "scripts/ci-local.sh --baseline",
+    "services": [
+        {
+            "domain": "automation-core",
+            "service": "ha-ai-agent-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 514,
+            "collected": "-"
+        },
+        {
+            "domain": "automation-core",
+            "service": "ai-automation-service-new",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 250,
+            "collected": "-"
+        },
+        {
+            "domain": "automation-core",
+            "service": "ai-query-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 38,
+            "collected": "-"
+        },
+        {
+            "domain": "automation-core",
+            "service": "automation-linter",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 18,
+            "collected": "-"
+        },
+        {
+            "domain": "automation-core",
+            "service": "yaml-validation-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 60,
+            "collected": "-"
+        },
+        {
+            "domain": "automation-core",
+            "service": "ai-code-executor",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 99,
+            "collected": "-"
+        },
+        {
+            "domain": "automation-core",
+            "service": "automation-trace-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 10,
+            "collected": "-"
+        },
+        {
+            "domain": "blueprints",
+            "service": "blueprint-index",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 38,
+            "collected": "-"
+        },
+        {
+            "domain": "blueprints",
+            "service": "blueprint-suggestion-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 55,
+            "collected": "-"
+        },
+        {
+            "domain": "blueprints",
+            "service": "rule-recommendation-ml",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 59,
+            "collected": "-"
+        },
+        {
+            "domain": "blueprints",
+            "service": "automation-miner",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 44,
+            "collected": "-"
+        },
+        {
+            "domain": "data-collectors",
+            "service": "weather-api",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 13,
+            "collected": "-"
+        },
+        {
+            "domain": "data-collectors",
+            "service": "smart-meter-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 33,
+            "collected": "-"
+        },
+        {
+            "domain": "data-collectors",
+            "service": "sports-api",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 8,
+            "collected": "-"
+        },
+        {
+            "domain": "data-collectors",
+            "service": "air-quality-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 39,
+            "collected": "-"
+        },
+        {
+            "domain": "data-collectors",
+            "service": "carbon-intensity-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 12,
+            "collected": "-"
+        },
+        {
+            "domain": "data-collectors",
+            "service": "electricity-pricing-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 135,
+            "collected": "-"
+        },
+        {
+            "domain": "data-collectors",
+            "service": "calendar-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 62,
+            "collected": "-"
+        },
+        {
+            "domain": "data-collectors",
+            "service": "log-aggregator",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 25,
+            "collected": "-"
+        },
+        {
+            "domain": "core-platform",
+            "service": "websocket-ingestion",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 526,
+            "collected": "-"
+        },
+        {
+            "domain": "core-platform",
+            "service": "data-api",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 1260,
+            "collected": "-"
+        },
+        {
+            "domain": "core-platform",
+            "service": "admin-api",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 377,
+            "collected": "-"
+        },
+        {
+            "domain": "core-platform",
+            "service": "health-dashboard",
+            "lint_rc": "0",
+            "format_rc": "0",
+            "test_rc": "-",
+            "static_tests": 0,
+            "collected": "-"
+        },
+        {
+            "domain": "core-platform",
+            "service": "data-retention",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 135,
+            "collected": "-"
+        },
+        {
+            "domain": "device-management",
+            "service": "device-health-monitor",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 17,
+            "collected": "-"
+        },
+        {
+            "domain": "device-management",
+            "service": "device-context-classifier",
+            "lint_rc": "0",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 4,
+            "collected": "-"
+        },
+        {
+            "domain": "device-management",
+            "service": "device-setup-assistant",
+            "lint_rc": "0",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 7,
+            "collected": "-"
+        },
+        {
+            "domain": "device-management",
+            "service": "device-database-client",
+            "lint_rc": "0",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 0,
+            "collected": "-"
+        },
+        {
+            "domain": "device-management",
+            "service": "device-recommender",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 6,
+            "collected": "-"
+        },
+        {
+            "domain": "device-management",
+            "service": "activity-recognition",
+            "lint_rc": "0",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 10,
+            "collected": "-"
+        },
+        {
+            "domain": "device-management",
+            "service": "activity-writer",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 79,
+            "collected": "-"
+        },
+        {
+            "domain": "device-management",
+            "service": "ha-setup-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 29,
+            "collected": "-"
+        },
+        {
+            "domain": "energy-analytics",
+            "service": "energy-correlator",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 118,
+            "collected": "-"
+        },
+        {
+            "domain": "energy-analytics",
+            "service": "energy-forecasting",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 75,
+            "collected": "-"
+        },
+        {
+            "domain": "energy-analytics",
+            "service": "proactive-agent-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 106,
+            "collected": "-"
+        },
+        {
+            "domain": "frontends",
+            "service": "observability-dashboard",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 109,
+            "collected": "-"
+        },
+        {
+            "domain": "frontends",
+            "service": "ai-automation-ui",
+            "lint_rc": "0",
+            "format_rc": "0",
+            "test_rc": "-",
+            "static_tests": 0,
+            "collected": "-"
+        },
+        {
+            "domain": "ml-engine",
+            "service": "openvino-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 37,
+            "collected": "-"
+        },
+        {
+            "domain": "ml-engine",
+            "service": "ml-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 70,
+            "collected": "-"
+        },
+        {
+            "domain": "ml-engine",
+            "service": "ai-core-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 52,
+            "collected": "-"
+        },
+        {
+            "domain": "ml-engine",
+            "service": "ai-training-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 31,
+            "collected": "-"
+        },
+        {
+            "domain": "ml-engine",
+            "service": "device-intelligence-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 236,
+            "collected": "-"
+        },
+        {
+            "domain": "ml-engine",
+            "service": "rag-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 5,
+            "collected": "-"
+        },
+        {
+            "domain": "ml-engine",
+            "service": "model-prep",
+            "lint_rc": "0",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 0,
+            "collected": "-"
+        },
+        {
+            "domain": "pattern-analysis",
+            "service": "ai-pattern-service",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 679,
+            "collected": "-"
+        },
+        {
+            "domain": "pattern-analysis",
+            "service": "api-automation-edge",
+            "lint_rc": "1",
+            "format_rc": "1",
+            "test_rc": "-",
+            "static_tests": 34,
+            "collected": "-"
+        }
+    ]
+}

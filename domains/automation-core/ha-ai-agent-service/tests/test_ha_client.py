@@ -4,16 +4,14 @@ import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
 from src.clients.ha_client import HomeAssistantClient
 
 
 @pytest.fixture
 def ha_client():
     """Create HomeAssistantClient instance"""
-    return HomeAssistantClient(
-        ha_url="http://test-ha:8123",
-        access_token="test-token"
-    )
+    return HomeAssistantClient(ha_url="http://test-ha:8123", access_token="test-token")
 
 
 @pytest.mark.asyncio
@@ -26,26 +24,21 @@ async def test_get_area_registry_websocket_success(ha_client):
 
     # Mock WebSocket connection and responses
     mock_websocket = AsyncMock()
-    
+
     # Auth required response
     auth_required = json.dumps({"type": "auth_required", "ha_version": "2025.1.0"})
     # Auth OK response
     auth_ok = json.dumps({"type": "auth_ok"})
     # Area registry response
-    area_response = json.dumps({
-        "id": 1,
-        "type": "result",
-        "success": True,
-        "result": mock_areas
-    })
-    
+    area_response = json.dumps({"id": 1, "type": "result", "success": True, "result": mock_areas})
+
     # Setup WebSocket receive sequence
     mock_websocket.recv.side_effect = [auth_required, auth_ok, area_response]
     mock_websocket.send = AsyncMock()
     mock_websocket.__aenter__ = AsyncMock(return_value=mock_websocket)
     mock_websocket.__aexit__ = AsyncMock(return_value=None)
 
-    with patch('websockets.connect', return_value=mock_websocket):
+    with patch("websockets.connect", return_value=mock_websocket):
         areas = await ha_client.get_area_registry()
 
     assert len(areas) == 2
@@ -65,7 +58,7 @@ async def test_get_area_registry_websocket_fallback_to_rest(ha_client):
     # Mock WebSocket failure
     mock_websocket = AsyncMock()
     mock_websocket.__aenter__.side_effect = Exception("WebSocket connection failed")
-    
+
     # Mock REST API success
     mock_session = AsyncMock()
     mock_response = AsyncMock()
@@ -77,7 +70,7 @@ async def test_get_area_registry_websocket_fallback_to_rest(ha_client):
 
     ha_client._get_session = AsyncMock(return_value=mock_session)
 
-    with patch('websockets.connect', return_value=mock_websocket):
+    with patch("websockets.connect", return_value=mock_websocket):
         areas = await ha_client.get_area_registry()
 
     assert len(areas) == 1
@@ -95,7 +88,7 @@ async def test_get_area_registry_success(ha_client):
     # Mock WebSocket failure
     mock_websocket = AsyncMock()
     mock_websocket.__aenter__.side_effect = Exception("WebSocket unavailable")
-    
+
     mock_session = AsyncMock()
     mock_response = AsyncMock()
     mock_response.status = 200
@@ -106,7 +99,7 @@ async def test_get_area_registry_success(ha_client):
 
     ha_client._get_session = AsyncMock(return_value=mock_session)
 
-    with patch('websockets.connect', return_value=mock_websocket):
+    with patch("websockets.connect", return_value=mock_websocket):
         areas = await ha_client.get_area_registry()
 
     assert len(areas) == 2
@@ -133,11 +126,7 @@ async def test_get_area_registry_404(ha_client):
 @pytest.mark.asyncio
 async def test_get_area_registry_dict_response(ha_client):
     """Test handling dict response with 'areas' key"""
-    mock_response_data = {
-        "areas": [
-            {"area_id": "office", "name": "Office"}
-        ]
-    }
+    mock_response_data = {"areas": [{"area_id": "office", "name": "Office"}]}
 
     mock_session = AsyncMock()
     mock_response = AsyncMock()
@@ -158,12 +147,7 @@ async def test_get_area_registry_dict_response(ha_client):
 @pytest.mark.asyncio
 async def test_get_services_success(ha_client):
     """Test successfully fetching services"""
-    mock_services = {
-        "light": {
-            "turn_on": {},
-            "turn_off": {}
-        }
-    }
+    mock_services = {"light": {"turn_on": {}, "turn_off": {}}}
 
     mock_session = AsyncMock()
     mock_response = AsyncMock()
@@ -291,7 +275,7 @@ async def test_get_device_registry_websocket_success(ha_client):
             "area_id": "office",
             "manufacturer": "Philips",
             "model": "Hue Light",
-            "sw_version": "1.0.0"
+            "sw_version": "1.0.0",
         },
         {
             "id": "device2",
@@ -299,32 +283,27 @@ async def test_get_device_registry_websocket_success(ha_client):
             "area_id": "kitchen",
             "manufacturer": "LIFX",
             "model": "A19",
-            "sw_version": "2.0.0"
+            "sw_version": "2.0.0",
         },
     ]
 
     # Mock WebSocket connection and responses
     mock_websocket = AsyncMock()
-    
+
     # Auth required response
     auth_required = json.dumps({"type": "auth_required", "ha_version": "2025.1.0"})
     # Auth OK response
     auth_ok = json.dumps({"type": "auth_ok"})
     # Device registry response
-    device_response = json.dumps({
-        "id": 2,
-        "type": "result",
-        "success": True,
-        "result": mock_devices
-    })
-    
+    device_response = json.dumps({"id": 2, "type": "result", "success": True, "result": mock_devices})
+
     # Setup WebSocket receive sequence
     mock_websocket.recv.side_effect = [auth_required, auth_ok, device_response]
     mock_websocket.send = AsyncMock()
     mock_websocket.__aenter__ = AsyncMock(return_value=mock_websocket)
     mock_websocket.__aexit__ = AsyncMock(return_value=None)
 
-    with patch('websockets.connect', return_value=mock_websocket):
+    with patch("websockets.connect", return_value=mock_websocket):
         devices = await ha_client.get_device_registry()
 
     assert len(devices) == 2
@@ -344,14 +323,14 @@ async def test_get_device_registry_websocket_fallback_to_rest(ha_client):
             "name": "Office Light Device",
             "area_id": "office",
             "manufacturer": "Philips",
-            "model": "Hue Light"
+            "model": "Hue Light",
         },
     ]
 
     # Mock WebSocket failure
     mock_websocket = AsyncMock()
     mock_websocket.__aenter__.side_effect = Exception("WebSocket connection failed")
-    
+
     # Mock REST API success
     mock_session = AsyncMock()
     mock_response = AsyncMock()
@@ -363,7 +342,7 @@ async def test_get_device_registry_websocket_fallback_to_rest(ha_client):
 
     ha_client._get_session = AsyncMock(return_value=mock_session)
 
-    with patch('websockets.connect', return_value=mock_websocket):
+    with patch("websockets.connect", return_value=mock_websocket):
         devices = await ha_client.get_device_registry()
 
     assert len(devices) == 1
@@ -391,15 +370,7 @@ async def test_get_device_registry_404(ha_client):
 @pytest.mark.asyncio
 async def test_get_device_registry_dict_response(ha_client):
     """Test handling dict response with 'devices' key"""
-    mock_response_data = {
-        "devices": [
-            {
-                "id": "device1",
-                "name": "Office Light Device",
-                "area_id": "office"
-            }
-        ]
-    }
+    mock_response_data = {"devices": [{"id": "device1", "name": "Office Light Device", "area_id": "office"}]}
 
     mock_session = AsyncMock()
     mock_response = AsyncMock()
@@ -427,39 +398,34 @@ async def test_get_entity_registry_websocket_success(ha_client):
             "name": "Office Light",
             "aliases": ["workspace light", "desk light"],
             "category": "light",
-            "disabled_by": None
+            "disabled_by": None,
         },
         {
             "entity_id": "sensor.temp_1",
             "name": "Temperature Sensor",
             "aliases": [],
             "category": "diagnostic",
-            "disabled_by": None
+            "disabled_by": None,
         },
     ]
 
     # Mock WebSocket connection and responses
     mock_websocket = AsyncMock()
-    
+
     # Auth required response
     auth_required = json.dumps({"type": "auth_required", "ha_version": "2025.1.0"})
     # Auth OK response
     auth_ok = json.dumps({"type": "auth_ok"})
     # Entity registry response
-    entity_response = json.dumps({
-        "id": 3,
-        "type": "result",
-        "success": True,
-        "result": mock_entities
-    })
-    
+    entity_response = json.dumps({"id": 3, "type": "result", "success": True, "result": mock_entities})
+
     # Setup WebSocket receive sequence
     mock_websocket.recv.side_effect = [auth_required, auth_ok, entity_response]
     mock_websocket.send = AsyncMock()
     mock_websocket.__aenter__ = AsyncMock(return_value=mock_websocket)
     mock_websocket.__aexit__ = AsyncMock(return_value=None)
 
-    with patch('websockets.connect', return_value=mock_websocket):
+    with patch("websockets.connect", return_value=mock_websocket):
         entities = await ha_client.get_entity_registry()
 
     assert len(entities) == 2
@@ -474,17 +440,13 @@ async def test_get_entity_registry_websocket_success(ha_client):
 async def test_get_entity_registry_websocket_fallback_to_rest(ha_client):
     """Test WebSocket failure falls back to REST API"""
     mock_entities = [
-        {
-            "entity_id": "light.office_1",
-            "name": "Office Light",
-            "aliases": ["workspace light"]
-        },
+        {"entity_id": "light.office_1", "name": "Office Light", "aliases": ["workspace light"]},
     ]
 
     # Mock WebSocket failure
     mock_websocket = AsyncMock()
     mock_websocket.__aenter__.side_effect = Exception("WebSocket connection failed")
-    
+
     # Mock REST API success
     mock_session = AsyncMock()
     mock_response = AsyncMock()
@@ -496,7 +458,7 @@ async def test_get_entity_registry_websocket_fallback_to_rest(ha_client):
 
     ha_client._get_session = AsyncMock(return_value=mock_session)
 
-    with patch('websockets.connect', return_value=mock_websocket):
+    with patch("websockets.connect", return_value=mock_websocket):
         entities = await ha_client.get_entity_registry()
 
     assert len(entities) == 1
@@ -524,13 +486,7 @@ async def test_get_entity_registry_404(ha_client):
 async def test_get_entity_registry_dict_response(ha_client):
     """Test handling dict response with 'entities' key"""
     mock_response_data = {
-        "entities": [
-            {
-                "entity_id": "light.office_1",
-                "name": "Office Light",
-                "aliases": ["workspace light"]
-            }
-        ]
+        "entities": [{"entity_id": "light.office_1", "name": "Office Light", "aliases": ["workspace light"]}]
     }
 
     mock_session = AsyncMock()

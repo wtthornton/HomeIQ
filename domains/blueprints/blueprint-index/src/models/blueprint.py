@@ -22,6 +22,7 @@ from sqlalchemy.orm import DeclarativeBase, relationship
 
 class Base(AsyncAttrs, DeclarativeBase):
     """Base class for all models."""
+
     pass
 
 
@@ -32,6 +33,7 @@ class IndexedBlueprint(Base):
     Stores blueprint metadata, device requirements, and community metrics
     for efficient searching and matching.
     """
+
     __tablename__ = "indexed_blueprints"
 
     # Primary key - unique blueprint identifier
@@ -93,7 +95,9 @@ class IndexedBlueprint(Base):
     yaml_content = Column(Text)
 
     # Relationships
-    inputs_rel = relationship("BlueprintInput", back_populates="blueprint", cascade="all, delete-orphan")
+    inputs_rel = relationship(
+        "BlueprintInput", back_populates="blueprint", cascade="all, delete-orphan"
+    )
 
     # Indexes for efficient querying
     __table_args__ = (
@@ -141,10 +145,13 @@ class BlueprintInput(Base):
 
     Normalized table for efficient querying by input requirements.
     """
+
     __tablename__ = "blueprint_inputs"
 
     id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
-    blueprint_id = Column(String(255), ForeignKey("indexed_blueprints.id", ondelete="CASCADE"), nullable=False)
+    blueprint_id = Column(
+        String(255), ForeignKey("indexed_blueprints.id", ondelete="CASCADE"), nullable=False
+    )
 
     # Input definition
     input_name = Column(String(255), nullable=False)
@@ -177,6 +184,7 @@ class IndexingJob(Base):
     """
     Tracks indexing job status and history.
     """
+
     __tablename__ = "indexing_jobs"
 
     id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))

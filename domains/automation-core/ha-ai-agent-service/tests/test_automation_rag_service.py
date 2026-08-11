@@ -1,6 +1,7 @@
 """Tests for Automation RAG Service (Story 9: Comprehensive Sports Keyword Coverage)"""
 
 import pytest
+
 from src.services.automation_rag_service import SPORTS_KEYWORDS, AutomationRAGService
 
 
@@ -13,33 +14,39 @@ def automation_rag_service():
 class TestSportsIntentMatching:
     """Verify key phrases match sports intent for RAG retrieval."""
 
-    @pytest.mark.parametrize("prompt", [
-        "Lakers score lights",
-        "PGA birdie automation",
-        "Super Bowl lights when Seahawks score",
-        "Flash lights when my team scores a touchdown",
-        "NBA playoff lights",
-        "MLB home run notification",
-        "NHL hat trick celebration",
-        "World Cup goal lights",
-        "UFC fight started automation",
-        "F1 lap notification",
-        "Tennis set won lights",
-        "March Madness bracket lights",
-        "game day kickoff flash",
-        "team colors when Chiefs win",
-    ])
+    @pytest.mark.parametrize(
+        "prompt",
+        [
+            "Lakers score lights",
+            "PGA birdie automation",
+            "Super Bowl lights when Seahawks score",
+            "Flash lights when my team scores a touchdown",
+            "NBA playoff lights",
+            "MLB home run notification",
+            "NHL hat trick celebration",
+            "World Cup goal lights",
+            "UFC fight started automation",
+            "F1 lap notification",
+            "Tennis set won lights",
+            "March Madness bracket lights",
+            "game day kickoff flash",
+            "team colors when Chiefs win",
+        ],
+    )
     def test_sports_prompts_match(self, automation_rag_service: AutomationRAGService, prompt: str):
         """Key phrases from various sports/leagues should match sports intent."""
         assert automation_rag_service._matches_sports_intent(prompt), f"Expected match for: {prompt}"
 
-    @pytest.mark.parametrize("prompt", [
-        "Turn on the living room lights",
-        "Adjust thermostat to 72",
-        "Lock the front door",
-        "Play music in the kitchen",
-        "Open the garage door",
-    ])
+    @pytest.mark.parametrize(
+        "prompt",
+        [
+            "Turn on the living room lights",
+            "Adjust thermostat to 72",
+            "Lock the front door",
+            "Play music in the kitchen",
+            "Open the garage door",
+        ],
+    )
     def test_non_sports_prompts_no_match(self, automation_rag_service: AutomationRAGService, prompt: str):
         """Non-sports prompts should not match sports intent."""
         assert not automation_rag_service._matches_sports_intent(prompt), f"Expected no match for: {prompt}"

@@ -22,7 +22,7 @@ async def test_send_message_success():
     }
     mock_response.raise_for_status = AsyncMock()
 
-    with patch.object(client.client, 'post', return_value=mock_response):
+    with patch.object(client.client, "post", return_value=mock_response):
         result = await client.send_message("Create an automation to turn on lights at sunset")
 
         assert result is not None
@@ -47,11 +47,8 @@ async def test_send_message_with_conversation_id():
     }
     mock_response.raise_for_status = AsyncMock()
 
-    with patch.object(client.client, 'post', return_value=mock_response):
-        result = await client.send_message(
-            "Update the automation",
-            conversation_id="conv-456"
-        )
+    with patch.object(client.client, "post", return_value=mock_response):
+        result = await client.send_message("Update the automation", conversation_id="conv-456")
 
         assert result is not None
         assert result["conversation_id"] == "conv-456"
@@ -73,11 +70,8 @@ async def test_send_message_with_refresh_context():
     }
     mock_response.raise_for_status = AsyncMock()
 
-    with patch.object(client.client, 'post', return_value=mock_response) as mock_post:
-        result = await client.send_message(
-            "Create automation",
-            refresh_context=True
-        )
+    with patch.object(client.client, "post", return_value=mock_response) as mock_post:
+        result = await client.send_message("Create automation", refresh_context=True)
 
         assert result is not None
         # Verify refresh_context was sent in payload
@@ -92,7 +86,7 @@ async def test_send_message_connection_error():
     """Test graceful degradation on connection error"""
     client = HAAgentClient(base_url="http://test-ha-agent:8030")
 
-    with patch.object(client.client, 'post', side_effect=Exception("Connection failed")):
+    with patch.object(client.client, "post", side_effect=Exception("Connection failed")):
         result = await client.send_message("Test message")
         assert result is None  # Graceful degradation
 
@@ -105,7 +99,8 @@ async def test_send_message_timeout():
     client = HAAgentClient(base_url="http://test-ha-agent:8030", timeout=5)
 
     import httpx
-    with patch.object(client.client, 'post', side_effect=httpx.TimeoutException("Timeout")):
+
+    with patch.object(client.client, "post", side_effect=httpx.TimeoutException("Timeout")):
         result = await client.send_message("Test message")
         assert result is None  # Graceful degradation
 
@@ -124,7 +119,7 @@ async def test_send_message_invalid_response():
     }
     mock_response.raise_for_status = AsyncMock()
 
-    with patch.object(client.client, 'post', return_value=mock_response):
+    with patch.object(client.client, "post", return_value=mock_response):
         result = await client.send_message("Test message")
         assert result is None  # Invalid response rejected
 
@@ -165,4 +160,3 @@ async def test_close_client():
     client = HAAgentClient()
     await client.close()
     # Should not raise exception
-

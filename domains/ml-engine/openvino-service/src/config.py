@@ -1,8 +1,7 @@
 """Configuration settings for OpenVINO Service."""
 
-from pydantic import SecretStr
-
 from homeiq_data import BaseServiceSettings
+from pydantic import SecretStr
 
 
 class Settings(BaseServiceSettings):

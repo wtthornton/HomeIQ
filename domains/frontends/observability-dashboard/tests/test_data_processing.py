@@ -9,15 +9,13 @@ from unittest.mock import MagicMock
 
 # Mock streamlit before importing any page module
 _st_mock = MagicMock()
-_st_mock.fragment = lambda run_every=None: (lambda f: f)
+_st_mock.fragment = lambda **_kwargs: lambda f: f
 sys.modules.setdefault("streamlit", _st_mock)
 
 import pandas as pd
-from conftest import make_span, make_trace
 from dashboard_pages.real_time_monitoring import (
     _calculate_service_health,
     _create_realtime_dataframe,
-    _detect_anomalies,
 )
 from dashboard_pages.service_performance import (
     _calculate_service_metrics,
@@ -27,6 +25,7 @@ from dashboard_pages.service_performance import (
 )
 from dashboard_pages.trace_visualization import _create_dependency_graph, _create_timeline_chart
 
+from conftest import make_span, make_trace
 
 # ---------------------------------------------------------------------------
 # trace_visualization: _create_timeline_chart
@@ -237,7 +236,7 @@ class TestCreateLatencyDataframe:
         metrics = {"svc": {"p50": 10, "p95": 50, "p99": 100}}
         df = _create_latency_dataframe(metrics)
         assert isinstance(df, pd.DataFrame)
-        assert set(["p50", "p95", "p99"]).issubset(df.columns)
+        assert {"p50", "p95", "p99"}.issubset(df.columns)
         assert df.iloc[0]["p50"] == 10
 
 

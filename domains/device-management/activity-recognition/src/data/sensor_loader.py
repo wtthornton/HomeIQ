@@ -297,14 +297,14 @@ class SensorDataLoader:
         """
         h = hour_of_day.astype(int)
         activity_label = np.full(n_samples, 8, dtype=int)  # default relaxing
-        activity_label[(h >= 0) & (h < 6)] = 0   # sleeping
-        activity_label[(h >= 6) & (h < 8)] = 1   # waking
-        activity_label[h == 8] = 2               # leaving
-        activity_label[(h > 8) & (h < 17)] = 6   # working
-        activity_label[h == 17] = 3               # arriving
+        activity_label[(h >= 0) & (h < 6)] = 0  # sleeping
+        activity_label[(h >= 6) & (h < 8)] = 1  # waking
+        activity_label[h == 8] = 2  # leaving
+        activity_label[(h > 8) & (h < 17)] = 6  # working
+        activity_label[h == 17] = 3  # arriving
         activity_label[(h > 17) & (h < 19)] = 4  # cooking
-        activity_label[(h >= 19) & (h < 21)] = 5 # eating
-        activity_label[(h >= 21) & (h < 23)] = 7 # watching_tv
+        activity_label[(h >= 19) & (h < 21)] = 5  # eating
+        activity_label[(h >= 21) & (h < 23)] = 7  # watching_tv
         noise_mask = rng.random(n_samples) < 0.1
         activity_label[noise_mask] = rng.integers(0, 10, noise_mask.sum())
         return activity_label

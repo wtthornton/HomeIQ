@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/v1/metrics", tags=["metrics"])
 
 class MetricsResponse(BaseModel):
     """Response model for metrics endpoint."""
+
     total_calls: int
     store_calls: int
     retrieve_calls: int

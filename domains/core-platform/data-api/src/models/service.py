@@ -26,12 +26,15 @@ class Service(Base):
     target = Column(JSON)  # Target entity/area specification
 
     # Timestamps
-    last_updated = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+    last_updated = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
 
     def __repr__(self):
         return f"<Service(domain='{self.domain}', service_name='{self.service_name}', name='{self.name}')>"
 
 
 # Indexes for common queries
-Index('idx_services_domain', Service.domain)
-
+Index("idx_services_domain", Service.domain)

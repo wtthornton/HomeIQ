@@ -3,9 +3,9 @@
 Tests capability discovery and formatting with mocked discoverer.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from src.services.capability_discovery import (
     CapabilityDiscoveryService,
     get_capability_service,
@@ -13,7 +13,6 @@ from src.services.capability_discovery import (
 
 
 class TestDiscoverDeviceCapabilities:
-
     def setup_method(self):
         self.svc = CapabilityDiscoveryService()
 
@@ -46,7 +45,6 @@ class TestDiscoverDeviceCapabilities:
 
 
 class TestFormatCapabilitiesForStorage:
-
     def setup_method(self):
         self.svc = CapabilityDiscoveryService()
 
@@ -68,8 +66,8 @@ class TestFormatCapabilitiesForStorage:
 
 
 class TestSingleton:
-
     def test_returns_same_instance(self):
         import src.services.capability_discovery as mod
+
         mod._capability_service = None
         assert get_capability_service() is get_capability_service()

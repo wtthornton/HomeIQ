@@ -21,10 +21,7 @@ class SynergyDeduplicator:
     2025 Best Practice: Prevent duplicate storage and improve quality.
     """
 
-    def find_duplicates(
-        self,
-        synergies: list[dict[str, Any]]
-    ) -> dict[str, list[dict[str, Any]]]:
+    def find_duplicates(self, synergies: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
         """
         Find duplicate synergies based on canonical device pairs.
 
@@ -48,14 +45,16 @@ class SynergyDeduplicator:
 
         for synergy in synergies:
             # Extract device IDs
-            device_ids = synergy.get('devices', synergy.get('device_ids', []))
+            device_ids = synergy.get("devices", synergy.get("device_ids", []))
 
             # Handle JSON string format
             if isinstance(device_ids, str):
                 try:
                     device_ids = json.loads(device_ids)
                 except (json.JSONDecodeError, TypeError):
-                    logger.warning(f"Failed to parse device_ids for synergy {synergy.get('synergy_id')}")
+                    logger.warning(
+                        f"Failed to parse device_ids for synergy {synergy.get('synergy_id')}"
+                    )
                     continue
 
             if not device_ids or len(device_ids) < 2:
@@ -63,14 +62,16 @@ class SynergyDeduplicator:
                 continue
 
             # Create canonical pair key (sorted device IDs for consistency)
-            canonical_pair = tuple(sorted([str(d) for d in device_ids[:2]]))  # Use first 2 devices for pairs
+            canonical_pair = tuple(
+                sorted([str(d) for d in device_ids[:2]])
+            )  # Use first 2 devices for pairs
 
             # Include relationship type in key (if available)
-            metadata = synergy.get('opportunity_metadata', {})
-            relationship = metadata.get('relationship', '') if isinstance(metadata, dict) else ''
+            metadata = synergy.get("opportunity_metadata", {})
+            relationship = metadata.get("relationship", "") if isinstance(metadata, dict) else ""
 
             # Include area in key (if area-based matching desired)
-            area = synergy.get('area', '')
+            area = synergy.get("area", "")
 
             # Create composite key
             key = f"{canonical_pair}|{relationship}|{area}"
@@ -83,9 +84,7 @@ class SynergyDeduplicator:
         return {k: v for k, v in duplicates.items() if len(v) > 1}
 
     def deduplicate(
-        self,
-        synergies: list[dict[str, Any]],
-        keep_highest_quality: bool = True
+        self, synergies: list[dict[str, Any]], keep_highest_quality: bool = True
     ) -> list[dict[str, Any]]:
         """
         Remove duplicates, keeping highest quality synergy from each group.
@@ -109,15 +108,12 @@ class SynergyDeduplicator:
         duplicate_synergies = set()
         for group in duplicates.values():
             for synergy in group:
-                synergy_id = synergy.get('synergy_id')
+                synergy_id = synergy.get("synergy_id")
                 if synergy_id:
                     duplicate_synergies.add(synergy_id)
 
         # Start with non-duplicate synergies
-        deduplicated = [
-            s for s in synergies
-            if s.get('synergy_id') not in duplicate_synergies
-        ]
+        deduplicated = [s for s in synergies if s.get("synergy_id") not in duplicate_synergies]
 
         # For each duplicate group, keep the best one
         kept_count = 0
@@ -129,10 +125,10 @@ class SynergyDeduplicator:
                 best_synergy = max(
                     group,
                     key=lambda s: (
-                        float(s.get('quality_score', 0.0)),
-                        float(s.get('confidence', 0.0)),
-                        float(s.get('impact_score', 0.0))
-                    )
+                        float(s.get("quality_score", 0.0)),
+                        float(s.get("confidence", 0.0)),
+                        float(s.get("impact_score", 0.0)),
+                    ),
                 )
             else:
                 # Keep first occurrence (by synergy_id or index)

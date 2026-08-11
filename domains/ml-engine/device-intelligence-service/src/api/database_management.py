@@ -23,14 +23,25 @@ router = APIRouter(prefix="/database", tags=["Database Management"])
 settings = Settings()
 
 # Whitelist of known database tables to prevent SQL injection (CRIT-1)
-KNOWN_TABLES = frozenset({
-    "devices", "device_capabilities", "device_relationships",
-    "device_health_metrics", "device_entities", "device_hygiene_issues",
-    "discovery_sessions", "cache_stats", "name_suggestions",
-    "name_preferences", "zigbee_device_metadata",
-    "team_tracker_integrations", "team_tracker_teams",
-    "predictions", "recommendations",
-})
+KNOWN_TABLES = frozenset(
+    {
+        "devices",
+        "device_capabilities",
+        "device_relationships",
+        "device_health_metrics",
+        "device_entities",
+        "device_hygiene_issues",
+        "discovery_sessions",
+        "cache_stats",
+        "name_suggestions",
+        "name_preferences",
+        "zigbee_device_metadata",
+        "team_tracker_integrations",
+        "team_tracker_teams",
+        "predictions",
+        "recommendations",
+    }
+)
 
 
 async def verify_admin_token(x_admin_token: str = Header(...)):
@@ -42,18 +53,21 @@ async def verify_admin_token(x_admin_token: str = Header(...)):
 
 class RecreateTablesResponse(BaseModel):
     """Response for table recreation."""
+
     success: bool
     message: str
 
 
 class DatabaseStatusResponse(BaseModel):
     """Database status response."""
+
     status: str
     message: str
 
 
 class DatabaseCleanupResponse(BaseModel):
     """Response for database cleanup."""
+
     success: bool
     message: str
     records_deleted: int
@@ -61,19 +75,25 @@ class DatabaseCleanupResponse(BaseModel):
 
 class DatabaseOptimizeResponse(BaseModel):
     """Response for database optimization."""
+
     success: bool
     message: str
 
 
 class DatabaseStatsResponse(BaseModel):
     """Database statistics response."""
+
     database_size_mb: float
     table_count: int
     total_records: int
     tables: dict[str, int]
 
 
-@router.post("/recreate-tables", response_model=RecreateTablesResponse, dependencies=[Depends(verify_admin_token)])
+@router.post(
+    "/recreate-tables",
+    response_model=RecreateTablesResponse,
+    dependencies=[Depends(verify_admin_token)],
+)
 async def recreate_database_tables() -> RecreateTablesResponse:
     """
     Recreate all database tables with the latest schema.
@@ -94,16 +114,12 @@ async def recreate_database_tables() -> RecreateTablesResponse:
 
         logger.info("Database tables recreated successfully")
         return RecreateTablesResponse(
-            success=True,
-            message="Database tables recreated successfully with latest schema"
+            success=True, message="Database tables recreated successfully with latest schema"
         )
 
     except Exception as e:
         logger.error("Failed to recreate database tables: %s", e, exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error"
-        ) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/status", response_model=DatabaseStatusResponse)
@@ -120,33 +136,28 @@ async def get_database_status() -> DatabaseStatusResponse:
 
         if _engine is None:
             return DatabaseStatusResponse(
-                status="not_initialized",
-                message="Database not initialized"
+                status="not_initialized", message="Database not initialized"
             )
 
         # Try to execute a simple query to verify connection
         from sqlalchemy import text
+
         async with _engine.begin() as conn:
             result = await conn.execute(text("SELECT 1"))
             result.scalar()
 
-        return DatabaseStatusResponse(
-            status="connected",
-            message="Database connection is active"
-        )
+        return DatabaseStatusResponse(status="connected", message="Database connection is active")
 
     except Exception as e:
         logger.error("Database status check failed: %s", e, exc_info=True)
-        return DatabaseStatusResponse(
-            status="error",
-            message="Database error occurred"
-        )
+        return DatabaseStatusResponse(status="error", message="Database error occurred")
 
 
-@router.post("/cleanup", response_model=DatabaseCleanupResponse, dependencies=[Depends(verify_admin_token)])
+@router.post(
+    "/cleanup", response_model=DatabaseCleanupResponse, dependencies=[Depends(verify_admin_token)]
+)
 async def cleanup_database(
-    days_to_keep: int = 90,
-    session: AsyncSession = Depends(get_db_session)
+    days_to_keep: int = 90, session: AsyncSession = Depends(get_db_session)
 ) -> DatabaseCleanupResponse:
     """
     Clean up old records from the database.
@@ -165,15 +176,14 @@ async def cleanup_database(
 
         # Clean up old predictions
         result = await session.execute(
-            text("DELETE FROM predictions WHERE predicted_at < :cutoff"),
-            {"cutoff": cutoff_date}
+            text("DELETE FROM predictions WHERE predicted_at < :cutoff"), {"cutoff": cutoff_date}
         )
         records_deleted += result.rowcount
 
         # Clean up old recommendations
         result = await session.execute(
             text("DELETE FROM recommendations WHERE created_at < :cutoff AND status = 'rejected'"),
-            {"cutoff": cutoff_date}
+            {"cutoff": cutoff_date},
         )
         records_deleted += result.rowcount
 
@@ -183,21 +193,20 @@ async def cleanup_database(
         return DatabaseCleanupResponse(
             success=True,
             message="Database cleanup completed successfully",
-            records_deleted=records_deleted
+            records_deleted=records_deleted,
         )
 
     except Exception as e:
         await session.rollback()
         logger.error("Database cleanup failed: %s", e, exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error"
-        ) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.post("/optimize", response_model=DatabaseOptimizeResponse, dependencies=[Depends(verify_admin_token)])
+@router.post(
+    "/optimize", response_model=DatabaseOptimizeResponse, dependencies=[Depends(verify_admin_token)]
+)
 async def optimize_database(
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
 ) -> DatabaseOptimizeResponse:
     """
     Optimize database by running ANALYZE.
@@ -215,22 +224,18 @@ async def optimize_database(
 
         logger.info("Database optimization completed")
         return DatabaseOptimizeResponse(
-            success=True,
-            message="Database optimized successfully (ANALYZE completed)"
+            success=True, message="Database optimized successfully (ANALYZE completed)"
         )
 
     except Exception as e:
         await session.rollback()
         logger.error("Database optimization failed: %s", e, exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error"
-        ) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/stats", response_model=DatabaseStatsResponse)
 async def get_database_stats(
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
 ) -> DatabaseStatsResponse:
     """
     Get database statistics including size and record counts.
@@ -273,15 +278,12 @@ async def get_database_stats(
             database_size_mb=round(db_size_mb, 2),
             table_count=len(tables),
             total_records=total_records,
-            tables=table_counts
+            tables=table_counts,
         )
 
     except Exception as e:
         logger.error("Failed to get database stats: %s", e, exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error"
-        ) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/")
@@ -294,12 +296,11 @@ async def database_management_info() -> dict[str, Any]:
             "status": "GET /api/database/status - Get database status",
             "cleanup": "POST /api/database/cleanup - Clean up old records",
             "optimize": "POST /api/database/optimize - Optimize database (VACUUM, ANALYZE)",
-            "stats": "GET /api/database/stats - Get database statistics"
+            "stats": "GET /api/database/stats - Get database statistics",
         },
         "warnings": [
             "Recreating tables will DELETE ALL existing data",
             "Only use recreate_tables during development or schema migrations",
-            "Make sure to backup data before recreating tables"
-        ]
+            "Make sure to backup data before recreating tables",
+        ],
     }
-

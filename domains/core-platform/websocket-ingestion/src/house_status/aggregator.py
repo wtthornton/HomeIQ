@@ -236,9 +236,7 @@ class HouseStatusAggregator:
         presence = [PresenceStatus(**v) for v in self._presence.values()]
 
         # Lights by area
-        lights_by_area = [
-            AreaLightStatus(**a) for a in self._aggregate_lights()
-        ]
+        lights_by_area = [AreaLightStatus(**a) for a in self._aggregate_lights()]
 
         # Sensors grouped by device_class
         sensor_groups: dict[str, list[SensorStatus]] = {}
@@ -252,9 +250,7 @@ class HouseStatusAggregator:
         switches_on = [eid for eid, st in self._switches.items() if st == "on"]
 
         # Active automations
-        active_automations = [
-            eid for eid, st in self._automations.items() if st == "on"
-        ]
+        active_automations = [eid for eid, st in self._automations.items() if st == "on"]
 
         return HouseStatusResponse(
             climate=climate,

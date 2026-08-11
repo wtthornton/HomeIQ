@@ -35,7 +35,9 @@ class TestSettings:
 
     def test_allowed_origins_from_env_string(self, monkeypatch):
         """Test parsing allowed origins from comma-separated string."""
-        monkeypatch.setenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8030,https://example.com")
+        monkeypatch.setenv(
+            "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8030,https://example.com"
+        )
         settings = Settings()
         assert len(settings.allowed_origins) == 3
         assert "http://localhost:3000" in settings.allowed_origins
@@ -44,7 +46,9 @@ class TestSettings:
 
     def test_allowed_origins_with_spaces(self, monkeypatch):
         """Test parsing allowed origins with spaces."""
-        monkeypatch.setenv("ALLOWED_ORIGINS", "http://localhost:3000, http://localhost:8030 , https://example.com")
+        monkeypatch.setenv(
+            "ALLOWED_ORIGINS", "http://localhost:3000, http://localhost:8030 , https://example.com"
+        )
         settings = Settings()
         assert len(settings.allowed_origins) == 3
         assert all(origin.strip() == origin for origin in settings.allowed_origins)
@@ -60,10 +64,10 @@ class TestSettings:
         # Ensure not in production
         monkeypatch.delenv("ENVIRONMENT", raising=False)
         monkeypatch.setenv("EXECUTOR_API_TOKEN", "local-dev-token")
-        
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            settings = Settings()
+            Settings()
             assert len(w) == 1
             assert issubclass(w[0].category, UserWarning)
             assert "default or weak API token" in str(w[0].message)
@@ -72,17 +76,17 @@ class TestSettings:
         """Test that empty API token generates warning."""
         monkeypatch.delenv("ENVIRONMENT", raising=False)
         monkeypatch.setenv("EXECUTOR_API_TOKEN", "")
-        
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            settings = Settings()
+            Settings()
             assert len(w) == 1
 
     def test_api_token_production_validation(self, monkeypatch):
         """Test that production requires secure API token."""
         monkeypatch.setenv("ENVIRONMENT", "production")
         monkeypatch.setenv("EXECUTOR_API_TOKEN", "local-dev-token")
-        
+
         with pytest.raises(ValueError, match="EXECUTOR_API_TOKEN must be set to a secure value"):
             Settings()
 
@@ -90,7 +94,7 @@ class TestSettings:
         """Test that production rejects empty token."""
         monkeypatch.setenv("ENVIRONMENT", "production")
         monkeypatch.setenv("EXECUTOR_API_TOKEN", "")
-        
+
         with pytest.raises(ValueError, match="EXECUTOR_API_TOKEN must be set to a secure value"):
             Settings()
 
@@ -98,7 +102,7 @@ class TestSettings:
         """Test that production accepts secure token."""
         monkeypatch.setenv("ENVIRONMENT", "production")
         monkeypatch.setenv("EXECUTOR_API_TOKEN", "secure-random-token-12345")
-        
+
         settings = Settings()
         assert settings.api_token == "secure-random-token-12345"
 
@@ -106,7 +110,7 @@ class TestSettings:
         """Test that production rejects test token."""
         monkeypatch.setenv("ENVIRONMENT", "production")
         monkeypatch.setenv("EXECUTOR_API_TOKEN", "test-token")
-        
+
         with pytest.raises(ValueError, match="EXECUTOR_API_TOKEN must be set to a secure value"):
             Settings()
 
@@ -176,7 +180,7 @@ class TestSettings:
         monkeypatch.setenv("MCP_WORKSPACE_DIR", "/tmp/custom")
         monkeypatch.setenv("LOG_LEVEL", "WARNING")
         monkeypatch.setenv("EXECUTOR_API_TOKEN", "test-token-123")
-        
+
         settings = Settings()
         assert settings.execution_timeout == 45
         assert settings.max_memory_mb == 512
@@ -192,4 +196,3 @@ class TestSettings:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

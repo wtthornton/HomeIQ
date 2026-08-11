@@ -16,7 +16,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 # Regex for validating SQL identifiers to prevent injection
-VALID_IDENTIFIER = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+VALID_IDENTIFIER = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 
 def _validate_identifier(name: str, label: str) -> str:
@@ -119,9 +119,7 @@ class EnergyDataLoader:
             if allow_synthetic_fallback:
                 logger.warning("INFLUXDB_TOKEN not set, using synthetic data")
                 return self._create_synthetic_data()
-            raise ValueError(
-                "INFLUXDB_TOKEN environment variable is required for InfluxDB queries"
-            )
+            raise ValueError("INFLUXDB_TOKEN environment variable is required for InfluxDB queries")
 
         # Validate SQL identifiers to prevent injection
         field = _validate_identifier(field, "field")
@@ -192,9 +190,7 @@ class EnergyDataLoader:
         # Parse timestamp
         if "timestamp" in df.columns:
             try:
-                df = df.with_columns([
-                    pl.col("timestamp").str.to_datetime().alias("timestamp")
-                ])
+                df = df.with_columns([pl.col("timestamp").str.to_datetime().alias("timestamp")])
             except Exception as e:
                 logger.warning(
                     "Could not parse timestamp column as datetime. "
@@ -204,9 +200,7 @@ class EnergyDataLoader:
 
         return df
 
-    def _create_synthetic_data(
-        self, n_days: int = 90, seed: int | None = 42
-    ) -> pl.DataFrame:
+    def _create_synthetic_data(self, n_days: int = 90, seed: int | None = 42) -> pl.DataFrame:
         """
         Create synthetic energy data for testing.
 
@@ -244,15 +238,14 @@ class EnergyDataLoader:
         daily_pattern = np.where(
             (hour_of_day >= 6) & (hour_of_day <= 22),
             300 + 200 * np.sin(np.pi * (hour_of_day - 6) / 16),
-            100
+            100,
         )
 
         # Peak hours (morning and evening)
         peak_pattern = np.where(
-            ((hour_of_day >= 7) & (hour_of_day <= 9)) |
-            ((hour_of_day >= 17) & (hour_of_day <= 21)),
+            ((hour_of_day >= 7) & (hour_of_day <= 9)) | ((hour_of_day >= 17) & (hour_of_day <= 21)),
             200,
-            0
+            0,
         )
 
         # Weekend adjustment (more usage during day)
@@ -268,10 +261,12 @@ class EnergyDataLoader:
         power = base_load + daily_pattern + peak_pattern + weekend_adj + seasonal + noise
         power = np.maximum(power, 50)  # Minimum load
 
-        df = pl.DataFrame({
-            "timestamp": timestamps,
-            "power": power,
-        })
+        df = pl.DataFrame(
+            {
+                "timestamp": timestamps,
+                "power": power,
+            }
+        )
 
         return df
 
@@ -298,9 +293,11 @@ class EnergyDataLoader:
         df = df.group_by_dynamic(
             "timestamp",
             every=freq,
-        ).agg([
-            pl.col("power").mean().alias("power"),
-        ])
+        ).agg(
+            [
+                pl.col("power").mean().alias("power"),
+            ]
+        )
 
         return df
 
@@ -318,22 +315,26 @@ class EnergyDataLoader:
         if "timestamp" not in df.columns:
             return df
 
-        df = df.with_columns([
-            pl.col("timestamp").dt.hour().alias("hour_of_day"),
-            pl.col("timestamp").dt.weekday().alias("day_of_week"),
-            pl.col("timestamp").dt.month().alias("month"),
-            (pl.col("timestamp").dt.weekday() >= 5).cast(pl.Int32).alias("is_weekend"),
-        ])
+        df = df.with_columns(
+            [
+                pl.col("timestamp").dt.hour().alias("hour_of_day"),
+                pl.col("timestamp").dt.weekday().alias("day_of_week"),
+                pl.col("timestamp").dt.month().alias("month"),
+                (pl.col("timestamp").dt.weekday() >= 5).cast(pl.Int32).alias("is_weekend"),
+            ]
+        )
 
         # Cyclical encodings
-        df = df.with_columns([
-            (np.sin(2 * np.pi * pl.col("hour_of_day") / 24)).alias("hour_sin"),
-            (np.cos(2 * np.pi * pl.col("hour_of_day") / 24)).alias("hour_cos"),
-            (np.sin(2 * np.pi * pl.col("day_of_week") / 7)).alias("dow_sin"),
-            (np.cos(2 * np.pi * pl.col("day_of_week") / 7)).alias("dow_cos"),
-            (np.sin(2 * np.pi * pl.col("month") / 12)).alias("month_sin"),
-            (np.cos(2 * np.pi * pl.col("month") / 12)).alias("month_cos"),
-        ])
+        df = df.with_columns(
+            [
+                (np.sin(2 * np.pi * pl.col("hour_of_day") / 24)).alias("hour_sin"),
+                (np.cos(2 * np.pi * pl.col("hour_of_day") / 24)).alias("hour_cos"),
+                (np.sin(2 * np.pi * pl.col("day_of_week") / 7)).alias("dow_sin"),
+                (np.cos(2 * np.pi * pl.col("day_of_week") / 7)).alias("dow_cos"),
+                (np.sin(2 * np.pi * pl.col("month") / 12)).alias("month_sin"),
+                (np.cos(2 * np.pi * pl.col("month") / 12)).alias("month_cos"),
+            ]
+        )
 
         return df
 
@@ -354,13 +355,9 @@ class EnergyDataLoader:
             raise ImportError("Please install darts: pip install darts>=0.30.0") from err
 
         if "timestamp" not in df.columns:
-            raise ValueError(
-                f"DataFrame must have a 'timestamp' column. Found: {df.columns}"
-            )
+            raise ValueError(f"DataFrame must have a 'timestamp' column. Found: {df.columns}")
         if value_col not in df.columns:
-            raise ValueError(
-                f"DataFrame must have a '{value_col}' column. Found: {df.columns}"
-            )
+            raise ValueError(f"DataFrame must have a '{value_col}' column. Found: {df.columns}")
 
         # Convert to pandas (Darts requires pandas), selecting only needed columns
         pdf = df.select(["timestamp", value_col]).to_pandas()

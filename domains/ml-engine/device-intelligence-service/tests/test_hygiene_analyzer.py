@@ -98,7 +98,9 @@ async def test_analyzer_generates_and_persists_findings(_initialized_app):
     devices = [
         _device("dev-1", "Lamp", name_by_user="Hallway Light", area_id="living_room"),
         _device("dev-2", "Lamp", name_by_user="Hallway Light", area_id="living_room"),
-        _device("dev-3", "Device 101", name_by_user=None, area_id=None, suggested_area="living_room"),
+        _device(
+            "dev-3", "Device 101", name_by_user=None, area_id=None, suggested_area="living_room"
+        ),
         _device(
             "dev-4",
             "Garage Sensor",
@@ -131,7 +133,13 @@ async def test_analyzer_generates_and_persists_findings(_initialized_app):
         stored = await session.execute(select(DeviceHygieneIssue))
         issues = stored.scalars().all()
         issue_types = {issue.issue_type for issue in issues}
-        assert {"duplicate_name", "placeholder_name", "missing_area", "pending_configuration", "disabled_entity"}.issubset(issue_types)
+        assert {
+            "duplicate_name",
+            "placeholder_name",
+            "missing_area",
+            "pending_configuration",
+            "disabled_entity",
+        }.issubset(issue_types)
         break
 
 
@@ -162,8 +170,9 @@ async def test_analyzer_marks_resolved_when_issue_disappears(_initialized_app):
         analyzer = DeviceHygieneAnalyzer(session)
         await analyzer.analyze(devices_updated, entities, [living_room])
 
-        stored = await session.execute(select(DeviceHygieneIssue).where(DeviceHygieneIssue.issue_key == "duplicate_name:dev-2"))
+        stored = await session.execute(
+            select(DeviceHygieneIssue).where(DeviceHygieneIssue.issue_key == "duplicate_name:dev-2")
+        )
         issue = stored.scalar_one()
         assert issue.status == "resolved"
         break
-

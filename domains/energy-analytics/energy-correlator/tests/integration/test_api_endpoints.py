@@ -6,32 +6,32 @@ Tests for all API endpoints including health checks, statistics, and security.
 Converted from aiohttp TestCase to FastAPI TestClient.
 """
 
-import os
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, str(Path(__file__).parent / "../.."))
 
 
 @pytest.fixture(autouse=True)
 def _set_test_env(monkeypatch):
     """Set required environment variables for all tests."""
-    monkeypatch.setenv('INFLUXDB_TOKEN', 'test-token')
-    monkeypatch.setenv('INFLUXDB_URL', 'http://test-influxdb:8086')
-    monkeypatch.setenv('INFLUXDB_ORG', 'test-org')
-    monkeypatch.setenv('INFLUXDB_BUCKET', 'test-bucket')
-    monkeypatch.setenv('PROCESSING_INTERVAL', '10')
-    monkeypatch.setenv('LOOKBACK_MINUTES', '5')
+    monkeypatch.setenv("INFLUXDB_TOKEN", "test-token")
+    monkeypatch.setenv("INFLUXDB_URL", "http://test-influxdb:8086")
+    monkeypatch.setenv("INFLUXDB_ORG", "test-org")
+    monkeypatch.setenv("INFLUXDB_BUCKET", "test-bucket")
+    monkeypatch.setenv("PROCESSING_INTERVAL", "10")
+    monkeypatch.setenv("LOOKBACK_MINUTES", "5")
 
 
 @pytest.fixture
 def client():
     """Create a FastAPI test client."""
     from src.main import app
+
     return TestClient(app)
 
 

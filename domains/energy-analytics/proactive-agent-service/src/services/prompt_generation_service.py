@@ -34,7 +34,9 @@ class PromptGenerationService:
         self.templates = self._load_templates()
         logger.info("Prompt Generation Service initialized")
 
-    def generate_prompts(self, context_analysis: dict[str, Any], max_prompts: int = 5) -> list[dict[str, Any]]:
+    def generate_prompts(
+        self, context_analysis: dict[str, Any], max_prompts: int = 5
+    ) -> list[dict[str, Any]]:
         """
         Generate context-aware prompts from analysis results.
 
@@ -68,7 +70,9 @@ class PromptGenerationService:
         prompts.extend(energy_prompts)
 
         # Generate historical pattern-based prompts
-        pattern_prompts = self._generate_pattern_prompts(context_analysis.get("historical_patterns", {}))
+        pattern_prompts = self._generate_pattern_prompts(
+            context_analysis.get("historical_patterns", {})
+        )
         prompts.extend(pattern_prompts)
 
         # Score and filter prompts
@@ -105,15 +109,17 @@ class PromptGenerationService:
                 f"Today's high is {temperature_f}F. "
                 "Want me to set up pre-cooling before you get home?"
             )
-            prompts.append({
-                "prompt": prompt,
-                "context_type": "weather",
-                "metadata": {
-                    "temperature_celsius": temperature_celsius,
-                    "temperature_fahrenheit": temperature_f,
-                    "trigger": "high_temperature",
-                },
-            })
+            prompts.append(
+                {
+                    "prompt": prompt,
+                    "context_type": "weather",
+                    "metadata": {
+                        "temperature_celsius": temperature_celsius,
+                        "temperature_fahrenheit": temperature_f,
+                        "trigger": "high_temperature",
+                    },
+                }
+            )
 
         # Low temperature prompt (50°F = 10°C, so check against ~10°C)
         elif temperature_celsius is not None and temperature_celsius < 10:
@@ -121,15 +127,17 @@ class PromptGenerationService:
                 f"It's cold out there - only {temperature_f}F. "
                 "Should I warm up the house before you arrive?"
             )
-            prompts.append({
-                "prompt": prompt,
-                "context_type": "weather",
-                "metadata": {
-                    "temperature_celsius": temperature_celsius,
-                    "temperature_fahrenheit": temperature_f,
-                    "trigger": "low_temperature",
-                },
-            })
+            prompts.append(
+                {
+                    "prompt": prompt,
+                    "context_type": "weather",
+                    "metadata": {
+                        "temperature_celsius": temperature_celsius,
+                        "temperature_fahrenheit": temperature_f,
+                        "trigger": "low_temperature",
+                    },
+                }
+            )
 
         # Rainy weather prompt
         if "rain" in condition or "rainy" in condition:
@@ -137,14 +145,16 @@ class PromptGenerationService:
                 "Rain is expected today. "
                 "Want me to close windows and adjust outdoor devices automatically?"
             )
-            prompts.append({
-                "prompt": prompt,
-                "context_type": "weather",
-                "metadata": {
-                    "condition": condition,
-                    "trigger": "rain",
-                },
-            })
+            prompts.append(
+                {
+                    "prompt": prompt,
+                    "context_type": "weather",
+                    "metadata": {
+                        "condition": condition,
+                        "trigger": "rain",
+                    },
+                }
+            )
 
         # Forecast-based prompt
         if forecast and len(forecast) > 0:
@@ -153,18 +163,19 @@ class PromptGenerationService:
             if tomorrow_temp_celsius is not None and tomorrow_temp_celsius > 32:
                 tomorrow_temp_f = celsius_to_fahrenheit(tomorrow_temp_celsius)
                 prompt = (
-                    f"Tomorrow will hit {tomorrow_temp_f}F. "
-                    "Should I schedule morning pre-cooling?"
+                    f"Tomorrow will hit {tomorrow_temp_f}F. Should I schedule morning pre-cooling?"
                 )
-                prompts.append({
-                    "prompt": prompt,
-                    "context_type": "weather",
-                    "metadata": {
-                        "temperature_celsius": tomorrow_temp_celsius,
-                        "temperature_fahrenheit": tomorrow_temp_f,
-                        "trigger": "forecast_high_temperature",
-                    },
-                })
+                prompts.append(
+                    {
+                        "prompt": prompt,
+                        "context_type": "weather",
+                        "metadata": {
+                            "temperature_celsius": tomorrow_temp_celsius,
+                            "temperature_fahrenheit": tomorrow_temp_f,
+                            "trigger": "forecast_high_temperature",
+                        },
+                    }
+                )
 
         return prompts
 
@@ -185,35 +196,35 @@ class PromptGenerationService:
             team = next_game.get("team", "Your team")
 
             prompt = (
-                f"{team} plays at {game_time}. "
-                "Want me to set game-day lighting and temperature?"
+                f"{team} plays at {game_time}. Want me to set game-day lighting and temperature?"
             )
-            prompts.append({
-                "prompt": prompt,
-                "context_type": "sports",
-                "metadata": {
-                    "game": next_game,
-                    "trigger": "upcoming_game",
-                },
-            })
+            prompts.append(
+                {
+                    "prompt": prompt,
+                    "context_type": "sports",
+                    "metadata": {
+                        "game": next_game,
+                        "trigger": "upcoming_game",
+                    },
+                }
+            )
 
         # Live game prompt
         if live_games:
             live_game = live_games[0]
             team = live_game.get("team", "Your team")
 
-            prompt = (
-                f"{team} is playing now! "
-                "Should I switch to game mode?"
+            prompt = f"{team} is playing now! Should I switch to game mode?"
+            prompts.append(
+                {
+                    "prompt": prompt,
+                    "context_type": "sports",
+                    "metadata": {
+                        "game": live_game,
+                        "trigger": "live_game",
+                    },
+                }
             )
-            prompts.append({
-                "prompt": prompt,
-                "context_type": "sports",
-                "metadata": {
-                    "game": live_game,
-                    "trigger": "live_game",
-                },
-            })
 
         return prompts
 
@@ -233,29 +244,30 @@ class PromptGenerationService:
                 "Grid energy is clean right now. "
                 "Good time to charge your EV or run heavy appliances."
             )
-            prompts.append({
-                "prompt": prompt,
-                "context_type": "energy",
-                "metadata": {
-                    "intensity": intensity_value,
-                    "trigger": "low_carbon",
-                },
-            })
+            prompts.append(
+                {
+                    "prompt": prompt,
+                    "context_type": "energy",
+                    "metadata": {
+                        "intensity": intensity_value,
+                        "trigger": "low_carbon",
+                    },
+                }
+            )
 
         # High carbon intensity prompt
         elif intensity_value and intensity_value > 400:
-            prompt = (
-                "Grid carbon is high. "
-                "Want me to delay energy-heavy tasks until it drops?"
+            prompt = "Grid carbon is high. Want me to delay energy-heavy tasks until it drops?"
+            prompts.append(
+                {
+                    "prompt": prompt,
+                    "context_type": "energy",
+                    "metadata": {
+                        "intensity": intensity_value,
+                        "trigger": "high_carbon",
+                    },
+                }
             )
-            prompts.append({
-                "prompt": prompt,
-                "context_type": "energy",
-                "metadata": {
-                    "intensity": intensity_value,
-                    "trigger": "high_carbon",
-                },
-            })
 
         return prompts
 
@@ -269,9 +281,7 @@ class PromptGenerationService:
         patterns = historical_data.get("patterns", [])
 
         # Frequent entity pattern prompt
-        frequent_pattern = next(
-            (p for p in patterns if p.get("type") == "frequent_entities"), None
-        )
+        frequent_pattern = next((p for p in patterns if p.get("type") == "frequent_entities"), None)
         if frequent_pattern:
             entities = frequent_pattern.get("entities", [])
             if entities:
@@ -283,23 +293,22 @@ class PromptGenerationService:
                 display_name = entity_id.split(".")[-1].replace("_", " ").title()
 
                 prompt = (
-                    f"You've used {display_name} {count} times this week. "
-                    "Want me to automate it?"
+                    f"You've used {display_name} {count} times this week. Want me to automate it?"
                 )
-                prompts.append({
-                    "prompt": prompt,
-                    "context_type": "historical_pattern",
-                    "metadata": {
-                        "entity_id": entity_id,
-                        "count": count,
-                        "trigger": "frequent_usage",
-                    },
-                })
+                prompts.append(
+                    {
+                        "prompt": prompt,
+                        "context_type": "historical_pattern",
+                        "metadata": {
+                            "entity_id": entity_id,
+                            "count": count,
+                            "trigger": "frequent_usage",
+                        },
+                    }
+                )
 
         # Peak hours pattern prompt
-        peak_hours_pattern = next(
-            (p for p in patterns if p.get("type") == "peak_hours"), None
-        )
+        peak_hours_pattern = next((p for p in patterns if p.get("type") == "peak_hours"), None)
         if peak_hours_pattern:
             hours = peak_hours_pattern.get("hours", [])
             if hours:
@@ -320,14 +329,16 @@ class PromptGenerationService:
                     f"Your home is busiest around {time_str}. "
                     "Should I prepare things automatically at that time?"
                 )
-                prompts.append({
-                    "prompt": prompt,
-                    "context_type": "historical_pattern",
-                    "metadata": {
-                        "hour": hour,
-                        "trigger": "peak_hours",
-                    },
-                })
+                prompts.append(
+                    {
+                        "prompt": prompt,
+                        "context_type": "historical_pattern",
+                        "metadata": {
+                            "hour": hour,
+                            "trigger": "peak_hours",
+                        },
+                    }
+                )
 
         return prompts
 
@@ -398,4 +409,3 @@ class PromptGenerationService:
                 "Home is busiest at {time}. Prepare automatically?",
             ],
         }
-

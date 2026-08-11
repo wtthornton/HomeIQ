@@ -53,24 +53,21 @@ def _get_components():
         _executor = Executor(_rest_client, _websocket_client)
 
     return {
-        'executor': _executor,
-        'rest_client': _rest_client,
-        'websocket_client': _websocket_client,
-        'spec_registry': _spec_registry,
-        'validator': _validator,
-        'kill_switch': _kill_switch,
-        'structured_logger': _structured_logger,
-        'metrics_collector': _metrics_collector,
-        'explainer': _explainer,
-        'capability_graph': _capability_graph
+        "executor": _executor,
+        "rest_client": _rest_client,
+        "websocket_client": _websocket_client,
+        "spec_registry": _spec_registry,
+        "validator": _validator,
+        "kill_switch": _kill_switch,
+        "structured_logger": _structured_logger,
+        "metrics_collector": _metrics_collector,
+        "explainer": _explainer,
+        "capability_graph": _capability_graph,
     }
 
 
 def execute_automation_sync(
-    spec_id: str,
-    trigger_data: dict | None,
-    home_id: str,
-    correlation_id: str
+    spec_id: str, trigger_data: dict | None, home_id: str, correlation_id: str
 ) -> dict[str, Any]:
     """
     Execute automation synchronously (for use in Huey tasks).
@@ -87,13 +84,13 @@ def execute_automation_sync(
         Execution result dictionary
     """
     components = _get_components()
-    spec_registry = components['spec_registry']
-    kill_switch = components['kill_switch']
-    structured_logger = components['structured_logger']
-    validator = components['validator']
-    executor = components['executor']
-    metrics_collector = components['metrics_collector']
-    explainer = components['explainer']
+    spec_registry = components["spec_registry"]
+    kill_switch = components["kill_switch"]
+    structured_logger = components["structured_logger"]
+    validator = components["validator"]
+    executor = components["executor"]
+    metrics_collector = components["metrics_collector"]
+    explainer = components["explainer"]
 
     try:
         # Get spec
@@ -103,7 +100,7 @@ def execute_automation_sync(
             return {
                 "success": False,
                 "error": f"Spec {spec_id} not found",
-                "correlation_id": correlation_id
+                "correlation_id": correlation_id,
             }
 
         # Check kill switch
@@ -113,16 +110,12 @@ def execute_automation_sync(
             return {
                 "success": False,
                 "error": f"Blocked by kill switch: {reason}",
-                "correlation_id": correlation_id
+                "correlation_id": correlation_id,
             }
 
         # Log trigger
         if trigger_data:
-            structured_logger.log_trigger(
-                trigger_data.get("type", "manual"),
-                trigger_data,
-                spec_id
-            )
+            structured_logger.log_trigger(trigger_data.get("type", "manual"), trigger_data, spec_id)
 
         # Validate (sync wrapper around async validator)
         loop = asyncio.new_event_loop()
@@ -136,19 +129,17 @@ def execute_automation_sync(
             loop.close()
 
         if not validation_result or not validation_result.get("is_valid"):
-            errors = validation_result.get("errors", []) if validation_result else ["Validation failed"]
-            structured_logger.log_validation(
-                spec_id, False, errors
+            errors = (
+                validation_result.get("errors", []) if validation_result else ["Validation failed"]
             )
+            structured_logger.log_validation(spec_id, False, errors)
             return {
                 "success": False,
                 "error": f"Validation failed: {errors}",
-                "correlation_id": correlation_id
+                "correlation_id": correlation_id,
             }
 
-        structured_logger.log_validation(
-            spec_id, True, [], validation_result["execution_plan"]
-        )
+        structured_logger.log_validation(spec_id, True, [], validation_result["execution_plan"])
 
         # Record decision factors
         explainer.record_decision_factors(
@@ -161,7 +152,7 @@ def execute_automation_sync(
                 for action in validation_result["execution_plan"]["actions"]
             },
             policy_checks={},
-            execution_plan=validation_result["execution_plan"]
+            execution_plan=validation_result["execution_plan"],
         )
 
         # Execute (sync wrapper around async executor)
@@ -170,11 +161,7 @@ def execute_automation_sync(
         execution_result = None
         try:
             execution_result = loop.run_until_complete(
-                executor.execute(
-                    validation_result["execution_plan"],
-                    spec,
-                    correlation_id
-                )
+                executor.execute(validation_result["execution_plan"], spec, correlation_id)
             )
         finally:
             loop.close()
@@ -192,26 +179,22 @@ def execute_automation_sync(
                     "unknown",  # Would extract from actions
                     True,
                     execution_result.get("execution_time", 0.0),
-                    correlation_id
+                    correlation_id,
                 )
 
             return {
                 "success": execution_result.get("success", False),
                 "correlation_id": correlation_id,
-                "execution_result": execution_result
+                "execution_result": execution_result,
             }
         else:
             # Execution failed or returned None
             return {
                 "success": False,
                 "error": "Execution returned no result",
-                "correlation_id": correlation_id
+                "correlation_id": correlation_id,
             }
 
     except Exception as e:
         logger.error(f"Error executing automation {spec_id}: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "correlation_id": correlation_id
-        }
+        return {"success": False, "error": str(e), "correlation_id": correlation_id}

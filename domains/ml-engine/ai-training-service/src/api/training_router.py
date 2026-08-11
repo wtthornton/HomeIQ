@@ -79,7 +79,7 @@ class TrainingRunResponse(BaseModel):
     """Serialized representation of a training run entry."""
 
     id: int
-    training_type: str = Field(default='soft_prompt', alias="trainingType")
+    training_type: str = Field(default="soft_prompt", alias="trainingType")
     status: str
     started_at: datetime = Field(..., alias="startedAt")
     finished_at: datetime | None = Field(None, alias="finishedAt")
@@ -98,6 +98,7 @@ class TrainingRunResponse(BaseModel):
 async def _update_training_status(run_id: int, updates: dict) -> None:
     """Update training run status."""
     from ..database import get_db
+
     async for session in get_db():
         await update_training_run(session, run_id, updates)
         break
@@ -118,10 +119,14 @@ async def _execute_training_run(
     command = [
         sys.executable,
         str(script_path),
-        "--db-path", str(db_path),
-        "--output-dir", str(base_output_dir),
-        "--run-directory", str(run_directory),
-        "--run-id", run_identifier,
+        "--db-path",
+        str(db_path),
+        "--output-dir",
+        str(base_output_dir),
+        "--run-directory",
+        str(run_directory),
+        "--run-id",
+        run_identifier,
     ]
 
     await _update_training_status(run_id, {"status": "running"})
@@ -141,9 +146,15 @@ async def _execute_training_run(
         stdout, stderr = await process.communicate()
 
         if stdout:
-            logger.debug("Training script stdout (first 1000 chars):\n%s", stdout[:1000].decode(errors="ignore"))
+            logger.debug(
+                "Training script stdout (first 1000 chars):\n%s",
+                stdout[:1000].decode(errors="ignore"),
+            )
         if stderr:
-            logger.debug("Training script stderr (first 1000 chars):\n%s", stderr[:1000].decode(errors="ignore"))
+            logger.debug(
+                "Training script stderr (first 1000 chars):\n%s",
+                stderr[:1000].decode(errors="ignore"),
+            )
 
         metadata_path = run_directory / "training_run.json"
         metadata = {}
@@ -182,12 +193,20 @@ async def _execute_training_run(
                     "2. Reduce training parameters\n\n"
                     f"Original error output:\n{error_output}"
                 )
-                logger.error("Training script was killed (OOM). Return code: %d", process.returncode)
+                logger.error(
+                    "Training script was killed (OOM). Return code: %d", process.returncode
+                )
 
-            logger.error("Training script failed with return code %d. Full output:\n%s", process.returncode, error_output)
+            logger.error(
+                "Training script failed with return code %d. Full output:\n%s",
+                process.returncode,
+                error_output,
+            )
 
             if len(error_output) > 5000:
-                updates["error_message"] = error_output[:2500] + "\n\n... [truncated] ...\n\n" + error_output[-2500:]
+                updates["error_message"] = (
+                    error_output[:2500] + "\n\n... [truncated] ...\n\n" + error_output[-2500:]
+                )
             else:
                 updates["error_message"] = error_output
 
@@ -207,17 +226,20 @@ async def _execute_training_run(
 @router.get("/runs", response_model=list[TrainingRunResponse])
 async def list_training_runs_endpoint(
     limit: int = Query(20, ge=1, le=100),
-    training_type: str | None = Query(None, description="Filter by training type: soft_prompt, gnn_synergy, or home_type_classifier"),
+    training_type: str | None = Query(
+        None,
+        description="Filter by training type: soft_prompt, gnn_synergy, or home_type_classifier",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> list[TrainingRunResponse]:
     """Return recent training runs for display."""
     # CRITICAL: Input validation for training_type
     if training_type is not None:
-        valid_types = ['soft_prompt', 'gnn_synergy', 'home_type_classifier']
+        valid_types = ["soft_prompt", "gnn_synergy", "home_type_classifier"]
         if training_type not in valid_types:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid training_type. Must be one of: {', '.join(valid_types)}"
+                detail=f"Invalid training_type. Must be one of: {', '.join(valid_types)}",
             )
 
     try:
@@ -239,33 +261,36 @@ async def list_training_runs_endpoint(
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def trigger_training_run(
-    training_type: str = Query('soft_prompt', description="Type of training to trigger: soft_prompt, gnn_synergy, or home_type_classifier"),
-    db: AsyncSession = Depends(get_db)
+    training_type: str = Query(
+        "soft_prompt",
+        description="Type of training to trigger: soft_prompt, gnn_synergy, or home_type_classifier",
+    ),
+    db: AsyncSession = Depends(get_db),
 ) -> TrainingRunResponse:
     """Start a new training job if none is currently running for the specified type."""
     async with _training_job_lock:
         # Validate training type
-        valid_types = ['soft_prompt', 'gnn_synergy', 'home_type_classifier']
+        valid_types = ["soft_prompt", "gnn_synergy", "home_type_classifier"]
         if training_type not in valid_types:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid training_type. Must be one of: {', '.join(valid_types)}"
+                detail=f"Invalid training_type. Must be one of: {', '.join(valid_types)}",
             )
 
         # Get script path based on training type
-        if training_type == 'soft_prompt':
+        if training_type == "soft_prompt":
             script_path = _resolve_path(settings.training_script_path)
             base_output_dir = _resolve_path(settings.soft_prompt_model_dir)
-        elif training_type == 'gnn_synergy':
+        elif training_type == "gnn_synergy":
             script_path = _resolve_path(settings.gnn_training_script_path)
             base_output_dir = _resolve_path(Path(settings.gnn_model_path).parent)
-        elif training_type == 'home_type_classifier':
+        elif training_type == "home_type_classifier":
             script_path = _resolve_path(settings.home_type_training_script_path)
             base_output_dir = _resolve_path(Path(settings.home_type_model_path).parent)
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported training type: {training_type}"
+                detail=f"Unsupported training type: {training_type}",
             )
 
         # Validate script exists
@@ -299,7 +324,7 @@ async def trigger_training_run(
         )
 
         # Execute training based on type
-        if training_type == 'soft_prompt':
+        if training_type == "soft_prompt":
             asyncio.create_task(
                 _execute_training_run(
                     run_record.id,
@@ -309,21 +334,33 @@ async def trigger_training_run(
                     script_path,
                 )
             )
-        elif training_type == 'gnn_synergy':
+        elif training_type == "gnn_synergy":
             # GNN training uses different execution pattern (async function, not subprocess)
             # For now, log that it needs implementation
-            logger.warning(f"GNN training execution not yet fully implemented. Run ID: {run_identifier}")
-            await update_training_run(db, run_record.id, {
-                "status": "failed",
-                "error_message": "GNN training execution not yet implemented in training service"
-            })
-        elif training_type == 'home_type_classifier':
+            logger.warning(
+                f"GNN training execution not yet fully implemented. Run ID: {run_identifier}"
+            )
+            await update_training_run(
+                db,
+                run_record.id,
+                {
+                    "status": "failed",
+                    "error_message": "GNN training execution not yet implemented in training service",
+                },
+            )
+        elif training_type == "home_type_classifier":
             # Home type classifier training uses different execution pattern
-            logger.warning(f"Home type classifier training execution not yet fully implemented. Run ID: {run_identifier}")
-            await update_training_run(db, run_record.id, {
-                "status": "failed",
-                "error_message": "Home type classifier training execution not yet implemented in training service"
-            })
+            logger.warning(
+                f"Home type classifier training execution not yet fully implemented. Run ID: {run_identifier}"
+            )
+            await update_training_run(
+                db,
+                run_record.id,
+                {
+                    "status": "failed",
+                    "error_message": "Home type classifier training execution not yet implemented in training service",
+                },
+            )
 
         return TrainingRunResponse.model_validate(run_record, from_attributes=True)
 
@@ -361,11 +398,11 @@ async def clear_old_training_runs_endpoint(
     """Delete old training runs, keeping the most recent N runs."""
     # CRITICAL: Input validation for training_type
     if training_type is not None:
-        valid_types = ['soft_prompt', 'gnn_synergy', 'home_type_classifier']
+        valid_types = ["soft_prompt", "gnn_synergy", "home_type_classifier"]
         if training_type not in valid_types:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid training_type. Must be one of: {', '.join(valid_types)}"
+                detail=f"Invalid training_type. Must be one of: {', '.join(valid_types)}",
             )
 
     try:
@@ -384,4 +421,3 @@ async def clear_old_training_runs_endpoint(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to clear old training runs",
         ) from exc
-

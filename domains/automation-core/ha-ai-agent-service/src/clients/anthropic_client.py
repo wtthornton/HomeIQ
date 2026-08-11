@@ -68,9 +68,7 @@ class AnthropicLLMClient:
         self.total_requests += 1
 
         # Build system content blocks with cache breakpoints
-        system_blocks = self._build_system_blocks(
-            system_prompt, entity_context, enable_caching
-        )
+        system_blocks = self._build_system_blocks(system_prompt, entity_context, enable_caching)
 
         # Convert messages from OpenAI format
         anthropic_messages, _ = openai_messages_to_anthropic(
@@ -161,11 +159,13 @@ class AnthropicLLMClient:
                 content_text += block.text
             elif block.type == "tool_use":
                 openai_tc = anthropic_tool_use_to_openai(block)
-                tool_calls.append(ToolCall(
-                    id=openai_tc["id"],
-                    name=openai_tc["function"]["name"],
-                    arguments=openai_tc["function"]["arguments"],
-                ))
+                tool_calls.append(
+                    ToolCall(
+                        id=openai_tc["id"],
+                        name=openai_tc["function"]["name"],
+                        arguments=openai_tc["function"]["arguments"],
+                    )
+                )
             elif block.type == "thinking":
                 thinking_text = getattr(block, "thinking", "")
 
@@ -186,7 +186,9 @@ class AnthropicLLMClient:
             cache_pct = (cached / total_input * 100) if total_input else 0
             logger.info(
                 "Prompt cache: %d/%d tokens cached (%.1f%%)",
-                cached, total_input, cache_pct,
+                cached,
+                total_input,
+                cache_pct,
             )
 
         token_usage = TokenUsage(

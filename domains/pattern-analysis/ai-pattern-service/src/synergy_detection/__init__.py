@@ -25,13 +25,12 @@ from .synergy_detector import DeviceSynergyDetector
 from .temporal_detector import TemporalSynergyDetector
 
 __all__ = [
-    'DeviceSynergyDetector',
-    'ChainDetector',
-    'SceneDetector',
-    'ContextAwareDetector',
-    'RelationshipDiscoveryEngine',
-    'DeviceCapabilityAnalyzer',
-    'SpatialIntelligenceService',
-    'TemporalSynergyDetector',
+    "DeviceSynergyDetector",
+    "ChainDetector",
+    "SceneDetector",
+    "ContextAwareDetector",
+    "RelationshipDiscoveryEngine",
+    "DeviceCapabilityAnalyzer",
+    "SpatialIntelligenceService",
+    "TemporalSynergyDetector",
 ]
-

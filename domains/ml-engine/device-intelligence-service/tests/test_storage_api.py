@@ -25,8 +25,9 @@ def mock_device():
         health_score=85,
         last_seen=datetime.now(UTC),
         created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC)
+        updated_at=datetime.now(UTC),
     )
+
 
 @pytest.fixture
 def mock_capability():
@@ -39,8 +40,9 @@ def mock_capability():
         exposed=True,
         configured=True,
         source="ha",
-        last_updated=datetime.now(UTC)
+        last_updated=datetime.now(UTC),
     )
+
 
 @pytest.fixture
 def mock_health_metric():
@@ -51,13 +53,14 @@ def mock_health_metric():
         metric_value=150.5,
         metric_unit="ms",
         metadata_json={"source": "ping"},
-        timestamp=datetime.now(UTC)
+        timestamp=datetime.now(UTC),
     )
+
 
 class TestStorageAPI:
     """Test storage API endpoints."""
 
-    @patch('src.api.storage.get_device_service')
+    @patch("src.api.storage.get_device_service")
     def test_get_devices(self, mock_get_service, client: TestClient, mock_device):
         """Test get all devices endpoint."""
         mock_service = AsyncMock()
@@ -70,7 +73,7 @@ class TestStorageAPI:
         assert len(data) == 1
         assert data[0]["id"] == "test-device-1"
 
-    @patch('src.api.storage.get_device_service')
+    @patch("src.api.storage.get_device_service")
     def test_get_device_by_id(self, mock_get_service, client: TestClient, mock_device):
         """Test get device by ID endpoint."""
         mock_service = AsyncMock()
@@ -82,7 +85,7 @@ class TestStorageAPI:
         data = response.json()
         assert data["id"] == "test-device-1"
 
-    @patch('src.api.storage.get_device_service')
+    @patch("src.api.storage.get_device_service")
     def test_get_device_by_id_not_found(self, mock_get_service, client: TestClient):
         """Test get device by ID endpoint when device not found."""
         mock_service = AsyncMock()
@@ -93,7 +96,7 @@ class TestStorageAPI:
         assert response.status_code == 404
         assert "Device not found" in response.json()["detail"]
 
-    @patch('src.api.storage.get_device_service')
+    @patch("src.api.storage.get_device_service")
     def test_get_device_capabilities(self, mock_get_service, client: TestClient, mock_capability):
         """Test get device capabilities endpoint."""
         mock_service = AsyncMock()
@@ -106,7 +109,7 @@ class TestStorageAPI:
         assert len(data) == 1
         assert data[0]["capability_name"] == "on_off"
 
-    @patch('src.api.storage.get_device_service')
+    @patch("src.api.storage.get_device_service")
     def test_get_device_health(self, mock_get_service, client: TestClient, mock_health_metric):
         """Test get device health metrics endpoint."""
         mock_service = AsyncMock()
@@ -119,7 +122,7 @@ class TestStorageAPI:
         assert len(data) == 1
         assert data[0]["metric_name"] == "response_time"
 
-    @patch('src.api.storage.get_device_service')
+    @patch("src.api.storage.get_device_service")
     def test_get_devices_by_area(self, mock_get_service, client: TestClient, mock_device):
         """Test get devices by area endpoint."""
         mock_service = AsyncMock()
@@ -132,7 +135,7 @@ class TestStorageAPI:
         assert len(data) == 1
         assert data[0]["area_id"] == "living_room"
 
-    @patch('src.api.storage.get_device_service')
+    @patch("src.api.storage.get_device_service")
     def test_get_devices_by_integration(self, mock_get_service, client: TestClient, mock_device):
         """Test get devices by integration endpoint."""
         mock_service = AsyncMock()
@@ -145,7 +148,7 @@ class TestStorageAPI:
         assert len(data) == 1
         assert data[0]["integration"] == "test_integration"
 
-    @patch('src.api.storage.get_device_service')
+    @patch("src.api.storage.get_device_service")
     def test_get_device_stats(self, mock_get_service, client: TestClient):
         """Test get device statistics endpoint."""
         mock_service = AsyncMock()
@@ -154,7 +157,7 @@ class TestStorageAPI:
             "devices_by_integration": {"test": 3, "other": 2},
             "devices_by_area": {"living_room": 2, "bedroom": 3},
             "average_health_score": 85.5,
-            "total_capabilities": 15
+            "total_capabilities": 15,
         }
         mock_get_service.return_value = mock_service
 
@@ -164,7 +167,7 @@ class TestStorageAPI:
         assert data["total_devices"] == 5
         assert data["average_health_score"] == 85.5
 
-    @patch('src.api.storage.get_device_cache')
+    @patch("src.api.storage.get_device_cache")
     def test_invalidate_device_cache(self, mock_get_cache, client: TestClient):
         """Test invalidate device cache endpoint."""
         mock_cache = AsyncMock()
@@ -174,7 +177,7 @@ class TestStorageAPI:
         assert response.status_code == 200
         assert "Cache invalidated" in response.json()["message"]
 
-    @patch('src.api.storage.get_device_cache')
+    @patch("src.api.storage.get_device_cache")
     def test_invalidate_all_caches(self, mock_get_cache, client: TestClient):
         """Test invalidate all caches endpoint."""
         mock_cache = AsyncMock()

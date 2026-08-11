@@ -87,15 +87,11 @@ class HAToolHandler:
 
         # Initialize services (create if not provided)
         if entity_resolution_service is None:
-            entity_resolution_service = EntityResolutionService(
-                data_api_client=data_api_client
-            )
+            entity_resolution_service = EntityResolutionService(data_api_client=data_api_client)
         self.entity_resolution_service = entity_resolution_service
 
         if business_rule_validator is None:
-            business_rule_validator = BusinessRuleValidator(
-                entity_resolution_service=entity_resolution_service
-            )
+            business_rule_validator = BusinessRuleValidator(entity_resolution_service=entity_resolution_service)
         self.business_rule_validator = business_rule_validator
 
         if validation_chain is None:
@@ -111,10 +107,7 @@ class HAToolHandler:
         self.validation_chain = validation_chain
 
     async def _preview_with_hybrid_flow(
-        self,
-        user_prompt: str,
-        conversation_id: str | None,
-        arguments: dict[str, Any]
+        self, user_prompt: str, conversation_id: str | None, arguments: dict[str, Any]
     ) -> dict[str, Any]:
         """
         Preview automation using Hybrid Flow (template-based).
@@ -136,9 +129,7 @@ class HAToolHandler:
         try:
             context = arguments.get("context", {})
             plan_response = await self.hybrid_flow_client.create_plan(
-                user_text=user_prompt,
-                conversation_id=conversation_id,
-                context=context
+                user_text=user_prompt, conversation_id=conversation_id, context=context
             )
 
             plan_id = plan_response["plan_id"]
@@ -163,15 +154,12 @@ class HAToolHandler:
                     "template_id": template_id,
                     "confidence": confidence,
                     "message": "I need more information to create this automation. Please answer the following questions:",
-                    "conversation_id": conversation_id
+                    "conversation_id": conversation_id,
                 }
 
             # Step 3: Validate plan
             validate_response = await self.hybrid_flow_client.validate_plan(
-                plan_id=plan_id,
-                template_id=template_id,
-                template_version=template_version,
-                parameters=parameters
+                plan_id=plan_id, template_id=template_id, template_version=template_version, parameters=parameters
             )
 
             if not validate_response["valid"]:
@@ -180,7 +168,7 @@ class HAToolHandler:
                     "validation_errors": validate_response["validation_errors"],
                     "plan_id": plan_id,
                     "message": "The automation plan has validation errors. Please review and correct them.",
-                    "conversation_id": conversation_id
+                    "conversation_id": conversation_id,
                 }
 
             resolved_context = validate_response["resolved_context"]
@@ -192,7 +180,7 @@ class HAToolHandler:
                 template_id=template_id,
                 template_version=template_version,
                 parameters=parameters,
-                resolved_context=resolved_context
+                resolved_context=resolved_context,
             )
 
             compiled_id = compile_response["compiled_id"]
@@ -201,8 +189,7 @@ class HAToolHandler:
             risk_notes = compile_response.get("risk_notes", [])
 
             logger.info(
-                f"[Preview-Hybrid] Compiled: {compiled_id}, "
-                f"plan={plan_id} (conversation_id={conversation_id or 'N/A'})"
+                f"[Preview-Hybrid] Compiled: {compiled_id}, plan={plan_id} (conversation_id={conversation_id or 'N/A'})"
             )
 
             # Step 5: Validate compiled YAML
@@ -217,7 +204,7 @@ class HAToolHandler:
                 user_prompt=user_prompt,
                 automation_yaml=yaml_content,
                 alias=automation_dict.get("alias", human_summary.split("|")[0] if human_summary else "Automation"),
-                conversation_id=conversation_id
+                conversation_id=conversation_id,
             )
 
             safety_warnings = []
@@ -239,15 +226,12 @@ class HAToolHandler:
                     "compiled_id": compiled_id,
                     "template_id": template_id,
                     "confidence": confidence,
-                    "human_summary": human_summary
-                }
+                    "human_summary": human_summary,
+                },
             )
 
         except Exception as e:
-            logger.error(
-                f"[Preview-Hybrid] Error in hybrid flow: {e}",
-                exc_info=True
-            )
+            logger.error(f"[Preview-Hybrid] Error in hybrid flow: {e}", exc_info=True)
             raise
 
     async def preview_automation_from_prompt(self, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -285,10 +269,7 @@ class HAToolHandler:
                 )
                 return await self._preview_with_hybrid_flow(user_prompt, conversation_id, arguments)
             except Exception as e:
-                logger.warning(
-                    f"[Preview-Hybrid] Hybrid flow failed, falling back to legacy: {e}",
-                    exc_info=True
-                )
+                logger.warning(f"[Preview-Hybrid] Hybrid flow failed, falling back to legacy: {e}", exc_info=True)
                 # Fall through to legacy flow
 
         # Legacy Flow: Direct YAML preview (backward compatibility)
@@ -338,8 +319,7 @@ class HAToolHandler:
                 automation_dict,
             )
             logger.debug(
-                f"[Preview] 🔍 Safety score calculated: {safety_score:.2f} "
-                f"(conversation_id={conversation_id or 'N/A'})"
+                f"[Preview] 🔍 Safety score calculated: {safety_score:.2f} (conversation_id={conversation_id or 'N/A'})"
             )
 
             # Extract device context (recommendation #5)
@@ -413,10 +393,7 @@ class HAToolHandler:
                 )
                 return await self._create_with_hybrid_flow(compiled_id, conversation_id, arguments)
             except Exception as e:
-                logger.warning(
-                    f"[Create-Hybrid] Hybrid flow failed, falling back to legacy: {e}",
-                    exc_info=True
-                )
+                logger.warning(f"[Create-Hybrid] Hybrid flow failed, falling back to legacy: {e}", exc_info=True)
                 # Fall through to legacy flow
 
         # Legacy Flow: Direct YAML deployment (backward compatibility)
@@ -438,17 +415,13 @@ class HAToolHandler:
         # Validate YAML
         validation_result = await self.validation_chain.validate(automation_yaml)
         if not validation_result.valid:
-            return self._build_validation_error_response(
-                validation_result, user_prompt, alias
-            )
+            return self._build_validation_error_response(validation_result, user_prompt, alias)
 
         # Create automation in Home Assistant
         try:
             automation_dict = yaml.safe_load(automation_yaml)
             if not isinstance(automation_dict, dict):
-                return self._build_error_response(
-                    "Automation YAML must be a dictionary", user_prompt, alias
-                )
+                return self._build_error_response("Automation YAML must be a dictionary", user_prompt, alias)
 
             # Validate required fields
             field_error = self._validate_required_fields(automation_dict, user_prompt, alias)
@@ -466,27 +439,20 @@ class HAToolHandler:
                 f"[Create] ❌ YAML parsing error for automation '{alias}' "
                 f"(conversation_id={conversation_id or 'N/A'}): {e}. "
                 f"Prompt: '{user_prompt[:100]}...'",
-                exc_info=True
+                exc_info=True,
             )
-            return self._build_error_response(
-                f"YAML parsing error: {str(e)}", user_prompt, alias
-            )
+            return self._build_error_response(f"YAML parsing error: {str(e)}", user_prompt, alias)
         except Exception as e:
             logger.error(
                 f"[Create] ❌ Error creating automation '{alias}' "
                 f"(conversation_id={conversation_id or 'N/A'}): {e}. "
                 f"Prompt: '{user_prompt[:100]}...'",
-                exc_info=True
+                exc_info=True,
             )
-            return self._build_error_response(
-                f"Unexpected error: {str(e)}", user_prompt, alias
-            )
+            return self._build_error_response(f"Unexpected error: {str(e)}", user_prompt, alias)
 
     async def _create_with_hybrid_flow(
-        self,
-        compiled_id: str,
-        conversation_id: str | None,
-        arguments: dict[str, Any]
+        self, compiled_id: str, conversation_id: str | None, arguments: dict[str, Any]
     ) -> dict[str, Any]:
         """
         Create automation using Hybrid Flow (deploy compiled artifact).
@@ -505,9 +471,7 @@ class HAToolHandler:
         try:
             # Deploy compiled artifact
             deployment_response = await self.hybrid_flow_client.deploy_compiled(
-                compiled_id=compiled_id,
-                approved_by=arguments.get("approved_by"),
-                ui_source="ha-ai-agent"
+                compiled_id=compiled_id, approved_by=arguments.get("approved_by"), ui_source="ha-ai-agent"
             )
 
             deployment_id = deployment_response["deployment_id"]
@@ -525,24 +489,18 @@ class HAToolHandler:
                 "compiled_id": compiled_id,
                 "message": f"Automation '{ha_automation_id}' created successfully using Hybrid Flow",
                 "conversation_id": conversation_id,
-                "hybrid_flow": True
+                "hybrid_flow": True,
             }
 
         except Exception as e:
-            logger.error(
-                f"[Create-Hybrid] Error deploying compiled artifact: {e}",
-                exc_info=True
-            )
+            logger.error(f"[Create-Hybrid] Error deploying compiled artifact: {e}", exc_info=True)
             raise
-
 
     def _is_group_entity(self, entity_id: str) -> bool:
         """Check if entity ID is a group entity."""
         return isinstance(entity_id, str) and entity_id.startswith("group.")
 
-    def _validate_preview_request(
-        self, request: AutomationPreviewRequest
-    ) -> dict[str, Any] | None:
+    def _validate_preview_request(self, request: AutomationPreviewRequest) -> dict[str, Any] | None:
         """
         Validate preview request parameters.
 
@@ -561,9 +519,7 @@ class HAToolHandler:
             ).to_dict()
         return None
 
-    def _parse_automation_yaml(
-        self, automation_yaml: str, _request: AutomationPreviewRequest
-    ) -> dict[str, Any]:
+    def _parse_automation_yaml(self, automation_yaml: str, _request: AutomationPreviewRequest) -> dict[str, Any]:
         """
         Parse automation YAML and validate structure.
 
@@ -582,9 +538,7 @@ class HAToolHandler:
             raise ValueError("Automation YAML must be a dictionary")
         return automation_dict
 
-    def _extract_automation_details(
-        self, automation_dict: dict[str, Any]
-    ) -> dict[str, list[str]]:
+    def _extract_automation_details(self, automation_dict: dict[str, Any]) -> dict[str, list[str]]:
         """
         Extract entities, areas, and services from automation YAML.
 
@@ -658,7 +612,7 @@ class HAToolHandler:
         # Use normalized YAML if available (recommendation #10 from HA_AGENT_API_FLOW_ANALYSIS.md)
         # Prefer fixed_yaml (normalized) over original YAML for consistent formatting
         yaml_to_use = request.automation_yaml
-        if validation_result and hasattr(validation_result, 'fixed_yaml') and validation_result.fixed_yaml:
+        if validation_result and hasattr(validation_result, "fixed_yaml") and validation_result.fixed_yaml:
             yaml_to_use = validation_result.fixed_yaml
             logger.debug(
                 f"[Preview] 🔍 Using normalized YAML from validation result "
@@ -719,7 +673,7 @@ class HAToolHandler:
             f"[Preview] ❌ YAML parsing error for automation '{request.alias}' "
             f"(conversation_id={conversation_id or 'N/A'}): {error}. "
             f"Prompt: '{request.user_prompt[:100]}...'",
-            exc_info=True
+            exc_info=True,
         )
         return AutomationPreviewResponse.error_response(
             error=f"YAML parsing error: {str(error)}",
@@ -746,7 +700,7 @@ class HAToolHandler:
             f"[{operation.capitalize()}] ❌ Unexpected error for automation '{request.alias}' "
             f"(conversation_id={conversation_id or 'N/A'}): {error}. "
             f"Prompt: '{request.user_prompt[:100]}...'",
-            exc_info=True
+            exc_info=True,
         )
         return AutomationPreviewResponse.error_response(
             error=f"Unexpected error: {str(error)}",
@@ -803,9 +757,7 @@ class HAToolHandler:
             "alias": alias,
         }
 
-    def _build_error_response(
-        self, error_message: str, user_prompt: str, alias: str
-    ) -> dict[str, Any]:
+    def _build_error_response(self, error_message: str, user_prompt: str, alias: str) -> dict[str, Any]:
         """
         Build generic error response.
 
@@ -839,18 +791,12 @@ class HAToolHandler:
             Error response dictionary if validation fails, None if valid
         """
         if "trigger" not in automation_dict:
-            return self._build_error_response(
-                "Automation must have a 'trigger' field", user_prompt, alias
-            )
+            return self._build_error_response("Automation must have a 'trigger' field", user_prompt, alias)
         if "action" not in automation_dict:
-            return self._build_error_response(
-                "Automation must have an 'action' field", user_prompt, alias
-            )
+            return self._build_error_response("Automation must have an 'action' field", user_prompt, alias)
         return None
 
-    def _prepare_automation_dict(
-        self, automation_dict: dict[str, Any], alias: str
-    ) -> dict[str, Any]:
+    def _prepare_automation_dict(self, automation_dict: dict[str, Any], alias: str) -> dict[str, Any]:
         """
         Prepare automation dictionary for Home Assistant API.
 
@@ -865,9 +811,7 @@ class HAToolHandler:
             automation_dict["alias"] = alias
         return automation_dict
 
-    def _extract_scene_create_actions(
-        self, automation_dict: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def _extract_scene_create_actions(self, automation_dict: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Extract scene.create actions from automation YAML.
 
@@ -899,11 +843,15 @@ class HAToolHandler:
                             snapshot_entities = data.get("snapshot_entities", [])
 
                             if scene_id:
-                                scenes.append({
-                                    "scene_id": scene_id,
-                                    "snapshot_entities": snapshot_entities if isinstance(snapshot_entities, list) else [],
-                                    "scene_entity_id": f"scene.{scene_id}",
-                                })
+                                scenes.append(
+                                    {
+                                        "scene_id": scene_id,
+                                        "snapshot_entities": snapshot_entities
+                                        if isinstance(snapshot_entities, list)
+                                        else [],
+                                        "scene_entity_id": f"scene.{scene_id}",
+                                    }
+                                )
 
                         # Check for nested actions (choose, repeat, etc.)
                         if "sequence" in action:
@@ -964,8 +912,7 @@ class HAToolHandler:
                     if response.status == 404:
                         not_found.append(entity_id)
                         logger.debug(
-                            f"[Create] Entity not found: {entity_id} "
-                            f"(conversation_id={conversation_id or 'N/A'})"
+                            f"[Create] Entity not found: {entity_id} (conversation_id={conversation_id or 'N/A'})"
                         )
                     elif response.status == 200:
                         state_data = await response.json()
@@ -985,9 +932,7 @@ class HAToolHandler:
                         )
                         available.append(entity_id)
             except Exception as e:
-                logger.debug(
-                    f"[Create] Error checking entity {entity_id}: {e}, assuming available"
-                )
+                logger.debug(f"[Create] Error checking entity {entity_id}: {e}, assuming available")
                 # On error, assume available (may be transient)
                 available.append(entity_id)
 
@@ -1040,9 +985,7 @@ class HAToolHandler:
             snapshot_entities = scene_def["snapshot_entities"]
 
             # Validate entity availability before scene creation
-            entity_validation = await self._validate_entity_availability(
-                snapshot_entities, conversation_id
-            )
+            entity_validation = await self._validate_entity_availability(snapshot_entities, conversation_id)
 
             # Store validation result for use after scene creation attempt
             has_unavailable_entities = not entity_validation["all_available"]
@@ -1101,13 +1044,15 @@ class HAToolHandler:
                             f"[Create] ℹ️  Scene already exists: {scene_entity_id} "
                             f"(conversation_id={conversation_id or 'N/A'})"
                         )
-                        results.append({
-                            "scene_id": scene_id,
-                            "scene_entity_id": scene_entity_id,
-                            "success": True,
-                            "message": "Scene already exists",
-                            "already_exists": True,
-                        })
+                        results.append(
+                            {
+                                "scene_id": scene_id,
+                                "scene_entity_id": scene_entity_id,
+                                "success": True,
+                                "message": "Scene already exists",
+                                "already_exists": True,
+                            }
+                        )
                     else:
                         error_text = await response.text()
                         logger.warning(
@@ -1116,24 +1061,28 @@ class HAToolHandler:
                             f"(conversation_id={conversation_id or 'N/A'}). "
                             f"Scene will be created dynamically at runtime."
                         )
-                        results.append({
-                            "scene_id": scene_id,
-                            "scene_entity_id": scene_entity_id,
-                            "success": False,
-                            "error": f"Failed to pre-create: {response.status} - {error_text}",
-                        })
+                        results.append(
+                            {
+                                "scene_id": scene_id,
+                                "scene_entity_id": scene_entity_id,
+                                "success": False,
+                                "error": f"Failed to pre-create: {response.status} - {error_text}",
+                            }
+                        )
             except Exception as e:
                 logger.warning(
                     f"[Create] ⚠️  Error pre-creating scene {scene_entity_id}: {e} "
                     f"(conversation_id={conversation_id or 'N/A'}). "
                     f"Scene will be created dynamically at runtime."
                 )
-                results.append({
-                    "scene_id": scene_id,
-                    "scene_entity_id": scene_entity_id,
-                    "success": False,
-                    "error": str(e),
-                })
+                results.append(
+                    {
+                        "scene_id": scene_id,
+                        "scene_entity_id": scene_entity_id,
+                        "success": False,
+                        "error": str(e),
+                    }
+                )
 
         return results
 
@@ -1169,9 +1118,7 @@ class HAToolHandler:
                 f"[Create] Pre-creating {len(scenes_to_precreate)} scenes before automation deployment "
                 f"(conversation_id={conversation_id or 'N/A'})"
             )
-            scene_results = await self._pre_create_scenes(
-                scenes_to_precreate, conversation_id
-            )
+            scene_results = await self._pre_create_scenes(scenes_to_precreate, conversation_id)
             logger.info(
                 f"[Create] Pre-created {sum(1 for r in scene_results if r['success'])}/{len(scene_results)} scenes"
             )
@@ -1219,7 +1166,7 @@ class HAToolHandler:
                 f"[Create] ❌ Failed to create automation '{alias}': {response.status} - {error_text} "
                 f"(conversation_id={conversation_id or 'N/A'}). "
                 f"Prompt: '{user_prompt[:100]}...'",
-                exc_info=False
+                exc_info=False,
             )
             return {
                 "success": False,
@@ -1292,29 +1239,21 @@ class HAToolHandler:
         entities.extend(self._extract_from_yaml(automation_dict, ["entity_id"]))
 
         # Extract from target.entity_id in actions
-        entities.extend(
-            self._extract_from_yaml(
-                automation_dict, ["target", "entity_id"], sections=["action"]
-            )
-        )
+        entities.extend(self._extract_from_yaml(automation_dict, ["target", "entity_id"], sections=["action"]))
 
         return list(set(entities))  # Remove duplicates
 
     def _extract_areas_from_yaml(self, automation_dict: dict[str, Any]) -> list[str]:
         """Extract area IDs from automation YAML"""
         # Extract from target.area_id in actions
-        return self._extract_from_yaml(
-            automation_dict, ["target", "area_id"], sections=["action"]
-        )
+        return self._extract_from_yaml(automation_dict, ["target", "area_id"], sections=["action"])
 
     def _extract_services_from_yaml(self, automation_dict: dict[str, Any]) -> list[str]:
         """Extract service names from automation YAML"""
         # Extract from service field in actions
         return self._extract_from_yaml(automation_dict, ["service"], sections=["action"])
 
-    async def _extract_device_context(
-        self, automation_dict: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _extract_device_context(self, automation_dict: dict[str, Any]) -> dict[str, Any]:
         """
         Extract device context from automation (recommendation #5 from HA_AGENT_API_FLOW_ANALYSIS.md).
 
@@ -1329,12 +1268,7 @@ class HAToolHandler:
         entity_ids = self._extract_entities_from_yaml(automation_dict)
 
         if not entity_ids or not self.data_api_client:
-            return {
-                "device_ids": [],
-                "device_types": [],
-                "area_ids": [],
-                "entity_ids": entity_ids
-            }
+            return {"device_ids": [], "device_types": [], "area_ids": [], "entity_ids": entity_ids}
 
         try:
             entities = await self.data_api_client.fetch_entities()
@@ -1358,7 +1292,7 @@ class HAToolHandler:
                 "device_ids": list(device_ids),
                 "device_types": list(device_types),
                 "area_ids": list(area_ids),
-                "entity_ids": entity_ids
+                "entity_ids": entity_ids,
             }
         except Exception as e:
             logger.warning(
@@ -1366,12 +1300,7 @@ class HAToolHandler:
                 f"Impact: Device validation will be skipped. Automation may proceed with limited validation. "
                 f"Consider: Manual device verification before deployment."
             )
-            return {
-                "device_ids": [],
-                "device_types": [],
-                "area_ids": [],
-                "entity_ids": entity_ids
-            }
+            return {"device_ids": [], "device_types": [], "area_ids": [], "entity_ids": entity_ids}
 
     async def _validate_devices(self, automation_dict: dict[str, Any]) -> list[str]:
         """
@@ -1432,11 +1361,7 @@ class HAToolHandler:
 
         return errors
 
-    def _validate_consistency(
-        self,
-        automation_dict: dict[str, Any],
-        device_context: dict[str, Any]
-    ) -> list[str]:
+    def _validate_consistency(self, automation_dict: dict[str, Any], device_context: dict[str, Any]) -> list[str]:
         """
         Validate consistency between automation and metadata (recommendation #6 from HA_AGENT_API_FLOW_ANALYSIS.md).
 
@@ -1538,16 +1463,15 @@ class HAToolHandler:
 
         return "Unknown action type"
 
-
     @property
     def enhancement_service(self) -> AutomationEnhancementService | None:
         """Get or create enhancement service"""
         if self._enhancement_service is None and self.openai_client:
             from ..config import Settings
+
             settings = Settings()
             self._enhancement_service = AutomationEnhancementService(
-                openai_client=self.openai_client,
-                settings=settings
+                openai_client=self.openai_client, settings=settings
             )
         return self._enhancement_service
 
@@ -1580,17 +1504,13 @@ class HAToolHandler:
         creativity_level = arguments.get("creativity_level", "balanced")  # Optional, default to balanced
 
         if not original_prompt:
-            return {
-                "success": False,
-                "error": "original_prompt is required",
-                "conversation_id": conversation_id
-            }
+            return {"success": False, "error": "original_prompt is required", "conversation_id": conversation_id}
 
         if not self.enhancement_service:
             return {
                 "success": False,
                 "error": "Enhancement service not available (OpenAI client not initialized)",
-                "conversation_id": conversation_id
+                "conversation_id": conversation_id,
             }
 
         try:
@@ -1605,10 +1525,7 @@ class HAToolHandler:
                 areas = AutomationEnhancementService.extract_areas_from_yaml(automation_yaml)
 
                 enhancements = await self.enhancement_service.generate_enhancements(
-                    automation_yaml=automation_yaml,
-                    original_prompt=original_prompt,
-                    entities=entities,
-                    areas=areas
+                    automation_yaml=automation_yaml, original_prompt=original_prompt, entities=entities, areas=areas
                 )
                 mode = "yaml"
             else:
@@ -1619,10 +1536,7 @@ class HAToolHandler:
                 # For now, we'll skip entity extraction from prompt text (could be enhanced later)
 
                 enhancements = await self.enhancement_service.generate_prompt_enhancements(
-                    original_prompt=original_prompt,
-                    creativity_level=creativity_level,
-                    entities=entities,
-                    areas=areas
+                    original_prompt=original_prompt, creativity_level=creativity_level, entities=entities, areas=areas
                 )
                 mode = "prompt"
 
@@ -1630,17 +1544,16 @@ class HAToolHandler:
                 "success": True,
                 "enhancements": [e.to_dict() for e in enhancements],
                 "conversation_id": conversation_id,
-                "mode": mode  # Indicate which mode was used
+                "mode": mode,  # Indicate which mode was used
             }
 
         except Exception as e:
             logger.error(
-                f"[Enhancement] ❌ Error generating enhancements "
-                f"(conversation_id={conversation_id or 'N/A'}): {e}",
-                exc_info=True
+                f"[Enhancement] ❌ Error generating enhancements (conversation_id={conversation_id or 'N/A'}): {e}",
+                exc_info=True,
             )
             return {
                 "success": False,
                 "error": f"Failed to generate enhancements: {str(e)}",
-                "conversation_id": conversation_id
+                "conversation_id": conversation_id,
             }

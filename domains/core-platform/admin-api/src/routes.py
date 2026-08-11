@@ -49,44 +49,56 @@ def register_routers(
     """
     secure = [Depends(auth_manager.get_current_user)]
 
-    app.include_router(
-        health_endpoints.router, prefix="/api/v1", tags=["Health"]
-    )
+    app.include_router(health_endpoints.router, prefix="/api/v1", tags=["Health"])
     app.include_router(
         stats_endpoints.router,
-        prefix="/api/v1", tags=["Statistics"], dependencies=secure,
+        prefix="/api/v1",
+        tags=["Statistics"],
+        dependencies=secure,
     )
     app.include_router(
         config_endpoints.router,
-        prefix="/api/v1", tags=["Configuration"], dependencies=secure,
+        prefix="/api/v1",
+        tags=["Configuration"],
+        dependencies=secure,
     )
-    app.include_router(
-        mqtt_config_public_router, prefix="/api/v1", tags=["Integrations"]
-    )
+    app.include_router(mqtt_config_public_router, prefix="/api/v1", tags=["Integrations"])
     app.include_router(
         mqtt_config_router,
-        prefix="/api/v1", tags=["Integrations"], dependencies=secure,
+        prefix="/api/v1",
+        tags=["Integrations"],
+        dependencies=secure,
     )
     app.include_router(
         docker_endpoints.router,
-        tags=["Docker Management"], dependencies=secure,
+        tags=["Docker Management"],
+        dependencies=secure,
     )
     app.include_router(
         monitoring_endpoints.router,
-        prefix="/api/v1/monitoring", tags=["Monitoring"], dependencies=secure,
+        prefix="/api/v1/monitoring",
+        tags=["Monitoring"],
+        dependencies=secure,
     )
     app.include_router(
-        ha_proxy_router, tags=["Home Assistant Proxy"], dependencies=secure,
+        ha_proxy_router,
+        tags=["Home Assistant Proxy"],
+        dependencies=secure,
     )
     app.include_router(
-        memory_router, tags=["Memories"], dependencies=secure,
+        memory_router,
+        tags=["Memories"],
+        dependencies=secure,
     )
     app.include_router(
-        entity_mgmt_router, tags=["Entity Management"], dependencies=secure,
+        entity_mgmt_router,
+        tags=["Entity Management"],
+        dependencies=secure,
     )
     # AlertManager webhook — no auth required (called by AlertManager container)
     app.include_router(
-        alertmanager_webhook_router, tags=["AlertManager Webhooks"],
+        alertmanager_webhook_router,
+        tags=["AlertManager Webhooks"],
     )
 
 

@@ -49,8 +49,8 @@ class TestInfluxDBSchema:
             "attributes": {
                 "device_class": "temperature",
                 "unit_of_measurement": "°C",
-                "area": "living_room"
-            }
+                "area": "living_room",
+            },
         }
 
         point = self.schema.create_event_point(event_data)
@@ -80,18 +80,15 @@ class TestInfluxDBSchema:
             "entity_id": "sensor.temperature",
             "new_state": "20.5",
             "time_fired": "2023-01-01T12:00:00Z",
-            "attributes": {
-                "device_class": "temperature",
-                "area": "living_room"
-            },
+            "attributes": {"device_class": "temperature", "area": "living_room"},
             "weather": {
                 "temperature": 15.2,
                 "humidity": 65,
                 "pressure": 1013.25,
                 "wind_speed": 3.5,
                 "weather_description": "clear sky",
-                "location": "London"
-            }
+                "location": "London",
+            },
         }
 
         point = self.schema.create_event_point(event_data)
@@ -119,7 +116,7 @@ class TestInfluxDBSchema:
         event_data = {
             "event_type": "state_changed",
             # Missing entity_id
-            "new_state": "20.5"
+            "new_state": "20.5",
         }
 
         point = self.schema.create_event_point(event_data)
@@ -134,7 +131,7 @@ class TestInfluxDBSchema:
             "wind_speed": 3.5,
             "weather_description": "clear sky",
             "weather_condition": "Clear",
-            "timestamp": "2023-01-01T12:00:00Z"
+            "timestamp": "2023-01-01T12:00:00Z",
         }
         location = "London"
 
@@ -163,16 +160,12 @@ class TestInfluxDBSchema:
     def test_create_summary_point(self):
         """Test creating summary point"""
         measurement = "event_summaries"
-        tags = {
-            "entity_id": "sensor.temperature",
-            "domain": "sensor",
-            "area": "living_room"
-        }
+        tags = {"entity_id": "sensor.temperature", "domain": "sensor", "area": "living_room"}
         fields = {
             "avg_temperature": 20.5,
             "max_temperature": 25.0,
             "min_temperature": 15.0,
-            "event_count": 100
+            "event_count": 100,
         }
         timestamp = datetime(2023, 1, 1, 12, 0, 0)
 

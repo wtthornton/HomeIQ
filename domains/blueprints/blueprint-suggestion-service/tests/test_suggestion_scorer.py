@@ -11,10 +11,10 @@ from unittest.mock import patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_blueprint(**overrides) -> dict:
     """Build a minimal blueprint dict with sensible defaults."""
@@ -46,6 +46,7 @@ def _make_device(domain: str = "light", **overrides) -> dict:
 # ---------------------------------------------------------------------------
 # Weight / config tests (no scorer instance needed)
 # ---------------------------------------------------------------------------
+
 
 class TestScorerWeights:
     """Verify weight configuration from Settings."""
@@ -106,16 +107,20 @@ class TestScorerWeights:
 # Complexity bonus (internal helper)
 # ---------------------------------------------------------------------------
 
+
 class TestComplexityBonus:
     """Test _calculate_complexity_bonus via SuggestionScorer."""
 
     @pytest.fixture(autouse=True)
     def setup_scorer(self):
         """Create scorer with DeviceMatcher disabled."""
-        with patch("src.services.suggestion_scorer.DEVICE_MATCHER_AVAILABLE", False):
-            with patch("src.services.suggestion_scorer.DeviceMatcher", None):
-                from src.services.suggestion_scorer import SuggestionScorer
-                self.scorer = SuggestionScorer(enable_wyze_scoring=False)
+        with (
+            patch("src.services.suggestion_scorer.DEVICE_MATCHER_AVAILABLE", False),
+            patch("src.services.suggestion_scorer.DeviceMatcher", None),
+        ):
+            from src.services.suggestion_scorer import SuggestionScorer
+
+            self.scorer = SuggestionScorer(enable_wyze_scoring=False)
 
     def test_simple_returns_full_bonus(self):
         assert self.scorer._calculate_complexity_bonus("simple") == 1.0
@@ -139,15 +144,19 @@ class TestComplexityBonus:
 # Fallback scoring (DeviceMatcher unavailable)
 # ---------------------------------------------------------------------------
 
+
 class TestFallbackScoring:
     """Test _calculate_fallback_score when DeviceMatcher is not available."""
 
     @pytest.fixture(autouse=True)
     def setup_scorer(self):
-        with patch("src.services.suggestion_scorer.DEVICE_MATCHER_AVAILABLE", False):
-            with patch("src.services.suggestion_scorer.DeviceMatcher", None):
-                from src.services.suggestion_scorer import SuggestionScorer
-                self.scorer = SuggestionScorer(enable_wyze_scoring=False)
+        with (
+            patch("src.services.suggestion_scorer.DEVICE_MATCHER_AVAILABLE", False),
+            patch("src.services.suggestion_scorer.DeviceMatcher", None),
+        ):
+            from src.services.suggestion_scorer import SuggestionScorer
+
+            self.scorer = SuggestionScorer(enable_wyze_scoring=False)
 
     def test_fallback_full_domain_match(self):
         """Full domain match gives 50% domain component."""
@@ -179,10 +188,12 @@ class TestFallbackScoring:
         """Higher quality_score produces higher fallback score."""
         devices = [_make_device("light")]
         score_low = self.scorer._calculate_fallback_score(
-            _make_blueprint(required_domains=[], quality_score=0.0), devices,
+            _make_blueprint(required_domains=[], quality_score=0.0),
+            devices,
         )
         score_high = self.scorer._calculate_fallback_score(
-            _make_blueprint(required_domains=[], quality_score=1.0), devices,
+            _make_blueprint(required_domains=[], quality_score=1.0),
+            devices,
         )
         assert score_high > score_low
 
@@ -190,22 +201,31 @@ class TestFallbackScoring:
         """Higher community_rating produces higher fallback score."""
         devices = [_make_device("light")]
         score_low = self.scorer._calculate_fallback_score(
-            _make_blueprint(required_domains=[], community_rating=0.0), devices,
+            _make_blueprint(required_domains=[], community_rating=0.0),
+            devices,
         )
         score_high = self.scorer._calculate_fallback_score(
-            _make_blueprint(required_domains=[], community_rating=1.0), devices,
+            _make_blueprint(required_domains=[], community_rating=1.0),
+            devices,
         )
         assert score_high > score_low
 
     def test_fallback_score_range(self):
         """Fallback score is always in [0.0, 1.0]."""
         test_cases = [
-            (_make_blueprint(required_domains=["light"], quality_score=1.0, community_rating=1.0),
-             [_make_device("light")]),
-            (_make_blueprint(required_domains=["climate"], quality_score=0.0, community_rating=0.0),
-             [_make_device("switch")]),
-            (_make_blueprint(required_domains=[]),
-             []),
+            (
+                _make_blueprint(
+                    required_domains=["light"], quality_score=1.0, community_rating=1.0
+                ),
+                [_make_device("light")],
+            ),
+            (
+                _make_blueprint(
+                    required_domains=["climate"], quality_score=0.0, community_rating=0.0
+                ),
+                [_make_device("switch")],
+            ),
+            (_make_blueprint(required_domains=[]), []),
         ]
         for bp, devs in test_cases:
             score = self.scorer._calculate_fallback_score(bp, devs)
@@ -238,6 +258,7 @@ class TestFallbackScoring:
 # Full scoring (DeviceMatcher mocked)
 # ---------------------------------------------------------------------------
 
+
 class TestFullScoring:
     """Test calculate_suggestion_score with mocked DeviceMatcher."""
 
@@ -249,6 +270,7 @@ class TestFullScoring:
             self.mock_device_matcher.calculate_fit_score.return_value = 0.8
 
             from src.services.suggestion_scorer import SuggestionScorer
+
             self.scorer = SuggestionScorer(enable_wyze_scoring=True)
             # Replace with our mock
             self.scorer.device_matcher = self.mock_device_matcher
@@ -335,23 +357,28 @@ class TestFullScoring:
         profile = {"preferred_domains": ["light"], "prefers_simple_automations": True}
         self.scorer.calculate_suggestion_score(bp, devices, user_profile=profile)
         call_kwargs = self.mock_device_matcher.calculate_fit_score.call_args
-        assert call_kwargs.kwargs.get("user_profile") is not None or \
-               (len(call_kwargs.args) > 4 and call_kwargs.args[4] is not None)
+        assert call_kwargs.kwargs.get("user_profile") is not None or (
+            len(call_kwargs.args) > 4 and call_kwargs.args[4] is not None
+        )
 
 
 # ---------------------------------------------------------------------------
 # Edge cases
 # ---------------------------------------------------------------------------
 
+
 class TestScorerEdgeCases:
     """Edge-case tests for SuggestionScorer."""
 
     @pytest.fixture(autouse=True)
     def setup_scorer(self):
-        with patch("src.services.suggestion_scorer.DEVICE_MATCHER_AVAILABLE", False):
-            with patch("src.services.suggestion_scorer.DeviceMatcher", None):
-                from src.services.suggestion_scorer import SuggestionScorer
-                self.scorer = SuggestionScorer(enable_wyze_scoring=False)
+        with (
+            patch("src.services.suggestion_scorer.DEVICE_MATCHER_AVAILABLE", False),
+            patch("src.services.suggestion_scorer.DeviceMatcher", None),
+        ):
+            from src.services.suggestion_scorer import SuggestionScorer
+
+            self.scorer = SuggestionScorer(enable_wyze_scoring=False)
 
     def test_empty_devices_list(self):
         """Empty devices list doesn't crash."""

@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-from ..clients.ha_websocket_client import HAWebSocketClient
+    from ..clients.ha_websocket_client import HAWebSocketClient
+
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +31,7 @@ class ConfirmationWatcher:
     """
 
     def __init__(
-        self,
-        websocket_client: HAWebSocketClient | None = None,
-        default_timeout: float = 10.0
+        self, websocket_client: HAWebSocketClient | None = None, default_timeout: float = 10.0
     ):
         """
         Initialize confirmation watcher.
@@ -51,7 +50,7 @@ class ConfirmationWatcher:
         entity_id: str,
         expected_state: str | None = None,
         timeout: float | None = None,
-        risk_level: str = "low"
+        risk_level: str = "low",
     ) -> tuple[bool, str | None]:
         """
         Wait for state change confirmation.
@@ -107,8 +106,7 @@ class ConfirmationWatcher:
 
         # Subscribe to state_changed events
         _sub_id = await self.websocket_client.subscribe_events(  # noqa: F841
-            event_type="state_changed",
-            handler=handler
+            event_type="state_changed", handler=handler
         )
 
         try:
@@ -126,9 +124,7 @@ class ConfirmationWatcher:
             pass
 
     async def watch_action_confirmation(
-        self,
-        action: dict[str, Any],
-        spec: dict[str, Any]
+        self, action: dict[str, Any], spec: dict[str, Any]
     ) -> tuple[bool, str | None]:
         """
         Watch for confirmation of an action.
@@ -170,7 +166,5 @@ class ConfirmationWatcher:
             expected_state = "open"
 
         return await self.wait_for_confirmation(
-            entity_id,
-            expected_state=expected_state,
-            risk_level=risk_level
+            entity_id, expected_state=expected_state, risk_level=risk_level
         )

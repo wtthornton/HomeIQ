@@ -31,11 +31,11 @@ class HAClient:
             access_token: Long-lived access token
             timeout: Request timeout in seconds
         """
-        self.ha_url = ha_url.rstrip('/')
+        self.ha_url = ha_url.rstrip("/")
         self.access_token = access_token
         self.headers = {
             "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
         self.timeout = timeout
         self._session: aiohttp.ClientSession | None = None
@@ -46,9 +46,7 @@ class HAClient:
         if self._session is None or self._session.closed:
             timeout = aiohttp.ClientTimeout(total=self.timeout)
             self._session = aiohttp.ClientSession(
-                headers=self.headers,
-                timeout=timeout,
-                raise_for_status=False
+                headers=self.headers, timeout=timeout, raise_for_status=False
             )
         return self._session
 
@@ -80,10 +78,7 @@ class HAClient:
             return None
 
     async def get_history(
-        self,
-        entity_id: str,
-        start_time: datetime,
-        end_time: datetime | None = None
+        self, entity_id: str, start_time: datetime, end_time: datetime | None = None
     ) -> list[dict[str, Any]]:
         """
         Get history for an entity.
@@ -155,4 +150,3 @@ class HAClient:
         await self._close_ws()
         if self._session and not self._session.closed:
             await self._session.close()
-

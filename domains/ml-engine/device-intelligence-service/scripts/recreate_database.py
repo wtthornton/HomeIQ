@@ -19,7 +19,7 @@ from src.core.database import initialize_database, recreate_tables
 
 logging.basicConfig(
     level=logging.INFO,
-    format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","service":"device-intelligence-recreate-db"}'
+    format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","service":"device-intelligence-recreate-db"}',
 )
 logger = logging.getLogger(__name__)
 
@@ -78,4 +78,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

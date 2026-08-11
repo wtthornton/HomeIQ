@@ -30,11 +30,16 @@ logger = setup_logging("device-health-monitor", group_name="device-management")
 
 class AnalyzeRequest(BaseModel):
     """Request body for device health analysis"""
+
     device_id: str = Field(description="Device identifier")
     device_name: str = Field(description="Device display name")
     entity_ids: list[str] = Field(description="List of HA entity IDs for this device")
-    power_spec_w: float | None = Field(default=None, description="Expected power consumption in watts")
-    actual_power_w: float | None = Field(default=None, description="Actual power consumption in watts")
+    power_spec_w: float | None = Field(
+        default=None, description="Expected power consumption in watts"
+    )
+    actual_power_w: float | None = Field(
+        default=None, description="Actual power consumption in watts"
+    )
 
 
 # --- Shared state ---
@@ -49,20 +54,30 @@ _group_health: GroupHealthCheck | None = None
 
 # --- Lifespan ---
 
+
 async def _startup() -> None:
-    global _data_api_client, _device_intel_client, _ha_client, _analyzer, _ha_configured, _group_health
+    global \
+        _data_api_client, \
+        _device_intel_client, \
+        _ha_client, \
+        _analyzer, \
+        _ha_configured, \
+        _group_health
 
     # Probe cross-group dependencies (non-fatal)
     await wait_for_dependency(url="http://data-api:8006", name="data-api", max_retries=10)
     await wait_for_dependency(
-        url="http://device-intelligence-service:8019", name="device-intelligence",
+        url="http://device-intelligence-service:8019",
+        name="device-intelligence",
         max_retries=10,
     )
 
     # Initialize group health check
     _group_health = GroupHealthCheck(group_name="device-management", version="1.0.0")
     _group_health.register_dependency("data-api", "http://data-api:8006")
-    _group_health.register_dependency("device-intelligence", "http://device-intelligence-service:8019")
+    _group_health.register_dependency(
+        "device-intelligence", "http://device-intelligence-service:8019"
+    )
 
     # Cross-group clients
     _data_api_client = DataAPIClient()
@@ -94,6 +109,7 @@ lifespan.on_shutdown(_shutdown, name="close-ha-client")
 
 # --- Health check ---
 
+
 async def _check_service() -> bool:
     """Service is always running — baseline check ensures degraded (not unhealthy) when HA is absent."""
     return True
@@ -121,13 +137,13 @@ app = create_app(
 
 # --- Endpoints ---
 
+
 @app.post("/api/v1/health/analyze")
 async def analyze_device_health(request: AnalyzeRequest) -> dict:
     """Analyze health for a specific device"""
     if not _ha_configured or _analyzer is None:
         raise HTTPException(
-            status_code=503,
-            detail="Home Assistant not configured - cannot analyze device health"
+            status_code=503, detail="Home Assistant not configured - cannot analyze device health"
         )
 
     try:
@@ -136,7 +152,7 @@ async def analyze_device_health(request: AnalyzeRequest) -> dict:
             device_name=request.device_name,
             device_entities=request.entity_ids,
             power_spec_w=request.power_spec_w,
-            actual_power_w=request.actual_power_w
+            actual_power_w=request.actual_power_w,
         )
         return report
     except Exception as e:
@@ -151,7 +167,7 @@ async def health_summary() -> dict:
         "status": "healthy" if _ha_configured else "degraded",
         "service": "device-health-monitor",
         "ha_configured": _ha_configured,
-        "timestamp": datetime.now(UTC).isoformat()
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -162,5 +178,5 @@ if __name__ == "__main__":
         host="0.0.0.0",  # noqa: S104
         port=port,
         reload=os.getenv("RELOAD", "false").lower() == "true",
-        log_level=os.getenv("LOG_LEVEL", "info").lower()
+        log_level=os.getenv("LOG_LEVEL", "info").lower(),
     )

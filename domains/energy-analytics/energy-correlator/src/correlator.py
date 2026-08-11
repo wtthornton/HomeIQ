@@ -27,7 +27,7 @@ def sanitize_flux_value(value: str) -> str:
     Returns:
         Sanitized string safe for Flux query interpolation
     """
-    return value.replace('"', '').replace('\\', '').replace('\n', '').replace('\r', '')
+    return value.replace('"', "").replace("\\", "").replace("\n", "").replace("\r", "")
 
 
 class PowerCache(TypedDict):
@@ -43,6 +43,7 @@ class DeferredEvent:
 
     More memory-efficient than dictionaries for retry queue storage.
     """
+
     time: datetime
     entity_id: str
     domain: str
@@ -52,22 +53,22 @@ class DeferredEvent:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for compatibility"""
         return {
-            'time': self.time,
-            'entity_id': self.entity_id,
-            'domain': self.domain,
-            'state': self.state,
-            'previous_state': self.previous_state
+            "time": self.time,
+            "entity_id": self.entity_id,
+            "domain": self.domain,
+            "state": self.state,
+            "previous_state": self.previous_state,
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'DeferredEvent':
+    def from_dict(cls, data: dict[str, Any]) -> "DeferredEvent":
         """Create from dictionary"""
         return cls(
-            time=data['time'],
-            entity_id=data.get('entity_id', ''),
-            domain=data.get('domain', ''),
-            state=data.get('state', ''),
-            previous_state=data.get('previous_state', '')
+            time=data["time"],
+            entity_id=data.get("entity_id", ""),
+            domain=data.get("domain", ""),
+            state=data.get("state", ""),
+            previous_state=data.get("previous_state", ""),
         )
 
 
@@ -104,8 +105,7 @@ class EnergyEventCorrelator:
         self.min_power_delta = float(min_power_delta)  # Minimum change to correlate
         self.max_events_per_interval = max(1, int(max_events_per_interval))
         self.power_lookup_padding_seconds = max(
-            self.correlation_window_seconds,
-            int(power_lookup_padding_seconds)
+            self.correlation_window_seconds, int(power_lookup_padding_seconds)
         )
         self.max_retry_queue_size = max(0, int(max_retry_queue_size))
         self.retry_window_minutes = max(1, int(retry_window_minutes))
@@ -125,10 +125,7 @@ class EnergyEventCorrelator:
         """Initialize InfluxDB connection"""
         try:
             self.client = InfluxDBWrapper(
-                self.influxdb_url,
-                self.influxdb_token,
-                self.influxdb_org,
-                self.influxdb_bucket
+                self.influxdb_url, self.influxdb_token, self.influxdb_org, self.influxdb_bucket
             )
 
             self.client.connect()
@@ -186,10 +183,7 @@ class EnergyEventCorrelator:
             # Process each event
             for event in events:
                 point = await self._correlate_event_with_power(
-                    event,
-                    retry_queue=deferred_events,
-                    write_result=False,
-                    allow_fallback=False
+                    event, retry_queue=deferred_events, write_result=False, allow_fallback=False
                 )
 
                 if point:
@@ -199,10 +193,7 @@ class EnergyEventCorrelator:
                 await self._write_correlation_points(batch_points)
 
             # Track deferred events for retry (if any)
-            self._pending_events = self._trim_pending_events(
-                deferred_events,
-                lookback_minutes
-            )
+            self._pending_events = self._trim_pending_events(deferred_events, lookback_minutes)
 
             if self._pending_events:
                 logger.debug(f"Deferred {len(self._pending_events)} events for retry")
@@ -239,8 +230,8 @@ class EnergyEventCorrelator:
 
         # Flux query for InfluxDB 2.x with batching limits
         safe_bucket = sanitize_flux_value(self.influxdb_bucket)
-        start_iso = start_time.isoformat().replace('+00:00', 'Z')
-        stop_iso = now.isoformat().replace('+00:00', 'Z')
+        start_iso = start_time.isoformat().replace("+00:00", "Z")
+        stop_iso = now.isoformat().replace("+00:00", "Z")
         flux_query = f'''
         from(bucket: "{safe_bucket}")
           |> range(start: time(v: "{start_iso}"), stop: time(v: "{stop_iso}"))
@@ -265,17 +256,19 @@ class EnergyEventCorrelator:
             # Convert to event format
             events = []
             for record in results:
-                event_time = record.get('time')
+                event_time = record.get("time")
                 if not isinstance(event_time, datetime):
                     continue
 
-                events.append({
-                    'time': event_time,
-                    'entity_id': record.get('entity_id', ''),
-                    'domain': record.get('domain', ''),
-                    'state': record.get('_value', ''),
-                    'previous_state': record.get('previous_state', '')
-                })
+                events.append(
+                    {
+                        "time": event_time,
+                        "entity_id": record.get("entity_id", ""),
+                        "domain": record.get("domain", ""),
+                        "state": record.get("_value", ""),
+                        "previous_state": record.get("previous_state", ""),
+                    }
+                )
 
             return events
 
@@ -289,7 +282,7 @@ class EnergyEventCorrelator:
         *,
         retry_queue: list[DeferredEvent] | None = None,
         write_result: bool = True,
-        allow_fallback: bool = True
+        allow_fallback: bool = True,
     ):
         """
         Correlate a single event with power changes
@@ -304,11 +297,11 @@ class EnergyEventCorrelator:
         """
         self.total_events_processed += 1
 
-        event_time = event.get('time')
-        entity_id = event.get('entity_id')
-        domain = event.get('domain')
-        state = event.get('state')
-        previous_state = event.get('previous_state')
+        event_time = event.get("time")
+        entity_id = event.get("entity_id")
+        domain = event.get("domain")
+        state = event.get("state")
+        previous_state = event.get("previous_state")
 
         # Get power before event (within correlation window)
         time_before = event_time - timedelta(seconds=self.correlation_window_seconds / 2)
@@ -324,10 +317,10 @@ class EnergyEventCorrelator:
                 # Epic 48 Story 48.5: Use DeferredEvent dataclass
                 deferred = DeferredEvent(
                     time=event_time,
-                    entity_id=entity_id or '',
-                    domain=domain or '',
-                    state=state or '',
-                    previous_state=previous_state or ''
+                    entity_id=entity_id or "",
+                    domain=domain or "",
+                    state=state or "",
+                    previous_state=previous_state or "",
                 )
                 retry_queue.append(deferred)
             elif retry_queue is not None:
@@ -408,8 +401,8 @@ class EnergyEventCorrelator:
 
         # Flux query for smart_meter measurement
         safe_bucket = sanitize_flux_value(self.influxdb_bucket)
-        start_iso = start_time.isoformat().replace('+00:00', 'Z')
-        end_iso = end_time.isoformat().replace('+00:00', 'Z')
+        start_iso = start_time.isoformat().replace("+00:00", "Z")
+        end_iso = end_time.isoformat().replace("+00:00", "Z")
         flux_query = f'''
         from(bucket: "{safe_bucket}")
           |> range(start: time(v: "{start_iso}"), stop: time(v: "{end_iso}"))
@@ -423,7 +416,7 @@ class EnergyEventCorrelator:
             results = await self.client.query(flux_query)
 
             if results:
-                power = results[0].get('_value')
+                power = results[0].get("_value")
                 if power is not None:
                     return float(power)
 
@@ -442,15 +435,18 @@ class EnergyEventCorrelator:
             return None
         try:
             import aiohttp
+
             # Request 1h history; find reading closest to event_time
             url = f"{self.data_api_url}/api/v1/activity/history"
             params = {"hours": 1, "limit": 50}
             timeout = aiohttp.ClientTimeout(total=5)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url, params=params) as resp:
-                    if resp.status != 200:
-                        return None
-                    items = await resp.json()
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.get(url, params=params) as resp,
+            ):
+                if resp.status != 200:
+                    return None
+                items = await resp.json()
             if not isinstance(items, list) or not items:
                 return None
             event_ts = event_time.timestamp()
@@ -497,21 +493,22 @@ class EnergyEventCorrelator:
             return None
 
         power_delta_pct = (
-            (power_delta / power_before * 100)
-            if power_before and power_before > 0 else 0.0
+            (power_delta / power_before * 100) if power_before and power_before > 0 else 0.0
         )
 
-        point = Point("event_energy_correlation") \
-            .tag("entity_id", entity_id) \
-            .tag("domain", domain) \
-            .tag("state", state) \
-            .tag("previous_state", previous_state) \
-            .field("power_before_w", float(power_before)) \
-            .field("power_after_w", float(power_after)) \
-            .field("power_delta_w", float(power_delta)) \
-            .field("power_delta_pct", float(power_delta_pct)) \
-            .field("activity_available", activity_available) \
+        point = (
+            Point("event_energy_correlation")
+            .tag("entity_id", entity_id)
+            .tag("domain", domain)
+            .tag("state", state)
+            .tag("previous_state", previous_state)
+            .field("power_before_w", float(power_before))
+            .field("power_after_w", float(power_after))
+            .field("power_delta_w", float(power_delta))
+            .field("power_delta_pct", float(power_delta_pct))
+            .field("activity_available", activity_available)
             .time(event_time)
+        )
         if activity_at_event:
             point = point.tag("activity_at_event", activity_at_event)
 
@@ -537,9 +534,7 @@ class EnergyEventCorrelator:
             raise
 
     def _merge_pending_events(
-        self,
-        new_events: list[dict[str, Any]],
-        lookback_minutes: int
+        self, new_events: list[dict[str, Any]], lookback_minutes: int
     ) -> list[dict[str, Any]]:
         """
         Combine new events with pending retries, enforcing limits
@@ -555,7 +550,8 @@ class EnergyEventCorrelator:
 
         # Filter pending events (now DeferredEvent instances)
         filtered_pending = [
-            evt for evt in self._pending_events
+            evt
+            for evt in self._pending_events
             if isinstance(evt, DeferredEvent) and evt.time >= cutoff
         ]
 
@@ -568,37 +564,35 @@ class EnergyEventCorrelator:
 
         dedup: dict[tuple, dict[str, Any]] = {}
         for event in combined:
-            event_time = event.get('time')
+            event_time = event.get("time")
             if not isinstance(event_time, datetime):
                 continue
-            key = (event.get('entity_id'), event_time)
+            key = (event.get("entity_id"), event_time)
             dedup[key] = event
 
         merged_events = list(dedup.values())
         if not merged_events:
             return []
 
-        merged_events.sort(key=lambda e: e.get('time'), reverse=True)
+        merged_events.sort(key=lambda e: e.get("time"), reverse=True)
         dropped = 0
         if len(merged_events) > self.max_events_per_interval:
             dropped = len(merged_events) - self.max_events_per_interval
-            merged_events = merged_events[:self.max_events_per_interval]
+            merged_events = merged_events[: self.max_events_per_interval]
 
-        merged_events.sort(key=lambda e: e.get('time'))
+        merged_events.sort(key=lambda e: e.get("time"))
 
         if dropped:
             logger.warning(
                 "Dropped %s events due to max_events_per_interval=%s",
                 dropped,
-                self.max_events_per_interval
+                self.max_events_per_interval,
             )
 
         return merged_events
 
     def _trim_pending_events(
-        self,
-        events: list[DeferredEvent],
-        lookback_minutes: int
+        self, events: list[DeferredEvent], lookback_minutes: int
     ) -> list[DeferredEvent]:
         """
         Enforce retry queue retention and size
@@ -614,8 +608,7 @@ class EnergyEventCorrelator:
 
         # Filter events by cutoff time
         filtered = [
-            event for event in events
-            if isinstance(event, DeferredEvent) and event.time >= cutoff
+            event for event in events if isinstance(event, DeferredEvent) and event.time >= cutoff
         ]
 
         if not filtered:
@@ -625,7 +618,9 @@ class EnergyEventCorrelator:
 
         # Epic 48 Story 48.5: Queue capacity monitoring
         queue_size = len(filtered)
-        capacity_pct = (queue_size / self.max_retry_queue_size * 100) if self.max_retry_queue_size > 0 else 0
+        capacity_pct = (
+            (queue_size / self.max_retry_queue_size * 100) if self.max_retry_queue_size > 0 else 0
+        )
 
         if capacity_pct >= 80:
             logger.warning(
@@ -634,13 +629,15 @@ class EnergyEventCorrelator:
             )
 
         if len(filtered) > self.max_retry_queue_size:
-            filtered = filtered[-self.max_retry_queue_size:]
+            filtered = filtered[-self.max_retry_queue_size :]
 
         return filtered
 
     async def _build_power_cache(self, events: list[dict[str, Any]]) -> PowerCache:
         """Fetch power samples covering the entire batch window"""
-        timestamps = [event.get('time') for event in events if isinstance(event.get('time'), datetime)]
+        timestamps = [
+            event.get("time") for event in events if isinstance(event.get("time"), datetime)
+        ]
         if not timestamps:
             return {"timestamps": [], "values": []}
 
@@ -654,8 +651,8 @@ class EnergyEventCorrelator:
         if end_time.tzinfo is None:
             end_time = end_time.replace(tzinfo=UTC)
 
-        start_iso = start_time.isoformat().replace('+00:00', 'Z')
-        end_iso = end_time.isoformat().replace('+00:00', 'Z')
+        start_iso = start_time.isoformat().replace("+00:00", "Z")
+        end_iso = end_time.isoformat().replace("+00:00", "Z")
 
         safe_bucket = sanitize_flux_value(self.influxdb_bucket)
         flux_query = f'''
@@ -668,14 +665,11 @@ class EnergyEventCorrelator:
 
         results = await self.client.query(flux_query)
 
-        cache = {
-            "timestamps": [],
-            "values": []
-        }
+        cache = {"timestamps": [], "values": []}
 
         for record in results:
-            record_time = record.get('time')
-            value = record.get('_value')
+            record_time = record.get("time")
+            value = record.get("_value")
             if not isinstance(record_time, datetime) or value is None:
                 continue
 
@@ -686,16 +680,12 @@ class EnergyEventCorrelator:
             "Loaded %s smart_meter points for power cache window %s - %s",
             len(cache["timestamps"]),
             start_time.isoformat(),
-            end_time.isoformat()
+            end_time.isoformat(),
         )
 
         return cache
 
-    def _lookup_power_in_cache(
-        self,
-        target_time: datetime,
-        cache: PowerCache
-    ) -> float | None:
+    def _lookup_power_in_cache(self, target_time: datetime, cache: PowerCache) -> float | None:
         """Find the nearest cached power reading to the requested time"""
         timestamps = cache.get("timestamps") or []
         values = cache.get("values") or []
@@ -714,10 +704,7 @@ class EnergyEventCorrelator:
         if not candidate_indices:
             return None
 
-        best_idx = min(
-            candidate_indices,
-            key=lambda i: abs(timestamps[i] - target_ts)
-        )
+        best_idx = min(candidate_indices, key=lambda i: abs(timestamps[i] - target_ts))
 
         if abs(timestamps[best_idx] - target_ts) > self.power_lookup_padding_seconds:
             return None
@@ -729,19 +716,20 @@ class EnergyEventCorrelator:
 
         correlation_rate = (
             (self.correlations_found / self.total_events_processed * 100)
-            if self.total_events_processed > 0 else 0
+            if self.total_events_processed > 0
+            else 0
         )
 
         write_success_rate = (
             (self.correlations_written / self.correlations_found * 100)
-            if self.correlations_found > 0 else 100
+            if self.correlations_found > 0
+            else 100
         )
 
         # Epic 48 Story 48.5: Add queue size to statistics
         queue_size = len(self._pending_events)
         queue_capacity_pct = (
-            (queue_size / self.max_retry_queue_size * 100)
-            if self.max_retry_queue_size > 0 else 0
+            (queue_size / self.max_retry_queue_size * 100) if self.max_retry_queue_size > 0 else 0
         )
 
         return {
@@ -758,8 +746,8 @@ class EnergyEventCorrelator:
                 "min_power_delta_w": self.min_power_delta,
                 "max_events_per_interval": self.max_events_per_interval,
                 "power_lookup_padding_seconds": self.power_lookup_padding_seconds,
-                "max_retry_queue_size": self.max_retry_queue_size
-            }
+                "max_retry_queue_size": self.max_retry_queue_size,
+            },
         }
 
     def reset_statistics(self):
@@ -769,4 +757,3 @@ class EnergyEventCorrelator:
         self.correlations_written = 0
         self.errors = 0
         logger.info("Statistics reset")
-

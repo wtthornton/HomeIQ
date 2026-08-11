@@ -6,6 +6,7 @@ Migrated from aiohttp to FastAPI with shared library pattern.
 """
 
 import asyncio
+import contextlib
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlparse
@@ -81,12 +82,8 @@ class CarbonIntensityService:
         placeholder_usernames = {"your_watttime_username", "your-username", ""}
         placeholder_passwords = {"your_watttime_password", "your-password", ""}
 
-        is_placeholder_username = (
-            self.username and self.username.lower() in placeholder_usernames
-        )
-        is_placeholder_password = (
-            self.password and self.password.lower() in placeholder_passwords
-        )
+        is_placeholder_username = self.username and self.username.lower() in placeholder_usernames
+        is_placeholder_password = self.password and self.password.lower() in placeholder_passwords
 
         if (
             not self.username
@@ -111,9 +108,7 @@ class CarbonIntensityService:
                 self.credentials_configured = False
                 self.health_handler.credentials_missing = True
             else:
-                logger.warning(
-                    "Using static WATTTIME_API_TOKEN - token will expire in 30 minutes"
-                )
+                logger.warning("Using static WATTTIME_API_TOKEN - token will expire in 30 minutes")
                 self.credentials_configured = True
                 self.health_handler.credentials_missing = False
         else:
@@ -160,9 +155,7 @@ class CarbonIntensityService:
             )
             logger.info("InfluxDB connection validated successfully")
         except Exception as e:
-            logger.warning(
-                "InfluxDB startup validation failed (will retry on writes): %s", e
-            )
+            logger.warning("InfluxDB startup validation failed (will retry on writes): %s", e)
 
         # Start background collection
         self._background_task = asyncio.create_task(self.run_continuous())
@@ -175,10 +168,8 @@ class CarbonIntensityService:
 
         if self._background_task and not self._background_task.done():
             self._background_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._background_task
-            except asyncio.CancelledError:
-                pass
 
         if self.session:
             await self.session.close()
@@ -328,9 +319,7 @@ class CarbonIntensityService:
         if len(entries) > 288:
             data["forecast_24h"] = float(entries[288]["value"]) * 0.4536
         else:
-            data["forecast_24h"] = (
-                float(entries[-1]["value"]) * 0.4536 if entries else 0.0
-            )
+            data["forecast_24h"] = float(entries[-1]["value"]) * 0.4536 if entries else 0.0
 
         return data
 
@@ -341,9 +330,7 @@ class CarbonIntensityService:
         self.health_handler.last_successful_fetch = datetime.now(UTC)
         self.health_handler.total_fetches += 1
 
-    async def _handle_auth_retry(
-        self, url: str, params: dict[str, str]
-    ) -> dict[str, Any] | None:
+    async def _handle_auth_retry(self, url: str, params: dict[str, str]) -> dict[str, Any] | None:
         """Handle 401 response by refreshing token and retrying once."""
         if not self.session:
             return None
@@ -356,9 +343,7 @@ class CarbonIntensityService:
                     raw_data = await retry_response.json()
                     data = self._parse_watttime_response(raw_data)
                     self._update_cache_and_health(data)
-                    logger.info(
-                        "Carbon intensity (retry): %.1f gCO2/kWh", data["carbon_intensity"]
-                    )
+                    logger.info("Carbon intensity (retry): %.1f gCO2/kWh", data["carbon_intensity"])
                     return data
         return None
 
@@ -439,7 +424,7 @@ class CarbonIntensityService:
             log_with_context(
                 logger,
                 "INFO",
-                "Fetching carbon intensity for region %s" % self.region,
+                f"Fetching carbon intensity for region {self.region}",
                 service="carbon-intensity-service",
                 region=self.region,
             )
@@ -522,9 +507,7 @@ class CarbonIntensityService:
                 return None
 
             if response.status in (429, 500, 502, 503):
-                return await self._handle_transient_retry(
-                    url, headers, params, response.status
-                )
+                return await self._handle_transient_retry(url, headers, params, response.status)
 
             log_error_with_context(
                 logger,

@@ -45,7 +45,9 @@ def show() -> None:
         )
 
         if time_range == "Custom":
-            start_time = st.datetime_input("Start Time", value=datetime.now(UTC) - timedelta(hours=1))
+            start_time = st.datetime_input(
+                "Start Time", value=datetime.now(UTC) - timedelta(hours=1)
+            )
             end_time = st.datetime_input("End Time", value=datetime.now(UTC))
         else:
             end_time = datetime.now(UTC)
@@ -64,7 +66,9 @@ def show() -> None:
         except Exception as e:
             st.error(f"Failed to load services: {e}")
             service_names = []
-        selected_services = st.multiselect("Services", service_names, default=service_names[:10] if service_names else [])
+        selected_services = st.multiselect(
+            "Services", service_names, default=service_names[:10] if service_names else []
+        )
 
     # Query performance data
     if st.button("Load Performance Data", type="primary"):
@@ -153,7 +157,9 @@ def show() -> None:
             st.error(f"Failed to load dependencies: {e}")
             deps = []
         if deps:
-            deps_df = pd.DataFrame([{"Parent": d.parent, "Child": d.child, "Call Count": d.callCount} for d in deps])
+            deps_df = pd.DataFrame(
+                [{"Parent": d.parent, "Child": d.child, "Call Count": d.callCount} for d in deps]
+            )
             st.dataframe(deps_df, use_container_width=True)
     else:
         st.info("👆 Click 'Load Performance Data' to analyze service performance")
@@ -215,16 +221,24 @@ def _calculate_service_metrics(traces: list[Trace]) -> dict[str, dict]:
         durations = sorted(metrics["durations"])
         if durations:
             metrics["p50"] = durations[int(len(durations) * 0.50)]
-            metrics["p95"] = durations[int(len(durations) * 0.95)] if len(durations) > 1 else durations[0]
-            metrics["p99"] = durations[int(len(durations) * 0.99)] if len(durations) > 1 else durations[0]
+            metrics["p95"] = (
+                durations[int(len(durations) * 0.95)] if len(durations) > 1 else durations[0]
+            )
+            metrics["p99"] = (
+                durations[int(len(durations) * 0.99)] if len(durations) > 1 else durations[0]
+            )
             metrics["avg"] = sum(durations) / len(durations)
             metrics["min"] = min(durations)
             metrics["max"] = max(durations)
         else:
-            metrics["p50"] = metrics["p95"] = metrics["p99"] = metrics["avg"] = metrics["min"] = metrics["max"] = 0
+            metrics["p50"] = metrics["p95"] = metrics["p99"] = metrics["avg"] = metrics[
+                "min"
+            ] = metrics["max"] = 0
 
         metrics["error_rate"] = (
-            (metrics["error_count"] / metrics["total_count"] * 100) if metrics["total_count"] > 0 else 0
+            (metrics["error_count"] / metrics["total_count"] * 100)
+            if metrics["total_count"] > 0
+            else 0
         )
 
     return service_metrics

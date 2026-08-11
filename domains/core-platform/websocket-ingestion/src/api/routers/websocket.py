@@ -38,7 +38,9 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
     log_with_context(
-        logger, "INFO", "WebSocket client connected",
+        logger,
+        "INFO",
+        "WebSocket client connected",
         operation="websocket_connection",
         correlation_id=corr_id,
         client_ip=websocket.client.host if websocket.client else "unknown",
@@ -53,12 +55,14 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         # Send initial connection message
-        await websocket.send_json({
-            "type": "connection",
-            "status": "connected",
-            "message": "Connected to HA Ingestor WebSocket",
-            "correlation_id": corr_id
-        })
+        await websocket.send_json(
+            {
+                "type": "connection",
+                "status": "connected",
+                "message": "Connected to HA Ingestor WebSocket",
+                "correlation_id": corr_id,
+            }
+        )
 
         # Keep connection alive and handle messages
         while True:
@@ -69,34 +73,34 @@ async def websocket_endpoint(websocket: WebSocket):
             size_valid, size_error = validate_message_size(data)
             if not size_valid:
                 log_error_with_context(
-                    logger, "WebSocket message size validation failed", None,
+                    logger,
+                    "WebSocket message size validation failed",
+                    None,
                     operation="websocket_message_validation",
                     correlation_id=corr_id,
                     error=size_error,
-                    message_size=len(data.encode('utf-8'))
+                    message_size=len(data.encode("utf-8")),
                 )
-                await websocket.send_json({
-                    "type": "error",
-                    "message": size_error,
-                    "correlation_id": corr_id
-                })
+                await websocket.send_json(
+                    {"type": "error", "message": size_error, "correlation_id": corr_id}
+                )
                 continue
 
             # Epic 50 Story 50.2: Check rate limit
             rate_allowed, rate_error = rate_limiter.check_rate_limit(connection_id)
             if not rate_allowed:
                 log_error_with_context(
-                    logger, "WebSocket rate limit exceeded", None,
+                    logger,
+                    "WebSocket rate limit exceeded",
+                    None,
                     operation="websocket_rate_limit",
                     correlation_id=corr_id,
                     error=rate_error,
-                    connection_id=connection_id
+                    connection_id=connection_id,
                 )
-                await websocket.send_json({
-                    "type": "error",
-                    "message": rate_error,
-                    "correlation_id": corr_id
-                })
+                await websocket.send_json(
+                    {"type": "error", "message": rate_error, "correlation_id": corr_id}
+                )
                 continue
 
             # Epic 50 Story 50.2: Validate JSON structure.
@@ -105,69 +109,78 @@ async def websocket_endpoint(websocket: WebSocket):
             json_valid, message_data, json_error = validate_message_json(data)
             if not json_valid:
                 log_error_with_context(
-                    logger, "WebSocket message JSON validation failed", None,
+                    logger,
+                    "WebSocket message JSON validation failed",
+                    None,
                     operation="websocket_message_validation",
                     correlation_id=corr_id,
                     error=json_error,
-                    message_data=data[:100]  # First 100 chars for debugging
+                    message_data=data[:100],  # First 100 chars for debugging
                 )
-                await websocket.send_json({
-                    "type": "error",
-                    "message": json_error,
-                    "correlation_id": corr_id
-                })
+                await websocket.send_json(
+                    {"type": "error", "message": json_error, "correlation_id": corr_id}
+                )
                 continue
 
             log_with_context(
-                logger, "DEBUG", "Received WebSocket message",
+                logger,
+                "DEBUG",
+                "Received WebSocket message",
                 operation="websocket_message",
                 correlation_id=corr_id,
                 message_type=message_data.get("type", "unknown"),
-                message_size=len(data)
+                message_size=len(data),
             )
 
             # Handle different message types
             if message_data.get("type") == "ping":
-                await websocket.send_json({
-                    "type": "pong",
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "correlation_id": corr_id
-                })
+                await websocket.send_json(
+                    {
+                        "type": "pong",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "correlation_id": corr_id,
+                    }
+                )
             elif message_data.get("type") == "subscribe":
                 # Handle subscription requests
                 channels = message_data.get("channels", [])
-                await websocket.send_json({
-                    "type": "subscription",
-                    "status": "subscribed",
-                    "channels": channels,
-                    "correlation_id": corr_id
-                })
+                await websocket.send_json(
+                    {
+                        "type": "subscription",
+                        "status": "subscribed",
+                        "channels": channels,
+                        "correlation_id": corr_id,
+                    }
+                )
                 log_with_context(
-                    logger, "INFO", "WebSocket client subscribed to channels",
+                    logger,
+                    "INFO",
+                    "WebSocket client subscribed to channels",
                     operation="websocket_subscription",
                     correlation_id=corr_id,
-                    channels=channels
+                    channels=channels,
                 )
             else:
                 # Echo back unknown messages
-                await websocket.send_json({
-                    "type": "echo",
-                    "original": message_data,
-                    "correlation_id": corr_id
-                })
+                await websocket.send_json(
+                    {"type": "echo", "original": message_data, "correlation_id": corr_id}
+                )
 
     except WebSocketDisconnect:
         log_with_context(
-            logger, "INFO", "WebSocket client disconnected",
+            logger,
+            "INFO",
+            "WebSocket client disconnected",
             operation="websocket_disconnection",
-            correlation_id=corr_id
+            correlation_id=corr_id,
         )
         # Epic 50 Story 50.2: Reset rate limiter on disconnect
         rate_limiter.reset(connection_id)
     except Exception as e:
         log_error_with_context(
-            logger, "WebSocket handler error", e,
+            logger,
+            "WebSocket handler error",
+            e,
             operation="websocket_handler",
-            correlation_id=corr_id
+            correlation_id=corr_id,
         )
-

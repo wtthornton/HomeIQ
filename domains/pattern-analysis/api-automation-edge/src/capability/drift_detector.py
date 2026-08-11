@@ -45,10 +45,7 @@ class DriftDetector:
         self.last_entity_snapshot: set[str] = set()
         self.last_service_snapshot: set[str] = set()
 
-    def detect_entity_drift(
-        self,
-        current_entities: set[str]
-    ) -> dict[str, Any]:
+    def detect_entity_drift(self, current_entities: set[str]) -> dict[str, Any]:
         """
         Detect entity drift (removed entities).
 
@@ -61,11 +58,7 @@ class DriftDetector:
         if not self.last_entity_snapshot:
             # First run - no drift
             self.last_entity_snapshot = current_entities.copy()
-            return {
-                "removed_entities": [],
-                "added_entities": [],
-                "has_drift": False
-            }
+            return {"removed_entities": [], "added_entities": [], "has_drift": False}
 
         removed = self.last_entity_snapshot - current_entities
         added = current_entities - self.last_entity_snapshot
@@ -73,9 +66,7 @@ class DriftDetector:
         has_drift = len(removed) > 0 or len(added) > 0
 
         if has_drift:
-            logger.warning(
-                f"Entity drift detected: {len(removed)} removed, {len(added)} added"
-            )
+            logger.warning(f"Entity drift detected: {len(removed)} removed, {len(added)} added")
 
             # Remove entities from inventory
             for entity_id in removed:
@@ -87,13 +78,10 @@ class DriftDetector:
         return {
             "removed_entities": list(removed),
             "added_entities": list(added),
-            "has_drift": has_drift
+            "has_drift": has_drift,
         }
 
-    def detect_service_drift(
-        self,
-        current_services: set[str]
-    ) -> dict[str, Any]:
+    def detect_service_drift(self, current_services: set[str]) -> dict[str, Any]:
         """
         Detect service drift (removed services).
 
@@ -106,11 +94,7 @@ class DriftDetector:
         if not self.last_service_snapshot:
             # First run - no drift
             self.last_service_snapshot = current_services.copy()
-            return {
-                "removed_services": [],
-                "added_services": [],
-                "has_drift": False
-            }
+            return {"removed_services": [], "added_services": [], "has_drift": False}
 
         removed = self.last_service_snapshot - current_services
         added = current_services - self.last_service_snapshot
@@ -118,9 +102,7 @@ class DriftDetector:
         has_drift = len(removed) > 0 or len(added) > 0
 
         if has_drift:
-            logger.warning(
-                f"Service drift detected: {len(removed)} removed, {len(added)} added"
-            )
+            logger.warning(f"Service drift detected: {len(removed)} removed, {len(added)} added")
 
         # Update snapshot
         self.last_service_snapshot = current_services.copy()
@@ -128,7 +110,7 @@ class DriftDetector:
         return {
             "removed_services": list(removed),
             "added_services": list(added),
-            "has_drift": has_drift
+            "has_drift": has_drift,
         }
 
     def get_affected_specs(
@@ -156,7 +138,8 @@ class DriftDetector:
             logger.warning(
                 "No spec registry configured -- cannot determine affected specs "
                 "(entities=%d, services=%d)",
-                len(removed_entities), len(removed_services),
+                len(removed_entities),
+                len(removed_services),
             )
             return []
 
@@ -171,12 +154,20 @@ class DriftDetector:
 
             db = self.spec_registry.SessionLocal()
             try:
-                active_versions = db.query(SpecVersion).filter(
-                    SpecVersion.is_active == True  # noqa: E712
-                ).all()
+                active_versions = (
+                    db.query(SpecVersion)
+                    .filter(
+                        SpecVersion.is_active == True  # noqa: E712
+                    )
+                    .all()
+                )
 
                 for sv in active_versions:
-                    spec_content = json.loads(sv.spec_content) if isinstance(sv.spec_content, str) else sv.spec_content
+                    spec_content = (
+                        json.loads(sv.spec_content)
+                        if isinstance(sv.spec_content, str)
+                        else sv.spec_content
+                    )
                     spec_id = spec_content.get("id", sv.spec_id)
 
                     # Check actions for entity references
@@ -184,7 +175,9 @@ class DriftDetector:
                     for action in actions:
                         # Check resolved_entity_ids
                         entity_ids = action.get("resolved_entity_ids", [])
-                        if isinstance(entity_ids, list) and removed_entity_set.intersection(entity_ids):
+                        if isinstance(entity_ids, list) and removed_entity_set.intersection(
+                            entity_ids
+                        ):
                             if spec_id not in affected:
                                 affected.append(spec_id)
                             break
@@ -196,7 +189,9 @@ class DriftDetector:
                             if spec_id not in affected:
                                 affected.append(spec_id)
                             break
-                        if isinstance(target_entity, list) and removed_entity_set.intersection(target_entity):
+                        if isinstance(target_entity, list) and removed_entity_set.intersection(
+                            target_entity
+                        ):
                             if spec_id not in affected:
                                 affected.append(spec_id)
                             break
@@ -216,7 +211,10 @@ class DriftDetector:
         if affected:
             logger.warning(
                 "Drift affects %d specs: %s (entities=%d, services=%d)",
-                len(affected), affected, len(removed_entities), len(removed_services),
+                len(affected),
+                affected,
+                len(removed_entities),
+                len(removed_services),
             )
 
         return affected

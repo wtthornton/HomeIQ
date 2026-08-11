@@ -64,7 +64,7 @@ class YAMLNormalizer:
                 sort_keys=False,
                 allow_unicode=True,
                 width=1000,
-                indent=2
+                indent=2,
             )
 
             return (normalized_yaml.strip(), fixes_applied)
@@ -76,20 +76,26 @@ class YAMLNormalizer:
             logger.error(f"Unexpected error during normalization: {e}")
             return (yaml_content, fixes_applied)
 
-    def _normalize_dict(self, data: dict[str, Any], fixes_applied: list[str], is_root: bool = False) -> dict[str, Any]:
+    def _normalize_dict(
+        self, data: dict[str, Any], fixes_applied: list[str], is_root: bool = False
+    ) -> dict[str, Any]:
         """Recursively normalize dictionary."""
         result: dict[str, Any] = {}
 
         for key, value in data.items():
             # Fix plural keys → singular
             if key == "triggers":
-                result["trigger"] = self._normalize_value(value, fixes_applied, "triggers → trigger")
+                result["trigger"] = self._normalize_value(
+                    value, fixes_applied, "triggers → trigger"
+                )
                 fixes_applied.append("Fixed: 'triggers' → 'trigger'")
             elif key == "actions":
                 result["action"] = self._normalize_value(value, fixes_applied, "actions → action")
                 fixes_applied.append("Fixed: 'actions' → 'action'")
             elif key == "conditions":
-                result["condition"] = self._normalize_value(value, fixes_applied, "conditions → condition")
+                result["condition"] = self._normalize_value(
+                    value, fixes_applied, "conditions → condition"
+                )
                 fixes_applied.append("Fixed: 'conditions' → 'condition'")
             # Fix error handling
             elif key == "continue_on_error":
@@ -106,11 +112,15 @@ class YAMLNormalizer:
 
         # Normalize trigger items
         if "trigger" in result and isinstance(result["trigger"], list):
-            result["trigger"] = [self._normalize_trigger_item(item, fixes_applied) for item in result["trigger"]]
+            result["trigger"] = [
+                self._normalize_trigger_item(item, fixes_applied) for item in result["trigger"]
+            ]
 
         # Normalize action items
         if "action" in result and isinstance(result["action"], list):
-            result["action"] = [self._normalize_action_item(item, fixes_applied) for item in result["action"]]
+            result["action"] = [
+                self._normalize_action_item(item, fixes_applied) for item in result["action"]
+            ]
 
         # Ensure initial_state: true for 2025.10+ compliance (top-level automation only)
         if is_root and "initial_state" not in result:
@@ -130,7 +140,7 @@ class YAMLNormalizer:
 
     # Fields that are only valid for specific trigger platforms
     _PLATFORM_INVALID_FIELDS: dict[str, set[str]] = {
-        "state": {"at"},       # 'at' is only valid for 'time' triggers
+        "state": {"at"},  # 'at' is only valid for 'time' triggers
         "event": {"at"},
         "numeric_state": {"at"},
         "template": {"at"},
@@ -143,7 +153,9 @@ class YAMLNormalizer:
         "mqtt": {"at"},
     }
 
-    def _normalize_trigger_item(self, item: dict[str, Any], fixes_applied: list[str]) -> dict[str, Any]:
+    def _normalize_trigger_item(
+        self, item: dict[str, Any], fixes_applied: list[str]
+    ) -> dict[str, Any]:
         """Normalize a trigger item."""
         if not isinstance(item, dict):
             return item
@@ -176,7 +188,9 @@ class YAMLNormalizer:
 
         return result
 
-    def _normalize_action_item(self, item: dict[str, Any], fixes_applied: list[str]) -> dict[str, Any]:
+    def _normalize_action_item(
+        self, item: dict[str, Any], fixes_applied: list[str]
+    ) -> dict[str, Any]:
         """Normalize an action item."""
         if not isinstance(item, dict):
             return item
@@ -195,7 +209,9 @@ class YAMLNormalizer:
             elif key == "continue_on_error":
                 if value is True:
                     result["error"] = "continue"
-                    fixes_applied.append("Fixed: action 'continue_on_error: true' → 'error: continue'")
+                    fixes_applied.append(
+                        "Fixed: action 'continue_on_error: true' → 'error: continue'"
+                    )
                 elif value is False:
                     result["error"] = "stop"
                     fixes_applied.append("Fixed: action 'continue_on_error: false' → 'error: stop'")
@@ -212,7 +228,9 @@ class YAMLNormalizer:
                                     normalized_choice["sequence"] = self._normalize_value(
                                         choice_value, fixes_applied, "choose.then → sequence"
                                     )
-                                    fixes_applied.append("Fixed: choose action 'then:' → 'sequence:'")
+                                    fixes_applied.append(
+                                        "Fixed: choose action 'then:' → 'sequence:'"
+                                    )
                                 else:
                                     normalized_choice[choice_key] = self._normalize_value(
                                         choice_value, fixes_applied, f"choose.{choice_key}"
@@ -227,4 +245,3 @@ class YAMLNormalizer:
                 result[key] = self._normalize_value(value, fixes_applied, f"action.{key}")
 
         return result
-

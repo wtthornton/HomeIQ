@@ -11,27 +11,25 @@ import os
 from datetime import UTC, datetime
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
 # Mark for tests that require external services (integration tests)
 needs_external = pytest.mark.skipif(
     not os.getenv("AUTOMATION_MINER_TESTS"),
-    reason="Requires external services (set AUTOMATION_MINER_TESTS=1 to enable)"
+    reason="Requires external services (set AUTOMATION_MINER_TESTS=1 to enable)",
 )
 
 
 @pytest.fixture
-@pytest.mark.asyncio
 async def client():
     """Async HTTP client for Automation Miner API"""
     from src.api.main import app
 
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
 
 @pytest.fixture
-@pytest.mark.asyncio
 async def test_db():
     """
     Test database with automatic setup and teardown.
@@ -46,10 +44,9 @@ async def test_db():
     )
     db = Database.__new__(Database)
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
     db.engine = create_async_engine(test_url, echo=False)
-    db.async_session = async_sessionmaker(
-        db.engine, class_=AsyncSession, expire_on_commit=False
-    )
+    db.async_session = async_sessionmaker(db.engine, class_=AsyncSession, expire_on_commit=False)
     db.db_path = None
     await db.create_tables()
     yield db
@@ -58,7 +55,6 @@ async def test_db():
 
 
 @pytest.fixture
-@pytest.mark.asyncio
 async def test_repository(test_db):
     """Test repository with database session"""
     from src.miner.repository import CorpusRepository
@@ -88,15 +84,17 @@ def sample_automation_metadata():
         source="discourse",
         source_id="test123",
         created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC)
+        updated_at=datetime.now(UTC),
     )
 
 
-@pytest.fixture(params=[
-    {"device": "light", "min_quality": 0.7, "limit": 10},
-    {"device": "motion_sensor", "min_quality": 0.8, "limit": 5},
-    {"use_case": "security", "min_quality": 0.9, "limit": 20},
-])
+@pytest.fixture(
+    params=[
+        {"device": "light", "min_quality": 0.7, "limit": 10},
+        {"device": "motion_sensor", "min_quality": 0.8, "limit": 5},
+        {"use_case": "security", "min_quality": 0.9, "limit": 20},
+    ]
+)
 def search_params(request):
     """Parametrized search query fixtures"""
     return request.param
@@ -110,4 +108,3 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "database: Database tests")
     config.addinivalue_line("markers", "api: API tests")
     config.addinivalue_line("markers", "parser: Parser tests")
-

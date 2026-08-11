@@ -25,6 +25,7 @@ from src.main import (
 # Helper function tests
 # ---------------------------------------------------------------------------
 
+
 class TestHelperFunctions:
     """Test suite for helper functions."""
 
@@ -57,6 +58,7 @@ class TestHelperFunctions:
 # ---------------------------------------------------------------------------
 # Data validation tests
 # ---------------------------------------------------------------------------
+
 
 class TestDataValidation:
     """Test suite for _validate_data_matrix."""
@@ -162,6 +164,7 @@ class TestDataValidation:
     @pytest.mark.asyncio
     async def test_run_cpu_bound(self):
         """Test running CPU-bound function."""
+
         def cpu_func(x, y):
             return x + y
 
@@ -186,6 +189,7 @@ class TestDataValidation:
 # ---------------------------------------------------------------------------
 # Rate limiting tests
 # ---------------------------------------------------------------------------
+
 
 class TestRateLimiting:
     """Test suite for rate limiting."""
@@ -218,6 +222,7 @@ class TestRateLimiting:
 # API endpoint tests
 # ---------------------------------------------------------------------------
 
+
 class TestAPIEndpoints:
     """Test suite for API endpoints."""
 
@@ -239,6 +244,7 @@ class TestAPIEndpoints:
     async def test_ready_endpoint_not_initialized(self):
         """Test readiness endpoint when managers are not initialized."""
         import src.main as main_module
+
         old_cm = main_module.clustering_manager
         old_am = main_module.anomaly_manager
         main_module.clustering_manager = None
@@ -257,6 +263,7 @@ class TestAPIEndpoints:
     async def test_ready_endpoint_initialized(self):
         """Test readiness endpoint when managers are initialized."""
         import src.main as main_module
+
         old_cm = main_module.clustering_manager
         old_am = main_module.anomaly_manager
         main_module.clustering_manager = MagicMock()
@@ -290,6 +297,7 @@ class TestAPIEndpoints:
         mock_manager = MagicMock()
         mock_manager.kmeans_cluster = MagicMock(return_value=([0, 0, 1, 1], 2))
         import src.main as main_module
+
         old_cm = main_module.clustering_manager
         main_module.clustering_manager = mock_manager
         try:
@@ -317,6 +325,7 @@ class TestAPIEndpoints:
         mock_manager = MagicMock()
         mock_manager.dbscan_cluster = MagicMock(return_value=([0, 0, 1, -1], 2))
         import src.main as main_module
+
         old_cm = main_module.clustering_manager
         main_module.clustering_manager = mock_manager
         try:
@@ -358,6 +367,7 @@ class TestAPIEndpoints:
     async def test_cluster_unknown_algorithm(self):
         """Test clustering with unknown algorithm returns 400."""
         import src.main as main_module
+
         old_cm = main_module.clustering_manager
         main_module.clustering_manager = MagicMock()
         try:
@@ -379,6 +389,7 @@ class TestAPIEndpoints:
     async def test_cluster_nan_data_rejected(self):
         """CRITICAL-1: NaN in clustering request must be rejected."""
         import src.main as main_module
+
         old_cm = main_module.clustering_manager
         main_module.clustering_manager = MagicMock()
         try:
@@ -407,6 +418,7 @@ class TestAPIEndpoints:
             return_value=([1, 1, -1, 1], [0.1, 0.2, -0.5, 0.15])
         )
         import src.main as main_module
+
         old_am = main_module.anomaly_manager
         main_module.anomaly_manager = mock_manager
         try:
@@ -432,6 +444,7 @@ class TestAPIEndpoints:
     async def test_anomaly_detection_invalid_contamination(self):
         """Test anomaly detection with invalid contamination."""
         import src.main as main_module
+
         old_am = main_module.anomaly_manager
         main_module.anomaly_manager = MagicMock()
         try:
@@ -458,6 +471,7 @@ class TestAPIEndpoints:
         mock_am.detect_anomalies = MagicMock(return_value=([1, -1], [0.1, -0.5]))
 
         import src.main as main_module
+
         old_cm = main_module.clustering_manager
         old_am = main_module.anomaly_manager
         main_module.clustering_manager = mock_cm
@@ -504,6 +518,7 @@ class TestAPIEndpoints:
         mock_cm.kmeans_cluster = MagicMock(return_value=([0, 1], 2))
 
         import src.main as main_module
+
         old_cm = main_module.clustering_manager
         old_am = main_module.anomaly_manager
         main_module.clustering_manager = mock_cm
@@ -568,6 +583,7 @@ class TestAPIEndpoints:
 # ---------------------------------------------------------------------------
 # Algorithm manager unit tests
 # ---------------------------------------------------------------------------
+
 
 class TestClusteringManager:
     """Direct unit tests for ClusteringManager."""

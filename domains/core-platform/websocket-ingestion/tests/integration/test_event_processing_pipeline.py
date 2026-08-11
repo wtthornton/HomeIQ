@@ -6,15 +6,17 @@ Tests for end-to-end event processing pipeline from Home Assistant to InfluxDB.
 """
 
 import asyncio
-import os
 import sys
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, str(Path(__file__).parent / "../.."))
+
+import contextlib
 
 from src.async_event_processor import AsyncEventProcessor
 from src.batch_processor import BatchProcessor
@@ -24,13 +26,13 @@ from src.batch_processor import BatchProcessor
 def sample_ha_event():
     """Sample Home Assistant event"""
     return {
-        'event_type': 'state_changed',
-        'time_fired': datetime.now(UTC).isoformat(),
-        'data': {
-            'entity_id': 'switch.living_room_lamp',
-            'old_state': {'state': 'off'},
-            'new_state': {'state': 'on', 'attributes': {}}
-        }
+        "event_type": "state_changed",
+        "time_fired": datetime.now(UTC).isoformat(),
+        "data": {
+            "entity_id": "switch.living_room_lamp",
+            "old_state": {"state": "off"},
+            "new_state": {"state": "on", "attributes": {}},
+        },
     }
 
 
@@ -38,12 +40,12 @@ def sample_ha_event():
 async def event_processor():
     """Create event processor with mocked dependencies"""
     processor = AsyncEventProcessor()
-    
+
     # Mock dependencies
     processor.discovery_service = MagicMock()
     processor.discovery_service.get_device_info = AsyncMock(return_value=None)
     processor.discovery_service.get_area_info = AsyncMock(return_value=None)
-    
+
     yield processor
 
 
@@ -51,18 +53,16 @@ async def event_processor():
 async def batch_processor():
     """Create batch processor"""
     processor = BatchProcessor(batch_size=10, batch_timeout=1.0)
-    
+
     # Mock InfluxDB writer
     processor.influxdb_writer = MagicMock()
     processor.influxdb_writer.write_batch = AsyncMock()
-    
+
     yield processor
-    
+
     # Cleanup
-    try:
+    with contextlib.suppress(BaseException):
         await processor.shutdown()
-    except:
-        pass
 
 
 @pytest.mark.asyncio
@@ -81,7 +81,7 @@ async def test_batch_processing_integration(batch_processor, sample_ha_event):
     # Add events to batch
     for i in range(5):
         event = sample_ha_event.copy()
-        event['data'] = {**sample_ha_event['data'], 'entity_id': f'switch.lamp_{i}'}
+        event["data"] = {**sample_ha_event["data"], "entity_id": f"switch.lamp_{i}"}
         await batch_processor.add_event(event)
 
     # _process_batch requires a batch list argument; use _process_current_batch
@@ -94,7 +94,7 @@ async def test_event_normalization(event_processor, sample_ha_event):
     """Test event normalization in processing pipeline"""
     # Process event
     result = await event_processor.process_event(sample_ha_event)
-    
+
     # Verify normalization occurred
     # Event should have standard fields
     assert result is not None
@@ -125,7 +125,7 @@ async def test_batch_size_processing(batch_processor, sample_ha_event):
     # batch_size=10 in fixture; adding 10 events triggers immediate processing
     for i in range(10):
         event = sample_ha_event.copy()
-        event['data'] = {**sample_ha_event['data'], 'entity_id': f'switch.lamp_{i}'}
+        event["data"] = {**sample_ha_event["data"], "entity_id": f"switch.lamp_{i}"}
         await batch_processor.add_event(event)
 
     # Batch should have been drained when size reached (add_event auto-processes)
@@ -138,8 +138,8 @@ async def test_batch_size_processing(batch_processor, sample_ha_event):
 async def test_error_handling_in_pipeline(event_processor):
     """Test error handling in event processing pipeline"""
     # Invalid event
-    invalid_event = {'invalid': 'data'}
-    
+    invalid_event = {"invalid": "data"}
+
     # Process should handle error gracefully
     try:
         result = await event_processor.process_event(invalid_event)
@@ -155,11 +155,10 @@ async def test_end_to_end_flow(event_processor, batch_processor, sample_ha_event
     """Test complete end-to-end event flow"""
     # Process event
     processed_event = await event_processor.process_event(sample_ha_event)
-    
+
     if processed_event:
         # Add to batch (process_event returns True, so use original event)
         await batch_processor.add_event(sample_ha_event)
 
         # Drain and process the current batch
         await batch_processor._process_current_batch()
-

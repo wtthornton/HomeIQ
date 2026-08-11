@@ -27,6 +27,7 @@ from ..services.suggestion_storage_service import SuggestionStorageService
 # Agent Evaluation Framework: SessionTracer wiring (E3.S5)
 try:
     from homeiq_patterns.evaluation.session_tracer import PersistentSink, trace_session
+
     _eval_sink = PersistentSink()  # Persists traces to database (EVAL_STORE_PATH env var)
     _TRACING_AVAILABLE = True
 except ImportError:
@@ -65,9 +66,19 @@ class SuggestionResponse(BaseModel):
 
         if hasattr(obj, "__dict__"):
             data = {}
-            for key in ["id", "prompt", "context_type", "status", "quality_score",
-                       "context_metadata", "prompt_metadata", "agent_response",
-                       "created_at", "sent_at", "updated_at"]:
+            for key in [
+                "id",
+                "prompt",
+                "context_type",
+                "status",
+                "quality_score",
+                "context_metadata",
+                "prompt_metadata",
+                "agent_response",
+                "created_at",
+                "sent_at",
+                "updated_at",
+            ]:
                 value = getattr(obj, key, None)
                 if isinstance(value, dt):
                     data[key] = value.isoformat()
@@ -194,7 +205,9 @@ def get_engagement_tracker() -> EngagementTracker:
 
 @router.get("", response_model=SuggestionListResponse)
 async def list_suggestions(
-    status: str | None = Query(None, description="Filter by status (pending, sent, approved, rejected)"),
+    status: str | None = Query(
+        None, description="Filter by status (pending, sent, approved, rejected)"
+    ),
     context_type: str | None = Query(None, description="Filter by context type"),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
@@ -306,8 +319,7 @@ async def list_invalid_reports(
 
         # Get totals by reason
         count_query = select(
-            InvalidSuggestionReport.reason,
-            sql_func.count().label("count")
+            InvalidSuggestionReport.reason, sql_func.count().label("count")
         ).group_by(InvalidSuggestionReport.reason)
 
         count_result = await db.execute(count_query)
@@ -316,14 +328,18 @@ async def list_invalid_reports(
         # Build report items from JOIN results
         report_items = []
         for report, suggestion_prompt in rows:
-            report_items.append(InvalidReportItem(
-                id=report.id,
-                suggestion_id=report.suggestion_id,
-                reason=report.reason,
-                feedback=report.feedback,
-                reported_at=report.reported_at.isoformat() if report.reported_at else "",
-                suggestion_prompt=suggestion_prompt[:100] + "..." if suggestion_prompt and len(suggestion_prompt) > 100 else suggestion_prompt,
-            ))
+            report_items.append(
+                InvalidReportItem(
+                    id=report.id,
+                    suggestion_id=report.suggestion_id,
+                    reason=report.reason,
+                    feedback=report.feedback,
+                    reported_at=report.reported_at.isoformat() if report.reported_at else "",
+                    suggestion_prompt=suggestion_prompt[:100] + "..."
+                    if suggestion_prompt and len(suggestion_prompt) > 100
+                    else suggestion_prompt,
+                )
+            )
 
         total = sum(by_reason.values())
 
@@ -335,10 +351,7 @@ async def list_invalid_reports(
 
     except Exception as e:
         logger.error(f"Failed to list invalid reports: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to list reports"
-        ) from e
+        raise HTTPException(status_code=500, detail="Failed to list reports") from e
 
 
 # Global scheduler service reference (set by main.py)
@@ -352,7 +365,11 @@ def set_scheduler_service(service: Any):
 
 
 @router.post("/trigger")
-@(trace_session(agent_name="proactive-agent", sink=_eval_sink, model="gpt-4o") if _TRACING_AVAILABLE else lambda f: f)
+@(
+    trace_session(agent_name="proactive-agent", sink=_eval_sink, model="gpt-4o")
+    if _TRACING_AVAILABLE
+    else lambda f: f
+)
 async def trigger_suggestion_generation():
     """
     Manually trigger suggestion generation (for testing/debugging).
@@ -370,7 +387,9 @@ async def trigger_suggestion_generation():
         raise
     except Exception as e:
         logger.error(f"Failed to trigger suggestion generation: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to trigger suggestion generation") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to trigger suggestion generation"
+        ) from e
 
 
 @router.get("/debug/context")
@@ -394,7 +413,9 @@ async def debug_context_analysis():
                 "weather_available": context_analysis.get("weather", {}).get("available", False),
                 "sports_available": context_analysis.get("sports", {}).get("available", False),
                 "energy_available": context_analysis.get("energy", {}).get("available", False),
-                "historical_available": context_analysis.get("historical_patterns", {}).get("available", False),
+                "historical_available": context_analysis.get("historical_patterns", {}).get(
+                    "available", False
+                ),
                 "total_insights": len(context_analysis.get("summary", {}).get("insights", [])),
             },
         }
@@ -615,7 +636,7 @@ async def send_suggestion_to_agent(
         if suggestion.status != "pending":
             raise HTTPException(
                 status_code=400,
-                detail=f"Cannot send suggestion with status '{suggestion.status}'. Only pending suggestions can be sent."
+                detail=f"Cannot send suggestion with status '{suggestion.status}'. Only pending suggestions can be sent.",
             )
 
         # Initialize HA Agent client
@@ -627,13 +648,11 @@ async def send_suggestion_to_agent(
 
             # Build hidden context from automation_hints (if available)
             hidden_context = None
-            automation_hints = suggestion.prompt_metadata.get("automation_hints") or \
-                             suggestion.context_metadata.get("automation_hints")
+            automation_hints = suggestion.prompt_metadata.get(
+                "automation_hints"
+            ) or suggestion.context_metadata.get("automation_hints")
             if automation_hints:
-                hidden_context = {
-                    "context_type": suggestion.context_type,
-                    **automation_hints
-                }
+                hidden_context = {"context_type": suggestion.context_type, **automation_hints}
                 logger.debug(f"Passing hidden context to HA Agent: {hidden_context}")
 
             # Send message to HA AI Agent Service
@@ -661,8 +680,7 @@ async def send_suggestion_to_agent(
                 return SuggestionResponse.model_validate(updated_suggestion)
             else:
                 raise HTTPException(
-                    status_code=500,
-                    detail="Failed to send suggestion to HA AI Agent Service"
+                    status_code=500, detail="Failed to send suggestion to HA AI Agent Service"
                 )
         finally:
             # Close the agent client
@@ -731,10 +749,7 @@ async def report_invalid_suggestion(
         raise
     except Exception as e:
         logger.error(f"Failed to report suggestion {suggestion_id}: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to submit report"
-        ) from e
+        raise HTTPException(status_code=500, detail="Failed to submit report") from e
 
 
 @router.post("/{suggestion_id}/viewed", response_model=EngagementTrackResponse)

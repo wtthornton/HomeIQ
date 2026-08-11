@@ -12,15 +12,18 @@ as the canonical, well-typed alternative that can replace it when needed.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db_session
 from ..services.device_service import DeviceService
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +34,7 @@ router = APIRouter(prefix="/devices", tags=["Devices"])
 # Pydantic response models – mirrors the ORM Device / DeviceCapability /
 # DeviceHealthMetric columns so callers receive structured, validated JSON.
 # ---------------------------------------------------------------------------
+
 
 class DeviceResponse(BaseModel):
     """Full device representation returned by the API."""
@@ -96,6 +100,7 @@ class DeviceHealthMetricResponse(BaseModel):
 # Dependency helpers
 # ---------------------------------------------------------------------------
 
+
 def get_device_service(
     session: AsyncSession = Depends(get_db_session),
 ) -> DeviceService:
@@ -106,6 +111,7 @@ def get_device_service(
 # ---------------------------------------------------------------------------
 # Helper – convert an ORM Device to a DeviceResponse
 # ---------------------------------------------------------------------------
+
 
 def _device_to_response(device: Any) -> DeviceResponse:
     """Map an ORM *Device* instance to a *DeviceResponse*."""
@@ -137,6 +143,7 @@ def _device_to_response(device: Any) -> DeviceResponse:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 async def _fetch_filtered_devices(
     device_service: DeviceService,
     *,
@@ -160,6 +167,7 @@ async def _fetch_filtered_devices(
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.get("/", response_model=DeviceListResponse)
 async def get_devices(

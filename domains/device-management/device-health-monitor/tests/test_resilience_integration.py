@@ -14,11 +14,11 @@ from homeiq_resilience import CircuitOpenError, CrossGroupClient
 
 def _make_data_client():
     from src.clients.data_api_client import DataAPIClient
+
     return DataAPIClient(base_url="http://data-api:8006")
 
 
 class TestDataAPIClientResilience:
-
     def test_uses_cross_group_client(self):
         client = _make_data_client()
         assert hasattr(client, "_cross_client")
@@ -34,7 +34,8 @@ class TestDataAPIClientResilience:
     async def test_circuit_open_entities_returns_empty(self):
         client = _make_data_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.fetch_entities()
@@ -44,7 +45,8 @@ class TestDataAPIClientResilience:
     async def test_circuit_open_devices_returns_empty(self):
         client = _make_data_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.get_devices()
@@ -59,8 +61,10 @@ class TestDataAPIClientResilience:
         mock_resp.json.return_value = {"entities": [{"entity_id": "sensor.temp"}]}
 
         with patch.object(
-            client._cross_client, "call",
-            new_callable=AsyncMock, return_value=mock_resp,
+            client._cross_client,
+            "call",
+            new_callable=AsyncMock,
+            return_value=mock_resp,
         ):
             result = await client.fetch_entities()
             assert len(result) == 1
@@ -75,8 +79,10 @@ class TestDataAPIClientResilience:
         mock_resp.json.return_value = {"devices": [{"id": "abc123"}]}
 
         with patch.object(
-            client._cross_client, "call",
-            new_callable=AsyncMock, return_value=mock_resp,
+            client._cross_client,
+            "call",
+            new_callable=AsyncMock,
+            return_value=mock_resp,
         ):
             result = await client.get_devices()
             assert len(result) == 1
@@ -90,11 +96,11 @@ class TestDataAPIClientResilience:
 
 def _make_intel_client():
     from src.clients.device_intelligence_client import DeviceIntelligenceClient
+
     return DeviceIntelligenceClient(base_url="http://device-intelligence:8023")
 
 
 class TestDeviceIntelligenceClientResilience:
-
     def test_uses_cross_group_client(self):
         client = _make_intel_client()
         assert isinstance(client._cross_client, CrossGroupClient)
@@ -109,7 +115,8 @@ class TestDeviceIntelligenceClientResilience:
     async def test_circuit_open_capabilities_returns_none(self):
         client = _make_intel_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.get_device_capabilities("device-1")
@@ -119,7 +126,8 @@ class TestDeviceIntelligenceClientResilience:
     async def test_circuit_open_type_returns_none(self):
         client = _make_intel_client()
         with patch.object(
-            client._cross_client, "call",
+            client._cross_client,
+            "call",
             side_effect=CircuitOpenError("circuit open"),
         ):
             result = await client.get_device_type("device-1")
@@ -137,8 +145,10 @@ class TestDeviceIntelligenceClientResilience:
         }
 
         with patch.object(
-            client._cross_client, "call",
-            new_callable=AsyncMock, return_value=mock_resp,
+            client._cross_client,
+            "call",
+            new_callable=AsyncMock,
+            return_value=mock_resp,
         ):
             result = await client.get_device_capabilities("device-1")
             assert result["device_id"] == "device-1"
@@ -150,8 +160,10 @@ class TestDeviceIntelligenceClientResilience:
         mock_resp.status_code = 404
 
         with patch.object(
-            client._cross_client, "call",
-            new_callable=AsyncMock, return_value=mock_resp,
+            client._cross_client,
+            "call",
+            new_callable=AsyncMock,
+            return_value=mock_resp,
         ):
             result = await client.get_device_capabilities("unknown-device")
             assert result is None
@@ -163,12 +175,13 @@ class TestDeviceIntelligenceClientResilience:
 
 
 class TestGroupHealthCheck:
-
     @pytest.mark.asyncio
     async def test_healthy_response_format(self):
         from homeiq_resilience import GroupHealthCheck
+
         health = GroupHealthCheck(
-            group_name="device-management", version="1.0.0",
+            group_name="device-management",
+            version="1.0.0",
         )
         result = await health.to_dict()
         assert result["group"] == "device-management"

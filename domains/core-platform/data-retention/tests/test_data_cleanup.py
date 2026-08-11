@@ -18,7 +18,7 @@ class TestCleanupResult:
             records_deleted=10,
             records_processed=15,
             cleanup_duration=1.5,
-            success=True
+            success=True,
         )
 
         assert result.policy_name == "test"
@@ -36,7 +36,7 @@ class TestCleanupResult:
             records_deleted=10,
             records_processed=15,
             cleanup_duration=1.5,
-            success=True
+            success=True,
         )
 
         result_dict = result.to_dict()
@@ -47,6 +47,7 @@ class TestCleanupResult:
         assert result_dict["cleanup_duration"] == 1.5
         assert result_dict["success"] is True
         assert "cleanup_timestamp" in result_dict
+
 
 class TestDataCleanupService:
     """Test DataCleanupService class."""
@@ -63,7 +64,7 @@ class TestDataCleanupService:
             name="test",
             description="Test policy",
             retention_period=30,
-            retention_unit=RetentionPeriod.DAYS
+            retention_unit=RetentionPeriod.DAYS,
         )
 
     @pytest.mark.asyncio
@@ -137,7 +138,7 @@ class TestDataCleanupService:
         """Test deleting expired records."""
         test_records = [
             {"id": "test1", "timestamp": "2024-01-01T00:00:00Z", "measurement": "test"},
-            {"id": "test2", "timestamp": "2024-01-02T00:00:00Z", "measurement": "test"}
+            {"id": "test2", "timestamp": "2024-01-02T00:00:00Z", "measurement": "test"},
         ]
 
         deleted_count = await cleanup_service._delete_expired_records(test_records)
@@ -174,7 +175,7 @@ class TestDataCleanupService:
             records_deleted=10,
             records_processed=15,
             cleanup_duration=1.0,
-            success=True
+            success=True,
         )
 
         result2 = CleanupResult(
@@ -182,7 +183,7 @@ class TestDataCleanupService:
             records_deleted=5,
             records_processed=8,
             cleanup_duration=0.5,
-            success=True
+            success=True,
         )
 
         cleanup_service.cleanup_history = [result1, result2]
@@ -210,7 +211,7 @@ class TestDataCleanupService:
             records_deleted=10,
             records_processed=15,
             cleanup_duration=1.0,
-            success=True
+            success=True,
         )
 
         result2 = CleanupResult(
@@ -219,7 +220,7 @@ class TestDataCleanupService:
             records_processed=8,
             cleanup_duration=0.5,
             success=False,
-            error_message="Test error"
+            error_message="Test error",
         )
 
         cleanup_service.cleanup_history = [result1, result2]
@@ -239,5 +240,5 @@ class TestDataCleanupService:
         manager = cleanup_service.get_policy_manager()
 
         assert manager is not None
-        assert hasattr(manager, 'get_all_policies')
-        assert hasattr(manager, 'add_policy')
+        assert hasattr(manager, "get_all_policies")
+        assert hasattr(manager, "add_policy")

@@ -65,7 +65,8 @@ async def _startup_services() -> None:
     app.state.monitor = HealthMonitoringService()
     app.state.integration_checker = IntegrationHealthChecker()
     _continuous_monitor = ContinuousHealthMonitor(
-        app.state.monitor, app.state.integration_checker,
+        app.state.monitor,
+        app.state.integration_checker,
     )
     app.state.continuous_monitor = _continuous_monitor
     await _continuous_monitor.start()

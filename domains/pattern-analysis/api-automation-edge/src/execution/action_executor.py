@@ -31,7 +31,7 @@ class ActionExecutor:
         self,
         rest_client: HARestClient | None = None,
         retry_manager: RetryManager | None = None,
-        confirmation_watcher: ConfirmationWatcher | None = None
+        confirmation_watcher: ConfirmationWatcher | None = None,
     ):
         """
         Initialize action executor.
@@ -49,11 +49,7 @@ class ActionExecutor:
         self.idempotency_store: dict[str, dict[str, float]] = {}
         self.idempotency_ttl = settings.idempotency_ttl
 
-    def _generate_idempotency_key(
-        self,
-        action: dict[str, Any],
-        entity_id: str
-    ) -> str:
+    def _generate_idempotency_key(self, action: dict[str, Any], entity_id: str) -> str:
         """
         Generate idempotency key for action.
 
@@ -68,16 +64,12 @@ class ActionExecutor:
         key_data = {
             "capability": action.get("capability"),
             "entity_id": entity_id,
-            "data": action.get("data", {})
+            "data": action.get("data", {}),
         }
         key_str = str(sorted(key_data.items()))
         return hashlib.sha256(key_str.encode()).hexdigest()[:16]
 
-    def _is_duplicate(
-        self,
-        entity_id: str,
-        idempotency_key: str
-    ) -> bool:
+    def _is_duplicate(self, entity_id: str, idempotency_key: str) -> bool:
         """
         Check if action is duplicate (idempotency).
 
@@ -93,22 +85,18 @@ class ActionExecutor:
         # Clean up old entries
         if entity_id in self.idempotency_store:
             self.idempotency_store[entity_id] = {
-                k: v for k, v in self.idempotency_store[entity_id].items()
+                k: v
+                for k, v in self.idempotency_store[entity_id].items()
                 if (now - v) < self.idempotency_ttl
             }
 
         # Check if key exists
-        if entity_id in self.idempotency_store:
-            if idempotency_key in self.idempotency_store[entity_id]:
-                return True
+        return bool(
+            entity_id in self.idempotency_store
+            and idempotency_key in self.idempotency_store[entity_id]
+        )
 
-        return False
-
-    def _record_idempotency(
-        self,
-        entity_id: str,
-        idempotency_key: str
-    ):
+    def _record_idempotency(self, entity_id: str, idempotency_key: str):
         """Record idempotency key"""
         if entity_id not in self.idempotency_store:
             self.idempotency_store[entity_id] = {}
@@ -116,9 +104,7 @@ class ActionExecutor:
         self.idempotency_store[entity_id][idempotency_key] = time.time()
 
     async def execute_action(
-        self,
-        action: dict[str, Any],
-        spec: dict[str, Any] | None = None
+        self, action: dict[str, Any], spec: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Execute a single action.
@@ -139,7 +125,7 @@ class ActionExecutor:
             return {
                 "success": False,
                 "error": "No entities to execute action on",
-                "action_id": action_id
+                "action_id": action_id,
             }
 
         # Parse capability to domain/service
@@ -147,7 +133,7 @@ class ActionExecutor:
             return {
                 "success": False,
                 "error": f"Invalid capability format: {capability}",
-                "action_id": action_id
+                "action_id": action_id,
             }
 
         domain, service = capability.split(".", 1)
@@ -161,12 +147,14 @@ class ActionExecutor:
             idempotency_key = self._generate_idempotency_key(action, entity_id)
             if self._is_duplicate(entity_id, idempotency_key):
                 logger.info(f"Skipping duplicate action {action_id} for {entity_id}")
-                results.append({
-                    "entity_id": entity_id,
-                    "success": True,
-                    "skipped": True,
-                    "reason": "duplicate"
-                })
+                results.append(
+                    {
+                        "entity_id": entity_id,
+                        "success": True,
+                        "skipped": True,
+                        "reason": "duplicate",
+                    }
+                )
                 continue
 
             # Prepare service data
@@ -176,9 +164,7 @@ class ActionExecutor:
             try:
                 # Execute with retry
                 async def call_service():
-                    return await self.rest_client.call_service(
-                        domain, service, service_data
-                    )
+                    return await self.rest_client.call_service(domain, service, service_data)
 
                 response = await self.retry_manager.execute_with_retry(call_service)
 
@@ -190,27 +176,26 @@ class ActionExecutor:
                 confirmation_error = None
 
                 if self.confirmation_watcher and spec:
-                    confirmed, confirmation_error = await self.confirmation_watcher.watch_action_confirmation(
-                        action, spec
-                    )
+                    (
+                        confirmed,
+                        confirmation_error,
+                    ) = await self.confirmation_watcher.watch_action_confirmation(action, spec)
 
-                results.append({
-                    "entity_id": entity_id,
-                    "success": True,
-                    "response": response,
-                    "confirmed": confirmed,
-                    "confirmation_error": confirmation_error
-                })
+                results.append(
+                    {
+                        "entity_id": entity_id,
+                        "success": True,
+                        "response": response,
+                        "confirmed": confirmed,
+                        "confirmation_error": confirmation_error,
+                    }
+                )
 
                 logger.info(f"Action {action_id} executed for {entity_id}")
 
             except Exception as e:
                 logger.error(f"Action {action_id} failed for {entity_id}: {e}")
-                results.append({
-                    "entity_id": entity_id,
-                    "success": False,
-                    "error": str(e)
-                })
+                results.append({"entity_id": entity_id, "success": False, "error": str(e)})
 
         execution_time = time.time() - start_time
         success_count = sum(1 for r in results if r.get("success"))
@@ -222,5 +207,5 @@ class ActionExecutor:
             "success_count": success_count,
             "total_count": len(results),
             "execution_time": execution_time,
-            "results": results
+            "results": results,
         }

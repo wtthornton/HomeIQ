@@ -25,7 +25,9 @@ router = APIRouter(prefix="/automations")
 @router.get("")
 async def list_automations(
     enabled_only: bool = Query(False, description="Filter to enabled automations only"),
-    sort_by: str = Query("alias", description="Sort field: alias, total_executions, success_rate, last_triggered"),
+    sort_by: str = Query(
+        "alias", description="Sort field: alias, total_executions, success_rate, last_triggered"
+    ),
     limit: int = Query(100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
 ):
@@ -163,9 +165,7 @@ async def get_automation(
     db: AsyncSession = Depends(get_db),
 ):
     """Get single automation detail with recent executions."""
-    result = await db.execute(
-        select(Automation).where(Automation.automation_id == automation_id)
-    )
+    result = await db.execute(select(Automation).where(Automation.automation_id == automation_id))
     automation = result.scalar_one_or_none()
     if not automation:
         raise HTTPException(status_code=404, detail=f"Automation '{automation_id}' not found")
@@ -193,10 +193,7 @@ async def list_executions(
     db: AsyncSession = Depends(get_db),
 ):
     """Paginated execution history for an automation."""
-    query = (
-        select(AutomationExecution)
-        .where(AutomationExecution.automation_id == automation_id)
-    )
+    query = select(AutomationExecution).where(AutomationExecution.automation_id == automation_id)
     if result_filter:
         query = query.where(AutomationExecution.execution_result == result_filter)
 
@@ -225,6 +222,7 @@ async def list_executions(
 # ---------------------------------------------------------------------------
 # Serialization helpers
 # ---------------------------------------------------------------------------
+
 
 def _automation_to_dict(a: Automation) -> dict[str, Any]:
     return {

@@ -33,15 +33,9 @@ router = APIRouter(prefix="/api/v1/conversations", tags=["conversations"])
 async def list_conversations(
     limit: int = Query(default=20, ge=1, le=100, description="Page size (1-100)"),
     offset: int = Query(default=0, ge=0, description="Offset for pagination"),
-    state: str | None = Query(
-        None, description="Filter by conversation state (active, archived)"
-    ),
-    start_date: str | None = Query(
-        None, description="Filter conversations created after this date (ISO format)"
-    ),
-    end_date: str | None = Query(
-        None, description="Filter conversations created before this date (ISO format)"
-    ),
+    state: str | None = Query(None, description="Filter by conversation state (active, archived)"),
+    start_date: str | None = Query(None, description="Filter conversations created after this date (ISO format)"),
+    end_date: str | None = Query(None, description="Filter conversations created before this date (ISO format)"),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ):
     """
@@ -142,7 +136,7 @@ async def get_prompt_breakdown_by_debug_id(
     user_message: str | None = Query(None, description="Optional user message to include in breakdown"),
     refresh_context: bool = Query(False, description="Force context refresh"),
     conversation_service: ConversationService = Depends(get_conversation_service),
-    prompt_assembly_service = Depends(get_prompt_assembly_service),
+    prompt_assembly_service=Depends(get_prompt_assembly_service),
 ):
     """
     Get full prompt breakdown for debugging by debug_id (Troubleshooting ID).
@@ -158,6 +152,7 @@ async def get_prompt_breakdown_by_debug_id(
     """
     # Access context_builder from main module (global instance)
     from .. import main as main_module
+
     context_builder = main_module.context_builder
 
     try:
@@ -186,6 +181,7 @@ async def get_prompt_breakdown_by_debug_id(
 
         # Get system prompt (base)
         from ..prompts.system_prompt import SYSTEM_PROMPT
+
         base_system_prompt = SYSTEM_PROMPT
 
         # Get complete system prompt with context
@@ -210,7 +206,7 @@ async def get_prompt_breakdown_by_debug_id(
         # Extract injected context (everything after base system prompt)
         injected_context = ""
         if complete_system_prompt.startswith(base_system_prompt):
-            injected_context = complete_system_prompt[len(base_system_prompt):].strip()
+            injected_context = complete_system_prompt[len(base_system_prompt) :].strip()
 
         # Get pending preview context if available
         pending_preview = conversation.get_pending_preview()
@@ -278,7 +274,7 @@ async def get_prompt_breakdown(
     user_message: str | None = Query(None, description="Optional user message to include in breakdown"),
     refresh_context: bool = Query(False, description="Force context refresh"),
     conversation_service: ConversationService = Depends(get_conversation_service),
-    prompt_assembly_service = Depends(get_prompt_assembly_service),
+    prompt_assembly_service=Depends(get_prompt_assembly_service),
 ):
     """
     Get full prompt breakdown for debugging.
@@ -298,6 +294,7 @@ async def get_prompt_breakdown(
     """
     # Access context_builder from main module (global instance)
     from .. import main as main_module
+
     context_builder = main_module.context_builder
 
     try:
@@ -305,7 +302,7 @@ async def get_prompt_breakdown(
         conversation = await conversation_service.get_conversation(conversation_id)
 
         # If not found and looks like a debug_id (UUID format), try as debug_id
-        if not conversation and len(conversation_id) == 36 and conversation_id.count('-') == 4:
+        if not conversation and len(conversation_id) == 36 and conversation_id.count("-") == 4:
             logger.info(f"Conversation ID '{conversation_id}' not found, trying as debug_id...")
             conversation = await conversation_service.get_conversation_by_debug_id(conversation_id)
             if conversation:
@@ -329,6 +326,7 @@ async def get_prompt_breakdown(
 
         # Get system prompt (base)
         from ..prompts.system_prompt import SYSTEM_PROMPT
+
         base_system_prompt = SYSTEM_PROMPT
 
         # Get complete system prompt with context
@@ -353,7 +351,7 @@ async def get_prompt_breakdown(
         # Extract injected context (everything after base system prompt)
         injected_context = ""
         if complete_system_prompt.startswith(base_system_prompt):
-            injected_context = complete_system_prompt[len(base_system_prompt):].strip()
+            injected_context = complete_system_prompt[len(base_system_prompt) :].strip()
 
         # Get pending preview context if available
         pending_preview = conversation.get_pending_preview()
@@ -491,8 +489,8 @@ async def create_conversation(
     """
     try:
         # Validate source
-        valid_sources = ['user', 'proactive', 'pattern']
-        source = request.source or 'user'
+        valid_sources = ["user", "proactive", "pattern"]
+        source = request.source or "user"
         if source not in valid_sources:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -507,16 +505,12 @@ async def create_conversation(
 
         # Add initial message if provided
         if request.initial_message:
-            await conversation_service.add_message(
-                conversation.conversation_id, "user", request.initial_message
-            )
+            await conversation_service.add_message(conversation.conversation_id, "user", request.initial_message)
             # Auto-generate title from initial message if not provided
             if not request.title:
                 await conversation_service.auto_generate_title(conversation.conversation_id)
             # Refresh conversation to get updated message count and title
-            conversation = await conversation_service.get_conversation(
-                conversation.conversation_id
-            )
+            conversation = await conversation_service.get_conversation(conversation.conversation_id)
 
         # Get messages
         messages = conversation.messages if conversation else []
@@ -615,17 +609,17 @@ async def update_conversation(
 
         # Update title if provided
         if request.title is not None:
-            await conversation_service.update_conversation_title(
-                conversation_id, request.title
-            )
+            await conversation_service.update_conversation_title(conversation_id, request.title)
 
         # Update state if provided
         if request.state is not None:
             try:
                 state = ConversationState(request.state.lower())
-                await conversation_service.archive_conversation(conversation_id) \
-                    if state == ConversationState.ARCHIVED \
-                    else await conversation_service.activate_conversation(conversation_id)
+                await conversation_service.archive_conversation(
+                    conversation_id
+                ) if state == ConversationState.ARCHIVED else await conversation_service.activate_conversation(
+                    conversation_id
+                )
             except ValueError as e:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

@@ -37,10 +37,7 @@ class ServicesSummaryService:
         """
         self.settings = settings
         self.context_builder = context_builder
-        self.ha_client = HomeAssistantClient(
-            ha_url=settings.ha_url,
-            access_token=settings.ha_token.get_secret_value()
-        )
+        self.ha_client = HomeAssistantClient(ha_url=settings.ha_url, access_token=settings.ha_token.get_secret_value())
         self._cache_key = "services_summary"
         self._cache_ttl = 900  # 15 minutes (P1: Increased TTL - services change occasionally)
 
@@ -80,7 +77,9 @@ class ServicesSummaryService:
             # Format 2: List format [{"domain": "light", "service": "turn_on", ...}, ...]
             # Format 3: Empty dict or unexpected format
 
-            logger.debug(f"Services data type: {type(services_data)}, keys: {list(services_data.keys())[:10] if isinstance(services_data, dict) else 'N/A'}")
+            logger.debug(
+                f"Services data type: {type(services_data)}, keys: {list(services_data.keys())[:10] if isinstance(services_data, dict) else 'N/A'}"
+            )
 
             if isinstance(services_data, list):
                 # Convert list format to dict format
@@ -96,7 +95,7 @@ class ServicesSummaryService:
                             # Extract service info (fields, description, etc.)
                             service_info = {
                                 "fields": service_item.get("fields", {}),
-                                "description": service_item.get("description", "")
+                                "description": service_item.get("description", ""),
                             }
                             services_dict[domain][service_name] = service_info
                 services_data = services_dict
@@ -114,7 +113,9 @@ class ServicesSummaryService:
                     # Expected format - services grouped by domain
                     logger.debug(f"Services in expected format: {len(services_data)} domains")
                 else:
-                    logger.warning(f"Unexpected services dict structure. First key: {first_key}, type: {type(services_data.get(first_key)) if first_key else 'N/A'}")
+                    logger.warning(
+                        f"Unexpected services dict structure. First key: {first_key}, type: {type(services_data.get(first_key)) if first_key else 'N/A'}"
+                    )
             else:
                 # Unexpected format
                 logger.warning(f"Unexpected services data format: {type(services_data)}")
@@ -158,8 +159,10 @@ class ServicesSummaryService:
             summary = "\n".join(summary_parts)
 
             if not summary:
-                logger.warning("⚠️ Services summary is empty after formatting. Services data keys: " +
-                             str(list(services_data.keys())[:10] if isinstance(services_data, dict) else 'N/A'))
+                logger.warning(
+                    "⚠️ Services summary is empty after formatting. Services data keys: "
+                    + str(list(services_data.keys())[:10] if isinstance(services_data, dict) else "N/A")
+                )
                 # Use fallback if formatting produced empty result
                 return await self._get_fallback_services_summary()
 
@@ -170,13 +173,13 @@ class ServicesSummaryService:
             if not skip_truncation and len(summary) > max_length:
                 truncation_msg = "\n... (truncated - too many services)"
                 summary = summary[:max_length] + truncation_msg
-                logger.warning(f"⚠️ Services summary truncated at {max_length} chars (original was {original_length} chars)")
+                logger.warning(
+                    f"⚠️ Services summary truncated at {max_length} chars (original was {original_length} chars)"
+                )
 
             # Cache the result (only if not skipping truncation)
             if not skip_truncation:
-                await self.context_builder._set_cached_value(
-                    self._cache_key, summary, self._cache_ttl
-                )
+                await self.context_builder._set_cached_value(self._cache_key, summary, self._cache_ttl)
 
             logger.info(
                 f"✅ Generated services summary: {total_domains} domains, "
@@ -364,7 +367,6 @@ class ServicesSummaryService:
 
         return f"{domain}.{service}(target: {target_str}, data: {param_str})"
 
-
     async def _get_fallback_services_summary(self) -> str:
         """
         Fallback: Provide known service patterns when API fails.
@@ -433,13 +435,10 @@ notify.persistent_notification:
       message: string (required) - Notification message
       title: string - Notification title"""
 
-        await self.context_builder._set_cached_value(
-            self._cache_key, fallback_services, self._cache_ttl
-        )
+        await self.context_builder._set_cached_value(self._cache_key, fallback_services, self._cache_ttl)
 
         return fallback_services
 
     async def close(self):
         """Close service resources"""
         await self.ha_client.close()
-

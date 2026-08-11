@@ -27,12 +27,14 @@ async def fresh_db():
 # Activity Endpoints
 # ---------------------------------------------------------------------------
 
+
 def _make_activity_app():
     """Build a standalone FastAPI app with the activity router."""
     app = FastAPI()
 
     with patch("src.activity_endpoints._get_shared_influxdb_client"):
         from src.activity_endpoints import router as activity_router
+
         app.include_router(activity_router, prefix="/api/v1")
 
     return app
@@ -60,7 +62,11 @@ class TestActivityCurrentEndpoint:
             }
         ]
         with (
-            patch("src.activity_endpoints._query_activity_from_influxdb", new_callable=AsyncMock, return_value=mock_items),
+            patch(
+                "src.activity_endpoints._query_activity_from_influxdb",
+                new_callable=AsyncMock,
+                return_value=mock_items,
+            ),
             patch("src.activity_endpoints.cache") as mock_cache,
         ):
             mock_cache.get = AsyncMock(return_value=None)
@@ -93,7 +99,11 @@ class TestActivityCurrentEndpoint:
     @pytest.mark.asyncio
     async def test_current_activity_no_data_returns_404(self, activity_client):
         with (
-            patch("src.activity_endpoints._query_activity_from_influxdb", new_callable=AsyncMock, return_value=[]),
+            patch(
+                "src.activity_endpoints._query_activity_from_influxdb",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
             patch("src.activity_endpoints.cache") as mock_cache,
         ):
             mock_cache.get = AsyncMock(return_value=None)
@@ -109,10 +119,24 @@ class TestActivityHistoryEndpoint:
     @pytest.mark.asyncio
     async def test_history_happy_path(self, activity_client):
         mock_items = [
-            {"activity": "cooking", "activity_id": 3, "confidence": 0.92, "timestamp": "2026-03-17T10:00:00+00:00"},
-            {"activity": "sleeping", "activity_id": 1, "confidence": 0.88, "timestamp": "2026-03-17T08:00:00+00:00"},
+            {
+                "activity": "cooking",
+                "activity_id": 3,
+                "confidence": 0.92,
+                "timestamp": "2026-03-17T10:00:00+00:00",
+            },
+            {
+                "activity": "sleeping",
+                "activity_id": 1,
+                "confidence": 0.88,
+                "timestamp": "2026-03-17T08:00:00+00:00",
+            },
         ]
-        with patch("src.activity_endpoints._query_activity_from_influxdb", new_callable=AsyncMock, return_value=mock_items):
+        with patch(
+            "src.activity_endpoints._query_activity_from_influxdb",
+            new_callable=AsyncMock,
+            return_value=mock_items,
+        ):
             resp = await activity_client.get("/api/v1/activity/history")
 
         assert resp.status_code == 200
@@ -122,7 +146,11 @@ class TestActivityHistoryEndpoint:
 
     @pytest.mark.asyncio
     async def test_history_custom_params(self, activity_client):
-        with patch("src.activity_endpoints._query_activity_from_influxdb", new_callable=AsyncMock, return_value=[]) as mock_query:
+        with patch(
+            "src.activity_endpoints._query_activity_from_influxdb",
+            new_callable=AsyncMock,
+            return_value=[],
+        ) as mock_query:
             resp = await activity_client.get("/api/v1/activity/history?hours=48&limit=10")
 
         assert resp.status_code == 200
@@ -130,7 +158,11 @@ class TestActivityHistoryEndpoint:
 
     @pytest.mark.asyncio
     async def test_history_empty_result(self, activity_client):
-        with patch("src.activity_endpoints._query_activity_from_influxdb", new_callable=AsyncMock, return_value=[]):
+        with patch(
+            "src.activity_endpoints._query_activity_from_influxdb",
+            new_callable=AsyncMock,
+            return_value=[],
+        ):
             resp = await activity_client.get("/api/v1/activity/history")
 
         assert resp.status_code == 200
@@ -151,6 +183,7 @@ class TestActivityHistoryEndpoint:
 # Sports Endpoints
 # ---------------------------------------------------------------------------
 
+
 def _make_sports_app():
     """Build a standalone FastAPI app with the sports router."""
     app = FastAPI()
@@ -163,6 +196,7 @@ def _make_sports_app():
         mock_writer.is_connected = False
         mock_writer_fn.return_value = mock_writer
         from src.sports_endpoints import router as sports_router
+
         app.include_router(sports_router, prefix="/api/v1")
 
     return app
@@ -392,14 +426,16 @@ class TestSportsGameTimeline:
 # HA Automation Endpoints
 # ---------------------------------------------------------------------------
 
+
 def _make_ha_app():
     """Build a standalone FastAPI app with the HA automation router."""
     app = FastAPI()
 
     with patch("src.ha_automation_endpoints.InfluxDBQueryClient"):
-        from src.ha_automation_endpoints import router as ha_router
         # Clear webhooks between tests
         from src import ha_automation_endpoints
+        from src.ha_automation_endpoints import router as ha_router
+
         ha_automation_endpoints.webhooks.clear()
         app.include_router(ha_router, prefix="/api/v1")
 
@@ -571,10 +607,12 @@ class TestHAWebhooks:
 # MCP Endpoints
 # ---------------------------------------------------------------------------
 
+
 def _make_mcp_app():
     """Build a standalone FastAPI app with the MCP router."""
     app = FastAPI()
     from src.api.mcp_router import router as mcp_router
+
     app.include_router(mcp_router)
     return app
 
@@ -598,11 +636,14 @@ class TestMCPQueryDeviceHistory:
     @pytest.mark.asyncio
     async def test_query_device_history_returns_500_broken_import(self, mcp_client):
         """MCP endpoint returns 500 because database.influx_client doesn't exist."""
-        resp = await mcp_client.post("/mcp/tools/query_device_history", json={
-            "entity_id": "sensor.power",
-            "start_time": "-7d",
-            "end_time": "now",
-        })
+        resp = await mcp_client.post(
+            "/mcp/tools/query_device_history",
+            json={
+                "entity_id": "sensor.power",
+                "start_time": "-7d",
+                "end_time": "now",
+            },
+        )
         assert resp.status_code == 500
 
 
@@ -630,10 +671,12 @@ class TestMCPSearchEvents:
 # Analytics Endpoints
 # ---------------------------------------------------------------------------
 
+
 def _make_analytics_app():
     """Build a standalone FastAPI app with the analytics router."""
     app = FastAPI()
     from src.analytics_endpoints import router as analytics_router
+
     app.include_router(analytics_router, prefix="/api/v1")
     return app
 
@@ -649,6 +692,7 @@ async def analytics_client():
 def _make_fake_series(n=5, value=1.0):
     """Generate a fake time series for analytics mocking."""
     from datetime import timedelta
+
     base = datetime(2026, 3, 17, 10, 0, tzinfo=UTC)
     return [
         {"timestamp": (base + timedelta(minutes=i)).isoformat() + "Z", "value": value}
@@ -664,7 +708,11 @@ class TestAnalyticsEndpoint:
         fake_series = _make_fake_series(60, 5.0)
         with (
             patch("src.main.data_api_service", create=True) as mock_svc,
-            patch("src.analytics_endpoints.query_events_per_minute", new_callable=AsyncMock, return_value=fake_series),
+            patch(
+                "src.analytics_endpoints.query_events_per_minute",
+                new_callable=AsyncMock,
+                return_value=fake_series,
+            ),
             patch("src.analytics_endpoints.query_api_response_time", return_value=fake_series),
             patch("src.analytics_endpoints.query_database_latency", return_value=fake_series),
             patch("src.analytics_endpoints.query_error_rate", return_value=fake_series),
@@ -688,7 +736,11 @@ class TestAnalyticsEndpoint:
         for time_range in ["6h", "24h", "7d"]:
             with (
                 patch("src.main.data_api_service", create=True) as mock_svc,
-                patch("src.analytics_endpoints.query_events_per_minute", new_callable=AsyncMock, return_value=fake_series),
+                patch(
+                    "src.analytics_endpoints.query_events_per_minute",
+                    new_callable=AsyncMock,
+                    return_value=fake_series,
+                ),
                 patch("src.analytics_endpoints.query_api_response_time", return_value=fake_series),
                 patch("src.analytics_endpoints.query_database_latency", return_value=fake_series),
                 patch("src.analytics_endpoints.query_error_rate", return_value=fake_series),
@@ -712,32 +764,38 @@ class TestAnalyticsEndpoint:
 # Analytics helpers (unit tests, no HTTP)
 # ---------------------------------------------------------------------------
 
+
 class TestAnalyticsHelpers:
     """Unit tests for analytics helper functions."""
 
     def test_calculate_trend_stable(self):
         from src.analytics_endpoints import calculate_trend
+
         data = [1.0] * 20
         assert calculate_trend(data) == "stable"
 
     def test_calculate_trend_up(self):
         from src.analytics_endpoints import calculate_trend
+
         # window=5, so last 5 vs preceding 5; need >10% diff
         data = [1.0] * 5 + [5.0] * 5
         assert calculate_trend(data) == "up"
 
     def test_calculate_trend_down(self):
         from src.analytics_endpoints import calculate_trend
+
         # window=5, so last 5 vs preceding 5; need >10% diff
         data = [5.0] * 5 + [1.0] * 5
         assert calculate_trend(data) == "down"
 
     def test_calculate_trend_short_series(self):
         from src.analytics_endpoints import calculate_trend
+
         assert calculate_trend([1.0, 2.0]) == "stable"
 
     def test_get_time_range_params(self):
         from src.analytics_endpoints import get_time_range_params
+
         start, interval, num_points = get_time_range_params("1h")
         assert interval == "1m"
         assert num_points == 60
@@ -748,6 +806,7 @@ class TestAnalyticsHelpers:
 
     def test_build_metric(self):
         from src.analytics_endpoints import _build_metric
+
         series = [
             {"timestamp": "2026-03-17T10:00:00Z", "value": 5.0},
             {"timestamp": "2026-03-17T10:01:00Z", "value": 10.0},

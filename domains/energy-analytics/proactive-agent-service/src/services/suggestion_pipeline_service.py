@@ -51,6 +51,7 @@ logger = logging.getLogger(__name__)
 
 class PipelineInitializationError(Exception):
     """Raised when pipeline services fail to initialize"""
+
     pass
 
 
@@ -93,7 +94,9 @@ class SuggestionPipelineService:
             self.context_service = context_service or ContextAnalysisService()
         except Exception as e:
             logger.error(f"Failed to initialize ContextAnalysisService: {e}", exc_info=True)
-            raise PipelineInitializationError(f"ContextAnalysisService initialization failed: {e}") from e
+            raise PipelineInitializationError(
+                f"ContextAnalysisService initialization failed: {e}"
+            ) from e
 
         # Initialize RAG Context Registry for domain-specific context
         rag_registry = None
@@ -118,7 +121,9 @@ class SuggestionPipelineService:
                 )
                 logger.info("✅ AI-powered prompt generation ENABLED")
             except Exception as e:
-                logger.warning(f"Failed to initialize AIPromptGenerationService: {e}. Falling back to templates.")
+                logger.warning(
+                    f"Failed to initialize AIPromptGenerationService: {e}. Falling back to templates."
+                )
                 self.ai_prompt_service = None
                 self.use_ai_generation = False
         else:
@@ -130,7 +135,9 @@ class SuggestionPipelineService:
             self.prompt_service = prompt_service or PromptGenerationService()
         except Exception as e:
             logger.error(f"Failed to initialize PromptGenerationService: {e}", exc_info=True)
-            raise PipelineInitializationError(f"PromptGenerationService initialization failed: {e}") from e
+            raise PipelineInitializationError(
+                f"PromptGenerationService initialization failed: {e}"
+            ) from e
 
         try:
             self.agent_client = agent_client or HAAgentClient()
@@ -142,17 +149,23 @@ class SuggestionPipelineService:
             self.storage_service = storage_service or SuggestionStorageService()
         except Exception as e:
             logger.error(f"Failed to initialize SuggestionStorageService: {e}", exc_info=True)
-            raise PipelineInitializationError(f"SuggestionStorageService initialization failed: {e}") from e
+            raise PipelineInitializationError(
+                f"SuggestionStorageService initialization failed: {e}"
+            ) from e
 
         # Validate all services are properly initialized (not None)
         if self.context_service is None:
             raise PipelineInitializationError("ContextAnalysisService is None after initialization")
         if self.prompt_service is None:
-            raise PipelineInitializationError("PromptGenerationService is None after initialization")
+            raise PipelineInitializationError(
+                "PromptGenerationService is None after initialization"
+            )
         if self.agent_client is None:
             raise PipelineInitializationError("HAAgentClient is None after initialization")
         if self.storage_service is None:
-            raise PipelineInitializationError("SuggestionStorageService is None after initialization")
+            raise PipelineInitializationError(
+                "SuggestionStorageService is None after initialization"
+            )
 
         self.quality_threshold = quality_threshold
         self.max_suggestions_per_batch = max_suggestions_per_batch
@@ -238,9 +251,7 @@ class SuggestionPipelineService:
                 "error": str(e),
             }
 
-    def _build_engagement_context(
-        self, behavioral_results: list
-    ) -> dict[str, Any] | None:
+    def _build_engagement_context(self, behavioral_results: list) -> dict[str, Any] | None:
         """
         Build engagement context from behavioral memories.
 
@@ -282,9 +293,7 @@ class SuggestionPipelineService:
                     context["engagement_times"].append(time_pref)
 
         # Deduplicate
-        context["preferred_suggestion_types"] = list(
-            set(context["preferred_suggestion_types"])
-        )
+        context["preferred_suggestion_types"] = list(set(context["preferred_suggestion_types"]))
 
         return context if any(context.values()) else None
 
@@ -328,7 +337,9 @@ class SuggestionPipelineService:
                     context["away_periods"].append(away_info)
 
             # Extract quiet hours
-            is_quiet_content = "quiet" in content or "sleep" in content or "do not disturb" in content
+            is_quiet_content = (
+                "quiet" in content or "sleep" in content or "do not disturb" in content
+            )
             if is_quiet_content and memory.metadata_:
                 quiet_info = {
                     "start": memory.metadata_.get("start_time"),
@@ -531,7 +542,9 @@ class SuggestionPipelineService:
             if not context_analysis:
                 logger.warning("No context available for suggestion generation")
                 results["success"] = False
-                results["details"].append({"step": "context_analysis", "error": "No context available"})
+                results["details"].append(
+                    {"step": "context_analysis", "error": "No context available"}
+                )
                 return results
 
             # Step 2: Generate prompts (AI-powered or fallback)
@@ -548,7 +561,7 @@ class SuggestionPipelineService:
                 else:
                     # Fallback to template-based generation
                     logger.info("📝 Using template-based prompt generation")
-                    if not callable(getattr(self.prompt_service, 'generate_prompts', None)):
+                    if not callable(getattr(self.prompt_service, "generate_prompts", None)):
                         raise TypeError(
                             f"prompt_service.generate_prompts is not callable: "
                             f"type={type(self.prompt_service)}"
@@ -563,25 +576,31 @@ class SuggestionPipelineService:
             except TypeError as e:
                 logger.error(f"TypeError in prompt generation: {e}", exc_info=True)
                 results["success"] = False
-                results["details"].append({
-                    "step": "prompt_generation",
-                    "error": f"TypeError: {str(e)}",
-                    "prompt_service_type": str(type(self.prompt_service)),
-                })
+                results["details"].append(
+                    {
+                        "step": "prompt_generation",
+                        "error": f"TypeError: {str(e)}",
+                        "prompt_service_type": str(type(self.prompt_service)),
+                    }
+                )
                 return results
             except Exception as e:
                 logger.error(f"Error generating prompts: {e}", exc_info=True)
                 results["success"] = False
-                results["details"].append({
-                    "step": "prompt_generation",
-                    "error": str(e),
-                })
+                results["details"].append(
+                    {
+                        "step": "prompt_generation",
+                        "error": str(e),
+                    }
+                )
                 return results
 
             if not prompts:
                 logger.warning("No prompts generated from context analysis")
                 results["success"] = False
-                results["details"].append({"step": "prompt_generation", "error": "No prompts generated"})
+                results["details"].append(
+                    {"step": "prompt_generation", "error": "No prompts generated"}
+                )
                 return results
 
             logger.info(f"Generated {len(prompts)} prompts")
@@ -603,23 +622,23 @@ class SuggestionPipelineService:
                 if timing_context:
                     pre_timing_count = len(prompts)
                     prompts = self._filter_by_timing(prompts, timing_context)
-                    logger.debug(
-                        f"Filtered {pre_timing_count - len(prompts)} prompts by timing"
-                    )
+                    logger.debug(f"Filtered {pre_timing_count - len(prompts)} prompts by timing")
 
                 # Boost preferred suggestions
                 engagement_context = memory_context.get("engagement_context")
                 if engagement_context:
                     prompts = self._boost_preferred_suggestions(prompts, engagement_context)
 
-                results["details"].append({
-                    "step": "memory_filtering",
-                    "original_count": original_count,
-                    "filtered_count": len(prompts),
-                    "blocked_domains": blocked_domains,
-                    "has_timing_context": timing_context is not None,
-                    "has_engagement_context": engagement_context is not None,
-                })
+                results["details"].append(
+                    {
+                        "step": "memory_filtering",
+                        "original_count": original_count,
+                        "filtered_count": len(prompts),
+                        "blocked_domains": blocked_domains,
+                        "has_timing_context": timing_context is not None,
+                        "has_engagement_context": engagement_context is not None,
+                    }
+                )
 
             # Step 3: Process each prompt (send to agent and store)
             for prompt_data in prompts:
@@ -654,7 +673,9 @@ class SuggestionPipelineService:
 
                     # Skip if duplicate (None returned)
                     if not suggestion:
-                        logger.debug(f"Skipping duplicate prompt: {prompt_data.get('prompt', '')[:50]}...")
+                        logger.debug(
+                            f"Skipping duplicate prompt: {prompt_data.get('prompt', '')[:50]}..."
+                        )
                         results["suggestions_failed"] += 1
                         results["details"].append(
                             {
@@ -666,7 +687,9 @@ class SuggestionPipelineService:
                         continue
 
                     results["suggestions_created"] += 1
-                    logger.debug(f"Created suggestion {suggestion.id} (status: pending - ready for user to send)")
+                    logger.debug(
+                        f"Created suggestion {suggestion.id} (status: pending - ready for user to send)"
+                    )
 
                 except Exception as prompt_error:
                     # Error processing individual prompt - continue with next
@@ -706,4 +729,3 @@ class SuggestionPipelineService:
             logger.info("Pipeline service closed")
         except Exception as e:
             logger.error(f"Error closing pipeline service: {e}", exc_info=True)
-

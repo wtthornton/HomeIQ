@@ -24,14 +24,16 @@ logger = logging.getLogger(__name__)
 class InfluxDBBatchWriter:
     """High-performance batch writer for InfluxDB"""
 
-    def __init__(self,
-                 connection_manager: InfluxDBConnectionManager,
-                 batch_size: int = 1000,
-                 batch_timeout: float = 5.0,
-                 max_retries: int = 3,
-                 retry_delay: float = 1.0,
-                 max_pending_points: int = 20000,
-                 overflow_strategy: str = "drop_oldest"):
+    def __init__(
+        self,
+        connection_manager: InfluxDBConnectionManager,
+        batch_size: int = 1000,
+        batch_timeout: float = 5.0,
+        max_retries: int = 3,
+        retry_delay: float = 1.0,
+        max_pending_points: int = 20000,
+        overflow_strategy: str = "drop_oldest",
+    ):
         """
         Initialize InfluxDB batch writer
 
@@ -90,7 +92,9 @@ class InfluxDBBatchWriter:
         # Start processing task
         self.processing_task = asyncio.create_task(self._processing_loop())
 
-        logger.info(f"Started InfluxDB batch writer with batch_size={self.batch_size}, timeout={self.batch_timeout}s")
+        logger.info(
+            f"Started InfluxDB batch writer with batch_size={self.batch_size}, timeout={self.batch_timeout}s"
+        )
 
     async def stop(self):
         """Stop the batch writer"""
@@ -308,7 +312,9 @@ class InfluxDBBatchWriter:
                 success = await self.connection_manager.write_points(valid_points)
 
                 if success:
-                    logger.debug(f"Successfully wrote batch of {len(valid_points)} points to InfluxDB")
+                    logger.debug(
+                        f"Successfully wrote batch of {len(valid_points)} points to InfluxDB"
+                    )
                     return True
                 else:
                     logger.error(f"Failed to write batch to InfluxDB (attempt {attempt + 1})")
@@ -370,7 +376,9 @@ class InfluxDBBatchWriter:
 
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-        logger.info(f"Updated retry settings: max_retries={max_retries}, retry_delay={retry_delay}s")
+        logger.info(
+            f"Updated retry settings: max_retries={max_retries}, retry_delay={retry_delay}s"
+        )
 
     def get_writing_statistics(self) -> dict[str, Any]:
         """Get writing statistics"""
@@ -420,7 +428,7 @@ class InfluxDBBatchWriter:
             "max_pending_points": self.max_pending_points,
             "overflow_strategy": self.overflow_strategy,
             "queue_overflow_events": self.queue_overflow_events,
-            "dropped_points": self.dropped_points
+            "dropped_points": self.dropped_points,
         }
 
     def reset_statistics(self):
@@ -436,7 +444,9 @@ class InfluxDBBatchWriter:
         self.dropped_points = 0
         logger.info("InfluxDB batch writer statistics reset")
 
-    def configure_queue_limits(self, max_pending_points: int, overflow_strategy: str = "drop_oldest"):
+    def configure_queue_limits(
+        self, max_pending_points: int, overflow_strategy: str = "drop_oldest"
+    ):
         """Update queue/backpressure configuration"""
         if max_pending_points <= 0:
             raise ValueError("max_pending_points must be positive")

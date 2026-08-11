@@ -1,4 +1,5 @@
 """Feedback processing service. Story 40.5."""
+
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -71,15 +72,9 @@ class FeedbackProcessor:
             select(
                 PatternTrainingData.pattern_type,
                 func.count().label("total"),
-                func.count()
-                .filter(PatternTrainingData.user_action == "accept")
-                .label("accepted"),
-                func.count()
-                .filter(PatternTrainingData.user_action == "reject")
-                .label("rejected"),
-                func.count()
-                .filter(PatternTrainingData.user_action == "ignore")
-                .label("ignored"),
+                func.count().filter(PatternTrainingData.user_action == "accept").label("accepted"),
+                func.count().filter(PatternTrainingData.user_action == "reject").label("rejected"),
+                func.count().filter(PatternTrainingData.user_action == "ignore").label("ignored"),
             )
             .where(PatternTrainingData.user_action.isnot(None))
             .group_by(PatternTrainingData.pattern_type)

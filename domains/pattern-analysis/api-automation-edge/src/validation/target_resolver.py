@@ -133,7 +133,9 @@ class TargetResolver:
                     raise ValueError("entity_id list must contain only strings")
                 entity_ids.extend(entity_id)
             else:
-                raise ValueError(f"entity_id must be str or List[str], got {type(entity_id).__name__}")
+                raise ValueError(
+                    f"entity_id must be str or List[str], got {type(entity_id).__name__}"
+                )
 
         # Area selector
         elif "area" in target:
@@ -173,7 +175,8 @@ class TargetResolver:
             if not entity_ids:
                 logger.warning(
                     "User selector '%s' returned no entities -- user management "
-                    "integration not yet available", user,
+                    "integration not yet available",
+                    user,
                 )
             return entity_ids
 
@@ -220,10 +223,7 @@ class TargetResolver:
                 unique_entity_ids.append(eid)
         return unique_entity_ids
 
-    def resolve_action_targets(
-        self,
-        actions: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def resolve_action_targets(self, actions: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Resolve targets for all actions.
 
@@ -294,10 +294,7 @@ class TargetResolver:
 
         return resolved_actions
 
-    def create_execution_plan(
-        self,
-        spec: dict[str, Any]
-    ) -> dict[str, Any]:
+    def create_execution_plan(self, spec: dict[str, Any]) -> dict[str, Any]:
         """
         Create execution plan with resolved targets.
 
@@ -347,7 +344,7 @@ class TargetResolver:
                 "spec_version": spec_version,
                 "actions": [],
                 "total_actions": 0,
-                "total_entities": 0
+                "total_entities": 0,
             }
 
         try:
@@ -357,8 +354,7 @@ class TargetResolver:
             raise ValueError(f"Target resolution failed: {e}") from e
 
         total_entities = sum(
-            len(action.get("resolved_entity_ids", []))
-            for action in resolved_actions
+            len(action.get("resolved_entity_ids", [])) for action in resolved_actions
         )
 
         plan = {
@@ -366,7 +362,7 @@ class TargetResolver:
             "spec_version": spec_version,
             "actions": resolved_actions,
             "total_actions": len(resolved_actions),
-            "total_entities": total_entities
+            "total_entities": total_entities,
         }
 
         logger.info(

@@ -16,6 +16,8 @@ if _service_src not in sys.path:
 
 # Stub homeiq_observability before any test module imports src.main —
 # the real package is not installed in the test environment.
-sys.modules['homeiq_observability'] = MagicMock()
-sys.modules['homeiq_observability.logging_config'] = MagicMock()
-sys.modules['homeiq_observability.logging_config'].setup_logging = MagicMock(return_value=MagicMock())
+sys.modules["homeiq_observability"] = MagicMock()
+sys.modules["homeiq_observability.logging_config"] = MagicMock()
+sys.modules["homeiq_observability.logging_config"].setup_logging = MagicMock(
+    return_value=MagicMock()
+)

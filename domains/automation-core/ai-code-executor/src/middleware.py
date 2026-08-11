@@ -84,4 +84,3 @@ def record_execution(success: bool, execution_time: float, memory_used_mb: float
 def record_request() -> None:
     """Record a request."""
     _metrics["total_requests"] += 1
-

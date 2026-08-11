@@ -6,8 +6,6 @@ Tests injection prevention, boundary conditions, and DoS protection.
 
 import warnings
 
-import pytest
-
 from src.flux_utils import MAX_SANITIZED_LENGTH, sanitize_flux_value
 
 
@@ -34,7 +32,6 @@ class TestSanitizeNormalInputs:
 
 
 class TestSanitizeEdgeCases:
-
     def test_none_returns_empty(self):
         assert sanitize_flux_value(None) == ""
 
@@ -100,7 +97,6 @@ class TestSanitizeFluxInjection:
 
 
 class TestSanitizeSpecialCharacters:
-
     def test_null_bytes_removed(self):
         result = sanitize_flux_value("hello\x00world")
         assert "\x00" not in result
@@ -136,7 +132,6 @@ class TestSanitizeSpecialCharacters:
 
 
 class TestSanitizeUnicode:
-
     def test_unicode_letters_kept(self):
         """Word characters include unicode letters."""
         result = sanitize_flux_value("café")
@@ -155,7 +150,6 @@ class TestSanitizeUnicode:
 
 
 class TestSanitizeDoSProtection:
-
     def test_truncates_long_input(self):
         long_value = "a" * 2000
         with warnings.catch_warnings():

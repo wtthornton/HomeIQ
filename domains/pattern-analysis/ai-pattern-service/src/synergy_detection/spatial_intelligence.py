@@ -31,10 +31,7 @@ class SpatialIntelligenceService:
         self.area_lookup: dict[str, dict[str, Any]] = {}
         self.adjacency_graph: dict[str, set[str]] = defaultdict(set)
 
-    def build_spatial_graph(
-        self,
-        entities: list[dict[str, Any]]
-    ) -> dict[str, set[str]]:
+    def build_spatial_graph(self, entities: list[dict[str, Any]]) -> dict[str, set[str]]:
         """
         Build spatial relationship graph from entity data.
 
@@ -50,19 +47,19 @@ class SpatialIntelligenceService:
         # Group entities by area
         area_entities: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for entity in entities:
-            area_id = entity.get('area_id')
+            area_id = entity.get("area_id")
             if area_id:
                 area_entities[area_id].append(entity)
                 self.area_lookup[area_id] = {
-                    'area_id': area_id,
-                    'entity_count': len(area_entities[area_id])
+                    "area_id": area_id,
+                    "entity_count": len(area_entities[area_id]),
                 }
 
         # Build adjacency graph (basic heuristic: areas with common patterns are adjacent)
         # This is a simplified implementation - can be enhanced with explicit adjacency data
         area_ids = list(area_entities.keys())
         for i, area1 in enumerate(area_ids):
-            for area2 in area_ids[i+1:]:
+            for area2 in area_ids[i + 1 :]:
                 # Simple heuristic: areas are considered adjacent if they have similar naming patterns
                 # (e.g., "bedroom" and "bedroom_hallway", "kitchen" and "kitchen_dining")
                 # This is a placeholder - should be replaced with actual adjacency data
@@ -73,11 +70,7 @@ class SpatialIntelligenceService:
         logger.debug(f"Built spatial graph with {len(self.adjacency_graph)} areas")
         return dict(self.adjacency_graph)
 
-    def _heuristic_adjacent(
-        self,
-        area1: str,
-        area2: str
-    ) -> bool:
+    def _heuristic_adjacent(self, area1: str, area2: str) -> bool:
         """
         Heuristic to determine if two areas are adjacent.
 
@@ -99,14 +92,10 @@ class SpatialIntelligenceService:
             return True
 
         # Check for common patterns (e.g., "kitchen" and "dining" -> "kitchen_dining")
-        common_words = ['bedroom', 'kitchen', 'bathroom', 'living', 'dining', 'hallway', 'office']
+        common_words = ["bedroom", "kitchen", "bathroom", "living", "dining", "hallway", "office"]
         return any(word in area1_lower and word in area2_lower for word in common_words)
 
-    def are_adjacent(
-        self,
-        area1: str,
-        area2: str
-    ) -> bool:
+    def are_adjacent(self, area1: str, area2: str) -> bool:
         """
         Check if two areas are adjacent.
 
@@ -123,9 +112,7 @@ class SpatialIntelligenceService:
         return area2 in self.adjacency_graph.get(area1, set())
 
     def validate_cross_area_synergy(
-        self,
-        synergy: dict[str, Any],
-        entities: list[dict[str, Any]]
+        self, synergy: dict[str, Any], entities: list[dict[str, Any]]
     ) -> tuple[bool, str | None]:
         """
         Validate if a cross-area synergy makes spatial sense.
@@ -137,7 +124,7 @@ class SpatialIntelligenceService:
         Returns:
             Tuple of (is_valid: bool, reason: Optional[str])
         """
-        devices = synergy.get('devices', synergy.get('device_ids', []))
+        devices = synergy.get("devices", synergy.get("device_ids", []))
         if not devices or len(devices) < 2:
             return True, None  # Single device or no devices - skip validation
 
@@ -145,8 +132,10 @@ class SpatialIntelligenceService:
         device_areas: list[str | None] = []
         for device in devices:
             # Find entity for device
-            entity_id = device if isinstance(device, str) else device.get('entity_id', '')
-            area = next((e.get('area_id') for e in entities if e.get('entity_id') == entity_id), None)
+            entity_id = device if isinstance(device, str) else device.get("entity_id", "")
+            area = next(
+                (e.get("area_id") for e in entities if e.get("entity_id") == entity_id), None
+            )
             device_areas.append(area)
 
         # Filter out None values
@@ -176,10 +165,7 @@ class SpatialIntelligenceService:
         # For now, allow multi-area synergies
         return True, "Multi-area synergy"
 
-    def suggest_cross_area_patterns(
-        self,
-        entities: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def suggest_cross_area_patterns(self, entities: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Suggest cross-area patterns based on spatial relationships.
 
@@ -198,26 +184,35 @@ class SpatialIntelligenceService:
         for area1, adjacent_areas in self.adjacency_graph.items():
             for area2 in adjacent_areas:
                 # Find devices in each area
-                area1_entities = [e for e in entities if e.get('area_id') == area1]
-                area2_entities = [e for e in entities if e.get('area_id') == area2]
+                area1_entities = [e for e in entities if e.get("area_id") == area1]
+                area2_entities = [e for e in entities if e.get("area_id") == area2]
 
                 # Suggest common patterns (lights, switches, etc.)
-                area1_lights = [e for e in area1_entities if e.get('entity_id', '').startswith('light.')]
-                area2_lights = [e for e in area2_entities if e.get('entity_id', '').startswith('light.')]
+                area1_lights = [
+                    e for e in area1_entities if e.get("entity_id", "").startswith("light.")
+                ]
+                area2_lights = [
+                    e for e in area2_entities if e.get("entity_id", "").startswith("light.")
+                ]
 
                 if area1_lights and area2_lights:
-                    suggestions.append({
-                        'pattern_type': 'cross_area_lighting',
-                        'area1': area1,
-                        'area2': area2,
-                        'description': f'Cross-area lighting between {area1} and {area2}',
-                        'suggested_synergy': {
-                            'devices': [area1_lights[0].get('entity_id'), area2_lights[0].get('entity_id')],
-                            'area': None,  # Cross-area
-                            'complexity': 'medium',
-                            'rationale': f'Adjacent areas {area1} and {area2} could coordinate lighting'
+                    suggestions.append(
+                        {
+                            "pattern_type": "cross_area_lighting",
+                            "area1": area1,
+                            "area2": area2,
+                            "description": f"Cross-area lighting between {area1} and {area2}",
+                            "suggested_synergy": {
+                                "devices": [
+                                    area1_lights[0].get("entity_id"),
+                                    area2_lights[0].get("entity_id"),
+                                ],
+                                "area": None,  # Cross-area
+                                "complexity": "medium",
+                                "rationale": f"Adjacent areas {area1} and {area2} could coordinate lighting",
+                            },
                         }
-                    })
+                    )
 
         logger.debug(f"Suggested {len(suggestions)} cross-area patterns")
         return suggestions

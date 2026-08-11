@@ -19,10 +19,7 @@ def has_errors(trace: Trace) -> bool:
 
 def span_has_error(span) -> bool:
     """Check if a single span has error tags."""
-    for tag in span.tags:
-        if tag.get("key") == "error" and tag.get("value"):
-            return True
-    return False
+    return any(tag.get("key") == "error" and tag.get("value") for tag in span.tags)
 
 
 def trace_wall_clock_ms(trace: Trace) -> float:

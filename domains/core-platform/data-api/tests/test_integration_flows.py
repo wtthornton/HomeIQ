@@ -196,9 +196,12 @@ class TestResponseModelInterop:
 
         devices = [
             DeviceResponse(
-                device_id=f"dev-{i}", name=f"Device {i}",
-                manufacturer="TestCo", model="Model-X",
-                entity_count=i, timestamp=datetime.now(UTC).isoformat(),
+                device_id=f"dev-{i}",
+                name=f"Device {i}",
+                manufacturer="TestCo",
+                model="Model-X",
+                entity_count=i,
+                timestamp=datetime.now(UTC).isoformat(),
             )
             for i in range(3)
         ]
@@ -210,8 +213,12 @@ class TestResponseModelInterop:
         from src.alert_endpoints import AlertResponse
 
         a = AlertResponse(
-            id="alert-1", name="Test Alert", severity="warning",
-            status="active", message="Something happened", service="data-api",
+            id="alert-1",
+            name="Test Alert",
+            severity="warning",
+            status="active",
+            message="Something happened",
+            service="data-api",
         )
         assert a.metric is None
         assert a.current_value is None

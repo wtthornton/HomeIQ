@@ -30,56 +30,53 @@ class SyntheticEventGenerator:
     # Event frequencies per device type (events per day)
     EVENT_FREQUENCIES = {
         # VERY HIGH (>100/day in production)
-        'image': 140,           # Cameras - continuous updates
-        'sun': 106,             # Sun position - continuous
-
+        "image": 140,  # Cameras - continuous updates
+        "sun": 106,  # Sun position - continuous
         # HIGH (20-100/day in production)
-        'binary_sensor': 36,    # Motion, door sensors - frequent
-        'sensor': 26,           # Temperature, light sensors - periodic
-        'media_player': 28,     # Playback state changes
-
+        "binary_sensor": 36,  # Motion, door sensors - frequent
+        "sensor": 26,  # Temperature, light sensors - periodic
+        "media_player": 28,  # Playback state changes
         # MEDIUM (5-20/day in production)
-        'light': 11,           # On/off cycles
-        'weather': 9,          # Periodic updates
-        'vacuum': 8,           # Status updates
-        'device_tracker': 5,   # Location updates
-        'person': 5,           # Presence changes
-
+        "light": 11,  # On/off cycles
+        "weather": 9,  # Periodic updates
+        "vacuum": 8,  # Status updates
+        "device_tracker": 5,  # Location updates
+        "person": 5,  # Presence changes
         # LOW (<5/day in production) - with minimums
-        'scene': 4,            # Manual activations
-        'select': 3,           # Configuration changes
-        'automation': 10,      # Trigger events (minimum for testing)
-        'switch': 3,          # Manual toggles (minimum)
-        'button': 2,          # Manual presses (minimum)
-        'event': 2,           # System events (minimum)
-        'remote': 2,          # Remote control (minimum)
-        'zone': 2,            # Zone changes (minimum)
-        'number': 2,          # Number inputs (minimum)
-        'update': 2,          # Update checks (minimum)
-        'climate': 3,         # Thermostat (minimum)
-        'cover': 2,           # Blinds, garage (minimum)
-        'lock': 2,            # Smart locks (minimum)
-        'fan': 3,             # Fans (minimum)
-        'alarm_control_panel': 2,  # Security alarms
-        'camera': 5,          # Camera updates
+        "scene": 4,  # Manual activations
+        "select": 3,  # Configuration changes
+        "automation": 10,  # Trigger events (minimum for testing)
+        "switch": 3,  # Manual toggles (minimum)
+        "button": 2,  # Manual presses (minimum)
+        "event": 2,  # System events (minimum)
+        "remote": 2,  # Remote control (minimum)
+        "zone": 2,  # Zone changes (minimum)
+        "number": 2,  # Number inputs (minimum)
+        "update": 2,  # Update checks (minimum)
+        "climate": 3,  # Thermostat (minimum)
+        "cover": 2,  # Blinds, garage (minimum)
+        "lock": 2,  # Smart locks (minimum)
+        "fan": 3,  # Fans (minimum)
+        "alarm_control_panel": 2,  # Security alarms
+        "camera": 5,  # Camera updates
     }
 
     # State values by device type
     DEVICE_STATES = {
-        'light': ['on', 'off'],
-        'binary_sensor': ['on', 'off'],
-        'switch': ['on', 'off'],
-        'sensor': lambda: str(random.randint(0, 100)),
-        'climate': lambda: str(random.randint(65, 75)),
-        'cover': ['open', 'closed', 'opening', 'closing'],
-        'media_player': ['playing', 'paused', 'idle', 'off'],
-        'vacuum': ['cleaning', 'docked', 'idle', 'returning'],
-        'lock': ['locked', 'unlocked'],
-        'fan': ['on', 'off'],
-        'image': ['idle'],
-        'sun': ['above_horizon', 'below_horizon'],
-        'person': ['home', 'not_home'],
-        'device_tracker': ['home', 'not_home'],
+        "light": ["on", "off"],
+        "binary_sensor": ["on", "off"],
+        "switch": ["on", "off"],
+        "sensor": lambda: str(random.randint(0, 100)),
+        "climate": lambda: str(random.randint(65, 75)),
+        "cover": ["open", "closed", "opening", "closing"],
+        "media_player": ["playing", "paused", "idle", "off"],
+        "vacuum": ["cleaning", "docked", "idle", "returning"],
+        "lock": ["locked", "unlocked"],
+        "fan": ["on", "off"],
+        "image": ["idle"],
+        "sun": ["above_horizon", "below_horizon"],
+        "person": ["home", "not_home"],
+        "device_tracker": ["home", "not_home"],
     }
 
     def __init__(self):
@@ -87,9 +84,7 @@ class SyntheticEventGenerator:
         logger.info("SyntheticEventGenerator initialized")
 
     async def generate_events(
-        self,
-        devices: list[dict[str, Any]],
-        days: int = 7
+        self, devices: list[dict[str, Any]], days: int = 7
     ) -> list[dict[str, Any]]:
         """
         Generate synthetic events for devices.
@@ -107,9 +102,9 @@ class SyntheticEventGenerator:
         start_time = datetime.now(UTC) - timedelta(days=days)
 
         for device in devices:
-            device_type = device.get('device_type', 'sensor')
-            entity_id = device.get('entity_id', 'unknown.entity')
-            area = device.get('area', 'unknown')
+            device_type = device.get("device_type", "sensor")
+            entity_id = device.get("entity_id", "unknown.entity")
+            area = device.get("area", "unknown")
 
             # Get event frequency for device type
             events_per_day = self.EVENT_FREQUENCIES.get(device_type, 7.5)
@@ -129,31 +124,27 @@ class SyntheticEventGenerator:
                     minute = random.randint(0, 59)
                     second = random.randint(0, 59)
 
-                    event_time = day_start + timedelta(
-                        hours=hour,
-                        minutes=minute,
-                        seconds=second
-                    )
+                    event_time = day_start + timedelta(hours=hour, minutes=minute, seconds=second)
 
                     # Generate state
                     state = self._generate_state(device_type)
 
                     event = {
-                        'event_type': 'state_changed',
-                        'entity_id': entity_id,
-                        'state': state,
-                        'timestamp': event_time.isoformat(),
-                        'attributes': {
-                            'device_type': device_type,
-                            'area': area,
-                            'device_class': device.get('device_class')
-                        }
+                        "event_type": "state_changed",
+                        "entity_id": entity_id,
+                        "state": state,
+                        "timestamp": event_time.isoformat(),
+                        "attributes": {
+                            "device_type": device_type,
+                            "area": area,
+                            "device_class": device.get("device_class"),
+                        },
                     }
 
                     events.append(event)
 
         # Sort events by timestamp
-        events.sort(key=lambda e: e['timestamp'])
+        events.sort(key=lambda e: e["timestamp"])
 
         logger.info(f"✅ Generated {len(events)} events over {days} days")
         return events
@@ -171,11 +162,10 @@ class SyntheticEventGenerator:
         state_generator = self.DEVICE_STATES.get(device_type)
 
         if state_generator is None:
-            return 'unknown'
+            return "unknown"
         elif callable(state_generator):
             return state_generator()
         elif isinstance(state_generator, list):
             return random.choice(state_generator)
         else:
             return str(state_generator)
-

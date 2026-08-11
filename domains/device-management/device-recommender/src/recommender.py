@@ -25,7 +25,7 @@ class DeviceRecommender:
         self,
         device_type: str,
         requirements: dict[str, Any] | None = None,
-        user_devices: list[dict[str, Any]] | None = None
+        user_devices: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Recommend devices based on requirements.
@@ -44,22 +44,23 @@ class DeviceRecommender:
         if self.db_client and self.db_client.is_available():
             try:
                 db_devices = await self.db_client.search_devices(
-                    device_type=device_type,
-                    filters=requirements or {}
+                    device_type=device_type, filters=requirements or {}
                 )
 
                 for device in db_devices:
                     relevance = self._calculate_db_relevance(device, requirements)
-                    recommendations.append({
-                        "manufacturer": device.get("manufacturer"),
-                        "model": device.get("model"),
-                        "device_type": device_type,
-                        "reason": "Recommended by Device Database",
-                        "rating": device.get("rating"),
-                        "features": device.get("features", []),
-                        "price_range": device.get("price_range"),
-                        "relevance_score": relevance,
-                    })
+                    recommendations.append(
+                        {
+                            "manufacturer": device.get("manufacturer"),
+                            "model": device.get("model"),
+                            "device_type": device_type,
+                            "reason": "Recommended by Device Database",
+                            "rating": device.get("rating"),
+                            "features": device.get("features", []),
+                            "price_range": device.get("price_range"),
+                            "relevance_score": relevance,
+                        }
+                    )
             except Exception as e:
                 logger.warning(f"Device Database search failed: {e}")
 
@@ -68,14 +69,16 @@ class DeviceRecommender:
             similar = self._find_similar_devices(device_type, user_devices)
             for device in similar:
                 satisfaction = self._calculate_user_satisfaction(device)
-                recommendations.append({
-                    "manufacturer": device.get("manufacturer"),
-                    "model": device.get("model"),
-                    "device_type": device_type,
-                    "reason": "Similar to your existing device",
-                    "user_rating": satisfaction,
-                    "relevance_score": satisfaction * 0.9,
-                })
+                recommendations.append(
+                    {
+                        "manufacturer": device.get("manufacturer"),
+                        "model": device.get("model"),
+                        "device_type": device_type,
+                        "reason": "Similar to your existing device",
+                        "user_rating": satisfaction,
+                        "relevance_score": satisfaction * 0.9,
+                    }
+                )
 
         # Sort by relevance
         recommendations.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)

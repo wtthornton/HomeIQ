@@ -9,6 +9,7 @@ from .external_schemas import BlueprintSummary, DeviceSignature, UserProfile
 
 try:
     from blueprint_opportunity.device_matcher import DeviceMatcher
+
     DEVICE_MATCHER_AVAILABLE = True
 except ImportError:
     DEVICE_MATCHER_AVAILABLE = False
@@ -111,10 +112,10 @@ class SuggestionScorer:
         norm = 1.0 / applied_weight_sum if applied_weight_sum > 0 else 1.0
 
         final_score = (
-            device_match_score * settings.device_match_weight * norm +
-            blueprint_quality_score * settings.blueprint_quality_weight * norm +
-            community_rating * settings.community_rating_weight * norm +
-            complexity_bonus * settings.complexity_bonus_weight * norm
+            device_match_score * settings.device_match_weight * norm
+            + blueprint_quality_score * settings.blueprint_quality_weight * norm
+            + community_rating * settings.community_rating_weight * norm
+            + complexity_bonus * settings.complexity_bonus_weight * norm
         )
 
         return min(1.0, max(0.0, final_score))

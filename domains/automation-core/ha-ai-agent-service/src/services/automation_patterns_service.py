@@ -37,20 +37,16 @@ class AutomationPatternsService:
         """
         self.settings = settings
         self.context_builder = context_builder
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
-        self.ha_client = HomeAssistantClient(
-            ha_url=settings.ha_url,
-            access_token=settings.ha_token.get_secret_value()
+        self.data_api_client = DataAPIClient(
+            base_url=settings.data_api_url,
+            api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None,
         )
+        self.ha_client = HomeAssistantClient(ha_url=settings.ha_url, access_token=settings.ha_token.get_secret_value())
         self._cache_key = "automation_patterns_summary"
         self._cache_ttl = 1800  # 30 minutes (patterns change occasionally)
 
     async def get_recent_patterns(
-        self,
-        _user_prompt: str | None = None,
-        area_id: str | None = None,
-        limit: int = 3,
-        skip_truncation: bool = False
+        self, _user_prompt: str | None = None, area_id: str | None = None, limit: int = 3, skip_truncation: bool = False
     ) -> str:
         """
         Get recent automation patterns formatted for context injection.
@@ -83,7 +79,7 @@ class AutomationPatternsService:
             automation_entities = await self.data_api_client.fetch_entities(
                 domain="automation",
                 area_id=area_id,
-                limit=100  # Fetch more to filter by recent
+                limit=100,  # Fetch more to filter by recent
             )
 
             if not automation_entities:
@@ -96,11 +92,14 @@ class AutomationPatternsService:
 
             # Limit to most recent automations (by entity_id or timestamp if available)
             # For now, take first N automations (Data API should return most recent first)
-            recent_automations = automation_entities[:limit * 2]  # Get more to filter
+            recent_automations = automation_entities[: limit * 2]  # Get more to filter
 
             for automation_entity in recent_automations[:limit]:
                 entity_id = automation_entity.get("entity_id")
-                friendly_name = automation_entity.get("friendly_name") or entity_id.replace("automation.", "").replace("_", " ").title()
+                friendly_name = (
+                    automation_entity.get("friendly_name")
+                    or entity_id.replace("automation.", "").replace("_", " ").title()
+                )
 
                 if not entity_id:
                     continue
@@ -109,10 +108,7 @@ class AutomationPatternsService:
                 try:
                     automation_config = await self._get_automation_config(entity_id)
                     if automation_config:
-                        pattern_summary = self._format_pattern_summary(
-                            friendly_name,
-                            automation_config
-                        )
+                        pattern_summary = self._format_pattern_summary(friendly_name, automation_config)
                         if pattern_summary:
                             patterns.append(pattern_summary)
                 except Exception as e:
@@ -132,9 +128,7 @@ class AutomationPatternsService:
             # Cache the result
             if not skip_truncation:
                 cache_key = f"{self._cache_key}_{area_id or 'all'}_{limit}"
-                await self.context_builder._set_cached_value(
-                    cache_key, summary, self._cache_ttl
-                )
+                await self.context_builder._set_cached_value(cache_key, summary, self._cache_ttl)
 
             logger.info(f"✅ Generated {len(patterns)} automation patterns ({len(summary)} chars)")
             return summary
@@ -173,11 +167,7 @@ class AutomationPatternsService:
             logger.debug(f"Could not fetch automation config for {entity_id}: {e}")
             return None
 
-    def _format_pattern_summary(
-        self,
-        friendly_name: str,
-        automation_config: dict[str, Any]
-    ) -> str:
+    def _format_pattern_summary(self, friendly_name: str, automation_config: dict[str, Any]) -> str:
         """
         Format automation config as pattern summary.
 

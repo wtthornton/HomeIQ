@@ -24,6 +24,7 @@ except ImportError:
 @dataclass
 class NameSuggestion:
     """Name suggestion result"""
+
     name: str
     confidence: float  # 0.0-1.0
     source: str  # "pattern", "ai", "local_llm", "preference"
@@ -80,7 +81,7 @@ class DeviceNameGenerator:
         device: Device,
         entity: DeviceEntity | None = None,
         context: dict[str, Any] | None = None,
-        use_ai: bool = False
+        use_ai: bool = False,
     ) -> NameSuggestion:
         """
         Generate name suggestion using tiered approach:
@@ -119,9 +120,7 @@ class DeviceNameGenerator:
             self.pattern_cache[key] = value
 
     def _pattern_based_generation(
-        self,
-        device: Device,
-        entity: DeviceEntity | None = None
+        self, device: Device, entity: DeviceEntity | None = None
     ) -> NameSuggestion:
         """
         Fast pattern-based name generation (no AI).
@@ -143,12 +142,11 @@ class DeviceNameGenerator:
             device_type = self._extract_device_type(device, entity)
             if device_type:
                 name = f"{device.area_name} {device_type}"
-                reasoning = f"Based on location ({device.area_name}) and device type ({device_type})"
+                reasoning = (
+                    f"Based on location ({device.area_name}) and device type ({device_type})"
+                )
                 suggestion = NameSuggestion(
-                    name=name,
-                    confidence=0.9,
-                    source="pattern",
-                    reasoning=reasoning
+                    name=name, confidence=0.9, source="pattern", reasoning=reasoning
                 )
                 self._cache_put(cache_key, suggestion)
                 return suggestion
@@ -164,10 +162,7 @@ class DeviceNameGenerator:
                     name = f"{position} {device_type}"
                 reasoning = f"Extracted position '{position}' from entity ID pattern"
                 suggestion = NameSuggestion(
-                    name=name,
-                    confidence=0.85,
-                    source="pattern",
-                    reasoning=reasoning
+                    name=name, confidence=0.85, source="pattern", reasoning=reasoning
                 )
                 self._cache_put(cache_key, suggestion)
                 return suggestion
@@ -181,10 +176,7 @@ class DeviceNameGenerator:
                 name = f"{device.manufacturer} {device_type}"
             reasoning = f"Based on manufacturer ({device.manufacturer}) and device type"
             suggestion = NameSuggestion(
-                name=name,
-                confidence=0.7,
-                source="pattern",
-                reasoning=reasoning
+                name=name, confidence=0.7, source="pattern", reasoning=reasoning
             )
             self._cache_put(cache_key, suggestion)
             return suggestion
@@ -197,7 +189,7 @@ class DeviceNameGenerator:
                     name=cleaned_name,
                     confidence=0.6,
                     source="pattern",
-                    reasoning="Cleaned up existing device name"
+                    reasoning="Cleaned up existing device name",
                 )
                 self._cache_put(cache_key, suggestion)
                 return suggestion
@@ -208,12 +200,14 @@ class DeviceNameGenerator:
             name=fallback_name,
             confidence=0.3,
             source="pattern",
-            reasoning="Fallback to existing name"
+            reasoning="Fallback to existing name",
         )
         self._cache_put(cache_key, suggestion)
         return suggestion
 
-    def _extract_device_type(self, device: Device, entity: DeviceEntity | None = None) -> str | None:
+    def _extract_device_type(
+        self, device: Device, entity: DeviceEntity | None = None
+    ) -> str | None:
         """Extract device type from entity domain or device class"""
         if entity:
             domain = entity.domain
@@ -255,19 +249,20 @@ class DeviceNameGenerator:
         cleaned = name
 
         # Remove model numbers (e.g., "E27 WS opal 980lm")
-        cleaned = re.sub(r'\bE\d+\b', '', cleaned)
-        cleaned = re.sub(r'\b\d+lm\b', '', cleaned)
-        cleaned = re.sub(r'\bWS\b', '', cleaned)
+        cleaned = re.sub(r"\bE\d+\b", "", cleaned)
+        cleaned = re.sub(r"\b\d+lm\b", "", cleaned)
+        cleaned = re.sub(r"\bWS\b", "", cleaned)
 
         # Remove version numbers
-        cleaned = re.sub(r'\bv?\d+\.\d+\.\d+\b', '', cleaned)
+        cleaned = re.sub(r"\bv?\d+\.\d+\.\d+\b", "", cleaned)
 
         # Remove manufacturer if it's redundant
-        cleaned = re.sub(r'\b(Philips|Hue|IKEA|TRADFRI|Xiaomi)\s+', '', cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(
+            r"\b(Philips|Hue|IKEA|TRADFRI|Xiaomi)\s+", "", cleaned, flags=re.IGNORECASE
+        )
 
         # Clean up multiple spaces
-        cleaned = re.sub(r'\s+', ' ', cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned)
         cleaned = cleaned.strip()
 
         return cleaned
-

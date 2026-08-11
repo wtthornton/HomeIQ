@@ -51,7 +51,7 @@ class RAGService:
         db: AsyncSession,
         openvino_client: OpenVINOClient,
         embedding_cache: dict[str, Any] | None = None,
-        embedding_cache_size: int = 100
+        embedding_cache_size: int = 100,
     ):
         """
         Initialize RAG service.
@@ -64,7 +64,9 @@ class RAGService:
         """
         self.db = db
         self.openvino_client = openvino_client
-        self._embedding_cache: dict[str, Any] = embedding_cache if embedding_cache is not None else {}
+        self._embedding_cache: dict[str, Any] = (
+            embedding_cache if embedding_cache is not None else {}
+        )
         self._cache_size = embedding_cache_size
 
     async def _get_embedding(self, text: str) -> tuple[np.ndarray, bool]:
@@ -116,7 +118,7 @@ class RAGService:
         text: str,
         knowledge_type: str,
         metadata: dict[str, Any] | None = None,
-        success_score: float = 0.5
+        success_score: float = 0.5,
     ) -> tuple[int, bool]:
         """
         Store text with semantic embedding.
@@ -145,14 +147,16 @@ class RAGService:
                 embedding=embedding.tolist(),  # Convert to list for JSON storage
                 knowledge_type=knowledge_type,
                 metadata_json=metadata or {},  # Use metadata_json attribute
-                success_score=success_score
+                success_score=success_score,
             )
 
             self.db.add(entry)
             await self.db.commit()
             await self.db.refresh(entry)
 
-            logger.info(f"Stored RAG knowledge: type={knowledge_type}, id={entry.id}, text='{text[:50]}...'")
+            logger.info(
+                f"Stored RAG knowledge: type={knowledge_type}, id={entry.id}, text='{text[:50]}...'"
+            )
             return entry.id, cache_hit
 
         except EmbeddingGenerationError:
@@ -167,7 +171,7 @@ class RAGService:
         query: str,
         knowledge_type: str | None = None,
         top_k: int = 5,
-        min_similarity: float = 0.7
+        min_similarity: float = 0.7,
     ) -> tuple[list[dict[str, Any]], bool]:
         """
         Retrieve similar entries using semantic similarity.
@@ -206,18 +210,22 @@ class RAGService:
                 similarity = cosine_similarity(query_embedding, entry_embedding)
 
                 if similarity >= min_similarity:
-                    results.append({
-                        'id': entry.id,
-                        'text': entry.text,
-                        'similarity': similarity,
-                        'knowledge_type': entry.knowledge_type,
-                        'metadata': entry.metadata_json,  # Use metadata_json attribute, expose as 'metadata' in response
-                        'success_score': entry.success_score,
-                        'created_at': entry.created_at.isoformat() if entry.created_at else None,
-                    })
+                    results.append(
+                        {
+                            "id": entry.id,
+                            "text": entry.text,
+                            "similarity": similarity,
+                            "knowledge_type": entry.knowledge_type,
+                            "metadata": entry.metadata_json,  # Use metadata_json attribute, expose as 'metadata' in response
+                            "success_score": entry.success_score,
+                            "created_at": entry.created_at.isoformat()
+                            if entry.created_at
+                            else None,
+                        }
+                    )
 
             # Sort by similarity (descending) and take top_k
-            results.sort(key=lambda x: x['similarity'], reverse=True)
+            results.sort(key=lambda x: x["similarity"], reverse=True)
             results = results[:top_k]
 
             logger.debug(f"Retrieved {len(results)} similar entries for query: {query[:50]}...")
@@ -234,7 +242,7 @@ class RAGService:
         query: str,
         filters: dict[str, Any] | None = None,
         top_k: int = 5,
-        min_similarity: float = 0.7
+        min_similarity: float = 0.7,
     ) -> tuple[list[dict[str, Any]], bool]:
         """
         Search with optional filters (alias for retrieve with filters).
@@ -250,7 +258,7 @@ class RAGService:
             - results: List of similar entries with similarity scores
             - cache_hit: True if query embedding was from cache, False if newly generated
         """
-        knowledge_type = filters.get('knowledge_type') if filters else None
+        knowledge_type = filters.get("knowledge_type") if filters else None
         return await self.retrieve(query, knowledge_type, top_k, min_similarity)
 
     async def update_success_score(self, id: int, score: float) -> None:

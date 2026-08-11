@@ -46,7 +46,10 @@ class StructuredLogger:
         if isinstance(data, dict):
             redacted = {}
             for key, value in data.items():
-                if any(secret_key in key.lower() for secret_key in ['token', 'password', 'secret', 'key', 'auth']):
+                if any(
+                    secret_key in key.lower()
+                    for secret_key in ["token", "password", "secret", "key", "auth"]
+                ):
                     redacted[key] = "[REDACTED]"
                 else:
                     redacted[key] = self._redact_secrets(value)
@@ -55,37 +58,24 @@ class StructuredLogger:
             return [self._redact_secrets(item) for item in data]
         elif isinstance(data, str):
             # Redact if looks like a token (long alphanumeric string)
-            if len(data) > 20 and all(c.isalnum() or c in '-_' for c in data):
+            if len(data) > 20 and all(c.isalnum() or c in "-_" for c in data):
                 return "[REDACTED]"
         return data
 
-    def _create_log_entry(
-        self,
-        level: str,
-        message: str,
-        **kwargs
-    ) -> dict[str, Any]:
+    def _create_log_entry(self, level: str, message: str, **kwargs) -> dict[str, Any]:
         """Create structured log entry"""
         entry = {
             "timestamp": logging.Formatter().formatTime(
-                logging.LogRecord(
-                    "", 0, "", 0, message, (), None
-                ),
-                datefmt="%Y-%m-%d %H:%M:%S"
+                logging.LogRecord("", 0, "", 0, message, (), None), datefmt="%Y-%m-%d %H:%M:%S"
             ),
             "level": level,
             "message": message,
             "correlation_id": self._correlation_id,
-            **kwargs
+            **kwargs,
         }
         return self._redact_secrets(entry)
 
-    def log(
-        self,
-        level: str,
-        message: str,
-        **kwargs
-    ):
+    def log(self, level: str, message: str, **kwargs):
         """Log structured message"""
         entry = self._create_log_entry(level, message, **kwargs)
         log_message = json.dumps(entry)
@@ -101,12 +91,7 @@ class StructuredLogger:
         else:
             self.logger.info(log_message)
 
-    def log_trigger(
-        self,
-        trigger_type: str,
-        trigger_data: dict[str, Any],
-        spec_id: str
-    ):
+    def log_trigger(self, trigger_type: str, trigger_data: dict[str, Any], spec_id: str):
         """Log trigger event"""
         self.log(
             "INFO",
@@ -114,7 +99,7 @@ class StructuredLogger:
             event_type="trigger",
             trigger_type=trigger_type,
             trigger_data=trigger_data,
-            spec_id=spec_id
+            spec_id=spec_id,
         )
 
     def log_validation(
@@ -122,7 +107,7 @@ class StructuredLogger:
         spec_id: str,
         is_valid: bool,
         errors: list[str],
-        execution_plan: dict[str, Any] | None = None
+        execution_plan: dict[str, Any] | None = None,
     ):
         """Log validation result"""
         self.log(
@@ -132,29 +117,20 @@ class StructuredLogger:
             spec_id=spec_id,
             is_valid=is_valid,
             errors=errors,
-            execution_plan=execution_plan
+            execution_plan=execution_plan,
         )
 
-    def log_execution(
-        self,
-        spec_id: str,
-        execution_result: dict[str, Any]
-    ):
+    def log_execution(self, spec_id: str, execution_result: dict[str, Any]):
         """Log execution result"""
         self.log(
             "INFO" if execution_result.get("success") else "ERROR",
             f"Execution {'succeeded' if execution_result.get('success') else 'failed'} for spec {spec_id}",
             event_type="execution",
             spec_id=spec_id,
-            execution_result=execution_result
+            execution_result=execution_result,
         )
 
-    def log_confirmation(
-        self,
-        entity_id: str,
-        confirmed: bool,
-        error: str | None = None
-    ):
+    def log_confirmation(self, entity_id: str, confirmed: bool, error: str | None = None):
         """Log confirmation result"""
         self.log(
             "INFO" if confirmed else "WARNING",
@@ -162,5 +138,5 @@ class StructuredLogger:
             event_type="confirmation",
             entity_id=entity_id,
             confirmed=confirmed,
-            error=error
+            error=error,
         )

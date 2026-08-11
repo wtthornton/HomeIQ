@@ -43,6 +43,7 @@ def mock_websocket_client():
 def spec_registry():
     """Spec registry with PostgreSQL test database"""
     import os
+
     test_url = os.environ.get(
         "TEST_DATABASE_URL_SYNC",
         "postgresql://homeiq:homeiq@localhost:5432/homeiq_test",

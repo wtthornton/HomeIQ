@@ -68,7 +68,7 @@ class DeviceCache(BaseCache):
             "evictions": self.stats.evictions,
             "memory_usage": f"{self.stats.size} entries",
             "connected": True,
-            **base_stats  # Include base stats for compatibility
+            **base_stats,  # Include base stats for compatibility
         }
 
     async def get_device(self, device_id: str) -> dict[str, Any] | None:
@@ -76,7 +76,9 @@ class DeviceCache(BaseCache):
         key = f"device:{device_id}"
         return await self.get(key)
 
-    async def set_device(self, device_id: str, device_data: dict[str, Any], ttl: int | None = None) -> bool:
+    async def set_device(
+        self, device_id: str, device_data: dict[str, Any], ttl: int | None = None
+    ) -> bool:
         """Set device in cache."""
         key = f"device:{device_id}"
         return await self.set(key, device_data, ttl)
@@ -91,7 +93,9 @@ class DeviceCache(BaseCache):
         key = f"devices:area:{area_id}"
         return await self.get(key)
 
-    async def set_devices_by_area(self, area_id: str, devices: list[dict[str, Any]], ttl: int | None = None) -> bool:
+    async def set_devices_by_area(
+        self, area_id: str, devices: list[dict[str, Any]], ttl: int | None = None
+    ) -> bool:
         """Set devices by area in cache."""
         key = f"devices:area:{area_id}"
         return await self.set(key, devices, ttl)
@@ -101,7 +105,9 @@ class DeviceCache(BaseCache):
         key = f"devices:integration:{integration}"
         return await self.get(key)
 
-    async def set_devices_by_integration(self, integration: str, devices: list[dict[str, Any]], ttl: int | None = None) -> bool:
+    async def set_devices_by_integration(
+        self, integration: str, devices: list[dict[str, Any]], ttl: int | None = None
+    ) -> bool:
         """Set devices by integration in cache."""
         key = f"devices:integration:{integration}"
         return await self.set(key, devices, ttl)

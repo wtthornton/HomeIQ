@@ -52,9 +52,7 @@ async def liveness_check() -> dict[str, str]:
 
 
 @router.get("/database/integrity", status_code=status.HTTP_200_OK)
-async def check_database_integrity_endpoint(
-    db: AsyncSession = Depends(get_db)
-) -> dict[str, Any]:
+async def check_database_integrity_endpoint(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """
     Check database integrity.
 
@@ -73,7 +71,7 @@ async def check_database_integrity_endpoint(
             return {
                 "status": "healthy",
                 "database": "ok",
-                "message": "Database integrity check passed"
+                "message": "Database integrity check passed",
             }
         else:
             return {
@@ -81,19 +79,19 @@ async def check_database_integrity_endpoint(
                 "database": "corrupted",
                 "message": "Database integrity check failed",
                 "error": error_msg,
-                "recommendation": "Run POST /health/database/repair to attempt repair"
+                "recommendation": "Run POST /health/database/repair to attempt repair",
             }
     except Exception as e:
         logger.error(f"Database integrity check endpoint failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to check database integrity: {str(e)}"
+            detail=f"Failed to check database integrity: {str(e)}",
         ) from e
 
 
 @router.post("/database/repair", status_code=status.HTTP_200_OK)
 async def repair_database_endpoint(
-    x_internal_token: str = Header(..., alias="X-Internal-Token")
+    x_internal_token: str = Header(..., alias="X-Internal-Token"),
 ) -> dict[str, Any]:
     """
     Attempt to repair database corruption.
@@ -123,18 +121,17 @@ async def repair_database_endpoint(
             return {
                 "status": "success",
                 "message": "Database repair completed successfully",
-                "recommendation": "Verify database integrity using GET /health/database/integrity"
+                "recommendation": "Verify database integrity using GET /health/database/integrity",
             }
         else:
             return {
                 "status": "failed",
                 "message": "Database repair failed. Manual intervention may be required.",
-                "recommendation": "Check logs for details and consider restoring from backup"
+                "recommendation": "Check logs for details and consider restoring from backup",
             }
     except Exception as e:
         logger.error(f"Database repair endpoint failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to repair database: {str(e)}"
+            detail=f"Failed to repair database: {str(e)}",
         ) from e
-

@@ -17,10 +17,12 @@ def sample_polars_df():
     timestamps = pd.date_range("2024-01-01", periods=n, freq="h")
     values = 200 + 100 * np.sin(2 * np.pi * np.arange(n) / 24) + np.random.normal(0, 10, n)
 
-    return pl.DataFrame({
-        "timestamp": timestamps.to_pydatetime().tolist(),
-        "power": values,
-    })
+    return pl.DataFrame(
+        {
+            "timestamp": timestamps.to_pydatetime().tolist(),
+            "power": values,
+        }
+    )
 
 
 @pytest.fixture
@@ -45,9 +47,7 @@ def trained_forecaster(sample_series):
     """Create a trained naive forecaster for testing."""
     from src.models.energy_forecaster import EnergyForecaster
 
-    forecaster = EnergyForecaster(
-        model_type="naive", input_chunk_length=24, output_chunk_length=24
-    )
+    forecaster = EnergyForecaster(model_type="naive", input_chunk_length=24, output_chunk_length=24)
     train, _ = sample_series.split_after(0.8)
     forecaster.fit(train)
     return forecaster

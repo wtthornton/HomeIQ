@@ -8,7 +8,6 @@ Returns formatted skills for injection into system prompt.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from .skill_store import Skill, SkillStore
 from .skills_guard import SkillsGuard
@@ -53,7 +52,9 @@ class SkillRecall:
         # Search by category if provided
         if category:
             skills = await self.store.search_by_category(
-                category=category, area_pattern=area, limit=limit,
+                category=category,
+                area_pattern=area,
+                limit=limit,
             )
 
         # Fallback to text search
@@ -66,10 +67,7 @@ class SkillRecall:
             return ""
 
         # Security filter — exclude flagged skills
-        skill_dicts = [
-            {"name": s.name, "body": s.body, "category": s.category}
-            for s in skills
-        ]
+        skill_dicts = [{"name": s.name, "body": s.body, "category": s.category} for s in skills]
         safe_skills = self.guard.filter_safe_skills(skill_dicts)
 
         if not safe_skills:
@@ -86,12 +84,13 @@ class SkillRecall:
             lines.append(entry)
 
         # Record usage
-        for skill in skills[:len(safe_skills)]:
+        for skill in skills[: len(safe_skills)]:
             await self.store.record_usage(skill.id)
 
         formatted = "\n".join(lines)
         logger.info(
             "Recalled %d skills (%d chars) for injection",
-            len(safe_skills), len(formatted),
+            len(safe_skills),
+            len(formatted),
         )
         return formatted

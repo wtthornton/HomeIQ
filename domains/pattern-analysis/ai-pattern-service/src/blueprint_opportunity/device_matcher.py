@@ -42,7 +42,7 @@ class UserProfile:
 
     # Time preferences
     active_hours_start: int = 6  # 6 AM
-    active_hours_end: int = 22   # 10 PM
+    active_hours_end: int = 22  # 10 PM
 
 
 class DeviceMatcher:
@@ -60,44 +60,43 @@ class DeviceMatcher:
     """
 
     # Enhanced scoring weights (January 2026)
-    DOMAIN_WEIGHT = 0.25           # Was 0.30
-    DEVICE_CLASS_WEIGHT = 0.20     # Was 0.25
-    SAME_AREA_WEIGHT = 0.12        # Was 0.15
-    COMMUNITY_RATING_WEIGHT = 0.08 # Was 0.10
-    WYZE_PATTERN_WEIGHT = 0.15     # Was 0.20
-    TEMPORAL_WEIGHT = 0.10         # NEW - seasonal/time relevance
-    PROFILE_WEIGHT = 0.10          # NEW - user profile matching
+    DOMAIN_WEIGHT = 0.25  # Was 0.30
+    DEVICE_CLASS_WEIGHT = 0.20  # Was 0.25
+    SAME_AREA_WEIGHT = 0.12  # Was 0.15
+    COMMUNITY_RATING_WEIGHT = 0.08  # Was 0.10
+    WYZE_PATTERN_WEIGHT = 0.15  # Was 0.20
+    TEMPORAL_WEIGHT = 0.10  # NEW - seasonal/time relevance
+    PROFILE_WEIGHT = 0.10  # NEW - user profile matching
 
     # Seasonal domain relevance mapping
     SEASONAL_DOMAINS = {
         # Winter months (Dec, Jan, Feb)
-        'climate': {12, 1, 2},
-        'thermostat': {12, 1, 2},
-        'heater': {12, 1, 2},
+        "climate": {12, 1, 2},
+        "thermostat": {12, 1, 2},
+        "heater": {12, 1, 2},
         # Summer months (Jun, Jul, Aug)
-        'fan': {6, 7, 8},
-        'air_conditioner': {6, 7, 8},
-        'cover': {6, 7, 8},  # Blinds/shades for sun
+        "fan": {6, 7, 8},
+        "air_conditioner": {6, 7, 8},
+        "cover": {6, 7, 8},  # Blinds/shades for sun
         # Dark months (Nov, Dec, Jan, Feb)
-        'light': {11, 12, 1, 2},
+        "light": {11, 12, 1, 2},
         # Holiday months
-        'scene': {11, 12},  # Holiday scenes
+        "scene": {11, 12},  # Holiday scenes
     }
 
     # Use case seasonal relevance
     SEASONAL_USE_CASES = {
-        'heating': {10, 11, 12, 1, 2, 3},
-        'cooling': {5, 6, 7, 8, 9},
-        'lighting': {10, 11, 12, 1, 2},
-        'holiday': {11, 12},
-        'vacation': {6, 7, 8},
-        'energy_saving': {6, 7, 8, 12, 1, 2},  # Peak usage months
+        "heating": {10, 11, 12, 1, 2, 3},
+        "cooling": {5, 6, 7, 8, 9},
+        "lighting": {10, 11, 12, 1, 2},
+        "holiday": {11, 12},
+        "vacation": {6, 7, 8},
+        "energy_saving": {6, 7, 8, 12, 1, 2},  # Peak usage months
     }
 
     # Rule recommendation service URL
     RULE_REC_SERVICE_URL = os.getenv(
-        "RULE_RECOMMENDATION_SERVICE_URL",
-        "http://rule-recommendation-ml:8035"
+        "RULE_RECOMMENDATION_SERVICE_URL", "http://rule-recommendation-ml:8035"
     )
 
     def __init__(self, enable_wyze_scoring: bool = True):
@@ -184,20 +183,18 @@ class DeviceMatcher:
                 score += wyze_pattern_score * self.WYZE_PATTERN_WEIGHT
             else:
                 pattern_score = self._get_cached_wyze_score(
-                    list(required_domains),
-                    list(user_domains)
+                    list(required_domains), list(user_domains)
                 )
                 score += pattern_score * self.WYZE_PATTERN_WEIGHT
         else:
             # Redistribute Wyze weight to other components
             redistribution_factor = 1.0 / (1.0 - self.WYZE_PATTERN_WEIGHT)
-            score = score * redistribution_factor * (1.0 - self.TEMPORAL_WEIGHT - self.PROFILE_WEIGHT)
+            score = (
+                score * redistribution_factor * (1.0 - self.TEMPORAL_WEIGHT - self.PROFILE_WEIGHT)
+            )
 
         # NEW: Temporal relevance score (10%)
-        temporal_score = self._calculate_temporal_score(
-            blueprint,
-            current_time or datetime.now()
-        )
+        temporal_score = self._calculate_temporal_score(blueprint, current_time or datetime.now())
         score += temporal_score * self.TEMPORAL_WEIGHT
 
         # NEW: User profile match score (10%)
@@ -238,10 +235,11 @@ class DeviceMatcher:
         # Check domain seasonal relevance
         for domain in blueprint.required_domains:
             domain_lower = domain.lower()
-            if domain_lower in self.SEASONAL_DOMAINS:
-                if month in self.SEASONAL_DOMAINS[domain_lower]:
-                    score = max(score, 0.9)  # High relevance
-                    break
+            if (domain_lower in self.SEASONAL_DOMAINS) and (
+                month in self.SEASONAL_DOMAINS[domain_lower]
+            ):
+                score = max(score, 0.9)  # High relevance
+                break
 
         # Check use case seasonal relevance
         use_case = (blueprint.use_case or "").lower()
@@ -251,19 +249,21 @@ class DeviceMatcher:
                 break
 
         # Time-of-day relevance for lighting
-        if any(d.lower() in ['light', 'scene'] for d in blueprint.required_domains):
-            # Boost lighting blueprints during evening hours
-            if 17 <= hour <= 22:  # 5 PM to 10 PM
-                score = max(score, 0.8)
+        # Boost lighting blueprints during evening hours
+        if (any(d.lower() in ["light", "scene"] for d in blueprint.required_domains)) and (
+            17 <= hour <= 22
+        ):
+            score = max(score, 0.8)
 
         # Morning routine relevance
-        if ('morning' in use_case or 'wake' in use_case) and 5 <= hour <= 9:
+        if ("morning" in use_case or "wake" in use_case) and 5 <= hour <= 9:
             score = max(score, 0.85)
 
         # Night/sleep routine relevance
-        if 'night' in use_case or 'sleep' in use_case or 'bedtime' in use_case:
-            if 20 <= hour <= 23 or 0 <= hour <= 2:
-                score = max(score, 0.85)
+        if ("night" in use_case or "sleep" in use_case or "bedtime" in use_case) and (
+            20 <= hour <= 23 or 0 <= hour <= 2
+        ):
+            score = max(score, 0.85)
 
         return score
 
@@ -320,25 +320,29 @@ class DeviceMatcher:
                 score = min(score, 0.5)  # Penalize complex automations
 
         # Energy saving preference
-        if profile.prefers_energy_saving:
-            if 'energy' in use_case or 'power' in use_case or 'saving' in use_case:
-                score = max(score, 0.85)
+        if (profile.prefers_energy_saving) and (
+            "energy" in use_case or "power" in use_case or "saving" in use_case
+        ):
+            score = max(score, 0.85)
 
         # Security preference
         if profile.prefers_security_focused:
-            if any(d in ['lock', 'alarm_control_panel', 'camera', 'motion']
-                   for d in blueprint.required_domains):
+            if any(
+                d in ["lock", "alarm_control_panel", "camera", "motion"]
+                for d in blueprint.required_domains
+            ):
                 score = max(score, 0.85)
-            if 'security' in use_case or 'alert' in use_case:
+            if "security" in use_case or "alert" in use_case:
                 score = max(score, 0.85)
 
         # Presence detection bonus
-        if profile.has_presence_detection:
-            if 'presence' in use_case or 'away' in use_case or 'home' in use_case:
-                score = max(score, 0.8)
+        if (profile.has_presence_detection) and (
+            "presence" in use_case or "away" in use_case or "home" in use_case
+        ):
+            score = max(score, 0.8)
 
         # Voice assistant bonus
-        if profile.has_voice_assistant and ('voice' in use_case or 'assistant' in use_case):
+        if profile.has_voice_assistant and ("voice" in use_case or "assistant" in use_case):
             score = max(score, 0.75)
 
         return min(1.0, score)
@@ -371,10 +375,8 @@ class DeviceMatcher:
             all_domains = set(trigger_domains) | set(action_domains)
             for pattern, popularity in self._popular_patterns[:50]:
                 parts = pattern.split("_to_")
-                if len(parts) == 2:
-                    if parts[0] in all_domains or parts[1] in all_domains:
-                        # Scale popularity to 0-1 range
-                        best_score = max(best_score, min(1.0, popularity / 10000))
+                if (len(parts) == 2) and (parts[0] in all_domains or parts[1] in all_domains):
+                    best_score = max(best_score, min(1.0, popularity / 10000))
 
         return best_score
 
@@ -403,9 +405,7 @@ class DeviceMatcher:
         try:
             # Lazy initialize HTTP client
             if self._http_client is None:
-                self._http_client = httpx.AsyncClient(
-                    timeout=5.0, headers=self._rule_rec_headers
-                )
+                self._http_client = httpx.AsyncClient(timeout=5.0, headers=self._rule_rec_headers)
 
             # Request device-based recommendations
             params = {"device_domains": user_domains, "limit": 20}
@@ -416,9 +416,7 @@ class DeviceMatcher:
 
             if response.status_code != 200:
                 self._wyze_service_available = False
-                logger.warning(
-                    f"Wyze service returned {response.status_code}, disabling"
-                )
+                logger.warning(f"Wyze service returned {response.status_code}, disabling")
                 return 0.0
 
             self._wyze_service_available = True
@@ -454,9 +452,7 @@ class DeviceMatcher:
 
         try:
             if self._http_client is None:
-                self._http_client = httpx.AsyncClient(
-                    timeout=5.0, headers=self._rule_rec_headers
-                )
+                self._http_client = httpx.AsyncClient(timeout=5.0, headers=self._rule_rec_headers)
 
             response = await self._http_client.get(
                 f"{self.RULE_REC_SERVICE_URL}/api/v1/rule-recommendations/popular",
@@ -466,8 +462,7 @@ class DeviceMatcher:
             if response.status_code == 200:
                 data = response.json()
                 self._popular_patterns = [
-                    (rec["rule_pattern"], rec["score"])
-                    for rec in data.get("recommendations", [])
+                    (rec["rule_pattern"], rec["score"]) for rec in data.get("recommendations", [])
                 ]
 
                 # Also cache these patterns
@@ -532,8 +527,7 @@ class DeviceMatcher:
         if len(areas) == 1:
             area_id = areas.pop()
             area_name = next(
-                (d.area_name for d in devices if d.area_id == area_id and d.area_name),
-                None
+                (d.area_name for d in devices if d.area_id == area_id and d.area_name), None
             )
             return True, area_id, area_name
 
@@ -621,10 +615,7 @@ class DeviceMatcher:
                 wyze_score = await self.get_wyze_pattern_score(trigger_domains, user_domains)
 
             fit_score = self.calculate_fit_score(
-                blueprint,
-                matched_devices,
-                same_area,
-                wyze_pattern_score=wyze_score
+                blueprint, matched_devices, same_area, wyze_pattern_score=wyze_score
             )
 
             if fit_score >= min_fit_score:

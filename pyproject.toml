@@ -41,3 +41,16 @@ markers = [
 "domains/core-platform/data-api/src/main.py" = ["E402"]
 "domains/core-platform/websocket-ingestion/src/main.py" = ["E402"]
 "domains/energy-analytics/proactive-agent-service/src/main.py" = ["E402"]
+
+# Tests, for the same E402 reason as above plus one specific to pytest.
+#
+# ARG001/ARG002: pytest injects fixtures by *parameter name*. A fixture
+# requested purely for its side effect — setting env vars, installing a patch —
+# is therefore an argument that is never referenced, and the usual remedy of
+# renaming it to `_name` breaks the injection outright, because pytest would
+# then look for a fixture called `_name`. The rule is reporting the pytest
+# calling convention, not a defect.
+#
+# Kept narrow on purpose: this applies under tests/ only. Both rules stay
+# enforced on src/, where an unused argument or a misplaced import is real.
+"domains/*/*/tests/**" = ["ARG001", "ARG002", "E402"]

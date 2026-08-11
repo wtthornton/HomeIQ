@@ -26,6 +26,7 @@ pytestmark = pytest.mark.asyncio
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_automation(
     automation_id: str = "automation.test_one",
     alias: str = "Test One",
@@ -173,9 +174,7 @@ class TestBulkUpsertExecutions:
     """Tests for the internal bulk_upsert executions endpoint."""
 
     async def test_empty_list(self, client):
-        resp = await client.post(
-            "/internal/automations/executions/bulk_upsert", json=[]
-        )
+        resp = await client.post("/internal/automations/executions/bulk_upsert", json=[])
         assert resp.status_code == 200
         body = resp.json()
         assert body["success"] is True
@@ -337,7 +336,9 @@ class TestStatsOverview:
 
     async def test_with_data(self, client):
         await _seed_automation(client, "automation.a", "Alpha")
-        await _seed_execution(client, "automation.a", "r1", result="finished_successfully", duration=1.0)
+        await _seed_execution(
+            client, "automation.a", "r1", result="finished_successfully", duration=1.0
+        )
         await _seed_execution(client, "automation.a", "r2", result="error", duration=2.0)
 
         resp = await client.get("/api/v1/automations/stats/overview")

@@ -9,12 +9,15 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class RetentionPeriod(Enum):
     """Retention period types."""
+
     DAYS = "days"
     WEEKS = "weeks"
     MONTHS = "months"
     YEARS = "years"
+
 
 @dataclass
 class RetentionPolicy:
@@ -69,11 +72,11 @@ class RetentionPolicy:
             "retention_unit": self.retention_unit.value,
             "enabled": self.enabled,
             "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
+            "updated_at": self.updated_at.isoformat(),
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'RetentionPolicy':
+    def from_dict(cls, data: dict[str, Any]) -> "RetentionPolicy":
         """Create policy from dictionary."""
         return cls(
             name=data["name"],
@@ -82,8 +85,9 @@ class RetentionPolicy:
             retention_unit=RetentionPeriod(data["retention_unit"]),
             enabled=data.get("enabled", True),
             created_at=datetime.fromisoformat(data["created_at"]),
-            updated_at=datetime.fromisoformat(data["updated_at"])
+            updated_at=datetime.fromisoformat(data["updated_at"]),
         )
+
 
 class RetentionPolicyManager:
     """Manages data retention policies."""
@@ -95,7 +99,7 @@ class RetentionPolicyManager:
             name="default",
             description="Default 1-year retention policy",
             retention_period=1,
-            retention_unit=RetentionPeriod.YEARS
+            retention_unit=RetentionPeriod.YEARS,
         )
         self.policies["default"] = self.default_policy
 
@@ -217,7 +221,7 @@ class RetentionPolicyManager:
         """
         policies_data = {
             "policies": [policy.to_dict() for policy in self.policies.values()],
-            "exported_at": datetime.now(UTC).isoformat()
+            "exported_at": datetime.now(UTC).isoformat(),
         }
         return json.dumps(policies_data, indent=2)
 
@@ -275,5 +279,5 @@ class RetentionPolicyManager:
             "enabled_policies": enabled_policies,
             "disabled_policies": total_policies - enabled_policies,
             "average_retention_days": avg_retention_days,
-            "policy_names": list(self.policies.keys())
+            "policy_names": list(self.policies.keys()),
         }

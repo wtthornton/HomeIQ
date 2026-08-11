@@ -78,9 +78,7 @@ class PromptAssemblyService:
 
         # Add user message to conversation (unless skipping)
         if not skip_add_message:
-            await self.conversation_service.add_message(
-                conversation_id, "user", user_message
-            )
+            await self.conversation_service.add_message(conversation_id, "user", user_message)
             # Reload conversation to get updated message history (includes the message we just added)
             conversation = await self.conversation_service.get_conversation(conversation_id)
         if not conversation:
@@ -118,16 +116,12 @@ class PromptAssemblyService:
                         f"❌ CRITICAL: Context builder not initialized! Error: {e}"
                     )
                     raise
-                logger.error(
-                    f"[Context Building] Conversation {conversation_id}: "
-                    f"❌ Error building context: {e}"
-                )
+                logger.error(f"[Context Building] Conversation {conversation_id}: ❌ Error building context: {e}")
                 raise
             except Exception as e:
                 logger.error(
-                    f"[Context Building] Conversation {conversation_id}: "
-                    f"❌ Unexpected error building context: {e}",
-                    exc_info=True
+                    f"[Context Building] Conversation {conversation_id}: ❌ Unexpected error building context: {e}",
+                    exc_info=True,
                 )
                 raise
         else:
@@ -164,15 +158,14 @@ class PromptAssemblyService:
         original_count = len(history_messages)
 
         for msg in history_messages:
-            if msg["role"] == "assistant":
-                if is_generic_welcome_message(msg.get("content", "")):
-                    filtered_count += 1
-                    logger.info(
-                        f"[Generic Message Filter] Conversation {conversation_id}: "
-                        f"Filtered generic welcome message (count: {filtered_count}). "
-                        f"Content preview: {msg.get('content', '')[:100]}..."
-                    )
-                    continue  # Skip this generic message
+            if (msg["role"] == "assistant") and (is_generic_welcome_message(msg.get("content", ""))):
+                filtered_count += 1
+                logger.info(
+                    f"[Generic Message Filter] Conversation {conversation_id}: "
+                    f"Filtered generic welcome message (count: {filtered_count}). "
+                    f"Content preview: {msg.get('content', '')[:100]}..."
+                )
+                continue  # Skip this generic message
             filtered_history.append(msg)
 
         history_messages = filtered_history
@@ -198,10 +191,7 @@ class PromptAssemblyService:
 Instructions: Process this request now. Use tools if needed. Do not respond with generic welcome messages."""
 
             # Replace the last message with emphasized version
-            emphasized_messages[-1] = {
-                "role": "user",
-                "content": emphasized_user_message
-            }
+            emphasized_messages[-1] = {"role": "user", "content": emphasized_user_message}
 
             logger.debug(
                 f"[Message Emphasis] Conversation {conversation_id}: "
@@ -230,10 +220,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
 {original_user_message}
 
 Instructions: Process this request now. Use tools if needed. Do not respond with generic welcome messages."""
-                emphasized_messages[last_user_idx] = {
-                    "role": "user",
-                    "content": emphasized_user_message
-                }
+                emphasized_messages[last_user_idx] = {"role": "user", "content": emphasized_user_message}
 
                 logger.info(
                     f"[Message Emphasis] Conversation {conversation_id}: "
@@ -250,8 +237,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
         # Verify system prompt before assembly
         if not system_prompt:
             logger.error(
-                f"[Message Assembly] Conversation {conversation_id}: "
-                f"❌ CRITICAL: System prompt is None or empty!"
+                f"[Message Assembly] Conversation {conversation_id}: ❌ CRITICAL: System prompt is None or empty!"
             )
             raise ValueError("System prompt is required but was None or empty")
 
@@ -316,14 +302,11 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
         total_tokens = count_message_tokens(messages, self.model)
 
         if total_tokens <= self.max_input_tokens:
-            logger.debug(
-                f"Token count {total_tokens} within budget {self.max_input_tokens}"
-            )
+            logger.debug(f"Token count {total_tokens} within budget {self.max_input_tokens}")
             return messages
 
         logger.warning(
-            f"Token count {total_tokens} exceeds budget {self.max_input_tokens}, "
-            f"truncating conversation history"
+            f"Token count {total_tokens} exceeds budget {self.max_input_tokens}, truncating conversation history"
         )
 
         # Extract system prompt and last user message (must keep)
@@ -344,23 +327,18 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             return [system_message]
 
         # Count tokens for required messages
-        required_tokens = count_message_tokens(
-            [system_message, last_user_message], self.model
-        )
+        required_tokens = count_message_tokens([system_message, last_user_message], self.model)
         available_tokens = self.max_input_tokens - required_tokens
 
         if available_tokens < 0:
             # Even system + user message exceeds budget (shouldn't happen)
             logger.error(
-                f"System + user message ({required_tokens} tokens) exceeds budget "
-                f"({self.max_input_tokens} tokens)"
+                f"System + user message ({required_tokens} tokens) exceeds budget ({self.max_input_tokens} tokens)"
             )
             return [system_message, last_user_message]
 
         # Truncate history to fit within available tokens
-        truncated_history = self._truncate_message_list(
-            history_messages, available_tokens
-        )
+        truncated_history = self._truncate_message_list(history_messages, available_tokens)
 
         # Reassemble messages
         result = [system_message, *truncated_history, last_user_message]
@@ -373,9 +351,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
 
         return result
 
-    def _truncate_message_list(
-        self, messages: list[dict[str, str]], max_tokens: int
-    ) -> list[dict[str, str]]:
+    def _truncate_message_list(self, messages: list[dict[str, str]], max_tokens: int) -> list[dict[str, str]]:
         """
         Truncate message list to fit within token budget.
 
@@ -440,9 +416,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
 
         return truncated
 
-    async def get_token_count(
-        self, conversation_id: str, include_new_message: str | None = None
-    ) -> dict[str, int]:
+    async def get_token_count(self, conversation_id: str, include_new_message: str | None = None) -> dict[str, int]:
         """
         Get token count breakdown for a conversation.
 
@@ -506,59 +480,66 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             "",
             "Automation YAML:",
             "```yaml",
-            preview.get('automation_yaml', ''),
+            preview.get("automation_yaml", ""),
             "```",
         ]
 
-        details = preview.get('details', {})
+        details = preview.get("details", {})
         if details:
-            lines.extend([
-                "",
-                "Details:",
-                f"- Trigger: {details.get('trigger_description', 'Unknown')}",
-                f"- Action: {details.get('action_description', 'Unknown')}",
-                f"- Mode: {details.get('mode', 'single')}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "Details:",
+                    f"- Trigger: {details.get('trigger_description', 'Unknown')}",
+                    f"- Action: {details.get('action_description', 'Unknown')}",
+                    f"- Mode: {details.get('mode', 'single')}",
+                ]
+            )
 
-        entities = preview.get('entities_affected', [])
+        entities = preview.get("entities_affected", [])
         if entities:
             lines.append(f"- Entities Affected: {', '.join(entities)}")
 
-        areas = preview.get('areas_affected', [])
+        areas = preview.get("areas_affected", [])
         if areas:
             lines.append(f"- Areas Affected: {', '.join(areas)}")
 
-        services = preview.get('services_used', [])
+        services = preview.get("services_used", [])
         if services:
             lines.append(f"- Services Used: {', '.join(services)}")
 
-        warnings = preview.get('safety_warnings', [])
+        warnings = preview.get("safety_warnings", [])
         if warnings:
-            lines.extend([
-                "",
-                "Safety Warnings:",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "Safety Warnings:",
+                ]
+            )
             for warning in warnings:
                 lines.append(f"- {warning}")
 
-        validation = preview.get('validation', {})
+        validation = preview.get("validation", {})
         if validation:
-            errors = validation.get('errors', [])
-            warnings_list = validation.get('warnings', [])
+            errors = validation.get("errors", [])
+            warnings_list = validation.get("warnings", [])
             if errors:
-                lines.extend([
-                    "",
-                    "Validation Errors:",
-                ])
+                lines.extend(
+                    [
+                        "",
+                        "Validation Errors:",
+                    ]
+                )
                 for error in errors:
                     lines.append(f"- {error}")
             if warnings_list:
-                lines.extend([
-                    "",
-                    "Validation Warnings:",
-                ])
+                lines.extend(
+                    [
+                        "",
+                        "Validation Warnings:",
+                    ]
+                )
                 for warning in warnings_list:
                     lines.append(f"- {warning}")
 
         return "\n".join(lines)
-

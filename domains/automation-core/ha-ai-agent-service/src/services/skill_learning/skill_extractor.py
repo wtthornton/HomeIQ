@@ -21,10 +21,16 @@ logger = logging.getLogger(__name__)
 
 # Trigger heuristics
 MIN_ITERATIONS_FOR_SKILL = 5
-SAVE_KEYWORDS = frozenset({
-    "remember this", "save this", "save this pattern",
-    "remember how", "keep this", "store this",
-})
+SAVE_KEYWORDS = frozenset(
+    {
+        "remember this",
+        "save this",
+        "save this pattern",
+        "remember how",
+        "keep this",
+        "store this",
+    }
+)
 
 
 def should_extract_skill(
@@ -111,9 +117,20 @@ def _categorize_from_tools(tool_names: set[str]) -> str:
 def _extract_area_pattern(user_messages: list[str]) -> str | None:
     """Try to extract an area/room name from user messages."""
     common_areas = [
-        "kitchen", "living room", "bedroom", "bathroom", "office",
-        "garage", "basement", "attic", "garden", "patio",
-        "hallway", "dining room", "laundry", "nursery",
+        "kitchen",
+        "living room",
+        "bedroom",
+        "bathroom",
+        "office",
+        "garage",
+        "basement",
+        "attic",
+        "garden",
+        "patio",
+        "hallway",
+        "dining room",
+        "laundry",
+        "nursery",
     ]
     all_text = " ".join(user_messages).lower()
     for area in common_areas:

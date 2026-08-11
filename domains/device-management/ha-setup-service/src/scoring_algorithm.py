@@ -6,11 +6,13 @@ Context7 Best Practices Applied:
 - Configurable weighting
 - Extensible scoring system
 """
+
 from enum import Enum
 
 
 class ScoreComponent(Enum):
     """Health score component types"""
+
     HA_CORE = "ha_core"
     INTEGRATIONS = "integrations"
     PERFORMANCE = "performance"
@@ -33,7 +35,7 @@ class HealthScoringAlgorithm:
         ha_core_weight: float = 0.35,
         integrations_weight: float = 0.35,
         performance_weight: float = 0.15,
-        reliability_weight: float = 0.15
+        reliability_weight: float = 0.15,
     ):
         """
         Initialize scoring algorithm with configurable weights
@@ -53,7 +55,7 @@ class HealthScoringAlgorithm:
             ScoreComponent.HA_CORE: ha_core_weight,
             ScoreComponent.INTEGRATIONS: integrations_weight,
             ScoreComponent.PERFORMANCE: performance_weight,
-            ScoreComponent.RELIABILITY: reliability_weight
+            ScoreComponent.RELIABILITY: reliability_weight,
         }
 
     def calculate_score(
@@ -61,7 +63,7 @@ class HealthScoringAlgorithm:
         ha_status: dict,
         integrations: list[dict],
         performance: dict,
-        reliability_data: dict = None
+        reliability_data: dict = None,
     ) -> tuple[int, dict[str, int]]:
         """
         Calculate overall health score with component breakdown
@@ -88,9 +90,13 @@ class HealthScoringAlgorithm:
 
         # Calculate Reliability score
         if reliability_data:
-            component_scores[ScoreComponent.RELIABILITY.value] = self._score_reliability(reliability_data)
+            component_scores[ScoreComponent.RELIABILITY.value] = self._score_reliability(
+                reliability_data
+            )
         else:
-            component_scores[ScoreComponent.RELIABILITY.value] = 100  # Default to perfect if no data
+            component_scores[ScoreComponent.RELIABILITY.value] = (
+                100  # Default to perfect if no data
+            )
 
         # Calculate weighted total score
         total_score = sum(
@@ -135,10 +141,7 @@ class HealthScoringAlgorithm:
             return 30
 
         # Filter out Zigbee2MQTT - it's not a separate integration, just MQTT with different topic
-        relevant_integrations = [
-            i for i in integrations
-            if i.get("type") != "zigbee2mqtt"
-        ]
+        relevant_integrations = [i for i in integrations if i.get("type") != "zigbee2mqtt"]
 
         if not relevant_integrations:
             # If all integrations were filtered out (only Zigbee2MQTT), give partial credit
@@ -221,9 +224,7 @@ class HealthScoringAlgorithm:
         return int(uptime_score + error_score)
 
     def get_score_breakdown_explanation(
-        self,
-        total_score: int,
-        component_scores: dict[str, int]
+        self, total_score: int, component_scores: dict[str, int]
     ) -> dict:
         """
         Generate human-readable explanation of score breakdown
@@ -244,14 +245,18 @@ class HealthScoringAlgorithm:
         # Integrations analysis
         int_score = component_scores.get(ScoreComponent.INTEGRATIONS.value, 0)
         if int_score < 100:
-            explanations.append(f"Integrations score: {int_score}/100 - Some integrations need attention")
+            explanations.append(
+                f"Integrations score: {int_score}/100 - Some integrations need attention"
+            )
             if int_score < 50:
                 recommendations.append("Fix integration errors to improve health score")
 
         # Performance analysis
         perf_score = component_scores.get(ScoreComponent.PERFORMANCE.value, 0)
         if perf_score < 80:
-            explanations.append(f"Performance score: {perf_score}/100 - System response time is high")
+            explanations.append(
+                f"Performance score: {perf_score}/100 - System response time is high"
+            )
             if perf_score < 50:
                 recommendations.append("Investigate performance bottlenecks")
 
@@ -275,6 +280,5 @@ class HealthScoringAlgorithm:
             "overall_assessment": overall,
             "component_scores": component_scores,
             "explanations": explanations,
-            "recommendations": recommendations
+            "recommendations": recommendations,
         }
-

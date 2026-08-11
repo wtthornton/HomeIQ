@@ -1,5 +1,6 @@
 """Unit tests for activity-recognition API routes."""
 
+
 async def test_list_activities(client) -> None:
     """GET /activities returns activity id -> name map."""
     response = await client.get("/api/v1/activities")

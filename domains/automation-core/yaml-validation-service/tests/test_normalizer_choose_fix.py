@@ -20,7 +20,9 @@ class TestYAMLNormalizer:
 
     def test_normalize_passthrough_valid_yaml(self, normalizer):
         """Test valid canonical YAML passes through with minimal changes."""
-        valid_yaml = "alias: Test\ntrigger:\n  - platform: state\naction:\n  - service: light.turn_on"
+        valid_yaml = (
+            "alias: Test\ntrigger:\n  - platform: state\naction:\n  - service: light.turn_on"
+        )
         result, fixes = normalizer.normalize(valid_yaml)
         parsed = yaml.safe_load(result)
         assert parsed["alias"] == "Test"

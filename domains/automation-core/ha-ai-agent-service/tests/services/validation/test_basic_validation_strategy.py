@@ -5,6 +5,7 @@ Tests for basic_validation_strategy.py
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from src.services.validation.basic_validation_strategy import BasicValidationStrategy
 
 
@@ -13,11 +14,13 @@ def mock_tool_handler():
     """Mock HAToolHandler for testing."""
     handler = MagicMock()
     handler.data_api_client = MagicMock()
-    handler.data_api_client.fetch_entities = AsyncMock(return_value=[
-        {"entity_id": "light.office_led", "friendly_name": "Office LED"},
-        {"entity_id": "light.office_go", "friendly_name": "Office Go"},
-        {"entity_id": "switch.office_fan", "friendly_name": "Office Fan"},
-    ])
+    handler.data_api_client.fetch_entities = AsyncMock(
+        return_value=[
+            {"entity_id": "light.office_led", "friendly_name": "Office LED"},
+            {"entity_id": "light.office_go", "friendly_name": "Office Go"},
+            {"entity_id": "switch.office_fan", "friendly_name": "Office Fan"},
+        ]
+    )
     handler._extract_entities_from_yaml = MagicMock(return_value=["light.office_led"])
     handler._is_group_entity = MagicMock(return_value=False)
     return handler
@@ -40,12 +43,12 @@ class TestBasicValidationStrategy:
         """Test _build_entity_error_message method."""
         strategy = BasicValidationStrategy(mock_tool_handler)
         valid_entities = {"light.office_go", "switch.office_fan"}
-        
+
         # Test with similar entities (suggestions)
         error_msg = strategy._build_entity_error_message("light.office_led", valid_entities)
         assert "Invalid entity ID" in error_msg
         assert "light.office_led" in error_msg
-        
+
         # Test without similar entities
         error_msg_no_match = strategy._build_entity_error_message("sensor.unknown", valid_entities)
         assert "Invalid entity ID" in error_msg_no_match
@@ -56,7 +59,7 @@ class TestBasicValidationStrategy:
         """Test _validate_entities with invalid entities."""
         strategy = BasicValidationStrategy(mock_tool_handler)
         mock_tool_handler._extract_entities_from_yaml.return_value = ["light.invalid_entity"]
-        
+
         errors, warnings = await strategy._validate_entities(["light.invalid_entity"])
         assert len(errors) > 0
         assert any("Invalid entity ID" in err for err in errors)
@@ -65,7 +68,7 @@ class TestBasicValidationStrategy:
     async def test__validate_entities_with_valid_entities(self, mock_tool_handler):
         """Test _validate_entities with valid entities."""
         strategy = BasicValidationStrategy(mock_tool_handler)
-        
+
         errors, warnings = await strategy._validate_entities(["light.office_led"])
         assert len(errors) == 0
 
@@ -75,7 +78,7 @@ class TestBasicValidationStrategy:
         handler = MagicMock()
         handler.data_api_client = None
         strategy = BasicValidationStrategy(handler)
-        
+
         errors, warnings = await strategy._validate_entities(["light.office_led"])
         assert len(errors) == 0
         assert len(warnings) == 0
@@ -86,15 +89,9 @@ class TestBasicValidationStrategy:
         automation_dict = {
             "alias": "Turn on lights",
             "description": "Turn on office lights at 7 AM",
-            "action": [
-                {
-                    "service": "light.turn_on",
-                    "target": {"area_id": "office"},
-                    "data": {"brightness": 255}
-                }
-            ]
+            "action": [{"service": "light.turn_on", "target": {"area_id": "office"}, "data": {"brightness": 255}}],
         }
-        
+
         warnings = strategy._detect_dimming_pattern_issues(automation_dict)
         assert len(warnings) == 0
 
@@ -105,17 +102,8 @@ class TestBasicValidationStrategy:
             "alias": "Office motion-based dimming lights",
             "description": "Use all office motion sensors to turn office lights on with motion and gradually dim them to off after 1 minute of no motion.",
             "trigger": [
-                {
-                    "platform": "state",
-                    "entity_id": ["binary_sensor.office_motion_1"],
-                    "to": "on"
-                },
-                {
-                    "platform": "state",
-                    "entity_id": ["binary_sensor.office_motion_1"],
-                    "to": "off",
-                    "for": "00:01:00"
-                }
+                {"platform": "state", "entity_id": ["binary_sensor.office_motion_1"], "to": "on"},
+                {"platform": "state", "entity_id": ["binary_sensor.office_motion_1"], "to": "off", "for": "00:01:00"},
             ],
             "action": [
                 {
@@ -128,18 +116,18 @@ class TestBasicValidationStrategy:
                                         {
                                             "condition": "state",
                                             "entity_id": "binary_sensor.office_motion_1",
-                                            "state": "on"
+                                            "state": "on",
                                         }
-                                    ]
+                                    ],
                                 }
                             ],
                             "sequence": [
                                 {
                                     "service": "light.turn_on",
                                     "target": {"area_id": "office"},
-                                    "data": {"brightness": 255}
+                                    "data": {"brightness": 255},
                                 }
-                            ]
+                            ],
                         },
                         {
                             "conditions": [
@@ -149,9 +137,9 @@ class TestBasicValidationStrategy:
                                         {
                                             "condition": "state",
                                             "entity_id": "binary_sensor.office_motion_1",
-                                            "state": "off"
+                                            "state": "off",
                                         }
-                                    ]
+                                    ],
                                 }
                             ],
                             "sequence": [
@@ -162,23 +150,20 @@ class TestBasicValidationStrategy:
                                             {
                                                 "service": "light.turn_on",
                                                 "target": {"area_id": "office"},
-                                                "data": {"brightness_step": -40, "transition": 2}
+                                                "data": {"brightness_step": -40, "transition": 2},
                                             },
-                                            {"delay": "00:00:03"}
-                                        ]
+                                            {"delay": "00:00:03"},
+                                        ],
                                     }
                                 },
-                                {
-                                    "service": "light.turn_off",
-                                    "target": {"area_id": "office"}
-                                }
-                            ]
-                        }
+                                {"service": "light.turn_off", "target": {"area_id": "office"}},
+                            ],
+                        },
                     ]
                 }
-            ]
+            ],
         }
-        
+
         warnings = strategy._detect_dimming_pattern_issues(automation_dict)
         assert len(warnings) == 0
 
@@ -195,29 +180,23 @@ class TestBasicValidationStrategy:
                             "sequence": [
                                 {
                                     "repeat": {
-                                        "until": [
-                                            {
-                                                "condition": "state",
-                                                "entity_id": "light.office",
-                                                "state": "off"
-                                            }
-                                        ],
+                                        "until": [{"condition": "state", "entity_id": "light.office", "state": "off"}],
                                         "sequence": [
                                             {
                                                 "service": "light.turn_on",
                                                 "target": {"area_id": "office"},
-                                                "data": {"brightness_step": -40}
+                                                "data": {"brightness_step": -40},
                                             }
-                                        ]
+                                        ],
                                     }
                                 }
                             ]
                         }
                     ]
                 }
-            ]
+            ],
         }
-        
+
         warnings = strategy._detect_dimming_pattern_issues(automation_dict)
         assert len(warnings) > 0
         assert any("until" in w.lower() and "count" in w.lower() for w in warnings)
@@ -240,9 +219,9 @@ class TestBasicValidationStrategy:
                                             {
                                                 "service": "light.turn_on",
                                                 "target": {"area_id": "office"},
-                                                "data": {"brightness_step": -40}
+                                                "data": {"brightness_step": -40},
                                             }
-                                        ]
+                                        ],
                                     }
                                 }
                                 # Missing light.turn_off here
@@ -250,9 +229,9 @@ class TestBasicValidationStrategy:
                         }
                     ]
                 }
-            ]
+            ],
         }
-        
+
         warnings = strategy._detect_dimming_pattern_issues(automation_dict)
         assert len(warnings) > 0
         assert any("turn_off" in w.lower() or "turn off" in w.lower() for w in warnings)
@@ -267,17 +246,12 @@ class TestBasicValidationStrategy:
                 {
                     "platform": "state",
                     "entity_id": ["binary_sensor.office_motion_1"],
-                    "to": ["on", "off"]  # Both states in single trigger
+                    "to": ["on", "off"],  # Both states in single trigger
                 }
             ],
-            "action": [
-                {
-                    "service": "light.turn_on",
-                    "target": {"area_id": "office"}
-                }
-            ]
+            "action": [{"service": "light.turn_on", "target": {"area_id": "office"}}],
         }
-        
+
         warnings = strategy._detect_dimming_pattern_issues(automation_dict)
         assert len(warnings) > 0
         assert any("separate triggers" in w.lower() or "separate trigger" in w.lower() for w in warnings)
@@ -300,29 +274,24 @@ class TestBasicValidationStrategy:
                                             "condition": "state",
                                             "entity_id": "binary_sensor.office_motion_1",
                                             "state": "off",
-                                            "for": "00:01:00"  # Individual for: in condition
+                                            "for": "00:01:00",  # Individual for: in condition
                                         },
                                         {
                                             "condition": "state",
                                             "entity_id": "binary_sensor.office_motion_2",
                                             "state": "off",
-                                            "for": "00:01:00"  # Individual for: in condition
-                                        }
-                                    ]
+                                            "for": "00:01:00",  # Individual for: in condition
+                                        },
+                                    ],
                                 }
                             ],
-                            "sequence": [
-                                {
-                                    "service": "light.turn_on",
-                                    "target": {"area_id": "office"}
-                                }
-                            ]
+                            "sequence": [{"service": "light.turn_on", "target": {"area_id": "office"}}],
                         }
                     ]
                 }
-            ]
+            ],
         }
-        
+
         warnings = strategy._detect_dimming_pattern_issues(automation_dict)
         assert len(warnings) > 0
         assert any("for:" in w or "independently" in w.lower() for w in warnings)

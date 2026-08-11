@@ -113,7 +113,9 @@ class BatchProcessor:
             # Transition to running
             self.state_machine.transition(ProcessingState.RUNNING)
 
-            logger.info(f"Started batch processor with batch_size={self.batch_size}, timeout={self.batch_timeout}s")
+            logger.info(
+                f"Started batch processor with batch_size={self.batch_size}, timeout={self.batch_timeout}s"
+            )
         except InvalidStateTransition as e:
             logger.error(f"Cannot start batch processor from state {current_state.value}: {e}")
 
@@ -331,7 +333,9 @@ class BatchProcessor:
         # Calculate average processing time
         avg_processing_time = 0
         if self.batch_processing_times:
-            avg_processing_time = sum(self.batch_processing_times) / len(self.batch_processing_times)
+            avg_processing_time = sum(self.batch_processing_times) / len(
+                self.batch_processing_times
+            )
 
         # Calculate average processing rate
         avg_processing_rate = 0
@@ -364,7 +368,7 @@ class BatchProcessor:
             "uptime_seconds": round(uptime, 2),
             "batch_handlers_count": len(self.batch_handlers),
             "retry_attempts": self.retry_attempts,
-            "retry_delay": self.retry_delay
+            "retry_delay": self.retry_delay,
         }
 
     def reset_statistics(self):

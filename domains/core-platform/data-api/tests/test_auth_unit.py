@@ -3,15 +3,14 @@
 Tests AuthManager: API key validation, session management, and configuration.
 """
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
+import pytest
 from src.auth import AuthManager, User
 
 
 class TestUser:
-
     def test_user_defaults(self):
         u = User(username="admin", created_at=datetime.now())
         assert u.username == "admin"
@@ -28,7 +27,6 @@ class TestUser:
 
 
 class TestAuthManagerInit:
-
     def test_init_defaults(self):
         mgr = AuthManager(api_key="test-key")
         assert mgr.api_key == "test-key"
@@ -46,7 +44,6 @@ class TestAuthManagerInit:
 
 
 class TestValidateApiKey:
-
     def test_valid_key(self):
         mgr = AuthManager(api_key="secret-key-123")
         assert mgr._validate_api_key("secret-key-123") is True
@@ -61,7 +58,6 @@ class TestValidateApiKey:
 
 
 class TestGetCurrentUser:
-
     @pytest.mark.asyncio
     async def test_auth_disabled_returns_default_user(self):
         mgr = AuthManager(api_key="key", enable_auth=False)
@@ -71,6 +67,7 @@ class TestGetCurrentUser:
     @pytest.mark.asyncio
     async def test_no_credentials_raises_401(self):
         from fastapi import HTTPException
+
         mgr = AuthManager(api_key="key", enable_auth=True)
         with pytest.raises(HTTPException) as exc_info:
             await mgr.get_current_user(None)
@@ -79,6 +76,7 @@ class TestGetCurrentUser:
     @pytest.mark.asyncio
     async def test_invalid_key_raises_401(self):
         from fastapi import HTTPException
+
         mgr = AuthManager(api_key="correct-key", enable_auth=True)
         creds = MagicMock()
         creds.credentials = "wrong-key"
@@ -97,7 +95,6 @@ class TestGetCurrentUser:
 
 
 class TestGenerateApiKey:
-
     def test_generates_unique_keys(self):
         mgr = AuthManager(api_key="key")
         k1 = mgr.generate_api_key()
@@ -107,7 +104,6 @@ class TestGenerateApiKey:
 
 
 class TestSessionManagement:
-
     def test_create_session(self):
         mgr = AuthManager(api_key="key")
         user = User(username="test", created_at=datetime.now())
@@ -159,7 +155,6 @@ class TestSessionManagement:
 
 
 class TestSessionStatistics:
-
     def test_empty_stats(self):
         mgr = AuthManager(api_key="key")
         stats = mgr.get_session_statistics()
@@ -170,7 +165,7 @@ class TestSessionStatistics:
     def test_stats_with_sessions(self):
         mgr = AuthManager(api_key="key")
         user = User(username="test", created_at=datetime.now())
-        t1 = mgr.create_session(user)
+        mgr.create_session(user)
         t2 = mgr.create_session(user)
         # Expire t2
         mgr.sessions[t2]["expires_at"] = datetime.now() - timedelta(seconds=1)
@@ -181,7 +176,6 @@ class TestSessionStatistics:
 
 
 class TestConfigure:
-
     def test_configure_auth(self):
         mgr = AuthManager(api_key="old", enable_auth=True)
         mgr.configure_auth("new", False)

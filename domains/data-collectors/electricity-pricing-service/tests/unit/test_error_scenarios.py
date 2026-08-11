@@ -7,6 +7,7 @@ and cache expiration scenarios.
 """
 
 import asyncio
+import contextlib
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -25,11 +26,13 @@ class TestProviderAPIFailures:
         THEN: Should handle connection error gracefully and return cached data if available
         """
         service_instance.session = AsyncMock()
-        
+
         # Mock connection error - use generic Exception for simplicity
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
             mock_fetch.side_effect = ConnectionError("Connection refused")
-            
+
             # No cached data - should return None
             result = await service_instance.fetch_pricing()
             assert result is None
@@ -43,10 +46,12 @@ class TestProviderAPIFailures:
         THEN: Should handle timeout gracefully
         """
         service_instance.session = AsyncMock()
-        
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
             mock_fetch.side_effect = TimeoutError("Request timeout")
-            
+
             result = await service_instance.fetch_pricing()
             assert result is None
             assert service_instance.health_handler.failed_fetches > 0
@@ -59,10 +64,12 @@ class TestProviderAPIFailures:
         THEN: Should handle HTTP error gracefully
         """
         service_instance.session = AsyncMock()
-        
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
             mock_fetch.side_effect = Exception("Awattar API returned status 500")
-            
+
             result = await service_instance.fetch_pricing()
             assert result is None
             assert service_instance.health_handler.failed_fetches > 0
@@ -75,10 +82,12 @@ class TestProviderAPIFailures:
         THEN: Should handle parsing error gracefully
         """
         service_instance.session = AsyncMock()
-        
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
             mock_fetch.side_effect = ValueError("Invalid JSON response")
-            
+
             result = await service_instance.fetch_pricing()
             assert result is None
 
@@ -93,12 +102,14 @@ class TestProviderAPIFailures:
         service_instance.cached_data = sample_pricing_data.copy()
         service_instance.last_fetch_time = datetime.now(UTC)
         service_instance.session = AsyncMock()
-        
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
             mock_fetch.side_effect = Exception("API error")
-            
+
             result = await service_instance.fetch_pricing()
-            
+
             assert result is not None
             assert result == service_instance.cached_data
 
@@ -117,10 +128,10 @@ class TestInfluxDBFailures:
         mock_client = MagicMock()
         mock_client.write.side_effect = Exception("Connection refused")
         service_instance.influxdb_client = mock_client
-        
+
         # Should not raise exception
         await service_instance.store_in_influxdb(sample_pricing_data)
-        
+
         # Verify write was attempted
         assert mock_client.write.called
 
@@ -134,7 +145,7 @@ class TestInfluxDBFailures:
         mock_client = MagicMock()
         mock_client.write.side_effect = Exception("Write failed")
         service_instance.influxdb_client = mock_client
-        
+
         # Should not raise exception
         await service_instance.store_in_influxdb(sample_pricing_data)
 
@@ -148,7 +159,7 @@ class TestInfluxDBFailures:
         mock_client = MagicMock()
         mock_client.write.side_effect = TimeoutError("InfluxDB timeout")
         service_instance.influxdb_client = mock_client
-        
+
         # Should not raise exception
         await service_instance.store_in_influxdb(sample_pricing_data)
 
@@ -160,7 +171,7 @@ class TestInfluxDBFailures:
         THEN: Should handle gracefully
         """
         service_instance.influxdb_client = None
-        
+
         # Should not raise exception
         await service_instance.store_in_influxdb(sample_pricing_data)
 
@@ -176,10 +187,12 @@ class TestNetworkTimeouts:
         THEN: Should handle timeout gracefully
         """
         service_instance.session = AsyncMock()
-        
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
             mock_fetch.side_effect = TimeoutError("Request timeout")
-            
+
             result = await service_instance.fetch_pricing()
             assert result is None
 
@@ -191,10 +204,12 @@ class TestNetworkTimeouts:
         THEN: Should handle connection timeout gracefully
         """
         service_instance.session = AsyncMock()
-        
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
             mock_fetch.side_effect = ConnectionError("Connection timeout")
-            
+
             result = await service_instance.fetch_pricing()
             assert result is None
 
@@ -213,10 +228,12 @@ class TestCacheExpiration:
         service_instance.cached_data = sample_pricing_data.copy()
         service_instance.last_fetch_time = datetime.now(UTC) - timedelta(minutes=61)
         service_instance.session = AsyncMock()
-        
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
             mock_fetch.side_effect = Exception("API error")
-            
+
             # Should still return cached data even if expired
             result = await service_instance.fetch_pricing()
             assert result is not None
@@ -231,10 +248,12 @@ class TestCacheExpiration:
         """
         service_instance.cached_data = None
         service_instance.session = AsyncMock()
-        
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
             mock_fetch.side_effect = Exception("API error")
-            
+
             result = await service_instance.fetch_pricing()
             assert result is None
 
@@ -249,13 +268,13 @@ class TestAPIEndpointErrors:
         WHEN: Request cheapest hours
         THEN: Should return 400 error
         """
-        service_instance.cached_data = {'cheapest_hours': [1, 2, 3, 4]}
-        
+        service_instance.cached_data = {"cheapest_hours": [1, 2, 3, 4]}
+
         request = MagicMock()
-        request.query = {'hours': 'invalid'}
-        
+        request.query = {"hours": "invalid"}
+
         response = await service_instance.get_cheapest_hours(request)
-        
+
         assert response.status == 400
 
     @pytest.mark.asyncio
@@ -265,13 +284,13 @@ class TestAPIEndpointErrors:
         WHEN: Request cheapest hours
         THEN: Should return 400 error
         """
-        service_instance.cached_data = {'cheapest_hours': [1, 2, 3, 4]}
-        
+        service_instance.cached_data = {"cheapest_hours": [1, 2, 3, 4]}
+
         request = MagicMock()
-        request.query = {'hours': '25'}  # Out of bounds (max 24)
-        
+        request.query = {"hours": "25"}  # Out of bounds (max 24)
+
         response = await service_instance.get_cheapest_hours(request)
-        
+
         assert response.status == 400
 
     @pytest.mark.asyncio
@@ -282,16 +301,16 @@ class TestAPIEndpointErrors:
         THEN: Should return 403 error
         """
         service_instance.cached_data = sample_pricing_data
-        service_instance.allowed_networks = ['192.168.1.0/24']
-        
+        service_instance.allowed_networks = ["192.168.1.0/24"]
+
         request = MagicMock()
-        request.query = {'hours': '4'}
-        request.remote = '10.0.0.1'  # External IP
-        
+        request.query = {"hours": "4"}
+        request.remote = "10.0.0.1"  # External IP
+
         # Mock require_internal_network to raise HTTPForbidden
-        with patch('src.main.require_internal_network', new_callable=AsyncMock) as mock_require:
+        with patch("src.main.require_internal_network", new_callable=AsyncMock) as mock_require:
             mock_require.side_effect = web.HTTPForbidden(text="Access denied")
-            
+
             with pytest.raises(web.HTTPForbidden):
                 await service_instance.get_cheapest_hours(request)
 
@@ -307,24 +326,24 @@ class TestContinuousLoopErrors:
         THEN: Should wait and retry
         """
         service_instance.session = AsyncMock()
-        
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
             mock_fetch.side_effect = Exception("API error")
-            
+
             # Mock sleep to prevent actual waiting
-            with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+            with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
                 # Create a task that will be cancelled
                 task = asyncio.create_task(service_instance.run_continuous())
-                
+
                 # Wait a bit then cancel
                 await asyncio.sleep(0.1)
                 task.cancel()
-                
-                try:
+
+                with contextlib.suppress(asyncio.CancelledError):
                     await task
-                except asyncio.CancelledError:
-                    pass
-                
+
                 # Verify sleep was called (retry logic)
                 assert mock_sleep.called
 
@@ -336,30 +355,32 @@ class TestContinuousLoopErrors:
         THEN: Should continue without crashing
         """
         service_instance.session = AsyncMock()
-        
-        with patch.object(service_instance.provider, 'fetch_pricing', new_callable=AsyncMock) as mock_fetch:
+
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
             mock_fetch.return_value = sample_pricing_data.copy()
-            
+
             # Mock store to fail
-            with patch.object(service_instance, 'store_in_influxdb', new_callable=AsyncMock) as mock_store:
+            with patch.object(
+                service_instance, "store_in_influxdb", new_callable=AsyncMock
+            ) as mock_store:
                 mock_store.side_effect = Exception("Store failed")
-                
+
                 # Mock sleep to allow one iteration then cancel
                 call_count = 0
+
                 async def mock_sleep(_delay):
                     nonlocal call_count
                     call_count += 1
                     if call_count > 1:  # Allow one iteration
                         raise asyncio.CancelledError()
-                
-                with patch('asyncio.sleep', side_effect=mock_sleep):
+
+                with patch("asyncio.sleep", side_effect=mock_sleep):
                     task = asyncio.create_task(service_instance.run_continuous())
-                    
-                    try:
+
+                    with contextlib.suppress(asyncio.CancelledError):
                         await task
-                    except asyncio.CancelledError:
-                        pass
-                    
+
                     # Verify fetch was called (store may not be called if cancelled early)
                     assert mock_fetch.called
-

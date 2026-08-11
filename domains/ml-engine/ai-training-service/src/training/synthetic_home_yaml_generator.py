@@ -12,6 +12,7 @@ from typing import Any
 
 try:
     import yaml
+
     YAML_AVAILABLE = True
 except ImportError:
     YAML_AVAILABLE = False
@@ -33,10 +34,7 @@ class SyntheticHomeYAMLGenerator:
             logger.warning("PyYAML not available. YAML generation will fail.")
         logger.info("SyntheticHomeYAMLGenerator initialized")
 
-    def convert_to_yaml(
-        self,
-        home_data: dict[str, Any]
-    ) -> str:
+    def convert_to_yaml(self, home_data: dict[str, Any]) -> str:
         """
         Convert home data to synthetic-home YAML format.
 
@@ -50,26 +48,25 @@ class SyntheticHomeYAMLGenerator:
             ImportError: If PyYAML is not available
         """
         if not YAML_AVAILABLE:
-            raise ImportError("PyYAML is required for YAML generation. Install with: pip install pyyaml")
+            raise ImportError(
+                "PyYAML is required for YAML generation. Install with: pip install pyyaml"
+            )
 
         yaml_structure = {
-            'home': {
-                'name': home_data.get('metadata', {}).get('home', {}).get('name', 'Synthetic Home'),
-                'type': home_data.get('home_type', 'single_family_house'),
-                'country_code': 'US',
-                'location': 'Synthetic Location'
+            "home": {
+                "name": home_data.get("metadata", {}).get("home", {}).get("name", "Synthetic Home"),
+                "type": home_data.get("home_type", "single_family_house"),
+                "country_code": "US",
+                "location": "Synthetic Location",
             },
-            'areas': self._convert_areas(home_data.get('areas', [])),
-            'devices': self._convert_devices(home_data.get('devices', [])),
-            'entities': self._convert_entities(home_data.get('devices', []))
+            "areas": self._convert_areas(home_data.get("areas", [])),
+            "devices": self._convert_devices(home_data.get("devices", [])),
+            "entities": self._convert_entities(home_data.get("devices", [])),
         }
 
         return yaml.dump(yaml_structure, default_flow_style=False, sort_keys=False)
 
-    def _convert_areas(
-        self,
-        areas: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def _convert_areas(self, areas: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Convert areas to synthetic-home format.
 
@@ -81,18 +78,13 @@ class SyntheticHomeYAMLGenerator:
         """
         yaml_areas = []
         for area in areas:
-            area_slug = area['name'].lower().replace(' ', '_')
-            yaml_areas.append({
-                'name': area['name'],
-                'id': area_slug,
-                'type': area.get('type', 'indoor')
-            })
+            area_slug = area["name"].lower().replace(" ", "_")
+            yaml_areas.append(
+                {"name": area["name"], "id": area_slug, "type": area.get("type", "indoor")}
+            )
         return yaml_areas
 
-    def _convert_devices(
-        self,
-        devices: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def _convert_devices(self, devices: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Convert devices to synthetic-home format.
 
@@ -106,27 +98,24 @@ class SyntheticHomeYAMLGenerator:
 
         # Group devices by area and category
         for device in devices:
-            area = device.get('area', 'Unknown')
-            category = device.get('category', 'unknown')
+            area = device.get("area", "Unknown")
+            category = device.get("category", "unknown")
             key = f"{area}_{category}"
 
             if key not in device_groups:
                 device_groups[key] = {
-                    'name': f"{category.title()} {area}",
-                    'id': key.lower().replace(' ', '_'),
-                    'area': area.lower().replace(' ', '_'),
-                    'device_type': device.get('device_type', 'sensor'),
-                    'model': 'Synthetic Model',
-                    'mfg': 'Synthetic Manufacturer',
-                    'sw_version': '1.0.0'
+                    "name": f"{category.title()} {area}",
+                    "id": key.lower().replace(" ", "_"),
+                    "area": area.lower().replace(" ", "_"),
+                    "device_type": device.get("device_type", "sensor"),
+                    "model": "Synthetic Model",
+                    "mfg": "Synthetic Manufacturer",
+                    "sw_version": "1.0.0",
                 }
 
         return list(device_groups.values())
 
-    def _convert_entities(
-        self,
-        devices: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def _convert_entities(self, devices: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Convert devices to entities in synthetic-home format.
 
@@ -138,23 +127,21 @@ class SyntheticHomeYAMLGenerator:
         """
         entities = []
         for device in devices:
-            entity_id = device.get('entity_id', 'unknown.entity')
+            entity_id = device.get("entity_id", "unknown.entity")
             # Extract device name from entity_id (format: device_type.area_name)
-            device_name = entity_id.split('.')[0] if '.' in entity_id else entity_id
+            device_name = entity_id.split(".")[0] if "." in entity_id else entity_id
 
             entity = {
-                'name': device.get('name', 'Unknown Device'),
-                'id': entity_id,
-                'area': device.get('area', 'Unknown').lower().replace(' ', '_'),
-                'device': device_name,
-                'state': self._get_default_state(device.get('device_type', 'sensor'))
+                "name": device.get("name", "Unknown Device"),
+                "id": entity_id,
+                "area": device.get("area", "Unknown").lower().replace(" ", "_"),
+                "device": device_name,
+                "state": self._get_default_state(device.get("device_type", "sensor")),
             }
 
             # Add attributes based on device type
-            if device.get('device_class'):
-                entity['attributes'] = {
-                    'device_class': device['device_class']
-                }
+            if device.get("device_class"):
+                entity["attributes"] = {"device_class": device["device_class"]}
 
             entities.append(entity)
 
@@ -171,14 +158,13 @@ class SyntheticHomeYAMLGenerator:
             Default state value
         """
         default_states = {
-            'light': 'off',
-            'switch': 'off',
-            'binary_sensor': 'off',
-            'sensor': '0',
-            'climate': 'off',
-            'cover': 'closed',
-            'lock': 'locked',
-            'fan': 'off'
+            "light": "off",
+            "switch": "off",
+            "binary_sensor": "off",
+            "sensor": "0",
+            "climate": "off",
+            "cover": "closed",
+            "lock": "locked",
+            "fan": "off",
         }
-        return default_states.get(device_type, 'unknown')
-
+        return default_states.get(device_type, "unknown")

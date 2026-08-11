@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .helpers import (
     append_value,
@@ -11,15 +11,21 @@ from .helpers import (
     parse_event_timestamp,
     parse_state_value,
 )
-from .models import SensorReading
+
+if TYPE_CHECKING:
+    from .models import SensorReading
 
 _ON_STATES: frozenset[str] = frozenset({"on", "1", "true"})
 
 
 def _apply_event_to_bucket(
-    b: dict[str, Any], category: str, is_on: bool,
-    state_str: str | None, temp: float | None,
-    humidity: float | None, power: float | None,
+    b: dict[str, Any],
+    category: str,
+    is_on: bool,
+    state_str: str | None,
+    temp: float | None,
+    humidity: float | None,
+    power: float | None,
 ) -> None:
     """Apply a single parsed event to its bucket."""
     if category == "motion":

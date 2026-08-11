@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class ServiceMetrics(BaseModel):
     """Service metrics model"""
+
     service: str
     timestamp: str
     uptime_seconds: float
@@ -55,7 +56,7 @@ class MetricsEndpoints:
                 logger.error(f"Error getting metrics: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to get metrics: {str(e)}"
+                    detail=f"Failed to get metrics: {str(e)}",
                 ) from e
 
         @self.router.get("/metrics/all", response_model=dict[str, ServiceMetrics])
@@ -70,12 +71,18 @@ class MetricsEndpoints:
                 # Get metrics from other services
                 for service_name, service_url in self.service_urls.items():
                     try:
-                        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:  # noqa: SIM117
-                            async with session.get(f"{service_url}/metrics") as response:
-                                if response.status == 200:
-                                    all_metrics[service_name] = await response.json()
-                                else:
-                                    logger.warning(f"Failed to get metrics from {service_name}: HTTP {response.status}")
+                        async with (
+                            aiohttp.ClientSession(
+                                timeout=aiohttp.ClientTimeout(total=2)
+                            ) as session,
+                            session.get(f"{service_url}/metrics") as response,
+                        ):
+                            if response.status == 200:
+                                all_metrics[service_name] = await response.json()
+                            else:
+                                logger.warning(
+                                    f"Failed to get metrics from {service_name}: HTTP {response.status}"
+                                )
                     except Exception as e:
                         logger.warning(f"Could not fetch metrics from {service_name}: {e}")
 
@@ -84,7 +91,7 @@ class MetricsEndpoints:
                 logger.error(f"Error getting all services metrics: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to get all services metrics: {str(e)}"
+                    detail=f"Failed to get all services metrics: {str(e)}",
                 ) from e
 
         @self.router.get("/metrics/system")
@@ -97,7 +104,7 @@ class MetricsEndpoints:
                 logger.error(f"Error getting system metrics: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to get system metrics: {str(e)}"
+                    detail=f"Failed to get system metrics: {str(e)}",
                 ) from e
 
         @self.router.get("/metrics/summary")
@@ -113,12 +120,16 @@ class MetricsEndpoints:
                             metrics = self.metrics_collector.get_all_metrics()
                         else:
                             service_url = self.service_urls[service_name]
-                            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:  # noqa: SIM117
-                                async with session.get(f"{service_url}/metrics") as response:
-                                    if response.status == 200:
-                                        metrics = await response.json()
-                                    else:
-                                        continue
+                            async with (
+                                aiohttp.ClientSession(
+                                    timeout=aiohttp.ClientTimeout(total=2)
+                                ) as session,
+                                session.get(f"{service_url}/metrics") as response,
+                            ):
+                                if response.status == 200:
+                                    metrics = await response.json()
+                                else:
+                                    continue
 
                         all_metrics[service_name] = metrics
                     except Exception as e:
@@ -135,8 +146,8 @@ class MetricsEndpoints:
                         "total_memory_mb": 0.0,
                         "total_uptime_seconds": 0.0,
                         "total_requests": 0,
-                        "avg_response_time_ms": 0.0
-                    }
+                        "avg_response_time_ms": 0.0,
+                    },
                 }
 
                 # Calculate aggregates
@@ -146,38 +157,44 @@ class MetricsEndpoints:
 
                 for _service_name, metrics in all_metrics.items():
                     # System metrics
-                    if 'system' in metrics:
-                        if 'cpu' in metrics['system']:
-                            summary['aggregate']['total_cpu_percent'] += metrics['system']['cpu'].get('percent', 0)
-                        if 'memory' in metrics['system']:
-                            summary['aggregate']['total_memory_mb'] += metrics['system']['memory'].get('rss_mb', 0)
+                    if "system" in metrics:
+                        if "cpu" in metrics["system"]:
+                            summary["aggregate"]["total_cpu_percent"] += metrics["system"][
+                                "cpu"
+                            ].get("percent", 0)
+                        if "memory" in metrics["system"]:
+                            summary["aggregate"]["total_memory_mb"] += metrics["system"][
+                                "memory"
+                            ].get("rss_mb", 0)
 
                     # Uptime
-                    summary['aggregate']['total_uptime_seconds'] += metrics.get('uptime_seconds', 0)
+                    summary["aggregate"]["total_uptime_seconds"] += metrics.get("uptime_seconds", 0)
 
                     # Request counts
-                    if 'counters' in metrics:
-                        for key, value in metrics['counters'].items():
-                            if 'request' in key.lower() or 'call' in key.lower():
+                    if "counters" in metrics:
+                        for key, value in metrics["counters"].items():
+                            if "request" in key.lower() or "call" in key.lower():
                                 total_requests += value
 
                     # Response times
-                    if 'timers' in metrics:
-                        for key, timer in metrics['timers'].items():
-                            if 'request' in key.lower() or 'response' in key.lower():
-                                total_response_time += timer.get('avg_ms', 0)
+                    if "timers" in metrics:
+                        for key, timer in metrics["timers"].items():
+                            if "request" in key.lower() or "response" in key.lower():
+                                total_response_time += timer.get("avg_ms", 0)
                                 response_count += 1
 
-                summary['aggregate']['total_requests'] = total_requests
+                summary["aggregate"]["total_requests"] = total_requests
                 if response_count > 0:
-                    summary['aggregate']['avg_response_time_ms'] = total_response_time / response_count
+                    summary["aggregate"]["avg_response_time_ms"] = (
+                        total_response_time / response_count
+                    )
 
                 return summary
             except Exception as e:
                 logger.error(f"Error getting metrics summary: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to get metrics summary: {str(e)}"
+                    detail=f"Failed to get metrics summary: {str(e)}",
                 ) from e
 
         @self.router.post("/metrics/reset")
@@ -188,13 +205,13 @@ class MetricsEndpoints:
                 return {
                     "status": "success",
                     "message": "Metrics reset successfully",
-                    "timestamp": datetime.now(UTC).isoformat() + "Z"
+                    "timestamp": datetime.now(UTC).isoformat() + "Z",
                 }
             except Exception as e:
                 logger.error(f"Error resetting metrics: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to reset metrics: {str(e)}"
+                    detail=f"Failed to reset metrics: {str(e)}",
                 ) from e
 
 
@@ -210,4 +227,3 @@ def create_metrics_router(metrics_collector: MetricsCollector | None = None) -> 
     """
     endpoints = MetricsEndpoints(metrics_collector)
     return endpoints.router
-

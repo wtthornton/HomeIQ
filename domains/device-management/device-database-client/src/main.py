@@ -24,6 +24,7 @@ logger = logging.getLogger("device-database-client")
 
 # --- Pydantic request/response models ---
 
+
 class DeviceLookupRequest(BaseModel):
     manufacturer: str
     model: str
@@ -68,6 +69,7 @@ _sync_service: DeviceSyncService | None = None
 
 # --- Lifespan ---
 
+
 async def _startup() -> None:
     global _db_client, _cache, _sync_service
     _db_client = DeviceDatabaseClient()
@@ -92,6 +94,7 @@ lifespan.on_shutdown(_shutdown, name="cleanup")
 
 
 # --- Health check ---
+
 
 async def _check_cache() -> bool:
     if _cache is None:
@@ -118,6 +121,7 @@ app = create_app(
 
 
 # --- Endpoints ---
+
 
 @app.get("/api/v1/devices/lookup", response_model=DeviceInfoResponse)
 async def lookup_device(
@@ -198,5 +202,5 @@ if __name__ == "__main__":
         host="0.0.0.0",  # noqa: S104
         port=port,
         reload=os.getenv("RELOAD", "false").lower() == "true",
-        log_level=os.getenv("LOG_LEVEL", "info").lower()
+        log_level=os.getenv("LOG_LEVEL", "info").lower(),
     )

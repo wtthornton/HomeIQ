@@ -352,4 +352,3 @@ async def test_detect_time_patterns(context_service):
 
     assert len(patterns) > 0
     assert any(p["type"] == "peak_hours" for p in patterns)
-

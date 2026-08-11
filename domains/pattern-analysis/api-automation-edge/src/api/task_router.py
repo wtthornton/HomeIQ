@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 # Huey task queue (optional, imported if available)
 try:
     from ..task_queue.huey_config import huey
+
     HUEY_AVAILABLE = True
 except ImportError:
     HUEY_AVAILABLE = False
@@ -36,8 +37,7 @@ async def get_task(task_id: str) -> dict[str, Any]:
     """
     if not HUEY_AVAILABLE or not huey:
         raise HTTPException(
-            status_code=503,
-            detail="Task queue not available (Huey not configured)"
+            status_code=503, detail="Task queue not available (Huey not configured)"
         )
 
     try:
@@ -62,7 +62,7 @@ async def get_task(task_id: str) -> dict[str, Any]:
             "task_id": task_id,
             "is_finished": is_finished,
             "result": result,
-            "status": "completed" if is_finished else "pending"
+            "status": "completed" if is_finished else "pending",
         }
 
     except Exception as e:
@@ -83,8 +83,7 @@ async def cancel_task(task_id: str) -> dict[str, Any]:
     """
     if not HUEY_AVAILABLE or not huey:
         raise HTTPException(
-            status_code=503,
-            detail="Task queue not available (Huey not configured)"
+            status_code=503, detail="Task queue not available (Huey not configured)"
         )
 
     try:
@@ -97,7 +96,7 @@ async def cancel_task(task_id: str) -> dict[str, Any]:
             "success": True,
             "task_id": task_id,
             "status": "cancelled",
-            "message": f"Task {task_id} has been cancelled"
+            "message": f"Task {task_id} has been cancelled",
         }
 
     except Exception as e:
@@ -109,7 +108,7 @@ async def cancel_task(task_id: str) -> dict[str, Any]:
 async def list_tasks(
     status: str | None = Query(None, description="Filter by status: pending, completed, failed"),
     spec_id: str | None = Query(None, description="Filter by spec_id"),  # noqa: ARG001
-    limit: int = Query(100, description="Maximum number of tasks to return")
+    limit: int = Query(100, description="Maximum number of tasks to return"),
 ) -> dict[str, Any]:
     """
     List tasks with optional filters.
@@ -124,8 +123,7 @@ async def list_tasks(
     """
     if not HUEY_AVAILABLE or not huey:
         raise HTTPException(
-            status_code=503,
-            detail="Task queue not available (Huey not configured)"
+            status_code=503, detail="Task queue not available (Huey not configured)"
         )
 
     try:
@@ -154,11 +152,7 @@ async def list_tasks(
                     continue
 
                 # Get task metadata
-                task_info = {
-                    "task_id": task_id,
-                    "status": task_status,
-                    "is_finished": is_finished
-                }
+                task_info = {"task_id": task_id, "status": task_status, "is_finished": is_finished}
 
                 # Try to get result if finished
                 if is_finished:
@@ -174,11 +168,7 @@ async def list_tasks(
                 logger.warning(f"Error processing task {task_id}: {e}")
                 continue
 
-        return {
-            "success": True,
-            "count": len(filtered_tasks),
-            "tasks": filtered_tasks
-        }
+        return {"success": True, "count": len(filtered_tasks), "tasks": filtered_tasks}
 
     except Exception as e:
         logger.error(f"Error listing tasks: {e}", exc_info=True)
@@ -206,8 +196,7 @@ async def get_task_history(
     """
     if not HUEY_AVAILABLE or not huey:
         raise HTTPException(
-            status_code=503,
-            detail="Task queue not available (Huey not configured)"
+            status_code=503, detail="Task queue not available (Huey not configured)"
         )
 
     try:
@@ -217,20 +206,18 @@ async def get_task_history(
 
         if start_date:
             try:
-                _start_datetime = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                _start_datetime = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
             except ValueError as exc:
                 raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid start_date format: {start_date}"
+                    status_code=400, detail=f"Invalid start_date format: {start_date}"
                 ) from exc
 
         if end_date:
             try:
-                _end_datetime = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                _end_datetime = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
             except ValueError as exc:
                 raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid end_date format: {end_date}"
+                    status_code=400, detail=f"Invalid end_date format: {end_date}"
                 ) from exc
 
         # Get all finished tasks (limited by Huey's result storage)
@@ -243,7 +230,7 @@ async def get_task_history(
             "success": True,
             "message": "Task history requires additional storage (not yet implemented)",
             "count": 0,
-            "tasks": []
+            "tasks": [],
         }
 
     except HTTPException:
@@ -263,8 +250,7 @@ async def get_queue_status() -> dict[str, Any]:
     """
     if not HUEY_AVAILABLE or not huey:
         raise HTTPException(
-            status_code=503,
-            detail="Task queue not available (Huey not configured)"
+            status_code=503, detail="Task queue not available (Huey not configured)"
         )
 
     try:
@@ -280,12 +266,12 @@ async def get_queue_status() -> dict[str, Any]:
             "queue": {
                 "pending": pending_count,
                 "scheduled": scheduled_count,
-                "total": pending_count + scheduled_count
+                "total": pending_count + scheduled_count,
             },
             "consumer": {
                 "available": HUEY_AVAILABLE,
-                "status": "running"  # Would need to track consumer status
-            }
+                "status": "running",  # Would need to track consumer status
+            },
         }
 
     except Exception as e:

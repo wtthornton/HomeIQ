@@ -84,42 +84,15 @@ class ContextBuilder:
         from .helpers_scenes_service import HelpersScenesService
         from .services_summary_service import ServicesSummaryService
 
-        self._entity_inventory_service = EntityInventoryService(
-            settings=self.settings,
-            context_builder=self
-        )
-        self._devices_summary_service = DevicesSummaryService(
-            settings=self.settings,
-            context_builder=self
-        )
-        self._areas_service = AreasService(
-            settings=self.settings,
-            context_builder=self
-        )
-        self._services_summary_service = ServicesSummaryService(
-            settings=self.settings,
-            context_builder=self
-        )
-        self._capability_patterns_service = CapabilityPatternsService(
-            settings=self.settings,
-            context_builder=self
-        )
-        self._helpers_scenes_service = HelpersScenesService(
-            settings=self.settings,
-            context_builder=self
-        )
-        self._entity_attributes_service = EntityAttributesService(
-            settings=self.settings,
-            context_builder=self
-        )
-        self._device_state_context_service = DeviceStateContextService(
-            settings=self.settings,
-            context_builder=self
-        )
-        self._automation_patterns_service = AutomationPatternsService(
-            settings=self.settings,
-            context_builder=self
-        )
+        self._entity_inventory_service = EntityInventoryService(settings=self.settings, context_builder=self)
+        self._devices_summary_service = DevicesSummaryService(settings=self.settings, context_builder=self)
+        self._areas_service = AreasService(settings=self.settings, context_builder=self)
+        self._services_summary_service = ServicesSummaryService(settings=self.settings, context_builder=self)
+        self._capability_patterns_service = CapabilityPatternsService(settings=self.settings, context_builder=self)
+        self._helpers_scenes_service = HelpersScenesService(settings=self.settings, context_builder=self)
+        self._entity_attributes_service = EntityAttributesService(settings=self.settings, context_builder=self)
+        self._device_state_context_service = DeviceStateContextService(settings=self.settings, context_builder=self)
+        self._automation_patterns_service = AutomationPatternsService(settings=self.settings, context_builder=self)
         from homeiq_patterns import RAGContextRegistry
 
         from .automation_rag_service import AutomationRAGService
@@ -130,6 +103,7 @@ class ContextBuilder:
         from .energy_rag_service import EnergyRAGService
         from .scene_script_rag_service import SceneScriptRAGService
         from .security_rag_service import SecurityRAGService
+
         self._automation_rag_service = AutomationRAGService()
         # Reusable Pattern Framework: Initialize RAG registry and register services
         self._rag_registry = RAGContextRegistry()
@@ -148,9 +122,11 @@ class ContextBuilder:
         self._context_filtering_service = ContextFilteringService()
         # Enhanced context builder for area-focused entity context
         from .enhanced_context_builder import EnhancedContextBuilder
+
         self._enhanced_context_builder = EnhancedContextBuilder(settings=self.settings)
         # Epic Activity Recognition: Activity context (Story 2.1)
         from .activity_context_service import ActivityContextService
+
         self._activity_context_service = ActivityContextService(
             settings=self.settings,
             context_builder=self,
@@ -178,7 +154,7 @@ class ContextBuilder:
             await self._device_state_context_service.close()
         if self._automation_patterns_service:
             await self._automation_patterns_service.close()
-        if hasattr(self, '_enhanced_context_builder') and self._enhanced_context_builder:
+        if hasattr(self, "_enhanced_context_builder") and self._enhanced_context_builder:
             await self._enhanced_context_builder.close()
         self._initialized = False
         logger.info("✅ Context builder closed")
@@ -194,10 +170,7 @@ class ContextBuilder:
             Formatted context string ready for OpenAI system/user prompts
         """
         if not self._initialized:
-            logger.error(
-                "❌ CRITICAL: Context builder not initialized! "
-                "Call context_builder.initialize() first."
-            )
+            logger.error("❌ CRITICAL: Context builder not initialized! Call context_builder.initialize() first.")
             raise RuntimeError("Context builder not initialized")
 
         logger.debug(f"Building Tier 1 context (devices, areas, services, etc.) - skip_truncation={skip_truncation}")
@@ -232,6 +205,7 @@ class ContextBuilder:
         except Exception as e:
             logger.error(f"❌ Failed to get devices summary: {e}", exc_info=True)
             import traceback
+
             logger.error(f"❌ Traceback: {traceback.format_exc()}")
             context_parts.append("DEVICES: (unavailable)\n")
 
@@ -278,13 +252,15 @@ class ContextBuilder:
         # Provides entity_ids (light.office_go, switch.kitchen, etc.) that the LLM needs for YAML generation.
         # Without this, the LLM has device names but no entity_ids to reference in automation YAML.
         try:
-            if hasattr(self, '_enhanced_context_builder') and self._enhanced_context_builder:
+            if hasattr(self, "_enhanced_context_builder") and self._enhanced_context_builder:
                 entity_inventory = await self._enhanced_context_builder.build_area_entity_context()
                 if entity_inventory and "Unavailable" not in entity_inventory:
                     # Truncate to keep within token budget (limited to 20 entities/domain/area, 5 scenes/area)
                     max_entity_chars = 24000 if not skip_truncation else 999999
                     if len(entity_inventory) > max_entity_chars:
-                        entity_inventory = entity_inventory[:max_entity_chars] + "\n... (truncated for token efficiency)"
+                        entity_inventory = (
+                            entity_inventory[:max_entity_chars] + "\n... (truncated for token efficiency)"
+                        )
                     context_parts.append(f"\n{entity_inventory}")
                     logger.info(f"✅ Added entity inventory context ({len(entity_inventory)} chars)")
                 else:
@@ -295,7 +271,7 @@ class ContextBuilder:
         # Enhanced Context: Binary sensors and trigger platforms reference
         # Critical for automation creation - provides entity IDs for motion/presence triggers
         try:
-            if hasattr(self, '_enhanced_context_builder') and self._enhanced_context_builder:
+            if hasattr(self, "_enhanced_context_builder") and self._enhanced_context_builder:
                 # Add binary sensor context (motion/presence sensors)
                 binary_sensor_context = await self._enhanced_context_builder.build_binary_sensor_context()
                 if binary_sensor_context and "Unavailable" not in binary_sensor_context:
@@ -323,13 +299,10 @@ class ContextBuilder:
 
         if unavailable_count > 0:
             logger.warning(
-                f"⚠️ Context built with {unavailable_count} unavailable section(s). "
-                f"Total length: {context_length} chars"
+                f"⚠️ Context built with {unavailable_count} unavailable section(s). Total length: {context_length} chars"
             )
         else:
-            logger.info(
-                f"✅ Context built successfully. Total length: {context_length} chars"
-            )
+            logger.info(f"✅ Context built successfully. Total length: {context_length} chars")
 
         return context
 
@@ -429,11 +402,7 @@ class ContextBuilder:
         if value:
             logger.info("Memory injector configured for context builder")
 
-    async def build_filtered_context(
-        self,
-        user_prompt: str | None = None,
-        skip_truncation: bool = False
-    ) -> str:
+    async def build_filtered_context(self, user_prompt: str | None = None, skip_truncation: bool = False) -> str:
         """
         Build context with Phase 3 filtering and prioritization.
 
@@ -450,7 +419,9 @@ class ContextBuilder:
 
         # Phase 3.2: Extract intent from user prompt
         intent = self._context_filtering_service.extract_intent(user_prompt)
-        logger.info(f"🔍 Extracted intent: areas={intent.get('areas')}, domains={intent.get('domains')}, services={intent.get('services')}")
+        logger.info(
+            f"🔍 Extracted intent: areas={intent.get('areas')}, domains={intent.get('domains')}, services={intent.get('services')}"
+        )
 
         # Build standard context first
         return await self.build_context(skip_truncation=skip_truncation)
@@ -461,7 +432,6 @@ class ContextBuilder:
 
         # For now, filtering is handled at the service level (entity_inventory_service)
         # and prioritization can be applied when building entity examples
-
 
     async def build_complete_system_prompt(self, skip_truncation: bool = False) -> str:
         """
@@ -520,13 +490,10 @@ class ContextBuilder:
                 resp = await client.get(url)
                 if resp.status_code == 200:
                     return resp.json()
-                logger.debug(
-                    "House status aggregator returned %s", resp.status_code
-                )
+                logger.debug("House status aggregator returned %s", resp.status_code)
         except Exception as exc:
             logger.warning(
-                "House status aggregator unavailable, "
-                "falling back to HA REST: %s",
+                "House status aggregator unavailable, falling back to HA REST: %s",
                 exc,
             )
         return None
@@ -545,8 +512,7 @@ class ContextBuilder:
             async for session in get_session():
                 now = datetime.now()
                 stmt = select(ContextCache.cache_value).where(
-                    ContextCache.cache_key == cache_key,
-                    ContextCache.expires_at > now
+                    ContextCache.cache_key == cache_key, ContextCache.expires_at > now
                 )
                 result = await session.execute(stmt)
                 return result.scalar_one_or_none()
@@ -554,12 +520,7 @@ class ContextBuilder:
             logger.warning(f"⚠️ Error reading cache for {cache_key}: {e}")
         return None
 
-    async def _set_cached_value(
-        self,
-        cache_key: str,
-        cache_value: str,
-        ttl_seconds: int
-    ) -> None:
+    async def _set_cached_value(self, cache_key: str, cache_value: str, ttl_seconds: int) -> None:
         """
         Set cached value with TTL.
 
@@ -583,14 +544,9 @@ class ContextBuilder:
                     existing.updated_at = datetime.now()
                 else:
                     # Create new entry
-                    cache_entry = ContextCache(
-                        cache_key=cache_key,
-                        cache_value=cache_value,
-                        expires_at=expires_at
-                    )
+                    cache_entry = ContextCache(cache_key=cache_key, cache_value=cache_value, expires_at=expires_at)
                     session.add(cache_entry)
 
                 await session.commit()
         except Exception as e:
             logger.warning(f"⚠️ Error writing cache for {cache_key}: {e}")
-

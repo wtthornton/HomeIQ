@@ -13,10 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def safe_parse_json(
-    value: Any,
-    default: Any = None,
-    field_name: str = "field",
-    context_id: str | None = None
+    value: Any, default: Any = None, field_name: str = "field", context_id: str | None = None
 ) -> Any:
     """
     Safely parse a JSON string or return the value if already parsed.
@@ -47,10 +44,7 @@ def safe_parse_json(
     return default
 
 
-def extract_synergy_fields(
-    synergy: Any,
-    is_dict: bool = True
-) -> dict[str, Any]:
+def extract_synergy_fields(synergy: Any, is_dict: bool = True) -> dict[str, Any]:
     """
     Extract and normalize synergy fields from database result.
 
@@ -74,35 +68,32 @@ def _extract_from_dict(synergy: dict[str, Any]) -> dict[str, Any]:
         synergy.get("opportunity_metadata"),
         default={},
         field_name="opportunity_metadata",
-        context_id=synergy_id
+        context_id=synergy_id,
     )
 
     device_ids = safe_parse_json(
-        synergy.get("device_ids"),
-        default=[],
-        field_name="device_ids",
-        context_id=synergy_id
+        synergy.get("device_ids"), default=[], field_name="device_ids", context_id=synergy_id
     )
 
     chain_devices = safe_parse_json(
         synergy.get("chain_devices"),
         default=None,
         field_name="chain_devices",
-        context_id=synergy_id
+        context_id=synergy_id,
     )
 
     explanation = safe_parse_json(
-        synergy.get("explanation") or metadata.get('explanation'),
+        synergy.get("explanation") or metadata.get("explanation"),
         default=None,
         field_name="explanation",
-        context_id=synergy_id
+        context_id=synergy_id,
     )
 
     context_breakdown = safe_parse_json(
-        synergy.get("context_breakdown") or metadata.get('context_breakdown'),
+        synergy.get("context_breakdown") or metadata.get("context_breakdown"),
         default=None,
         field_name="context_breakdown",
-        context_id=synergy_id
+        context_id=synergy_id,
     )
 
     return {
@@ -119,9 +110,9 @@ def _extract_from_dict(synergy: dict[str, Any]) -> dict[str, Any]:
         "synergy_depth": synergy.get("synergy_depth", 2),
         "explanation": explanation,
         "context_breakdown": context_breakdown,
-        "context_metadata": metadata.get('context_metadata'),
+        "context_metadata": metadata.get("context_metadata"),
         "created_at": synergy.get("created_at"),
-        "updated_at": synergy.get("updated_at")
+        "updated_at": synergy.get("updated_at"),
     }
 
 
@@ -133,35 +124,32 @@ def _extract_from_object(synergy: Any) -> dict[str, Any]:
         synergy.opportunity_metadata,
         default={},
         field_name="opportunity_metadata",
-        context_id=synergy_id
+        context_id=synergy_id,
     )
 
     device_ids = safe_parse_json(
-        synergy.device_ids,
-        default=[],
-        field_name="device_ids",
-        context_id=synergy_id
+        synergy.device_ids, default=[], field_name="device_ids", context_id=synergy_id
     )
 
     chain_devices = safe_parse_json(
-        getattr(synergy, 'chain_devices', None),
+        getattr(synergy, "chain_devices", None),
         default=None,
         field_name="chain_devices",
-        context_id=synergy_id
+        context_id=synergy_id,
     )
 
     explanation = safe_parse_json(
-        getattr(synergy, 'explanation', None) or metadata.get('explanation'),
+        getattr(synergy, "explanation", None) or metadata.get("explanation"),
         default=None,
         field_name="explanation",
-        context_id=synergy_id
+        context_id=synergy_id,
     )
 
     context_breakdown = safe_parse_json(
-        getattr(synergy, 'context_breakdown', None) or metadata.get('context_breakdown'),
+        getattr(synergy, "context_breakdown", None) or metadata.get("context_breakdown"),
         default=None,
         field_name="context_breakdown",
-        context_id=synergy_id
+        context_id=synergy_id,
     )
 
     return {
@@ -175,19 +163,18 @@ def _extract_from_object(synergy: Any) -> dict[str, Any]:
         "confidence": float(synergy.confidence) if synergy.confidence is not None else 0.0,
         "complexity": synergy.complexity or "medium",
         "area": synergy.area,
-        "synergy_depth": getattr(synergy, 'synergy_depth', 2),
+        "synergy_depth": getattr(synergy, "synergy_depth", 2),
         "explanation": explanation,
         "context_breakdown": context_breakdown,
-        "context_metadata": metadata.get('context_metadata'),
+        "context_metadata": metadata.get("context_metadata"),
         "created_at": synergy.created_at.isoformat() if synergy.created_at else None,
-        "updated_at": synergy.updated_at.isoformat() if hasattr(synergy, 'updated_at') and synergy.updated_at else None
+        "updated_at": synergy.updated_at.isoformat()
+        if hasattr(synergy, "updated_at") and synergy.updated_at
+        else None,
     }
 
 
-def find_synergy_by_id(
-    synergies: list[Any],
-    synergy_id: str
-) -> Any | None:
+def find_synergy_by_id(synergies: list[Any], synergy_id: str) -> Any | None:
     """
     Find a synergy by its synergy_id.
 
@@ -208,10 +195,7 @@ def find_synergy_by_id(
     return None
 
 
-def generate_xai_explanation(
-    synergy_data: dict[str, Any],
-    explainer: Any
-) -> str | None:
+def generate_xai_explanation(synergy_data: dict[str, Any], explainer: Any) -> str | None:
     """
     Generate XAI explanation for a synergy.
 
@@ -223,28 +207,26 @@ def generate_xai_explanation(
         Generated explanation or None
     """
     try:
-        metadata = synergy_data.get('metadata', {})
+        metadata = synergy_data.get("metadata", {})
         synergy_for_explanation = {
-            'synergy_id': synergy_data.get("synergy_id"),
-            'relationship_type': metadata.get('relationship', ''),
-            'trigger_entity': metadata.get('trigger_entity'),
-            'trigger_name': metadata.get('trigger_name'),
-            'action_entity': metadata.get('action_entity'),
-            'action_name': metadata.get('action_name'),
-            'area': synergy_data.get("area"),
-            'impact_score': synergy_data.get("impact_score", 0.0),
-            'confidence': synergy_data.get("confidence", 0.0),
-            'complexity': synergy_data.get("complexity", "medium"),
-            'opportunity_metadata': metadata
+            "synergy_id": synergy_data.get("synergy_id"),
+            "relationship_type": metadata.get("relationship", ""),
+            "trigger_entity": metadata.get("trigger_entity"),
+            "trigger_name": metadata.get("trigger_name"),
+            "action_entity": metadata.get("action_entity"),
+            "action_name": metadata.get("action_name"),
+            "area": synergy_data.get("area"),
+            "impact_score": synergy_data.get("impact_score", 0.0),
+            "confidence": synergy_data.get("confidence", 0.0),
+            "complexity": synergy_data.get("complexity", "medium"),
+            "opportunity_metadata": metadata,
         }
         return explainer.generate_explanation(
-            synergy_for_explanation,
-            synergy_data.get('context_metadata')
+            synergy_for_explanation, synergy_data.get("context_metadata")
         )
     except Exception as e:
         logger.warning(
-            f"Failed to generate explanation for synergy "
-            f"{synergy_data.get('synergy_id')}: {e}"
+            f"Failed to generate explanation for synergy {synergy_data.get('synergy_id')}: {e}"
         )
         return None
 
@@ -294,5 +276,5 @@ def calculate_synergy_stats(synergies: list[Any]) -> dict[str, Any]:
         "by_complexity": by_complexity,
         "avg_impact_score": round(total_impact / total, 3) if total > 0 else 0.0,
         "avg_confidence": round(total_confidence / total, 3) if total > 0 else 0.0,
-        "unique_areas": len(areas)
+        "unique_areas": len(areas),
     }

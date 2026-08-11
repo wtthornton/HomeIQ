@@ -93,18 +93,16 @@ class TestDiscoveryService:
                 "id": "device1",
                 "name": "Living Room Light",
                 "manufacturer": "Philips",
-                "model": "Hue Bulb"
+                "model": "Hue Bulb",
             },
             {
                 "id": "device2",
                 "name": "Bedroom Switch",
                 "manufacturer": "Lutron",
-                "model": "Caseta"
-            }
+                "model": "Caseta",
+            },
         ]
-        ha = FakeHomeAssistant(self.service).on(
-            "config/device_registry/list", result=mock_devices
-        )
+        ha = FakeHomeAssistant(self.service).on("config/device_registry/list", result=mock_devices)
 
         devices = await self.service.discover_devices(ha.websocket)
 
@@ -123,14 +121,16 @@ class TestDiscoveryService:
         """Device discovery populates the area and metadata caches (Epic 23.2/23.5)"""
         ha = FakeHomeAssistant(self.service).on(
             "config/device_registry/list",
-            result=[{
-                "id": "device1",
-                "name": "Living Room Light",
-                "area_id": "living_room",
-                "manufacturer": "Philips",
-                "model": "Hue Bulb",
-                "sw_version": "1.2.3",
-            }],
+            result=[
+                {
+                    "id": "device1",
+                    "name": "Living Room Light",
+                    "area_id": "living_room",
+                    "manufacturer": "Philips",
+                    "model": "Hue Bulb",
+                    "sw_version": "1.2.3",
+                }
+            ],
         )
 
         await self.service.discover_devices(ha.websocket)
@@ -184,20 +184,10 @@ class TestDiscoveryService:
     async def test_discover_entities_success(self):
         """Test successful entity discovery"""
         mock_entities = [
-            {
-                "entity_id": "light.living_room",
-                "platform": "hue",
-                "device_id": "device1"
-            },
-            {
-                "entity_id": "switch.bedroom",
-                "platform": "caseta",
-                "device_id": "device2"
-            }
+            {"entity_id": "light.living_room", "platform": "hue", "device_id": "device1"},
+            {"entity_id": "switch.bedroom", "platform": "caseta", "device_id": "device2"},
         ]
-        ha = FakeHomeAssistant(self.service).on(
-            "config/entity_registry/list", result=mock_entities
-        )
+        ha = FakeHomeAssistant(self.service).on("config/entity_registry/list", result=mock_entities)
 
         entities = await self.service.discover_entities(ha.websocket)
 
@@ -210,18 +200,8 @@ class TestDiscoveryService:
     async def test_discover_config_entries_success(self):
         """Test successful config entries discovery"""
         mock_entries = [
-            {
-                "entry_id": "entry1",
-                "title": "Philips Hue",
-                "domain": "hue",
-                "state": "loaded"
-            },
-            {
-                "entry_id": "entry2",
-                "title": "Google Nest",
-                "domain": "nest",
-                "state": "loaded"
-            }
+            {"entry_id": "entry1", "title": "Philips Hue", "domain": "hue", "state": "loaded"},
+            {"entry_id": "entry2", "title": "Google Nest", "domain": "nest", "state": "loaded"},
         ]
         ha = FakeHomeAssistant(self.service).on("config_entries/list", result=mock_entries)
 
@@ -295,12 +275,7 @@ class TestDiscoveryService:
     @pytest.mark.asyncio
     async def test_wait_for_response_success(self):
         """Test waiting for a response routed in by the listen loop"""
-        expected_response = {
-            "id": 100,
-            "type": "result",
-            "success": True,
-            "result": []
-        }
+        expected_response = {"id": 100, "type": "result", "success": True, "result": []}
 
         async def deliver():
             while 100 not in self.service.pending_responses:
@@ -330,9 +305,7 @@ class TestDiscoveryService:
                 await asyncio.sleep(0)
             # Wrong ID is not routed anywhere
             assert self.service.handle_message_result({"id": 99, "type": "result"}) is False
-            self.service.handle_message_result(
-                {"id": 100, "type": "result", "success": True}
-            )
+            self.service.handle_message_result({"id": 100, "type": "result", "success": True})
 
         asyncio.create_task(deliver())
 
@@ -343,9 +316,7 @@ class TestDiscoveryService:
 
     def test_handle_message_result_ignores_non_result_messages(self):
         """Only `result` messages are routed to pending discovery requests"""
-        assert self.service.handle_message_result(
-            {"id": 1, "type": "event", "event": {}}
-        ) is False
+        assert self.service.handle_message_result({"id": 1, "type": "event", "event": {}}) is False
 
     @pytest.mark.asyncio
     async def test_subscribe_to_device_registry_events_success(self):
@@ -392,9 +363,9 @@ class TestDiscoveryService:
                     "id": "dev123",
                     "name": "New Device",
                     "manufacturer": "Acme",
-                    "model": "X1"
-                }
-            }
+                    "model": "X1",
+                },
+            },
         }
 
         result = await self.service.handle_device_registry_event(event)
@@ -406,10 +377,7 @@ class TestDiscoveryService:
         """Test handling device registry event with no device data"""
         event = {
             "event_type": "device_registry_updated",
-            "data": {
-                "action": "remove",
-                "device_id": "dev123"
-            }
+            "data": {"action": "remove", "device_id": "dev123"},
         }
 
         result = await self.service.handle_device_registry_event(event)
@@ -427,9 +395,9 @@ class TestDiscoveryService:
                 "entity": {
                     "entity_id": "light.new_light",
                     "platform": "hue",
-                    "device_id": "dev123"
-                }
-            }
+                    "device_id": "dev123",
+                },
+            },
         }
 
         result = await self.service.handle_entity_registry_event(event)
@@ -439,10 +407,7 @@ class TestDiscoveryService:
     @pytest.mark.asyncio
     async def test_handle_entity_registry_event_malformed(self):
         """Test handling malformed entity registry event"""
-        event = {
-            "event_type": "entity_registry_updated",
-            "data": {}
-        }
+        event = {"event_type": "entity_registry_updated", "data": {}}
 
         result = await self.service.handle_entity_registry_event(event)
 

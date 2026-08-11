@@ -32,7 +32,7 @@ class TestEventSubscriptionManager:
         mock_client = AsyncMock()
         mock_client.send_message.return_value = True
 
-        result = await self.subscription_manager.subscribe_to_events(mock_client, ['state_changed'])
+        result = await self.subscription_manager.subscribe_to_events(mock_client, ["state_changed"])
 
         assert result is True
         assert self.subscription_manager.is_subscribed is True
@@ -46,8 +46,7 @@ class TestEventSubscriptionManager:
         mock_client.send_message.return_value = True
 
         result = await self.subscription_manager.subscribe_to_events(
-            mock_client,
-            ['state_changed', 'call_service']
+            mock_client, ["state_changed", "call_service"]
         )
 
         assert result is True
@@ -61,7 +60,7 @@ class TestEventSubscriptionManager:
         mock_client = AsyncMock()
         mock_client.send_message.return_value = False
 
-        result = await self.subscription_manager.subscribe_to_events(mock_client, ['state_changed'])
+        result = await self.subscription_manager.subscribe_to_events(mock_client, ["state_changed"])
 
         assert result is False
         assert self.subscription_manager.is_subscribed is False
@@ -69,17 +68,13 @@ class TestEventSubscriptionManager:
     @pytest.mark.asyncio
     async def test_handle_subscription_result_success(self):
         """Test handling successful subscription result"""
-        message = {
-            "type": "result",
-            "id": 1,
-            "success": True
-        }
+        message = {"type": "result", "id": 1, "success": True}
 
         # Set up a pending subscription
         self.subscription_manager.subscriptions[1] = {
             "event_type": "state_changed",
             "subscribed_at": "2024-01-01T00:00:00",
-            "status": "pending"
+            "status": "pending",
         }
 
         result = await self.subscription_manager.handle_subscription_result(message)
@@ -94,14 +89,14 @@ class TestEventSubscriptionManager:
             "type": "result",
             "id": 1,
             "success": False,
-            "error": {"message": "Invalid event type"}
+            "error": {"message": "Invalid event type"},
         }
 
         # Set up a pending subscription
         self.subscription_manager.subscriptions[1] = {
             "event_type": "invalid_type",
             "subscribed_at": "2024-01-01T00:00:00",
-            "status": "pending"
+            "status": "pending",
         }
 
         result = await self.subscription_manager.handle_subscription_result(message)
@@ -117,8 +112,8 @@ class TestEventSubscriptionManager:
             "event": {
                 "event_type": "state_changed",
                 "old_state": {"state": "off"},
-                "new_state": {"state": "on", "entity_id": "light.living_room"}
-            }
+                "new_state": {"state": "on", "entity_id": "light.living_room"},
+            },
         }
 
         result = await self.subscription_manager.handle_event_message(message)
@@ -135,12 +130,13 @@ class TestEventSubscriptionManager:
             "event": {
                 "event_type": "state_changed",
                 "old_state": {"state": "off"},
-                "new_state": {"state": "on", "entity_id": "light.living_room"}
-            }
+                "new_state": {"state": "on", "entity_id": "light.living_room"},
+            },
         }
 
         # Register a handler
         handler_called = False
+
         async def test_handler(_event_data):
             nonlocal handler_called
             handler_called = True
@@ -155,10 +151,7 @@ class TestEventSubscriptionManager:
     @pytest.mark.asyncio
     async def test_handle_non_event_message(self):
         """Test handling non-event message"""
-        message = {
-            "type": "ping",
-            "data": "pong"
-        }
+        message = {"type": "ping", "data": "pong"}
 
         result = await self.subscription_manager.handle_event_message(message)
 
@@ -170,7 +163,7 @@ class TestEventSubscriptionManager:
         event_data = {
             "event_type": "state_changed",
             "old_state": {"state": "off"},
-            "new_state": {"state": "on", "entity_id": "light.living_room"}
+            "new_state": {"state": "on", "entity_id": "light.living_room"},
         }
 
         summary = self.subscription_manager._extract_event_summary(event_data)
@@ -180,11 +173,7 @@ class TestEventSubscriptionManager:
 
     def test_extract_event_summary_other_event(self):
         """Test extracting summary from other event types"""
-        event_data = {
-            "event_type": "call_service",
-            "domain": "light",
-            "service": "turn_on"
-        }
+        event_data = {"event_type": "call_service", "domain": "light", "service": "turn_on"}
 
         summary = self.subscription_manager._extract_event_summary(event_data)
 
@@ -192,6 +181,7 @@ class TestEventSubscriptionManager:
 
     def test_register_event_handler(self):
         """Test registering event handler"""
+
         async def test_handler(event_data):
             pass
 
@@ -209,7 +199,7 @@ class TestEventSubscriptionManager:
         self.subscription_manager.subscriptions[1] = {
             "event_type": "state_changed",
             "subscribed_at": "2024-01-01T00:00:00",
-            "status": "active"
+            "status": "active",
         }
         self.subscription_manager.is_subscribed = True
 
@@ -235,12 +225,12 @@ class TestEventSubscriptionManager:
         self.subscription_manager.subscriptions[1] = {
             "event_type": "state_changed",
             "subscribed_at": "2024-01-01T00:00:00",
-            "status": "active"
+            "status": "active",
         }
         self.subscription_manager.subscriptions[2] = {
             "event_type": "call_service",
             "subscribed_at": "2024-01-01T00:00:00",
-            "status": "pending"
+            "status": "pending",
         }
         self.subscription_manager.is_subscribed = True
         self.subscription_manager.total_events_received = 5

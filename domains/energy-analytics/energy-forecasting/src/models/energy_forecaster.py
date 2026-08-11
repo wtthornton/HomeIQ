@@ -318,8 +318,7 @@ class EnergyForecaster:
         elif config_path_pkl.exists():
             # Fallback to pickle for backward compatibility, but log warning
             logger.warning(
-                "Loading config from pickle (deprecated). "
-                "Re-save model to migrate to JSON config."
+                "Loading config from pickle (deprecated). Re-save model to migrate to JSON config."
             )
             with config_path_pkl.open("rb") as f:
                 config = pickle.load(f)  # noqa: S301
@@ -329,9 +328,7 @@ class EnergyForecaster:
         # Validate config keys
         required_keys = {"model_type", "input_chunk_length", "output_chunk_length"}
         if not required_keys.issubset(config.keys()):
-            raise ValueError(
-                f"Invalid model config. Missing keys: {required_keys - config.keys()}"
-            )
+            raise ValueError(f"Invalid model config. Missing keys: {required_keys - config.keys()}")
 
         if config["model_type"] not in cls.SUPPORTED_MODELS:
             raise ValueError(f"Unknown model_type in config: {config['model_type']}")
@@ -347,6 +344,7 @@ class EnergyForecaster:
         # Load model
         if config["model_type"] in ["nhits", "tft"]:
             from darts.models import NHiTSModel, TFTModel
+
             model_class = NHiTSModel if config["model_type"] == "nhits" else TFTModel
             instance.model = model_class.load(str(path.with_suffix(".pt")))
         else:
@@ -366,6 +364,7 @@ class EnergyForecaster:
     def get_model_info(self) -> dict[str, Any]:
         """Get model information."""
         from .. import __version__
+
         return {
             "model_type": self.model_type,
             "input_chunk_length": self.input_chunk_length,

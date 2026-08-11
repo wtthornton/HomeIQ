@@ -53,7 +53,9 @@ class HueHandler(DeviceHandler):
         # Individual Hue lights have specific bulb types (e.g., "Hue go", "Hue color downlight")
         return DeviceType.INDIVIDUAL
 
-    def get_relationships(self, device: dict[str, Any], entities: list[dict[str, Any]]) -> dict[str, Any]:
+    def get_relationships(
+        self, device: dict[str, Any], entities: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Get device relationships (lights to room groups).
 
@@ -82,15 +84,17 @@ class HueHandler(DeviceHandler):
                     # Check if it's a Hue individual light
                     # This would require checking the entity's device, which we'd need to pass
                     # For now, we'll return basic relationship info
-                    individual_lights.append({
-                        "entity_id": entity.get("entity_id"),
-                        "friendly_name": entity.get("friendly_name")
-                    })
+                    individual_lights.append(
+                        {
+                            "entity_id": entity.get("entity_id"),
+                            "friendly_name": entity.get("friendly_name"),
+                        }
+                    )
 
             return {
                 "type": "room_group",
                 "area_id": area_id,
-                "individual_lights": individual_lights
+                "individual_lights": individual_lights,
             }
 
         # Individual lights: find their room group
@@ -109,15 +113,11 @@ class HueHandler(DeviceHandler):
                 # For now, return basic relationship info
                 room_group = {
                     "entity_id": entity.get("entity_id"),
-                    "friendly_name": entity.get("friendly_name")
+                    "friendly_name": entity.get("friendly_name"),
                 }
                 break
 
-        return {
-            "type": "individual_light",
-            "area_id": area_id,
-            "room_group": room_group
-        }
+        return {"type": "individual_light", "area_id": area_id, "room_group": room_group}
 
     def enrich_context(self, device: dict[str, Any], entity: dict[str, Any]) -> dict[str, Any]:
         """
@@ -142,7 +142,7 @@ class HueHandler(DeviceHandler):
                 "device_type": "hue_group",
                 "group_type": group_type.lower(),
                 "manufacturer": manufacturer,
-                "model": model
+                "model": model,
             }
 
         # Individual light
@@ -151,6 +151,5 @@ class HueHandler(DeviceHandler):
             "device_type": "hue_individual",
             "manufacturer": manufacturer,
             "model": model,
-            "bulb_type": model
+            "bulb_type": model,
         }
-

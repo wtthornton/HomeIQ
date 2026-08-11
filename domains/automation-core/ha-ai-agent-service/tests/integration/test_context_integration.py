@@ -8,6 +8,7 @@ For CI/CD, use mocked services. For local testing, can use real services.
 from unittest.mock import patch
 
 import pytest
+
 from src.config import Settings
 from src.services.context_builder import ContextBuilder
 
@@ -19,7 +20,7 @@ def integration_settings():
         ha_url="http://homeassistant:8123",
         ha_access_token="test-token",
         data_api_url="http://data-api:8006",
-        device_intelligence_url="http://device-intelligence-service:8028"
+        device_intelligence_url="http://device-intelligence-service:8028",
     )
 
 
@@ -130,9 +131,7 @@ async def test_context_builder_error_handling(context_builder):
     try:
         # Mock one service to fail
         with patch.object(
-            context_builder._entity_inventory_service,
-            "get_summary",
-            side_effect=Exception("Service unavailable")
+            context_builder._entity_inventory_service, "get_summary", side_effect=Exception("Service unavailable")
         ):
             context = await context_builder.build_context()
 
@@ -145,4 +144,3 @@ async def test_context_builder_error_handling(context_builder):
 
     finally:
         await context_builder.close()
-

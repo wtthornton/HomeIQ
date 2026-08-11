@@ -38,34 +38,32 @@ try:
     from src.config import settings
     from src.database.models import get_db_session
     from src.synergy_detection.gnn_synergy_detector import GNNSynergyDetector
+
     DEPENDENCIES_AVAILABLE = True
 except ImportError as e:
     DEPENDENCIES_AVAILABLE = False
     logger = logging.getLogger(__name__)
-    logger.warning(f"Some dependencies not available: {e}. Script may not work until dependencies are migrated.")
+    logger.warning(
+        f"Some dependencies not available: {e}. Script may not work until dependencies are migrated."
+    )
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler('gnn_training.log')
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler("gnn_training.log")],
 )
 logger = logging.getLogger(__name__)
 
 
-async def train_gnn_synergy(
-    epochs: int | None = None,
-    force: bool = False,
-    verbose: bool = False
-):
+async def train_gnn_synergy(epochs: int | None = None, force: bool = False, verbose: bool = False):
     """Train GNN synergy detection model."""
     if not DEPENDENCIES_AVAILABLE:
         logger.error("Required dependencies not available. Cannot train GNN model.")
         logger.error("This script requires modules from ai-automation-service.")
-        logger.error("These will be migrated in future stories or made available via shared modules.")
+        logger.error(
+            "These will be migrated in future stories or made available via shared modules."
+        )
         return 1
 
     if verbose:
@@ -93,7 +91,7 @@ async def train_gnn_synergy(
             batch_size=settings.gnn_batch_size,
             epochs=epochs or settings.gnn_epochs,
             early_stopping_patience=settings.gnn_early_stopping_patience,
-            model_path=settings.gnn_model_path
+            model_path=settings.gnn_model_path,
         )
 
         # Check if model already exists
@@ -101,7 +99,9 @@ async def train_gnn_synergy(
         if detector._is_initialized and detector.model and not force:
             logger.info("ℹ️  Model is already trained. Use --force to retrain.")
             if detector.metadata:
-                logger.info(f"   Training date: {detector.metadata.get('training_date', 'unknown')}")
+                logger.info(
+                    f"   Training date: {detector.metadata.get('training_date', 'unknown')}"
+                )
             return 0
 
         # Load entities
@@ -121,25 +121,34 @@ async def train_gnn_synergy(
 
         # Generate synthetic synergies if none exist (cold start scenario)
         if not synergies:
-            logger.info("⚠️  No synergies found in database. Generating synthetic synergies for training...")
+            logger.info(
+                "⚠️  No synergies found in database. Generating synthetic synergies for training..."
+            )
             # Import the function from admin_router
             try:
                 from src.api.admin_router import _generate_synthetic_synergies
+
                 synergies = _generate_synthetic_synergies(entities)
                 if synergies:
-                    logger.info(f"✅ Generated {len(synergies)} synthetic synergies for cold start training")
+                    logger.info(
+                        f"✅ Generated {len(synergies)} synthetic synergies for cold start training"
+                    )
                 else:
                     logger.error("❌ Could not generate synthetic synergies")
                     logger.error(f"   Entities: {len(entities)}")
                     return 1
             except ImportError:
-                logger.warning("⚠️  Cannot import synthetic synergies generator. Skipping synthetic generation.")
-                logger.warning("   This may cause training to fail if no synergies exist in database.")
+                logger.warning(
+                    "⚠️  Cannot import synthetic synergies generator. Skipping synthetic generation."
+                )
+                logger.warning(
+                    "   This may cause training to fail if no synergies exist in database."
+                )
 
         if not synergies:
             logger.error("❌ Insufficient data for training")
             logger.error(f"   Entities: {len(entities)}")
-            logger.error(f"   Synergies: 0 (could not generate synthetic)")
+            logger.error("   Synergies: 0 (could not generate synthetic)")
             return 1
 
         # Train model
@@ -151,10 +160,10 @@ async def train_gnn_synergy(
                 entities=entities,
                 known_synergies=synergies,
                 db_session=db,
-                data_api_client=data_api_client
+                data_api_client=data_api_client,
             )
 
-        if result.get('status') == 'complete':
+        if result.get("status") == "complete":
             logger.info("")
             logger.info("=" * 80)
             logger.info("✅ Training Complete!")
@@ -201,40 +210,28 @@ Examples:
 
   # Verbose output
   python scripts/train_gnn_synergy.py --verbose
-        """
+        """,
     )
 
     parser.add_argument(
-        '--epochs',
-        type=int,
-        default=None,
-        help='Number of training epochs (default: from config)'
+        "--epochs", type=int, default=None, help="Number of training epochs (default: from config)"
     )
 
     parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Force retraining even if model already exists'
+        "--force", action="store_true", help="Force retraining even if model already exists"
     )
 
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose logging'
-    )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
     # Run training
-    exit_code = asyncio.run(train_gnn_synergy(
-        epochs=args.epochs,
-        force=args.force,
-        verbose=args.verbose
-    ))
+    exit_code = asyncio.run(
+        train_gnn_synergy(epochs=args.epochs, force=args.force, verbose=args.verbose)
+    )
 
     sys.exit(exit_code)
 
 
 if __name__ == "__main__":
     main()
-

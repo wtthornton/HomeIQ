@@ -3,6 +3,7 @@ CLI for Automation Miner
 
 Provides manual crawl triggers and management commands.
 """
+
 import asyncio
 import logging
 import sys
@@ -20,18 +21,14 @@ from .miner.repository import CorpusRepository
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 logger = logging.getLogger(__name__)
 
 
 async def run_initial_crawl(
-    min_likes: int = None,
-    limit: int = None,
-    dry_run: bool = False,
-    update_existing: bool = False
+    min_likes: int = None, limit: int = None, dry_run: bool = False, update_existing: bool = False
 ):
     """
     Run initial corpus crawl
@@ -56,13 +53,7 @@ async def run_initial_crawl(
     parser = AutomationParser()
 
     # Statistics
-    stats = {
-        'fetched': 0,
-        'parsed': 0,
-        'skipped': 0,
-        'added': 0,
-        'failed': 0
-    }
+    stats = {"fetched": 0, "parsed": 0, "skipped": 0, "added": 0, "failed": 0}
 
     async with DiscourseClient() as client, db.get_session() as db_session:
         repo = CorpusRepository(db_session)
@@ -78,16 +69,14 @@ async def run_initial_crawl(
             try:
                 # Fetch blueprint posts
                 topics = await client.fetch_blueprints(
-                    min_likes=min_likes or settings.discourse_min_likes,
-                    limit=batch_size,
-                    page=page
+                    min_likes=min_likes or settings.discourse_min_likes, limit=batch_size, page=page
                 )
 
                 if not topics:
                     logger.info(f"[{correlation_id}] No more topics found")
                     break
 
-                stats['fetched'] += len(topics)
+                stats["fetched"] += len(topics)
                 total_fetched += len(topics)
 
                 # Process each topic
@@ -97,13 +86,12 @@ async def run_initial_crawl(
                     try:
                         # Fetch full post details
                         post_data = await client.fetch_post_details(
-                            topic['id'],
-                            correlation_id=correlation_id
+                            topic["id"], correlation_id=correlation_id
                         )
 
                         if not post_data:
                             logger.warning(f"No data for topic {topic['id']}")
-                            stats['skipped'] += 1
+                            stats["skipped"] += 1
                             continue
 
                         # Parse automation
@@ -111,36 +99,40 @@ async def run_initial_crawl(
 
                         if not parsed:
                             logger.warning(f"Failed to parse topic {topic['id']}")
-                            stats['failed'] += 1
+                            stats["failed"] += 1
                             continue
 
                         # Create metadata
                         metadata = parser.create_metadata(post_data, parsed)
-                        stats['parsed'] += 1
+                        stats["parsed"] += 1
 
                         # Check for duplicates (unless updating existing records)
                         if not dry_run and not update_existing:
                             is_dup = await repo.is_duplicate(metadata)
                             if is_dup:
                                 logger.debug(f"Skipping duplicate: {metadata.title}")
-                                stats['skipped'] += 1
+                                stats["skipped"] += 1
                                 continue
 
                         batch_to_add.append(metadata)
 
                     except Exception as e:
                         logger.error(f"Error processing topic {topic['id']}: {e}")
-                        stats['failed'] += 1
+                        stats["failed"] += 1
                         continue
 
                 # Save batch
                 if batch_to_add and not dry_run:
-                    logger.info(f"[{correlation_id}] Saving batch of {len(batch_to_add)} automations...")
+                    logger.info(
+                        f"[{correlation_id}] Saving batch of {len(batch_to_add)} automations..."
+                    )
                     saved = await repo.save_batch(batch_to_add)
-                    stats['added'] += saved
+                    stats["added"] += saved
                 elif batch_to_add and dry_run:
-                    logger.info(f"[{correlation_id}] DRY RUN: Would save {len(batch_to_add)} automations")
-                    stats['added'] += len(batch_to_add)
+                    logger.info(
+                        f"[{correlation_id}] DRY RUN: Would save {len(batch_to_add)} automations"
+                    )
+                    stats["added"] += len(batch_to_add)
 
                 # Log progress
                 logger.info(
@@ -190,10 +182,14 @@ def cli():
 
 
 @cli.command()
-@click.option('--min-likes', type=int, help='Minimum likes threshold')
-@click.option('--limit', type=int, help='Maximum posts to fetch')
-@click.option('--dry-run', is_flag=True, help='Show changes without saving')
-@click.option('--update-existing', is_flag=True, help='Update existing records instead of skipping duplicates (useful for re-crawling to populate blueprint metadata)')
+@click.option("--min-likes", type=int, help="Minimum likes threshold")
+@click.option("--limit", type=int, help="Maximum posts to fetch")
+@click.option("--dry-run", is_flag=True, help="Show changes without saving")
+@click.option(
+    "--update-existing",
+    is_flag=True,
+    help="Update existing records instead of skipping duplicates (useful for re-crawling to populate blueprint metadata)",
+)
 def crawl(min_likes, limit, dry_run, update_existing):
     """Trigger initial corpus crawl"""
     click.echo("🕷️  Starting Automation Miner crawl...")
@@ -220,6 +216,7 @@ def crawl(min_likes, limit, dry_run, update_existing):
 @cli.command()
 def stats():
     """Show corpus statistics"""
+
     async def get_stats():
         db = get_database()
         async with db.get_session() as db_session:
@@ -237,22 +234,24 @@ def stats():
     click.echo(f"Integrations: {stats_data['integration_count']}")
     click.echo()
     click.echo("By use case:")
-    for use_case, count in stats_data['by_use_case'].items():
+    for use_case, count in stats_data["by_use_case"].items():
         click.echo(f"  {use_case}: {count}")
     click.echo()
     click.echo("By complexity:")
-    for complexity, count in stats_data['by_complexity'].items():
+    for complexity, count in stats_data["by_complexity"].items():
         click.echo(f"  {complexity}: {count}")
     click.echo()
-    if stats_data['last_crawl_time']:
+    if stats_data["last_crawl_time"]:
         click.echo(f"Last crawl: {stats_data['last_crawl_time']}")
 
 
 @cli.command()
-@click.option('--owner', required=True, help='GitHub repository owner (username or organization)')
-@click.option('--repo', required=True, help='GitHub repository name')
-@click.option('--update-existing', is_flag=True, help='Update existing records instead of skipping duplicates')
-@click.option('--dry-run', is_flag=True, help='Show changes without saving')
+@click.option("--owner", required=True, help="GitHub repository owner (username or organization)")
+@click.option("--repo", required=True, help="GitHub repository name")
+@click.option(
+    "--update-existing", is_flag=True, help="Update existing records instead of skipping duplicates"
+)
+@click.option("--dry-run", is_flag=True, help="Show changes without saving")
 def crawl_github(owner, repo, update_existing, dry_run):
     """Crawl a GitHub repository for blueprints"""
     click.echo(f"🔍 Crawling GitHub repository: {owner}/{repo}")
@@ -275,10 +274,7 @@ def crawl_github(owner, repo, update_existing, dry_run):
 
 
 async def run_github_crawl(
-    owner: str,
-    repo: str,
-    update_existing: bool = False,
-    dry_run: bool = False
+    owner: str, repo: str, update_existing: bool = False, dry_run: bool = False
 ):
     """
     Crawl GitHub repository for blueprints
@@ -302,13 +298,7 @@ async def run_github_crawl(
     parser = AutomationParser()
 
     # Statistics
-    stats = {
-        'fetched': 0,
-        'parsed': 0,
-        'skipped': 0,
-        'added': 0,
-        'failed': 0
-    }
+    stats = {"fetched": 0, "parsed": 0, "skipped": 0, "added": 0, "failed": 0}
 
     async with GitHubClient() as client, db.get_session() as db_session:
         repo_obj = CorpusRepository(db_session)
@@ -317,7 +307,7 @@ async def run_github_crawl(
             # Crawl repository for blueprints
             blueprints = await client.crawl_repository(owner, repo, correlation_id)
 
-            stats['fetched'] = len(blueprints)
+            stats["fetched"] = len(blueprints)
 
             # Process each blueprint
             batch_to_add = []
@@ -329,42 +319,44 @@ async def run_github_crawl(
 
                     if not parsed:
                         logger.warning(f"Failed to parse blueprint: {blueprint_data.get('id')}")
-                        stats['failed'] += 1
+                        stats["failed"] += 1
                         continue
 
                     # Create metadata
                     metadata = parser.create_metadata(blueprint_data, parsed)
                     # Override source to 'github'
-                    metadata.source = 'github'
-                    stats['parsed'] += 1
+                    metadata.source = "github"
+                    stats["parsed"] += 1
 
                     # Check for duplicates (unless updating existing records)
                     if not dry_run and not update_existing:
                         is_dup = await repo_obj.is_duplicate(metadata)
                         if is_dup:
                             logger.debug(f"Skipping duplicate: {metadata.title}")
-                            stats['skipped'] += 1
+                            stats["skipped"] += 1
                             continue
 
                     batch_to_add.append(metadata)
 
                 except Exception as e:
                     logger.error(f"Error processing blueprint {blueprint_data.get('id')}: {e}")
-                    stats['failed'] += 1
+                    stats["failed"] += 1
                     continue
 
             # Save batch
             if batch_to_add and not dry_run:
                 logger.info(f"[{correlation_id}] Saving batch of {len(batch_to_add)} blueprints...")
                 saved = await repo_obj.save_batch(batch_to_add)
-                stats['added'] = saved
+                stats["added"] = saved
             elif batch_to_add and dry_run:
-                logger.info(f"[{correlation_id}] DRY RUN: Would save {len(batch_to_add)} blueprints")
-                stats['added'] = len(batch_to_add)
+                logger.info(
+                    f"[{correlation_id}] DRY RUN: Would save {len(batch_to_add)} blueprints"
+                )
+                stats["added"] = len(batch_to_add)
 
         except Exception as e:
             logger.error(f"[{correlation_id}] Error crawling repository: {e}")
-            stats['failed'] += len(blueprints) if 'blueprints' in locals() else 0
+            stats["failed"] += len(blueprints) if "blueprints" in locals() else 0
 
     # Final stats
     logger.info(f"[{correlation_id}] ✅ GitHub crawl complete!")
@@ -386,6 +378,5 @@ async def run_github_crawl(
     await db.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()
-

@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class ConfigItem(BaseModel):
     """Configuration item model"""
+
     key: str
     value: Any
     description: str
@@ -27,6 +28,7 @@ class ConfigItem(BaseModel):
 
 class ConfigUpdate(BaseModel):
     """Configuration update model"""
+
     key: str
     value: Any
     reason: str | None = None
@@ -34,6 +36,7 @@ class ConfigUpdate(BaseModel):
 
 class ConfigValidation(BaseModel):
     """Configuration validation model"""
+
     is_valid: bool
     errors: list[str] = []
     warnings: list[str] = []
@@ -57,7 +60,9 @@ class ConfigEndpoints:
         @self.router.get("/config", response_model=dict[str, Any])
         async def get_configuration(
             service: str | None = Query(None, description="Specific service to get config for"),
-            include_sensitive: bool = Query(False, description="Include sensitive configuration values")
+            include_sensitive: bool = Query(
+                False, description="Include sensitive configuration values"
+            ),
         ):
             """Get configuration for services"""
             try:
@@ -77,7 +82,7 @@ class ConfigEndpoints:
                 logger.error(f"Error getting configuration: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get configuration"
+                    detail="Failed to get configuration",
                 ) from e
 
         @self.router.get("/config/schema", response_model=dict[str, list[ConfigItem]])
@@ -91,20 +96,19 @@ class ConfigEndpoints:
                 logger.error(f"Error getting configuration schema: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get configuration schema"
+                    detail="Failed to get configuration schema",
                 ) from e
 
         @self.router.put("/config/{service}", response_model=dict[str, Any])
         async def update_configuration(
             service: str,
-            updates: list[ConfigUpdate] = Body(..., description="Configuration updates")
+            updates: list[ConfigUpdate] = Body(..., description="Configuration updates"),
         ):
             """Update configuration for a specific service"""
             try:
                 if service not in self.service_urls:
                     raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Service {service} not found"
+                        status_code=status.HTTP_404_NOT_FOUND, detail=f"Service {service} not found"
                     )
 
                 # Validate updates
@@ -112,7 +116,7 @@ class ConfigEndpoints:
                 if not validation.is_valid:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Configuration validation failed: {', '.join(validation.errors)}"
+                        detail=f"Configuration validation failed: {', '.join(validation.errors)}",
                     )
 
                 # Apply updates
@@ -122,7 +126,7 @@ class ConfigEndpoints:
                     "service": service,
                     "updated": len(updates),
                     "timestamp": datetime.now().isoformat(),
-                    "result": result
+                    "result": result,
                 }
 
             except HTTPException:
@@ -131,20 +135,19 @@ class ConfigEndpoints:
                 logger.error(f"Error updating configuration: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to update configuration"
+                    detail="Failed to update configuration",
                 ) from e
 
         @self.router.post("/config/{service}/validate", response_model=ConfigValidation)
         async def validate_configuration(
             service: str,
-            config: dict[str, Any] = Body(..., description="Configuration to validate")
+            config: dict[str, Any] = Body(..., description="Configuration to validate"),
         ):
             """Validate configuration for a service"""
             try:
                 if service not in self.service_urls:
                     raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Service {service} not found"
+                        status_code=status.HTTP_404_NOT_FOUND, detail=f"Service {service} not found"
                     )
 
                 validation = await self._validate_service_config(service, config)
@@ -156,7 +159,7 @@ class ConfigEndpoints:
                 logger.error(f"Error validating configuration: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to validate configuration"
+                    detail="Failed to validate configuration",
                 ) from e
 
         @self.router.get("/config/{service}/backup", response_model=dict[str, Any])
@@ -165,8 +168,7 @@ class ConfigEndpoints:
             try:
                 if service not in self.service_urls:
                     raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Service {service} not found"
+                        status_code=status.HTTP_404_NOT_FOUND, detail=f"Service {service} not found"
                     )
 
                 backup = await self._backup_service_config(service)
@@ -178,20 +180,19 @@ class ConfigEndpoints:
                 logger.error(f"Error backing up configuration: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to backup configuration"
+                    detail="Failed to backup configuration",
                 ) from e
 
         @self.router.post("/config/{service}/restore", response_model=dict[str, Any])
         async def restore_configuration(
             service: str,
-            backup_data: dict[str, Any] = Body(..., description="Backup data to restore")
+            backup_data: dict[str, Any] = Body(..., description="Backup data to restore"),
         ):
             """Restore configuration from backup"""
             try:
                 if service not in self.service_urls:
                     raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Service {service} not found"
+                        status_code=status.HTTP_404_NOT_FOUND, detail=f"Service {service} not found"
                     )
 
                 result = await self._restore_service_config(service, backup_data)
@@ -203,20 +204,18 @@ class ConfigEndpoints:
                 logger.error(f"Error restoring configuration: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to restore configuration"
+                    detail="Failed to restore configuration",
                 ) from e
 
         @self.router.get("/config/{service}/history", response_model=list[dict[str, Any]])
         async def get_config_history(
-            service: str,
-            limit: int = Query(10, description="Maximum number of history entries")
+            service: str, limit: int = Query(10, description="Maximum number of history entries")
         ):
             """Get configuration change history for a service"""
             try:
                 if service not in self.service_urls:
                     raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Service {service} not found"
+                        status_code=status.HTTP_404_NOT_FOUND, detail=f"Service {service} not found"
                     )
 
                 history = await self._get_config_history(service, limit)
@@ -228,7 +227,7 @@ class ConfigEndpoints:
                 logger.error(f"Error getting configuration history: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to get configuration history"
+                    detail="Failed to get configuration history",
                 ) from e
 
     async def _get_service_config(self, service: str, include_sensitive: bool) -> dict[str, Any]:
@@ -253,20 +252,24 @@ class ConfigEndpoints:
 
         for service_name, service_url in self.service_urls.items():
             try:
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # noqa: SIM117
-                    async with session.get(f"{service_url}/config/schema") as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            schema[service_name] = [ConfigItem(**item) for item in data]
-                        else:
-                            schema[service_name] = []
+                async with (
+                    aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session,
+                    session.get(f"{service_url}/config/schema") as response,
+                ):
+                    if response.status == 200:
+                        data = await response.json()
+                        schema[service_name] = [ConfigItem(**item) for item in data]
+                    else:
+                        schema[service_name] = []
             except Exception as e:
                 logger.warning(f"Failed to get schema for {service_name}: {e}")
                 schema[service_name] = []
 
         return schema
 
-    async def _validate_config_updates(self, service: str, updates: list[ConfigUpdate]) -> ConfigValidation:
+    async def _validate_config_updates(
+        self, service: str, updates: list[ConfigUpdate]
+    ) -> ConfigValidation:
         """Validate configuration updates"""
         errors = []
         warnings = []
@@ -301,13 +304,11 @@ class ConfigEndpoints:
                 if validation_result["warnings"]:
                     warnings.extend(validation_result["warnings"])
 
-        return ConfigValidation(
-            is_valid=len(errors) == 0,
-            errors=errors,
-            warnings=warnings
-        )
+        return ConfigValidation(is_valid=len(errors) == 0, errors=errors, warnings=warnings)
 
-    async def _apply_config_updates(self, service: str, updates: list[ConfigUpdate]) -> dict[str, Any]:
+    async def _apply_config_updates(
+        self, service: str, updates: list[ConfigUpdate]
+    ) -> dict[str, Any]:
         """Apply configuration updates to a service"""
         service_url = self.service_urls[service]
 
@@ -322,7 +323,9 @@ class ConfigEndpoints:
             logger.error(f"Error applying config updates for {service}: {e}")
             raise Exception(f"Failed to apply configuration updates: {e}") from e
 
-    async def _validate_service_config(self, service: str, config: dict[str, Any]) -> ConfigValidation:
+    async def _validate_service_config(
+        self, service: str, config: dict[str, Any]
+    ) -> ConfigValidation:
         """Validate complete service configuration"""
         # Convert config dict to ConfigUpdate list
         updates = [ConfigUpdate(key=k, value=v) for k, v in config.items()]
@@ -340,7 +343,7 @@ class ConfigEndpoints:
                         return {
                             "service": service,
                             "timestamp": datetime.now().isoformat(),
-                            "backup": backup_data
+                            "backup": backup_data,
                         }
                     else:
                         raise Exception(f"HTTP {response.status}")
@@ -348,13 +351,17 @@ class ConfigEndpoints:
             logger.error(f"Error backing up config for {service}: {e}")
             raise Exception(f"Failed to backup configuration: {e}") from e
 
-    async def _restore_service_config(self, service: str, backup_data: dict[str, Any]) -> dict[str, Any]:
+    async def _restore_service_config(
+        self, service: str, backup_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Restore service configuration from backup"""
         service_url = self.service_urls[service]
 
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:  # noqa: SIM117
-                async with session.post(f"{service_url}/config/restore", json=backup_data) as response:
+                async with session.post(
+                    f"{service_url}/config/restore", json=backup_data
+                ) as response:
                     if response.status == 200:
                         return await response.json()
                     else:
@@ -455,6 +462,7 @@ class ConfigEndpoints:
         # Pattern validation
         if "pattern" in rules and isinstance(value, str):
             import re
+
             if not re.match(rules["pattern"], value):
                 errors.append(f"Value {value} does not match pattern {rules['pattern']}")
 

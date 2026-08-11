@@ -18,7 +18,9 @@ class Settings(BaseServiceSettings):
     influxdb_bucket: str = "home_assistant_events"
 
     # Processing configuration
-    processing_interval: int = Field(default=60, ge=1, description="Seconds between correlation runs")
+    processing_interval: int = Field(
+        default=60, ge=1, description="Seconds between correlation runs"
+    )
     lookback_minutes: int = Field(default=5, ge=1, description="Minutes of events to look back")
     max_events_per_interval: int = Field(default=500, ge=1)
     max_retry_queue_size: int = Field(default=250, ge=1)

@@ -27,6 +27,7 @@ def configured(monkeypatch):
 
 def _discoverer():
     from src.capability_discovery.ha_api_discovery import HACapabilityDiscoverer
+
     return HACapabilityDiscoverer()
 
 
@@ -44,7 +45,6 @@ def _patched(entities=ENTITIES, side_effect=None):
 
 
 class TestEntityRegistryOverWebSocket:
-
     @pytest.mark.asyncio
     async def test_registry_is_read_over_websocket_and_keyed(self):
         patcher, ws = _patched()
@@ -82,8 +82,9 @@ class TestEntityRegistryOverWebSocket:
         discoverer._get_entity_state = AsyncMock(return_value=None)
         patcher, _ = _patched()
 
-        with patcher, patch.object(
-            type(discoverer), "_get_session", new=AsyncMock(return_value=MagicMock())
+        with (
+            patcher,
+            patch.object(type(discoverer), "_get_session", new=AsyncMock(return_value=MagicMock())),
         ):
             result = await discoverer.discover_capabilities("dev-1", ["light.lamp"])
 

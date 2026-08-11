@@ -3,6 +3,7 @@ Synergies API Client
 
 Client for querying automation synergies from AI Automation Service.
 """
+
 import logging
 from typing import Any
 
@@ -35,7 +36,7 @@ class SynergiesClient:
         area: str | None = None,
         device_ids: list[str] | None = None,
         min_confidence: float = 0.6,
-        limit: int = 5000
+        limit: int = 5000,
     ) -> list[dict[str, Any]]:
         """
         Get synergies from AI Automation Service.
@@ -50,10 +51,7 @@ class SynergiesClient:
             List of synergy dictionaries
         """
         try:
-            params: dict[str, Any] = {
-                "min_confidence": min_confidence,
-                "limit": limit
-            }
+            params: dict[str, Any] = {"min_confidence": min_confidence, "limit": limit}
 
             if area:
                 params["area"] = area
@@ -62,31 +60,29 @@ class SynergiesClient:
             if self.api_key:
                 headers["X-HomeIQ-API-Key"] = self.api_key
 
-            async with aiohttp.ClientSession(timeout=self.timeout) as session, session.get(
-                    f"{self.base_url}/api/synergies",
-                    params=params,
-                    headers=headers
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        synergies = data.get("data", {}).get("synergies", [])
+            async with (
+                aiohttp.ClientSession(timeout=self.timeout) as session,
+                session.get(f"{self.base_url}/api/synergies", params=params, headers=headers) as response,
+            ):
+                if response.status == 200:
+                    data = await response.json()
+                    synergies = data.get("data", {}).get("synergies", [])
 
-                        # Filter by device_ids if provided
-                        if device_ids:
-                            filtered_synergies = []
-                            for synergy in synergies:
-                                synergy_device_ids = synergy.get("device_ids", [])
-                                # Check if any device_ids overlap
-                                if any(did in synergy_device_ids for did in device_ids):
-                                    filtered_synergies.append(synergy)
-                            synergies = filtered_synergies
+                    # Filter by device_ids if provided
+                    if device_ids:
+                        filtered_synergies = []
+                        for synergy in synergies:
+                            synergy_device_ids = synergy.get("device_ids", [])
+                            # Check if any device_ids overlap
+                            if any(did in synergy_device_ids for did in device_ids):
+                                filtered_synergies.append(synergy)
+                        synergies = filtered_synergies
 
-                        logger.info(f"Retrieved {len(synergies)} synergies from API")
-                        return synergies
-                    error_text = await response.text()
-                    logger.error(f"Failed to fetch synergies: {response.status} - {error_text}")
-                    return []
+                    logger.info(f"Retrieved {len(synergies)} synergies from API")
+                    return synergies
+                error_text = await response.text()
+                logger.error(f"Failed to fetch synergies: {response.status} - {error_text}")
+                return []
         except Exception as e:
             logger.error(f"Error fetching synergies: {e}", exc_info=True)
             return []
-

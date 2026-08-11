@@ -35,7 +35,10 @@ class CapabilityPatternsService:
         self.settings = settings
         self.context_builder = context_builder
         self.device_intelligence_client = DeviceIntelligenceClient(settings)
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
+        self.data_api_client = DataAPIClient(
+            base_url=settings.data_api_url,
+            api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None,
+        )
         self._cache_key = "capability_patterns"
         self._cache_ttl = 900  # 15 minutes
 
@@ -62,16 +65,13 @@ class CapabilityPatternsService:
 
             if not devices:
                 patterns = "No device capability patterns available"
-                await self.context_builder._set_cached_value(
-                    self._cache_key, patterns, self._cache_ttl
-                )
+                await self.context_builder._set_cached_value(self._cache_key, patterns, self._cache_ttl)
                 return patterns
 
             # Aggregate capabilities by device type/manufacturer
-            capability_patterns: dict[str, dict[str, Any]] = defaultdict(lambda: {
-                "capabilities": set(),
-                "device_types": set()
-            })
+            capability_patterns: dict[str, dict[str, Any]] = defaultdict(
+                lambda: {"capabilities": set(), "device_types": set()}
+            )
 
             # Sample a few devices to get patterns (focus on common types)
             # Reduced to 15 to balance detail vs context size
@@ -119,9 +119,7 @@ class CapabilityPatternsService:
                 patterns = patterns[:2000] + "... (truncated)"
 
             # Cache the result
-            await self.context_builder._set_cached_value(
-                self._cache_key, patterns, self._cache_ttl
-            )
+            await self.context_builder._set_cached_value(self._cache_key, patterns, self._cache_ttl)
 
             logger.info(f"✅ Generated capability patterns ({len(patterns)} chars)")
             return patterns
@@ -175,7 +173,9 @@ class CapabilityPatternsService:
                     if "effect_list" in attributes:
                         effects = attributes.get("effect_list", [])
                         if effects:
-                            domain_capabilities["light"].add(f"effect: [{', '.join(effects[:5])}{'...' if len(effects) > 5 else ''}]")
+                            domain_capabilities["light"].add(
+                                f"effect: [{', '.join(effects[:5])}{'...' if len(effects) > 5 else ''}]"
+                            )
 
             # Format patterns
             pattern_parts = []
@@ -189,9 +189,7 @@ class CapabilityPatternsService:
             patterns = "\n".join(pattern_parts) if pattern_parts else "No capability patterns found"
 
             # Cache the result
-            await self.context_builder._set_cached_value(
-                self._cache_key, patterns, self._cache_ttl
-            )
+            await self.context_builder._set_cached_value(self._cache_key, patterns, self._cache_ttl)
 
             logger.info(f"✅ Generated capability patterns from entities ({len(patterns)} chars)")
             return patterns
@@ -266,4 +264,3 @@ class CapabilityPatternsService:
     async def close(self):
         """Close service resources"""
         await self.device_intelligence_client.close()
-

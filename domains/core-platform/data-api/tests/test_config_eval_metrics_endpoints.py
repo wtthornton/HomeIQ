@@ -30,7 +30,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import pytest
 import pytest_asyncio
 
 # ---------------------------------------------------------------------------
@@ -89,6 +88,7 @@ class TestConfigValidateType:
 
     def _get_endpoints(self):
         from src.config_endpoints import ConfigEndpoints
+
         return ConfigEndpoints()
 
     def test_string_type(self):
@@ -116,6 +116,7 @@ class TestConfigValidateRules:
 
     def _get_endpoints(self):
         from src.config_endpoints import ConfigEndpoints
+
         return ConfigEndpoints()
 
     def test_min_max(self):

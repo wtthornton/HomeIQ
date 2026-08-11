@@ -1,4 +1,5 @@
 """Script to inspect what HA actually returns for device data."""
+
 import asyncio
 
 from src.clients.ha_client import HomeAssistantClient
@@ -9,11 +10,7 @@ async def inspect_ha_devices():
     settings = Settings()
 
     # Create HA client
-    client = HomeAssistantClient(
-        settings.HA_URL,
-        None,
-        settings.HA_TOKEN
-    )
+    client = HomeAssistantClient(settings.HA_URL, None, settings.HA_TOKEN)
 
     # Connect
     if not await client.connect():
@@ -28,7 +25,7 @@ async def inspect_ha_devices():
 
     # Inspect first 10 devices
     for i, device in enumerate(devices[:10]):
-        print(f"Device {i+1}:")
+        print(f"Device {i + 1}:")
         print(f"  Name: {device.name}")
         print(f"  Manufacturer: {device.manufacturer}")
         print(f"  Model: {device.model}")
@@ -38,6 +35,6 @@ async def inspect_ha_devices():
         print(f"  HW Version: {device.hw_version}")
         print()
 
+
 if __name__ == "__main__":
     asyncio.run(inspect_ha_devices())
-

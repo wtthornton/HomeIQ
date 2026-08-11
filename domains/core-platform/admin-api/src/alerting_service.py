@@ -11,16 +11,16 @@ import asyncio
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 
 
-class AlertSeverity(str, Enum):
+class AlertSeverity(StrEnum):
     INFO = "info"
     WARNING = "warning"
     CRITICAL = "critical"
 
 
-class AlertStatus(str, Enum):
+class AlertStatus(StrEnum):
     ACTIVE = "active"
     ACKNOWLEDGED = "acknowledged"
     RESOLVED = "resolved"
@@ -294,7 +294,9 @@ class AlertingService:
     def get_alert_manager(self) -> AlertManager:
         return self.alert_manager
 
-    def add_notification_channel(self, name: str, channel_type: str, config: dict[str, object]) -> None:
+    def add_notification_channel(
+        self, name: str, channel_type: str, config: dict[str, object]
+    ) -> None:
         if channel_type == "email":
             channel = EmailNotificationChannel(name, config)
         elif channel_type == "webhook":
@@ -326,4 +328,3 @@ class AlertingService:
 
 # Module-level singleton used by other components/tests
 alerting_service = AlertingService()
-

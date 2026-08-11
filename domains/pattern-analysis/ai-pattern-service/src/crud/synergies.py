@@ -26,7 +26,7 @@ async def store_synergy_opportunities(
     calculate_quality: bool = True,  # 2025 Enhancement: Calculate quality scores
     filter_low_quality: bool = True,  # 2025 Enhancement: Filter low-quality synergies
     min_quality_score: float = 0.50,  # 2025 Enhancement: Minimum quality score threshold (medium+ quality)
-    deduplicate: bool = True  # 2025 Enhancement: Remove duplicates
+    deduplicate: bool = True,  # 2025 Enhancement: Remove duplicates
 ) -> tuple[int, int]:
     """
     Store multiple synergy opportunities in database with quality scoring and filtering.
@@ -81,29 +81,31 @@ async def store_synergy_opportunities(
             if calculate_quality:
                 try:
                     quality_result = quality_scorer.calculate_quality_score(synergy)
-                    synergy['quality_score'] = quality_result['quality_score']
-                    synergy['quality_tier'] = quality_result['quality_tier']
+                    synergy["quality_score"] = quality_result["quality_score"]
+                    synergy["quality_tier"] = quality_result["quality_tier"]
                 except Exception as e:
-                    logger.warning(f"Failed to calculate quality score for synergy {synergy.get('synergy_id')}: {e}")
-                    synergy['quality_score'] = 0.0
-                    synergy['quality_tier'] = 'poor'
+                    logger.warning(
+                        f"Failed to calculate quality score for synergy {synergy.get('synergy_id')}: {e}"
+                    )
+                    synergy["quality_score"] = 0.0
+                    synergy["quality_tier"] = "poor"
 
             # Check if should filter
             if filter_low_quality:
-                quality_score = synergy.get('quality_score', 0.0)
+                quality_score = synergy.get("quality_score", 0.0)
                 should_filter, filter_reason = quality_scorer.should_filter_synergy(
                     synergy,
                     quality_score,
                     config={
-                        'min_quality_score': min_quality_score,
-                        'min_confidence': 0.50,
-                        'min_impact': 0.30,
-                        'filter_unvalidated_high_complexity': True
-                    }
+                        "min_quality_score": min_quality_score,
+                        "min_confidence": 0.50,
+                        "min_impact": 0.30,
+                        "filter_unvalidated_high_complexity": True,
+                    },
                 )
 
                 if should_filter:
-                    synergy['filter_reason'] = filter_reason
+                    synergy["filter_reason"] = filter_reason
                     filtered_count += 1
                     logger.debug(f"Filtered synergy {synergy.get('synergy_id')}: {filter_reason}")
                     continue
@@ -111,7 +113,9 @@ async def store_synergy_opportunities(
             filtered_synergies.append(synergy)
 
         if filter_low_quality and filtered_count > 0:
-            logger.info(f"Quality filtering: {len(synergies)} → {len(filtered_synergies)} synergies ({filtered_count} filtered)")
+            logger.info(
+                f"Quality filtering: {len(synergies)} → {len(filtered_synergies)} synergies ({filtered_count} filtered)"
+            )
 
         # Use filtered synergies for storage
         synergies = filtered_synergies
@@ -123,7 +127,7 @@ async def store_synergy_opportunities(
 
         for synergy_data in synergies:
             try:
-                synergy_id = synergy_data['synergy_id']
+                synergy_id = synergy_data["synergy_id"]
 
                 # Check if synergy already exists (upsert pattern)
                 query = select(SynergyOpportunity).where(
@@ -134,55 +138,57 @@ async def store_synergy_opportunities(
 
                 # Create metadata dict from synergy data
                 metadata = {
-                    'trigger_entity': synergy_data.get('trigger_entity'),
-                    'trigger_name': synergy_data.get('trigger_name'),
-                    'action_entity': synergy_data.get('action_entity'),
-                    'action_name': synergy_data.get('action_name'),
-                    'relationship': synergy_data.get('relationship'),
-                    'rationale': synergy_data.get('rationale'),
-                    'context_metadata': synergy_data.get('context_metadata')
+                    "trigger_entity": synergy_data.get("trigger_entity"),
+                    "trigger_name": synergy_data.get("trigger_name"),
+                    "action_entity": synergy_data.get("action_entity"),
+                    "action_name": synergy_data.get("action_name"),
+                    "relationship": synergy_data.get("relationship"),
+                    "rationale": synergy_data.get("rationale"),
+                    "context_metadata": synergy_data.get("context_metadata"),
                 }
 
                 # 2025 Enhancement: Store XAI explanation and context breakdown as separate fields
-                explanation = synergy_data.get('explanation')
-                context_breakdown = synergy_data.get('context_breakdown')
+                explanation = synergy_data.get("explanation")
+                context_breakdown = synergy_data.get("context_breakdown")
 
                 # Extract n-level synergy fields
-                synergy_depth = synergy_data.get('synergy_depth', 2)
-                chain_devices = synergy_data.get('chain_devices', synergy_data.get('devices', []))
+                synergy_depth = synergy_data.get("synergy_depth", 2)
+                chain_devices = synergy_data.get("chain_devices", synergy_data.get("devices", []))
 
                 # 2025 Enhancement: Extract quality fields
-                quality_score = synergy_data.get('quality_score')
-                quality_tier = synergy_data.get('quality_tier')
-                filter_reason = synergy_data.get('filter_reason')
+                quality_score = synergy_data.get("quality_score")
+                quality_tier = synergy_data.get("quality_tier")
+                filter_reason = synergy_data.get("filter_reason")
 
                 if existing_synergy:
                     # Update existing synergy
-                    existing_synergy.synergy_type = synergy_data['synergy_type']
-                    existing_synergy.device_ids = json.dumps(synergy_data['devices'])
+                    existing_synergy.synergy_type = synergy_data["synergy_type"]
+                    existing_synergy.device_ids = json.dumps(synergy_data["devices"])
                     existing_synergy.opportunity_metadata = metadata
-                    existing_synergy.impact_score = synergy_data['impact_score']
-                    existing_synergy.complexity = synergy_data['complexity']
-                    existing_synergy.confidence = synergy_data['confidence']
-                    existing_synergy.area = synergy_data.get('area')
+                    existing_synergy.impact_score = synergy_data["impact_score"]
+                    existing_synergy.complexity = synergy_data["complexity"]
+                    existing_synergy.confidence = synergy_data["confidence"]
+                    existing_synergy.area = synergy_data.get("area")
                     # Update n-level fields if they exist
-                    if hasattr(existing_synergy, 'synergy_depth'):
+                    if hasattr(existing_synergy, "synergy_depth"):
                         existing_synergy.synergy_depth = synergy_depth
-                    if hasattr(existing_synergy, 'chain_devices'):
-                        existing_synergy.chain_devices = json.dumps(chain_devices) if chain_devices else None
+                    if hasattr(existing_synergy, "chain_devices"):
+                        existing_synergy.chain_devices = (
+                            json.dumps(chain_devices) if chain_devices else None
+                        )
                     # 2025 Enhancement: Update explanation and context_breakdown if fields exist
-                    if hasattr(existing_synergy, 'explanation'):
+                    if hasattr(existing_synergy, "explanation"):
                         existing_synergy.explanation = explanation
-                    if hasattr(existing_synergy, 'context_breakdown'):
+                    if hasattr(existing_synergy, "context_breakdown"):
                         existing_synergy.context_breakdown = context_breakdown
                     # 2025 Enhancement: Update quality fields if they exist
-                    if hasattr(existing_synergy, 'quality_score') and quality_score is not None:
+                    if hasattr(existing_synergy, "quality_score") and quality_score is not None:
                         existing_synergy.quality_score = quality_score
-                    if hasattr(existing_synergy, 'quality_tier') and quality_tier is not None:
+                    if hasattr(existing_synergy, "quality_tier") and quality_tier is not None:
                         existing_synergy.quality_tier = quality_tier
-                    if hasattr(existing_synergy, 'last_validated_at'):
+                    if hasattr(existing_synergy, "last_validated_at"):
                         existing_synergy.last_validated_at = now
-                    if hasattr(existing_synergy, 'filter_reason'):
+                    if hasattr(existing_synergy, "filter_reason"):
                         existing_synergy.filter_reason = filter_reason
                     updated_count += 1
                     logger.debug(f"Updated existing synergy: {synergy_id}")
@@ -190,33 +196,33 @@ async def store_synergy_opportunities(
                     # Create new synergy
                     synergy = SynergyOpportunity(
                         synergy_id=synergy_id,
-                        synergy_type=synergy_data['synergy_type'],
-                        device_ids=json.dumps(synergy_data['devices']),
+                        synergy_type=synergy_data["synergy_type"],
+                        device_ids=json.dumps(synergy_data["devices"]),
                         opportunity_metadata=metadata,
-                        impact_score=synergy_data['impact_score'],
-                        complexity=synergy_data['complexity'],
-                        confidence=synergy_data['confidence'],
-                        area=synergy_data.get('area'),
+                        impact_score=synergy_data["impact_score"],
+                        complexity=synergy_data["complexity"],
+                        confidence=synergy_data["confidence"],
+                        area=synergy_data.get("area"),
                         created_at=now,
                     )
                     # Set n-level fields if they exist
-                    if hasattr(synergy, 'synergy_depth'):
+                    if hasattr(synergy, "synergy_depth"):
                         synergy.synergy_depth = synergy_depth
-                    if hasattr(synergy, 'chain_devices'):
+                    if hasattr(synergy, "chain_devices"):
                         synergy.chain_devices = json.dumps(chain_devices) if chain_devices else None
                     # 2025 Enhancement: Set explanation and context_breakdown if fields exist
-                    if hasattr(synergy, 'explanation'):
+                    if hasattr(synergy, "explanation"):
                         synergy.explanation = explanation
-                    if hasattr(synergy, 'context_breakdown'):
+                    if hasattr(synergy, "context_breakdown"):
                         synergy.context_breakdown = context_breakdown
                     # 2025 Enhancement: Set quality fields if they exist
-                    if hasattr(synergy, 'quality_score') and quality_score is not None:
+                    if hasattr(synergy, "quality_score") and quality_score is not None:
                         synergy.quality_score = quality_score
-                    if hasattr(synergy, 'quality_tier') and quality_tier is not None:
+                    if hasattr(synergy, "quality_tier") and quality_tier is not None:
                         synergy.quality_tier = quality_tier
-                    if hasattr(synergy, 'last_validated_at'):
+                    if hasattr(synergy, "last_validated_at"):
                         synergy.last_validated_at = now
-                    if hasattr(synergy, 'filter_reason') and filter_reason is not None:
+                    if hasattr(synergy, "filter_reason") and filter_reason is not None:
                         synergy.filter_reason = filter_reason
 
                     db.add(synergy)
@@ -242,7 +248,11 @@ async def store_synergy_opportunities(
             logger.info(
                 f"✅ Stored {stored_count} new, updated {updated_count} existing synergy opportunities"
                 + (f", skipped {skipped_count} duplicates/errors" if skipped_count > 0 else "")
-                + (f", filtered {filtered_count} low-quality" if filter_low_quality and filtered_count > 0 else "")
+                + (
+                    f", filtered {filtered_count} low-quality"
+                    if filter_low_quality and filtered_count > 0
+                    else ""
+                )
             )
             return stored_count + updated_count, filtered_count
         except IntegrityError as e:
@@ -270,27 +280,29 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
 
     for synergy_data in synergies:
         try:
-            synergy_id = synergy_data['synergy_id']
+            synergy_id = synergy_data["synergy_id"]
 
             # Check if exists
-            check_query = text("SELECT id FROM synergy_opportunities WHERE synergy_id = :synergy_id")
+            check_query = text(
+                "SELECT id FROM synergy_opportunities WHERE synergy_id = :synergy_id"
+            )
             result = await db.execute(check_query, {"synergy_id": synergy_id})
             existing = result.scalar_one_or_none()
 
             metadata = {
-                'trigger_entity': synergy_data.get('trigger_entity'),
-                'action_entity': synergy_data.get('action_entity'),
-                'relationship': synergy_data.get('relationship'),
-                'context_metadata': synergy_data.get('context_metadata')
+                "trigger_entity": synergy_data.get("trigger_entity"),
+                "action_entity": synergy_data.get("action_entity"),
+                "relationship": synergy_data.get("relationship"),
+                "context_metadata": synergy_data.get("context_metadata"),
             }
 
             # 2025 Enhancement: Extract explanation and context_breakdown
-            explanation = synergy_data.get('explanation')
-            context_breakdown = synergy_data.get('context_breakdown')
+            explanation = synergy_data.get("explanation")
+            context_breakdown = synergy_data.get("context_breakdown")
 
             # Epic AI-4: Extract n-level synergy fields
-            synergy_depth = synergy_data.get('synergy_depth', 2)
-            chain_devices = synergy_data.get('chain_devices', synergy_data.get('devices', []))
+            synergy_depth = synergy_data.get("synergy_depth", 2)
+            chain_devices = synergy_data.get("chain_devices", synergy_data.get("devices", []))
 
             if existing:
                 # Update - include 2025 enhancement fields and n-level synergy fields
@@ -311,17 +323,17 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                 """)
                 params = {
                     "synergy_id": synergy_id,
-                    "synergy_type": synergy_data['synergy_type'],
-                    "device_ids": json.dumps(synergy_data['devices']),
+                    "synergy_type": synergy_data["synergy_type"],
+                    "device_ids": json.dumps(synergy_data["devices"]),
                     "metadata": json.dumps(metadata),
-                    "impact_score": synergy_data['impact_score'],
-                    "complexity": synergy_data['complexity'],
-                    "confidence": synergy_data['confidence'],
-                    "area": synergy_data.get('area', ''),
-                    "pattern_support_score": synergy_data.get('pattern_support_score', 0.0),
-                    "validated_by_patterns": synergy_data.get('validated_by_patterns', False),
+                    "impact_score": synergy_data["impact_score"],
+                    "complexity": synergy_data["complexity"],
+                    "confidence": synergy_data["confidence"],
+                    "area": synergy_data.get("area", ""),
+                    "pattern_support_score": synergy_data.get("pattern_support_score", 0.0),
+                    "validated_by_patterns": synergy_data.get("validated_by_patterns", False),
                     "synergy_depth": synergy_depth,
-                    "chain_devices": json.dumps(chain_devices) if chain_devices else None
+                    "chain_devices": json.dumps(chain_devices) if chain_devices else None,
                 }
 
                 # Try to update explanation and context_breakdown if columns exist
@@ -332,7 +344,10 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                             SET explanation = :explanation
                             WHERE synergy_id = :synergy_id
                         """)
-                        await db.execute(update_explanation_query, {"synergy_id": synergy_id, "explanation": json.dumps(explanation)})
+                        await db.execute(
+                            update_explanation_query,
+                            {"synergy_id": synergy_id, "explanation": json.dumps(explanation)},
+                        )
                     except Exception:
                         pass  # Column may not exist yet, migration will add it
 
@@ -343,7 +358,13 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                             SET context_breakdown = :context_breakdown
                             WHERE synergy_id = :synergy_id
                         """)
-                        await db.execute(update_context_query, {"synergy_id": synergy_id, "context_breakdown": json.dumps(context_breakdown)})
+                        await db.execute(
+                            update_context_query,
+                            {
+                                "synergy_id": synergy_id,
+                                "context_breakdown": json.dumps(context_breakdown),
+                            },
+                        )
                     except Exception:
                         pass  # Column may not exist yet, migration will add it
 
@@ -357,18 +378,18 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                 """)
                 params = {
                     "synergy_id": synergy_id,
-                    "synergy_type": synergy_data['synergy_type'],
-                    "device_ids": json.dumps(synergy_data['devices']),
+                    "synergy_type": synergy_data["synergy_type"],
+                    "device_ids": json.dumps(synergy_data["devices"]),
                     "metadata": json.dumps(metadata),
-                    "impact_score": synergy_data['impact_score'],
-                    "complexity": synergy_data['complexity'],
-                    "confidence": synergy_data['confidence'],
-                    "area": synergy_data.get('area', ''),
+                    "impact_score": synergy_data["impact_score"],
+                    "complexity": synergy_data["complexity"],
+                    "confidence": synergy_data["confidence"],
+                    "area": synergy_data.get("area", ""),
                     "created_at": now,
-                    "pattern_support_score": synergy_data.get('pattern_support_score', 0.0),
-                    "validated_by_patterns": synergy_data.get('validated_by_patterns', False),
+                    "pattern_support_score": synergy_data.get("pattern_support_score", 0.0),
+                    "validated_by_patterns": synergy_data.get("validated_by_patterns", False),
                     "synergy_depth": synergy_depth,
-                    "chain_devices": json.dumps(chain_devices) if chain_devices else None
+                    "chain_devices": json.dumps(chain_devices) if chain_devices else None,
                 }
                 await db.execute(insert_query, params)
 
@@ -380,7 +401,10 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                             SET explanation = :explanation
                             WHERE synergy_id = :synergy_id
                         """)
-                        await db.execute(update_explanation_query, {"synergy_id": synergy_id, "explanation": json.dumps(explanation)})
+                        await db.execute(
+                            update_explanation_query,
+                            {"synergy_id": synergy_id, "explanation": json.dumps(explanation)},
+                        )
                     except Exception:
                         pass  # Column may not exist yet, migration will add it
 
@@ -391,7 +415,13 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
                             SET context_breakdown = :context_breakdown
                             WHERE synergy_id = :synergy_id
                         """)
-                        await db.execute(update_context_query, {"synergy_id": synergy_id, "context_breakdown": json.dumps(context_breakdown)})
+                        await db.execute(
+                            update_context_query,
+                            {
+                                "synergy_id": synergy_id,
+                                "context_breakdown": json.dumps(context_breakdown),
+                            },
+                        )
                     except Exception:
                         pass  # Column may not exist yet, migration will add it
 
@@ -404,10 +434,7 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
     return stored_count
 
 
-async def get_synergy_by_id(
-    db: AsyncSession,
-    synergy_id: str
-) -> Any | None:
+async def get_synergy_by_id(db: AsyncSession, synergy_id: str) -> Any | None:
     """
     Retrieve a single synergy opportunity by its synergy_id.
 
@@ -424,14 +451,13 @@ async def get_synergy_by_id(
         except ImportError:
             logger.warning("SynergyOpportunity model not available, using raw SQL")
             from sqlalchemy import text
+
             query = text("SELECT * FROM synergy_opportunities WHERE synergy_id = :synergy_id")
             result = await db.execute(query, {"synergy_id": synergy_id})
             row = result.fetchone()
             return dict(row._mapping) if row else None
 
-        query = select(SynergyOpportunity).where(
-            SynergyOpportunity.synergy_id == synergy_id
-        )
+        query = select(SynergyOpportunity).where(SynergyOpportunity.synergy_id == synergy_id)
         result = await db.execute(query)
         return result.scalar_one_or_none()
     except Exception as e:
@@ -448,7 +474,7 @@ async def get_synergy_opportunities(
     order_by_priority: bool = False,
     min_quality_score: float | None = None,  # 2025 Enhancement: Quality filter
     quality_tier: str | None = None,  # 2025 Enhancement: Filter by tier ('high', 'medium', 'low')
-    exclude_filtered: bool = True  # 2025 Enhancement: Exclude filtered synergies
+    exclude_filtered: bool = True,  # 2025 Enhancement: Exclude filtered synergies
 ) -> list[Any]:
     """
     Retrieve synergy opportunities from database with quality filtering.
@@ -474,28 +500,30 @@ async def get_synergy_opportunities(
             from ...database.models import SynergyOpportunity
         except ImportError:
             logger.warning("SynergyOpportunity model not available, using raw SQL")
-            return await _get_synergies_raw_sql(db, synergy_type, min_confidence, synergy_depth, limit)
+            return await _get_synergies_raw_sql(
+                db, synergy_type, min_confidence, synergy_depth, limit
+            )
 
         conditions = [SynergyOpportunity.confidence >= min_confidence]
 
-        if synergy_depth is not None and hasattr(SynergyOpportunity, 'synergy_depth'):
+        if synergy_depth is not None and hasattr(SynergyOpportunity, "synergy_depth"):
             conditions.append(SynergyOpportunity.synergy_depth == synergy_depth)
 
         if synergy_type:
             conditions.append(SynergyOpportunity.synergy_type == synergy_type)
 
         # 2025 Enhancement: Quality filters
-        if min_quality_score is not None and hasattr(SynergyOpportunity, 'quality_score'):
+        if min_quality_score is not None and hasattr(SynergyOpportunity, "quality_score"):
             conditions.append(SynergyOpportunity.quality_score >= min_quality_score)
 
-        if quality_tier and hasattr(SynergyOpportunity, 'quality_tier'):
+        if quality_tier and hasattr(SynergyOpportunity, "quality_tier"):
             conditions.append(SynergyOpportunity.quality_tier == quality_tier)
 
-        if exclude_filtered and hasattr(SynergyOpportunity, 'filter_reason'):
+        if exclude_filtered and hasattr(SynergyOpportunity, "filter_reason"):
             conditions.append(
                 or_(
                     SynergyOpportunity.filter_reason.is_(None),
-                    SynergyOpportunity.filter_reason == ''
+                    SynergyOpportunity.filter_reason == "",
                 )
             )
 
@@ -504,24 +532,21 @@ async def get_synergy_opportunities(
         if order_by_priority:
             # 2025 Enhancement: Enhanced priority score calculation
             # Check if quality_score column exists (for backward compatibility)
-            if hasattr(SynergyOpportunity, 'quality_score'):
+            if hasattr(SynergyOpportunity, "quality_score"):
                 # Enhanced priority score with quality_score and validation bonus
                 priority_score = (
-                    SynergyOpportunity.impact_score * 0.30 +
-                    SynergyOpportunity.confidence * 0.20 +
-                    func.coalesce(SynergyOpportunity.pattern_support_score, 0.0) * 0.20 +
-                    func.coalesce(SynergyOpportunity.quality_score, 0.0) * 0.20 +
-                    case(
-                        (SynergyOpportunity.validated_by_patterns.is_(True), 0.10),
-                        else_=0.0
-                    )
+                    SynergyOpportunity.impact_score * 0.30
+                    + SynergyOpportunity.confidence * 0.20
+                    + func.coalesce(SynergyOpportunity.pattern_support_score, 0.0) * 0.20
+                    + func.coalesce(SynergyOpportunity.quality_score, 0.0) * 0.20
+                    + case((SynergyOpportunity.validated_by_patterns.is_(True), 0.10), else_=0.0)
                 )
             else:
                 # Fallback to original priority score (backward compatibility)
                 priority_score = (
-                    SynergyOpportunity.impact_score * 0.40 +
-                    SynergyOpportunity.confidence * 0.25 +
-                    func.coalesce(SynergyOpportunity.pattern_support_score, 0.0) * 0.25
+                    SynergyOpportunity.impact_score * 0.40
+                    + SynergyOpportunity.confidence * 0.25
+                    + func.coalesce(SynergyOpportunity.pattern_support_score, 0.0) * 0.25
                 )
             query = query.order_by(priority_score.desc()).limit(limit)
         else:
@@ -543,7 +568,7 @@ async def _get_synergies_raw_sql(
     synergy_type: str | None,
     min_confidence: float,
     synergy_depth: int | None,
-    limit: int
+    limit: int,
 ) -> list[dict]:
     """Fallback: Get synergies using raw SQL"""
     from sqlalchemy import text
@@ -576,4 +601,3 @@ async def _get_synergies_raw_sql(
         synergies.append(dict(row._mapping))
 
     return synergies
-

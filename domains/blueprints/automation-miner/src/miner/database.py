@@ -32,6 +32,7 @@ class CommunityAutomation(Base):
 
     Stores normalized automation metadata from community sources.
     """
+
     __tablename__ = "community_automations"
 
     # Primary key
@@ -42,9 +43,7 @@ class CommunityAutomation(Base):
     source_id = Column(String(200), nullable=False)  # Post/repo ID (unique per source)
 
     # Composite unique constraint: source + source_id must be unique together
-    __table_args__ = (
-        UniqueConstraint('source', 'source_id', name='uq_source_source_id'),
-    )
+    __table_args__ = (UniqueConstraint("source", "source_id", name="uq_source_source_id"),)
 
     # Core fields
     title = Column(String(200), nullable=False)
@@ -90,6 +89,7 @@ class MinerState(Base):
 
     Stores crawler state (last_crawl_timestamp, etc.)
     """
+
     __tablename__ = "miner_state"
 
     key = Column(String(100), primary_key=True)

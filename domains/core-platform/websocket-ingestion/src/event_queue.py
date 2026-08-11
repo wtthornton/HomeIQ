@@ -73,7 +73,7 @@ class EventQueue:
             "data": event_data,
             "priority": priority,
             "timestamp": datetime.now(UTC).isoformat(),
-            "id": f"{self.total_events_received}_{datetime.now(UTC).timestamp()}"
+            "id": f"{self.total_events_received}_{datetime.now(UTC).timestamp()}",
         }
 
         try:
@@ -240,9 +240,11 @@ class EventQueue:
             "drop_rate_percent": round(drop_rate, 2),
             "processing_rate_per_second": round(processing_rate, 2),
             "average_queue_size": round(avg_queue_size, 2),
-            "last_processing_time": self.last_processing_time.isoformat() if self.last_processing_time else None,
+            "last_processing_time": self.last_processing_time.isoformat()
+            if self.last_processing_time
+            else None,
             "persistence_enabled": self.persistence_path is not None,
-            "persistence_path": self.persistence_path
+            "persistence_path": self.persistence_path,
         }
 
     def get_health_status(self) -> dict[str, Any]:
@@ -265,7 +267,7 @@ class EventQueue:
             "overflow_size": overflow_size,
             "utilization_percent": round((current_size / self.maxsize) * 100, 2),
             "last_health_check": self.last_health_check.isoformat(),
-            "persistence_enabled": self.persistence_path is not None
+            "persistence_enabled": self.persistence_path is not None,
         }
 
     def configure_maxsize(self, maxsize: int):

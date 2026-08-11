@@ -35,16 +35,19 @@ class DeviceIntelligenceClient:
             circuit_breaker=_ml_engine_breaker,
         )
         logger.info(
-            "Device Intelligence client initialized with base_url=%s", self.base_url,
+            "Device Intelligence client initialized with base_url=%s",
+            self.base_url,
         )
 
     async def get_device_capabilities(
-        self, device_id: str,
+        self,
+        device_id: str,
     ) -> dict[str, Any] | None:
         """Get device capabilities. Returns None on failure."""
         try:
             response = await self._cross_client.call(
-                "GET", f"/api/v1/devices/{device_id}/capabilities",
+                "GET",
+                f"/api/v1/devices/{device_id}/capabilities",
             )
             if response.status_code == 404:
                 return None
@@ -64,7 +67,8 @@ class DeviceIntelligenceClient:
         """Get device type classification. Returns None on failure."""
         try:
             response = await self._cross_client.call(
-                "GET", f"/api/v1/devices/{device_id}/type",
+                "GET",
+                f"/api/v1/devices/{device_id}/type",
             )
             if response.status_code == 404:
                 return None

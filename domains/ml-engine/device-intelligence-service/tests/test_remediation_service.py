@@ -41,8 +41,8 @@ class FakeHaClient:
 async def db_setup(tmp_path_factory):
     data_dir = Path("./data")
     data_dir.mkdir(exist_ok=True)
-    db_path = tmp_path_factory.mktemp("device-int") / "remediation.db"
-    settings = Settings(DATABASE_URL=f"postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq")
+    tmp_path_factory.mktemp("device-int") / "remediation.db"
+    settings = Settings(DATABASE_URL="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq")
     await initialize_database(settings)
     yield
 
@@ -126,4 +126,3 @@ async def test_remediation_failure_rolls_back(fresh_issue):
         await session.refresh(issue)
         assert issue.status == "open"
         break
-

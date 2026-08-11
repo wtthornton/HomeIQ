@@ -14,9 +14,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_ISO8601_RE = re.compile(
-    r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:\d{2}|Z)?$'
-)
+_ISO8601_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:\d{2}|Z)?$")
 
 
 def _validate_iso_timestamp(value: str) -> str:
@@ -29,6 +27,7 @@ def _validate_iso_timestamp(value: str) -> str:
 # Try to import InfluxDB 3.0 client, but don't fail if not available
 try:
     from influxdb_client_3 import InfluxDBClient3, Point
+
     INFLUXDB3_AVAILABLE = True
 except ImportError:
     INFLUXDB3_AVAILABLE = False
@@ -40,43 +39,49 @@ class TieredRetentionManager:
     """Manage tiered data retention with automatic downsampling"""
 
     def __init__(self):
-        self.influxdb_url = os.getenv('INFLUXDB_URL', 'http://influxdb:8086')
-        self.influxdb_token = os.getenv('INFLUXDB_TOKEN')
-        self.influxdb_org = os.getenv('INFLUXDB_ORG', 'home_assistant')
-        self.influxdb_bucket = os.getenv('INFLUXDB_BUCKET', 'events')
+        self.influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+        self.influxdb_token = os.getenv("INFLUXDB_TOKEN")
+        self.influxdb_org = os.getenv("INFLUXDB_ORG", "home_assistant")
+        self.influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "events")
 
         self.client = None
         self.enabled = False
 
         # Storage tiers configuration
         self.tiers = {
-            'hot': {'retention_days': 7, 'resolution': 'full'},
-            'warm': {'retention_days': 90, 'resolution': 'hourly'},
-            'cold': {'retention_days': 365, 'resolution': 'daily'},
-            'archive': {'retention_days': 1825, 'resolution': 'monthly'}
+            "hot": {"retention_days": 7, "resolution": "full"},
+            "warm": {"retention_days": 90, "resolution": "hourly"},
+            "cold": {"retention_days": 365, "resolution": "daily"},
+            "archive": {"retention_days": 1825, "resolution": "monthly"},
         }
 
     def initialize(self):
         """Initialize InfluxDB client - disabled for InfluxDB 2.7"""
         if not INFLUXDB3_AVAILABLE:
-            logger.warning("InfluxDB 3.0 client not available. Tiered retention disabled (requires InfluxDB 3.0+ with SQL support).")
+            logger.warning(
+                "InfluxDB 3.0 client not available. Tiered retention disabled (requires InfluxDB 3.0+ with SQL support)."
+            )
             self.enabled = False
             return
-        
+
         # Check if we're using InfluxDB 2.7 (HTTP) vs 3.0 (gRPC)
         # InfluxDB 2.7 uses HTTP, so if URL starts with http://, skip initialization
-        if self.influxdb_url.startswith('http://') or self.influxdb_url.startswith('https://'):
-            logger.warning("Tiered retention requires InfluxDB 3.0+ with gRPC. InfluxDB 2.7 detected - feature disabled.")
-            logger.warning("To use tiered retention, upgrade to InfluxDB 3.0 or use InfluxDB Cloud.")
+        if self.influxdb_url.startswith("http://") or self.influxdb_url.startswith("https://"):
+            logger.warning(
+                "Tiered retention requires InfluxDB 3.0+ with gRPC. InfluxDB 2.7 detected - feature disabled."
+            )
+            logger.warning(
+                "To use tiered retention, upgrade to InfluxDB 3.0 or use InfluxDB Cloud."
+            )
             self.enabled = False
             return
-        
+
         try:
             self.client = InfluxDBClient3(
                 host=self.influxdb_url,
                 token=self.influxdb_token,
                 database=self.influxdb_bucket,
-                org=self.influxdb_org
+                org=self.influxdb_org,
             )
             self.enabled = True
             logger.info("Tiered retention manager initialized with InfluxDB 3.0")
@@ -89,7 +94,7 @@ class TieredRetentionManager:
 
         if not self.enabled:
             logger.debug("Tiered retention disabled - skipping hot to warm downsampling")
-            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
+            return {"status": "disabled", "reason": "InfluxDB 3.0+ required"}
 
         logger.info("Starting hot to warm downsampling (raw → hourly)...")
 
@@ -98,7 +103,7 @@ class TieredRetentionManager:
         try:
             # Create hourly aggregates
             cutoff_iso = _validate_iso_timestamp(cutoff_date.isoformat())
-            query = f'''
+            query = f"""
             SELECT
                 DATE_TRUNC('hour', time) as hour,
                 entity_id,
@@ -111,22 +116,24 @@ class TieredRetentionManager:
             FROM home_assistant_events
             WHERE time < TIMESTAMP '{cutoff_iso}'
             GROUP BY DATE_TRUNC('hour', time), entity_id, domain
-            '''
+            """
 
-            result = self.client.query(query, language='sql', mode='pandas')
+            result = self.client.query(query, language="sql", mode="pandas")
 
             if not result.empty:
                 # Write hourly aggregates
                 for _, row in result.iterrows():
-                    point = Point("hourly_aggregates") \
-                        .tag("entity_id", row['entity_id']) \
-                        .tag("domain", row['domain']) \
-                        .field("avg_value", float(row['avg_value'])) \
-                        .field("min_value", float(row['min_value'])) \
-                        .field("max_value", float(row['max_value'])) \
-                        .field("sample_count", int(row['sample_count'])) \
-                        .field("total_energy", float(row.get('total_energy', 0))) \
-                        .time(row['hour'])
+                    point = (
+                        Point("hourly_aggregates")
+                        .tag("entity_id", row["entity_id"])
+                        .tag("domain", row["domain"])
+                        .field("avg_value", float(row["avg_value"]))
+                        .field("min_value", float(row["min_value"]))
+                        .field("max_value", float(row["max_value"]))
+                        .field("sample_count", int(row["sample_count"]))
+                        .field("total_energy", float(row.get("total_energy", 0)))
+                        .time(row["hour"])
+                    )
 
                     self.client.write(point)
 
@@ -138,25 +145,25 @@ class TieredRetentionManager:
                 logger.info(f"Downsampled {records_downsampled} hourly records")
 
                 return {
-                    'status': 'success',
-                    'records_downsampled': records_downsampled,
-                    'cutoff_date': cutoff_date.isoformat(),
-                    'timestamp': datetime.now()
+                    "status": "success",
+                    "records_downsampled": records_downsampled,
+                    "cutoff_date": cutoff_date.isoformat(),
+                    "timestamp": datetime.now(),
                 }
             else:
                 logger.info("No data to downsample")
-                return {'status': 'no_data'}
+                return {"status": "no_data"}
 
         except Exception as e:
             logger.error(f"Error in hot to warm downsampling: {e}")
-            return {'status': 'error', 'error': str(e)}
+            return {"status": "error", "error": str(e)}
 
     async def downsample_warm_to_cold(self) -> dict[str, Any]:
         """Downsample hourly data (90+ days old) to daily aggregates"""
 
         if not self.enabled:
             logger.debug("Tiered retention disabled - skipping warm to cold downsampling")
-            return {'status': 'disabled', 'reason': 'InfluxDB 3.0+ required'}
+            return {"status": "disabled", "reason": "InfluxDB 3.0+ required"}
 
         logger.info("Starting warm to cold downsampling (hourly → daily)...")
 
@@ -164,7 +171,7 @@ class TieredRetentionManager:
 
         try:
             cutoff_iso = _validate_iso_timestamp(cutoff_date.isoformat())
-            query = f'''
+            query = f"""
             SELECT
                 DATE_TRUNC('day', hour) as day,
                 entity_id,
@@ -177,22 +184,24 @@ class TieredRetentionManager:
             FROM hourly_aggregates
             WHERE hour < TIMESTAMP '{cutoff_iso}'
             GROUP BY DATE_TRUNC('day', hour), entity_id, domain
-            '''
+            """
 
-            result = self.client.query(query, language='sql', mode='pandas')
+            result = self.client.query(query, language="sql", mode="pandas")
 
             if not result.empty:
                 # Write daily aggregates
                 for _, row in result.iterrows():
-                    point = Point("daily_aggregates") \
-                        .tag("entity_id", row['entity_id']) \
-                        .tag("domain", row['domain']) \
-                        .field("avg_value", float(row['avg_value'])) \
-                        .field("min_value", float(row['min_value'])) \
-                        .field("max_value", float(row['max_value'])) \
-                        .field("total_samples", int(row['total_samples'])) \
-                        .field("daily_energy", float(row.get('daily_energy', 0))) \
-                        .time(row['day'])
+                    point = (
+                        Point("daily_aggregates")
+                        .tag("entity_id", row["entity_id"])
+                        .tag("domain", row["domain"])
+                        .field("avg_value", float(row["avg_value"]))
+                        .field("min_value", float(row["min_value"]))
+                        .field("max_value", float(row["max_value"]))
+                        .field("total_samples", int(row["total_samples"]))
+                        .field("daily_energy", float(row.get("daily_energy", 0)))
+                        .time(row["day"])
+                    )
 
                     self.client.write(point)
 
@@ -201,18 +210,18 @@ class TieredRetentionManager:
                 logger.info(f"Downsampled {records_downsampled} daily records")
 
                 return {
-                    'status': 'success',
-                    'records_downsampled': records_downsampled,
-                    'cutoff_date': cutoff_date.isoformat(),
-                    'timestamp': datetime.now()
+                    "status": "success",
+                    "records_downsampled": records_downsampled,
+                    "cutoff_date": cutoff_date.isoformat(),
+                    "timestamp": datetime.now(),
                 }
             else:
                 logger.info("No data to downsample")
-                return {'status': 'no_data'}
+                return {"status": "no_data"}
 
         except Exception as e:
             logger.error(f"Error in warm to cold downsampling: {e}")
-            return {'status': 'error', 'error': str(e)}
+            return {"status": "error", "error": str(e)}
 
     async def run_maintenance_cycle(self) -> dict[str, Any]:
         """Run complete maintenance cycle"""
@@ -223,19 +232,18 @@ class TieredRetentionManager:
         results = {}
 
         # Hot to Warm
-        results['hot_to_warm'] = await self.downsample_hot_to_warm()
+        results["hot_to_warm"] = await self.downsample_hot_to_warm()
 
         # Warm to Cold
-        results['warm_to_cold'] = await self.downsample_warm_to_cold()
+        results["warm_to_cold"] = await self.downsample_warm_to_cold()
 
         duration = (datetime.now() - start_time).total_seconds()
 
         logger.info(f"Maintenance cycle completed in {duration:.2f}s")
 
         return {
-            'status': 'success',
-            'duration_seconds': duration,
-            'results': results,
-            'timestamp': datetime.now()
+            "status": "success",
+            "duration_seconds": duration,
+            "results": results,
+            "timestamp": datetime.now(),
         }
-

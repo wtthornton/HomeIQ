@@ -15,17 +15,36 @@ logger = logging.getLogger(__name__)
 
 SCENE_SCRIPT_KEYWORDS = (
     # Scene
-    "scene", "scenes", "activate scene", "create scene",
+    "scene",
+    "scenes",
+    "activate scene",
+    "create scene",
     # Script
-    "script", "scripts", "run script", "create script",
+    "script",
+    "scripts",
+    "run script",
+    "create script",
     # Common scene names
-    "movie night", "movie mode", "morning routine", "bedtime",
-    "good night", "good morning", "party mode", "dinner",
-    "reading", "romantic", "relax",
+    "movie night",
+    "movie mode",
+    "morning routine",
+    "bedtime",
+    "good night",
+    "good morning",
+    "party mode",
+    "dinner",
+    "reading",
+    "romantic",
+    "relax",
     # Sequence / workflow
-    "sequence", "workflow", "step by step", "steps",
+    "sequence",
+    "workflow",
+    "step by step",
+    "steps",
     # Actions
-    "turn_on", "turn_off", "toggle",
+    "turn_on",
+    "turn_off",
+    "toggle",
 )
 
 

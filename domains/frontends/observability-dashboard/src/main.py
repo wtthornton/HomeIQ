@@ -10,7 +10,6 @@ This service provides internal/admin dashboards for:
 """
 
 import streamlit as st
-
 from config import settings
 
 # Configure Streamlit page

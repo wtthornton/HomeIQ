@@ -5,6 +5,7 @@ Tests for ha_tools.py
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from src.clients.data_api_client import DataAPIClient
 from src.clients.ha_client import HomeAssistantClient
 from src.clients.yaml_validation_client import YAMLValidationClient
@@ -34,23 +35,14 @@ def mock_data_api_client():
 def mock_yaml_validation_client():
     """Mock YAML Validation Service client"""
     client = MagicMock(spec=YAMLValidationClient)
-    client.validate_yaml = AsyncMock(return_value={
-        "valid": True,
-        "errors": [],
-        "warnings": [],
-        "score": 100.0
-    })
+    client.validate_yaml = AsyncMock(return_value={"valid": True, "errors": [], "warnings": [], "score": 100.0})
     return client
 
 
 @pytest.fixture
 def tool_handler(mock_ha_client, mock_data_api_client, mock_yaml_validation_client):
     """Create tool handler with mocked clients"""
-    return HAToolHandler(
-        mock_ha_client,
-        mock_data_api_client,
-        yaml_validation_client=mock_yaml_validation_client
-    )
+    return HAToolHandler(mock_ha_client, mock_data_api_client, yaml_validation_client=mock_yaml_validation_client)
 
 
 class TestHAToolHandler:
@@ -77,7 +69,7 @@ class TestHAToolHandler:
         request = AutomationPreviewRequest(
             user_prompt="Turn on lights",
             automation_yaml="alias: test\ntrigger:\n  - platform: state",
-            alias="test_automation"
+            alias="test_automation",
         )
         result = tool_handler._validate_preview_request(request)
         assert result is None
@@ -87,7 +79,7 @@ class TestHAToolHandler:
         request = AutomationPreviewRequest(
             user_prompt="",  # Empty prompt
             automation_yaml="alias: test",
-            alias="test"
+            alias="test",
         )
         result = tool_handler._validate_preview_request(request)
         assert result is not None
@@ -97,9 +89,7 @@ class TestHAToolHandler:
     def test__parse_automation_yaml_valid(self, tool_handler):
         """Test _parse_automation_yaml with valid YAML."""
         request = AutomationPreviewRequest(
-            user_prompt="test",
-            automation_yaml="alias: test\ntrigger:\n  - platform: state",
-            alias="test"
+            user_prompt="test", automation_yaml="alias: test\ntrigger:\n  - platform: state", alias="test"
         )
         yaml_str = "alias: test\ntrigger:\n  - platform: state"
         result = tool_handler._parse_automation_yaml(yaml_str, request)
@@ -109,11 +99,7 @@ class TestHAToolHandler:
 
     def test__parse_automation_yaml_invalid(self, tool_handler):
         """Test _parse_automation_yaml with invalid YAML."""
-        request = AutomationPreviewRequest(
-            user_prompt="test",
-            automation_yaml="not a dict",
-            alias="test"
-        )
+        request = AutomationPreviewRequest(user_prompt="test", automation_yaml="not a dict", alias="test")
         yaml_str = "not a dict"
         with pytest.raises(ValueError, match="Automation YAML must be a dictionary"):
             tool_handler._parse_automation_yaml(yaml_str, request)
@@ -121,16 +107,8 @@ class TestHAToolHandler:
     def test__extract_automation_details(self, tool_handler):
         """Test _extract_automation_details method."""
         automation_dict = {
-            "trigger": {
-                "platform": "state",
-                "entity_id": "light.office"
-            },
-            "action": {
-                "service": "light.turn_on",
-                "target": {
-                    "area_id": "office"
-                }
-            }
+            "trigger": {"platform": "state", "entity_id": "light.office"},
+            "action": {"service": "light.turn_on", "target": {"area_id": "office"}},
         }
         result = tool_handler._extract_automation_details(automation_dict)
         assert "entities" in result
@@ -148,13 +126,13 @@ class TestHAToolHandler:
             "valid": True,
             "errors": [],
             "warnings": [],
-            "score": 100.0
+            "score": 100.0,
         }
 
         arguments = {
             "user_prompt": "Turn on office lights",
             "automation_yaml": "alias: Office Lights\ntrigger:\n  - platform: state\n    entity_id: light.office\naction:\n  - service: light.turn_on\n    target:\n      area_id: office",
-            "alias": "Office Lights"
+            "alias": "Office Lights",
         }
 
         result = await tool_handler.preview_automation_from_prompt(arguments)
@@ -168,7 +146,7 @@ class TestHAToolHandler:
         arguments = {
             "user_prompt": "",  # Empty prompt
             "automation_yaml": "alias: test",
-            "alias": "test"
+            "alias": "test",
         }
 
         result = await tool_handler.preview_automation_from_prompt(arguments)

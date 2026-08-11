@@ -33,10 +33,7 @@ class HelpersScenesService:
         """
         self.settings = settings
         self.context_builder = context_builder
-        self.ha_client = HomeAssistantClient(
-            ha_url=settings.ha_url,
-            access_token=settings.ha_token.get_secret_value()
-        )
+        self.ha_client = HomeAssistantClient(ha_url=settings.ha_url, access_token=settings.ha_token.get_secret_value())
         self._cache_key = "helpers_scenes_summary"
         self._cache_ttl = 900  # 15 minutes (P1: Increased TTL - helpers/scenes change occasionally)
 
@@ -79,12 +76,9 @@ class HelpersScenesService:
                     state = helper.get("state", "unknown")
 
                     if helper_id:
-                        helpers_by_type[helper_type].append({
-                            "id": helper_id,
-                            "entity_id": entity_id,
-                            "friendly_name": friendly_name,
-                            "state": state
-                        })
+                        helpers_by_type[helper_type].append(
+                            {"id": helper_id, "entity_id": entity_id, "friendly_name": friendly_name, "state": state}
+                        )
 
                 # Format helpers by type (optimized: names only)
                 helper_parts = []
@@ -95,7 +89,7 @@ class HelpersScenesService:
                     # Simple format: just friendly names (token-efficient)
                     # Limit to 10 per type unless skipping truncation
                     limit = len(helper_list) if skip_truncation else min(10, len(helper_list))
-                    helper_names = [helper['friendly_name'] for helper in helper_list[:limit]]
+                    helper_names = [helper["friendly_name"] for helper in helper_list[:limit]]
                     names_str = ", ".join(helper_names)
                     if not skip_truncation and len(helper_list) > 10:
                         helper_parts.append(f"{helper_type}: {names_str} ... ({count})")
@@ -113,9 +107,9 @@ class HelpersScenesService:
                 for scene in scenes:
                     # Prefer friendly_name, fallback to entity_id name part, then id
                     scene_name = (
-                        scene.get("name") or
-                        scene.get("entity_id", "").split(".", 1)[1] if "." in scene.get("entity_id", "") else
-                        scene.get("id", "")
+                        scene.get("name") or scene.get("entity_id", "").split(".", 1)[1]
+                        if "." in scene.get("entity_id", "")
+                        else scene.get("id", "")
                     )
                     if scene_name:
                         scene_names.append(scene_name)
@@ -142,9 +136,7 @@ class HelpersScenesService:
 
             # Cache the result (only if not skipping truncation)
             if not skip_truncation:
-                await self.context_builder._set_cached_value(
-                    self._cache_key, summary, self._cache_ttl
-                )
+                await self.context_builder._set_cached_value(self._cache_key, summary, self._cache_ttl)
 
             logger.info(f"✅ Generated helpers/scenes summary ({len(summary)} chars)")
             return summary
@@ -157,4 +149,3 @@ class HelpersScenesService:
     async def close(self):
         """Close service resources"""
         await self.ha_client.close()
-

@@ -5,6 +5,7 @@ Tests for ai_automation_validation_strategy.py
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from src.clients.ai_automation_client import AIAutomationClient
 from src.services.validation.ai_automation_validation_strategy import AIAutomationValidationStrategy
 
@@ -13,11 +14,7 @@ from src.services.validation.ai_automation_validation_strategy import AIAutomati
 def mock_ai_automation_client():
     """Mock AI Automation Service client"""
     client = MagicMock(spec=AIAutomationClient)
-    client.validate_yaml = AsyncMock(return_value={
-        "valid": True,
-        "errors": [],
-        "warnings": []
-    })
+    client.validate_yaml = AsyncMock(return_value={"valid": True, "errors": [], "warnings": []})
     return client
 
 
@@ -51,7 +48,7 @@ class TestAIAutomationValidationStrategy:
         mock_ai_automation_client.validate_yaml.return_value = {
             "valid": False,
             "errors": [{"message": "Missing required field: trigger"}],
-            "warnings": []
+            "warnings": [],
         }
 
         strategy = AIAutomationValidationStrategy(mock_ai_automation_client)

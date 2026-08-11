@@ -6,6 +6,7 @@ Phase 3.1: Integrate with Device Database client
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -25,8 +26,10 @@ class DeviceDatabaseService:
         if self._db_client is None:
             try:
                 import sys
-                sys.path.append(os.path.join(os.path.dirname(__file__), '../../../device-database-client/src'))
+
+                sys.path.append(str(Path(__file__).parent / "../../../device-database-client/src"))
                 from db_client import DeviceDatabaseClient
+
                 self._db_client = DeviceDatabaseClient()
             except ImportError:
                 logger.warning("Device Database client not available")
@@ -38,8 +41,10 @@ class DeviceDatabaseService:
         if self._cache is None:
             try:
                 import sys
-                sys.path.append(os.path.join(os.path.dirname(__file__), '../../../device-database-client/src'))
+
+                sys.path.append(str(Path(__file__).parent / "../../../device-database-client/src"))
                 from cache import DeviceCache
+
                 cache_dir = os.getenv("DEVICE_CACHE_DIR", "data/device_cache")
                 self._cache = DeviceCache(cache_dir=cache_dir)
             except ImportError:
@@ -47,11 +52,7 @@ class DeviceDatabaseService:
                 return None
         return self._cache
 
-    async def enrich_device(
-        self,
-        manufacturer: str,
-        model: str
-    ) -> dict[str, Any] | None:
+    async def enrich_device(self, manufacturer: str, model: str) -> dict[str, Any] | None:
         """
         Enrich device with Device Database information.
 
@@ -89,9 +90,7 @@ class DeviceDatabaseService:
         return None
 
     async def update_device_from_database(
-        self,
-        device: Any,
-        device_info: dict[str, Any] | None = None
+        self, device: Any, device_info: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Update device model with Device Database information.
@@ -154,4 +153,3 @@ def get_device_database_service() -> DeviceDatabaseService:
     if _device_db_service is None:
         _device_db_service = DeviceDatabaseService()
     return _device_db_service
-

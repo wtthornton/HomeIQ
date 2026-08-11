@@ -7,16 +7,16 @@ including WebSocket management, device state tracking, and performance metrics c
 
 import asyncio
 import json
-import os
 import sys
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(str(Path(__file__).parent / ".." / "src"))
 
 from src.api.websocket_router import router
 from src.core.device_state_tracker import DeviceStateTracker
@@ -90,7 +90,9 @@ class TestWebSocketManager:
         await websocket_manager.unsubscribe_from_device(mock_websocket, device_id)
 
         assert mock_websocket not in websocket_manager.device_subscribers[device_id]
-        assert device_id not in websocket_manager.connection_info[mock_websocket]["subscribed_devices"]
+        assert (
+            device_id not in websocket_manager.connection_info[mock_websocket]["subscribed_devices"]
+        )
 
     @pytest.mark.asyncio
     async def test_device_update_broadcast(self, websocket_manager, mock_websocket):
@@ -100,11 +102,7 @@ class TestWebSocketManager:
 
         await websocket_manager.subscribe_to_device(mock_websocket, device_id)
 
-        update_data = {
-            "status": "online",
-            "temperature": 25.5,
-            "battery_level": 85
-        }
+        update_data = {"status": "online", "temperature": 25.5, "battery_level": 85}
 
         await websocket_manager.broadcast_device_update(device_id, update_data)
 
@@ -123,10 +121,7 @@ class TestWebSocketManager:
         """Test broadcasting to all connected clients."""
         await websocket_manager.connect(mock_websocket, "test_client")
 
-        message = {
-            "type": "system_alert",
-            "message": "System maintenance scheduled"
-        }
+        message = {"type": "system_alert", "message": "System maintenance scheduled"}
 
         await websocket_manager.broadcast_to_all(message)
 
@@ -145,20 +140,14 @@ class TestWebSocketManager:
         await websocket_manager.connect(mock_websocket, "test_client")
 
         # Test subscribe message
-        subscribe_message = {
-            "type": "subscribe_device",
-            "device_id": "test_device"
-        }
+        subscribe_message = {"type": "subscribe_device", "device_id": "test_device"}
 
         await websocket_manager.handle_client_message(mock_websocket, subscribe_message)
 
         assert mock_websocket in websocket_manager.device_subscribers["test_device"]
 
         # Test unsubscribe message
-        unsubscribe_message = {
-            "type": "unsubscribe_device",
-            "device_id": "test_device"
-        }
+        unsubscribe_message = {"type": "unsubscribe_device", "device_id": "test_device"}
 
         await websocket_manager.handle_client_message(mock_websocket, unsubscribe_message)
 
@@ -192,7 +181,7 @@ class TestDeviceStateTracker:
             "battery_level": 85,
             "signal_strength": -65,
             "response_time": 150,
-            "error_rate": 0.02
+            "error_rate": 0.02,
         }
 
     @pytest.mark.asyncio
@@ -232,7 +221,7 @@ class TestDeviceStateTracker:
             "response_time": 150,
             "error_rate": 0.02,
             "battery_level": 85,
-            "signal_strength": -65
+            "signal_strength": -65,
         }
 
         await device_tracker.update_device_state(device_id, normal_data)
@@ -240,9 +229,9 @@ class TestDeviceStateTracker:
         # Anomalous data
         anomalous_data = {
             "response_time": 2000,  # High response time
-            "error_rate": 0.15,     # High error rate
-            "battery_level": 15,    # Low battery
-            "signal_strength": -85  # Weak signal
+            "error_rate": 0.15,  # High error rate
+            "battery_level": 15,  # Low battery
+            "signal_strength": -85,  # Weak signal
         }
 
         await device_tracker.update_device_state(device_id, anomalous_data)
@@ -319,7 +308,7 @@ class TestPerformanceCollector:
             "response_time": 150,
             "cpu_usage": 25.5,
             "memory_usage": 60.0,
-            "network_latency": 10
+            "network_latency": 10,
         }
 
     @pytest.mark.asyncio
@@ -447,17 +436,13 @@ async def test_integration_scenario():
         "temperature": 25.5,
         "battery_level": 85,
         "response_time": 150,
-        "error_rate": 0.02
+        "error_rate": 0.02,
     }
 
     await device_tracker.update_device_state(device_id, device_data)
 
     # Collect performance metrics
-    performance_metrics = {
-        "response_time": 150,
-        "cpu_usage": 25.5,
-        "memory_usage": 60.0
-    }
+    performance_metrics = {"response_time": 150, "cpu_usage": 25.5, "memory_usage": 60.0}
 
     await performance_collector.collect_device_metrics(device_id, performance_metrics)
 

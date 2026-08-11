@@ -33,9 +33,7 @@ class TestAutomationExecutionResult:
 
     def test_success_result(self):
         """Test successful execution result."""
-        result = AutomationExecutionResult(
-            success=True, execution_time_ms=150, triggered_count=3
-        )
+        result = AutomationExecutionResult(success=True, execution_time_ms=150, triggered_count=3)
         assert result.success is True
         assert result.error is None
         assert result.execution_time_ms == 150

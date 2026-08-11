@@ -70,9 +70,7 @@ class CommunityPatternEnhancer:
         )
 
     def enhance_pattern_confidence(
-        self,
-        pattern: dict[str, Any],
-        community_patterns: list[dict[str, Any]] | None = None
+        self, pattern: dict[str, Any], community_patterns: list[dict[str, Any]] | None = None
     ) -> float:
         """
         Boost pattern confidence if similar to community favorites.
@@ -88,8 +86,10 @@ class CommunityPatternEnhancer:
         Returns:
             Enhanced confidence score (0.0-1.0)
         """
-        patterns_to_use = community_patterns if community_patterns is not None else self.community_patterns
-        original_confidence = pattern.get('confidence', 0.0)
+        patterns_to_use = (
+            community_patterns if community_patterns is not None else self.community_patterns
+        )
+        original_confidence = pattern.get("confidence", 0.0)
 
         if not patterns_to_use:
             return original_confidence
@@ -102,14 +102,14 @@ class CommunityPatternEnhancer:
         boost = self._calculate_community_boost(similar_patterns)
         enhanced_confidence = min(1.0, original_confidence + boost)
 
-        self._log_enhancement(pattern, original_confidence, enhanced_confidence, boost, len(similar_patterns))
+        self._log_enhancement(
+            pattern, original_confidence, enhanced_confidence, boost, len(similar_patterns)
+        )
 
         return enhanced_confidence
 
     def _find_similar_community_patterns(
-        self,
-        pattern: dict[str, Any],
-        community_patterns: list[dict[str, Any]]
+        self, pattern: dict[str, Any], community_patterns: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         """
         Find community patterns similar to the given pattern.
@@ -121,19 +121,15 @@ class CommunityPatternEnhancer:
         Returns:
             List of similar community patterns
         """
-        pattern_type = pattern.get('pattern_type', 'unknown')
-        device_id = pattern.get('device_id', '')
+        pattern_type = pattern.get("pattern_type", "unknown")
+        device_id = pattern.get("device_id", "")
 
         return [
-            cp for cp in community_patterns
-            if self._is_similar_pattern(pattern_type, device_id, cp)
+            cp for cp in community_patterns if self._is_similar_pattern(pattern_type, device_id, cp)
         ]
 
     def _is_similar_pattern(
-        self,
-        pattern_type: str,
-        device_id: str,
-        community_pattern: dict[str, Any]
+        self, pattern_type: str, device_id: str, community_pattern: dict[str, Any]
     ) -> bool:
         """
         Check if a community pattern is similar to the given pattern.
@@ -146,21 +142,21 @@ class CommunityPatternEnhancer:
         Returns:
             True if patterns are similar
         """
-        if community_pattern.get('pattern_type') != pattern_type:
+        if community_pattern.get("pattern_type") != pattern_type:
             return False
 
-        community_device_id = community_pattern.get('device_id', '')
+        community_device_id = community_pattern.get("device_id", "")
 
-        if pattern_type == 'co_occurrence':
+        if pattern_type == "co_occurrence":
             return self._check_co_occurrence_similarity(device_id, community_device_id)
 
         return self._check_device_similarity(device_id, community_device_id)
 
     def _check_co_occurrence_similarity(self, device_id: str, community_device_id: str) -> bool:
         """Check similarity for co-occurrence patterns."""
-        if '+' in device_id and '+' in community_device_id:
-            pattern_devices = set(device_id.split('+'))
-            community_devices = set(community_device_id.split('+'))
+        if "+" in device_id and "+" in community_device_id:
+            pattern_devices = set(device_id.split("+"))
+            community_devices = set(community_device_id.split("+"))
             return bool(pattern_devices & community_devices)
 
         return device_id == community_device_id
@@ -174,8 +170,10 @@ class CommunityPatternEnhancer:
             return False
 
         # Check domain match (e.g., "light.bedroom" vs "light.kitchen")
-        pattern_domain = device_id.split('.')[0] if '.' in device_id else device_id
-        community_domain = community_device_id.split('.')[0] if '.' in community_device_id else community_device_id
+        pattern_domain = device_id.split(".")[0] if "." in device_id else device_id
+        community_domain = (
+            community_device_id.split(".")[0] if "." in community_device_id else community_device_id
+        )
 
         return pattern_domain == community_domain
 
@@ -197,22 +195,19 @@ class CommunityPatternEnhancer:
         boost = BoostFactors(
             base=BASE_BOOST,
             quality=self._get_quality_boost(avg_confidence),
-            popularity=self._get_popularity_boost(avg_occurrences)
+            popularity=self._get_popularity_boost(avg_occurrences),
         )
 
         return boost.total
 
-    def _calculate_averages(
-        self,
-        patterns: list[dict[str, Any]]
-    ) -> tuple[float, float]:
+    def _calculate_averages(self, patterns: list[dict[str, Any]]) -> tuple[float, float]:
         """Calculate average confidence and occurrences."""
         count = len(patterns)
         if count == 0:
             return 0.0, 0.0
 
-        total_confidence = sum(p.get('confidence', 0.0) for p in patterns)
-        total_occurrences = sum(p.get('occurrences', 0) for p in patterns)
+        total_confidence = sum(p.get("confidence", 0.0) for p in patterns)
+        total_occurrences = sum(p.get("occurrences", 0) for p in patterns)
 
         return total_confidence / count, total_occurrences / count
 
@@ -240,11 +235,11 @@ class CommunityPatternEnhancer:
         original: float,
         enhanced: float,
         boost: float,
-        similar_count: int
+        similar_count: int,
     ) -> None:
         """Log pattern enhancement details."""
-        pattern_type = pattern.get('pattern_type', 'unknown')
-        device_id = pattern.get('device_id', '')
+        pattern_type = pattern.get("pattern_type", "unknown")
+        device_id = pattern.get("device_id", "")
 
         logger.debug(
             f"Enhanced pattern confidence: {pattern_type}:{device_id} "
@@ -253,9 +248,7 @@ class CommunityPatternEnhancer:
         )
 
     def enhance_patterns_batch(
-        self,
-        patterns: list[dict[str, Any]],
-        community_patterns: list[dict[str, Any]] | None = None
+        self, patterns: list[dict[str, Any]], community_patterns: list[dict[str, Any]] | None = None
     ) -> list[dict[str, Any]]:
         """
         Enhance confidence for a batch of patterns using community patterns.
@@ -271,11 +264,10 @@ class CommunityPatternEnhancer:
 
         for pattern in patterns:
             enhanced_pattern = pattern.copy()
-            enhanced_pattern['confidence'] = self.enhance_pattern_confidence(
-                pattern,
-                community_patterns=community_patterns
+            enhanced_pattern["confidence"] = self.enhance_pattern_confidence(
+                pattern, community_patterns=community_patterns
             )
-            enhanced_pattern['community_enhanced'] = True
+            enhanced_pattern["community_enhanced"] = True
             enhanced_patterns.append(enhanced_pattern)
 
         logger.info(f"✅ Enhanced {len(enhanced_patterns)} patterns using community patterns")

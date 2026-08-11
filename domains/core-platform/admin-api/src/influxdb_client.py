@@ -9,7 +9,7 @@ import re
 from datetime import datetime
 from typing import Any
 
-_SERVICE_NAME_RE = re.compile(r'^[a-zA-Z0-9_\-]{1,128}$')
+_SERVICE_NAME_RE = re.compile(r"^[a-zA-Z0-9_\-]{1,128}$")
 
 try:
     from influxdb_client import InfluxDBClient
@@ -57,7 +57,7 @@ class AdminAPIInfluxDBClient:
                 url=self.url,
                 token=self.token,
                 org=self.org,
-                timeout=30000  # 30 seconds
+                timeout=30000,  # 30 seconds
             )
 
             # Test connection
@@ -79,10 +79,12 @@ class AdminAPIInfluxDBClient:
         import aiohttp
 
         try:
-            async with aiohttp.ClientSession() as session, session.get(
-                f"{self.url}/health",
-                timeout=aiohttp.ClientTimeout(total=10)
-            ) as response:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(
+                    f"{self.url}/health", timeout=aiohttp.ClientTimeout(total=10)
+                ) as response,
+            ):
                 if response.status != 200:
                     raise Exception(f"InfluxDB health check failed: {response.status}")
                 logger.debug("InfluxDB health check passed")
@@ -122,7 +124,7 @@ from(bucket: "{self.bucket}")
         return {
             "total_events": total_events,
             "events_per_minute": round(events_per_minute, 2),
-            "period": period
+            "period": period,
         }
 
     async def get_error_rate(self, period: str = "1h") -> dict[str, Any]:
@@ -168,7 +170,7 @@ from(bucket: "{self.bucket}")
             "total_writes": total,
             "write_errors": errors,
             "error_rate_percent": round(error_rate, 2),
-            "period": period
+            "period": period,
         }
 
     async def get_service_metrics(self, service_name: str, period: str = "1h") -> dict[str, Any]:
@@ -210,7 +212,7 @@ from(bucket: "{self.bucket}")
             "processing_time_ms": metrics.get("processing_time_ms", 0),
             "success_rate": metrics.get("success_rate", 100),
             "last_update": metrics.get("_time"),
-            "period": period
+            "period": period,
         }
 
     async def get_all_service_statistics(self, period: str = "1h") -> dict[str, Any]:
@@ -245,7 +247,7 @@ from(bucket: "{self.bucket}")
                 services[service] = {
                     "events_processed": 0,
                     "avg_processing_time": 0,
-                    "success_rate": 100
+                    "success_rate": 100,
                 }
 
             field = record.get("_field")
@@ -258,11 +260,7 @@ from(bucket: "{self.bucket}")
             elif field == "success_rate":
                 services[service]["success_rate"] = value
 
-        return {
-            "services": services,
-            "period": period,
-            "timestamp": datetime.now().isoformat()
-        }
+        return {"services": services, "period": period, "timestamp": datetime.now().isoformat()}
 
     async def get_event_trends(self, period: str = "24h", window: str = "1h") -> dict[str, Any]:
         """
@@ -290,21 +288,14 @@ from(bucket: "{self.bucket}")
         trends = []
         for record in result:
             time_value = record.get("_time")
-            if hasattr(time_value, 'isoformat'):
+            if hasattr(time_value, "isoformat"):
                 time_str = time_value.isoformat()
             else:
                 time_str = str(time_value)
 
-            trends.append({
-                "time": time_str,
-                "count": record.get("_value", 0)
-            })
+            trends.append({"time": time_str, "count": record.get("_value", 0)})
 
-        return {
-            "trends": trends,
-            "period": period,
-            "window": window
-        }
+        return {"trends": trends, "period": period, "window": window}
 
     async def _execute_query(self, query: str) -> list[dict[str, Any]]:
         """
@@ -323,11 +314,7 @@ from(bucket: "{self.bucket}")
             start_time = datetime.now()
 
             # Execute query in thread pool (InfluxDB client is synchronous)
-            result = await asyncio.to_thread(
-                self.query_api.query,
-                query=query,
-                org=self.org
-            )
+            result = await asyncio.to_thread(self.query_api.query, query=query, org=self.org)
 
             # Track performance
             query_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -338,9 +325,8 @@ from(bucket: "{self.bucket}")
                 self.avg_query_time_ms = query_time
             else:
                 self.avg_query_time_ms = (
-                    (self.avg_query_time_ms * (self.query_count - 1) + query_time)
-                    / self.query_count
-                )
+                    self.avg_query_time_ms * (self.query_count - 1) + query_time
+                ) / self.query_count
 
             # Convert to list of dictionaries
             data = []
@@ -371,7 +357,7 @@ from(bucket: "{self.bucket}")
             "1h": 60 * 60,
             "6h": 6 * 60 * 60,
             "24h": 24 * 60 * 60,
-            "7d": 7 * 24 * 60 * 60
+            "7d": 7 * 24 * 60 * 60,
         }
         return conversions.get(period, 3600)  # Default to 1 hour
 
@@ -392,8 +378,9 @@ from(bucket: "{self.bucket}")
             "avg_query_time_ms": round(self.avg_query_time_ms, 2),
             "success_rate": (
                 ((self.query_count - self.error_count) / self.query_count * 100)
-                if self.query_count > 0 else 100
-            )
+                if self.query_count > 0
+                else 100
+            ),
         }
 
     async def close(self):
@@ -408,4 +395,3 @@ from(bucket: "{self.bucket}")
             self.client = None
             self.query_api = None
             self.is_connected = False
-

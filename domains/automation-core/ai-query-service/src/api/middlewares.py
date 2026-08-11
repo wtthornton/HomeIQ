@@ -34,9 +34,7 @@ _rate_limit_locks: dict[str, asyncio.Lock] = {}
 _cleanup_task: asyncio.Task | None = None
 
 # Performance metrics (simple in-memory storage)
-_performance_metrics: dict[str, deque] = defaultdict(
-    lambda: deque(maxlen=1000)
-)
+_performance_metrics: dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
 _error_counts: dict[str, int] = defaultdict(int)
 
 
@@ -230,9 +228,7 @@ async def start_rate_limit_cleanup():
                     _evict_rate_limit_entry(key)
 
                 if inactive_keys:
-                    logger.debug(
-                        "Cleaned up %d inactive rate limit buckets", len(inactive_keys)
-                    )
+                    logger.debug("Cleaned up %d inactive rate limit buckets", len(inactive_keys))
 
                 # Limit total buckets to prevent memory issues
                 if len(_rate_limit_buckets) > MAX_RATE_LIMIT_BUCKETS:

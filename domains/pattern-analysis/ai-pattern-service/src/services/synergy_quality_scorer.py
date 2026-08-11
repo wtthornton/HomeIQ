@@ -32,7 +32,9 @@ class SynergyQualityScorer:
     QUALITY_TIER_LOW = 0.30
 
     # Default filtering thresholds
-    DEFAULT_MIN_QUALITY_SCORE = 0.50  # Medium+ quality threshold (updated per storage strategy recommendation)
+    DEFAULT_MIN_QUALITY_SCORE = (
+        0.50  # Medium+ quality threshold (updated per storage strategy recommendation)
+    )
     DEFAULT_MIN_CONFIDENCE = 0.50
     DEFAULT_MIN_IMPACT = 0.30
     DEFAULT_MIN_PATTERN_SUPPORT = 0.30
@@ -41,7 +43,7 @@ class SynergyQualityScorer:
         self,
         synergy: dict[str, Any],
         active_devices: set[str] | None = None,
-        blueprint_fit_score: float | None = None
+        blueprint_fit_score: float | None = None,
     ) -> dict[str, Any]:
         """
         Calculate comprehensive quality score for a synergy.
@@ -69,11 +71,11 @@ class SynergyQualityScorer:
             - score_breakdown: dict with component scores
         """
         # Extract base metrics with defaults
-        impact_score = float(synergy.get('impact_score', 0.5))
-        confidence = float(synergy.get('confidence', 0.7))
-        pattern_support_score = float(synergy.get('pattern_support_score', 0.0))
-        validated_by_patterns = bool(synergy.get('validated_by_patterns', False))
-        complexity = str(synergy.get('complexity', 'medium')).lower()
+        impact_score = float(synergy.get("impact_score", 0.5))
+        confidence = float(synergy.get("confidence", 0.7))
+        pattern_support_score = float(synergy.get("pattern_support_score", 0.0))
+        validated_by_patterns = bool(synergy.get("validated_by_patterns", False))
+        complexity = str(synergy.get("complexity", "medium")).lower()
 
         # Validate and clamp scores
         impact_score = max(0.0, min(1.0, impact_score))
@@ -81,11 +83,7 @@ class SynergyQualityScorer:
         pattern_support_score = max(0.0, min(1.0, pattern_support_score))
 
         # Base metrics (60%)
-        base_score = (
-            impact_score * 0.25 +
-            confidence * 0.20 +
-            pattern_support_score * 0.15
-        )
+        base_score = impact_score * 0.25 + confidence * 0.20 + pattern_support_score * 0.15
 
         # Validation bonuses (25%)
         validation_bonus = 0.0
@@ -96,7 +94,7 @@ class SynergyQualityScorer:
 
         # Active devices bonus (check if all devices in synergy are active)
         if active_devices is not None:
-            device_ids = synergy.get('devices', [])
+            device_ids = synergy.get("devices", [])
             if device_ids and all(d in active_devices for d in device_ids):
                 validation_bonus += 0.10
 
@@ -106,9 +104,9 @@ class SynergyQualityScorer:
 
         # Complexity adjustment (15%)
         complexity_adjustment = 0.0
-        if complexity == 'low':
+        if complexity == "low":
             complexity_adjustment = 0.15
-        elif complexity == 'high':
+        elif complexity == "high":
             complexity_adjustment = -0.15
         # medium complexity: no adjustment (0.0)
 
@@ -120,34 +118,31 @@ class SynergyQualityScorer:
 
         # Determine quality tier
         if quality_score >= self.QUALITY_TIER_HIGH:
-            quality_tier = 'high'
+            quality_tier = "high"
         elif quality_score >= self.QUALITY_TIER_MEDIUM:
-            quality_tier = 'medium'
+            quality_tier = "medium"
         elif quality_score >= self.QUALITY_TIER_LOW:
-            quality_tier = 'low'
+            quality_tier = "low"
         else:
-            quality_tier = 'poor'
+            quality_tier = "poor"
 
         return {
-            'quality_score': round(quality_score, 4),
-            'quality_tier': quality_tier,
-            'score_breakdown': {
-                'base_score': round(base_score, 4),
-                'validation_bonus': round(validation_bonus, 4),
-                'complexity_adjustment': round(complexity_adjustment, 4),
-                'impact_score': impact_score,
-                'confidence': confidence,
-                'pattern_support_score': pattern_support_score,
-                'validated_by_patterns': validated_by_patterns,
-                'complexity': complexity
-            }
+            "quality_score": round(quality_score, 4),
+            "quality_tier": quality_tier,
+            "score_breakdown": {
+                "base_score": round(base_score, 4),
+                "validation_bonus": round(validation_bonus, 4),
+                "complexity_adjustment": round(complexity_adjustment, 4),
+                "impact_score": impact_score,
+                "confidence": confidence,
+                "pattern_support_score": pattern_support_score,
+                "validated_by_patterns": validated_by_patterns,
+                "complexity": complexity,
+            },
         }
 
     def should_filter_synergy(
-        self,
-        synergy: dict[str, Any],
-        quality_score: float,
-        config: dict[str, Any] | None = None
+        self, synergy: dict[str, Any], quality_score: float, config: dict[str, Any] | None = None
     ) -> tuple[bool, str | None]:
         """
         Determine if synergy should be filtered (hard filters + quality thresholds).
@@ -181,34 +176,40 @@ class SynergyQualityScorer:
         if config is None:
             config = {}
 
-        min_quality_score = config.get('min_quality_score', self.DEFAULT_MIN_QUALITY_SCORE)
-        min_confidence = config.get('min_confidence', self.DEFAULT_MIN_CONFIDENCE)
-        min_impact = config.get('min_impact', self.DEFAULT_MIN_IMPACT)
-        filter_unvalidated_high_complexity = config.get('filter_unvalidated_high_complexity', True)
+        min_quality_score = config.get("min_quality_score", self.DEFAULT_MIN_QUALITY_SCORE)
+        min_confidence = config.get("min_confidence", self.DEFAULT_MIN_CONFIDENCE)
+        min_impact = config.get("min_impact", self.DEFAULT_MIN_IMPACT)
+        filter_unvalidated_high_complexity = config.get("filter_unvalidated_high_complexity", True)
 
         # Hard filters: Missing required fields
-        if not synergy.get('device_ids') and not synergy.get('devices'):
+        if not synergy.get("device_ids") and not synergy.get("devices"):
             return True, "Missing device_ids"
 
-        if 'impact_score' not in synergy:
+        if "impact_score" not in synergy:
             return True, "Missing impact_score"
 
-        if 'confidence' not in synergy:
+        if "confidence" not in synergy:
             return True, "Missing confidence"
 
         # Hard filters: Invalid values
-        synergy_type = synergy.get('synergy_type', '')
+        synergy_type = synergy.get("synergy_type", "")
         valid_types = {
-            'device_pair', 'device_chain', 'event_context',
-            'scene_based', 'schedule_based',
-            'weather_context', 'energy_context', 'sports_context',
-            'calendar_context', 'carbon_context'
+            "device_pair",
+            "device_chain",
+            "event_context",
+            "scene_based",
+            "schedule_based",
+            "weather_context",
+            "energy_context",
+            "sports_context",
+            "calendar_context",
+            "carbon_context",
         }
         if synergy_type and synergy_type not in valid_types:
             return True, f"Invalid synergy_type: {synergy_type}"
 
-        complexity = str(synergy.get('complexity', 'medium')).lower()
-        if complexity not in {'low', 'medium', 'high'}:
+        complexity = str(synergy.get("complexity", "medium")).lower()
+        if complexity not in {"low", "medium", "high"}:
             return True, f"Invalid complexity: {complexity}"
 
         # Note: External data sources (sports, weather, calendar, energy) are no longer filtered.
@@ -218,18 +219,18 @@ class SynergyQualityScorer:
         if quality_score < min_quality_score:
             return True, f"Quality score {quality_score:.3f} below threshold {min_quality_score}"
 
-        confidence = float(synergy.get('confidence', 0.0))
+        confidence = float(synergy.get("confidence", 0.0))
         if confidence < min_confidence:
             return True, f"Confidence {confidence:.3f} below threshold {min_confidence}"
 
-        impact_score = float(synergy.get('impact_score', 0.0))
+        impact_score = float(synergy.get("impact_score", 0.0))
         if impact_score < min_impact:
             return True, f"Impact score {impact_score:.3f} below threshold {min_impact}"
 
         # Quality filter: Unvalidated high complexity
         if filter_unvalidated_high_complexity:
-            validated_by_patterns = bool(synergy.get('validated_by_patterns', False))
-            if complexity == 'high' and not validated_by_patterns:
+            validated_by_patterns = bool(synergy.get("validated_by_patterns", False))
+            if complexity == "high" and not validated_by_patterns:
                 return True, "High complexity without pattern validation"
 
         # No filtering needed

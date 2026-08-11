@@ -1,4 +1,5 @@
 """Cross-detector pattern fusion. Story 40.8."""
+
 import logging
 import uuid
 from typing import Any
@@ -45,7 +46,7 @@ class PatternFusionEngine:
 
             # If multiple detectors found overlapping patterns, create compound
             if len(related) >= 2:
-                types = {p['pattern_type'] for _, p in related}
+                types = {p["pattern_type"] for _, p in related}
                 if len(types) >= 2:  # Different detector types
                     compound = self._create_compound(related)
                     compound_patterns.append(compound)
@@ -53,7 +54,9 @@ class PatternFusionEngine:
                         used_indices.add(idx)
 
         if compound_patterns:
-            logger.info(f"Pattern fusion: {len(compound_patterns)} compound patterns from {len(used_indices)} source patterns")
+            logger.info(
+                f"Pattern fusion: {len(compound_patterns)} compound patterns from {len(used_indices)} source patterns"
+            )
 
         # Return: original patterns (minus consumed) + compound patterns
         remaining = [p for i, p in enumerate(all_patterns) if i not in used_indices]
@@ -69,15 +72,17 @@ class PatternFusionEngine:
             entities = self._extract_entities(pattern)
             is_duplicate = False
             for existing in unique:
-                if existing['pattern_type'] != pattern['pattern_type']:
+                if existing["pattern_type"] != pattern["pattern_type"]:
                     continue
                 existing_entities = self._extract_entities(existing)
                 if not entities or not existing_entities:
                     continue
-                overlap = len(entities & existing_entities) / max(len(entities | existing_entities), 1)
+                overlap = len(entities & existing_entities) / max(
+                    len(entities | existing_entities), 1
+                )
                 if overlap > OVERLAP_THRESHOLD:
                     # Keep higher confidence
-                    if pattern.get('confidence', 0) > existing.get('confidence', 0):
+                    if pattern.get("confidence", 0) > existing.get("confidence", 0):
                         unique.remove(existing)
                         unique.append(pattern)
                     is_duplicate = True
@@ -91,29 +96,29 @@ class PatternFusionEngine:
 
     def _create_compound(self, related: list[tuple[int, dict]]) -> dict[str, Any]:
         """Create a compound pattern from related source patterns."""
-        types = sorted({p['pattern_type'] for _, p in related})
+        types = sorted({p["pattern_type"] for _, p in related})
         all_entities: set[str] = set()
         confidences = []
         source_ids = []
 
         for _, pattern in related:
             all_entities |= self._extract_entities(pattern)
-            confidences.append(pattern.get('confidence', 0.0))
-            source_ids.append(pattern.get('pattern_id', str(uuid.uuid4())[:8]))
+            confidences.append(pattern.get("confidence", 0.0))
+            source_ids.append(pattern.get("pattern_id", str(uuid.uuid4())[:8]))
 
         # Weighted average confidence
         avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
 
         return {
-            'pattern_type': 'compound',
-            'device_id': sorted(all_entities)[0] if all_entities else 'unknown',
-            'confidence': float(avg_confidence),
-            'metadata': {
-                'source_types': types,
-                'source_count': len(related),
-                'source_pattern_ids': source_ids,
-                'all_entities': sorted(all_entities),
-                'compound_description': f"{'+ '.join(types)} compound pattern",
+            "pattern_type": "compound",
+            "device_id": sorted(all_entities)[0] if all_entities else "unknown",
+            "confidence": float(avg_confidence),
+            "metadata": {
+                "source_types": types,
+                "source_count": len(related),
+                "source_pattern_ids": source_ids,
+                "all_entities": sorted(all_entities),
+                "compound_description": f"{'+ '.join(types)} compound pattern",
             },
         }
 
@@ -121,17 +126,17 @@ class PatternFusionEngine:
     def _extract_entities(pattern: dict[str, Any]) -> set[str]:
         """Extract entity IDs from a pattern dict."""
         entities: set[str] = set()
-        if 'device_id' in pattern and pattern['device_id']:
+        if "device_id" in pattern and pattern["device_id"]:
             # Handle combined IDs like "light.a+light.b"
-            device_id = pattern['device_id']
-            if '+' in device_id:
-                entities.update(device_id.split('+'))
+            device_id = pattern["device_id"]
+            if "+" in device_id:
+                entities.update(device_id.split("+"))
             else:
                 entities.add(device_id)
-        if 'device1' in pattern:
-            entities.add(pattern['device1'])
-        if 'device2' in pattern:
-            entities.add(pattern['device2'])
-        if 'sequence' in pattern:
-            entities.update(pattern['sequence'])
+        if "device1" in pattern:
+            entities.add(pattern["device1"])
+        if "device2" in pattern:
+            entities.add(pattern["device2"])
+        if "sequence" in pattern:
+            entities.update(pattern["sequence"])
         return entities

@@ -3,10 +3,9 @@ Tests for Device and Entity models
 Story 22.2
 """
 
-
 import pytest
-from sqlalchemy import select
 import src.database as _database
+from sqlalchemy import select
 
 
 def AsyncSessionLocal():  # noqa: N802
@@ -17,6 +16,7 @@ def AsyncSessionLocal():  # noqa: N802
     from-import would capture None permanently.
     """
     return _database.AsyncSessionLocal()
+
 
 from src.models import Device, Entity
 
@@ -31,7 +31,7 @@ async def test_device_creation():
             name="Test Device",
             manufacturer="Test Co",
             model="Model X",
-            area_id="living_room"
+            area_id="living_room",
         )
         session.add(device)
         await session.commit()
@@ -53,27 +53,19 @@ async def test_entity_with_foreign_key():
 
     async with AsyncSessionLocal() as session:
         # Create device first
-        device = Device(
-            device_id="test_device_2",
-            name="Test Device 2"
-        )
+        device = Device(device_id="test_device_2", name="Test Device 2")
         session.add(device)
         await session.commit()
 
         # Create entity
         entity = Entity(
-            entity_id="light.test",
-            device_id="test_device_2",
-            domain="light",
-            platform="test"
+            entity_id="light.test", device_id="test_device_2", domain="light", platform="test"
         )
         session.add(entity)
         await session.commit()
 
         # Verify relationship
-        result = await session.execute(
-            select(Entity).where(Entity.entity_id == "light.test")
-        )
+        result = await session.execute(select(Entity).where(Entity.entity_id == "light.test"))
         saved_entity = result.scalar_one()
         assert saved_entity.device_id == "test_device_2"
         assert saved_entity.domain == "light"
@@ -128,4 +120,3 @@ async def test_device_query_by_area():
         await session.delete(device1)
         await session.delete(device2)
         await session.commit()
-

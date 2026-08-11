@@ -49,11 +49,24 @@ _ENTITY_PATTERN = re.compile(
 )
 
 # Tool-hint keywords
-_MULTI_TOOL_KEYWORDS = frozenset({
-    "and then", "after that", "also", "as well", "plus",
-    "create and", "set up and", "first", "second", "finally",
-    "multiple", "all", "every room", "each",
-})
+_MULTI_TOOL_KEYWORDS = frozenset(
+    {
+        "and then",
+        "after that",
+        "also",
+        "as well",
+        "plus",
+        "create and",
+        "set up and",
+        "first",
+        "second",
+        "finally",
+        "multiple",
+        "all",
+        "every room",
+        "each",
+    }
+)
 
 
 class ComplexityClassifier:

@@ -4,8 +4,6 @@ Tests for LinterClient
 Epic 67, Story 67.1: Automation Linter Client
 """
 
-import pytest
-
 from src.clients.linter_client import LinterClient, LintResult
 
 

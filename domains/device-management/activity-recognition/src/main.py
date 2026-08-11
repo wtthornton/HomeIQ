@@ -15,6 +15,7 @@ logger = setup_logging("activity-recognition", group_name="device-management")
 # Lifespan
 # ---------------------------------------------------------------------------
 
+
 async def _startup_model() -> None:
     """Load ONNX model on startup."""
     model_path = Path(settings.model_path)

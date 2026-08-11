@@ -55,7 +55,7 @@ class SyntheticExternalDataGenerator:
         home: dict[str, Any],
         start_date: datetime,
         days: int,
-        location: dict[str, Any] | None = None
+        location: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Generate all external data for a synthetic home.
@@ -82,45 +82,34 @@ class SyntheticExternalDataGenerator:
         try:
             # Generate weather data
             weather_data = self.weather_gen.generate_weather(
-                home=home,
-                start_date=start_date,
-                days=days,
-                location=location
+                home=home, start_date=start_date, days=days, location=location
             )
             logger.debug(f"Generated {len(weather_data)} weather data points")
 
             # Generate carbon intensity data
             carbon_data = self.carbon_gen.generate_carbon_intensity(
-                home=home,
-                start_date=start_date,
-                days=days,
-                location=location
+                home=home, start_date=start_date, days=days, location=location
             )
             logger.debug(f"Generated {len(carbon_data)} carbon intensity data points")
 
             # Generate electricity pricing data
             pricing_data = self.pricing_gen.generate_pricing(
-                home=home,
-                start_date=start_date,
-                days=days,
-                location=location
+                home=home, start_date=start_date, days=days, location=location
             )
             logger.debug(f"Generated {len(pricing_data)} pricing data points")
 
             # Generate calendar events
             calendar_data = self.calendar_gen.generate_calendar(
-                home=home,
-                start_date=start_date,
-                days=days
+                home=home, start_date=start_date, days=days
             )
             logger.debug(f"Generated {len(calendar_data)} calendar events")
 
             # Return unified structure
             external_data = {
-                'weather': weather_data,
-                'carbon_intensity': carbon_data,
-                'pricing': pricing_data,
-                'calendar': calendar_data
+                "weather": weather_data,
+                "carbon_intensity": carbon_data,
+                "pricing": pricing_data,
+                "calendar": calendar_data,
             }
 
             logger.info(
@@ -134,4 +123,3 @@ class SyntheticExternalDataGenerator:
         except Exception as e:
             logger.error(f"Error generating external data: {e}", exc_info=True)
             raise
-

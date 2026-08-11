@@ -26,11 +26,7 @@ class ContextPrioritizationService:
         """Initialize context prioritization service."""
         self.logger = logger
 
-    def score_entity_relevance(
-        self,
-        entity: dict[str, Any],
-        user_prompt: str
-    ) -> float:
+    def score_entity_relevance(self, entity: dict[str, Any], user_prompt: str) -> float:
         """
         Score entity relevance to user prompt.
 
@@ -92,11 +88,7 @@ class ContextPrioritizationService:
         # Normalize score to 0.0-1.0
         return min(1.0, score)
 
-    def score_service_relevance(
-        self,
-        service: str,
-        user_prompt: str
-    ) -> float:
+    def score_service_relevance(self, service: str, user_prompt: str) -> float:
         """
         Score service relevance to user prompt.
 
@@ -148,11 +140,7 @@ class ContextPrioritizationService:
 
         return min(1.0, score)
 
-    def score_device_relevance(
-        self,
-        device: dict[str, Any],
-        user_prompt: str
-    ) -> float:
+    def score_device_relevance(self, device: dict[str, Any], user_prompt: str) -> float:
         """
         Score device relevance to user prompt.
 
@@ -190,10 +178,7 @@ class ContextPrioritizationService:
         return min(1.0, score)
 
     def prioritize_entities(
-        self,
-        entities: list[dict[str, Any]],
-        user_prompt: str,
-        top_n: int = 20
+        self, entities: list[dict[str, Any]], user_prompt: str, top_n: int = 20
     ) -> list[dict[str, Any]]:
         """
         Prioritize entities by relevance to user prompt.
@@ -221,12 +206,7 @@ class ContextPrioritizationService:
         # Return top N
         return [entity for score, entity in scored_entities[:top_n]]
 
-    def prioritize_services(
-        self,
-        services: list[str],
-        user_prompt: str,
-        top_n: int = 15
-    ) -> list[str]:
+    def prioritize_services(self, services: list[str], user_prompt: str, top_n: int = 15) -> list[str]:
         """
         Prioritize services by relevance to user prompt.
 
@@ -254,10 +234,7 @@ class ContextPrioritizationService:
         return [service for score, service in scored_services[:top_n]]
 
     def prioritize_devices(
-        self,
-        devices: list[dict[str, Any]],
-        user_prompt: str,
-        top_n: int = 15
+        self, devices: list[dict[str, Any]], user_prompt: str, top_n: int = 15
     ) -> list[dict[str, Any]]:
         """
         Prioritize devices by relevance to user prompt.

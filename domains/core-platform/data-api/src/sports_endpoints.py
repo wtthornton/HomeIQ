@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 # Response Models
 class GameResponse(BaseModel):
     """Game response model with automation-relevant attributes"""
+
     game_id: str
     league: str  # NFL, NHL, MLB, NBA, MLS, etc.
     season: int
@@ -61,6 +62,7 @@ class GameResponse(BaseModel):
 
 class GameListResponse(BaseModel):
     """Game list response"""
+
     games: list[GameResponse]
     count: int
     team: str | None = None
@@ -69,6 +71,7 @@ class GameListResponse(BaseModel):
 
 class TeamScheduleResponse(BaseModel):
     """Team schedule response"""
+
     team: str
     season: int
     games: list[GameResponse]
@@ -81,6 +84,7 @@ class TeamScheduleResponse(BaseModel):
 
 class ScoreTimelinePoint(BaseModel):
     """Score timeline point"""
+
     timestamp: str
     home_score: int
     away_score: int
@@ -90,6 +94,7 @@ class ScoreTimelinePoint(BaseModel):
 
 class ScoreTimelineResponse(BaseModel):
     """Score timeline response"""
+
     game_id: str
     home_team: str
     away_team: str
@@ -110,7 +115,7 @@ sports_writer = get_sports_writer()
 @router.get("/sports/games/live")
 async def get_live_games(
     team_ids: str | None = Query(None, description="Comma-separated team IDs"),
-    league: str | None = Query(None, description="NFL or NHL")
+    league: str | None = Query(None, description="NFL or NHL"),
 ):
     """
     Get currently live games
@@ -130,14 +135,14 @@ async def get_live_games(
         # State values: PRE (pre-game), IN (live), POST (finished), BYE, NOT_FOUND
         # Use pivot() to combine all fields into single records
         # Short time range (-5m) ensures we get only recent data with all fields
-        query = '''
+        query = """
             from(bucket: "home_assistant_events")
                 |> range(start: -5m)
                 |> filter(fn: (r) => r._measurement == "sports_data")
                 |> filter(fn: (r) => r.state == "IN")
                 |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                 |> sort(columns: ["_time"], desc: true)
-        '''
+        """
 
         if league:
             safe_league = sanitize_flux_value(league.upper())
@@ -173,7 +178,7 @@ async def get_live_games(
             # sports-api writes: team_abbr, opponent_abbr, team_score, opponent_score, state, league
             # Handle timestamp - convert datetime to ISO string if needed
             raw_time = record.get("_time", datetime.now())
-            if hasattr(raw_time, 'isoformat'):
+            if hasattr(raw_time, "isoformat"):
                 timestamp_str = raw_time.isoformat()
             else:
                 timestamp_str = str(raw_time)
@@ -191,8 +196,12 @@ async def get_live_games(
                 week=None,
                 home_team=record.get("team_abbr", ""),  # Team being tracked
                 away_team=record.get("opponent_abbr", ""),  # Opponent
-                home_score=record.get("team_score") if record.get("_field") == "team_score" else record.get("team_score", 0),
-                away_score=record.get("opponent_score") if record.get("_field") == "opponent_score" else record.get("opponent_score", 0),
+                home_score=record.get("team_score")
+                if record.get("_field") == "team_score"
+                else record.get("team_score", 0),
+                away_score=record.get("opponent_score")
+                if record.get("_field") == "opponent_score"
+                else record.get("opponent_score", 0),
                 status="live",  # IN state = live
                 quarter_period=record.get("quarter") or record.get("period"),
                 time_remaining=record.get("clock", ""),
@@ -204,7 +213,7 @@ async def get_live_games(
                 team_winner=team_winner,
                 opponent_winner=opponent_winner,
                 event_name=record.get("event_name"),
-                last_play=record.get("last_play")
+                last_play=record.get("last_play"),
             )
             games.append(game)
 
@@ -222,14 +231,14 @@ async def get_live_games(
                     "status": game.status,
                     "quarter": game.quarter_period,
                     "time_remaining": game.time_remaining,
-                    "start_time": game.timestamp
+                    "start_time": game.timestamp,
                 }
                 await sports_writer.write_game(game_data)
 
         return {
             "games": [game.model_dump() for game in games],
             "count": len(games),
-            "status": "success"
+            "status": "success",
         }
     except Exception as e:
         logger.error(f"Error fetching live games: {e}")
@@ -240,7 +249,7 @@ async def get_live_games(
 async def get_upcoming_games(
     team_ids: str | None = Query(None, description="Comma-separated team IDs"),
     hours: int = Query(default=24, description="Hours ahead to look for games"),
-    league: str | None = Query(None, description="NFL or NHL")
+    league: str | None = Query(None, description="NFL or NHL"),
 ):
     """
     Get upcoming games
@@ -261,14 +270,14 @@ async def get_upcoming_games(
         # We query recent data and filter by PRE state (upcoming games)
         # Use pivot() to combine all fields into single records
         # Short time range (-5m) ensures we get only recent data with all fields
-        query = '''
+        query = """
             from(bucket: "home_assistant_events")
                 |> range(start: -5m)
                 |> filter(fn: (r) => r._measurement == "sports_data")
                 |> filter(fn: (r) => r.state == "PRE")
                 |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
                 |> sort(columns: ["_time"], desc: true)
-        '''
+        """
 
         if league:
             safe_league = sanitize_flux_value(league.upper())
@@ -303,7 +312,7 @@ async def get_upcoming_games(
             # Map sports-api data structure to GameResponse
             # Handle timestamp - convert datetime to ISO string if needed
             raw_time = record.get("_time", datetime.now())
-            if hasattr(raw_time, 'isoformat'):
+            if hasattr(raw_time, "isoformat"):
                 timestamp_str = raw_time.isoformat()
             else:
                 timestamp_str = str(raw_time)
@@ -328,7 +337,7 @@ async def get_upcoming_games(
                 team_winner=None,  # Not applicable for upcoming
                 opponent_winner=None,  # Not applicable for upcoming
                 event_name=record.get("event_name"),
-                last_play=None  # Not applicable for upcoming
+                last_play=None,  # Not applicable for upcoming
             )
             games.append(game)
 
@@ -346,24 +355,20 @@ async def get_upcoming_games(
                     "status": game.status,
                     "quarter": game.quarter_period,
                     "time_remaining": game.time_remaining,
-                    "start_time": game.timestamp
+                    "start_time": game.timestamp,
                 }
                 await sports_writer.write_game(game_data)
 
-        return {
-            "games": [game.model_dump() for game in games],
-            "count": len(games),
-            "hours": hours
-        }
+        return {"games": [game.model_dump() for game in games], "count": len(games), "hours": hours}
     except Exception as e:
         logger.error(f"Error fetching upcoming games: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch upcoming games: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch upcoming games: {str(e)}"
+        ) from e
 
 
 @router.get("/sports/teams")
-async def get_teams(
-    league: str | None = Query(None, description="NFL or NHL")
-):
+async def get_teams(league: str | None = Query(None, description="NFL or NHL")):
     """
     Get available teams
 
@@ -418,7 +423,7 @@ async def get_game_history(
     season: int | None = Query(None, description="Season year (default: current)"),
     league: str | None = Query(None, description="NFL or NHL"),
     status_filter: str | None = Query(None, alias="status", description="Filter by status"),
-    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of games")
+    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of games"),
 ):
     """
     Get historical games for a team
@@ -455,7 +460,7 @@ async def get_game_history(
             safe_measurement = sanitize_flux_value(measurement)
             query = f'''
                 from(bucket: "sports_data")
-                    |> range(start: {season}-01-01T00:00:00Z, stop: {season+1}-01-01T00:00:00Z)
+                    |> range(start: {season}-01-01T00:00:00Z, stop: {season + 1}-01-01T00:00:00Z)
                     |> filter(fn: (r) => r._measurement == "{safe_measurement}")
                     |> filter(fn: (r) => r.home_team == "{safe_team}" or r.away_team == "{safe_team}")
             '''
@@ -465,7 +470,7 @@ async def get_game_history(
                 query += f'|> filter(fn: (r) => r.status == "{safe_status}")'
 
             query += '|> sort(columns: ["_time"], desc: true)'
-            query += f'|> limit(n: {limit})'
+            query += f"|> limit(n: {limit})"
 
             try:
                 results = await influxdb_client._execute_query(query)
@@ -473,7 +478,7 @@ async def get_game_history(
                 for record in results:
                     game = GameResponse(
                         game_id=record.get("game_id", ""),
-                        league=measurement.split('_')[0].upper(),
+                        league=measurement.split("_")[0].upper(),
                         season=int(record.get("season", season)),
                         week=record.get("week"),
                         home_team=record.get("home_team", ""),
@@ -483,32 +488,26 @@ async def get_game_history(
                         status=record.get("status", "unknown"),
                         quarter_period=record.get("quarter") or record.get("period"),
                         time_remaining=record.get("time_remaining"),
-                        timestamp=record.get("_time", datetime.now().isoformat())
+                        timestamp=record.get("_time", datetime.now().isoformat()),
                     )
                     all_games.append(game)
 
             except Exception as e:
                 logger.warning(f"Error querying {measurement}: {e}")
 
-        return GameListResponse(
-            games=all_games,
-            count=len(all_games),
-            team=team,
-            season=season
-        )
+        return GameListResponse(games=all_games, count=len(all_games), team=team, season=season)
 
     except Exception as e:
         logger.error(f"Error getting game history: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get game history: {str(e)}"
+            detail=f"Failed to get game history: {str(e)}",
         ) from e
 
 
 @router.get("/sports/games/timeline/{game_id}", response_model=ScoreTimelineResponse)
 async def get_game_timeline(
-    game_id: str,
-    league: str | None = Query(None, description="NFL or NHL")
+    game_id: str, league: str | None = Query(None, description="NFL or NHL")
 ):
     """
     Get score progression timeline for a specific game
@@ -556,7 +555,7 @@ async def get_game_timeline(
                         home_score=record.get("home_score", 0),
                         away_score=record.get("away_score", 0),
                         quarter_period=record.get("quarter") or record.get("period", ""),
-                        time_remaining=record.get("time_remaining", "")
+                        time_remaining=record.get("time_remaining", ""),
                     )
                     timeline.append(point)
 
@@ -569,7 +568,7 @@ async def get_game_timeline(
                         home_team=first_record.get("home_team", ""),
                         away_team=first_record.get("away_team", ""),
                         timeline=timeline,
-                        final_score=f"{final_record.get('home_score', 0)}-{final_record.get('away_score', 0)}"
+                        final_score=f"{final_record.get('home_score', 0)}-{final_record.get('away_score', 0)}",
                     )
 
             except Exception as e:
@@ -577,8 +576,7 @@ async def get_game_timeline(
 
         # Game not found in any measurement
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Game {game_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Game {game_id} not found"
         )
 
     except HTTPException:
@@ -587,7 +585,7 @@ async def get_game_timeline(
         logger.error(f"Error getting game timeline: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get game timeline: {str(e)}"
+            detail=f"Failed to get game timeline: {str(e)}",
         ) from e
 
 
@@ -595,7 +593,7 @@ async def get_game_timeline(
 async def get_team_schedule(
     team: str,
     season: int | None = Query(None, description="Season year (default: current)"),
-    league: str | None = Query(None, description="NFL or NHL")
+    league: str | None = Query(None, description="NFL or NHL"),
 ):
     """
     Retrieve complete season schedule for a team with calculated win/loss record.
@@ -664,7 +662,11 @@ async def get_team_schedule(
         ties = 0
 
         for game in games:
-            if game.status == "finished" and game.home_score is not None and game.away_score is not None:
+            if (
+                game.status == "finished"
+                and game.home_score is not None
+                and game.away_score is not None
+            ):
                 if game.home_team == team:
                     if game.home_score > game.away_score:
                         wins += 1
@@ -691,7 +693,7 @@ async def get_team_schedule(
             wins=wins,
             losses=losses,
             ties=ties,
-            win_percentage=round(win_percentage, 3)
+            win_percentage=round(win_percentage, 3),
         )
 
     except HTTPException:
@@ -700,19 +702,21 @@ async def get_team_schedule(
         logger.error(f"Error getting team schedule: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get team schedule: {str(e)}"
+            detail=f"Failed to get team schedule: {str(e)}",
         ) from e
 
 
 # Epic 11 Story 11.5: Team Persistence Implementation
 class UserTeamsRequest(BaseModel):
     """Request model for saving user team preferences"""
+
     nfl_teams: list[str] = []
     nhl_teams: list[str] = []
 
 
 class UserTeamsResponse(BaseModel):
     """Response model for user team preferences"""
+
     user_id: str
     nfl_teams: list[str]
     nhl_teams: list[str]
@@ -724,7 +728,7 @@ class UserTeamsResponse(BaseModel):
 async def save_user_teams(
     teams: UserTeamsRequest,
     user_id: str = Query(default="default", description="User identifier"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Save user's selected teams to database
@@ -742,19 +746,15 @@ async def save_user_teams(
         # Validate team lists (max 5 teams per league)
         if len(teams.nfl_teams) > 5:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maximum 5 NFL teams allowed"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Maximum 5 NFL teams allowed"
             )
         if len(teams.nhl_teams) > 5:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maximum 5 NHL teams allowed"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Maximum 5 NHL teams allowed"
             )
 
         # Check if preferences exist
-        result = await db.execute(
-            select(TeamPreferences).where(TeamPreferences.user_id == user_id)
-        )
+        result = await db.execute(select(TeamPreferences).where(TeamPreferences.user_id == user_id))
         existing = result.scalar_one_or_none()
 
         if existing:
@@ -764,19 +764,21 @@ async def save_user_teams(
             existing.updated_at = datetime.now(UTC)
             await db.commit()
             await db.refresh(existing)
-            logger.info(f"Updated team preferences for user {user_id}: NFL={len(teams.nfl_teams)}, NHL={len(teams.nhl_teams)}")
+            logger.info(
+                f"Updated team preferences for user {user_id}: NFL={len(teams.nfl_teams)}, NHL={len(teams.nhl_teams)}"
+            )
             return UserTeamsResponse(**existing.to_dict())
         else:
             # Create new preferences
             new_prefs = TeamPreferences(
-                user_id=user_id,
-                nfl_teams=teams.nfl_teams,
-                nhl_teams=teams.nhl_teams
+                user_id=user_id, nfl_teams=teams.nfl_teams, nhl_teams=teams.nhl_teams
             )
             db.add(new_prefs)
             await db.commit()
             await db.refresh(new_prefs)
-            logger.info(f"Created team preferences for user {user_id}: NFL={len(teams.nfl_teams)}, NHL={len(teams.nhl_teams)}")
+            logger.info(
+                f"Created team preferences for user {user_id}: NFL={len(teams.nfl_teams)}, NHL={len(teams.nhl_teams)}"
+            )
             return UserTeamsResponse(**new_prefs.to_dict())
 
     except HTTPException:
@@ -786,14 +788,14 @@ async def save_user_teams(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save team preferences: {str(e)}"
+            detail=f"Failed to save team preferences: {str(e)}",
         ) from e
 
 
 @router.get("/sports/user/teams", response_model=UserTeamsResponse)
 async def get_user_teams(
     user_id: str = Query(default="default", description="User identifier"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get user's selected teams from database
@@ -807,9 +809,7 @@ async def get_user_teams(
         User's team preferences (empty lists if not found)
     """
     try:
-        result = await db.execute(
-            select(TeamPreferences).where(TeamPreferences.user_id == user_id)
-        )
+        result = await db.execute(select(TeamPreferences).where(TeamPreferences.user_id == user_id))
         prefs = result.scalar_one_or_none()
 
         if prefs:
@@ -817,17 +817,12 @@ async def get_user_teams(
         else:
             # Return empty preferences if not found
             return UserTeamsResponse(
-                user_id=user_id,
-                nfl_teams=[],
-                nhl_teams=[],
-                created_at=None,
-                updated_at=None
+                user_id=user_id, nfl_teams=[], nhl_teams=[], created_at=None, updated_at=None
             )
 
     except Exception as e:
         logger.error(f"Error getting team preferences: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get team preferences: {str(e)}"
+            detail=f"Failed to get team preferences: {str(e)}",
         ) from e
-

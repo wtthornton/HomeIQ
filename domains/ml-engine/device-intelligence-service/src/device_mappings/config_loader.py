@@ -82,4 +82,3 @@ class ConfigLoader:
         """
         config_path = self.base_path / device_type / "config.yaml"
         return config_path.exists()
-

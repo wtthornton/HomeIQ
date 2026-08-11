@@ -31,7 +31,6 @@ import pytest
 import pytest_asyncio
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
-
 from src.auth import AuthManager, User
 
 # ---------------------------------------------------------------------------
@@ -45,6 +44,7 @@ from src.auth import AuthManager, User
 async def fresh_db():  # noqa: F811  (intentional override of conftest fixture)
     """No-op override: auth tests have no database dependency."""
     yield
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -481,7 +481,7 @@ class TestGetSessionStatistics:
     @pytest.mark.unit
     def test_counts_active_and_expired(self):
         mgr = _make_manager()
-        live = mgr.create_session(_make_user("live"))
+        mgr.create_session(_make_user("live"))
         dead = mgr.create_session(_make_user("dead"))
         mgr.sessions[dead]["expires_at"] = datetime.now() - timedelta(seconds=5)
 

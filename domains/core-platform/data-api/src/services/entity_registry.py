@@ -67,9 +67,7 @@ class EntityRegistry:
                 related_entities = [eid for eid in entity_ids if eid != entity.entity_id]
 
                 entry = EntityRegistryEntry.from_entity_and_device(
-                    entity=entity,
-                    device=device,
-                    related_entities=related_entities
+                    entity=entity, device=device, related_entities=related_entities
                 )
                 registry_entries.append(entry)
 
@@ -151,9 +149,7 @@ class EntityRegistry:
         try:
             # Query entities by area_id
             result = await self.db.execute(
-                select(Entity)
-                .where(Entity.area_id == area_id)
-                .options(selectinload(Entity.device))
+                select(Entity).where(Entity.area_id == area_id).options(selectinload(Entity.device))
             )
             entities = result.scalars().all()
 
@@ -185,14 +181,13 @@ class EntityRegistry:
                 related_entities = []
                 if entity.device_id and entity.device_id in entities_by_device:
                     related_entities = [
-                        e.entity_id for e in entities_by_device[entity.device_id]
+                        e.entity_id
+                        for e in entities_by_device[entity.device_id]
                         if e.entity_id != entity.entity_id
                     ]
 
                 entry = EntityRegistryEntry.from_entity_and_device(
-                    entity=entity,
-                    device=device,
-                    related_entities=related_entities
+                    entity=entity, device=device, related_entities=related_entities
                 )
                 registry_entries.append(entry)
 
@@ -249,14 +244,13 @@ class EntityRegistry:
                 related_entities = []
                 if entity.device_id and entity.device_id in entities_by_device:
                     related_entities = [
-                        e.entity_id for e in entities_by_device[entity.device_id]
+                        e.entity_id
+                        for e in entities_by_device[entity.device_id]
                         if e.entity_id != entity.entity_id
                     ]
 
                 entry = EntityRegistryEntry.from_entity_and_device(
-                    entity=entity,
-                    device=device,
-                    related_entities=related_entities
+                    entity=entity, device=device, related_entities=related_entities
                 )
                 registry_entries.append(entry)
 
@@ -278,17 +272,15 @@ class EntityRegistry:
         """
         try:
             # Get the device
-            result = await self.db.execute(
-                select(Device).where(Device.device_id == device_id)
-            )
+            result = await self.db.execute(select(Device).where(Device.device_id == device_id))
             device = result.scalar_one_or_none()
 
             if not device:
                 return {
-                    'device_id': device_id,
-                    'device': None,
-                    'parent_device': None,
-                    'child_devices': []
+                    "device_id": device_id,
+                    "device": None,
+                    "parent_device": None,
+                    "child_devices": [],
                 }
 
             # Get parent device (via via_device)
@@ -306,38 +298,39 @@ class EntityRegistry:
             child_devices = child_result.scalars().all()
 
             return {
-                'device_id': device_id,
-                'device': {
-                    'device_id': device.device_id,
-                    'name': device.name,
-                    'manufacturer': device.manufacturer,
-                    'model': device.model,
-                    'via_device': device.via_device,
-                    'config_entry_id': device.config_entry_id
+                "device_id": device_id,
+                "device": {
+                    "device_id": device.device_id,
+                    "name": device.name,
+                    "manufacturer": device.manufacturer,
+                    "model": device.model,
+                    "via_device": device.via_device,
+                    "config_entry_id": device.config_entry_id,
                 },
-                'parent_device': {
-                    'device_id': parent_device.device_id,
-                    'name': parent_device.name,
-                    'manufacturer': parent_device.manufacturer,
-                    'model': parent_device.model
-                } if parent_device else None,
-                'child_devices': [
+                "parent_device": {
+                    "device_id": parent_device.device_id,
+                    "name": parent_device.name,
+                    "manufacturer": parent_device.manufacturer,
+                    "model": parent_device.model,
+                }
+                if parent_device
+                else None,
+                "child_devices": [
                     {
-                        'device_id': child.device_id,
-                        'name': child.name,
-                        'manufacturer': child.manufacturer,
-                        'model': child.model
+                        "device_id": child.device_id,
+                        "name": child.name,
+                        "manufacturer": child.manufacturer,
+                        "model": child.model,
                     }
                     for child in child_devices
-                ]
+                ],
             }
 
         except Exception as e:
             logger.error(f"Error getting device hierarchy for {device_id}: {e}")
             return {
-                'device_id': device_id,
-                'device': None,
-                'parent_device': None,
-                'child_devices': []
+                "device_id": device_id,
+                "device": None,
+                "parent_device": None,
+                "child_devices": [],
             }
-

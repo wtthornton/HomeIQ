@@ -28,18 +28,10 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     """
     try:
         await db.execute(text("SELECT 1"))
-        return {
-            "status": "ok",
-            "service": "ai-query-service",
-            "database": "connected"
-        }
+        return {"status": "ok", "service": "ai-query-service", "database": "connected"}
     except Exception as e:
         logger.error(f"[ERROR] Health check database probe failed: {e}", exc_info=True)
-        return {
-            "status": "degraded",
-            "service": "ai-query-service",
-            "database": "disconnected"
-        }
+        return {"status": "degraded", "service": "ai-query-service", "database": "disconnected"}
 
 
 @router.get("/ready", status_code=status.HTTP_200_OK)
@@ -57,11 +49,7 @@ async def readiness_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
         # Test database connection
         await db.execute(text("SELECT 1"))
 
-        return {
-            "status": "ready",
-            "service": "ai-query-service",
-            "database": "connected"
-        }
+        return {"status": "ready", "service": "ai-query-service", "database": "connected"}
     except Exception as e:
         logger.error(f"[ERROR] Readiness check failed: {e}", exc_info=True)
         return JSONResponse(
@@ -69,8 +57,8 @@ async def readiness_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
             content={
                 "status": "not_ready",
                 "service": "ai-query-service",
-                "database": "disconnected"
-            }
+                "database": "disconnected",
+            },
         )
 
 
@@ -82,8 +70,4 @@ async def liveness_check() -> dict[str, str]:
     Returns:
         dict: Liveness status information.
     """
-    return {
-        "status": "live",
-        "service": "ai-query-service"
-    }
-
+    return {"status": "live", "service": "ai-query-service"}

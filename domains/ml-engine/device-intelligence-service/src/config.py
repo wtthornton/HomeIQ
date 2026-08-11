@@ -276,7 +276,9 @@ class Settings(BaseServiceSettings):
         """Get the WebSocket URL for Home Assistant."""
         if self.HA_WS_URL:
             return self.HA_WS_URL
-        return self.HA_URL.replace("http://", "ws://").replace("https://", "wss://") + "/api/websocket"
+        return (
+            self.HA_URL.replace("http://", "ws://").replace("https://", "wss://") + "/api/websocket"
+        )
 
     def get_nabu_casa_ws_url(self) -> str | None:
         """Get the WebSocket URL for Nabu Casa."""

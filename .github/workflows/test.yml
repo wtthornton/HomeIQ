@@ -50,9 +50,11 @@ jobs:
       - name: Start Docker services
         if: steps.check-e2e.outputs.has_tests == 'true'
         run: |
-          # Create minimal .env file for testing
-          mkdir -p infrastructure
-          cat > infrastructure/.env << EOF
+          # Written to the repo root, not infrastructure/: compose runs from the
+          # root and docker-compose.yml declares `env_file: .env`, so a file at
+          # infrastructure/.env is never read. This step has failed on every run
+          # since 2025-11-14 with "stat .../HomeIQ/.env: no such file".
+          cat > .env << EOF
           # Test configuration
           HA_HTTP_URL=http://ha-simulator:8123
           HA_WS_URL=ws://ha-simulator:8123/api/websocket
@@ -213,10 +215,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio pytest-timeout httpx aiohttp
 
-          # Install shared libraries
-          for lib in libs/homeiq-*/; do
-            pip install "$lib" 2>/dev/null || true
-          done
+          # One invocation, and no `|| true`. The suppression here was hiding a
+          # real failure: homeiq-data and homeiq-memory depend on siblings that
+          # are not on PyPI, so installing one at a time silently dropped both,
+          # and the missing transitive deps resurfaced later as
+          # "ModuleNotFoundError: No module named 'sqlalchemy'".
+          pip install libs/homeiq-*/
 
       - name: Run integration tests
         if: steps.check-integration.outputs.has_tests == 'true'
@@ -261,3 +265,19 @@ jobs:
           echo "**Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+          # Propagate the result. Writing "Failed" into the step summary and then
+          # exiting 0 made this job report success while both jobs it summarizes
+          # were red. `skipped` is a legitimate outcome; anything that is neither
+          # success nor skipped is not.
+          rc=0
+          for job in "e2e-tests:${{ needs.e2e-tests.result }}" \
+                     "integration-tests:${{ needs.integration-tests.result }}"; do
+            name="${job%%:*}"
+            result="${job#*:}"
+            case "$result" in
+              success|skipped) ;;
+              *) echo "::error::$name concluded '$result'"; rc=1 ;;
+            esac
+          done
+          exit "$rc"

@@ -7,6 +7,7 @@ Implements async HTTP client for community.home-assistant.io with:
 - Rate limiting (2 requests/second)
 - Connection pooling - Context7 validated
 """
+
 import asyncio
 import logging
 from datetime import UTC, datetime
@@ -24,12 +25,7 @@ logger = logging.getLogger(__name__)
 class DiscourseClient:
     """Async client for Discourse API with retry and rate limiting"""
 
-    def __init__(
-        self,
-        base_url: str = None,
-        rate_limit_per_sec: float = None,
-        retries: int = None
-    ):
+    def __init__(self, base_url: str = None, rate_limit_per_sec: float = None, retries: int = None):
         self.base_url = base_url or settings.discourse_base_url
         self.rate_limit = rate_limit_per_sec or settings.discourse_rate_limit_per_sec
         self.retries = retries or settings.http_retries
@@ -46,13 +42,13 @@ class DiscourseClient:
             connect=settings.http_timeout_connect,
             read=settings.http_timeout_read,
             write=settings.http_timeout_write,
-            pool=settings.http_timeout_pool
+            pool=settings.http_timeout_pool,
         )
 
         # Configure connection limits (Context7 pattern)
         self._limits = httpx.Limits(
             max_keepalive_connections=settings.http_max_keepalive,
-            max_connections=settings.http_max_connections
+            max_connections=settings.http_max_connections,
         )
 
         # Client will be created in async context
@@ -64,7 +60,7 @@ class DiscourseClient:
             transport=self._transport,
             timeout=self._timeout,
             limits=self._limits,
-            headers={"User-Agent": "homeiq-miner/1.0"}
+            headers={"User-Agent": "homeiq-miner/1.0"},
         )
         return self
 
@@ -89,7 +85,7 @@ class DiscourseClient:
         method: str,
         endpoint: str,
         params: dict[str, Any] | None = None,
-        correlation_id: str | None = None
+        correlation_id: str | None = None,
     ) -> dict[str, Any]:
         """Make HTTP request with rate limiting and error handling"""
         if not self._client:
@@ -125,11 +121,7 @@ class DiscourseClient:
             raise
 
     async def fetch_blueprints(
-        self,
-        min_likes: int = None,
-        since: datetime | None = None,
-        limit: int = None,
-        page: int = 0
+        self, min_likes: int = None, since: datetime | None = None, limit: int = None, page: int = 0
     ) -> list[dict[str, Any]]:
         """
         Fetch blueprint posts from Discourse Blueprints Exchange
@@ -150,15 +142,13 @@ class DiscourseClient:
         logger.info(f"[{correlation_id}] Fetching blueprints: min_likes={min_likes}, page={page}")
 
         # Query category 53 (Blueprints Exchange)
-        params = {
-            "page": page
-        }
+        params = {"page": page}
 
         data = await self._request(
             "GET",
             f"/c/blueprints-exchange/{settings.discourse_category_id}.json",
             params=params,
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
         )
 
         # Extract topic list
@@ -190,18 +180,20 @@ class DiscourseClient:
                 if updated_at < since_aware:
                     continue
 
-            filtered_topics.append({
-                "id": topic.get("id"),
-                "title": topic.get("title"),
-                "slug": topic.get("slug"),
-                "likes": likes,
-                "posts_count": topic.get("posts_count", 0),
-                "views": topic.get("views", 0),
-                "created_at": topic.get("created_at"),
-                "last_posted_at": topic.get("last_posted_at"),
-                "category_id": topic.get("category_id"),
-                "tags": topic.get("tags", [])
-            })
+            filtered_topics.append(
+                {
+                    "id": topic.get("id"),
+                    "title": topic.get("title"),
+                    "slug": topic.get("slug"),
+                    "likes": likes,
+                    "posts_count": topic.get("posts_count", 0),
+                    "views": topic.get("views", 0),
+                    "created_at": topic.get("created_at"),
+                    "last_posted_at": topic.get("last_posted_at"),
+                    "category_id": topic.get("category_id"),
+                    "tags": topic.get("tags", []),
+                }
+            )
 
         logger.info(
             f"[{correlation_id}] Found {len(filtered_topics)} blueprints "
@@ -211,9 +203,7 @@ class DiscourseClient:
         return filtered_topics[:limit]
 
     async def fetch_post_details(
-        self,
-        post_id: int,
-        correlation_id: str | None = None
+        self, post_id: int, correlation_id: str | None = None
     ) -> dict[str, Any]:
         """
         Fetch full post content including YAML blueprints
@@ -229,11 +219,7 @@ class DiscourseClient:
 
         logger.debug(f"[{correlation_id}] Fetching post details: {post_id}")
 
-        data = await self._request(
-            "GET",
-            f"/t/{post_id}.json",
-            correlation_id=correlation_id
-        )
+        data = await self._request("GET", f"/t/{post_id}.json", correlation_id=correlation_id)
 
         # Extract first post (main content)
         posts = data.get("post_stream", {}).get("posts", [])
@@ -276,7 +262,7 @@ class DiscourseClient:
             "likes": first_post.get("like_count", 0),
             "tags": data.get("tags", []),
             "category_id": data.get("category_id"),
-            "views": data.get("views", 0)
+            "views": data.get("views", 0),
         }
 
         logger.debug(
@@ -288,9 +274,7 @@ class DiscourseClient:
         return result
 
     async def fetch_post_metadata(
-        self,
-        post_id: int,
-        correlation_id: str | None = None
+        self, post_id: int, correlation_id: str | None = None
     ) -> dict[str, Any]:
         """
         Fetch only post metadata (for quality score updates)
@@ -304,11 +288,7 @@ class DiscourseClient:
         """
         correlation_id = correlation_id or str(uuid4())
 
-        data = await self._request(
-            "GET",
-            f"/t/{post_id}.json",
-            correlation_id=correlation_id
-        )
+        data = await self._request("GET", f"/t/{post_id}.json", correlation_id=correlation_id)
 
         posts = data.get("post_stream", {}).get("posts", [])
         if not posts:
@@ -320,6 +300,5 @@ class DiscourseClient:
             "id": post_id,
             "likes": first_post.get("like_count", 0),
             "views": data.get("views", 0),
-            "updated_at": first_post.get("updated_at", "")
+            "updated_at": first_post.get("updated_at", ""),
         }
-

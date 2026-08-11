@@ -23,20 +23,25 @@ router = APIRouter(prefix="/api/v1/rag", tags=["rag"])
 # Request/Response models
 class StoreRequest(BaseModel):
     """Request model for storing knowledge."""
+
     text: str = Field(..., description="Text to store", min_length=1, max_length=10000)
-    knowledge_type: str = Field(..., description="Knowledge type (e.g., 'query', 'pattern')", min_length=1, max_length=100)
+    knowledge_type: str = Field(
+        ..., description="Knowledge type (e.g., 'query', 'pattern')", min_length=1, max_length=100
+    )
     metadata: dict[str, Any] | None = Field(None, description="Optional metadata")
     success_score: float = Field(0.5, ge=0.0, le=1.0, description="Success score (0.0-1.0)")
 
 
 class StoreResponse(BaseModel):
     """Response model for store operation."""
+
     id: int = Field(..., description="Stored entry ID")
     message: str = Field(..., description="Success message")
 
 
 class RetrieveRequest(BaseModel):
     """Request model for retrieving knowledge."""
+
     query: str = Field(..., description="Query text", min_length=1, max_length=10000)
     knowledge_type: str | None = Field(None, description="Filter by knowledge type", max_length=100)
     top_k: int = Field(5, ge=1, le=100, description="Number of results to return")
@@ -45,39 +50,43 @@ class RetrieveRequest(BaseModel):
 
 class RetrieveResponse(BaseModel):
     """Response model for retrieve operation."""
+
     results: list[dict[str, Any]] = Field(..., description="List of similar entries")
     count: int = Field(..., description="Number of results returned")
 
 
 class SearchRequest(BaseModel):
     """Request model for searching knowledge."""
+
     query: str = Field(..., description="Query text", min_length=1, max_length=10000)
-    filters: dict[str, Any] | None = Field(None, description="Optional filters (supported: knowledge_type)")
+    filters: dict[str, Any] | None = Field(
+        None, description="Optional filters (supported: knowledge_type)"
+    )
     top_k: int = Field(5, ge=1, le=100, description="Number of results to return")
     min_similarity: float = Field(0.7, ge=0.0, le=1.0, description="Minimum similarity threshold")
 
 
 class SearchResponse(BaseModel):
     """Response model for search operation."""
+
     results: list[dict[str, Any]] = Field(..., description="List of search results")
     count: int = Field(..., description="Number of results returned")
 
 
 class UpdateSuccessRequest(BaseModel):
     """Request model for updating success score."""
+
     score: float = Field(..., ge=0.0, le=1.0, description="New success score (0.0-1.0)")
 
 
 class UpdateSuccessResponse(BaseModel):
     """Response model for update success operation."""
+
     message: str = Field(..., description="Success message")
 
 
 @router.post("/store", response_model=StoreResponse)
-async def store_knowledge(
-    request: StoreRequest,
-    service: RAGServiceDep
-) -> StoreResponse:
+async def store_knowledge(request: StoreRequest, service: RAGServiceDep) -> StoreResponse:
     """
     Store knowledge with semantic embedding.
 
@@ -99,31 +108,25 @@ async def store_knowledge(
             text=request.text,
             knowledge_type=request.knowledge_type,
             metadata=request.metadata,
-            success_score=request.success_score
+            success_score=request.success_score,
         )
 
         latency_ms = (time.time() - start_time) * 1000
-        metrics.record_call('store', latency_ms, cache_hit)
+        metrics.record_call("store", latency_ms, cache_hit)
         metrics.record_success_score(request.success_score)
 
         logger.info(f"Stored knowledge: id={entry_id}, type={request.knowledge_type}")
-        return StoreResponse(
-            id=entry_id,
-            message="Knowledge stored successfully"
-        )
+        return StoreResponse(id=entry_id, message="Knowledge stored successfully")
 
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
-        metrics.record_error('storage')
+        metrics.record_error("storage")
         logger.error(f"Error storing knowledge: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to store knowledge: {str(e)}") from e
 
 
 @router.post("/retrieve", response_model=RetrieveResponse)
-async def retrieve_knowledge(
-    request: RetrieveRequest,
-    service: RAGServiceDep
-) -> RetrieveResponse:
+async def retrieve_knowledge(request: RetrieveRequest, service: RAGServiceDep) -> RetrieveResponse:
     """
     Retrieve similar knowledge using semantic similarity.
 
@@ -145,30 +148,26 @@ async def retrieve_knowledge(
             query=request.query,
             knowledge_type=request.knowledge_type,
             top_k=request.top_k,
-            min_similarity=request.min_similarity
+            min_similarity=request.min_similarity,
         )
 
         latency_ms = (time.time() - start_time) * 1000
-        metrics.record_call('retrieve', latency_ms, cache_hit)
+        metrics.record_call("retrieve", latency_ms, cache_hit)
 
         logger.info(f"Retrieved {len(results)} results for query: {request.query[:50]}...")
-        return RetrieveResponse(
-            results=results,
-            count=len(results)
-        )
+        return RetrieveResponse(results=results, count=len(results))
 
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
-        metrics.record_error('embedding')
+        metrics.record_error("embedding")
         logger.error(f"Error retrieving knowledge: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve knowledge: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve knowledge: {str(e)}"
+        ) from e
 
 
 @router.post("/search", response_model=SearchResponse)
-async def search_knowledge(
-    request: SearchRequest,
-    service: RAGServiceDep
-) -> SearchResponse:
+async def search_knowledge(request: SearchRequest, service: RAGServiceDep) -> SearchResponse:
     """
     Search knowledge with optional filters.
 
@@ -190,30 +189,25 @@ async def search_knowledge(
             query=request.query,
             filters=request.filters,
             top_k=request.top_k,
-            min_similarity=request.min_similarity
+            min_similarity=request.min_similarity,
         )
 
         latency_ms = (time.time() - start_time) * 1000
-        metrics.record_call('search', latency_ms, cache_hit)
+        metrics.record_call("search", latency_ms, cache_hit)
 
         logger.info(f"Searched {len(results)} results for query: {request.query[:50]}...")
-        return SearchResponse(
-            results=results,
-            count=len(results)
-        )
+        return SearchResponse(results=results, count=len(results))
 
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
-        metrics.record_error('embedding')
+        metrics.record_error("embedding")
         logger.error(f"Error searching knowledge: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to search knowledge: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to search knowledge: {str(e)}") from e
 
 
 @router.put("/{id}/success", response_model=UpdateSuccessResponse)
 async def update_success_score(
-    id: int,
-    request: UpdateSuccessRequest,
-    service: RAGServiceDep
+    id: int, request: UpdateSuccessRequest, service: RAGServiceDep
 ) -> UpdateSuccessResponse:
     """
     Update success score for a knowledge entry.
@@ -235,13 +229,13 @@ async def update_success_score(
         metrics.record_success_score(request.score)
 
         logger.info(f"Updated success score for entry {id}: {request.score}")
-        return UpdateSuccessResponse(
-            message=f"Success score updated for entry {id}"
-        )
+        return UpdateSuccessResponse(message=f"Success score updated for entry {id}")
 
     except ValueError as e:
         logger.error(f"Entry not found: {e}")
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error updating success score: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to update success score: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update success score: {str(e)}"
+        ) from e

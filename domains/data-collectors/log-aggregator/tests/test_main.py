@@ -6,22 +6,19 @@ Tests for main.py application initialization, log collection, and API endpoints.
 
 import asyncio
 import contextlib
-import json
 import sys
-from datetime import datetime
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 # Mock dependencies before importing main
-sys.modules['aiohttp_cors'] = MagicMock()
-sys.modules['docker'] = MagicMock()
-sys.modules['shared'] = MagicMock()
-sys.modules['shared.logging_config'] = MagicMock()
+sys.modules["aiohttp_cors"] = MagicMock()
+sys.modules["docker"] = MagicMock()
+sys.modules["shared"] = MagicMock()
+sys.modules["shared.logging_config"] = MagicMock()
 mock_logger = MagicMock()
-sys.modules['shared.logging_config'].setup_logging = MagicMock(return_value=mock_logger)
+sys.modules["shared.logging_config"].setup_logging = MagicMock(return_value=mock_logger)
 
 from src.main import (
     LogAggregator,
@@ -36,11 +33,11 @@ class TestLogAggregator:
     @pytest.fixture
     def aggregator(self):
         """Create LogAggregator instance with mocked Docker client."""
-        with patch('aggregator.docker') as mock_docker:
+        with patch("aggregator.docker") as mock_docker:
             mock_client = MagicMock()
             mock_client.ping.return_value = True
             mock_docker.from_env.return_value = mock_client
-            
+
             agg = LogAggregator()
             agg.docker_client = mock_client
             return agg
@@ -49,13 +46,13 @@ class TestLogAggregator:
     @pytest.mark.unit
     async def test_initialization_success(self):
         """Test LogAggregator initialization with successful Docker client."""
-        with patch('aggregator.docker') as mock_docker:
+        with patch("aggregator.docker") as mock_docker:
             mock_client = MagicMock()
             mock_client.ping.return_value = True
             mock_docker.from_env.return_value = mock_client
-            
+
             agg = LogAggregator()
-            
+
             assert agg.docker_client is not None
             assert agg.log_directory.is_dir()
             assert len(agg.aggregated_logs) == 0
@@ -65,11 +62,11 @@ class TestLogAggregator:
     @pytest.mark.unit
     async def test_initialization_docker_failure(self):
         """Test LogAggregator initialization with Docker client failure."""
-        with patch('aggregator.docker') as mock_docker:
+        with patch("aggregator.docker") as mock_docker:
             mock_docker.from_env.side_effect = Exception("Docker not available")
-            
+
             agg = LogAggregator()
-            
+
             assert agg.docker_client is None
 
     @pytest.mark.asyncio
@@ -81,21 +78,23 @@ class TestLogAggregator:
         mock_container1.name = "service1"
         mock_container1.short_id = "abc123"
         mock_container1.logs.return_value = b'{"timestamp": "2025-01-01T00:00:00Z", "level": "INFO", "message": "Test log 1"}\n{"timestamp": "2025-01-01T00:00:01Z", "level": "ERROR", "message": "Test log 2"}'
-        
+
         mock_container2 = MagicMock()
         mock_container2.name = "service2"
         mock_container2.short_id = "def456"
-        mock_container2.logs.return_value = b'{"timestamp": "2025-01-01T00:00:02Z", "level": "WARNING", "message": "Test log 3"}'
-        
+        mock_container2.logs.return_value = (
+            b'{"timestamp": "2025-01-01T00:00:02Z", "level": "WARNING", "message": "Test log 3"}'
+        )
+
         aggregator.docker_client.containers.list.return_value = [mock_container1, mock_container2]
-        
+
         logs = await aggregator.collect_logs()
-        
+
         assert len(logs) == 3
-        assert logs[0]['container_name'] == "service1"
-        assert logs[0]['message'] == "Test log 1"
-        assert logs[1]['container_name'] == "service1"
-        assert logs[2]['container_name'] == "service2"
+        assert logs[0]["container_name"] == "service1"
+        assert logs[0]["message"] == "Test log 1"
+        assert logs[1]["container_name"] == "service1"
+        assert logs[2]["container_name"] == "service2"
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -104,27 +103,27 @@ class TestLogAggregator:
         mock_container = MagicMock()
         mock_container.name = "service1"
         mock_container.short_id = "abc123"
-        mock_container.logs.return_value = b'2025-01-01T00:00:00Z This is a plain text log'
-        
+        mock_container.logs.return_value = b"2025-01-01T00:00:00Z This is a plain text log"
+
         aggregator.docker_client.containers.list.return_value = [mock_container]
-        
+
         logs = await aggregator.collect_logs()
-        
+
         assert len(logs) == 1
-        assert logs[0]['container_name'] == "service1"
-        assert logs[0]['message'] == "This is a plain text log"
-        assert logs[0]['level'] == "INFO"
+        assert logs[0]["container_name"] == "service1"
+        assert logs[0]["message"] == "This is a plain text log"
+        assert logs[0]["level"] == "INFO"
 
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_collect_logs_no_docker_client(self):
         """Test log collection when Docker client is not available."""
-        with patch('aggregator.docker') as mock_docker:
+        with patch("aggregator.docker") as mock_docker:
             mock_docker.from_env.side_effect = Exception("Docker not available")
-            
+
             agg = LogAggregator()
             logs = await agg.collect_logs()
-            
+
             assert logs == []
 
     @pytest.mark.asyncio
@@ -134,11 +133,11 @@ class TestLogAggregator:
         mock_container = MagicMock()
         mock_container.name = "service1"
         mock_container.logs.side_effect = Exception("Container error")
-        
+
         aggregator.docker_client.containers.list.return_value = [mock_container]
-        
+
         logs = await aggregator.collect_logs()
-        
+
         assert len(logs) == 0
 
     @pytest.mark.asyncio
@@ -147,16 +146,16 @@ class TestLogAggregator:
         """Test that aggregated logs are limited to max_logs."""
         aggregator.max_logs = 5
         aggregator.aggregated_logs = [{"message": f"log{i}"} for i in range(10)]
-        
+
         mock_container = MagicMock()
         mock_container.name = "service1"
         mock_container.short_id = "abc123"
         mock_container.logs.return_value = b'{"message": "new log"}'
-        
+
         aggregator.docker_client.containers.list.return_value = [mock_container]
-        
+
         await aggregator.collect_logs()
-        
+
         assert len(aggregator.aggregated_logs) == 5
 
     @pytest.mark.asyncio
@@ -168,11 +167,11 @@ class TestLogAggregator:
             {"timestamp": "2025-01-01T00:00:02Z", "message": "log2"},
             {"timestamp": "2025-01-01T00:00:03Z", "message": "log3"},
         ]
-        
+
         logs = await aggregator.get_recent_logs()
-        
+
         assert len(logs) == 3
-        assert logs[0]['message'] == "log3"  # Most recent first
+        assert logs[0]["message"] == "log3"  # Most recent first
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -183,11 +182,11 @@ class TestLogAggregator:
             {"timestamp": "2025-01-01T00:00:02Z", "service": "service2", "message": "log2"},
             {"timestamp": "2025-01-01T00:00:03Z", "service": "service1", "message": "log3"},
         ]
-        
+
         logs = await aggregator.get_recent_logs(service="service1")
-        
+
         assert len(logs) == 2
-        assert all(log['service'] == "service1" for log in logs)
+        assert all(log["service"] == "service1" for log in logs)
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -198,23 +197,22 @@ class TestLogAggregator:
             {"timestamp": "2025-01-01T00:00:02Z", "level": "ERROR", "message": "log2"},
             {"timestamp": "2025-01-01T00:00:03Z", "level": "INFO", "message": "log3"},
         ]
-        
+
         logs = await aggregator.get_recent_logs(level="ERROR")
-        
+
         assert len(logs) == 1
-        assert logs[0]['level'] == "ERROR"
+        assert logs[0]["level"] == "ERROR"
 
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_get_recent_logs_with_limit(self, aggregator):
         """Test getting recent logs with limit."""
         aggregator.aggregated_logs = [
-            {"timestamp": f"2025-01-01T00:00:{i:02d}Z", "message": f"log{i}"}
-            for i in range(10)
+            {"timestamp": f"2025-01-01T00:00:{i:02d}Z", "message": f"log{i}"} for i in range(10)
         ]
-        
+
         logs = await aggregator.get_recent_logs(limit=5)
-        
+
         assert len(logs) == 5
 
     @pytest.mark.asyncio
@@ -226,11 +224,11 @@ class TestLogAggregator:
             {"timestamp": "2025-01-01T00:00:02Z", "message": "Success message"},
             {"timestamp": "2025-01-01T00:00:03Z", "message": "Another error"},
         ]
-        
+
         logs = await aggregator.search_logs("error")
-        
+
         assert len(logs) == 2
-        assert all("error" in log['message'].lower() for log in logs)
+        assert all("error" in log["message"].lower() for log in logs)
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -240,9 +238,9 @@ class TestLogAggregator:
             {"timestamp": "2025-01-01T00:00:01Z", "message": "ERROR occurred"},
             {"timestamp": "2025-01-01T00:00:02Z", "message": "Success message"},
         ]
-        
+
         logs = await aggregator.search_logs("error")
-        
+
         assert len(logs) == 1
 
 

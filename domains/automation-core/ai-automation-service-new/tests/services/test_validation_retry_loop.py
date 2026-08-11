@@ -11,7 +11,6 @@ import pytest
 from src.clients.linter_client import LintFinding, LintResult
 from src.services.validation_retry_loop import (
     ValidationRetryLoop,
-    ValidationRetryResult,
 )
 
 
@@ -81,12 +80,16 @@ async def test_pass_on_first_try():
     """YAML passes validation on first attempt — no retries needed."""
     loop = ValidationRetryLoop(
         openai_client=MockOpenAIClient(),
-        linter_client=MockLinterClient(results=[
-            LintResult(passed=True, findings=[], error_count=0),
-        ]),
-        yaml_validation_client=MockValidationClient(results=[
-            {"valid": True, "errors": [], "warnings": []},
-        ]),
+        linter_client=MockLinterClient(
+            results=[
+                LintResult(passed=True, findings=[], error_count=0),
+            ]
+        ),
+        yaml_validation_client=MockValidationClient(
+            results=[
+                {"valid": True, "errors": [], "warnings": []},
+            ]
+        ),
         max_retries=3,
     )
 
@@ -110,24 +113,34 @@ async def test_pass_on_first_try():
 @pytest.mark.asyncio
 async def test_pass_on_second_try():
     """YAML fails first validation, LLM corrects errors on second attempt."""
-    corrected_yaml = "alias: Test Fixed\ntrigger:\n  - platform: state\naction:\n  - service: light.turn_on\n"
+    corrected_yaml = (
+        "alias: Test Fixed\ntrigger:\n  - platform: state\naction:\n  - service: light.turn_on\n"
+    )
 
     loop = ValidationRetryLoop(
         openai_client=MockOpenAIClient(responses=[corrected_yaml]),
-        linter_client=MockLinterClient(results=[
-            # First attempt: fails with error
-            LintResult(
-                passed=False,
-                findings=[LintFinding(rule_id="R001", severity="error", message="Missing trigger platform")],
-                error_count=1,
-            ),
-            # Second attempt: passes
-            LintResult(passed=True, findings=[], error_count=0),
-        ]),
-        yaml_validation_client=MockValidationClient(results=[
-            {"valid": True, "errors": [], "warnings": []},
-            {"valid": True, "errors": [], "warnings": []},
-        ]),
+        linter_client=MockLinterClient(
+            results=[
+                # First attempt: fails with error
+                LintResult(
+                    passed=False,
+                    findings=[
+                        LintFinding(
+                            rule_id="R001", severity="error", message="Missing trigger platform"
+                        )
+                    ],
+                    error_count=1,
+                ),
+                # Second attempt: passes
+                LintResult(passed=True, findings=[], error_count=0),
+            ]
+        ),
+        yaml_validation_client=MockValidationClient(
+            results=[
+                {"valid": True, "errors": [], "warnings": []},
+                {"valid": True, "errors": [], "warnings": []},
+            ]
+        ),
         max_retries=3,
     )
 
@@ -150,35 +163,41 @@ async def test_pass_on_second_try():
 async def test_all_retries_exhausted():
     """All retry attempts fail — returns the best attempt with error context."""
     loop = ValidationRetryLoop(
-        openai_client=MockOpenAIClient(responses=[
-            "# still broken 1",
-            "# still broken 2",
-        ]),
-        linter_client=MockLinterClient(results=[
-            LintResult(
-                passed=False,
-                findings=[
-                    LintFinding(rule_id="R001", severity="error", message="Error 1"),
-                    LintFinding(rule_id="R002", severity="error", message="Error 2"),
-                ],
-                error_count=2,
-            ),
-            LintResult(
-                passed=False,
-                findings=[LintFinding(rule_id="R001", severity="error", message="Error 1")],
-                error_count=1,
-            ),
-            LintResult(
-                passed=False,
-                findings=[LintFinding(rule_id="R001", severity="error", message="Error 1")],
-                error_count=1,
-            ),
-        ]),
-        yaml_validation_client=MockValidationClient(results=[
-            {"valid": False, "errors": [], "warnings": []},
-            {"valid": False, "errors": [], "warnings": []},
-            {"valid": False, "errors": [], "warnings": []},
-        ]),
+        openai_client=MockOpenAIClient(
+            responses=[
+                "# still broken 1",
+                "# still broken 2",
+            ]
+        ),
+        linter_client=MockLinterClient(
+            results=[
+                LintResult(
+                    passed=False,
+                    findings=[
+                        LintFinding(rule_id="R001", severity="error", message="Error 1"),
+                        LintFinding(rule_id="R002", severity="error", message="Error 2"),
+                    ],
+                    error_count=2,
+                ),
+                LintResult(
+                    passed=False,
+                    findings=[LintFinding(rule_id="R001", severity="error", message="Error 1")],
+                    error_count=1,
+                ),
+                LintResult(
+                    passed=False,
+                    findings=[LintFinding(rule_id="R001", severity="error", message="Error 1")],
+                    error_count=1,
+                ),
+            ]
+        ),
+        yaml_validation_client=MockValidationClient(
+            results=[
+                {"valid": False, "errors": [], "warnings": []},
+                {"valid": False, "errors": [], "warnings": []},
+                {"valid": False, "errors": [], "warnings": []},
+            ]
+        ),
         max_retries=3,
     )
 
@@ -205,9 +224,11 @@ async def test_linter_down_graceful_degradation():
     loop = ValidationRetryLoop(
         openai_client=MockOpenAIClient(),
         linter_client=MockLinterClient(raise_on_call=True),
-        yaml_validation_client=MockValidationClient(results=[
-            {"valid": True, "errors": [], "warnings": []},
-        ]),
+        yaml_validation_client=MockValidationClient(
+            results=[
+                {"valid": True, "errors": [], "warnings": []},
+            ]
+        ),
         max_retries=3,
     )
 
@@ -232,9 +253,11 @@ async def test_validator_down_graceful_degradation():
     """When yaml-validation-service is unreachable, use only linter results."""
     loop = ValidationRetryLoop(
         openai_client=MockOpenAIClient(),
-        linter_client=MockLinterClient(results=[
-            LintResult(passed=True, findings=[], error_count=0),
-        ]),
+        linter_client=MockLinterClient(
+            results=[
+                LintResult(passed=True, findings=[], error_count=0),
+            ]
+        ),
         yaml_validation_client=MockValidationClient(raise_on_call=True),
         max_retries=3,
     )
@@ -308,10 +331,12 @@ async def test_metrics_tracking():
     """Verify metrics are correctly tracked across multiple generations."""
     loop = ValidationRetryLoop(
         openai_client=MockOpenAIClient(),
-        linter_client=MockLinterClient(results=[
-            LintResult(passed=True),
-            LintResult(passed=True),
-        ]),
+        linter_client=MockLinterClient(
+            results=[
+                LintResult(passed=True),
+                LintResult(passed=True),
+            ]
+        ),
         yaml_validation_client=None,
         max_retries=3,
     )
@@ -345,8 +370,16 @@ def test_error_details_formatting():
     from src.services.validation_retry_loop import ValidationFinding, ValidationRetryLoop
 
     findings = [
-        ValidationFinding(source="linter", severity="error", message="Missing trigger", rule_id="R001", path="trigger[0]"),
-        ValidationFinding(source="validator", severity="error", message="Invalid entity_id: light.fake"),
+        ValidationFinding(
+            source="linter",
+            severity="error",
+            message="Missing trigger",
+            rule_id="R001",
+            path="trigger[0]",
+        ),
+        ValidationFinding(
+            source="validator", severity="error", message="Invalid entity_id: light.fake"
+        ),
     ]
 
     formatted = ValidationRetryLoop._format_error_details(findings)

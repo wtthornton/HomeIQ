@@ -58,7 +58,7 @@ class BlueprintClient:
                     "min_quality_score": min_quality_score,
                     "sort_by": "quality_score",
                     "sort_order": "desc",
-                }
+                },
             )
             response.raise_for_status()
             data = response.json()
@@ -78,9 +78,7 @@ class BlueprintClient:
             Blueprint dictionary or None if not found
         """
         try:
-            response = await self._client.get(
-                f"{self.base_url}/api/blueprints/{blueprint_id}"
-            )
+            response = await self._client.get(f"{self.base_url}/api/blueprints/{blueprint_id}")
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:

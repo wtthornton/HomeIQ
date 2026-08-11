@@ -26,4 +26,3 @@ __all__ = [
     "create_pattern_rating",
     "get_pattern_ratings",
 ]
-

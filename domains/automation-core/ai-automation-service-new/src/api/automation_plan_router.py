@@ -22,6 +22,7 @@ from ..templates.template_library import TemplateLibrary
 # Agent Evaluation Framework: SessionTracer wiring (E3.S6)
 try:
     from homeiq_patterns.evaluation.session_tracer import PersistentSink, trace_session
+
     _eval_sink = PersistentSink()  # Persists traces to database (EVAL_STORE_PATH env var)
     _TRACING_AVAILABLE = True
 except ImportError:
@@ -92,7 +93,11 @@ def get_intent_planner(
 
 
 @router.post("/plan", response_model=PlanResponse)
-@(trace_session(agent_name="ai-automation-service", sink=_eval_sink, model="gpt-4o") if _TRACING_AVAILABLE else lambda f: f)
+@(
+    trace_session(agent_name="ai-automation-service", sink=_eval_sink, model="gpt-4o")
+    if _TRACING_AVAILABLE
+    else lambda f: f
+)
 @handle_route_errors("create automation plan")
 async def create_plan(
     request: PlanRequest, db: DatabaseSession, planner: IntentPlanner = Depends(get_intent_planner)

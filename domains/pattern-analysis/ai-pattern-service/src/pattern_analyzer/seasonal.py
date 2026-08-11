@@ -37,46 +37,66 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 EXCLUDED_DOMAINS = {
-    'image', 'event', 'update', 'camera', 'button',
+    "image",
+    "event",
+    "update",
+    "camera",
+    "button",
 }
 
 EXCLUDED_ENTITY_PREFIXES = [
-    'sensor.home_assistant_',
-    'sensor.slzb_',
-    'image.',
-    'event.',
-    'binary_sensor.system_',
-    'camera.',
-    'button.',
-    'update.',
+    "sensor.home_assistant_",
+    "sensor.slzb_",
+    "image.",
+    "event.",
+    "binary_sensor.system_",
+    "camera.",
+    "button.",
+    "update.",
 ]
 
 EXCLUDED_PATTERNS = [
-    '_tracker', 'team_tracker',
-    'nfl_', 'nhl_', 'mlb_', 'nba_', 'ncaa_',
-    'weather_', 'openweathermap_',
-    'carbon_intensity_', 'electricity_pricing_', 'national_grid_',
-    'calendar_',
-    '_cpu_', '_temp', '_chip_',
-    'coordinator_', '_battery', '_memory_',
-    '_signal_strength', '_linkquality',
-    '_update_', '_uptime', '_last_seen',
+    "_tracker",
+    "team_tracker",
+    "nfl_",
+    "nhl_",
+    "mlb_",
+    "nba_",
+    "ncaa_",
+    "weather_",
+    "openweathermap_",
+    "carbon_intensity_",
+    "electricity_pricing_",
+    "national_grid_",
+    "calendar_",
+    "_cpu_",
+    "_temp",
+    "_chip_",
+    "coordinator_",
+    "_battery",
+    "_memory_",
+    "_signal_strength",
+    "_linkquality",
+    "_update_",
+    "_uptime",
+    "_last_seen",
 ]
 
 # Astronomical season boundaries (month, day) for Northern Hemisphere
 SEASON_BOUNDARIES = {
-    'spring': (3, 20),
-    'summer': (6, 21),
-    'autumn': (9, 22),
-    'winter': (12, 21),
+    "spring": (3, 20),
+    "summer": (6, 21),
+    "autumn": (9, 22),
+    "winter": (12, 21),
 }
 
-SEASON_ORDER = ['spring', 'summer', 'autumn', 'winter']
+SEASON_ORDER = ["spring", "summer", "autumn", "winter"]
 
 
 @dataclass
 class SeasonalProfile:
     """Activation profile for a single season."""
+
     season: str
     event_count: int = 0
     day_count: int = 0
@@ -89,10 +109,11 @@ class SeasonalProfile:
 @dataclass
 class SeasonalShift:
     """A detected seasonal shift for a device."""
+
     device_id: str
     profiles: dict[str, SeasonalProfile] = field(default_factory=dict)
-    most_active_season: str = ''
-    least_active_season: str = ''
+    most_active_season: str = ""
+    least_active_season: str = ""
     count_shift: float = 0.0
     timing_shift: float = 0.0
     overall_shift: float = 0.0
@@ -143,16 +164,15 @@ class SeasonalPatternDetector:
         if events is None:
             return []
 
-        total_days = (events['timestamp'].max() - events['timestamp'].min()).days + 1
+        total_days = (events["timestamp"].max() - events["timestamp"].min()).days + 1
         if total_days < self.min_days_total:
             logger.warning(
-                f"Insufficient data span: {total_days} days "
-                f"(need {self.min_days_total})"
+                f"Insufficient data span: {total_days} days (need {self.min_days_total})"
             )
             return []
 
         events = events.copy()
-        events['season'] = events['timestamp'].apply(self._get_season)
+        events["season"] = events["timestamp"].apply(self._get_season)
 
         shifts = self._build_shifts(events)
         patterns = self._build_patterns(shifts, total_days)
@@ -170,7 +190,7 @@ class SeasonalPatternDetector:
             logger.warning("No events provided for seasonal detection")
             return None
 
-        required_cols = ['device_id', 'timestamp']
+        required_cols = ["device_id", "timestamp"]
         missing_cols = [col for col in required_cols if col not in events.columns]
         if missing_cols:
             logger.error(f"Missing required columns: {missing_cols}")
@@ -182,14 +202,12 @@ class SeasonalPatternDetector:
             original_count = len(events)
             events = self._filter_system_noise(events)
             if len(events) < original_count:
-                logger.info(
-                    f"Filtered system noise: {original_count} -> {len(events)} events"
-                )
+                logger.info(f"Filtered system noise: {original_count} -> {len(events)} events")
 
         if events.empty:
             return None
 
-        events = events.sort_values('timestamp').copy()
+        events = events.sort_values("timestamp").copy()
         return events.reset_index(drop=True)
 
     @staticmethod
@@ -198,25 +216,24 @@ class SeasonalPatternDetector:
         month, day = timestamp.month, timestamp.day
 
         if (month, day) >= (12, 21) or (month, day) < (3, 20):
-            return 'winter'
+            return "winter"
         elif (month, day) < (6, 21):
-            return 'spring'
+            return "spring"
         elif (month, day) < (9, 22):
-            return 'summer'
+            return "summer"
         else:
-            return 'autumn'
+            return "autumn"
 
     def _build_shifts(self, events: pd.DataFrame) -> list[SeasonalShift]:
         """Build seasonal shift analysis for each device."""
         shifts: list[SeasonalShift] = []
 
-        for device_id, device_events in events.groupby('device_id'):
+        for device_id, device_events in events.groupby("device_id"):
             profiles = self._build_seasonal_profiles(device_events)
 
             # Need at least 2 seasons with sufficient data
             valid_seasons = [
-                s for s, p in profiles.items()
-                if p.event_count >= self.min_events_per_season
+                s for s, p in profiles.items() if p.event_count >= self.min_events_per_season
             ]
             if len(valid_seasons) < 2:
                 continue
@@ -233,27 +250,24 @@ class SeasonalPatternDetector:
         """Build activation profiles per season for a device."""
         profiles: dict[str, SeasonalProfile] = {}
 
-        for season, season_events in device_events.groupby('season'):
+        for season, season_events in device_events.groupby("season"):
             profile = SeasonalProfile(season=str(season))
             profile.event_count = len(season_events)
 
-            dates = season_events['timestamp'].dt.date.unique()
+            dates = season_events["timestamp"].dt.date.unique()
             profile.day_count = len(dates)
 
             profile.avg_daily_count = (
-                profile.event_count / profile.day_count
-                if profile.day_count > 0 else 0.0
+                profile.event_count / profile.day_count if profile.day_count > 0 else 0.0
             )
 
-            hours = season_events['timestamp'].dt.hour
+            hours = season_events["timestamp"].dt.hour
             if len(hours) > 0:
                 hour_counts = hours.value_counts()
                 profile.peak_hour = int(hour_counts.idxmax())
                 hour_values = hours.values.astype(float)
                 profile.avg_hour = float(np.mean(hour_values))
-                profile.std_hour = (
-                    float(np.std(hour_values)) if len(hour_values) > 1 else 0.0
-                )
+                profile.std_hour = float(np.std(hour_values)) if len(hour_values) > 1 else 0.0
 
             profiles[str(season)] = profile
 
@@ -267,14 +281,10 @@ class SeasonalPatternDetector:
     ) -> SeasonalShift:
         """Compute seasonal shift scores."""
         # Count shift: max relative difference in daily counts across seasons
-        daily_counts = {
-            s: profiles[s].avg_daily_count for s in valid_seasons
-        }
+        daily_counts = {s: profiles[s].avg_daily_count for s in valid_seasons}
         max_count = max(daily_counts.values())
         min_count = min(daily_counts.values())
-        count_shift = (
-            (max_count - min_count) / max_count if max_count > 0 else 0.0
-        )
+        count_shift = (max_count - min_count) / max_count if max_count > 0 else 0.0
 
         most_active = max(valid_seasons, key=lambda s: daily_counts[s])
         least_active = min(valid_seasons, key=lambda s: daily_counts[s])
@@ -327,15 +337,11 @@ class SeasonalPatternDetector:
         season_factor = len(valid_seasons) / 4.0
 
         # More events per season = higher confidence (saturates at 50)
-        avg_events = np.mean([
-            profiles[s].event_count for s in valid_seasons
-        ])
+        avg_events = np.mean([profiles[s].event_count for s in valid_seasons])
         event_factor = min(float(avg_events) / 50.0, 1.0)
 
         # More days per season = higher confidence (saturates at 30)
-        avg_days = np.mean([
-            profiles[s].day_count for s in valid_seasons
-        ])
+        avg_days = np.mean([profiles[s].day_count for s in valid_seasons])
         day_factor = min(float(avg_days) / 30.0, 1.0)
 
         return 0.3 * season_factor + 0.35 * event_factor + 0.35 * day_factor
@@ -347,24 +353,20 @@ class SeasonalPatternDetector:
     ) -> list[dict]:
         """Build pattern dictionaries from shifts that meet thresholds."""
         significant = [
-            s for s in shifts
-            if s.overall_shift >= self.shift_threshold
-            and s.confidence >= self.min_confidence
+            s
+            for s in shifts
+            if s.overall_shift >= self.shift_threshold and s.confidence >= self.min_confidence
         ]
 
-        patterns = [
-            self._shift_to_pattern(shift, total_days)
-            for shift in significant
-        ]
+        patterns = [self._shift_to_pattern(shift, total_days) for shift in significant]
 
-        patterns.sort(key=lambda p: p['shift_score'], reverse=True)
+        patterns.sort(key=lambda p: p["shift_score"], reverse=True)
         return patterns
 
     def _shift_to_pattern(self, shift: SeasonalShift, total_days: int) -> dict:
         """Convert a single SeasonalShift to a pattern dict."""
         season_profiles = {
-            season: self._serialize_profile(profile)
-            for season, profile in shift.profiles.items()
+            season: self._serialize_profile(profile) for season, profile in shift.profiles.items()
         }
 
         logger.info(
@@ -375,41 +377,41 @@ class SeasonalPatternDetector:
         )
 
         return {
-            'pattern_type': 'seasonal',
-            'device_id': shift.device_id,
-            'most_active_season': shift.most_active_season,
-            'least_active_season': shift.least_active_season,
-            'shift_score': float(shift.overall_shift),
-            'confidence': float(shift.confidence),
-            'season_profiles': season_profiles,
-            'metadata': self._build_metadata(shift, total_days),
+            "pattern_type": "seasonal",
+            "device_id": shift.device_id,
+            "most_active_season": shift.most_active_season,
+            "least_active_season": shift.least_active_season,
+            "shift_score": float(shift.overall_shift),
+            "confidence": float(shift.confidence),
+            "season_profiles": season_profiles,
+            "metadata": self._build_metadata(shift, total_days),
         }
 
     @staticmethod
     def _serialize_profile(profile: SeasonalProfile) -> dict:
         """Serialize a SeasonalProfile to a dict."""
         return {
-            'event_count': profile.event_count,
-            'day_count': profile.day_count,
-            'avg_daily_count': float(profile.avg_daily_count),
-            'peak_hour': profile.peak_hour,
-            'avg_hour': float(profile.avg_hour),
+            "event_count": profile.event_count,
+            "day_count": profile.day_count,
+            "avg_daily_count": float(profile.avg_daily_count),
+            "peak_hour": profile.peak_hour,
+            "avg_hour": float(profile.avg_hour),
         }
 
     def _build_metadata(self, shift: SeasonalShift, total_days: int) -> dict:
         """Build metadata dict for a seasonal pattern."""
         return {
-            'count_shift': float(shift.count_shift),
-            'timing_shift': float(shift.timing_shift),
-            'total_days_analyzed': total_days,
-            'seasons_with_data': len(shift.profiles),
-            'domain': self._get_domain(shift.device_id),
-            'data_quality': self._data_quality_label(total_days),
-            'thresholds': {
-                'min_days_total': self.min_days_total,
-                'min_events_per_season': self.min_events_per_season,
-                'min_confidence': self.min_confidence,
-                'shift_threshold': self.shift_threshold,
+            "count_shift": float(shift.count_shift),
+            "timing_shift": float(shift.timing_shift),
+            "total_days_analyzed": total_days,
+            "seasons_with_data": len(shift.profiles),
+            "domain": self._get_domain(shift.device_id),
+            "data_quality": self._data_quality_label(total_days),
+            "thresholds": {
+                "min_days_total": self.min_days_total,
+                "min_events_per_season": self.min_events_per_season,
+                "min_confidence": self.min_confidence,
+                "shift_threshold": self.shift_threshold,
             },
         }
 
@@ -417,63 +419,59 @@ class SeasonalPatternDetector:
     def _data_quality_label(total_days: int) -> str:
         """Return data quality label based on total days of data."""
         if total_days >= 365:
-            return 'full'
+            return "full"
         if total_days >= 180:
-            return 'good'
+            return "good"
         if total_days >= 90:
-            return 'partial'
-        return 'limited'
+            return "partial"
+        return "limited"
 
     def suggest_automation(self, pattern: dict) -> dict[str, Any]:
         """Suggest automation from seasonal pattern."""
-        if pattern.get('pattern_type') != 'seasonal':
+        if pattern.get("pattern_type") != "seasonal":
             return {}
 
-        device_id = pattern.get('device_id', '')
+        device_id = pattern.get("device_id", "")
         if not device_id:
             return {}
 
-        most_active = pattern.get('most_active_season', '')
-        least_active = pattern.get('least_active_season', '')
-        confidence = pattern.get('confidence', 0.0)
+        most_active = pattern.get("most_active_season", "")
+        least_active = pattern.get("least_active_season", "")
+        confidence = pattern.get("confidence", 0.0)
 
         domain = self._get_domain(device_id)
         service = self._get_default_service(domain)
 
         description = (
-            f"Seasonal schedule: {device_id} "
-            f"(active in {most_active}, reduced in {least_active})"
+            f"Seasonal schedule: {device_id} (active in {most_active}, reduced in {least_active})"
         )
 
         suggestion = {
-            'automation_type': 'seasonal_schedule',
-            'trigger': {
-                'platform': 'time',
-                'at': '00:00:00',
+            "automation_type": "seasonal_schedule",
+            "trigger": {
+                "platform": "time",
+                "at": "00:00:00",
             },
-            'condition': {
-                'condition': 'template',
-                'value_template': (
-                    f"{{{{ now().month in "
-                    f"{self._season_months(most_active)} }}}}"
-                ),
+            "condition": {
+                "condition": "template",
+                "value_template": (f"{{{{ now().month in {self._season_months(most_active)} }}}}"),
             },
-            'action': {
-                'service': f"{domain}.{service}",
-                'entity_id': device_id,
-                'target': {'entity_id': device_id},
+            "action": {
+                "service": f"{domain}.{service}",
+                "entity_id": device_id,
+                "target": {"entity_id": device_id},
             },
-            'confidence': float(confidence),
-            'description': description,
-            'device_id': device_id,
-            'requires_confirmation': True,
-            'safety_level': 'normal',
-            'safety_warnings': [],
-            'metadata': {
-                'source': 'seasonal_pattern',
-                'most_active_season': most_active,
-                'least_active_season': least_active,
-                'shift_score': pattern.get('shift_score', 0.0),
+            "confidence": float(confidence),
+            "description": description,
+            "device_id": device_id,
+            "requires_confirmation": True,
+            "safety_level": "normal",
+            "safety_warnings": [],
+            "metadata": {
+                "source": "seasonal_pattern",
+                "most_active_season": most_active,
+                "least_active_season": least_active,
+                "shift_score": pattern.get("shift_score", 0.0),
             },
         }
 
@@ -483,10 +481,10 @@ class SeasonalPatternDetector:
     def _season_months(season: str) -> list[int]:
         """Get months belonging to a season."""
         mapping = {
-            'spring': [3, 4, 5],
-            'summer': [6, 7, 8],
-            'autumn': [9, 10, 11],
-            'winter': [12, 1, 2],
+            "spring": [3, 4, 5],
+            "summer": [6, 7, 8],
+            "autumn": [9, 10, 11],
+            "winter": [12, 1, 2],
         }
         return mapping.get(season, [])
 
@@ -494,33 +492,33 @@ class SeasonalPatternDetector:
         """Get summary statistics for detected seasonal patterns."""
         if not patterns:
             return {
-                'total_patterns': 0,
-                'avg_shift': 0.0,
-                'avg_confidence': 0.0,
-                'most_active_seasons': {},
+                "total_patterns": 0,
+                "avg_shift": 0.0,
+                "avg_confidence": 0.0,
+                "most_active_seasons": {},
             }
 
         season_counts: dict[str, int] = defaultdict(int)
         for p in patterns:
-            season_counts[p['most_active_season']] += 1
+            season_counts[p["most_active_season"]] += 1
 
         return {
-            'total_patterns': len(patterns),
-            'avg_shift': float(np.mean([p['shift_score'] for p in patterns])),
-            'avg_confidence': float(np.mean([p['confidence'] for p in patterns])),
-            'most_active_seasons': dict(season_counts),
+            "total_patterns": len(patterns),
+            "avg_shift": float(np.mean([p["shift_score"] for p in patterns])),
+            "avg_confidence": float(np.mean([p["confidence"] for p in patterns])),
+            "most_active_seasons": dict(season_counts),
         }
 
     @staticmethod
     def _get_domain(device_id: str) -> str:
-        if not device_id or '.' not in str(device_id):
-            return 'default'
-        return str(device_id).split('.', 1)[0]
+        if not device_id or "." not in str(device_id):
+            return "default"
+        return str(device_id).split(".", 1)[0]
 
     def _filter_system_noise(self, events: pd.DataFrame) -> pd.DataFrame:
-        if 'device_id' not in events.columns:
+        if "device_id" not in events.columns:
             return events
-        mask = events['device_id'].apply(self._is_actionable_entity)
+        mask = events["device_id"].apply(self._is_actionable_entity)
         return events[mask].copy()
 
     def _is_actionable_entity(self, device_id: str) -> bool:
@@ -536,27 +534,29 @@ class SeasonalPatternDetector:
     @staticmethod
     def _get_default_service(domain: str) -> str:
         service_map = {
-            'light': 'turn_on', 'switch': 'turn_on', 'fan': 'turn_on',
-            'cover': 'open_cover', 'lock': 'lock',
-            'climate': 'set_temperature', 'media_player': 'turn_on',
+            "light": "turn_on",
+            "switch": "turn_on",
+            "fan": "turn_on",
+            "cover": "open_cover",
+            "lock": "lock",
+            "climate": "set_temperature",
+            "media_player": "turn_on",
         }
-        return service_map.get(domain, 'turn_on')
+        return service_map.get(domain, "turn_on")
 
-    def _store_daily_aggregates(
-        self, patterns: list[dict], events: pd.DataFrame
-    ) -> None:
+    def _store_daily_aggregates(self, patterns: list[dict], events: pd.DataFrame) -> None:
         try:
-            if events.empty or 'timestamp' not in events.columns:
+            if events.empty or "timestamp" not in events.columns:
                 return
-            date_str = events['timestamp'].min().date().strftime("%Y-%m-%d")
+            date_str = events["timestamp"].min().date().strftime("%Y-%m-%d")
             for pattern in patterns:
                 try:
                     self.aggregate_client.write_seasonal_daily(
                         date=date_str,
-                        device_id=pattern.get('device_id', ''),
-                        most_active_season=pattern.get('most_active_season', ''),
-                        shift_score=pattern.get('shift_score', 0.0),
-                        confidence=pattern.get('confidence', 0.0),
+                        device_id=pattern.get("device_id", ""),
+                        most_active_season=pattern.get("most_active_season", ""),
+                        shift_score=pattern.get("shift_score", 0.0),
+                        confidence=pattern.get("confidence", 0.0),
                     )
                 except Exception as e:
                     logger.error(f"Failed to store seasonal aggregate: {e}", exc_info=True)

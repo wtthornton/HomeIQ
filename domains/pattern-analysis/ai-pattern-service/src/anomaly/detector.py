@@ -172,7 +172,8 @@ class DeviceAnomalyDetector:
             # Store trained models
             self.device_models[device_id] = {
                 "models": models,
-                "feature_names": feature_names or [f"feature_{i}" for i in range(normal_patterns.shape[1])],
+                "feature_names": feature_names
+                or [f"feature_{i}" for i in range(normal_patterns.shape[1])],
                 "training_samples": len(normal_patterns),
                 "trained_at": datetime.now(UTC),
             }
@@ -254,9 +255,11 @@ class DeviceAnomalyDetector:
 
             # Calculate feature contributions
             iforest_model = models.get("iforest")
-            contributions = self._calculate_feature_contributions(
-                sample, feature_names, iforest_model
-            ) if iforest_model else {}
+            contributions = (
+                self._calculate_feature_contributions(sample, feature_names, iforest_model)
+                if iforest_model
+                else {}
+            )
 
             # Generate description
             description = self._generate_description(
@@ -282,9 +285,7 @@ class DeviceAnomalyDetector:
         # Log anomalies
         anomalies = [r for r in results if r.is_anomaly]
         if anomalies:
-            logger.info(
-                f"Detected {len(anomalies)} anomalies for device {device_id}"
-            )
+            logger.info(f"Detected {len(anomalies)} anomalies for device {device_id}")
 
         return results
 
@@ -321,7 +322,7 @@ class DeviceAnomalyDetector:
             # This is a simplified approach; more sophisticated methods exist
 
             # Calculate z-scores for each feature
-            if hasattr(model, '_scaler'):
+            if hasattr(model, "_scaler"):
                 z_scores = np.abs((sample - model._scaler.mean_) / model._scaler.scale_)
             else:
                 z_scores = np.abs(sample)
@@ -353,11 +354,7 @@ class DeviceAnomalyDetector:
     ) -> str:
         """Generate human-readable anomaly description."""
         # Find top contributing features
-        top_features = sorted(
-            contributions.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )[:2]
+        top_features = sorted(contributions.items(), key=lambda x: x[1], reverse=True)[:2]
 
         feature_str = ", ".join([f[0].replace("_", " ") for f in top_features])
 
@@ -374,8 +371,7 @@ class DeviceAnomalyDetector:
         }
 
         return templates.get(
-            (anomaly_type, severity),
-            f"Anomaly detected in {device_name}: {feature_str}"
+            (anomaly_type, severity), f"Anomaly detected in {device_name}: {feature_str}"
         )
 
     def get_model_info(self, device_id: str) -> dict[str, Any] | None:
@@ -420,7 +416,7 @@ class AnomalyAlertManager:
 
             # Trim old alerts
             if len(self.alerts) > self.max_alerts:
-                self.alerts = self.alerts[-self.max_alerts:]
+                self.alerts = self.alerts[-self.max_alerts :]
 
     def get_alerts(
         self,

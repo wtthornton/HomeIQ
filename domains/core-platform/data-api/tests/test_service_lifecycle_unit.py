@@ -3,8 +3,9 @@
 Tests service initialization, startup, and shutdown lifecycle.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 class TestDataAPIServiceInit:
@@ -25,6 +26,7 @@ class TestDataAPIServiceInit:
         mock_settings.api_key = "test-key"
 
         from src._service import DataAPIService
+
         svc = DataAPIService()
 
         assert svc.api_port == 8006
@@ -48,6 +50,7 @@ class TestDataAPIServiceInit:
         mock_settings.api_key = "test-key"
 
         from src._service import DataAPIService
+
         svc = DataAPIService()
 
         assert svc.is_running is False
@@ -55,7 +58,6 @@ class TestDataAPIServiceInit:
 
 
 class TestDataAPIServiceStartup:
-
     @patch("src._service.settings")
     @pytest.mark.asyncio
     async def test_startup_sets_running(self, mock_settings):
@@ -73,8 +75,10 @@ class TestDataAPIServiceStartup:
 
         from src._service import DataAPIService
 
-        with patch("src._service.alerting_service") as mock_alert, \
-             patch("src._service.metrics_service") as mock_metrics:
+        with (
+            patch("src._service.alerting_service") as mock_alert,
+            patch("src._service.metrics_service") as mock_metrics,
+        ):
             mock_alert.start = AsyncMock()
             mock_metrics.start = AsyncMock()
 
@@ -102,8 +106,10 @@ class TestDataAPIServiceStartup:
 
         from src._service import DataAPIService
 
-        with patch("src._service.alerting_service") as mock_alert, \
-             patch("src._service.metrics_service") as mock_metrics:
+        with (
+            patch("src._service.alerting_service") as mock_alert,
+            patch("src._service.metrics_service") as mock_metrics,
+        ):
             mock_alert.start = AsyncMock()
             mock_metrics.start = AsyncMock()
 
@@ -114,7 +120,6 @@ class TestDataAPIServiceStartup:
             # Should not raise
             await svc.startup()
             assert svc.is_running is True
-
 
     @patch("src._service.settings")
     @pytest.mark.asyncio
@@ -133,10 +138,12 @@ class TestDataAPIServiceStartup:
 
         from src._service import DataAPIService
 
-        with patch("src._service.alerting_service") as mock_alert, \
-             patch("src._service.metrics_service") as mock_metrics, \
-             patch("src._service.get_sports_writer") as mock_sw, \
-             patch("src._service.start_webhook_detector"):
+        with (
+            patch("src._service.alerting_service") as mock_alert,
+            patch("src._service.metrics_service") as mock_metrics,
+            patch("src._service.get_sports_writer") as mock_sw,
+            patch("src._service.start_webhook_detector"),
+        ):
             mock_alert.start = AsyncMock()
             mock_metrics.start = AsyncMock()
             mock_writer = AsyncMock()
@@ -199,7 +206,6 @@ class TestDataAPIServiceStartup:
 
 
 class TestDataAPIServiceShutdown:
-
     @patch("src._service.settings")
     @pytest.mark.asyncio
     async def test_shutdown_sets_not_running(self, mock_settings):
@@ -217,9 +223,11 @@ class TestDataAPIServiceShutdown:
 
         from src._service import DataAPIService
 
-        with patch("src._service.alerting_service") as mock_alert, \
-             patch("src._service.metrics_service") as mock_metrics, \
-             patch("src._service.stop_webhook_detector"):
+        with (
+            patch("src._service.alerting_service") as mock_alert,
+            patch("src._service.metrics_service") as mock_metrics,
+            patch("src._service.stop_webhook_detector"),
+        ):
             mock_alert.stop = AsyncMock()
             mock_metrics.stop = AsyncMock()
 
@@ -248,9 +256,11 @@ class TestDataAPIServiceShutdown:
 
         from src._service import DataAPIService
 
-        with patch("src._service.alerting_service") as mock_alert, \
-             patch("src._service.metrics_service") as mock_metrics, \
-             patch("src._service.stop_webhook_detector"):
+        with (
+            patch("src._service.alerting_service") as mock_alert,
+            patch("src._service.metrics_service") as mock_metrics,
+            patch("src._service.stop_webhook_detector"),
+        ):
             mock_alert.stop = AsyncMock()
             mock_metrics.stop = AsyncMock()
 
@@ -280,9 +290,11 @@ class TestDataAPIServiceShutdown:
 
         from src._service import DataAPIService
 
-        with patch("src._service.alerting_service") as mock_alert, \
-             patch("src._service.metrics_service") as mock_metrics, \
-             patch("src._service.stop_webhook_detector"):
+        with (
+            patch("src._service.alerting_service") as mock_alert,
+            patch("src._service.metrics_service") as mock_metrics,
+            patch("src._service.stop_webhook_detector"),
+        ):
             mock_alert.stop = AsyncMock()
             mock_metrics.stop = AsyncMock()
 

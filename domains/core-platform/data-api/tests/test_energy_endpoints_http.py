@@ -15,10 +15,10 @@ import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-
 # ---------------------------------------------------------------------------
 # Helpers: Fake InfluxDB records / tables
 # ---------------------------------------------------------------------------
+
 
 class FakeRecord:
     """Simulates an influxdb_client FluxRecord."""
@@ -53,6 +53,7 @@ class FakeTable:
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 # Override conftest's fresh_db — energy endpoints don't use PostgreSQL
 @pytest_asyncio.fixture(autouse=True)
@@ -96,7 +97,6 @@ async def client():
 
 
 class TestCorrelations:
-
     @pytest.mark.asyncio
     async def test_correlations_empty(self, client):
         mock_client, _ = _make_mock_client([])
@@ -199,19 +199,12 @@ class TestCorrelations:
 
 
 class TestCurrentPower:
-
     @pytest.mark.asyncio
     async def test_current_with_data(self, client):
         now = datetime.now(UTC)
-        rec_power = FakeRecord(
-            values={}, time=now, field="total_power_w", value=1234.5
-        )
-        rec_kwh = FakeRecord(
-            values={}, time=now, field="daily_kwh", value=8.7
-        )
-        mock_client, _ = _make_mock_client(
-            [FakeTable([rec_power]), FakeTable([rec_kwh])]
-        )
+        rec_power = FakeRecord(values={}, time=now, field="total_power_w", value=1234.5)
+        rec_kwh = FakeRecord(values={}, time=now, field="daily_kwh", value=8.7)
+        mock_client, _ = _make_mock_client([FakeTable([rec_power]), FakeTable([rec_kwh])])
         with patch("src.energy_endpoints.get_influxdb_client", return_value=mock_client):
             resp = await client.get("/api/v1/energy/current")
         assert resp.status_code == 200
@@ -236,7 +229,6 @@ class TestCurrentPower:
 
 
 class TestCircuits:
-
     @pytest.mark.asyncio
     async def test_circuits_empty(self, client):
         mock_client, _ = _make_mock_client([])
@@ -280,7 +272,6 @@ class TestCircuits:
 
 
 class TestDeviceImpact:
-
     @pytest.mark.asyncio
     async def test_device_impact_with_data(self, client):
         now = datetime.now(UTC)
@@ -291,9 +282,7 @@ class TestDeviceImpact:
         off_record = FakeRecord(
             values={"domain": "switch"}, time=now, field="power_delta_w", value=-180.0
         )
-        count_record = FakeRecord(
-            values={}, time=now, field="power_delta_w", value=42
-        )
+        count_record = FakeRecord(values={}, time=now, field="power_delta_w", value=42)
 
         call_count = 0
 
@@ -349,27 +338,16 @@ class TestDeviceImpact:
 
 
 class TestStatistics:
-
     @pytest.mark.asyncio
     async def test_statistics_with_data(self, client):
         now = datetime.now(UTC)
         peak_time = now - timedelta(hours=3)
 
-        current_power_rec = FakeRecord(
-            values={}, time=now, field="total_power_w", value=1500.0
-        )
-        daily_kwh_rec = FakeRecord(
-            values={}, time=now, field="daily_kwh", value=12.3
-        )
-        peak_rec = FakeRecord(
-            values={}, time=peak_time, field="total_power_w", value=3000.0
-        )
-        avg_rec = FakeRecord(
-            values={}, time=now, field="total_power_w", value=1100.0
-        )
-        corr_rec = FakeRecord(
-            values={}, time=now, field="power_delta_w", value=55
-        )
+        current_power_rec = FakeRecord(values={}, time=now, field="total_power_w", value=1500.0)
+        daily_kwh_rec = FakeRecord(values={}, time=now, field="daily_kwh", value=12.3)
+        peak_rec = FakeRecord(values={}, time=peak_time, field="total_power_w", value=3000.0)
+        avg_rec = FakeRecord(values={}, time=now, field="total_power_w", value=1100.0)
+        corr_rec = FakeRecord(values={}, time=now, field="power_delta_w", value=55)
 
         call_count = 0
 
@@ -415,7 +393,6 @@ class TestStatistics:
 
 
 class TestTopConsumers:
-
     @pytest.mark.asyncio
     async def test_top_consumers_with_data(self, client):
         now = datetime.now(UTC)
@@ -468,7 +445,6 @@ class TestTopConsumers:
 
 
 class TestCarbonIntensityCurrent:
-
     @pytest.mark.asyncio
     async def test_carbon_current_with_data(self, client):
         now = datetime.now(UTC)
@@ -508,7 +484,6 @@ class TestCarbonIntensityCurrent:
 
 
 class TestCarbonIntensityTrends:
-
     def _make_current_record(self, intensity=200.0, forecast_1h=210.0):
         return FakeRecord(
             values={

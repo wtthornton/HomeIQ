@@ -21,13 +21,13 @@ logger = logging.getLogger(__name__)
 def _conversation_model_to_domain(model: ConversationModel) -> Conversation:
     """Convert ConversationModel to domain Conversation"""
     # Get debug_id from model (generate if missing as fallback)
-    debug_id = getattr(model, 'debug_id', None)
+    debug_id = getattr(model, "debug_id", None)
     if not debug_id:
         debug_id = str(uuid4())  # Generate as fallback if missing
 
     # Get title and source from model (Epic AI-20.9)
-    title = getattr(model, 'title', None)
-    source = getattr(model, 'source', None) or 'user'
+    title = getattr(model, "title", None)
+    source = getattr(model, "source", None) or "user"
 
     conversation = Conversation(
         conversation_id=model.conversation_id,
@@ -41,11 +41,11 @@ def _conversation_model_to_domain(model: ConversationModel) -> Conversation:
 
     # Convert messages (only if loaded - use getattr to avoid lazy loading)
     # Messages are eagerly loaded via selectinload in queries
-    messages = getattr(model, '_messages_loaded', None)
+    messages = getattr(model, "_messages_loaded", None)
     if messages is None:
         # Try to access messages (may trigger lazy load if not already loaded)
         try:
-            messages = list(model.messages) if hasattr(model, 'messages') else []
+            messages = list(model.messages) if hasattr(model, "messages") else []
         except Exception:
             # If lazy loading fails (session closed), use empty list
             messages = []
@@ -56,7 +56,7 @@ def _conversation_model_to_domain(model: ConversationModel) -> Conversation:
             content=msg_model.content,
             message_id=msg_model.message_id,
             created_at=msg_model.created_at,
-            tool_calls=getattr(msg_model, 'tool_calls', None),
+            tool_calls=getattr(msg_model, "tool_calls", None),
         )
         conversation.messages.append(message)
 
@@ -74,7 +74,7 @@ def _message_model_to_domain(model: MessageModel) -> Message:
         content=model.content,
         message_id=model.message_id,
         created_at=model.created_at,
-        tool_calls=getattr(model, 'tool_calls', None),
+        tool_calls=getattr(model, "tool_calls", None),
     )
 
 
@@ -121,9 +121,7 @@ async def create_conversation(
     return _conversation_model_to_domain(conversation_model)
 
 
-async def get_conversation(
-    session: AsyncSession, conversation_id: str
-) -> Conversation | None:
+async def get_conversation(session: AsyncSession, conversation_id: str) -> Conversation | None:
     """Get a conversation by ID from the database"""
     from sqlalchemy.orm import selectinload
 
@@ -151,9 +149,7 @@ async def get_conversation(
     return _conversation_model_to_domain(conversation_model)
 
 
-async def get_conversation_by_debug_id(
-    session: AsyncSession, debug_id: str
-) -> Conversation | None:
+async def get_conversation_by_debug_id(session: AsyncSession, debug_id: str) -> Conversation | None:
     """Get a conversation by debug_id from the database"""
     from sqlalchemy.orm import selectinload
 
@@ -254,9 +250,7 @@ async def count_conversations(
 
 async def delete_conversation(session: AsyncSession, conversation_id: str) -> bool:
     """Delete a conversation (cascade deletes messages)"""
-    stmt = delete(ConversationModel).where(
-        ConversationModel.conversation_id == conversation_id
-    )
+    stmt = delete(ConversationModel).where(ConversationModel.conversation_id == conversation_id)
 
     result = await session.execute(stmt)
     await session.commit()
@@ -268,7 +262,10 @@ async def delete_conversation(session: AsyncSession, conversation_id: str) -> bo
 
 
 async def add_message(
-    session: AsyncSession, conversation_id: str, role: str, content: str,
+    session: AsyncSession,
+    conversation_id: str,
+    role: str,
+    content: str,
     tool_calls: list[dict] | None = None,
 ) -> Message | None:
     """Add a message to a conversation"""
@@ -296,16 +293,12 @@ async def add_message(
     await session.commit()
     await session.refresh(message_model)
 
-    logger.debug(
-        f"Added {role} message to conversation {conversation_id} in database"
-    )
+    logger.debug(f"Added {role} message to conversation {conversation_id} in database")
 
     return _message_model_to_domain(message_model)
 
 
-async def update_conversation_state(
-    session: AsyncSession, conversation_id: str, state: ConversationState
-) -> bool:
+async def update_conversation_state(session: AsyncSession, conversation_id: str, state: ConversationState) -> bool:
     """Update conversation state"""
     conversation_model = await session.get(ConversationModel, conversation_id)
     if not conversation_model:
@@ -317,9 +310,7 @@ async def update_conversation_state(
     return True
 
 
-async def update_conversation_title(
-    session: AsyncSession, conversation_id: str, title: str | None
-) -> bool:
+async def update_conversation_title(session: AsyncSession, conversation_id: str, title: str | None) -> bool:
     """
     Update conversation title (Epic AI-20.9).
 
@@ -347,9 +338,7 @@ async def update_conversation_title(
     return True
 
 
-async def update_conversation_source(
-    session: AsyncSession, conversation_id: str, source: str
-) -> bool:
+async def update_conversation_source(session: AsyncSession, conversation_id: str, source: str) -> bool:
     """
     Update conversation source (Epic AI-20.9).
 
@@ -361,7 +350,7 @@ async def update_conversation_source(
     Returns:
         True if updated, False if conversation not found
     """
-    valid_sources = ['user', 'proactive', 'pattern']
+    valid_sources = ["user", "proactive", "pattern"]
     if source not in valid_sources:
         logger.warning(f"Invalid source '{source}', must be one of {valid_sources}")
         return False
@@ -378,9 +367,7 @@ async def update_conversation_source(
     return True
 
 
-async def auto_generate_title(
-    session: AsyncSession, conversation_id: str
-) -> str | None:
+async def auto_generate_title(session: AsyncSession, conversation_id: str) -> str | None:
     """
     Auto-generate title from first user message if not set (Epic AI-20.9).
 
@@ -427,9 +414,7 @@ async def auto_generate_title(
     return None
 
 
-async def cleanup_old_conversations(
-    session: AsyncSession, ttl_days: int = 30
-) -> int:
+async def cleanup_old_conversations(session: AsyncSession, ttl_days: int = 30) -> int:
     """
     Clean up conversations older than TTL days.
 
@@ -442,9 +427,7 @@ async def cleanup_old_conversations(
     """
     cutoff_date = datetime.now() - timedelta(days=ttl_days)
 
-    stmt = delete(ConversationModel).where(
-        ConversationModel.created_at < cutoff_date
-    )
+    stmt = delete(ConversationModel).where(ConversationModel.created_at < cutoff_date)
 
     result = await session.execute(stmt)
     await session.commit()
@@ -456,9 +439,7 @@ async def cleanup_old_conversations(
     return deleted_count
 
 
-async def set_pending_preview(
-    session: AsyncSession, conversation_id: str, preview: dict
-) -> bool:
+async def set_pending_preview(session: AsyncSession, conversation_id: str, preview: dict) -> bool:
     """
     Store pending automation preview for a conversation.
 
@@ -482,9 +463,7 @@ async def set_pending_preview(
     return True
 
 
-async def clear_pending_preview(
-    session: AsyncSession, conversation_id: str
-) -> bool:
+async def clear_pending_preview(session: AsyncSession, conversation_id: str) -> bool:
     """
     Clear pending automation preview for a conversation.
 
@@ -505,4 +484,3 @@ async def clear_pending_preview(
 
     logger.debug(f"Cleared pending preview for conversation {conversation_id}")
     return True
-

@@ -3,7 +3,6 @@
 import asyncio
 import logging
 from datetime import UTC, datetime
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -93,6 +92,7 @@ class IndexManager:
                 # Index from GitHub
                 if job_type in ("github", "full"):
                     async with GitHubBlueprintIndexer() as github_indexer:
+
                         def github_progress(processed, total):
                             job.processed_items = processed
                             job.total_items = total
@@ -106,6 +106,7 @@ class IndexManager:
                 # Index from Discourse
                 if job_type in ("discourse", "full"):
                     async with DiscourseBlueprintIndexer() as discourse_indexer:
+
                         def discourse_progress(processed, total):
                             job.processed_items = len(all_blueprints) + processed
                             job.total_items = len(all_blueprints) + total
@@ -183,7 +184,7 @@ class IndexManager:
             except Exception as inner_e:
                 logger.error(f"Failed to update job status: {inner_e}")
 
-    async def get_job(self, job_id: str) -> Optional[IndexingJob]:
+    async def get_job(self, job_id: str) -> IndexingJob | None:
         """Get indexing job by ID."""
         query = select(IndexingJob).where(IndexingJob.id == job_id)
         result = await self.db.execute(query)
@@ -191,11 +192,7 @@ class IndexManager:
 
     async def get_recent_jobs(self, limit: int = 10) -> list[IndexingJob]:
         """Get recent indexing jobs."""
-        query = (
-            select(IndexingJob)
-            .order_by(IndexingJob.created_at.desc())
-            .limit(limit)
-        )
+        query = select(IndexingJob).order_by(IndexingJob.created_at.desc()).limit(limit)
         result = await self.db.execute(query)
         return list(result.scalars().all())
 

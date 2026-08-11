@@ -122,4 +122,3 @@ class DeviceMappingRegistry:
         """Clear all registered handlers."""
         self._handlers.clear()
         logger.debug("Registry cleared")
-

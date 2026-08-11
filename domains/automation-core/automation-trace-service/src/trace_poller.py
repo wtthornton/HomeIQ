@@ -45,9 +45,7 @@ class TracePoller:
 
     async def run_continuous(self):
         """Background loop — runs until cancelled."""
-        logger.info(
-            "Starting trace poller (interval=%ds)", config.TRACE_POLL_INTERVAL_SECONDS
-        )
+        logger.info("Starting trace poller (interval=%ds)", config.TRACE_POLL_INTERVAL_SECONDS)
         consecutive_failures = 0
 
         while True:
@@ -65,7 +63,9 @@ class TracePoller:
                 backoff = min(60 * consecutive_failures, 600)
                 logger.error(
                     "Trace poll error (#%d): %s — retrying in %ds",
-                    consecutive_failures, e, backoff,
+                    consecutive_failures,
+                    e,
+                    backoff,
                 )
                 await asyncio.sleep(backoff)
 
@@ -99,9 +99,7 @@ class TracePoller:
                     if full_trace:
                         automation_entity_id = self._find_entity_id(item_id, automations)
                         await self.writer.write_trace(automation_entity_id, full_trace)
-                        execution_batch.append(
-                            self._build_execution_record(automation_entity_id, full_trace)
-                        )
+                        execution_batch.append(self._build_execution_record(automation_entity_id, full_trace))
                         new_count += 1
                 except Exception:
                     logger.exception("Failed to process trace %s/%s", item_id, run_id)
@@ -190,11 +188,13 @@ class TracePoller:
             records = []
             for entity in automations:
                 entity_id = entity.get("entity_id", "")
-                records.append({
-                    "automation_id": entity_id,
-                    "alias": entity.get("name") or entity.get("original_name") or entity_id,
-                    "enabled": entity.get("disabled_by") is None,
-                })
+                records.append(
+                    {
+                        "automation_id": entity_id,
+                        "alias": entity.get("name") or entity.get("original_name") or entity_id,
+                        "enabled": entity.get("disabled_by") is None,
+                    }
+                )
 
             url = f"{config.DATA_API_URL}/internal/automations/bulk_upsert"
             headers = {"Content-Type": "application/json"}
@@ -235,9 +235,14 @@ class TracePoller:
     def _extract_trigger_type(trigger_desc: str) -> str:
         desc = trigger_desc.lower()
         for keyword, ttype in [
-            ("state of", "state"), ("time", "time"), ("event", "event"),
-            ("mqtt", "mqtt"), ("webhook", "webhook"), ("sun", "sun"),
-            ("zone", "zone"), ("numeric_state", "numeric_state"),
+            ("state of", "state"),
+            ("time", "time"),
+            ("event", "event"),
+            ("mqtt", "mqtt"),
+            ("webhook", "webhook"),
+            ("sun", "sun"),
+            ("zone", "zone"),
+            ("numeric_state", "numeric_state"),
             ("template", "template"),
         ]:
             if keyword in desc:

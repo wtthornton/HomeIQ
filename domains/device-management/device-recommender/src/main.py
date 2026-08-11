@@ -25,6 +25,7 @@ logger = setup_logging("device-recommender")
 # Pydantic request / response models
 # ---------------------------------------------------------------------------
 
+
 class RecommendRequest(BaseModel):
     device_type: str
     requirements: dict | None = None
@@ -60,6 +61,7 @@ _comparison_engine: DeviceComparisonEngine | None = None
 # Lifespan
 # ---------------------------------------------------------------------------
 
+
 async def _startup() -> None:
     global _ha_client, _recommender, _comparison_engine
     _ha_client = HAClient()
@@ -83,6 +85,7 @@ lifespan.on_shutdown(_shutdown, name="close-ha-client")
 # ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
+
 
 async def _check_ha() -> bool:
     return _ha_client is not None and bool(_ha_client.ha_url)
@@ -108,6 +111,7 @@ app = create_app(
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @app.post("/api/v1/recommend", response_model=RecommendResponse)
 async def recommend(body: RecommendRequest) -> RecommendResponse:

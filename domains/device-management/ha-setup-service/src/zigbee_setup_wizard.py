@@ -11,11 +11,12 @@ Context7 Best Practices Applied:
 - Step-by-step guided workflow
 - Comprehensive error reporting
 """
+
 import logging
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 
 import aiohttp
 from pydantic import BaseModel, Field
@@ -28,8 +29,9 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
-class SetupStep(str, Enum):
+class SetupStep(StrEnum):
     """Setup wizard steps"""
+
     PREREQUISITES = "prerequisites"
     MQTT_CONFIG = "mqtt_config"
     ADDON_INSTALL = "addon_install"
@@ -40,8 +42,9 @@ class SetupStep(str, Enum):
     VALIDATION = "validation"
 
 
-class SetupStatus(str, Enum):
+class SetupStatus(StrEnum):
     """Setup step status"""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -49,8 +52,9 @@ class SetupStatus(str, Enum):
     SKIPPED = "skipped"
 
 
-class DeviceType(str, Enum):
+class DeviceType(StrEnum):
     """Zigbee device types"""
+
     SWITCH = "switch"
     SENSOR = "sensor"
     LIGHT = "light"
@@ -64,6 +68,7 @@ class DeviceType(str, Enum):
 @dataclass
 class SetupStepResult:
     """Result of a setup step"""
+
     step: SetupStep
     status: SetupStatus
     message: str
@@ -75,6 +80,7 @@ class SetupStepResult:
 @dataclass
 class DeviceInfo:
     """Zigbee device information"""
+
     device_id: str
     friendly_name: str
     device_type: DeviceType
@@ -86,6 +92,7 @@ class DeviceInfo:
 
 class SetupWizardRequest(BaseModel):
     """Setup wizard request"""
+
     coordinator_type: str = Field(..., description="Type of Zigbee coordinator")
     network_channel: int | None = Field(None, description="Zigbee network channel (11-26)")
     pan_id: str | None = Field(None, description="Personal Area Network ID")
@@ -95,6 +102,7 @@ class SetupWizardRequest(BaseModel):
 
 class SetupWizardResponse(BaseModel):
     """Setup wizard response"""
+
     wizard_id: str
     current_step: SetupStep
     status: SetupStatus
@@ -138,7 +146,7 @@ class Zigbee2MQTTSetupWizard:
             "start_time": datetime.now(UTC),
             "steps_completed": [],
             "steps_failed": [],
-            "step_results": {}
+            "step_results": {},
         }
 
         self.active_wizards[wizard_id] = wizard_state
@@ -207,7 +215,7 @@ class Zigbee2MQTTSetupWizard:
                     step=step,
                     status=SetupStatus.FAILED,
                     message="Unknown step",
-                    error="Step not implemented"
+                    error="Step not implemented",
                 )
 
             # Calculate duration
@@ -233,7 +241,7 @@ class Zigbee2MQTTSetupWizard:
                 status=SetupStatus.FAILED,
                 message=f"Step execution failed: {str(e)}",
                 error=str(e),
-                duration_seconds=duration
+                duration_seconds=duration,
             )
             wizard_state["step_results"][step] = result
             wizard_state["steps_failed"].append(step)
@@ -267,14 +275,14 @@ class Zigbee2MQTTSetupWizard:
                     step=SetupStep.PREREQUISITES,
                     status=SetupStatus.COMPLETED,
                     message=f"Prerequisites checked: {', '.join(prerequisites)}",
-                    data={"prerequisites": prerequisites}
+                    data={"prerequisites": prerequisites},
                 )
             else:
                 return SetupStepResult(
                     step=SetupStep.PREREQUISITES,
                     status=SetupStatus.COMPLETED,
                     message="All prerequisites satisfied",
-                    data={"prerequisites": ["All checks passed"]}
+                    data={"prerequisites": ["All checks passed"]},
                 )
 
         except Exception as e:
@@ -282,7 +290,7 @@ class Zigbee2MQTTSetupWizard:
                 step=SetupStep.PREREQUISITES,
                 status=SetupStatus.FAILED,
                 message=f"Prerequisites check failed: {str(e)}",
-                error=str(e)
+                error=str(e),
             )
 
     async def _configure_mqtt(self) -> SetupStepResult:
@@ -296,7 +304,7 @@ class Zigbee2MQTTSetupWizard:
                     step=SetupStep.MQTT_CONFIG,
                     status=SetupStatus.COMPLETED,
                     message="MQTT integration already configured and healthy",
-                    data={"mqtt_status": "healthy"}
+                    data={"mqtt_status": "healthy"},
                 )
 
             # For now, provide guidance for manual configuration
@@ -310,9 +318,9 @@ class Zigbee2MQTTSetupWizard:
                         "1. Go to Home Assistant → Settings → Devices & Services",
                         "2. Click 'Add Integration' and search for 'MQTT'",
                         "3. Configure MQTT broker settings (typically localhost:1883)",
-                        "4. Enable 'Discovery' for automatic device detection"
-                    ]
-                }
+                        "4. Enable 'Discovery' for automatic device detection",
+                    ],
+                },
             )
 
         except Exception as e:
@@ -320,7 +328,7 @@ class Zigbee2MQTTSetupWizard:
                 step=SetupStep.MQTT_CONFIG,
                 status=SetupStatus.FAILED,
                 message=f"MQTT configuration failed: {str(e)}",
-                error=str(e)
+                error=str(e),
             )
 
     async def _install_addon(self) -> SetupStepResult:
@@ -330,14 +338,14 @@ class Zigbee2MQTTSetupWizard:
             session = await get_http_session()
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             # Check addon status
             async with session.get(
                 f"{self.ha_url}/api/hassio/addon/zigbee2mqtt/info",
                 headers=headers,
-                timeout=aiohttp.ClientTimeout(total=10)
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 if response.status == 200:
                     addon_info = await response.json()
@@ -346,28 +354,28 @@ class Zigbee2MQTTSetupWizard:
                             step=SetupStep.ADDON_INSTALL,
                             status=SetupStatus.COMPLETED,
                             message="Zigbee2MQTT addon already installed and running",
-                            data={"addon_state": "running"}
+                            data={"addon_state": "running"},
                         )
                     else:
                         # Try to start the addon
                         async with session.post(
                             f"{self.ha_url}/api/hassio/addon/zigbee2mqtt/start",
                             headers=headers,
-                            timeout=aiohttp.ClientTimeout(total=30)
+                            timeout=aiohttp.ClientTimeout(total=30),
                         ) as start_response:
                             if start_response.status == 200:
                                 return SetupStepResult(
                                     step=SetupStep.ADDON_INSTALL,
                                     status=SetupStatus.COMPLETED,
                                     message="Zigbee2MQTT addon started successfully",
-                                    data={"addon_state": "started"}
+                                    data={"addon_state": "started"},
                                 )
                             else:
                                 return SetupStepResult(
                                     step=SetupStep.ADDON_INSTALL,
                                     status=SetupStatus.FAILED,
                                     message=f"Failed to start addon: HTTP {start_response.status}",
-                                    error=f"HTTP {start_response.status}"
+                                    error=f"HTTP {start_response.status}",
                                 )
                 else:
                     return SetupStepResult(
@@ -380,9 +388,9 @@ class Zigbee2MQTTSetupWizard:
                                 "1. Go to Home Assistant -> Supervisor -> Add-on Store",
                                 "2. Search for 'Zigbee2MQTT'",
                                 "3. Click 'Install' and wait for installation to complete",
-                                "4. Click 'Start' to start the addon"
-                            ]
-                        }
+                                "4. Click 'Start' to start the addon",
+                            ],
+                        },
                     )
 
         except Exception as e:
@@ -390,7 +398,7 @@ class Zigbee2MQTTSetupWizard:
                 step=SetupStep.ADDON_INSTALL,
                 status=SetupStatus.FAILED,
                 message=f"Addon installation failed: {str(e)}",
-                error=str(e)
+                error=str(e),
             )
 
     async def _configure_addon(self, request: SetupWizardRequest) -> SetupStepResult:
@@ -416,17 +424,9 @@ class Zigbee2MQTTSetupWizard:
                 "data_path": "/config/zigbee2mqtt",
                 "homeassistant": True,
                 "permit_join": False,
-                "mqtt": {
-                    "base_topic": "zigbee2mqtt",
-                    "server": mqtt_broker
-                },
-                "serial": {
-                    "port": serial_port
-                },
-                "advanced": {
-                    "log_level": "info",
-                    "log_output": ["console", "file"]
-                }
+                "mqtt": {"base_topic": "zigbee2mqtt", "server": mqtt_broker},
+                "serial": {"port": serial_port},
+                "advanced": {"log_level": "info", "log_output": ["console", "file"]},
             }
 
             # Add network settings if provided
@@ -441,6 +441,7 @@ class Zigbee2MQTTSetupWizard:
 
             # Redact sensitive fields before returning in response
             import copy
+
             safe_config = copy.deepcopy(config)
             if "advanced" in safe_config and "network_key" in safe_config["advanced"]:
                 safe_config["advanced"]["network_key"] = "***REDACTED***"
@@ -455,9 +456,9 @@ class Zigbee2MQTTSetupWizard:
                         "1. Go to Zigbee2MQTT addon → Configuration",
                         "2. Replace the configuration with the generated config",
                         "3. Save and restart the addon",
-                        "4. Check logs for any configuration errors"
-                    ]
-                }
+                        "4. Check logs for any configuration errors",
+                    ],
+                },
             )
 
         except Exception as e:
@@ -465,7 +466,7 @@ class Zigbee2MQTTSetupWizard:
                 step=SetupStep.ADDON_CONFIG,
                 status=SetupStatus.FAILED,
                 message=f"Addon configuration failed: {str(e)}",
-                error=str(e)
+                error=str(e),
             )
 
     async def _setup_coordinator(self, request: SetupWizardRequest) -> SetupStepResult:
@@ -475,24 +476,24 @@ class Zigbee2MQTTSetupWizard:
             session = await get_http_session()
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             # Check for coordinator entity using single-entity endpoint
             async with session.get(
                 f"{self.ha_url}/api/states/sensor.zigbee2mqtt_bridge_state",
                 headers=headers,
-                timeout=aiohttp.ClientTimeout(total=10)
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 if response.status == 200:
                     coordinator_state = await response.json()
 
-                    if coordinator_state and coordinator_state.get('state') == 'online':
+                    if coordinator_state and coordinator_state.get("state") == "online":
                         return SetupStepResult(
                             step=SetupStep.COORDINATOR_SETUP,
                             status=SetupStatus.COMPLETED,
                             message="Coordinator is online and connected",
-                            data={"coordinator_status": "online"}
+                            data={"coordinator_status": "online"},
                         )
                     else:
                         return SetupStepResult(
@@ -505,16 +506,16 @@ class Zigbee2MQTTSetupWizard:
                                     f"1. Connect your {request.coordinator_type} coordinator",
                                     "2. Check the correct USB port in addon configuration",
                                     "3. Restart the Zigbee2MQTT addon",
-                                    "4. Check addon logs for coordinator connection status"
-                                ]
-                            }
+                                    "4. Check addon logs for coordinator connection status",
+                                ],
+                            },
                         )
                 else:
                     return SetupStepResult(
                         step=SetupStep.COORDINATOR_SETUP,
                         status=SetupStatus.FAILED,
                         message=f"Failed to check coordinator: HTTP {response.status}",
-                        error=f"HTTP {response.status}"
+                        error=f"HTTP {response.status}",
                     )
 
         except Exception as e:
@@ -522,7 +523,7 @@ class Zigbee2MQTTSetupWizard:
                 step=SetupStep.COORDINATOR_SETUP,
                 status=SetupStatus.FAILED,
                 message=f"Coordinator setup failed: {str(e)}",
-                error=str(e)
+                error=str(e),
             )
 
     async def _setup_device_pairing(self) -> SetupStepResult:
@@ -564,13 +565,15 @@ class Zigbee2MQTTSetupWizard:
             if health_status.check_details.get("device_count", 0) == 0:
                 optimization_recommendations.append("No devices found - pair devices first")
             else:
-                optimization_recommendations.extend([
-                    "Network optimization recommendations:",
-                    "• Use channel 25 for best WiFi coexistence",
-                    "• Ensure coordinator is centrally located",
-                    "• Keep coordinator away from WiFi routers",
-                    "• Use repeaters for large networks"
-                ])
+                optimization_recommendations.extend(
+                    [
+                        "Network optimization recommendations:",
+                        "• Use channel 25 for best WiFi coexistence",
+                        "• Ensure coordinator is centrally located",
+                        "• Keep coordinator away from WiFi routers",
+                        "• Use repeaters for large networks",
+                    ]
+                )
 
             return SetupStepResult(
                 step=SetupStep.NETWORK_OPTIMIZATION,
@@ -578,8 +581,8 @@ class Zigbee2MQTTSetupWizard:
                 message="Network optimization completed",
                 data={
                     "recommendations": optimization_recommendations,
-                    "device_count": health_status.check_details.get("device_count", 0)
-                }
+                    "device_count": health_status.check_details.get("device_count", 0),
+                },
             )
 
         except Exception as e:
@@ -587,7 +590,7 @@ class Zigbee2MQTTSetupWizard:
                 step=SetupStep.NETWORK_OPTIMIZATION,
                 status=SetupStatus.FAILED,
                 message=f"Network optimization failed: {str(e)}",
-                error=str(e)
+                error=str(e),
             )
 
     async def _validate_setup(self) -> SetupStepResult:
@@ -627,8 +630,8 @@ class Zigbee2MQTTSetupWizard:
                     "validation_results": validation_results,
                     "all_healthy": all_healthy,
                     "device_count": device_count,
-                    "bridge_state": bridge_state
-                }
+                    "bridge_state": bridge_state,
+                },
             )
 
         except Exception as e:
@@ -636,7 +639,7 @@ class Zigbee2MQTTSetupWizard:
                 step=SetupStep.VALIDATION,
                 status=SetupStatus.FAILED,
                 message=f"Setup validation failed: {str(e)}",
-                error=str(e)
+                error=str(e),
             )
 
     def _get_next_step(self, wizard_state: dict) -> SetupStep | None:
@@ -653,7 +656,7 @@ class Zigbee2MQTTSetupWizard:
             SetupStep.COORDINATOR_SETUP,
             SetupStep.DEVICE_PAIRING,
             SetupStep.NETWORK_OPTIMIZATION,
-            SetupStep.VALIDATION
+            SetupStep.VALIDATION,
         ]
 
         # Find next incomplete step
@@ -696,8 +699,10 @@ class Zigbee2MQTTSetupWizard:
             message=f"Wizard {wizard_state['status'].value} - Step: {wizard_state['current_step'].value}",
             steps_completed=wizard_state["steps_completed"],
             steps_failed=wizard_state["steps_failed"],
-            estimated_time_remaining_minutes=int(estimated_remaining) if estimated_remaining else None,
-            recommendations=recommendations
+            estimated_time_remaining_minutes=int(estimated_remaining)
+            if estimated_remaining
+            else None,
+            recommendations=recommendations,
         )
 
     async def get_wizard_status(self, wizard_id: str) -> SetupWizardResponse | None:

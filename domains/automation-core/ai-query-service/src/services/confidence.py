@@ -31,9 +31,9 @@ def calculate_entity_confidence(
         return base
 
     entity_count = len(entities)
-    quality_score = sum(
-        (1.0 if e.get("entity_id") else 0.5) * e.get("confidence", 0.7)
-        for e in entities
-    ) / entity_count
+    quality_score = (
+        sum((1.0 if e.get("entity_id") else 0.5) * e.get("confidence", 0.7) for e in entities)
+        / entity_count
+    )
 
     return min(cap, base + (entity_count * entity_weight) + (quality_score * quality_weight))

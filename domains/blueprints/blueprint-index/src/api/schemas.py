@@ -94,15 +94,21 @@ class BlueprintSearchRequest(BaseModel):
     """Request schema for blueprint search."""
 
     # Domain/device filters
-    domains: list[str] | None = Field(default=None, description="Required entity domains (e.g., binary_sensor, light)")
-    device_classes: list[str] | None = Field(default=None, description="Required device classes (e.g., motion, door)")
+    domains: list[str] | None = Field(
+        default=None, description="Required entity domains (e.g., binary_sensor, light)"
+    )
+    device_classes: list[str] | None = Field(
+        default=None, description="Required device classes (e.g., motion, door)"
+    )
 
     # Pattern matching
     trigger_domain: str | None = Field(default=None, description="Trigger entity domain")
     action_domain: str | None = Field(default=None, description="Action entity domain")
 
     # Classification filters
-    use_case: str | None = Field(default=None, description="Use case category (energy, comfort, security, convenience)")
+    use_case: str | None = Field(
+        default=None, description="Use case category (energy, comfort, security, convenience)"
+    )
     domain_type: str | None = Field(default="automation", description="Blueprint domain type")
 
     # Text search
@@ -180,5 +186,9 @@ class IndexingJobResponse(BaseModel):
 class TriggerIndexingRequest(BaseModel):
     """Request schema for triggering indexing."""
 
-    job_type: str = Field(default="full", description="Type of indexing job: 'github', 'discourse', 'full'")
-    force_refresh: bool = Field(default=False, description="Force re-index even if recently indexed")
+    job_type: str = Field(
+        default="full", description="Type of indexing job: 'github', 'discourse', 'full'"
+    )
+    force_refresh: bool = Field(
+        default=False, description="Force re-index even if recently indexed"
+    )

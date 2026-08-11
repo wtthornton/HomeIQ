@@ -28,16 +28,16 @@ async def get_event_rate(request: Request):
 
         # Get connection statistics
         connection_stats = {}
-        if service.connection_manager and hasattr(service.connection_manager, 'event_subscription'):
+        if service.connection_manager and hasattr(service.connection_manager, "event_subscription"):
             event_subscription = service.connection_manager.event_subscription
             if event_subscription:
                 sub_status = event_subscription.get_subscription_status()
                 connection_stats = {
-                    "is_connected": getattr(service.connection_manager, 'is_running', False),
+                    "is_connected": getattr(service.connection_manager, "is_running", False),
                     "is_subscribed": sub_status.get("is_subscribed", False),
                     "total_events_received": sub_status.get("total_events_received", 0),
                     "events_by_type": sub_status.get("events_by_type", {}),
-                    "last_event_time": sub_status.get("last_event_time")
+                    "last_event_time": sub_status.get("last_event_time"),
                 }
 
         # Calculate event rate per second
@@ -58,7 +58,7 @@ async def get_event_rate(request: Request):
             "uptime_seconds": round(uptime_seconds, 2),
             "processing_stats": processing_stats,
             "connection_stats": connection_stats,
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         return response_data
@@ -72,7 +72,6 @@ async def get_event_rate(request: Request):
                 "error": str(e),
                 "events_per_second": 0,
                 "events_per_hour": 0,
-                "timestamp": datetime.now(UTC).isoformat()
-            }
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
         ) from e
-

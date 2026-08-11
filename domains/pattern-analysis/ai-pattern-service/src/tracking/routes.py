@@ -26,7 +26,9 @@ class RecordExecutionRequest(BaseModel):
 
     automation_id: str = Field(..., description="Home Assistant automation entity ID")
     execution_id: str = Field(..., description="Unique execution identifier")
-    status: str = Field(..., description="Execution status (success, failure, timeout, partial, skipped)")
+    status: str = Field(
+        ..., description="Execution status (success, failure, timeout, partial, skipped)"
+    )
     execution_time_ms: int | None = Field(None, description="Execution time in milliseconds")
     error_message: str | None = Field(None, description="Error message if failed")
     error_type: str | None = Field(None, description="Error type classification")

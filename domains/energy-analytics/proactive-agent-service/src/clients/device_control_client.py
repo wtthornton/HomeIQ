@@ -76,10 +76,14 @@ class DeviceControlClient:
         state: str = "off",
     ) -> dict[str, Any] | None:
         """Control a switch (on/off)."""
-        return await self._execute("POST", "/api/control/switch", {
-            "entity_id_or_name": entity_id_or_name,
-            "state": state,
-        })
+        return await self._execute(
+            "POST",
+            "/api/control/switch",
+            {
+                "entity_id_or_name": entity_id_or_name,
+                "state": state,
+            },
+        )
 
     async def control_climate(
         self,
@@ -114,7 +118,8 @@ class DeviceControlClient:
         """Get current state of a specific entity (for pre/post snapshots)."""
         try:
             response = await self._cross_client.call(
-                "GET", f"/api/control/devices",
+                "GET",
+                "/api/control/devices",
             )
             response.raise_for_status()
             devices = response.json()
@@ -140,12 +145,16 @@ class DeviceControlClient:
             if result.get("success"):
                 logger.info(
                     "Device control success: %s %s → %s",
-                    method, path, result.get("message", "ok"),
+                    method,
+                    path,
+                    result.get("message", "ok"),
                 )
             else:
                 logger.warning(
                     "Device control returned success=false: %s %s → %s",
-                    method, path, result.get("message", "unknown"),
+                    method,
+                    path,
+                    result.get("message", "unknown"),
                 )
             return result
         except CircuitOpenError:
@@ -154,7 +163,9 @@ class DeviceControlClient:
         except httpx.HTTPStatusError as e:
             logger.error(
                 "HTTP %d from ha-device-control %s: %s",
-                e.response.status_code, path, e.response.text[:200],
+                e.response.status_code,
+                path,
+                e.response.text[:200],
             )
             return None
         except (httpx.HTTPError, Exception) as e:

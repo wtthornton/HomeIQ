@@ -26,13 +26,7 @@ class HomeAssistantClient:
     WebSocket API is preferred for area registry access.
     """
 
-    def __init__(
-        self,
-        ha_url: str,
-        access_token: str,
-        timeout: int = 10,
-        ssl_context: ssl.SSLContext | None = None
-    ):
+    def __init__(self, ha_url: str, access_token: str, timeout: int = 10, ssl_context: ssl.SSLContext | None = None):
         """
         Initialize HA client.
 
@@ -42,12 +36,9 @@ class HomeAssistantClient:
             timeout: Request timeout in seconds
             ssl_context: Optional SSL context for TLS verification on WebSocket connections
         """
-        self.ha_url = ha_url.rstrip('/')
+        self.ha_url = ha_url.rstrip("/")
         self.access_token = access_token
-        self.headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
+        self.headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         self._session: aiohttp.ClientSession | None = None
         self._ssl_context = ssl_context
@@ -56,16 +47,8 @@ class HomeAssistantClient:
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create a reusable client session"""
         if self._session is None or self._session.closed:
-            connector = aiohttp.TCPConnector(
-                limit=10,
-                limit_per_host=5,
-                keepalive_timeout=30
-            )
-            self._session = aiohttp.ClientSession(
-                connector=connector,
-                headers=self.headers,
-                timeout=self.timeout
-            )
+            connector = aiohttp.TCPConnector(limit=10, limit_per_host=5, keepalive_timeout=30)
+            self._session = aiohttp.ClientSession(connector=connector, headers=self.headers, timeout=self.timeout)
         return self._session
 
     async def _connection(self) -> HAWebSocketClient:
@@ -102,7 +85,7 @@ class HomeAssistantClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((aiohttp.ClientError, asyncio.TimeoutError)),
-        reraise=True
+        reraise=True,
     )
     async def get_area_registry(self) -> list[dict[str, Any]]:
         """
@@ -125,7 +108,7 @@ class HomeAssistantClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((aiohttp.ClientError, asyncio.TimeoutError)),
-        reraise=True
+        reraise=True,
     )
     async def get_services(self) -> dict[str, Any]:
         """
@@ -155,7 +138,7 @@ class HomeAssistantClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((aiohttp.ClientError, asyncio.TimeoutError)),
-        reraise=True
+        reraise=True,
     )
     async def get_states(self) -> list[dict[str, Any]]:
         """
@@ -207,8 +190,14 @@ class HomeAssistantClient:
         try:
             all_states = await self.get_states()
             helper_domains = {
-                "input_boolean", "input_number", "input_select", "input_text",
-                "input_datetime", "input_button", "counter", "timer"
+                "input_boolean",
+                "input_number",
+                "input_select",
+                "input_text",
+                "input_datetime",
+                "input_button",
+                "counter",
+                "timer",
             }
 
             helpers = []
@@ -217,13 +206,15 @@ class HomeAssistantClient:
                 if entity_id:
                     domain = entity_id.split(".")[0]
                     if domain in helper_domains:
-                        helpers.append({
-                            "id": entity_id.split(".", 1)[1] if "." in entity_id else entity_id,
-                            "type": domain,
-                            "entity_id": entity_id,
-                            "name": state.get("attributes", {}).get("friendly_name", entity_id),
-                            "state": state.get("state")
-                        })
+                        helpers.append(
+                            {
+                                "id": entity_id.split(".", 1)[1] if "." in entity_id else entity_id,
+                                "type": domain,
+                                "entity_id": entity_id,
+                                "name": state.get("attributes", {}).get("friendly_name", entity_id),
+                                "state": state.get("state"),
+                            }
+                        )
 
             logger.info(f"✅ Found {len(helpers)} helpers from Home Assistant")
             return helpers
@@ -251,12 +242,14 @@ class HomeAssistantClient:
             for state in all_states:
                 entity_id = state.get("entity_id", "")
                 if entity_id and entity_id.startswith("scene."):
-                    scenes.append({
-                        "id": entity_id.split(".", 1)[1] if "." in entity_id else entity_id,
-                        "entity_id": entity_id,
-                        "name": state.get("attributes", {}).get("friendly_name", entity_id),
-                        "state": state.get("state")
-                    })
+                    scenes.append(
+                        {
+                            "id": entity_id.split(".", 1)[1] if "." in entity_id else entity_id,
+                            "entity_id": entity_id,
+                            "name": state.get("attributes", {}).get("friendly_name", entity_id),
+                            "state": state.get("state"),
+                        }
+                    )
 
             logger.info(f"✅ Found {len(scenes)} scenes from Home Assistant")
             return scenes
@@ -265,12 +258,11 @@ class HomeAssistantClient:
             logger.error(f"❌ {error_msg}")
             raise Exception(error_msg) from e
 
-
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((aiohttp.ClientError, asyncio.TimeoutError)),
-        reraise=True
+        reraise=True,
     )
     async def get_entity_registry(self) -> list[dict[str, Any]]:
         """
@@ -293,7 +285,7 @@ class HomeAssistantClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((aiohttp.ClientError, asyncio.TimeoutError)),
-        reraise=True
+        reraise=True,
     )
     async def get_device_registry(self) -> list[dict[str, Any]]:
         """
@@ -317,4 +309,3 @@ class HomeAssistantClient:
         if self._session and not self._session.closed:
             await self._session.close()
             logger.debug("✅ Home Assistant client closed")
-

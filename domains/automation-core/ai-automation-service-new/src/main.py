@@ -14,7 +14,7 @@ It handles:
 import logging
 import os
 
-from homeiq_resilience import ServiceLifespan, create_app
+from homeiq_resilience import GroupHealthCheck, ServiceLifespan, create_app
 
 # Setup logging (use shared logging config)
 try:
@@ -91,8 +91,6 @@ except ImportError:
 scheduler: AsyncIOScheduler | None = None
 
 # Module-level health checker, initialised during lifespan.
-from homeiq_resilience import GroupHealthCheck
-
 _group_health: GroupHealthCheck | None = None
 
 
@@ -166,14 +164,18 @@ async def generate_daily_suggestions() -> None:
         async with async_session_maker() as db_session:
             data_api_client = DataAPIClient(base_url=settings.data_api_url)
             openai_client = OpenAIClient(
-                api_key=settings.openai_api_key, model=settings.openai_model,
+                api_key=settings.openai_api_key,
+                model=settings.openai_model,
             )
             suggestion_service = SuggestionService(
-                db=db_session, data_api_client=data_api_client, openai_client=openai_client,
+                db=db_session,
+                data_api_client=data_api_client,
+                openai_client=openai_client,
             )
 
             suggestions = await suggestion_service.generate_suggestions(
-                limit=settings.scheduler_suggestion_limit, days=30,
+                limit=settings.scheduler_suggestion_limit,
+                days=30,
             )
 
             logger.info(
@@ -190,6 +192,7 @@ async def generate_daily_suggestions() -> None:
 # ---------------------------------------------------------------------------
 # Startup / Shutdown hooks for ServiceLifespan
 # ---------------------------------------------------------------------------
+
 
 async def _startup() -> None:
     """Initialize all resources on startup."""
@@ -216,12 +219,15 @@ async def _startup() -> None:
 
     # Probe cross-group dependencies (non-fatal)
     data_api_available = await wait_for_dependency(
-        url=settings.data_api_url, name="data-api", max_retries=10,
+        url=settings.data_api_url,
+        name="data-api",
+        max_retries=10,
     )
 
     # Structured group health
     _group_health = GroupHealthCheck(
-        group_name="automation-intelligence", version="1.0.0",
+        group_name="automation-intelligence",
+        version="1.0.0",
     )
     _group_health.register_dependency("data-api", settings.data_api_url)
     if not data_api_available:

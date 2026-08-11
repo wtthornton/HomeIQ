@@ -2,16 +2,8 @@
 Unit tests for blueprint parser
 Tests YAML parsing for Home Assistant blueprints
 """
-import sys
-from pathlib import Path
 
-# Add service src to path
-service_dir = Path(__file__).parent.parent
-src_path = service_dir / "src"
-if str(src_path) not in sys.path:
-    sys.path.insert(0, str(src_path))
-
-from miner.parser import AutomationParser
+from src.miner.parser import AutomationParser
 
 
 class TestAutomationParser:
@@ -39,4 +31,3 @@ blueprint:
         result = parser.parse_yaml(blueprint_yaml)
         assert result is not None
         assert "_blueprint_metadata" in result
-

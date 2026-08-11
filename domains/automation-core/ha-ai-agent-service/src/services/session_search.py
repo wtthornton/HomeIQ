@@ -134,7 +134,8 @@ class SessionSearch:
 
                 logger.info(
                     "Session search for '%s': found %d relevant sessions",
-                    query[:50], len(summaries),
+                    query[:50],
+                    len(summaries),
                 )
                 return summaries
 

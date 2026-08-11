@@ -107,12 +107,14 @@ async def gather_dependency_checks() -> list[dict[str, Any]]:
     dependencies: list[dict[str, Any]] = []
     for check in raw_results:
         if isinstance(check, Exception):
-            dependencies.append({
-                "name": "unknown",
-                "status": "unhealthy",
-                "error": str(check),
-                "last_check": datetime.now(UTC).isoformat(),
-            })
+            dependencies.append(
+                {
+                    "name": "unknown",
+                    "status": "unhealthy",
+                    "error": str(check),
+                    "last_check": datetime.now(UTC).isoformat(),
+                }
+            )
         else:
             dependencies.append(check)
     return dependencies

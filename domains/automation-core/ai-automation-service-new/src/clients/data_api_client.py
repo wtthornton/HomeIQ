@@ -65,9 +65,13 @@ class DataAPIClient:
             params["event_type"] = event_type
 
         try:
-            logger.debug("Fetching events from %s/api/v1/events with params: %s", self.base_url, params)
+            logger.debug(
+                "Fetching events from %s/api/v1/events with params: %s", self.base_url, params
+            )
             response = await self._cross_client.call(
-                "GET", "/api/v1/events", params=params,
+                "GET",
+                "/api/v1/events",
+                params=params,
             )
             response.raise_for_status()
             data = response.json()
@@ -95,7 +99,9 @@ class DataAPIClient:
         try:
             logger.debug("Fetching devices from %s/api/devices", self.base_url)
             response = await self._cross_client.call(
-                "GET", "/api/devices", params={"limit": limit},
+                "GET",
+                "/api/devices",
+                params={"limit": limit},
             )
             response.raise_for_status()
             data = response.json()
@@ -117,7 +123,9 @@ class DataAPIClient:
         try:
             logger.debug("Fetching entities from %s/api/entities", self.base_url)
             response = await self._cross_client.call(
-                "GET", "/api/entities", params={"limit": limit},
+                "GET",
+                "/api/entities",
+                params={"limit": limit},
             )
             response.raise_for_status()
             data = response.json()
@@ -138,7 +146,8 @@ class DataAPIClient:
         """Get specific entity by ID."""
         try:
             response = await self._cross_client.call(
-                "GET", f"/api/entities/{entity_id}",
+                "GET",
+                f"/api/entities/{entity_id}",
             )
             if response.status_code == 404:
                 return None
@@ -169,7 +178,8 @@ class DataAPIClient:
         """Fetch entities in a specific area from Data API."""
         try:
             response = await self._cross_client.call(
-                "GET", f"/api/entities/by-area/{area_id}",
+                "GET",
+                f"/api/entities/by-area/{area_id}",
             )
             response.raise_for_status()
             data = response.json()

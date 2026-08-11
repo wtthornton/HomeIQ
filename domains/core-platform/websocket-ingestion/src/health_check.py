@@ -52,9 +52,7 @@ class HealthCheckHandler:
             last_event_time = sub_status.get("last_event_time")
             # With no events yet, measuring to now correctly yields a 0 rate
             end_time = (
-                self._parse_timestamp(last_event_time)
-                if last_event_time
-                else datetime.now(UTC)
+                self._parse_timestamp(last_event_time) if last_event_time else datetime.now(UTC)
             )
         except (TypeError, ValueError) as e:
             logger.warning(f"Cannot compute event rate from subscription timestamps: {e}")
@@ -74,21 +72,25 @@ class HealthCheckHandler:
                 "status": "healthy",
                 "service": "websocket-ingestion",
                 "uptime": str(datetime.now(UTC) - self.start_time),
-                "timestamp": datetime.now(UTC).isoformat()
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
             # Add minimal connection status without blocking operations
             if self.connection_manager:
                 # Only access simple attributes that won't block
                 health_data["connection"] = {
-                    "is_running": getattr(self.connection_manager, 'is_running', False),
-                    "connection_attempts": getattr(self.connection_manager, 'connection_attempts', 0),
-                    "successful_connections": getattr(self.connection_manager, 'successful_connections', 0),
-                    "failed_connections": getattr(self.connection_manager, 'failed_connections', 0)
+                    "is_running": getattr(self.connection_manager, "is_running", False),
+                    "connection_attempts": getattr(
+                        self.connection_manager, "connection_attempts", 0
+                    ),
+                    "successful_connections": getattr(
+                        self.connection_manager, "successful_connections", 0
+                    ),
+                    "failed_connections": getattr(self.connection_manager, "failed_connections", 0),
                 }
 
                 # Add subscription status
-                event_subscription = getattr(self.connection_manager, 'event_subscription', None)
+                event_subscription = getattr(self.connection_manager, "event_subscription", None)
                 if event_subscription:
                     sub_status = event_subscription.get_subscription_status()
 
@@ -110,7 +112,7 @@ class HealthCheckHandler:
                         "session_events_received": session_total,  # Current session only
                         "historical_events_received": historical_total,  # Historical only
                         "events_by_type": sub_status.get("events_by_type", {}),
-                        "last_event_time": sub_status.get("last_event_time")
+                        "last_event_time": sub_status.get("last_event_time"),
                     }
 
                     # Calculate event rate (events per minute) from session activity
@@ -121,14 +123,14 @@ class HealthCheckHandler:
                         "status": "not_initialized",
                         "is_subscribed": False,
                         "total_events_received": 0,
-                        "event_rate_per_minute": 0
+                        "event_rate_per_minute": 0,
                     }
 
                 # Enhanced health determination
-                if not getattr(self.connection_manager, 'is_running', False):
+                if not getattr(self.connection_manager, "is_running", False):
                     health_data["status"] = "unhealthy"
                     health_data["reason"] = "Connection manager not running"
-                elif getattr(self.connection_manager, 'failed_connections', 0) > 5:
+                elif getattr(self.connection_manager, "failed_connections", 0) > 5:
                     health_data["status"] = "degraded"
                     health_data["reason"] = "Multiple connection failures"
                 elif event_subscription and not event_subscription.is_subscribed:
@@ -137,7 +139,9 @@ class HealthCheckHandler:
                 elif event_subscription and event_subscription.total_events_received == 0:
                     # Check if we've been subscribed for more than 60 seconds without events
                     if event_subscription.subscription_start_time:
-                        time_since_subscription = (datetime.now(UTC) - event_subscription.subscription_start_time).total_seconds()
+                        time_since_subscription = (
+                            datetime.now(UTC) - event_subscription.subscription_start_time
+                        ).total_seconds()
                         if time_since_subscription > 60:
                             health_data["status"] = "degraded"
                             health_data["reason"] = "No events received in 60+ seconds"
@@ -162,9 +166,9 @@ class HealthCheckHandler:
                     "status": "unhealthy",
                     "service": "websocket-ingestion",
                     "error": str(e),
-                    "timestamp": datetime.now(UTC).isoformat()
+                    "timestamp": datetime.now(UTC).isoformat(),
                 },
-                status=200
+                status=200,
             )
 
     async def handle_fastapi(self):
@@ -175,21 +179,25 @@ class HealthCheckHandler:
                 "status": "healthy",
                 "service": "websocket-ingestion",
                 "uptime": str(datetime.now(UTC) - self.start_time),
-                "timestamp": datetime.now(UTC).isoformat()
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
             # Add minimal connection status without blocking operations
             if self.connection_manager:
                 # Only access simple attributes that won't block
                 health_data["connection"] = {
-                    "is_running": getattr(self.connection_manager, 'is_running', False),
-                    "connection_attempts": getattr(self.connection_manager, 'connection_attempts', 0),
-                    "successful_connections": getattr(self.connection_manager, 'successful_connections', 0),
-                    "failed_connections": getattr(self.connection_manager, 'failed_connections', 0)
+                    "is_running": getattr(self.connection_manager, "is_running", False),
+                    "connection_attempts": getattr(
+                        self.connection_manager, "connection_attempts", 0
+                    ),
+                    "successful_connections": getattr(
+                        self.connection_manager, "successful_connections", 0
+                    ),
+                    "failed_connections": getattr(self.connection_manager, "failed_connections", 0),
                 }
 
                 # Add subscription status
-                event_subscription = getattr(self.connection_manager, 'event_subscription', None)
+                event_subscription = getattr(self.connection_manager, "event_subscription", None)
                 if event_subscription:
                     sub_status = event_subscription.get_subscription_status()
 
@@ -211,7 +219,7 @@ class HealthCheckHandler:
                         "session_events_received": session_total,  # Current session only
                         "historical_events_received": historical_total,  # Historical only
                         "events_by_type": sub_status.get("events_by_type", {}),
-                        "last_event_time": sub_status.get("last_event_time")
+                        "last_event_time": sub_status.get("last_event_time"),
                     }
 
                     # Calculate event rate (events per minute) from session activity
@@ -222,14 +230,14 @@ class HealthCheckHandler:
                         "status": "not_initialized",
                         "is_subscribed": False,
                         "total_events_received": 0,
-                        "event_rate_per_minute": 0
+                        "event_rate_per_minute": 0,
                     }
 
                 # Enhanced health determination
-                if not getattr(self.connection_manager, 'is_running', False):
+                if not getattr(self.connection_manager, "is_running", False):
                     health_data["status"] = "unhealthy"
                     health_data["reason"] = "Connection manager not running"
-                elif getattr(self.connection_manager, 'failed_connections', 0) > 5:
+                elif getattr(self.connection_manager, "failed_connections", 0) > 5:
                     health_data["status"] = "degraded"
                     health_data["reason"] = "Multiple connection failures"
                 elif event_subscription and not event_subscription.is_subscribed:
@@ -238,7 +246,9 @@ class HealthCheckHandler:
                 elif event_subscription and event_subscription.total_events_received == 0:
                     # Check if we've been subscribed for more than 60 seconds without events
                     if event_subscription.subscription_start_time:
-                        time_since_subscription = (datetime.now(UTC) - event_subscription.subscription_start_time).total_seconds()
+                        time_since_subscription = (
+                            datetime.now(UTC) - event_subscription.subscription_start_time
+                        ).total_seconds()
                         if time_since_subscription > 60:
                             health_data["status"] = "degraded"
                             health_data["reason"] = "No events received in 60+ seconds"
@@ -260,5 +270,5 @@ class HealthCheckHandler:
                 "status": "unhealthy",
                 "service": "websocket-ingestion",
                 "error": str(e),
-                "timestamp": datetime.now(UTC).isoformat()
+                "timestamp": datetime.now(UTC).isoformat(),
             }

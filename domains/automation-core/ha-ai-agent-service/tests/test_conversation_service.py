@@ -6,6 +6,7 @@ Epic AI-20 Story AI20.2
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from src.config import Settings
 from src.services.conversation_service import (
     ConversationService,
@@ -24,9 +25,7 @@ def settings():
 def mock_context_builder():
     """Create mock context builder"""
     builder = MagicMock()
-    builder.build_complete_system_prompt = AsyncMock(
-        return_value="System prompt with context"
-    )
+    builder.build_complete_system_prompt = AsyncMock(return_value="System prompt with context")
     return builder
 
 
@@ -49,9 +48,7 @@ async def test_create_conversation(conversation_service):
 @pytest.mark.asyncio
 async def test_create_conversation_with_id(conversation_service):
     """Test creating a conversation with specific ID"""
-    conversation = await conversation_service.create_conversation(
-        conversation_id="test-id-123"
-    )
+    conversation = await conversation_service.create_conversation(conversation_id="test-id-123")
     assert conversation.conversation_id == "test-id-123"
     assert await conversation_service.get_conversation("test-id-123") == conversation
 
@@ -75,9 +72,7 @@ async def test_get_conversation_not_found(conversation_service):
 async def test_add_message(conversation_service):
     """Test adding a message to a conversation"""
     conversation = await conversation_service.create_conversation()
-    message = await conversation_service.add_message(
-        conversation.conversation_id, "user", "Hello, agent!"
-    )
+    message = await conversation_service.add_message(conversation.conversation_id, "user", "Hello, agent!")
     assert message is not None
     assert message.role == "user"
     assert message.content == "Hello, agent!"
@@ -87,9 +82,7 @@ async def test_add_message(conversation_service):
 @pytest.mark.asyncio
 async def test_add_message_to_nonexistent_conversation(conversation_service):
     """Test adding a message to a non-existent conversation"""
-    message = await conversation_service.add_message(
-        "non-existent", "user", "Hello!"
-    )
+    message = await conversation_service.add_message("non-existent", "user", "Hello!")
     assert message is None
 
 
@@ -97,12 +90,8 @@ async def test_add_message_to_nonexistent_conversation(conversation_service):
 async def test_get_messages(conversation_service):
     """Test getting messages from a conversation"""
     conversation = await conversation_service.create_conversation()
-    await conversation_service.add_message(
-        conversation.conversation_id, "user", "Hello!"
-    )
-    await conversation_service.add_message(
-        conversation.conversation_id, "assistant", "Hi there!"
-    )
+    await conversation_service.add_message(conversation.conversation_id, "user", "Hello!")
+    await conversation_service.add_message(conversation.conversation_id, "assistant", "Hi there!")
 
     messages = await conversation_service.get_messages(conversation.conversation_id)
     assert len(messages) == 2
@@ -121,16 +110,10 @@ async def test_get_messages_nonexistent_conversation(conversation_service):
 async def test_get_openai_messages(conversation_service, mock_context_builder):
     """Test getting messages in OpenAI format"""
     conversation = await conversation_service.create_conversation()
-    await conversation_service.add_message(
-        conversation.conversation_id, "user", "Hello!"
-    )
-    await conversation_service.add_message(
-        conversation.conversation_id, "assistant", "Hi there!"
-    )
+    await conversation_service.add_message(conversation.conversation_id, "user", "Hello!")
+    await conversation_service.add_message(conversation.conversation_id, "assistant", "Hi there!")
 
-    messages = await conversation_service.get_openai_messages(
-        conversation.conversation_id, include_system=True
-    )
+    messages = await conversation_service.get_openai_messages(conversation.conversation_id, include_system=True)
     assert len(messages) == 3  # system + user + assistant
     assert messages[0]["role"] == "system"
     assert messages[1]["role"] == "user"
@@ -142,13 +125,9 @@ async def test_get_openai_messages(conversation_service, mock_context_builder):
 async def test_get_openai_messages_without_system(conversation_service):
     """Test getting OpenAI messages without system prompt"""
     conversation = await conversation_service.create_conversation()
-    await conversation_service.add_message(
-        conversation.conversation_id, "user", "Hello!"
-    )
+    await conversation_service.add_message(conversation.conversation_id, "user", "Hello!")
 
-    messages = await conversation_service.get_openai_messages(
-        conversation.conversation_id, include_system=False
-    )
+    messages = await conversation_service.get_openai_messages(conversation.conversation_id, include_system=False)
     assert len(messages) == 1
     assert messages[0]["role"] == "user"
 
@@ -174,12 +153,8 @@ async def test_list_conversations_with_state_filter(conversation_service):
     conv2 = await conversation_service.create_conversation()
     await conversation_service.archive_conversation(conv2.conversation_id)
 
-    active = await conversation_service.list_conversations(
-        state=ConversationState.ACTIVE
-    )
-    archived = await conversation_service.list_conversations(
-        state=ConversationState.ARCHIVED
-    )
+    active = await conversation_service.list_conversations(state=ConversationState.ACTIVE)
+    archived = await conversation_service.list_conversations(state=ConversationState.ARCHIVED)
 
     assert len(active) == 1
     assert conv1 in active
@@ -253,15 +228,9 @@ async def test_activate_conversation(conversation_service):
 async def test_conversation_message_ordering(conversation_service):
     """Test that messages are ordered correctly"""
     conversation = await conversation_service.create_conversation()
-    await conversation_service.add_message(
-        conversation.conversation_id, "user", "First"
-    )
-    await conversation_service.add_message(
-        conversation.conversation_id, "assistant", "Second"
-    )
-    await conversation_service.add_message(
-        conversation.conversation_id, "user", "Third"
-    )
+    await conversation_service.add_message(conversation.conversation_id, "user", "First")
+    await conversation_service.add_message(conversation.conversation_id, "assistant", "Second")
+    await conversation_service.add_message(conversation.conversation_id, "user", "Third")
 
     messages = await conversation_service.get_messages(conversation.conversation_id)
     assert len(messages) == 3
@@ -276,15 +245,11 @@ async def test_conversation_context_caching(conversation_service, mock_context_b
     conversation = await conversation_service.create_conversation()
 
     # First call should build context
-    messages1 = await conversation_service.get_openai_messages(
-        conversation.conversation_id, include_system=True
-    )
+    messages1 = await conversation_service.get_openai_messages(conversation.conversation_id, include_system=True)
     assert mock_context_builder.build_complete_system_prompt.call_count == 1
 
     # Second call should use cached context
-    messages2 = await conversation_service.get_openai_messages(
-        conversation.conversation_id, include_system=True
-    )
+    messages2 = await conversation_service.get_openai_messages(conversation.conversation_id, include_system=True)
     assert mock_context_builder.build_complete_system_prompt.call_count == 1  # Still 1
 
 
@@ -292,9 +257,7 @@ async def test_conversation_context_caching(conversation_service, mock_context_b
 async def test_message_to_dict(conversation_service):
     """Test message serialization"""
     conversation = await conversation_service.create_conversation()
-    message = await conversation_service.add_message(
-        conversation.conversation_id, "user", "Test message"
-    )
+    message = await conversation_service.add_message(conversation.conversation_id, "user", "Test message")
 
     message_dict = message.to_dict()
     assert message_dict["role"] == "user"
@@ -307,9 +270,7 @@ async def test_message_to_dict(conversation_service):
 async def test_conversation_to_dict(conversation_service):
     """Test conversation serialization"""
     conversation = await conversation_service.create_conversation()
-    await conversation_service.add_message(
-        conversation.conversation_id, "user", "Test"
-    )
+    await conversation_service.add_message(conversation.conversation_id, "user", "Test")
 
     conv_dict = conversation.to_dict()
     assert conv_dict["conversation_id"] == conversation.conversation_id
@@ -328,7 +289,7 @@ def test_is_generic_welcome_message_detects_generic_messages():
         "How can I help you?",
         "What would you like to do?",
     ]
-    
+
     for msg in generic_messages:
         assert is_generic_welcome_message(msg), f"Should detect generic message: {msg}"
 
@@ -342,7 +303,7 @@ def test_is_generic_welcome_message_rejects_specific_responses():
         "Here's the YAML for your automation:",
         "The office lights are currently off.",
     ]
-    
+
     for msg in specific_messages:
         assert not is_generic_welcome_message(msg), f"Should not detect as generic: {msg}"
 
@@ -368,9 +329,7 @@ class TestConversationTitleAndSource:
     @pytest.mark.asyncio
     async def test_create_conversation_with_title(self, conversation_service):
         """Test creating a conversation with a custom title"""
-        conversation = await conversation_service.create_conversation(
-            title="My Test Conversation"
-        )
+        conversation = await conversation_service.create_conversation(title="My Test Conversation")
         assert conversation is not None
         assert conversation.title == "My Test Conversation"
         assert conversation.state == ConversationState.ACTIVE
@@ -378,19 +337,14 @@ class TestConversationTitleAndSource:
     @pytest.mark.asyncio
     async def test_create_conversation_with_source_user(self, conversation_service):
         """Test creating a conversation with user source"""
-        conversation = await conversation_service.create_conversation(
-            source="user"
-        )
+        conversation = await conversation_service.create_conversation(source="user")
         assert conversation is not None
         assert conversation.source == "user"
 
     @pytest.mark.asyncio
     async def test_create_conversation_with_source_proactive(self, conversation_service):
         """Test creating a conversation with proactive source"""
-        conversation = await conversation_service.create_conversation(
-            title="💡 Energy suggestion",
-            source="proactive"
-        )
+        conversation = await conversation_service.create_conversation(title="💡 Energy suggestion", source="proactive")
         assert conversation is not None
         assert conversation.title == "💡 Energy suggestion"
         assert conversation.source == "proactive"
@@ -399,8 +353,7 @@ class TestConversationTitleAndSource:
     async def test_create_conversation_with_source_pattern(self, conversation_service):
         """Test creating a conversation with pattern source"""
         conversation = await conversation_service.create_conversation(
-            title="Pattern-based automation",
-            source="pattern"
+            title="Pattern-based automation", source="pattern"
         )
         assert conversation is not None
         assert conversation.source == "pattern"
@@ -415,27 +368,19 @@ class TestConversationTitleAndSource:
     @pytest.mark.asyncio
     async def test_create_conversation_with_title_and_source(self, conversation_service):
         """Test creating a conversation with both title and source"""
-        conversation = await conversation_service.create_conversation(
-            title="Test Title",
-            source="proactive"
-        )
+        conversation = await conversation_service.create_conversation(title="Test Title", source="proactive")
         assert conversation.title == "Test Title"
         assert conversation.source == "proactive"
 
     @pytest.mark.asyncio
     async def test_update_title(self, conversation_service):
         """Test updating a conversation title"""
-        conversation = await conversation_service.create_conversation(
-            title="Original Title"
-        )
-        
+        conversation = await conversation_service.create_conversation(title="Original Title")
+
         # Update the title
-        result = await conversation_service.update_title(
-            conversation.conversation_id,
-            "Updated Title"
-        )
+        result = await conversation_service.update_title(conversation.conversation_id, "Updated Title")
         assert result is True
-        
+
         # Verify the title was updated
         updated = await conversation_service.get_conversation(conversation.conversation_id)
         assert updated.title == "Updated Title"
@@ -443,28 +388,23 @@ class TestConversationTitleAndSource:
     @pytest.mark.asyncio
     async def test_update_title_nonexistent_conversation(self, conversation_service):
         """Test updating title of a non-existent conversation"""
-        result = await conversation_service.update_title(
-            "non-existent-id",
-            "New Title"
-        )
+        result = await conversation_service.update_title("non-existent-id", "New Title")
         assert result is False
 
     @pytest.mark.asyncio
     async def test_auto_generate_title_from_message(self, conversation_service):
         """Test auto-generating title from first user message"""
         conversation = await conversation_service.create_conversation()
-        
+
         # Add a user message
         await conversation_service.add_message(
-            conversation.conversation_id,
-            "user",
-            "Turn on the living room lights please"
+            conversation.conversation_id, "user", "Turn on the living room lights please"
         )
-        
+
         # Auto-generate title
         result = await conversation_service.auto_generate_title(conversation.conversation_id)
         assert result is True
-        
+
         # Verify title was generated
         updated = await conversation_service.get_conversation(conversation.conversation_id)
         assert updated.title is not None
@@ -474,18 +414,14 @@ class TestConversationTitleAndSource:
     async def test_auto_generate_title_truncates_long_messages(self, conversation_service):
         """Test that auto-generated titles are truncated to 50 chars"""
         conversation = await conversation_service.create_conversation()
-        
+
         # Add a long user message
         long_message = "This is a very long message that should be truncated when used as a conversation title because it exceeds the maximum length"
-        await conversation_service.add_message(
-            conversation.conversation_id,
-            "user",
-            long_message
-        )
-        
+        await conversation_service.add_message(conversation.conversation_id, "user", long_message)
+
         # Auto-generate title
         await conversation_service.auto_generate_title(conversation.conversation_id)
-        
+
         # Verify title is truncated
         updated = await conversation_service.get_conversation(conversation.conversation_id)
         assert updated.title is not None
@@ -494,11 +430,8 @@ class TestConversationTitleAndSource:
     @pytest.mark.asyncio
     async def test_conversation_to_dict_includes_title_and_source(self, conversation_service):
         """Test that conversation serialization includes title and source"""
-        conversation = await conversation_service.create_conversation(
-            title="Test Title",
-            source="proactive"
-        )
-        
+        conversation = await conversation_service.create_conversation(title="Test Title", source="proactive")
+
         conv_dict = conversation.to_dict()
         assert "title" in conv_dict
         assert conv_dict["title"] == "Test Title"
@@ -508,18 +441,12 @@ class TestConversationTitleAndSource:
     @pytest.mark.asyncio
     async def test_list_conversations_includes_title_and_source(self, conversation_service):
         """Test that listed conversations include title and source"""
-        await conversation_service.create_conversation(
-            title="Conversation 1",
-            source="user"
-        )
-        await conversation_service.create_conversation(
-            title="Conversation 2",
-            source="proactive"
-        )
-        
+        await conversation_service.create_conversation(title="Conversation 1", source="user")
+        await conversation_service.create_conversation(title="Conversation 2", source="proactive")
+
         conversations = await conversation_service.list_conversations()
         assert len(conversations) >= 2
-        
+
         # Check that at least one has the expected title and source
         titles = [c.title for c in conversations]
         sources = [c.source for c in conversations]

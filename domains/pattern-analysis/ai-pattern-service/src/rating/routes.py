@@ -148,7 +148,9 @@ async def get_blueprint_rating(blueprint_id: str) -> BlueprintRatingResponse:
     bp_rating = rating_service.get_blueprint_rating(blueprint_id)
 
     if not bp_rating:
-        raise HTTPException(status_code=404, detail=f"No ratings found for blueprint {blueprint_id}")
+        raise HTTPException(
+            status_code=404, detail=f"No ratings found for blueprint {blueprint_id}"
+        )
 
     return BlueprintRatingResponse(
         blueprint_id=bp_rating.blueprint_id,
@@ -176,7 +178,9 @@ async def get_blueprint_score(blueprint_id: str) -> dict[str, Any]:
         "blueprint_id": blueprint_id,
         "score": score,
         "total_ratings": bp_rating.total_ratings if bp_rating else 0,
-        "has_confidence": bp_rating.total_ratings >= rating_service.min_ratings_for_confidence if bp_rating else False,
+        "has_confidence": bp_rating.total_ratings >= rating_service.min_ratings_for_confidence
+        if bp_rating
+        else False,
     }
 
 
@@ -251,11 +255,7 @@ async def get_device_feedback_score(device_id: str) -> dict[str, Any]:
     return {
         "device_id": device_id,
         "feedback_score": score,
-        "interpretation": (
-            "positive" if score > 1.1 else
-            "negative" if score < 0.9 else
-            "neutral"
-        ),
+        "interpretation": ("positive" if score > 1.1 else "negative" if score < 0.9 else "neutral"),
     }
 
 

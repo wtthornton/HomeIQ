@@ -10,12 +10,11 @@ Tests the new relationship query API endpoints:
 - GET /api/devices/{device_id}/hierarchy
 """
 
-
 import pytest
 import pytest_asyncio
+import src.database as _database
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
-import src.database as _database
 from src.database import init_db
 
 
@@ -27,6 +26,7 @@ def AsyncSessionLocal():  # noqa: N802
     from-import would capture None permanently.
     """
     return _database.AsyncSessionLocal()
+
 
 from src.main import app
 from src.models import Device, Entity
@@ -47,11 +47,23 @@ async def test_get_entities_by_device_endpoint(test_client):
 
     async with AsyncSessionLocal() as session:
         # Setup: Create device with entities
-        device = Device(device_id="test_device_api", name="Test Device", config_entry_id="entry_123")
+        device = Device(
+            device_id="test_device_api", name="Test Device", config_entry_id="entry_123"
+        )
         session.add(device)
 
-        entity1 = Entity(entity_id="light.api_test_1", device_id="test_device_api", domain="light", platform="test")
-        entity2 = Entity(entity_id="sensor.api_test_1", device_id="test_device_api", domain="sensor", platform="test")
+        entity1 = Entity(
+            entity_id="light.api_test_1",
+            device_id="test_device_api",
+            domain="light",
+            platform="test",
+        )
+        entity2 = Entity(
+            entity_id="sensor.api_test_1",
+            device_id="test_device_api",
+            domain="sensor",
+            platform="test",
+        )
         session.add(entity1)
         session.add(entity2)
         await session.commit()
@@ -72,10 +84,16 @@ async def test_get_entities_by_device_endpoint(test_client):
 
     # Cleanup
     async with AsyncSessionLocal() as session:
-        entities = (await session.execute(select(Entity).where(Entity.device_id == "test_device_api"))).scalars().all()
+        entities = (
+            (await session.execute(select(Entity).where(Entity.device_id == "test_device_api")))
+            .scalars()
+            .all()
+        )
         for entity in entities:
             await session.delete(entity)
-        device = (await session.execute(select(Device).where(Device.device_id == "test_device_api"))).scalar_one()
+        device = (
+            await session.execute(select(Device).where(Device.device_id == "test_device_api"))
+        ).scalar_one()
         await session.delete(device)
         await session.commit()
 
@@ -90,8 +108,18 @@ async def test_get_sibling_entities_endpoint(test_client):
         device = Device(device_id="test_device_siblings", name="Test Device")
         session.add(device)
 
-        entity1 = Entity(entity_id="light.sibling_test", device_id="test_device_siblings", domain="light", platform="test")
-        entity2 = Entity(entity_id="sensor.sibling_test", device_id="test_device_siblings", domain="sensor", platform="test")
+        entity1 = Entity(
+            entity_id="light.sibling_test",
+            device_id="test_device_siblings",
+            domain="light",
+            platform="test",
+        )
+        entity2 = Entity(
+            entity_id="sensor.sibling_test",
+            device_id="test_device_siblings",
+            domain="sensor",
+            platform="test",
+        )
         session.add(entity1)
         session.add(entity2)
         await session.commit()
@@ -109,10 +137,20 @@ async def test_get_sibling_entities_endpoint(test_client):
 
     # Cleanup
     async with AsyncSessionLocal() as session:
-        entities = (await session.execute(select(Entity).where(Entity.device_id == "test_device_siblings"))).scalars().all()
+        entities = (
+            (
+                await session.execute(
+                    select(Entity).where(Entity.device_id == "test_device_siblings")
+                )
+            )
+            .scalars()
+            .all()
+        )
         for entity in entities:
             await session.delete(entity)
-        device = (await session.execute(select(Device).where(Device.device_id == "test_device_siblings"))).scalar_one()
+        device = (
+            await session.execute(select(Device).where(Device.device_id == "test_device_siblings"))
+        ).scalar_one()
         await session.delete(device)
         await session.commit()
 
@@ -130,11 +168,16 @@ async def test_get_device_for_entity_endpoint(test_client):
             manufacturer="Test Co",
             model="Model X",
             config_entry_id="entry_456",
-            via_device=None
+            via_device=None,
         )
         session.add(device)
 
-        entity = Entity(entity_id="light.device_test", device_id="test_device_for_entity", domain="light", platform="test")
+        entity = Entity(
+            entity_id="light.device_test",
+            device_id="test_device_for_entity",
+            domain="light",
+            platform="test",
+        )
         session.add(entity)
         await session.commit()
 
@@ -153,9 +196,15 @@ async def test_get_device_for_entity_endpoint(test_client):
 
     # Cleanup
     async with AsyncSessionLocal() as session:
-        entity = (await session.execute(select(Entity).where(Entity.entity_id == "light.device_test"))).scalar_one()
+        entity = (
+            await session.execute(select(Entity).where(Entity.entity_id == "light.device_test"))
+        ).scalar_one()
         await session.delete(entity)
-        device = (await session.execute(select(Device).where(Device.device_id == "test_device_for_entity"))).scalar_one()
+        device = (
+            await session.execute(
+                select(Device).where(Device.device_id == "test_device_for_entity")
+            )
+        ).scalar_one()
         await session.delete(device)
         await session.commit()
 
@@ -172,8 +221,20 @@ async def test_get_entities_in_area_endpoint(test_client):
         session.add(device1)
         session.add(device2)
 
-        entity1 = Entity(entity_id="light.area_test_1", device_id="test_device_area_1", domain="light", area_id="test_area", platform="test")
-        entity2 = Entity(entity_id="light.area_test_2", device_id="test_device_area_2", domain="light", area_id="test_area", platform="test")
+        entity1 = Entity(
+            entity_id="light.area_test_1",
+            device_id="test_device_area_1",
+            domain="light",
+            area_id="test_area",
+            platform="test",
+        )
+        entity2 = Entity(
+            entity_id="light.area_test_2",
+            device_id="test_device_area_2",
+            domain="light",
+            area_id="test_area",
+            platform="test",
+        )
         session.add(entity1)
         session.add(entity2)
         await session.commit()
@@ -194,10 +255,18 @@ async def test_get_entities_in_area_endpoint(test_client):
 
     # Cleanup
     async with AsyncSessionLocal() as session:
-        entities = (await session.execute(select(Entity).where(Entity.area_id == "test_area"))).scalars().all()
+        entities = (
+            (await session.execute(select(Entity).where(Entity.area_id == "test_area")))
+            .scalars()
+            .all()
+        )
         for entity in entities:
             await session.delete(entity)
-        devices = (await session.execute(select(Device).where(Device.area_id == "test_area"))).scalars().all()
+        devices = (
+            (await session.execute(select(Device).where(Device.area_id == "test_area")))
+            .scalars()
+            .all()
+        )
         for device in devices:
             await session.delete(device)
         await session.commit()
@@ -213,8 +282,20 @@ async def test_get_entities_by_config_entry_endpoint(test_client):
         device = Device(device_id="test_device_config", name="Device", config_entry_id="entry_789")
         session.add(device)
 
-        entity1 = Entity(entity_id="light.config_test_1", device_id="test_device_config", domain="light", config_entry_id="entry_789", platform="test")
-        entity2 = Entity(entity_id="sensor.config_test_1", device_id="test_device_config", domain="sensor", config_entry_id="entry_789", platform="test")
+        entity1 = Entity(
+            entity_id="light.config_test_1",
+            device_id="test_device_config",
+            domain="light",
+            config_entry_id="entry_789",
+            platform="test",
+        )
+        entity2 = Entity(
+            entity_id="sensor.config_test_1",
+            device_id="test_device_config",
+            domain="sensor",
+            config_entry_id="entry_789",
+            platform="test",
+        )
         session.add(entity1)
         session.add(entity2)
         await session.commit()
@@ -235,10 +316,16 @@ async def test_get_entities_by_config_entry_endpoint(test_client):
 
     # Cleanup
     async with AsyncSessionLocal() as session:
-        entities = (await session.execute(select(Entity).where(Entity.config_entry_id == "entry_789"))).scalars().all()
+        entities = (
+            (await session.execute(select(Entity).where(Entity.config_entry_id == "entry_789")))
+            .scalars()
+            .all()
+        )
         for entity in entities:
             await session.delete(entity)
-        device = (await session.execute(select(Device).where(Device.device_id == "test_device_config"))).scalar_one()
+        device = (
+            await session.execute(select(Device).where(Device.device_id == "test_device_config"))
+        ).scalar_one()
         await session.delete(device)
         await session.commit()
 
@@ -250,14 +337,16 @@ async def test_get_device_hierarchy_endpoint(test_client):
 
     async with AsyncSessionLocal() as session:
         # Setup: Create parent and child devices
-        parent_device = Device(device_id="parent_device_hierarchy", name="Parent Device", manufacturer="Test Co")
+        parent_device = Device(
+            device_id="parent_device_hierarchy", name="Parent Device", manufacturer="Test Co"
+        )
         session.add(parent_device)
 
         child_device = Device(
             device_id="child_device_hierarchy",
             name="Child Device",
             manufacturer="Test Co",
-            via_device="parent_device_hierarchy"
+            via_device="parent_device_hierarchy",
         )
         session.add(child_device)
         await session.commit()
@@ -288,9 +377,17 @@ async def test_get_device_hierarchy_endpoint(test_client):
 
     # Cleanup
     async with AsyncSessionLocal() as session:
-        child_device = (await session.execute(select(Device).where(Device.device_id == "child_device_hierarchy"))).scalar_one()
+        child_device = (
+            await session.execute(
+                select(Device).where(Device.device_id == "child_device_hierarchy")
+            )
+        ).scalar_one()
         await session.delete(child_device)
-        parent_device = (await session.execute(select(Device).where(Device.device_id == "parent_device_hierarchy"))).scalar_one()
+        parent_device = (
+            await session.execute(
+                select(Device).where(Device.device_id == "parent_device_hierarchy")
+            )
+        ).scalar_one()
         await session.delete(parent_device)
         await session.commit()
 
@@ -331,7 +428,12 @@ async def test_get_sibling_entities_no_siblings(test_client):
         device = Device(device_id="test_device_single", name="Test Device")
         session.add(device)
 
-        entity = Entity(entity_id="light.single_test", device_id="test_device_single", domain="light", platform="test")
+        entity = Entity(
+            entity_id="light.single_test",
+            device_id="test_device_single",
+            domain="light",
+            platform="test",
+        )
         session.add(entity)
         await session.commit()
 
@@ -346,9 +448,12 @@ async def test_get_sibling_entities_no_siblings(test_client):
 
     # Cleanup
     async with AsyncSessionLocal() as session:
-        entity = (await session.execute(select(Entity).where(Entity.entity_id == "light.single_test"))).scalar_one()
+        entity = (
+            await session.execute(select(Entity).where(Entity.entity_id == "light.single_test"))
+        ).scalar_one()
         await session.delete(entity)
-        device = (await session.execute(select(Device).where(Device.device_id == "test_device_single"))).scalar_one()
+        device = (
+            await session.execute(select(Device).where(Device.device_id == "test_device_single"))
+        ).scalar_one()
         await session.delete(device)
         await session.commit()
-

@@ -69,27 +69,33 @@ async def get_db_schema(db_url: str) -> dict[str, dict[str, Any]]:
     engine = create_async_engine(db_url)
     async with engine.begin() as conn:
         # Get all tables in current schema
-        result = await conn.execute(text("""
+        result = await conn.execute(
+            text("""
             SELECT table_name FROM information_schema.tables
             WHERE table_schema = current_schema()
             AND table_type = 'BASE TABLE'
             ORDER BY table_name
-        """))
+        """)
+        )
         tables = [row[0] for row in result.fetchall()]
 
         for table_name in tables:
             # Get column info
-            result = await conn.execute(text("""
+            result = await conn.execute(
+                text("""
                 SELECT column_name, data_type, is_nullable, column_default
                 FROM information_schema.columns
                 WHERE table_schema = current_schema()
                 AND table_name = :table_name
                 ORDER BY ordinal_position
-            """), {"table_name": table_name})
+            """),
+                {"table_name": table_name},
+            )
             columns = result.fetchall()
 
             # Get primary keys
-            result = await conn.execute(text("""
+            result = await conn.execute(
+                text("""
                 SELECT kcu.column_name
                 FROM information_schema.table_constraints tc
                 JOIN information_schema.key_column_usage kcu
@@ -97,11 +103,14 @@ async def get_db_schema(db_url: str) -> dict[str, dict[str, Any]]:
                 WHERE tc.table_schema = current_schema()
                 AND tc.table_name = :table_name
                 AND tc.constraint_type = 'PRIMARY KEY'
-            """), {"table_name": table_name})
+            """),
+                {"table_name": table_name},
+            )
             primary_keys = [row[0] for row in result.fetchall()]
 
             # Get foreign keys
-            result = await conn.execute(text("""
+            result = await conn.execute(
+                text("""
                 SELECT kcu.column_name, ccu.table_name AS foreign_table,
                        ccu.column_name AS foreign_column
                 FROM information_schema.table_constraints tc
@@ -112,7 +121,9 @@ async def get_db_schema(db_url: str) -> dict[str, dict[str, Any]]:
                 WHERE tc.table_schema = current_schema()
                 AND tc.table_name = :table_name
                 AND tc.constraint_type = 'FOREIGN KEY'
-            """), {"table_name": table_name})
+            """),
+                {"table_name": table_name},
+            )
             foreign_keys = result.fetchall()
 
             schema[table_name] = {"columns": {}, "primary_keys": primary_keys, "foreign_keys": []}

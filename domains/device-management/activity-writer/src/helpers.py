@@ -92,7 +92,9 @@ def classify_entity(entity_id: str) -> str:
 
 
 def append_value(
-    bucket_list: list[float], parsed: float | None, state_str: str | None,
+    bucket_list: list[float],
+    parsed: float | None,
+    state_str: str | None,
 ) -> None:
     """Append *parsed* (or fallback from *state_str*) to *bucket_list*."""
     if parsed is not None:
@@ -111,6 +113,9 @@ def bucket_to_reading(b: dict[str, Any]) -> SensorReading:
         temp_avg = (temp_avg - 32) * 5 / 9
     hum_avg = sum(b["humidities"]) / len(b["humidities"]) if b["humidities"] else 50.0
     return SensorReading(
-        motion=b["motion"], door=b["door"],
-        temperature=temp_avg, humidity=hum_avg, power=sum(b["powers"]),
+        motion=b["motion"],
+        door=b["door"],
+        temperature=temp_avg,
+        humidity=hum_avg,
+        power=sum(b["powers"]),
     )

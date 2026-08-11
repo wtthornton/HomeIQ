@@ -70,4 +70,3 @@ def test_openapi_json():
     schema = response.json()
     assert schema["info"]["title"] == "Weather API Service"
     assert schema["info"]["version"] == SERVICE_VERSION
-

@@ -108,14 +108,19 @@ class MonitoringEndpoints:
             current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),  # noqa: ARG001
         ):
             alerts = alerting_service.get_alert_manager().get_alert_history(limit=limit)
-            return _success({"alerts": [alert.to_dict() for alert in alerts]}, "Alerts retrieved successfully")
+            return _success(
+                {"alerts": [alert.to_dict() for alert in alerts]}, "Alerts retrieved successfully"
+            )
 
         @router.get("/alerts/active")
         async def get_active_alerts(
             current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),  # noqa: ARG001
         ):
             alerts = alerting_service.get_active_alerts()
-            return _success({"alerts": [alert.to_dict() for alert in alerts]}, "Active alerts retrieved successfully")
+            return _success(
+                {"alerts": [alert.to_dict() for alert in alerts]},
+                "Active alerts retrieved successfully",
+            )
 
         @router.get("/alerts/statistics")
         async def get_alert_statistics(
@@ -129,7 +134,9 @@ class MonitoringEndpoints:
             alert_id: str,
             current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
-            success = alerting_service.get_alert_manager().acknowledge_alert(alert_id, current_user.get("user_id"))
+            success = alerting_service.get_alert_manager().acknowledge_alert(
+                alert_id, current_user.get("user_id")
+            )
             if not success:
                 raise HTTPException(status_code=404, detail="Alert not found")
             return _success({}, f"Alert {alert_id} acknowledged successfully")
@@ -139,7 +146,9 @@ class MonitoringEndpoints:
             alert_id: str,
             current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),
         ):
-            success = alerting_service.get_alert_manager().resolve_alert(alert_id, current_user.get("user_id"))
+            success = alerting_service.get_alert_manager().resolve_alert(
+                alert_id, current_user.get("user_id")
+            )
             if not success:
                 raise HTTPException(status_code=404, detail="Alert not found")
             return _success({}, f"Alert {alert_id} resolved successfully")
@@ -151,7 +160,9 @@ class MonitoringEndpoints:
             overview = {
                 "current_metrics": metrics_service.get_current_metrics(),
                 "metrics_summary": metrics_service.get_metrics_summary(),
-                "active_alerts": [alert.to_dict() for alert in alerting_service.get_active_alerts()],
+                "active_alerts": [
+                    alert.to_dict() for alert in alerting_service.get_active_alerts()
+                ],
                 "alert_statistics": alerting_service.get_alert_manager().get_alert_statistics(),
                 "recent_logs": logging_service.get_recent_logs(limit=20),
                 "log_statistics": logging_service.get_log_statistics(),
@@ -168,7 +179,9 @@ class MonitoringEndpoints:
             current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),  # noqa: ARG001
         ):
             active_alerts = alerting_service.get_active_alerts()
-            critical_alerts = [alert for alert in active_alerts if alert.severity == AlertSeverity.CRITICAL]
+            critical_alerts = [
+                alert for alert in active_alerts if alert.severity == AlertSeverity.CRITICAL
+            ]
             health = {
                 "overall_healthy": len(critical_alerts) == 0,
                 "active_alerts_count": len(active_alerts),
@@ -188,7 +201,9 @@ class MonitoringEndpoints:
             rules = alerting_service.get_alert_manager().get_all_rules()
             if rules is None:
                 rules = []
-            return _success({"rules": [rule.to_dict() for rule in rules]}, "Alert rules retrieved successfully")
+            return _success(
+                {"rules": [rule.to_dict() for rule in rules]}, "Alert rules retrieved successfully"
+            )
 
         @router.post("/config/alert-rules")
         async def create_alert_rule(
@@ -242,7 +257,9 @@ class MonitoringEndpoints:
             payload: dict[str, Any],
             current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),  # noqa: ARG001
         ):
-            alerting_service.add_notification_channel(payload["name"], payload["type"], payload.get("config", {}))
+            alerting_service.add_notification_channel(
+                payload["name"], payload["type"], payload.get("config", {})
+            )
             return _success({}, f"Notification channel '{payload['name']}' created successfully")
 
         @router.get("/export/logs")
@@ -254,11 +271,15 @@ class MonitoringEndpoints:
             logs = logging_service.get_recent_logs(limit=limit)
             if format == "csv":
                 output = io.StringIO()
-                writer = csv.DictWriter(output, fieldnames=["timestamp", "level", "service", "component", "message"])
+                writer = csv.DictWriter(
+                    output, fieldnames=["timestamp", "level", "service", "component", "message"]
+                )
                 writer.writeheader()
                 for log in logs:
                     writer.writerow(log)
-                return _success({"format": "csv", "csv_data": output.getvalue()}, "Logs exported as CSV")
+                return _success(
+                    {"format": "csv", "csv_data": output.getvalue()}, "Logs exported as CSV"
+                )
             return _success({"format": "json", "logs": logs}, "Logs exported as JSON")
 
         @router.get("/export/metrics")
@@ -276,5 +297,7 @@ class MonitoringEndpoints:
             current_user: dict[str, Any] = Depends(self.auth_manager.get_current_user),  # noqa: ARG001
         ):
             alerts = alerting_service.get_alert_manager().get_alert_history(limit=limit)
-            return _success({"format": format, "alerts": [alert.to_dict() for alert in alerts]}, "Alerts exported")
-
+            return _success(
+                {"format": format, "alerts": [alert.to_dict() for alert in alerts]},
+                "Alerts exported",
+            )

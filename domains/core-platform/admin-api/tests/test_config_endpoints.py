@@ -24,8 +24,8 @@ class TestConfigEndpoints:
     def test_init(self):
         """Test ConfigEndpoints initialization"""
         assert self.config_endpoints.router is not None
-        assert hasattr(self.config_endpoints, 'router')
-        assert hasattr(self.config_endpoints, 'service_urls')
+        assert hasattr(self.config_endpoints, "router")
+        assert hasattr(self.config_endpoints, "service_urls")
 
     def test_config_endpoint(self):
         """Test config endpoint"""
@@ -95,9 +95,7 @@ class TestConfigEndpoints:
         ``status: accepted`` and persisted nothing, so an operator changing
         production config got a 200 and no state change.
         """
-        updates = [
-            {"key": "HA_URL", "value": "ws://new:8123", "reason": "Test update"}
-        ]
+        updates = [{"key": "HA_URL", "value": "ws://new:8123", "reason": "Test update"}]
 
         with patch("src.config_endpoints.config_manager") as mock_cm:
             mock_cm.get_config_template.return_value = {}
@@ -129,9 +127,7 @@ class TestConfigEndpoints:
 
     def test_update_configuration_endpoint_with_invalid_service(self):
         """Test update configuration endpoint with invalid service"""
-        updates = [
-            {"key": "test_key", "value": "test_value", "reason": "Test update"}
-        ]
+        updates = [{"key": "test_key", "value": "test_value", "reason": "Test update"}]
 
         response = self.client.put("/config/invalid-service", json=updates)
 
@@ -143,10 +139,7 @@ class TestConfigEndpoints:
 
     def test_validate_configuration_endpoint(self):
         """Test validate configuration endpoint"""
-        config = {
-            "test_key": "test_value",
-            "another_key": 123
-        }
+        config = {"test_key": "test_value", "another_key": 123}
 
         response = self.client.post("/config/websocket-ingestion/validate", json=config)
 
@@ -155,10 +148,7 @@ class TestConfigEndpoints:
 
     def test_validate_configuration_endpoint_with_invalid_service(self):
         """Test validate configuration endpoint with invalid service"""
-        config = {
-            "test_key": "test_value",
-            "another_key": 123
-        }
+        config = {"test_key": "test_value", "another_key": 123}
 
         response = self.client.post("/config/invalid-service/validate", json=config)
 
@@ -194,9 +184,7 @@ class TestConfigEndpoints:
         backup_data = {
             "service": "websocket-ingestion",
             "timestamp": "2024-01-01T12:00:00Z",
-            "backup": {
-                "test_key": "test_value"
-            }
+            "backup": {"test_key": "test_value"},
         }
 
         response = self.client.post("/config/websocket-ingestion/restore", json=backup_data)
@@ -211,9 +199,7 @@ class TestConfigEndpoints:
         backup_data = {
             "service": "invalid-service",
             "timestamp": "2024-01-01T12:00:00Z",
-            "backup": {
-                "test_key": "test_value"
-            }
+            "backup": {"test_key": "test_value"},
         }
 
         response = self.client.post("/config/invalid-service/restore", json=backup_data)
@@ -254,7 +240,9 @@ class TestConfigEndpoints:
     def test_config_endpoint_error_handling(self):
         """Test config endpoint error handling"""
         # Mock the _get_service_config method to raise an exception
-        with patch.object(self.config_endpoints, '_get_service_config', side_effect=Exception("Test error")):
+        with patch.object(
+            self.config_endpoints, "_get_service_config", side_effect=Exception("Test error")
+        ):
             response = self.client.get("/config")
 
             # Should handle error gracefully
@@ -266,7 +254,9 @@ class TestConfigEndpoints:
     def test_config_schema_endpoint_error_handling(self):
         """Test config schema endpoint error handling"""
         # Mock the _get_config_schema method to raise an exception
-        with patch.object(self.config_endpoints, '_get_config_schema', side_effect=Exception("Test error")):
+        with patch.object(
+            self.config_endpoints, "_get_config_schema", side_effect=Exception("Test error")
+        ):
             response = self.client.get("/config/schema")
 
             # Should handle error gracefully
@@ -277,12 +267,12 @@ class TestConfigEndpoints:
 
     def test_update_configuration_endpoint_error_handling(self):
         """Test update configuration endpoint error handling"""
-        updates = [
-            {"key": "test_key", "value": "test_value", "reason": "Test update"}
-        ]
+        updates = [{"key": "test_key", "value": "test_value", "reason": "Test update"}]
 
         # Mock the _apply_config_updates method to raise an exception
-        with patch.object(self.config_endpoints, '_apply_config_updates', side_effect=Exception("Test error")):
+        with patch.object(
+            self.config_endpoints, "_apply_config_updates", side_effect=Exception("Test error")
+        ):
             response = self.client.put("/config/websocket-ingestion", json=updates)
 
             # Should handle error gracefully
@@ -293,13 +283,12 @@ class TestConfigEndpoints:
 
     def test_validate_configuration_endpoint_error_handling(self):
         """Test validate configuration endpoint error handling"""
-        config = {
-            "test_key": "test_value",
-            "another_key": 123
-        }
+        config = {"test_key": "test_value", "another_key": 123}
 
         # Mock the _validate_service_config method to raise an exception
-        with patch.object(self.config_endpoints, '_validate_service_config', side_effect=Exception("Test error")):
+        with patch.object(
+            self.config_endpoints, "_validate_service_config", side_effect=Exception("Test error")
+        ):
             response = self.client.post("/config/websocket-ingestion/validate", json=config)
 
             # Should handle error gracefully
@@ -311,7 +300,9 @@ class TestConfigEndpoints:
     def test_backup_configuration_endpoint_error_handling(self):
         """Test backup configuration endpoint error handling"""
         # Mock the _backup_service_config method to raise an exception
-        with patch.object(self.config_endpoints, '_backup_service_config', side_effect=Exception("Test error")):
+        with patch.object(
+            self.config_endpoints, "_backup_service_config", side_effect=Exception("Test error")
+        ):
             response = self.client.get("/config/websocket-ingestion/backup")
 
             # Should handle error gracefully
@@ -325,13 +316,13 @@ class TestConfigEndpoints:
         backup_data = {
             "service": "websocket-ingestion",
             "timestamp": "2024-01-01T12:00:00Z",
-            "backup": {
-                "test_key": "test_value"
-            }
+            "backup": {"test_key": "test_value"},
         }
 
         # Mock the _restore_service_config method to raise an exception
-        with patch.object(self.config_endpoints, '_restore_service_config', side_effect=Exception("Test error")):
+        with patch.object(
+            self.config_endpoints, "_restore_service_config", side_effect=Exception("Test error")
+        ):
             response = self.client.post("/config/websocket-ingestion/restore", json=backup_data)
 
             # Should handle error gracefully
@@ -343,7 +334,9 @@ class TestConfigEndpoints:
     def test_config_history_endpoint_error_handling(self):
         """Test config history endpoint error handling"""
         # Mock the _get_config_history method to raise an exception
-        with patch.object(self.config_endpoints, '_get_config_history', side_effect=Exception("Test error")):
+        with patch.object(
+            self.config_endpoints, "_get_config_history", side_effect=Exception("Test error")
+        ):
             response = self.client.get("/config/websocket-ingestion/history")
 
             # Should handle error gracefully

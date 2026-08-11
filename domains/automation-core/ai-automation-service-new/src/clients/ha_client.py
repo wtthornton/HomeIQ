@@ -77,11 +77,7 @@ def _normalize_condition_type(fixed: dict) -> None:
         fixed["entity_id"] = fixed.pop("entity")
     if fixed.get("condition") == "state" and "to" in fixed and "state" not in fixed:
         fixed["state"] = fixed.pop("to")
-    if (
-        fixed.get("condition") == "numeric_state"
-        and "above" not in fixed
-        and "below" not in fixed
-    ):
+    if fixed.get("condition") == "numeric_state" and "above" not in fixed and "below" not in fixed:
         fixed["above"] = 0
 
 
@@ -92,9 +88,7 @@ def _ensure_template_value(fixed: dict) -> None:
     entity_id = fixed.get("entity_id", "")
     attribute = fixed.get("attribute", "")
     if entity_id and attribute:
-        fixed["value_template"] = (
-            f"{{{{ state_attr('{entity_id}', '{attribute}') | int(0) > 0 }}}}"
-        )
+        fixed["value_template"] = f"{{{{ state_attr('{entity_id}', '{attribute}') | int(0) > 0 }}}}"
     elif entity_id:
         state = fixed.get("state", fixed.get("to", ""))
         fixed["value_template"] = (
@@ -307,7 +301,11 @@ class HomeAssistantClient:
             if not isinstance(action, dict):
                 continue
             target = action.get("target")
-            if isinstance(target, dict) and "area_id" in target and target.get("area_id") in (None, "", "''", []):
+            if (
+                isinstance(target, dict)
+                and "area_id" in target
+                and target.get("area_id") in (None, "", "''", [])
+            ):
                 del target["area_id"]
                 logger.info("Stripping empty 'area_id' from action target")
 

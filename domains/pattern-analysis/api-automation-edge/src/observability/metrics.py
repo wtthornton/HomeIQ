@@ -31,7 +31,7 @@ class MetricsCollector:
         influxdb_url: str | None = None,
         influxdb_token: str | None = None,
         influxdb_org: str | None = None,
-        influxdb_bucket: str | None = None
+        influxdb_bucket: str | None = None,
     ):
         """
         Initialize metrics collector.
@@ -53,9 +53,7 @@ class MetricsCollector:
         if self.influxdb_url and self.influxdb_token:
             try:
                 self.client = InfluxDBClient(
-                    url=self.influxdb_url,
-                    token=self.influxdb_token,
-                    org=self.influxdb_org
+                    url=self.influxdb_url, token=self.influxdb_token, org=self.influxdb_org
                 )
                 self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
                 logger.info("Metrics collector initialized with InfluxDB")
@@ -72,7 +70,7 @@ class MetricsCollector:
         domain: str,
         success: bool,
         execution_time: float,
-        correlation_id: str | None = None
+        correlation_id: str | None = None,
     ):
         """
         Record action execution metric.
@@ -90,15 +88,17 @@ class MetricsCollector:
             return
 
         try:
-            point = Point("automation_action") \
-                .tag("home_id", home_id) \
-                .tag("spec_id", spec_id) \
-                .tag("spec_version", spec_version) \
-                .tag("domain", domain) \
-                .tag("success", str(success).lower()) \
-                .field("execution_time", execution_time) \
-                .field("success", 1 if success else 0) \
+            point = (
+                Point("automation_action")
+                .tag("home_id", home_id)
+                .tag("spec_id", spec_id)
+                .tag("spec_version", spec_version)
+                .tag("domain", domain)
+                .tag("success", str(success).lower())
+                .field("execution_time", execution_time)
+                .field("success", 1 if success else 0)
                 .time(datetime.now(UTC))
+            )
 
             if correlation_id:
                 point = point.tag("correlation_id", correlation_id)
@@ -109,11 +109,7 @@ class MetricsCollector:
             logger.error(f"Failed to record action metric: {e}")
 
     def record_decision_latency(
-        self,
-        home_id: str,
-        spec_id: str,
-        latency: float,
-        correlation_id: str | None = None
+        self, home_id: str, spec_id: str, latency: float, correlation_id: str | None = None
     ):
         """
         Record decision latency (trigger → execute).
@@ -128,11 +124,13 @@ class MetricsCollector:
             return
 
         try:
-            point = Point("automation_decision_latency") \
-                .tag("home_id", home_id) \
-                .tag("spec_id", spec_id) \
-                .field("latency", latency) \
+            point = (
+                Point("automation_decision_latency")
+                .tag("home_id", home_id)
+                .tag("spec_id", spec_id)
+                .field("latency", latency)
                 .time(datetime.now(UTC))
+            )
 
             if correlation_id:
                 point = point.tag("correlation_id", correlation_id)
@@ -142,13 +140,7 @@ class MetricsCollector:
         except Exception as e:
             logger.error(f"Failed to record decision latency: {e}")
 
-    def record_websocket_metric(
-        self,
-        home_id: str,
-        metric_type: str,
-        value: float,
-        **tags
-    ):
+    def record_websocket_metric(self, home_id: str, metric_type: str, value: float, **tags):
         """
         Record WebSocket metric.
 
@@ -162,11 +154,13 @@ class MetricsCollector:
             return
 
         try:
-            point = Point("websocket_metrics") \
-                .tag("home_id", home_id) \
-                .tag("metric_type", metric_type) \
-                .field("value", value) \
+            point = (
+                Point("websocket_metrics")
+                .tag("home_id", home_id)
+                .tag("metric_type", metric_type)
+                .field("value", value)
                 .time(datetime.now(UTC))
+            )
 
             for key, val in tags.items():
                 point = point.tag(key, str(val))
@@ -176,34 +170,26 @@ class MetricsCollector:
         except Exception as e:
             logger.error(f"Failed to record WebSocket metric: {e}")
 
-    def record_circuit_breaker_trip(
-        self,
-        home_id: str,
-        breaker_id: str
-    ):
+    def record_circuit_breaker_trip(self, home_id: str, breaker_id: str):
         """Record circuit breaker trip"""
         if not self.write_api:
             return
 
         try:
-            point = Point("circuit_breaker") \
-                .tag("home_id", home_id) \
-                .tag("breaker_id", breaker_id) \
-                .field("tripped", 1) \
+            point = (
+                Point("circuit_breaker")
+                .tag("home_id", home_id)
+                .tag("breaker_id", breaker_id)
+                .field("tripped", 1)
                 .time(datetime.now(UTC))
+            )
 
             self.write_api.write(bucket=self.influxdb_bucket, record=point)
 
         except Exception as e:
             logger.error(f"Failed to record circuit breaker trip: {e}")
 
-    def record_queue_metric(
-        self,
-        home_id: str,
-        metric_type: str,
-        value: float,
-        **tags
-    ):
+    def record_queue_metric(self, home_id: str, metric_type: str, value: float, **tags):
         """
         Record task queue metric.
 
@@ -217,11 +203,13 @@ class MetricsCollector:
             return
 
         try:
-            point = Point("automation_queue_metrics") \
-                .tag("home_id", home_id) \
-                .tag("metric_type", metric_type) \
-                .field("value", value) \
+            point = (
+                Point("automation_queue_metrics")
+                .tag("home_id", home_id)
+                .tag("metric_type", metric_type)
+                .field("value", value)
                 .time(datetime.now(UTC))
+            )
 
             for key, val in tags.items():
                 point = point.tag(key, str(val))
@@ -239,7 +227,7 @@ class MetricsCollector:
         success: bool,
         execution_time: float,
         retry_count: int = 0,
-        correlation_id: str | None = None
+        correlation_id: str | None = None,
     ):
         """
         Record task execution metric.
@@ -257,15 +245,17 @@ class MetricsCollector:
             return
 
         try:
-            point = Point("automation_task_execution") \
-                .tag("home_id", home_id) \
-                .tag("spec_id", spec_id) \
-                .tag("task_id", task_id) \
-                .tag("success", str(success).lower()) \
-                .field("execution_time", execution_time) \
-                .field("success", 1 if success else 0) \
-                .field("retry_count", retry_count) \
+            point = (
+                Point("automation_task_execution")
+                .tag("home_id", home_id)
+                .tag("spec_id", spec_id)
+                .tag("task_id", task_id)
+                .tag("success", str(success).lower())
+                .field("execution_time", execution_time)
+                .field("success", 1 if success else 0)
+                .field("retry_count", retry_count)
                 .time(datetime.now(UTC))
+            )
 
             if correlation_id:
                 point = point.tag("correlation_id", correlation_id)

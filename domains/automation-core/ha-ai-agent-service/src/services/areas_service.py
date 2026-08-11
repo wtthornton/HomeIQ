@@ -34,11 +34,11 @@ class AreasService:
         """
         self.settings = settings
         self.context_builder = context_builder
-        self.ha_client = HomeAssistantClient(
-            ha_url=settings.ha_url,
-            access_token=settings.ha_token.get_secret_value()
+        self.ha_client = HomeAssistantClient(ha_url=settings.ha_url, access_token=settings.ha_token.get_secret_value())
+        self.data_api_client = DataAPIClient(
+            base_url=settings.data_api_url,
+            api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None,
         )
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
         self._cache_key = "areas_list"
         self._cache_ttl = 1800  # 30 minutes (P1: Increased TTL for static data - areas rarely change)
 
@@ -86,9 +86,7 @@ class AreasService:
             areas_str = ", ".join(sorted(area_parts))
 
             # Cache the result
-            await self.context_builder._set_cached_value(
-                self._cache_key, areas_str, self._cache_ttl
-            )
+            await self.context_builder._set_cached_value(self._cache_key, areas_str, self._cache_ttl)
 
             logger.info(f"✅ Generated optimized areas list: {len(areas)} areas ({len(areas_str)} chars)")
             return areas_str
@@ -138,9 +136,7 @@ class AreasService:
             areas_str = ", ".join(area_parts)
 
             # Cache the result
-            await self.context_builder._set_cached_value(
-                self._cache_key, areas_str, self._cache_ttl
-            )
+            await self.context_builder._set_cached_value(self._cache_key, areas_str, self._cache_ttl)
 
             logger.info(f"✅ Extracted {len(area_ids)} areas from entities")
             return areas_str
@@ -152,4 +148,3 @@ class AreasService:
     async def close(self):
         """Close service resources"""
         await self.ha_client.close()
-

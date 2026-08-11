@@ -6,7 +6,6 @@ Covers: ScoreEngine, ConventionRules, AliasGenerator, naming endpoints.
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Story 64.1: Score Engine
 # ---------------------------------------------------------------------------
@@ -62,7 +61,9 @@ class TestConventionRules:
     def test_friendly_name_with_brand_loses_points(self):
         from src.services.naming_convention.convention_rules import score_friendly_name
 
-        result = score_friendly_name({"friendly_name": "Philips Kitchen Light", "area_id": "kitchen"})
+        result = score_friendly_name(
+            {"friendly_name": "Philips Kitchen Light", "area_id": "kitchen"}
+        )
         assert result.earned_points < 20
         assert any("brand" in i.lower() for i in result.issues)
 
@@ -172,8 +173,15 @@ class TestScoreEngine:
 
         engine = ScoreEngine()
         entities = [
-            {"entity_id": f"sensor.s{i}", "domain": "sensor", "area_id": "",
-             "friendly_name": "", "device_class": "", "aliases": [], "labels": []}
+            {
+                "entity_id": f"sensor.s{i}",
+                "domain": "sensor",
+                "area_id": "",
+                "friendly_name": "",
+                "device_class": "",
+                "aliases": [],
+                "labels": [],
+            }
             for i in range(5)
         ]
         summary = engine.audit(entities)
@@ -193,13 +201,15 @@ class TestAliasGenerator:
         from src.services.naming_convention.alias_generator import AliasGenerator
 
         gen = AliasGenerator()
-        result = gen.suggest_aliases({
-            "entity_id": "light.kitchen_light",
-            "friendly_name": "Kitchen Light",
-            "domain": "light",
-            "area_id": "kitchen",
-            "aliases": [],
-        })
+        result = gen.suggest_aliases(
+            {
+                "entity_id": "light.kitchen_light",
+                "friendly_name": "Kitchen Light",
+                "domain": "light",
+                "area_id": "kitchen",
+                "aliases": [],
+            }
+        )
         area_less = [s for s in result.suggestions if s.source == "area_less"]
         assert len(area_less) >= 1
         assert area_less[0].alias == "Light"
@@ -208,13 +218,15 @@ class TestAliasGenerator:
         from src.services.naming_convention.alias_generator import AliasGenerator
 
         gen = AliasGenerator()
-        result = gen.suggest_aliases({
-            "entity_id": "light.bedroom_light",
-            "friendly_name": "Bedroom Light",
-            "domain": "light",
-            "area_id": "bedroom",
-            "aliases": [],
-        })
+        result = gen.suggest_aliases(
+            {
+                "entity_id": "light.bedroom_light",
+                "friendly_name": "Bedroom Light",
+                "domain": "light",
+                "area_id": "bedroom",
+                "aliases": [],
+            }
+        )
         casual = [s for s in result.suggestions if s.source == "casual"]
         assert len(casual) >= 1
 
@@ -255,13 +267,15 @@ class TestAliasGenerator:
         from src.services.naming_convention.alias_generator import AliasGenerator
 
         gen = AliasGenerator()
-        result = gen.suggest_aliases({
-            "entity_id": "light.kitchen_light",
-            "friendly_name": "Kitchen Light",
-            "domain": "light",
-            "area_id": "kitchen",
-            "aliases": ["Light"],  # Already has area-less variant
-        })
+        result = gen.suggest_aliases(
+            {
+                "entity_id": "light.kitchen_light",
+                "friendly_name": "Kitchen Light",
+                "domain": "light",
+                "area_id": "kitchen",
+                "aliases": ["Light"],  # Already has area-less variant
+            }
+        )
         # "Light" should not appear in suggestions since it's already an alias
         aliases_lower = {s.alias.lower() for s in result.suggestions}
         assert "light" not in aliases_lower
@@ -288,7 +302,6 @@ class TestNamingHints:
     """Tests for naming hints in chat context."""
 
     def test_good_entity_no_hint(self):
-        from domains.automation_core.ha_ai_agent_service.src.services.naming_hints import build_naming_hints
 
         # This import path won't work in tests, use relative
         # Test directly with the function logic
@@ -296,21 +309,23 @@ class TestNamingHints:
 
     def test_poor_entity_gets_hint(self):
         """Entity with no aliases/labels gets a hint."""
-        import importlib
         import sys
+
         # Direct test of the module
         sys.path.insert(0, "domains/automation-core/ha-ai-agent-service")
         try:
             from src.services.naming_hints import build_naming_hints
 
-            entities = [{
-                "entity_id": "sensor.temp_1",
-                "friendly_name": "temp 1",
-                "area_id": "",
-                "aliases": [],
-                "labels": [],
-                "device_class": "",
-            }]
+            entities = [
+                {
+                    "entity_id": "sensor.temp_1",
+                    "friendly_name": "temp 1",
+                    "area_id": "",
+                    "aliases": [],
+                    "labels": [],
+                    "device_class": "",
+                }
+            ]
             hint = build_naming_hints(entities)
             assert "could be improved" in hint
             assert "HA Setup" in hint
@@ -320,18 +335,21 @@ class TestNamingHints:
     def test_critical_label_gets_confirmation(self):
         """Entity with ai:critical label triggers confirmation."""
         import sys
+
         sys.path.insert(0, "domains/automation-core/ha-ai-agent-service")
         try:
             from src.services.naming_hints import build_naming_hints
 
-            entities = [{
-                "entity_id": "lock.front_door",
-                "friendly_name": "Front Door Lock",
-                "area_id": "entrance",
-                "aliases": ["front door"],
-                "labels": ["ai:critical"],
-                "device_class": "lock",
-            }]
+            entities = [
+                {
+                    "entity_id": "lock.front_door",
+                    "friendly_name": "Front Door Lock",
+                    "area_id": "entrance",
+                    "aliases": ["front door"],
+                    "labels": ["ai:critical"],
+                    "device_class": "lock",
+                }
+            ]
             hint = build_naming_hints(entities)
             assert "confirm" in hint.lower()
         except ImportError:
@@ -340,13 +358,20 @@ class TestNamingHints:
     def test_max_one_hint_per_turn(self):
         """Only 1 hint even with multiple poor entities."""
         import sys
+
         sys.path.insert(0, "domains/automation-core/ha-ai-agent-service")
         try:
             from src.services.naming_hints import build_naming_hints
 
             entities = [
-                {"entity_id": f"sensor.s{i}", "friendly_name": "", "area_id": "",
-                 "aliases": [], "labels": [], "device_class": ""}
+                {
+                    "entity_id": f"sensor.s{i}",
+                    "friendly_name": "",
+                    "area_id": "",
+                    "aliases": [],
+                    "labels": [],
+                    "device_class": "",
+                }
                 for i in range(5)
             ]
             hint = build_naming_hints(entities, max_hints=1)
@@ -357,6 +382,7 @@ class TestNamingHints:
     def test_not_found_hint(self):
         """When entity not found, suggest HA Setup."""
         import sys
+
         sys.path.insert(0, "domains/automation-core/ha-ai-agent-service")
         try:
             from src.services.naming_hints import build_not_found_hint

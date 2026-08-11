@@ -24,12 +24,14 @@ optimization_router = APIRouter(tags=["optimization"])
 
 class ApplyFixRequest(BaseModel):
     """Request to apply area assignment fix."""
+
     entity_id: str
     area_id: str
 
 
 class BulkFixRequest(BaseModel):
     """Request to apply multiple area assignment fixes."""
+
     fixes: list[dict[str, str]]
 
 
@@ -82,14 +84,18 @@ async def get_optimization_recommendations(request: Request) -> dict[str, Any]:
 
 @validation_router.get("/api/v1/validation/ha-config")
 async def get_ha_config_validation(
-    request: Request, category: str | None = None, min_confidence: float = 0.0,
+    request: Request,
+    category: str | None = None,
+    min_confidence: float = 0.0,
 ) -> dict[str, Any]:
     """Validate Home Assistant configuration and return suggestions."""
     try:
         validation_service = getattr(request.app.state, "validation_service", None)
         if not validation_service:
             raise HTTPException(status_code=503, detail="Validation service not initialized")
-        result = await validation_service.validate_ha_config(category=category, min_confidence=min_confidence)
+        result = await validation_service.validate_ha_config(
+            category=category, min_confidence=min_confidence
+        )
         return result.model_dump()
     except HTTPException:
         raise
@@ -116,7 +122,9 @@ async def apply_validation_fix(req: Request, request: ApplyFixRequest) -> dict[s
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@validation_router.post("/api/v1/validation/apply-bulk-fixes", dependencies=[Depends(verify_api_key)])
+@validation_router.post(
+    "/api/v1/validation/apply-bulk-fixes", dependencies=[Depends(verify_api_key)]
+)
 async def apply_bulk_validation_fixes(req: Request, request: BulkFixRequest) -> dict[str, Any]:
     """Apply multiple area assignment fixes in batch."""
     try:
@@ -125,7 +133,9 @@ async def apply_bulk_validation_fixes(req: Request, request: BulkFixRequest) -> 
             raise HTTPException(status_code=503, detail="Validation service not initialized")
         result = await validation_service.apply_bulk_fixes(request.fixes)
         validation_service.clear_cache()
-        logger.info("Applied bulk fixes: %s applied, %s failed", result["applied"], result["failed"])
+        logger.info(
+            "Applied bulk fixes: %s applied, %s failed", result["applied"], result["failed"]
+        )
         return result
     except HTTPException:
         raise

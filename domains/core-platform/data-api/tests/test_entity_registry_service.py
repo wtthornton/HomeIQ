@@ -44,8 +44,9 @@ async def fresh_db():
 # ---------------------------------------------------------------------------
 
 
-def _make_mock_entity(entity_id="light.living_room", device_id="dev-001",
-                       domain="light", platform="hue", **kwargs):
+def _make_mock_entity(
+    entity_id="light.living_room", device_id="dev-001", domain="light", platform="hue", **kwargs
+):
     e = MagicMock()
     e.entity_id = entity_id
     e.device_id = device_id
@@ -68,8 +69,9 @@ def _make_mock_entity(entity_id="light.living_room", device_id="dev-001",
     return e
 
 
-def _make_mock_device(device_id="dev-001", name="Test Device", manufacturer="TestCo",
-                       model="Bulb-v2", **kwargs):
+def _make_mock_device(
+    device_id="dev-001", name="Test Device", manufacturer="TestCo", model="Bulb-v2", **kwargs
+):
     d = MagicMock()
     d.device_id = device_id
     d.name = name
@@ -224,9 +226,9 @@ class TestGetSiblingEntities:
         mock_device_result = MagicMock()
         mock_device_result.scalar_one_or_none.return_value = device
 
-        mock_db.execute = AsyncMock(side_effect=[
-            mock_entity_result, mock_entities_result, mock_device_result
-        ])
+        mock_db.execute = AsyncMock(
+            side_effect=[mock_entity_result, mock_entities_result, mock_device_result]
+        )
 
         reg = EntityRegistry(mock_db)
         entries = await reg.get_sibling_entities("light.living")
@@ -273,9 +275,9 @@ class TestGetDeviceHierarchy:
         mock_children_scalars.all.return_value = [child]
         mock_children_result.scalars.return_value = mock_children_scalars
 
-        mock_db.execute = AsyncMock(side_effect=[
-            mock_device_result, mock_parent_result, mock_children_result
-        ])
+        mock_db.execute = AsyncMock(
+            side_effect=[mock_device_result, mock_parent_result, mock_children_result]
+        )
 
         reg = EntityRegistry(mock_db)
         hierarchy = await reg.get_device_hierarchy("dev-001")
@@ -294,12 +296,15 @@ class TestExtractCapabilities:
 
     def _get_service(self):
         from src.services.entity_enrichment import EntityEnrichmentService
+
         return EntityEnrichmentService()
 
     def test_light_brightness_color(self):
         svc = self._get_service()
         caps = svc._extract_capabilities(
-            "light", {"brightness": 255, "rgb_color": [255, 0, 0]}, 133  # 1+4+128
+            "light",
+            {"brightness": 255, "rgb_color": [255, 0, 0]},
+            133,  # 1+4+128
         )
         assert "brightness" in caps
         assert "color" in caps

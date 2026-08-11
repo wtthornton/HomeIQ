@@ -111,7 +111,9 @@ async def get_audit_trail(
                         "success": a.success,
                         "undone": a.undone,
                         "executed_at": a.executed_at.isoformat() if a.executed_at else None,
-                        "undo_expires_at": a.undo_expires_at.isoformat() if a.undo_expires_at else None,
+                        "undo_expires_at": a.undo_expires_at.isoformat()
+                        if a.undo_expires_at
+                        else None,
                         "can_undo": (
                             not a.undone
                             and a.undo_expires_at is not None

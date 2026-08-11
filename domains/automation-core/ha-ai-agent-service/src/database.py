@@ -16,6 +16,7 @@ _schema = os.getenv("DATABASE_SCHEMA", "agent")
 
 class Base(DeclarativeBase):
     """Base class for database models"""
+
     pass
 
 
@@ -28,14 +29,9 @@ class ContextCache(Base):
     cache_key: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     cache_value: Mapped[str] = mapped_column(Text)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now()
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
     def __repr__(self) -> str:
@@ -107,9 +103,7 @@ class MessageModel(Base):
     )
 
     # Relationship to conversation
-    conversation: Mapped["ConversationModel"] = relationship(
-        "ConversationModel", back_populates="messages"
-    )
+    conversation: Mapped["ConversationModel"] = relationship("ConversationModel", back_populates="messages")
 
     def __repr__(self) -> str:
         return f"<MessageModel(id={self.message_id}, role={self.role})>"

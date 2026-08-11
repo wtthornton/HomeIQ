@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from src.config import Settings
 from src.services.context_builder import ContextBuilder
 from src.services.device_state_context_service import DeviceStateContextService
@@ -11,11 +12,7 @@ from src.services.device_state_context_service import DeviceStateContextService
 @pytest.fixture
 def mock_settings():
     """Create mock settings"""
-    return Settings(
-        ha_url="http://test-ha:8123",
-        ha_token="test-token",
-        data_api_url="http://test-data-api:8006"
-    )
+    return Settings(ha_url="http://test-ha:8123", ha_token="test-token", data_api_url="http://test-data-api:8006")
 
 
 @pytest.fixture
@@ -30,10 +27,7 @@ def mock_context_builder():
 @pytest.fixture
 def device_state_context_service(mock_settings, mock_context_builder):
     """Create DeviceStateContextService instance"""
-    return DeviceStateContextService(
-        settings=mock_settings,
-        context_builder=mock_context_builder
-    )
+    return DeviceStateContextService(settings=mock_settings, context_builder=mock_context_builder)
 
 
 @pytest.mark.asyncio
@@ -44,31 +38,14 @@ async def test_get_state_context_with_entities(device_state_context_service, moc
         {
             "entity_id": "light.office_go",
             "state": "on",
-            "attributes": {
-                "brightness": 255,
-                "color_mode": "rgb",
-                "rgb_color": [255, 0, 0]
-            }
+            "attributes": {"brightness": 255, "color_mode": "rgb", "rgb_color": [255, 0, 0]},
         },
-        {
-            "entity_id": "light.office_back_right",
-            "state": "off",
-            "attributes": {}
-        },
-        {
-            "entity_id": "sensor.temp_office",
-            "state": "22.5",
-            "attributes": {
-                "unit_of_measurement": "°C"
-            }
-        }
+        {"entity_id": "light.office_back_right", "state": "off", "attributes": {}},
+        {"entity_id": "sensor.temp_office", "state": "22.5", "attributes": {"unit_of_measurement": "°C"}},
     ]
 
     with patch.object(
-        device_state_context_service.ha_client,
-        "get_states",
-        new_callable=AsyncMock,
-        return_value=mock_states
+        device_state_context_service.ha_client, "get_states", new_callable=AsyncMock, return_value=mock_states
     ):
         entity_ids = ["light.office_go", "light.office_back_right", "sensor.temp_office"]
         context = await device_state_context_service.get_state_context(entity_ids=entity_ids)
@@ -109,9 +86,7 @@ async def test_get_state_context_cached(device_state_context_service, mock_conte
     cached_context = "DEVICE STATES:\n- light.office_go: on (brightness: 255)"
     mock_context_builder._get_cached_value = AsyncMock(return_value=cached_context)
 
-    context = await device_state_context_service.get_state_context(
-        entity_ids=["light.office_go"]
-    )
+    context = await device_state_context_service.get_state_context(entity_ids=["light.office_go"])
 
     assert context == cached_context
     # Should not call get_states when cached
@@ -122,10 +97,7 @@ async def test_get_state_context_cached(device_state_context_service, mock_conte
 async def test_get_state_context_api_error(device_state_context_service, _mock_context_builder):
     """Test handling API errors gracefully"""
     with patch.object(
-        device_state_context_service.ha_client,
-        "get_states",
-        new_callable=AsyncMock,
-        side_effect=Exception("API error")
+        device_state_context_service.ha_client, "get_states", new_callable=AsyncMock, side_effect=Exception("API error")
     ):
         entity_ids = ["light.office_go"]
         context = await device_state_context_service.get_state_context(entity_ids=entity_ids)
@@ -138,19 +110,10 @@ async def test_get_state_context_api_error(device_state_context_service, _mock_c
 async def test_get_state_context_missing_entities(device_state_context_service, _mock_context_builder):
     """Test handling missing entities gracefully"""
     # Mock states with different entities than requested
-    mock_states = [
-        {
-            "entity_id": "light.office_go",
-            "state": "on",
-            "attributes": {}
-        }
-    ]
+    mock_states = [{"entity_id": "light.office_go", "state": "on", "attributes": {}}]
 
     with patch.object(
-        device_state_context_service.ha_client,
-        "get_states",
-        new_callable=AsyncMock,
-        return_value=mock_states
+        device_state_context_service.ha_client, "get_states", new_callable=AsyncMock, return_value=mock_states
     ):
         # Request entity that doesn't exist in states
         entity_ids = ["light.nonexistent"]
@@ -166,12 +129,7 @@ async def test_format_state_entry_light(device_state_context_service):
     state = {
         "entity_id": "light.office_go",
         "state": "on",
-        "attributes": {
-            "brightness": 255,
-            "color_mode": "rgb",
-            "rgb_color": [255, 0, 0],
-            "color_temp": 370
-        }
+        "attributes": {"brightness": 255, "color_mode": "rgb", "rgb_color": [255, 0, 0], "color_temp": 370},
     }
 
     formatted = device_state_context_service._format_state_entry(state)
@@ -189,11 +147,7 @@ async def test_format_state_entry_climate(device_state_context_service):
     state = {
         "entity_id": "climate.office",
         "state": "heat",
-        "attributes": {
-            "temperature": 22.0,
-            "current_temperature": 20.5,
-            "hvac_action": "heating"
-        }
+        "attributes": {"temperature": 22.0, "current_temperature": 20.5, "hvac_action": "heating"},
     }
 
     formatted = device_state_context_service._format_state_entry(state)

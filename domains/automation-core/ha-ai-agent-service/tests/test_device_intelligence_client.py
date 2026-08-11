@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import pytest
+
 from src.clients.device_intelligence_client import DeviceIntelligenceClient
 
 
@@ -17,11 +18,7 @@ def device_intelligence_client():
 async def test_get_device_capabilities_success(device_intelligence_client):
     """Test successfully fetching device capabilities"""
     mock_capabilities = [
-        {
-            "capability_name": "brightness",
-            "capability_type": "numeric",
-            "properties": {"min": 0, "max": 255}
-        }
+        {"capability_name": "brightness", "capability_type": "numeric", "properties": {"min": 0, "max": 255}}
     ]
 
     with patch.object(device_intelligence_client.client, "get") as mock_get:
@@ -35,9 +32,7 @@ async def test_get_device_capabilities_success(device_intelligence_client):
 
         assert len(capabilities) == 1
         assert capabilities[0]["capability_name"] == "brightness"
-        mock_get.assert_called_once_with(
-            "http://test-device-intel:8028/api/devices/device1/capabilities"
-        )
+        mock_get.assert_called_once_with("http://test-device-intel:8028/api/devices/device1/capabilities")
 
 
 @pytest.mark.asyncio
@@ -45,9 +40,7 @@ async def test_get_device_capabilities_404(device_intelligence_client):
     """Test handling 404 for device not found"""
     with patch.object(device_intelligence_client.client, "get") as mock_get:
         mock_response = Mock()
-        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Not Found", request=Mock(), response=Mock()
-        )
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError("Not Found", request=Mock(), response=Mock())
         mock_response.status_code = 404
         mock_get.return_value = mock_response
 
@@ -100,11 +93,7 @@ async def test_get_devices_success(device_intelligence_client):
 @pytest.mark.asyncio
 async def test_get_devices_dict_response(device_intelligence_client):
     """Test handling dict response with 'devices' key"""
-    mock_response_data = {
-        "devices": [
-            {"device_id": "device1", "manufacturer": "Philips"}
-        ]
-    }
+    mock_response_data = {"devices": [{"device_id": "device1", "manufacturer": "Philips"}]}
 
     with patch.object(device_intelligence_client.client, "get") as mock_get:
         mock_response = Mock()
@@ -166,4 +155,3 @@ async def test_close(device_intelligence_client):
     await device_intelligence_client.close()
 
     device_intelligence_client.client.aclose.assert_called_once()
-

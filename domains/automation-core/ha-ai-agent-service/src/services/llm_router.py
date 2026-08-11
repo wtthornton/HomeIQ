@@ -19,11 +19,21 @@ from ..models.llm_models import LLMResponse
 logger = logging.getLogger(__name__)
 
 # Complexity indicators for extended thinking (Story 97.6)
-_COMPLEX_KEYWORDS = frozenset([
-    "if then else", "between", "unless", "except when",
-    "multiple", "sequence", "chain", "schedule",
-    "for each", "every room", "all lights",
-])
+_COMPLEX_KEYWORDS = frozenset(
+    [
+        "if then else",
+        "between",
+        "unless",
+        "except when",
+        "multiple",
+        "sequence",
+        "chain",
+        "schedule",
+        "for each",
+        "every room",
+        "all lights",
+    ]
+)
 
 
 class LLMRouter:
@@ -63,11 +73,7 @@ class LLMRouter:
         if provider == "anthropic":
             from ..clients.anthropic_client import AnthropicLLMClient
 
-            api_key = (
-                settings.anthropic_api_key.get_secret_value()
-                if settings.anthropic_api_key
-                else ""
-            )
+            api_key = settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else ""
             if not api_key:
                 logger.warning("Anthropic API key not configured")
                 return None
@@ -180,11 +186,7 @@ class LLMRouter:
 
         # Determine if extended thinking should be enabled (Story 97.6)
         thinking = None
-        if (
-            provider_name == "anthropic"
-            and user_message
-            and self._is_complex_automation(user_message)
-        ):
+        if provider_name == "anthropic" and user_message and self._is_complex_automation(user_message):
             thinking = {"type": "enabled", "budget_tokens": 4096}
             logger.info("Extended thinking enabled for complex automation request")
 
@@ -220,7 +222,9 @@ class LLMRouter:
             "primary": {
                 "provider": self.primary_provider,
                 "available": self._primary is not None,
-                "circuit_breaker": self._circuit_breaker.state if hasattr(self._circuit_breaker, "state") else "unknown",
+                "circuit_breaker": self._circuit_breaker.state
+                if hasattr(self._circuit_breaker, "state")
+                else "unknown",
             },
         }
         if self.fallback_provider:

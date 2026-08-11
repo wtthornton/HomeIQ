@@ -55,9 +55,7 @@ class ServiceValidator:
         return True, None
 
     def validate_action_fields(
-        self,
-        capability: str,
-        action_data: dict[str, Any]
+        self, capability: str, action_data: dict[str, Any]
     ) -> tuple[bool, list[str]]:
         """
         Validate required fields are present in action data.
@@ -82,23 +80,18 @@ class ServiceValidator:
 
         fields = schema.get("fields", {})
         required_fields = [
-            field_name for field_name, field_schema in fields.items()
+            field_name
+            for field_name, field_schema in fields.items()
             if field_schema.get("required", False)
         ]
 
-        missing_fields = [
-            field for field in required_fields
-            if field not in action_data
-        ]
+        missing_fields = [field for field in required_fields if field not in action_data]
 
         is_valid = len(missing_fields) == 0
         return is_valid, missing_fields
 
     def validate_supported_features(
-        self,
-        _capability: str,
-        entity_id: str,
-        feature_required: str | None = None
+        self, _capability: str, entity_id: str, feature_required: str | None = None
     ) -> tuple[bool, str | None]:
         """
         Validate entity supports required features.
@@ -138,10 +131,7 @@ class ServiceValidator:
 
         return True, None
 
-    def validate_action(
-        self,
-        action: dict[str, Any]
-    ) -> tuple[bool, list[str]]:
+    def validate_action(self, action: dict[str, Any]) -> tuple[bool, list[str]]:
         """
         Validate a single action.
 
@@ -174,19 +164,14 @@ class ServiceValidator:
         for entity_id in resolved_entity_ids:
             # Check if capability requires specific features
             # This is a simplified check - could be more sophisticated
-            is_valid_features, error = self.validate_supported_features(
-                capability, entity_id
-            )
+            is_valid_features, error = self.validate_supported_features(capability, entity_id)
             if not is_valid_features:
                 errors.append(error)
 
         is_valid = len(errors) == 0
         return is_valid, errors
 
-    def validate_actions(
-        self,
-        actions: list[dict[str, Any]]
-    ) -> tuple[bool, dict[str, list[str]]]:
+    def validate_actions(self, actions: list[dict[str, Any]]) -> tuple[bool, dict[str, list[str]]]:
         """
         Validate all actions.
 

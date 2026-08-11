@@ -16,6 +16,7 @@ from typing import Any
 try:
     from openai import APIError, RateLimitError
     from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
@@ -25,10 +26,7 @@ except ImportError:
 # Note: OpenAI client import will need to be adjusted based on training service structure
 # from ..llm.openai_client import OpenAIClient
 
-if OPENAI_AVAILABLE:
-    logger = logging.getLogger(__name__)
-else:
-    logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) if OPENAI_AVAILABLE else logging.getLogger(__name__)
 
 # JSON Schema for enhanced home structure
 HOME_SCHEMA = {
@@ -48,9 +46,9 @@ HOME_SCHEMA = {
                         "description": {"type": "string"},
                         "region": {"type": "string"},
                         "year_built": {"type": "integer"},
-                        "realistic_features": {"type": "array", "items": {"type": "string"}}
+                        "realistic_features": {"type": "array", "items": {"type": "string"}},
                     },
-                    "required": ["name", "type", "size_category", "description"]
+                    "required": ["name", "type", "size_category", "description"],
                 },
                 "device_categories": {
                     "type": "object",
@@ -59,16 +57,16 @@ HOME_SCHEMA = {
                         "properties": {
                             "count": {"type": "integer"},
                             "devices": {"type": "array", "items": {"type": "string"}},
-                            "rationale": {"type": "string"}
+                            "rationale": {"type": "string"},
                         },
-                        "required": ["count"]
-                    }
-                }
+                        "required": ["count"],
+                    },
+                },
             },
-            "required": ["home"]
-        }
+            "required": ["home"],
+        },
     },
-    "required": ["home_type", "size_category", "metadata"]
+    "required": ["home_type", "size_category", "metadata"],
 }
 
 # JSON Schema for validation results
@@ -85,17 +83,14 @@ VALIDATION_SCHEMA = {
                     "severity": {"type": "string", "enum": ["low", "medium", "high"]},
                     "category": {"type": "string"},
                     "description": {"type": "string"},
-                    "suggestion": {"type": "string"}
+                    "suggestion": {"type": "string"},
                 },
-                "required": ["severity", "category", "description"]
-            }
+                "required": ["severity", "category", "description"],
+            },
         },
-        "suggestions": {
-            "type": "array",
-            "items": {"type": "string"}
-        }
+        "suggestions": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["is_realistic", "confidence"]
+    "required": ["is_realistic", "confidence"],
 }
 
 # JSON Schema for template generation
@@ -103,14 +98,8 @@ TEMPLATE_SCHEMA = {
     "type": "object",
     "properties": {
         "home_type": {"type": "string"},
-        "area_templates": {
-            "type": "array",
-            "items": {"type": "string"}
-        },
-        "optional_areas": {
-            "type": "array",
-            "items": {"type": "string"}
-        },
+        "area_templates": {"type": "array", "items": {"type": "string"}},
+        "optional_areas": {"type": "array", "items": {"type": "string"}},
         "device_category_distribution": {
             "type": "object",
             "additionalProperties": {
@@ -123,16 +112,16 @@ TEMPLATE_SCHEMA = {
                             "small": {"type": "number"},
                             "medium": {"type": "number"},
                             "large": {"type": "number"},
-                            "extra_large": {"type": "number"}
-                        }
-                    }
+                            "extra_large": {"type": "number"},
+                        },
+                    },
                 },
-                "required": ["base_count"]
-            }
+                "required": ["base_count"],
+            },
         },
-        "description": {"type": "string"}
+        "description": {"type": "string"},
     },
-    "required": ["home_type", "area_templates"]
+    "required": ["home_type", "area_templates"],
 }
 
 
@@ -150,7 +139,7 @@ class SyntheticHomeOpenAIGenerator:
         self,
         openai_client: Any,  # Type will be OpenAIClient when available
         temperature: float = 0.3,
-        model: str | None = None
+        model: str | None = None,
     ):
         """
         Initialize OpenAI-enhanced synthetic home generator.
@@ -161,27 +150,30 @@ class SyntheticHomeOpenAIGenerator:
             model: Model to use (defaults to openai_client.model)
         """
         if not OPENAI_AVAILABLE:
-            raise ImportError("OpenAI dependencies not available. Install openai and tenacity packages.")
+            raise ImportError(
+                "OpenAI dependencies not available. Install openai and tenacity packages."
+            )
 
         self.openai_client = openai_client
         self.temperature = temperature
-        self.model = model or getattr(openai_client, 'model', 'gpt-4')
+        self.model = model or getattr(openai_client, "model", "gpt-4")
         self.success_count = 0
         self.failure_count = 0
 
         logger.info(f"SyntheticHomeOpenAIGenerator initialized with model={self.model}")
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=2, min=2, max=10),
-        retry=retry_if_exception_type((RateLimitError, APIError)),
-        reraise=True
-    ) if OPENAI_AVAILABLE else lambda f: f
+    @(
+        retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=2, min=2, max=10),
+            retry=retry_if_exception_type((RateLimitError, APIError)),
+            reraise=True,
+        )
+        if OPENAI_AVAILABLE
+        else lambda f: f
+    )
     async def generate_enhanced_home(
-        self,
-        home_type: str,
-        size_category: str,
-        home_index: int = 1
+        self, home_type: str, size_category: str, home_index: int = 1
     ) -> dict[str, Any]:
         """
         Generate a single enhanced home using OpenAI.
@@ -242,13 +234,13 @@ Return the home data as JSON matching the schema."""
             # Track token usage
             usage = response.usage
             if usage:
-                input_tokens = getattr(usage, 'input_tokens', 0)
-                output_tokens = getattr(usage, 'output_tokens', 0)
-                if hasattr(self.openai_client, 'total_input_tokens'):
+                input_tokens = getattr(usage, "input_tokens", 0)
+                output_tokens = getattr(usage, "output_tokens", 0)
+                if hasattr(self.openai_client, "total_input_tokens"):
                     self.openai_client.total_input_tokens += input_tokens
-                if hasattr(self.openai_client, 'total_output_tokens'):
+                if hasattr(self.openai_client, "total_output_tokens"):
                     self.openai_client.total_output_tokens += output_tokens
-                if hasattr(self.openai_client, 'total_tokens_used'):
+                if hasattr(self.openai_client, "total_tokens_used"):
                     self.openai_client.total_tokens_used += input_tokens + output_tokens
 
             # Parse response
@@ -267,8 +259,9 @@ Return the home data as JSON matching the schema."""
 
             # Add generated_at timestamp
             from datetime import datetime
-            home_data['generated_at'] = datetime.now(UTC).isoformat()
-            home_data['home_index'] = home_index
+
+            home_data["generated_at"] = datetime.now(UTC).isoformat()
+            home_data["home_index"] = home_index
 
             self.success_count += 1
             logger.debug(f"✅ Generated enhanced home: {home_type} {size_category}")
@@ -285,10 +278,7 @@ Return the home data as JSON matching the schema."""
             raise RuntimeError(f"Failed to generate enhanced home: {e}") from e
 
     async def validate_home(
-        self,
-        home: dict[str, Any],
-        areas: list[dict[str, Any]],
-        devices: list[dict[str, Any]]
+        self, home: dict[str, Any], areas: list[dict[str, Any]], devices: list[dict[str, Any]]
     ) -> dict[str, Any]:
         """
         Validate a template-generated home for realism using OpenAI.
@@ -303,23 +293,18 @@ Return the home data as JSON matching the schema."""
         """
         if not OPENAI_AVAILABLE:
             logger.warning("OpenAI not available, returning default validation")
-            return {
-                "is_realistic": True,
-                "confidence": 0.5,
-                "issues": [],
-                "suggestions": []
-            }
+            return {"is_realistic": True, "confidence": 0.5, "issues": [], "suggestions": []}
 
         try:
             device_count = len(devices)
             area_count = len(areas)
-            home_type = home.get('home_type', 'unknown')
-            size_category = home.get('size_category', 'medium')
+            home_type = home.get("home_type", "unknown")
+            size_category = home.get("size_category", "medium")
 
             # Count devices by category
             device_counts = {}
             for device in devices:
-                category = device.get('category', 'unknown')
+                category = device.get("category", "unknown")
                 device_counts[category] = device_counts.get(category, 0) + 1
 
             system_prompt = """You are a home automation expert validating synthetic home data for realism.
@@ -336,7 +321,7 @@ Return ONLY valid JSON conforming to the validation schema. No markdown, no expl
 
 Home Type: {home_type}
 Size Category: {size_category}
-Areas: {area_count} ({', '.join([a.get('name', 'Unknown') for a in areas[:10]])})
+Areas: {area_count} ({", ".join([a.get("name", "Unknown") for a in areas[:10]])})
 Total Devices: {device_count}
 Device Counts by Category: {json.dumps(device_counts, indent=2)}
 
@@ -363,13 +348,13 @@ Return validation results as JSON matching the schema."""
             # Track token usage
             usage = response.usage
             if usage:
-                input_tokens = getattr(usage, 'input_tokens', 0)
-                output_tokens = getattr(usage, 'output_tokens', 0)
-                if hasattr(self.openai_client, 'total_input_tokens'):
+                input_tokens = getattr(usage, "input_tokens", 0)
+                output_tokens = getattr(usage, "output_tokens", 0)
+                if hasattr(self.openai_client, "total_input_tokens"):
                     self.openai_client.total_input_tokens += input_tokens
-                if hasattr(self.openai_client, 'total_output_tokens'):
+                if hasattr(self.openai_client, "total_output_tokens"):
                     self.openai_client.total_output_tokens += output_tokens
-                if hasattr(self.openai_client, 'total_tokens_used'):
+                if hasattr(self.openai_client, "total_tokens_used"):
                     self.openai_client.total_tokens_used += input_tokens + output_tokens
 
             content = response.output_text
@@ -382,29 +367,22 @@ Return validation results as JSON matching the schema."""
                 raise ValueError(f"Invalid JSON from validation: {e}") from e
 
             # Basic schema validation
-            if 'is_realistic' not in validation_result:
-                validation_result['is_realistic'] = True  # Default to realistic
-            if 'confidence' not in validation_result:
-                validation_result['confidence'] = 0.5  # Default confidence
+            if "is_realistic" not in validation_result:
+                validation_result["is_realistic"] = True  # Default to realistic
+            if "confidence" not in validation_result:
+                validation_result["confidence"] = 0.5  # Default confidence
 
-            logger.debug(f"✅ Validated home: realistic={validation_result.get('is_realistic')}, confidence={validation_result.get('confidence')}")
+            logger.debug(
+                f"✅ Validated home: realistic={validation_result.get('is_realistic')}, confidence={validation_result.get('confidence')}"
+            )
 
             return validation_result
 
         except Exception as e:
             logger.warning(f"⚠️ Validation failed, returning default: {e}")
-            return {
-                "is_realistic": True,
-                "confidence": 0.5,
-                "issues": [],
-                "suggestions": []
-            }
+            return {"is_realistic": True, "confidence": 0.5, "issues": [], "suggestions": []}
 
-    async def generate_home_type_template(
-        self,
-        home_type: str,
-        description: str
-    ) -> dict[str, Any]:
+    async def generate_home_type_template(self, home_type: str, description: str) -> dict[str, Any]:
         """
         Generate a new home type template using OpenAI.
 
@@ -460,13 +438,13 @@ Return the template as JSON matching the schema."""
             # Track token usage
             usage = response.usage
             if usage:
-                input_tokens = getattr(usage, 'input_tokens', 0)
-                output_tokens = getattr(usage, 'output_tokens', 0)
-                if hasattr(self.openai_client, 'total_input_tokens'):
+                input_tokens = getattr(usage, "input_tokens", 0)
+                output_tokens = getattr(usage, "output_tokens", 0)
+                if hasattr(self.openai_client, "total_input_tokens"):
                     self.openai_client.total_input_tokens += input_tokens
-                if hasattr(self.openai_client, 'total_output_tokens'):
+                if hasattr(self.openai_client, "total_output_tokens"):
                     self.openai_client.total_output_tokens += output_tokens
-                if hasattr(self.openai_client, 'total_tokens_used'):
+                if hasattr(self.openai_client, "total_tokens_used"):
                     self.openai_client.total_tokens_used += input_tokens + output_tokens
 
             content = response.output_text
@@ -479,9 +457,9 @@ Return the template as JSON matching the schema."""
                 raise ValueError(f"Invalid JSON from template generation: {e}") from e
 
             # Validate required fields
-            if 'home_type' not in template:
-                template['home_type'] = home_type
-            if 'area_templates' not in template:
+            if "home_type" not in template:
+                template["home_type"] = home_type
+            if "area_templates" not in template:
                 raise ValueError("Template missing required 'area_templates' field")
 
             logger.info(f"✅ Generated template for {home_type}")
@@ -502,17 +480,17 @@ Return the template as JSON matching the schema."""
         Raises:
             ValueError: If required fields are missing
         """
-        required_fields = ['home_type', 'size_category', 'metadata']
+        required_fields = ["home_type", "size_category", "metadata"]
         for field in required_fields:
             if field not in home_data:
                 raise ValueError(f"Missing required field: {field}")
 
-        if 'home' not in home_data.get('metadata', {}):
+        if "home" not in home_data.get("metadata", {}):
             raise ValueError("Missing required 'home' in metadata")
 
         # Validate size_category enum
-        valid_sizes = ['small', 'medium', 'large', 'extra_large']
-        if home_data.get('size_category') not in valid_sizes:
+        valid_sizes = ["small", "medium", "large", "extra_large"]
+        if home_data.get("size_category") not in valid_sizes:
             raise ValueError(f"Invalid size_category: {home_data.get('size_category')}")
 
     def get_stats(self) -> dict[str, Any]:
@@ -521,6 +499,7 @@ Return the template as JSON matching the schema."""
             "success_count": self.success_count,
             "failure_count": self.failure_count,
             "total_attempts": self.success_count + self.failure_count,
-            "success_rate": self.success_count / (self.success_count + self.failure_count) if (self.success_count + self.failure_count) > 0 else 0.0
+            "success_rate": self.success_count / (self.success_count + self.failure_count)
+            if (self.success_count + self.failure_count) > 0
+            else 0.0,
         }
-

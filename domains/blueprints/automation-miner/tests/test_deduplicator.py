@@ -3,6 +3,7 @@ Unit Tests for Deduplicator
 
 Tests fuzzy matching and duplicate detection.
 """
+
 from datetime import UTC, datetime
 
 import pytest
@@ -36,7 +37,7 @@ class TestDeduplicator:
             source="discourse",
             source_id="12345",
             created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC)
+            updated_at=datetime.now(UTC),
         )
 
     def test_calculate_title_similarity_identical(self, dedup):
@@ -78,10 +79,12 @@ class TestDeduplicator:
     def test_is_duplicate_similar_title_same_devices(self, dedup, sample_metadata):
         """Test duplicate detection - similar title and devices"""
         metadata1 = sample_metadata
-        metadata2 = sample_metadata.model_copy(update={
-            "source_id": "67890",
-            "title": "Motion activated lighting"  # Very similar
-        })
+        metadata2 = sample_metadata.model_copy(
+            update={
+                "source_id": "67890",
+                "title": "Motion activated lighting",  # Very similar
+            }
+        )
 
         is_dup = dedup.is_duplicate(metadata1, metadata2)
 
@@ -90,10 +93,9 @@ class TestDeduplicator:
     def test_is_not_duplicate_different_title(self, dedup, sample_metadata):
         """Test not duplicate - different title"""
         metadata1 = sample_metadata
-        metadata2 = sample_metadata.model_copy(update={
-            "source_id": "67890",
-            "title": "Temperature control system"
-        })
+        metadata2 = sample_metadata.model_copy(
+            update={"source_id": "67890", "title": "Temperature control system"}
+        )
 
         is_dup = dedup.is_duplicate(metadata1, metadata2)
 
@@ -102,18 +104,38 @@ class TestDeduplicator:
     def test_select_best_by_quality(self, dedup):
         """Test selecting best automation by quality score"""
         auto1 = AutomationMetadata(
-            title="Test", description="Test", devices=[], integrations=[],
-            triggers=[], conditions=[], actions=[], use_case="comfort",
-            complexity="low", quality_score=0.7, vote_count=100,
-            source="discourse", source_id="1",
-            created_at=datetime.now(UTC), updated_at=datetime.now(UTC)
+            title="Test",
+            description="Test",
+            devices=[],
+            integrations=[],
+            triggers=[],
+            conditions=[],
+            actions=[],
+            use_case="comfort",
+            complexity="low",
+            quality_score=0.7,
+            vote_count=100,
+            source="discourse",
+            source_id="1",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         auto2 = AutomationMetadata(
-            title="Test", description="Test", devices=[], integrations=[],
-            triggers=[], conditions=[], actions=[], use_case="comfort",
-            complexity="low", quality_score=0.9, vote_count=500,
-            source="discourse", source_id="2",
-            created_at=datetime.now(UTC), updated_at=datetime.now(UTC)
+            title="Test",
+            description="Test",
+            devices=[],
+            integrations=[],
+            triggers=[],
+            conditions=[],
+            actions=[],
+            use_case="comfort",
+            complexity="low",
+            quality_score=0.9,
+            vote_count=500,
+            source="discourse",
+            source_id="2",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
         best = dedup.select_best([auto1, auto2])
@@ -122,6 +144,5 @@ class TestDeduplicator:
         assert best.quality_score == 0.9
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
-
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

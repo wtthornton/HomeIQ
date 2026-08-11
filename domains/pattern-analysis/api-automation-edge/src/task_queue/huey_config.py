@@ -21,7 +21,7 @@ def get_huey_instance() -> MemoryHuey:
     logger.info("Initializing Huey with in-memory backend")
 
     huey = MemoryHuey(
-        'automation-queue',
+        "automation-queue",
         results=True,
         immediate=False,
     )

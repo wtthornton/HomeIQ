@@ -44,18 +44,25 @@ class ContextFilteringService:
             }
         """
         prompt_lower = user_prompt.lower()
-        intent = {
-            "areas": [],
-            "device_types": [],
-            "services": [],
-            "domains": []
-        }
+        intent = {"areas": [], "device_types": [], "services": [], "domains": []}
 
         # Common area names (can be extended)
         area_keywords = [
-            "office", "bedroom", "living room", "kitchen", "bathroom",
-            "garage", "basement", "attic", "hallway", "dining room",
-            "outdoor", "garden", "patio", "backyard", "front yard"
+            "office",
+            "bedroom",
+            "living room",
+            "kitchen",
+            "bathroom",
+            "garage",
+            "basement",
+            "attic",
+            "hallway",
+            "dining room",
+            "outdoor",
+            "garden",
+            "patio",
+            "backyard",
+            "front yard",
         ]
 
         # Extract areas
@@ -102,11 +109,7 @@ class ContextFilteringService:
 
         return intent
 
-    def filter_entities(
-        self,
-        entities: list[dict[str, Any]],
-        intent: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def filter_entities(self, entities: list[dict[str, Any]], intent: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Filter entities based on extracted intent.
 
@@ -148,11 +151,7 @@ class ContextFilteringService:
 
         return filtered
 
-    def filter_devices(
-        self,
-        devices: list[dict[str, Any]],
-        intent: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def filter_devices(self, devices: list[dict[str, Any]], intent: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Filter devices based on extracted intent.
 
@@ -202,11 +201,7 @@ class ContextFilteringService:
 
         return filtered
 
-    def filter_services(
-        self,
-        services: list[str],
-        intent: dict[str, Any]
-    ) -> list[str]:
+    def filter_services(self, services: list[str], intent: dict[str, Any]) -> list[str]:
         """
         Filter services based on extracted intent.
 
@@ -227,7 +222,9 @@ class ContextFilteringService:
             service_lower = service.lower()
 
             # Check exact service match
-            if intent.get("services") and any(intent_service.lower() in service_lower for intent_service in intent["services"]):
+            if intent.get("services") and any(
+                intent_service.lower() in service_lower for intent_service in intent["services"]
+            ):
                 filtered.append(service)
                 continue
 

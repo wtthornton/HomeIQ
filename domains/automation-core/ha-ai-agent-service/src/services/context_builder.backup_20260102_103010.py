@@ -50,34 +50,13 @@ class ContextBuilder:
         from .helpers_scenes_service import HelpersScenesService
         from .services_summary_service import ServicesSummaryService
 
-        self._entity_inventory_service = EntityInventoryService(
-            settings=self.settings,
-            context_builder=self
-        )
-        self._devices_summary_service = DevicesSummaryService(
-            settings=self.settings,
-            context_builder=self
-        )
-        self._areas_service = AreasService(
-            settings=self.settings,
-            context_builder=self
-        )
-        self._services_summary_service = ServicesSummaryService(
-            settings=self.settings,
-            context_builder=self
-        )
-        self._capability_patterns_service = CapabilityPatternsService(
-            settings=self.settings,
-            context_builder=self
-        )
-        self._helpers_scenes_service = HelpersScenesService(
-            settings=self.settings,
-            context_builder=self
-        )
-        self._entity_attributes_service = EntityAttributesService(
-            settings=self.settings,
-            context_builder=self
-        )
+        self._entity_inventory_service = EntityInventoryService(settings=self.settings, context_builder=self)
+        self._devices_summary_service = DevicesSummaryService(settings=self.settings, context_builder=self)
+        self._areas_service = AreasService(settings=self.settings, context_builder=self)
+        self._services_summary_service = ServicesSummaryService(settings=self.settings, context_builder=self)
+        self._capability_patterns_service = CapabilityPatternsService(settings=self.settings, context_builder=self)
+        self._helpers_scenes_service = HelpersScenesService(settings=self.settings, context_builder=self)
+        self._entity_attributes_service = EntityAttributesService(settings=self.settings, context_builder=self)
         self._initialized = True
         logger.info("✅ Context builder initialized with all services")
 
@@ -111,10 +90,7 @@ class ContextBuilder:
             Formatted context string ready for OpenAI system/user prompts
         """
         if not self._initialized:
-            logger.error(
-                "❌ CRITICAL: Context builder not initialized! "
-                "Call context_builder.initialize() first."
-            )
+            logger.error("❌ CRITICAL: Context builder not initialized! Call context_builder.initialize() first.")
             raise RuntimeError("Context builder not initialized")
 
         logger.debug(f"Building Tier 1 context (devices, areas, services, etc.) - skip_truncation={skip_truncation}")
@@ -140,6 +116,7 @@ class ContextBuilder:
         except Exception as e:
             logger.error(f"❌ Failed to get devices summary: {e}", exc_info=True)
             import traceback
+
             logger.error(f"❌ Traceback: {traceback.format_exc()}")
             context_parts.append("DEVICES: (unavailable)\n")
 
@@ -185,13 +162,10 @@ class ContextBuilder:
 
         if unavailable_count > 0:
             logger.warning(
-                f"⚠️ Context built with {unavailable_count} unavailable section(s). "
-                f"Total length: {context_length} chars"
+                f"⚠️ Context built with {unavailable_count} unavailable section(s). Total length: {context_length} chars"
             )
         else:
-            logger.info(
-                f"✅ Context built successfully. Total length: {context_length} chars"
-            )
+            logger.info(f"✅ Context built successfully. Total length: {context_length} chars")
 
         return context
 
@@ -259,8 +233,7 @@ class ContextBuilder:
             async for session in get_session():
                 now = datetime.now()
                 stmt = select(ContextCache.cache_value).where(
-                    ContextCache.cache_key == cache_key,
-                    ContextCache.expires_at > now
+                    ContextCache.cache_key == cache_key, ContextCache.expires_at > now
                 )
                 result = await session.execute(stmt)
                 return result.scalar_one_or_none()
@@ -268,12 +241,7 @@ class ContextBuilder:
             logger.warning(f"⚠️ Error reading cache for {cache_key}: {e}")
         return None
 
-    async def _set_cached_value(
-        self,
-        cache_key: str,
-        cache_value: str,
-        ttl_seconds: int
-    ) -> None:
+    async def _set_cached_value(self, cache_key: str, cache_value: str, ttl_seconds: int) -> None:
         """
         Set cached value with TTL.
 
@@ -297,14 +265,9 @@ class ContextBuilder:
                     existing.updated_at = datetime.now()
                 else:
                     # Create new entry
-                    cache_entry = ContextCache(
-                        cache_key=cache_key,
-                        cache_value=cache_value,
-                        expires_at=expires_at
-                    )
+                    cache_entry = ContextCache(cache_key=cache_key, cache_value=cache_value, expires_at=expires_at)
                     session.add(cache_entry)
 
                 await session.commit()
         except Exception as e:
             logger.warning(f"⚠️ Error writing cache for {cache_key}: {e}")
-

@@ -297,9 +297,7 @@ class TestDataAPIClient:
             is_healthy = await client.health_check()
 
             assert is_healthy is True
-            mock_get.assert_called_once_with(
-                f"{data_api_base_url}/health", headers={}, timeout=5.0
-            )
+            mock_get.assert_called_once_with(f"{data_api_base_url}/health", headers={}, timeout=5.0)
 
     @pytest.mark.asyncio
     @pytest.mark.unit

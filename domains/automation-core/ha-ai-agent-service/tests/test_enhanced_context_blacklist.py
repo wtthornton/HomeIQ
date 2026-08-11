@@ -1,6 +1,6 @@
 """Tests for entity blacklist filtering in EnhancedContextBuilder — Epic 93 Story 93.2."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -36,6 +36,7 @@ SAMPLE_ENTITIES = [
 def blacklist():
     """Use real blacklist config."""
     from pathlib import Path
+
     cfg = Path(__file__).resolve().parent.parent / "src" / "config" / "entity_blacklist.yaml"
     return EntityBlacklist(cfg)
 
@@ -152,9 +153,11 @@ class TestBuildBinarySensorFiltering:
         builder.data_api_client.fetch_entities = AsyncMock(return_value=entities)
         builder.ha_client.get_device_registry = AsyncMock(return_value=[])
         builder.ha_client.get_area_registry = AsyncMock(return_value=[])
-        builder.ha_client.get_states = AsyncMock(return_value=[
-            {"entity_id": "binary_sensor.office_motion", "state": "off"},
-        ])
+        builder.ha_client.get_states = AsyncMock(
+            return_value=[
+                {"entity_id": "binary_sensor.office_motion", "state": "off"},
+            ]
+        )
 
         result = await builder.build_binary_sensor_context()
 

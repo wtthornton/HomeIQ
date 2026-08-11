@@ -62,9 +62,7 @@ def _suggestion_to_response(suggestion: BlueprintSuggestion) -> BlueprintSuggest
         blueprint_name=blueprint_name,
         blueprint_description=blueprint_description,
         suggestion_score=suggestion.suggestion_score,
-        matched_devices=[
-            DeviceMatch(**device) for device in suggestion.matched_devices
-        ],
+        matched_devices=[DeviceMatch(**device) for device in suggestion.matched_devices],
         use_case=suggestion.use_case,
         status=suggestion.status,
         created_at=suggestion.created_at,
@@ -103,7 +101,9 @@ async def delete_all_suggestions(
     except Exception as e:
         logger.error(f"Delete all suggestions failed: {e}", exc_info=True)
         await db.rollback()
-        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
+        raise HTTPException(
+            status_code=500, detail="An internal error occurred. Please try again later."
+        ) from e
 
 
 @router.get("/health/schema")
@@ -122,7 +122,9 @@ async def check_schema_health(db: AsyncSession = Depends(get_db)):
             "schema_version": "1.0.0",
             "schema_ok": schema_ok,
             "status": "healthy" if schema_ok else "schema_mismatch",
-            "message": "Schema is up to date" if schema_ok else "Schema mismatch detected - migrations may be required"
+            "message": "Schema is up to date"
+            if schema_ok
+            else "Schema mismatch detected - migrations may be required",
         }
     except Exception as e:
         logger.error(f"Schema health check failed: {e}", exc_info=True)
@@ -130,7 +132,7 @@ async def check_schema_health(db: AsyncSession = Depends(get_db)):
             "schema_version": "unknown",
             "schema_ok": False,
             "status": "error",
-            "message": "Failed to check schema"
+            "message": "Failed to check schema",
         }
 
 
@@ -162,7 +164,7 @@ async def get_suggestions(
             logger.error("Schema mismatch detected - required columns may be missing")
             raise HTTPException(
                 status_code=503,
-                detail="Database schema mismatch. Please restart the service to run migrations or contact support."
+                detail="Database schema mismatch. Please restart the service to run migrations or contact support.",
             )
 
         suggestions, total = await service.get_suggestions(
@@ -189,7 +191,9 @@ async def get_suggestions(
                             s.blueprint_description = blueprint_data.get("description")
                             db.add(s)
                     except Exception as e:
-                        logger.warning(f"Failed to fetch blueprint {s.blueprint_id} for enrichment: {e}")
+                        logger.warning(
+                            f"Failed to fetch blueprint {s.blueprint_id} for enrichment: {e}"
+                        )
 
         # No explicit commit needed - get_db dependency commits on success
 
@@ -205,7 +209,9 @@ async def get_suggestions(
         raise
     except Exception as e:
         logger.error(f"Get suggestions failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
+        raise HTTPException(
+            status_code=500, detail="An internal error occurred. Please try again later."
+        ) from e
 
 
 @router.post("/{suggestion_id}/accept", response_model=AcceptSuggestionResponse)
@@ -246,9 +252,7 @@ async def accept_suggestion(
             blueprint_id=suggestion.blueprint_id,
             blueprint_yaml=blueprint_data.get("yaml_content") if blueprint_data else None,
             blueprint_inputs=blueprint_data.get("blueprint_inputs", {}) if blueprint_data else {},
-            matched_devices=[
-                DeviceMatch(**device) for device in suggestion.matched_devices
-            ],
+            matched_devices=[DeviceMatch(**device) for device in suggestion.matched_devices],
             suggestion_score=suggestion.suggestion_score,
             conversation_id=suggestion.conversation_id,
         )
@@ -256,7 +260,9 @@ async def accept_suggestion(
         raise
     except Exception as e:
         logger.error(f"Accept suggestion failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
+        raise HTTPException(
+            status_code=500, detail="An internal error occurred. Please try again later."
+        ) from e
 
 
 @router.post("/{suggestion_id}/decline")
@@ -286,7 +292,9 @@ async def decline_suggestion(
         raise
     except Exception as e:
         logger.error(f"Decline suggestion failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
+        raise HTTPException(
+            status_code=500, detail="An internal error occurred. Please try again later."
+        ) from e
 
 
 @router.get("/stats", response_model=SuggestionStatsResponse)
@@ -307,7 +315,9 @@ async def get_stats(
         return SuggestionStatsResponse(**stats)
     except Exception as e:
         logger.error(f"Get stats failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
+        raise HTTPException(
+            status_code=500, detail="An internal error occurred. Please try again later."
+        ) from e
 
 
 @router.post("/generate", response_model=GenerateSuggestionsResponse)
@@ -346,4 +356,6 @@ async def generate_suggestions(
         )
     except Exception as e:
         logger.error(f"Generate suggestions failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
+        raise HTTPException(
+            status_code=500, detail="An internal error occurred. Please try again later."
+        ) from e

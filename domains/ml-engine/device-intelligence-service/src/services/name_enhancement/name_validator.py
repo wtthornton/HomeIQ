@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ValidationResult:
     """Validation result"""
+
     is_unique: bool
     conflicts: list[dict[str, Any]]
     suggestions: list[str] | None = None
@@ -46,9 +47,7 @@ class NameUniquenessValidator:
                     self.name_cache.add(self._normalize_name(row.name_by_user))
 
             # Load entity names
-            result = await db_session.execute(
-                select(DeviceEntity.name, DeviceEntity.original_name)
-            )
+            result = await db_session.execute(select(DeviceEntity.name, DeviceEntity.original_name))
             for row in result:
                 if row.name:
                     self.name_cache.add(self._normalize_name(row.name))
@@ -67,7 +66,7 @@ class NameUniquenessValidator:
         device_id: str | None = None,
         entity_id: str | None = None,
         exclude_ids: list[str] | None = None,
-        db_session: AsyncSession | None = None
+        db_session: AsyncSession | None = None,
     ) -> ValidationResult:
         """
         Fast validation using in-memory cache.
@@ -93,14 +92,14 @@ class NameUniquenessValidator:
             return ValidationResult(
                 is_unique=False,
                 conflicts=conflicts,
-                suggestions=await self._generate_alternatives(proposed_name, conflicts, db_session)
+                suggestions=await self._generate_alternatives(proposed_name, conflicts, db_session),
             )
 
         # No DB session, assume conflict if in cache
         return ValidationResult(
             is_unique=False,
             conflicts=[{"name": proposed_name}],
-            suggestions=[f"{proposed_name} 1", f"{proposed_name} 2"]
+            suggestions=[f"{proposed_name} 1", f"{proposed_name} 2"],
         )
 
     async def generate_unique_variant(
@@ -108,7 +107,7 @@ class NameUniquenessValidator:
         base_name: str,
         device: Device,
         existing_names: set[str] | None = None,
-        db_session: AsyncSession | None = None
+        db_session: AsyncSession | None = None,
     ) -> str:
         """
         Generate unique variant with minimal changes.
@@ -130,7 +129,9 @@ class NameUniquenessValidator:
             if normalized not in existing_names:
                 # Also check in database if session provided
                 if db_session:
-                    validation = await self.validate_uniqueness(location_name, device.id, None, None, db_session)
+                    validation = await self.validate_uniqueness(
+                        location_name, device.id, None, None, db_session
+                    )
                     if validation.is_unique:
                         return location_name
                 else:
@@ -157,10 +158,11 @@ class NameUniquenessValidator:
     def _normalize_name(self, name: str) -> str:
         """Normalize name for comparison (case-insensitive, remove punctuation)"""
         import re
+
         # Lowercase, remove punctuation, normalize whitespace
         normalized = name.lower().strip()
-        normalized = re.sub(r'[^\w\s]', '', normalized)
-        normalized = re.sub(r'\s+', ' ', normalized)
+        normalized = re.sub(r"[^\w\s]", "", normalized)
+        normalized = re.sub(r"\s+", " ", normalized)
         return normalized
 
     async def _find_conflicts(
@@ -169,7 +171,7 @@ class NameUniquenessValidator:
         device_id: str | None,
         entity_id: str | None,
         exclude_ids: list[str] | None,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ) -> list[dict[str, Any]]:
         """Find conflicting device/entity names in database"""
         conflicts = []
@@ -183,13 +185,12 @@ class NameUniquenessValidator:
                 )
             )
             for row in result:
-                if (row.name and self._normalize_name(row.name) == normalized_name) or \
-                   (row.name_by_user and self._normalize_name(row.name_by_user) == normalized_name):
-                    conflicts.append({
-                        "type": "device",
-                        "id": row.id,
-                        "name": row.name or row.name_by_user
-                    })
+                if (row.name and self._normalize_name(row.name) == normalized_name) or (
+                    row.name_by_user and self._normalize_name(row.name_by_user) == normalized_name
+                ):
+                    conflicts.append(
+                        {"type": "device", "id": row.id, "name": row.name or row.name_by_user}
+                    )
 
         # Check entities
         if entity_id not in exclude_ids:
@@ -199,21 +200,21 @@ class NameUniquenessValidator:
                 )
             )
             for row in result:
-                if (row.name and self._normalize_name(row.name) == normalized_name) or \
-                   (row.original_name and self._normalize_name(row.original_name) == normalized_name):
-                    conflicts.append({
-                        "type": "entity",
-                        "id": row.entity_id,
-                        "name": row.name or row.original_name
-                    })
+                if (row.name and self._normalize_name(row.name) == normalized_name) or (
+                    row.original_name and self._normalize_name(row.original_name) == normalized_name
+                ):
+                    conflicts.append(
+                        {
+                            "type": "entity",
+                            "id": row.entity_id,
+                            "name": row.name or row.original_name,
+                        }
+                    )
 
         return conflicts
 
     async def _generate_alternatives(
-        self,
-        base_name: str,
-        _conflicts: list[dict[str, Any]],
-        _db_session: AsyncSession
+        self, base_name: str, _conflicts: list[dict[str, Any]], _db_session: AsyncSession
     ) -> list[str]:
         """Generate alternative name suggestions"""
         suggestions = []
@@ -232,4 +233,3 @@ class NameUniquenessValidator:
         self._cache_loaded = False
         self.name_cache.clear()
         await self.load_cache(db_session)
-

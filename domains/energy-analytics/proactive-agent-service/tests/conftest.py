@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import AsyncGenerator
 
 import pytest
 
@@ -41,21 +41,21 @@ async def mock_db_session() -> AsyncGenerator[AsyncSession, None]:
         test_url,
         echo=False,
     )
-    
+
     # Create tables using SQLAlchemy models
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     # Create session factory
     async_session_maker = async_sessionmaker(
         engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     # Create session for test
     async with async_session_maker() as session:
         yield session
-    
+
     # Cleanup
     await engine.dispose()

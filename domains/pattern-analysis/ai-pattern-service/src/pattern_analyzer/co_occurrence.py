@@ -19,62 +19,75 @@ logger = logging.getLogger(__name__)
 # System noise filtering constants (Task 2: Filter System Noise)
 # Phase 1: Domain-level exclusions
 EXCLUDED_DOMAINS = {
-    'image',      # Maps, camera images
-    'event',      # System events
-    'update',     # Software updates
-    'camera',     # Camera entities
-    'button',     # Buttons (not automation targets)
+    "image",  # Maps, camera images
+    "event",  # System events
+    "update",  # Software updates
+    "camera",  # Camera entities
+    "button",  # Buttons (not automation targets)
 }
 
 EXCLUDED_ENTITY_PREFIXES = [
-    'sensor.home_assistant_',  # System sensors
-    'sensor.slzb_',            # Coordinator sensors
-    'image.',                  # Images/maps (Roborock, cameras)
-    'event.',                  # System events
-    'binary_sensor.system_',   # System binary sensors
-    'camera.',                 # Camera entities
-    'button.',                 # Button entities
-    'update.',                 # Update entities
+    "sensor.home_assistant_",  # System sensors
+    "sensor.slzb_",  # Coordinator sensors
+    "image.",  # Images/maps (Roborock, cameras)
+    "event.",  # System events
+    "binary_sensor.system_",  # System binary sensors
+    "camera.",  # Camera entities
+    "button.",  # Button entities
+    "update.",  # Update entities
 ]
 
 # Patterns to match (using contains check)
 EXCLUDED_PATTERNS = [
-    '_tracker',                # External API trackers (sports, etc.)
-    'team_tracker',            # Sports team tracker entities
-    'nfl_', 'nhl_', 'mlb_', 'nba_', 'ncaa_',  # Sports league entities
-    'weather_',                # Weather API entities
-    'openweathermap_',         # OpenWeatherMap integration
-    'carbon_intensity_',       # Carbon intensity API
-    'electricity_pricing_',    # Electricity pricing API
-    'national_grid_',          # National Grid API
-    'calendar_',               # Calendar entities (external events)
-    '_cpu_',                   # CPU/monitoring sensors
-    '_temp',                   # Temperature sensors (system)
-    '_chip_',                  # Chip temperature sensors
-    'coordinator_',            # Coordinator-related sensors
-    '_battery',                # Battery level sensors
-    '_memory_',                # Memory sensors
-    '_signal_strength',        # Signal strength
-    '_linkquality',            # Zigbee link quality
-    '_update_',                # Update status
-    '_uptime',                 # Uptime sensors
-    '_last_seen',              # Last seen timestamps
+    "_tracker",  # External API trackers (sports, etc.)
+    "team_tracker",  # Sports team tracker entities
+    "nfl_",
+    "nhl_",
+    "mlb_",
+    "nba_",
+    "ncaa_",  # Sports league entities
+    "weather_",  # Weather API entities
+    "openweathermap_",  # OpenWeatherMap integration
+    "carbon_intensity_",  # Carbon intensity API
+    "electricity_pricing_",  # Electricity pricing API
+    "national_grid_",  # National Grid API
+    "calendar_",  # Calendar entities (external events)
+    "_cpu_",  # CPU/monitoring sensors
+    "_temp",  # Temperature sensors (system)
+    "_chip_",  # Chip temperature sensors
+    "coordinator_",  # Coordinator-related sensors
+    "_battery",  # Battery level sensors
+    "_memory_",  # Memory sensors
+    "_signal_strength",  # Signal strength
+    "_linkquality",  # Zigbee link quality
+    "_update_",  # Update status
+    "_uptime",  # Uptime sensors
+    "_last_seen",  # Last seen timestamps
 ]
 
 # Domain categorization for pattern validation
 ACTIONABLE_DOMAINS = {
-    'light', 'switch', 'climate', 'media_player',
-    'lock', 'cover', 'fan', 'vacuum', 'scene'
+    "light",
+    "switch",
+    "climate",
+    "media_player",
+    "lock",
+    "cover",
+    "fan",
+    "vacuum",
+    "scene",
 }
 
 TRIGGER_DOMAINS = {
-    'binary_sensor', 'sensor', 'device_tracker',
-    'person', 'input_boolean', 'input_select'
+    "binary_sensor",
+    "sensor",
+    "device_tracker",
+    "person",
+    "input_boolean",
+    "input_select",
 }
 
-PASSIVE_DOMAINS = {
-    'image', 'camera', 'weather', 'sun', 'event', 'update', 'calendar'
-}
+PASSIVE_DOMAINS = {"image", "camera", "weather", "sun", "event", "update", "calendar"}
 
 
 class CoOccurrencePatternDetector:
@@ -98,7 +111,7 @@ class CoOccurrencePatternDetector:
         max_variance_minutes: float = 30.0,
         domain_support_overrides: dict[str, int] | None = None,
         domain_confidence_overrides: dict[str, float] | None = None,
-        feedback_client=None
+        feedback_client=None,
     ):
         """
         Initialize co-occurrence detector.
@@ -161,7 +174,7 @@ class CoOccurrencePatternDetector:
             return []
 
         # Validate required columns
-        required_cols = ['device_id', 'timestamp']
+        required_cols = ["device_id", "timestamp"]
         missing_cols = [col for col in required_cols if col not in events.columns]
         if missing_cols:
             logger.error(f"Missing required columns: {missing_cols}")
@@ -185,7 +198,7 @@ class CoOccurrencePatternDetector:
             return []
 
         # 1. Sort by time for efficient windowing
-        events = events.sort_values('timestamp').copy()
+        events = events.sort_values("timestamp").copy()
         events = events.reset_index(drop=True)
 
         # 2. Find co-occurrences using sliding window
@@ -193,7 +206,7 @@ class CoOccurrencePatternDetector:
         device_event_counts = defaultdict(int)
 
         # Track individual device events for confidence calculation
-        for device_id in events['device_id']:
+        for device_id in events["device_id"]:
             device_event_counts[device_id] += 1
 
         # Task 3: Track time deltas for variance calculation
@@ -201,35 +214,33 @@ class CoOccurrencePatternDetector:
 
         # Sliding window approach
         for _i, event in events.iterrows():
-            device_a = event['device_id']
-            timestamp_a = event['timestamp']
+            device_a = event["device_id"]
+            timestamp_a = event["timestamp"]
 
             # Look ahead within window
             window_end = timestamp_a + pd.Timedelta(minutes=self.window_minutes)
 
             # Find nearby events
-            nearby_mask = (
-                (events['timestamp'] > timestamp_a) &
-                (events['timestamp'] <= window_end)
-            )
+            nearby_mask = (events["timestamp"] > timestamp_a) & (events["timestamp"] <= window_end)
             nearby = events[nearby_mask]
 
             # Count co-occurrences with different devices
             for _, nearby_event in nearby.iterrows():
-                device_b = nearby_event['device_id']
+                device_b = nearby_event["device_id"]
 
                 if device_b != device_a:
                     # Task 2: Filter system noise in pairs (double-check)
-                    if self.filter_system_noise:
-                        if not self._is_meaningful_automation_pattern(device_a, device_b):
-                            continue
+                    if (self.filter_system_noise) and (
+                        not self._is_meaningful_automation_pattern(device_a, device_b)
+                    ):
+                        continue
 
                     # Create sorted pair to avoid duplicates (A,B) vs (B,A)
                     pair = tuple(sorted([device_a, device_b]))
                     co_occurrences[pair] += 1
 
                     # Task 3: Track time delta for variance calculation
-                    time_delta = (nearby_event['timestamp'] - timestamp_a).total_seconds()
+                    time_delta = (nearby_event["timestamp"] - timestamp_a).total_seconds()
                     pair_time_deltas[pair].append(time_delta)
 
         logger.info(f"Found {len(co_occurrences)} unique device pairs")
@@ -256,23 +267,22 @@ class CoOccurrencePatternDetector:
             domain1 = self._get_domain(device1)
             domain2 = self._get_domain(device2)
             support_threshold = min(
-                self._support_threshold_for(domain1),
-                self._support_threshold_for(domain2)
+                self._support_threshold_for(domain1), self._support_threshold_for(domain2)
             )
             confidence_threshold = min(
-                self._confidence_threshold_for(domain1),
-                self._confidence_threshold_for(domain2)
+                self._confidence_threshold_for(domain1), self._confidence_threshold_for(domain2)
             )
 
             # Filter by thresholds
             if count >= support_threshold and confidence >= confidence_threshold:
                 # Quality check: Ensure meaningful automation pattern
-                if self.filter_system_noise:
-                    if not self._is_meaningful_automation_pattern(device1, device2):
-                        logger.debug(
-                            f"❌ Rejected pattern {device1}+{device2}: not a meaningful automation pattern"
-                        )
-                        continue
+                if (self.filter_system_noise) and (
+                    not self._is_meaningful_automation_pattern(device1, device2)
+                ):
+                    logger.debug(
+                        f"❌ Rejected pattern {device1}+{device2}: not a meaningful automation pattern"
+                    )
+                    continue
 
                 # Task 3: Calculate time variance and filter by threshold
                 time_deltas = pair_time_deltas.get((device1, device2), [])
@@ -302,28 +312,34 @@ class CoOccurrencePatternDetector:
                     time_std_minutes = None
 
                 pattern = {
-                    'pattern_type': 'co_occurrence',
-                    'device_id': f"{device1}+{device2}",  # Combined ID for storage
-                    'device1': device1,
-                    'device2': device2,
-                    'occurrences': int(count),
-                    'total_events': int(total_events),
-                    'confidence': float(confidence),
-                    'metadata': {
-                        'window_minutes': self.window_minutes,
-                        'support': float(support),
-                        'device1_count': int(device1_count),
-                        'device2_count': int(device2_count),
-                        'avg_time_delta_seconds': float(avg_time_delta) if avg_time_delta is not None else None,
-                        'time_variance_minutes': float(time_variance_minutes) if time_variance_minutes is not None else None,
-                        'time_std_minutes': float(time_std_minutes) if time_std_minutes is not None else None,
-                        'thresholds': {
-                            'required_support': support_threshold,
-                            'required_confidence': confidence_threshold,
-                            'domain1': domain1,
-                            'domain2': domain2
-                        }
-                    }
+                    "pattern_type": "co_occurrence",
+                    "device_id": f"{device1}+{device2}",  # Combined ID for storage
+                    "device1": device1,
+                    "device2": device2,
+                    "occurrences": int(count),
+                    "total_events": int(total_events),
+                    "confidence": float(confidence),
+                    "metadata": {
+                        "window_minutes": self.window_minutes,
+                        "support": float(support),
+                        "device1_count": int(device1_count),
+                        "device2_count": int(device2_count),
+                        "avg_time_delta_seconds": float(avg_time_delta)
+                        if avg_time_delta is not None
+                        else None,
+                        "time_variance_minutes": float(time_variance_minutes)
+                        if time_variance_minutes is not None
+                        else None,
+                        "time_std_minutes": float(time_std_minutes)
+                        if time_std_minutes is not None
+                        else None,
+                        "thresholds": {
+                            "required_support": support_threshold,
+                            "required_confidence": confidence_threshold,
+                            "domain1": domain1,
+                            "domain2": domain2,
+                        },
+                    },
                 }
 
                 patterns.append(pattern)
@@ -331,8 +347,9 @@ class CoOccurrencePatternDetector:
                 logger.info(
                     f"✅ Co-occurrence: {device1} + {device2} "
                     f"({count} times, {confidence:.0%} confidence, "
-                    f"avg_delta={avg_time_delta:.1f}s)" if avg_time_delta else
-                    f"({count} times, {confidence:.0%} confidence)"
+                    f"avg_delta={avg_time_delta:.1f}s)"
+                    if avg_time_delta
+                    else f"({count} times, {confidence:.0%} confidence)"
                 )
 
         logger.info(f"✅ Detected {len(patterns)} co-occurrence patterns")
@@ -367,27 +384,27 @@ class CoOccurrencePatternDetector:
         """
         try:
             # Get date from events
-            if events.empty or 'timestamp' not in events.columns:
+            if events.empty or "timestamp" not in events.columns:
                 logger.warning("Cannot determine date from events for aggregate storage")
                 return
 
             # Use the date of the first event (assuming 24h window)
-            date = events['timestamp'].min().date()
+            date = events["timestamp"].min().date()
             date_str = date.strftime("%Y-%m-%d")
 
             logger.info(f"Storing daily aggregates for {date_str}")
 
             for pattern in patterns:
-                device1 = pattern.get('device1')
-                device2 = pattern.get('device2')
-                combined_id = pattern.get('device_id', f"{device1}+{device2}")
+                device1 = pattern.get("device1")
+                device2 = pattern.get("device2")
+                combined_id = pattern.get("device_id", f"{device1}+{device2}")
 
                 if not device1 or not device2:
                     continue
 
                 # Calculate metrics
-                occurrences = pattern.get('occurrences', 0)
-                confidence = pattern.get('confidence', 0.0)
+                occurrences = pattern.get("occurrences", 0)
+                confidence = pattern.get("confidence", 0.0)
 
                 # Store aggregate
                 try:
@@ -403,7 +420,7 @@ class CoOccurrencePatternDetector:
                         co_occurrence_count=occurrences,
                         time_window_seconds=time_window_seconds,
                         confidence=confidence,
-                        typical_hours=typical_hours
+                        typical_hours=typical_hours,
                     )
                 except Exception as e:
                     logger.error(f"Failed to store aggregate for {combined_id}: {e}", exc_info=True)
@@ -441,30 +458,34 @@ class CoOccurrencePatternDetector:
             logger.info(f"Large dataset detected ({len(events)} events), applying sampling")
 
             # Keep all recent events (last 7 days), sample older ones
-            max_timestamp = events['timestamp'].max()
+            max_timestamp = events["timestamp"].max()
             recent_threshold = max_timestamp - pd.Timedelta(days=7)
 
-            recent = events[events['timestamp'] > recent_threshold]
-            older = events[events['timestamp'] <= recent_threshold]
+            recent = events[events["timestamp"] > recent_threshold]
+            older = events[events["timestamp"] <= recent_threshold]
 
             # Sample older events
             sample_size = min(20000, len(older))
-            older_sampled = older.sample(n=sample_size, random_state=42) if len(older) > 0 else pd.DataFrame()
+            older_sampled = (
+                older.sample(n=sample_size, random_state=42) if len(older) > 0 else pd.DataFrame()
+            )
 
             # Combine
             events = pd.concat([recent, older_sampled]) if len(older_sampled) > 0 else recent
-            events = events.sort_values('timestamp')
+            events = events.sort_values("timestamp")
 
-            logger.info(f"✅ Sampled dataset: {len(events)} events (recent: {len(recent)}, sampled older: {len(older_sampled)})")
+            logger.info(
+                f"✅ Sampled dataset: {len(events)} events (recent: {len(recent)}, sampled older: {len(older_sampled)})"
+            )
 
         return await self.detect_patterns(events)
 
     @staticmethod
     def _get_domain(device_id: str) -> str:
         """Extract entity domain (prefix before dot) from a device ID."""
-        if not device_id or '.' not in str(device_id):
-            return 'default'
-        return str(device_id).split('.', 1)[0]
+        if not device_id or "." not in str(device_id):
+            return "default"
+        return str(device_id).split(".", 1)[0]
 
     def _support_threshold_for(self, domain: str) -> int:
         """Get support threshold for a given domain."""
@@ -475,11 +496,7 @@ class CoOccurrencePatternDetector:
         return self.domain_confidence_overrides.get(domain, self.min_confidence)
 
     def _calculate_avg_time_delta(
-        self,
-        events: pd.DataFrame,
-        device1: str,
-        device2: str,
-        window_minutes: int
+        self, events: pd.DataFrame, device1: str, device2: str, window_minutes: int
     ) -> float | None:
         """
         Calculate average time delta between device1 and device2 events.
@@ -488,24 +505,24 @@ class CoOccurrencePatternDetector:
             Average time delta in seconds, or None if insufficient data
         """
         try:
-            device1_events = events[events['device_id'] == device1].copy()
-            device2_events = events[events['device_id'] == device2].copy()
+            device1_events = events[events["device_id"] == device1].copy()
+            device2_events = events[events["device_id"] == device2].copy()
 
             time_deltas = []
 
             for _, event1 in device1_events.iterrows():
-                window_end = event1['timestamp'] + pd.Timedelta(minutes=window_minutes)
+                window_end = event1["timestamp"] + pd.Timedelta(minutes=window_minutes)
 
                 # Find device2 events within window
                 nearby = device2_events[
-                    (device2_events['timestamp'] > event1['timestamp']) &
-                    (device2_events['timestamp'] <= window_end)
+                    (device2_events["timestamp"] > event1["timestamp"])
+                    & (device2_events["timestamp"] <= window_end)
                 ]
 
                 if len(nearby) > 0:
                     # Take the closest event
                     closest = nearby.iloc[0]
-                    delta = (closest['timestamp'] - event1['timestamp']).total_seconds()
+                    delta = (closest["timestamp"] - event1["timestamp"]).total_seconds()
                     time_deltas.append(delta)
 
             if time_deltas:
@@ -517,35 +534,35 @@ class CoOccurrencePatternDetector:
             logger.warning(f"Failed to calculate time delta for {device1}+{device2}: {e}")
             return None
 
-    def _enrich_with_rules(
-        self, patterns: list[dict], rules: list[dict]
-    ) -> list[dict]:
+    def _enrich_with_rules(self, patterns: list[dict], rules: list[dict]) -> list[dict]:
         """Enrich co-occurrence patterns with association rule metrics. Story 40.4."""
         # Build lookup: (device1, device2) -> rule
         rule_lookup: dict[tuple[str, str], dict] = {}
         for rule in rules:
-            key = tuple(sorted([rule['antecedent'], rule['consequent']]))
+            key = tuple(sorted([rule["antecedent"], rule["consequent"]]))
             existing = rule_lookup.get(key)
-            if not existing or rule['lift'] > existing['lift']:
+            if not existing or rule["lift"] > existing["lift"]:
                 rule_lookup[key] = rule
 
         enriched_count = 0
         for pattern in patterns:
-            d1 = pattern.get('device1', '')
-            d2 = pattern.get('device2', '')
+            d1 = pattern.get("device1", "")
+            d2 = pattern.get("device2", "")
             key = tuple(sorted([d1, d2]))
             rule = rule_lookup.get(key)
             if rule:
-                pattern['metadata']['association_rule'] = {
-                    'support': rule['support'],
-                    'confidence': rule['confidence'],
-                    'lift': rule['lift'],
-                    'direction': f"{rule['antecedent']} -> {rule['consequent']}",
+                pattern["metadata"]["association_rule"] = {
+                    "support": rule["support"],
+                    "confidence": rule["confidence"],
+                    "lift": rule["lift"],
+                    "direction": f"{rule['antecedent']} -> {rule['consequent']}",
                 }
                 enriched_count += 1
 
         if enriched_count:
-            logger.info(f"Enriched {enriched_count}/{len(patterns)} patterns with association rules")
+            logger.info(
+                f"Enriched {enriched_count}/{len(patterns)} patterns with association rules"
+            )
 
         return patterns
 
@@ -561,11 +578,11 @@ class CoOccurrencePatternDetector:
         Returns:
             Filtered DataFrame with only actionable events
         """
-        if 'device_id' not in events.columns:
+        if "device_id" not in events.columns:
             return events
 
         # Create mask for actionable events
-        mask = events['device_id'].apply(lambda device_id: self._is_actionable_entity(device_id))
+        mask = events["device_id"].apply(lambda device_id: self._is_actionable_entity(device_id))
 
         filtered = events[mask].copy()
         return filtered
@@ -622,8 +639,9 @@ class CoOccurrencePatternDetector:
 
         # Both must be actionable OR one trigger + one actionable
         both_actionable = domain1 in ACTIONABLE_DOMAINS and domain2 in ACTIONABLE_DOMAINS
-        trigger_action = ((domain1 in TRIGGER_DOMAINS and domain2 in ACTIONABLE_DOMAINS) or
-                         (domain2 in TRIGGER_DOMAINS and domain1 in ACTIONABLE_DOMAINS))
+        trigger_action = (domain1 in TRIGGER_DOMAINS and domain2 in ACTIONABLE_DOMAINS) or (
+            domain2 in TRIGGER_DOMAINS and domain1 in ACTIONABLE_DOMAINS
+        )
 
         if not (both_actionable or trigger_action):
             return False
@@ -650,8 +668,8 @@ class CoOccurrencePatternDetector:
         domain1 = self._get_domain(device1)
         domain2 = self._get_domain(device2)
 
-        sensor_domains = {'sensor', 'binary_sensor'}
-        if (domain1 in sensor_domains and domain2 in sensor_domains):
+        sensor_domains = {"sensor", "binary_sensor"}
+        if domain1 in sensor_domains and domain2 in sensor_domains:
             return True
 
         # Both are informational only
@@ -685,24 +703,24 @@ class CoOccurrencePatternDetector:
         """
         if not patterns:
             return {
-                'total_patterns': 0,
-                'unique_device_pairs': 0,
-                'avg_confidence': 0.0,
-                'avg_occurrences': 0.0
+                "total_patterns": 0,
+                "unique_device_pairs": 0,
+                "avg_confidence": 0.0,
+                "avg_occurrences": 0.0,
             }
 
         return {
-            'total_patterns': len(patterns),
-            'unique_device_pairs': len(patterns),  # Each pattern is a unique pair
-            'avg_confidence': float(np.mean([p['confidence'] for p in patterns])),
-            'avg_occurrences': float(np.mean([p['occurrences'] for p in patterns])),
-            'min_confidence': float(np.min([p['confidence'] for p in patterns])),
-            'max_confidence': float(np.max([p['confidence'] for p in patterns])),
-            'confidence_distribution': {
-                '70-80%': sum(1 for p in patterns if 0.7 <= p['confidence'] < 0.8),
-                '80-90%': sum(1 for p in patterns if 0.8 <= p['confidence'] < 0.9),
-                '90-100%': sum(1 for p in patterns if 0.9 <= p['confidence'] <= 1.0)
-            }
+            "total_patterns": len(patterns),
+            "unique_device_pairs": len(patterns),  # Each pattern is a unique pair
+            "avg_confidence": float(np.mean([p["confidence"] for p in patterns])),
+            "avg_occurrences": float(np.mean([p["occurrences"] for p in patterns])),
+            "min_confidence": float(np.min([p["confidence"] for p in patterns])),
+            "max_confidence": float(np.max([p["confidence"] for p in patterns])),
+            "confidence_distribution": {
+                "70-80%": sum(1 for p in patterns if 0.7 <= p["confidence"] < 0.8),
+                "80-90%": sum(1 for p in patterns if 0.8 <= p["confidence"] < 0.9),
+                "90-100%": sum(1 for p in patterns if 0.9 <= p["confidence"] <= 1.0),
+            },
         }
 
 
@@ -718,9 +736,7 @@ class FPGrowthDetector:
         self.min_support = min_support
         self.min_confidence = min_confidence
 
-    def mine_rules(
-        self, events: pd.DataFrame, window_minutes: int = 5
-    ) -> list[dict]:
+    def mine_rules(self, events: pd.DataFrame, window_minutes: int = 5) -> list[dict]:
         """Mine association rules from event transactions."""
         if events.empty or len(events) < 100:
             logger.info("Insufficient events for FP-Growth (need >= 100)")
@@ -737,35 +753,33 @@ class FPGrowthDetector:
         # Generate rules
         rules = self._generate_rules(itemsets, len(transactions))
 
-        logger.info(f"FP-Growth: {len(rules)} association rules from {len(transactions)} transactions")
+        logger.info(
+            f"FP-Growth: {len(rules)} association rules from {len(transactions)} transactions"
+        )
         return rules
 
-    def _build_transactions(
-        self, events: pd.DataFrame, window_minutes: int
-    ) -> list[set[str]]:
+    def _build_transactions(self, events: pd.DataFrame, window_minutes: int) -> list[set[str]]:
         """Convert events into transactions based on time windows."""
-        events = events.sort_values('timestamp')
+        events = events.sort_values("timestamp")
         transactions: list[set[str]] = []
-        current_window_start = events.iloc[0]['timestamp']
+        current_window_start = events.iloc[0]["timestamp"]
         current_transaction: set[str] = set()
         window_delta = pd.Timedelta(minutes=window_minutes)
 
         for _, event in events.iterrows():
-            if event['timestamp'] - current_window_start > window_delta:
+            if event["timestamp"] - current_window_start > window_delta:
                 if len(current_transaction) >= 2:
                     transactions.append(current_transaction)
                 current_transaction = set()
-                current_window_start = event['timestamp']
-            current_transaction.add(event['device_id'])
+                current_window_start = event["timestamp"]
+            current_transaction.add(event["device_id"])
 
         if len(current_transaction) >= 2:
             transactions.append(current_transaction)
 
         return transactions
 
-    def _count_itemsets(
-        self, transactions: list[set[str]]
-    ) -> dict[frozenset[str], int]:
+    def _count_itemsets(self, transactions: list[set[str]]) -> dict[frozenset[str], int]:
         """Count frequency of item pairs in transactions."""
         from itertools import combinations
 
@@ -811,14 +825,16 @@ class FPGrowthDetector:
             lift_a_to_b = conf_a_to_b / support_b if support_b > 0 else 0
 
             if conf_a_to_b >= self.min_confidence:
-                rules.append({
-                    'antecedent': a,
-                    'consequent': b,
-                    'support': float(support),
-                    'confidence': float(conf_a_to_b),
-                    'lift': float(lift_a_to_b),
-                    'count': count,
-                })
+                rules.append(
+                    {
+                        "antecedent": a,
+                        "consequent": b,
+                        "support": float(support),
+                        "confidence": float(conf_a_to_b),
+                        "lift": float(lift_a_to_b),
+                        "count": count,
+                    }
+                )
 
             # Rule: B -> A
             count_b = item_counts.get(b, 1)
@@ -827,16 +843,17 @@ class FPGrowthDetector:
             lift_b_to_a = conf_b_to_a / support_a if support_a > 0 else 0
 
             if conf_b_to_a >= self.min_confidence:
-                rules.append({
-                    'antecedent': b,
-                    'consequent': a,
-                    'support': float(support),
-                    'confidence': float(conf_b_to_a),
-                    'lift': float(lift_b_to_a),
-                    'count': count,
-                })
+                rules.append(
+                    {
+                        "antecedent": b,
+                        "consequent": a,
+                        "support": float(support),
+                        "confidence": float(conf_b_to_a),
+                        "lift": float(lift_b_to_a),
+                        "count": count,
+                    }
+                )
 
         # Sort by lift descending
-        rules.sort(key=lambda r: r['lift'], reverse=True)
+        rules.sort(key=lambda r: r["lift"], reverse=True)
         return rules
-

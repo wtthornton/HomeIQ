@@ -15,32 +15,14 @@ class TestWeatherData:
     def test_weather_data_creation(self):
         """Test weather data creation from API response"""
         api_response = {
-            "main": {
-                "temp": 20.5,
-                "feels_like": 22.0,
-                "humidity": 65,
-                "pressure": 1013
-            },
-            "weather": [{
-                "main": "Clear",
-                "description": "clear sky"
-            }],
-            "wind": {
-                "speed": 3.5,
-                "deg": 180
-            },
-            "clouds": {
-                "all": 10
-            },
+            "main": {"temp": 20.5, "feels_like": 22.0, "humidity": 65, "pressure": 1013},
+            "weather": [{"main": "Clear", "description": "clear sky"}],
+            "wind": {"speed": 3.5, "deg": 180},
+            "clouds": {"all": 10},
             "visibility": 10000,
             "name": "London",
-            "sys": {
-                "country": "GB"
-            },
-            "coord": {
-                "lat": 51.5074,
-                "lon": -0.1278
-            }
+            "sys": {"country": "GB"},
+            "coord": {"lat": 51.5074, "lon": -0.1278},
         }
 
         weather_data = WeatherData(api_response)
@@ -67,7 +49,7 @@ class TestWeatherData:
             "main": {"temp": 20.5, "humidity": 65},
             "weather": [{"main": "Clear", "description": "clear sky"}],
             "name": "London",
-            "coord": {"lat": 51.5074, "lon": -0.1278}
+            "coord": {"lat": 51.5074, "lon": -0.1278},
         }
 
         weather_data = WeatherData(api_response)
@@ -123,10 +105,10 @@ class TestOpenWeatherMapClient:
             "main": {"temp": 20.5, "humidity": 65},
             "weather": [{"main": "Clear", "description": "clear sky"}],
             "name": "London",
-            "coord": {"lat": 51.5074, "lon": -0.1278}
+            "coord": {"lat": 51.5074, "lon": -0.1278},
         }
 
-        with patch('aiohttp.ClientSession.get') as mock_get:
+        with patch("aiohttp.ClientSession.get") as mock_get:
             mock_response = AsyncMock()
             mock_response.status = 200
             mock_response.json = AsyncMock(return_value=mock_response_data)
@@ -145,7 +127,7 @@ class TestOpenWeatherMapClient:
     @pytest.mark.asyncio
     async def test_get_current_weather_api_error(self):
         """Test API error handling"""
-        with patch('aiohttp.ClientSession.get') as mock_get:
+        with patch("aiohttp.ClientSession.get") as mock_get:
             mock_response = AsyncMock()
             mock_response.status = 401
             mock_response.text = AsyncMock(return_value="Invalid API key")
@@ -162,7 +144,7 @@ class TestOpenWeatherMapClient:
     @pytest.mark.asyncio
     async def test_get_current_weather_timeout(self):
         """Test timeout handling"""
-        with patch('aiohttp.ClientSession.get') as mock_get:
+        with patch("aiohttp.ClientSession.get") as mock_get:
             mock_get.side_effect = TimeoutError()
 
             await self.client.start()
@@ -179,10 +161,10 @@ class TestOpenWeatherMapClient:
             "main": {"temp": 20.5},
             "weather": [{"main": "Clear"}],
             "name": "London",
-            "coord": {"lat": 51.5074, "lon": -0.1278}
+            "coord": {"lat": 51.5074, "lon": -0.1278},
         }
 
-        with patch('aiohttp.ClientSession.get') as mock_get:
+        with patch("aiohttp.ClientSession.get") as mock_get:
             mock_response = AsyncMock()
             mock_response.status = 200
             mock_response.json = AsyncMock(return_value=mock_response_data)
@@ -200,10 +182,10 @@ class TestOpenWeatherMapClient:
         mock_response_data = {
             "main": {"temp": 20.5},
             "weather": [{"main": "Clear"}],
-            "name": "London"
+            "name": "London",
         }
 
-        with patch('aiohttp.ClientSession.get') as mock_get:
+        with patch("aiohttp.ClientSession.get") as mock_get:
             mock_response = AsyncMock()
             mock_response.status = 200
             mock_response.json = AsyncMock(return_value=mock_response_data)

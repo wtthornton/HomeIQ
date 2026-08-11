@@ -30,11 +30,7 @@ class Validator:
     7. Optional live preflight (availability/online)
     """
 
-    def __init__(
-        self,
-        capability_graph: CapabilityGraph,
-        rest_client: Any | None = None
-    ):
+    def __init__(self, capability_graph: CapabilityGraph, rest_client: Any | None = None):
         """
         Initialize validator.
 
@@ -54,7 +50,7 @@ class Validator:
         self,
         spec: dict[str, Any],
         perform_preflight: bool = False,
-        current_risk_state: dict[str, Any] | None = None
+        current_risk_state: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Validate automation spec and produce execution plan.
@@ -83,7 +79,7 @@ class Validator:
                 "is_valid": False,
                 "errors": errors,
                 "execution_plan": None,
-                "warnings": warnings
+                "warnings": warnings,
             }
 
         # 2. Service compatibility
@@ -102,7 +98,9 @@ class Validator:
 
         # 4. Live preflight (optional)
         if perform_preflight:
-            is_valid_preflight, preflight_errors = await self.preflight_checker.preflight_check(spec)
+            is_valid_preflight, preflight_errors = await self.preflight_checker.preflight_check(
+                spec
+            )
             if not is_valid_preflight:
                 errors.extend(preflight_errors)
 
@@ -116,7 +114,7 @@ class Validator:
             "is_valid": is_valid,
             "errors": errors,
             "execution_plan": execution_plan if is_valid else None,
-            "warnings": warnings
+            "warnings": warnings,
         }
 
         if is_valid:
@@ -126,8 +124,6 @@ class Validator:
                 f"{execution_plan['total_entities']} entities"
             )
         else:
-            logger.warning(
-                f"Validation failed for spec {spec.get('id')}: {len(errors)} errors"
-            )
+            logger.warning(f"Validation failed for spec {spec.get('id')}: {len(errors)} errors")
 
         return result

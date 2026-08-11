@@ -71,6 +71,7 @@ group_health = None  # GroupHealthCheck -- initialized in lifespan
 # Startup / Shutdown helpers
 # ---------------------------------------------------------------------------
 
+
 def _get_secret(field: object) -> str | None:
     """Extract secret value or return None."""
     if field is None:
@@ -82,8 +83,7 @@ def _validate_llm_credentials() -> None:
     """Fail fast when chat cannot start (avoids 'healthy' container with broken /api/v1/*)."""
     if not settings.openai_api_key.get_secret_value().strip():
         raise ValueError(
-            "OPENAI_API_KEY is required for ha-ai-agent-service. "
-            "Add it to the project .env and restart this container."
+            "OPENAI_API_KEY is required for ha-ai-agent-service. Add it to the project .env and restart this container."
         )
 
 
@@ -92,7 +92,9 @@ async def _init_group_health() -> object:
     from homeiq_resilience import GroupHealthCheck, wait_for_dependency
 
     data_api_ok = await wait_for_dependency(
-        url=settings.data_api_url, name="data-api", max_retries=10,
+        url=settings.data_api_url,
+        name="data-api",
+        max_retries=10,
     )
     device_intel_ok = await wait_for_dependency(
         url=settings.device_intelligence_url,
@@ -107,7 +109,8 @@ async def _init_group_health() -> object:
     gh = GroupHealthCheck(group_name="automation-intelligence", version="1.0.0")
     gh.register_dependency("data-api", settings.data_api_url)
     gh.register_dependency(
-        "device-intelligence-service", settings.device_intelligence_url,
+        "device-intelligence-service",
+        settings.device_intelligence_url,
     )
     gh.register_dependency("ai-automation-service", settings.ai_automation_service_url)
     if not data_api_ok:
@@ -134,24 +137,30 @@ def _build_clients() -> tuple:
     )
     automation_key = _get_secret(settings.ai_automation_api_key)
     ai_automation_client = AIAutomationClient(
-        base_url=settings.ai_automation_service_url, api_key=automation_key,
+        base_url=settings.ai_automation_service_url,
+        api_key=automation_key,
     )
     hybrid_flow_client = HybridFlowClient(
-        base_url=settings.ai_automation_service_url, api_key=automation_key,
+        base_url=settings.ai_automation_service_url,
+        api_key=automation_key,
     )
     yaml_validation_client = YAMLValidationClient(
         base_url=settings.yaml_validation_service_url,
         api_key=_get_secret(settings.yaml_validation_api_key),
     )
     return (
-        ha_client, data_api_client, ai_automation_client,
-        hybrid_flow_client, yaml_validation_client,
+        ha_client,
+        data_api_client,
+        ai_automation_client,
+        hybrid_flow_client,
+        yaml_validation_client,
     )
 
 
 # ---------------------------------------------------------------------------
 # Startup / Shutdown hooks for ServiceLifespan
 # ---------------------------------------------------------------------------
+
 
 async def _startup_services() -> None:
     """Initialize all service components during startup."""
@@ -197,9 +206,7 @@ async def _startup_services() -> None:
 
     # Epic 97: Initialize LLM Router for Anthropic provider support
     lr: LLMRouter | None = None
-    if settings.llm_provider == "anthropic" or (
-        settings.llm_fallback_provider == "anthropic"
-    ):
+    if settings.llm_provider == "anthropic" or (settings.llm_fallback_provider == "anthropic"):
         try:
             lr = LLMRouter(settings)
             llm_router = lr
@@ -220,6 +227,8 @@ async def _startup_services() -> None:
         try:
             from homeiq_memory import (
                 MemoryClient as MemClient,
+            )
+            from homeiq_memory import (
                 MemoryInjector,
                 MemorySearch,
             )
@@ -260,7 +269,10 @@ async def _startup_services() -> None:
             logger.warning("Memory extraction setup failed: %s", e)
 
     ts = ToolService(
-        ha_cl, dapi_cl, ai_auto_cl, yaml_cl,
+        ha_cl,
+        dapi_cl,
+        ai_auto_cl,
+        yaml_cl,
         oc.client if oc else None,
         device_control_handler=device_ctrl,
     )
@@ -275,9 +287,13 @@ async def _startup_services() -> None:
     prompt_assembly_service = pas
 
     set_services(
-        settings=settings, conversation_service=cs,
-        prompt_assembly_service=pas, openai_client=oc, tool_service=ts,
-        memory_extractor=memory_extractor, llm_router=lr,
+        settings=settings,
+        conversation_service=cs,
+        prompt_assembly_service=pas,
+        openai_client=oc,
+        tool_service=ts,
+        memory_extractor=memory_extractor,
+        llm_router=lr,
     )
     logger.info("HA AI Agent Service started successfully")
 
@@ -295,7 +311,8 @@ async def _shutdown_services() -> None:
 
             async for session in get_session():
                 deleted = await cleanup_old_conversations(
-                    session, settings.conversation_ttl_days,
+                    session,
+                    settings.conversation_ttl_days,
                 )
                 if deleted > 0:
                     logger.info("Cleaned up %d old conversations", deleted)

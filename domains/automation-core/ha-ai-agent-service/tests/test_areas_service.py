@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from src.config import Settings
 from src.services.areas_service import AreasService
 from src.services.context_builder import ContextBuilder
@@ -11,10 +12,7 @@ from src.services.context_builder import ContextBuilder
 @pytest.fixture
 def mock_settings():
     """Create mock settings"""
-    return Settings(
-        ha_url="http://test-ha:8123",
-        ha_token="test-token"
-    )
+    return Settings(ha_url="http://test-ha:8123", ha_token="test-token")
 
 
 @pytest.fixture
@@ -29,10 +27,7 @@ def mock_context_builder():
 @pytest.fixture
 def areas_service(mock_settings, mock_context_builder):
     """Create AreasService instance"""
-    return AreasService(
-        settings=mock_settings,
-        context_builder=mock_context_builder
-    )
+    return AreasService(settings=mock_settings, context_builder=mock_context_builder)
 
 
 @pytest.mark.asyncio
@@ -45,12 +40,7 @@ async def test_get_areas_list_with_areas(areas_service, mock_context_builder):
     ]
 
     # Mock data_api_client.get_areas() which is called first
-    with patch.object(
-        areas_service.data_api_client,
-        "get_areas",
-        new_callable=AsyncMock,
-        return_value=mock_areas
-    ):
+    with patch.object(areas_service.data_api_client, "get_areas", new_callable=AsyncMock, return_value=mock_areas):
         areas_list = await areas_service.get_areas_list()
 
         assert "office" in areas_list
@@ -63,16 +53,9 @@ async def test_get_areas_list_with_areas(areas_service, mock_context_builder):
 async def test_get_areas_list_empty(areas_service, _mock_context_builder):
     """Test getting areas list with no areas"""
     # Mock data_api_client.get_areas() returning empty, then fallback to entity extraction
-    with patch.object(
-        areas_service.data_api_client,
-        "get_areas",
-        new_callable=AsyncMock,
-        return_value=[]
-    ), patch.object(
-        areas_service.data_api_client,
-        "fetch_entities",
-        new_callable=AsyncMock,
-        return_value=[]
+    with (
+        patch.object(areas_service.data_api_client, "get_areas", new_callable=AsyncMock, return_value=[]),
+        patch.object(areas_service.data_api_client, "fetch_entities", new_callable=AsyncMock, return_value=[]),
     ):
         areas_list = await areas_service.get_areas_list()
 
@@ -100,4 +83,3 @@ async def test_close(areas_service):
     await areas_service.close()
 
     areas_service.ha_client.close.assert_called_once()
-

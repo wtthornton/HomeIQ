@@ -54,7 +54,12 @@ async def create_community_pattern(
     )
     db.add(pattern)
     await db.flush()
-    logger.info("Created community pattern %s (type=%s, author=%s)", pattern_id, pattern_type, author or "anonymous")
+    logger.info(
+        "Created community pattern %s (type=%s, author=%s)",
+        pattern_id,
+        pattern_type,
+        author or "anonymous",
+    )
     return pattern
 
 
@@ -132,7 +137,9 @@ async def list_community_patterns(
         query = query.order_by(CommunityPattern.created_at.desc())
     else:
         # Default: rating descending, then download_count as tiebreaker
-        query = query.order_by(CommunityPattern.rating_avg.desc(), CommunityPattern.download_count.desc())
+        query = query.order_by(
+            CommunityPattern.rating_avg.desc(), CommunityPattern.download_count.desc()
+        )
 
     query = query.offset(offset).limit(limit)
 
@@ -198,7 +205,10 @@ async def create_pattern_rating(
 
     logger.info(
         "Created rating for pattern %s: rating=%d, new_avg=%.2f, count=%d",
-        pattern_id, rating, new_avg, new_count,
+        pattern_id,
+        rating,
+        new_avg,
+        new_count,
     )
     return pattern_rating
 

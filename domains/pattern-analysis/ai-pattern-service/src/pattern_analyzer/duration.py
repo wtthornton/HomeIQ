@@ -37,39 +37,59 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 EXCLUDED_DOMAINS = {
-    'image', 'event', 'update', 'camera', 'button',
+    "image",
+    "event",
+    "update",
+    "camera",
+    "button",
 }
 
 EXCLUDED_ENTITY_PREFIXES = [
-    'sensor.home_assistant_',
-    'sensor.slzb_',
-    'image.',
-    'event.',
-    'binary_sensor.system_',
-    'camera.',
-    'button.',
-    'update.',
+    "sensor.home_assistant_",
+    "sensor.slzb_",
+    "image.",
+    "event.",
+    "binary_sensor.system_",
+    "camera.",
+    "button.",
+    "update.",
 ]
 
 EXCLUDED_PATTERNS = [
-    '_tracker', 'team_tracker',
-    'nfl_', 'nhl_', 'mlb_', 'nba_', 'ncaa_',
-    'weather_', 'openweathermap_',
-    'carbon_intensity_', 'electricity_pricing_', 'national_grid_',
-    'calendar_',
-    '_cpu_', '_temp', '_chip_',
-    'coordinator_', '_battery', '_memory_',
-    '_signal_strength', '_linkquality',
-    '_update_', '_uptime', '_last_seen',
+    "_tracker",
+    "team_tracker",
+    "nfl_",
+    "nhl_",
+    "mlb_",
+    "nba_",
+    "ncaa_",
+    "weather_",
+    "openweathermap_",
+    "carbon_intensity_",
+    "electricity_pricing_",
+    "national_grid_",
+    "calendar_",
+    "_cpu_",
+    "_temp",
+    "_chip_",
+    "coordinator_",
+    "_battery",
+    "_memory_",
+    "_signal_strength",
+    "_linkquality",
+    "_update_",
+    "_uptime",
+    "_last_seen",
 ]
 
-ON_STATES = {'on', 'true', 'home', 'open', 'unlocked', 'playing', 'active'}
-OFF_STATES = {'off', 'false', 'away', 'closed', 'locked', 'idle', 'standby', 'paused'}
+ON_STATES = {"on", "true", "home", "open", "unlocked", "playing", "active"}
+OFF_STATES = {"off", "false", "away", "closed", "locked", "idle", "standby", "paused"}
 
 
 @dataclass
 class StateDuration:
     """Represents a single state duration measurement."""
+
     device_id: str
     state: str
     duration_seconds: float
@@ -80,6 +100,7 @@ class StateDuration:
 @dataclass
 class DurationStats:
     """Statistical summary of durations for a device state."""
+
     device_id: str
     state: str
     count: int
@@ -171,7 +192,7 @@ class DurationPatternDetector:
             logger.warning("No events provided for duration detection")
             return []
 
-        required_cols = ['device_id', 'timestamp', 'state']
+        required_cols = ["device_id", "timestamp", "state"]
         missing_cols = [col for col in required_cols if col not in events.columns]
         if missing_cols:
             logger.error(f"Missing required columns: {missing_cols}")
@@ -183,15 +204,13 @@ class DurationPatternDetector:
             original_count = len(events)
             events = self._filter_system_noise(events)
             if len(events) < original_count:
-                logger.info(
-                    f"Filtered system noise: {original_count} → {len(events)} events"
-                )
+                logger.info(f"Filtered system noise: {original_count} → {len(events)} events")
 
         if events.empty:
             logger.warning("No events remaining after filtering")
             return []
 
-        events = events.sort_values('timestamp').copy()
+        events = events.sort_values("timestamp").copy()
         events = events.reset_index(drop=True)
 
         durations = self._extract_durations(events)
@@ -224,9 +243,9 @@ class DurationPatternDetector:
         max_duration_seconds = self.max_duration_hours * 3600
 
         for _, event in events.iterrows():
-            device_id = event['device_id']
-            timestamp = event['timestamp']
-            state = str(event['state']).lower()
+            device_id = event["device_id"]
+            timestamp = event["timestamp"]
+            state = str(event["state"]).lower()
 
             normalized_state = self._normalize_state(state)
 
@@ -237,13 +256,15 @@ class DurationPatternDetector:
                     duration_seconds = (timestamp - prev_time).total_seconds()
 
                     if self.min_duration_seconds <= duration_seconds <= max_duration_seconds:
-                        durations.append(StateDuration(
-                            device_id=device_id,
-                            state=prev_state,
-                            duration_seconds=duration_seconds,
-                            start_time=prev_time,
-                            end_time=timestamp,
-                        ))
+                        durations.append(
+                            StateDuration(
+                                device_id=device_id,
+                                state=prev_state,
+                                duration_seconds=duration_seconds,
+                                start_time=prev_time,
+                                end_time=timestamp,
+                            )
+                        )
 
             device_states[device_id] = (normalized_state, timestamp)
 
@@ -262,13 +283,13 @@ class DurationPatternDetector:
         state_lower = state.lower().strip()
 
         if state_lower in ON_STATES:
-            return 'on'
+            return "on"
         if state_lower in OFF_STATES:
-            return 'off'
+            return "off"
 
         try:
             value = float(state_lower)
-            return 'on' if value > 0 else 'off'
+            return "on" if value > 0 else "off"
         except (ValueError, TypeError):
             pass
 
@@ -308,7 +329,7 @@ class DurationPatternDetector:
             min_val = float(np.min(arr))
             max_val = float(np.max(arr))
 
-            cv = std_val / mean_val if mean_val > 0 else float('inf')
+            cv = std_val / mean_val if mean_val > 0 else float("inf")
 
             stats[(device_id, state)] = DurationStats(
                 device_id=device_id,
@@ -324,9 +345,7 @@ class DurationPatternDetector:
 
         return stats
 
-    def _build_patterns(
-        self, stats: dict[tuple[str, str], DurationStats]
-    ) -> list[dict]:
+    def _build_patterns(self, stats: dict[tuple[str, str], DurationStats]) -> list[dict]:
         """
         Build pattern dictionaries from duration statistics.
 
@@ -344,9 +363,7 @@ class DurationPatternDetector:
         for (device_id, state), duration_stats in stats.items():
             cv = duration_stats.coefficient_of_variation
             if cv > self.max_cv:
-                logger.debug(
-                    f"Skipping {device_id} ({state}): CV {cv:.2f} > {self.max_cv}"
-                )
+                logger.debug(f"Skipping {device_id} ({state}): CV {cv:.2f} > {self.max_cv}")
                 continue
 
             confidence = self._calculate_confidence(duration_stats)
@@ -361,27 +378,27 @@ class DurationPatternDetector:
             human_readable = self._format_duration(duration_stats.mean_seconds)
 
             pattern = {
-                'pattern_type': 'duration',
-                'device_id': device_id,
-                'state': state,
-                'occurrences': duration_stats.count,
-                'confidence': float(confidence),
-                'avg_duration': duration_stats.mean_seconds,
-                'std_duration': duration_stats.std_seconds,
-                'min_duration': duration_stats.min_seconds,
-                'max_duration': duration_stats.max_seconds,
-                'anomalies': anomalies,
-                'metadata': {
-                    'coefficient_of_variation': float(cv),
-                    'human_readable_duration': human_readable,
-                    'anomaly_count': len(anomalies),
-                    'thresholds': {
-                        'min_state_changes': self.min_state_changes,
-                        'min_confidence': self.min_confidence,
-                        'max_cv': self.max_cv,
-                        'anomaly_threshold_std': self.anomaly_threshold_std,
-                    }
-                }
+                "pattern_type": "duration",
+                "device_id": device_id,
+                "state": state,
+                "occurrences": duration_stats.count,
+                "confidence": float(confidence),
+                "avg_duration": duration_stats.mean_seconds,
+                "std_duration": duration_stats.std_seconds,
+                "min_duration": duration_stats.min_seconds,
+                "max_duration": duration_stats.max_seconds,
+                "anomalies": anomalies,
+                "metadata": {
+                    "coefficient_of_variation": float(cv),
+                    "human_readable_duration": human_readable,
+                    "anomaly_count": len(anomalies),
+                    "thresholds": {
+                        "min_state_changes": self.min_state_changes,
+                        "min_confidence": self.min_confidence,
+                        "max_cv": self.max_cv,
+                        "anomaly_threshold_std": self.anomaly_threshold_std,
+                    },
+                },
             }
 
             patterns.append(pattern)
@@ -392,7 +409,7 @@ class DurationPatternDetector:
                 f"confidence={confidence:.0%}, anomalies={len(anomalies)}"
             )
 
-        patterns.sort(key=lambda p: p['confidence'], reverse=True)
+        patterns.sort(key=lambda p: p["confidence"], reverse=True)
 
         return patterns
 
@@ -441,24 +458,26 @@ class DurationPatternDetector:
             deviation = abs(duration - stats.mean_seconds)
             if deviation > threshold:
                 std_deviations = deviation / stats.std_seconds
-                direction = 'long' if duration > stats.mean_seconds else 'short'
+                direction = "long" if duration > stats.mean_seconds else "short"
 
-                anomalies.append({
-                    'duration_seconds': duration,
-                    'deviation_seconds': deviation,
-                    'std_deviations': float(std_deviations),
-                    'direction': direction,
-                    'human_readable': self._format_duration(duration),
-                })
+                anomalies.append(
+                    {
+                        "duration_seconds": duration,
+                        "deviation_seconds": deviation,
+                        "std_deviations": float(std_deviations),
+                        "direction": direction,
+                        "human_readable": self._format_duration(duration),
+                    }
+                )
 
         return anomalies
 
     def _filter_system_noise(self, events: pd.DataFrame) -> pd.DataFrame:
         """Filter out system sensors, trackers, and non-actionable entities."""
-        if 'device_id' not in events.columns:
+        if "device_id" not in events.columns:
             return events
 
-        mask = events['device_id'].apply(self._is_actionable_entity)
+        mask = events["device_id"].apply(self._is_actionable_entity)
         return events[mask].copy()
 
     def _is_actionable_entity(self, device_id: str) -> bool:
@@ -480,9 +499,9 @@ class DurationPatternDetector:
     @staticmethod
     def _get_domain(device_id: str) -> str:
         """Extract entity domain from device ID."""
-        if not device_id or '.' not in str(device_id):
-            return 'default'
-        return str(device_id).split('.', 1)[0]
+        if not device_id or "." not in str(device_id):
+            return "default"
+        return str(device_id).split(".", 1)[0]
 
     @staticmethod
     def _format_duration(seconds: float) -> str:
@@ -496,15 +515,13 @@ class DurationPatternDetector:
             hours = seconds / 3600
             return f"{hours:.1f}h"
 
-    def _store_daily_aggregates(
-        self, patterns: list[dict], events: pd.DataFrame
-    ) -> None:
+    def _store_daily_aggregates(self, patterns: list[dict], events: pd.DataFrame) -> None:
         """Store daily aggregates to InfluxDB."""
         try:
-            if events.empty or 'timestamp' not in events.columns:
+            if events.empty or "timestamp" not in events.columns:
                 return
 
-            date = events['timestamp'].min().date()
+            date = events["timestamp"].min().date()
             date_str = date.strftime("%Y-%m-%d")
 
             logger.info(f"Storing {len(patterns)} duration aggregates for {date_str}")
@@ -513,17 +530,16 @@ class DurationPatternDetector:
                 try:
                     self.aggregate_client.write_duration_daily(
                         date=date_str,
-                        device_id=pattern['device_id'],
-                        state=pattern['state'],
-                        avg_duration=pattern['avg_duration'],
-                        std_duration=pattern['std_duration'],
-                        occurrences=pattern['occurrences'],
-                        confidence=pattern['confidence'],
+                        device_id=pattern["device_id"],
+                        state=pattern["state"],
+                        avg_duration=pattern["avg_duration"],
+                        std_duration=pattern["std_duration"],
+                        occurrences=pattern["occurrences"],
+                        confidence=pattern["confidence"],
                     )
                 except Exception as e:
                     logger.error(
-                        f"Failed to store aggregate for {pattern['device_id']}: {e}",
-                        exc_info=True
+                        f"Failed to store aggregate for {pattern['device_id']}: {e}", exc_info=True
                     )
 
         except Exception as e:
@@ -533,33 +549,33 @@ class DurationPatternDetector:
         """Get summary statistics for detected patterns."""
         if not patterns:
             return {
-                'total_patterns': 0,
-                'unique_devices': 0,
-                'avg_confidence': 0.0,
-                'avg_duration': 0.0,
-                'total_anomalies': 0,
+                "total_patterns": 0,
+                "unique_devices": 0,
+                "avg_confidence": 0.0,
+                "avg_duration": 0.0,
+                "total_anomalies": 0,
             }
 
-        unique_devices = len({p['device_id'] for p in patterns})
+        unique_devices = len({p["device_id"] for p in patterns})
 
         return {
-            'total_patterns': len(patterns),
-            'unique_devices': unique_devices,
-            'avg_confidence': float(np.mean([p['confidence'] for p in patterns])),
-            'avg_duration': float(np.mean([p['avg_duration'] for p in patterns])),
-            'min_confidence': float(np.min([p['confidence'] for p in patterns])),
-            'max_confidence': float(np.max([p['confidence'] for p in patterns])),
-            'total_anomalies': sum(len(p['anomalies']) for p in patterns),
-            'state_distribution': {
-                'on': sum(1 for p in patterns if p['state'] == 'on'),
-                'off': sum(1 for p in patterns if p['state'] == 'off'),
-                'other': sum(1 for p in patterns if p['state'] not in ('on', 'off')),
+            "total_patterns": len(patterns),
+            "unique_devices": unique_devices,
+            "avg_confidence": float(np.mean([p["confidence"] for p in patterns])),
+            "avg_duration": float(np.mean([p["avg_duration"] for p in patterns])),
+            "min_confidence": float(np.min([p["confidence"] for p in patterns])),
+            "max_confidence": float(np.max([p["confidence"] for p in patterns])),
+            "total_anomalies": sum(len(p["anomalies"]) for p in patterns),
+            "state_distribution": {
+                "on": sum(1 for p in patterns if p["state"] == "on"),
+                "off": sum(1 for p in patterns if p["state"] == "off"),
+                "other": sum(1 for p in patterns if p["state"] not in ("on", "off")),
             },
-            'confidence_distribution': {
-                '70-80%': sum(1 for p in patterns if 0.7 <= p['confidence'] < 0.8),
-                '80-90%': sum(1 for p in patterns if 0.8 <= p['confidence'] < 0.9),
-                '90-100%': sum(1 for p in patterns if 0.9 <= p['confidence'] <= 1.0),
-            }
+            "confidence_distribution": {
+                "70-80%": sum(1 for p in patterns if 0.7 <= p["confidence"] < 0.8),
+                "80-90%": sum(1 for p in patterns if 0.8 <= p["confidence"] < 0.9),
+                "90-100%": sum(1 for p in patterns if 0.9 <= p["confidence"] <= 1.0),
+            },
         }
 
     def suggest_automation(self, pattern: dict) -> dict[str, Any]:
@@ -577,87 +593,87 @@ class DurationPatternDetector:
         Returns:
             Automation suggestion dictionary
         """
-        if pattern.get('pattern_type') != 'duration':
+        if pattern.get("pattern_type") != "duration":
             logger.warning(f"Pattern type {pattern.get('pattern_type')} is not duration")
             return {}
 
-        device_id = pattern.get('device_id', '')
-        state = pattern.get('state', '')
-        avg_duration = pattern.get('avg_duration', 0)
-        std_duration = pattern.get('std_duration', 0)
-        confidence = pattern.get('confidence', 0.0)
+        device_id = pattern.get("device_id", "")
+        state = pattern.get("state", "")
+        avg_duration = pattern.get("avg_duration", 0)
+        std_duration = pattern.get("std_duration", 0)
+        confidence = pattern.get("confidence", 0.0)
 
         if not device_id or avg_duration <= 0:
             return {}
 
         domain = self._get_domain(device_id)
 
-        if state == 'on' and domain in ('light', 'switch', 'fan'):
+        if state == "on" and domain in ("light", "switch", "fan"):
             auto_off_delay = avg_duration + (2 * std_duration)
 
             suggestion = {
-                'automation_type': 'duration_auto_off',
-                'trigger': {
-                    'platform': 'state',
-                    'entity_id': device_id,
-                    'to': 'on',
-                    'for': {'seconds': int(auto_off_delay)},
+                "automation_type": "duration_auto_off",
+                "trigger": {
+                    "platform": "state",
+                    "entity_id": device_id,
+                    "to": "on",
+                    "for": {"seconds": int(auto_off_delay)},
                 },
-                'action': {
-                    'service': f"{domain}.turn_off",
-                    'entity_id': device_id,
-                    'target': {'entity_id': device_id},
+                "action": {
+                    "service": f"{domain}.turn_off",
+                    "entity_id": device_id,
+                    "target": {"entity_id": device_id},
                 },
-                'confidence': float(confidence),
-                'description': (
+                "confidence": float(confidence),
+                "description": (
                     f"Auto-off {device_id} after {self._format_duration(auto_off_delay)} "
                     f"(typical: {self._format_duration(avg_duration)})"
                 ),
-                'device_id': device_id,
-                'requires_confirmation': True,
-                'safety_level': 'normal',
-                'safety_warnings': [],
-                'metadata': {
-                    'source': 'duration_pattern',
-                    'avg_duration': avg_duration,
-                    'std_duration': std_duration,
-                    'auto_off_delay': auto_off_delay,
-                }
+                "device_id": device_id,
+                "requires_confirmation": True,
+                "safety_level": "normal",
+                "safety_warnings": [],
+                "metadata": {
+                    "source": "duration_pattern",
+                    "avg_duration": avg_duration,
+                    "std_duration": std_duration,
+                    "auto_off_delay": auto_off_delay,
+                },
             }
         else:
             anomaly_threshold = avg_duration + (self.anomaly_threshold_std * std_duration)
 
             suggestion = {
-                'automation_type': 'duration_alert',
-                'trigger': {
-                    'platform': 'state',
-                    'entity_id': device_id,
-                    'to': state,
-                    'for': {'seconds': int(anomaly_threshold)},
+                "automation_type": "duration_alert",
+                "trigger": {
+                    "platform": "state",
+                    "entity_id": device_id,
+                    "to": state,
+                    "for": {"seconds": int(anomaly_threshold)},
                 },
-                'action': {
-                    'service': 'notify.notify',
-                    'data': {
-                        'message': (
+                "action": {
+                    "service": "notify.notify",
+                    "data": {
+                        "message": (
                             f"{device_id} has been {state} for longer than usual "
                             f"(>{self._format_duration(anomaly_threshold)})"
                         ),
                     },
                 },
-                'confidence': float(confidence),
-                'description': (
+                "confidence": float(confidence),
+                "description": (
                     f"Alert if {device_id} stays {state} > {self._format_duration(anomaly_threshold)}"
                 ),
-                'device_id': device_id,
-                'requires_confirmation': False,
-                'safety_level': 'informational',
-                'safety_warnings': [],
-                'metadata': {
-                    'source': 'duration_pattern',
-                    'avg_duration': avg_duration,
-                    'std_duration': std_duration,
-                    'anomaly_threshold': anomaly_threshold,
-                }
+                "device_id": device_id,
+                "requires_confirmation": False,
+                "safety_level": "informational",
+                "safety_warnings": [],
+                "metadata": {
+                    "source": "duration_pattern",
+                    "avg_duration": avg_duration,
+                    "std_duration": std_duration,
+                    "anomaly_threshold": anomaly_threshold,
+                },
             }
 
         logger.info(
@@ -667,9 +683,7 @@ class DurationPatternDetector:
 
         return suggestion
 
-    def get_anomalies_for_device(
-        self, patterns: list[dict], device_id: str
-    ) -> list[dict]:
+    def get_anomalies_for_device(self, patterns: list[dict], device_id: str) -> list[dict]:
         """
         Get all anomalies for a specific device across all states.
 
@@ -682,11 +696,13 @@ class DurationPatternDetector:
         """
         anomalies = []
         for pattern in patterns:
-            if pattern['device_id'] == device_id:
-                for anomaly in pattern.get('anomalies', []):
-                    anomalies.append({
-                        **anomaly,
-                        'state': pattern['state'],
-                        'device_id': device_id,
-                    })
+            if pattern["device_id"] == device_id:
+                for anomaly in pattern.get("anomalies", []):
+                    anomalies.append(
+                        {
+                            **anomaly,
+                            "state": pattern["state"],
+                            "device_id": device_id,
+                        }
+                    )
         return anomalies

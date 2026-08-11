@@ -54,7 +54,9 @@ def show() -> None:
         )
 
         if time_range == "Custom":
-            start_time = st.datetime_input("Start Time", value=datetime.now(UTC) - timedelta(hours=1))
+            start_time = st.datetime_input(
+                "Start Time", value=datetime.now(UTC) - timedelta(hours=1)
+            )
             end_time = st.datetime_input("End Time", value=datetime.now(UTC))
         else:
             end_time = datetime.now(UTC)
@@ -119,7 +121,7 @@ def show() -> None:
             selected_trace_idx = st.selectbox(
                 "Select Automation Execution",
                 range(len(traces)),
-                format_func=lambda i: f"Execution {i+1} - {traces[i].traceID[:16]}...",
+                format_func=lambda i: f"Execution {i + 1} - {traces[i].traceID[:16]}...",
             )
 
             if selected_trace_idx is not None:
@@ -177,7 +179,11 @@ async def _query_automation_traces(
                 if (
                     (automation_id and tag_key == "automation_id" and tag_value == automation_id)
                     or (home_id and tag_key == "home_id" and tag_value == home_id)
-                    or (correlation_id and tag_key == "correlation_id" and tag_value == correlation_id)
+                    or (
+                        correlation_id
+                        and tag_key == "correlation_id"
+                        and tag_value == correlation_id
+                    )
                 ):
                     matched = True
                     break

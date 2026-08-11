@@ -136,4 +136,3 @@ class Settings(BaseServiceSettings):
         default=15,
         description="Time window (minutes) for undoing autonomous actions",
     )
-

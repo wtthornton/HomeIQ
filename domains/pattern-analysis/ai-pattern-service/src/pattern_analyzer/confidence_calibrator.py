@@ -43,22 +43,22 @@ class ConfidenceCalibrator:
         Returns:
             Calibrated confidence score (0.0-1.0)
         """
-        pattern_type = pattern.get('pattern_type', 'unknown')
-        raw_confidence = pattern.get('confidence', 0.5)
+        pattern_type = pattern.get("pattern_type", "unknown")
+        raw_confidence = pattern.get("confidence", 0.5)
 
         # Get historical acceptance rate for similar patterns
         acceptance_data = await self._get_acceptance_data(
             pattern_type=pattern_type,
             confidence_range=(max(0.0, raw_confidence - 0.1), min(1.0, raw_confidence + 0.1)),
-            min_samples=10  # Need at least 10 samples
+            min_samples=10,  # Need at least 10 samples
         )
 
-        if not acceptance_data or acceptance_data['sample_count'] < 10:
+        if not acceptance_data or acceptance_data["sample_count"] < 10:
             # Not enough data, use conservative adjustment
             return raw_confidence * 0.95  # Slight downward bias until proven
 
         # Calculate calibration factor
-        acceptance_rate = acceptance_data['accepted'] / acceptance_data['total']
+        acceptance_rate = acceptance_data["accepted"] / acceptance_data["total"]
 
         # Calibration logic:
         # - If acceptance > 80%: Boost confidence (pattern type is reliable)
@@ -84,10 +84,7 @@ class ConfidenceCalibrator:
         return calibrated
 
     async def _get_acceptance_data(
-        self,
-        pattern_type: str,
-        confidence_range: tuple[float, float],
-        min_samples: int
+        self, pattern_type: str, confidence_range: tuple[float, float], min_samples: int
     ) -> dict | None:
         """
         Query historical acceptance rates for patterns in confidence range.
@@ -116,10 +113,10 @@ class ConfidenceCalibrator:
             result = await self.db.execute(
                 query,
                 {
-                    'pattern_type': pattern_type,
-                    'min_conf': confidence_range[0],
-                    'max_conf': confidence_range[1]
-                }
+                    "pattern_type": pattern_type,
+                    "min_conf": confidence_range[0],
+                    "max_conf": confidence_range[1],
+                },
             )
 
             row = result.fetchone()
@@ -127,11 +124,7 @@ class ConfidenceCalibrator:
             if not row or row.total < min_samples:
                 return None
 
-            return {
-                'total': row.total,
-                'accepted': row.accepted or 0,
-                'sample_count': row.total
-            }
+            return {"total": row.total, "accepted": row.accepted or 0, "sample_count": row.total}
 
         except Exception as e:
             logger.warning(f"Failed to get acceptance data for {pattern_type}: {e}")
@@ -147,9 +140,15 @@ class ConfidenceCalibrator:
         report = {}
 
         pattern_types = [
-            'time_of_day', 'co_occurrence', 'sequence',
-            'contextual', 'multi_factor', 'room_based',
-            'session', 'duration', 'anomaly'
+            "time_of_day",
+            "co_occurrence",
+            "sequence",
+            "contextual",
+            "multi_factor",
+            "room_based",
+            "session",
+            "duration",
+            "anomaly",
         ]
 
         for pattern_type in pattern_types:
@@ -157,24 +156,27 @@ class ConfidenceCalibrator:
             acceptance_data = await self._get_acceptance_data(
                 pattern_type=pattern_type,
                 confidence_range=(0.0, 1.0),  # All confidence levels
-                min_samples=5
+                min_samples=5,
             )
 
             if acceptance_data:
-                acceptance_rate = acceptance_data['accepted'] / acceptance_data['total']
+                acceptance_rate = acceptance_data["accepted"] / acceptance_data["total"]
                 report[pattern_type] = {
-                    'acceptance_rate': acceptance_rate,
-                    'sample_count': acceptance_data['total'],
-                    'reliability': (
-                        'high' if acceptance_rate >= 0.7 else
-                        'medium' if acceptance_rate >= 0.5 else 'low'
-                    )
+                    "acceptance_rate": acceptance_rate,
+                    "sample_count": acceptance_data["total"],
+                    "reliability": (
+                        "high"
+                        if acceptance_rate >= 0.7
+                        else "medium"
+                        if acceptance_rate >= 0.5
+                        else "low"
+                    ),
                 }
             else:
                 report[pattern_type] = {
-                    'acceptance_rate': None,
-                    'sample_count': 0,
-                    'reliability': 'unknown'
+                    "acceptance_rate": None,
+                    "sample_count": 0,
+                    "reliability": "unknown",
                 }
 
         return report
@@ -193,12 +195,12 @@ class ConfidenceCalibrator:
 
         for pattern in patterns:
             # Store raw confidence
-            pattern['raw_confidence'] = pattern.get('confidence', 0.5)
+            pattern["raw_confidence"] = pattern.get("confidence", 0.5)
 
             # Calibrate
             calibrated_confidence = await self.calibrate_pattern_confidence(pattern)
-            pattern['confidence'] = calibrated_confidence
-            pattern['calibrated'] = True
+            pattern["confidence"] = calibrated_confidence
+            pattern["calibrated"] = True
 
             calibrated_patterns.append(pattern)
 
@@ -209,4 +211,3 @@ class ConfidenceCalibrator:
         )
 
         return calibrated_patterns
-

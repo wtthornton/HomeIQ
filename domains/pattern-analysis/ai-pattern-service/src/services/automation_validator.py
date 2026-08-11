@@ -125,7 +125,7 @@ class AutomationValidator:
                         for automation in self._automations_cache:
                             auto_entities = self._extract_entities_from_automation(automation)
                             if entity_id in auto_entities:
-                                auto_id = automation.get('id') or automation.get('alias', '')
+                                auto_id = automation.get("id") or automation.get("alias", "")
                                 if auto_id and auto_id not in automation_ids:
                                     automation_ids.append(auto_id)
                 else:
@@ -134,8 +134,8 @@ class AutomationValidator:
                     break
 
         # Add validation flags to pattern
-        pattern['validated_by_automation'] = validated_by_automation
-        pattern['automation_ids'] = json.dumps(automation_ids) if automation_ids else None
+        pattern["validated_by_automation"] = validated_by_automation
+        pattern["automation_ids"] = json.dumps(automation_ids) if automation_ids else None
 
         return pattern
 
@@ -163,13 +163,13 @@ class AutomationValidator:
         """
         if isinstance(data, dict):
             for key, value in data.items():
-                if key == 'entity_id':
+                if key == "entity_id":
                     if isinstance(value, str):
                         entities.add(value)
                     elif isinstance(value, list):
                         entities.update(value)
-                elif key == 'target' and isinstance(value, dict) and 'entity_id' in value:
-                    target_entity_id = value['entity_id']
+                elif key == "target" and isinstance(value, dict) and "entity_id" in value:
+                    target_entity_id = value["entity_id"]
                     if isinstance(target_entity_id, str):
                         entities.add(target_entity_id)
                     elif isinstance(target_entity_id, list):
@@ -193,15 +193,15 @@ class AutomationValidator:
         entities = set()
 
         # Check for device_id field
-        if 'device_id' in pattern:
-            device_id = pattern['device_id']
+        if "device_id" in pattern:
+            device_id = pattern["device_id"]
             if device_id:
                 # Handle co-occurrence patterns with '+' separator
-                entities.update(device_id.split('+'))
+                entities.update(device_id.split("+"))
 
         # Check for entities field
-        if 'entities' in pattern:
-            entities_list = pattern['entities']
+        if "entities" in pattern:
+            entities_list = pattern["entities"]
             if isinstance(entities_list, list):
                 entities.update(entities_list)
             elif isinstance(entities_list, str):
@@ -213,9 +213,9 @@ class AutomationValidator:
                     pass
 
         # Check for device1/device2 fields (co-occurrence patterns)
-        if 'device1' in pattern:
-            entities.add(pattern['device1'])
-        if 'device2' in pattern:
-            entities.add(pattern['device2'])
+        if "device1" in pattern:
+            entities.add(pattern["device1"])
+        if "device2" in pattern:
+            entities.add(pattern["device2"])
 
         return entities

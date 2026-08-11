@@ -16,6 +16,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class BackupInfo:
     """Backup information."""
@@ -39,8 +40,9 @@ class BackupInfo:
             "file_path": self.file_path,
             "metadata": self.metadata,
             "success": self.success,
-            "error_message": self.error_message
+            "error_message": self.error_message,
         }
+
 
 ALLOWED_CONFIG_FILES = {"config.yaml", "influxdb.conf"}
 
@@ -53,7 +55,7 @@ BLOCKED_FILE_PATTERNS = {".env", ".env.local", ".env.production", ".env.staging"
 
 def _is_secret_file(filename: str) -> bool:
     """Check if a filename matches secret file patterns that must never be backed up."""
-    return filename in BLOCKED_FILE_PATTERNS or filename.startswith('.env.')
+    return filename in BLOCKED_FILE_PATTERNS or filename.startswith(".env.")
 
 
 def _safe_extract(tar: tarfile.TarFile, path: str | Path) -> None:
@@ -61,9 +63,11 @@ def _safe_extract(tar: tarfile.TarFile, path: str | Path) -> None:
     target_path = Path(path).resolve()
     for member in tar.getmembers():
         member_path = (target_path / member.name).resolve()
-        if not (str(member_path).startswith(str(target_path) + os.sep) or member_path == target_path):
+        if not (
+            str(member_path).startswith(str(target_path) + os.sep) or member_path == target_path
+        ):
             raise ValueError(f"Path traversal detected in archive: {member.name}")
-    tar.extractall(path, filter='data')
+    tar.extractall(path, filter="data")
 
 
 class BackupRestoreService:
@@ -110,10 +114,13 @@ class BackupRestoreService:
 
         logger.info("Backup restore service stopped")
 
-    async def create_backup(self, backup_type: str = "full",
-                          include_data: bool = True,
-                          include_config: bool = True,
-                          include_logs: bool = False) -> BackupInfo:
+    async def create_backup(
+        self,
+        backup_type: str = "full",
+        include_data: bool = True,
+        include_config: bool = True,
+        include_logs: bool = False,
+    ) -> BackupInfo:
         """
         Create a backup.
 
@@ -142,7 +149,7 @@ class BackupRestoreService:
                     "created_at": datetime.now(UTC).isoformat(),
                     "include_data": include_data,
                     "include_config": include_config,
-                    "include_logs": include_logs
+                    "include_logs": include_logs,
                 }
 
                 # Add data if requested
@@ -159,7 +166,7 @@ class BackupRestoreService:
 
                 # Create backup metadata file
                 metadata_file = temp_path / "backup_metadata.json"
-                with metadata_file.open('w') as f:
+                with metadata_file.open("w") as f:
                     json.dump(metadata, f, indent=2)
 
                 # Create compressed archive
@@ -187,7 +194,8 @@ class BackupRestoreService:
                 success=not component_errors,
                 error_message="; ".join(
                     f"{key}: {value}" for key, value in sorted(component_errors.items())
-                ) or None,
+                )
+                or None,
             )
 
             self.backup_history.append(backup_info)
@@ -214,7 +222,7 @@ class BackupRestoreService:
                 file_path=str(backup_file),
                 metadata={},
                 success=False,
-                error_message=str(e)
+                error_message=str(e),
             )
 
             self.backup_history.append(backup_info)
@@ -233,12 +241,20 @@ class BackupRestoreService:
             data_file = backup_path / "data_export.json"
             mock_data = {
                 "events": [
-                    {"timestamp": "2024-01-01T00:00:00Z", "entity_id": "sensor.temp", "value": 20.5},
-                    {"timestamp": "2024-01-01T01:00:00Z", "entity_id": "sensor.humidity", "value": 65}
+                    {
+                        "timestamp": "2024-01-01T00:00:00Z",
+                        "entity_id": "sensor.temp",
+                        "value": 20.5,
+                    },
+                    {
+                        "timestamp": "2024-01-01T01:00:00Z",
+                        "entity_id": "sensor.humidity",
+                        "value": 65,
+                    },
                 ]
             }
 
-            with data_file.open('w') as f:
+            with data_file.open("w") as f:
                 json.dump(mock_data, f, indent=2)
 
             metadata["data_records"] = len(mock_data["events"])
@@ -260,15 +276,17 @@ class BackupRestoreService:
 
             for table in result:
                 for record in table.records:
-                    exported_data.append({
-                        "timestamp": record.get_time().isoformat(),
-                        "measurement": record.get_measurement(),
-                        "field": record.get_field(),
-                        "value": record.get_value(),
-                        "tags": record.values
-                    })
+                    exported_data.append(
+                        {
+                            "timestamp": record.get_time().isoformat(),
+                            "measurement": record.get_measurement(),
+                            "field": record.get_field(),
+                            "value": record.get_value(),
+                            "tags": record.values,
+                        }
+                    )
 
-            with data_file.open('w') as f:
+            with data_file.open("w") as f:
                 json.dump({"events": exported_data}, f, indent=2)
 
             metadata["data_records"] = len(exported_data)
@@ -291,10 +309,7 @@ class BackupRestoreService:
             config_dir.mkdir(exist_ok=True)
 
             # Whitelist only safe configuration files (never backup unencrypted secrets)
-            config_files = [
-                "/app/config.yaml",
-                "/etc/influxdb/influxdb.conf"
-            ]
+            config_files = ["/app/config.yaml", "/etc/influxdb/influxdb.conf"]
 
             copied_files = []
             for config_file in config_files:
@@ -341,7 +356,7 @@ class BackupRestoreService:
                 if log_dir_path.exists():
                     for root, _dirs, files in os.walk(log_dir):
                         for file in files:
-                            if file.endswith('.log'):
+                            if file.endswith(".log"):
                                 src_file = Path(root) / file
                                 rel_path = src_file.relative_to(log_dir_path)
                                 dest_file = logs_dir / rel_path
@@ -357,8 +372,13 @@ class BackupRestoreService:
             logger.error(f"Log backup failed: {e}")
             metadata["log_error"] = str(e)
 
-    async def restore_backup(self, backup_id: str, restore_data: bool = True,
-                           restore_config: bool = True, restore_logs: bool = False) -> bool:
+    async def restore_backup(
+        self,
+        backup_id: str,
+        restore_data: bool = True,
+        restore_config: bool = True,
+        restore_logs: bool = False,
+    ) -> bool:
         """
         Restore from a backup.
 
@@ -441,9 +461,11 @@ class BackupRestoreService:
 
             points = []
             for event in events:
-                point = Point("home_assistant_event") \
-                    .time(event["timestamp"], WritePrecision.NS) \
+                point = (
+                    Point("home_assistant_event")
+                    .time(event["timestamp"], WritePrecision.NS)
                     .field(event["field"], event["value"])
+                )
 
                 # Add tags
                 for tag_key, tag_value in event.get("tags", {}).items():
@@ -452,9 +474,7 @@ class BackupRestoreService:
                 points.append(point)
 
             # Write points to InfluxDB (new API: no write_api(), no bucket parameter)
-            await self.influxdb_client.write(
-                record=points
-            )
+            await self.influxdb_client.write(record=points)
 
             logger.info(f"Restored {len(events)} data records")
 
@@ -516,8 +536,7 @@ class BackupRestoreService:
         except Exception as e:
             logger.error(f"Log restore failed: {e}")
 
-    async def schedule_backups(self, interval_hours: int = 24,
-                             backup_type: str = "full") -> None:
+    async def schedule_backups(self, interval_hours: int = 24, backup_type: str = "full") -> None:
         """
         Schedule periodic backups.
 
@@ -576,7 +595,7 @@ class BackupRestoreService:
                 "total_size_bytes": 0,
                 "average_size_bytes": 0,
                 "success_rate": 0,
-                "last_backup": None
+                "last_backup": None,
             }
 
         successful_backups = [backup for backup in self.backup_history if backup.success]
@@ -590,8 +609,12 @@ class BackupRestoreService:
             "failed_backups": len(failed_backups),
             "total_size_bytes": total_size,
             "average_size_bytes": total_size / len(successful_backups) if successful_backups else 0,
-            "success_rate": len(successful_backups) / len(self.backup_history) if self.backup_history else 0,
-            "last_backup": self.backup_history[-1].created_at.isoformat() if self.backup_history else None
+            "success_rate": len(successful_backups) / len(self.backup_history)
+            if self.backup_history
+            else 0,
+            "last_backup": self.backup_history[-1].created_at.isoformat()
+            if self.backup_history
+            else None,
         }
 
     def cleanup_old_backups(self, days_to_keep: int = 30) -> int:

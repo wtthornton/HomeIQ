@@ -30,6 +30,7 @@ router = APIRouter(prefix="/api/v1", tags=["energy"])
 # Pydantic Models
 # ============================================================================
 
+
 class ForecastPoint(BaseModel):
     """Single forecast point."""
 
@@ -42,14 +43,16 @@ class ForecastPoint(BaseModel):
 class ForecastResponse(BaseModel):
     """Energy forecast response."""
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "forecast": [{"timestamp": "2026-02-06T00:00:00", "power_watts": 450.5}],
-            "model_type": "nhits",
-            "forecast_horizon_hours": 48,
-            "generated_at": "2026-02-06T12:00:00",
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "forecast": [{"timestamp": "2026-02-06T00:00:00", "power_watts": 450.5}],
+                "model_type": "nhits",
+                "forecast_horizon_hours": 48,
+                "generated_at": "2026-02-06T12:00:00",
+            }
         }
-    })
+    )
 
     forecast: list[ForecastPoint]
     model_type: str
@@ -91,9 +94,11 @@ class HealthResponse(BaseModel):
 # Thread-Safe Model Registry
 # ============================================================================
 
+
 @dataclass
 class ModelRegistry:
     """Thread-safe model registry."""
+
     _forecaster: Any = None
     _model_path: Path = field(default_factory=lambda: Path("./models/energy_forecaster"))
     _lock: threading.Lock = field(default_factory=threading.Lock)
@@ -103,7 +108,7 @@ class ModelRegistry:
             if self._forecaster is None:
                 raise HTTPException(
                     status_code=503,
-                    detail="Model not loaded. Please ensure the model is trained and available."
+                    detail="Model not loaded. Please ensure the model is trained and available.",
                 )
             return self._forecaster
 
@@ -155,6 +160,7 @@ def _set_cached_forecast(hours: int, result):
 # Model Loading
 # ============================================================================
 
+
 def load_model(path: Path | str | None = None) -> bool:
     """Load the forecasting model."""
     from ..models.energy_forecaster import EnergyForecaster
@@ -185,6 +191,7 @@ def load_model(path: Path | str | None = None) -> bool:
 # ============================================================================
 # API Endpoints
 # ============================================================================
+
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -236,9 +243,7 @@ async def get_forecast(
     try:
         # Run CPU-intensive prediction in thread pool to avoid blocking event loop
         loop = asyncio.get_event_loop()
-        forecast_series = await loop.run_in_executor(
-            None, partial(forecaster.predict, n=hours)
-        )
+        forecast_series = await loop.run_in_executor(None, partial(forecaster.predict, n=hours))
 
         # Convert to response format
         timestamps = forecast_series.time_index.to_pydatetime()
@@ -268,7 +273,7 @@ async def get_forecast(
         logger.error("Forecast error", exc_info=True, error=str(e))
         raise HTTPException(
             status_code=500,
-            detail="An internal error occurred while generating the forecast. Check service logs for details."
+            detail="An internal error occurred while generating the forecast. Check service logs for details.",
         ) from e
 
 
@@ -284,9 +289,7 @@ async def get_peak_prediction():
     try:
         # Run CPU-intensive prediction in thread pool to avoid blocking event loop
         loop = asyncio.get_event_loop()
-        forecast_series = await loop.run_in_executor(
-            None, partial(forecaster.predict, n=24)
-        )
+        forecast_series = await loop.run_in_executor(None, partial(forecaster.predict, n=24))
 
         timestamps = forecast_series.time_index.to_pydatetime()
         values = forecast_series.values().flatten()
@@ -312,7 +315,7 @@ async def get_peak_prediction():
         logger.error("Peak prediction error", exc_info=True, error=str(e))
         raise HTTPException(
             status_code=500,
-            detail="An internal error occurred while generating peak prediction. Check service logs for details."
+            detail="An internal error occurred while generating peak prediction. Check service logs for details.",
         ) from e
 
 
@@ -325,10 +328,7 @@ def _activity_by_hour_from_history(activity_items: list[dict]) -> dict[int, list
         if not ts or not activity:
             continue
         try:
-            if isinstance(ts, str):
-                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-            else:
-                dt = ts
+            dt = datetime.fromisoformat(ts.replace("Z", "+00:00")) if isinstance(ts, str) else ts
             h = getattr(dt, "hour", 0)
             if h not in by_hour:
                 by_hour[h] = []
@@ -352,9 +352,7 @@ async def get_optimization_recommendation():
     try:
         # Run CPU-intensive prediction in thread pool to avoid blocking event loop
         loop = asyncio.get_event_loop()
-        forecast_series = await loop.run_in_executor(
-            None, partial(forecaster.predict, n=24)
-        )
+        forecast_series = await loop.run_in_executor(None, partial(forecaster.predict, n=24))
 
         timestamps = forecast_series.time_index.to_pydatetime()
         values = forecast_series.values().flatten()
@@ -376,21 +374,26 @@ async def get_optimization_recommendation():
         avoid_hours_str = ", ".join(f"{h}:00" for h in sorted(avoid_hours))
 
         recommendation = (
-            f"Best times for high-power activities: {best_hours_str}. "
-            f"Avoid: {avoid_hours_str}."
+            f"Best times for high-power activities: {best_hours_str}. Avoid: {avoid_hours_str}."
         )
         activity_guidance = None
         activity_enabled = False
 
         # Story 4.1: Optional activity-aware guidance (graceful degradation)
         import os
+
         data_api_url = (os.getenv("DATA_API_URL") or "http://data-api:8006").rstrip("/")
         data_api_key = os.getenv("DATA_API_API_KEY") or os.getenv("API_KEY")
         try:
             import httpx
+
             _headers = {"Authorization": f"Bearer {data_api_key}"} if data_api_key else {}
             async with httpx.AsyncClient(timeout=5.0) as client:
-                r = await client.get(f"{data_api_url}/api/v1/activity/history", params={"hours": 24, "limit": 100}, headers=_headers)
+                r = await client.get(
+                    f"{data_api_url}/api/v1/activity/history",
+                    params={"hours": 24, "limit": 100},
+                    headers=_headers,
+                )
                 if r.is_success and r.json():
                     activity_items = r.json()
                     activity_enabled = True
@@ -422,7 +425,7 @@ async def get_optimization_recommendation():
         logger.error("Optimization error", exc_info=True, error=str(e))
         raise HTTPException(
             status_code=500,
-            detail="An internal error occurred while generating optimization recommendations. Check service logs for details."
+            detail="An internal error occurred while generating optimization recommendations. Check service logs for details.",
         ) from e
 
 

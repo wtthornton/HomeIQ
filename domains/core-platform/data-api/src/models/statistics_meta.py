@@ -36,15 +36,17 @@ class StatisticsMeta(Base):
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
 
     def __repr__(self):
         return f"<StatisticsMeta(statistic_id='{self.statistic_id}', state_class='{self.state_class}')>"
 
 
 # Indexes for fast lookups
-Index('idx_statistics_meta_state_class', StatisticsMeta.state_class)
-Index('idx_statistics_meta_has_mean', StatisticsMeta.has_mean)
-Index('idx_statistics_meta_has_sum', StatisticsMeta.has_sum)
-
-
+Index("idx_statistics_meta_state_class", StatisticsMeta.state_class)
+Index("idx_statistics_meta_has_mean", StatisticsMeta.has_mean)
+Index("idx_statistics_meta_has_sum", StatisticsMeta.has_sum)

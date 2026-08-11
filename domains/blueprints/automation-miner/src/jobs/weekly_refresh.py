@@ -5,6 +5,7 @@ Runs every Sunday at 2 AM to keep corpus fresh with new community automations.
 
 Epic AI-4, Story AI4.4
 """
+
 import logging
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -61,7 +62,7 @@ class WeeklyRefreshJob:
                 new_posts = await client.fetch_blueprints(
                     min_likes=100,  # Lower threshold for recent posts
                     since=last_crawl,
-                    limit=500
+                    limit=500,
                 )
 
                 logger.info(f"[{correlation_id}] Found {len(new_posts)} new/updated posts")
@@ -77,8 +78,7 @@ class WeeklyRefreshJob:
                     try:
                         # Fetch full post details
                         details = await client.fetch_post_details(
-                            post['id'],
-                            correlation_id=correlation_id
+                            post["id"], correlation_id=correlation_id
                         )
 
                         if not details:
@@ -94,8 +94,7 @@ class WeeklyRefreshJob:
 
                         # Check if exists
                         existing = await repo.get_by_source_id(
-                            source='discourse',
-                            source_id=metadata.source_id
+                            source="discourse", source_id=metadata.source_id
                         )
 
                         if existing:
@@ -126,7 +125,7 @@ class WeeklyRefreshJob:
 
                 pruned_count = await repo.prune_low_quality(
                     quality_threshold=settings.pruning_quality_threshold,
-                    age_days=settings.pruning_age_days
+                    age_days=settings.pruning_age_days,
                 )
 
                 logger.info(f"[{correlation_id}]   Pruned: {pruned_count} low-quality automations")
@@ -176,14 +175,13 @@ async def setup_weekly_refresh_job(scheduler):
 
     scheduler.add_job(
         job.run,
-        CronTrigger(day_of_week='sun', hour=2, minute=0),  # Sunday 2 AM
-        id='weekly_corpus_refresh',
-        name='Weekly Corpus Refresh (Epic AI-4)',
+        CronTrigger(day_of_week="sun", hour=2, minute=0),  # Sunday 2 AM
+        id="weekly_corpus_refresh",
+        name="Weekly Corpus Refresh (Epic AI-4)",
         replace_existing=True,
         max_instances=1,  # Prevent overlap
         coalesce=True,  # Skip if previous run still active
-        misfire_grace_time=3600  # Allow 1 hour delay if server was down
+        misfire_grace_time=3600,  # Allow 1 hour delay if server was down
     )
 
     logger.info("✅ Weekly refresh job scheduled: Every Sunday at 2 AM")
-

@@ -4,8 +4,6 @@ Tests setup guide generation and issue detection fallback paths.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
 from src.services.setup_assistant import (
     SetupAssistantService,
     get_setup_assistant,
@@ -33,22 +31,18 @@ class TestGenerateSetupGuide:
         assert result["estimated_time_minutes"] == 10
 
     def test_fallback_step_contains_device_name(self):
-        result = self.svc.generate_setup_guide(
-            "d1", "My Device", "sensor", "zwave"
-        )
+        result = self.svc.generate_setup_guide("d1", "My Device", "sensor", "zwave")
         assert "My Device" in result["steps"][0]["description"]
 
     def test_with_setup_url_passed_through(self):
         """setup_instructions_url is passed to generator (or ignored in fallback)."""
         result = self.svc.generate_setup_guide(
-            "d1", "Light", "light", "hue",
-            setup_instructions_url="https://example.com"
+            "d1", "Light", "light", "hue", setup_instructions_url="https://example.com"
         )
         assert result["device_id"] == "d1"
 
 
 class TestDetectSetupIssues:
-
     def setup_method(self):
         self.svc = SetupAssistantService()
 
@@ -78,8 +72,8 @@ class TestDetectSetupIssues:
 
 
 class TestSingleton:
-
     def test_returns_same_instance(self):
         import src.services.setup_assistant as mod
+
         mod._setup_assistant = None
         assert get_setup_assistant() is get_setup_assistant()

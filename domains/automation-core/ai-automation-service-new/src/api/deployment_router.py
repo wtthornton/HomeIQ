@@ -281,9 +281,7 @@ async def deploy_compiled_automation(
     safety_result = await safety_validator.validate(compiled_artifact.yaml)
 
     if not safety_result.passed:
-        issue_msgs = [
-            f"[{i.severity.value}] {i.message}" for i in safety_result.issues
-        ]
+        issue_msgs = [f"[{i.severity.value}] {i.message}" for i in safety_result.issues]
         raise HTTPException(
             status_code=422,
             detail={

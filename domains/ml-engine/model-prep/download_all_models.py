@@ -53,6 +53,7 @@ def check_openvino() -> bool:
     try:
         import openvino  # noqa: F401
         import optimum.intel  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -65,12 +66,16 @@ def download_model(model_key: str, model_info: dict, cache_dir: Path, use_openvi
     size_mb = model_info["size_mb"]
     supports_openvino = model_info.get("openvino", False)
 
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"Downloading: {model_key}")
     print(f"  Name: {model_name}")
     print(f"  Type: {model_type}")
-    print(f"  Size: ~{size_mb}MB (INT8)" if supports_openvino and use_openvino else f"  Size: ~{size_mb * 4}MB (FP32)")
-    print(f"{'='*80}")
+    print(
+        f"  Size: ~{size_mb}MB (INT8)"
+        if supports_openvino and use_openvino
+        else f"  Size: ~{size_mb * 4}MB (FP32)"
+    )
+    print(f"{'=' * 80}")
 
     try:
         if supports_openvino and use_openvino:
@@ -96,6 +101,7 @@ def download_model(model_key: str, model_info: dict, cache_dir: Path, use_openvi
             else:
                 # Fallback to standard model
                 from transformers import AutoModel
+
                 print("  Downloading standard model (OpenVINO not supported)...")
                 AutoModel.from_pretrained(
                     model_name,
@@ -106,17 +112,20 @@ def download_model(model_key: str, model_info: dict, cache_dir: Path, use_openvi
             # Download standard model
             if model_type == "embedding":
                 from sentence_transformers import SentenceTransformer
+
                 print("  Downloading SentenceTransformer model...")
                 SentenceTransformer(model_name, cache_folder=str(cache_dir))
                 print("  ✓ Model downloaded and cached")
             elif model_type == "seq2seq":
                 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+
                 print("  Downloading tokenizer and model...")
                 AutoTokenizer.from_pretrained(model_name, cache_dir=str(cache_dir))
                 AutoModelForSeq2SeqLM.from_pretrained(model_name, cache_dir=str(cache_dir))
                 print("  ✓ Model downloaded and cached")
             else:
                 from transformers import AutoModel
+
                 print("  Downloading standard model...")
                 AutoModel.from_pretrained(model_name, cache_dir=str(cache_dir))
                 print("  ✓ Model downloaded and cached")
@@ -130,9 +139,9 @@ def download_model(model_key: str, model_info: dict, cache_dir: Path, use_openvi
 
 def main():
     """Main function to download all models."""
-    print("="*80)
+    print("=" * 80)
     print("HomeIQ Model Preparation")
-    print("="*80)
+    print("=" * 80)
     print("\nPre-downloading ML models for deterministic caching")
     print("This ensures models are available before service containers start.\n")
 
@@ -174,9 +183,9 @@ def main():
         results[model_key] = success
 
     # Summary
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("Download Summary")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     total = len(results)
     successful = sum(1 for v in results.values() if v)
@@ -200,4 +209,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -26,17 +26,14 @@ WYZE_TO_HA_DOMAIN_MAPPING: dict[str, str] = {
     "bulb": "light",
     "lightstrip": "light",
     "lamp": "light",
-
     # Switches and plugs
     "plug": "switch",
     "switch": "switch",
     "outlet": "switch",
-
     # Cameras and security
     "camera": "camera",
     "cam": "camera",
     "doorbell": "camera",
-
     # Sensors
     "sensor": "binary_sensor",
     "motion_sensor": "binary_sensor",
@@ -44,17 +41,14 @@ WYZE_TO_HA_DOMAIN_MAPPING: dict[str, str] = {
     "door_sensor": "binary_sensor",
     "window_sensor": "binary_sensor",
     "leak_sensor": "binary_sensor",
-
     # Climate
     "thermostat": "climate",
     "hvac": "climate",
     "fan": "fan",
-
     # Security
     "lock": "lock",
     "doorlock": "lock",
     "alarm": "alarm_control_panel",
-
     # Other
     "vacuum": "vacuum",
     "robot_vacuum": "vacuum",
@@ -216,9 +210,7 @@ class WyzeDataLoader:
                 .replace(WYZE_TO_HA_DOMAIN_MAPPING, default="unknown")
                 .alias("trigger_ha_domain")
             )
-            expressions.append(
-                pl.col(trigger_col).alias("trigger_device_type")
-            )
+            expressions.append(pl.col(trigger_col).alias("trigger_device_type"))
 
         # Map action device types to HA domains
         if action_col:
@@ -228,9 +220,7 @@ class WyzeDataLoader:
                 .replace(WYZE_TO_HA_DOMAIN_MAPPING, default="unknown")
                 .alias("action_ha_domain")
             )
-            expressions.append(
-                pl.col(action_col).alias("action_device_type")
-            )
+            expressions.append(pl.col(action_col).alias("action_device_type"))
 
         # Preserve user and rule IDs
         if user_col:
@@ -244,10 +234,13 @@ class WyzeDataLoader:
 
         # Add rule pattern identifier (trigger_domain -> action_domain)
         if "trigger_ha_domain" in df.columns and "action_ha_domain" in df.columns:
-            df = df.with_columns([
-                (pl.col("trigger_ha_domain") + "_to_" + pl.col("action_ha_domain"))
-                .alias("rule_pattern")
-            ])
+            df = df.with_columns(
+                [
+                    (pl.col("trigger_ha_domain") + "_to_" + pl.col("action_ha_domain")).alias(
+                        "rule_pattern"
+                    )
+                ]
+            )
 
         logger.info(f"Preprocessed {len(df):,} rules with {len(df.columns)} columns")
 
@@ -275,12 +268,13 @@ class WyzeDataLoader:
             raise ValueError("DataFrame must have 'rule_pattern' column")
 
         patterns = (
-            df
-            .group_by("rule_pattern")
-            .agg([
-                pl.count().alias("frequency"),
-                pl.col("user_id").n_unique().alias("unique_users"),
-            ])
+            df.group_by("rule_pattern")
+            .agg(
+                [
+                    pl.count().alias("frequency"),
+                    pl.col("user_id").n_unique().alias("unique_users"),
+                ]
+            )
             .sort("frequency", descending=True)
         )
 
@@ -317,19 +311,24 @@ class WyzeDataLoader:
         idx_to_pattern = {idx: pattern for pattern, idx in pattern_to_idx.items()}
 
         # Create sparse matrix
-        user_indices = df.select("user_id").to_series().map_elements(
-            lambda x: user_to_idx.get(x, 0), return_dtype=pl.Int64
-        ).to_numpy()
-        pattern_indices = df.select("rule_pattern").to_series().map_elements(
-            lambda x: pattern_to_idx.get(x, 0), return_dtype=pl.Int64
-        ).to_numpy()
+        user_indices = (
+            df.select("user_id")
+            .to_series()
+            .map_elements(lambda x: user_to_idx.get(x, 0), return_dtype=pl.Int64)
+            .to_numpy()
+        )
+        pattern_indices = (
+            df.select("rule_pattern")
+            .to_series()
+            .map_elements(lambda x: pattern_to_idx.get(x, 0), return_dtype=pl.Int64)
+            .to_numpy()
+        )
 
         # Binary interaction (1 if user has rule, 0 otherwise)
         data = np.ones(len(df))
 
         matrix = csr_matrix(
-            (data, (user_indices, pattern_indices)),
-            shape=(len(users), len(patterns))
+            (data, (user_indices, pattern_indices)), shape=(len(users), len(patterns))
         )
 
         logger.info(

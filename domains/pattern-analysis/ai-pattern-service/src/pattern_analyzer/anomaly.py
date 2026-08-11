@@ -45,35 +45,55 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 EXCLUDED_DOMAINS = {
-    'image', 'event', 'update', 'camera', 'button',
+    "image",
+    "event",
+    "update",
+    "camera",
+    "button",
 }
 
 EXCLUDED_ENTITY_PREFIXES = [
-    'sensor.home_assistant_',
-    'sensor.slzb_',
-    'image.',
-    'event.',
-    'binary_sensor.system_',
-    'camera.',
-    'button.',
-    'update.',
+    "sensor.home_assistant_",
+    "sensor.slzb_",
+    "image.",
+    "event.",
+    "binary_sensor.system_",
+    "camera.",
+    "button.",
+    "update.",
 ]
 
 EXCLUDED_PATTERNS = [
-    '_tracker', 'team_tracker',
-    'nfl_', 'nhl_', 'mlb_', 'nba_', 'ncaa_',
-    'weather_', 'openweathermap_',
-    'carbon_intensity_', 'electricity_pricing_', 'national_grid_',
-    'calendar_',
-    '_cpu_', '_temp', '_chip_',
-    'coordinator_', '_battery', '_memory_',
-    '_signal_strength', '_linkquality',
-    '_update_', '_uptime', '_last_seen',
+    "_tracker",
+    "team_tracker",
+    "nfl_",
+    "nhl_",
+    "mlb_",
+    "nba_",
+    "ncaa_",
+    "weather_",
+    "openweathermap_",
+    "carbon_intensity_",
+    "electricity_pricing_",
+    "national_grid_",
+    "calendar_",
+    "_cpu_",
+    "_temp",
+    "_chip_",
+    "coordinator_",
+    "_battery",
+    "_memory_",
+    "_signal_strength",
+    "_linkquality",
+    "_update_",
+    "_uptime",
+    "_last_seen",
 ]
 
 
 class AnomalyType(Enum):
     """Types of anomalies that can be detected."""
+
     TIMING = "timing"
     FREQUENCY = "frequency"
     SEQUENCE = "sequence"
@@ -83,6 +103,7 @@ class AnomalyType(Enum):
 
 class SeverityLevel(Enum):
     """Severity levels for detected anomalies."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -92,6 +113,7 @@ class SeverityLevel(Enum):
 @dataclass
 class DeviceBaseline:
     """Behavioral baseline for a single device."""
+
     device_id: str
     total_events: int = 0
     daily_counts: list[int] = field(default_factory=list)
@@ -109,6 +131,7 @@ class DeviceBaseline:
 @dataclass
 class Anomaly:
     """Represents a detected anomaly."""
+
     device_id: str
     anomaly_type: AnomalyType
     severity: SeverityLevel
@@ -138,13 +161,15 @@ class IsolationForestDetector:
             if baseline.total_events < 10:
                 continue
             for hour, count in baseline.hourly_distribution.items():
-                features.append([
-                    float(hour),
-                    float(baseline.avg_daily_count),
-                    float(baseline.std_daily_count),
-                    float(baseline.avg_duration_seconds),
-                    float(count),
-                ])
+                features.append(
+                    [
+                        float(hour),
+                        float(baseline.avg_daily_count),
+                        float(baseline.std_daily_count),
+                        float(baseline.avg_duration_seconds),
+                        float(count),
+                    ]
+                )
                 self._device_ids.append(device_id)
 
         if len(features) < 10:
@@ -162,38 +187,46 @@ class IsolationForestDetector:
         logger.info(f"Isolation Forest trained on {len(features)} feature vectors")
         return True
 
-    def score_events(self, events: pd.DataFrame, baselines: dict[str, DeviceBaseline]) -> list[dict]:
+    def score_events(
+        self, events: pd.DataFrame, baselines: dict[str, DeviceBaseline]
+    ) -> list[dict]:
         """Score events using the trained IF model."""
         if not self._is_fitted or self.model is None:
             return []
 
         anomalies: list[dict] = []
 
-        for device_id in events['device_id'].unique():
+        for device_id in events["device_id"].unique():
             baseline = baselines.get(device_id)
             if not baseline or baseline.total_events < 10:
                 continue
 
-            device_events = events[events['device_id'] == device_id]
+            device_events = events[events["device_id"] == device_id]
             for _, event in device_events.iterrows():
-                hour = event['timestamp'].hour
-                features = np.array([[
-                    float(hour),
-                    float(baseline.avg_daily_count),
-                    float(baseline.std_daily_count),
-                    float(baseline.avg_duration_seconds),
-                    float(baseline.hourly_distribution.get(hour, 0)),
-                ]])
+                hour = event["timestamp"].hour
+                features = np.array(
+                    [
+                        [
+                            float(hour),
+                            float(baseline.avg_daily_count),
+                            float(baseline.std_daily_count),
+                            float(baseline.avg_duration_seconds),
+                            float(baseline.hourly_distribution.get(hour, 0)),
+                        ]
+                    ]
+                )
                 score = self.model.decision_function(features)[0]
                 prediction = self.model.predict(features)[0]
 
                 if prediction == -1:  # Anomaly
-                    anomalies.append({
-                        'device_id': device_id,
-                        'timestamp': event['timestamp'],
-                        'if_score': float(score),
-                        'hour': hour,
-                    })
+                    anomalies.append(
+                        {
+                            "device_id": device_id,
+                            "timestamp": event["timestamp"],
+                            "if_score": float(score),
+                            "hour": hour,
+                        }
+                    )
 
         return anomalies
 
@@ -277,7 +310,7 @@ class AnomalyPatternDetector:
             logger.warning("No events provided for anomaly detection")
             return []
 
-        required_cols = ['device_id', 'timestamp']
+        required_cols = ["device_id", "timestamp"]
         missing_cols = [col for col in required_cols if col not in events.columns]
         if missing_cols:
             logger.error(f"Missing required columns: {missing_cols}")
@@ -289,15 +322,13 @@ class AnomalyPatternDetector:
             original_count = len(events)
             events = self._filter_system_noise(events)
             if len(events) < original_count:
-                logger.info(
-                    f"Filtered system noise: {original_count} → {len(events)} events"
-                )
+                logger.info(f"Filtered system noise: {original_count} → {len(events)} events")
 
         if events.empty:
             logger.warning("No events remaining after filtering")
             return []
 
-        events = events.sort_values('timestamp').copy()
+        events = events.sort_values("timestamp").copy()
         events = events.reset_index(drop=True)
 
         self._build_baselines(events)
@@ -326,26 +357,23 @@ class AnomalyPatternDetector:
         if events.empty:
             return
 
-        events['date'] = events['timestamp'].dt.date
-        events['hour'] = events['timestamp'].dt.hour
+        events["date"] = events["timestamp"].dt.date
+        events["hour"] = events["timestamp"].dt.hour
 
-        min_date = events['timestamp'].min().date()
-        max_date = events['timestamp'].max().date()
+        min_date = events["timestamp"].min().date()
+        max_date = events["timestamp"].max().date()
         total_days = (max_date - min_date).days + 1
 
-        for device_id in events['device_id'].unique():
-            device_events = events[events['device_id'] == device_id]
+        for device_id in events["device_id"].unique():
+            device_events = events[events["device_id"] == device_id]
 
             if len(device_events) < self.min_events_for_baseline:
-                logger.debug(
-                    f"Skipping baseline for {device_id}: "
-                    f"only {len(device_events)} events"
-                )
+                logger.debug(f"Skipping baseline for {device_id}: only {len(device_events)} events")
                 continue
 
-            daily_counts = device_events.groupby('date').size().tolist()
+            daily_counts = device_events.groupby("date").size().tolist()
 
-            hourly_dist = device_events['hour'].value_counts().to_dict()
+            hourly_dist = device_events["hour"].value_counts().to_dict()
 
             typical_hours = set()
             if hourly_dist:
@@ -366,8 +394,8 @@ class AnomalyPatternDetector:
                 typical_hours=typical_hours,
                 avg_duration_seconds=avg_duration,
                 std_duration_seconds=std_duration,
-                first_seen=device_events['timestamp'].min(),
-                last_seen=device_events['timestamp'].max(),
+                first_seen=device_events["timestamp"].min(),
+                last_seen=device_events["timestamp"].max(),
                 baseline_days=total_days,
             )
 
@@ -382,8 +410,8 @@ class AnomalyPatternDetector:
         prev_state = None
 
         for _, event in events.iterrows():
-            curr_time = event['timestamp']
-            curr_state = event.get('state', 'unknown')
+            curr_time = event["timestamp"]
+            curr_state = event.get("state", "unknown")
 
             if prev_time is not None and prev_state != curr_state:
                 duration = (curr_time - prev_time).total_seconds()
@@ -440,8 +468,8 @@ class AnomalyPatternDetector:
         anomalies = []
 
         for _, event in events.iterrows():
-            device_id = event['device_id']
-            timestamp = event['timestamp']
+            device_id = event["device_id"]
+            timestamp = event["timestamp"]
             hour = timestamp.hour
 
             baseline = self._baselines.get(device_id)
@@ -469,20 +497,22 @@ class AnomalyPatternDetector:
                     is_night = 0 <= hour < 6
                     time_desc = "late night" if is_night else f"{hour}:00"
 
-                    anomalies.append(Anomaly(
-                        device_id=device_id,
-                        anomaly_type=AnomalyType.TIMING,
-                        severity=severity,
-                        timestamp=timestamp,
-                        description=f"{device_id} activated at unusual time ({time_desc})",
-                        context={
-                            'hour': hour,
-                            'typical_hours': list(baseline.typical_hours),
-                            'is_night': is_night,
-                        },
-                        z_score=float(z_score),
-                        confidence=float(confidence),
-                    ))
+                    anomalies.append(
+                        Anomaly(
+                            device_id=device_id,
+                            anomaly_type=AnomalyType.TIMING,
+                            severity=severity,
+                            timestamp=timestamp,
+                            description=f"{device_id} activated at unusual time ({time_desc})",
+                            context={
+                                "hour": hour,
+                                "typical_hours": list(baseline.typical_hours),
+                                "is_night": is_night,
+                            },
+                            z_score=float(z_score),
+                            confidence=float(confidence),
+                        )
+                    )
 
         return anomalies
 
@@ -498,13 +528,13 @@ class AnomalyPatternDetector:
         """
         anomalies = []
 
-        events['date'] = events['timestamp'].dt.date
-        daily_counts = events.groupby(['device_id', 'date']).size().reset_index(name='count')
+        events["date"] = events["timestamp"].dt.date
+        daily_counts = events.groupby(["device_id", "date"]).size().reset_index(name="count")
 
         for _, row in daily_counts.iterrows():
-            device_id = row['device_id']
-            date = row['date']
-            count = row['count']
+            device_id = row["device_id"]
+            date = row["date"]
+            count = row["count"]
 
             baseline = self._baselines.get(device_id)
             if not baseline or baseline.baseline_days < self.min_baseline_days:
@@ -522,24 +552,26 @@ class AnomalyPatternDetector:
                 direction = "high" if count > baseline.avg_daily_count else "low"
                 expected = baseline.avg_daily_count
 
-                anomalies.append(Anomaly(
-                    device_id=device_id,
-                    anomaly_type=AnomalyType.FREQUENCY,
-                    severity=severity,
-                    timestamp=datetime.combine(date, datetime.min.time()),
-                    description=(
-                        f"{device_id} had {direction} activity: "
-                        f"{count} events vs typical {expected:.1f}"
-                    ),
-                    context={
-                        'actual_count': int(count),
-                        'expected_count': float(expected),
-                        'direction': direction,
-                        'date': str(date),
-                    },
-                    z_score=float(z_score),
-                    confidence=float(confidence),
-                ))
+                anomalies.append(
+                    Anomaly(
+                        device_id=device_id,
+                        anomaly_type=AnomalyType.FREQUENCY,
+                        severity=severity,
+                        timestamp=datetime.combine(date, datetime.min.time()),
+                        description=(
+                            f"{device_id} had {direction} activity: "
+                            f"{count} events vs typical {expected:.1f}"
+                        ),
+                        context={
+                            "actual_count": int(count),
+                            "expected_count": float(expected),
+                            "direction": direction,
+                            "date": str(date),
+                        },
+                        z_score=float(z_score),
+                        confidence=float(confidence),
+                    )
+                )
 
         return anomalies
 
@@ -555,7 +587,7 @@ class AnomalyPatternDetector:
         """
         anomalies = []
 
-        for device_id in events['device_id'].unique():
+        for device_id in events["device_id"].unique():
             baseline = self._baselines.get(device_id)
             if not baseline or baseline.baseline_days < self.min_baseline_days:
                 continue
@@ -563,48 +595,55 @@ class AnomalyPatternDetector:
             if baseline.std_duration_seconds == 0:
                 continue
 
-            device_events = events[events['device_id'] == device_id].copy()
-            device_events = device_events.sort_values('timestamp')
+            device_events = events[events["device_id"] == device_id].copy()
+            device_events = device_events.sort_values("timestamp")
 
             prev_time = None
             prev_state = None
 
             for _, event in device_events.iterrows():
-                curr_time = event['timestamp']
-                curr_state = event.get('state', 'unknown')
+                curr_time = event["timestamp"]
+                curr_state = event.get("state", "unknown")
 
                 if prev_time is not None and prev_state != curr_state:
                     duration = (curr_time - prev_time).total_seconds()
 
                     if duration > 0:
-                        z_score = abs(duration - baseline.avg_duration_seconds) / baseline.std_duration_seconds
+                        z_score = (
+                            abs(duration - baseline.avg_duration_seconds)
+                            / baseline.std_duration_seconds
+                        )
 
                         if z_score >= self.z_score_threshold * self.sensitivity:
                             severity = self._calculate_severity(z_score)
                             confidence = min(z_score / (self.z_score_threshold * 2), 1.0)
 
-                            direction = "long" if duration > baseline.avg_duration_seconds else "short"
+                            direction = (
+                                "long" if duration > baseline.avg_duration_seconds else "short"
+                            )
                             duration_str = self._format_duration(duration)
                             expected_str = self._format_duration(baseline.avg_duration_seconds)
 
-                            anomalies.append(Anomaly(
-                                device_id=device_id,
-                                anomaly_type=AnomalyType.DURATION,
-                                severity=severity,
-                                timestamp=curr_time,
-                                description=(
-                                    f"{device_id} had {direction} duration: "
-                                    f"{duration_str} vs typical {expected_str}"
-                                ),
-                                context={
-                                    'actual_duration': float(duration),
-                                    'expected_duration': float(baseline.avg_duration_seconds),
-                                    'direction': direction,
-                                    'state': str(prev_state),
-                                },
-                                z_score=float(z_score),
-                                confidence=float(confidence),
-                            ))
+                            anomalies.append(
+                                Anomaly(
+                                    device_id=device_id,
+                                    anomaly_type=AnomalyType.DURATION,
+                                    severity=severity,
+                                    timestamp=curr_time,
+                                    description=(
+                                        f"{device_id} had {direction} duration: "
+                                        f"{duration_str} vs typical {expected_str}"
+                                    ),
+                                    context={
+                                        "actual_duration": float(duration),
+                                        "expected_duration": float(baseline.avg_duration_seconds),
+                                        "direction": direction,
+                                        "state": str(prev_state),
+                                    },
+                                    z_score=float(z_score),
+                                    confidence=float(confidence),
+                                )
+                            )
 
                 prev_time = curr_time
                 prev_state = curr_state
@@ -626,7 +665,7 @@ class AnomalyPatternDetector:
         if events.empty:
             return anomalies
 
-        current_time = events['timestamp'].max()
+        current_time = events["timestamp"].max()
         threshold = timedelta(hours=self.absence_threshold_hours)
 
         for device_id, baseline in self._baselines.items():
@@ -642,30 +681,36 @@ class AnomalyPatternDetector:
             time_since_last = current_time - baseline.last_seen
 
             if time_since_last > threshold:
-                expected_events = baseline.avg_daily_count * (time_since_last.total_seconds() / 86400)
+                expected_events = baseline.avg_daily_count * (
+                    time_since_last.total_seconds() / 86400
+                )
 
                 if expected_events >= 1:
                     hours_missing = time_since_last.total_seconds() / 3600
-                    severity = self._calculate_absence_severity(hours_missing, baseline.avg_daily_count)
+                    severity = self._calculate_absence_severity(
+                        hours_missing, baseline.avg_daily_count
+                    )
                     confidence = min(hours_missing / (self.absence_threshold_hours * 2), 1.0)
 
-                    anomalies.append(Anomaly(
-                        device_id=device_id,
-                        anomaly_type=AnomalyType.ABSENCE,
-                        severity=severity,
-                        timestamp=current_time,
-                        description=(
-                            f"{device_id} has been inactive for {hours_missing:.1f} hours "
-                            f"(typically {baseline.avg_daily_count:.1f} events/day)"
-                        ),
-                        context={
-                            'hours_inactive': float(hours_missing),
-                            'expected_daily_events': float(baseline.avg_daily_count),
-                            'last_seen': baseline.last_seen.isoformat(),
-                        },
-                        z_score=float(hours_missing / self.absence_threshold_hours),
-                        confidence=float(confidence),
-                    ))
+                    anomalies.append(
+                        Anomaly(
+                            device_id=device_id,
+                            anomaly_type=AnomalyType.ABSENCE,
+                            severity=severity,
+                            timestamp=current_time,
+                            description=(
+                                f"{device_id} has been inactive for {hours_missing:.1f} hours "
+                                f"(typically {baseline.avg_daily_count:.1f} events/day)"
+                            ),
+                            context={
+                                "hours_inactive": float(hours_missing),
+                                "expected_daily_events": float(baseline.avg_daily_count),
+                                "last_seen": baseline.last_seen.isoformat(),
+                            },
+                            z_score=float(hours_missing / self.absence_threshold_hours),
+                            confidence=float(confidence),
+                        )
+                    )
 
         return anomalies
 
@@ -676,8 +721,8 @@ class AnomalyPatternDetector:
         # Build IF anomaly lookup
         if_lookup: dict[tuple[str, int], float] = {}
         for a in if_anomalies:
-            key = (a['device_id'], a['timestamp'].hour if hasattr(a['timestamp'], 'hour') else 0)
-            if_lookup[key] = a['if_score']
+            key = (a["device_id"], a["timestamp"].hour if hasattr(a["timestamp"], "hour") else 0)
+            if_lookup[key] = a["if_score"]
 
         # Boost z-score anomaly confidence when IF agrees
         for anomaly in zscore_anomalies:
@@ -685,24 +730,30 @@ class AnomalyPatternDetector:
             if key in if_lookup:
                 # Both methods agree — boost confidence
                 anomaly.confidence = min(1.0, anomaly.confidence * 1.2)
-                anomaly.context['if_score'] = if_lookup[key]
-                anomaly.context['ensemble'] = True
+                anomaly.context["if_score"] = if_lookup[key]
+                anomaly.context["ensemble"] = True
 
         # Add IF-only anomalies (not caught by z-score)
         zscore_keys = {(a.device_id, a.timestamp.hour) for a in zscore_anomalies}
         for a in if_anomalies:
-            key = (a['device_id'], a['timestamp'].hour if hasattr(a['timestamp'], 'hour') else 0)
+            key = (a["device_id"], a["timestamp"].hour if hasattr(a["timestamp"], "hour") else 0)
             if key not in zscore_keys:
-                zscore_anomalies.append(Anomaly(
-                    device_id=a['device_id'],
-                    anomaly_type=AnomalyType.TIMING,
-                    severity=SeverityLevel.LOW,
-                    timestamp=a['timestamp'],
-                    description=f"{a['device_id']} flagged by Isolation Forest (hour {a['hour']})",
-                    context={'if_score': a['if_score'], 'ensemble': False, 'source': 'isolation_forest'},
-                    z_score=0.0,
-                    confidence=min(abs(a['if_score']) / 0.5, 1.0),
-                ))
+                zscore_anomalies.append(
+                    Anomaly(
+                        device_id=a["device_id"],
+                        anomaly_type=AnomalyType.TIMING,
+                        severity=SeverityLevel.LOW,
+                        timestamp=a["timestamp"],
+                        description=f"{a['device_id']} flagged by Isolation Forest (hour {a['hour']})",
+                        context={
+                            "if_score": a["if_score"],
+                            "ensemble": False,
+                            "source": "isolation_forest",
+                        },
+                        z_score=0.0,
+                        confidence=min(abs(a["if_score"]) / 0.5, 1.0),
+                    )
+                )
 
         return zscore_anomalies
 
@@ -746,22 +797,22 @@ class AnomalyPatternDetector:
 
         for anomaly in anomalies:
             pattern = {
-                'pattern_type': 'anomaly',
-                'device_id': anomaly.device_id,
-                'anomaly_type': anomaly.anomaly_type.value,
-                'severity': anomaly.severity.value,
-                'timestamp': anomaly.timestamp.isoformat(),
-                'description': anomaly.description,
-                'confidence': anomaly.confidence,
-                'z_score': anomaly.z_score,
-                'metadata': {
+                "pattern_type": "anomaly",
+                "device_id": anomaly.device_id,
+                "anomaly_type": anomaly.anomaly_type.value,
+                "severity": anomaly.severity.value,
+                "timestamp": anomaly.timestamp.isoformat(),
+                "description": anomaly.description,
+                "confidence": anomaly.confidence,
+                "z_score": anomaly.z_score,
+                "metadata": {
                     **anomaly.context,
-                    'thresholds': {
-                        'z_score_threshold': self.z_score_threshold,
-                        'sensitivity': self.sensitivity,
-                        'min_baseline_days': self.min_baseline_days,
-                    }
-                }
+                    "thresholds": {
+                        "z_score_threshold": self.z_score_threshold,
+                        "sensitivity": self.sensitivity,
+                        "min_baseline_days": self.min_baseline_days,
+                    },
+                },
             }
             patterns.append(pattern)
 
@@ -770,22 +821,17 @@ class AnomalyPatternDetector:
                 f"({anomaly.severity.value}, z={anomaly.z_score:.2f})"
             )
 
-        severity_order = {
-            'critical': 0, 'high': 1, 'medium': 2, 'low': 3
-        }
-        patterns.sort(key=lambda p: (
-            severity_order.get(p['severity'], 4),
-            -p['confidence']
-        ))
+        severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        patterns.sort(key=lambda p: (severity_order.get(p["severity"], 4), -p["confidence"]))
 
         return patterns
 
     def _filter_system_noise(self, events: pd.DataFrame) -> pd.DataFrame:
         """Filter out system sensors, trackers, and non-actionable entities."""
-        if 'device_id' not in events.columns:
+        if "device_id" not in events.columns:
             return events
 
-        mask = events['device_id'].apply(self._is_actionable_entity)
+        mask = events["device_id"].apply(self._is_actionable_entity)
         return events[mask].copy()
 
     def _is_actionable_entity(self, device_id: str) -> bool:
@@ -807,9 +853,9 @@ class AnomalyPatternDetector:
     @staticmethod
     def _get_domain(device_id: str) -> str:
         """Extract entity domain from device ID."""
-        if not device_id or '.' not in str(device_id):
-            return 'default'
-        return str(device_id).split('.', 1)[0]
+        if not device_id or "." not in str(device_id):
+            return "default"
+        return str(device_id).split(".", 1)[0]
 
     @staticmethod
     def _format_duration(seconds: float) -> str:
@@ -823,15 +869,13 @@ class AnomalyPatternDetector:
             hours = seconds / 3600
             return f"{hours:.1f}h"
 
-    def _store_daily_aggregates(
-        self, patterns: list[dict], events: pd.DataFrame
-    ) -> None:
+    def _store_daily_aggregates(self, patterns: list[dict], events: pd.DataFrame) -> None:
         """Store daily aggregates to InfluxDB."""
         try:
-            if events.empty or 'timestamp' not in events.columns:
+            if events.empty or "timestamp" not in events.columns:
                 return
 
-            date = events['timestamp'].min().date()
+            date = events["timestamp"].min().date()
             date_str = date.strftime("%Y-%m-%d")
 
             logger.info(f"Storing {len(patterns)} anomaly aggregates for {date_str}")
@@ -840,16 +884,15 @@ class AnomalyPatternDetector:
                 try:
                     self.aggregate_client.write_anomaly_daily(
                         date=date_str,
-                        device_id=pattern['device_id'],
-                        anomaly_type=pattern['anomaly_type'],
-                        severity=pattern['severity'],
-                        confidence=pattern['confidence'],
-                        z_score=pattern['z_score'],
+                        device_id=pattern["device_id"],
+                        anomaly_type=pattern["anomaly_type"],
+                        severity=pattern["severity"],
+                        confidence=pattern["confidence"],
+                        z_score=pattern["z_score"],
                     )
                 except Exception as e:
                     logger.error(
-                        f"Failed to store aggregate for {pattern['device_id']}: {e}",
-                        exc_info=True
+                        f"Failed to store aggregate for {pattern['device_id']}: {e}", exc_info=True
                     )
 
         except Exception as e:
@@ -859,30 +902,30 @@ class AnomalyPatternDetector:
         """Get summary statistics for detected anomalies."""
         if not patterns:
             return {
-                'total_anomalies': 0,
-                'unique_devices': 0,
-                'by_type': {},
-                'by_severity': {},
-                'avg_confidence': 0.0,
+                "total_anomalies": 0,
+                "unique_devices": 0,
+                "by_type": {},
+                "by_severity": {},
+                "avg_confidence": 0.0,
             }
 
-        unique_devices = len({p['device_id'] for p in patterns})
+        unique_devices = len({p["device_id"] for p in patterns})
 
         by_type = defaultdict(int)
         by_severity = defaultdict(int)
         for p in patterns:
-            by_type[p['anomaly_type']] += 1
-            by_severity[p['severity']] += 1
+            by_type[p["anomaly_type"]] += 1
+            by_severity[p["severity"]] += 1
 
         return {
-            'total_anomalies': len(patterns),
-            'unique_devices': unique_devices,
-            'by_type': dict(by_type),
-            'by_severity': dict(by_severity),
-            'avg_confidence': float(np.mean([p['confidence'] for p in patterns])),
-            'avg_z_score': float(np.mean([p['z_score'] for p in patterns])),
-            'critical_count': by_severity.get('critical', 0),
-            'high_count': by_severity.get('high', 0),
+            "total_anomalies": len(patterns),
+            "unique_devices": unique_devices,
+            "by_type": dict(by_type),
+            "by_severity": dict(by_severity),
+            "avg_confidence": float(np.mean([p["confidence"] for p in patterns])),
+            "avg_z_score": float(np.mean([p["z_score"] for p in patterns])),
+            "critical_count": by_severity.get("critical", 0),
+            "high_count": by_severity.get("high", 0),
         }
 
     def get_baselines(self) -> dict[str, dict]:
@@ -894,12 +937,12 @@ class AnomalyPatternDetector:
         """
         return {
             device_id: {
-                'total_events': b.total_events,
-                'avg_daily_count': b.avg_daily_count,
-                'std_daily_count': b.std_daily_count,
-                'typical_hours': list(b.typical_hours),
-                'avg_duration_seconds': b.avg_duration_seconds,
-                'baseline_days': b.baseline_days,
+                "total_events": b.total_events,
+                "avg_daily_count": b.avg_daily_count,
+                "std_daily_count": b.std_daily_count,
+                "typical_hours": list(b.typical_hours),
+                "avg_duration_seconds": b.avg_duration_seconds,
+                "baseline_days": b.baseline_days,
             }
             for device_id, b in self._baselines.items()
         }
@@ -919,67 +962,64 @@ class AnomalyPatternDetector:
         Returns:
             Automation suggestion dictionary
         """
-        if pattern.get('pattern_type') != 'anomaly':
+        if pattern.get("pattern_type") != "anomaly":
             logger.warning(f"Pattern type {pattern.get('pattern_type')} is not anomaly")
             return {}
 
-        device_id = pattern.get('device_id', '')
-        anomaly_type = pattern.get('anomaly_type', '')
-        severity = pattern.get('severity', 'low')
-        description = pattern.get('description', '')
+        device_id = pattern.get("device_id", "")
+        anomaly_type = pattern.get("anomaly_type", "")
+        severity = pattern.get("severity", "low")
+        description = pattern.get("description", "")
 
         if not device_id:
             return {}
 
-        notify_service = 'notify.notify'
-        if severity == 'critical':
-            notify_service = 'notify.mobile_app'
+        notify_service = "notify.notify"
+        if severity == "critical":
+            notify_service = "notify.mobile_app"
 
         suggestion = {
-            'automation_type': 'anomaly_alert',
-            'trigger': {
-                'platform': 'event',
-                'event_type': 'homeiq_anomaly',
-                'event_data': {
-                    'device_id': device_id,
-                    'anomaly_type': anomaly_type,
-                    'severity': severity,
+            "automation_type": "anomaly_alert",
+            "trigger": {
+                "platform": "event",
+                "event_type": "homeiq_anomaly",
+                "event_data": {
+                    "device_id": device_id,
+                    "anomaly_type": anomaly_type,
+                    "severity": severity,
                 },
             },
-            'action': {
-                'service': notify_service,
-                'data': {
-                    'title': f"Anomaly Detected: {device_id}",
-                    'message': description,
-                    'data': {
-                        'importance': 'high' if severity in ('critical', 'high') else 'default',
+            "action": {
+                "service": notify_service,
+                "data": {
+                    "title": f"Anomaly Detected: {device_id}",
+                    "message": description,
+                    "data": {
+                        "importance": "high" if severity in ("critical", "high") else "default",
                     },
                 },
             },
-            'confidence': pattern.get('confidence', 0.0),
-            'description': f"Alert on {anomaly_type} anomaly for {device_id}",
-            'device_id': device_id,
-            'requires_confirmation': False,
-            'safety_level': 'informational',
-            'safety_warnings': [],
-            'metadata': {
-                'source': 'anomaly_pattern',
-                'anomaly_type': anomaly_type,
-                'severity': severity,
-                'z_score': pattern.get('z_score', 0.0),
-            }
+            "confidence": pattern.get("confidence", 0.0),
+            "description": f"Alert on {anomaly_type} anomaly for {device_id}",
+            "device_id": device_id,
+            "requires_confirmation": False,
+            "safety_level": "informational",
+            "safety_warnings": [],
+            "metadata": {
+                "source": "anomaly_pattern",
+                "anomaly_type": anomaly_type,
+                "severity": severity,
+                "z_score": pattern.get("z_score", 0.0),
+            },
         }
 
         logger.info(
-            f"✅ Suggested anomaly alert: {anomaly_type} for {device_id} "
-            f"(severity={severity})"
+            f"✅ Suggested anomaly alert: {anomaly_type} for {device_id} (severity={severity})"
         )
 
         return suggestion
 
-    def get_anomalies_for_device(
-        self, patterns: list[dict], device_id: str
-    ) -> list[dict]:
+    def get_anomalies_for_device(self, patterns: list[dict], device_id: str) -> list[dict]:
         """
         Get all anomalies for a specific device.
 
@@ -990,10 +1030,10 @@ class AnomalyPatternDetector:
         Returns:
             List of anomaly patterns for the device.
         """
-        return [p for p in patterns if p['device_id'] == device_id]
+        return [p for p in patterns if p["device_id"] == device_id]
 
     def get_anomalies_by_severity(
-        self, patterns: list[dict], min_severity: str = 'medium'
+        self, patterns: list[dict], min_severity: str = "medium"
     ) -> list[dict]:
         """
         Get anomalies at or above a minimum severity level.
@@ -1005,10 +1045,7 @@ class AnomalyPatternDetector:
         Returns:
             List of anomaly patterns meeting severity threshold.
         """
-        severity_order = {'low': 0, 'medium': 1, 'high': 2, 'critical': 3}
+        severity_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
         min_level = severity_order.get(min_severity, 1)
 
-        return [
-            p for p in patterns
-            if severity_order.get(p['severity'], 0) >= min_level
-        ]
+        return [p for p in patterns if severity_order.get(p["severity"], 0) >= min_level]

@@ -5,6 +5,7 @@ Migrated from aiohttp to FastAPI with shared library pattern.
 """
 
 import asyncio
+import contextlib
 import logging
 import time
 from datetime import UTC, datetime
@@ -175,10 +176,8 @@ class AirQualityService:
 
         if self._background_task and not self._background_task.done():
             self._background_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._background_task
-            except asyncio.CancelledError:
-                pass
 
         if self.session:
             await self.session.close()
@@ -220,9 +219,7 @@ class AirQualityService:
     def _update_aqi_cache(self, data: dict[str, Any]) -> None:
         """Update cache and health metrics after a successful AQI fetch."""
         if self.last_category and self.last_category != data["category"]:
-            logger.warning(
-                "AQI category changed: %s -> %s", self.last_category, data["category"]
-            )
+            logger.warning("AQI category changed: %s -> %s", self.last_category, data["category"])
         self.last_category = data["category"]
         self.cached_data = data
         self.last_fetch_time = datetime.now(UTC)
@@ -239,7 +236,7 @@ class AirQualityService:
                 log_with_context(
                     logger,
                     "INFO",
-                    "Fetching AQI for location %s,%s" % (self.latitude, self.longitude),
+                    f"Fetching AQI for location {self.latitude},{self.longitude}",
                     service="air-quality-service",
                 )
 
@@ -438,9 +435,7 @@ async def get_current_aqi() -> dict:
             "co": service.cached_data.get("co", 0),
             "no2": service.cached_data.get("no2", 0),
             "so2": service.cached_data.get("so2", 0),
-            "timestamp": (
-                service.last_fetch_time.isoformat() if service.last_fetch_time else None
-            ),
+            "timestamp": (service.last_fetch_time.isoformat() if service.last_fetch_time else None),
         }
     from fastapi.responses import JSONResponse
 

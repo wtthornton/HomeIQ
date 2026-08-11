@@ -15,6 +15,7 @@ logger = logging.getLogger("ai-pattern-service")
 
 class DatabaseIntegrityError(Exception):
     """Raised when database integrity check fails"""
+
     pass
 
 
@@ -92,12 +93,7 @@ def is_database_corruption_error(error: Exception) -> bool:
     return any(indicator in error_str for indicator in serious_indicators)
 
 
-async def safe_database_query(
-    db: AsyncSession,
-    query_func,
-    *args,
-    **kwargs
-):
+async def safe_database_query(db: AsyncSession, query_func, *args, **kwargs):
     """
     Execute a database query with error handling.
 

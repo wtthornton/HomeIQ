@@ -47,7 +47,9 @@ class SimpleHTTPClient:
             else:
                 # Circuit is open - fail fast to prevent CPU overload
                 remaining_seconds = (self.circuit_open_until - datetime.now(UTC)).total_seconds()
-                logging.warning(f"Circuit breaker OPEN - skipping request (reopens in {remaining_seconds:.1f}s)")
+                logging.warning(
+                    f"Circuit breaker OPEN - skipping request (reopens in {remaining_seconds:.1f}s)"
+                )
                 self.failed_requests += 1
                 return False
 
@@ -59,7 +61,7 @@ class SimpleHTTPClient:
                 async with self.session.post(
                     f"{self.enrichment_url}/events",
                     json=event_data,
-                    timeout=aiohttp.ClientTimeout(total=5)
+                    timeout=aiohttp.ClientTimeout(total=5),
                 ) as response:
                     if response.status == 200:
                         # Success - reset circuit breaker
@@ -75,7 +77,7 @@ class SimpleHTTPClient:
 
             # Backoff between retries (exponential)
             if attempt < max_retries - 1:
-                await asyncio.sleep(1.0 * (2 ** attempt))  # 1s, 2s
+                await asyncio.sleep(1.0 * (2**attempt))  # 1s, 2s
 
         # All retries failed - increment failure counter
         self.consecutive_failures += 1
@@ -84,12 +86,18 @@ class SimpleHTTPClient:
         # Open circuit if too many consecutive failures
         if self.consecutive_failures >= self.max_consecutive_failures:
             self.circuit_open = True
-            self.circuit_open_until = datetime.now(UTC) + timedelta(seconds=self.circuit_reset_timeout)
-            logging.error(f"Circuit breaker OPENED after {self.consecutive_failures} consecutive failures "
-                         f"(will retry in {self.circuit_reset_timeout}s)")
+            self.circuit_open_until = datetime.now(UTC) + timedelta(
+                seconds=self.circuit_reset_timeout
+            )
+            logging.error(
+                f"Circuit breaker OPENED after {self.consecutive_failures} consecutive failures "
+                f"(will retry in {self.circuit_reset_timeout}s)"
+            )
         else:
-            logging.error(f"Failed to send event after {max_retries} attempts "
-                         f"({self.consecutive_failures}/{self.max_consecutive_failures} consecutive failures)")
+            logging.error(
+                f"Failed to send event after {max_retries} attempts "
+                f"({self.consecutive_failures}/{self.max_consecutive_failures} consecutive failures)"
+            )
 
         return False
 
@@ -99,10 +107,14 @@ class SimpleHTTPClient:
             "total_requests": self.total_requests,
             "successful_requests": self.successful_requests,
             "failed_requests": self.failed_requests,
-            "success_rate": (self.successful_requests / self.total_requests * 100) if self.total_requests > 0 else 0,
+            "success_rate": (self.successful_requests / self.total_requests * 100)
+            if self.total_requests > 0
+            else 0,
             "circuit_breaker": {
                 "is_open": self.circuit_open,
                 "consecutive_failures": self.consecutive_failures,
-                "reopens_at": self.circuit_open_until.isoformat() if self.circuit_open_until else None
-            }
+                "reopens_at": self.circuit_open_until.isoformat()
+                if self.circuit_open_until
+                else None,
+            },
         }

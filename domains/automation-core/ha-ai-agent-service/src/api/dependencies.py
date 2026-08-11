@@ -114,4 +114,3 @@ def get_llm_router() -> LLMRouter | None:
 def get_memory_extractor() -> Any | None:
     """Get memory extractor instance (may be None if disabled)"""
     return _memory_extractor
-

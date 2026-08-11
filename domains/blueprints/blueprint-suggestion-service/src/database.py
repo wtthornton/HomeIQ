@@ -54,7 +54,8 @@ async def run_alembic_migrations():
         logger.info("Running Alembic migrations...")
         # Run in subprocess to isolate asyncpg driver issues from main process
         proc = await asyncio.create_subprocess_exec(
-            "python", "-c",
+            "python",
+            "-c",
             f"from alembic.config import Config; from alembic import command; "
             f"command.upgrade(Config('{alembic_ini_path}'), 'head')",
             stdout=asyncio.subprocess.PIPE,
@@ -71,8 +72,9 @@ async def run_alembic_migrations():
             logger.info("Alembic migrations completed")
             return True
         else:
-            logger.warning("Alembic migrations failed (exit %d): %s",
-                           proc.returncode, stderr.decode()[:500])
+            logger.warning(
+                "Alembic migrations failed (exit %d): %s", proc.returncode, stderr.decode()[:500]
+            )
             return False
     except Exception as e:
         logger.error("Failed to run Alembic migrations: %s", e, exc_info=True)
@@ -83,30 +85,46 @@ async def run_alembic_migrations():
 async def _run_manual_migrations(conn):
     """Fallback: Run manual database migrations to add missing columns."""
     logger.info("Running PostgreSQL manual migrations...")
-    await conn.execute(text("""
+    await conn.execute(
+        text("""
         ALTER TABLE blueprint_suggestions
         ADD COLUMN IF NOT EXISTS blueprint_name VARCHAR(255)
-    """))
-    await conn.execute(text("""
+    """)
+    )
+    await conn.execute(
+        text("""
         ALTER TABLE blueprint_suggestions
         ADD COLUMN IF NOT EXISTS blueprint_description TEXT
-    """))
+    """)
+    )
     logger.info("PostgreSQL manual migrations completed")
 
 
 async def check_schema_version(db_session: AsyncSession) -> bool:
     """Check if database schema matches the model."""
     try:
-        result = await db_session.execute(text("""
+        result = await db_session.execute(
+            text("""
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = 'blueprint_suggestions'
-        """))
+        """)
+        )
         columns = {row[0] for row in result.fetchall()}
         required_columns = {
-            "id", "blueprint_id", "blueprint_name", "blueprint_description",
-            "suggestion_score", "matched_devices", "use_case", "status",
-            "created_at", "updated_at", "accepted_at", "declined_at", "conversation_id"
+            "id",
+            "blueprint_id",
+            "blueprint_name",
+            "blueprint_description",
+            "suggestion_score",
+            "matched_devices",
+            "use_case",
+            "status",
+            "created_at",
+            "updated_at",
+            "accepted_at",
+            "declined_at",
+            "conversation_id",
         }
         return required_columns.issubset(columns)
     except Exception as e:

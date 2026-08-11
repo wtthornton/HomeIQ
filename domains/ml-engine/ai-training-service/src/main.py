@@ -18,6 +18,7 @@ logger = setup_logging("ai-training-service", group_name="ml-engine")
 # Lifespan
 # ---------------------------------------------------------------------------
 
+
 async def _startup_db() -> None:
     """Initialize database connection."""
     db_ok = await init_db()

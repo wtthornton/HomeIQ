@@ -87,4 +87,3 @@ def test_environment_health_includes_check_details() -> None:
             app.state.__dict__.pop("monitor", None)
         else:
             app.state.monitor = previous_monitor
-

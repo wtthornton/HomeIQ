@@ -101,7 +101,10 @@ class LinterClient:
                 passed = error_count == 0
                 logger.info(
                     "Lint result: passed=%s, errors=%d, warnings=%d, info=%d",
-                    passed, error_count, warning_count, info_count,
+                    passed,
+                    error_count,
+                    warning_count,
+                    info_count,
                 )
 
                 return LintResult(

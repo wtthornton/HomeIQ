@@ -5,17 +5,20 @@ Epic A2: WebSocket client with auth, resubscribe, heartbeat, metrics
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 import random
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import websockets
-from websockets.client import WebSocketClientProtocol
 
 from ..config import settings
+
+if TYPE_CHECKING:
+    from websockets.client import WebSocketClientProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +40,7 @@ class HAWebSocketClient:
         ha_url: str | None = None,
         access_token: str | None = None,
         ping_interval: int = 20,
-        ping_timeout: int = 10
+        ping_timeout: int = 10,
     ):
         """
         Initialize HA WebSocket client.
@@ -54,15 +57,15 @@ class HAWebSocketClient:
         self.ping_timeout = ping_timeout
 
         # Ensure WebSocket URL format
-        if self.ha_url.startswith('http://'):
-            self.ha_url = self.ha_url.replace('http://', 'ws://')
-        elif self.ha_url.startswith('https://'):
-            self.ha_url = self.ha_url.replace('https://', 'wss://')
+        if self.ha_url.startswith("http://"):
+            self.ha_url = self.ha_url.replace("http://", "ws://")
+        elif self.ha_url.startswith("https://"):
+            self.ha_url = self.ha_url.replace("https://", "wss://")
 
-        if not self.ha_url.endswith('/api/websocket'):
-            if not self.ha_url.endswith('/'):
-                self.ha_url += '/'
-            self.ha_url += 'api/websocket'
+        if not self.ha_url.endswith("/api/websocket"):
+            if not self.ha_url.endswith("/"):
+                self.ha_url += "/"
+            self.ha_url += "api/websocket"
 
         # Connection state
         self.websocket: WebSocketClientProtocol | None = None
@@ -116,7 +119,7 @@ class HAWebSocketClient:
                 self.ha_url,
                 ping_interval=None,  # We'll handle ping manually
                 ping_timeout=None,
-                close_timeout=10
+                close_timeout=10,
             )
 
             # Wait for auth_required message
@@ -129,10 +132,7 @@ class HAWebSocketClient:
                 return False
 
             # Send authentication
-            auth_message = {
-                "type": "auth",
-                "access_token": self.access_token
-            }
+            auth_message = {"type": "auth", "access_token": self.access_token}
             await self.websocket.send(json.dumps(auth_message))
 
             # Wait for auth_ok
@@ -174,17 +174,13 @@ class HAWebSocketClient:
 
         if self._receive_task:
             self._receive_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._receive_task
-            except asyncio.CancelledError:
-                pass
 
         if self._ping_task:
             self._ping_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._ping_task
-            except asyncio.CancelledError:
-                pass
 
         if self.websocket:
             await self.websocket.close()
@@ -212,7 +208,9 @@ class HAWebSocketClient:
             jitter = random.uniform(0, reconnect_delay * 0.3)
             delay = reconnect_delay + jitter
 
-            logger.info(f"Reconnect attempt {attempt + 1}/{settings.ws_max_reconnect_attempts} in {delay:.2f}s")
+            logger.info(
+                f"Reconnect attempt {attempt + 1}/{settings.ws_max_reconnect_attempts} in {delay:.2f}s"
+            )
             await asyncio.sleep(delay)
 
             start_time = time.time()
@@ -229,9 +227,7 @@ class HAWebSocketClient:
         return False
 
     async def subscribe_events(
-        self,
-        event_type: str | None = None,
-        handler: Callable | None = None
+        self, event_type: str | None = None, handler: Callable | None = None
     ) -> int:
         """
         Subscribe to HA events.
@@ -275,10 +271,7 @@ class HAWebSocketClient:
         try:
             while self._running and self.websocket:
                 try:
-                    message = await asyncio.wait_for(
-                        self.websocket.recv(),
-                        timeout=1.0
-                    )
+                    message = await asyncio.wait_for(self.websocket.recv(), timeout=1.0)
                     await self._handle_message(message)
                 except TimeoutError:
                     continue
@@ -340,10 +333,7 @@ class HAWebSocketClient:
                     try:
                         # Send ping via HA ping message
                         ping_id = self._next_id()
-                        ping_message = {
-                            "id": ping_id,
-                            "type": "ping"
-                        }
+                        ping_message = {"id": ping_id, "type": "ping"}
                         await self.websocket.send(json.dumps(ping_message))
                         logger.debug("Sent ping")
                     except Exception as e:
@@ -358,7 +348,8 @@ class HAWebSocketClient:
         """Get WebSocket connection metrics"""
         avg_reconnect_latency = (
             sum(self.reconnect_latencies) / len(self.reconnect_latencies)
-            if self.reconnect_latencies else 0.0
+            if self.reconnect_latencies
+            else 0.0
         )
 
         return {

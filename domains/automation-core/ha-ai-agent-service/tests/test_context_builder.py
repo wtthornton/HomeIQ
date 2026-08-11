@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from src.config import Settings
 from src.services.context_builder import ContextBuilder
 
@@ -14,7 +15,7 @@ def mock_settings():
         ha_url="http://test-ha:8123",
         ha_access_token="test-token",
         data_api_url="http://test-data-api:8006",
-        device_intelligence_url="http://test-device-intel:8028"
+        device_intelligence_url="http://test-device-intel:8028",
     )
 
 
@@ -47,14 +48,10 @@ async def test_build_context_success(context_builder):
     )
 
     context_builder._areas_service = MagicMock()
-    context_builder._areas_service.get_areas_list = AsyncMock(
-        return_value="Office, Kitchen, Bedroom"
-    )
+    context_builder._areas_service.get_areas_list = AsyncMock(return_value="Office, Kitchen, Bedroom")
 
     context_builder._services_summary_service = MagicMock()
-    context_builder._services_summary_service.get_summary = AsyncMock(
-        return_value="light.turn_on, light.turn_off"
-    )
+    context_builder._services_summary_service.get_summary = AsyncMock(return_value="light.turn_on, light.turn_off")
 
     context_builder._capability_patterns_service = MagicMock()
     context_builder._capability_patterns_service.get_patterns = AsyncMock(
@@ -62,9 +59,7 @@ async def test_build_context_success(context_builder):
     )
 
     context_builder._helpers_scenes_service = MagicMock()
-    context_builder._helpers_scenes_service.get_summary = AsyncMock(
-        return_value="input_boolean: automation_enabled"
-    )
+    context_builder._helpers_scenes_service.get_summary = AsyncMock(return_value="input_boolean: automation_enabled")
 
     context_builder._initialized = True
 
@@ -83,29 +78,19 @@ async def test_build_context_with_errors(context_builder):
     """Test building context when some services fail"""
     # Mock services with some failures
     context_builder._entity_inventory_service = MagicMock()
-    context_builder._entity_inventory_service.get_summary = AsyncMock(
-        return_value="Light: 5 entities"
-    )
+    context_builder._entity_inventory_service.get_summary = AsyncMock(return_value="Light: 5 entities")
 
     context_builder._areas_service = MagicMock()
-    context_builder._areas_service.get_areas_list = AsyncMock(
-        side_effect=Exception("Service error")
-    )
+    context_builder._areas_service.get_areas_list = AsyncMock(side_effect=Exception("Service error"))
 
     context_builder._services_summary_service = MagicMock()
-    context_builder._services_summary_service.get_summary = AsyncMock(
-        return_value="light.turn_on"
-    )
+    context_builder._services_summary_service.get_summary = AsyncMock(return_value="light.turn_on")
 
     context_builder._capability_patterns_service = MagicMock()
-    context_builder._capability_patterns_service.get_patterns = AsyncMock(
-        side_effect=Exception("Service error")
-    )
+    context_builder._capability_patterns_service.get_patterns = AsyncMock(side_effect=Exception("Service error"))
 
     context_builder._helpers_scenes_service = MagicMock()
-    context_builder._helpers_scenes_service.get_summary = AsyncMock(
-        return_value="input_boolean: test"
-    )
+    context_builder._helpers_scenes_service.get_summary = AsyncMock(return_value="input_boolean: test")
 
     context_builder._initialized = True
 
@@ -140,9 +125,7 @@ async def test_build_complete_system_prompt(context_builder):
     """Test building complete system prompt with context"""
     # Mock build_context
     context_builder._initialized = True
-    context_builder.build_context = AsyncMock(
-        return_value="HOME ASSISTANT CONTEXT:\nENTITY INVENTORY:\nLight: 5"
-    )
+    context_builder.build_context = AsyncMock(return_value="HOME ASSISTANT CONTEXT:\nENTITY INVENTORY:\nLight: 5")
 
     complete_prompt = await context_builder.build_complete_system_prompt()
 
@@ -227,4 +210,3 @@ async def test_close(context_builder):
     context_builder._services_summary_service.close.assert_called_once()
     context_builder._capability_patterns_service.close.assert_called_once()
     context_builder._helpers_scenes_service.close.assert_called_once()
-

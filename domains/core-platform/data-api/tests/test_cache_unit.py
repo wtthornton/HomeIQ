@@ -8,7 +8,6 @@ from src.cache import SimpleCache
 
 
 class TestSimpleCache:
-
     @pytest.mark.asyncio
     async def test_set_and_get(self):
         cache = SimpleCache(default_ttl=300)

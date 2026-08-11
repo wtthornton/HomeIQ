@@ -46,7 +46,9 @@ def client_with_mock_deployment_service(client):
     mock_svc.rollback_automation = AsyncMock(
         return_value={"automation_id": "test-automation-123", "status": "rolled_back"}
     )
-    mock_svc.get_automation_versions = AsyncMock(return_value=[])  # router wraps as {versions: [...]}
+    mock_svc.get_automation_versions = AsyncMock(
+        return_value=[]
+    )  # router wraps as {versions: [...]}
     app.dependency_overrides[get_deployment_service] = lambda: mock_svc
     yield client
     app.dependency_overrides.pop(get_deployment_service, None)

@@ -7,37 +7,37 @@ Story 85.9 + expanded coverage for override detection, pattern aggregation,
 confidence calculation, drift detection, routine synthesis, and metrics.
 """
 
-import pytest
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.jobs.memory_consolidation import (
     ANALYSIS_WINDOW_DAYS,
     CONSOLIDATION_CYCLE_HOURS,
-    ConsolidationAction,
-    ConsolidationMetrics,
-    DetectedOverride,
-    DetectedUsagePattern,
     METRICS_MEASUREMENT,
-    MemoryConsolidationJob,
     OVERRIDE_THRESHOLD,
     OVERRIDE_WINDOW_MINUTES,
     PATTERN_DRIFT_THRESHOLD_MINUTES,
     PATTERN_MIN_DAYS,
     PATTERN_MIN_OCCURRENCES,
     PATTERN_WINDOW_MINUTES,
-    PatternDrift,
     ROUTINE_LABELS,
     ROUTINE_MIN_SAMPLES,
     ROUTINE_SYNTHESIS_DAYS,
     ROUTINE_TIME_SHIFT_THRESHOLD_MINUTES,
+    ConsolidationAction,
+    ConsolidationMetrics,
+    DetectedOverride,
+    DetectedUsagePattern,
+    MemoryConsolidationJob,
+    PatternDrift,
     RoutineProfile,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _mock_influxdb(connected: bool = True, bucket: str = "homeiq") -> MagicMock:
     """Create a mock InfluxDB query client."""
@@ -110,8 +110,8 @@ def _make_pattern_event(entity_id: str, state: str, time: datetime) -> dict:
 # ConsolidationAction enum
 # ---------------------------------------------------------------------------
 
-class TestConsolidationAction:
 
+class TestConsolidationAction:
     @pytest.mark.unit
     def test_insert_value(self):
         assert ConsolidationAction.INSERT.value == "insert"
@@ -142,8 +142,8 @@ class TestConsolidationAction:
 # ConsolidationMetrics dataclass
 # ---------------------------------------------------------------------------
 
-class TestConsolidationMetrics:
 
+class TestConsolidationMetrics:
     @pytest.mark.unit
     def test_creation_defaults(self):
         now = datetime.now(UTC)
@@ -203,11 +203,21 @@ class TestConsolidationMetrics:
         m = ConsolidationMetrics(started_at=datetime.now(UTC))
         d = m.to_dict()
         expected_keys = {
-            "started_at", "completed_at", "memories_created",
-            "memories_reinforced", "memories_superseded", "memories_archived",
-            "overrides_detected", "patterns_detected", "pattern_drifts_detected",
-            "contradictions_found", "garbage_collected", "routines_synthesized",
-            "error", "duration_ms", "success",
+            "started_at",
+            "completed_at",
+            "memories_created",
+            "memories_reinforced",
+            "memories_superseded",
+            "memories_archived",
+            "overrides_detected",
+            "patterns_detected",
+            "pattern_drifts_detected",
+            "contradictions_found",
+            "garbage_collected",
+            "routines_synthesized",
+            "error",
+            "duration_ms",
+            "success",
         }
         assert set(d.keys()) == expected_keys
 
@@ -216,8 +226,8 @@ class TestConsolidationMetrics:
 # DetectedUsagePattern dataclass
 # ---------------------------------------------------------------------------
 
-class TestDetectedUsagePattern:
 
+class TestDetectedUsagePattern:
     @pytest.mark.unit
     def test_creation(self):
         p = DetectedUsagePattern(
@@ -260,24 +270,36 @@ class TestDetectedUsagePattern:
     def test_pattern_key_same_window_dedup(self):
         """Same 30-min window produces same key."""
         p1 = DetectedUsagePattern(
-            entity_id="light.kitchen", state="on",
-            hour_of_day=7, minute_window_start=0, occurrence_count=10,
+            entity_id="light.kitchen",
+            state="on",
+            hour_of_day=7,
+            minute_window_start=0,
+            occurrence_count=10,
         )
         p2 = DetectedUsagePattern(
-            entity_id="light.kitchen", state="on",
-            hour_of_day=7, minute_window_start=15, occurrence_count=10,
+            entity_id="light.kitchen",
+            state="on",
+            hour_of_day=7,
+            minute_window_start=15,
+            occurrence_count=10,
         )
         assert p1.pattern_key() == p2.pattern_key()
 
     @pytest.mark.unit
     def test_pattern_key_different_entities(self):
         p1 = DetectedUsagePattern(
-            entity_id="light.kitchen", state="on",
-            hour_of_day=7, minute_window_start=0, occurrence_count=10,
+            entity_id="light.kitchen",
+            state="on",
+            hour_of_day=7,
+            minute_window_start=0,
+            occurrence_count=10,
         )
         p2 = DetectedUsagePattern(
-            entity_id="light.bedroom", state="on",
-            hour_of_day=7, minute_window_start=0, occurrence_count=10,
+            entity_id="light.bedroom",
+            state="on",
+            hour_of_day=7,
+            minute_window_start=0,
+            occurrence_count=10,
         )
         assert p1.pattern_key() != p2.pattern_key()
 
@@ -286,8 +308,8 @@ class TestDetectedUsagePattern:
 # PatternDrift dataclass
 # ---------------------------------------------------------------------------
 
-class TestPatternDrift:
 
+class TestPatternDrift:
     @pytest.mark.unit
     def test_creation(self):
         d = PatternDrift(
@@ -320,8 +342,8 @@ class TestPatternDrift:
 # RoutineProfile dataclass
 # ---------------------------------------------------------------------------
 
-class TestRoutineProfile:
 
+class TestRoutineProfile:
     @pytest.mark.unit
     def test_creation(self):
         r = RoutineProfile(
@@ -360,8 +382,8 @@ class TestRoutineProfile:
 # DetectedOverride dataclass
 # ---------------------------------------------------------------------------
 
-class TestDetectedOverride:
 
+class TestDetectedOverride:
     @pytest.mark.unit
     def test_creation(self):
         now = datetime.now(UTC)
@@ -395,8 +417,8 @@ class TestDetectedOverride:
 # Constants validation
 # ---------------------------------------------------------------------------
 
-class TestConstants:
 
+class TestConstants:
     @pytest.mark.unit
     def test_override_window(self):
         assert OVERRIDE_WINDOW_MINUTES == 15
@@ -454,8 +476,8 @@ class TestConstants:
 # MemoryConsolidationJob initialization
 # ---------------------------------------------------------------------------
 
-class TestJobInit:
 
+class TestJobInit:
     @pytest.mark.unit
     def test_init_with_influx_only(self):
         influx = _mock_influxdb()
@@ -493,8 +515,8 @@ class TestJobInit:
 # run() method
 # ---------------------------------------------------------------------------
 
-class TestJobRun:
 
+class TestJobRun:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_run_success_no_consolidator(self):
@@ -530,9 +552,7 @@ class TestJobRun:
     async def test_run_error_handling(self):
         """run() catches exceptions and records them in metrics."""
         job, influx = _make_job(connected=True)
-        job._load_existing_pattern_memories = AsyncMock(
-            side_effect=RuntimeError("boom")
-        )
+        job._load_existing_pattern_memories = AsyncMock(side_effect=RuntimeError("boom"))
         metrics = await job.run()
         assert metrics.error == "boom"
         assert metrics.completed_at is not None
@@ -582,8 +602,8 @@ class TestJobRun:
 # Override detection
 # ---------------------------------------------------------------------------
 
-class TestOverrideDetection:
 
+class TestOverrideDetection:
     @pytest.mark.unit
     def test_match_overrides_within_window(self):
         """Manual change within 15 min of automation = override."""
@@ -734,16 +754,15 @@ class TestOverrideDetection:
 # Usage pattern detection
 # ---------------------------------------------------------------------------
 
-class TestUsagePatternDetection:
 
+class TestUsagePatternDetection:
     @pytest.mark.unit
     def test_aggregate_patterns_basic(self):
         """Events at same time/entity/state group into one pattern."""
         job, _ = _make_job()
         base = datetime(2026, 1, 1, 7, 10, tzinfo=UTC)
         events = [
-            _make_pattern_event("light.kitchen", "on", base + timedelta(days=i))
-            for i in range(15)
+            _make_pattern_event("light.kitchen", "on", base + timedelta(days=i)) for i in range(15)
         ]
         patterns = job._aggregate_patterns(events)
         assert len(patterns) == 1
@@ -758,10 +777,13 @@ class TestUsagePatternDetection:
         job, _ = _make_job()
         base_morning = datetime(2026, 1, 1, 7, 10, tzinfo=UTC)
         base_evening = datetime(2026, 1, 1, 19, 10, tzinfo=UTC)
-        events = (
-            [_make_pattern_event("light.kitchen", "on", base_morning + timedelta(days=i)) for i in range(10)]
-            + [_make_pattern_event("light.kitchen", "on", base_evening + timedelta(days=i)) for i in range(10)]
-        )
+        events = [
+            _make_pattern_event("light.kitchen", "on", base_morning + timedelta(days=i))
+            for i in range(10)
+        ] + [
+            _make_pattern_event("light.kitchen", "on", base_evening + timedelta(days=i))
+            for i in range(10)
+        ]
         patterns = job._aggregate_patterns(events)
         assert len(patterns) == 2
 
@@ -782,9 +804,12 @@ class TestUsagePatternDetection:
         """Patterns meeting both criteria pass the filter."""
         job, _ = _make_job()
         p = DetectedUsagePattern(
-            entity_id="light.kitchen", state="on",
-            hour_of_day=7, minute_window_start=0,
-            occurrence_count=10, days_span=14,
+            entity_id="light.kitchen",
+            state="on",
+            hour_of_day=7,
+            minute_window_start=0,
+            occurrence_count=10,
+            days_span=14,
         )
         result = job._filter_patterns_by_criteria({"k": p})
         assert len(result) == 1
@@ -794,9 +819,12 @@ class TestUsagePatternDetection:
         """Patterns below min occurrences are filtered out."""
         job, _ = _make_job()
         p = DetectedUsagePattern(
-            entity_id="light.kitchen", state="on",
-            hour_of_day=7, minute_window_start=0,
-            occurrence_count=9, days_span=14,
+            entity_id="light.kitchen",
+            state="on",
+            hour_of_day=7,
+            minute_window_start=0,
+            occurrence_count=9,
+            days_span=14,
         )
         result = job._filter_patterns_by_criteria({"k": p})
         assert len(result) == 0
@@ -806,9 +834,12 @@ class TestUsagePatternDetection:
         """Patterns below min days are filtered out."""
         job, _ = _make_job()
         p = DetectedUsagePattern(
-            entity_id="light.kitchen", state="on",
-            hour_of_day=7, minute_window_start=0,
-            occurrence_count=10, days_span=13,
+            entity_id="light.kitchen",
+            state="on",
+            hour_of_day=7,
+            minute_window_start=0,
+            occurrence_count=10,
+            days_span=13,
         )
         result = job._filter_patterns_by_criteria({"k": p})
         assert len(result) == 0
@@ -819,8 +850,7 @@ class TestUsagePatternDetection:
         job, _ = _make_job()
         base = datetime(2026, 1, 1, 7, 10, tzinfo=UTC)
         events = [
-            _make_pattern_event("light.kitchen", "on", base + timedelta(days=i))
-            for i in range(20)
+            _make_pattern_event("light.kitchen", "on", base + timedelta(days=i)) for i in range(20)
         ]
         patterns = job._aggregate_patterns(events)
         p = list(patterns.values())[0]
@@ -832,8 +862,7 @@ class TestUsagePatternDetection:
         job, _ = _make_job()
         base = datetime(2026, 1, 1, 7, 10, tzinfo=UTC)
         events = [
-            _make_pattern_event("light.kitchen", "on", base + timedelta(days=i))
-            for i in range(10)
+            _make_pattern_event("light.kitchen", "on", base + timedelta(days=i)) for i in range(10)
         ]
         patterns = job._aggregate_patterns(events)
         p = list(patterns.values())[0]
@@ -846,9 +875,12 @@ class TestUsagePatternDetection:
         """Patterns already in existing memories are removed."""
         job, _ = _make_job()
         p = DetectedUsagePattern(
-            entity_id="light.kitchen", state="on",
-            hour_of_day=7, minute_window_start=0,
-            occurrence_count=10, days_span=14,
+            entity_id="light.kitchen",
+            state="on",
+            hour_of_day=7,
+            minute_window_start=0,
+            occurrence_count=10,
+            days_span=14,
         )
         job._existing_pattern_memories["light.kitchen:on:7:0"] = {"id": "existing"}
         result = job._deduplicate_patterns([p])
@@ -859,9 +891,12 @@ class TestUsagePatternDetection:
         """Patterns not in existing memories are kept."""
         job, _ = _make_job()
         p = DetectedUsagePattern(
-            entity_id="light.kitchen", state="on",
-            hour_of_day=7, minute_window_start=0,
-            occurrence_count=10, days_span=14,
+            entity_id="light.kitchen",
+            state="on",
+            hour_of_day=7,
+            minute_window_start=0,
+            occurrence_count=10,
+            days_span=14,
         )
         result = job._deduplicate_patterns([p])
         assert len(result) == 1
@@ -888,8 +923,8 @@ class TestUsagePatternDetection:
 # Pattern drift detection
 # ---------------------------------------------------------------------------
 
-class TestPatternDriftDetection:
 
+class TestPatternDriftDetection:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_no_existing_memories_no_drift(self):
@@ -907,9 +942,12 @@ class TestPatternDriftDetection:
         influx._execute_query.return_value = []
 
         new_pattern = DetectedUsagePattern(
-            entity_id="light.kitchen", state="on",
-            hour_of_day=9, minute_window_start=0,
-            occurrence_count=15, days_span=14,
+            entity_id="light.kitchen",
+            state="on",
+            hour_of_day=9,
+            minute_window_start=0,
+            occurrence_count=15,
+            days_span=14,
         )
         drifts = await job._detect_pattern_drift([new_pattern])
         assert len(drifts) == 1
@@ -925,9 +963,12 @@ class TestPatternDriftDetection:
         influx._execute_query.return_value = []
 
         new_pattern = DetectedUsagePattern(
-            entity_id="light.kitchen", state="on",
-            hour_of_day=7, minute_window_start=30,
-            occurrence_count=15, days_span=14,
+            entity_id="light.kitchen",
+            state="on",
+            hour_of_day=7,
+            minute_window_start=30,
+            occurrence_count=15,
+            days_span=14,
         )
         drifts = await job._detect_pattern_drift([new_pattern])
         assert len(drifts) == 0
@@ -943,9 +984,12 @@ class TestPatternDriftDetection:
 
         # Pattern at 01:00 (only 120 min difference, not 1320)
         new_pattern = DetectedUsagePattern(
-            entity_id="light.kitchen", state="on",
-            hour_of_day=1, minute_window_start=0,
-            occurrence_count=15, days_span=14,
+            entity_id="light.kitchen",
+            state="on",
+            hour_of_day=1,
+            minute_window_start=0,
+            occurrence_count=15,
+            days_span=14,
         )
         drifts = await job._detect_pattern_drift([new_pattern])
         assert len(drifts) == 1
@@ -956,8 +1000,8 @@ class TestPatternDriftDetection:
 # Consolidation logic
 # ---------------------------------------------------------------------------
 
-class TestConsolidateOverrides:
 
+class TestConsolidateOverrides:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_no_consolidator_returns_zero(self):
@@ -995,7 +1039,6 @@ class TestConsolidateOverrides:
 
 
 class TestConsolidatePatterns:
-
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_no_consolidator_returns_zero(self):
@@ -1023,7 +1066,6 @@ class TestConsolidatePatterns:
 
 
 class TestUpdateDriftedPatterns:
-
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_no_consolidator_returns_zero(self):
@@ -1058,8 +1100,8 @@ class TestUpdateDriftedPatterns:
 # Routine synthesis
 # ---------------------------------------------------------------------------
 
-class TestRoutineSynthesis:
 
+class TestRoutineSynthesis:
     @pytest.mark.unit
     def test_should_run_routine_synthesis_first_time_sunday(self):
         """First run on Sunday triggers synthesis."""
@@ -1106,8 +1148,12 @@ class TestRoutineSynthesis:
         """Profile returns None with fewer than ROUTINE_MIN_SAMPLES days."""
         job, _ = _make_job()
         base = datetime(2026, 1, 1, 7, 0, tzinfo=UTC)
-        events = {"waking": [base + timedelta(days=i) for i in range(3)],
-                  "leaving": [], "arriving": [], "sleeping": []}
+        events = {
+            "waking": [base + timedelta(days=i) for i in range(3)],
+            "leaving": [],
+            "arriving": [],
+            "sleeping": [],
+        }
         result = job._build_profile("weekday", events)
         assert result is None
 
@@ -1204,8 +1250,8 @@ class TestRoutineSynthesis:
 # Routine shift detection
 # ---------------------------------------------------------------------------
 
-class TestRoutineShiftDetection:
 
+class TestRoutineShiftDetection:
     @pytest.mark.unit
     def test_detect_routine_shift_significant(self):
         """Shift >= 30 min detected."""
@@ -1213,8 +1259,11 @@ class TestRoutineShiftDetection:
         profile = RoutineProfile(
             day_type="weekday",
             wake_time="08:00",
-            leave_time=None, return_time=None, sleep_time=None,
-            confidence=0.8, sample_days=10,
+            leave_time=None,
+            return_time=None,
+            sleep_time=None,
+            confidence=0.8,
+            sample_days=10,
         )
         existing = {"content": "Weekday: wake 06:30, leave 08:00, sleep 22:00"}
         assert job._detect_routine_shift(profile, existing) is True
@@ -1226,8 +1275,11 @@ class TestRoutineShiftDetection:
         profile = RoutineProfile(
             day_type="weekday",
             wake_time="06:50",
-            leave_time=None, return_time=None, sleep_time=None,
-            confidence=0.8, sample_days=10,
+            leave_time=None,
+            return_time=None,
+            sleep_time=None,
+            confidence=0.8,
+            sample_days=10,
         )
         existing = {"content": "Weekday: wake 06:30, sleep 22:00"}
         assert job._detect_routine_shift(profile, existing) is False
@@ -1239,8 +1291,11 @@ class TestRoutineShiftDetection:
         profile = RoutineProfile(
             day_type="weekday",
             wake_time="08:00",
-            leave_time=None, return_time=None, sleep_time=None,
-            confidence=0.8, sample_days=10,
+            leave_time=None,
+            return_time=None,
+            sleep_time=None,
+            confidence=0.8,
+            sample_days=10,
         )
         existing = {"content": "Weekday: leave 08:00, sleep 22:00"}
         assert job._detect_routine_shift(profile, existing) is False
@@ -1251,9 +1306,12 @@ class TestRoutineShiftDetection:
         job, _ = _make_job()
         profile = RoutineProfile(
             day_type="weekday",
-            wake_time=None, leave_time=None, return_time=None,
+            wake_time=None,
+            leave_time=None,
+            return_time=None,
             sleep_time="00:30",
-            confidence=0.8, sample_days=10,
+            confidence=0.8,
+            sample_days=10,
         )
         existing = {"content": "Weekday: sleep 23:00"}
         assert job._detect_routine_shift(profile, existing) is True
@@ -1264,8 +1322,12 @@ class TestRoutineShiftDetection:
         job, _ = _make_job()
         profile = RoutineProfile(
             day_type="weekday",
-            wake_time=None, leave_time=None, return_time=None, sleep_time=None,
-            confidence=0.5, sample_days=5,
+            wake_time=None,
+            leave_time=None,
+            return_time=None,
+            sleep_time=None,
+            confidence=0.5,
+            sample_days=5,
         )
         existing = {"content": "Weekday: wake 06:30, sleep 22:00"}
         assert job._detect_routine_shift(profile, existing) is False
@@ -1275,8 +1337,8 @@ class TestRoutineShiftDetection:
 # Metrics history
 # ---------------------------------------------------------------------------
 
-class TestMetricsHistory:
 
+class TestMetricsHistory:
     @pytest.mark.unit
     def test_add_to_history(self):
         job, _ = _make_job()
@@ -1326,8 +1388,8 @@ class TestMetricsHistory:
 # get_status
 # ---------------------------------------------------------------------------
 
-class TestGetStatus:
 
+class TestGetStatus:
     @pytest.mark.unit
     def test_get_status_initial(self):
         job, _ = _make_job()
@@ -1373,8 +1435,8 @@ class TestGetStatus:
 # _extract_pattern_key_from_memory
 # ---------------------------------------------------------------------------
 
-class TestExtractPatternKey:
 
+class TestExtractPatternKey:
     @pytest.mark.unit
     def test_extracts_key(self):
         job, _ = _make_job()
@@ -1402,8 +1464,8 @@ class TestExtractPatternKey:
 # _write_metrics_to_influxdb
 # ---------------------------------------------------------------------------
 
-class TestWriteMetricsToInfluxDB:
 
+class TestWriteMetricsToInfluxDB:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_skips_when_no_token(self):
@@ -1420,8 +1482,10 @@ class TestWriteMetricsToInfluxDB:
         """Returns False when InfluxDB client library not available."""
         job, _ = _make_job()
         m = ConsolidationMetrics(started_at=datetime.now(UTC))
-        with patch("src.jobs.memory_consolidation.Point", None), \
-             patch("src.jobs.memory_consolidation.InfluxDBClient", None):
+        with (
+            patch("src.jobs.memory_consolidation.Point", None),
+            patch("src.jobs.memory_consolidation.InfluxDBClient", None),
+        ):
             result = await job._write_metrics_to_influxdb(m)
         assert result is False
 
@@ -1430,8 +1494,8 @@ class TestWriteMetricsToInfluxDB:
 # _load_existing_pattern_memories
 # ---------------------------------------------------------------------------
 
-class TestLoadExistingPatternMemories:
 
+class TestLoadExistingPatternMemories:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_no_memory_client(self):
@@ -1445,12 +1509,14 @@ class TestLoadExistingPatternMemories:
     async def test_loads_pattern_memories(self):
         """Loads and indexes pattern memories by key."""
         job, _ = _make_job(with_memory=True)
-        job.memory.query = AsyncMock(return_value=[
-            {
-                "content": "Usage pattern for light.kitchen: state on typically at 07:00",
-                "entity_ids": ["light.kitchen"],
-            },
-        ])
+        job.memory.query = AsyncMock(
+            return_value=[
+                {
+                    "content": "Usage pattern for light.kitchen: state on typically at 07:00",
+                    "entity_ids": ["light.kitchen"],
+                },
+            ]
+        )
         await job._load_existing_pattern_memories()
         assert "light.kitchen:on:7:0" in job._existing_pattern_memories
 
@@ -1459,12 +1525,14 @@ class TestLoadExistingPatternMemories:
     async def test_skips_non_pattern_memories(self):
         """Non-pattern memories are not loaded."""
         job, _ = _make_job(with_memory=True)
-        job.memory.query = AsyncMock(return_value=[
-            {
-                "content": "User overrides automation for light.kitchen",
-                "entity_ids": ["light.kitchen"],
-            },
-        ])
+        job.memory.query = AsyncMock(
+            return_value=[
+                {
+                    "content": "User overrides automation for light.kitchen",
+                    "entity_ids": ["light.kitchen"],
+                },
+            ]
+        )
         await job._load_existing_pattern_memories()
         assert len(job._existing_pattern_memories) == 0
 

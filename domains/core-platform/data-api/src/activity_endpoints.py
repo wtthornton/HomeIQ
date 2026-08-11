@@ -5,6 +5,7 @@ Epic Activity Recognition Integration Phase 1 - Story 1.2
 Exposes activity data (current and history) from home_activity measurement.
 """
 
+import contextlib
 import logging
 import os
 
@@ -72,10 +73,7 @@ async def _query_activity_from_influxdb(
     query_api = client.query_api()
     bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
 
-    if hours:
-        range_clause = f'|> range(start: -{hours}h)'
-    else:
-        range_clause = "|> range(start: -24h)"
+    range_clause = f"|> range(start: -{hours}h)" if hours else "|> range(start: -24h)"
 
     # Each point has 3 fields; need ~3 records per point
     record_limit = max(limit * 4, 12)
@@ -160,14 +158,12 @@ async def get_current_activity():
         timestamp=d["timestamp"],
     )
 
-    try:
+    with contextlib.suppress(Exception):
         await cache.set(
             cache_key,
             response.model_dump(),
             ttl=_activity_cache_ttl,
         )
-    except Exception:
-        pass
 
     return response
 

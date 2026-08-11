@@ -31,30 +31,40 @@ class ScheduledTask(Base):
     prompt: Mapped[str] = mapped_column(Text, nullable=False)
     enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
     notification_preference: Mapped[str] = mapped_column(
-        String(20), default="never", nullable=False,
+        String(20),
+        default="never",
+        nullable=False,
     )  # always / on_alert / never
     cooldown_minutes: Mapped[int] = mapped_column(default=60, nullable=False)
     max_execution_seconds: Mapped[int] = mapped_column(default=120, nullable=False)
     last_run_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     next_run_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     run_count: Mapped[int] = mapped_column(default=0, nullable=False)
     is_template: Mapped[bool] = mapped_column(default=False, nullable=False)
     template_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(),
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
         nullable=False,
     )
 
     # Relationships
     executions: Mapped[list[TaskExecution]] = relationship(
-        "TaskExecution", back_populates="task", cascade="all, delete-orphan",
+        "TaskExecution",
+        back_populates="task",
+        cascade="all, delete-orphan",
         order_by="TaskExecution.started_at.desc()",
     )
 
@@ -74,16 +84,22 @@ class TaskExecution(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     task_id: Mapped[int] = mapped_column(
         ForeignKey("energy.scheduled_tasks.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        nullable=False,
+        index=True,
     )
     started_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
     completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     status: Mapped[str] = mapped_column(
-        String(20), default="running", nullable=False,
+        String(20),
+        default="running",
+        nullable=False,
     )  # running / completed / failed / timeout
     prompt: Mapped[str] = mapped_column(Text, nullable=False)
     response: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -94,14 +110,12 @@ class TaskExecution(Base):
 
     # Relationships
     task: Mapped[ScheduledTask] = relationship(
-        "ScheduledTask", back_populates="executions",
+        "ScheduledTask",
+        back_populates="executions",
     )
 
     def __repr__(self) -> str:
-        return (
-            f"<TaskExecution(id={self.id}, task_id={self.task_id}, "
-            f"status={self.status!r})>"
-        )
+        return f"<TaskExecution(id={self.id}, task_id={self.task_id}, status={self.status!r})>"
 
 
 # Composite indexes for query performance

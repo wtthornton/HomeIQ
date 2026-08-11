@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from src.config import Settings
 from src.services.conversation_service import Conversation, ConversationService
 from src.services.prompt_assembly_service import PromptAssemblyService
@@ -18,6 +19,7 @@ from src.services.prompt_assembly_service import PromptAssemblyService
 api_models_path = Path(__file__).parent.parent / "src" / "api" / "models.py"
 if api_models_path.exists():
     import importlib.util
+
     spec = importlib.util.spec_from_file_location("api_models", api_models_path)
     api_models = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(api_models)
@@ -26,25 +28,25 @@ if api_models_path.exists():
     ToolCall = api_models.ToolCall
 else:
     # Fallback: define models inline for testing
-    from typing import Any, Dict, List, Optional
+    from typing import Any
 
     from pydantic import BaseModel
-    
+
     class ChatRequest(BaseModel):
         message: str
-        conversation_id: Optional[str] = None
+        conversation_id: str | None = None
         refresh_context: bool = False
-    
+
     class ToolCall(BaseModel):
         id: str
         name: str
-        arguments: Dict[str, Any]
-    
+        arguments: dict[str, Any]
+
     class ChatResponse(BaseModel):
         message: str
         conversation_id: str
-        tool_calls: List[ToolCall] = []
-        metadata: Dict[str, Any] = {}
+        tool_calls: list[ToolCall] = []
+        metadata: dict[str, Any] = {}
 
 
 @pytest.fixture
@@ -60,9 +62,7 @@ def settings():
 def mock_context_builder():
     """Create mock context builder"""
     builder = MagicMock()
-    builder.build_complete_system_prompt = AsyncMock(
-        return_value="System prompt with context"
-    )
+    builder.build_complete_system_prompt = AsyncMock(return_value="System prompt with context")
     builder.initialize = AsyncMock()
     builder.close = AsyncMock()
     return builder
@@ -196,17 +196,28 @@ async def test_chat_endpoint_logic_new_conversation(
     # Mock database session and conversation operations
     mock_conversation = Conversation(conversation_id="test-conv-123")
     mock_session = AsyncMock()
-    
+
     async def session_generator():
         yield mock_session
-    
-    with patch('src.database.get_session', return_value=session_generator()), \
-         patch('src.services.conversation_service.get_session', return_value=session_generator()), \
-         patch('src.services.conversation_service.db_create_conversation', new_callable=AsyncMock, return_value=mock_conversation), \
-         patch('src.services.conversation_service.db_get_conversation', new_callable=AsyncMock, return_value=mock_conversation), \
-         patch.object(conversation_service, 'add_message', new_callable=AsyncMock) as mock_add_message, \
-         patch.object(services["conversation_service"], 'get_conversation', new_callable=AsyncMock, return_value=mock_conversation):
-        
+
+    with (
+        patch("src.database.get_session", return_value=session_generator()),
+        patch("src.services.conversation_service.get_session", return_value=session_generator()),
+        patch(
+            "src.services.conversation_service.db_create_conversation",
+            new_callable=AsyncMock,
+            return_value=mock_conversation,
+        ),
+        patch(
+            "src.services.conversation_service.db_get_conversation",
+            new_callable=AsyncMock,
+            return_value=mock_conversation,
+        ),
+        patch.object(conversation_service, "add_message", new_callable=AsyncMock) as mock_add_message,
+        patch.object(
+            services["conversation_service"], "get_conversation", new_callable=AsyncMock, return_value=mock_conversation
+        ),
+    ):
         # Create conversation
         conversation = await conversation_service.create_conversation()
         conversation_id = conversation.conversation_id
@@ -230,21 +241,21 @@ async def test_chat_endpoint_logic_new_conversation(
 
 
 @pytest.mark.asyncio
-async def test_chat_endpoint_logic_invalid_conversation(
-    setup_services, conversation_service
-):
+async def test_chat_endpoint_logic_invalid_conversation(setup_services, conversation_service):
     """Test chat endpoint logic with invalid conversation ID"""
     services = setup_services
 
     # Mock database session and db_get_conversation to return None (conversation not found)
     mock_session = AsyncMock()
-    
+
     async def session_generator():
         yield mock_session
-    
-    with patch('src.database.get_session', return_value=session_generator()), \
-         patch('src.services.conversation_service.get_session', return_value=session_generator()), \
-         patch('src.services.conversation_service.db_get_conversation', new_callable=AsyncMock, return_value=None):
+
+    with (
+        patch("src.database.get_session", return_value=session_generator()),
+        patch("src.services.conversation_service.get_session", return_value=session_generator()),
+        patch("src.services.conversation_service.db_get_conversation", new_callable=AsyncMock, return_value=None),
+    ):
         # Try to get non-existent conversation
         conversation = await conversation_service.get_conversation("invalid-id")
         assert conversation is None
@@ -286,17 +297,19 @@ def test_tool_call_arguments_preserved_in_response_model():
     import json
 
     # Simulate tool call arguments as they would appear from OpenAI (JSON string)
-    tool_arguments_json = json.dumps({
-        "user_prompt": "Turn on office lights",
-        "automation_yaml": "alias: Office Lights\n  trigger:\n    - platform: state\n  action:\n    - service: light.turn_on",
-        "alias": "Office Lights Automation"
-    })
+    tool_arguments_json = json.dumps(
+        {
+            "user_prompt": "Turn on office lights",
+            "automation_yaml": "alias: Office Lights\n  trigger:\n    - platform: state\n  action:\n    - service: light.turn_on",
+            "alias": "Office Lights Automation",
+        }
+    )
 
     # Test that the helper function parses this correctly
     from src.api.chat_endpoints import _safe_parse_tool_arguments
-    
+
     parsed_args = _safe_parse_tool_arguments(tool_arguments_json)
-    
+
     # Verify arguments are properly parsed as dict
     assert isinstance(parsed_args, dict)
     assert "automation_yaml" in parsed_args
@@ -304,26 +317,19 @@ def test_tool_call_arguments_preserved_in_response_model():
     assert "user_prompt" in parsed_args
     assert parsed_args["alias"] == "Office Lights Automation"
     assert "alias: Office Lights" in parsed_args["automation_yaml"]
-    
+
     # Verify we can create a ToolCall with these parsed arguments
-    tool_call = ToolCall(
-        id="call_abc123",
-        name="preview_automation_from_prompt",
-        arguments=parsed_args
-    )
-    
+    tool_call = ToolCall(id="call_abc123", name="preview_automation_from_prompt", arguments=parsed_args)
+
     # Verify the ToolCall has the expected structure
     assert tool_call.arguments["automation_yaml"] is not None
     assert tool_call.arguments["alias"] == "Office Lights Automation"
-    
+
     # Verify we can create a ChatResponse with this tool call
     response = ChatResponse(
-        message="Preview generated",
-        conversation_id="conv-123",
-        tool_calls=[tool_call],
-        metadata={}
+        message="Preview generated", conversation_id="conv-123", tool_calls=[tool_call], metadata={}
     )
-    
+
     # Verify the response preserves the arguments
     assert len(response.tool_calls) == 1
     assert response.tool_calls[0].name == "preview_automation_from_prompt"

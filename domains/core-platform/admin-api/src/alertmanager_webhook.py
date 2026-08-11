@@ -13,7 +13,7 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -25,8 +25,10 @@ router = APIRouter(prefix="/api/alerts", tags=["AlertManager Webhooks"])
 # Models
 # ---------------------------------------------------------------------------
 
+
 class AlertManagerAlert(BaseModel):
     """Single alert from an AlertManager webhook payload."""
+
     status: str  # "firing" or "resolved"
     labels: dict[str, str] = Field(default_factory=dict)
     annotations: dict[str, str] = Field(default_factory=dict)
@@ -38,6 +40,7 @@ class AlertManagerAlert(BaseModel):
 
 class AlertManagerWebhookPayload(BaseModel):
     """AlertManager webhook POST body (v4 API format)."""
+
     version: str = "4"
     groupKey: str = ""
     truncatedAlerts: int = 0
@@ -52,6 +55,7 @@ class AlertManagerWebhookPayload(BaseModel):
 
 class ActiveAlertResponse(BaseModel):
     """Response model for a single active alert."""
+
     fingerprint: str
     alertname: str
     status: str
@@ -67,6 +71,7 @@ class ActiveAlertResponse(BaseModel):
 
 class WebhookResponse(BaseModel):
     """Response returned after processing a webhook."""
+
     status: str
     processed: int
     firing: int
@@ -77,6 +82,7 @@ class WebhookResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # In-Memory Alert Store
 # ---------------------------------------------------------------------------
+
 
 class AlertStore:
     """Thread-safe in-memory store for active alerts with TTL expiry.
@@ -104,10 +110,7 @@ class AlertStore:
         self._evict_expired()
         alerts = list(self._alerts.values())
         if severity:
-            alerts = [
-                a for a in alerts
-                if a.get("labels", {}).get("severity", "") == severity
-            ]
+            alerts = [a for a in alerts if a.get("labels", {}).get("severity", "") == severity]
         return alerts
 
     def count(self) -> int:
@@ -119,7 +122,8 @@ class AlertStore:
         """Remove alerts older than TTL."""
         now = time.monotonic()
         expired = [
-            fp for fp, data in self._alerts.items()
+            fp
+            for fp, data in self._alerts.items()
             if (now - data.get("_received_at", 0)) > self._ttl
         ]
         for fp in expired:
@@ -143,6 +147,7 @@ def get_active_alert_count() -> int:
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.post("/webhook", response_model=WebhookResponse)
 async def alertmanager_webhook(payload: AlertManagerWebhookPayload) -> WebhookResponse:
@@ -173,19 +178,22 @@ async def alertmanager_webhook(payload: AlertManagerWebhookPayload) -> WebhookRe
                 tier,
                 summary,
             )
-            _alert_store.upsert(alert.fingerprint, {
-                "fingerprint": alert.fingerprint,
-                "alertname": alertname,
-                "status": "firing",
-                "severity": severity,
-                "service": service,
-                "tier": tier,
-                "summary": summary,
-                "description": alert.annotations.get("description", ""),
-                "starts_at": alert.startsAt,
-                "received_at": datetime.now(UTC).isoformat() + "Z",
-                "labels": alert.labels,
-            })
+            _alert_store.upsert(
+                alert.fingerprint,
+                {
+                    "fingerprint": alert.fingerprint,
+                    "alertname": alertname,
+                    "status": "firing",
+                    "severity": severity,
+                    "service": service,
+                    "tier": tier,
+                    "summary": summary,
+                    "description": alert.annotations.get("description", ""),
+                    "starts_at": alert.startsAt,
+                    "received_at": datetime.now(UTC).isoformat() + "Z",
+                    "labels": alert.labels,
+                },
+            )
 
         elif alert.status == "resolved":
             resolved_count += 1

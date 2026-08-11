@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 
 import httpx
 import pytest
+from pydantic import ValidationError
 from services.jaeger_client import (
     Dependency,
     JaegerClient,
@@ -197,7 +198,7 @@ class TestModelValidation:
         assert span.warnings == ["clock skew"]
 
     def test_trace_span_missing_required_field(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             TraceSpan(traceID="t1", spanID="s1")  # missing many fields
 
     def test_service_without_operations(self):

@@ -19,7 +19,9 @@ from typing import Any
 class WeatherCache:
     """In-memory weather cache with TTL semantics and LRU eviction."""
 
-    def __init__(self, max_size: int = 100, default_ttl: int = 300, cleanup_interval: int | None = None) -> None:
+    def __init__(
+        self, max_size: int = 100, default_ttl: int = 300, cleanup_interval: int | None = None
+    ) -> None:
         self.max_size = max_size
         self.default_ttl = default_ttl
         self.cleanup_interval = cleanup_interval or default_ttl
@@ -182,5 +184,3 @@ class WeatherCache:
     def _utcnow() -> datetime:
         """Return timezone-aware UTC now."""
         return datetime.now(UTC)
-
-

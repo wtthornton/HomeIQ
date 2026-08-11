@@ -6,9 +6,8 @@ import logging
 import os
 from functools import lru_cache
 
-from pydantic import field_validator, model_validator
-
 from homeiq_data import BaseServiceSettings
+from pydantic import field_validator, model_validator
 
 
 class Settings(BaseServiceSettings):
@@ -61,9 +60,7 @@ class Settings(BaseServiceSettings):
         """Fall back to alternate env vars; log loudly when HA URL is unconfigured."""
         if not self.ha_url:
             self.ha_url = (
-                os.getenv("HA_HTTP_URL")
-                or os.getenv("HOME_ASSISTANT_URL")
-                or ""
+                os.getenv("HA_HTTP_URL") or os.getenv("HOME_ASSISTANT_URL") or ""
             ).rstrip("/")
         if not self.ha_url:
             logging.getLogger(__name__).error(

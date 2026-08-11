@@ -24,7 +24,7 @@ class HomeAssistantWebSocketClient:
     """WebSocket client for Home Assistant with authentication"""
 
     def __init__(self, base_url: str, token: str):
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.token = token
         self.token_validator = TokenValidator()
         self.session: ClientSession | None = None
@@ -79,9 +79,9 @@ class HomeAssistantWebSocketClient:
             await self._ensure_single_session()
 
             # Build WebSocket URL (always ensure /api/websocket path is present)
-            if self.base_url.startswith('ws://') or self.base_url.startswith('wss://'):
+            if self.base_url.startswith("ws://") or self.base_url.startswith("wss://"):
                 # If already a WebSocket URL, check if /api/websocket is present
-                if '/api/websocket' not in self.base_url:
+                if "/api/websocket" not in self.base_url:
                     ws_url = f"{self.base_url}/api/websocket"
                 else:
                     ws_url = self.base_url
@@ -91,10 +91,7 @@ class HomeAssistantWebSocketClient:
             # Connect to WebSocket
             self.websocket = await self.session.ws_connect(
                 ws_url,
-                headers={
-                    'Authorization': f'Bearer {self.token}',
-                    'User-Agent': 'HomeIQ/1.0'
-                }
+                headers={"Authorization": f"Bearer {self.token}", "User-Agent": "HomeIQ/1.0"},
             )
 
             self.is_connected = True
@@ -138,14 +135,11 @@ class HomeAssistantWebSocketClient:
                 auth_data = json.loads(auth_required_msg.data)
                 logger.info(f"Parsed auth data: {auth_data}")
 
-                if auth_data.get('type') == 'auth_required':
+                if auth_data.get("type") == "auth_required":
                     logger.info("Authentication required, sending token")
 
                     # Send authentication message
-                    auth_message = {
-                        'type': 'auth',
-                        'access_token': self.token
-                    }
+                    auth_message = {"type": "auth", "access_token": self.token}
 
                     logger.info("Sending auth message (token masked)")
                     await self.websocket.send_str(json.dumps(auth_message))
@@ -159,7 +153,7 @@ class HomeAssistantWebSocketClient:
                         auth_result = json.loads(auth_result_msg.data)
                         logger.info(f"Parsed auth result: {auth_result}")
 
-                        if auth_result.get('type') == 'auth_ok':
+                        if auth_result.get("type") == "auth_ok":
                             self.is_authenticated = True
                             logger.info("Authentication successful")
                         else:
@@ -277,7 +271,9 @@ class HomeAssistantWebSocketClient:
         self.connection_attempts += 1
         delay = self.retry_delay * (2 ** (self.connection_attempts - 1))
 
-        logger.info(f"Reconnecting in {delay} seconds (attempt {self.connection_attempts}/{self.max_retries})")
+        logger.info(
+            f"Reconnecting in {delay} seconds (attempt {self.connection_attempts}/{self.max_retries})"
+        )
         await asyncio.sleep(delay)
 
         await self.disconnect()
@@ -297,5 +293,5 @@ class HomeAssistantWebSocketClient:
             "max_retries": self.max_retries,
             "base_url": self.base_url,
             "token_info": self.token_validator.get_token_info(self.token),
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat(),
         }

@@ -3,14 +3,14 @@ Unit tests for stats endpoint data source discovery
 Story 24.1: Fix Hardcoded Monitoring Metrics
 """
 
-import os
 import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 # Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, str(Path(__file__).parent / ".."))
 
 from homeiq_observability.monitoring import StatsEndpoints
 
@@ -93,7 +93,7 @@ async def test_get_active_data_sources_not_hardcoded():
     mock_records = [
         MagicMock(values={"_value": "sports_data"}),
         MagicMock(values={"_value": "weather_data"}),
-        MagicMock(values={"_value": "energy_data"})
+        MagicMock(values={"_value": "energy_data"}),
     ]
     mock_table = MagicMock()
     mock_table.records = mock_records
@@ -112,4 +112,3 @@ async def test_get_active_data_sources_not_hardcoded():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

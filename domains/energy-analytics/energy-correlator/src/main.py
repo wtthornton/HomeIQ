@@ -6,8 +6,7 @@ Converted from aiohttp to FastAPI with shared library pattern.
 """
 
 import asyncio
-import logging
-import sys
+import contextlib
 from datetime import UTC, datetime
 
 from fastapi import Request
@@ -30,12 +29,15 @@ logger = setup_logging("energy-correlator")
 # Service class (retained for correlation logic)
 # ---------------------------------------------------------------------------
 
+
 class EnergyCorrelatorService:
     """Main service for energy-event correlation."""
 
     def __init__(self) -> None:
         # Validate bucket name on startup
-        influxdb_token = settings.influxdb_token.get_secret_value() if settings.influxdb_token else None
+        influxdb_token = (
+            settings.influxdb_token.get_secret_value() if settings.influxdb_token else None
+        )
         validate_bucket_name(settings.influxdb_bucket)
 
         # Derive retry_window_minutes
@@ -65,7 +67,8 @@ class EnergyCorrelatorService:
         raw_networks = settings.allowed_networks
         self.allowed_networks: list[str] | None = (
             [net.strip() for net in raw_networks.split(",") if net.strip()]
-            if raw_networks else None
+            if raw_networks
+            else None
         )
 
         # Health tracking
@@ -106,7 +109,8 @@ class EnergyCorrelatorService:
     async def run_continuous(self) -> None:
         """Run continuous correlation processing."""
         log_with_context(
-            logger, "INFO",
+            logger,
+            "INFO",
             f"Starting correlation loop (every {settings.processing_interval}s)",
             service="energy-correlator",
             interval=settings.processing_interval,
@@ -141,13 +145,15 @@ _background_task: asyncio.Task | None = None
 # Startup / Shutdown
 # ---------------------------------------------------------------------------
 
+
 async def _startup_service() -> None:
     """Create and start the correlator service + background loop."""
     global _service, _background_task
     _service = EnergyCorrelatorService()
     await _service.startup()
     _background_task = asyncio.create_task(
-        _service.run_continuous(), name="correlator-loop",
+        _service.run_continuous(),
+        name="correlator-loop",
     )
 
 
@@ -156,10 +162,8 @@ async def _shutdown_service() -> None:
     global _service, _background_task
     if _background_task and not _background_task.done():
         _background_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await _background_task
-        except asyncio.CancelledError:
-            pass
     _background_task = None
     if _service:
         await _service.shutdown()
@@ -202,6 +206,7 @@ app = create_app(
 # ---------------------------------------------------------------------------
 # Routes (migrated from aiohttp handlers)
 # ---------------------------------------------------------------------------
+
 
 @app.get("/statistics")
 async def get_statistics() -> dict:

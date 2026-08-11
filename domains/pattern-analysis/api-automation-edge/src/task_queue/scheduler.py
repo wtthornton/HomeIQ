@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 # Huey instance
 try:
     from .huey_config import huey
+
     HUEY_AVAILABLE = True
 except ImportError:
     HUEY_AVAILABLE = False
@@ -48,13 +49,7 @@ def parse_cron_to_crontab(cron_expr: str) -> crontab:
     # Huey crontab accepts: minute, hour, day, month, day_of_week
     # All can be: *, */n, n, n-m, n,m, or specific values
 
-    return crontab(
-        minute=minute,
-        hour=hour,
-        day=day,
-        month=month,
-        day_of_week=day_of_week
-    )
+    return crontab(minute=minute, hour=hour, day=day, month=month, day_of_week=day_of_week)
 
 
 class AutomationScheduler:
@@ -63,9 +58,7 @@ class AutomationScheduler:
     """
 
     def __init__(
-        self,
-        spec_registry: SpecRegistry | None = None,
-        huey_instance: Huey | None = None
+        self, spec_registry: SpecRegistry | None = None, huey_instance: Huey | None = None
     ):
         """
         Initialize automation scheduler.
@@ -81,12 +74,7 @@ class AutomationScheduler:
         self.huey = huey_instance or huey
         self.registered_schedules: dict[str, str] = {}  # spec_id -> job_id
 
-    def register_scheduled_automation(
-        self,
-        spec_id: str,
-        home_id: str,
-        cron_expr: str
-    ) -> str:
+    def register_scheduled_automation(self, spec_id: str, home_id: str, cron_expr: str) -> str:
         """
         Register a periodic automation task.
 
@@ -120,11 +108,14 @@ class AutomationScheduler:
             # We'll create a closure to capture the spec parameters
             def create_periodic_task_wrapper(spec_id_inner, home_id_inner, spec_inner):
                 """Create a periodic task wrapper function"""
+
                 @self.huey.periodic_task(cron, name=f"Automation: {spec_id_inner}")
                 def scheduled_automation():
                     """Periodic task wrapper - executed on schedule"""
                     correlation_id = f"scheduled_{spec_id_inner}_{home_id_inner}_{int(time.time())}"
-                    logger.info(f"Executing scheduled automation: spec_id={spec_id_inner}, correlation_id={correlation_id}")
+                    logger.info(
+                        f"Executing scheduled automation: spec_id={spec_id_inner}, correlation_id={correlation_id}"
+                    )
 
                     # Execute automation task
                     execute_automation_task(
@@ -132,13 +123,13 @@ class AutomationScheduler:
                         trigger_data={"type": "schedule"},
                         home_id=home_id_inner,
                         correlation_id=correlation_id,
-                        spec=spec_inner
+                        spec=spec_inner,
                     )
 
                 return scheduled_automation
 
             # Create and register periodic task
-            periodic_task = create_periodic_task_wrapper(spec_id, home_id, spec)
+            create_periodic_task_wrapper(spec_id, home_id, spec)
 
             # Store job ID (mapping spec_id to job_id)
             self.registered_schedules[spec_id] = job_id
@@ -151,16 +142,10 @@ class AutomationScheduler:
             return job_id
 
         except Exception as e:
-            logger.error(
-                f"Failed to register scheduled automation {spec_id}: {e}",
-                exc_info=True
-            )
+            logger.error(f"Failed to register scheduled automation {spec_id}: {e}", exc_info=True)
             raise
 
-    def unregister_scheduled_automation(
-        self,
-        spec_id: str
-    ) -> bool:
+    def unregister_scheduled_automation(self, spec_id: str) -> bool:
         """
         Unregister a periodic automation task.
 
@@ -186,10 +171,7 @@ class AutomationScheduler:
             return True
 
         except Exception as e:
-            logger.error(
-                f"Failed to unregister scheduled automation {spec_id}: {e}",
-                exc_info=True
-            )
+            logger.error(f"Failed to unregister scheduled automation {spec_id}: {e}", exc_info=True)
             return False
 
     def load_scheduled_automations(self, home_id: str = None):
@@ -213,10 +195,7 @@ class AutomationScheduler:
             logger.info(f"Loaded scheduled automations for home {home_id}")
 
         except Exception as e:
-            logger.error(
-                f"Failed to load scheduled automations: {e}",
-                exc_info=True
-            )
+            logger.error(f"Failed to load scheduled automations: {e}", exc_info=True)
 
     def get_schedule_status(self, spec_id: str) -> dict[str, Any] | None:
         """
@@ -240,7 +219,7 @@ class AutomationScheduler:
             return {
                 "spec_id": spec_id,
                 "job_id": job_id,
-                "enabled": True  # Would track enabled/disabled state
+                "enabled": True,  # Would track enabled/disabled state
             }
 
         except Exception as e:

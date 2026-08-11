@@ -217,7 +217,7 @@ class JaegerClient:
             )
 
             services = []
-            for name, ops in zip(service_names, operations_list):
+            for name, ops in zip(service_names, operations_list, strict=False):
                 operations = ops if isinstance(ops, list) else []
                 services.append(Service(name=name, operations=operations))
 
@@ -251,9 +251,7 @@ class JaegerClient:
             logger.warning(f"Failed to get operations for {service_name}: {e}")
             return []
 
-    async def get_dependencies(
-        self, start_time: datetime, end_time: datetime
-    ) -> list[Dependency]:
+    async def get_dependencies(self, start_time: datetime, end_time: datetime) -> list[Dependency]:
         """
         Get service dependencies.
 

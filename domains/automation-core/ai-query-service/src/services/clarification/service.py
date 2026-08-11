@@ -165,10 +165,7 @@ class ClarificationService:
 
         # --- 2. Missing area ---------------------------------------------
         if not _AREA_WORDS.search(query) and entities:
-            areas = {
-                (e.get("area_id") or e.get("area") or "")
-                for e in entities
-            }
+            areas = {(e.get("area_id") or e.get("area") or "") for e in entities}
             areas.discard("")
             if len(areas) > 1:
                 ambiguities.append(
@@ -221,15 +218,12 @@ class ClarificationService:
         for etype, group in type_groups.items():
             if len(group) > 1:
                 names = [
-                    e.get("name", e.get("friendly_name", e.get("entity_id", "?")))
-                    for e in group
+                    e.get("name", e.get("friendly_name", e.get("entity_id", "?"))) for e in group
                 ]
                 ambiguities.append(
                     Ambiguity(
                         type="multiple_entities",
-                        description=(
-                            f"Multiple {etype} entities matched: {', '.join(names)}."
-                        ),
+                        description=(f"Multiple {etype} entities matched: {', '.join(names)}."),
                         affected_entities=group,
                     )
                 )

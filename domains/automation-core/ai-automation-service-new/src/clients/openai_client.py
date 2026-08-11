@@ -185,9 +185,8 @@ class OpenAIClient:
 
             # Track usage
             if response.usage:
-                self.total_tokens_used += (
-                    getattr(response.usage, "input_tokens", 0)
-                    + getattr(response.usage, "output_tokens", 0)
+                self.total_tokens_used += getattr(response.usage, "input_tokens", 0) + getattr(
+                    response.usage, "output_tokens", 0
                 )
 
             # Extract YAML from response
@@ -294,9 +293,8 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
 
             # Track usage
             if response.usage:
-                self.total_tokens_used += (
-                    getattr(response.usage, "input_tokens", 0)
-                    + getattr(response.usage, "output_tokens", 0)
+                self.total_tokens_used += getattr(response.usage, "input_tokens", 0) + getattr(
+                    response.usage, "output_tokens", 0
                 )
 
             # Extract JSON from response
@@ -435,9 +433,8 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
 
             # Track usage
             if response.usage:
-                self.total_tokens_used += (
-                    getattr(response.usage, "input_tokens", 0)
-                    + getattr(response.usage, "output_tokens", 0)
+                self.total_tokens_used += getattr(response.usage, "input_tokens", 0) + getattr(
+                    response.usage, "output_tokens", 0
                 )
 
             # Extract JSON from response
@@ -506,9 +503,8 @@ Return ONLY the JSON object, no explanations or markdown code blocks."""
 
             # Track usage
             if response.usage:
-                self.total_tokens_used += (
-                    getattr(response.usage, "input_tokens", 0)
-                    + getattr(response.usage, "output_tokens", 0)
+                self.total_tokens_used += getattr(response.usage, "input_tokens", 0) + getattr(
+                    response.usage, "output_tokens", 0
                 )
 
             description = response.output_text or ""

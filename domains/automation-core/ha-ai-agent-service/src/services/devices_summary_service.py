@@ -39,11 +39,11 @@ class DevicesSummaryService:
         """
         self.settings = settings
         self.context_builder = context_builder
-        self.ha_client = HomeAssistantClient(
-            ha_url=settings.ha_url,
-            access_token=settings.ha_token.get_secret_value()
+        self.ha_client = HomeAssistantClient(ha_url=settings.ha_url, access_token=settings.ha_token.get_secret_value())
+        self.data_api_client = DataAPIClient(
+            base_url=settings.data_api_url,
+            api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None,
         )
-        self.data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=settings.data_api_key.get_secret_value() if settings.data_api_key else None)
         # Phase 1.2: Device Intelligence Client for device relationships/context
         # Uses CircuitBreaker for ml-engine fallback protection
         self.device_intelligence_client = DeviceIntelligenceClient(settings)
@@ -78,9 +78,7 @@ class DevicesSummaryService:
 
             if not devices:
                 summary = "No devices found"
-                await self.context_builder._set_cached_value(
-                    self._cache_key, summary, self._cache_ttl
-                )
+                await self.context_builder._set_cached_value(self._cache_key, summary, self._cache_ttl)
                 return summary
 
             # Fetch areas from Data API (extracted from devices/entities) - 2025 Optimization: Use local data
@@ -111,11 +109,7 @@ class DevicesSummaryService:
                 # Count entities per device
                 device_entity_count: dict[str, int] = defaultdict(int)
                 # Phase 2.1: Aggregate device capabilities from entities
-                device_capabilities = defaultdict(lambda: {
-                    "effects": set(),
-                    "color_modes": set(),
-                    "presets": set()
-                })
+                device_capabilities = defaultdict(lambda: {"effects": set(), "color_modes": set(), "presets": set()})
 
                 for entity in entities:
                     device_id = entity.get("device_id")
@@ -145,7 +139,8 @@ class DevicesSummaryService:
                             device_capabilities[device_id]["max_brightness"] = attributes["max_brightness"]
                         if "min_color_temp" in attributes and "max_color_temp" in attributes:
                             device_capabilities[device_id]["color_temp_range"] = (
-                                attributes["min_color_temp"], attributes["max_color_temp"]
+                                attributes["min_color_temp"],
+                                attributes["max_color_temp"],
                             )
 
                 logger.debug(f"✅ Counted entities for {len(device_entity_count)} devices")
@@ -189,7 +184,9 @@ class DevicesSummaryService:
             if devices:
                 first_device_keys = list(devices[0].keys())
                 logger.info(f"📱 First device keys: {first_device_keys}")
-                logger.info(f"📱 First device sample: device_id={devices[0].get('device_id')}, area_id={devices[0].get('area_id')}, name={devices[0].get('name')}")
+                logger.info(
+                    f"📱 First device sample: device_id={devices[0].get('device_id')}, area_id={devices[0].get('area_id')}, name={devices[0].get('name')}"
+                )
 
             for device in devices:
                 device_id = device.get("device_id")
@@ -221,12 +218,14 @@ class DevicesSummaryService:
                             "manufacturer": manufacturer,
                             "model": model,
                             "name": device_name,
-                            "area_id": area_id
+                            "area_id": area_id,
                         }
                         # Get device entities for context
                         device_entities = [e for e in entities if e.get("device_id") == device_id]
                         context_result = await self.device_intelligence_client.get_device_context(
-                            device_id, device_payload, device_entities[:10]  # Limit to 10 entities
+                            device_id,
+                            device_payload,
+                            device_entities[:10],  # Limit to 10 entities
                         )
                         if context_result and context_result.get("context"):
                             context = context_result["context"]
@@ -290,18 +289,19 @@ class DevicesSummaryService:
 
                 devices_processed += 1
 
-            logger.info(f"📱 Grouped devices: {devices_processed} processed, {devices_skipped_no_id} skipped (no device_id), {devices_with_area} with area, {devices_without_area} without area, {len(devices_by_area)} areas with devices, {len(unassigned_devices)} unassigned")
+            logger.info(
+                f"📱 Grouped devices: {devices_processed} processed, {devices_skipped_no_id} skipped (no device_id), {devices_with_area} with area, {devices_without_area} without area, {len(devices_by_area)} areas with devices, {len(unassigned_devices)} unassigned"
+            )
 
             # Format devices by area
             summary_parts = []
 
             # Sort areas by name
-            sorted_areas = sorted(
-                devices_by_area.keys(),
-                key=lambda a: area_name_map.get(a, a).lower()
-            )
+            sorted_areas = sorted(devices_by_area.keys(), key=lambda a: area_name_map.get(a, a).lower())
 
-            logger.info(f"📱 Formatting summary: {len(sorted_areas)} areas, {len(unassigned_devices)} unassigned devices, area_name_map has {len(area_name_map)} entries")
+            logger.info(
+                f"📱 Formatting summary: {len(sorted_areas)} areas, {len(unassigned_devices)} unassigned devices, area_name_map has {len(area_name_map)} entries"
+            )
 
             # Format devices in each area
             logger.info(f"📱 Starting to format {len(sorted_areas)} areas")
@@ -515,12 +515,12 @@ class DevicesSummaryService:
 
             # Cache the result (only if not skipping truncation)
             if not skip_truncation:
-                await self.context_builder._set_cached_value(
-                    self._cache_key, summary, self._cache_ttl
-                )
+                await self.context_builder._set_cached_value(self._cache_key, summary, self._cache_ttl)
 
             total_devices = len(devices)
-            logger.info(f"✅ Generated devices summary: {total_devices} devices across {len(sorted_areas)} areas ({len(summary)} chars)")
+            logger.info(
+                f"✅ Generated devices summary: {total_devices} devices across {len(sorted_areas)} areas ({len(summary)} chars)"
+            )
             return summary
 
         except Exception as e:
@@ -532,4 +532,3 @@ class DevicesSummaryService:
         """Close service resources"""
         await self.ha_client.close()
         await self.data_api_client.close()
-

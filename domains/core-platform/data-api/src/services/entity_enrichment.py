@@ -29,21 +29,15 @@ class EntityEnrichmentService:
         if self._session is None or self._session.closed:
             headers = {
                 "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             timeout = aiohttp.ClientTimeout(total=10)
             self._session = aiohttp.ClientSession(
-                headers=headers,
-                timeout=timeout,
-                raise_for_status=False
+                headers=headers, timeout=timeout, raise_for_status=False
             )
         return self._session
 
-    async def enrich_entity_capabilities(
-        self,
-        entity_id: str,
-        domain: str
-    ) -> dict[str, Any]:
+    async def enrich_entity_capabilities(self, entity_id: str, domain: str) -> dict[str, Any]:
         """
         Enrich entity with capabilities from HA state API.
 
@@ -57,11 +51,10 @@ class EntityEnrichmentService:
             - capabilities: list[str] | None
         """
         if not self.ha_url or not self.ha_token:
-            logger.debug(f"HA_URL or HA_TOKEN not configured, skipping capability enrichment for {entity_id}")
-            return {
-                "supported_features": None,
-                "capabilities": None
-            }
+            logger.debug(
+                f"HA_URL or HA_TOKEN not configured, skipping capability enrichment for {entity_id}"
+            )
+            return {"supported_features": None, "capabilities": None}
 
         try:
             session = await self._get_session()
@@ -81,31 +74,21 @@ class EntityEnrichmentService:
                             supported_features = None
 
                     # Extract capabilities list from attributes
-                    capabilities = self._extract_capabilities(domain, attributes, supported_features)
+                    capabilities = self._extract_capabilities(
+                        domain, attributes, supported_features
+                    )
 
-                    return {
-                        "supported_features": supported_features,
-                        "capabilities": capabilities
-                    }
+                    return {"supported_features": supported_features, "capabilities": capabilities}
                 else:
                     logger.debug(f"Failed to fetch state for {entity_id}: {response.status}")
-                    return {
-                        "supported_features": None,
-                        "capabilities": None
-                    }
+                    return {"supported_features": None, "capabilities": None}
 
         except Exception as e:
             logger.warning(f"Error enriching capabilities for {entity_id}: {e}")
-            return {
-                "supported_features": None,
-                "capabilities": None
-            }
+            return {"supported_features": None, "capabilities": None}
 
     def _extract_capabilities(
-        self,
-        domain: str,
-        attributes: dict[str, Any],
-        supported_features: int | None
+        self, domain: str, attributes: dict[str, Any], supported_features: int | None
     ) -> list[str]:
         """
         Extract capabilities list from entity attributes and supported_features.
@@ -138,18 +121,18 @@ class EntityEnrichmentService:
                     capabilities.append("white_value")
 
             # Check attributes for additional capabilities
-            if attributes.get("brightness") is not None:
-                if "brightness" not in capabilities:
-                    capabilities.append("brightness")
-            if attributes.get("rgb_color") or attributes.get("hs_color") or attributes.get("xy_color"):
-                if "color" not in capabilities:
-                    capabilities.append("color")
-            if attributes.get("color_temp") is not None:
-                if "color_temp" not in capabilities:
-                    capabilities.append("color_temp")
-            if attributes.get("effect_list"):
-                if "effect" not in capabilities:
-                    capabilities.append("effect")
+            if (attributes.get("brightness") is not None) and ("brightness" not in capabilities):
+                capabilities.append("brightness")
+            if (
+                attributes.get("rgb_color")
+                or attributes.get("hs_color")
+                or attributes.get("xy_color")
+            ) and "color" not in capabilities:
+                capabilities.append("color")
+            if (attributes.get("color_temp") is not None) and ("color_temp" not in capabilities):
+                capabilities.append("color_temp")
+            if attributes.get("effect_list") and "effect" not in capabilities:
+                capabilities.append("effect")
 
         elif domain == "switch":
             # Switch capabilities
@@ -198,13 +181,9 @@ class EntityEnrichmentService:
         if attributes.get("humidity"):
             capabilities.append("humidity_control")
 
-        return sorted(list(set(capabilities))) if capabilities else None
+        return sorted(set(capabilities)) if capabilities else None
 
-    async def get_available_services_for_domain(
-        self,
-        domain: str,
-        db
-    ) -> list[str]:
+    async def get_available_services_for_domain(self, domain: str, db) -> list[str]:
         """
         Get available services for an entity domain from Service table.
 
@@ -221,9 +200,7 @@ class EntityEnrichmentService:
             from ..models import Service
 
             # Query services for this domain
-            result = await db.execute(
-                select(Service.service_name).where(Service.domain == domain)
-            )
+            result = await db.execute(select(Service.service_name).where(Service.domain == domain))
             service_names = result.scalars().all()
 
             # Format as domain.service_name
@@ -235,12 +212,7 @@ class EntityEnrichmentService:
             logger.warning(f"Error fetching available services for domain {domain}: {e}")
             return None
 
-    async def enrich_entity(
-        self,
-        entity_id: str,
-        domain: str,
-        db
-    ) -> dict[str, Any]:
+    async def enrich_entity(self, entity_id: str, domain: str, db) -> dict[str, Any]:
         """
         Enrich entity with both capabilities and available services.
 
@@ -264,7 +236,7 @@ class EntityEnrichmentService:
         return {
             "supported_features": capabilities_data.get("supported_features"),
             "capabilities": capabilities_data.get("capabilities"),
-            "available_services": available_services
+            "available_services": available_services,
         }
 
     async def close(self):

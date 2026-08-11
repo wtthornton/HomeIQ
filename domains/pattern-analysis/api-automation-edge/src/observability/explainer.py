@@ -33,7 +33,7 @@ class Explainer:
         conditions_applied: list[dict[str, Any]],
         targets_resolved: dict[str, list[str]],
         policy_checks: dict[str, Any],
-        execution_plan: dict[str, Any]
+        execution_plan: dict[str, Any],
     ):
         """
         Record decision factors for an execution.
@@ -53,7 +53,7 @@ class Explainer:
             "conditions_applied": conditions_applied,
             "targets_resolved": targets_resolved,
             "policy_checks": policy_checks,
-            "execution_plan": execution_plan
+            "execution_plan": execution_plan,
         }
 
         logger.debug(f"Recorded decision factors for {correlation_id}")
@@ -70,10 +70,7 @@ class Explainer:
         """
         return self.explanations.get(correlation_id)
 
-    def generate_user_explanation(
-        self,
-        correlation_id: str
-    ) -> str | None:
+    def generate_user_explanation(self, correlation_id: str) -> str | None:
         """
         Generate user-facing explanation.
 
@@ -116,11 +113,7 @@ class Explainer:
 
         return "\n".join(lines)
 
-    def explain_why(
-        self,
-        correlation_id: str,
-        _question: str = "why"
-    ) -> str:
+    def explain_why(self, correlation_id: str, _question: str = "why") -> str:
         """
         Answer "Why did this happen?" query.
 

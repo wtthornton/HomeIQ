@@ -4,36 +4,42 @@ Tests metrics collection, aggregation, and reset endpoints
 with mocked MetricsCollector and aiohttp sessions.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.metrics_endpoints import MetricsEndpoints, create_metrics_router, ServiceMetrics
-
+import pytest
+from src.metrics_endpoints import MetricsEndpoints, ServiceMetrics, create_metrics_router
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_collector(**overrides):
     """Create a mock MetricsCollector with sensible defaults."""
     collector = MagicMock()
-    collector.get_all_metrics.return_value = overrides.get("all_metrics", {
-        "service": "admin-api",
-        "timestamp": "2026-03-18T10:00:00Z",
-        "uptime_seconds": 3600.0,
-        "counters": {"request_count": 100},
-        "gauges": {"active_connections": 5.0},
-        "timers": {"request_latency": {"avg_ms": 12.5, "p95_ms": 45.0}},
-        "system": {
-            "cpu": {"percent": 22.5},
-            "memory": {"rss_mb": 128.0},
+    collector.get_all_metrics.return_value = overrides.get(
+        "all_metrics",
+        {
+            "service": "admin-api",
+            "timestamp": "2026-03-18T10:00:00Z",
+            "uptime_seconds": 3600.0,
+            "counters": {"request_count": 100},
+            "gauges": {"active_connections": 5.0},
+            "timers": {"request_latency": {"avg_ms": 12.5, "p95_ms": 45.0}},
+            "system": {
+                "cpu": {"percent": 22.5},
+                "memory": {"rss_mb": 128.0},
+            },
         },
-    })
-    collector.get_system_metrics.return_value = overrides.get("system_metrics", {
-        "cpu": {"percent": 22.5, "count": 4},
-        "memory": {"rss_mb": 128.0, "vms_mb": 512.0},
-        "disk": {"usage_percent": 55.0},
-    })
+    )
+    collector.get_system_metrics.return_value = overrides.get(
+        "system_metrics",
+        {
+            "cpu": {"percent": 22.5, "count": 4},
+            "memory": {"rss_mb": 128.0, "vms_mb": 512.0},
+            "disk": {"usage_percent": 55.0},
+        },
+    )
     collector.reset_metrics.return_value = None
     return collector
 
@@ -55,8 +61,8 @@ def _mock_aiohttp_response(status=200, json_data=None):
 # ServiceMetrics pydantic model
 # ---------------------------------------------------------------------------
 
-class TestServiceMetricsModel:
 
+class TestServiceMetricsModel:
     @pytest.mark.unit
     def test_valid_model(self):
         m = ServiceMetrics(
@@ -89,8 +95,8 @@ class TestServiceMetricsModel:
 # GET /metrics
 # ---------------------------------------------------------------------------
 
-class TestGetAdminMetrics:
 
+class TestGetAdminMetrics:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_returns_collector_metrics(self):
@@ -114,6 +120,7 @@ class TestGetAdminMetrics:
 
         handler = _get_route_handler(ep, "/metrics", "GET")
         from fastapi import HTTPException
+
         with pytest.raises(HTTPException) as exc_info:
             await handler()
         assert exc_info.value.status_code == 500
@@ -124,8 +131,8 @@ class TestGetAdminMetrics:
 # GET /metrics/system
 # ---------------------------------------------------------------------------
 
-class TestGetSystemMetrics:
 
+class TestGetSystemMetrics:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_returns_system_metrics(self):
@@ -148,6 +155,7 @@ class TestGetSystemMetrics:
         handler = _get_route_handler(ep, "/metrics/system", "GET")
 
         from fastapi import HTTPException
+
         with pytest.raises(HTTPException) as exc_info:
             await handler()
         assert exc_info.value.status_code == 500
@@ -157,8 +165,8 @@ class TestGetSystemMetrics:
 # POST /metrics/reset
 # ---------------------------------------------------------------------------
 
-class TestResetMetrics:
 
+class TestResetMetrics:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_reset_success(self):
@@ -181,6 +189,7 @@ class TestResetMetrics:
         handler = _get_route_handler(ep, "/metrics/reset", "POST")
 
         from fastapi import HTTPException
+
         with pytest.raises(HTTPException) as exc_info:
             await handler()
         assert exc_info.value.status_code == 500
@@ -190,8 +199,8 @@ class TestResetMetrics:
 # GET /metrics/all
 # ---------------------------------------------------------------------------
 
-class TestGetAllServicesMetrics:
 
+class TestGetAllServicesMetrics:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_aggregates_from_multiple_services(self):
@@ -277,6 +286,7 @@ class TestGetAllServicesMetrics:
         handler = _get_route_handler(ep, "/metrics/all", "GET")
 
         from fastapi import HTTPException
+
         with pytest.raises(HTTPException) as exc_info:
             await handler()
         assert exc_info.value.status_code == 500
@@ -286,8 +296,8 @@ class TestGetAllServicesMetrics:
 # GET /metrics/summary
 # ---------------------------------------------------------------------------
 
-class TestGetMetricsSummary:
 
+class TestGetMetricsSummary:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_summary_admin_only(self):
@@ -356,15 +366,17 @@ class TestGetMetricsSummary:
     @pytest.mark.asyncio
     async def test_summary_no_timers_avg_zero(self):
         """When no timer data, avg_response_time_ms stays 0."""
-        collector = _make_collector(all_metrics={
-            "service": "admin-api",
-            "timestamp": "2026-03-18T10:00:00Z",
-            "uptime_seconds": 100.0,
-            "counters": {},
-            "gauges": {},
-            "timers": {},
-            "system": {},
-        })
+        collector = _make_collector(
+            all_metrics={
+                "service": "admin-api",
+                "timestamp": "2026-03-18T10:00:00Z",
+                "uptime_seconds": 100.0,
+                "counters": {},
+                "gauges": {},
+                "timers": {},
+                "system": {},
+            }
+        )
         ep = _make_endpoints(collector)
         handler = _get_route_handler(ep, "/metrics/summary", "GET")
 
@@ -407,11 +419,12 @@ class TestGetMetricsSummary:
 # create_metrics_router factory
 # ---------------------------------------------------------------------------
 
-class TestCreateMetricsRouter:
 
+class TestCreateMetricsRouter:
     @pytest.mark.unit
     def test_returns_api_router(self):
         from fastapi import APIRouter
+
         collector = _make_collector()
         router = create_metrics_router(collector)
         assert isinstance(router, APIRouter)
@@ -440,8 +453,8 @@ class TestCreateMetricsRouter:
 # MetricsEndpoints init
 # ---------------------------------------------------------------------------
 
-class TestMetricsEndpointsInit:
 
+class TestMetricsEndpointsInit:
     @pytest.mark.unit
     def test_default_service_urls(self):
         collector = _make_collector()
@@ -453,9 +466,12 @@ class TestMetricsEndpointsInit:
     @pytest.mark.unit
     def test_custom_service_urls_via_env(self):
         collector = _make_collector()
-        with patch.dict("os.environ", {
-            "WEBSOCKET_INGESTION_URL": "http://custom:9000",
-        }):
+        with patch.dict(
+            "os.environ",
+            {
+                "WEBSOCKET_INGESTION_URL": "http://custom:9000",
+            },
+        ):
             ep = MetricsEndpoints(metrics_collector=collector)
             assert ep.service_urls["websocket-ingestion"] == "http://custom:9000"
 
@@ -464,10 +480,12 @@ class TestMetricsEndpointsInit:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _get_route_handler(ep: MetricsEndpoints, path: str, method: str = "GET"):
     """Extract the route handler function from the router."""
     for route in ep.router.routes:
-        if hasattr(route, "path") and route.path == path:
-            if method.upper() in [m.upper() for m in route.methods]:
-                return route.endpoint
+        if (hasattr(route, "path") and route.path == path) and (
+            method.upper() in [m.upper() for m in route.methods]
+        ):
+            return route.endpoint
     raise ValueError(f"Route {method} {path} not found")

@@ -15,20 +15,47 @@ logger = logging.getLogger(__name__)
 
 SECURITY_KEYWORDS = (
     # Devices
-    "camera", "alarm", "lock", "doorbell", "siren", "keypad",
+    "camera",
+    "alarm",
+    "lock",
+    "doorbell",
+    "siren",
+    "keypad",
     "alarm_control_panel",
     # Sensors — "motion" replaced with multi-word to avoid "motion pictures" false positive
-    "motion sensor", "motion detected", "motion alert", "occupancy", "presence", "person",
-    "door sensor", "window sensor", "glass break",
+    "motion sensor",
+    "motion detected",
+    "motion alert",
+    "occupancy",
+    "presence",
+    "person",
+    "door sensor",
+    "window sensor",
+    "glass break",
     # Actions
-    "arm", "disarm", "alert", "notify", "intrusion", "break-in",
+    "arm",
+    "disarm",
+    "alert",
+    "notify",
+    "intrusion",
+    "break-in",
     "security alert",
     # Geofencing / presence
-    "geofence", "geofencing", "away mode", "away", "nobody home",
-    "everyone left", "arrive home", "leave home",
+    "geofence",
+    "geofencing",
+    "away mode",
+    "away",
+    "nobody home",
+    "everyone left",
+    "arrive home",
+    "leave home",
     # Patterns
-    "security automation", "security system", "alarm system",
-    "surveillance", "protect", "guard",
+    "security automation",
+    "security system",
+    "alarm system",
+    "surveillance",
+    "protect",
+    "guard",
 )
 
 

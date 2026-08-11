@@ -3,6 +3,7 @@ Memory Manager for High-Volume Event Processing
 """
 
 import asyncio
+import contextlib
 import gc
 import logging
 import weakref
@@ -18,10 +19,12 @@ logger = logging.getLogger(__name__)
 class MemoryManager:
     """Memory management and monitoring for high-volume processing"""
 
-    def __init__(self,
-                 max_memory_mb: int = 1024,
-                 memory_check_interval: float = 30.0,
-                 gc_threshold: float = 0.8):
+    def __init__(
+        self,
+        max_memory_mb: int = 1024,
+        memory_check_interval: float = 30.0,
+        gc_threshold: float = 0.8,
+    ):
         """
         Initialize memory manager
 
@@ -67,8 +70,10 @@ class MemoryManager:
         # Start monitoring task
         self.monitoring_task = asyncio.create_task(self._monitoring_loop())
 
-        logger.info(f"Started memory manager with max_memory={self.max_memory_mb}MB, "
-                   f"check_interval={self.memory_check_interval}s")
+        logger.info(
+            f"Started memory manager with max_memory={self.max_memory_mb}MB, "
+            f"check_interval={self.memory_check_interval}s"
+        )
 
     async def stop(self):
         """Stop memory monitoring"""
@@ -80,10 +85,8 @@ class MemoryManager:
         # Cancel monitoring task
         if self.monitoring_task:
             self.monitoring_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.monitoring_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Stopped memory manager")
 
@@ -110,11 +113,13 @@ class MemoryManager:
             memory_mb = memory_info.rss / 1024 / 1024
 
             # Record memory sample
-            self.memory_samples.append({
-                "timestamp": datetime.now(UTC),
-                "memory_mb": memory_mb,
-                "memory_percent": self.process.memory_percent()
-            })
+            self.memory_samples.append(
+                {
+                    "timestamp": datetime.now(UTC),
+                    "memory_mb": memory_mb,
+                    "memory_percent": self.process.memory_percent(),
+                }
+            )
 
             # Check if memory usage exceeds threshold
             if memory_mb > self.max_memory_mb:
@@ -129,7 +134,9 @@ class MemoryManager:
 
     async def _handle_memory_overflow(self, current_memory_mb: float):
         """Handle memory overflow"""
-        logger.warning(f"Memory overflow detected: {current_memory_mb:.2f}MB > {self.max_memory_mb}MB")
+        logger.warning(
+            f"Memory overflow detected: {current_memory_mb:.2f}MB > {self.max_memory_mb}MB"
+        )
 
         # Record alert
         alert = {
@@ -137,7 +144,7 @@ class MemoryManager:
             "type": "memory_overflow",
             "current_memory_mb": current_memory_mb,
             "max_memory_mb": self.max_memory_mb,
-            "excess_mb": current_memory_mb - self.max_memory_mb
+            "excess_mb": current_memory_mb - self.max_memory_mb,
         }
         self.memory_alerts.append(alert)
 
@@ -160,12 +167,14 @@ class MemoryManager:
             gc_counts_after = gc.get_count()
 
             # Record GC run
-            self.gc_count_samples.append({
-                "timestamp": datetime.now(UTC),
-                "collected": collected,
-                "counts_before": gc_counts_before,
-                "counts_after": gc_counts_after
-            })
+            self.gc_count_samples.append(
+                {
+                    "timestamp": datetime.now(UTC),
+                    "collected": collected,
+                    "counts_before": gc_counts_before,
+                    "counts_after": gc_counts_after,
+                }
+            )
 
             self.total_gc_runs += 1
 
@@ -235,7 +244,9 @@ class MemoryManager:
             # Calculate average memory usage
             avg_memory_mb = 0
             if self.memory_samples:
-                avg_memory_mb = sum(sample["memory_mb"] for sample in self.memory_samples) / len(self.memory_samples)
+                avg_memory_mb = sum(sample["memory_mb"] for sample in self.memory_samples) / len(
+                    self.memory_samples
+                )
 
             # Calculate memory trend
             memory_trend = "stable"
@@ -262,7 +273,9 @@ class MemoryManager:
                 "current_memory_mb": round(current_memory_mb, 2),
                 "current_memory_percent": round(current_memory_percent, 2),
                 "max_memory_mb": self.max_memory_mb,
-                "memory_utilization_percent": round((current_memory_mb / self.max_memory_mb) * 100, 2),
+                "memory_utilization_percent": round(
+                    (current_memory_mb / self.max_memory_mb) * 100, 2
+                ),
                 "average_memory_mb": round(avg_memory_mb, 2),
                 "memory_trend": memory_trend,
                 "total_gc_runs": self.total_gc_runs,
@@ -273,7 +286,7 @@ class MemoryManager:
                 "memory_alerts_count": len(self.memory_alerts),
                 "uptime_seconds": round(uptime, 2),
                 "gc_threshold": self.gc_threshold,
-                "memory_check_interval": self.memory_check_interval
+                "memory_check_interval": self.memory_check_interval,
             }
 
         except Exception as e:
@@ -294,7 +307,9 @@ class MemoryManager:
         self.max_memory_mb = max_memory_mb
         self.gc_threshold = gc_threshold
 
-        logger.info(f"Updated memory limits: max_memory={max_memory_mb}MB, gc_threshold={gc_threshold}")
+        logger.info(
+            f"Updated memory limits: max_memory={max_memory_mb}MB, gc_threshold={gc_threshold}"
+        )
 
     def configure_monitoring_interval(self, interval: float):
         """Configure monitoring interval"""

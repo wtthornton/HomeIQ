@@ -7,6 +7,7 @@ Tests individual tool implementations.
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from src.clients.ai_automation_client import AIAutomationClient
 from src.clients.data_api_client import DataAPIClient
 from src.clients.ha_client import HomeAssistantClient
@@ -17,13 +18,9 @@ from src.tools.ha_tools import HAToolHandler
 def mock_ha_client():
     """Mock Home Assistant client"""
     client = MagicMock(spec=HomeAssistantClient)
-    client.get_states = AsyncMock(return_value=[
-        {
-            "entity_id": "light.kitchen",
-            "state": "on",
-            "attributes": {"brightness": 255}
-        }
-    ])
+    client.get_states = AsyncMock(
+        return_value=[{"entity_id": "light.kitchen", "state": "on", "attributes": {"brightness": 255}}]
+    )
     client._get_session = AsyncMock()
     client.ha_url = "http://localhost:8123"
     return client
@@ -33,14 +30,11 @@ def mock_ha_client():
 def mock_data_api_client():
     """Mock Data API client"""
     client = MagicMock(spec=DataAPIClient)
-    client.fetch_entities = AsyncMock(return_value=[
-        {
-            "entity_id": "light.kitchen",
-            "friendly_name": "Kitchen Light",
-            "domain": "light",
-            "area_id": "kitchen"
-        }
-    ])
+    client.fetch_entities = AsyncMock(
+        return_value=[
+            {"entity_id": "light.kitchen", "friendly_name": "Kitchen Light", "domain": "light", "area_id": "kitchen"}
+        ]
+    )
     client.get_devices = AsyncMock(return_value=[])
     return client
 
@@ -50,14 +44,16 @@ def mock_ai_automation_client():
     """Mock AI Automation Service client"""
     client = MagicMock(spec=AIAutomationClient)
     # Note: AIAutomationValidationStrategy expects errors/warnings as lists of dicts with "message" keys
-    client.validate_yaml = AsyncMock(return_value={
-        "valid": True,
-        "errors": [],  # List of dicts with "message" keys
-        "warnings": [],  # List of dicts with "message" keys
-        "stages": {"syntax": True, "structure": True},
-        "fixed_yaml": None,
-        "summary": "✅ All validation checks passed"
-    })
+    client.validate_yaml = AsyncMock(
+        return_value={
+            "valid": True,
+            "errors": [],  # List of dicts with "message" keys
+            "warnings": [],  # List of dicts with "message" keys
+            "stages": {"syntax": True, "structure": True},
+            "fixed_yaml": None,
+            "summary": "✅ All validation checks passed",
+        }
+    )
     return client
 
 
@@ -90,10 +86,10 @@ action:
     arguments = {
         "user_prompt": "Turn off kitchen light when it turns on",
         "automation_yaml": valid_yaml,
-        "alias": "Test Automation"
+        "alias": "Test Automation",
     }
     result = await tool_handler.preview_automation_from_prompt(arguments)
-    
+
     assert result["success"] is True
     assert result["preview"] is True
     assert "validation" in result
@@ -108,13 +104,9 @@ alias: Test Automation
 trigger: []
 action: []
 """
-    arguments = {
-        "user_prompt": "Test automation",
-        "automation_yaml": invalid_yaml,
-        "alias": "Test Automation"
-    }
+    arguments = {"user_prompt": "Test automation", "automation_yaml": invalid_yaml, "alias": "Test Automation"}
     result = await tool_handler.preview_automation_from_prompt(arguments)
-    
+
     assert result["success"] is True
     assert result["preview"] is True
     assert "validation" in result
@@ -127,13 +119,9 @@ async def test_preview_automation_missing_fields(tool_handler):
     incomplete_yaml = """
 alias: Test Automation
 """
-    arguments = {
-        "user_prompt": "Test automation",
-        "automation_yaml": incomplete_yaml,
-        "alias": "Test Automation"
-    }
+    arguments = {"user_prompt": "Test automation", "automation_yaml": incomplete_yaml, "alias": "Test Automation"}
     result = await tool_handler.preview_automation_from_prompt(arguments)
-    
+
     assert result["success"] is True
     assert result["preview"] is True
     assert "validation" in result
@@ -155,16 +143,18 @@ action:
     arguments = {
         "user_prompt": "",  # Empty prompt
         "automation_yaml": valid_yaml,
-        "alias": "Test Automation"
+        "alias": "Test Automation",
     }
     result = await tool_handler.preview_automation_from_prompt(arguments)
-    
+
     assert result["success"] is False
     assert "error" in result
 
 
 @pytest.mark.asyncio
-async def test_preview_automation_with_consolidated_validation(tool_handler_with_validation, _mock_ai_automation_client):
+async def test_preview_automation_with_consolidated_validation(
+    tool_handler_with_validation, _mock_ai_automation_client
+):
     """Test preview automation using consolidated validation endpoint"""
     valid_yaml = """
 alias: Test Automation
@@ -180,11 +170,11 @@ action:
     arguments = {
         "user_prompt": "Turn off kitchen light when it turns on",
         "automation_yaml": valid_yaml,
-        "alias": "Test Automation"
+        "alias": "Test Automation",
     }
-    
+
     result = await tool_handler_with_validation.preview_automation_from_prompt(arguments)
-    
+
     # Should use consolidated validation through validation chain
     assert result["success"] is True
     assert result["preview"] is True
@@ -205,7 +195,7 @@ actions:
     target:
       entity_id: light.kitchen
 """
-    
+
     # Mock validation response with fixed YAML
     # Note: AIAutomationValidationStrategy expects errors/warnings as lists of dicts with "message" keys
     mock_ai_automation_client.validate_yaml.return_value = {
@@ -214,17 +204,17 @@ actions:
         "warnings": [{"message": "Fixed plural keys"}],  # List of dicts with "message" keys
         "stages": {"syntax": True, "structure": True},
         "fixed_yaml": "alias: Test Automation\ntrigger:\n  - platform: state\n    entity_id: light.kitchen\naction:\n  - service: light.turn_off\n    target:\n      entity_id: light.kitchen",
-        "summary": "Validation passed with fixes"
+        "summary": "Validation passed with fixes",
     }
-    
+
     arguments = {
         "user_prompt": "Turn off kitchen light when it turns on",
         "automation_yaml": yaml_with_issues,
-        "alias": "Test Automation"
+        "alias": "Test Automation",
     }
-    
+
     result = await tool_handler_with_validation.preview_automation_from_prompt(arguments)
-    
+
     assert result["success"] is True
     assert result["preview"] is True
     assert "validation" in result
@@ -251,11 +241,11 @@ action:
     arguments = {
         "user_prompt": "Turn off kitchen light when it turns on",
         "automation_yaml": valid_yaml,
-        "alias": "Test Automation"
+        "alias": "Test Automation",
     }
-    
+
     result = await tool_handler.preview_automation_from_prompt(arguments)
-    
+
     # Should use basic validation (no AI automation client)
     assert result["success"] is True
     assert result["preview"] is True
@@ -265,7 +255,9 @@ action:
 
 
 @pytest.mark.asyncio
-async def test_preview_automation_consolidated_validation_error(tool_handler_with_validation, mock_ai_automation_client):
+async def test_preview_automation_consolidated_validation_error(
+    tool_handler_with_validation, mock_ai_automation_client
+):
     """Test preview automation when consolidated validation fails, falls back to basic"""
     valid_yaml = """
 alias: Test Automation
@@ -277,18 +269,18 @@ action:
     target:
       entity_id: light.kitchen
 """
-    
+
     # Mock validation error
     mock_ai_automation_client.validate_yaml.side_effect = Exception("Service unavailable")
-    
+
     arguments = {
         "user_prompt": "Turn off kitchen light when it turns on",
         "automation_yaml": valid_yaml,
-        "alias": "Test Automation"
+        "alias": "Test Automation",
     }
-    
+
     result = await tool_handler_with_validation.preview_automation_from_prompt(arguments)
-    
+
     # Should fall back to basic validation
     assert result["success"] is True
     assert result["preview"] is True
@@ -314,11 +306,11 @@ invalid: [unclosed bracket
     arguments = {
         "user_prompt": "Turn off kitchen light when it turns on",
         "automation_yaml": invalid_yaml,
-        "alias": "Test Automation"
+        "alias": "Test Automation",
     }
-    
+
     result = await tool_handler.preview_automation_from_prompt(arguments)
-    
+
     assert result["success"] is False
     assert "error" in result
     assert "YAML" in result["error"] or "yaml" in result["error"].lower()
@@ -340,10 +332,10 @@ action:
     arguments = {
         "user_prompt": "Turn off kitchen light when it turns on",
         "automation_yaml": valid_yaml,
-        "alias": ""  # Empty alias
+        "alias": "",  # Empty alias
     }
-    
+
     result = await tool_handler.preview_automation_from_prompt(arguments)
-    
+
     assert result["success"] is False
     assert "error" in result

@@ -25,7 +25,11 @@ class RateLimiter:
     Tracks message count per connection per minute.
     """
 
-    def __init__(self, max_messages: int = RATE_LIMIT_MESSAGES, window_seconds: int = RATE_LIMIT_WINDOW_SECONDS):
+    def __init__(
+        self,
+        max_messages: int = RATE_LIMIT_MESSAGES,
+        window_seconds: int = RATE_LIMIT_WINDOW_SECONDS,
+    ):
         """
         Initialize rate limiter.
 
@@ -51,8 +55,7 @@ class RateLimiter:
         # Remove old timestamps
         for connection_id in list(self._message_timestamps.keys()):
             self._message_timestamps[connection_id] = [
-                ts for ts in self._message_timestamps[connection_id]
-                if ts > cutoff_time
+                ts for ts in self._message_timestamps[connection_id] if ts > cutoff_time
             ]
             # Remove empty entries
             if not self._message_timestamps[connection_id]:
@@ -85,7 +88,10 @@ class RateLimiter:
 
         # Check if limit exceeded
         if len(timestamps) >= self.max_messages:
-            return False, f"Rate limit exceeded: {self.max_messages} messages per {self.window_seconds} seconds"
+            return (
+                False,
+                f"Rate limit exceeded: {self.max_messages} messages per {self.window_seconds} seconds",
+            )
 
         # Add current timestamp
         timestamps.append(now)
@@ -110,10 +116,13 @@ def validate_message_size(message: str) -> tuple[bool, str | None]:
         - valid: True if message size is within limits, False otherwise
         - error_message: Error message if invalid, None otherwise
     """
-    message_size = len(message.encode('utf-8'))
+    message_size = len(message.encode("utf-8"))
 
     if message_size > MAX_MESSAGE_SIZE:
-        return False, f"Message size ({message_size} bytes) exceeds maximum allowed size ({MAX_MESSAGE_SIZE} bytes)"
+        return (
+            False,
+            f"Message size ({message_size} bytes) exceeds maximum allowed size ({MAX_MESSAGE_SIZE} bytes)",
+        )
 
     return True, None
 
@@ -152,8 +161,8 @@ def get_ssl_config() -> bool:
         True if SSL verification should be enabled, False otherwise
         Defaults to True (secure by default)
     """
-    ssl_verify = os.getenv('SSL_VERIFY', 'true').lower()
-    return ssl_verify in ('true', '1', 'yes', 'on')
+    ssl_verify = os.getenv("SSL_VERIFY", "true").lower()
+    return ssl_verify in ("true", "1", "yes", "on")
 
 
 # Global rate limiter instance
@@ -164,8 +173,9 @@ def get_rate_limiter() -> RateLimiter:
     """Get or create global rate limiter instance"""
     global _rate_limiter
     if _rate_limiter is None:
-        max_messages = int(os.getenv('WEBSOCKET_RATE_LIMIT_MESSAGES', str(RATE_LIMIT_MESSAGES)))
-        window_seconds = int(os.getenv('WEBSOCKET_RATE_LIMIT_WINDOW', str(RATE_LIMIT_WINDOW_SECONDS)))
+        max_messages = int(os.getenv("WEBSOCKET_RATE_LIMIT_MESSAGES", str(RATE_LIMIT_MESSAGES)))
+        window_seconds = int(
+            os.getenv("WEBSOCKET_RATE_LIMIT_WINDOW", str(RATE_LIMIT_WINDOW_SECONDS))
+        )
         _rate_limiter = RateLimiter(max_messages=max_messages, window_seconds=window_seconds)
     return _rate_limiter
-

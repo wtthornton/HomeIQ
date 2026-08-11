@@ -30,4 +30,3 @@ def reload_registry() -> DeviceMappingRegistry:
 
 
 __all__ = ["DeviceMappingRegistry", "get_registry", "reload_registry"]
-

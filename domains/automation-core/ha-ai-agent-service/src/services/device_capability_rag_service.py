@@ -15,20 +15,46 @@ logger = logging.getLogger(__name__)
 
 DEVICE_CAPABILITY_KEYWORDS = (
     # WLED
-    "wled", "effect_list", "segment", "led strip", "addressable led",
+    "wled",
+    "effect_list",
+    "segment",
+    "led strip",
+    "addressable led",
     # Hue
-    "hue scene", "hue group", "hue room", "hue zone", "hue effect",
+    "hue scene",
+    "hue group",
+    "hue room",
+    "hue zone",
+    "hue effect",
     # Smart plugs
-    "smart plug", "power monitoring", "energy monitoring", "power meter",
-    "consumption", "wattage",
+    "smart plug",
+    "power monitoring",
+    "energy monitoring",
+    "power meter",
+    "consumption",
+    "wattage",
     # Sonoff / Shelly / Tasmota
-    "sonoff", "shelly", "tasmota", "esphome",
+    "sonoff",
+    "shelly",
+    "tasmota",
+    "esphome",
     # Covers / blinds
-    "cover", "blind", "curtain", "roller shutter", "tilt",
+    "cover",
+    "blind",
+    "curtain",
+    "roller shutter",
+    "tilt",
     # Media
-    "media_player", "speaker", "chromecast", "sonos", "tts",
+    "media_player",
+    "speaker",
+    "chromecast",
+    "sonos",
+    "tts",
     # Sensors
-    "sensor automation", "sensor trigger", "threshold", "numeric_state",
+    "sensor automation",
+    "sensor trigger",
+    "threshold",
+    "numeric_state",
 )
 
 

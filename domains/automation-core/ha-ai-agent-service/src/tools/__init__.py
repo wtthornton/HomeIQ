@@ -8,4 +8,3 @@ from .ha_tools import HAToolHandler
 from .tool_schemas import HA_TOOLS, get_tool_schemas
 
 __all__ = ["HA_TOOLS", "get_tool_schemas", "HAToolHandler"]
-

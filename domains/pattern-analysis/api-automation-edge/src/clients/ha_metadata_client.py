@@ -57,9 +57,7 @@ class HAMetadataClient:
             config = await self.rest_client.get_config()
             # Instance ID may be in different locations depending on HA version
             instance_id = (
-                config.get("location_name") or
-                config.get("instance_id") or
-                config.get("uuid")
+                config.get("location_name") or config.get("instance_id") or config.get("uuid")
             )
             logger.info(f"HA instance ID: {instance_id}")
             return instance_id

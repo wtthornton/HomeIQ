@@ -20,7 +20,8 @@ class TaskCreate(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=5000)
     enabled: bool = True
     notification_preference: str = Field(
-        default="never", pattern=r"^(always|on_alert|never)$",
+        default="never",
+        pattern=r"^(always|on_alert|never)$",
     )
     cooldown_minutes: int = Field(default=60, ge=0, le=10080)
     max_execution_seconds: int = Field(default=120, ge=10, le=600)
@@ -45,7 +46,8 @@ class TaskUpdate(BaseModel):
     prompt: str | None = Field(default=None, min_length=1, max_length=5000)
     enabled: bool | None = None
     notification_preference: str | None = Field(
-        default=None, pattern=r"^(always|on_alert|never)$",
+        default=None,
+        pattern=r"^(always|on_alert|never)$",
     )
     cooldown_minutes: int | None = Field(default=None, ge=0, le=10080)
     max_execution_seconds: int | None = Field(default=None, ge=10, le=600)

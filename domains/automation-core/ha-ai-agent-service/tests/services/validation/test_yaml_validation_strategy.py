@@ -5,6 +5,7 @@ Tests for yaml_validation_strategy.py
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from src.clients.yaml_validation_client import YAMLValidationClient
 from src.services.validation.yaml_validation_strategy import YAMLValidationStrategy
 
@@ -13,12 +14,7 @@ from src.services.validation.yaml_validation_strategy import YAMLValidationStrat
 def mock_yaml_validation_client():
     """Mock YAML Validation Service client"""
     client = MagicMock(spec=YAMLValidationClient)
-    client.validate_yaml = AsyncMock(return_value={
-        "valid": True,
-        "errors": [],
-        "warnings": [],
-        "score": 100.0
-    })
+    client.validate_yaml = AsyncMock(return_value={"valid": True, "errors": [], "warnings": [], "score": 100.0})
     return client
 
 
@@ -54,7 +50,7 @@ class TestYAMLValidationStrategy:
             "valid": False,
             "errors": ["Missing required field: trigger"],
             "warnings": [],
-            "score": 50.0
+            "score": 50.0,
         }
 
         strategy = YAMLValidationStrategy(mock_yaml_validation_client)
@@ -73,7 +69,7 @@ class TestYAMLValidationStrategy:
             "warnings": [],
             "score": 100.0,
             "fixed_yaml": "alias: test\ntrigger:\n  - platform: state",
-            "fixes_applied": ["Added missing trigger field"]
+            "fixes_applied": ["Added missing trigger field"],
         }
 
         strategy = YAMLValidationStrategy(mock_yaml_validation_client)

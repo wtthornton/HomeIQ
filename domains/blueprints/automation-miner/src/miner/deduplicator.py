@@ -3,6 +3,7 @@ Deduplication Logic
 
 Uses rapidfuzz for fuzzy string matching to detect duplicate automations.
 """
+
 import hashlib
 import logging
 
@@ -40,7 +41,7 @@ class Deduplicator:
             SHA256 hash string
         """
         # Normalize title (lowercase, no spaces)
-        normalized_title = metadata.title.lower().replace(' ', '').replace('-', '')
+        normalized_title = metadata.title.lower().replace(" ", "").replace("-", "")
 
         # Sort devices for consistent hashing
         sorted_devices = sorted(metadata.devices)
@@ -67,11 +68,7 @@ class Deduplicator:
         # Convert to 0.0-1.0 scale
         return score / 100.0
 
-    def is_duplicate(
-        self,
-        metadata: AutomationMetadata,
-        existing: AutomationMetadata
-    ) -> bool:
+    def is_duplicate(self, metadata: AutomationMetadata, existing: AutomationMetadata) -> bool:
         """
         Check if two automations are duplicates
 
@@ -87,10 +84,7 @@ class Deduplicator:
             return True
 
         # Calculate title similarity
-        title_similarity = self.calculate_title_similarity(
-            metadata.title,
-            existing.title
-        )
+        title_similarity = self.calculate_title_similarity(metadata.title, existing.title)
 
         # If titles are very similar (>= threshold), check devices
         if title_similarity >= self.threshold:
@@ -119,9 +113,7 @@ class Deduplicator:
         return False
 
     def find_duplicates(
-        self,
-        metadata: AutomationMetadata,
-        existing_automations: list[AutomationMetadata]
+        self, metadata: AutomationMetadata, existing_automations: list[AutomationMetadata]
     ) -> list[AutomationMetadata]:
         """
         Find all duplicates of an automation in existing corpus
@@ -141,10 +133,7 @@ class Deduplicator:
 
         return duplicates
 
-    def select_best(
-        self,
-        automations: list[AutomationMetadata]
-    ) -> AutomationMetadata:
+    def select_best(self, automations: list[AutomationMetadata]) -> AutomationMetadata:
         """
         Select the best automation from a list of duplicates
 
@@ -174,7 +163,7 @@ class Deduplicator:
     def deduplicate_batch(
         self,
         new_automations: list[AutomationMetadata],
-        existing_automations: list[AutomationMetadata]
+        existing_automations: list[AutomationMetadata],
     ) -> list[AutomationMetadata]:
         """
         Deduplicate a batch of new automations against existing corpus
@@ -209,16 +198,12 @@ class Deduplicator:
                     # Existing is better, skip new
                     to_skip.append(new_auto)
                     logger.debug(
-                        f"Skipping '{new_auto.title}' - duplicate of existing "
-                        f"with higher quality"
+                        f"Skipping '{new_auto.title}' - duplicate of existing with higher quality"
                     )
             else:
                 # No duplicates, add it
                 to_add.append(new_auto)
 
-        logger.info(
-            f"Deduplication complete: {len(to_add)} to add, {len(to_skip)} to skip"
-        )
+        logger.info(f"Deduplication complete: {len(to_add)} to add, {len(to_skip)} to skip")
 
         return to_add
-

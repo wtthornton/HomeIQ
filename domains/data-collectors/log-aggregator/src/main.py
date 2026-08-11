@@ -33,7 +33,7 @@ def _count_recent_logs(logs: list[dict], hours: int = 1) -> int:
     count = 0
     for log in logs:
         try:
-            timestamp_str = log.get('timestamp', '1970-01-01T00:00:00Z').replace('Z', '+00:00')
+            timestamp_str = log.get("timestamp", "1970-01-01T00:00:00Z").replace("Z", "+00:00")
             log_time = datetime.fromisoformat(timestamp_str).timestamp()
             if log_time > cutoff:
                 count += 1
@@ -46,7 +46,7 @@ def _count_by_field(logs: list[dict], field: str) -> dict[str, int]:
     """Count log entries grouped by a specific field value."""
     counts: dict[str, int] = {}
     for log in logs:
-        value = str(log.get(field, 'unknown'))
+        value = str(log.get(field, "unknown"))
         counts[value] = counts.get(value, 0) + 1
     return counts
 
@@ -179,7 +179,7 @@ async def search_logs(
 async def collect_logs_endpoint(request: Request) -> dict[str, Any]:
     """Manually trigger log collection with rate limiting."""
     if _aggregator._api_key:
-        provided_key = request.headers.get('X-API-Key', '')
+        provided_key = request.headers.get("X-API-Key", "")
         if provided_key != _aggregator._api_key:
             raise HTTPException(status_code=403, detail="Invalid or missing API key")
 
@@ -207,8 +207,8 @@ async def get_log_stats() -> dict[str, Any]:
     logs = _aggregator.aggregated_logs
     return {
         "total_logs": len(logs),
-        "services": _count_by_field(logs, 'service'),
-        "levels": _count_by_field(logs, 'level'),
+        "services": _count_by_field(logs, "service"),
+        "levels": _count_by_field(logs, "level"),
         "recent_logs": _count_recent_logs(logs, hours=1),
     }
 

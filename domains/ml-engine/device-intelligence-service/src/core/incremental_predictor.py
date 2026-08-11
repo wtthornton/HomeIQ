@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 # Try to import River
 try:
     from river import compose, metrics, preprocessing, tree
+
     RIVER_AVAILABLE = True
 except ImportError:
     RIVER_AVAILABLE = False
@@ -40,14 +41,17 @@ class IncrementalFailurePredictor:
             memory_buffer_size: Size of memory buffer for forgetting prevention
         """
         if not RIVER_AVAILABLE:
-            raise ImportError("River library required for incremental learning. Install with: pip install river>=0.21.0")
+            raise ImportError(
+                "River library required for incremental learning. Install with: pip install river>=0.21.0"
+            )
 
         self.model = compose.Pipeline(
-            preprocessing.StandardScaler(),
-            tree.HoeffdingTreeClassifier()
+            preprocessing.StandardScaler(), tree.HoeffdingTreeClassifier()
         )
         self.metric = metrics.Accuracy()
-        self.memory_buffer: list[tuple[dict, int]] = []  # Store (features_dict, label) for forgetting prevention
+        self.memory_buffer: list[
+            tuple[dict, int]
+        ] = []  # Store (features_dict, label) for forgetting prevention
         self.memory_buffer_size = memory_buffer_size
         self.is_trained = False
         self.feature_names: list[str] = []
@@ -190,10 +194,7 @@ class IncrementalFailurePredictor:
                     prob_1 = proba_dict.get(1, 0.0)
                     # Normalize if needed
                     total = prob_0 + prob_1
-                    if total > 0:
-                        prob = [prob_0 / total, prob_1 / total]
-                    else:
-                        prob = [0.5, 0.5]
+                    prob = [prob_0 / total, prob_1 / total] if total > 0 else [0.5, 0.5]
                 else:
                     pred = self.model.predict_one(features_dict)
                     prob = [0.2, 0.8] if pred == 1 else [0.8, 0.2]
@@ -216,7 +217,7 @@ class IncrementalFailurePredictor:
             "memory_buffer_size": self.memory_buffer_size,
             "is_trained": self.is_trained,
             "feature_names": self.feature_names,
-            "current_accuracy": self.metric.get()
+            "current_accuracy": self.metric.get(),
         }
 
     def set_params(self, **params) -> "IncrementalFailurePredictor":
@@ -224,4 +225,3 @@ class IncrementalFailurePredictor:
         if "memory_buffer_size" in params:
             self.memory_buffer_size = params["memory_buffer_size"]
         return self
-

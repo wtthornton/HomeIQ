@@ -40,7 +40,7 @@ class PatternLearner:
         automation_type: str,
         automation_category: str | None = None,
         user_satisfaction: float | None = None,
-        days_active: int | None = None
+        days_active: int | None = None,
     ) -> bool:
         """
         Learn from successful automation.
@@ -73,7 +73,7 @@ class PatternLearner:
             if SystemSettings:
                 settings_result = await db.execute(select(SystemSettings).limit(1))
                 settings = settings_result.scalar_one_or_none()
-                if settings and not getattr(settings, 'enable_qa_learning', True):
+                if settings and not getattr(settings, "enable_qa_learning", True):
                     logger.debug("Q&A learning disabled in settings")
                     return False
 
@@ -87,9 +87,10 @@ class PatternLearner:
                 # Try to import RAGClient (may not be available in pattern service)
                 try:
                     from ...services.rag.rag_client import RAGClient
+
                     rag_client = RAGClient(
                         openvino_service_url=None,  # Will use default
-                        db_session=db
+                        db_session=db,
                     )
 
                     pattern_text = f"Q&A Pattern: {qa_pattern}\nAutomation Type: {automation_type}"
@@ -106,18 +107,18 @@ class PatternLearner:
 
                     await rag_client.store(
                         text=pattern_text,
-                        knowledge_type='qa_automation_pattern',
+                        knowledge_type="qa_automation_pattern",
                         metadata={
-                            'session_id': session_id,
-                            'qa_pattern': qa_pattern,
-                            'automation_type': automation_type,
-                            'automation_category': automation_category,
-                            'user_satisfaction': user_satisfaction,
-                            'days_active': days_active,
-                            'qa_count': len(qa_pairs),
-                            'created_at': datetime.now(UTC).isoformat()
+                            "session_id": session_id,
+                            "qa_pattern": qa_pattern,
+                            "automation_type": automation_type,
+                            "automation_category": automation_category,
+                            "user_satisfaction": user_satisfaction,
+                            "days_active": days_active,
+                            "qa_count": len(qa_pairs),
+                            "created_at": datetime.now(UTC).isoformat(),
                         },
-                        success_score=success_score
+                        success_score=success_score,
                     )
 
                     logger.debug(
@@ -125,7 +126,9 @@ class PatternLearner:
                         f"(satisfaction={user_satisfaction}, days={days_active})"
                     )
                 except ImportError:
-                    logger.warning("RAGClient not available in pattern service - pattern learning disabled")
+                    logger.warning(
+                        "RAGClient not available in pattern service - pattern learning disabled"
+                    )
                     # Non-critical: continue without RAG storage
                     return False
             except Exception as e:
@@ -156,27 +159,27 @@ class PatternLearner:
         # Extract question categories and answer types
         pattern_parts = []
         for qa in qa_pairs:
-            question = qa.get('question', '')
-            answer = qa.get('answer', '')
-            category = qa.get('category', 'unknown')
+            question = qa.get("question", "")
+            answer = qa.get("answer", "")
+            category = qa.get("category", "unknown")
 
             # Normalize: Extract key information
             # Question type (device_selection, action_type, etc.)
-            if 'device' in question.lower() or 'which' in question.lower():
+            if "device" in question.lower() or "which" in question.lower():
                 pattern_parts.append(f"device_selection:{category}")
-            elif 'action' in question.lower() or 'what' in question.lower():
+            elif "action" in question.lower() or "what" in question.lower():
                 pattern_parts.append(f"action_type:{category}")
-            elif 'when' in question.lower() or 'time' in question.lower():
+            elif "when" in question.lower() or "time" in question.lower():
                 pattern_parts.append(f"timing:{category}")
             else:
                 pattern_parts.append(f"other:{category}")
 
             # Answer type (entity_selected, text_answer, etc.)
-            if qa.get('selected_entities'):
+            if qa.get("selected_entities"):
                 pattern_parts.append(f"entities:{len(qa['selected_entities'])}")
             elif answer:
                 # Simple answer type detection
-                if answer.lower() in ['yes', 'no', 'true', 'false']:
+                if answer.lower() in ["yes", "no", "true", "false"]:
                     pattern_parts.append("boolean")
                 elif any(char.isdigit() for char in answer):
                     pattern_parts.append("numeric")
@@ -186,9 +189,7 @@ class PatternLearner:
         return "|".join(pattern_parts)
 
     async def predict_automation_type(
-        self,
-        db: AsyncSession,
-        qa_pairs: list[dict[str, Any]]
+        self, db: AsyncSession, qa_pairs: list[dict[str, Any]]
     ) -> dict[str, Any] | None:
         """
         Predict automation type from Q&A pattern.
@@ -215,25 +216,22 @@ class PatternLearner:
 
             # Search for similar patterns in knowledge base
             try:
-                rag_client = RAGClient(
-                    openvino_service_url=None,
-                    db_session=db
-                )
+                rag_client = RAGClient(openvino_service_url=None, db_session=db)
 
                 # Search for similar patterns
                 results = await rag_client.retrieve_hybrid(
                     query=f"Q&A Pattern: {current_pattern}",
-                    knowledge_type='qa_automation_pattern',
-                    top_k=5
+                    knowledge_type="qa_automation_pattern",
+                    top_k=5,
                 )
 
                 if results:
                     # Find most common automation type
                     automation_types = {}
                     for result in results:
-                        metadata = result.get('metadata', {})
-                        automation_type = metadata.get('automation_type')
-                        success_score = result.get('score', 0.5)
+                        metadata = result.get("metadata", {})
+                        automation_type = metadata.get("automation_type")
+                        success_score = result.get("score", 0.5)
 
                         if automation_type:
                             if automation_type not in automation_types:
@@ -252,9 +250,9 @@ class PatternLearner:
 
                     if best_type:
                         return {
-                            'automation_type': best_type,
-                            'confidence': best_confidence,
-                            'pattern_match': current_pattern
+                            "automation_type": best_type,
+                            "confidence": best_confidence,
+                            "pattern_match": current_pattern,
                         }
 
             except Exception as e:
@@ -267,11 +265,7 @@ class PatternLearner:
             logger.error(f"Failed to predict automation type: {e}", exc_info=True)
             return None
 
-    async def get_pattern_statistics(
-        self,
-        db: AsyncSession,
-        days: int = 30
-    ) -> dict[str, Any]:
+    async def get_pattern_statistics(self, db: AsyncSession, days: int = 30) -> dict[str, Any]:
         """
         Get pattern learning statistics.
 
@@ -293,14 +287,19 @@ class PatternLearner:
             cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
             # Get successful automations
-            query = select(QAOutcome, ClarificationSessionDB).join(
-                ClarificationSessionDB,
-                QAOutcome.session_id == ClarificationSessionDB.session_id
-            ).where(
-                QAOutcome.outcome_type == 'automation_created',
-                QAOutcome.created_at >= cutoff_date,
-                QAOutcome.days_active >= 30  # Only count successful (30+ days active)
-            ).limit(10000)  # CRITICAL FIX: Add LIMIT to prevent unbounded query
+            query = (
+                select(QAOutcome, ClarificationSessionDB)
+                .join(
+                    ClarificationSessionDB,
+                    QAOutcome.session_id == ClarificationSessionDB.session_id,
+                )
+                .where(
+                    QAOutcome.outcome_type == "automation_created",
+                    QAOutcome.created_at >= cutoff_date,
+                    QAOutcome.days_active >= 30,  # Only count successful (30+ days active)
+                )
+                .limit(10000)
+            )  # CRITICAL FIX: Add LIMIT to prevent unbounded query
 
             result = await db.execute(query)
             rows = result.all()
@@ -310,12 +309,16 @@ class PatternLearner:
                 # Build pattern from session Q&A
                 qa_pairs = [
                     {
-                        'question': q.get('question_text', ''),
-                        'answer': next(
-                            (a.get('answer_text', '') for a in (session.answers or []) if a.get('question_id') == q.get('id')),
-                            ''
+                        "question": q.get("question_text", ""),
+                        "answer": next(
+                            (
+                                a.get("answer_text", "")
+                                for a in (session.answers or [])
+                                if a.get("question_id") == q.get("id")
+                            ),
+                            "",
                         ),
-                        'category': q.get('category', 'unknown')
+                        "category": q.get("category", "unknown"),
                     }
                     for q in (session.questions or [])
                 ]
@@ -324,12 +327,13 @@ class PatternLearner:
                 pattern_counts[pattern] = pattern_counts.get(pattern, 0) + 1
 
             return {
-                'total_successful': len(rows),
-                'unique_patterns': len(pattern_counts),
-                'top_patterns': dict(sorted(pattern_counts.items(), key=lambda x: x[1], reverse=True)[:10])
+                "total_successful": len(rows),
+                "unique_patterns": len(pattern_counts),
+                "top_patterns": dict(
+                    sorted(pattern_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+                ),
             }
 
         except Exception as e:
             logger.error(f"Failed to get pattern statistics: {e}", exc_info=True)
             return {}
-

@@ -31,19 +31,13 @@ class HybridFlowClient:
             base_url: Base URL for ai-automation-service-new
             api_key: Optional API key for authentication
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.api_key = api_key
 
-        self.client = httpx.AsyncClient(
-            timeout=30.0,
-            headers={"X-HomeIQ-API-Key": api_key} if api_key else {}
-        )
+        self.client = httpx.AsyncClient(timeout=30.0, headers={"X-HomeIQ-API-Key": api_key} if api_key else {})
 
     async def create_plan(
-        self,
-        user_text: str,
-        conversation_id: str | None = None,
-        context: dict[str, Any] | None = None
+        self, user_text: str, conversation_id: str | None = None, context: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Create automation plan from user intent.
@@ -59,22 +53,13 @@ class HybridFlowClient:
         url = f"{self.base_url}/automation/plan"
 
         response = await self.client.post(
-            url,
-            json={
-                "conversation_id": conversation_id,
-                "user_text": user_text,
-                "context": context or {}
-            }
+            url, json={"conversation_id": conversation_id, "user_text": user_text, "context": context or {}}
         )
         response.raise_for_status()
         return response.json()
 
     async def validate_plan(
-        self,
-        plan_id: str,
-        template_id: str,
-        template_version: int,
-        parameters: dict[str, Any]
+        self, plan_id: str, template_id: str, template_version: int, parameters: dict[str, Any]
     ) -> dict[str, Any]:
         """
         Validate automation plan.
@@ -96,8 +81,8 @@ class HybridFlowClient:
                 "plan_id": plan_id,
                 "template_id": template_id,
                 "template_version": template_version,
-                "parameters": parameters
-            }
+                "parameters": parameters,
+            },
         )
         response.raise_for_status()
         return response.json()
@@ -108,7 +93,7 @@ class HybridFlowClient:
         template_id: str,
         template_version: int,
         parameters: dict[str, Any],
-        resolved_context: dict[str, Any]
+        resolved_context: dict[str, Any],
     ) -> dict[str, Any]:
         """
         Compile plan to YAML.
@@ -132,17 +117,14 @@ class HybridFlowClient:
                 "template_id": template_id,
                 "template_version": template_version,
                 "parameters": parameters,
-                "resolved_context": resolved_context
-            }
+                "resolved_context": resolved_context,
+            },
         )
         response.raise_for_status()
         return response.json()
 
     async def deploy_compiled(
-        self,
-        compiled_id: str,
-        approved_by: str | None = None,
-        ui_source: str = "ha-ai-agent"
+        self, compiled_id: str, approved_by: str | None = None, ui_source: str = "ha-ai-agent"
     ) -> dict[str, Any]:
         """
         Deploy compiled automation to Home Assistant.
@@ -163,11 +145,8 @@ class HybridFlowClient:
                 "compiled_id": compiled_id,
                 "approved_by": approved_by,
                 "ui_source": ui_source,
-                "audit_data": {
-                    "source": "ha-ai-agent-service",
-                    "ui_source": ui_source
-                }
-            }
+                "audit_data": {"source": "ha-ai-agent-service", "ui_source": ui_source},
+            },
         )
         response.raise_for_status()
         return response.json()

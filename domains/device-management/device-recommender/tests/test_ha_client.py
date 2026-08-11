@@ -25,6 +25,7 @@ def configured(monkeypatch):
 
 def _make_client():
     from src.ha_client import HAClient
+
     return HAClient()
 
 
@@ -40,7 +41,6 @@ def _patched_ws(devices=None, side_effect=None):
 
 
 class TestReadsRegistryOverWebSocket:
-
     @pytest.mark.asyncio
     async def test_returns_devices_from_websocket_registry(self, configured):
         patcher, ws = _patched_ws(DEVICES)
@@ -81,7 +81,6 @@ class TestReadsRegistryOverWebSocket:
 
 
 class TestFailureHandling:
-
     @pytest.mark.asyncio
     async def test_returns_empty_when_ha_not_configured(self, monkeypatch):
         monkeypatch.delenv("HA_URL", raising=False)

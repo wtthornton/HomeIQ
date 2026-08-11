@@ -157,9 +157,7 @@ class DiscourseBlueprintIndexer:
         while page < max_pages:
             # Use the full category path with slug to avoid redirects
             data = await self._request(
-                "GET",
-                f"/c/{category_slug}/{category_id}.json",
-                params={"page": page}
+                "GET", f"/c/{category_slug}/{category_id}.json", params={"page": page}
             )
 
             topic_list = data.get("topic_list", {})
@@ -214,6 +212,7 @@ class DiscourseBlueprintIndexer:
             created_at_str = topic.get("created_at")
             if created_at_str:
                 import contextlib
+
                 with contextlib.suppress(ValueError, TypeError):
                     created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
 
@@ -271,11 +270,7 @@ class DiscourseBlueprintIndexer:
 
         return yaml_blocks
 
-    async def search_blueprints(
-        self,
-        query: str,
-        limit: int = 50
-    ) -> list[dict[str, Any]]:
+    async def search_blueprints(self, query: str, limit: int = 50) -> list[dict[str, Any]]:
         """
         Search for blueprints on Discourse.
 
@@ -294,19 +289,21 @@ class DiscourseBlueprintIndexer:
                 "/search.json",
                 params={
                     "q": f"{query} #blueprints-exchange",
-                }
+                },
             )
 
             topics = data.get("topics", [])
 
             for topic in topics[:limit]:
-                results.append({
-                    "id": topic.get("id"),
-                    "title": topic.get("title"),
-                    "slug": topic.get("slug"),
-                    "url": f"{self.base_url}/t/{topic.get('slug')}/{topic.get('id')}",
-                    "likes": topic.get("like_count", 0),
-                })
+                results.append(
+                    {
+                        "id": topic.get("id"),
+                        "title": topic.get("title"),
+                        "slug": topic.get("slug"),
+                        "url": f"{self.base_url}/t/{topic.get('slug')}/{topic.get('id')}",
+                        "likes": topic.get("like_count", 0),
+                    }
+                )
 
         except Exception as e:
             logger.warning(f"Search failed: {e}")

@@ -48,8 +48,11 @@ class ToolService:
         self.ha_client = ha_client
         self.data_api_client = data_api_client
         self.tool_handler = HAToolHandler(
-            ha_client, data_api_client, ai_automation_client,
-            yaml_validation_client, openai_client,
+            ha_client,
+            data_api_client,
+            ai_automation_client,
+            yaml_validation_client,
+            openai_client,
         )
         self.device_control_handler = device_control_handler
 
@@ -63,24 +66,22 @@ class ToolService:
 
         # Epic 25: Device control tools (proxied to ha-device-control service)
         if self.device_control_handler:
-            self.tool_handlers.update({
-                "control_light": self.device_control_handler.control_light,
-                "control_light_area": self.device_control_handler.control_light_area,
-                "control_switch": self.device_control_handler.control_switch,
-                "get_climate": self.device_control_handler.get_climate,
-                "set_climate": self.device_control_handler.set_climate,
-                "activate_scene": self.device_control_handler.activate_scene,
-                "house_status": self.device_control_handler.house_status,
-                "send_notification": self.device_control_handler.send_notification,
-            })
+            self.tool_handlers.update(
+                {
+                    "control_light": self.device_control_handler.control_light,
+                    "control_light_area": self.device_control_handler.control_light_area,
+                    "control_switch": self.device_control_handler.control_switch,
+                    "get_climate": self.device_control_handler.get_climate,
+                    "set_climate": self.device_control_handler.set_climate,
+                    "activate_scene": self.device_control_handler.activate_scene,
+                    "house_status": self.device_control_handler.house_status,
+                    "send_notification": self.device_control_handler.send_notification,
+                }
+            )
 
         logger.info("ToolService initialized with %d tool(s)", len(self.tool_handlers))
 
-    async def execute_tool(
-        self,
-        tool_name: str,
-        arguments: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def execute_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """
         Execute a tool call and return formatted result.
 
@@ -93,10 +94,7 @@ class ToolService:
         """
         if tool_name not in self.tool_handlers:
             logger.warning(f"Unknown tool requested: {tool_name}")
-            return {
-                "error": f"Unknown tool: {tool_name}",
-                "available_tools": list(self.tool_handlers.keys())
-            }
+            return {"error": f"Unknown tool: {tool_name}", "available_tools": list(self.tool_handlers.keys())}
 
         try:
             logger.info(f"Executing tool: {tool_name} with arguments: {arguments}")
@@ -118,24 +116,13 @@ class ToolService:
         except ValueError as e:
             # Validation errors
             logger.warning(f"Tool {tool_name} validation error: {e}")
-            return {
-                "success": False,
-                "error": f"Validation error: {str(e)}",
-                "tool": tool_name
-            }
+            return {"success": False, "error": f"Validation error: {str(e)}", "tool": tool_name}
         except Exception as e:
             # Unexpected errors
             logger.error(f"Tool {tool_name} execution failed: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": f"Tool execution failed: {str(e)}",
-                "tool": tool_name
-            }
+            return {"success": False, "error": f"Tool execution failed: {str(e)}", "tool": tool_name}
 
-    async def execute_tool_call(
-        self,
-        tool_call: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def execute_tool_call(self, tool_call: dict[str, Any]) -> dict[str, Any]:
         """
         Execute a tool call from OpenAI Responses API format.
 
@@ -169,19 +156,13 @@ class ToolService:
                 call_id = tool_call.get("call_id")
 
             if not tool_name:
-                return {
-                    "success": False,
-                    "error": "Tool name not provided in tool call"
-                }
+                return {"success": False, "error": "Tool name not provided in tool call"}
 
             # Parse arguments JSON
             try:
                 arguments = json.loads(arguments_str) if isinstance(arguments_str, str) else arguments_str
             except json.JSONDecodeError as e:
-                return {
-                    "success": False,
-                    "error": f"Invalid JSON in tool arguments: {str(e)}"
-                }
+                return {"success": False, "error": f"Invalid JSON in tool arguments: {str(e)}"}
 
             # Execute tool
             result = await self.execute_tool(tool_name, arguments)
@@ -193,10 +174,7 @@ class ToolService:
 
         except Exception as e:
             logger.error(f"Error processing tool call: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": f"Tool call processing failed: {str(e)}"
-            }
+            return {"success": False, "error": f"Tool call processing failed: {str(e)}"}
 
     def get_available_tools(self) -> list[str]:
         """
@@ -206,4 +184,3 @@ class ToolService:
             List of tool function names
         """
         return list(self.tool_handlers.keys())
-
