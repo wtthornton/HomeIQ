@@ -129,7 +129,7 @@ def generate_large_dataset(
     logger.info("Saving dataset...")
     logger.info(f"{'=' * 80}")
 
-    with open(output_file, "w", encoding="utf-8") as f:
+    with Path(output_file).open("w", encoding="utf-8") as f:
         json.dump(all_samples, f, indent=2)
 
     file_size_mb = output_file.stat().st_size / (1024 * 1024)

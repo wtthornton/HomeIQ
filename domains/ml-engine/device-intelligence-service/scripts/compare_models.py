@@ -185,7 +185,7 @@ async def compare_models(days_back: int = 180, output_file: str | None = None):
 
         # Save results if requested
         if output_file:
-            with open(output_file, "w") as f:
+            with Path(output_file).open("w") as f:
                 json.dump(results, f, indent=2)
             logger.info(f"✅ Results saved to {output_file}")
 

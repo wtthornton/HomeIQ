@@ -110,7 +110,7 @@ class TestModelTraining:
         metadata_path = os.path.join(temp_models_dir, "model_metadata.json")
         assert os.path.exists(metadata_path)
 
-        with open(metadata_path) as f:
+        with Path(metadata_path).open() as f:
             metadata = json.load(f)
 
         assert metadata["version"] is not None

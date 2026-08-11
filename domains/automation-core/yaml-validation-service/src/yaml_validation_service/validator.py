@@ -28,7 +28,7 @@ def _load_blacklist(config_path: Path | None = None) -> dict[str, Any]:
     """Load entity blacklist YAML config (Epic 93)."""
     path = config_path or _BLACKLIST_PATH
     try:
-        with open(path, encoding="utf-8") as fh:
+        with Path(path).open(encoding="utf-8") as fh:
             return yaml.safe_load(fh) or {}
     except FileNotFoundError:
         logger.warning("Entity blacklist not found at %s — safety blocking disabled", path)
@@ -407,24 +407,24 @@ class ValidationPipeline:
                     to_state = trigger.get("to")
                     _from_state = trigger.get("from")  # noqa: F841
 
-                    if entity_id and to_state:
-                        # Get domain from entity_id
-                        if "." in entity_id:
-                            domain = entity_id.split(".")[0]
+                    # Get domain from entity_id
+                    if (entity_id and to_state) and ("." in entity_id):
+                        domain = entity_id.split(".")[0]
 
-                            # Check if state is valid for domain
-                            if domain in valid_states_by_domain:
-                                valid_states = valid_states_by_domain[domain]
-                                if isinstance(to_state, str) and to_state not in valid_states:
-                                    # Check if it's a list (multiple states)
-                                    if not (
-                                        isinstance(to_state, list)
-                                        and all(s in valid_states for s in to_state)
-                                    ):
-                                        warnings.append(
-                                            f"State trigger for {entity_id}: 'to' state '{to_state}' may be invalid "
-                                            f"(expected one of: {', '.join(valid_states)})"
-                                        )
+                        # Check if state is valid for domain
+                        if domain in valid_states_by_domain:
+                            valid_states = valid_states_by_domain[domain]
+                            # Check if it's a list (multiple states)
+                            if (isinstance(to_state, str) and to_state not in valid_states) and (
+                                not (
+                                    isinstance(to_state, list)
+                                    and all(s in valid_states for s in to_state)
+                                )
+                            ):
+                                warnings.append(
+                                    f"State trigger for {entity_id}: 'to' state '{to_state}' may be invalid "
+                                    f"(expected one of: {', '.join(valid_states)})"
+                                )
 
         # Extract condition states and validate
         if "condition" in data:
@@ -862,25 +862,24 @@ class ValidationPipeline:
                     )
 
             # Extract from state triggers (platform: state)
-            if context == "trigger" and "platform" in data and data.get("platform") == "state":
-                if "entity_id" in data:
-                    entity_id = data["entity_id"]
-                    if (
-                        isinstance(entity_id, str)
-                        and "." in entity_id
-                        and self._is_valid_entity_id(entity_id)
-                    ):
-                        entity_ids.append(entity_id)
-                    elif isinstance(entity_id, list):
-                        entity_ids.extend(
-                            [
-                                eid
-                                for eid in entity_id
-                                if isinstance(eid, str)
-                                and "." in eid
-                                and self._is_valid_entity_id(eid)
-                            ]
-                        )
+            if (
+                context == "trigger" and "platform" in data and data.get("platform") == "state"
+            ) and ("entity_id" in data):
+                entity_id = data["entity_id"]
+                if (
+                    isinstance(entity_id, str)
+                    and "." in entity_id
+                    and self._is_valid_entity_id(entity_id)
+                ):
+                    entity_ids.append(entity_id)
+                elif isinstance(entity_id, list):
+                    entity_ids.extend(
+                        [
+                            eid
+                            for eid in entity_id
+                            if isinstance(eid, str) and "." in eid and self._is_valid_entity_id(eid)
+                        ]
+                    )
 
             # Extract from conditions
             if context == "condition" and "entity_id" in data:
@@ -901,25 +900,24 @@ class ValidationPipeline:
                     )
 
             # Extract from target.entity_id (actions)
-            if "target" in data and isinstance(data["target"], dict):
-                if "entity_id" in data["target"]:
-                    entity_id = data["target"]["entity_id"]
-                    if (
-                        isinstance(entity_id, str)
-                        and "." in entity_id
-                        and self._is_valid_entity_id(entity_id)
-                    ):
-                        entity_ids.append(entity_id)
-                    elif isinstance(entity_id, list):
-                        entity_ids.extend(
-                            [
-                                eid
-                                for eid in entity_id
-                                if isinstance(eid, str)
-                                and "." in eid
-                                and self._is_valid_entity_id(eid)
-                            ]
-                        )
+            if ("target" in data and isinstance(data["target"], dict)) and (
+                "entity_id" in data["target"]
+            ):
+                entity_id = data["target"]["entity_id"]
+                if (
+                    isinstance(entity_id, str)
+                    and "." in entity_id
+                    and self._is_valid_entity_id(entity_id)
+                ):
+                    entity_ids.append(entity_id)
+                elif isinstance(entity_id, list):
+                    entity_ids.extend(
+                        [
+                            eid
+                            for eid in entity_id
+                            if isinstance(eid, str) and "." in eid and self._is_valid_entity_id(eid)
+                        ]
+                    )
 
             # Recursively process nested structures, but skip service names
             for key, value in data.items():
@@ -991,13 +989,14 @@ class ValidationPipeline:
                     area_ids.extend([aid for aid in area_id if isinstance(aid, str)])
 
             # Check target.area_id
-            if "target" in data and isinstance(data["target"], dict):
-                if "area_id" in data["target"]:
-                    area_id = data["target"]["area_id"]
-                    if isinstance(area_id, str):
-                        area_ids.append(area_id)
-                    elif isinstance(area_id, list):
-                        area_ids.extend([aid for aid in area_id if isinstance(aid, str)])
+            if ("target" in data and isinstance(data["target"], dict)) and (
+                "area_id" in data["target"]
+            ):
+                area_id = data["target"]["area_id"]
+                if isinstance(area_id, str):
+                    area_ids.append(area_id)
+                elif isinstance(area_id, list):
+                    area_ids.extend([aid for aid in area_id if isinstance(aid, str)])
 
             for value in data.values():
                 self._extract_area_ids(value, area_ids)
@@ -1030,10 +1029,11 @@ class ValidationPipeline:
             # Extract from service field (actions)
             if "service" in data:
                 service = data["service"]
-                if isinstance(service, str) and "." in service:
-                    # Validate service format: domain.service_name
-                    if self._is_valid_service_name(service):
-                        services.append(service)
+                # Validate service format: domain.service_name
+                if (isinstance(service, str) and "." in service) and (
+                    self._is_valid_service_name(service)
+                ):
+                    services.append(service)
 
             # Recursively process, but skip entity_id fields
             for key, value in data.items():

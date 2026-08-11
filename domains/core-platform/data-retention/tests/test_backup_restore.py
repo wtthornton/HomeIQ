@@ -178,7 +178,7 @@ class TestBackupRestoreService:
             assert data_file.exists()
 
             # Check data content
-            with open(data_file) as f:
+            with Path(data_file).open() as f:
                 data = json.load(f)
 
             assert "events" in data
@@ -216,7 +216,7 @@ class TestBackupRestoreService:
             assert data_file.exists()
 
             # Check data content
-            with open(data_file) as f:
+            with Path(data_file).open() as f:
                 data = json.load(f)
 
             assert "events" in data
@@ -313,7 +313,7 @@ class TestBackupRestoreService:
                 ]
             }
 
-            with open(data_file, "w") as f:
+            with Path(data_file).open("w") as f:
                 json.dump(mock_data, f)
 
             # Should not raise exception with mock implementation
@@ -347,7 +347,7 @@ class TestBackupRestoreService:
                 ]
             }
 
-            with open(data_file, "w") as f:
+            with Path(data_file).open("w") as f:
                 json.dump(mock_data, f)
 
             await service._restore_data(temp_path)

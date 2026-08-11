@@ -70,7 +70,7 @@ class ConfigManager:
             raise FileNotFoundError(f"Configuration file not found: {env_file}")
 
         config = {}
-        with open(env_file) as f:
+        with Path(env_file).open() as f:
             for line_num, line in enumerate(f, 1):
                 line = line.strip()
 
@@ -120,7 +120,7 @@ class ConfigManager:
         # Read existing config if file exists
         lines = []
         if env_file.exists():
-            with open(env_file) as f:
+            with Path(env_file).open() as f:
                 lines = f.readlines()
 
         # Update or add new values
@@ -153,7 +153,7 @@ class ConfigManager:
                 updated_keys.add(key)
 
         # Write back
-        with open(env_file, "w") as f:
+        with Path(env_file).open("w") as f:
             f.writelines(new_lines)
 
         # Set secure permissions (owner read/write only) - ignore errors for mounted volumes

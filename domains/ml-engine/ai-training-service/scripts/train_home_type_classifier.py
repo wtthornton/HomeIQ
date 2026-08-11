@@ -83,7 +83,7 @@ async def main():
     synthetic_homes = []
     for home_file in home_files:
         try:
-            with open(home_file, encoding="utf-8") as f:
+            with Path(home_file).open(encoding="utf-8") as f:
                 home = json.load(f)
                 synthetic_homes.append(home)
         except Exception as e:
@@ -111,7 +111,7 @@ async def main():
 
     # Save training results
     results_path = output_path.parent / f"{output_path.stem}_results.json"
-    with open(results_path, "w", encoding="utf-8") as f:
+    with Path(results_path).open("w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
 
     logger.info(f"✅ Training results saved to {results_path}")

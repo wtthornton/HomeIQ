@@ -392,7 +392,7 @@ class SyntheticHomeGenerator:
         # Save each home as JSON
         for i, home in enumerate(homes):
             home_file = output_path / f"home_{i + 1:03d}_{home['home_type']}.json"
-            with open(home_file, "w", encoding="utf-8") as f:
+            with Path(home_file).open("w", encoding="utf-8") as f:
                 json.dump(home, f, indent=2, ensure_ascii=False)
 
         # Save summary
@@ -413,7 +413,7 @@ class SyntheticHomeGenerator:
             )
 
         summary_file = output_path / "summary.json"
-        with open(summary_file, "w", encoding="utf-8") as f:
+        with Path(summary_file).open("w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2, ensure_ascii=False)
 
         logger.info(f"✅ Saved {len(homes)} homes to {output_path}")

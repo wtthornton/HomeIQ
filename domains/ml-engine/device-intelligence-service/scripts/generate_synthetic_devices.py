@@ -119,7 +119,7 @@ def main():
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w") as f:
+        with Path(output_path).open("w") as f:
             json.dump(training_data, f, indent=2)
 
         logger.info(f"✅ Generated {len(training_data)} samples")

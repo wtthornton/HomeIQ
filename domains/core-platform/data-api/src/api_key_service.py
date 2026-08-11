@@ -7,6 +7,7 @@ import logging
 import os
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 
 import aiohttp
 
@@ -331,7 +332,7 @@ class APIKeyService:
                 os.makedirs(self.config_dir, exist_ok=True)
                 lines = []
             else:
-                with open(config_path) as f:
+                with Path(config_path).open() as f:
                     lines = f.readlines()
 
             # Update or add the environment variable
@@ -346,7 +347,7 @@ class APIKeyService:
                 lines.append(f"{env_var}={value}\n")
 
             # Write back to file
-            with open(config_path, "w") as f:
+            with Path(config_path).open("w") as f:
                 f.writelines(lines)
 
             logger.info(f"Updated {env_var} in config file")

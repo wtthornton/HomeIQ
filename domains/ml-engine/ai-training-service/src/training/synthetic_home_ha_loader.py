@@ -70,7 +70,7 @@ class SyntheticHomeHALoader:
 
         # Load JSON home
         try:
-            with open(home_json_path, encoding="utf-8") as f:
+            with Path(home_json_path).open(encoding="utf-8") as f:
                 home_data = json.load(f)
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in home file {home_json_path}: {e}") from e

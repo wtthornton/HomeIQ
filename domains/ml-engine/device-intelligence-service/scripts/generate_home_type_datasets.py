@@ -84,7 +84,7 @@ def generate_home_type_datasets(
 
             # Save to file
             output_file = output_dir / f"synthetic_devices_{home_type}.json"
-            with open(output_file, "w", encoding="utf-8") as f:
+            with Path(output_file).open("w", encoding="utf-8") as f:
                 json.dump(training_data, f, indent=2)
 
             file_size_kb = output_file.stat().st_size / 1024
@@ -114,7 +114,7 @@ def generate_home_type_datasets(
 
     all_data = []
     for home_type, output_file in output_files.items():
-        with open(output_file, encoding="utf-8") as f:
+        with Path(output_file).open(encoding="utf-8") as f:
             data = json.load(f)
             # Add home_type metadata to each sample
             for sample in data:
@@ -122,7 +122,7 @@ def generate_home_type_datasets(
             all_data.extend(data)
 
     combined_file = output_dir / "synthetic_devices_all_home_types.json"
-    with open(combined_file, "w", encoding="utf-8") as f:
+    with Path(combined_file).open("w", encoding="utf-8") as f:
         json.dump(all_data, f, indent=2)
 
     file_size_kb = combined_file.stat().st_size / 1024

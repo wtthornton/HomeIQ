@@ -137,7 +137,7 @@ async def test_home_type_models():
 
             # Load metadata
             if metadata.exists():
-                with open(metadata) as f:
+                with Path(metadata).open() as f:
                     meta = json.load(f)
                     logger.info(f"✅ {home_type}: Model exists")
                     logger.info(f"   Version: {meta.get('version', 'unknown')}")

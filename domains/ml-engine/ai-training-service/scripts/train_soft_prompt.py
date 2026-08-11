@@ -541,7 +541,7 @@ def main():
         }
 
         metadata_path = run_dir / "training_run.json"
-        with open(metadata_path, "w", encoding="utf-8") as fp:
+        with Path(metadata_path).open("w", encoding="utf-8") as fp:
             json.dump(metadata, fp, indent=2)
         logger.info("Training metadata saved to %s", metadata_path)
     except Exception as e:

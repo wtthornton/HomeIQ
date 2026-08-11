@@ -62,7 +62,7 @@ async def train_home_type_model(
 
     try:
         # Load home-type-specific data
-        with open(data_file, encoding="utf-8") as f:
+        with Path(data_file).open(encoding="utf-8") as f:
             all_data = json.load(f)
 
         # Filter for this home type
@@ -264,7 +264,7 @@ async def main():
 
         # Save comparison results
         results_file = Path(args.output_dir) / "comparison_results.json"
-        with open(results_file, "w", encoding="utf-8") as f:
+        with Path(results_file).open("w", encoding="utf-8") as f:
             json.dump(results, f, indent=2, default=str)
 
         logger.info(f"\n✅ Comparison results saved to: {results_file}")
