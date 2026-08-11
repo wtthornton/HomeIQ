@@ -22,7 +22,8 @@ class HealthCheckHandler:
 
         uptime = (datetime.now(UTC) - self.start_time).total_seconds()
         success_rate = (
-            1.0 if self.total_fetches == 0
+            1.0
+            if self.total_fetches == 0
             else (self.total_fetches - self.failed_fetches) / self.total_fetches
         )
 
@@ -38,9 +39,7 @@ class HealthCheckHandler:
 
         # Also check staleness - if last success was too long ago
         if self.last_successful_fetch:
-            seconds_since_success = (
-                datetime.now(UTC) - self.last_successful_fetch
-            ).total_seconds()
+            seconds_since_success = (datetime.now(UTC) - self.last_successful_fetch).total_seconds()
             if seconds_since_success > 300:  # 5 minutes with no success
                 status = "unhealthy"
 
@@ -49,14 +48,12 @@ class HealthCheckHandler:
             "service": "energy-correlator",
             "uptime_seconds": uptime,
             "last_successful_fetch": (
-                self.last_successful_fetch.isoformat()
-                if self.last_successful_fetch else None
+                self.last_successful_fetch.isoformat() if self.last_successful_fetch else None
             ),
             "total_fetches": self.total_fetches,
             "failed_fetches": self.failed_fetches,
-            "success_rate": success_rate
+            "success_rate": success_rate,
         }
 
         status_code = 200 if status in ("healthy", "starting", "degraded") else 503
         return web.json_response(health_data, status=status_code)
-

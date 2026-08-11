@@ -17,11 +17,7 @@ class InfluxDBWrapper:
     """Wrapper for InfluxDB operations using v2 client"""
 
     def __init__(
-        self,
-        influxdb_url: str,
-        influxdb_token: str,
-        influxdb_org: str,
-        influxdb_bucket: str
+        self, influxdb_url: str, influxdb_token: str, influxdb_org: str, influxdb_bucket: str
     ):
         self.influxdb_url = influxdb_url
         self.influxdb_token = influxdb_token
@@ -35,9 +31,7 @@ class InfluxDBWrapper:
         """Initialize InfluxDB connection"""
         try:
             self.client = InfluxDBClient(
-                url=self.influxdb_url,
-                token=self.influxdb_token,
-                org=self.influxdb_org
+                url=self.influxdb_url, token=self.influxdb_token, org=self.influxdb_org
             )
 
             self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
@@ -66,12 +60,10 @@ class InfluxDBWrapper:
         results: list[dict] = []
         for table in tables:
             for record in table.records:
-                result = {
-                    'time': record.get_time()
-                }
+                result = {"time": record.get_time()}
 
                 for key, value in record.values.items():
-                    if key not in ['result', 'table']:
+                    if key not in ["result", "table"]:
                         result[key] = value
 
                 results.append(result)
@@ -92,11 +84,7 @@ class InfluxDBWrapper:
             raise
 
     def _write_points_blocking(self, points: list[Point]):
-        self.write_api.write(
-            bucket=self.influxdb_bucket,
-            org=self.influxdb_org,
-            record=points
-        )
+        self.write_api.write(bucket=self.influxdb_bucket, org=self.influxdb_org, record=points)
 
     async def write_points(self, points: list[Point]):
         """
@@ -116,4 +104,3 @@ class InfluxDBWrapper:
         except Exception as e:
             logger.exception(f"Unexpected error writing points: {e}")
             raise
-

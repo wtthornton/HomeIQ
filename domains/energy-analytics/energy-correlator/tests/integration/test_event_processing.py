@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from src.correlator import EnergyEventCorrelator
 
@@ -31,20 +31,20 @@ def mock_influxdb_client():
 async def correlator_with_mock(mock_influxdb_client):
     """Create correlator with mocked InfluxDB client"""
     correlator = EnergyEventCorrelator(
-        influxdb_url='http://test-influxdb:8086',
-        influxdb_token='test-token',
-        influxdb_org='test-org',
-        influxdb_bucket='test-bucket',
+        influxdb_url="http://test-influxdb:8086",
+        influxdb_token="test-token",
+        influxdb_org="test-org",
+        influxdb_bucket="test-bucket",
         correlation_window_seconds=10,
-        min_power_delta=10.0
+        min_power_delta=10.0,
     )
     correlator.client = mock_influxdb_client
-    
+
     # Initialize correlator
     await correlator.startup()
-    
+
     yield correlator
-    
+
     # Cleanup
     try:
         await correlator.shutdown()
@@ -56,61 +56,61 @@ async def correlator_with_mock(mock_influxdb_client):
 async def test_process_recent_events_full_flow(correlator_with_mock, mock_influxdb_client):
     """Test complete event processing flow"""
     now = datetime.now(UTC)
-    
+
     # Mock event query results
     mock_events = [
         {
-            'time': now - timedelta(seconds=30),
-            'entity_id': 'switch.living_room_lamp',
-            '_value': 'on',
-            'previous_state': 'off',
-            '_measurement': 'home_assistant_events',
-            '_field': 'state_value'
+            "time": now - timedelta(seconds=30),
+            "entity_id": "switch.living_room_lamp",
+            "_value": "on",
+            "previous_state": "off",
+            "_measurement": "home_assistant_events",
+            "_field": "state_value",
         }
     ]
-    
+
     # Mock power query results (before and after)
     mock_power_before = [
         {
-            'time': now - timedelta(seconds=35),
-            '_value': 2450.0,
-            '_measurement': 'smart_meter',
-            '_field': 'total_power_w'
+            "time": now - timedelta(seconds=35),
+            "_value": 2450.0,
+            "_measurement": "smart_meter",
+            "_field": "total_power_w",
         }
     ]
-    
+
     mock_power_after = [
         {
-            'time': now - timedelta(seconds=25),
-            '_value': 2510.0,
-            '_measurement': 'smart_meter',
-            '_field': 'total_power_w'
+            "time": now - timedelta(seconds=25),
+            "_value": 2510.0,
+            "_measurement": "smart_meter",
+            "_field": "total_power_w",
         }
     ]
-    
+
     # Set up mock to return different results for different queries
     async def mock_query_side_effect(query):
-        if 'home_assistant_events' in query.lower():
+        if "home_assistant_events" in query.lower():
             return mock_events
-        elif 'smart_meter' in query.lower():
+        elif "smart_meter" in query.lower():
             # Return before or after based on time range
-            if '35' in query or '-35' in query:
+            if "35" in query or "-35" in query:
                 return mock_power_before
             else:
                 return mock_power_after
         return []
-    
+
     mock_influxdb_client.query.side_effect = mock_query_side_effect
-    
+
     # Process recent events
     await correlator_with_mock.process_recent_events(lookback_minutes=5)
-    
+
     # Verify queries were made
     assert mock_influxdb_client.query.called
-    
+
     # Verify statistics were updated
     stats = correlator_with_mock.get_statistics()
-    assert stats['total_events_processed'] >= 0
+    assert stats["total_events_processed"] >= 0
 
 
 @pytest.mark.asyncio
@@ -119,40 +119,40 @@ async def test_process_recent_events_no_correlation(correlator_with_mock, mock_i
     # Mock events with no power change (below threshold)
     mock_events = [
         {
-            'time': datetime.now(UTC) - timedelta(seconds=30),
-            'entity_id': 'switch.lamp',
-            '_value': 'on',
-            '_measurement': 'home_assistant_events'
+            "time": datetime.now(UTC) - timedelta(seconds=30),
+            "entity_id": "switch.lamp",
+            "_value": "on",
+            "_measurement": "home_assistant_events",
         }
     ]
-    
+
     # Mock power data with small change (below min_power_delta)
     mock_power = [
         {
-            'time': datetime.now(UTC) - timedelta(seconds=25),
-            '_value': 2450.0,
-            '_measurement': 'smart_meter'
+            "time": datetime.now(UTC) - timedelta(seconds=25),
+            "_value": 2450.0,
+            "_measurement": "smart_meter",
         },
         {
-            'time': datetime.now(UTC) - timedelta(seconds=35),
-            '_value': 2455.0,  # Only 5W change (below 10W threshold)
-            '_measurement': 'smart_meter'
-        }
+            "time": datetime.now(UTC) - timedelta(seconds=35),
+            "_value": 2455.0,  # Only 5W change (below 10W threshold)
+            "_measurement": "smart_meter",
+        },
     ]
-    
+
     async def mock_query_side_effect(query):
-        if 'home_assistant_events' in query.lower():
+        if "home_assistant_events" in query.lower():
             return mock_events
         return mock_power
-    
+
     mock_influxdb_client.query.side_effect = mock_query_side_effect
-    
+
     # Process events
     await correlator_with_mock.process_recent_events(lookback_minutes=5)
-    
+
     # Should process without error (no correlation found is valid)
     stats = correlator_with_mock.get_statistics()
-    assert stats['total_events_processed'] >= 0
+    assert stats["total_events_processed"] >= 0
 
 
 @pytest.mark.asyncio
@@ -160,17 +160,17 @@ async def test_process_recent_events_error_recovery(correlator_with_mock, mock_i
     """Test error recovery during event processing"""
     # Mock query to raise error
     mock_influxdb_client.query.side_effect = Exception("InfluxDB error")
-    
+
     # Process should handle error gracefully
     try:
         await correlator_with_mock.process_recent_events(lookback_minutes=5)
     except Exception:
         # Error should be logged but not crash the service
         pass
-    
+
     # Statistics should reflect error
     stats = correlator_with_mock.get_statistics()
-    assert 'total_events_processed' in stats or 'errors' in stats
+    assert "total_events_processed" in stats or "errors" in stats
 
 
 @pytest.mark.asyncio
@@ -178,10 +178,10 @@ async def test_process_recent_events_empty_results(correlator_with_mock, mock_in
     """Test processing when no events are found"""
     # Mock empty results
     mock_influxdb_client.query.return_value = []
-    
+
     # Process should handle empty results
     await correlator_with_mock.process_recent_events(lookback_minutes=5)
-    
+
     # Should complete without error
     stats = correlator_with_mock.get_statistics()
     assert isinstance(stats, dict)
@@ -191,29 +191,27 @@ async def test_process_recent_events_empty_results(correlator_with_mock, mock_in
 async def test_correlation_window_logic(correlator_with_mock, mock_influxdb_client):
     """Test that correlation window is applied correctly"""
     now = datetime.now(UTC)
-    
+
     # Create events within and outside correlation window
     mock_events = [
         {
-            'time': now - timedelta(seconds=5),  # Within 10s window
-            'entity_id': 'switch.lamp',
-            '_value': 'on',
-            '_measurement': 'home_assistant_events'
+            "time": now - timedelta(seconds=5),  # Within 10s window
+            "entity_id": "switch.lamp",
+            "_value": "on",
+            "_measurement": "home_assistant_events",
         },
         {
-            'time': now - timedelta(seconds=15),  # Outside 10s window
-            'entity_id': 'switch.other',
-            '_value': 'on',
-            '_measurement': 'home_assistant_events'
-        }
+            "time": now - timedelta(seconds=15),  # Outside 10s window
+            "entity_id": "switch.other",
+            "_value": "on",
+            "_measurement": "home_assistant_events",
+        },
     ]
-    
+
     mock_influxdb_client.query.return_value = mock_events
-    
+
     # Process events
     await correlator_with_mock.process_recent_events(lookback_minutes=5)
-    
+
     # Verify query was called
     assert mock_influxdb_client.query.called
-
-
