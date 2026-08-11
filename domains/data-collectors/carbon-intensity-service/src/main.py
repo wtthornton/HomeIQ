@@ -6,6 +6,7 @@ Migrated from aiohttp to FastAPI with shared library pattern.
 """
 
 import asyncio
+import contextlib
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlparse
@@ -167,10 +168,8 @@ class CarbonIntensityService:
 
         if self._background_task and not self._background_task.done():
             self._background_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._background_task
-            except asyncio.CancelledError:
-                pass
 
         if self.session:
             await self.session.close()
@@ -425,7 +424,7 @@ class CarbonIntensityService:
             log_with_context(
                 logger,
                 "INFO",
-                "Fetching carbon intensity for region %s" % self.region,
+                f"Fetching carbon intensity for region {self.region}",
                 service="carbon-intensity-service",
                 region=self.region,
             )

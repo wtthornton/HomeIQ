@@ -24,22 +24,18 @@ class HealthCheckHandler:
         """Return health status dictionary."""
         uptime = (datetime.now(UTC) - self.start_time).total_seconds()
 
-        healthy = True
         status_detail = "operational"
         status_label = "healthy"
 
         if self.credentials_missing:
-            healthy = True
             status_label = "unconfigured"
             status_detail = "credentials_missing"
         elif self.last_successful_fetch:
             time_since_last = (datetime.now(UTC) - self.last_successful_fetch).total_seconds()
             if time_since_last > 1800:  # 30 minutes
-                healthy = False
                 status_label = "degraded"
                 status_detail = "stale_data"
         elif self.total_fetches > 0:
-            healthy = False
             status_label = "degraded"
             status_detail = "all_fetches_failed"
         elif self.total_fetches == 0:
