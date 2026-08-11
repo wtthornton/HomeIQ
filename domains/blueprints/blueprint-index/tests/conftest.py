@@ -21,24 +21,22 @@ async def db_session():
         test_url,
         echo=False,
     )
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
-    async_session = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
-    
+
+    async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
     async with async_session() as session:
         yield session
-    
+
     await engine.dispose()
 
 
 @pytest.fixture
 def sample_blueprint_yaml():
     """Sample blueprint YAML for testing."""
-    return '''
+    return """
 blueprint:
   name: Motion-Activated Light
   description: Turn on a light when motion is detected
@@ -84,13 +82,13 @@ action:
   - service: light.turn_off
     target:
       entity_id: !input target_light
-'''
+"""
 
 
 @pytest.fixture
 def sample_security_blueprint_yaml():
     """Sample security blueprint YAML for testing."""
-    return '''
+    return """
 blueprint:
   name: Door Alert Notification
   description: Send notification when door opens while away
@@ -121,4 +119,4 @@ action:
   - service: !input notify_service
     data:
       message: "Door opened while away!"
-'''
+"""

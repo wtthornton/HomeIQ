@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # Lifespan
 # ---------------------------------------------------------------------------
 
+
 async def _startup_db() -> None:
     db_ok = await init_db()
     if db_ok:
@@ -61,7 +62,9 @@ app = create_app(
     description="Indexes and searches Home Assistant community blueprints for HomeIQ",
     lifespan=lifespan.handler,
     health_check=health,
-    cors_origins=settings.get_cors_origins_list() if hasattr(settings, "get_cors_origins_list") else None,
+    cors_origins=settings.get_cors_origins_list()
+    if hasattr(settings, "get_cors_origins_list")
+    else None,
 )
 
 # Include API routes

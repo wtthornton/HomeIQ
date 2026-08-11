@@ -56,9 +56,7 @@ class BlueprintSearchEngine:
             if request.domains:
                 # Use JSON contains for array fields
                 for domain in request.domains:
-                    conditions.append(
-                        IndexedBlueprint.required_domains.contains([domain])
-                    )
+                    conditions.append(IndexedBlueprint.required_domains.contains([domain]))
 
             # Device class filter
             if request.device_classes:
@@ -78,9 +76,9 @@ class BlueprintSearchEngine:
                 conditions.append(
                     or_(
                         IndexedBlueprint.required_domains.contains([request.action_domain]),
-                        func.json_extract(
-                            IndexedBlueprint.action_services, "$"
-                        ).like(f"%{request.action_domain}%")
+                        func.json_extract(IndexedBlueprint.action_services, "$").like(
+                            f"%{request.action_domain}%"
+                        ),
                     )
                 )
 
@@ -166,24 +164,24 @@ class BlueprintSearchEngine:
             conditions = []
 
             # Trigger domain must be in required domains
-            conditions.append(
-                IndexedBlueprint.required_domains.contains([request.trigger_domain])
-            )
+            conditions.append(IndexedBlueprint.required_domains.contains([request.trigger_domain]))
 
             # Action domain should match action services or required domains
             conditions.append(
                 or_(
                     IndexedBlueprint.required_domains.contains([request.action_domain]),
-                    func.json_extract(
-                        IndexedBlueprint.action_services, "$"
-                    ).like(f"%{request.action_domain}%")
+                    func.json_extract(IndexedBlueprint.action_services, "$").like(
+                        f"%{request.action_domain}%"
+                    ),
                 )
             )
 
             # Device class filter (optional)
             if request.trigger_device_class:
                 conditions.append(
-                    IndexedBlueprint.required_device_classes.contains([request.trigger_device_class])
+                    IndexedBlueprint.required_device_classes.contains(
+                        [request.trigger_device_class]
+                    )
                 )
 
             # Quality filter
@@ -264,14 +262,18 @@ class BlueprintSearchEngine:
             total = total_result.scalar() or 0
 
             # Count by source type
-            github_query = select(func.count()).select_from(IndexedBlueprint).where(
-                IndexedBlueprint.source_type == "github"
+            github_query = (
+                select(func.count())
+                .select_from(IndexedBlueprint)
+                .where(IndexedBlueprint.source_type == "github")
             )
             github_result = await self.db.execute(github_query)
             github_count = github_result.scalar() or 0
 
-            discourse_query = select(func.count()).select_from(IndexedBlueprint).where(
-                IndexedBlueprint.source_type == "discourse"
+            discourse_query = (
+                select(func.count())
+                .select_from(IndexedBlueprint)
+                .where(IndexedBlueprint.source_type == "discourse")
             )
             discourse_result = await self.db.execute(discourse_query)
             discourse_count = discourse_result.scalar() or 0
@@ -282,9 +284,11 @@ class BlueprintSearchEngine:
             last_indexed = last_indexed_result.scalar()
 
             # Check for running jobs
-            running_job_query = select(IndexingJob).where(
-                IndexingJob.status == "running"
-            ).order_by(IndexingJob.started_at.desc())
+            running_job_query = (
+                select(IndexingJob)
+                .where(IndexingJob.status == "running")
+                .order_by(IndexingJob.started_at.desc())
+            )
             running_job_result = await self.db.execute(running_job_query)
             running_job = running_job_result.scalar_one_or_none()
 

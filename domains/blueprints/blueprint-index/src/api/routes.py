@@ -58,7 +58,7 @@ async def search_blueprints(
     offset: int = Query(default=0, ge=0),
     sort_by: str = Query(default="quality_score"),
     sort_order: str = Query(default="desc"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Search blueprints by device requirements, use case, and text query.
@@ -106,7 +106,7 @@ async def find_by_pattern(
     action_device_class: str | None = Query(default=None),
     min_quality_score: float = Query(default=0.7, ge=0.0, le=1.0),
     limit: int = Query(default=10, ge=1, le=50),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Find blueprints matching a trigger-action pattern.
@@ -138,10 +138,7 @@ async def find_by_pattern(
 
 
 @router.get("/{blueprint_id}", response_model=BlueprintResponse)
-async def get_blueprint(
-    blueprint_id: str,
-    db: AsyncSession = Depends(get_db)
-):
+async def get_blueprint(blueprint_id: str, db: AsyncSession = Depends(get_db)):
     """
     Get full blueprint details by ID.
     """
@@ -162,10 +159,7 @@ async def get_blueprint(
 
 
 @router.post("/index/refresh", response_model=IndexingJobResponse)
-async def trigger_indexing(
-    request: TriggerIndexingRequest,
-    db: AsyncSession = Depends(get_db)
-):
+async def trigger_indexing(request: TriggerIndexingRequest, db: AsyncSession = Depends(get_db)):
     """
     Trigger a new indexing job.
 
@@ -180,8 +174,7 @@ async def trigger_indexing(
 
         index_manager = IndexManager(db)
         job = await index_manager.start_indexing_job(
-            job_type=request.job_type,
-            force_refresh=request.force_refresh
+            job_type=request.job_type, force_refresh=request.force_refresh
         )
 
         return IndexingJobResponse(
@@ -203,10 +196,7 @@ async def trigger_indexing(
 
 
 @router.get("/index/job/{job_id}", response_model=IndexingJobResponse)
-async def get_indexing_job(
-    job_id: str,
-    db: AsyncSession = Depends(get_db)
-):
+async def get_indexing_job(job_id: str, db: AsyncSession = Depends(get_db)):
     """
     Get details of a specific indexing job.
     """

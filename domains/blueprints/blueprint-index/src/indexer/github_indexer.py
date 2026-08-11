@@ -20,13 +20,10 @@ BLUEPRINT_REPOSITORIES = [
     # Official Home Assistant
     ("home-assistant", "core"),
     ("home-assistant", "addons"),
-
     # Popular community repositories
     ("home-assistant", "example-custom-config"),
-
     # Community blueprint repositories
     ("jay-kub", "inovelli-matter-switch-tap-sequences"),  # Inovelli Matter Switch Tap Sequences
-
     # Searched via GitHub API for blueprint repositories
 ]
 
@@ -171,7 +168,9 @@ class GitHubBlueprintIndexer:
                 try:
                     blueprints = await self.index_repository(owner, repo)
                     all_blueprints.extend(blueprints)
-                    logger.info(f"Indexed {len(blueprints)} blueprints from discovered repo {owner}/{repo}")
+                    logger.info(
+                        f"Indexed {len(blueprints)} blueprints from discovered repo {owner}/{repo}"
+                    )
                 except Exception as e:
                     logger.error(f"Failed to index discovered repo {owner}/{repo}: {e}")
 
@@ -255,17 +254,25 @@ class GitHubBlueprintIndexer:
                     content = await self._get_file_content(owner, repo, item_path)
 
                     if content and "blueprint:" in content.lower():
-                        blueprint_files.append({
-                            "path": item_path,
-                            "name": item_name,
-                            "content": content,
-                            "url": f"https://github.com/{owner}/{repo}/blob/main/{item_path}",
-                        })
+                        blueprint_files.append(
+                            {
+                                "path": item_path,
+                                "name": item_name,
+                                "content": content,
+                                "url": f"https://github.com/{owner}/{repo}/blob/main/{item_path}",
+                            }
+                        )
                         logger.debug(f"Found blueprint: {item_path}")
 
                 elif item_type == "dir":
                     # Skip common non-blueprint directories
-                    if item_name.lower() in [".git", "node_modules", "__pycache__", ".github", "tests"]:
+                    if item_name.lower() in [
+                        ".git",
+                        "node_modules",
+                        "__pycache__",
+                        ".github",
+                        "tests",
+                    ]:
                         continue
 
                     # Recursively search subdirectories
@@ -353,11 +360,13 @@ class GitHubBlueprintIndexer:
 
             if data and "items" in data:
                 for item in data["items"]:
-                    results.append({
-                        "path": item.get("path"),
-                        "repository": item.get("repository", {}).get("full_name"),
-                        "url": item.get("html_url"),
-                    })
+                    results.append(
+                        {
+                            "path": item.get("path"),
+                            "repository": item.get("repository", {}).get("full_name"),
+                            "url": item.get("html_url"),
+                        }
+                    )
 
         except Exception as e:
             logger.warning(f"Code search failed: {e}")

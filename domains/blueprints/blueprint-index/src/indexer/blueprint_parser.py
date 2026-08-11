@@ -19,7 +19,7 @@ def _input_constructor(loader, node):
 
 
 # Register the constructor
-yaml.add_constructor('!input', _input_constructor, Loader=yaml.SafeLoader)
+yaml.add_constructor("!input", _input_constructor, Loader=yaml.SafeLoader)
 
 
 class BlueprintParser:
@@ -36,19 +36,83 @@ class BlueprintParser:
 
     # Known device domains
     DEVICE_DOMAINS = {
-        'light', 'switch', 'sensor', 'binary_sensor', 'climate', 'cover',
-        'fan', 'lock', 'media_player', 'vacuum', 'camera', 'alarm_control_panel',
-        'water_heater', 'humidifier', 'scene', 'script', 'automation',
-        'input_boolean', 'input_number', 'input_select', 'input_text',
-        'device_tracker', 'person', 'zone', 'sun', 'weather', 'notify',
+        "light",
+        "switch",
+        "sensor",
+        "binary_sensor",
+        "climate",
+        "cover",
+        "fan",
+        "lock",
+        "media_player",
+        "vacuum",
+        "camera",
+        "alarm_control_panel",
+        "water_heater",
+        "humidifier",
+        "scene",
+        "script",
+        "automation",
+        "input_boolean",
+        "input_number",
+        "input_select",
+        "input_text",
+        "device_tracker",
+        "person",
+        "zone",
+        "sun",
+        "weather",
+        "notify",
     }
 
     # Use case classification keywords
     USE_CASE_KEYWORDS = {
-        'energy': ['power', 'electricity', 'energy', 'watt', 'kwh', 'solar', 'battery', 'consumption', 'saving'],
-        'comfort': ['temperature', 'climate', 'thermostat', 'heating', 'cooling', 'light', 'brightness', 'comfort', 'warm', 'cool'],
-        'security': ['alarm', 'security', 'lock', 'door', 'window', 'motion', 'camera', 'surveillance', 'alert', 'intrusion'],
-        'convenience': ['automation', 'schedule', 'routine', 'presence', 'away', 'home', 'wake', 'sleep', 'reminder'],
+        "energy": [
+            "power",
+            "electricity",
+            "energy",
+            "watt",
+            "kwh",
+            "solar",
+            "battery",
+            "consumption",
+            "saving",
+        ],
+        "comfort": [
+            "temperature",
+            "climate",
+            "thermostat",
+            "heating",
+            "cooling",
+            "light",
+            "brightness",
+            "comfort",
+            "warm",
+            "cool",
+        ],
+        "security": [
+            "alarm",
+            "security",
+            "lock",
+            "door",
+            "window",
+            "motion",
+            "camera",
+            "surveillance",
+            "alert",
+            "intrusion",
+        ],
+        "convenience": [
+            "automation",
+            "schedule",
+            "routine",
+            "presence",
+            "away",
+            "home",
+            "wake",
+            "sleep",
+            "reminder",
+        ],
     }
 
     def parse_yaml(self, yaml_content: str) -> dict[str, Any] | None:
@@ -69,7 +133,7 @@ class BlueprintParser:
 
     def is_blueprint(self, yaml_data: dict[str, Any]) -> bool:
         """Check if parsed YAML is a blueprint."""
-        return isinstance(yaml_data, dict) and 'blueprint' in yaml_data
+        return isinstance(yaml_data, dict) and "blueprint" in yaml_data
 
     def parse_blueprint(
         self,
@@ -103,25 +167,25 @@ class BlueprintParser:
             if not yaml_data or not self.is_blueprint(yaml_data):
                 return None
 
-            blueprint_meta = yaml_data.get('blueprint', {})
+            blueprint_meta = yaml_data.get("blueprint", {})
 
             # Extract basic metadata
-            name = blueprint_meta.get('name', 'Unnamed Blueprint')
-            description = blueprint_meta.get('description', '')
-            domain = blueprint_meta.get('domain', 'automation')
+            name = blueprint_meta.get("name", "Unnamed Blueprint")
+            description = blueprint_meta.get("description", "")
+            domain = blueprint_meta.get("domain", "automation")
 
             # Extract input definitions
-            inputs_raw = blueprint_meta.get('input', {})
+            inputs_raw = blueprint_meta.get("input", {})
             inputs, required_domains, required_device_classes = self._extract_inputs(inputs_raw)
 
             # Extract trigger information
-            triggers = yaml_data.get('trigger', yaml_data.get('triggers', []))
+            triggers = yaml_data.get("trigger", yaml_data.get("triggers", []))
             if not isinstance(triggers, list):
                 triggers = [triggers] if triggers else []
             trigger_platforms = self._extract_trigger_platforms(triggers)
 
             # Extract action information
-            actions = yaml_data.get('action', yaml_data.get('actions', []))
+            actions = yaml_data.get("action", yaml_data.get("actions", []))
             if not isinstance(actions, list):
                 actions = [actions] if actions else []
             action_services = self._extract_action_services(actions)
@@ -137,7 +201,9 @@ class BlueprintParser:
             use_case = self._classify_use_case(name, description)
 
             # Calculate complexity
-            complexity = self._calculate_complexity(triggers, actions, yaml_data.get('condition', []))
+            complexity = self._calculate_complexity(
+                triggers, actions, yaml_data.get("condition", [])
+            )
 
             # Calculate quality score
             quality_score = self._calculate_quality_score(
@@ -148,7 +214,9 @@ class BlueprintParser:
             )
 
             # Extract HA version requirements
-            ha_min_version = blueprint_meta.get('min_version') or blueprint_meta.get('homeassistant', {}).get('min_version')
+            ha_min_version = blueprint_meta.get("min_version") or blueprint_meta.get(
+                "homeassistant", {}
+            ).get("min_version")
 
             # Create indexed blueprint
             blueprint = IndexedBlueprint(
@@ -165,7 +233,7 @@ class BlueprintParser:
                 trigger_platforms=trigger_platforms,
                 action_services=action_services,
                 use_case=use_case,
-                tags=blueprint_meta.get('tags', []),
+                tags=blueprint_meta.get("tags", []),
                 stars=stars,
                 community_rating=min(1.0, stars / 100) if stars else 0.0,  # Normalize stars
                 quality_score=quality_score,
@@ -187,8 +255,7 @@ class BlueprintParser:
             return None
 
     def _extract_inputs(
-        self,
-        inputs_raw: dict[str, Any]
+        self, inputs_raw: dict[str, Any]
     ) -> tuple[dict[str, Any], list[str], set[str]]:
         """
         Extract input definitions and requirements.
@@ -205,22 +272,22 @@ class BlueprintParser:
                 continue
 
             input_info = {
-                'name': input_def.get('name', input_name),
-                'description': input_def.get('description'),
-                'default': input_def.get('default'),
+                "name": input_def.get("name", input_name),
+                "description": input_def.get("description"),
+                "default": input_def.get("default"),
             }
 
-            selector = input_def.get('selector', {})
+            selector = input_def.get("selector", {})
 
             # Entity selector
-            if 'entity' in selector:
-                entity_sel = selector['entity']
-                domain = entity_sel.get('domain')
-                device_class = entity_sel.get('device_class')
+            if "entity" in selector:
+                entity_sel = selector["entity"]
+                domain = entity_sel.get("domain")
+                device_class = entity_sel.get("device_class")
 
-                input_info['selector_type'] = 'entity'
-                input_info['domain'] = domain
-                input_info['device_class'] = device_class
+                input_info["selector_type"] = "entity"
+                input_info["domain"] = domain
+                input_info["device_class"] = device_class
 
                 if domain:
                     if isinstance(domain, list):
@@ -235,18 +302,18 @@ class BlueprintParser:
                         required_device_classes.add(device_class)
 
             # Device selector
-            elif 'device' in selector:
-                device_sel = selector['device']
-                input_info['selector_type'] = 'device'
-                input_info['integration'] = device_sel.get('integration')
+            elif "device" in selector:
+                device_sel = selector["device"]
+                input_info["selector_type"] = "device"
+                input_info["integration"] = device_sel.get("integration")
 
             # Target selector
-            elif 'target' in selector:
-                target_sel = selector['target']
-                input_info['selector_type'] = 'target'
+            elif "target" in selector:
+                target_sel = selector["target"]
+                input_info["selector_type"] = "target"
 
-                if 'entity' in target_sel:
-                    domain = target_sel['entity'].get('domain')
+                if "entity" in target_sel:
+                    domain = target_sel["entity"].get("domain")
                     if domain:
                         if isinstance(domain, list):
                             required_domains.extend(domain)
@@ -254,17 +321,17 @@ class BlueprintParser:
                             required_domains.append(domain)
 
             # Other selectors
-            elif 'number' in selector:
-                input_info['selector_type'] = 'number'
-            elif 'text' in selector:
-                input_info['selector_type'] = 'text'
-            elif 'boolean' in selector:
-                input_info['selector_type'] = 'boolean'
-            elif 'time' in selector:
-                input_info['selector_type'] = 'time'
-            elif 'select' in selector:
-                input_info['selector_type'] = 'select'
-                input_info['options'] = selector['select'].get('options', [])
+            elif "number" in selector:
+                input_info["selector_type"] = "number"
+            elif "text" in selector:
+                input_info["selector_type"] = "text"
+            elif "boolean" in selector:
+                input_info["selector_type"] = "boolean"
+            elif "time" in selector:
+                input_info["selector_type"] = "time"
+            elif "select" in selector:
+                input_info["selector_type"] = "select"
+                input_info["options"] = selector["select"].get("options", [])
 
             inputs[input_name] = input_info
 
@@ -276,7 +343,7 @@ class BlueprintParser:
 
         for trigger in triggers:
             if isinstance(trigger, dict):
-                platform = trigger.get('platform') or trigger.get('trigger')
+                platform = trigger.get("platform") or trigger.get("trigger")
                 if platform:
                     platforms.add(str(platform))
 
@@ -288,7 +355,7 @@ class BlueprintParser:
 
         def recurse(obj):
             if isinstance(obj, dict):
-                service = obj.get('service') or obj.get('action')
+                service = obj.get("service") or obj.get("action")
                 if service and isinstance(service, str):
                     services.add(service)
                 for value in obj.values():
@@ -307,17 +374,17 @@ class BlueprintParser:
         def recurse(obj):
             if isinstance(obj, dict):
                 # Check service calls
-                service = obj.get('service') or obj.get('action')
-                if service and isinstance(service, str) and '.' in service:
-                    domain = service.split('.')[0]
+                service = obj.get("service") or obj.get("action")
+                if service and isinstance(service, str) and "." in service:
+                    domain = service.split(".")[0]
                     if domain in self.DEVICE_DOMAINS:
                         domains.add(domain)
 
                 # Check entity_id references
-                entity_id = obj.get('entity_id')
-                if entity_id and isinstance(entity_id, str) and '.' in entity_id:
-                    if not entity_id.startswith('!input'):
-                        domain = entity_id.split('.')[0]
+                entity_id = obj.get("entity_id")
+                if entity_id and isinstance(entity_id, str) and "." in entity_id:
+                    if not entity_id.startswith("!input"):
+                        domain = entity_id.split(".")[0]
                         if domain in self.DEVICE_DOMAINS:
                             domains.add(domain)
 
@@ -345,7 +412,7 @@ class BlueprintParser:
         """
         text = f"{name} {description}".lower()
 
-        scores = {category: 0 for category in self.USE_CASE_KEYWORDS}
+        scores = dict.fromkeys(self.USE_CASE_KEYWORDS, 0)
 
         for category, keywords in self.USE_CASE_KEYWORDS.items():
             for keyword in keywords:
@@ -353,29 +420,28 @@ class BlueprintParser:
                     scores[category] += 1
 
         if max(scores.values()) == 0:
-            return 'convenience'  # Default
+            return "convenience"  # Default
 
         return max(scores, key=scores.get)
 
     def _calculate_complexity(
-        self,
-        triggers: list[Any],
-        actions: list[Any],
-        conditions: Any
+        self, triggers: list[Any], actions: list[Any], conditions: Any
     ) -> str:
         """Calculate blueprint complexity."""
         trigger_count = len(triggers)
         action_count = len(actions) if isinstance(actions, list) else 1
-        condition_count = len(conditions) if isinstance(conditions, list) else (1 if conditions else 0)
+        condition_count = (
+            len(conditions) if isinstance(conditions, list) else (1 if conditions else 0)
+        )
 
         total = trigger_count + action_count + condition_count
 
         if total <= 3:
-            return 'low'
+            return "low"
         elif total <= 7:
-            return 'medium'
+            return "medium"
         else:
-            return 'high'
+            return "high"
 
     def _calculate_quality_score(
         self,
@@ -402,9 +468,9 @@ class BlueprintParser:
             score += 0.2
 
         # Complexity bonus (medium is optimal)
-        if complexity == 'medium':
+        if complexity == "medium":
             score += 0.2
-        elif complexity == 'low':
+        elif complexity == "low":
             score += 0.15
         else:
             score += 0.1
@@ -412,6 +478,7 @@ class BlueprintParser:
         # Stars contribution (logarithmic scale)
         if stars > 0:
             import math
+
             star_score = min(0.4, (math.log10(stars + 1) / 3) * 0.4)
             score += star_score
 
