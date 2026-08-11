@@ -4,7 +4,6 @@ Performance and latency tests for Query Service
 Epic 39, Story 39.12: Query & Automation Service Testing
 """
 
-
 import pytest
 
 
@@ -35,4 +34,3 @@ class TestQueryServicePerformance:
     def test_cache_hit_rate(self):
         """Test cache hit rate meets >80% target (when cache is implemented)."""
         pytest.skip("Cache implementation pending - hit rate test will be added")
-

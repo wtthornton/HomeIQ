@@ -40,10 +40,7 @@ class QueryProcessor:
     """
 
     def __init__(
-        self,
-        entity_extractor=None,
-        clarification_service=None,
-        suggestion_generator=None
+        self, entity_extractor=None, clarification_service=None, suggestion_generator=None
     ):
         self.entity_extractor = entity_extractor
         self.clarification_service = clarification_service
@@ -54,7 +51,7 @@ class QueryProcessor:
         query: str,
         user_id: str | None = None,
         db: AsyncSession | None = None,
-        area_filter: str | None = None
+        area_filter: str | None = None,
     ) -> dict[str, Any]:
         """
         Process a natural language query and generate automation suggestions.
@@ -76,7 +73,9 @@ class QueryProcessor:
             raise ValueError("Query is required and must be a non-empty string")
 
         if len(query) > settings.max_query_length:
-            raise ValueError(f"Query exceeds maximum length of {settings.max_query_length} characters")
+            raise ValueError(
+                f"Query exceeds maximum length of {settings.max_query_length} characters"
+            )
 
         logger.info(f"[QUERY] Processing query: {_sanitize_for_log(query)}...")
 
@@ -91,11 +90,11 @@ class QueryProcessor:
             clarification_result = None
             if self.clarification_service:
                 clarification_result = await self.clarification_service.detect_clarification_needs(
-                    query=query,
-                    entities=entities,
-                    _db=db
+                    query=query, entities=entities, _db=db
                 )
-                logger.info(f"🔍 Clarification check: needed={clarification_result.get('needed', False)}")
+                logger.info(
+                    f"🔍 Clarification check: needed={clarification_result.get('needed', False)}"
+                )
 
             # Step 3: Generate suggestions
             suggestions = []
@@ -107,7 +106,7 @@ class QueryProcessor:
                     _clarification_context=clarification_result,
                     _query_id=query_id,
                     area_filter=area_filter,
-                    _db=db
+                    _db=db,
                 )
                 logger.info(f"✅ Generated {len(suggestions)} suggestions")
 
@@ -125,13 +124,21 @@ class QueryProcessor:
                 "confidence": confidence,
                 "processing_time_ms": int(processing_time),
                 "created_at": datetime.now().isoformat(),
-                "clarification_needed": clarification_result.get("needed", False) if clarification_result else False,
-                "clarification_session_id": clarification_result.get("session_id") if clarification_result else None,
-                "questions": clarification_result.get("questions") if clarification_result else None,
-                "message": self._build_message(entities, suggestions, clarification_result)
+                "clarification_needed": clarification_result.get("needed", False)
+                if clarification_result
+                else False,
+                "clarification_session_id": clarification_result.get("session_id")
+                if clarification_result
+                else None,
+                "questions": clarification_result.get("questions")
+                if clarification_result
+                else None,
+                "message": self._build_message(entities, suggestions, clarification_result),
             }
 
-            logger.info(f"✅ Query processed: {len(suggestions)} suggestions, {confidence:.2f} confidence, {processing_time:.0f}ms")
+            logger.info(
+                f"✅ Query processed: {len(suggestions)} suggestions, {confidence:.2f} confidence, {processing_time:.0f}ms"
+            )
 
             return response
 
@@ -143,7 +150,7 @@ class QueryProcessor:
         self,
         entities: list[dict[str, Any]],
         suggestions: list[dict[str, Any]],
-        clarification_result: dict[str, Any] | None
+        clarification_result: dict[str, Any] | None,
     ) -> float:
         """Calculate confidence score based on entities, suggestions, and clarification needs."""
         base_confidence = calculate_entity_confidence(entities)
@@ -162,7 +169,7 @@ class QueryProcessor:
         self,
         entities: list[dict[str, Any]],
         suggestions: list[dict[str, Any]],
-        clarification_result: dict[str, Any] | None
+        clarification_result: dict[str, Any] | None,
     ) -> str:
         """Build user-friendly message based on query results."""
         if clarification_result and clarification_result.get("needed"):
@@ -172,10 +179,15 @@ class QueryProcessor:
             else:
                 return f"Please answer {questions_count} question(s) to help me create the automation accurately."
         elif suggestions:
-            device_names = [e.get('name', e.get('friendly_name', '')) for e in entities if e.get('type') == 'device']
-            device_info = f" I detected these devices: {', '.join(device_names)}." if device_names else ""
+            device_names = [
+                e.get("name", e.get("friendly_name", ""))
+                for e in entities
+                if e.get("type") == "device"
+            ]
+            device_info = (
+                f" I detected these devices: {', '.join(device_names)}." if device_names else ""
+            )
             return f"I found {len(suggestions)} automation suggestion(s) for your request.{device_info}"
         else:
             device_info = " I couldn't identify specific devices." if not entities else ""
             return f"I couldn't generate automation suggestions for your request.{device_info} Please provide more details about the devices and locations you want to use."
-

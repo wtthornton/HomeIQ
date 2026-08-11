@@ -39,25 +39,35 @@ class AskAIQuery(Base):
     __table_args__ = {"schema": "automation"}
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=_new_uuid,
+        String(36),
+        primary_key=True,
+        default=_new_uuid,
     )
     user_query: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="pending",
+        String(20),
+        nullable=False,
+        default="pending",
     )
     entities: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     suggestions: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow,
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow,
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        onupdate=_utcnow,
     )
 
     # Relationship to clarification sessions
     clarifications: Mapped[list["ClarificationSession"]] = relationship(
-        back_populates="query", cascade="all, delete-orphan",
+        back_populates="query",
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:
@@ -76,16 +86,22 @@ class ClarificationSession(Base):
     __table_args__ = {"schema": "automation"}
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=_new_uuid,
+        String(36),
+        primary_key=True,
+        default=_new_uuid,
     )
     query_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("automation.ask_ai_queries.id"), nullable=False,
+        String(36),
+        ForeignKey("automation.ask_ai_queries.id"),
+        nullable=False,
     )
     question: Mapped[str] = mapped_column(Text, nullable=False)
     response: Mapped[str | None] = mapped_column(Text, nullable=True)
     resolved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow,
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
     )
 
     # Relationship back to parent query

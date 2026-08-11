@@ -145,4 +145,3 @@ class TestQueryRouter:
             "P95 latency is not meaningful against the in-process ASGI test "
             "transport - needs a deployed environment (perf suite)"
         )
-

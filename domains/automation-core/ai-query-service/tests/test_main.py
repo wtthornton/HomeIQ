@@ -31,13 +31,13 @@ class TestMainApplication:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('src.main.init_db')
-    @patch('src.main.setup_tracing')
+    @patch("src.main.init_db")
+    @patch("src.main.setup_tracing")
     async def test_lifespan_startup_success(self, _mock_tracing, mock_init_db):
         """Test lifespan startup initializes database and observability successfully."""
         mock_init_db.return_value = True
 
-        with patch('src.main.OBSERVABILITY_AVAILABLE', True):
+        with patch("src.main.OBSERVABILITY_AVAILABLE", True):
             async with lifespan.handler(app):
                 # Should complete without errors
                 pass
@@ -46,7 +46,7 @@ class TestMainApplication:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('src.main.init_db')
+    @patch("src.main.init_db")
     async def test_lifespan_startup_database_failure(self, mock_init_db):
         """Database init failure must not abort startup (degraded mode).
 
@@ -64,16 +64,14 @@ class TestMainApplication:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('src.main.init_db')
-    @patch('src.main.setup_tracing')
-    async def test_lifespan_startup_observability_failure(
-        self, mock_tracing, mock_init_db
-    ):
+    @patch("src.main.init_db")
+    @patch("src.main.setup_tracing")
+    async def test_lifespan_startup_observability_failure(self, mock_tracing, mock_init_db):
         """Test lifespan startup handles observability failure gracefully."""
         mock_init_db.return_value = True
         mock_tracing.side_effect = Exception("Observability setup failed")
 
-        with patch('src.main.OBSERVABILITY_AVAILABLE', True):
+        with patch("src.main.OBSERVABILITY_AVAILABLE", True):
             # Should not raise exception, just log warning
             async with lifespan.handler(app):
                 pass
@@ -82,7 +80,7 @@ class TestMainApplication:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('src.main.init_db')
+    @patch("src.main.init_db")
     async def test_lifespan_shutdown(self, mock_init_db):
         """Test lifespan shutdown completes successfully."""
         mock_init_db.return_value = True
@@ -103,7 +101,7 @@ class TestMainApplication:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('src.main.register_error_handlers')
+    @patch("src.main.register_error_handlers")
     async def test_error_handlers_registered(self, _mock_register):
         """Test error handlers are registered if available."""
         # Error handlers are registered at module level
@@ -112,9 +110,9 @@ class TestMainApplication:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch('src.main.OBSERVABILITY_AVAILABLE', True)
-    @patch('src.main.instrument_fastapi')
-    @patch('src.main.CorrelationMiddleware')
+    @patch("src.main.OBSERVABILITY_AVAILABLE", True)
+    @patch("src.main.instrument_fastapi")
+    @patch("src.main.CorrelationMiddleware")
     async def test_observability_instrumentation(self, _mock_correlation, _mock_instrument):
         """Test observability instrumentation is applied when available."""
         # Observability is configured at module level
@@ -131,4 +129,3 @@ class TestMainApplication:
         paths = app.openapi()["paths"]
         assert "/health" in paths
         assert any(path.startswith("/api/v1") for path in paths)
-

@@ -43,7 +43,15 @@ _KEYWORD_TEMPLATES: list[dict[str, Any]] = [
     },
     {
         "template_id": "scheduled_task",
-        "keywords": ["schedule", "every day", "at \\d", "every morning", "every evening", "timer", "cron"],
+        "keywords": [
+            "schedule",
+            "every day",
+            "at \\d",
+            "every morning",
+            "every evening",
+            "timer",
+            "cron",
+        ],
         "description": "Run an action at a scheduled time",
         "category": "scheduling",
         "default_params": {"trigger_platform": "time"},
@@ -57,7 +65,17 @@ _KEYWORD_TEMPLATES: list[dict[str, Any]] = [
     },
     {
         "template_id": "climate_control",
-        "keywords": ["temperature", "thermostat", "heating", "cooling", "ac", "air conditioner", "climate", "warm", "cool"],
+        "keywords": [
+            "temperature",
+            "thermostat",
+            "heating",
+            "cooling",
+            "ac",
+            "air conditioner",
+            "climate",
+            "warm",
+            "cool",
+        ],
         "description": "Control heating, cooling, or climate settings",
         "category": "climate",
         "default_params": {"domain": "climate"},
@@ -175,11 +193,7 @@ class SuggestionGenerator:
             "Return ONLY the JSON array, no markdown, no explanation."
         )
 
-        user_prompt = (
-            f"Query: {query}\n"
-            f"Matched entities: {entity_summary}"
-            f"{area_clause}"
-        )
+        user_prompt = f"Query: {query}\nMatched entities: {entity_summary}{area_clause}"
 
         # Delegate to the injected client (expected to expose a responses interface)
         response = await self.openai_client.responses.create(
@@ -237,14 +251,16 @@ class SuggestionGenerator:
                 if area_filter:
                     params["area"] = area_filter
 
-                matches.append({
-                    "suggestion_id": f"sug-{uuid.uuid4().hex[:8]}",
-                    "template_id": template["template_id"],
-                    "description": template["description"],
-                    "confidence": min(0.85, 0.4 + score * 0.15),
-                    "parameters": params,
-                    "source": "keyword_match",
-                })
+                matches.append(
+                    {
+                        "suggestion_id": f"sug-{uuid.uuid4().hex[:8]}",
+                        "template_id": template["template_id"],
+                        "description": template["description"],
+                        "confidence": min(0.85, 0.4 + score * 0.15),
+                        "parameters": params,
+                        "source": "keyword_match",
+                    }
+                )
 
         # Sort by confidence descending and take top 3
         matches.sort(key=lambda s: s["confidence"], reverse=True)

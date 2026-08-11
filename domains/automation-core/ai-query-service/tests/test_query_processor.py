@@ -37,10 +37,7 @@ class TestQueryProcessor:
 
         processor = QueryProcessor(entity_extractor=entity_extractor)
 
-        result = await processor.process_query(
-            query="Turn on office lights",
-            user_id="test_user"
-        )
+        result = await processor.process_query(query="Turn on office lights", user_id="test_user")
 
         assert "query_id" in result
         assert result["original_query"] == "Turn on office lights"
@@ -120,4 +117,3 @@ class TestQueryProcessor:
         autospecced = create_autospec(ClarificationService, instance=True)
         with pytest.raises(TypeError, match="unexpected keyword argument 'db'"):
             autospecced.detect_clarification_needs(query="q", entities=[], db=None)
-

@@ -63,6 +63,7 @@ def _build_processor() -> QueryProcessor:
         suggestion_generator=suggestion_generator,
     )
 
+
 # Pattern to strip control characters from user input before logging
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 
@@ -79,6 +80,7 @@ router = APIRouter(prefix="/api/v1", tags=["Query"])
 # Request / Response Models
 # ---------------------------------------------------------------------------
 
+
 class QueryRequest(BaseModel):
     """Request for natural language query processing."""
 
@@ -92,10 +94,12 @@ class RefineRequest(BaseModel):
 
     feedback: str | None = Field(None, description="User feedback text", max_length=500)
     selected_entities: list[str] = Field(
-        default_factory=list, description="User-selected entity IDs",
+        default_factory=list,
+        description="User-selected entity IDs",
     )
     additional_context: dict | None = Field(
-        None, description="Additional refinement context",
+        None,
+        description="Additional refinement context",
     )
 
 
@@ -113,6 +117,7 @@ class QueryResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.post("/query", response_model=QueryResponse, status_code=status.HTTP_201_CREATED)
 async def process_query(

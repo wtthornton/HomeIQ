@@ -91,7 +91,7 @@ def sample_query_request():
     """Sample query request for testing."""
     return {
         "query": "Turn on the lights in the office when motion is detected",
-        "user_id": "test_user"
+        "user_id": "test_user",
     }
 
 
@@ -105,7 +105,7 @@ def sample_entities():
             "type": "device",
             "domain": "light",
             "confidence": 0.95,
-            "role": "action"
+            "role": "action",
         },
         {
             "entity_id": "binary_sensor.motion_office",
@@ -113,13 +113,9 @@ def sample_entities():
             "type": "device",
             "domain": "binary_sensor",
             "confidence": 0.90,
-            "role": "trigger"
+            "role": "trigger",
         },
-        {
-            "name": "office",
-            "type": "area",
-            "confidence": 0.85
-        }
+        {"name": "office", "type": "area", "confidence": 0.85},
     ]
 
 
@@ -127,16 +123,18 @@ def sample_entities():
 def mock_openai_client():
     """Mock OpenAI client for testing."""
     client = AsyncMock()
-    client.generate_with_unified_prompt = AsyncMock(return_value={
-        "suggestions": [
-            {
-                "description": "Turn on office lights when motion is detected",
-                "trigger_summary": "Motion sensor detects movement",
-                "action_summary": "Turn on office lights",
-                "confidence": 0.85
-            }
-        ]
-    })
+    client.generate_with_unified_prompt = AsyncMock(
+        return_value={
+            "suggestions": [
+                {
+                    "description": "Turn on office lights when motion is detected",
+                    "trigger_summary": "Motion sensor detects movement",
+                    "action_summary": "Turn on office lights",
+                    "confidence": 0.85,
+                }
+            ]
+        }
+    )
     return client
 
 
@@ -151,26 +149,20 @@ def mock_data_api_client():
                 "entity_id": "light.office_lamp",
                 "friendly_name": "Office Lamp",
                 "domain": "light",
-                "area_id": "office"
+                "area_id": "office",
             },
             {
                 "entity_id": "binary_sensor.motion_office",
                 "friendly_name": "Office Motion",
                 "domain": "binary_sensor",
-                "area_id": "office"
-            }
+                "area_id": "office",
+            },
         ]
 
     client.fetch_entities = mock_fetch_entities
 
     async def mock_fetch_devices(*_args, **_kwargs):
-        return [
-            {
-                "device_id": "office_lamp_device",
-                "name": "Office Lamp",
-                "area_id": "office"
-            }
-        ]
+        return [{"device_id": "office_lamp_device", "name": "Office Lamp", "area_id": "office"}]
 
     client.fetch_devices = mock_fetch_devices
 
@@ -181,13 +173,14 @@ def mock_data_api_client():
 def mock_entity_extractor():
     """Mock entity extractor for testing."""
     extractor = AsyncMock()
-    extractor.extract = AsyncMock(return_value=[
-        {
-            "entity_id": "light.office_lamp",
-            "name": "Office Lamp",
-            "type": "device",
-            "confidence": 0.95
-        }
-    ])
+    extractor.extract = AsyncMock(
+        return_value=[
+            {
+                "entity_id": "light.office_lamp",
+                "name": "Office Lamp",
+                "type": "device",
+                "confidence": 0.95,
+            }
+        ]
+    )
     return extractor
-
