@@ -6,6 +6,7 @@ Create Date: 2026-01-14 17:00:00
 
 """
 
+import contextlib
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -42,12 +43,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Remove columns (only if they exist)
-    try:
+    with contextlib.suppress(Exception):
         op.drop_column("blueprint_suggestions", "blueprint_description")
-    except Exception:
-        pass
 
-    try:
+    with contextlib.suppress(Exception):
         op.drop_column("blueprint_suggestions", "blueprint_name")
-    except Exception:
-        pass
