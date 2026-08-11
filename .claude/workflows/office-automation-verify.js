@@ -1,7 +1,7 @@
 export const meta = {
   name: 'office-automation-verify',
   description: 'Behavioral verification of the Office presence-lighting automation, each assertion independently refuted',
-  whenToUse: 'After SG5 deploys the automation in prompts/ha-office-presence-lighting.md. This is the one multi-stage parallel chunk in that prompt, and the only place per-stage effort can be set.',
+  whenToUse: 'Runs SG7 of prompts/ha-office-presence-lighting.md, after SG6 deploys the automation through HomeIQ. This is the one multi-stage parallel chunk in that prompt, and the only place per-stage effort can be set.',
   phases: [
     { title: 'Observe', detail: 'drive the presence entity and record real state transitions' },
     { title: 'Refute', detail: 'fresh-context adversary tries to break each claim', model: 'opus' },
@@ -15,7 +15,7 @@ export const meta = {
 // grades its own transcript will rationalize a near-miss into a pass.
 const ASSERTIONS = [
   {
-    id: 'VAL-015',
+    id: 'VAL-018',
     title: 'entry turns lights on',
     observe:
       'Record every `light.*` state first. Drive one `role:presence` entity to `on`. ' +
@@ -23,7 +23,7 @@ const ASSERTIONS = [
       'and after, and the elapsed seconds to reach state `on`. PASS requires on within 5 s.',
   },
   {
-    id: 'VAL-016',
+    id: 'VAL-019',
     title: 'exit turns lights off at 300s',
     observe:
       'With lights on, drive ALL `role:presence` entities to `off` and record that instant. ' +
@@ -33,7 +33,7 @@ const ASSERTIONS = [
       'and editing the artifact under test is green-by-suppression. Wait the real time.',
   },
   {
-    id: 'VAL-017',
+    id: 'VAL-020',
     title: 'one occupied sensor holds lights on',
     observe:
       'Requires two `role:presence` entities. Drive both `on`, then clear only ONE. Poll ' +
@@ -42,7 +42,7 @@ const ASSERTIONS = [
       'rather than genuine all-clear fusion.',
   },
   {
-    id: 'VAL-018',
+    id: 'VAL-021',
     title: 'no collateral light changes',
     observe:
       'Compare before/after states for all 7 `light.*` entities across the tests above. ' +
@@ -86,7 +86,7 @@ const REFUTATION = {
 phase('Observe')
 log(`Verifying ${ASSERTIONS.length} behavioral assertions against the live instance`)
 
-// Pipeline, not a barrier: VAL-016 alone burns ~5 real minutes of wall clock, so a
+// Pipeline, not a barrier: VAL-019 alone burns ~5 real minutes of wall clock, so a
 // fast assertion must not sit waiting on it. Each assertion flows straight from its
 // own observation into its own refutation.
 const results = await pipeline(
