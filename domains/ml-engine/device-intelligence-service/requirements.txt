@@ -58,3 +58,7 @@ river>=0.21.0,<1.0.0  # River for incremental learning (10-50x faster updates, 2
 apscheduler>=3.10.0,<4.0.0  # Stable task scheduler (Epic 46.2: Built-in Nightly Training Scheduler)
 # HomeIQ shared libraries (installed from libs/ in Docker)
 homeiq-ha>=1.0.0  # HAWebSocketClient — the entity registry is WebSocket-only
+
+# Runtime dependency: src/services/name_enhancement/ai_suggester.py imports
+# AsyncOpenAI at module scope, so its absence broke the service, not just tests.
+openai>=1.50.0,<2.0.0
