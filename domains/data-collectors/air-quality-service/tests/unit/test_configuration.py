@@ -19,13 +19,13 @@ class TestServiceConfiguration:
         """
         from src.main import AirQualityService
 
-        with patch.dict(
-            os.environ, {"WEATHER_API_KEY": "", "INFLUXDB_TOKEN": "test-token"}, clear=True
+        with (
+            patch.dict(
+                os.environ, {"WEATHER_API_KEY": "", "INFLUXDB_TOKEN": "test-token"}, clear=True
+            ),
+            pytest.raises(ValueError, match="WEATHER_API_KEY environment variable is required"),
         ):
-            with pytest.raises(
-                ValueError, match="WEATHER_API_KEY environment variable is required"
-            ):
-                service = AirQualityService()
+            AirQualityService()
 
     def test_missing_influxdb_token(self):
         """
@@ -35,11 +35,13 @@ class TestServiceConfiguration:
         """
         from src.main import AirQualityService
 
-        with patch.dict(
-            os.environ, {"WEATHER_API_KEY": "test-key", "INFLUXDB_TOKEN": ""}, clear=True
+        with (
+            patch.dict(
+                os.environ, {"WEATHER_API_KEY": "test-key", "INFLUXDB_TOKEN": ""}, clear=True
+            ),
+            pytest.raises(ValueError, match="INFLUXDB_TOKEN environment variable is required"),
         ):
-            with pytest.raises(ValueError, match="INFLUXDB_TOKEN environment variable is required"):
-                service = AirQualityService()
+            AirQualityService()
 
     def test_default_location(self):
         """

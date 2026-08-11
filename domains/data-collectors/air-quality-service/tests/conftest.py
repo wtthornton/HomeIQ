@@ -2,6 +2,7 @@
 Shared test fixtures for air-quality-service
 """
 
+import contextlib
 import os
 import sys
 from datetime import datetime
@@ -137,7 +138,5 @@ async def service_instance():
     yield service
 
     # Cleanup
-    try:
+    with contextlib.suppress(BaseException):
         await service.shutdown()
-    except:
-        pass
