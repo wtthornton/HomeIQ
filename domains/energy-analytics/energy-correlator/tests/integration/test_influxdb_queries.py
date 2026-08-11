@@ -109,10 +109,10 @@ async def test_query_with_invalid_bucket_name():
 async def test_query_error_handling(correlator_with_mock, mock_influxdb_client):
     """Test error handling in InfluxDB queries"""
     # Mock query to raise error
-    mock_influxdb_client.query.side_effect = Exception("InfluxDB connection error")
+    mock_influxdb_client.query.side_effect = RuntimeError("InfluxDB connection error")
 
     # Query should handle error gracefully
-    with pytest.raises(Exception):
+    with pytest.raises(RuntimeError, match="InfluxDB connection error"):
         await correlator_with_mock._query_recent_events(lookback_minutes=5)
 
 

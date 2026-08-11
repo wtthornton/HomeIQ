@@ -276,7 +276,7 @@ class TestErrorCounterTracking:
         THEN: Should increment errors counter
         """
         # Mock write_points to raise exception
-        correlator_instance.client.write_points.side_effect = Exception("InfluxDB write failed")
+        correlator_instance.client.write_points.side_effect = RuntimeError("InfluxDB write failed")
 
         # Mock power readings with valid correlation
         with patch.object(
@@ -292,7 +292,7 @@ class TestErrorCounterTracking:
                 "previous_state": "off",
             }
 
-            with pytest.raises(Exception):
+            with pytest.raises(RuntimeError, match="InfluxDB write failed"):
                 await correlator_instance._correlate_event_with_power(event)
 
             # Should find correlation but fail to write
@@ -309,7 +309,7 @@ class TestErrorCounterTracking:
         THEN: Error counter should accumulate
         """
         # Mock write_points to raise exception
-        correlator_instance.client.write_points.side_effect = Exception("InfluxDB write failed")
+        correlator_instance.client.write_points.side_effect = RuntimeError("InfluxDB write failed")
 
         # Mock power readings
         with patch.object(
@@ -327,7 +327,7 @@ class TestErrorCounterTracking:
                     "previous_state": "off",
                 }
 
-                with pytest.raises(Exception):
+                with pytest.raises(RuntimeError, match="InfluxDB write failed"):
                     await correlator_instance._correlate_event_with_power(event)
 
             # Should have 3 errors

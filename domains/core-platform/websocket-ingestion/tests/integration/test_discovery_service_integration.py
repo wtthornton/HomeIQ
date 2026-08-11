@@ -78,7 +78,7 @@ async def test_entity_discovery(discovery_service, mock_ha_states_list):
             return None
 
     mock_sess = MagicMock()
-    mock_sess.get = lambda *a, **k: FakeGetCM()
+    mock_sess.get = lambda *_a, **_k: FakeGetCM()
     mock_sess.__aenter__ = AsyncMock(return_value=mock_sess)
     mock_sess.__aexit__ = AsyncMock(return_value=None)
 
@@ -140,7 +140,7 @@ async def test_discover_devices_and_entities_return_lists(
             return None
 
     mock_sess = MagicMock()
-    mock_sess.get = lambda *a, **k: FakeGetCM()
+    mock_sess.get = lambda *_a, **_k: FakeGetCM()
     mock_sess.__aenter__ = AsyncMock(return_value=mock_sess)
     mock_sess.__aexit__ = AsyncMock(return_value=None)
 

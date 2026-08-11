@@ -151,42 +151,54 @@ class TestWebSocketIngestionService:
     async def test_startup_with_influxdb_failure(self, service):
         """Test service startup when InfluxDB connection fails"""
         with (
-            patch("src.main.MemoryManager"),
+            patch("src.main.MemoryManager") as mock_memory,
             patch("src.main.EventQueue"),
-            patch("src.main.BatchProcessor"),
-            patch("src.main.AsyncEventProcessor"),
-            patch("src.main.InfluxDBConnectionManager") as mock_influxdb_mgr,
+            patch("src.main.BatchProcessor") as mock_batch,
+            patch("src.main.AsyncEventProcessor") as mock_processor,
+            # _startup.py imports InfluxDBConnectionManager at module scope
+            # (src/_startup.py:23) and builds svc.influxdb_manager from it at
+            # :87, so patching src.main left the real class in place and this
+            # test never exercised the failure it names.
+            patch("src._startup.InfluxDBConnectionManager") as mock_influxdb_mgr,
             patch("src.main.HistoricalEventCounter"),
             patch("src.influxdb_batch_writer.InfluxDBBatchWriter"),
         ):
+            # start_processing_components awaits these three before the InfluxDB
+            # step (src/_startup.py:49-51). Left as plain MagicMocks they raise
+            # TypeError on await, so the service never reached the failure this
+            # test names — and pytest.raises(Exception) accepted the TypeError.
+            mock_memory.return_value.start = AsyncMock()
+            mock_batch.return_value.start = AsyncMock()
+            mock_processor.return_value.start = AsyncMock()
             mock_influxdb_mgr.return_value.start = AsyncMock(
-                side_effect=Exception("Connection failed")
+                side_effect=ConnectionError("Connection failed")
             )
 
-            # Should raise exception
-            with pytest.raises(Exception):
+            with pytest.raises(ConnectionError, match="Connection failed"):
                 await service.start()
 
     @pytest.mark.asyncio
     async def test_startup_with_batch_writer_failure(self, service):
         """Test service startup when batch writer fails to start"""
         with (
-            patch("src.main.MemoryManager"),
+            patch("src.main.MemoryManager") as mock_memory,
             patch("src.main.EventQueue"),
-            patch("src.main.BatchProcessor"),
-            patch("src.main.AsyncEventProcessor"),
+            patch("src.main.BatchProcessor") as mock_batch,
+            patch("src.main.AsyncEventProcessor") as mock_processor,
             patch("src.main.InfluxDBConnectionManager") as mock_influxdb_mgr,
             patch("src.main.HistoricalEventCounter"),
             patch("src.influxdb_batch_writer.InfluxDBBatchWriter") as mock_batch_writer,
         ):
+            # Same reason as above: these are awaited first.
+            mock_memory.return_value.start = AsyncMock()
+            mock_batch.return_value.start = AsyncMock()
+            mock_processor.return_value.start = AsyncMock()
             mock_influxdb_mgr.return_value.start = AsyncMock()
-            # Setup batch writer to fail
             mock_batch_writer.return_value.start = AsyncMock(
-                side_effect=Exception("Batch writer failed")
+                side_effect=RuntimeError("Batch writer failed")
             )
 
-            # Should raise exception
-            with pytest.raises(Exception):
+            with pytest.raises(RuntimeError, match="Batch writer failed"):
                 await service.start()
 
     @pytest.mark.asyncio

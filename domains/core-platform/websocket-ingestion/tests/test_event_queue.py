@@ -2,8 +2,8 @@
 Tests for Event Queue
 """
 
-import os
 import tempfile
+from pathlib import Path
 
 import pytest
 from src.event_queue import EventQueue
@@ -163,7 +163,7 @@ class TestEventQueue:
             assert persistent_queue.overflow_events == 1
 
             # Check that persistence file was created
-            persistence_files = list(os.listdir(temp_dir))
+            persistence_files = [p.name for p in Path(temp_dir).iterdir()]
             assert len(persistence_files) > 0
             assert any(f.startswith("overflow_events_") for f in persistence_files)
 

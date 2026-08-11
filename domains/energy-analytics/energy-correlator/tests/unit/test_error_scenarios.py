@@ -33,8 +33,14 @@ class TestConnectionFailures:
             influxdb_bucket="test-bucket",
         )
 
-        # Should raise exception on startup
-        with pytest.raises(Exception):
+        # Patch the wrapper rather than relying on invalid-host failing to
+        # resolve: CI has no InfluxDB and no outbound DNS, so the original form
+        # asserted on the network, not on the code.
+        with (
+            patch("src.correlator.InfluxDBWrapper") as mock_wrapper,
+            pytest.raises(ConnectionError, match="connection refused"),
+        ):
+            mock_wrapper.return_value.connect.side_effect = ConnectionError("connection refused")
             await correlator.startup()
 
     @pytest.mark.asyncio
