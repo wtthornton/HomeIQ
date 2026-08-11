@@ -282,24 +282,25 @@ class ValidationPipeline:
             for i, action in enumerate(actions):
                 if not isinstance(action, dict):
                     errors.append(f"Action {i} must be a dictionary")
-                elif (
-                    "action" not in action  # modern 'action: domain.service'
-                    and "service" not in action  # legacy 'service: domain.service'
-                    and "scene" not in action
-                    and "delay" not in action
-                ):  # noqa: SIM102
-                    # Check for advanced actions (variables, choose, repeat, parallel, sequence)
-                    if (
-                        "variables" not in action
-                        and "choose" not in action
-                        and "repeat" not in action
-                        and "parallel" not in action
-                        and "sequence" not in action
-                    ):
-                        errors.append(
-                            f"Action {i} must have 'action:' (modern), 'service:' (legacy), 'scene', "
-                            "'delay', 'variables', or an advanced action type, e.g., action: light.turn_on"
-                        )
+                elif not any(
+                    key in action
+                    for key in (
+                        "action",  # modern 'action: domain.service'
+                        "service",  # legacy 'service: domain.service'
+                        "scene",
+                        "delay",
+                        # advanced action types
+                        "variables",
+                        "choose",
+                        "repeat",
+                        "parallel",
+                        "sequence",
+                    )
+                ):
+                    errors.append(
+                        f"Action {i} must have 'action:' (modern), 'service:' (legacy), 'scene', "
+                        "'delay', 'variables', or an advanced action type, e.g., action: light.turn_on"
+                    )
                 # Validate target structure for service-call actions
                 has_call = isinstance(action, dict) and ("service" in action or "action" in action)
                 if has_call and "target" in action:

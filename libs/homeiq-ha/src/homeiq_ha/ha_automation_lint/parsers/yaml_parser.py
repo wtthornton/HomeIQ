@@ -5,7 +5,7 @@ Converts raw YAML to internal representation (IR).
 
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import yaml
 
@@ -24,7 +24,7 @@ class YAMLParseError(Exception):
 class AutomationParser:
     """Parse and normalize automation YAML to IR."""
 
-    def parse(self, yaml_content: str) -> Tuple[List[AutomationIR], List[Finding]]:
+    def parse(self, yaml_content: str) -> tuple[list[AutomationIR], list[Finding]]:
         """
         Parse YAML content and return normalized IR + parse errors.
 
@@ -34,7 +34,7 @@ class AutomationParser:
         Returns:
             Tuple of (automations list, parse findings list)
         """
-        findings: List[Finding] = []
+        findings: list[Finding] = []
 
         # Step 1: Parse YAML
         try:
@@ -64,7 +64,7 @@ class AutomationParser:
         automations_list = self._normalize_to_list(data, findings)
 
         # Step 3: Convert to IR
-        ir_automations: List[AutomationIR] = []
+        ir_automations: list[AutomationIR] = []
         for idx, auto_dict in enumerate(automations_list):
             ir = self._dict_to_ir(auto_dict, idx, findings)
             if ir:
@@ -72,7 +72,7 @@ class AutomationParser:
 
         return ir_automations, findings
 
-    def _normalize_to_list(self, data: Any, findings: List[Finding]) -> List[Dict[str, Any]]:
+    def _normalize_to_list(self, data: Any, findings: list[Finding]) -> list[dict[str, Any]]:
         """
         Normalize various formats to a list of automation dicts.
 
@@ -115,8 +115,8 @@ class AutomationParser:
         self,
         data: Any,
         index: int,
-        findings: List[Finding]
-    ) -> Optional[AutomationIR]:
+        findings: list[Finding]
+    ) -> AutomationIR | None:
         """
         Convert a single automation dict to IR.
 
