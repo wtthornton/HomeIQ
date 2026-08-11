@@ -26,12 +26,9 @@ class HomeAssistantAdapter(MeterAdapter):
             ha_url: Home Assistant URL (e.g., http://homeassistant:8123)
             ha_token: Long-lived access token
         """
-        self.ha_url = ha_url.rstrip('/')
+        self.ha_url = ha_url.rstrip("/")
         self.ha_token = ha_token
-        self.headers = {
-            "Authorization": f"Bearer {ha_token}",
-            "Content-Type": "application/json"
-        }
+        self.headers = {"Authorization": f"Bearer {ha_token}", "Content-Type": "application/json"}
         self._discovered_circuits: list[str] | None = None
         self._last_discovery: datetime | None = None
         self._discovery_interval = 3600  # Re-discover every hour
@@ -76,16 +73,15 @@ class HomeAssistantAdapter(MeterAdapter):
 
             # Calculate percentages
             for circuit in circuits:
-                circuit['percentage'] = (
-                    (circuit['power_w'] / total_power * 100)
-                    if total_power > 0 else 0
+                circuit["percentage"] = (
+                    (circuit["power_w"] / total_power * 100) if total_power > 0 else 0
                 )
 
             return {
-                'total_power_w': float(total_power),
-                'daily_kwh': float(daily_kwh),
-                'circuits': circuits,
-                'timestamp': datetime.now(UTC)
+                "total_power_w": float(total_power),
+                "daily_kwh": float(daily_kwh),
+                "circuits": circuits,
+                "timestamp": datetime.now(UTC),
             }
 
         except Exception as e:
@@ -103,10 +99,10 @@ class HomeAssistantAdapter(MeterAdapter):
         - sensor.power_consumption
         """
         sensor_names = [
-            'sensor.total_power',
-            'sensor.power_total',
-            'sensor.home_power',
-            'sensor.power_consumption'
+            "sensor.total_power",
+            "sensor.power_total",
+            "sensor.home_power",
+            "sensor.power_consumption",
         ]
 
         for sensor_name in sensor_names:
@@ -127,11 +123,7 @@ class HomeAssistantAdapter(MeterAdapter):
         - sensor.energy_daily
         - sensor.energy_today
         """
-        sensor_names = [
-            'sensor.daily_energy',
-            'sensor.energy_daily',
-            'sensor.energy_today'
-        ]
+        sensor_names = ["sensor.daily_energy", "sensor.energy_daily", "sensor.energy_today"]
 
         for sensor_name in sensor_names:
             energy = await self._get_sensor_state(session, sensor_name)
@@ -142,11 +134,7 @@ class HomeAssistantAdapter(MeterAdapter):
         logger.warning("No daily energy sensor found, returning 0")
         return 0.0
 
-    async def _get_sensor_state(
-        self,
-        session: aiohttp.ClientSession,
-        entity_id: str
-    ) -> str | None:
+    async def _get_sensor_state(self, session: aiohttp.ClientSession, entity_id: str) -> str | None:
         """
         Get state of a single HA sensor
 
@@ -163,10 +151,10 @@ class HomeAssistantAdapter(MeterAdapter):
             async with session.get(url, headers=self.headers) as response:
                 if response.status == 200:
                     data = await response.json()
-                    state = data.get('state', '0')
+                    state = data.get("state", "0")
 
                     # Handle unavailable/unknown states
-                    if state in ('unavailable', 'unknown', 'none', None):
+                    if state in ("unavailable", "unknown", "none", None):
                         return None
 
                     return state
@@ -212,19 +200,19 @@ class HomeAssistantAdapter(MeterAdapter):
                 discovered = []
 
                 for state in states:
-                    entity_id = state.get('entity_id', '')
-                    attributes = state.get('attributes', {})
+                    entity_id = state.get("entity_id", "")
+                    attributes = state.get("attributes", {})
 
-                    device_class = attributes.get('device_class', '')
-                    unit = attributes.get('unit_of_measurement', '')
+                    device_class = attributes.get("device_class", "")
+                    unit = attributes.get("unit_of_measurement", "")
 
                     is_power_sensor = (
-                        entity_id.startswith('sensor.power_') or
-                        device_class == 'power' or
-                        unit in ('W', 'kW')
+                        entity_id.startswith("sensor.power_")
+                        or device_class == "power"
+                        or unit in ("W", "kW")
                     )
 
-                    is_total = any(x in entity_id.lower() for x in ['total', 'home', 'consumption'])
+                    is_total = any(x in entity_id.lower() for x in ["total", "home", "consumption"])
 
                     if is_power_sensor and not is_total:
                         discovered.append(entity_id)
@@ -236,10 +224,7 @@ class HomeAssistantAdapter(MeterAdapter):
         except Exception as e:
             logger.error(f"Error during circuit discovery: {e}")
 
-    async def _get_circuit_data(
-        self,
-        session: aiohttp.ClientSession
-    ) -> list[dict[str, Any]]:
+    async def _get_circuit_data(self, session: aiohttp.ClientSession) -> list[dict[str, Any]]:
         """
         Get all power circuit sensors from HA
 
@@ -250,14 +235,16 @@ class HomeAssistantAdapter(MeterAdapter):
             List of circuits with name, entity_id, power_w
         """
         # Re-discover circuits periodically
-        if (self._discovered_circuits is None or
-                self._last_discovery is None or
-                (datetime.now(UTC) - self._last_discovery).total_seconds() > self._discovery_interval):
+        if (
+            self._discovered_circuits is None
+            or self._last_discovery is None
+            or (datetime.now(UTC) - self._last_discovery).total_seconds() > self._discovery_interval
+        ):
             await self._discover_circuits(session)
 
         circuits = []
 
-        for entity_id in (self._discovered_circuits or []):
+        for entity_id in self._discovered_circuits or []:
             state_str = await self._get_sensor_state(session, entity_id)
             if state_str is None:
                 continue
@@ -272,11 +259,7 @@ class HomeAssistantAdapter(MeterAdapter):
             if power_w is None:
                 continue
 
-            circuits.append({
-                'name': entity_id,
-                'entity_id': entity_id,
-                'power_w': power_w
-            })
+            circuits.append({"name": entity_id, "entity_id": entity_id, "power_w": power_w})
 
         logger.info(f"Found {len(circuits)} circuit power sensors")
         return circuits
@@ -305,4 +288,3 @@ class HomeAssistantAdapter(MeterAdapter):
         except Exception as e:
             logger.error(f"Connection test failed: {e}")
             return False
-
