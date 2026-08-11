@@ -26,10 +26,7 @@ except ImportError:
 # Note: OpenAI client import will need to be adjusted based on training service structure
 # from ..llm.openai_client import OpenAIClient
 
-if OPENAI_AVAILABLE:
-    logger = logging.getLogger(__name__)
-else:
-    logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) if OPENAI_AVAILABLE else logging.getLogger(__name__)
 
 # JSON Schema for enhanced home structure
 HOME_SCHEMA = {
