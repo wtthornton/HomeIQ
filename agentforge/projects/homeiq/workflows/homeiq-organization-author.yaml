@@ -1,0 +1,126 @@
+# Author one desired-state organization manifest from an inventory, then judge
+# it. Verdict is data: converge gating happens in HomeIQ's deterministic init
+# agent (libs/homeiq-ha recipes — audit/plan/apply/verify, backup-gated),
+# per expert-architecture consultation 3715b66a — AgentForge cannot reach the
+# HomeIQ network, so recipes run caller-side after this workflow.
+#
+# Inventory is passed IN by the caller — AgentForge containers cannot see the
+# HomeIQ working tree or network. The judge receives the same inventory, which
+# is its fabricated-id check (a live registry read is impossible from AF).
+name: homeiq-organization-author
+spec_version: 2
+
+inputs:
+  - name: inventory
+    description: "Machine-readable JSON inventory of the live HA instance: devices (id, name, model, area_id), entities (entity_id, domain, labels, aliases, device_id), areas, labels, helpers"
+
+nodes:
+  author:
+    kind: task
+    agent: homeiq-ha-organization-author
+    inputs:
+      inventory: $inventory
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      additionalProperties: false
+      required: [manifest, design_notes, confidence]
+      properties:
+        design_notes: {type: string}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        manifest:
+          type: object
+          additionalProperties: false
+          required: [managed_label_prefixes, device_areas, entity_labels, entity_aliases, helpers, not_applicable]
+          properties:
+            managed_label_prefixes:
+              type: array
+              items: {type: string}
+            device_areas:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [device_id, area_id, reason]
+                properties:
+                  device_id: {type: string}
+                  area_id: {type: string}
+                  reason: {type: string}
+            entity_labels:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [entity_id, labels, reason]
+                properties:
+                  entity_id: {type: string}
+                  labels:
+                    type: array
+                    items: {type: string}
+                  reason: {type: string}
+            entity_aliases:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [entity_id, aliases, reason]
+                properties:
+                  entity_id: {type: string}
+                  aliases:
+                    type: array
+                    items: {type: string}
+                  reason: {type: string}
+            helpers:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [kind, slug, name, config, reason]
+                properties:
+                  kind: {type: string}
+                  slug: {type: string}
+                  name: {type: string}
+                  config: {type: object}
+                  reason: {type: string}
+            not_applicable:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [scope, id, status, reason]
+                properties:
+                  scope: {type: string, enum: [device, entity]}
+                  id: {type: string}
+                  status: {type: string, enum: [not_applicable, blocked_on_human]}
+                  reason: {type: string}
+
+  judge:
+    kind: task
+    agent: homeiq-ha-organization-judge
+    depends_on: [author]
+    inputs:
+      inventory: $inventory
+      authored: $author
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      additionalProperties: false
+      required: [pass, score, confidence, findings]
+      properties:
+        confidence: {type: number, minimum: 0, maximum: 1}
+        pass: {type: boolean}
+        score: {type: number, minimum: 0, maximum: 100}
+        findings:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [severity, dimension, finding, recommendation]
+            properties:
+              severity: {type: string, enum: [critical, high, medium, low]}
+              dimension: {type: string, enum: [correctness, safety, completeness, discipline]}
+              finding: {type: string}
+              recommendation: {type: string}
+
+output: judge
+on_error: fail
