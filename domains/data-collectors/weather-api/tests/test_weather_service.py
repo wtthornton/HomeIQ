@@ -41,4 +41,3 @@ def test_service_root():
     data = response.json()
     assert "/current-weather" in data["endpoints"]
     assert "/cache/stats" in data["endpoints"]
-

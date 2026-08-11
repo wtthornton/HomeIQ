@@ -12,10 +12,7 @@ from src.health_check import HealthCheckHandler
 
 def _healthy_service_stub():
     now = datetime.now(UTC).replace(tzinfo=UTC)
-    task = SimpleNamespace(
-        done=lambda: False,
-        cancelled=lambda: False
-    )
+    task = SimpleNamespace(done=lambda: False, cancelled=lambda: False)
     return SimpleNamespace(
         session=object(),
         cached_weather={"temperature": 20},
@@ -28,7 +25,7 @@ def _healthy_service_stub():
         background_task=task,
         last_successful_fetch=now,
         last_influx_write=now,
-        last_background_error=None
+        last_background_error=None,
     )
 
 
@@ -68,6 +65,7 @@ async def test_health_check_tracks_uptime():
 
     # Wait a moment
     import asyncio
+
     await asyncio.sleep(0.1)
 
     result = await handler.handle(_healthy_service_stub())
@@ -85,4 +83,3 @@ def test_get_uptime_seconds():
 
     assert uptime >= 100
     assert uptime < 101  # Allow for small timing variations
-
