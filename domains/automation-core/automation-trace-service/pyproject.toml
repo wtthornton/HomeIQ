@@ -25,4 +25,4 @@ ignore = ["S104", "E501", "B008"]
 # The rule earns its keep in src/, where `python -O` strips asserts and turns a
 # validation check into a silent no-op — so it stays enabled there.
 # S105/S106 likewise fire on obviously fake fixture tokens ("ha_token").
-"tests/**" = ["S101", "S105", "S106"]
+"tests/**" = ["S101", "S105", "S106", "E402"]
