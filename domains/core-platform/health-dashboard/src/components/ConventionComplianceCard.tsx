@@ -38,8 +38,7 @@ export const ConventionComplianceCard: React.FC<Props> = ({ darkMode, onNavigate
 
   const fetchAudit = useCallback(async () => {
     try {
-      const baseUrl = import.meta.env.VITE_DEVICE_INTELLIGENCE_URL || 'http://localhost:8019';
-      const resp = await fetch(`${baseUrl}/api/naming/audit?limit=500`);
+      const resp = await fetch('/device-intelligence/api/naming/audit?limit=500');
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
       setAudit(data);

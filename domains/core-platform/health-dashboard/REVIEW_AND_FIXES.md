@@ -318,9 +318,16 @@ There are 16 instances of `catch (err: any)` across the codebase, which should u
 ---
 
 ### MED-04: `confirm()` and `alert()` Used for Critical Actions (UX)
-**Files**: `src/components/ConfigForm.tsx` (lines 83, 98); `src/components/ServiceControl.tsx` (lines 53, 61, 68, 80, 83); `src/components/ServicesTab.tsx` (lines 224, 227, 425, 460); `src/components/tabs/ValidationTab.tsx` (lines 139, 166, 171); `src/components/tabs/SynergiesTab.tsx` (line 668)
+**Files**: `src/components/ConfigForm.tsx` (lines 83, 98); `src/components/ServiceControl.tsx` (lines 53, 61, 68, 80, 83); `src/components/ServicesTab.tsx` (lines 224, 227, 425, 460); `src/components/tabs/ValidationTab.tsx` (lines 139, 166, 171)
 **Severity**: MEDIUM
-**Impact**: 22 instances of native browser dialogs in a themed SPA
+**Impact**: native browser dialogs in a themed SPA
+
+> `src/components/tabs/SynergiesTab.tsx` (line 668) was listed here and is gone
+> as of `4eb9e118` — the component had been unreachable since the Feb 2026 app
+> consolidation and was deleted. The original "22 instances" count is left off
+> rather than decremented: a grep of the four remaining files finds 14, so that
+> figure did not reconcile even before the deletion and needs a recount when
+> this item is picked up.
 
 Native `window.confirm()` and `window.alert()` calls:
 1. Break the dark mode theme

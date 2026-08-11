@@ -72,6 +72,27 @@ KEY="${DASHBOARD_API_KEY:-}"
 # cannot fix, and asserting their current 5xx would freeze today's breakage into
 # the contract. They are tracked as defects instead. Add the row when the defect
 # is fixed, not before.
+#
+# ABSOLUTE-URL CALL SITES (TAP-5434). The bundle once held six fetches built on
+# `import.meta.env.VITE_*_URL || 'http://localhost:PORT'`, unprobeable here
+# because they bypass nginx entirely. Neither VITE_ var was set anywhere in the
+# repo, so the fallback was always what shipped — and it named the browser's own
+# localhost, not the server's. All six are now gone.
+#
+# Five were unreachable: SynergiesTab and the AnalyticsDashboard it owned lost
+# their nav entry and registry slot in 9c170ff2 (2026-02-26, app consolidation)
+# and were never lazy-loaded by Dashboard again. Both files are deleted, which
+# is why no /api/v1/synergies or /api/v1/blueprint-opportunities row appears
+# below despite ai-pattern-service answering those paths 200 today.
+#
+# The sixth, ConventionComplianceCard's naming audit, was live and misrouted:
+# host port 8019 belongs to device-health-monitor, while device-intelligence
+# publishes on 8028. It only ever 404'd because the service it reached has no
+# such route — a path collision would have returned someone else's 200. It now
+# goes through the /device-intelligence/ location and has a row.
+#
+# The two remaining localhost literals in the bundle (3001, 8501) are external
+# UI hrefs, not fetches, so nothing here can probe them.
 read -r -d '' CONTRACT <<'EOF'
 /api/health	200	http	admin-api
 /api/v1/health	200	http	admin-api
@@ -128,6 +149,7 @@ read -r -d '' CONTRACT <<'EOF'
 /log-aggregator/api/v1/logs?limit=10	200	http	log-aggregator
 /log-aggregator/api/v1/logs/search?q=error	200	http	log-aggregator
 /weather/current-weather	200	http	weather-api via variable proxy_pass
+/device-intelligence/api/naming/audit?limit=500	200	http	device-intelligence via variable proxy_pass; nginx injects X-API-Key, which this service wants instead of Bearer
 /ws	101	ws	websocket-ingestion; admin-api registers no WebSocket route
 /api/v1/docker/containers/admin-api/restart	405	http	405 (method-guarded) POST route; a GET proves it exists without restarting anything
 /api/v1/docker/containers/admin-api/start	405	http	405 (method-guarded) POST route

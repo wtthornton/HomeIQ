@@ -55,6 +55,9 @@ API Response (blueprint metadata)
 - `domains/pattern-analysis/ai-pattern-service/src/blueprint_opportunity/` - Opportunity engine (6 files)
 - `domains/pattern-analysis/ai-pattern-service/src/blueprint_deployment/` - Deployer (3 files)
 - `domains/core-platform/health-dashboard/src/components/tabs/SynergiesTab.tsx` - UI
+  (deleted in `4eb9e118`; the Feb 2026 app consolidation dropped the Synergies
+  tab from the dashboard nav, leaving this component unreachable. The backend
+  it called is still live and answering, so this feature currently has no UI.)
 
 **Documentation:**
 - See `docs/architecture/BLUEPRINT_ARCHITECTURE.md` for full architecture details

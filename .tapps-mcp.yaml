@@ -22,3 +22,7 @@ upgrade_skip_files:
   - .claude/skills/orchestration-prompt/SKILL.md
   - .claude/skills/orchestration-prompt/assets/prompt-template.md
   - .claude/skills/orchestration-prompt/references/claude-feature-map.md
+  # Carries the rationale for why Dependabot auto-merge is disabled_manually
+  # here. Regenerating the stock file would drop that note and invite someone
+  # to re-enable unattended squash-merges to master.
+  - .github/workflows/dependabot-auto-merge.yml
