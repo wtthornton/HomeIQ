@@ -174,7 +174,7 @@ class TestContextAwareDetector:
         assert len(synergies) >= 1
 
         # Check variety of context types
-        context_types = set(s["context_metadata"]["context_type"] for s in synergies)
+        context_types = {s["context_metadata"]["context_type"] for s in synergies}
 
         # Should have weather_climate (weather + climate devices present)
         assert "weather_climate" in context_types

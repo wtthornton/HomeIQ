@@ -233,7 +233,7 @@ class TestPatternDetection:
             patch(
                 "src.scheduler.pattern_analysis.CoOccurrencePatternDetector",
                 return_value=MagicMock(),
-            ) as mock_detector,
+            ),
             patch("asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
         ):
             mock_thread.return_value = [{"pattern_type": "co_occurrence"}]

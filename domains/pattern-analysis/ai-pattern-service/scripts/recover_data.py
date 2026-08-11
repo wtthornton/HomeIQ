@@ -53,7 +53,7 @@ def recover_patterns(source_url: str, target_url: str):
             source_cursor.execute("SELECT * FROM patterns LIMIT 10000")
             columns = [desc[0] for desc in source_cursor.description]
             for row in source_cursor:
-                row_dict = dict(zip(columns, row))
+                row_dict = dict(zip(columns, row, strict=False))
                 try:
                     target_cursor.execute(
                         """

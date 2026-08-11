@@ -18,7 +18,7 @@ Features:
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import numpy as np
@@ -26,7 +26,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-class EvolutionType(str, Enum):
+class EvolutionType(StrEnum):
     """Types of pattern evolution."""
 
     STABLE = "stable"  # Pattern unchanged
@@ -37,7 +37,7 @@ class EvolutionType(str, Enum):
     WEAKENING = "weakening"  # Pattern becoming less reliable
 
 
-class TrendDirection(str, Enum):
+class TrendDirection(StrEnum):
     """Direction of trend changes."""
 
     INCREASING = "increasing"

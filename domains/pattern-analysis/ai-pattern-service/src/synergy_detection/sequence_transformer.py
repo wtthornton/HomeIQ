@@ -385,7 +385,7 @@ class DeviceSequenceTransformer:
                 top_values, top_indices = torch.topk(probabilities, min(top_k, len(probabilities)))
 
             predictions = []
-            for prob, idx in zip(top_values.tolist(), top_indices.tolist()):
+            for prob, idx in zip(top_values.tolist(), top_indices.tolist(), strict=False):
                 device_id = self.idx_to_device.get(idx, f"unknown_{idx}")
                 predictions.append(
                     {

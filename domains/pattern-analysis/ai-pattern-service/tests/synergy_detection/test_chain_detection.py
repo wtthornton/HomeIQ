@@ -192,7 +192,7 @@ class TestChainDetector:
         self, detector_with_cache, sample_pairwise_synergies, mock_cache
     ):
         """Test 3-device chain detection with caching."""
-        chains = await detector_with_cache.detect_3_device_chains(sample_pairwise_synergies)
+        await detector_with_cache.detect_3_device_chains(sample_pairwise_synergies)
 
         # Cache should have been checked and set
         assert mock_cache.get_chain_result.called

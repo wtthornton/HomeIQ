@@ -145,7 +145,7 @@ class SeasonalDecomposer:
             if not np.all(np.isnan(trend[: self.period * 2]))
             else y[0]
         )
-        last_valid = (
+        (
             np.nanmean(trend[-self.period * 2 :])
             if not np.all(np.isnan(trend[-self.period * 2 :]))
             else y[-1]

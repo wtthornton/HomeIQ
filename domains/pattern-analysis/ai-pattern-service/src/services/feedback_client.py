@@ -502,7 +502,7 @@ class FeedbackClient:
 
         feedback_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        for device_id, result in zip(device_ids, feedback_results):
+        for device_id, result in zip(device_ids, feedback_results, strict=False):
             if isinstance(result, Exception):
                 logger.warning(f"Failed to get feedback for {device_id}: {result}")
                 results[device_id] = DeviceFeedbackStats().to_dict()

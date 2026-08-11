@@ -157,7 +157,7 @@ async def main():
     results = []
     for name, test_func in tests:
         try:
-            result = await test_func()
+            await test_func()
             results.append((name, True, None))
         except Exception as e:
             print(f"   ❌ {name} failed: {e}")

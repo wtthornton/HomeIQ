@@ -18,13 +18,13 @@ Features:
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class ExecutionStatus(str, Enum):
+class ExecutionStatus(StrEnum):
     """Automation execution status."""
 
     SUCCESS = "success"

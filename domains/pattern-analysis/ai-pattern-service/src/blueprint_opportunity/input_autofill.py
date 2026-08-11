@@ -181,7 +181,7 @@ class InputAutofill:
         """
         total_inputs = len(autofilled) + len(unfilled)
         filled_count = len(autofilled)
-        required_unfilled = [u for u in unfilled]  # All unfilled are required
+        required_unfilled = list(unfilled)  # All unfilled are required
 
         avg_confidence = 0.0
         if autofilled:

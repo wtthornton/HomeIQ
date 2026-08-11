@@ -442,7 +442,7 @@ class TestE2EDataSourceVerification:
 
                         # Check metadata for pattern references
                         for synergy in synergies_with_pattern_devices:
-                            metadata = synergy.get("metadata", {})
+                            synergy.get("metadata", {})
 
                             # Metadata may contain pattern-related information
                             # (validated_by_patterns, pattern_support_score may be in metadata)

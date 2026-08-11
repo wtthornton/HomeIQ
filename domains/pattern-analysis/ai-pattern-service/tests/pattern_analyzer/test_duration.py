@@ -185,7 +185,7 @@ class TestDurationPatternDetection:
         df = pd.DataFrame(events)
         patterns = detector.detect_patterns(df)
 
-        devices = set(p["device_id"] for p in patterns)
+        devices = {p["device_id"] for p in patterns}
         assert "light.bedroom" in devices
         assert "light.kitchen" in devices
 

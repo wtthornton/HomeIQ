@@ -122,7 +122,7 @@ class TestContextualDetection:
         base = datetime(2025, 6, 1)
         events_data = []
 
-        for i in range(num_events):
+        for _i in range(num_events):
             day = rng.integers(0, 60)
             hour = rng.integers(0, 24)
             minute = rng.integers(0, 60)

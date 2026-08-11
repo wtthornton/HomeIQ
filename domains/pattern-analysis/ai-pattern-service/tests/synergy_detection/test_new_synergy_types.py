@@ -393,7 +393,7 @@ class TestSynergyTypeValidation:
 
         # Verify complexity values are valid
         valid_complexities = {"low", "medium", "high"}
-        for synergy_type, complexity in complexity_mapping.items():
+        for _synergy_type, complexity in complexity_mapping.items():
             if isinstance(complexity, list):
                 for c in complexity:
                     assert c in valid_complexities

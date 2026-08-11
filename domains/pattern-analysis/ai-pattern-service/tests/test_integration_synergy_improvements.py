@@ -222,7 +222,7 @@ class TestIntegrationSynergyImprovements:
         }
 
         # Get initial optimized score
-        initial_score = synergy_detector.rl_optimizer.get_optimized_score(opportunity)
+        synergy_detector.rl_optimizer.get_optimized_score(opportunity)
 
         # Submit positive feedback
         feedback = {

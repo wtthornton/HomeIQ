@@ -7,9 +7,12 @@ Extracted from ai-automation-service for pattern service notifications.
 
 import json
 import logging
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import paho.mqtt.client as mqtt
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 

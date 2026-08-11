@@ -533,11 +533,11 @@ def main():
 
     # Memory benchmarks
     mem_benchmarks = MemoryBenchmarks()
-    mem_results = mem_benchmarks.run_all()
+    mem_benchmarks.run_all()
 
     # Throughput benchmarks
     throughput_benchmarks = ThroughputBenchmarks()
-    throughput_results = throughput_benchmarks.run_all()
+    throughput_benchmarks.run_all()
 
     # Final summary
     print("\n" + "=" * 60)

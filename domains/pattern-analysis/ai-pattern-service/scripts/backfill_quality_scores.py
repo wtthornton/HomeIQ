@@ -82,7 +82,7 @@ async def backfill_quality_scores(
         """)
 
         columns = [desc[0] for desc in cursor.description]
-        synergies = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        synergies = [dict(zip(columns, row, strict=False)) for row in cursor.fetchall()]
         total_synergies = len(synergies)
 
         print(f"Found {total_synergies} synergies without quality scores")
@@ -231,7 +231,7 @@ def main():
 
     args = parser.parse_args()
 
-    result = asyncio.run(
+    asyncio.run(
         backfill_quality_scores(args.db_url, dry_run=args.dry_run, batch_size=args.batch_size)
     )
 

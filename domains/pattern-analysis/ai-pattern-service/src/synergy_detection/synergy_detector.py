@@ -2275,12 +2275,12 @@ class DeviceSynergyDetector:
             return True
 
         # Skip if devices not in same area (unless beneficial)
-        if synergy.get("area") != next_synergy.get("area") and not self._is_valid_cross_area_chain(
-            trigger_entity, synergy.get("action_entity"), next_action, entities
-        ):
-            return True
-
-        return False
+        return bool(
+            synergy.get("area") != next_synergy.get("area")
+            and not self._is_valid_cross_area_chain(
+                trigger_entity, synergy.get("action_entity"), next_action, entities
+            )
+        )
 
     def _create_3_device_chain(
         self,

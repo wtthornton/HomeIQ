@@ -9,13 +9,13 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class RatingCategory(str, Enum):
+class RatingCategory(StrEnum):
     """Categories for rating feedback."""
 
     OVERALL = "overall"

@@ -221,9 +221,9 @@ class TestAutomationTracker:
         # Create execution records
         await test_db.execute(
             text("""
-                INSERT INTO automation_executions 
+                INSERT INTO automation_executions
                 (automation_id, synergy_id, success, error, execution_time_ms, triggered_count)
-                VALUES 
+                VALUES
                 ('automation.test1', :synergy_id, 1, NULL, 100, 3),
                 ('automation.test1', :synergy_id, 1, NULL, 150, 5),
                 ('automation.test1', :synergy_id, 0, 'Error', 50, 0)
