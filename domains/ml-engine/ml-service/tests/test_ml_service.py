@@ -3,13 +3,13 @@ ML Service Tests
 Tests for the classical machine learning service
 """
 
-
 import httpx
 import numpy as np
 import pytest
 
 # Test configuration
 ML_SERVICE_URL = "http://localhost:8020"
+
 
 class TestMLService:
     """Test suite for ML Service"""
@@ -61,11 +61,7 @@ class TestMLService:
         """Test KMeans clustering"""
         response = await client.post(
             f"{ML_SERVICE_URL}/cluster",
-            json={
-                "data": sample_data,
-                "algorithm": "kmeans",
-                "n_clusters": 3
-            }
+            json={"data": sample_data, "algorithm": "kmeans", "n_clusters": 3},
         )
 
         assert response.status_code == 200
@@ -85,11 +81,7 @@ class TestMLService:
         """Test DBSCAN clustering"""
         response = await client.post(
             f"{ML_SERVICE_URL}/cluster",
-            json={
-                "data": sample_data,
-                "algorithm": "dbscan",
-                "eps": 0.5
-            }
+            json={"data": sample_data, "algorithm": "dbscan", "eps": 0.5},
         )
 
         assert response.status_code == 200
@@ -107,11 +99,7 @@ class TestMLService:
     async def test_anomaly_detection(self, client, sample_data):
         """Test anomaly detection"""
         response = await client.post(
-            f"{ML_SERVICE_URL}/anomaly",
-            json={
-                "data": sample_data,
-                "contamination": 0.1
-            }
+            f"{ML_SERVICE_URL}/anomaly", json={"data": sample_data, "contamination": 0.1}
         )
 
         assert response.status_code == 200
@@ -132,26 +120,13 @@ class TestMLService:
         operations = [
             {
                 "type": "cluster",
-                "data": {
-                    "data": sample_data,
-                    "algorithm": "kmeans",
-                    "n_clusters": 3
-                }
+                "data": {"data": sample_data, "algorithm": "kmeans", "n_clusters": 3},
             },
-            {
-                "type": "anomaly",
-                "data": {
-                    "data": sample_data,
-                    "contamination": 0.1
-                }
-            }
+            {"type": "anomaly", "data": {"data": sample_data, "contamination": 0.1}},
         ]
 
         response = await client.post(
-            f"{ML_SERVICE_URL}/batch/process",
-            json={
-                "operations": operations
-            }
+            f"{ML_SERVICE_URL}/batch/process", json={"operations": operations}
         )
 
         assert response.status_code == 200
@@ -179,12 +154,7 @@ class TestMLService:
         """Test error handling for invalid requests"""
         # Test with empty data
         response = await client.post(
-            f"{ML_SERVICE_URL}/cluster",
-            json={
-                "data": [],
-                "algorithm": "kmeans",
-                "n_clusters": 3
-            }
+            f"{ML_SERVICE_URL}/cluster", json={"data": [], "algorithm": "kmeans", "n_clusters": 3}
         )
 
         # Should handle empty input gracefully
@@ -199,11 +169,7 @@ class TestMLService:
 
         response = await client.post(
             f"{ML_SERVICE_URL}/cluster",
-            json={
-                "data": large_data,
-                "algorithm": "kmeans",
-                "n_clusters": 5
-            }
+            json={"data": large_data, "algorithm": "kmeans", "n_clusters": 5},
         )
 
         assert response.status_code == 200
@@ -212,6 +178,7 @@ class TestMLService:
         # Should complete within reasonable time
         assert data["processing_time"] < 5.0  # Less than 5 seconds
         assert len(data["labels"]) == 100
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

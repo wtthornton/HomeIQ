@@ -12,9 +12,8 @@ import time
 from typing import Any
 
 from fastapi import HTTPException, Request, status
-from homeiq_resilience import ServiceLifespan, create_app
-
 from homeiq_observability.logging_config import setup_logging
+from homeiq_resilience import ServiceLifespan, create_app
 
 from .algorithms.anomaly_detection import AnomalyDetectionManager
 from .algorithms.clustering import ClusteringManager
@@ -164,7 +163,9 @@ def _validate_kmeans_params(n_clusters: int | None, num_points: int) -> None:
     if n_clusters > MAX_CLUSTERS:
         raise HTTPException(status_code=400, detail=f"n_clusters must be <= {MAX_CLUSTERS}.")
     if n_clusters > num_points:
-        raise HTTPException(status_code=400, detail="n_clusters cannot exceed the number of data points.")
+        raise HTTPException(
+            status_code=400, detail="n_clusters cannot exceed the number of data points."
+        )
 
 
 @app.post("/cluster", response_model=ClusteringResponse)
@@ -206,7 +207,9 @@ async def cluster_data(request: ClusteringRequest) -> ClusteringResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Error clustering data")
-        raise HTTPException(status_code=500, detail="Clustering failed due to an internal error.") from exc
+        raise HTTPException(
+            status_code=500, detail="Clustering failed due to an internal error."
+        ) from exc
 
 
 @app.post("/anomaly", response_model=AnomalyResponse)
@@ -235,18 +238,24 @@ async def detect_anomalies(request: AnomalyRequest) -> AnomalyResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Error detecting anomalies")
-        raise HTTPException(status_code=500, detail="Anomaly detection failed due to an internal error.") from exc
+        raise HTTPException(
+            status_code=500, detail="Anomaly detection failed due to an internal error."
+        ) from exc
 
 
 @app.post("/batch/process", response_model=BatchProcessResponse)
 async def batch_process(request: BatchProcessRequest) -> BatchProcessResponse:
     """Process multiple operations concurrently in a batch."""
     if len(request.operations) > MAX_BATCH_SIZE:
-        raise HTTPException(status_code=400, detail=f"Batch size exceeds limit of {MAX_BATCH_SIZE} operations.")
+        raise HTTPException(
+            status_code=400, detail=f"Batch size exceeds limit of {MAX_BATCH_SIZE} operations."
+        )
     start_time = time.time()
     results = await asyncio.gather(
         *[
-            process_single_operation(op, clustering_manager, anomaly_manager, _run_cpu_bound, MAX_CLUSTERS)
+            process_single_operation(
+                op, clustering_manager, anomaly_manager, _run_cpu_bound, MAX_CLUSTERS
+            )
             for op in request.operations
         ],
         return_exceptions=True,

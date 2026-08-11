@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from src.validation import (
     _estimate_payload_bytes,
     _validate_contamination,
