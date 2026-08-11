@@ -4,10 +4,19 @@ Revision ID: 002
 Revises: 001
 Create Date: 2025-01-20 12:00:00
 
+This used to run through op.batch_alter_table, which is SQLite's
+copy-table-and-swap workaround for a backend that cannot ALTER a constraint.
+HomeIQ runs on PostgreSQL, which alters constraints in place, and recreating
+the table would have been a needless rewrite of the whole corpus.
+
+It also wrapped the inspection in `except Exception: pass`, so a failure to
+read the catalogue was indistinguishable from "constraint absent" and the
+migration would blindly try to add a constraint that was already there.
 """
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -16,44 +25,42 @@ down_revision: str | None = "001"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+TABLE = "community_automations"
+CONSTRAINT = "uq_source_source_id"
+
+
+def _schema() -> str:
+    return op.get_bind().exec_driver_sql("SELECT current_schema()").scalar()
+
+
+def _unique_constraints() -> dict[str, set[str]]:
+    inspector = sa.inspect(op.get_bind())
+    return {
+        c["name"]: set(c["column_names"])
+        for c in inspector.get_unique_constraints(TABLE, schema=_schema())
+        if c.get("name")
+    }
+
 
 def upgrade() -> None:
-    # SQLite doesn't support ALTER TABLE for constraints directly
-    # Check if constraint already has correct definition
-    from alembic import context
-    from sqlalchemy import inspect
+    constraints = _unique_constraints()
 
-    bind = context.get_bind()
-    inspector = inspect(bind)
+    # init-schemas.sql already declares this as a composite constraint
+    # (infrastructure/postgres/init-schemas.sql:465), so on a normal database
+    # there is nothing to do.
+    if constraints.get(CONSTRAINT) == {"source", "source_id"}:
+        return
 
-    # Check existing constraints
-    try:
-        constraints = inspector.get_unique_constraints("community_automations")
-        has_composite = any(
-            c.get("name") == "uq_source_source_id"
-            and set(c.get("column_names", [])) == {"source", "source_id"}
-            for c in constraints
-        )
+    if CONSTRAINT in constraints:
+        op.drop_constraint(CONSTRAINT, TABLE, type_="unique")
 
-        if has_composite:
-            # Constraint already correct, skip migration
-            return
-    except Exception:
-        # If we can't inspect, proceed with migration
-        pass
-
-    # Use batch mode to recreate table with new constraint
-    # Note: This will recreate the table, so data will be preserved
-    with op.batch_alter_table("community_automations", schema=None) as batch_op:
-        # Just create the new constraint - batch mode will handle dropping old one if needed
-        batch_op.create_unique_constraint("uq_source_source_id", ["source", "source_id"])
+    op.create_unique_constraint(CONSTRAINT, TABLE, ["source", "source_id"])
 
 
 def downgrade() -> None:
-    # Use batch mode for SQLite
-    with op.batch_alter_table("community_automations", schema=None) as batch_op:
-        # Drop composite constraint
-        batch_op.drop_constraint("uq_source_source_id", type_="unique")
+    constraints = _unique_constraints()
 
-        # Restore old unique constraint on source_id alone
-        batch_op.create_unique_constraint("uq_source_source_id", ["source_id"])
+    if CONSTRAINT in constraints:
+        op.drop_constraint(CONSTRAINT, TABLE, type_="unique")
+
+    op.create_unique_constraint(CONSTRAINT, TABLE, ["source_id"])
