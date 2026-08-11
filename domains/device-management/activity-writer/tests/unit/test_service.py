@@ -1,20 +1,13 @@
 """Unit tests for activity-writer service module."""
 
-from datetime import UTC, datetime
-
-import pytest
 from src.helpers import (
     append_value,
-    bucket_to_reading,
     classify_entity,
     extract_attrs,
-    parse_event_timestamp,
-    parse_state_value,
     safe_float,
     try_float,
 )
 from src.service import ActivityWriterService
-
 
 # ---------------------------------------------------------------------------
 # try_float

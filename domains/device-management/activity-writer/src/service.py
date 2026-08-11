@@ -43,9 +43,12 @@ class ActivityWriterService:
             os.getenv("DATA_API_API_KEY") or os.getenv("DATA_API_KEY") or os.getenv("API_KEY")
         )
         self.activity_recognition_url: str = os.getenv(
-            "ACTIVITY_RECOGNITION_URL", "http://activity-recognition:8036",
+            "ACTIVITY_RECOGNITION_URL",
+            "http://activity-recognition:8036",
         )
-        self.activity_recognition_timeout: int = int(os.getenv("ACTIVITY_RECOGNITION_TIMEOUT", "30"))
+        self.activity_recognition_timeout: int = int(
+            os.getenv("ACTIVITY_RECOGNITION_TIMEOUT", "30")
+        )
         self.home_id: str = os.getenv("HOME_ID", "default")
         self.events_limit: int = int(os.getenv("ACTIVITY_WRITER_EVENTS_LIMIT", "500"))
         self.min_readings: int = 10
@@ -70,8 +73,10 @@ class ActivityWriterService:
         self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30))
         if self.influxdb_token:
             self._influx_client = InfluxDBClient(
-                url=self.influxdb_url, token=self.influxdb_token,
-                org=self.influxdb_org, timeout=30_000,
+                url=self.influxdb_url,
+                token=self.influxdb_token,
+                org=self.influxdb_org,
+                timeout=30_000,
             )
         else:
             logger.warning("INFLUXDB_TOKEN not set - InfluxDB writes disabled")
@@ -124,12 +129,19 @@ class ActivityWriterService:
         self.last_successful_run = datetime.now(UTC)
         self.last_error = None
         self.cycles_succeeded += 1
-        logger.info("Cycle complete: activity=%s confidence=%.2f", prediction.activity, prediction.confidence)
+        logger.info(
+            "Cycle complete: activity=%s confidence=%.2f",
+            prediction.activity,
+            prediction.confidence,
+        )
 
     async def _fetch_events(self) -> list[dict[str, Any]]:
         """Fetch state_changed events, preferring data-api over InfluxDB."""
         events = await fetch_from_data_api(
-            self._session, self.data_api_url, self.data_api_key, self.events_limit,
+            self._session,
+            self.data_api_url,
+            self.data_api_key,
+            self.events_limit,
         )
         if events and events_have_state(events):
             return normalize_data_api_events(events)
@@ -167,22 +179,30 @@ class ActivityWriterService:
         if not self._session:
             raise RuntimeError("HTTP session not initialized")
         if len(readings) > self.MAX_READINGS:
-            readings = readings[-self.MAX_READINGS:]
+            readings = readings[-self.MAX_READINGS :]
         url = f"{self.activity_recognition_url.rstrip('/')}/api/v1/predict"
         payload = {
             "readings": [
-                {"motion": r.motion, "door": r.door, "temperature": r.temperature,
-                 "humidity": r.humidity, "power": r.power}
+                {
+                    "motion": r.motion,
+                    "door": r.door,
+                    "temperature": r.temperature,
+                    "humidity": r.humidity,
+                    "power": r.power,
+                }
                 for r in readings
             ],
         }
         async with self._session.post(
-            url, json=payload,
+            url,
+            json=payload,
             timeout=aiohttp.ClientTimeout(total=self.activity_recognition_timeout),
         ) as resp:
             if resp.status != 200:
                 text = await resp.text()
-                raise aiohttp.ClientError(f"Activity-recognition returned {resp.status}: {text[:200]}")
+                raise aiohttp.ClientError(
+                    f"Activity-recognition returned {resp.status}: {text[:200]}"
+                )
             data = await resp.json()
             return PredictResponse(
                 activity=data.get("activity", "unknown"),
@@ -212,15 +232,19 @@ class ActivityWriterService:
         )
         write_api = self._influx_client.write_api(write_options=SYNCHRONOUS)
         await asyncio.to_thread(
-            write_api.write, bucket=self.influxdb_bucket,
-            org=self.influxdb_org, record=point,
+            write_api.write,
+            bucket=self.influxdb_bucket,
+            org=self.influxdb_org,
+            record=point,
         )
         write_api.close()
 
     def get_metrics(self) -> dict[str, Any]:
         """Return health/metrics dict."""
         return {
-            "last_successful_run": self.last_successful_run.isoformat() if self.last_successful_run else None,
+            "last_successful_run": self.last_successful_run.isoformat()
+            if self.last_successful_run
+            else None,
             "last_error": self.last_error,
             "cycles_succeeded": self.cycles_succeeded,
             "cycles_failed": self.cycles_failed,
@@ -234,6 +258,7 @@ class ActivityWriterService:
     @staticmethod
     def _normalize_single_event(e: dict[str, Any]) -> dict[str, Any] | None:
         from .data_fetcher import normalize_single_event
+
         return normalize_single_event(e)
 
     @staticmethod

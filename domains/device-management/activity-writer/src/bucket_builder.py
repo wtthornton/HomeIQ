@@ -17,9 +17,13 @@ _ON_STATES: frozenset[str] = frozenset({"on", "1", "true"})
 
 
 def _apply_event_to_bucket(
-    b: dict[str, Any], category: str, is_on: bool,
-    state_str: str | None, temp: float | None,
-    humidity: float | None, power: float | None,
+    b: dict[str, Any],
+    category: str,
+    is_on: bool,
+    state_str: str | None,
+    temp: float | None,
+    humidity: float | None,
+    power: float | None,
 ) -> None:
     """Apply a single parsed event to its bucket."""
     if category == "motion":

@@ -4,16 +4,14 @@ from datetime import UTC, datetime
 
 import pytest
 from src.config import settings
-from src.main import SERVICE_VERSION, app
-from src.service import ActivityWriterService
 from src.helpers import (
     bucket_to_reading,
     classify_entity,
     parse_event_timestamp,
     parse_state_value,
-    safe_float,
-    try_float,
 )
+from src.main import SERVICE_VERSION, app
+from src.service import ActivityWriterService
 
 
 @pytest.fixture
@@ -199,8 +197,16 @@ def test_build_readings_temperature_from_attrs() -> None:
 def test_build_readings_buckets_by_minute() -> None:
     """Events in same minute go to same bucket."""
     events = [
-        {"entity_id": "binary_sensor.motion_1", "timestamp": "2025-02-18T12:00:10Z", "state_value": "{'state': 'on'}"},
-        {"entity_id": "binary_sensor.door_1", "timestamp": "2025-02-18T12:00:50Z", "state_value": "{'state': 'on'}"},
+        {
+            "entity_id": "binary_sensor.motion_1",
+            "timestamp": "2025-02-18T12:00:10Z",
+            "state_value": "{'state': 'on'}",
+        },
+        {
+            "entity_id": "binary_sensor.door_1",
+            "timestamp": "2025-02-18T12:00:50Z",
+            "state_value": "{'state': 'on'}",
+        },
     ]
     readings = ActivityWriterService.build_readings(events)
     assert len(readings) == 1
@@ -216,7 +222,11 @@ def test_build_readings_buckets_by_minute() -> None:
 def test_normalize_data_api_events_basic() -> None:
     """Normalize data-api events with new_state."""
     events = [
-        {"entity_id": "sensor.temp", "new_state": {"state": "21.5"}, "timestamp": "2025-02-18T12:00:00Z"}
+        {
+            "entity_id": "sensor.temp",
+            "new_state": {"state": "21.5"},
+            "timestamp": "2025-02-18T12:00:00Z",
+        }
     ]
     out = ActivityWriterService._normalize_data_api_events(events)
     assert len(out) == 1
@@ -288,9 +298,9 @@ def test_get_metrics_initial(service: ActivityWriterService) -> None:
 @pytest.mark.asyncio
 async def test_health_endpoint_not_initialized() -> None:
     """Health endpoint returns 503 when service not started."""
+    import src.main as mod
     from httpx import ASGITransport, AsyncClient
 
-    import src.main as mod
     old = mod.activity_writer
     mod.activity_writer = None
     try:
@@ -307,9 +317,9 @@ async def test_health_endpoint_not_initialized() -> None:
 @pytest.mark.asyncio
 async def test_health_endpoint_healthy() -> None:
     """Health endpoint returns 200 when service is running."""
+    import src.main as mod
     from httpx import ASGITransport, AsyncClient
 
-    import src.main as mod
     svc = ActivityWriterService()
     svc.cycles_succeeded = 1
     svc.last_successful_run = datetime.now(UTC)
