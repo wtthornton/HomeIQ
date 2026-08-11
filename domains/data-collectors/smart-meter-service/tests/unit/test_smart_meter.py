@@ -17,9 +17,11 @@ class TestConfiguration:
         """GIVEN: No INFLUXDB_TOKEN | WHEN: Initialize | THEN: Raise ValueError"""
         from src.main import SmartMeterService
 
-        with patch.dict(os.environ, {"INFLUXDB_TOKEN": ""}, clear=True):
-            with pytest.raises(ValueError, match="INFLUXDB_TOKEN required"):
-                SmartMeterService()
+        with (
+            patch.dict(os.environ, {"INFLUXDB_TOKEN": ""}, clear=True),
+            pytest.raises(ValueError, match="INFLUXDB_TOKEN required"),
+        ):
+            SmartMeterService()
 
     def test_default_meter_type(self):
         """GIVEN: No METER_TYPE | WHEN: Initialize | THEN: Default to 'home_assistant'"""

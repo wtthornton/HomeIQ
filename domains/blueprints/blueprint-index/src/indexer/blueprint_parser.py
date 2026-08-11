@@ -382,11 +382,12 @@ class BlueprintParser:
 
                 # Check entity_id references
                 entity_id = obj.get("entity_id")
-                if entity_id and isinstance(entity_id, str) and "." in entity_id:
-                    if not entity_id.startswith("!input"):
-                        domain = entity_id.split(".")[0]
-                        if domain in self.DEVICE_DOMAINS:
-                            domains.add(domain)
+                if (entity_id and isinstance(entity_id, str) and "." in entity_id) and (
+                    not entity_id.startswith("!input")
+                ):
+                    domain = entity_id.split(".")[0]
+                    if domain in self.DEVICE_DOMAINS:
+                        domains.add(domain)
 
                 for value in obj.values():
                     recurse(value)

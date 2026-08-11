@@ -60,6 +60,13 @@ line-length = 100
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
 ignore = ["E501"]
 
+[tool.ruff.lint.per-file-ignores]
+# Tests must run the sys.path bootstrap before importing the service, so their
+# imports cannot all sit at the top. Matches the repo-root config; this service
+# needs its own copy because a service-level [tool.ruff] replaces the root one
+# rather than extending it.
+"tests/**" = ["E402"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true

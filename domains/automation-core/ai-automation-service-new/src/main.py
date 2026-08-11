@@ -14,7 +14,7 @@ It handles:
 import logging
 import os
 
-from homeiq_resilience import ServiceLifespan, create_app
+from homeiq_resilience import GroupHealthCheck, ServiceLifespan, create_app
 
 # Setup logging (use shared logging config)
 try:
@@ -91,8 +91,6 @@ except ImportError:
 scheduler: AsyncIOScheduler | None = None
 
 # Module-level health checker, initialised during lifespan.
-from homeiq_resilience import GroupHealthCheck
-
 _group_health: GroupHealthCheck | None = None
 
 
