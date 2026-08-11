@@ -111,7 +111,12 @@ unreachable, which is forbidden.
 
 ## Validation contract (write BEFORE any execution sub-goal)
 
-These are the evals. Every ID claimed by exactly one sub-goal; no orphans.
+These are the evals. Every ID is claimed by exactly one sub-goal, with one deliberate
+exception: an assertion may be **designed** in one sub-goal and **proven** in another
+(`VAL-016` designed in SG5, proven by SG7's two-source test; `VAL-023` established in
+SG0, proven in SG8). Those pairs are written `SG<n> + SG<m>` and both sub-goals name
+the id in their own heading. Anything else claimed twice, or claimed by no sub-goal,
+is a contract defect — fix the contract, do not proceed past it.
 
 | ID | Behavioral assertion | Fulfilled by | Evidence |
 |----|----------------------|--------------|----------|
@@ -295,7 +300,7 @@ already carry their own domain experts (`web-store-wstore-expert-*`,
 HA's `automations.yaml` directly — deploying through HomeIQ is what is being proven,
 and it is what gives you versions and rollback.
 
-**SG7 — Behavioral proof (VAL-018…VAL-021).**
+**SG7 — Behavioral proof (VAL-018…VAL-021, and proves VAL-016).**
 Run `.claude/workflows/office-automation-verify.js`. Consult **`expert-testing`**
 first on whether these four assertions are sufficient; add any it identifies as
 missing before running.
@@ -413,8 +418,8 @@ one live system. Fanning them out is the documented worst fit.
   `proxy` → `real` and probably surfaces several Office sensors at once.
 - **HA config-flow API is drivable**: `POST /api/config/config_entries/flow` (GET 405).
 - **AgentForge** 4.59.1 at `http://localhost:8010` (**never `:8001`**, the dashboard).
-  Project `homeiq`, Pattern A HTTP publish, `scout` layout. **178 platform agents, 23
-  `expert-*`.** HomeIQ publishes only 2 agents + 1 workflow today. AF **cannot see this
+  Project `homeiq`, Pattern A HTTP publish, `scout` layout. **178 platform agents: 17 generic `expert-*` plus 6
+  project-scoped domain experts owned by other consumer projects.** HomeIQ publishes only 2 agents + 1 workflow today. AF **cannot see this
   repo or network** — pass source in as workflow input.
 - **HomeIQ endpoints:** admin-api `:18004`; ai-automation-service-new `:8036`
   (`/api/deploy/automation/deploy` needs `compiled_id`, `/test-connection`,
