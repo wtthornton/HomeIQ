@@ -114,11 +114,13 @@ class TestComplexityBonus:
     @pytest.fixture(autouse=True)
     def setup_scorer(self):
         """Create scorer with DeviceMatcher disabled."""
-        with patch("src.services.suggestion_scorer.DEVICE_MATCHER_AVAILABLE", False):
-            with patch("src.services.suggestion_scorer.DeviceMatcher", None):
-                from src.services.suggestion_scorer import SuggestionScorer
+        with (
+            patch("src.services.suggestion_scorer.DEVICE_MATCHER_AVAILABLE", False),
+            patch("src.services.suggestion_scorer.DeviceMatcher", None),
+        ):
+            from src.services.suggestion_scorer import SuggestionScorer
 
-                self.scorer = SuggestionScorer(enable_wyze_scoring=False)
+            self.scorer = SuggestionScorer(enable_wyze_scoring=False)
 
     def test_simple_returns_full_bonus(self):
         assert self.scorer._calculate_complexity_bonus("simple") == 1.0
@@ -148,11 +150,13 @@ class TestFallbackScoring:
 
     @pytest.fixture(autouse=True)
     def setup_scorer(self):
-        with patch("src.services.suggestion_scorer.DEVICE_MATCHER_AVAILABLE", False):
-            with patch("src.services.suggestion_scorer.DeviceMatcher", None):
-                from src.services.suggestion_scorer import SuggestionScorer
+        with (
+            patch("src.services.suggestion_scorer.DEVICE_MATCHER_AVAILABLE", False),
+            patch("src.services.suggestion_scorer.DeviceMatcher", None),
+        ):
+            from src.services.suggestion_scorer import SuggestionScorer
 
-                self.scorer = SuggestionScorer(enable_wyze_scoring=False)
+            self.scorer = SuggestionScorer(enable_wyze_scoring=False)
 
     def test_fallback_full_domain_match(self):
         """Full domain match gives 50% domain component."""
@@ -368,11 +372,13 @@ class TestScorerEdgeCases:
 
     @pytest.fixture(autouse=True)
     def setup_scorer(self):
-        with patch("src.services.suggestion_scorer.DEVICE_MATCHER_AVAILABLE", False):
-            with patch("src.services.suggestion_scorer.DeviceMatcher", None):
-                from src.services.suggestion_scorer import SuggestionScorer
+        with (
+            patch("src.services.suggestion_scorer.DEVICE_MATCHER_AVAILABLE", False),
+            patch("src.services.suggestion_scorer.DeviceMatcher", None),
+        ):
+            from src.services.suggestion_scorer import SuggestionScorer
 
-                self.scorer = SuggestionScorer(enable_wyze_scoring=False)
+            self.scorer = SuggestionScorer(enable_wyze_scoring=False)
 
     def test_empty_devices_list(self):
         """Empty devices list doesn't crash."""
