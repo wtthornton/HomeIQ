@@ -91,4 +91,8 @@ def flux_time(dt) -> str:
     binary operator and the ``Z`` as an undefined identifier, 500ing every
     energy route (TAP-5445).
     """
+    from datetime import UTC
+
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(UTC)
     return dt.strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
