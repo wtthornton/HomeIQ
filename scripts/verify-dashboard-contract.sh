@@ -121,6 +121,9 @@ read -r -d '' CONTRACT <<'EOF'
 /api/v1/integrations/websocket/config	200	http	data-api; ConfigForm's route — needs the seeded .env.websocket in infrastructure/service-configs (see its README); unknown services 404 by design
 /api/v1/ha/game-status/VGK	200	http	data-api; TAP-5448 — answers no_game when sports_data holds no rows for the team, which is the honest empty state
 /api/v1/ha/game-context/VGK	200	http	data-api; TAP-5448 — same no_game semantics as game-status
+/api/v1/hygiene/issues	200	http	data-api proxies device-intelligence with server-side X-API-Key (TAP-5449); empty list is a valid state
+/api/v1/docker/containers/data-api/logs?tail=10	200	http	admin-api; data-api added to the managed-container mapping (TAP-5450)
+/api/v1/docker/containers/not-a-service/logs?tail=10	400	http	admin-api; unmanaged names are a deliberate 400, no longer shadowed into a 500 (TAP-5450)
 /api/devices	200	http	data-api
 /api/devices/{DEVICE_ID}	200	http	data-api; id resolved at runtime from /api/devices
 /api/entities	200	http	data-api
