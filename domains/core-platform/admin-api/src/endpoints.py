@@ -126,20 +126,25 @@ async def _build_enhanced_health(
         }
 
 
-# Hard per-fetch budget for the dashboard's poll target. The three fetches
-# below fan out to a dozen downstream services whose aiohttp timeouts run
-# 5-15s; awaited sequentially, one hung service made the endpoint sit at a
-# round 10.0s (TAP-5439). A fetch that misses the budget degrades to its
-# fallback instead of stalling the poll loop.
+# Hard per-fetch budget for the dashboard's poll target (TAP-5439). The
+# historical round 10.0s was weather-api's metrics fetch making two SERIAL
+# 5s-bounded requests (its own /health, then websocket-ingestion's) inside
+# _get_all_api_metrics — fixed at the source with asyncio.timeout in
+# homeiq_observability.monitoring.stats_endpoints. This budget is defense in
+# depth: whatever a downstream does, the endpoint answers within the budget,
+# degrading the late fetch to its fallback instead of stalling the poll loop.
 _RT_METRICS_BUDGET_SECONDS = 1.5
 
-_EMPTY_API_METRICS: dict[str, Any] = {
-    "active_calls": 0,
-    "api_metrics": [],
-    "inactive_apis": 0,
-    "error_apis": 0,
-    "total_apis": 0,
-}
+
+def _empty_api_metrics() -> dict[str, Any]:
+    """Fresh fallback dict per call — a shared constant would alias its list."""
+    return {
+        "active_calls": 0,
+        "api_metrics": [],
+        "inactive_apis": 0,
+        "error_apis": 0,
+        "total_apis": 0,
+    }
 
 
 async def _bounded(coro: Any, fallback: Any) -> Any:
@@ -161,7 +166,7 @@ async def _build_real_time_metrics(
     try:
         er, api, ds = await asyncio.gather(
             _bounded(stats_endpoints._get_current_event_rate(), 0.0),
-            _bounded(stats_endpoints._get_all_api_metrics(), dict(_EMPTY_API_METRICS)),
+            _bounded(stats_endpoints._get_all_api_metrics(), _empty_api_metrics()),
             _bounded(stats_endpoints._get_active_data_sources(), []),
         )
         return {

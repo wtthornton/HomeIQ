@@ -6,7 +6,7 @@ import asyncio
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import aiohttp
 from fastapi import APIRouter, HTTPException, Query, status
@@ -30,9 +30,9 @@ class StatisticsResponse(BaseModel):
     """Statistics response model"""
     timestamp: datetime
     period: str
-    metrics: Dict[str, Any]
-    trends: Dict[str, Any]
-    alerts: List[Dict[str, Any]]
+    metrics: dict[str, Any]
+    trends: dict[str, Any]
+    alerts: list[dict[str, Any]]
     source: str = "influxdb"  # Add source indicator
 
 
@@ -42,7 +42,7 @@ class MetricData(BaseModel):
     value: float
     unit: str
     timestamp: datetime
-    tags: Dict[str, str] = {}
+    tags: dict[str, str] = {}
 
 
 class StatsEndpoints:
@@ -144,7 +144,7 @@ class StatsEndpoints:
                     detail="Failed to get statistics"
                 )
         
-        @self.router.get("/stats/services", response_model=Dict[str, Any])
+        @self.router.get("/stats/services", response_model=dict[str, Any])
         async def get_services_stats():
             """Get statistics for all services"""
             try:
@@ -167,7 +167,7 @@ class StatsEndpoints:
                     detail="Failed to get services statistics"
                 )
         
-        @self.router.get("/stats/metrics", response_model=List[MetricData])
+        @self.router.get("/stats/metrics", response_model=list[MetricData])
         async def get_metrics(
             metric_name: Optional[str] = Query(None, description="Specific metric name"),
             service: Optional[str] = Query(None, description="Specific service"),
@@ -185,7 +185,7 @@ class StatsEndpoints:
                     detail="Failed to get metrics"
                 )
         
-        @self.router.get("/stats/performance", response_model=Dict[str, Any])
+        @self.router.get("/stats/performance", response_model=dict[str, Any])
         async def get_performance_stats():
             """Get performance statistics"""
             try:
@@ -199,7 +199,7 @@ class StatsEndpoints:
                     detail="Failed to get performance statistics"
                 )
         
-        @self.router.get("/stats/alerts", response_model=List[Dict[str, Any]])
+        @self.router.get("/stats/alerts", response_model=list[dict[str, Any]])
         async def get_alerts():
             """Get active alerts"""
             try:
@@ -217,7 +217,7 @@ class StatsEndpoints:
         # This route is kept for backward compatibility but should not be used
         # The public endpoint in main.py handles this route without authentication
     
-    async def _get_stats_from_influxdb(self, period: str, service: Optional[str] = None) -> Dict[str, Any]:
+    async def _get_stats_from_influxdb(self, period: str, service: Optional[str] = None) -> dict[str, Any]:
         """
         Get all statistics from InfluxDB
         
@@ -257,7 +257,7 @@ class StatsEndpoints:
             "alerts": alerts
         }
     
-    def _calculate_alerts(self, service_metrics: Dict[str, Any], error_stats: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _calculate_alerts(self, service_metrics: dict[str, Any], error_stats: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Calculate alerts from metrics
         
@@ -318,7 +318,7 @@ class StatsEndpoints:
         
         return alerts
     
-    async def _get_all_stats(self, period: str) -> Dict[str, Any]:
+    async def _get_all_stats(self, period: str) -> dict[str, Any]:
         """Get statistics for all services (fallback method)"""
         all_stats = {
             "metrics": {},
@@ -338,7 +338,7 @@ class StatsEndpoints:
         
         return all_stats
     
-    async def _get_service_stats(self, service_name: str, period: str) -> Dict[str, Any]:
+    async def _get_service_stats(self, service_name: str, period: str) -> dict[str, Any]:
         """Get statistics for a specific service"""
         service_url = self.service_urls[service_name]
         
@@ -377,7 +377,7 @@ class StatsEndpoints:
                 "alerts": [{"service": service_name, "level": "error", "message": str(e)}]
             }
     
-    async def _transform_websocket_health_to_stats(self, health_data: Dict[str, Any], _period: str) -> Dict[str, Any]:
+    async def _transform_websocket_health_to_stats(self, health_data: dict[str, Any], _period: str) -> dict[str, Any]:
         """Transform websocket-ingestion health data to stats format"""
         try:
             # Check if health_data has an error
@@ -443,7 +443,7 @@ class StatsEndpoints:
             }
     
     
-    async def _get_metrics(self, metric_name: Optional[str], service: Optional[str], limit: int) -> List[MetricData]:
+    async def _get_metrics(self, metric_name: Optional[str], service: Optional[str], limit: int) -> list[MetricData]:
         """Get specific metrics"""
         metrics = []
         
@@ -476,7 +476,7 @@ class StatsEndpoints:
         
         return metrics[:limit]
     
-    async def _get_performance_stats(self) -> Dict[str, Any]:
+    async def _get_performance_stats(self) -> dict[str, Any]:
         """Get performance statistics"""
         performance_stats = {
             "overall": {},
@@ -505,7 +505,7 @@ class StatsEndpoints:
         
         return performance_stats
     
-    async def _get_alerts(self) -> List[Dict[str, Any]]:
+    async def _get_alerts(self) -> list[dict[str, Any]]:
         """Get active alerts"""
         alerts = []
         
@@ -533,7 +533,7 @@ class StatsEndpoints:
         
         return alerts
     
-    def _calculate_overall_performance(self, services_stats: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate_overall_performance(self, services_stats: dict[str, Any]) -> dict[str, Any]:
         """Calculate overall performance metrics"""
         overall = {
             "total_requests": 0,
@@ -565,7 +565,7 @@ class StatsEndpoints:
         
         return overall
     
-    def _generate_recommendations(self, services_stats: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _generate_recommendations(self, services_stats: dict[str, Any]) -> list[dict[str, Any]]:
         """Generate performance recommendations"""
         recommendations = []
         
@@ -625,7 +625,7 @@ class StatsEndpoints:
             logger.error(f"Error getting event rate: {e}")
             return 0.0
     
-    async def _get_all_api_metrics(self) -> Dict[str, Any]:
+    async def _get_all_api_metrics(self) -> dict[str, Any]:
         """Get metrics from all API services with enhanced error handling"""
         api_metrics = []
         active_calls = 0
@@ -647,22 +647,26 @@ class StatsEndpoints:
             {"name": "weather-api", "priority": "low", "timeout": 5}
         ]
         
-        # Get metrics from each service in parallel with individual timeouts
+        # Get metrics from each service in parallel with individual timeouts.
+        # Real Tasks (not bare coroutines): the timeout branch below inspects
+        # .done()/.result(), which coroutines do not have.
         tasks = []
         for service_info in api_services:
             service_name = service_info["name"]
             if service_name in self.service_urls:
-                tasks.append(self._get_api_metrics_with_timeout(
-                    service_name, 
+                coro = self._get_api_metrics_with_timeout(
+                    service_name,
                     self.service_urls[service_name],
                     service_info["timeout"]
-                ))
+                )
             else:
-                # Service URL not configured - create a simple async task that returns the fallback
-                async def get_fallback():
-                    return self._create_fallback_metric(service_name, "not_configured")
-                tasks.append(get_fallback())
-        
+                # Bind the loop variable now — a bare closure would late-bind
+                # every fallback to the last service in the list.
+                async def get_fallback(name: str = service_name):
+                    return self._create_fallback_metric(name, "not_configured")
+                coro = get_fallback()
+            tasks.append(asyncio.ensure_future(coro))
+
         # Wait for all tasks to complete with overall timeout
         try:
             results = await asyncio.wait_for(
@@ -671,15 +675,19 @@ class StatsEndpoints:
             )
         except TimeoutError:
             logger.warning("Overall timeout reached while fetching API metrics")
-            # Create fallback results for any incomplete tasks
+            # Create fallback results for any incomplete tasks. wait_for has
+            # already cancelled the gather (and with it the children), so a
+            # cancelled task counts as incomplete — .result() on it would
+            # raise CancelledError, which is not an Exception.
             results = []
             for i, task in enumerate(tasks):
-                if task.done():
+                if task.done() and not task.cancelled():
                     try:
                         results.append(task.result())
                     except Exception as e:
                         results.append(e)
                 else:
+                    task.cancel()
                     service_name = api_services[i]["name"]
                     results.append(self._create_fallback_metric(service_name, "timeout"))
         
@@ -708,7 +716,7 @@ class StatsEndpoints:
             "total_apis": len(api_services)
         }
     
-    async def _get_api_metrics(self, service_name: str, service_url: str) -> Dict[str, Any]:
+    async def _get_api_metrics(self, service_name: str, service_url: str) -> dict[str, Any]:
         """Get metrics from a specific API service"""
         start_time = datetime.now()
         try:
@@ -781,7 +789,7 @@ class StatsEndpoints:
                 "is_fallback": True
             }
     
-    async def _get_active_data_sources(self) -> List[str]:
+    async def _get_active_data_sources(self) -> list[str]:
         """
         Get list of active data sources from InfluxDB.
         Story 24.1: Query InfluxDB for measurements with recent activity instead of hardcoded list.
@@ -818,11 +826,18 @@ class StatsEndpoints:
             # Return empty list instead of hardcoded fallback
             return []
     
-    async def _get_api_metrics_with_timeout(self, service_name: str, service_url: str, timeout: int) -> Dict[str, Any]:
-        """Get metrics from a specific API service with individual timeout"""
+    async def _get_api_metrics_with_timeout(self, service_name: str, service_url: str, timeout: int) -> dict[str, Any]:
+        """Get metrics from a specific API service with individual timeout.
+
+        The deadline covers the WHOLE fetch. The weather-api branch makes a
+        second, serial request to websocket-ingestion; before asyncio.timeout
+        bounded the body, each request carried its own ``timeout``, so two
+        5s hangs in series held /api/v1/real-time-metrics at a round 10.0s
+        (TAP-5439).
+        """
         start_time = datetime.now()
         try:
-            async with aiohttp.ClientSession() as session:
+            async with asyncio.timeout(timeout), aiohttp.ClientSession() as session:
                 # Use /health endpoint for all services
                 health_url = f"{service_url}/health"
                 async with session.get(health_url, timeout=timeout) as resp:
@@ -916,7 +931,7 @@ class StatsEndpoints:
             logger.error(f"Error getting metrics from {service_name}: {e}")
             return self._create_fallback_metric(service_name, "error", str(e))
     
-    def _transform_health_to_stats(self, health_data: Dict[str, Any], service_name: str, _period: str) -> Dict[str, Any]:
+    def _transform_health_to_stats(self, health_data: dict[str, Any], service_name: str, _period: str) -> dict[str, Any]:
         """Transform health data to stats format for services without dedicated stats endpoints"""
         try:
             # Extract basic metrics from health data
@@ -962,7 +977,7 @@ class StatsEndpoints:
                 }]
             }
     
-    def _create_fallback_metric(self, service_name: str, status: str, error_message: str = None) -> Dict[str, Any]:
+    def _create_fallback_metric(self, service_name: str, status: str, error_message: str = None) -> dict[str, Any]:
         """Create a fallback metric when service is unavailable"""
         return {
             "service": service_name,
