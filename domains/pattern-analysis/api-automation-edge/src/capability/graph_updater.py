@@ -74,8 +74,13 @@ class GraphUpdater:
             event: Event data from HA
         """
         try:
-            entity_id = event.get("entity_id")
-            new_state = event.get("new_state")
+            # HA event frames nest the payload: event = {"event_type": ...,
+            # "data": {"entity_id", "old_state", "new_state"}, ...}. Reading
+            # entity_id off the event root silently no-oped on every event
+            # since this handler was written (TAP-5440).
+            data = event.get("data") or {}
+            entity_id = data.get("entity_id")
+            new_state = data.get("new_state")
 
             if not entity_id or not new_state:
                 return

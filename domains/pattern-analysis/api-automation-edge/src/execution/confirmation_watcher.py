@@ -86,11 +86,15 @@ class ConfirmationWatcher:
 
         async def handler(event: dict[str, Any]):
             """Handle state_changed event"""
-            event_entity_id = event.get("entity_id")
+            # HA nests the payload under event["data"]; reading the event
+            # root meant no confirmation ever matched and every call timed
+            # out (TAP-5440).
+            data = event.get("data") or {}
+            event_entity_id = data.get("entity_id")
             if event_entity_id != entity_id:
                 return
 
-            new_state_data = event.get("new_state", {})
+            new_state_data = data.get("new_state") or {}
             new_state = new_state_data.get("state")
             actual_state[0] = new_state
 
