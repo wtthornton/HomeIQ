@@ -357,7 +357,7 @@ class DeploymentService:
                     Deployment.ha_automation_id == automation_id,
                     Deployment.status.in_(["deployed", "superseded"]),
                 )
-                .order_by(Deployment.version.desc())
+                .order_by(Deployment.version.desc(), Deployment.deployed_at.desc())
             )
             chain = list(chain_result.scalars().all())
             if len(chain) >= 2:

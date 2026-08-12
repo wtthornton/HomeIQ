@@ -192,3 +192,18 @@ async def test_rollback_of_v1_removes(client, db_session, mock_ha):
     service._rollback_by_removal.assert_awaited_once_with(target)
     rows = await deployments_for(db_session, [only])
     assert rows[0].status == "rolled_back"
+
+
+@pytest.mark.asyncio
+async def test_embedded_yaml_id_is_stripped_on_create(client, db_session, mock_ha):
+    """An artifact carrying its own top-level id must not overwrite that
+    automation on an omitted-id deploy (the HA client honours the YAML id)."""
+    poisoned = unique("c_poisoned")
+    yaml_with_id = "id: automation.office_presence_lighting\n" + BENIGN_YAML_B
+    await seed_artifact(db_session, poisoned, yaml_with_id)
+
+    await deploy(client, poisoned)
+
+    sent_yaml = mock_ha.deploy_automation.await_args.args[0]
+    assert "office_presence_lighting" not in sent_yaml
+    assert "Office fan comfort" in sent_yaml
