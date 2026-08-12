@@ -15,6 +15,7 @@ utterances:
 - review the proposed device area assignments and labels
 - score this HA organization manifest before converge
 model: sonnet
+max_budget_usd: 3.5
 agent_type: expert
 domain: homeiq-platform
 approved: true

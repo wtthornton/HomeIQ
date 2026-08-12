@@ -15,6 +15,7 @@ utterances:
 - propose device area assignments and entity labels for this home
 - design the desired-state organization for these devices
 model: sonnet
+max_budget_usd: 3.5
 agent_type: expert
 domain: homeiq-platform
 approved: true
