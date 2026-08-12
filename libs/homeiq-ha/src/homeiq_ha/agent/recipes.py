@@ -108,10 +108,13 @@ class BackupScheduleRecipe(Recipe):
     def _drift(self, config: dict[str, Any], available: tuple[str, ...]) -> list[Change]:
         """Drift this recipe can actually apply.
 
-        The encryption key is deliberately excluded: ``backup/config/update``
-        cannot set it (it is chosen during onboarding), so including it here
-        would make every apply report a change and the recipe would never
-        converge. It is surfaced through :meth:`_needs_encryption_key` instead.
+        The encryption key is deliberately excluded — not because the API
+        can't set it (``backup/config/update`` accepts
+        ``create_backup.password``; verified live 2026-08-11 on 2026.7.4)
+        but because only a person can custody the key: a recipe-invented
+        password makes every backup unrecoverable the day the store is lost.
+        It is surfaced through :meth:`_needs_encryption_key` instead, and set
+        on explicit human instruction only.
         """
         schedule = config.get("schedule") or {}
         retention = config.get("retention") or {}
@@ -766,15 +769,9 @@ def default_recipes(
         # Store slug read live 2026-08-11: NOT "otbr" (the store 404s on it).
         AddonRecipe("core_openthread_border_router", title="OpenThread Border Router"),
         HACSBootstrapRecipe(),
-        IntegrationRecipe(
-            "nws",
-            title="National Weather Service",
-            needs_user_input=(
-                "Add the National Weather Service integration in Settings > "
-                "Integrations: it needs your observation station and contact "
-                "email — site facts the agent must not guess."
-            ),
-        ),
+        # NWS deliberately absent: the stack already carries three weather
+        # feeds (data-collectors/weather-api, websocket-ingestion's
+        # OpenWeatherMap client, HA's met.no entry) — owner call 2026-08-12.
         TeamTrackerRecipe(
             needs_user_input=(
                 "Add Team Tracker in Settings > Integrations: league and team "

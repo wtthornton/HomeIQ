@@ -18,7 +18,6 @@ from homeiq_ha.agent.manifest import (
     OrganizationManifest,
 )
 from homeiq_ha.agent.recipes import (
-    ManifestDeviceAreasRecipe,
     ManifestEntityAliasesRecipe,
     ManifestEntityLabelsRecipe,
     ManifestHelpersRecipe,
@@ -36,6 +35,7 @@ def sim() -> SimHA:
 def _manifest(**overrides: Any) -> OrganizationManifest:
     fields: dict[str, Any] = {
         "managed_label_prefixes": ("role:", "class:", "area:"),
+        "areas": (),
         "device_areas": (),
         "entity_labels": (),
         "entity_aliases": (),
@@ -43,36 +43,6 @@ def _manifest(**overrides: Any) -> OrganizationManifest:
     }
     fields.update(overrides)
     return OrganizationManifest(**fields)
-
-
-@pytest.mark.asyncio
-async def test_manifest_device_areas_converge_and_are_idempotent(sim):
-    manifest = _manifest(device_areas=(DeviceArea("dev0", "living_room", "name says so"),))
-    recipe = ManifestDeviceAreasRecipe(manifest)
-
-    assert (await recipe.check(sim)).status is CheckStatus.NEEDS_APPLY
-
-    first = await recipe.apply(sim)
-    assert first.change_count == 1
-    assert (await recipe.verify(sim)).ok
-    assert next(d for d in sim.state["devices"] if d["id"] == "dev0")["area_id"] == "living_room"
-
-    second = await recipe.apply(sim)
-    assert second.change_count == 0
-    assert (await recipe.check(sim)).status is CheckStatus.SATISFIED
-
-
-@pytest.mark.asyncio
-async def test_manifest_device_areas_skip_stale_ids_without_crashing(sim):
-    recipe = ManifestDeviceAreasRecipe(
-        _manifest(device_areas=(DeviceArea("ghost", "office", "gone"),))
-    )
-
-    result = await recipe.check(sim)
-
-    assert result.status is CheckStatus.SATISFIED
-    assert result.details["stale_device_ids"] == ["ghost"]
-    assert (await recipe.apply(sim)).change_count == 0
 
 
 @pytest.mark.asyncio

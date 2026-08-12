@@ -30,6 +30,14 @@ DEFAULT_MANIFEST_PATH = Path("config/ha-organization-manifest.yaml")
 
 
 @dataclass(frozen=True)
+class Area:
+    """An area the manifest requires to exist, keyed by HA's own slug."""
+
+    area_id: str
+    name: str
+
+
+@dataclass(frozen=True)
 class DeviceArea:
     device_id: str
     area_id: str
@@ -70,6 +78,7 @@ class Helper:
 @dataclass(frozen=True)
 class OrganizationManifest:
     managed_label_prefixes: tuple[str, ...]
+    areas: tuple[Area, ...]
     device_areas: tuple[DeviceArea, ...]
     entity_labels: tuple[EntityLabels, ...]
     entity_aliases: tuple[EntityAliases, ...]
@@ -88,6 +97,9 @@ def load_manifest(path: str | Path = DEFAULT_MANIFEST_PATH) -> OrganizationManif
     body = document["manifest"]
     return OrganizationManifest(
         managed_label_prefixes=tuple(body.get("managed_label_prefixes") or ()),
+        areas=tuple(
+            Area(row["area_id"], row["name"]) for row in body.get("areas") or ()
+        ),
         device_areas=tuple(
             DeviceArea(row["device_id"], row["area_id"], row.get("reason", ""))
             for row in body.get("device_areas") or ()
@@ -115,6 +127,7 @@ def load_manifest(path: str | Path = DEFAULT_MANIFEST_PATH) -> OrganizationManif
 
 __all__ = [
     "DEFAULT_MANIFEST_PATH",
+    "Area",
     "DeviceArea",
     "EntityAliases",
     "EntityLabels",

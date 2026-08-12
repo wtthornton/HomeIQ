@@ -8,6 +8,7 @@ recipe that works here works there — including the backup API's
 from __future__ import annotations
 
 import copy
+import re
 from typing import Any
 
 import pytest
@@ -147,7 +148,9 @@ class SimWs:
             return None
         if command_type.endswith("_registry/create"):
             key = _registry_key(command_type)
-            self.state[key].append({f"{key[:-1]}_id": args["name"], "name": args["name"]})
+            # HA assigns slug ids (lowercase, non-alnum -> _), not raw names.
+            slug = re.sub(r"[^a-z0-9]+", "_", args["name"].lower()).strip("_")
+            self.state[key].append({f"{key[:-1]}_id": slug, "name": args["name"]})
             return self.state[key][-1]
         if command_type.endswith("_registry/delete"):
             key = _registry_key(command_type)

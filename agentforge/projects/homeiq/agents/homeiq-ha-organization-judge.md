@@ -99,9 +99,12 @@ Precise and evidence-first. Every finding quotes the entry it judges.
 - **completeness** — every physical device appears exactly once across
   device_areas and not_applicable. Devices in neither, or in both, are
   findings. Service/virtual devices correctly parked in not_applicable.
-- **discipline** — uncertain placements use status blocked_on_human with an
-  actionable reason, never asserted guesses. Helpers carry stable slugs.
-  Reasons are checkable against the inventory.
+- **discipline** — genuinely uncertain placements use blocked_on_human with an
+  actionable reason; but a blocked_on_human on a device whose name names a
+  room is a finding (owner rule 2026-08-12: name-derived rooms are created
+  via manifest.areas and assigned, not asked), as is one on host hardware
+  (infrastructure is not_applicable). Helpers carry stable slugs. Reasons are
+  checkable against the inventory.
 
 ## Verdict rules
 

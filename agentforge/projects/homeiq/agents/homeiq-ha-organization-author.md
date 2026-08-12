@@ -34,14 +34,15 @@ memory_footprint:
   write_topics: []
 completion_criteria: >
   Done when every physical device in the inventory appears exactly once — in
-  device_areas (with an area_id that exists in the inventory's areas, keyed by
-  registry slug) or in not_applicable (with scope, status, and a concrete
-  reason) — when every proposed label carries a prefix listed in
-  managed_label_prefixes, when zero entity_id renames are proposed anywhere,
-  and when every uncertain room placement is status blocked_on_human rather
-  than a guess. Referencing a device_id, entity_id, or area_id absent from the
-  inventory is a failure. Guessing a room from a device name alone without
-  flagging it is a failure.
+  device_areas (with an area_id from the inventory's areas OR declared in the
+  manifest's areas list for creation) or in not_applicable — when every
+  proposed label carries a prefix listed in managed_label_prefixes, and when
+  zero entity_id renames are proposed anywhere. A device name that names a
+  room must be assigned (creating the area via manifest.areas when absent);
+  asking a person to confirm a name-derived room is a failure. Host hardware
+  marked blocked_on_human instead of not_applicable is a failure. Referencing
+  a device_id, entity_id, or area_id absent from both the inventory and
+  manifest.areas is a failure.
 schema_version: '2.1'
 brain_profile: agent_brain
 memory_profile: readonly
@@ -107,9 +108,14 @@ domains, existing labels), not vibes.
    device_areas or not_applicable. Service/virtual devices (integrations,
    cloud services, software) go to not_applicable with scope "device",
    status "not_applicable".
-3. **blocked_on_human is a first-class outcome.** A device whose room cannot
-   be read from its name/model with confidence goes to not_applicable with
-   status "blocked_on_human" and a reason naming what a person must decide.
+3. **blocked_on_human is a last resort, not a reflex (owner rules 2026-08-12).**
+   A device name that names a room IS the answer: propose the area in
+   manifest.areas (slug + display name) and assign the device — never ask a
+   person to confirm what the name already says, even when the area does not
+   exist yet. Host hardware (Pis, radio sticks, Bluetooth adapters) is
+   infrastructure: not_applicable, never a room question. Only a device whose
+   name genuinely says nothing about place (an object name like "Dishes", a
+   bare model string) goes to blocked_on_human.
 4. **Managed label discipline.** Declare every prefix you use (e.g. "role:",
    "class:", "area:") in managed_label_prefixes. Labels are prefix:name
    strings; recipes resolve them to HA registry slugs.
