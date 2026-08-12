@@ -88,26 +88,32 @@ function Start-Domain {
 # into output. Parity with preflight-env.sh.
 $manifest = Join-Path $ProjectRoot "env.required"
 $envFile = Join-Path $ProjectRoot ".env"
-if ((Test-Path $manifest) -and (Test-Path $envFile)) {
-    $envKeys = @{}
-    foreach ($line in Get-Content $envFile) {
-        if ($line -match '^([A-Z_][A-Z0-9_]*)=(.+)$') { $envKeys[$Matches[1]] = $true }
-    }
-    $missing = @()
-    foreach ($row in Get-Content $manifest) {
-        if ($row -match '^\s*(#|$)') { continue }
-        $parts = $row -split "`t"
-        if ($parts.Count -ge 2 -and $parts[1] -eq 'required' -and -not $envKeys.ContainsKey($parts[0])) {
-            $missing += $parts[0]
-        }
-    }
-    if ($missing.Count -gt 0) {
-        Write-Host "[ERROR] Env preflight failed - REQUIRED keys absent or empty: $($missing -join ', ')" -ForegroundColor Red
-        Write-Host "[ERROR] Restore them at key-name level - see docs/operations/env-restore.md" -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "[OK] Env preflight: all required keys present" -ForegroundColor Green
+if (-not (Test-Path $manifest)) {
+    Write-Host "[ERROR] Env preflight failed - manifest not found: $manifest" -ForegroundColor Red
+    exit 1
 }
+if (-not (Test-Path $envFile)) {
+    Write-Host "[ERROR] Env preflight failed - .env not found (copy infrastructure/env.example)" -ForegroundColor Red
+    exit 1
+}
+$envKeys = @{}
+foreach ($line in Get-Content $envFile) {
+    if ($line -match '^([A-Z_][A-Z0-9_]*)=(.+)$') { $envKeys[$Matches[1]] = $true }
+}
+$missing = @()
+foreach ($row in Get-Content $manifest) {
+    if ($row -match '^\s*(#|$)') { continue }
+    $parts = $row -split "`t"
+    if ($parts.Count -ge 2 -and $parts[1] -eq 'required' -and -not $envKeys.ContainsKey($parts[0])) {
+        $missing += $parts[0]
+    }
+}
+if ($missing.Count -gt 0) {
+    Write-Host "[ERROR] Env preflight failed - REQUIRED keys absent or empty: $($missing -join ', ')" -ForegroundColor Red
+    Write-Host "[ERROR] Restore them at key-name level - see docs/operations/env-restore.md" -ForegroundColor Red
+    exit 1
+}
+Write-Host "[OK] Env preflight: all required keys present" -ForegroundColor Green
 
 # Ensure the shared Docker network exists
 Write-Host "[INFO] Ensuring homeiq-network exists..." -ForegroundColor Cyan
