@@ -12,6 +12,7 @@ credential. It is queried by coordinate rather than city name.
 from __future__ import annotations
 
 import asyncio
+import time
 from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
@@ -542,6 +543,27 @@ _health = StandardHealthCheck(
     service_name=settings.service_name,
     version=SERVICE_VERSION,
 )
+
+# Readiness (TAP-5903): a collector whose last successful upstream fetch is
+# older than 2× its poll interval is not ready — running-but-fetchless looked
+# identical to healthy for ten days. Startup grace: no fetch yet is ready
+# while uptime is inside the first interval.
+_READY_START = time.monotonic()
+
+
+async def _check_recent_fetch() -> dict[str, Any]:
+    interval = settings.cache_ttl_seconds
+    if weather_service is None:
+        return {"ok": False, "reason": "service not started"}
+    last = weather_service.last_successful_fetch
+    if last is None:
+        in_grace = (time.monotonic() - _READY_START) <= interval
+        return {"ok": in_grace, "last_successful_fetch": None, "startup_grace": in_grace}
+    age = (datetime.now(UTC) - last).total_seconds()
+    return {"ok": age <= interval * 2, "last_successful_fetch_age_s": round(age)}
+
+
+_health.register_check("recent_fetch", _check_recent_fetch)
 
 
 # ---------------------------------------------------------------------------

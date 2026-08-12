@@ -14,10 +14,11 @@ from typing import Any
 
 import uvicorn
 from aggregator import LogAggregator
-from config import settings
 from fastapi import HTTPException, Query, Request
 from homeiq_observability.logging_config import setup_logging
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
+
+from config import settings
 
 logger = setup_logging("log-aggregator")
 

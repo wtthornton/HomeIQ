@@ -6,11 +6,11 @@ Migrated from aiohttp to FastAPI with shared library pattern.
 
 import asyncio
 import contextlib
+import time
 from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
-from config import settings
 from fastapi import Query, Request
 from health_check import HealthCheckHandler
 from homeiq_observability.logging_config import (
@@ -22,6 +22,8 @@ from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from influxdb_client_3 import InfluxDBClient3, Point
 from providers import AwattarProvider
 from security import require_internal_network, validate_hours_parameter
+
+from config import settings
 
 logger = setup_logging("electricity-pricing-service")
 
@@ -260,6 +262,27 @@ lifespan.on_shutdown(_shutdown, name="electricity-pricing-cleanup")
 
 # --- Health check ---
 health = StandardHealthCheck(service_name="electricity-pricing-service", version="1.0.0")
+
+# Readiness (TAP-5903): a collector whose last successful upstream fetch is
+# older than 2x its poll interval is not ready — running-but-fetchless read
+# as healthy for ten days. No fetch yet is ready only inside a startup grace.
+_READY_START = time.monotonic()
+
+
+async def _check_recent_fetch() -> dict[str, Any]:
+    if service is None:
+        return {"ok": False, "reason": "service not started"}
+    last = service.health_handler.last_successful_fetch
+    interval = service.fetch_interval
+    if last is None:
+        in_grace = (time.monotonic() - _READY_START) <= max(interval, 300)
+        return {"ok": in_grace, "last_successful_fetch": None, "startup_grace": in_grace}
+    age = (datetime.now(UTC) - last).total_seconds()
+    return {"ok": age <= interval * 2, "last_successful_fetch_age_s": round(age)}
+
+
+health.register_check("recent_fetch", _check_recent_fetch)
+
 
 # --- App ---
 app = create_app(

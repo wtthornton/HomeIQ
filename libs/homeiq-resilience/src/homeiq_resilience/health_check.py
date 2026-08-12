@@ -43,12 +43,15 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
-# Type alias for dependency check functions.
-# Each must return True (healthy) or False (unhealthy).
-HealthCheckFn = Callable[[], Awaitable[bool]]
+# Type alias for dependency check functions. Each returns either a bool
+# (True = healthy) or a dict with an "ok" bool plus arbitrary detail keys
+# (credential presence, age of last successful fetch, ...). The detail form
+# feeds the ``/ready`` endpoint (TAP-5903).
+HealthCheckFn = Callable[[], Awaitable[bool | dict[str, Any]]]
 
 
 class StandardHealthCheck:
@@ -81,6 +84,13 @@ class StandardHealthCheck:
 
         self.router = APIRouter(tags=["health"])
         self.router.add_api_route("/health", self._health_endpoint, methods=["GET"])
+        # /health is liveness (always 200 — Docker restarts on it); /ready is
+        # strict: 503 when any registered check fails OR when no checks are
+        # registered, because a service that cannot demonstrate readiness must
+        # not read as ready. A green that cannot go red is worse than no
+        # signal (TAP-5903: 58 containers reported healthy while 7 of 8
+        # collectors produced no data).
+        self.router.add_api_route("/ready", self._ready_endpoint, methods=["GET"])
 
     def register_check(self, name: str, fn: HealthCheckFn) -> None:
         """Register a named dependency check.
@@ -94,29 +104,45 @@ class StandardHealthCheck:
         """
         self._checks.append((name, fn))
 
-    async def _health_endpoint(self) -> dict[str, Any]:
-        """Handler for ``GET /health``."""
-        checks_results: list[dict[str, Any]] = []
-        all_healthy = True
-
+    async def _run_checks(self) -> list[dict[str, Any]]:
+        """Run every registered check, normalizing bool and dict returns."""
+        results: list[dict[str, Any]] = []
         for name, fn in self._checks:
             start = time.monotonic()
+            detail: dict[str, Any] = {}
             try:
-                ok = await fn()
+                raw = await fn()
+                if isinstance(raw, dict):
+                    ok = bool(raw.get("ok", False))
+                    detail = {k: v for k, v in raw.items() if k != "ok"}
+                else:
+                    ok = bool(raw)
             except Exception:
                 ok = False
                 logger.warning("Health check '%s' raised an exception", name, exc_info=True)
             elapsed_ms = (time.monotonic() - start) * 1000
-
-            status = "healthy" if ok else "unhealthy"
-            if not ok:
-                all_healthy = False
-
-            checks_results.append({
+            entry: dict[str, Any] = {
                 "name": name,
-                "status": status,
+                "ok": ok,
                 "latency_ms": round(elapsed_ms, 1),
-            })
+            }
+            if detail:
+                entry["detail"] = detail
+            results.append(entry)
+        return results
+
+    async def _health_endpoint(self) -> dict[str, Any]:
+        """Handler for ``GET /health``."""
+        raw_results = await self._run_checks()
+        checks_results: list[dict[str, Any]] = [
+            {
+                "name": r["name"],
+                "status": "healthy" if r["ok"] else "unhealthy",
+                "latency_ms": r["latency_ms"],
+            }
+            for r in raw_results
+        ]
+        all_healthy = all(r["ok"] for r in raw_results)
 
         # Determine overall status
         if not self._checks or all_healthy:
@@ -148,6 +174,28 @@ class StandardHealthCheck:
             response["timestamp"] = datetime.now(UTC).isoformat()
 
         return response
+
+    async def _ready_endpoint(self) -> JSONResponse:
+        """Handler for ``GET /ready`` — strict, dependency-aware readiness."""
+        results = await self._run_checks()
+        payload: dict[str, Any] = {
+            "service": self.service_name,
+            "version": self.version,
+            "checks": results,
+        }
+        if self.include_timestamp:
+            payload["timestamp"] = datetime.now(UTC).isoformat()
+
+        if not results:
+            payload["ready"] = False
+            payload["reason"] = "no readiness checks registered"
+            return JSONResponse(payload, status_code=503)
+
+        ready = all(r["ok"] for r in results)
+        payload["ready"] = ready
+        if not ready:
+            payload["reason"] = ", ".join(r["name"] for r in results if not r["ok"]) + " not ready"
+        return JSONResponse(payload, status_code=200 if ready else 503)
 
     async def get_status(self) -> dict[str, Any]:
         """Programmatic access to health status (same as endpoint response)."""

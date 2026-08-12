@@ -22,7 +22,7 @@ declare -A SERVICES=(
   ["smart-meter-service"]=8014
   ["sports-api"]=8005
   ["air-quality-service"]=8012
-  ["carbon-intensity-service"]=8010
+  ["carbon-intensity-service"]=18010
   ["electricity-pricing-service"]=8011
   ["calendar-service"]=8013
   ["log-aggregator"]=8015
@@ -74,6 +74,13 @@ DEGRADED=0
 DOWN=0
 TOTAL=${#SERVICES[@]}
 
+# Data collectors expose /ready (TAP-5903): dependency-aware readiness.
+# "(healthy)" counts measure uptime, not function — a collector is only
+# counted READY when its /ready answers 200.
+COLLECTORS="weather-api smart-meter-service sports-api air-quality-service carbon-intensity-service electricity-pricing-service calendar-service log-aggregator"
+READY=0
+NOT_READY=0
+
 echo -e "${BOLD}${BLUE}╔══════════════════════════════════════════════════════╗${NC}"
 echo -e "${BOLD}${BLUE}║         HomeIQ Service Health Matrix                 ║${NC}"
 echo -e "${BOLD}${BLUE}╚══════════════════════════════════════════════════════╝${NC}"
@@ -86,20 +93,33 @@ for service in $(echo "${!SERVICES[@]}" | tr ' ' '\n' | sort); do
   status_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 3 --max-time 5 "http://localhost:${port}/health" 2>/dev/null || echo "000")
 
   if [ "$status_code" = "200" ]; then
-    printf "%-35s %-8s ${GREEN}● HEALTHY${NC}\n" "$service" "$port"
-    ((HEALTHY++))
+    if [[ " $COLLECTORS " == *" $service "* ]]; then
+      ready_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 3 --max-time 5 "http://localhost:${port}/ready" 2>/dev/null || echo "000")
+      if [ "$ready_code" = "200" ]; then
+        printf "%-35s %-8s ${GREEN}● READY${NC}\n" "$service" "$port"
+        READY=$((READY+1))
+      else
+        reason=$(curl -s --connect-timeout 3 --max-time 5 "http://localhost:${port}/ready" 2>/dev/null | grep -o '"reason":"[^"]*"' | cut -d'"' -f4)
+        printf "%-35s %-8s ${YELLOW}◐ UP, NOT READY${NC} %s\n" "$service" "$port" "${reason:+($reason)}"
+        NOT_READY=$((NOT_READY+1))
+      fi
+    else
+      printf "%-35s %-8s ${GREEN}● HEALTHY${NC}\n" "$service" "$port"
+    fi
+    HEALTHY=$((HEALTHY+1))
   elif [ "$status_code" = "000" ]; then
     printf "%-35s %-8s ${RED}✗ DOWN${NC}\n" "$service" "$port"
-    ((DOWN++))
+    DOWN=$((DOWN+1))
   else
     printf "%-35s %-8s ${YELLOW}◐ DEGRADED (HTTP ${status_code})${NC}\n" "$service" "$port"
-    ((DEGRADED++))
+    DEGRADED=$((DEGRADED+1))
   fi
 done
 
 echo ""
 echo "─────────────────────────────────────────────────────"
 echo -e "${BOLD}Summary:${NC} ${GREEN}${HEALTHY} healthy${NC} | ${YELLOW}${DEGRADED} degraded${NC} | ${RED}${DOWN} down${NC} | Total: ${TOTAL}"
+echo -e "${BOLD}Collectors:${NC} ${GREEN}${READY} ready${NC} | ${YELLOW}${NOT_READY} up-but-not-ready${NC} (readiness = /ready, TAP-5903 — healthy alone measures uptime, not function)"
 
 if [ "$DOWN" -gt 0 ]; then
   exit 1
