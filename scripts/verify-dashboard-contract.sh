@@ -124,6 +124,16 @@ read -r -d '' CONTRACT <<'EOF'
 /api/v1/hygiene/issues	200	http	data-api proxies device-intelligence with server-side X-API-Key (TAP-5449); empty list is a valid state
 /api/v1/docker/containers/data-api/logs?tail=10	200	http	admin-api; data-api added to the managed-container mapping (TAP-5450) — returns mock text while the docker socket is unreadable (same condition as the admin-api row above)
 /api/v1/docker/containers/not-a-service/logs?tail=10	400	http	admin-api; unmanaged names are a deliberate 400, no longer shadowed into a 500 (TAP-5450)
+/api/v1/energy/circuits	200	http	data-api; TAP-5445 — Flux time literals fixed, all energy routes green
+/api/v1/energy/correlations	200	http	data-api; TAP-5445
+/api/v1/energy/statistics	200	http	data-api; TAP-5445
+/api/v1/energy/top-consumers	200	http	data-api; TAP-5445
+/api/v1/energy/device-impact/light.office	200	http	data-api; TAP-5445 — parameterized route, any entity id answers (empty impact is valid)
+/api/v1/memories	200	http	admin-api; TAP-5437 — memory schema provisioned, pgvector live
+/api/v1/memories/stats	200	http	admin-api; TAP-5437
+/api/v1/memories/trust	200	http	admin-api; TAP-5437 — the enum-bind 500 fixed in homeiq-memory
+/ai-automation/api/patterns/list	200	http	ai-automation → ai-pattern-service; TAP-5438 — the prefix the frontend actually calls (api.ts baseUrl /ai-automation)
+/ai-automation/api/patterns/stats	200	http	ai-automation → ai-pattern-service; TAP-5438
 /api/devices	200	http	data-api
 /api/devices/{DEVICE_ID}	200	http	data-api; id resolved at runtime from /api/devices
 /api/entities	200	http	data-api
