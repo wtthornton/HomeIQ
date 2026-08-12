@@ -52,6 +52,9 @@ manifest:
     area_id: dining_room
     reason: 'Owner answer 2026-08-12: the Dishes WLED strip is in the Dining Room (area created on this
       answer).'
+  - device_id: 6eebb4229176cf2e2762df8227624404
+    area_id: kitchen
+    reason: 'Owner answer 2026-08-12 (wizard export): the 50" Frame TV is in the Kitchen.'
   entity_labels:
   - entity_id: light.living_room
     labels:
@@ -368,11 +371,6 @@ manifest:
     id: 69cf190185b436efdaa71525b6a29225
     status: not_applicable
     reason: Bluetooth adapter on the Pi host — infrastructure, not a room device (owner rule 2026-08-12).
-  - scope: device
-    id: 6eebb4229176cf2e2762df8227624404
-    status: blocked_on_human
-    reason: '''50" The Frame'' TV has no room name in its device name and no matching area exists; a person
-      must pick the room.'
   - scope: device
     id: e74b87c2aca1767d7645016abf5c9352
     status: not_applicable

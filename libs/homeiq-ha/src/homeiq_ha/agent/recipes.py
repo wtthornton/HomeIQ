@@ -766,8 +766,8 @@ def default_recipes(
         DevicesHaveAreasRecipe(),
         AddonRecipe("core_ssh", title="Terminal & SSH"),
         AddonRecipe("core_configurator", title="File editor"),
-        # Store slug read live 2026-08-11: NOT "otbr" (the store 404s on it).
-        AddonRecipe("core_openthread_border_router", title="OpenThread Border Router"),
+        # OpenThread Border Router deliberately absent: no Thread radio on
+        # this host — owner decision 2026-08-12, add-on uninstalled same day.
         HACSBootstrapRecipe(),
         # NWS deliberately absent: the stack already carries three weather
         # feeds (data-collectors/weather-api, websocket-ingestion's
