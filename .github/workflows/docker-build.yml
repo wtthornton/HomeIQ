@@ -3,9 +3,15 @@ name: Docker Build and Test
 on:
   pull_request:
     paths:
+      # Root-level and nested patterns are both listed: GitHub's path matcher
+      # treats '*' as not crossing '/', and '**/x' is not documented to match
+      # a root-level 'x', so the bare patterns keep root compose files covered.
       - '**/Dockerfile*'
+      - 'docker-compose*.yml'
+      - 'compose*.yml'
       - '**/docker-compose*.yml'
       - '**/compose*.yml'
+      - 'infrastructure/backup/backup-scheduler.yml'
       - '.github/workflows/docker-build.yml'
   workflow_dispatch: {}
 
@@ -31,24 +37,64 @@ jobs:
 
       # A file with a compose extension that fails YAML parsing breaks every
       # tool that sweeps compose files (TAP-5289's fragment did exactly that).
+      # Compose files that dodge the standard names (EXTRA_COMPOSE_FILES) are
+      # parse-checked too, and any parseable YAML that looks like a compose
+      # file under a nonstandard name fails the job until it is renamed or
+      # listed — otherwise it would sit permanently outside this guard.
       - name: YAML-parse every tracked compose file
         run: |
           python3 - <<'PY'
           import subprocess, sys, yaml
+
+          EXTRA_COMPOSE_FILES = {
+              "infrastructure/backup/backup-scheduler.yml",
+          }
+
+          def is_compose_shaped(docs):
+              for doc in docs:
+                  if not isinstance(doc, dict):
+                      continue
+                  services = doc.get("services")
+                  if isinstance(services, dict) and any(
+                      isinstance(s, dict) and ("image" in s or "build" in s)
+                      for s in services.values()
+                  ):
+                      return True
+              return False
+
           files = subprocess.check_output(["git", "ls-files"], text=True).splitlines()
+          yaml_files = [f for f in files if f.endswith((".yml", ".yaml"))]
           compose = [
-              f for f in files
+              f for f in yaml_files
               if f.rsplit("/", 1)[-1].startswith(("compose", "docker-compose"))
-              and f.endswith((".yml", ".yaml"))
+              or f in EXTRA_COMPOSE_FILES
           ]
+
           failed = False
           for f in compose:
               try:
                   with open(f) as fh:
                       list(yaml.safe_load_all(fh))
               except yaml.YAMLError as exc:
-                  print(f"FAIL {f}: {exc}")
+                  print(f"FAIL {f}: does not parse: {exc}")
                   failed = True
+
+          for f in yaml_files:
+              if f in compose:
+                  continue
+              try:
+                  with open(f) as fh:
+                      docs = list(yaml.safe_load_all(fh))
+              except yaml.YAMLError:
+                  continue  # not classifiable as compose; out of scope
+              if is_compose_shaped(docs):
+                  print(
+                      f"FAIL {f}: compose-shaped file with a nonstandard name — "
+                      "rename to compose*.yml / docker-compose*.yml or add it to "
+                      "EXTRA_COMPOSE_FILES in .github/workflows/docker-build.yml"
+                  )
+                  failed = True
+
           print(f"checked {len(compose)} compose files")
           sys.exit(1 if failed else 0)
           PY
