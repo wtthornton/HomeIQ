@@ -1,5 +1,10 @@
 # HA Setup Service - Comprehensive Code Review
 
+> **Historical note (2026-08-12):** `docker-compose.service.yml`, referenced in
+> several findings below, was deleted under TAP-5289 — it was an unparseable
+> copy-paste fragment. The live service definition is in
+> `domains/device-management/compose.yml`.
+
 **Service**: ha-setup-service (Tier 2, Port 8024/8020)
 **Date**: 2026-02-06
 **Reviewer**: Claude Opus 4.6 Deep Review

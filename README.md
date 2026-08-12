@@ -125,6 +125,7 @@ cp infrastructure/env.example .env
 #   HA_TOKEN=your-long-lived-access-token
 
 # Start all services (by domain — recommended; groups by domain in Docker Desktop)
+# Reuses image caches by default; STACK_REFRESH=1 forces fresh pulls + recreate
 ./scripts/start-stack.sh      # Linux/Mac
 .\scripts\start-stack.ps1     # Windows
 
@@ -158,6 +159,7 @@ docker compose -f domains/core-platform/compose.yml \
                -f domains/data-collectors/compose.yml --profile production up -d
 
 # Full stack (~58 production-profile containers, grouped by domain in Docker Desktop)
+# Reuses image caches by default; STACK_REFRESH=1 forces fresh pulls + recreate
 ./scripts/start-stack.sh      # Linux/Mac
 .\scripts\start-stack.ps1     # Windows
 ```
