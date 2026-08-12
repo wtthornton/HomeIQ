@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from homeiq_ha.client.errors import HAHumanGateRequired
+
 from .backup import (
     BACKUP_TIMEOUT,
     BackupTimeout,
@@ -502,11 +504,39 @@ class AddonRecipe(Recipe):
                 return dict(addon)
         return None
 
+    async def _unconfigured_required(self, ha: Any) -> list[str]:
+        """Required options a person has not set yet.
+
+        The Supervisor refuses to start an add-on whose required options are
+        null (observed live: OTBR's ``device`` — which serial port carries the
+        Thread radio is a hardware fact no agent can infer). Schema shape read
+        live: a list of ``{"name", "required": bool, ...}`` entries.
+        """
+        info = await ha.ws.supervisor_api(f"/addons/{self.slug}/info", timeout=60)
+        options = (info or {}).get("options") or {}
+        return [
+            str(entry["name"])
+            for entry in (info or {}).get("schema") or []
+            if entry.get("required") and options.get(entry.get("name")) is None
+        ]
+
     async def check(self, ha: HAClient) -> CheckResult:
         addon = await self._installed(ha)
         if addon is None:
             return CheckResult(CheckStatus.NEEDS_APPLY, f"{self.title} is not installed")
         if self.start and addon.get("state") != "started":
+            missing = await self._unconfigured_required(ha)
+            if missing:
+                return CheckResult(
+                    CheckStatus.BLOCKED_ON_HUMAN,
+                    f"{self.title} is installed but requires configuration",
+                    {"state": addon.get("state"), "unconfigured": missing},
+                    human_action=(
+                        f"Set required option(s) {missing} for {self.title} in "
+                        "Settings > Add-ons. These are hardware/site facts the "
+                        "agent must not guess."
+                    ),
+                )
             return CheckResult(
                 CheckStatus.NEEDS_APPLY,
                 f"{self.title} is installed but {addon.get('state')}",
@@ -532,6 +562,15 @@ class AddonRecipe(Recipe):
         if self.start:
             addon = await self._installed(ha)
             if (addon or {}).get("state") != "started":
+                missing = await self._unconfigured_required(ha)
+                if missing:
+                    # The engine turns this into BLOCKED_ON_HUMAN; starting
+                    # anyway would just make the Supervisor error instead.
+                    raise HAHumanGateRequired(
+                        f"{self.title} needs required option(s) {missing} set "
+                        "by a person before it can start",
+                        {"type": "addon_options", "unconfigured": missing},
+                    )
                 await ha.ws.supervisor_api(f"/addons/{self.slug}/start", method="post")
                 changes.append(Change("start add-on", self.slug, after="started"))
         return ApplyResult(tuple(changes), f"{self.title}: {len(changes)} change(s)")
@@ -634,8 +673,18 @@ class TeamTrackerRecipe(IntegrationRecipe):
     name = "integrations.team_tracker"
     description = "Team Tracker configured with a sports-api-compatible entity_id"
 
-    def __init__(self, *, steps: tuple[dict[str, Any], ...] = ({},)) -> None:
-        super().__init__("teamtracker", title="Team Tracker", steps=steps)
+    def __init__(
+        self,
+        *,
+        steps: tuple[dict[str, Any], ...] = ({},),
+        needs_user_input: str | None = None,
+    ) -> None:
+        super().__init__(
+            "teamtracker",
+            title="Team Tracker",
+            steps=steps,
+            needs_user_input=needs_user_input,
+        )
         self.name = "integrations.team_tracker"
 
     async def _marked_entities(self, ha: Any) -> list[str]:
@@ -717,8 +766,22 @@ def default_recipes(
         # Store slug read live 2026-08-11: NOT "otbr" (the store 404s on it).
         AddonRecipe("core_openthread_border_router", title="OpenThread Border Router"),
         HACSBootstrapRecipe(),
-        IntegrationRecipe("nws", title="National Weather Service"),
-        TeamTrackerRecipe(),
+        IntegrationRecipe(
+            "nws",
+            title="National Weather Service",
+            needs_user_input=(
+                "Add the National Weather Service integration in Settings > "
+                "Integrations: it needs your observation station and contact "
+                "email — site facts the agent must not guess."
+            ),
+        ),
+        TeamTrackerRecipe(
+            needs_user_input=(
+                "Add Team Tracker in Settings > Integrations: league and team "
+                "are personal preferences the agent must not guess. Name the "
+                "sensor so its entity_id contains 'team_tracker'."
+            ),
+        ),
         ZHARecipe(ZHA_SERIAL_PATH),
     ]
     if manifest is not None:

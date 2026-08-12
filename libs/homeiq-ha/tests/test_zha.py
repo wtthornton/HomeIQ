@@ -99,10 +99,13 @@ async def test_zha_apply_refuses_formation_when_any_entry_exists(sim, state):
     sim.state["config_entries"].append({"entry_id": "zha1", "domain": "zha", "state": state})
     recipe = ZHARecipe(ZHA_PATH)
 
+    async def tripwire(*_a: object, **_kw: object) -> None:
+        raise AssertionError("flow call issued despite existing zha entry")
+
+    sim.rest.start_config_flow = tripwire  # type: ignore[attr-defined]
+
     with pytest.raises(ZHAFormationRefused):
         await recipe.apply(sim)
-
-    assert sim.rest.writes == [], "refusal must happen before any flow call"
 
 
 @pytest.mark.asyncio

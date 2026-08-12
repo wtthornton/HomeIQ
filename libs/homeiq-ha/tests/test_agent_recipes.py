@@ -22,7 +22,7 @@ from homeiq_ha.agent.recipes import (
     TeamTrackerRecipe,
     default_recipes,
 )
-from homeiq_ha.client.errors import HACommandError
+from homeiq_ha.client.errors import HACommandError, HAHumanGateRequired
 
 #: Captured from the live instance on 2026-08-01, before any change.
 FRESH_INSTANCE: dict[str, Any] = {
@@ -173,6 +173,9 @@ class SimWs:
         method = args.get("method", "get")
         if method == "get" and endpoint == "/addons":
             return {"addons": self.state["addons"]}
+        if method == "get" and endpoint.startswith("/addons/") and endpoint.endswith("/info"):
+            slug = endpoint.split("/")[2]
+            return self.state.get("addon_info", {}).get(slug, {})
         self.writes.append(f"supervisor {method} {endpoint}")
         if endpoint.startswith("/store/addons/") and endpoint.endswith("/install"):
             slug = endpoint.split("/")[3]
@@ -547,6 +550,38 @@ async def test_installed_but_stopped_addon_needs_apply():
     result = await AddonRecipe("otbr").check(sim)
     assert result.status is CheckStatus.NEEDS_APPLY
     assert result.details["state"] == "stopped"
+
+
+@pytest.mark.asyncio
+async def test_addon_with_unset_required_option_is_blocked_on_human():
+    """OTBR live: required option 'device' is null and only a person knows
+    which serial port carries the Thread radio. check classifies, apply
+    raises the human gate before ever issuing a start."""
+    sim = SimHA(
+        {
+            **FRESH_INSTANCE,
+            "addons": [{"slug": "otbr", "state": "stopped"}],
+            "addon_info": {
+                "otbr": {
+                    "options": {"device": None, "baudrate": "460800"},
+                    "schema": [
+                        {"name": "device", "required": True, "type": "select"},
+                        {"name": "baudrate", "required": True, "type": "select"},
+                    ],
+                }
+            },
+        }
+    )
+    recipe = AddonRecipe("otbr")
+
+    result = await recipe.check(sim)
+
+    assert result.status is CheckStatus.BLOCKED_ON_HUMAN
+    assert result.details["unconfigured"] == ["device"]
+
+    with pytest.raises(HAHumanGateRequired):
+        await recipe.apply(sim)
+    assert not any("start" in w for w in sim.writes), "no start attempt allowed"
 
 
 # --- Team Tracker entity_id trap ------------------------------------------

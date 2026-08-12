@@ -52,3 +52,28 @@ async def test_apply_runs_the_flow_and_verify_rereads(sim):
     assert applied.change_count == 1
     verified = await recipe.verify(sim)
     assert verified.ok
+
+
+@pytest.mark.asyncio
+async def test_needs_user_input_blocks_instead_of_guessing(sim):
+    from homeiq_ha.client.errors import HAHumanGateRequired
+
+    recipe = IntegrationRecipe("nws", needs_user_input="Pick your weather station — a site fact.")
+
+    result = await recipe.check(sim)
+
+    assert result.status is CheckStatus.BLOCKED_ON_HUMAN
+    assert "weather station" in (result.human_action or "")
+
+    with pytest.raises(HAHumanGateRequired):
+        await recipe.apply(sim)
+    assert sim.rest.writes == [], "no flow may be driven with placeholder input"
+
+
+@pytest.mark.asyncio
+async def test_needs_user_input_is_satisfied_once_a_person_configured_it(sim):
+    sim.state["config_entries"].append({"entry_id": "e1", "domain": "nws", "state": "loaded"})
+
+    result = await IntegrationRecipe("nws", needs_user_input="anything").check(sim)
+
+    assert result.status is CheckStatus.SATISFIED
