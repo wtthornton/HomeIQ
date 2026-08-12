@@ -65,6 +65,17 @@ manifest:
     area_id: office
     reason: Name 'Office Samsung TV (UN65TU700DFXZA)' explicitly names Office; matches model of device
       edbdfedf... already placed there.
+  - device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9
+    area_id: office
+    reason: 'Inovelli VZM35-SN fan switch — owner toggle-identification round 2026-08-12: fan is in the
+      office.'
+  - device_id: 5c61fc36807180b2157d6c566047acee
+    area_id: office
+    reason: Inovelli VZM31-SN dimmer — owner tap at 18:13:45Z bound to 'office' callout.
+  - device_id: 409926f92a13f393ad8b72399a5c5e5c
+    area_id: bar
+    reason: Inovelli VZM31-SN dimmer — owner callout 'bar' (by elimination; tap invisible because light
+      already on).
   entity_labels:
   - entity_id: button.bar_restart
     labels:
