@@ -127,6 +127,7 @@ async def get_game_status(team: str):
         # Query only latest game for this team (last 7 days)
         # Use case-insensitive matching by converting to lowercase in Flux
         query = f'''
+            import "strings"
             from(bucket: "sports_data")
                 |> range(start: -7d)
                 |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
@@ -190,6 +191,7 @@ async def get_game_context(team: str):
 
         # Query latest game with case-insensitive matching
         query = f'''
+            import "strings"
             from(bucket: "sports_data")
                 |> range(start: -7d)
                 |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
@@ -504,7 +506,8 @@ async def webhook_event_detector():
                     ]
                 )
                 query = f"""
-                    from(bucket: "sports_data")
+                    import "strings"
+            from(bucket: "sports_data")
                         |> range(start: -24h)
                         |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
                         |> filter(fn: (r) => r.status == "live" or r.status == "upcoming")
@@ -518,7 +521,8 @@ async def webhook_event_detector():
             else:
                 # No teams specified - monitor all games (for backward compatibility)
                 query = """
-                    from(bucket: "sports_data")
+                    import "strings"
+            from(bucket: "sports_data")
                         |> range(start: -24h)
                         |> filter(fn: (r) => r._measurement == "nfl_scores" or r._measurement == "nhl_scores")
                         |> filter(fn: (r) => r.status == "live" or r.status == "upcoming")
