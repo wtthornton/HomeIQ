@@ -121,6 +121,11 @@ services:
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
       - DATABASE_SCHEMA=core
+    volumes:
+      # Per-service integration configs (.env.{service}) served and edited by
+      # /api/v1/integrations/{service}/config; config_manager reads the
+      # container-relative "infrastructure" dir (TAP-5447).
+      - ../../infrastructure/service-configs:/app/infrastructure
     depends_on:
       influxdb:
         condition: service_healthy
