@@ -21,6 +21,7 @@ from sqlalchemy import (
     String,
     func,
 )
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -28,7 +29,20 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 class Base(DeclarativeBase):
     """Base class for all memory models."""
 
-    pass
+    # The wired provisioning path (infrastructure/postgres/init-schemas.sql)
+    # stores enum columns as VARCHAR(20) of the member *values* with a CHECK
+    # constraint. A bare Mapped[SomeEnum] would emit a native postgres ENUM
+    # type ("memorytype") persisting member *names* — the type does not exist
+    # in the database, so any query binding an enum parameter fails with
+    # UndefinedObjectError (TAP-5437's /memories/trust 500).
+    type_annotation_map = {
+        Enum: SAEnum(
+            Enum,
+            native_enum=False,
+            length=20,
+            values_callable=lambda e: [m.value for m in e],
+        ),
+    }
 
 
 class MemoryType(str, Enum):
