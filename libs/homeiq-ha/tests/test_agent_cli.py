@@ -9,7 +9,8 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from homeiq_ha.agent.__main__ import _backup_taker, _parser
+from homeiq_ha.agent.__main__ import _parser
+from homeiq_ha.agent.backup import backup_taker
 
 
 def test_parser_defaults_to_audit_with_no_manifest_override():
@@ -60,7 +61,7 @@ class _BackupHA:
 async def test_backup_taker_generates_and_waits_for_the_backup():
     ha = _BackupHA()
 
-    await _backup_taker(ha)("pre-phase-3")
+    await backup_taker(ha)("pre-phase-3")
 
     assert ha.ws.generated == [{"name": "pre-phase-3", "agent_ids": ["hassio.local"]}]
     assert ha.ws._polls >= 2, "taker must wait for the backup to land, not just start it"

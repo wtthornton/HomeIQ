@@ -19,7 +19,7 @@ from pathlib import Path
 
 from homeiq_ha.client import HAClient
 
-from .backup import available_agent_ids, wait_for_backup
+from .backup import backup_taker
 from .engine import HAInitAgent, Mode
 from .manifest import DEFAULT_MANIFEST_PATH, load_manifest
 from .recipes import default_recipes
@@ -85,22 +85,6 @@ async def _run_state_mode(args: argparse.Namespace) -> int:
         return 0
 
 
-def _backup_taker(ha: HAClient):
-    """Pre-phase backup for the engine's rule-2 gate."""
-
-    async def take_backup(name: str) -> None:
-        await ha.ws.send_command(
-            "backup/generate",
-            fields={
-                "name": name,
-                "agent_ids": list(await available_agent_ids(ha)),
-            },
-        )
-        await wait_for_backup(ha)
-
-    return take_backup
-
-
 async def _run(args: argparse.Namespace) -> int:
     if args.mode in {"snapshot", "diff", "restore"}:
         return await _run_state_mode(args)
@@ -114,7 +98,7 @@ async def _run(args: argparse.Namespace) -> int:
             report = await agent.plan(ha, phase=args.phase, only=args.only)
         else:
             report = await agent.apply(
-                ha, phase=args.phase, only=args.only, backup=_backup_taker(ha)
+                ha, phase=args.phase, only=args.only, backup=backup_taker(ha)
             )
 
     print(report.describe())

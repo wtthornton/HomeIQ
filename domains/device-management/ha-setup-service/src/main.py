@@ -20,6 +20,7 @@ from .integration_checker import IntegrationHealthChecker
 from .monitoring_service import ContinuousHealthMonitor
 from .optimization_engine import PerformanceAnalysisEngine, RecommendationEngine
 from .routes_health import health_router
+from .routes_init import init_router
 from .routes_validation import optimization_router, validation_router
 from .validation_service import ValidationService
 
@@ -112,6 +113,7 @@ app = create_app(
 
 # Include extracted route modules
 app.include_router(health_router)
+app.include_router(init_router)
 app.include_router(optimization_router)
 app.include_router(validation_router)
 

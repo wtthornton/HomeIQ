@@ -40,6 +40,10 @@ COPY --chown=appuser:appgroup domains/device-management/ha-setup-service/src/ ./
 COPY --chown=appuser:appgroup domains/device-management/ha-setup-service/alembic/ ./alembic/
 COPY --chown=appuser:appgroup domains/device-management/ha-setup-service/alembic.ini ./alembic.ini
 
+# Desired-state organization manifest for the init agent (git is SoT;
+# default_recipes() resolves config/ha-organization-manifest.yaml from CWD)
+COPY --chown=appuser:appgroup config/ha-organization-manifest.yaml ./config/ha-organization-manifest.yaml
+
 # Create data directory
 RUN mkdir -p /app/data && chown -R appuser:appgroup /app/data
 

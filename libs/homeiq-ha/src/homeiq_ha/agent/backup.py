@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Awaitable, Callable
 
     from homeiq_ha.client import HAClient
 
@@ -86,6 +86,26 @@ async def available_agent_ids(ha: HAClient) -> tuple[str, ...]:
     )
 
 
+def backup_taker(ha: HAClient) -> Callable[[str], Awaitable[None]]:
+    """A pre-phase backup function for the engine's rule-2 gate.
+
+    Generates a named backup to every available destination and waits for it
+    to finish being written — ``backup/generate`` only starts the job.
+    """
+
+    async def take_backup(name: str) -> None:
+        await ha.ws.send_command(
+            "backup/generate",
+            fields={
+                "name": name,
+                "agent_ids": list(await available_agent_ids(ha)),
+            },
+        )
+        await wait_for_backup(ha)
+
+    return take_backup
+
+
 async def wait_for(
     ha: HAClient,
     predicate: Callable[[BackupStatus], bool],
@@ -135,6 +155,7 @@ __all__ = [
     "BackupStatus",
     "BackupTimeout",
     "available_agent_ids",
+    "backup_taker",
     "read_status",
     "wait_for",
     "wait_for_backup",
