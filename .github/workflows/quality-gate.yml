@@ -39,6 +39,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      # No .env exists in CI; --ci validates the env.required manifest itself
+      # (syntax + every key documented in infrastructure/env.example) so a key
+      # rename cannot silently strand the preflight (TAP-5902).
+      - name: Env manifest preflight
+        run: bash scripts/preflight-env.sh --ci
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
