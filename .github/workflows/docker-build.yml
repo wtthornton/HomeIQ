@@ -4,7 +4,8 @@ on:
   pull_request:
     paths:
       - '**/Dockerfile*'
-      - 'docker-compose*.yml'
+      - '**/docker-compose*.yml'
+      - '**/compose*.yml'
       - '.github/workflows/docker-build.yml'
   workflow_dispatch: {}
 
@@ -13,6 +14,45 @@ env:
   COMPOSE_DOCKER_CLI_BUILD: 1
 
 jobs:
+  compose-parse:
+    name: Parse Tracked Compose Files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      # A file with a compose extension that fails YAML parsing breaks every
+      # tool that sweeps compose files (TAP-5289's fragment did exactly that).
+      - name: YAML-parse every tracked compose file
+        run: |
+          python3 - <<'PY'
+          import subprocess, sys, yaml
+          files = subprocess.check_output(["git", "ls-files"], text=True).splitlines()
+          compose = [
+              f for f in files
+              if f.rsplit("/", 1)[-1].startswith(("compose", "docker-compose"))
+              and f.endswith((".yml", ".yaml"))
+          ]
+          failed = False
+          for f in compose:
+              try:
+                  with open(f) as fh:
+                      list(yaml.safe_load_all(fh))
+              except yaml.YAMLError as exc:
+                  print(f"FAIL {f}: {exc}")
+                  failed = True
+          print(f"checked {len(compose)} compose files")
+          sys.exit(1 if failed else 0)
+          PY
+
   build:
     name: Build Docker Images
     runs-on: ubuntu-latest
