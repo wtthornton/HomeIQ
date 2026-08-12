@@ -165,3 +165,63 @@ def test_areas_recipe_wanted_set_is_manifest_driven():
     areas = next(r for r in recipes if isinstance(r, AreasRecipe))
     assert areas.wanted == ("Master Bedroom",)
     assert "Bedroom" not in areas.wanted, "hardcoded default must not resurrect removed areas"
+
+
+# --- ScenePolicyRecipe (TAP-5975) ------------------------------------------
+
+
+def _scene_manifest() -> OrganizationManifest:
+    from homeiq_ha.agent.manifest import ScenePolicyRule
+
+    return _manifest(
+        scene_policy=(
+            ScenePolicyRule("hue", "bridge_owned", "Hue Bridge owns its scenes"),
+        )
+    )
+
+
+@pytest.mark.asyncio
+async def test_scene_policy_satisfied_when_all_scenes_covered(sim):
+    from homeiq_ha.agent.recipes import ScenePolicyRecipe
+
+    sim.state["entities"].extend(
+        [
+            {"entity_id": "scene.relax", "platform": "hue"},
+            {"entity_id": "scene.energize", "platform": "hue"},
+        ]
+    )
+    recipe = ScenePolicyRecipe(_scene_manifest())
+    check = await recipe.check(sim)
+    assert check.status is CheckStatus.SATISFIED
+    assert check.details["covered"] == {"hue": 2}
+    assert sim.writes == [], "report-only recipe must never write"
+
+
+@pytest.mark.asyncio
+async def test_scene_policy_blocks_on_uncovered_scene_source(sim):
+    from homeiq_ha.agent.recipes import ScenePolicyRecipe
+
+    sim.state["entities"].extend(
+        [
+            {"entity_id": "scene.relax", "platform": "hue"},
+            {"entity_id": "scene.movie_night", "platform": "homeassistant"},
+        ]
+    )
+    recipe = ScenePolicyRecipe(_scene_manifest())
+    check = await recipe.check(sim)
+    assert check.status is CheckStatus.BLOCKED_ON_HUMAN
+    assert "scene.movie_night" in check.details["uncovered"]
+
+    result = await recipe.apply(sim)
+    assert result.changed == ()
+    assert sim.writes == []
+
+
+@pytest.mark.asyncio
+async def test_scene_policy_silent_without_declared_policy(sim):
+    from homeiq_ha.agent.recipes import ScenePolicyRecipe
+
+    sim.state["entities"].append({"entity_id": "scene.relax", "platform": "hue"})
+    recipe = ScenePolicyRecipe(_manifest())
+    check = await recipe.check(sim)
+    assert check.status is CheckStatus.SATISFIED

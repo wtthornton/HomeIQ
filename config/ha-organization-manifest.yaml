@@ -14,6 +14,9 @@ provenance:
   - finding: caller addition — Hue zone group device 'TV' left not_applicable by the author
     disposition: 'adopted with modification: assigned to living_room so the ''tv'' artifact area empties and areas_remove
       can apply; grouped-light entity stays usable. Owner decision 2026-08-12.'
+  - finding: scene governance (TAP-5975) — 190 Hue-imported scenes had no declared treatment
+    disposition: 'adopted: scene_policy row declares platform=hue bridge_owned; enforced by the report-only organization.scene_policy
+      recipe, which blocks on any scene source without a stance.'
   inventory_artifact: .tapps-mcp/org-inventory-20260812T215552Z.json
   generated: '2026-08-12T22:17:08Z'
   supersedes_run: 379fcd101abc497fb957e502ef5c884b
@@ -1049,6 +1052,13 @@ manifest:
     id: 3388e37de3caa581f99dabc7b6134c22
     status: blocked_on_human
     reason: HP Tango printer has no room evidence in name/model; owner burndown note explicitly keeps it blocked_on_human.
+  scene_policy:
+  - platform: hue
+    stance: bridge_owned
+    reason: All 190 scenes imported by the Hue Bridge Pro pairing live on the bridge; HA's hue integration imports
+      them read-only. The manifest neither regenerates nor drift-flags them — the bridge (edited via the Hue app)
+      is their source of truth. Any future scene from another platform trips the scene-policy recipe's blocked_on_human
+      until it gets its own stance row (TAP-5975).
 design_notes: 'Label taxonomy restricted to the three managed prefixes already in use (role:, class:, area:) per
   owner instruction — no new prefixes minted. role:primary-light marks each WLED controller''s main light entity;
   class:wled-config / class:diagnostic separate WLED tuning entities from telemetry/diagnostic ones; area:* mirrors

@@ -38,6 +38,23 @@ class Area:
 
 
 @dataclass(frozen=True)
+class ScenePolicyRule:
+    """One stance row of the manifest's scene governance (TAP-5975).
+
+    ``bridge_owned`` scenes live on an external hub (e.g. the Hue Bridge):
+    Home Assistant imports them read-only, so the manifest neither
+    regenerates nor drift-flags them — their source of truth is the hub.
+    The report-only scene-policy recipe still fails loudly (blocked_on_human)
+    for any scene entity NO rule covers, so a new scene source can never be
+    silently ignored.
+    """
+
+    platform: str
+    stance: str
+    reason: str
+
+
+@dataclass(frozen=True)
 class AreaRemoval:
     """An area the manifest requires to NOT exist (e.g. an import artifact).
 
@@ -98,6 +115,7 @@ class OrganizationManifest:
     entity_aliases: tuple[EntityAliases, ...]
     helpers: tuple[Helper, ...]
     areas_remove: tuple[AreaRemoval, ...] = ()
+    scene_policy: tuple[ScenePolicyRule, ...] = ()
 
 
 def load_manifest(path: str | Path = DEFAULT_MANIFEST_PATH) -> OrganizationManifest:
@@ -118,6 +136,10 @@ def load_manifest(path: str | Path = DEFAULT_MANIFEST_PATH) -> OrganizationManif
         areas_remove=tuple(
             AreaRemoval(row["area_id"], row.get("reason", ""))
             for row in body.get("areas_remove") or ()
+        ),
+        scene_policy=tuple(
+            ScenePolicyRule(row["platform"], row["stance"], row.get("reason", ""))
+            for row in body.get("scene_policy") or ()
         ),
         device_areas=tuple(
             DeviceArea(row["device_id"], row["area_id"], row.get("reason", ""))
@@ -148,6 +170,7 @@ __all__ = [
     "DEFAULT_MANIFEST_PATH",
     "Area",
     "AreaRemoval",
+    "ScenePolicyRule",
     "DeviceArea",
     "EntityAliases",
     "EntityLabels",

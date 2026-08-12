@@ -425,6 +425,69 @@ class AreasRecipe(_RegistryNamesRecipe):
     registry = "area_registry"
 
 
+class ScenePolicyRecipe(Recipe):
+    """Report-only scene governance (TAP-5975).
+
+    Classifies every live ``scene.*`` entity against the manifest's
+    ``scene_policy`` rows (keyed by entity-registry platform). Covered scenes
+    are governed — ``bridge_owned`` means observed-not-managed, so the audit
+    neither regenerates nor drift-flags them. A scene NO rule covers reports
+    BLOCKED_ON_HUMAN: a new scene source must get an explicit stance, never
+    silent treatment. Never writes.
+    """
+
+    name = "organization.scene_policy"
+    phase = PHASE_ORGANIZATION
+    description = "Every scene entity has a declared governance stance"
+
+    def __init__(self, manifest: OrganizationManifest) -> None:
+        self.manifest = manifest
+
+    async def check(self, ha: HAClient) -> CheckResult:
+        if not self.manifest.scene_policy:
+            return CheckResult(CheckStatus.SATISFIED, "no scene policy declared")
+        entities = await ha.ws.send_command("config/entity_registry/list") or []
+        scenes = [e for e in entities if e.get("entity_id", "").startswith("scene.")]
+        rules = {r.platform: r for r in self.manifest.scene_policy}
+        covered: dict[str, int] = {}
+        uncovered: list[str] = []
+        for scene in scenes:
+            rule = rules.get(scene.get("platform") or "")
+            if rule is None:
+                uncovered.append(scene["entity_id"])
+            else:
+                covered[rule.platform] = covered.get(rule.platform, 0) + 1
+        if uncovered:
+            return CheckResult(
+                CheckStatus.BLOCKED_ON_HUMAN,
+                f"{len(uncovered)} scene(s) have no declared stance",
+                {"covered": covered, "uncovered": uncovered[:20]},
+                human_action=(
+                    "Add a scene_policy row for the platform(s) of: "
+                    f"{sorted({u.split('.')[0] for u in uncovered})} — every "
+                    "scene source needs an explicit curate-or-ignore stance."
+                ),
+            )
+        summary = ", ".join(
+            f"{count} {platform} ({rules[platform].stance})"
+            for platform, count in sorted(covered.items())
+        )
+        return CheckResult(
+            CheckStatus.SATISFIED,
+            f"all {len(scenes)} scene(s) governed: {summary}" if scenes else "no scenes present",
+            {"covered": covered},
+        )
+
+    async def plan(self, ha: HAClient) -> Plan:
+        return Plan(())
+
+    async def apply(self, ha: HAClient) -> ApplyResult:
+        return ApplyResult((), "report-only")
+
+    async def verify(self, ha: HAClient) -> VerifyResult:
+        return VerifyResult(True, "report-only")
+
+
 class ManifestAreasRemoveRecipe(Recipe):
     """Remove areas the manifest declares as artifacts (``areas_remove``).
 
@@ -890,6 +953,7 @@ def default_recipes(
             [
                 ManifestDeviceAreasRecipe(manifest),
                 ManifestAreasRemoveRecipe(manifest),
+                ScenePolicyRecipe(manifest),
                 ManifestEntityLabelsRecipe(manifest),
                 ManifestEntityAliasesRecipe(manifest),
                 ManifestHelpersRecipe(manifest),
@@ -912,6 +976,7 @@ __all__ = [
     "CoreConfigRecipe",
     "DevicesHaveAreasRecipe",
     "ManifestAreasRemoveRecipe",
+    "ScenePolicyRecipe",
     "FirstBackupRecipe",
     "FloorsRecipe",
     "HACSBootstrapRecipe",
