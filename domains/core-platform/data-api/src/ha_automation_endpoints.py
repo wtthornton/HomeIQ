@@ -79,8 +79,26 @@ class WebhookResponse(BaseModel):
 # Create router
 router = APIRouter(tags=["Home Assistant Automation"])
 
-# InfluxDB client
+# InfluxDB client — connected from main._startup via connect_influxdb();
+# module import alone leaves it unconnected and every game route 500ed
+# with "InfluxDB client not connected" (TAP-5448).
 influxdb_client = InfluxDBQueryClient()
+
+
+async def connect_influxdb() -> bool:
+    """Connect the module client at app startup. Safe to call repeatedly."""
+    if influxdb_client.is_connected:
+        return True
+    return await influxdb_client.connect()
+
+
+def _require_influx() -> None:
+    """Unavailable storage is a 503, not a 500 masquerading as a code bug."""
+    if not influxdb_client.is_connected:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="InfluxDB unavailable",
+        )
 
 # Webhook storage (in-memory for now, will be persistent in Phase 2)
 webhooks: dict[str, WebhookRegistration] = {}
@@ -100,6 +118,7 @@ async def get_game_status(team: str):
     Returns:
         Quick status (no_game, upcoming, live, finished)
     """
+    _require_influx()
     try:
         # Normalize team name for case-insensitive matching
         team_lower = team.lower().strip()
@@ -163,6 +182,7 @@ async def get_game_context(team: str):
     Returns:
         Complete game context
     """
+    _require_influx()
     try:
         # Normalize team name for case-insensitive matching
         team_lower = team.lower().strip()
