@@ -88,6 +88,7 @@ class HAWebSocketClient:
         self._max_reconnect_attempts = max_reconnect_attempts
         self._reconnect_task: asyncio.Task[None] | None = None
         self._closing = False
+        self._connection_lost = False
         # Connection metrics (shape kept compatible with the client this
         # replaces in api-automation-edge, TAP-5440).
         self._disconnect_count = 0
@@ -136,6 +137,7 @@ class HAWebSocketClient:
             raise HAAuthError(f"Authentication rejected: {redact(result)}")
 
         self._closing = False
+        self._connection_lost = False
         self._last_connect_time = time.time()
         self._reader = asyncio.create_task(self._read_loop())
         logger.info("Connected to Home Assistant WebSocket API (%s)", result.get("ha_version"))
@@ -163,8 +165,12 @@ class HAWebSocketClient:
         if self._ws is not None:
             await self._ws.close()
             self._ws = None
-        self._last_disconnect_time = time.time()
-        self._disconnect_count += 1
+            # Count the disconnect only when this close ended a connection the
+            # loss path has not already counted — otherwise a drop followed by
+            # close() reported two disconnects for one.
+            if not self._connection_lost:
+                self._last_disconnect_time = time.time()
+                self._disconnect_count += 1
 
     async def _read_loop(self) -> None:
         """Dispatch incoming frames to whichever command is waiting on them."""
@@ -223,6 +229,7 @@ class HAWebSocketClient:
             if not future.done():
                 future.set_exception(exc)
         self._pending.clear()
+        self._connection_lost = True
         self._disconnect_count += 1
         self._last_disconnect_time = time.time()
         reconnect_running = self._reconnect_task is not None and not self._reconnect_task.done()
@@ -298,12 +305,19 @@ class HAWebSocketClient:
         return result
 
     async def _send_and_wait(
-        self, command_type: str, payload: dict[str, Any], timeout: float
+        self,
+        command_type: str,
+        payload: dict[str, Any],
+        timeout: float,
+        on_sent: Callable[[int], None] | None = None,
     ) -> tuple[int, Any]:
         """Send one command and return ``(message_id, result)``.
 
         The message id doubles as the subscription id for subscription-style
-        commands, which is why it is surfaced here.
+        commands, which is why it is surfaced here. ``on_sent`` runs with the
+        allocated id immediately after the frame is sent, before the result is
+        awaited — the seam subscribe_events needs to register its handler
+        before any event frame can race the subscribe result.
         """
         if self._ws is None:
             raise HAClientClosed("Not connected — call connect() first")
@@ -318,6 +332,8 @@ class HAWebSocketClient:
             message = {"id": message_id, "type": command_type, **payload}
             logger.debug("HA ws -> %s", redact(message))
             await self._ws.send(json.dumps(message))
+            if on_sent is not None:
+                on_sent(message_id)
 
         try:
             response = await asyncio.wait_for(future, timeout)
@@ -356,10 +372,26 @@ class HAWebSocketClient:
         payload: dict[str, Any] = {}
         if event_type is not None:
             payload["event_type"] = event_type
-        subscription_id, _ = await self._send_and_wait(
-            "subscribe_events", payload, self._command_timeout
-        )
-        self._subscriptions[subscription_id] = (event_type, handler)
+
+        # Register at send time: event frames can be queued directly behind
+        # the subscribe result, and the read loop does not yield between
+        # resolving the future and dispatching them — registering after the
+        # await silently dropped those first events.
+        sent_id: list[int] = []
+
+        def register(subscription_id: int) -> None:
+            sent_id.append(subscription_id)
+            self._subscriptions[subscription_id] = (event_type, handler)
+
+        try:
+            subscription_id, _ = await self._send_and_wait(
+                "subscribe_events", payload, self._command_timeout, on_sent=register
+            )
+        except BaseException:
+            # The optimistic registration must not outlive a failed subscribe.
+            if sent_id:
+                self._subscriptions.pop(sent_id[0], None)
+            raise
         logger.info("Subscribed to events (type=%s, id=%d)", event_type, subscription_id)
         return subscription_id
 

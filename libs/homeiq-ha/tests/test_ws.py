@@ -211,3 +211,78 @@ async def test_close_suppresses_auto_reconnect(monkeypatch):
     await asyncio.sleep(0.1)
     assert len(sockets) == 1, "close() must not trigger a reconnect"
     assert client.get_metrics()["connected"] is False
+
+
+async def test_event_queued_behind_subscribe_result_is_not_dropped(monkeypatch):
+    """An event frame arriving with the subscribe result must reach the handler."""
+
+    def eager_responder(message: dict[str, Any]) -> dict[str, Any] | None:
+        return ok(message) if message.get("type") == "subscribe_events" else ok(message, [])
+
+    client = HAWebSocketClient("ws://ha.test/api/websocket", "secret-token")
+    sockets = await connect_via_fake(client, eager_responder, monkeypatch)
+    ws = sockets[0]
+
+    original_send = ws.send
+
+    async def send_then_event(raw: str) -> None:
+        await original_send(raw)
+        message = json.loads(raw)
+        if message.get("type") == "subscribe_events":
+            # Queue an event frame immediately behind the subscribe result,
+            # before subscribe_events() gets a chance to run again.
+            ws.push_event(message["id"], {"data": "raced"})
+
+    ws.send = send_then_event  # type: ignore[method-assign]
+
+    received: list[dict[str, Any]] = []
+
+    async def handler(event: dict[str, Any]) -> None:
+        received.append(event)
+
+    await client.subscribe_events("state_changed", handler)
+    await drain()
+    assert received == [{"data": "raced"}], "event behind the subscribe result was dropped"
+    await client.close()
+
+
+async def test_clean_server_close_triggers_reconnect(monkeypatch):
+    """async-for exhaustion (server closed cleanly) counts as connection loss."""
+    client = HAWebSocketClient(
+        "ws://ha.test/api/websocket",
+        "secret-token",
+        auto_reconnect=True,
+        reconnect_delay=0.01,
+        max_reconnect_attempts=3,
+    )
+    sockets = await connect_via_fake(client, subscribing_responder, monkeypatch)
+    await client.subscribe_events("state_changed", None)
+
+    sockets[0].break_connection(StopAsyncIteration())
+    for _ in range(200):
+        await asyncio.sleep(0.01)
+        if len(sockets) > 1 and any(
+            m.get("type") == "subscribe_events" for m in sockets[-1].sent
+        ):
+            break
+    assert len(sockets) == 2, "clean server close must trigger a reconnect"
+    metrics = client.get_metrics()
+    assert metrics["reconnect_count"] == 1
+    assert metrics["disconnect_count"] == 1
+    # The reconnect established a genuinely new connection, so close() ending
+    # it is a real second disconnect (2 connections, 2 disconnects).
+    await client.close()
+    assert client.get_metrics()["disconnect_count"] == 2
+
+
+async def test_loss_without_reconnect_then_close_counts_one_disconnect(monkeypatch):
+    """A drop followed by close() is one disconnect, not two (metrics honesty)."""
+    client = HAWebSocketClient("ws://ha.test/api/websocket", "secret-token")
+    sockets = await connect_via_fake(client, subscribing_responder, monkeypatch)
+
+    sockets[0].break_connection(ConnectionError("socket died"))
+    await drain()
+    assert client.get_metrics()["disconnect_count"] == 1
+
+    await client.close()
+    assert client.get_metrics()["disconnect_count"] == 1
