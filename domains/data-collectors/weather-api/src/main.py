@@ -247,7 +247,7 @@ class WeatherService:
         """Fetch current weather data from the Open-Meteo API.
 
         Returns:
-            Weather data dictionary with temperature, humidity, etc., or cached data on failure.
+            Weather dict on a fresh successful fetch, None on any failure.
         """
         if not self.session or self.session.closed:
             raise RuntimeError("HTTP session not initialized")
