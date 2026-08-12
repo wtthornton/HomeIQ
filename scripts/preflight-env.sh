@@ -4,7 +4,7 @@
 # noticed for ten days).
 #
 # Modes:
-#   preflight-env.sh                 check ROOT_ENV (default .env) against .env.required
+#   preflight-env.sh                 check ROOT_ENV (default .env) against env.required
 #   preflight-env.sh --ci            no .env needed: validate the manifest itself
 #                                    (syntax, and every key documented in
 #                                    infrastructure/env.example)
